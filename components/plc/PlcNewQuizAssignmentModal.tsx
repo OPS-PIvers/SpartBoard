@@ -78,6 +78,22 @@ import { PlcNewAssignmentSharingSlot } from './PlcNewAssignmentSharingSlot';
 import { formatShortDate } from './newAssignmentHelpers';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
+import { toAssessmentBehavior } from '@/utils/quizBehavior';
+import { manualStartAvailable } from '@/utils/assignAvailability';
+import type { AssignClassesValue } from '@/utils/assignTargets';
+import { buildMixedTargetsPayload } from '@/utils/assignTargets';
+import { payloadRequiresCall } from '@/utils/studentTargetRef';
+import { dueAtByClassIdFromRosters } from '@/utils/perClassDueDates';
+import { useSetAssignmentTargets } from '@/hooks/useSetAssignmentTargets';
+import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
+import { useQuizHandRaiseMode } from '@/hooks/useQuizHandRaiseMode';
+import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
+import {
+  defaultWhenValue,
+  type AssignWhenValue,
+} from '@/components/common/library/assignStepper/assignWhenValue';
+import { QuizAssignStepper } from '@/components/widgets/QuizWidget/components/QuizAssignStepper';
+import { planPlcQuizStepperAssign } from './plcQuizStepperAssign';
 
 interface PlcNewQuizAssignmentModalProps {
   plc: Plc;
@@ -118,17 +134,26 @@ export const PlcNewQuizAssignmentModal: React.FC<
   const groupWording = canAccessFeature('my-groups');
   // D12: with the split on, settings come from the teacher's last-used, editable inline.
   const reviewSplit = canAccessFeature('quiz-review-split');
-  const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
-    user?.uid,
-    reviewSplit
-  );
+  // D21: the stepper uses the Quiz steps, prefilled from and saving to last-used rules.
+  const stepperOn = canAccessFeature('assign-stepper');
+  const prefillLastUsed = reviewSplit || stepperOn;
+  const { lastUsed: lastAssignSettings, save: saveLastAssignSettings } =
+    useLastQuizAssignSettings(user?.uid, prefillLastUsed);
   const [editedAssignSettings, setEditedAssignSettings] =
     useState<QuizBehaviorSettings | null>(null);
   const splitAssignSettings = useMemo(
     () => editedAssignSettings ?? getQuizAssignPrefill(lastAssignSettings),
     [editedAssignSettings, lastAssignSettings]
   );
-  const { addToast, rosters } = useDashboard();
+  const { addToast, rosters, updateRoster } = useDashboard();
+  const periodAccess = useAssignPeriodAccess(updateRoster);
+  const handRaiseMode = useQuizHandRaiseMode();
+  const { setAssignmentTargets } = useSetAssignmentTargets();
+  const [stepperClasses, setStepperClasses] = useState<AssignClassesValue>({
+    classIds: [],
+    studentsByClass: {},
+  });
+  const [stepperWhen, setStepperWhen] = useState<AssignWhenValue | null>(null);
   const {
     quizzes,
     loadQuizData,
@@ -137,7 +162,8 @@ export const PlcNewQuizAssignmentModal: React.FC<
     isDriveConnected,
   } = useQuiz(user?.uid);
   const { loadBankContentsForQuiz } = useBankSources(user?.uid);
-  const { createAssignment } = useQuizAssignments(user?.uid);
+  const { createAssignment, setAssignmentTargetSkippedCount } =
+    useQuizAssignments(user?.uid);
   // PLC library, used to pool this run with an existing group of the same title.
   const { quizzes: plcLibrary } = usePlcQuizzes(plc.id);
 
@@ -198,243 +224,378 @@ export const PlcNewQuizAssignmentModal: React.FC<
         return Promise.resolve();
       }
       setPickedQuiz(meta);
+      setStepperWhen(
+        defaultWhenValue({
+          activity: 'quiz',
+          bellAvailable: !!periodAccess,
+          manualAvailable: manualStartAvailable(periodAccess?.bellWindow),
+        })
+      );
       setStep('configure');
       return Promise.resolve();
     },
-    [addToast, quizzes, t]
+    [addToast, quizzes, t, periodAccess]
   );
 
-  const handleSubmit = useCallback(async () => {
-    if (submittingRef.current || outward.locked) return;
-    if (!pickedQuiz || !user) return;
-    if (
-      outward.active &&
-      !(await outward.confirm('Create assignment', VIEW_AS_WRITES.assign))
-    )
-      return;
-    submittingRef.current = true;
-    setSubmitting(true);
+  // `confirmed`: the stepper already asked the View as confirm.
+  const handleSubmit = useCallback(
+    async (confirmed = false) => {
+      if (submittingRef.current || outward.locked) return;
+      if (!pickedQuiz || !user) return;
+      if (
+        outward.active &&
+        !confirmed &&
+        !(await outward.confirm('Create assignment', VIEW_AS_WRITES.assign))
+      )
+        return;
+      submittingRef.current = true;
+      setSubmitting(true);
 
-    let createdSyncGroupId: string | null = null;
-    let linkageAttached = false;
-    try {
-      // Load Drive content up front so a sync-group mint never lands
-      // without questions, and so any Drive auth issue surfaces a toast
-      // before we touch shared state.
-      const data = await loadQuizData(pickedQuiz.driveFileId);
-      // Before any PLC sync writes, so a bank problem can't leave a half-made group.
-      const content = await resolveQuizAssignContent(
-        data,
-        pickedQuiz.driveFileId,
-        { loadBankContentsForQuiz, saveDriveSnapshot }
-      );
+      let createdSyncGroupId: string | null = null;
+      let linkageAttached = false;
+      try {
+        // Load Drive content up front so a sync-group mint never lands
+        // without questions, and so any Drive auth issue surfaces a toast
+        // before we touch shared state.
+        const data = await loadQuizData(pickedQuiz.driveFileId);
+        // Before any PLC sync writes, so a bank problem can't leave a half-made group.
+        const content = await resolveQuizAssignContent(
+          data,
+          pickedQuiz.driveFileId,
+          { loadBankContentsForQuiz, saveDriveSnapshot }
+        );
 
-      const visibleRosterIds = new Set(
-        rosters.filter((r) => !r.loadError).map((r) => r.id)
-      );
-      const validRosterIds = options.picker.rosterIds.filter((id) =>
-        visibleRosterIds.has(id)
-      );
-      const selectedRosters: ClassRoster[] = rosters.filter((r) =>
-        validRosterIds.includes(r.id)
-      );
-      const derived = deriveSessionTargetsFromRosters(selectedRosters);
+        const stepperPlan =
+          stepperOn && stepperWhen
+            ? planPlcQuizStepperAssign({
+                classes: stepperClasses,
+                when: stepperWhen,
+                rosters,
+                bellWindow: periodAccess?.bellWindow,
+              })
+            : null;
+        const visibleRosterIds = new Set(
+          rosters.filter((r) => !r.loadError).map((r) => r.id)
+        );
+        const validRosterIds = options.picker.rosterIds.filter((id) =>
+          visibleRosterIds.has(id)
+        );
+        const selectedRosters: ClassRoster[] =
+          stepperPlan?.rosters ??
+          rosters.filter((r) => validRosterIds.includes(r.id));
+        const derived = deriveSessionTargetsFromRosters(selectedRosters);
 
-      // PLC link only — no sheet step; results pool server-side.
-      const plcLinkage: PlcLinkage = {
-        id: plc.id,
-        name: plc.name,
-        memberEmails: getPlcMemberEmails(plc),
-      };
+        // PLC link only — no sheet step; results pool server-side.
+        const plcLinkage: PlcLinkage = {
+          id: plc.id,
+          name: plc.name,
+          memberEmails: getPlcMemberEmails(plc),
+        };
 
-      // Promote-to-synced: if the source quiz has no `sync.groupId`,
-      // mint one with `plcId` set so peer importers landing on the PLC
-      // template can read the canonical group. Mirrors the QuizWidget
-      // `plcLinkage && !plcTemplateSyncGroupId` branch.
-      let plcTemplateSyncGroupId: string | undefined = pickedQuiz.sync?.groupId;
-      if (!plcTemplateSyncGroupId) {
-        const newSyncGroupId = crypto.randomUUID();
-        try {
-          await createSyncedQuizGroup({
-            groupId: newSyncGroupId,
-            uid: user.uid,
-            title: data.title,
-            questions: data.questions,
-            ...syncedQuizContentFields(data),
-            plcId: plc.id,
-            behavior: pickedQuiz.behavior,
-          });
-          createdSyncGroupId = newSyncGroupId;
+        // Promote-to-synced: if the source quiz has no `sync.groupId`,
+        // mint one with `plcId` set so peer importers landing on the PLC
+        // template can read the canonical group. Mirrors the QuizWidget
+        // `plcLinkage && !plcTemplateSyncGroupId` branch.
+        let plcTemplateSyncGroupId: string | undefined =
+          pickedQuiz.sync?.groupId;
+        if (!plcTemplateSyncGroupId) {
+          const newSyncGroupId = crypto.randomUUID();
           try {
-            await attachSyncLinkage(pickedQuiz.id, {
+            await createSyncedQuizGroup({
               groupId: newSyncGroupId,
-              lastSyncedVersion: 1,
+              uid: user.uid,
+              title: data.title,
+              questions: data.questions,
+              ...syncedQuizContentFields(data),
+              plcId: plc.id,
+              behavior: pickedQuiz.behavior,
             });
-            linkageAttached = true;
-            plcTemplateSyncGroupId = newSyncGroupId;
-          } catch (linkageErr) {
-            // Roll back the freshly-minted self-participant entry so we
-            // don't leak a phantom participant pointing at a local
-            // library that never recorded the linkage. The empty group
-            // doc itself stays (rules disallow client deletes).
+            createdSyncGroupId = newSyncGroupId;
             try {
-              await callLeaveSyncedQuizGroup(newSyncGroupId);
-            } catch (leaveErr) {
+              await attachSyncLinkage(pickedQuiz.id, {
+                groupId: newSyncGroupId,
+                lastSyncedVersion: 1,
+              });
+              linkageAttached = true;
+              plcTemplateSyncGroupId = newSyncGroupId;
+            } catch (linkageErr) {
+              // Roll back the freshly-minted self-participant entry so we
+              // don't leak a phantom participant pointing at a local
+              // library that never recorded the linkage. The empty group
+              // doc itself stays (rules disallow client deletes).
+              try {
+                await callLeaveSyncedQuizGroup(newSyncGroupId);
+              } catch (leaveErr) {
+                logError(
+                  'PlcNewQuizAssignmentModal.promoteSync.rollbackLeave',
+                  leaveErr,
+                  { plcId: plc.id, syncGroupId: newSyncGroupId }
+                );
+              }
+              // We deliberately don't throw — without a sync group we skip
+              // the PLC template write, but the assignment still commits.
               logError(
-                'PlcNewQuizAssignmentModal.promoteSync.rollbackLeave',
-                leaveErr,
-                { plcId: plc.id, syncGroupId: newSyncGroupId }
+                'PlcNewQuizAssignmentModal.promoteSync.attachLinkage',
+                linkageErr,
+                { plcId: plc.id, quizId: pickedQuiz.id }
               );
+              plcTemplateSyncGroupId = undefined;
             }
-            // We deliberately don't throw — without a sync group we skip
-            // the PLC template write, but the assignment still commits.
+          } catch (createErr) {
             logError(
-              'PlcNewQuizAssignmentModal.promoteSync.attachLinkage',
-              linkageErr,
-              { plcId: plc.id, quizId: pickedQuiz.id }
+              'PlcNewQuizAssignmentModal.promoteSync.create',
+              createErr,
+              {
+                plcId: plc.id,
+                quizId: pickedQuiz.id,
+              }
             );
             plcTemplateSyncGroupId = undefined;
           }
-        } catch (createErr) {
-          logError('PlcNewQuizAssignmentModal.promoteSync.create', createErr, {
-            plcId: plc.id,
-            quizId: pickedQuiz.id,
-          });
-          plcTemplateSyncGroupId = undefined;
         }
-      }
 
-      // Task 10: source sessionMode/sessionOptions/attemptLimit from the
-      // quiz's behavior settings, always in Assessment Mode. No longer driven by
-      // removed form controls.
-      const behavior = reviewSplit
-        ? splitAssignSettings
-        : getAssignBehaviorSeed(pickedQuiz);
-      const sessionOptions: QuizSessionOptions = behavior.sessionOptions;
+        // Task 10: source sessionMode/sessionOptions/attemptLimit from the
+        // quiz's behavior settings, always in Assessment Mode. No longer driven by
+        // removed form controls.
+        const behavior = stepperPlan
+          ? toAssessmentBehavior(splitAssignSettings)
+          : reviewSplit
+            ? splitAssignSettings
+            : getAssignBehaviorSeed(pickedQuiz);
+        const stepperTargeting = stepperPlan?.mixed.targeting;
+        const effectiveDueAt = stepperPlan ? stepperPlan.dueAt : dueAt;
+        const sessionOptions: QuizSessionOptions = behavior.sessionOptions;
 
-      // Title-aware pooling (§8.1): prefer the PLC library group so every
-      // teacher's run of one quiz lands in a single assessment.
-      const plcPoolSyncGroupId = resolvePlcPoolSyncGroupId({
-        quizSyncGroupId: pickedQuiz.sync?.groupId,
-        quizTitle: pickedQuiz.title,
-        libraryEntries: plcLibrary.filter((entry) => !entry.archived),
-      });
+        // Title-aware pooling (§8.1): prefer the PLC library group so every
+        // teacher's run of one quiz lands in a single assessment.
+        const plcPoolSyncGroupId = resolvePlcPoolSyncGroupId({
+          quizSyncGroupId: pickedQuiz.sync?.groupId,
+          quizTitle: pickedQuiz.title,
+          libraryEntries: plcLibrary.filter((entry) => !entry.archived),
+        });
 
-      const { id: assignmentId } = await createAssignment(
-        {
-          id: pickedQuiz.id,
-          title: pickedQuiz.title,
-          driveFileId: content.driveFileId,
-          questions: content.questions,
-          ...(content.stimuli ? { stimuli: content.stimuli } : {}),
-          ...(data.language ? { language: data.language } : {}),
-          ...(data.sections?.length
-            ? { order: data.order, sections: data.sections }
-            : {}),
-        },
-        {
-          sessionMode: behavior.sessionMode,
-          sessionOptions,
-          attemptLimit: behavior.attemptLimit,
-          teacherName: options.teacherName.trim() || undefined,
-          periodName: derived.periodNames[0],
-          periodNames: derived.periodNames,
-          plc: plcLinkage,
-          ...(dueAt != null ? { dueAt, dueAtHasTime: true } : {}),
-          ...(content.resolvedDriveFileId
-            ? { resolvedDriveFileId: content.resolvedDriveFileId }
-            : {}),
-        },
-        {
-          initialStatus: 'paused',
-          ...(content.bankSlots ? { bankSlots: content.bankSlots } : {}),
-          classIds: derived.classIds,
-          rosterIds: derived.rosterIds,
-          classPeriodByClassId: derived.classPeriodByClassId,
-          mode: assignmentMode,
-          ...(plcTemplateSyncGroupId ? { plcTemplateSyncGroupId } : {}),
-          ...(plcPoolSyncGroupId ? { plcPoolSyncGroupId } : {}),
-        }
-      );
-
-      addToast(
-        groupWording
-          ? t('plcDashboard.newAssignment.quiz.groupCreated', {
-              title: pickedQuiz.title,
-              defaultValue:
-                '"{{title}}" created (paused) and shared with this group.',
-            })
-          : t('plcDashboard.newAssignment.quiz.created', {
-              title: pickedQuiz.title,
-              defaultValue:
-                '"{{title}}" created (paused) and shared with this PLC.',
-            }),
-        'success'
-      );
-      onCreated?.({ assignmentId, quizTitle: pickedQuiz.title });
-      onClose();
-    } catch (err) {
-      // The orphaned-group state we can leave behind here is the same one
-      // PR #1595 documented for the share picker: createAssignment fails
-      // AFTER we've already minted a synced group + attached linkage. The
-      // local quiz keeps the linkage; the PLC's template/index stay empty.
-      // No `detachSyncLinkage` API exists today; we log + observe.
-      if (createdSyncGroupId && linkageAttached) {
-        logError(
-          'newPlcAssignment.orphanedGroup',
-          err instanceof Error ? err : new Error(String(err)),
+        const { id: assignmentId } = await createAssignment(
           {
-            plcId: plc.id,
-            quizId: pickedQuiz?.id,
-            syncGroupId: createdSyncGroupId,
+            id: pickedQuiz.id,
+            title: pickedQuiz.title,
+            driveFileId: content.driveFileId,
+            questions: content.questions,
+            ...(content.stimuli ? { stimuli: content.stimuli } : {}),
+            ...(data.language ? { language: data.language } : {}),
+            ...(data.sections?.length
+              ? { order: data.order, sections: data.sections }
+              : {}),
+          },
+          {
+            sessionMode: behavior.sessionMode,
+            sessionOptions,
+            attemptLimit: behavior.attemptLimit,
+            teacherName: options.teacherName.trim() || undefined,
+            periodName: derived.periodNames[0],
+            periodNames: derived.periodNames,
+            plc: plcLinkage,
+            ...(effectiveDueAt != null
+              ? { dueAt: effectiveDueAt, dueAtHasTime: true }
+              : {}),
+            ...(stepperPlan?.dueAtByRosterId
+              ? { dueAtByRosterId: stepperPlan.dueAtByRosterId }
+              : {}),
+            ...(content.resolvedDriveFileId
+              ? { resolvedDriveFileId: content.resolvedDriveFileId }
+              : {}),
+          },
+          {
+            // A per-period session is gated by its periods, not a global pause.
+            initialStatus: stepperPlan?.periodGate ? 'active' : 'paused',
+            ...(stepperPlan?.periodGate ?? {}),
+            ...(content.bankSlots ? { bankSlots: content.bankSlots } : {}),
+            classIds: derived.classIds,
+            rosterIds: derived.rosterIds,
+            classPeriodByClassId: derived.classPeriodByClassId,
+            ...(stepperPlan?.dueAtByRosterId
+              ? {
+                  dueAtByClassId: dueAtByClassIdFromRosters(
+                    stepperPlan.dueAtByRosterId,
+                    rosters
+                  ),
+                }
+              : {}),
+            ...(stepperTargeting
+              ? {
+                  targetGroupIds: stepperTargeting.targetGroupIds,
+                  overridesBySourcedId: stepperTargeting.overridesByKey,
+                  openAt: stepperTargeting.openAt ?? null,
+                  closeAt: stepperTargeting.closeAt ?? null,
+                }
+              : {}),
+            mode: assignmentMode,
+            ...(plcTemplateSyncGroupId ? { plcTemplateSyncGroupId } : {}),
+            ...(plcPoolSyncGroupId ? { plcPoolSyncGroupId } : {}),
           }
         );
-      } else {
-        logError(
-          'PlcNewQuizAssignmentModal.submit',
-          err instanceof Error ? err : new Error(String(err)),
-          { plcId: plc.id, quizId: pickedQuiz?.id }
-        );
-      }
-      addToast(
-        err instanceof Error
-          ? err.message
-          : groupWording
-            ? t('plcDashboard.newAssignment.quiz.groupCreateFailed', {
-                defaultValue: 'Failed to create the team assignment.',
+
+        if (prefillLastUsed) {
+          saveLastAssignSettings({
+            sessionMode: behavior.sessionMode,
+            sessionOptions,
+            attemptLimit: behavior.attemptLimit,
+          });
+        }
+
+        // Student picks fan out like the Quiz widget's stepper assign (D5b).
+        if (stepperPlan) {
+          const payload = buildMixedTargetsPayload(
+            undefined,
+            stepperPlan.mixed
+          );
+          if (payloadRequiresCall(payload)) {
+            try {
+              const result = await setAssignmentTargets({
+                assignmentId,
+                kind: 'quiz',
+                sessionId: assignmentId,
+                targetMode: payload.targetMode,
+                add: payload.add,
+                remove: payload.remove,
+                overridesBySourcedId: payload.overridesBySourcedId,
+                ...(payload.excludedTargets
+                  ? { excludedTargets: payload.excludedTargets }
+                  : {}),
+                ...(payload.studentTargetClassIds
+                  ? { studentTargetClassIds: payload.studentTargetClassIds }
+                  : {}),
+                window: payload.window,
+              });
+              if (result.skipped.length > 0) {
+                addToast(
+                  skippedTargetsToastMessage(
+                    result.skipped.length,
+                    result.skippedExclusions?.length ?? 0
+                  ),
+                  'warning'
+                );
+                try {
+                  await setAssignmentTargetSkippedCount(
+                    assignmentId,
+                    result.skipped.length
+                  );
+                } catch (persistErr) {
+                  logError(
+                    'PlcNewQuizAssignmentModal.setAssignmentTargetSkippedCount',
+                    persistErr,
+                    { assignmentId }
+                  );
+                }
+              }
+            } catch (targetErr) {
+              logError(
+                'PlcNewQuizAssignmentModal.setAssignmentTargets',
+                targetErr,
+                { assignmentId }
+              );
+              addToast(
+                'Assigned to the class, but individual student targeting failed to save. Reopen Settings to retry.',
+                'error'
+              );
+            }
+          }
+        }
+
+        // The stepper gates by period or dates, so it is not always paused.
+        const createdKey = stepperPlan ? 'StepperCreated' : 'Created';
+        addToast(
+          groupWording
+            ? t(`plcDashboard.newAssignment.quiz.group${createdKey}`, {
+                title: pickedQuiz.title,
+                defaultValue: stepperPlan
+                  ? '"{{title}}" created and shared with this group.'
+                  : '"{{title}}" created (paused) and shared with this group.',
               })
-            : t('plcDashboard.newAssignment.quiz.createFailed', {
-                defaultValue: 'Failed to create the PLC assignment.',
-              }),
-        'error'
-      );
-    } finally {
-      submittingRef.current = false;
-      setSubmitting(false);
-    }
-  }, [
-    groupWording,
-    addToast,
-    outward,
-    assignmentMode,
-    attachSyncLinkage,
-    createAssignment,
-    dueAt,
-    loadQuizData,
-    loadBankContentsForQuiz,
-    saveDriveSnapshot,
-    onClose,
-    onCreated,
-    options,
-    pickedQuiz,
-    plc,
-    rosters,
-    t,
-    user,
-    plcLibrary,
-    reviewSplit,
-    splitAssignSettings,
-  ]);
+            : t(
+                `plcDashboard.newAssignment.quiz.${stepperPlan ? 'stepperCreated' : 'created'}`,
+                {
+                  title: pickedQuiz.title,
+                  defaultValue: stepperPlan
+                    ? '"{{title}}" created and shared with this PLC.'
+                    : '"{{title}}" created (paused) and shared with this PLC.',
+                }
+              ),
+          'success'
+        );
+        onCreated?.({ assignmentId, quizTitle: pickedQuiz.title });
+        onClose();
+      } catch (err) {
+        // The orphaned-group state we can leave behind here is the same one
+        // PR #1595 documented for the share picker: createAssignment fails
+        // AFTER we've already minted a synced group + attached linkage. The
+        // local quiz keeps the linkage; the PLC's template/index stay empty.
+        // No `detachSyncLinkage` API exists today; we log + observe.
+        if (createdSyncGroupId && linkageAttached) {
+          logError(
+            'newPlcAssignment.orphanedGroup',
+            err instanceof Error ? err : new Error(String(err)),
+            {
+              plcId: plc.id,
+              quizId: pickedQuiz?.id,
+              syncGroupId: createdSyncGroupId,
+            }
+          );
+        } else {
+          logError(
+            'PlcNewQuizAssignmentModal.submit',
+            err instanceof Error ? err : new Error(String(err)),
+            { plcId: plc.id, quizId: pickedQuiz?.id }
+          );
+        }
+        addToast(
+          err instanceof Error
+            ? err.message
+            : groupWording
+              ? t('plcDashboard.newAssignment.quiz.groupCreateFailed', {
+                  defaultValue: 'Failed to create the team assignment.',
+                })
+              : t('plcDashboard.newAssignment.quiz.createFailed', {
+                  defaultValue: 'Failed to create the PLC assignment.',
+                }),
+          'error'
+        );
+      } finally {
+        submittingRef.current = false;
+        setSubmitting(false);
+      }
+    },
+    [
+      groupWording,
+      addToast,
+      outward,
+      assignmentMode,
+      attachSyncLinkage,
+      createAssignment,
+      dueAt,
+      loadQuizData,
+      loadBankContentsForQuiz,
+      saveDriveSnapshot,
+      onClose,
+      onCreated,
+      options,
+      pickedQuiz,
+      plc,
+      rosters,
+      t,
+      user,
+      plcLibrary,
+      reviewSplit,
+      splitAssignSettings,
+      stepperOn,
+      stepperWhen,
+      stepperClasses,
+      periodAccess,
+      prefillLastUsed,
+      saveLastAssignSettings,
+      setAssignmentTargets,
+      setAssignmentTargetSkippedCount,
+    ]
+  );
 
   // ─── Step 1: pick from personal library ──────────────────────────────────
   if (step === 'pick') {
@@ -478,6 +639,27 @@ export const PlcNewQuizAssignmentModal: React.FC<
     // so this branch is unreachable in practice. Bail rather than render
     // a broken modal if state ever desynchronizes.
     return null;
+  }
+
+  if (stepperOn && stepperWhen) {
+    return (
+      <QuizAssignStepper
+        title={pickedQuiz.title}
+        rosters={rosters}
+        classes={stepperClasses}
+        onClassesChange={setStepperClasses}
+        when={stepperWhen}
+        onWhenChange={setStepperWhen}
+        behavior={splitAssignSettings}
+        onBehaviorChange={setEditedAssignSettings}
+        periodAccess={periodAccess}
+        hasManualGrading={false}
+        handRaiseMode={handRaiseMode}
+        submitLabel="Assign"
+        onClose={onClose}
+        onSubmit={() => handleSubmit(true)}
+      />
+    );
   }
 
   const behavior = getAssignBehaviorSeed(pickedQuiz);
