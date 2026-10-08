@@ -1,6 +1,9 @@
 // Pinned read-only folders for items the teacher doesn't own (LIBRARY_FOLDERS D21).
 import type { LibraryFolder } from '@/types';
-import type { PlacementSource } from '@/hooks/useLibraryPlacements';
+import {
+  placementSourceOf,
+  type PlacementSource,
+} from '@/hooks/useLibraryPlacements';
 
 const SOURCE_FOLDER_PREFIX = 'source:';
 
@@ -34,3 +37,17 @@ export const sourceFolder = (source: PlacementSource): LibraryFolder => ({
   createdAt: 0,
   color: 'gray',
 });
+
+/** A source folder takes back only its own shared items; other folders take anything. */
+export const acceptsItem = (
+  folderId: string | null,
+  itemId: string
+): boolean => {
+  if (!isSourceFolderId(folderId)) return true;
+  const source = placementSourceOf(itemId);
+  return source != null && sourceFolderId(source) === folderId;
+};
+
+/** Where a drag-created folder goes: never inside a source folder. */
+export const ownParentId = (folderId: string | null): string | null =>
+  isSourceFolderId(folderId) ? null : folderId;
