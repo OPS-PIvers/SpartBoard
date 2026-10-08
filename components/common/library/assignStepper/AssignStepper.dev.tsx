@@ -23,6 +23,7 @@ const TITLES: Record<AssignActivity, string> = {
   video: 'Cell Division Video',
   gl: 'Parts of a Cell',
   flashcards: 'Unit 3 Vocabulary',
+  miniapp: 'Fraction Pizza',
 };
 
 const VALUES: Record<AssignStepId, string> = {
@@ -35,7 +36,13 @@ const VALUES: Record<AssignStepId, string> = {
   sharing: 'Not shared',
 };
 
-const ACTIVITIES: AssignActivity[] = ['quiz', 'video', 'gl', 'flashcards'];
+const ACTIVITIES: AssignActivity[] = [
+  'quiz',
+  'video',
+  'gl',
+  'flashcards',
+  'miniapp',
+];
 
 const Preview: React.FC = () => {
   const params = new URLSearchParams(window.location.search);

@@ -4,6 +4,7 @@ import {
   type AssignAvailability,
   type AssignWhenMode,
 } from '@/utils/assignAvailability';
+import type { AssignActivity } from './assignSteps';
 
 /** 'when' collects work, 'available' is a study resource, 'live' is Video Activity teacher-paced. */
 export type AssignWhenVariant = 'when' | 'available' | 'live';
@@ -20,7 +21,7 @@ export function defaultWhenValue({
   bellAvailable,
   manualAvailable,
 }: {
-  activity: 'quiz' | 'video' | 'gl' | 'flashcards';
+  activity: AssignActivity;
   now?: Date;
   bellAvailable: boolean;
   manualAvailable: boolean;
