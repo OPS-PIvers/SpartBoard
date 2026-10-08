@@ -10,6 +10,7 @@ import {
   type StartReviewModalProps,
 } from '@/components/widgets/QuizWidget/components/StartReviewModal';
 import { DEFAULT_REVIEW_LAUNCH_SETTINGS } from '@/utils/reviewLaunch';
+import { SAMPLE_ROSTERS } from '@/components/common/library/assignStepper/assignStepperTestRosters';
 
 function renderModal(overrides: Partial<StartReviewModalProps> = {}) {
   const onStart = vi
@@ -112,5 +113,19 @@ describe('StartReviewModal', () => {
   it('blocks Start when nothing can be played', () => {
     renderModal({ skippedCount: 2, nothingToPlay: true });
     expect(screen.getByRole('button', { name: /^Start$/ })).toBeDisabled();
+  });
+
+  it('picks classes from the class menu when the stepper is on', async () => {
+    const { onStart } = renderModal({
+      classMenu: true,
+      rosters: SAMPLE_ROSTERS,
+      initialRosterIds: ['c1'],
+    });
+    expect(screen.queryByText('Assign to classes')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Sample 1' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Sample 2/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Start$/ }));
+    await waitFor(() => expect(onStart).toHaveBeenCalled());
+    expect(onStart.mock.calls[0][1]).toEqual(['c1', 'c2']);
   });
 });
