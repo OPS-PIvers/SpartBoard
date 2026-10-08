@@ -8,11 +8,14 @@ export interface LibraryItemNoun {
 
 export const LIBRARY_ITEM_NOUNS = {
   quiz: { one: 'quiz', other: 'quizzes' },
-  bank: { one: 'bank', other: 'banks' },
-  videoActivity: { one: 'activity', other: 'activities' },
-  guidedLearning: { one: 'set', other: 'sets' },
-  miniApp: { one: 'app', other: 'apps' },
-  flashcards: { one: 'set', other: 'sets' },
+  bank: { one: 'question bank', other: 'question banks' },
+  videoActivity: { one: 'Video Activity', other: 'Video Activities' },
+  guidedLearning: {
+    one: 'Guided Learning set',
+    other: 'Guided Learning sets',
+  },
+  miniApp: { one: 'Mini App', other: 'Mini Apps' },
+  flashcards: { one: 'flashcard set', other: 'flashcard sets' },
   project: { one: 'project', other: 'projects' },
 } satisfies Record<string, LibraryItemNoun>;
 

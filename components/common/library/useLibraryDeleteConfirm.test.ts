@@ -25,9 +25,9 @@ describe('libraryDeleteConfirmCopy', () => {
         noun: LIBRARY_ITEM_NOUNS.miniApp,
       })
     ).toEqual({
-      title: 'Delete 3 apps?',
+      title: 'Delete 3 Mini Apps?',
       message: 'This cannot be undone.',
-      confirmLabel: 'Delete 3 apps',
+      confirmLabel: 'Delete 3 Mini Apps',
     });
   });
 
@@ -49,6 +49,6 @@ describe('libraryDeleteConfirmCopy', () => {
         titles: [' '],
         noun: LIBRARY_ITEM_NOUNS.guidedLearning,
       }).title
-    ).toBe('Delete this set?');
+    ).toBe('Delete this Guided Learning set?');
   });
 });
