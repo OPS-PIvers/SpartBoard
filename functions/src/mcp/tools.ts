@@ -256,11 +256,11 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
           ),
         color: z
           .string()
-          .trim()
-          .min(1)
-          .max(32)
+          .regex(/^[a-z][a-z0-9-]{0,23}$/)
           .optional()
-          .describe('Folder colour; omit for the default.'),
+          .describe(
+            'Folder colour name from the library palette, e.g. "blue"; omit for the default.'
+          ),
       },
       annotations: {
         readOnlyHint: false,
