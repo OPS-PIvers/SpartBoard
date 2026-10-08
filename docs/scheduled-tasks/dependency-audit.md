@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-10-06_
+_Last audited: 2026-10-08_
 _Last action: 2026-09-15 — HIGH `browserslist`/`baseline-browser-mapping` resolved: added `pnpm.overrides.browserslist: "^4.28.7"` to both `package.json` and `functions/package.json`, clearing two HIGH + one moderate advisory in the Babel/Jest build-toolchain chain. PR opened against dev-paul. Item moved to Completed._
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-10-08: Thursday Audit B2 (read-only). Root `pnpm audit --audit-level=moderate`: **8 vulnerabilities (1 low | 2 moderate | 5 high)**, up from 7. New vs 2026-10-06: HIGH `@modelcontextprotocol/sdk` (>=1.12.0 <1.31.0, patched >=1.31.0) via `@google/genai`; functions/ has 1.30.1 installed direct (latest 1.32.1). Others unchanged: `@grpc/grpc-js` <1.13.6 via `firebase>@firebase/firestore`, `basic-ftp`, `braces`, `sprintf-js`, `source-map-js`, `postcss-selector-parser`. `functions/`: 4 (1 moderate | 3 high): `braces`, `sprintf-js`, `source-map-js`, `@modelcontextprotocol/sdk`. Outdated, >1 major behind: `firebase` 12.19.0→13.0.0 (higher priority, 1 major), `vite` 6.4.3→8.3.3 (root, 2 majors), `typescript` 5.9.3→7.0.2, `vitest` 4.1.11→5.0.3, `eslint` 9→10, `tailwindcss` 3→4, `@google/genai` 1.52→2.28, `lucide-react` 0.563→1.52, `jose` 4.15.9→6.2.12 (functions). `react` current. Deprecated: `crypto-js`, `fluent-ffmpeg`._
 
 _2026-10-06: Tuesday Audit B2 (read-only). Root `pnpm audit --audit-level=moderate`: **7 vulnerabilities (1 low | 2 moderate | 4 high)**, up from 2 on 2026-10-01; `functions/`: **3 (1 moderate | 2 high)**, up from 0. New advisories: `braces` (high, stack exhaustion, via firebase-functions-test>jest, both), `source-map-js` (high, event-loop DoS; root via @vitest/coverage-v8>magicast, functions via vite>postcss), `basic-ftp` (high, via firebase-tools>proxy-agent), `sprintf-js` (moderate, jest chain, both), `postcss-selector-parser` (moderate, <7.1.6, via tailwindcss), plus the standing `@grpc/grpc-js` (high). All are dev/test-toolchain paths except `@grpc/grpc-js` (via `firebase`). Outdated: >1 major behind — `@google/genai` 1.52→2.27 (both), `firebase-admin` 13→14, `eslint` 9→10, `vite` 6→8 (root), `typescript` 5.9→7.0, `vitest` 4→5, `tailwindcss` 3→4, `lucide-react` 0.563→1.52, `jose` 4→6 (functions), `jsdom` 27→30, `@types/node` 24→26. No new firebase/react drift beyond these. Deprecated: `crypto-js`, `@types/tesseract.js`, `fluent-ffmpeg`.
 

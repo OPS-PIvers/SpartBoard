@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-07_
+_Last audited: 2026-10-08_
 _Last action: 2026-09-24 — MEDIUM `QuizStimulusView.tsx` zero-`cqmin` blocker resolved: added an optional `cqScaled?: boolean` prop (default `false`) threaded through every subcomponent in the file, applying `min(Xpx, Ycqmin)` inline styles only when set, so the two CQ-container consumers (`CurrentQuestionCard.tsx`, `QuizPreview.tsx`) now scale while the two non-CQ consumers (`QuizStudentApp.tsx`, `FreeResponseGrader.tsx`) keep today's fixed styling untouched — the same `cqScaled` pattern proven on `AssignTargetingSection.tsx`. 1250/1250 relevant tests pass. Item moved to Completed. PR opened against dev-paul._
 
 ---
@@ -43,6 +43,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-10-08: Thursday daily audit. Scanned `components/widgets/**/Widget.tsx` / `*Widget.tsx` for `max-h/max-w-[Npx]`: 0 hits. No new anti-patterns found; the standing LOW items below were not re-verified line by line this cycle. 0 new issues._
 
 _2026-10-06: Daily audit (Tuesday). `max-[Npx]`/`max-w-[Npx]` scan of non-test, non-Settings widget files: 9 hits, all small chrome/editor elements (GL editor/timeline, CustomMaterialForm color grid, RandomClassContextButton dropdown, LiveControl label, SmartNotebook assets panel, DrawingWidget PageStrip) — none cap a primary content area; SmartNotebook and RandomClassContext already tracked. 0 new issues._
 
