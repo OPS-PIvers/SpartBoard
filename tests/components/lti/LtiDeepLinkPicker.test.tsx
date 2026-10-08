@@ -4,6 +4,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { QuizQuestion } from '@/types';
 
 let availabilityOn = false;
+let stepperOn = false;
+const saveLast = vi.fn();
 
 const signCallable = vi.fn((_params: { dueAt?: number }) => ({
   data: { jwt: 'jwt-1', returnUrl: 'https://app.schoology.com/return' },
@@ -42,7 +44,8 @@ vi.mock('@/context/useAuth', () => ({
     signInWithGoogle: vi.fn(),
     googleAccessToken: 'drive-token',
     canAccessFeature: (id: string) =>
-      id === 'assign-availability' && availabilityOn,
+      (id === 'assign-availability' && availabilityOn) ||
+      (id === 'assign-stepper' && stepperOn),
   }),
 }));
 
@@ -53,7 +56,7 @@ vi.mock('@/hooks/useSetAssignmentTargets', () => ({
   useSetAssignmentTargets: () => ({ setAssignmentTargets: vi.fn() }),
 }));
 vi.mock('@/hooks/useLastQuizAssignSettings', () => ({
-  useLastQuizAssignSettings: () => ({ lastUsed: null }),
+  useLastQuizAssignSettings: () => ({ lastUsed: null, save: saveLast }),
 }));
 
 const loadQuizData = vi.fn(() => ({
@@ -170,6 +173,62 @@ describe('LtiDeepLinkPicker — availability', () => {
       expect(signed?.dueAt).toBe(options.closeAt);
     } finally {
       availabilityOn = false;
+    }
+  });
+});
+
+describe('LtiDeepLinkPicker — assign stepper step bodies', () => {
+  beforeEach(() => {
+    signCallable.mockClear();
+    createAssignment.mockClear();
+    saveLast.mockClear();
+    vi.spyOn(HTMLFormElement.prototype, 'submit').mockImplementation(
+      () => undefined
+    );
+    window.history.pushState({}, '', '/lti/deep-link?lc=code-1');
+  });
+
+  it('flag on: shows the When and Quiz rule bodies and saves the rules on add', async () => {
+    stepperOn = true;
+    try {
+      render(<LtiDeepLinkPicker />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Quiz' }));
+      fireEvent.click(await screen.findByRole('option', { name: 'My Quiz' }));
+      for (const name of [
+        'When',
+        'Attempts and order',
+        'Quiz integrity',
+        'What students see',
+      ])
+        expect(screen.getByRole('region', { name })).toBeTruthy();
+      expect(screen.queryByLabelText(/due date \(optional\)/i)).toBeNull();
+      expect(screen.queryByText('Manual')).toBeNull();
+      fireEvent.click(
+        screen.getByRole('switch', { name: 'Shuffle questions' })
+      );
+      fireEvent.click(
+        screen.getByRole('button', { name: /add quiz to schoology/i })
+      );
+      await waitFor(() => expect(signCallable).toHaveBeenCalled());
+      const call = createAssignment.mock.calls.at(-1) as unknown[];
+      const settings = call[1] as {
+        sessionMode: string;
+        sessionOptions: { shuffleQuestions?: boolean };
+        dueAt?: number;
+      };
+      const options = call[2] as Record<string, unknown>;
+      expect(settings.sessionMode).toBe('student');
+      expect(settings.sessionOptions.shuffleQuestions).toBe(true);
+      expect(typeof options.closeAt).toBe('number');
+      expect(settings.dueAt).toBe(options.closeAt);
+      expect(signCallable.mock.calls.at(-1)?.[0].dueAt).toBe(options.closeAt);
+      expect(saveLast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          sessionOptions: expect.objectContaining({ shuffleQuestions: true }),
+        })
+      );
+    } finally {
+      stepperOn = false;
     }
   });
 });
