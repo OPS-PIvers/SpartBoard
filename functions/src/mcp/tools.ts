@@ -26,6 +26,7 @@ import {
 import {
   CONTENT_TYPES,
   FOLDER_COLLECTIONS,
+  FOLDER_COLORS,
   MAX_FOLDERS,
   assertFolder,
   folderPath,
@@ -255,12 +256,9 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
             'Folder names under parent_folder_id (or the top level), outermost first, e.g. ["Unit 3", "Week 2"].'
           ),
         color: z
-          .string()
-          .regex(/^[a-z][a-z0-9-]{0,23}$/)
+          .enum(FOLDER_COLORS)
           .optional()
-          .describe(
-            'Folder colour name from the library palette, e.g. "blue"; omit for the default.'
-          ),
+          .describe('Omit for the default neutral colour.'),
       },
       annotations: {
         readOnlyHint: false,

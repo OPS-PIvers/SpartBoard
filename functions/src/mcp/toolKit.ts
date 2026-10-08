@@ -64,6 +64,18 @@ export async function assertFolder(
 
 export const MAX_FOLDERS = 500;
 
+/** Folder colour palette, matching LibraryFolder.color in the client. */
+export const FOLDER_COLORS = [
+  'red',
+  'orange',
+  'amber',
+  'green',
+  'teal',
+  'blue',
+  'pink',
+  'gray',
+] as const;
+
 export interface FolderRow {
   id: string;
   name: string;
