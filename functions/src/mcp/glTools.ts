@@ -405,6 +405,7 @@ export interface SetRow {
   title: string;
   helpCenter: boolean;
   liveTour: boolean;
+  folderId?: string | null;
   updatedAt: unknown;
 }
 
@@ -783,7 +784,14 @@ export function registerGuidedLearningTools(
           source === 'mine' ? `users/${ctx.uid}/${PERSONAL}` : BUILDING;
         const snap = await ctx.db
           .collection(path)
-          .select('title', 'updatedAt', 'helpCenter', 'stepCount', 'mode')
+          .select(
+            'title',
+            'updatedAt',
+            'helpCenter',
+            'stepCount',
+            'mode',
+            'folderId'
+          )
           .limit(MAX_SCAN)
           .get();
         const all = filterSetRows(
@@ -792,6 +800,7 @@ export function registerGuidedLearningTools(
             title: String(d.get('title') ?? ''),
             helpCenter: d.get('helpCenter') === true,
             liveTour: d.get('mode') === 'tour',
+            folderId: (d.get('folderId') as string | null | undefined) ?? null,
             updatedAt: d.get('updatedAt') as unknown,
           })),
           { helpCenterOnly: source === 'help_center', kind, search }
@@ -804,6 +813,7 @@ export function registerGuidedLearningTools(
             title: d.title,
             live_tour: d.liveTour,
             help_center: d.helpCenter,
+            ...(source === 'mine' ? { folder_id: d.folderId } : {}),
             updated_at: iso(d.updatedAt),
           })),
           next_cursor:
