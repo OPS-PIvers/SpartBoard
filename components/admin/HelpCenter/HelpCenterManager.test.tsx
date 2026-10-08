@@ -216,6 +216,7 @@ const createCall = () =>
 
 const fillAndSave = () => {
   fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Add a link' }));
   fireEvent.change(screen.getByLabelText('Link'), {
     target: { value: 'https://docs.google.com/document/d/abc/edit' },
   });
@@ -337,18 +338,20 @@ describe('HelpCenterManager', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows the inferred embed type for a pasted URL', async () => {
+  it('previews a pasted URL', async () => {
     render(<HelpCenterManager />);
     fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add a link' }));
     fireEvent.change(screen.getByLabelText('Link'), {
       target: { value: 'https://www.youtube.com/watch?v=abc' },
     });
-    expect(await screen.findByText('youtube')).toBeInTheDocument();
+    expect(await screen.findByTitle('Help item preview')).toBeInTheDocument();
   });
 
   it('blocks saving an http URL', () => {
     render(<HelpCenterManager />);
     fireEvent.click(screen.getByRole('button', { name: 'Add item' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add a link' }));
     fireEvent.change(screen.getByLabelText('Link'), {
       target: { value: 'http://example.com/guide' },
     });
