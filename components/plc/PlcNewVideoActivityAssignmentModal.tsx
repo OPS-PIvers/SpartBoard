@@ -33,7 +33,7 @@
 
 import React, { useCallback, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, writeBatch } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type {
   AssignmentMode,
@@ -76,6 +76,7 @@ import {
   type PlcSharePickerItem,
 } from './PlcSharePickerModal';
 import { PlcNewAssignmentSharingSlot } from './PlcNewAssignmentSharingSlot';
+import { mirrorPlcAssignmentStatus } from '@/hooks/usePlcAssignmentIndex';
 import { AssignStepper } from '@/components/common/library/assignStepper/AssignStepper';
 import { ClassPickerMenu } from '@/components/common/library/assignStepper/ClassPickerMenu';
 import { AssignWhenStep } from '@/components/common/library/assignStepper/AssignWhenStep';
@@ -396,7 +397,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
           teacherName: options.teacherName.trim() || undefined,
           plc: plcLinkage,
         },
-        stepperOn ? 'active' : 'paused',
+        'paused',
         derived.classIds,
         derived.periodNames,
         derived.rosterIds,
@@ -408,21 +409,24 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
           ...(window.closeAt != null ? { closeAt: window.closeAt } : {}),
           ...(window.dueAt != null ? { dueAt: window.dueAt } : {}),
         };
-        if (Object.keys(fields).length > 0) {
-          await Promise.all([
-            updateDoc(doc(db, 'video_activity_sessions', assignmentId), fields),
-            updateDoc(
-              doc(
-                db,
-                'users',
-                user.uid,
-                'video_activity_assignments',
-                assignmentId
-              ),
-              fields
-            ),
-          ]);
-        }
+        // One batch opens it with its window, so a failed write leaves it paused.
+        const batch = writeBatch(db);
+        batch.update(doc(db, 'video_activity_sessions', assignmentId), {
+          ...fields,
+          status: 'active',
+        });
+        batch.update(
+          doc(
+            db,
+            'users',
+            user.uid,
+            'video_activity_assignments',
+            assignmentId
+          ),
+          { ...fields, status: 'active', updatedAt: Date.now() }
+        );
+        await batch.commit();
+        void mirrorPlcAssignmentStatus(plc.id, assignmentId, 'active');
       }
 
       addToast(

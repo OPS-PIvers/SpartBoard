@@ -94,10 +94,17 @@ vi.mock('@/hooks/useVideoActivityAssignments', () => ({
 }));
 
 vi.mock('@/config/firebase', () => ({ db: { __mock: 'db' } }));
-const mockUpdateDoc = vi.fn((..._args: unknown[]) => Promise.resolve());
+const mockUpdateDoc = vi.fn();
+const mockCommit = vi.fn(() => Promise.resolve());
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((..._args: unknown[]) => ({ path: _args.slice(1).join('/') })),
-  updateDoc: (...args: unknown[]) => mockUpdateDoc(...args),
+  writeBatch: () => ({ update: mockUpdateDoc, commit: mockCommit }),
+}));
+const mockMirror = vi.fn((..._args: unknown[]): void => undefined);
+vi.mock('@/hooks/usePlcAssignmentIndex', () => ({
+  mirrorPlcAssignmentStatus: (...args: unknown[]): void => {
+    mockMirror(...args);
+  },
 }));
 
 vi.mock('@/context/useAuth', () => ({
@@ -433,6 +440,8 @@ describe('PlcNewVideoActivityAssignmentModal — assign stepper', () => {
       questions: [],
     });
     mockUpdateDoc.mockClear();
+    mockCommit.mockClear();
+    mockMirror.mockClear();
     vi.mocked(useAuth).mockReturnValue({
       user: {
         uid: 'uid-teacher',
@@ -455,7 +464,7 @@ describe('PlcNewVideoActivityAssignmentModal — assign stepper', () => {
     expect(screen.queryByPlaceholderText(/assignment name/i)).toBeNull();
   });
 
-  it('creates an active assignment and writes the scheduled window', async () => {
+  it('creates it paused, then opens it with its window in one batch', async () => {
     await renderAndPickActivity();
     fireEvent.click(screen.getByRole('button', { name: /^Assign$/ }));
     await waitFor(() => expect(mockCreateAssignment).toHaveBeenCalled());
@@ -464,12 +473,25 @@ describe('PlcNewVideoActivityAssignmentModal — assign stepper', () => {
       { className: string; plc: { id: string } },
       string,
     ];
-    expect(status).toBe('active');
+    expect(status).toBe('paused');
     expect(settings.className).toBe('Cell Division');
     expect(settings.plc).toMatchObject({ id: 'plc-42' });
-    await waitFor(() => expect(mockUpdateDoc).toHaveBeenCalledTimes(2));
-    const fields = mockUpdateDoc.mock.calls[0][1] as Record<string, number>;
+    await waitFor(() => expect(mockCommit).toHaveBeenCalledOnce());
+    expect(mockUpdateDoc).toHaveBeenCalledTimes(2);
+    const fields = mockUpdateDoc.mock.calls[0][1] as Record<string, unknown>;
+    expect(fields.status).toBe('active');
     expect(typeof fields.openAt).toBe('number');
     expect(typeof fields.closeAt).toBe('number');
+    expect(mockMirror).toHaveBeenCalledWith('plc-42', 'asg-1', 'active');
+  });
+
+  it('stays paused and reports the error when opening fails', async () => {
+    mockCommit.mockRejectedValueOnce(new Error('offline'));
+    await renderAndPickActivity();
+    fireEvent.click(screen.getByRole('button', { name: /^Assign$/ }));
+    await waitFor(() =>
+      expect(mockAddToast).toHaveBeenCalledWith('offline', 'error')
+    );
+    expect(mockMirror).not.toHaveBeenCalled();
   });
 });
