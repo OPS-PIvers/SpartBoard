@@ -231,4 +231,23 @@ describe('useBreathing', () => {
     // (5-5 pattern has hold1=0, so inhale → exhale directly)
     expect(result.current.phase).toBe('exhale');
   });
+
+  it('skips a phase the new pattern lacks when the pattern changes while paused', () => {
+    const { result, rerender } = renderHook(
+      ({ id }: { id: '4-7-8' | '5-5' }) => useBreathing(id),
+      { initialProps: { id: '4-7-8' } }
+    );
+    act(() => result.current.toggleActive());
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(result.current.phase).toBe('hold1');
+    act(() => result.current.toggleActive());
+    rerender({ id: '5-5' });
+    act(() => result.current.toggleActive());
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+    expect(result.current.phase).toBe('exhale');
+  });
 });
