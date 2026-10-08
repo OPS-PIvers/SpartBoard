@@ -226,7 +226,15 @@ export const keepSandboxItem = async (
   return true;
 };
 
-/** Wraps a hook's API so calls on sandbox ids do nothing while the sandbox is on. */
+/** A sandbox id, an item with one, or a list holding one. */
+const touchesSandbox = (arg: unknown): boolean =>
+  isSandboxId(arg) ||
+  (Array.isArray(arg) && arg.some(touchesSandbox)) ||
+  (!!arg &&
+    typeof arg === 'object' &&
+    isSandboxId((arg as { id?: unknown }).id));
+
+/** Wraps a hook's API so calls on sandbox items do nothing while the sandbox is on. */
 export function sandboxApi<T extends object>(api: T, overrides: Partial<T>): T {
   if (!state.active) return api;
   const out = { ...api } as Record<string, unknown>;
@@ -234,7 +242,7 @@ export function sandboxApi<T extends object>(api: T, overrides: Partial<T>): T {
     if (typeof value !== 'function') continue;
     const fn = value as (...args: unknown[]) => unknown;
     out[key] = (...args: unknown[]) =>
-      args.some(isSandboxId) ? Promise.resolve(undefined) : fn(...args);
+      args.some(touchesSandbox) ? Promise.resolve(undefined) : fn(...args);
   }
   return { ...(out as T), ...overrides };
 }

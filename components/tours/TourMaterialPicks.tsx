@@ -29,10 +29,12 @@ export const TourMaterialPicks: React.FC<Props> = ({
   >({});
   const [picks, setPicks] = useState<Record<string, string>>({});
 
+  // Keyed on the kinds, not the array, so a parent render doesn't re-read the library.
+  const kindsKey = [...new Set(materials.map((m) => m.kind))].join(',');
   useEffect(() => {
     if (!uid) return;
     let live = true;
-    const kinds = [...new Set(materials.map((m) => m.kind))];
+    const kinds = kindsKey.split(',') as TourMaterial['kind'][];
     void Promise.all(
       kinds.map(async (kind) => {
         try {
@@ -54,7 +56,7 @@ export const TourMaterialPicks: React.FC<Props> = ({
     return () => {
       live = false;
     };
-  }, [uid, materials]);
+  }, [uid, kindsKey]);
 
   const ready = materials.every((m) => !!picks[m.id]);
   return (

@@ -82,6 +82,8 @@ describe('tourSandbox', () => {
     startTourSandbox();
     const wrapped = sandboxApi(api, {});
     await expect(wrapped.pause(sandboxId())).resolves.toBeUndefined();
+    await expect(wrapped.pause({ id: sandboxId() })).resolves.toBeUndefined();
+    await expect(wrapped.pause(['a', sandboxId()])).resolves.toBeUndefined();
     await expect(wrapped.pause('real-id')).resolves.toBe('real');
     expect(api.pause).toHaveBeenCalledTimes(1);
   });
