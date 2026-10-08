@@ -20,6 +20,8 @@
  * the internal-DndContext behavior of `LibraryGrid`.
  */
 
+import { createPortal } from 'react-dom';
+import { Z_INDEX } from '@/config/zIndex';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   DndContext,
@@ -125,13 +127,17 @@ export const LibraryDndContext: React.FC<LibraryDndContextProps> = ({
       onDragCancel={handleDragCancel}
     >
       {children}
-      <DragOverlay>
-        {activeId != null && renderOverlay ? (
-          <LibraryGridLockContext.Provider value={overlayLockState}>
-            {renderOverlay(activeId)}
-          </LibraryGridLockContext.Provider>
-        ) : null}
-      </DragOverlay>
+      {/* Portaled: the widget's container-type makes it the containing block for fixed elements, which offset the overlay from the cursor. */}
+      {createPortal(
+        <DragOverlay zIndex={Z_INDEX.modalDeep}>
+          {activeId != null && renderOverlay ? (
+            <LibraryGridLockContext.Provider value={overlayLockState}>
+              {renderOverlay(activeId)}
+            </LibraryGridLockContext.Provider>
+          ) : null}
+        </DragOverlay>,
+        document.body
+      )}
     </DndContext>
   );
 };

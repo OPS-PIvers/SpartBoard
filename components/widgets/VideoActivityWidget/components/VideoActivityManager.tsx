@@ -67,15 +67,13 @@ import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { buildMoveToFolderAction } from '@/components/common/library/folderMenuAction';
 import { LibraryDndContext } from '@/components/common/library/LibraryDndContext';
-import { useLibraryView } from '@/components/common/library/useLibraryView';
+import { useFolderLibraryView } from '@/components/common/library/useFolderLibraryView';
+import { latestAssignedAt } from '@/components/common/library/folderView';
 import { useLibrarySelection } from '@/components/common/library/useLibrarySelection';
 import { useSortableReorder } from '@/components/common/library/useSortableReorder';
 import { BulkActionBar } from '@/components/common/library/BulkActionBar';
 import { LibraryPreviewPane } from '@/components/common/library/LibraryPreviewPane';
-import {
-  countItemsByFolder,
-  filterByFolder,
-} from '@/components/common/library/folderFilters';
+import { countItemsByFolder } from '@/components/common/library/folderFilters';
 import { useFolders } from '@/hooks/useFolders';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import type {
@@ -329,6 +327,7 @@ const LIBRARY_SORT_COMPARATORS = {
 const LIBRARY_INITIAL_SORT = { key: 'updated', dir: 'desc' as LibrarySortDir };
 
 const ACTIVITY_GET_ID = (a: VideoActivityMetadata): string => a.id;
+const ACTIVITY_NOUN = ['activity', 'activities'] as const;
 
 /* ─── Assignment status → badge mapping ───────────────────────────────────── */
 
@@ -640,7 +639,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
 
   /* ─── Folder navigation (Wave 3-B-3) ──────────────────────────────────── */
   const folderState = useFolders(userId, 'video_activity');
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [folderPickerTarget, setFolderPickerTarget] =
     useState<VideoActivityMetadata | null>(null);
 
@@ -667,21 +665,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     }
   }
 
-  // Reset folder selection when the signed-in user changes or the selected
-  // folder no longer exists (adjust-state-during-render pattern).
-  const [prevFolderUserId, setPrevFolderUserId] = useState(userId);
-  if (prevFolderUserId !== userId) {
-    setPrevFolderUserId(userId);
-    setSelectedFolderId(null);
-  }
-  if (
-    !folderState.loading &&
-    selectedFolderId !== null &&
-    !folderState.folders.some((f) => f.id === selectedFolderId)
-  ) {
-    setSelectedFolderId(null);
-  }
-
   const folderItemCounts = useMemo(
     () => countItemsByFolder(activities),
     [activities]
@@ -693,15 +676,29 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     ...folderDeleteActions,
   });
 
-  const folderFilteredActivities = useMemo(
-    () => filterByFolder(activities, selectedFolderId),
-    [activities, selectedFolderId]
+  const lastAssignedAt = useMemo(
+    () => latestAssignedAt(assignments, (a) => a.activityId),
+    [assignments]
+  );
+  const activityRecentAt = useCallback(
+    (a: VideoActivityMetadata) =>
+      Math.max(a.updatedAt ?? a.createdAt ?? 0, lastAssignedAt.get(a.id) ?? 0),
+    [lastAssignedAt]
   );
 
   /* ─── Library (activities) view state ─────────────────────────────────── */
 
-  const libraryView = useLibraryView<VideoActivityMetadata>({
-    items: folderFilteredActivities,
+  const libraryView = useFolderLibraryView<VideoActivityMetadata>({
+    items: activities,
+    folderView: {
+      library: 'video_activity',
+      userId: userId,
+      folders: folderState.folders,
+      foldersLoading: folderState.loading,
+      getId: ACTIVITY_GET_ID,
+      getRecentAt: activityRecentAt,
+      itemNoun: ACTIVITY_NOUN,
+    },
     initialSort: LIBRARY_INITIAL_SORT,
     // Phase 2 redesign: the library is list-only (monitor row idiom).
     initialViewMode: 'list',
@@ -1450,8 +1447,9 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         folders={folderState.folders}
         loading={folderState.loading}
         error={folderState.error}
-        selectedFolderId={selectedFolderId}
-        onSelectFolder={setSelectedFolderId}
+        selectedFolderId={libraryView.selectedFolderId}
+        onSelectFolder={libraryView.onSelectFolder}
+        folderView={libraryView.folderView}
         itemCounts={folderItemCounts}
         onCreateFolder={folderState.createFolder}
         onRenameFolder={folderState.renameFolder}
@@ -1497,6 +1495,8 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     <LibraryShell
       widgetLabel="Video Activity"
       widgetType="video-activity"
+      folderView={libraryView.folderView}
+      folderViewMode={libraryView.state.viewMode}
       tab={tab}
       onTabChange={setTab}
       counts={tabCounts}
