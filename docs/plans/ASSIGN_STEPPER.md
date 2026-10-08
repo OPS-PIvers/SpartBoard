@@ -92,6 +92,12 @@ Assigning anything takes a few short, ordered decisions in one narrow dialog ins
   - Students without a school sign-in are listed greyed out with "No sign-in" and a tooltip ("Individual assignment needs a school sign-in"). They are never silently dropped.
   - Picked students are the only ones in that class who get the assignment. Classes left on "All students" are targeted as today.
   - Hidden for Video Activity live (one class, the whole class).
+- **D5b.** **Mixed targeting.** One assignment can carry class targets for whole classes and student targets for partial ones.
+  - `setAssignmentTargetsV1` is extended to accept both.
+  - Whole classes keep their students without a sign-in.
+  - Only picked students count toward the 250-ref cap.
+  - The server change ships in PR 2 alongside D5a, with Cloud Function and rules tests.
+  - Settled 2026-10-08. Paul rejected switching the whole assignment to `targetMode: 'students'` because it drops students without a sign-in.
 - **D6.** **When** is Manual / Scheduled, in that order. Quiz defaults to **Manual**; the other activities default to Scheduled. Study resource lives in the top switch, never here.
   - **Manual:** "Starts paused. You start and pause each class." and nothing else. There is **no due date**: the teacher ends it. It writes per-period access in `'assessment'` mode with `dueAt` unset.
   - **Scheduled:** Opens and Closes with bell or set time (today's `PointField`), "Different time for each class" as a link that expands per-class rows, and "Allow submissions after close".
@@ -144,6 +150,7 @@ Assigning anything takes a few short, ordered decisions in one narrow dialog ins
      - `ClassPickerMenu`: select-style checklist with a `singleSelect` mode.
      - `AssignWhenStep`: Manual / Scheduled / Available, reusing `PointField` and `applyAvailability`.
      - `ModificationsView`: the existing modifications code moved into its own view.
+     - Extend `setAssignmentTargetsV1` for mixed class + student targets (D5b).
      - `StudentPickMenu`: per-class "All students ▾" menu built from `AssignStudentPicker`'s data and filtering (search, groups, disabled no-sign-in rows) (D5a).
    - Wire Guided Learning first, behind the flag, including the `assignment-modes` rule (D2).
    - Tests for the step list per activity and kind, and for the class picker menu.
@@ -161,12 +168,6 @@ Assigning anything takes a few short, ordered decisions in one narrow dialog ins
 5. **Mini App, PLC quiz, Review (open, see below).** Bring the remaining dialogs onto the stepper or record why they stay. Retire `AssignModal` once every caller has moved and the flag is retired.
 
 ## Open questions
-
-- **Mixed targeting (D5a).** `targetMode` is per assignment, but D5a lets one class stay on "All students" while another picks three. Two ways to deliver it:
-  - (a) Extend `setAssignmentTargetsV1` so one assignment carries class targets for whole classes and student targets for partial ones. This is the recommendation: whole classes keep students without a sign-in, and the 250-ref cap only counts picked students.
-  - (b) Use `targetMode: 'students'` for the whole assignment when any class is partial, filling the whole classes with their signed-in students. This drops students without a sign-in in those classes and can hit the cap.
-
-  This must be decided before PR 2.
 
 Manual is the Quiz default (D6), so the two Manual questions must be settled before PR 3.
 
