@@ -6,7 +6,7 @@ import { AuthProvider } from '@/context/AuthContext';
 
 export interface AssignStepperPreview {
   title: string;
-  render: () => React.ReactNode;
+  render: React.FC;
 }
 
 const modules = import.meta.glob<{ default: AssignStepperPreview }>(
@@ -29,6 +29,7 @@ const readView = (): string => {
 export const AssignStepperDevHarness: React.FC = () => {
   const [view, setView] = useState(readView);
   const current = PREVIEWS.find((p) => p.id === view);
+  const Preview = current?.preview.render;
 
   const pick = (id: string) => {
     setView(id);
@@ -62,7 +63,7 @@ export const AssignStepperDevHarness: React.FC = () => {
               </span>
             )}
           </nav>
-          <main className="p-6 pb-12">{current?.preview.render()}</main>
+          <main className="p-6 pb-12">{Preview && <Preview key={view} />}</main>
         </div>
       </DialogProvider>
     </AuthProvider>
