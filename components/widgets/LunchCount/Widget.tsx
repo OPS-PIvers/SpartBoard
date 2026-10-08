@@ -255,7 +255,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     gradeLevel: savedGradeLevel = '',
     rosterPoolGroupId = null,
   } = config;
-  // Values picked in the missing-info prompt; a sub's board can't save them back, so the report reads these first.
+  // A sub's board can't save the prompt's values back to the widget, so the report reads them from here.
   const [pickedInfo, setPickedInfo] = useState<LunchInfo | null>(null);
   const lunchTimeHour = pickedInfo?.hour ?? savedLunchTimeHour;
   const lunchTimeMinute = pickedInfo?.minute ?? savedLunchTimeMinute;
@@ -616,7 +616,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
   };
 
   const handleSaveMissingInfo = (info: LunchInfo) => {
-    setPickedInfo(info);
+    if (subShareHost) setPickedInfo(info);
     updateWidget(widget.id, {
       config: {
         ...config,

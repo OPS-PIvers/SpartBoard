@@ -26,7 +26,6 @@ export interface LunchInfo {
 
 interface MissingInfoModalProps {
   isOpen: boolean;
-  schoolSite: LunchCountSchoolSite;
   needsTime: boolean;
   needsGrade: boolean;
   askSchool: boolean;
