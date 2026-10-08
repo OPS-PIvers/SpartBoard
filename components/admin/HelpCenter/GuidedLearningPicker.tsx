@@ -32,6 +32,8 @@ interface GuidedLearningPickerProps {
   onEditingChange: (editing: boolean) => void;
 }
 
+const helpCopyId = (personalSetId: string): string => `help-${personalSetId}`;
+
 const matches = (title: string, search: string): boolean =>
   title.toLowerCase().includes(search.toLowerCase().trim());
 
@@ -133,13 +135,16 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
     try {
       const loaded = await loadSetData(driveFileId);
       const now = Date.now();
+      // One copy per personal set: picking it again refreshes that copy.
+      const copyId = helpCopyId(setId);
+      const existing = buildingSets.find((set) => set.id === copyId);
       const copy: GuidedLearningSet = {
         ...loaded,
-        id: crypto.randomUUID(),
+        id: copyId,
         isBuilding: true,
         helpCenter: true,
         authorUid: user?.uid,
-        createdAt: now,
+        createdAt: existing?.createdAt ?? now,
         updatedAt: now,
       };
       await saveBuildingSet(copy);

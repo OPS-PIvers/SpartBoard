@@ -44,6 +44,7 @@ const set = (
 const fullBuilding = [
   set('b-1', 'Building Lesson'),
   set('h-1', 'Help Guide', { helpCenter: true }),
+  set('help-p-1', 'Older Roster Copy', { helpCenter: true, createdAt: 5 }),
 ];
 
 // The hook hands out index entries; full sets come from loadBuildingSet.
@@ -64,6 +65,7 @@ vi.mock('@/hooks/useGuidedLearning', () => ({
     buildingSets: fullBuilding.map((full) => ({
       id: full.id,
       title: full.title,
+      createdAt: full.createdAt,
       isHelpCenter: full.helpCenter === true,
     })),
     buildingLoading: false,
@@ -138,7 +140,7 @@ describe('GuidedLearningPicker', () => {
     ).toBeTruthy();
   });
 
-  it('gives the Help Center its own flagged copy of a personal activity', async () => {
+  it('refreshes the one Help Center copy of a personal activity', async () => {
     glState.loadSetData.mockResolvedValue(
       set('p-1', 'My Roster Guide', {
         isBuilding: undefined,
@@ -151,7 +153,8 @@ describe('GuidedLearningPicker', () => {
 
     await waitFor(() => expect(onSelect).toHaveBeenCalled());
     const saved = glState.saveBuildingSet.mock.calls[0][0];
-    expect(saved.id).not.toBe('p-1');
+    expect(saved.id).toBe('help-p-1');
+    expect(saved.createdAt).toBe(5);
     expect(saved.helpCenter).toBe(true);
     expect(saved.isBuilding).toBe(true);
     expect(saved.authorUid).toBe('admin-1');
