@@ -21,15 +21,23 @@ import { handleRadioGroupKeyDown } from './radioGroupKeyNav';
 export const SegmentedControl: <T extends string>(props: {
   value: T;
   onChange: (v: T) => void;
-  options: { value: T; label: string; badge?: React.ReactNode }[];
+  options: {
+    value: T;
+    label: string;
+    badge?: React.ReactNode;
+    icon?: React.ElementType;
+  }[];
   ariaLabel?: string;
   role?: 'tablist' | 'radiogroup';
+  /** Stretches to the container with equal-width, taller options. */
+  fullWidth?: boolean;
 }) => React.ReactElement = ({
   value,
   onChange,
   options,
   ariaLabel,
   role = 'tablist',
+  fullWidth = false,
 }) => {
   const itemRole = role === 'radiogroup' ? 'radio' : 'tab';
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) =>
@@ -40,10 +48,11 @@ export const SegmentedControl: <T extends string>(props: {
       role={role}
       aria-label={ariaLabel}
       onKeyDown={onKeyDown}
-      className="inline-flex p-1 bg-slate-100 rounded-lg"
+      className={`${fullWidth ? 'grid grid-flow-col auto-cols-fr w-full' : 'inline-flex'} p-1 bg-slate-100 rounded-lg`}
     >
       {options.map((opt) => {
         const selected = value === opt.value;
+        const Icon = opt.icon;
         return (
           <button
             key={opt.value}
@@ -53,12 +62,13 @@ export const SegmentedControl: <T extends string>(props: {
             aria-selected={itemRole === 'tab' ? selected : undefined}
             aria-checked={itemRole === 'radio' ? selected : undefined}
             onClick={() => onChange(opt.value)}
-            className={`${opt.badge ? 'inline-flex items-center gap-1.5 ' : ''}h-8 px-3 rounded-md text-xs font-semibold transition-all ${
+            className={`${fullWidth ? 'flex items-center justify-center gap-2 h-9 px-3 text-sm' : `${opt.badge || Icon ? 'inline-flex items-center gap-1.5 ' : ''}h-8 px-3 text-xs`} rounded-md font-semibold transition-all ${
               selected
                 ? 'bg-white text-slate-900 shadow-sm'
                 : 'text-slate-600 hover:text-slate-800'
             }`}
           >
+            {Icon && <Icon className="w-4 h-4 shrink-0" aria-hidden="true" />}
             {opt.label}
             {opt.badge}
           </button>
