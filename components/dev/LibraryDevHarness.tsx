@@ -68,10 +68,34 @@ const FAKE_FOLDERS: LibraryFolder[] = [
     order: 0,
     createdAt: 0,
   },
-  { id: 'f2', name: 'Exit Tickets', parentId: null, order: 1, createdAt: 0 },
-  { id: 'f3', name: 'Review Games', parentId: null, order: 2, createdAt: 0 },
+  {
+    id: 'f2',
+    name: 'Exit Tickets',
+    parentId: null,
+    order: 1,
+    createdAt: 0,
+    color: 'green',
+  },
+  {
+    id: 'f3',
+    name: 'Review Games',
+    parentId: null,
+    order: 2,
+    createdAt: 0,
+    color: 'orange',
+  },
   { id: 'f4', name: 'Archived Units', parentId: 'f3', order: 0, createdAt: 0 },
+  { id: 'f5', name: 'Week 2', parentId: 'f3', order: 1, createdAt: 0 },
 ];
+
+// Folder-view delete dialog fixture: f3 holds 9 quizzes across two subfolders, 2 with live assignments.
+const FAKE_FILED = [
+  ...['a', 'b', 'c', 'd'].map((x) => ({ id: `r-${x}`, folderId: 'f3' })),
+  ...['a', 'b', 'c'].map((x) => ({ id: `s-${x}`, folderId: 'f4' })),
+  ...['a', 'b'].map((x) => ({ id: `t-${x}`, folderId: 'f5' })),
+  { id: 'u-a', folderId: 'f1' },
+];
+const LIVE_IDS = new Set(['r-a', 's-b']);
 
 const noop = () => undefined;
 
@@ -88,6 +112,7 @@ const Panel: React.FC<{
   });
   const [viewMode, setViewMode] = useState<LibraryViewMode>('grid');
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [folders, setFolders] = useState<LibraryFolder[]>(FAKE_FOLDERS);
 
   return (
     <div className="flex flex-col gap-2">
@@ -110,10 +135,34 @@ const Panel: React.FC<{
             tab === 'library' ? (
               <FolderSidebar
                 widget="quiz"
-                folders={FAKE_FOLDERS}
+                folders={folders}
                 selectedFolderId={selectedFolderId}
                 onSelectFolder={setSelectedFolderId}
-                itemCounts={{ f1: 2, f2: 1, f3: 1, f4: 1 }}
+                itemCounts={{ f1: 1, f3: 4, f4: 3, f5: 2 }}
+                onCreateFolder={() => Promise.resolve('new')}
+                onRenameFolder={() => Promise.resolve()}
+                onDeleteFolder={(id) => {
+                  setFolders((prev) => prev.filter((f) => f.id !== id));
+                  return Promise.resolve(undefined);
+                }}
+                onSetFolderColor={(id, color) => {
+                  setFolders((prev) =>
+                    prev.map((f) =>
+                      f.id === id ? { ...f, color: color ?? undefined } : f
+                    )
+                  );
+                  return Promise.resolve();
+                }}
+                folderDelete={{
+                  noun: { one: 'quiz', many: 'quizzes' },
+                  items: FAKE_FILED,
+                  isBlocked: (id) => LIVE_IDS.has(id),
+                  blockedReason: (n) =>
+                    n === 1
+                      ? '1 quiz has a live assignment'
+                      : `${n} quizzes have live assignments`,
+                  deleteItems: () => Promise.resolve(),
+                }}
               />
             ) : undefined
           }

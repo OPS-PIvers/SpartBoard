@@ -11,6 +11,7 @@ const folders: UseFoldersResult = {
   error: null,
   createFolder: vi.fn().mockResolvedValue('folder-1'),
   renameFolder: vi.fn().mockResolvedValue(undefined),
+  setFolderColor: vi.fn().mockResolvedValue(undefined),
   moveFolder: vi.fn().mockResolvedValue(undefined),
   deleteFolder: vi.fn().mockResolvedValue(undefined),
   reorderSiblings: vi.fn().mockResolvedValue(undefined),

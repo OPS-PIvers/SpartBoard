@@ -13,12 +13,38 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { FolderPlus, Inbox, X, AlertTriangle } from 'lucide-react';
 import { useDroppable } from '@dnd-kit/core';
-import type { LibraryFolder, LibraryFolderWidget } from '@/types';
+import type {
+  LibraryFolder,
+  LibraryFolderColor,
+  LibraryFolderWidget,
+} from '@/types';
+import type { FolderDeleteUndo } from '@/hooks/useFolderTree';
+import { collectDescendantIds } from '@/utils/folderTree';
 import { FolderTree } from './FolderTree';
 import { folderDroppableId, type FolderDropData } from './folderDropTargets';
 import { useFolderPanelMode } from './LibraryFolderPanelContext';
+import {
+  DeleteFolderDialog,
+  type DeleteFolderChoice,
+  type LibraryItemNoun,
+} from './DeleteFolderDialog';
 
 export type FolderDeleteMode = 'move-to-parent' | 'delete-all';
+
+/** Turns on the folder-view delete dialog (LIBRARY_FOLDERS D17-D20). */
+export interface FolderDeleteConfig {
+  noun: LibraryItemNoun;
+  /** Every item the teacher owns, with its folder; drives the counts and "delete everything". */
+  items: { id: string; folderId?: string | null }[];
+  /** True when the widget won't delete this item yet (e.g. a live assignment). */
+  isBlocked?: (id: string) => boolean;
+  /** Names why blocked items are kept, e.g. "2 quizzes have live assignments". */
+  blockedReason?: (count: number) => string;
+  /** The widget's own delete path, run without its per-item confirm; omit to offer only "Keep everything". */
+  deleteItems?: (ids: string[]) => Promise<void>;
+  /** Reports a finished delete, with an undo when the folder's contents were kept. */
+  onDeleted?: (message: string, undo?: FolderDeleteUndo) => void;
+}
 
 export interface FolderSidebarProps {
   /** Which widget's folder tree to render. Reserved for future use. */
@@ -42,7 +68,17 @@ export interface FolderSidebarProps {
     folderId: string,
     nextParentId: string | null
   ) => Promise<void>;
-  onDeleteFolder?: (folderId: string, mode: FolderDeleteMode) => Promise<void>;
+  onDeleteFolder?: (
+    folderId: string,
+    mode: FolderDeleteMode
+  ) => Promise<FolderDeleteUndo | undefined | void>;
+  /** Shows the colour row in each folder's menu. */
+  onSetFolderColor?: (
+    folderId: string,
+    color: LibraryFolderColor | null
+  ) => Promise<void>;
+  /** Uses the folder-view delete dialog instead of the legacy one. */
+  folderDelete?: FolderDeleteConfig;
 
   loading?: boolean;
   error?: string | null;
@@ -64,6 +100,8 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   onRenameFolder,
   onMoveFolder,
   onDeleteFolder,
+  onSetFolderColor,
+  folderDelete,
   loading = false,
   error = null,
   enableDrop = false,
@@ -167,14 +205,78 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
     }
   };
 
+  // Folder-view dialog: everything below the folder, at any depth.
+  const subtree = useMemo(() => {
+    if (!confirmDelete || !folderDelete) return null;
+    const subfolderIds = collectDescendantIds(
+      confirmDelete.id,
+      folders,
+      (f) => f.parentId
+    );
+    const inTree = new Set([confirmDelete.id, ...subfolderIds]);
+    const itemIds = folderDelete.items
+      .filter((i) => i.folderId != null && inTree.has(i.folderId))
+      .map((i) => i.id);
+    const blocked = folderDelete.isBlocked
+      ? itemIds.filter((id) => folderDelete.isBlocked?.(id))
+      : [];
+    return { subfolderCount: subfolderIds.length, itemIds, blocked };
+  }, [confirmDelete, folderDelete, folders]);
+
+  const parentNameOf = (folder: LibraryFolder): string =>
+    folders.find((f) => f.id === folder.parentId)?.name ?? 'Library';
+
+  const deleteEmptyFolder = async (target: LibraryFolder): Promise<void> => {
+    if (!onDeleteFolder) return;
+    try {
+      const undo = await onDeleteFolder(target.id, 'move-to-parent');
+      folderDelete?.onDeleted?.(`Deleted “${target.name}”`, undo ?? undefined);
+      setCommitError(null);
+    } catch (err) {
+      setCommitError(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleDialogConfirm = async (
+    choice: DeleteFolderChoice
+  ): Promise<void> => {
+    if (!onDeleteFolder || !confirmDelete || !folderDelete || !subtree) return;
+    const target = confirmDelete;
+    if (choice === 'keep') {
+      const undo = await onDeleteFolder(target.id, 'move-to-parent');
+      folderDelete.onDeleted?.(`Deleted “${target.name}”`, undo ?? undefined);
+    } else {
+      const blocked = new Set(subtree.blocked);
+      const doomed = subtree.itemIds.filter((id) => !blocked.has(id));
+      if (doomed.length > 0) await folderDelete.deleteItems?.(doomed);
+      // Blocked items are still filed in the tree; 'delete-all' moves them to the parent.
+      await onDeleteFolder(target.id, 'delete-all');
+      folderDelete.onDeleted?.(
+        doomed.length > 0
+          ? `Deleted “${target.name}” and ${doomed.length} ${
+              doomed.length === 1
+                ? folderDelete.noun.one
+                : folderDelete.noun.many
+            }`
+          : `Deleted “${target.name}”`
+      );
+    }
+    if (selectedFolderId === target.id) onSelectFolder(target.parentId);
+    setConfirmDelete(null);
+    setCommitError(null);
+  };
+
   const requestDelete = (folderId: string): void => {
     const target = folders.find((f) => f.id === folderId);
     if (!target) return;
-    const itemCount = itemCounts?.[folderId] ?? 0;
     const hasChildren = folders.some((f) => f.parentId === folderId);
+    const itemCount = folderDelete
+      ? folderDelete.items.filter((i) => i.folderId === folderId).length
+      : (itemCounts?.[folderId] ?? 0);
     if (itemCount === 0 && !hasChildren) {
       // Empty folder — delete immediately without the modal.
-      void (onDeleteFolder && onDeleteFolder(folderId, 'move-to-parent'));
+      if (folderDelete) void deleteEmptyFolder(target);
+      else void (onDeleteFolder && onDeleteFolder(folderId, 'move-to-parent'));
       if (selectedFolderId === folderId) onSelectFolder(null);
       return;
     }
@@ -325,6 +427,17 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         onCommitRename={handleRenameCommit}
         onCancelRename={() => setRenamingId(null)}
         onRequestDelete={(folder) => requestDelete(folder.id)}
+        onSetColor={
+          onSetFolderColor
+            ? (folderId, color) => {
+                onSetFolderColor(folderId, color).catch((err: unknown) =>
+                  setCommitError(
+                    err instanceof Error ? err.message : String(err)
+                  )
+                );
+              }
+            : undefined
+        }
         onCreateChild={(parentId) => {
           setCreatingUnder(parentId);
           setNewName('');
@@ -357,7 +470,25 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         </div>
       )}
 
-      {confirmDelete && (
+      {confirmDelete && folderDelete && subtree && (
+        <DeleteFolderDialog
+          folder={confirmDelete}
+          parentName={parentNameOf(confirmDelete)}
+          subfolderCount={subtree.subfolderCount}
+          itemCount={subtree.itemIds.length}
+          noun={folderDelete.noun}
+          blockedCount={subtree.blocked.length}
+          blockedReason={
+            subtree.blocked.length > 0
+              ? folderDelete.blockedReason?.(subtree.blocked.length)
+              : undefined
+          }
+          canDeleteItems={!!folderDelete.deleteItems}
+          onCancel={() => setConfirmDelete(null)}
+          onConfirm={handleDialogConfirm}
+        />
+      )}
+      {confirmDelete && !folderDelete && (
         <DeleteFolderModal
           folder={confirmDelete}
           itemCount={deleteImpact.itemCount}

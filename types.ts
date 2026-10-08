@@ -11189,7 +11189,19 @@ export interface LibraryFolder {
   createdAt: number;
   /** Epoch ms at last rename / move / reorder. Optional on legacy records. */
   updatedAt?: number;
+  /** Teacher-picked folder colour (D11); absent = neutral. */
+  color?: LibraryFolderColor;
 }
+
+export type LibraryFolderColor =
+  | 'red'
+  | 'orange'
+  | 'amber'
+  | 'green'
+  | 'teal'
+  | 'blue'
+  | 'pink'
+  | 'gray';
 
 /**
  * A Board collection (folder) stored at
