@@ -26,6 +26,7 @@ import {
 } from '@/utils/activityWallNormalize';
 import type { WallMovePatch } from '@/components/activityWall/render';
 import { activityWallSessionId } from '@/utils/activityWallLinks';
+import { isSandboxed } from '@/utils/tourSandbox';
 
 /** Firestore caps a batch at 500 writes; stay under it with room to spare. */
 const CLEAR_CHUNK_SIZE = 400;
@@ -36,6 +37,7 @@ export const writeSessionMirror = async (
   entry: ActivityWallLibraryEntry,
   overrides: Partial<ActivityWallSession> = {}
 ): Promise<void> => {
+  if (isSandboxed(entry.id)) return;
   const sessionId = activityWallSessionId(uid, entry.id);
   const payload: Record<string, unknown> = {
     ...mirrorSessionFromEntry(entry, uid),
@@ -118,8 +120,10 @@ export const useActivityWallSession = (
   const mirrorKey = session
     ? JSON.stringify({ ...session, updatedAt: 0 })
     : null;
+  // A tour's sandbox wall has no session doc.
+  const sandboxed = !!entry && isSandboxed(entry.id);
   useEffect(() => {
-    if (!sessionId || !mirrorKey) return;
+    if (!sessionId || !mirrorKey || sandboxed) return;
     const payload = {
       ...(JSON.parse(mirrorKey) as Record<string, unknown>),
       updatedAt: Date.now(),
@@ -129,7 +133,7 @@ export const useActivityWallSession = (
     }).catch((err) => {
       console.error('[ActivityWall] Failed to mirror session doc:', err);
     });
-  }, [sessionId, mirrorKey]);
+  }, [sessionId, mirrorKey, sandboxed]);
 
   const [shareInfo, setShareInfo] = useState<{
     sessionId: string | null;

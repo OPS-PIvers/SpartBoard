@@ -616,6 +616,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Live tour editing v2 and tour materials. Admin-only until Paul has edited tours with it in prod.
+  'live-tour-editing-v2': {
+    label: 'Live tour editing v2',
+    icon: Footprints,
+    description: 'Sandboxed tour replays, step checkpoints and tour materials.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Guided Learning Studio editor. Admin-only until Paul has built sets with it in prod.
   'gl-studio': {
     label: 'Guided Learning Studio editor',

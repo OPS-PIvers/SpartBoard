@@ -12,9 +12,11 @@ import {
   retakeTourEditThumbnail,
   selectTourEditStep,
   setTourEdit,
+  setTourEditPicking,
   setTourEditRecording,
   type TourEditShot,
 } from './tourEditStore';
+import { isTourSandboxActive } from '@/utils/tourSandbox';
 
 const h = vi.hoisted(() => {
   type Widget = { id: string; type: string; transient?: boolean };
@@ -91,6 +93,7 @@ type Binding = {
   anchor: string;
   action: 'click' | 'observe';
   teacherMustClick?: boolean;
+  start?: { layouts: { slot: number; type: string }[] };
 };
 
 const makeSet = (steps: Binding[]): GuidedLearningSet =>
@@ -133,14 +136,14 @@ const run = async (ms: number) => {
   for (let t = 0; t < ms; t += 50) await frames(50);
 };
 
-const edit = async (set: GuidedLearningSet, selected = 0) => {
+const edit = async (set: GuidedLearningSet, selected = 0, v2 = false) => {
   render(
     <>
       <Fixture />
       <LiveTourRunner />
     </>
   );
-  act(() => setTourEdit({ set, selected, replay: 0, readAloud: false }));
+  act(() => setTourEdit({ set, selected, replay: 0, readAloud: false, v2 }));
   await frames();
 };
 
@@ -327,6 +330,92 @@ describe('LiveTourRunner edit mode', () => {
       await edit(makeSet(STEPS), 2);
       await run(3000);
       expect(shots.map((s) => s.stepId)).toEqual(['s2']);
+    });
+  });
+
+  describe('v2', () => {
+    const layout = { xProp: 0.1, yProp: 0.1, wProp: 0.2, hProp: 0.2 };
+
+    it('clicks a step the admin would click on the way to the selection', async () => {
+      await edit(
+        makeSet([
+          { anchor: 'sidebar.boards', action: 'click', teacherMustClick: true },
+          ...STEPS.slice(1),
+        ]),
+        0,
+        true
+      );
+      await run(300);
+      act(() => selectTourEditStep(2));
+      await run(3000);
+      expect(clicks.boards).toHaveBeenCalledTimes(1);
+      expect(clicks.dice).toHaveBeenCalledTimes(1);
+      expect(getTourEditPlayback()).toMatchObject({ index: 2, jumping: false });
+    });
+
+    it('keeps edits in a sandbox until the editor closes', async () => {
+      await edit(makeSet(STEPS), 0, true);
+      await run(300);
+      expect(isTourSandboxActive()).toBe(true);
+      act(() => clearTourEdit());
+      await run(100);
+      expect(isTourSandboxActive()).toBe(false);
+    });
+
+    it('hides the step and ignores clicks while a control is picked', async () => {
+      await edit(makeSet(STEPS), 0, true);
+      await run(300);
+      expect(screen.getByText('Step 1')).toBeInTheDocument();
+      act(() => setTourEditPicking(true));
+      await run(100);
+      expect(screen.queryByText('Step 1')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByText('Boards'));
+      await run(300);
+      expect(getTourEdit()?.selected).toBe(0);
+      act(() => setTourEditPicking(false));
+      await run(100);
+      expect(screen.getByText('Step 1')).toBeInTheDocument();
+    });
+
+    it('starts from the nearest saved board instead of step 1', async () => {
+      await edit(
+        makeSet([
+          STEPS[0],
+          {
+            ...STEPS[1],
+            start: { layouts: [{ slot: 0, type: 'dice', ...layout }] },
+          },
+          STEPS[2],
+        ]),
+        2,
+        true
+      );
+      await run(3000);
+      expect(clicks.boards).not.toHaveBeenCalled();
+      expect(h.actions.addTourWidget).toHaveBeenCalledWith(
+        'dice',
+        expect.objectContaining(layout)
+      );
+      expect(clicks.dice).toHaveBeenCalledTimes(1);
+      expect(screen.getByText('Step 3')).toBeInTheDocument();
+    });
+
+    it('stops a fast-forward on a step whose control is missing', async () => {
+      await edit(
+        makeSet([
+          STEPS[0],
+          { anchor: 'sidebar.tour-missing', action: 'click' },
+          STEPS[2],
+        ]),
+        0,
+        true
+      );
+      await run(300);
+      act(() => selectTourEditStep(2));
+      await run(8000);
+      expect(getTourEditPlayback()).toMatchObject({ index: 1, jumping: false });
+      expect(getTourEdit()?.selected).toBe(1);
+      expect(clicks.menu).not.toHaveBeenCalled();
     });
   });
 });

@@ -299,6 +299,8 @@ export function publicTourStep(step: Step): Record<string, unknown> {
   if (tour) {
     const binding = { ...tour };
     delete binding.thumbnail;
+    // A step's saved starting board is edited on the board, never here.
+    delete binding.start;
     out.tour = binding;
   }
   out.has_thumbnail = !!thumb;
@@ -357,7 +359,7 @@ export function liveTourView(
   };
 }
 
-/** Validates the full step list like create_live_tour, keeping each stored step's thumbnail and slide placement. */
+/** Validates the full step list like create_live_tour, keeping each stored step's thumbnail, starting board and slide placement. */
 export function mergeTourSteps(
   existing: readonly Step[],
   input: readonly EditStep[]
@@ -383,6 +385,9 @@ export function mergeTourSteps(
         ...(next.tour as Record<string, unknown>),
         thumbnail: thumb,
       };
+    const start = (prior.tour as { start?: unknown } | undefined)?.start;
+    if (start && next.tour)
+      next.tour = { ...(next.tour as Record<string, unknown>), start };
     return next as Step;
   });
 }

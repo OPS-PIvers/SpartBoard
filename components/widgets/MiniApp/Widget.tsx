@@ -92,6 +92,13 @@ import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { withoutClaudeReview } from '@/utils/claudeReview';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
+import {
+  sandboxMiniAppWrite,
+  useMiniAppKeeper,
+  useSandboxedMiniApps,
+} from '@/hooks/useTourSandboxed';
+import { isTourSandboxActive } from '@/utils/tourSandbox';
+import { useTourMaterialEditor } from '@/components/tours/tourMaterials';
 
 // --- M17 B3: setAssignmentTargetsV1 client caller ---
 // Mirrors `functions/src/studentAssignmentTargets.ts` — kept local (not the
@@ -533,7 +540,16 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   // A substitute's own library and assignment archive have no place on the
   // teacher's board, so neither listener opens in a share.
   const inShare = useInSubShare();
-  const { library, globalLibrary } = useMiniAppSync(addToast, !inShare);
+  const { library: realLibrary, globalLibrary } = useMiniAppSync(
+    addToast,
+    !inShare
+  );
+  // A tour's sandbox adds its own apps and keeps its writes in memory.
+  const library = useSandboxedMiniApps(realLibrary);
+  useMiniAppKeeper(async (app) => {
+    if (!user) return;
+    await setDoc(doc(db, 'users', user.uid, 'miniapps', app.id), app);
+  });
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const [managerTab, setManagerTab] = useState<LibraryTab>('library');
@@ -1063,7 +1079,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
             ? library.reduce((min, a) => Math.min(min, a.order ?? 0), 0) - 1
             : 0,
       };
-      await setDoc(doc(appsRef, id), appData);
+      if (!sandboxMiniAppWrite(appData, realLibrary))
+        await setDoc(doc(appsRef, id), appData);
       // Clear unsaved flag and update title
       updateWidget(widget.id, {
         config: {
@@ -1098,6 +1115,11 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     claudeReview.markReviewed(app);
     setEditingApp(withoutClaudeReview({ ...app }));
   };
+  // A live tour can open one of the teacher's apps in the editor.
+  useTourMaterialEditor(widget.id, 'mini-app', editingApp?.id, (id) => {
+    const app = library.find((a) => a.id === id);
+    if (app) setEditingApp(withoutClaudeReview({ ...app }));
+  });
 
   const handleDelete = async (id: string) => {
     if (!user) return;
@@ -1108,7 +1130,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     });
     if (confirmed) {
       try {
-        await deleteDoc(doc(db, 'users', user.uid, 'miniapps', id));
+        const app = library.find((a) => a.id === id);
+        if (!app || !sandboxMiniAppWrite(app, realLibrary, true))
+          await deleteDoc(doc(db, 'users', user.uid, 'miniapps', id));
         addToast('App deleted', 'info');
       } catch (err) {
         console.error(err);
@@ -1139,7 +1163,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               : 0,
         };
         const appsRef = collection(db, 'users', user.uid, 'miniapps');
-        await setDoc(doc(appsRef, copy.id), copy);
+        if (!sandboxMiniAppWrite(copy, realLibrary))
+          await setDoc(doc(appsRef, copy.id), copy);
         addToast(`Duplicated as "${copy.title}".`, 'success');
       } catch (err) {
         logError('MiniAppWidget.handleDuplicate', err, {
@@ -1163,14 +1188,15 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       order: existing?.order ?? updated.order ?? 0,
     };
     const docRef = doc(db, 'users', user.uid, 'miniapps', appData.id);
-    await setDoc(docRef, appData);
+    if (!sandboxMiniAppWrite(appData, realLibrary))
+      await setDoc(docRef, appData);
     // The editor autosaves, so only the first write is news.
     if (!existing) addToast('App created!', 'success');
   };
 
   const handleReorder = useCallback(
     async (nextOrderedIds: string[]) => {
-      if (!user) return;
+      if (!user || isTourSandboxActive()) return;
 
       const byId = new Map(library.map((a) => [a.id, a]));
       const orderedIdSet = new Set(nextOrderedIds);
@@ -1219,7 +1245,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         createdAt: Date.now(),
         order: library.length,
       };
-      await setDoc(doc(appsRef, id), appData);
+      if (!sandboxMiniAppWrite(appData, realLibrary))
+        await setDoc(doc(appsRef, id), appData);
       addToast(`"${app.title}" added to your library`, 'success');
     } catch (err) {
       console.error(err);

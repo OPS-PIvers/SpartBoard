@@ -159,6 +159,11 @@ export function tourLayoutOverridesAt(
     if (id) out.set(id, overrideOf(layout));
   }
   for (let i = 0; i <= index && i < steps.length; i++) {
+    // A step's starting board puts every widget it lists in place.
+    for (const layout of steps[i].tour?.start?.layouts ?? []) {
+      const id = slots[layout.slot];
+      if (id) out.set(id, overrideOf(layout));
+    }
     for (const kf of steps[i].tour?.layoutKeyframes ?? []) {
       const id = slots[kf.slot];
       if (!id) continue;

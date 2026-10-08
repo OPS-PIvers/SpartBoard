@@ -18,6 +18,7 @@ import { createShortLinkAtomic } from '@/hooks/useShortLinks';
 import { generateRandomCode } from '@/utils/shortLinkValidation';
 import { buildGalleryLink, buildShortLinkUrl } from '@/utils/activityWallLinks';
 import type { ActivityWallLibraryEntry, SharedActivityWall } from '@/types';
+import { isSandboxed } from '@/utils/tourSandbox';
 
 type ShareTab = 'student' | 'gallery';
 
@@ -203,6 +204,13 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
         createdAt: Date.now(),
       };
 
+      // A tour's sandbox shows a link without sharing anything.
+      if (isSandboxed(entry.id)) {
+        const fake = buildGalleryLink(window.location.origin, shareId);
+        setLongUrl(fake);
+        setCreatedUrl(fake);
+        return;
+      }
       // Unlock viewer reads first, or every gallery submission read denies.
       await updateDoc(doc(db, 'activity_wall_sessions', sessionId), {
         publiclyShared: true,

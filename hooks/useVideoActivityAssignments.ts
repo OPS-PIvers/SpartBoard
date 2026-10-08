@@ -67,6 +67,7 @@ import {
   VA_KEY_SUBCOLLECTION,
 } from '@/utils/videoActivityPublicQuestions';
 import { viewAsDirectSave } from '@/utils/viewAsAudit';
+import { useSandboxedVideoActivityAssignments } from './useTourSandboxed';
 
 /**
  * Map VA assignment status onto the PLC index's shared `QuizAssignmentStatus`
@@ -1113,7 +1114,7 @@ export const useVideoActivityAssignments = (
     [userId]
   );
 
-  return {
+  return useSandboxedVideoActivityAssignments({
     assignments,
     loading,
     error,
@@ -1129,5 +1130,5 @@ export const useVideoActivityAssignments = (
     importSharedAssignment,
     publishAssignmentScores,
     unpublishAssignmentScores,
-  };
+  });
 };

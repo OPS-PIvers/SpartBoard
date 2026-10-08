@@ -158,6 +158,7 @@ import {
   syncedQuizContentFields,
   type SyncedQuizContentFields,
 } from '@/utils/syncedQuizContent';
+import { useSandboxedQuizAssignments } from './useTourSandboxed';
 
 /** Import-mode picker result for shared-assignment paste flows. */
 export type SharedAssignmentImportMode = 'sync' | 'copy';
@@ -3608,7 +3609,7 @@ export const useQuizAssignments = (
     [userId]
   );
 
-  return {
+  return useSandboxedQuizAssignments({
     assignments,
     loading,
     error,
@@ -3635,5 +3636,5 @@ export const useQuizAssignments = (
     clearResultsOverride,
     shareAssignmentWithPlc,
     stopSharingAssignmentWithPlc,
-  };
+  });
 };

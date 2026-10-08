@@ -30,6 +30,14 @@ export interface TourEditTarget {
   recording?: boolean;
   /** Asks the runner to take this step's picture again; `n` changes on every ask. */
   retake?: { stepId: string; n: number };
+  /** Live tour editing v2: sandboxed replays, checkpoints, pick and pause clear the stage. */
+  v2?: boolean;
+  /** The admin is picking a control; the runner shows nothing and doesn't advance. */
+  picking?: boolean;
+  /** The admin is setting the board up by hand; the runner shows nothing and doesn't advance. */
+  paused?: boolean;
+  /** Widgets a saved starting board gave slots to; `n` changes on every capture. */
+  adopt?: { slots: Record<number, string>; n: number };
 }
 
 /** What the runner reports back to the panel. */
@@ -103,6 +111,31 @@ export const setTourEditRecording = (recording: boolean): void => {
   const current = target.get();
   if (!current || !!current.recording === recording) return;
   target.set({ ...current, recording });
+};
+
+/** Hides the runner while the admin picks a control (v2). */
+export const setTourEditPicking = (picking: boolean): void => {
+  const current = target.get();
+  if (!current?.v2 || !!current.picking === picking) return;
+  target.set({ ...current, picking });
+};
+
+/** Pauses the tour so the admin can arrange the board by hand (v2). */
+export const setTourEditPaused = (paused: boolean): void => {
+  const current = target.get();
+  if (!current?.v2 || !!current.paused === paused) return;
+  target.set({ ...current, paused });
+};
+
+/** Ends a pause; with `slots`, the runner follows the widgets a starting board just captured. */
+export const resumeTourEdit = (slots?: Record<number, string>): void => {
+  const current = target.get();
+  if (!current) return;
+  target.set({
+    ...current,
+    paused: false,
+    ...(slots ? { adopt: { slots, n: (current.adopt?.n ?? 0) + 1 } } : {}),
+  });
 };
 
 export const useTourEditTarget = (): TourEditTarget | null =>

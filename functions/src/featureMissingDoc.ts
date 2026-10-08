@@ -16,6 +16,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'gl-player-v2',
   'tab-away-timer',
   'gl-live-tours',
+  'live-tour-editing-v2',
   'gl-studio',
   'per-period-access',
   'quiz-results-print',

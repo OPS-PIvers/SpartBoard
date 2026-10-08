@@ -43,6 +43,7 @@ import {
 import { logError } from '@/utils/logError';
 import { noDriveMessage } from '@/utils/viewAsDrive';
 import { viewAsDirectSave } from '@/utils/viewAsAudit';
+import { useSandboxedVideoActivity } from './useTourSandboxed';
 
 // Re-export so consumers can catch the version-conflict error without
 // importing from the synced-groups module directly. Mirrors the
@@ -505,7 +506,7 @@ export const useVideoActivity = (
     [userId]
   );
 
-  return {
+  return useSandboxedVideoActivity({
     activities,
     loading,
     error,
@@ -518,5 +519,5 @@ export const useVideoActivity = (
     attachSyncLinkage,
     pullSyncedVideoActivity,
     isDriveConnected: isAuthBypass || isConnected,
-  };
+  });
 };

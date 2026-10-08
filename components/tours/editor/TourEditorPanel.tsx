@@ -30,6 +30,8 @@ import {
   MousePointerClick,
   PanelLeft,
   PanelRight,
+  Pause,
+  Play,
   Plus,
   Redo2,
   Trash2,
@@ -47,7 +49,10 @@ import { Z_INDEX } from '@/config/zIndex';
 import { WHOLE_BOARD_ANCHOR } from '@/config/tourAnchors';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { DialogContext } from '@/context/DialogContextValue';
-import { useTourHidden } from '@/context/dashboardCanvasStore';
+import {
+  getTourLayoutOverrides,
+  useTourHidden,
+} from '@/context/dashboardCanvasStore';
 import { teacherMustClick } from '@/components/tours/tourSession';
 import {
   iconBtn,
@@ -69,10 +74,16 @@ import {
 } from '@/components/widgets/GuidedLearning/components/recorder/recordedLayouts';
 import { MAX_TYPED_CHARS } from '@/components/widgets/GuidedLearning/components/recorder/useTourCapture';
 import {
+  getTourEdit,
+  resumeTourEdit,
   retakeTourEditThumbnail,
+  setTourEditPaused,
+  setTourEditPicking,
   setTourEditRecording,
+  useTourEditTarget,
   type TourEditPlayback,
 } from './tourEditStore';
+import { bakeTourOverrides, captureStepStart } from './captureStepStart';
 import { tourThumbnail } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import {
   PANEL_EDGE,
@@ -136,10 +147,71 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
   );
   const [tab, setTab] = useState<'steps' | 'settings'>('steps');
   // Which step is choosing its control, on the board or from the list.
-  const [picking, setPicking] = useState<{
+  const [picking, setPickingState] = useState<{
     stepId: string;
     from: 'board' | 'list';
   } | null>(null);
+  // Picking on the board clears the tour off the stage so the control can be clicked.
+  const setPicking = (next: typeof picking) => {
+    setPickingState(next);
+    setTourEditPicking(next?.from === 'board');
+  };
+  const editTarget = useTourEditTarget();
+  const v2 = !!editTarget?.v2;
+  const paused = !!editTarget?.paused;
+  const dialogs = useContext(DialogContext);
+  const dashboard = useContext(DashboardContext);
+  const hiddenIds = useTourHidden();
+  const pause = () => {
+    setPicking(null);
+    bakeTourOverrides(
+      dashboard?.activeDashboard?.widgets ?? [],
+      getTourLayoutOverrides(),
+      (id, patch) => dashboard?.updateWidget(id, patch)
+    );
+    setTourEditPaused(true);
+  };
+  // Resuming can keep the arranged board as where this step starts.
+  const resume = async () => {
+    const step = set.steps[selected];
+    const message = t('tours.editor.saveStartBody', { n: selected + 1 });
+    const keep =
+      !!step?.tour &&
+      (dialogs
+        ? await dialogs.showConfirm(message, {
+            title: t('tours.editor.saveStartTitle'),
+            confirmLabel: t('tours.editor.saveStart'),
+            cancelLabel: t('tours.editor.justResume'),
+          })
+        : window.confirm(message));
+    const draft = getTourEdit()?.set ?? set;
+    if (!keep || !step?.tour) {
+      resumeTourEdit();
+      return;
+    }
+    const captured = captureStepStart({
+      widgets: dashboard?.activeDashboard?.widgets ?? [],
+      hidden: hiddenIds,
+      overrides: getTourLayoutOverrides(),
+      slots: playback.slots,
+      set: draft,
+      untitledLabel: t('tours.materials.madeInTour'),
+    });
+    if (captured.addedMaterial) {
+      session.updateSet({
+        tourSetup: {
+          ...draft.tourSetup,
+          widgets: draft.tourSetup?.widgets ?? [],
+          materials: [
+            ...(draft.tourSetup?.materials ?? []),
+            captured.addedMaterial,
+          ],
+        },
+      });
+    }
+    session.setBinding(step.id, { ...step.tour, start: captured.start });
+    resumeTourEdit(captured.slots);
+  };
   const width = collapsed ? RAIL_WIDTH : PANEL_WIDTH;
   const side = panelSide(
     preferred,
@@ -424,6 +496,14 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
             </div>
           ) : (
             <>
+              {paused && (
+                <p
+                  role="status"
+                  className="border-b border-slate-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900"
+                >
+                  {t('tours.editor.pausedNote')}
+                </p>
+              )}
               <StepOutline
                 session={session}
                 playback={playback}
@@ -449,6 +529,22 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
                   />
                   {t('tourPicker.recordFromHere')}
                 </button>
+                {v2 && (
+                  <button
+                    type="button"
+                    onClick={paused ? () => void resume() : pause}
+                    aria-pressed={paused}
+                    title={t('tours.editor.pauseHint')}
+                    className={`${secondaryBtn} ml-auto flex items-center gap-1.5`}
+                  >
+                    {paused ? (
+                      <Play className="h-3.5 w-3.5" aria-hidden="true" />
+                    ) : (
+                      <Pause className="h-3.5 w-3.5" aria-hidden="true" />
+                    )}
+                    {t(paused ? 'tours.editor.resume' : 'tours.editor.pause')}
+                  </button>
+                )}
               </div>
             </>
           )}
@@ -883,6 +979,25 @@ const StepCard: React.FC<{
           />
           {t('glStudio.tourTeacherMustClick')}
         </label>
+      )}
+      {tour?.start && (
+        <div className="flex items-center gap-2 text-xs text-slate-600">
+          <LayoutDashboard
+            className="h-3.5 w-3.5 shrink-0 text-slate-400"
+            aria-hidden="true"
+          />
+          <span className="min-w-0 flex-1">{t('tours.editor.startSaved')}</span>
+          <button
+            type="button"
+            onClick={() => {
+              const { start: _start, ...rest } = tour;
+              bind(rest);
+            }}
+            className={`rounded-md px-1.5 py-0.5 font-semibold text-slate-600 hover:bg-slate-100 ${focusRing}`}
+          >
+            {t('tours.editor.clearStart')}
+          </button>
+        </div>
       )}
       <div className="flex flex-wrap items-center justify-between gap-1 pt-1">
         <CaptureLayoutButton
