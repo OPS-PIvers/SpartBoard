@@ -147,10 +147,9 @@ const DialogShell: React.FC<DialogShellProps> = ({
           >
             {message}
           </p>
+          <div className="mt-5 flex gap-2 justify-center">{children}</div>
         </div>
       </div>
-
-      <div className="mt-5 flex gap-2 justify-end">{children}</div>
     </div>
   );
 };
