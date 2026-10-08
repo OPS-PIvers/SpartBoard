@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   applyAvailability,
+  applyWhen,
   applyWindowEdit,
   availabilityFromStored,
   changedWindow,
   closesBeforeOpens,
   defaultAvailability,
+  manualStartAvailable,
   periodAccessWindowEdits,
   resolveAvailability,
   type AssignAvailability,
@@ -486,5 +488,93 @@ describe('editing per-class windows', () => {
     expect(periodAccessWindowEdits(periodAccess, before, after)).toEqual({
       'periodAccess.k5.openAt': at('2026-10-02', '13:00'),
     });
+  });
+});
+
+describe('applyWhen', () => {
+  const value = {
+    ...EMPTY_ASSIGN_TARGETING_VALUE,
+    availability: bellToBell('2026-10-02'),
+    openAt: 1,
+    closeAt: 2,
+    dueAt: 3,
+  };
+
+  it('needs bell periods for Manual', () => {
+    expect(manualStartAvailable(bellWindow)).toBe(true);
+    expect(manualStartAvailable(undefined)).toBe(false);
+  });
+
+  it('writes Manual as closed per-period access with no window or due date', () => {
+    const { targeting, dueAtByRosterId } = applyWhen(value, {
+      mode: 'manual',
+      rosters: [p3, p5],
+      bellWindow,
+    });
+    expect(targeting).toEqual({
+      ...EMPTY_ASSIGN_TARGETING_VALUE,
+      periodPlan: { mode: 'assessment' },
+    });
+    expect(dueAtByRosterId).toBeUndefined();
+  });
+
+  it('keeps Manual for a single class', () => {
+    const { targeting } = applyWhen(value, {
+      mode: 'manual',
+      rosters: [p3],
+      bellWindow,
+    });
+    expect(targeting.periodPlan).toEqual({ mode: 'assessment' });
+    expect(targeting.dueAt).toBeUndefined();
+  });
+
+  it('saves the work kind with Manual when the setting is on', () => {
+    const { targeting } = applyWhen(value, {
+      mode: 'manual',
+      rosters: [p3],
+      bellWindow,
+      workKind: { default: 'work' },
+    });
+    expect(targeting.workKind).toBe('work');
+  });
+
+  it('falls back to the dates without bell periods', () => {
+    const { targeting } = applyWhen(value, {
+      mode: 'manual',
+      rosters: [p3],
+      bellWindow: undefined,
+    });
+    expect(targeting.periodPlan).toBeUndefined();
+    expect(targeting.openAt).toBe(at('2026-10-02', '00:00'));
+    expect(targeting.dueAt).toBe(at('2026-10-02', '23:59'));
+  });
+
+  it('resolves Scheduled like the availability section, with per-class rows', () => {
+    const { targeting, dueAtByRosterId } = applyWhen(value, {
+      mode: 'scheduled',
+      rosters: [p3, p5],
+      bellWindow,
+    });
+    expect(targeting.availability).toBeUndefined();
+    expect(targeting.openAt).toBe(at('2026-10-02', '09:05'));
+    expect(targeting.dueAt).toBe(at('2026-10-02', '12:27'));
+    expect(targeting.periodPlan?.mode).toBe('assignment');
+    expect(dueAtByRosterId).toEqual({
+      r3: at('2026-10-02', '09:52'),
+      r5: at('2026-10-02', '12:27'),
+    });
+  });
+
+  it('never makes a study resource manual', () => {
+    const { targeting } = applyWhen(value, {
+      mode: 'manual',
+      rosters: [p3],
+      bellWindow,
+      workKind: { default: 'resource', locked: true },
+    });
+    expect(targeting.workKind).toBe('resource');
+    expect(targeting.periodPlan).toBeUndefined();
+    expect(targeting.dueAt).toBeUndefined();
+    expect(targeting.openAt).toBe(at('2026-10-02', '09:05'));
   });
 });
