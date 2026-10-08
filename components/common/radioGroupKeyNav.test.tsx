@@ -120,3 +120,35 @@ describe('handleRadioGroupKeyDown', () => {
     expect(level1).toHaveFocus();
   });
 });
+
+describe('handleRadioGroupKeyDown with a non-radio child', () => {
+  it('leaves arrow/Home/End keys typed in a text input alone', () => {
+    const onSelect = vi.fn();
+    render(
+      <div
+        role="radiogroup"
+        onKeyDown={(e) => handleRadioGroupKeyDown(e, OPTIONS, onSelect)}
+      >
+        {OPTIONS.map((o) => (
+          <button
+            key={String(o)}
+            type="button"
+            role="radio"
+            aria-checked={false}
+          >
+            {String(o)}
+          </button>
+        ))}
+        <input aria-label="hex" />
+      </div>
+    );
+    const input = screen.getByLabelText('hex');
+    input.focus();
+    for (const key of ['ArrowLeft', 'ArrowRight', 'Home', 'End']) {
+      const notPrevented = fireEvent.keyDown(input, { key });
+      expect(notPrevented).toBe(true);
+    }
+    expect(input).toHaveFocus();
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+});

@@ -21,6 +21,12 @@ export function handleRadioGroupKeyDown<O>(
   )
     return;
   if (e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  // Keys typed in a non-radio child (e.g. a hex text field) belong to that child.
+  if (
+    e.target instanceof Element &&
+    !e.target.closest('[role="radio"], [role="tab"]')
+  )
+    return;
   const nodes = Array.from(
     e.currentTarget.querySelectorAll<HTMLButtonElement>(
       '[role="radio"], [role="tab"]'
