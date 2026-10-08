@@ -40,6 +40,7 @@ import {
   POSITION_AWARE_WIDGETS,
   WIDGET_STRETCH_BEHAVIOR,
 } from '@/config/widgetDefaults';
+import { isTourSandboxActive } from '@/utils/tourSandbox';
 
 const LIVE_SESSION_UPDATE_DEBOUNCE_MS = 800; // Balance between real-time updates and reducing Firestore write costs
 
@@ -96,6 +97,12 @@ interface WidgetRendererProps {
    */
   isActive?: boolean;
 }
+
+const TOUR_GLIDE =
+  'left 450ms ease-in-out, top 450ms ease-in-out, width 450ms ease-in-out, height 450ms ease-in-out';
+const prefersReducedMotion = () =>
+  typeof window !== 'undefined' &&
+  !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
 // A live tour's temporary layout, drawn over the saved one.
 const withTourLayout = (
@@ -163,6 +170,8 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
   );
 
   const handleToggleLive = useCallback(async () => {
+    // A tour's sandbox never starts or ends a real live session.
+    if (isTourSandboxActive()) return;
     try {
       if (isLive) {
         await endSession();
@@ -274,9 +283,12 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
   // the widget below the backdrop overlay). position:fixed is relative to the
   // viewport, and the dashboard is always full-screen, so widget.x / widget.y
   // map 1:1 to viewport coordinates — the widget stays visually in place.
+  // A widget a live tour moves glides to its new place.
+  const tourGlide = !!tourLayout && !prefersReducedMotion();
   const customStyle: React.CSSProperties = useMemo(
-    () =>
-      isSpotlighted
+    () => ({
+      ...(tourGlide ? { transition: TOUR_GLIDE } : {}),
+      ...(isSpotlighted
         ? {
             position: 'fixed',
             zIndex: Z_INDEX.backdrop + 1,
@@ -284,8 +296,9 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
             outlineOffset: '2px',
             boxShadow: '0 0 32px 8px rgba(250,204,21,0.25)',
           }
-        : {},
-    [isSpotlighted]
+        : {}),
+    }),
+    [isSpotlighted, tourGlide]
   );
 
   const scaling = WIDGET_SCALING_CONFIG[widget.type];

@@ -104,7 +104,12 @@ const applyEdit = (
 ): TourEditTarget => {
   const keepId = selectId ?? cur.set.steps[cur.selected]?.id;
   const selected = reselect(next, keepId, cur.selected);
-  const reordered = stepOrder(next) !== stepOrder(cur.set);
+  // v2 replays only when a step before the selection moved, was added or went away.
+  const upTo = Math.min(cur.selected, selected);
+  const reordered = cur.v2
+    ? stepOrder({ ...next, steps: next.steps.slice(0, upTo) }) !==
+      stepOrder({ ...cur.set, steps: cur.set.steps.slice(0, upTo) })
+    : stepOrder(next) !== stepOrder(cur.set);
   return {
     ...cur,
     set: next,

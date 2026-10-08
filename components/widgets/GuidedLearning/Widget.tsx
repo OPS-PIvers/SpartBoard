@@ -94,6 +94,8 @@ import {
   withFrozenAnswerKeys,
 } from './utils/resultsScoring';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
+import { isSandboxId, isSandboxed } from '@/utils/tourSandbox';
+import { useTourMaterialEditor } from '@/components/tours/tourMaterials';
 
 // Code-split (Phase 5): heavy GL surfaces load on demand, not with the dashboard.
 const GuidedLearningManager = lazy(() =>
@@ -551,6 +553,16 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       setEditingMeta(meta);
     }
   };
+  // A live tour can open one of the teacher's sets in the editor.
+  useTourMaterialEditor(
+    widget.id,
+    'guided-learning',
+    editingSet?.id,
+    (itemId) => {
+      const meta = sets.find((s) => s.id === itemId);
+      if (meta) void handleEdit(meta.id, meta.driveFileId);
+    }
+  );
 
   // The Manager delegates save routing back here: building sets go to
   // Firestore-only via saveBuildingSet, personal sets go through Drive +
@@ -588,7 +600,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     ? async (folderId: string | null) => {
         try {
           // No updatedAt bump: the open editor reads that as an edit elsewhere.
-          if (!user?.uid) return;
+          if (!user?.uid || isSandboxed(editingMeta.id)) return;
           await updateDoc(
             doc(db, 'users', user.uid, GL_PERSONAL_COLLECTION, editingMeta.id),
             { folderId }
@@ -742,7 +754,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
             undefined,
             expandedTargeting
           );
-          if (payloadRequiresCall(payload)) {
+          if (!isSandboxId(sessionId) && payloadRequiresCall(payload)) {
             try {
               const callable = httpsCallable<
                 SetAssignmentTargetsCallableInput,

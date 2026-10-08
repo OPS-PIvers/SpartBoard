@@ -29,6 +29,7 @@ import {
 import { db } from '@/config/firebase';
 import type { ActivityWallLibraryEntry } from '@/types';
 import { normalizeActivityWallLibraryEntry } from '@/utils/activityWallNormalize';
+import { useSandboxedActivityWalls } from './useTourSandboxed';
 
 const COLLECTION = 'activity_wall_activities';
 
@@ -119,11 +120,11 @@ export const useActivityWallLibrary = (
     [userId]
   );
 
-  return {
+  return useSandboxedActivityWalls({
     activities,
     loading,
     error,
     saveActivity,
     deleteActivity: removeActivity,
-  };
+  });
 };

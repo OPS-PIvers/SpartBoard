@@ -102,6 +102,19 @@ describe('tourLayoutOverridesAt', () => {
     expect(map.get('mine')?.xProp).toBe(0.2);
   });
 
+  it("puts a step's saved board in place from that step on", () => {
+    const withStart = [
+      ...steps,
+      stepOf({ start: { layouts: [layout(1, 'clock', 0.4)] } }),
+    ];
+    expect(
+      tourLayoutOverridesAt(withStart, 2, slots, moved).get('tour-added')?.xProp
+    ).toBe(0.9);
+    expect(
+      tourLayoutOverridesAt(withStart, 3, slots, moved).get('tour-added')?.xProp
+    ).toBe(0.4);
+  });
+
   it('applies every keyframe up to the current step, and none after', () => {
     expect(
       tourLayoutOverridesAt(steps, 1, slots, moved).get('mine')?.xProp

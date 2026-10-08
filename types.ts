@@ -8126,6 +8126,48 @@ export interface GuidedLearningTourBinding {
   unmapped?: string;
   /** Optional picture of the control; never decides whether a step shows or can be edited. */
   thumbnail?: GuidedLearningTourThumbnail;
+  /** The board this step starts from; a jump straight here loads it instead of replaying earlier steps. */
+  start?: TourStepStart;
+}
+
+/** A step's starting board: widget places and the material open in an editor. */
+export interface TourStepStart {
+  layouts: TourWidgetLayout[];
+  open?: TourOpenMaterial;
+}
+
+/** A tour material open in the editor of the widget in `slot`. */
+export interface TourOpenMaterial {
+  materialId: string;
+  slot: number;
+  /** Content of a material the tour made earlier, so a jump here can recreate it. */
+  content?: TourMaterialContent;
+}
+
+export type TourMaterialKind =
+  | 'quiz'
+  | 'video-activity'
+  | 'guided-learning'
+  | 'mini-app'
+  | 'activity-wall';
+
+/** A library item's library entry and full content, as its widget stores them. */
+export interface TourMaterialContent {
+  meta: Record<string, unknown>;
+  data: Record<string, unknown>;
+}
+
+/** sample: a copy kept in the tour; teacher: one of theirs, picked at start; created: made during the tour. */
+export type TourMaterialSource = 'sample' | 'teacher' | 'created';
+
+/** A library item a live tour works on. */
+export interface TourMaterial {
+  id: string;
+  kind: TourMaterialKind;
+  source: TourMaterialSource;
+  label: string;
+  /** sample: the copied item, and the author's item it came from. */
+  sample?: TourMaterialContent & { fromId: string; title: string };
 }
 
 /** A step's picture; `anchor` differing from the binding's anchor marks it stale. */
@@ -8246,6 +8288,8 @@ export interface GuidedLearningSet {
     useTeacherBoard?: true;
     /** A tour-mode set starts with Autopilot on (what `mode: 'guided'` did before tours had a mode). */
     autopilot?: true;
+    /** Library items the tour works on; absent = a tour from before materials, which runs on real items. */
+    materials?: TourMaterial[];
   };
   /** Stamped on every building-set save: true for tour mode or when any step has a live-tour binding. */
   hasLiveTour?: boolean;
@@ -9808,6 +9852,8 @@ export type GlobalFeature =
   | 'tab-away-timer'
   /** Guided Learning live tours in the teacher app and their launch points. */
   | 'gl-live-tours'
+  /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
+  | 'live-tour-editing-v2'
   /** Guided Learning Studio editor in place of the classic editor. */
   | 'gl-studio'
   /** Per-period start/pause and windows on assignments shared by several classes. */

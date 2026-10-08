@@ -30,6 +30,7 @@ import {
   MA_CONTENT_DOC,
   type MiniAppSessionContent,
 } from '@/utils/miniAppSessionContent';
+import { useSandboxedMiniAppSession } from './useTourSandboxed';
 
 const SESSIONS_COLLECTION = 'mini_app_sessions';
 
@@ -246,7 +247,7 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
     };
   }, []);
 
-  return {
+  return useSandboxedMiniAppSession({
     createSession,
     sessions,
     sessionsLoading,
@@ -254,5 +255,5 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
     unsubscribeFromAppSessions,
     renameSession,
     endSession,
-  };
+  });
 };

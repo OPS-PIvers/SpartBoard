@@ -59,6 +59,7 @@ import type {
   StudentOverride,
   GuidedLearningSession,
 } from '@/types';
+import { useSandboxedGuidedLearningAssignments } from './useTourSandboxed';
 
 const GL_ASSIGNMENTS_COLLECTION = 'guided_learning_assignments';
 const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
@@ -582,17 +583,20 @@ export const useGuidedLearningAssignments = (
     [userId]
   );
 
-  return {
-    assignments,
-    loading,
-    error,
-    hasOlder,
-    showOlder,
-    createAssignment,
-    archiveAssignment,
-    unarchiveAssignment,
-    deleteAssignment,
-    publishAssignmentScores,
-    unpublishAssignmentScores,
-  };
+  return useSandboxedGuidedLearningAssignments(
+    {
+      assignments,
+      loading,
+      error,
+      hasOlder,
+      showOlder,
+      createAssignment,
+      archiveAssignment,
+      unarchiveAssignment,
+      deleteAssignment,
+      publishAssignmentScores,
+      unpublishAssignmentScores,
+    },
+    userId
+  );
 };

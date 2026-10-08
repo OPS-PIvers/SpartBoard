@@ -14,9 +14,23 @@ import type {
   GuidedLearningSet,
   GuidedLearningStep,
   TourAutopilotPolicy,
+  TourStepStart,
   TourWidgetLayout,
   WidgetType,
 } from '@/types';
+import {
+  endTourSandbox,
+  keepableSandboxItems,
+  keepSandboxItem,
+  startTourSandbox,
+} from '@/utils/tourSandbox';
+import {
+  checkpointAt,
+  resolveOpenMaterial,
+  seedTourMaterials,
+} from './tourMaterialSeed';
+import { getOpenTourMaterials, requestOpenTourMaterial } from './tourMaterials';
+import { TourMaterialPicks } from './TourMaterialPicks';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import {
@@ -113,7 +127,13 @@ import {
 
 const TourMiniPlayer = lazy(() => import('./TourMiniPlayer'));
 
-type Phase = 'welcome' | 'practice-offer' | 'running' | 'teardown';
+type Phase =
+  | 'welcome'
+  | 'materials'
+  | 'practice-offer'
+  | 'running'
+  | 'keep'
+  | 'teardown';
 
 interface LaunchOptions {
   /** Widgets a reloaded run had already added, so teardown can still remove them. */
@@ -123,6 +143,10 @@ interface LaunchOptions {
   draft?: boolean;
   /** The board editor's draft, played step by step from the outline. */
   edit?: boolean;
+  /** Starts from this step's saved board instead of the tour's setup. */
+  start?: TourStepStart;
+  /** Tour material id to the teacher's item picked for it. */
+  picks?: Readonly<Record<string, string>>;
 }
 
 interface ActiveTour {
@@ -153,7 +177,17 @@ interface ActiveTour {
   clearStage?: boolean;
   draft?: boolean;
   edit?: boolean;
+  /** Live tour editing v2 is on for this run. */
+  v2?: boolean;
+  /** Library writes stay in memory for this run. */
+  sandboxed?: boolean;
+  /** The teacher's items picked for the tour's materials. */
+  picks?: Readonly<Record<string, string>>;
 }
+
+/** How long a step keeps asking its widget to open a material. */
+const OPEN_MATERIAL_MS = 4000;
+const OPEN_MATERIAL_RETRY_MS = 250;
 
 const EMPTY_LAYER = {
   tourIds: [] as string[],
@@ -325,6 +359,18 @@ export const LiveTourRunner: React.FC = () => {
       steps: liveTourStepsOf(editTarget.set),
     });
   }
+  // A saved starting board's widgets join the stage's slots.
+  const [adoptedN, setAdoptedN] = useState(0);
+  const adopt = tour?.edit ? editTarget?.adopt : undefined;
+  if (adopt && adopt.n !== adoptedN && tour) {
+    setAdoptedN(adopt.n);
+    setTour({ ...tour, slots: { ...tour.slots, ...adopt.slots } });
+  }
+  // Recording, picking a control or a paused stage: the tour stands aside.
+  const standAside =
+    !!tour?.edit &&
+    !!editTarget &&
+    (!!editTarget.recording || !!editTarget.picking || !!editTarget.paused);
   if (
     ffTarget !== null &&
     tour?.phase === 'running' &&
@@ -395,6 +441,10 @@ export const LiveTourRunner: React.FC = () => {
     tour?.phase === 'running'
       ? tourLayoutOverridesAt(tour.steps, tour.index, tour.slots, tour.moved)
       : null;
+  // A paused stage lets the admin drag the tour's own widgets.
+  if (overrides && tour?.edit && editTarget?.paused) {
+    for (const w of widgets) if (w.transient) overrides.delete(w.id);
+  }
   const overridesKey = overrides ? JSON.stringify([...overrides]) : '';
   const overridesRef = useRef(overrides);
   overridesRef.current = overrides;
@@ -431,6 +481,7 @@ export const LiveTourRunner: React.FC = () => {
     () => () => {
       latest.current.dashboard.setTourTransientSpawns?.(false);
       latest.current.dashboard.discardTourWidgets?.(tourIdsRef.current);
+      endTourSandbox();
       clearTourLayoutOverrides();
       clearTourWidgetPatches();
       clearTourHidden();
@@ -499,7 +550,7 @@ export const LiveTourRunner: React.FC = () => {
   const snapStepId =
     tour?.phase === 'running' &&
     tour.edit &&
-    !editTarget?.recording &&
+    !standAside &&
     !jumping &&
     step &&
     binding &&
@@ -637,6 +688,7 @@ export const LiveTourRunner: React.FC = () => {
     tour?.phase === 'running' &&
     !!binding &&
     !handsOn &&
+    !standAside &&
     !prereqSettled &&
     prereqDone !== prereqKey;
   useEffect(() => {
@@ -653,6 +705,29 @@ export const LiveTourRunner: React.FC = () => {
     opts: LaunchOptions = {}
   ) => {
     const { dashboard: d } = latest.current;
+    const v2 = opts.edit
+      ? !!getTourEdit()?.v2
+      : latest.current.canAccessFeature('live-tour-editing-v2');
+    const materials = set.tourSetup?.materials ?? [];
+    // Editor runs, and teacher runs of a tour with materials, never write real items.
+    const sandboxed = v2 && (!!opts.edit || materials.length > 0);
+    if (sandboxed) {
+      startTourSandbox();
+      seedTourMaterials(materials, { edit: !!opts.edit, picks: opts.picks });
+    } else endTourSandbox();
+    // A run that starts mid-tour starts from that step's saved board.
+    const start =
+      opts.start ?? (v2 && from > 0 ? steps[from]?.tour?.start : undefined);
+    const planSet: GuidedLearningSet = start
+      ? {
+          ...set,
+          tourSetup: {
+            ...set.tourSetup,
+            widgets: [...new Set(start.layouts.map((l) => l.type))],
+            layouts: start.layouts,
+          },
+        }
+      : set;
     const current = d.activeDashboard?.widgets ?? [];
     const claims = claimsFromIds(current, opts.claimIds);
     const beforeIds = new Set(current.map((w) => w.id));
@@ -666,9 +741,9 @@ export const LiveTourRunner: React.FC = () => {
       ? current.filter((w) => !w.transient).map((w) => w.id)
       : [];
     if (clearStage) setTourHidden(hidden);
-    if ((clearStage || set.tourSetup?.layouts?.length) && d.addTourWidget) {
+    if ((clearStage || planSet.tourSetup?.layouts?.length) && d.addTourWidget) {
       // Recorded layouts: unsaved tour widgets, and the teacher's own moved for now.
-      const plan = planTourSetup(set, steps, clearStage ? [] : current);
+      const plan = planTourSetup(planSet, steps, clearStage ? [] : current);
       for (const { layout, widgetId } of plan.bind) {
         slots[layout.slot] = widgetId;
         moved[layout.slot] = layout;
@@ -726,6 +801,9 @@ export const LiveTourRunner: React.FC = () => {
       clearStage,
       draft: opts.draft,
       edit: opts.edit,
+      v2,
+      sandboxed,
+      picks: opts.picks,
     });
   };
 
@@ -749,10 +827,17 @@ export const LiveTourRunner: React.FC = () => {
       policy: DEFAULT_TOUR_AUTOPILOT_POLICY,
       draft: opts.draft,
       edit: opts.edit,
+      picks: opts.picks,
     });
     setCheering(false);
     setFinished(false);
+    const asksPicks =
+      !opts.edit &&
+      !opts.picks &&
+      latest.current.canAccessFeature('live-tour-editing-v2') &&
+      (set.tourSetup?.materials ?? []).some((m) => m.source === 'teacher');
     if (phase === 'welcome') setTour(pending('welcome'));
+    else if (asksPicks) setTour(pending('materials'));
     else if (latest.current.dashboard.isActiveBoardReadOnly)
       setTour(pending('practice-offer'));
     else runSetup(set, steps, from, opts);
@@ -851,6 +936,7 @@ export const LiveTourRunner: React.FC = () => {
       else d.discardTourWidgets?.(tour.tourIds);
     }
     undoPrerequisites();
+    endTourSandbox();
     setTour(null);
   };
 
@@ -862,7 +948,7 @@ export const LiveTourRunner: React.FC = () => {
 
   const startOnPracticeBoard = async () => {
     if (!tour) return;
-    const { set, steps, index, draft, edit } = tour;
+    const { set, steps, index, draft, edit, picks } = tour;
     const id = await latest.current.dashboard.createNewDashboard(
       latest.current.t('tours.practiceBoardName')
     );
@@ -885,7 +971,7 @@ export const LiveTourRunner: React.FC = () => {
       abandon();
       return;
     }
-    runSetup(set, steps, index, { draft, edit });
+    runSetup(set, steps, index, { draft, edit, picks });
   };
 
   // A step left while its anchor was still missing counts as a field miss.
@@ -902,12 +988,50 @@ export const LiveTourRunner: React.FC = () => {
       runLog.current = null;
     }
     setFinished(done);
+    // Items the tour made or loaded are offered to keep before anything is torn down.
+    if (
+      tour.phase === 'running' &&
+      tour.sandboxed &&
+      !tour.edit &&
+      keepableSandboxItems().length > 0
+    ) {
+      setTour({ ...tour, phase: 'keep' });
+      return;
+    }
+    closeOut(done);
+  };
+
+  // The widget prompt, or the end, after any keep prompt.
+  const closeOut = (done: boolean) => {
+    if (!tour) return;
     if (added.length > 0) {
       setTour({ ...tour, phase: 'teardown' });
       return;
     }
     endTour();
     if (done && showSparty) setCheering(true);
+  };
+
+  const [keeping, setKeeping] = useState(false);
+  const keepItems = async () => {
+    setKeeping(true);
+    let kept = 0;
+    for (const item of keepableSandboxItems()) {
+      try {
+        if (await keepSandboxItem(item.kind, item.id)) kept += 1;
+      } catch (err) {
+        console.error('Live tour: could not keep item', err);
+      }
+    }
+    setKeeping(false);
+    const total = keepableSandboxItems().length;
+    latest.current.dashboard.addToast(
+      latest.current.t(kept === total ? 'tours.kept' : 'tours.keepFailed', {
+        count: kept,
+      }),
+      kept === total ? 'success' : 'error'
+    );
+    closeOut(finished);
   };
 
   const goTo = (index: number) => {
@@ -983,8 +1107,14 @@ export const LiveTourRunner: React.FC = () => {
     const selected = Math.min(req.selected, steps.length - 1);
     editHandled.current = { selected, replay: req.replay };
     setResumeOffer(null);
-    beginRef.current(req.set, steps, 0, null, { edit: true });
-    setFfTarget(selected > 0 ? selected : null);
+    // v2 starts from the nearest saved board at or before the selection.
+    const from = req.v2 ? checkpointAt(steps, selected) : 0;
+    const start = from > 0 ? steps[from]?.tour?.start : undefined;
+    beginRef.current(req.set, steps, from, null, {
+      edit: true,
+      ...(start ? { start } : {}),
+    });
+    setFfTarget(selected > from ? selected : null);
   });
   useEffect(() => {
     if (editIdle) startEdit();
@@ -1023,7 +1153,7 @@ export const LiveTourRunner: React.FC = () => {
   }, [editSelected, editReplay]);
 
   // Record from here captures real clicks; the stage stays but the tour stands aside.
-  const editRecording = !!tour?.edit && !!editTarget?.recording;
+  const editRecording = standAside;
   const acted = isActedStep(step?.tour) && !editRecording;
   const action = step?.tour?.action;
   const stepValue = step?.tour?.value;
@@ -1086,9 +1216,11 @@ export const LiveTourRunner: React.FC = () => {
       ? () => stopJump()
       : tour.phase === 'teardown'
         ? () => endTour(true)
-        : tour.phase === 'practice-offer'
+        : tour.phase === 'practice-offer' || tour.phase === 'materials'
           ? abandon
-          : () => finish();
+          : tour.phase === 'keep'
+            ? () => undefined
+            : () => finish();
 
   // Switching boards ends the tour with no prompt; its unsaved widgets go with it.
   const boardSwitched =
@@ -1214,7 +1346,7 @@ export const LiveTourRunner: React.FC = () => {
   const cursorAllowed =
     running && center !== null && isClick && !step?.cursor?.hide;
   // Guided sets start with the Autopilot switch on; the teacher can flip it either way.
-  const autopilot = tour?.edit ? jumping : autoOn;
+  const autopilot = tour?.edit ? jumping && !standAside : autoOn;
   const stepKey = `${stepIndex}:${attempt}`;
   const autoStage = auto?.key === stepKey ? auto.stage : null;
   const found = running && anchor.status === 'found';
@@ -1286,8 +1418,12 @@ export const LiveTourRunner: React.FC = () => {
       setAuto(null);
       return;
     }
+    // A sandboxed editor replay clicks every step on the way to the selection.
+    const clickAll = !!tour.edit && !!tour.sandboxed && jumping;
     const gate = canPerform(binding)
-      ? autopilotGate(binding, tour.policy)
+      ? clickAll
+        ? 'perform'
+        : autopilotGate(binding, tour.policy)
       : 'teacher';
     if (gate === 'teacher' || (gate === 'confirm' && !consented)) {
       setAuto({ key: stepKey, stage: gate === 'teacher' ? 'blocked' : gate });
@@ -1382,11 +1518,67 @@ export const LiveTourRunner: React.FC = () => {
 
   useEffect(() => () => autoWait.current?.abort(), []);
 
-  // A fast-forward passes over a step whose control isn't on the board.
+  // A fast-forward passes over a step whose control isn't on the board; v2 stops there to show it.
   const skipMissing = jumping && anchor.status === 'missing';
+  const stopOnMissing = !!tour?.edit && !!tour.sandboxed;
+  const stopJumpRef = useRef(stopJump);
+  stopJumpRef.current = stopJump;
   useEffect(() => {
-    if (skipMissing) advanceRef.current(stepIndex + 1);
-  }, [skipMissing, stepIndex]);
+    if (!skipMissing) return;
+    if (stopOnMissing) stopJumpRef.current();
+    else advanceRef.current(stepIndex + 1);
+  }, [skipMissing, stepIndex, stopOnMissing]);
+
+  // Entering a step with a saved board adds its missing widgets and opens its material.
+  const entryStart =
+    tour?.phase === 'running' && tour.v2 ? step?.tour?.start : undefined;
+  const entryKey = entryStart && tour ? `${tour.index}:${attempt}` : '';
+  const applyStart = useEffectEvent((signal: AbortSignal) => {
+    if (!tour || !entryStart) return;
+    const d = latest.current.dashboard;
+    const onBoard = new Set(widgets.map((w) => w.id));
+    const slots: Record<number, string> = { ...tour.slots };
+    const added: string[] = [];
+    for (const layout of entryStart.layouts) {
+      const bound = slots[layout.slot];
+      if (bound && onBoard.has(bound)) continue;
+      const { slot: _slot, type, ...place } = layout;
+      const id = d.addTourWidget?.(type, place);
+      if (id) {
+        slots[layout.slot] = id;
+        added.push(id);
+      }
+    }
+    if (added.length > 0) {
+      setTour((t) =>
+        t ? { ...t, slots, tourIds: [...t.tourIds, ...added] } : t
+      );
+    }
+    const open = entryStart.open;
+    if (!open) return;
+    const item = resolveOpenMaterial(open, tour.set.tourSetup?.materials ?? []);
+    const widgetId = slots[open.slot];
+    if (!item || !widgetId) return;
+    // A widget just added, or a library still loading, gets asked again.
+    const until = Date.now() + OPEN_MATERIAL_MS;
+    const ask = () => {
+      if (signal.aborted) return;
+      if (getOpenTourMaterials().get(widgetId)?.itemId === item.itemId) return;
+      requestOpenTourMaterial({
+        widgetId,
+        kind: item.kind,
+        itemId: item.itemId,
+      });
+      if (Date.now() < until) window.setTimeout(ask, OPEN_MATERIAL_RETRY_MS);
+    };
+    ask();
+  });
+  useEffect(() => {
+    if (!entryKey) return;
+    const ctrl = new AbortController();
+    applyStart(ctrl.signal);
+    return () => ctrl.abort();
+  }, [entryKey]);
 
   // The outline marks steps whose control wasn't found when they last played.
   const [missingIds, setMissingIds] = useState<readonly string[]>([]);
@@ -1617,6 +1809,46 @@ export const LiveTourRunner: React.FC = () => {
         </button>
       </>,
       'wave'
+    );
+  } else if (tour.phase === 'materials') {
+    const { set, steps, index, draft } = tour;
+    content = (
+      <TourMaterialPicks
+        key="materials"
+        title={set.title.trim() || t('tours.welcomeTitle')}
+        materials={(set.tourSetup?.materials ?? []).filter(
+          (m) => m.source === 'teacher'
+        )}
+        uid={user?.uid}
+        onCancel={abandon}
+        onStart={(picks) => begin(set, steps, index, null, { draft, picks })}
+      />
+    );
+  } else if (tour.phase === 'keep') {
+    const items = keepableSandboxItems();
+    content = dialog(
+      t('tours.keepItemsTitle', { count: items.length }),
+      items.map((i) => i.title.trim() || t('tours.untitledItem')).join(', '),
+      <>
+        <button
+          type="button"
+          className={secondaryBtn}
+          disabled={keeping}
+          onClick={() => closeOut(finished)}
+        >
+          {t('tours.discardItems')}
+        </button>
+        <button
+          type="button"
+          data-autofocus=""
+          className={primaryBtn}
+          disabled={keeping}
+          onClick={() => void keepItems()}
+        >
+          {t('tours.keepItems', { count: items.length })}
+        </button>
+      </>,
+      finished ? 'cheer' : undefined
     );
   } else if (tour.phase === 'practice-offer') {
     content = dialog(

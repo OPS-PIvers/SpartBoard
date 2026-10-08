@@ -64,6 +64,7 @@ import {
   useSharedSubscription,
 } from './useSharedSubscription';
 import { noDriveMessage } from '@/utils/viewAsDrive';
+import { useSandboxedGuidedLearning } from './useTourSandboxed';
 
 const GL_COLLECTION = 'guided_learning';
 // Users whose closed tombstones were already released this page load.
@@ -526,7 +527,7 @@ export const useGuidedLearning = (
     [isAdmin]
   );
 
-  return {
+  return useSandboxedGuidedLearning({
     sets,
     buildingSets,
     loading,
@@ -540,7 +541,7 @@ export const useGuidedLearning = (
     duplicateBuildingSet,
     saveBuildingSet,
     deleteBuildingSet,
-  };
+  });
 };
 
 // Transactional revision check for a building set, resolving to the replaced doc.

@@ -65,6 +65,7 @@ import {
 import { noDriveMessage } from '@/utils/viewAsDrive';
 import { viewAsDirectSave } from '@/utils/viewAsAudit';
 import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
+import { useSandboxedQuiz } from './useTourSandboxed';
 
 const QUIZZES_COLLECTION = 'quizzes';
 
@@ -875,7 +876,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
     [getDriveService]
   );
 
-  return {
+  return useSandboxedQuiz({
     quizzes,
     loading,
     error,
@@ -894,7 +895,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
     attachSyncLinkage,
     loadSyncedTranslations,
     isDriveConnected: isAuthBypass || isConnected,
-  };
+  });
 };
 
 // Re-export the version-conflict error so consumers (e.g. QuizEditorModal)

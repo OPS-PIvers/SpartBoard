@@ -63,6 +63,7 @@ import { useActivityWallSession } from './hooks/useActivityWallSession';
 import { useSubShareActivityWall } from './useSubShareActivityWall';
 import { useLegacyActivityWallMigration } from './hooks/useLegacyActivityWallMigration';
 import { tourAttr } from '@/config/tourAnchors';
+import { useTourMaterialEditor } from '@/components/tours/tourMaterials';
 
 /** Name stamped on teacher posts; falls back to the email handle. */
 const EMPTY_POSTS: ActivityWallSubmission[] = [];
@@ -141,6 +142,11 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     claudeReview.markReviewed(entry);
     setEditorEntry(entry);
   };
+  // A live tour can open one of the teacher's walls in the editor.
+  useTourMaterialEditor(widget.id, 'activity-wall', editorEntry?.id, (id) => {
+    const entry = entries.find((e) => e.id === id);
+    if (entry) setEditorEntry(entry);
+  });
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [moderationOpen, setModerationOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);

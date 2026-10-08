@@ -45,6 +45,7 @@ import { getServerNow } from '@/utils/serverTime';
 import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
 import { assertGuidedLearningDocFits } from '@/utils/firestoreDocSize';
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
+import { useSandboxedGuidedLearningSession } from './useTourSandboxed';
 
 const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
 
@@ -494,13 +495,13 @@ export const useGuidedLearningSessionTeacher = (
 
   const exportResponsesAsCSV = buildGLResponsesCSV;
 
-  return {
+  return useSandboxedGuidedLearningSession({
     responses,
     responsesLoading,
     createSession,
     subscribeToResponses,
     exportResponsesAsCSV,
-  };
+  });
 };
 
 // ─── Student-side hook ────────────────────────────────────────────────────────

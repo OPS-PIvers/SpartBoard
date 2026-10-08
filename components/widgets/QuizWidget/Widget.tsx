@@ -186,6 +186,8 @@ import { DEFAULT_TAB_AWAY_LIMIT_SECONDS } from '@/utils/tabAwayLimit';
 import { revealValueFor } from '@/utils/quizFibAlternates';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
+import { isSandboxed } from '@/utils/tourSandbox';
+import { useTourMaterialEditor } from '@/components/tours/tourMaterials';
 
 const QuizStudentView = lazy(() =>
   import('@/components/quiz/QuizStudentView').then((m) => ({
@@ -754,6 +756,17 @@ const TeacherQuizWidget: React.FC<{
     [loadQuizData, addToast]
   );
 
+  // A live tour can open one of the teacher's quizzes in the editor.
+  useTourMaterialEditor(widget.id, 'quiz', editingQuiz?.id, (itemId) => {
+    const meta = quizzes.find((q) => q.id === itemId);
+    if (!meta) return;
+    void loadQuiz(meta).then((data) => {
+      if (!data) return;
+      setEditingQuiz(data);
+      setEditingMeta(meta);
+    });
+  });
+
   // Previews show one sample attempt, so bank slots become drawn questions.
   const withSampleBankDraw = useCallback(
     async (data: QuizData): Promise<QuizData> => {
@@ -876,6 +889,8 @@ const TeacherQuizWidget: React.FC<{
       if (!plc) {
         throw new Error('That PLC is no longer available.');
       }
+      // A tour's sandbox shares nothing.
+      if (isSandboxed(quizMeta.id)) return;
       let data = await loadQuizData(quizMeta.driveFileId);
       // Decision 24: every bank slot must draw from a bank shared with this PLC.
       if (quizHasBankSlots(data)) {

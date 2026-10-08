@@ -354,3 +354,10 @@ body:has([data-tour-bar]) [data-toast-stack] {
   outline-offset: 2px;
   border-radius: 0.75rem;
 }
+
+/* A live tour can point at a maximized widget's controls, so they stay in view while one runs. */
+body:has([data-testid='live-tour']) [data-max-bar] {
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+}

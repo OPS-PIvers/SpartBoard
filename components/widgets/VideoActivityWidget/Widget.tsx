@@ -85,6 +85,8 @@ import { ViewAsDriveEmptyState } from '@/components/viewAs/ViewAsDriveEmptyState
 import { useViewAsDriveStatus } from '@/hooks/useViewAsDriveStatus';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
+import { isSandboxId, isSandboxed } from '@/utils/tourSandbox';
+import { useTourMaterialEditor } from '@/components/tours/tourMaterials';
 
 /**
  * Shared clipboard helper — centralizes the feature-detection + toast flow
@@ -252,6 +254,22 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     [loadActivityData, addToast]
   );
 
+  // A live tour can open one of the teacher's activities in the editor.
+  useTourMaterialEditor(
+    widget.id,
+    'video-activity',
+    editingActivity?.id,
+    (itemId) => {
+      const meta = activities.find((a) => a.id === itemId);
+      if (!meta) return;
+      void loadActivity(meta).then((data) => {
+        if (!data) return;
+        setEditingActivity(data);
+        setEditingMeta(meta);
+      });
+    }
+  );
+
   // ─── Reactive cleanup ──────────────────────────────────────────────────
   //
   // Auto-exit the live monitor if the assignment under it goes inactive
@@ -325,6 +343,8 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
       if (!plc) {
         throw new Error('That PLC is no longer available.');
       }
+      // A tour's sandbox shares nothing.
+      if (isSandboxed(activityMeta.id)) return;
       const data = await loadActivityData(activityMeta.driveFileId);
 
       let syncGroupId: string;
@@ -706,6 +726,8 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             periodGate,
             sessionMode
           );
+          // A tour's sandbox hands back a made-up session with no docs behind it.
+          const sandboxed = isSandboxId(sessionId);
 
           // M17 §5 B3 — write the new window fields onto the session doc
           // (`setAssignmentTargetsV1` only owns the pointer-doc windows /
@@ -722,10 +744,11 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           const sessionOpenAt = periodGate ? null : targeting.openAt;
           const sessionCloseAt = periodGate ? null : targeting.closeAt;
           if (
-            sessionOpenAt != null ||
-            sessionCloseAt != null ||
-            sessionDueAt != null ||
-            targeting.workKind
+            !sandboxed &&
+            (sessionOpenAt != null ||
+              sessionCloseAt != null ||
+              sessionDueAt != null ||
+              targeting.workKind)
           ) {
             await updateDoc(doc(db, 'video_activity_sessions', sessionId), {
               ...(sessionOpenAt != null ? { openAt: sessionOpenAt } : {}),
@@ -775,10 +798,17 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
               : {}),
             ...(periodGate ?? {}),
           };
-          await setDoc(
-            doc(db, 'users', user.uid, 'video_activity_assignments', sessionId),
-            assignmentDoc
-          );
+          if (!sandboxed)
+            await setDoc(
+              doc(
+                db,
+                'users',
+                user.uid,
+                'video_activity_assignments',
+                sessionId
+              ),
+              assignmentDoc
+            );
 
           // Call the CF strictly when the teacher chose per-student targeting
           // (§3a-G) — a class-wide assignment, even with a Schedule window,
@@ -788,7 +818,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             undefined,
             expandedTargeting
           );
-          if (payloadRequiresCall(targetsPayload)) {
+          if (!sandboxed && payloadRequiresCall(targetsPayload)) {
             const runSetAssignmentTargets = async (): Promise<void> => {
               const setAssignmentTargets = httpsCallable(
                 functions,
