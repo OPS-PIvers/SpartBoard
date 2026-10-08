@@ -43,7 +43,7 @@ describe('QuizAttemptsStep', () => {
       expect.objectContaining({ attemptLimit: null })
     );
     fireEvent.click(screen.getByRole('switch', { name: 'Shuffle questions' }));
-    expect(lastOptions(onChange).shuffleQuestions).toBe(true);
+    expect(lastOptions(onChange)?.shuffleQuestions).toBe(true);
   });
 
   it('hides the time limit without its flag', () => {
@@ -65,9 +65,9 @@ describe('QuizAttemptsStep', () => {
     const field = screen.getByRole('spinbutton', { name: 'Minutes' });
     fireEvent.change(field, { target: { value: '500' } });
     fireEvent.blur(field);
-    expect(lastOptions(onChange).timeLimitMinutes).toBe(240);
+    expect(lastOptions(onChange)?.timeLimitMinutes).toBe(240);
     fireEvent.click(screen.getByRole('switch', { name: 'Time limit' }));
-    expect(lastOptions(onChange).timeLimitMinutes).toBe(null);
+    expect(lastOptions(onChange)?.timeLimitMinutes).toBe(null);
   });
 });
 
@@ -131,7 +131,7 @@ describe('QuizIntegrityStep', () => {
     expect(field).toHaveValue(30);
     fireEvent.change(field, { target: { value: '2' } });
     fireEvent.blur(field);
-    expect(lastOptions(onChange).tabAwayLimitSeconds).toBe(5);
+    expect(lastOptions(onChange)?.tabAwayLimitSeconds).toBe(5);
   });
 
   it('switches repeated tab-switch auto-submit off and on', () => {
@@ -145,7 +145,7 @@ describe('QuizIntegrityStep', () => {
         name: 'Auto-submit after repeated tab switches',
       })
     );
-    expect(lastOptions(onChange).tabWarningThreshold).toBe('off');
+    expect(lastOptions(onChange)?.tabWarningThreshold).toBe('off');
   });
 });
 
@@ -197,7 +197,7 @@ describe('QuizFeedbackStep', () => {
     fireEvent.click(
       screen.getByRole('switch', { name: 'Allow students to raise a hand' })
     );
-    expect(lastOptions(onChange).handRaiseEnabled).toBe(true);
+    expect(lastOptions(onChange)?.handRaiseEnabled).toBe(true);
     expect(screen.getByText('Read aloud')).toBeInTheDocument();
   });
 });
