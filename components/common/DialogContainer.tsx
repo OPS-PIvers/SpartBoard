@@ -125,34 +125,31 @@ const DialogShell: React.FC<DialogShellProps> = ({
       aria-modal="true"
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
-      className={`bg-slate-800 border ${cfg.borderAccent} rounded-2xl shadow-2xl w-full max-w-sm flex flex-col overflow-hidden animate-in zoom-in-95 duration-200`}
+      className={`bg-slate-800 border ${cfg.borderAccent} rounded-2xl shadow-2xl w-fit max-w-sm p-5 animate-in zoom-in-95 duration-200`}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* Header */}
-      <div className="flex items-center gap-3 px-5 pt-5 pb-4">
+      <div className="flex gap-3">
         <div
           className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center ${cfg.iconBg}`}
         >
           {cfg.icon}
         </div>
-        <h3
-          id={titleId}
-          className="font-bold text-base text-white leading-snug"
-        >
-          {title}
-        </h3>
+        <div className="min-w-0">
+          <h3
+            id={titleId}
+            className="min-h-10 flex items-center font-bold text-base text-white leading-snug"
+          >
+            {title}
+          </h3>
+          <p
+            id={descriptionId}
+            className="text-sm text-slate-300 leading-relaxed"
+          >
+            {message}
+          </p>
+        </div>
       </div>
-
-      {/* Message */}
-      <p
-        id={descriptionId}
-        className="px-5 pb-5 text-sm text-slate-300 leading-relaxed"
-      >
-        {message}
-      </p>
-
-      {/* Button row */}
-      <div className="flex gap-2 px-5 pb-5 justify-end">{children}</div>
+      <div className="mt-5 flex gap-2 justify-center">{children}</div>
     </div>
   );
 };

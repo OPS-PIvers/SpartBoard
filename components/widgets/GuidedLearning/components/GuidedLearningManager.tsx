@@ -203,6 +203,10 @@ export interface GuidedLearningManagerProps {
     setId: string,
     driveFileId: string
   ) => void | Promise<void>;
+  /** Confirms once and deletes every target; false when cancelled. */
+  onBulkDeletePersonal: (
+    targets: { setId: string; driveFileId: string }[]
+  ) => Promise<boolean>;
   /**
    * Phase 5 — duplicate a personal set. Owns the actual `duplicateSet`
    * call; the manager only surfaces the affordance. Optional so the
@@ -464,6 +468,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onPrefetchSet,
   loadSetForPreview,
   onDeletePersonal,
+  onBulkDeletePersonal,
   onDuplicatePersonal,
   isDuplicatingPersonal,
   onDuplicateBuilding,
@@ -756,40 +761,29 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   // ─── Bulk handlers (Step 8) ─────────────────────────────────────────────
   const handleBulkDelete = useCallback(async (): Promise<void> => {
     if (selection.count === 0) return;
-    const personalIds = Array.from(selection.selectedIds).filter((id) =>
-      id.startsWith('personal:')
-    );
-    if (personalIds.length === 0) return;
-    const ok = window.confirm(
-      `Delete ${personalIds.length} set${personalIds.length === 1 ? '' : 's'}? This cannot be undone.`
-    );
-    if (!ok) return;
+    const targets = Array.from(selection.selectedIds).flatMap((id) => {
+      if (!id.startsWith('personal:')) return [];
+      const entry = allEntries.find((e) => e.id === id);
+      return entry?.driveFileId
+        ? [
+            {
+              setId: id.slice('personal:'.length),
+              driveFileId: entry.driveFileId,
+            },
+          ]
+        : [];
+    });
+    if (targets.length === 0) return;
     setBulkBusy(true);
     try {
-      const results = await Promise.allSettled(
-        personalIds.map(async (id) => {
-          const rawId = id.slice('personal:'.length);
-          const entry = allEntries.find((e) => e.id === id);
-          if (entry?.driveFileId) {
-            await onDeletePersonal(rawId, entry.driveFileId);
-          }
-        })
-      );
-      results.forEach((result, idx) => {
-        if (result.status === 'rejected') {
-          console.error(
-            '[GuidedLearningManager] bulk delete failed for',
-            personalIds[idx],
-            result.reason
-          );
-        }
-      });
-      selection.clear();
-      setSelectionMode(false);
+      if (await onBulkDeletePersonal(targets)) {
+        selection.clear();
+        setSelectionMode(false);
+      }
     } finally {
       setBulkBusy(false);
     }
-  }, [selection, allEntries, onDeletePersonal]);
+  }, [selection, allEntries, onBulkDeletePersonal]);
 
   const handleBulkMove = useCallback(
     async (folderId: string | null): Promise<void> => {

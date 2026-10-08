@@ -8,6 +8,7 @@ import {
 import { ToastContainer } from '@/components/common/ToastContainer';
 import type { Toast } from '@/types';
 import { DialogProvider } from '@/context/DialogContext';
+import { DialogContainer } from '@/components/common/DialogContainer';
 import { AuthProvider } from '@/context/AuthContext';
 import type { UseFoldersResult } from '@/hooks/useFolders';
 import { QuizManager } from '@/components/widgets/QuizWidget/components/QuizManager';
@@ -310,6 +311,7 @@ const GuidedLearningView: React.FC = () => (
     onAssign={noop}
     loadSetForPreview={() => Promise.resolve(null)}
     onDeletePersonal={noop}
+    onBulkDeletePersonal={() => Promise.resolve(false)}
     onDeleteBuilding={noop}
     onCreateNewPersonal={noop}
     onCreateNewBuilding={noop}
@@ -606,6 +608,7 @@ export const LibraryManagersDevHarness: React.FC = () => {
               <View key={view} />
             </div>
           </div>
+          <DialogContainer />
         </AuthProvider>
       </DialogProvider>
     </HarnessToasts>

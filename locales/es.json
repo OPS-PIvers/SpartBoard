@@ -3848,10 +3848,8 @@
   },
   "glData": {
     "setTooLarge": "Este conjunto es demasiado grande para guardarlo. Divídelo o quita diapositivas.",
-    "deleteSetTitle": "¿Eliminar «{{title}}»?",
     "deleteWithOpenAssignments_one": "Los estudiantes de {{count}} tarea abierta lo perderán.",
-    "deleteWithOpenAssignments_other": "Los estudiantes de {{count}} tareas abiertas lo perderán.",
-    "deleteConfirm": "Eliminar"
+    "deleteWithOpenAssignments_other": "Los estudiantes de {{count}} tareas abiertas lo perderán."
   },
   "glAssignments": {
     "showOlder": "Mostrar anteriores"

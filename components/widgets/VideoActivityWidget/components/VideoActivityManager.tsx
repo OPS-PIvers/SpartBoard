@@ -84,6 +84,10 @@ import type {
   LibraryTab,
 } from '@/components/common/library/types';
 import { buildDuplicateAction } from '@/components/common/library/libraryDuplicate';
+import {
+  LIBRARY_ITEM_NOUNS,
+  useLibraryDeleteConfirm,
+} from '@/components/common/library/useLibraryDeleteConfirm';
 import type {
   AssignmentMode,
   ClassRoster,
@@ -520,6 +524,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onPendingAssignDone,
 }) => {
   const { showConfirm } = useDialog();
+  const confirmDelete = useLibraryDeleteConfirm();
   const { canAccessFeature } = useAuth();
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
   const canAssignLive = canAccessFeature('video-activity-live');
@@ -762,12 +767,13 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
 
   const handleBulkDelete = useCallback(async (): Promise<void> => {
     if (selection.count === 0) return;
-    const ok = window.confirm(
-      `Delete ${selection.count} activit${selection.count === 1 ? 'y' : 'ies'}? This cannot be undone.`
-    );
-    if (!ok) return;
     const ids = Array.from(selection.selectedIds);
     const targets = activities.filter((a) => ids.includes(a.id));
+    const ok = await confirmDelete({
+      titles: targets.map((a) => a.title),
+      noun: LIBRARY_ITEM_NOUNS.videoActivity,
+    });
+    if (!ok) return;
     setBulkBusy(true);
     try {
       const results = await Promise.allSettled(
@@ -787,7 +793,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     } finally {
       setBulkBusy(false);
     }
-  }, [selection, activities, onDelete]);
+  }, [selection, activities, onDelete, confirmDelete]);
 
   const handleReorderDrop = useCallback(
     async (nextOrderedIds: string[]): Promise<void> => {
@@ -1064,14 +1070,10 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
                 icon: Trash2,
                 destructive: true,
                 onClick: async () => {
-                  const ok = await showConfirm(
-                    `Delete "${activity.title}"? This cannot be undone.`,
-                    {
-                      title: 'Delete Video Activity',
-                      variant: 'danger',
-                      confirmLabel: 'Delete',
-                    }
-                  );
+                  const ok = await confirmDelete({
+                    titles: [activity.title],
+                    noun: LIBRARY_ITEM_NOUNS.videoActivity,
+                  });
                   if (ok) await onDelete(activity);
                 },
               },
