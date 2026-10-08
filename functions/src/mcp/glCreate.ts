@@ -30,7 +30,7 @@ import {
   type MissingAnchorNote,
 } from './glAnchorRequests';
 import { WIDGET_TYPE_LIST } from './widgetTypeList';
-import { CREATES, run } from './toolKit';
+import { CREATES, assertFolder, run } from './toolKit';
 
 export const MAX_NEW_SLIDES = 10;
 const WIDGET_TYPES = new Set(WIDGET_TYPE_LIST);
@@ -69,6 +69,7 @@ export interface CreateInput {
   tour_widgets?: string[];
   autopilot?: boolean;
   help_center?: HelpCenterPlacement;
+  folder_id?: string;
   steps: CreateStepInput[];
 }
 
@@ -250,6 +251,11 @@ export async function saveNewSet(
   } else if (input.steps.some((s) => s.missing_anchor)) {
     throw new ToolError('missing_anchor applies only to building sets.');
   }
+  if (input.folder_id) {
+    if (source !== 'mine')
+      throw new ToolError('folder_id applies only to your own sets.');
+    await assertFolder(ctx, 'guided_learning', input.folder_id);
+  }
   const token = source === 'mine' ? await driveTokenFor(ctx.uid) : null;
   await reserveWrite(ctx);
   const slides = await uploadSlides(ctx, input.slide_urls ?? []);
@@ -293,6 +299,7 @@ export async function saveNewSet(
       updatedAt: now,
       claudeCreatedAt: now,
       ...(slides.paths.length > 0 ? { imagePaths: slides.paths } : {}),
+      ...(input.folder_id ? { folderId: input.folder_id } : {}),
       driveFileIds: [],
     });
   }
@@ -348,6 +355,12 @@ export function registerCreateGuidedLearning(
           .max(MAX_NEW_SLIDES)
           .describe(
             'PNG, JPEG, GIF or WebP links in slide order; step imageIndex counts from 0.'
+          ),
+        folder_id: z
+          .string()
+          .optional()
+          .describe(
+            'From list_folders; omit for top level. Your own sets only.'
           ),
         steps: z.array(standardStep).min(1).max(MAX_STEPS),
       },

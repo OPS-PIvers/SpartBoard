@@ -26,11 +26,17 @@ import {
 import {
   CONTENT_TYPES,
   FOLDER_COLLECTIONS,
+  MAX_FOLDERS,
   assertFolder,
+  folderPath,
   iso,
   pageByUpdatedAt,
+  resolveFolderPath,
   run,
   titleAndFolderFilter,
+  toFolderRow,
+  type FolderContentType,
+  type FolderRow,
 } from './toolKit';
 import { registerQuizTools, restoreQuizRevision } from './quizTools';
 import { registerVideoTools, restoreVideoRevision } from './videoTools';
@@ -189,11 +195,20 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
       })
   );
 
+  const loadFolders = async (contentType: FolderContentType) => {
+    const snap = await db
+      .collection(`users/${uid}/${FOLDER_COLLECTIONS[contentType]}`)
+      .limit(MAX_FOLDERS)
+      .get();
+    return snap.docs.map((d) => toFolderRow(d.id, d.data()));
+  };
+
   server.registerTool(
     'list_folders',
     {
       title: 'List library folders',
-      description: "Lists the teacher's library folders for a content type.",
+      description:
+        "Lists the teacher's library folders for a content type, with each folder's path from the top level.",
       inputSchema: { content_type: z.enum(CONTENT_TYPES) },
       annotations: {
         readOnlyHint: true,
@@ -203,22 +218,17 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     },
     ({ content_type }) =>
       run('list_folders', ctx, async () => {
-        const snap = await db
-          .collection(`users/${uid}/${FOLDER_COLLECTIONS[content_type]}`)
-          .limit(200)
-          .get();
-        const folders = snap.docs
-          .map((d) => ({
-            folder_id: d.id,
-            name: String(d.get('name') ?? ''),
-            parent_folder_id: (d.get('parentId') as string | null) ?? null,
-            order: Number(d.get('order') ?? 0),
-          }))
-          .sort((a, b) => a.order - b.order)
+        const rows = await loadFolders(content_type);
+        const byId = new Map(rows.map((r) => [r.id, r]));
+        const folders = rows
+          .map((r) => ({ ...r, path: folderPath(r.id, byId).join(' / ') }))
+          .sort((a, b) => a.path.localeCompare(b.path) || a.order - b.order)
           .map((f) => ({
-            folder_id: f.folder_id,
+            folder_id: f.id,
             name: f.name,
-            parent_folder_id: f.parent_folder_id,
+            path: f.path,
+            parent_folder_id: f.parentId,
+            color: f.color,
           }));
         return { content_type, folders };
       })
@@ -228,7 +238,8 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
     'create_folder',
     {
       title: 'Create a library folder',
-      description: 'Creates a library folder for a content type.',
+      description:
+        'Creates a library folder for a content type. parent_path files it under nested folders, reusing ones that exist and creating the rest.',
       inputSchema: {
         content_type: z.enum(CONTENT_TYPES),
         name: z.string().trim().min(1).max(100),
@@ -236,6 +247,20 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
           .string()
           .optional()
           .describe('Omit for a top-level folder.'),
+        parent_path: z
+          .array(z.string().trim().min(1).max(100))
+          .max(10)
+          .optional()
+          .describe(
+            'Folder names under parent_folder_id (or the top level), outermost first, e.g. ["Unit 3", "Week 2"].'
+          ),
+        color: z
+          .string()
+          .trim()
+          .min(1)
+          .max(32)
+          .optional()
+          .describe('Folder colour; omit for the default.'),
       },
       annotations: {
         readOnlyHint: false,
@@ -244,38 +269,70 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
         openWorldHint: false,
       },
     },
-    ({ content_type, name, parent_folder_id }) =>
+    ({ content_type, name, parent_folder_id, parent_path, color }) =>
       run('create_folder', ctx, async () => {
-        const parentId = parent_folder_id || null;
-        await assertFolder(ctx, content_type, parentId);
-        await reserveWrite(ctx);
+        const rows = await loadFolders(content_type);
+        const byId = new Map(rows.map((r) => [r.id, r]));
+        const start = parent_folder_id || null;
+        if (start && !byId.has(start))
+          throw new ToolError(
+            `Folder ${start} was not found. Use list_folders to find a folder id.`
+          );
+        const { parentId: deepest, missing } = resolveFolderPath(
+          rows,
+          start,
+          parent_path ?? []
+        );
+        const toCreate = [...missing, name.trim()];
+        for (let i = 0; i < toCreate.length; i++) await reserveWrite(ctx);
         const col = db.collection(
           `users/${uid}/${FOLDER_COLLECTIONS[content_type]}`
         );
-        const siblings = await col.where('parentId', '==', parentId).get();
-        // Mirrors createFolder in hooks/useFolderTree.ts: order = max(siblings) + 1.
-        const orders = siblings.docs.map((d) => Number(d.get('order') ?? 0));
         const now = Date.now();
-        const ref = col.doc();
         const batch = db.batch();
-        batch.set(ref, {
-          name: name.trim(),
-          parentId,
-          order: orders.length === 0 ? 0 : Math.max(...orders) + 1,
-          createdAt: now,
-          updatedAt: now,
-        });
-        logActivity(ctx, batch, {
-          action: 'create',
-          itemType: 'folder',
-          itemId: ref.id,
-          title: name,
-        });
+        let parentId = deepest;
+        let created: FolderRow | null = null;
+        for (const [i, folderName] of toCreate.entries()) {
+          // Mirrors createFolder in hooks/useFolderTree.ts: order = max(siblings) + 1.
+          const orders = rows
+            .filter((r) => r.parentId === parentId)
+            .map((r) => r.order);
+          const last = i === toCreate.length - 1;
+          const ref = col.doc();
+          created = {
+            id: ref.id,
+            name: folderName,
+            parentId,
+            order: orders.length === 0 ? 0 : Math.max(...orders) + 1,
+            color: last && color ? color : null,
+          };
+          batch.set(ref, {
+            name: created.name,
+            parentId,
+            order: created.order,
+            ...(created.color ? { color: created.color } : {}),
+            createdAt: now,
+            updatedAt: now,
+          });
+          logActivity(ctx, batch, {
+            action: 'create',
+            itemType: 'folder',
+            itemId: ref.id,
+            title: folderName,
+          });
+          rows.push(created);
+          byId.set(created.id, created);
+          parentId = created.id;
+        }
         await batch.commit();
+        const folder = created as FolderRow;
         return {
-          folder_id: ref.id,
-          name: name.trim(),
-          parent_folder_id: parentId,
+          folder_id: folder.id,
+          name: folder.name,
+          path: folderPath(folder.id, byId).join(' / '),
+          parent_folder_id: folder.parentId,
+          color: folder.color,
+          ...(missing.length > 0 ? { parent_folders_created: missing } : {}),
         };
       })
   );
