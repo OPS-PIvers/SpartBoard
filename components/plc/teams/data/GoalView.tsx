@@ -15,6 +15,7 @@ import {
   TextLink,
 } from '@/components/plc/redesignMockup/ui';
 import { GoalProgressMeter } from './GoalProgressMeter';
+import { tourAttr } from '@/config/tourAnchors';
 
 export interface GoalViewProps {
   goal: PlcGoal | null;
@@ -118,6 +119,7 @@ export const GoalView: React.FC<GoalViewProps> = ({
               size="sm"
               aria-haspopup="menu"
               aria-expanded={menu}
+              {...tourAttr('teams.goal.options')}
               onClick={() => setMenu((v) => !v)}
             />
             {menu && (
@@ -130,6 +132,7 @@ export const GoalView: React.FC<GoalViewProps> = ({
                     type="button"
                     role="menuitem"
                     className={MENU_ITEM}
+                    {...tourAttr('teams.goal.edit')}
                     onClick={() => {
                       setMenu(false);
                       onEdit(goal);
@@ -143,6 +146,7 @@ export const GoalView: React.FC<GoalViewProps> = ({
                     type="button"
                     role="menuitem"
                     className={MENU_ITEM}
+                    {...tourAttr('teams.goal.add')}
                     onClick={() => {
                       setMenu(false);
                       onAdd();
@@ -211,6 +215,7 @@ export const GoalView: React.FC<GoalViewProps> = ({
                 quiet
                 icon={checking ? undefined : Sparkles}
                 disabled={!canCheck || checking}
+                {...tourAttr('teams.goal.check')}
                 onClick={() => void check()}
               >
                 {checking && (

@@ -16,6 +16,7 @@ import {
   TextLink,
   type StatusTone,
 } from '@/components/plc/redesignMockup/ui';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export type TrackerFilter = 'all' | 'late' | 'none' | 'done';
 
@@ -75,6 +76,7 @@ export const TaskTrackerView: React.FC<TaskTrackerViewProps> = ({
           {onPostTask && (
             <Button
               size="sm"
+              {...tourAttr('teams.mentoring.post-task')}
               onClick={onPostTask}
               icon={<Plus className="h-3.5 w-3.5" aria-hidden="true" />}
             >
@@ -86,6 +88,7 @@ export const TaskTrackerView: React.FC<TaskTrackerViewProps> = ({
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <select
               aria-label="Task"
+              {...tourAttr('teams.tracker.task')}
               value={taskId}
               onChange={(e) => onTask(e.target.value)}
               className={`${INPUT} py-1.5`}
@@ -145,11 +148,27 @@ export const TaskTrackerView: React.FC<TaskTrackerViewProps> = ({
             );
             const action =
               counts && p.tone === 'done' ? (
-                <TextLink key="a" onClick={() => onOpenSubmission(p.id)}>
+                <TextLink
+                  key="a"
+                  onClick={() => onOpenSubmission(p.id)}
+                  {...tourFieldAttr(
+                    'teams.tracker.open-submission',
+                    'teams-mentoring',
+                    p.id
+                  )}
+                >
                   Open submission
                 </TextLink>
               ) : (
-                <TextLink key="a" onClick={() => onOpenWorkspace(p.id)}>
+                <TextLink
+                  key="a"
+                  onClick={() => onOpenWorkspace(p.id)}
+                  {...tourFieldAttr(
+                    'teams.tracker.open-workspace',
+                    'teams-mentoring',
+                    p.id
+                  )}
+                >
                   Open workspace
                 </TextLink>
               );
