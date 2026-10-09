@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   collection,
   onSnapshot,
@@ -391,6 +392,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
           ) : (
             <div className="flex gap-2">
               <select
+                {...tourAttr('admin.save-template.existing-template')}
                 value={selectedTemplateId}
                 onChange={(e) => setSelectedTemplateId(e.target.value)}
                 className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30"
@@ -403,6 +405,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
                 ))}
               </select>
               <button
+                {...tourAttr('admin.save-template.update-existing')}
                 onClick={() => void handleUpdate()}
                 disabled={!selectedTemplateId || updating}
                 className="flex items-center gap-2 px-4 py-2 bg-brand-blue-primary text-white rounded-lg font-bold text-sm hover:bg-brand-blue-dark transition-colors disabled:opacity-50"
@@ -434,6 +437,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
               Template Name *
             </label>
             <input
+              {...tourAttr('admin.save-template.new-name')}
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
@@ -450,6 +454,11 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
               <div className="flex gap-2 flex-wrap">
                 {BUILDINGS.map((b) => (
                   <button
+                    {...tourFieldAttr(
+                      'admin.save-template.building',
+                      'admin',
+                      b.id
+                    )}
                     key={b.id}
                     onClick={() => toggleBuilding(b.id)}
                     className={`px-3 py-1 rounded-full text-xs font-bold border transition-all ${
@@ -466,6 +475,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
           )}
 
           <button
+            {...tourAttr('admin.save-template.save-new')}
             onClick={() => void handleSaveNew()}
             disabled={!newName.trim() || saving}
             className="flex items-center gap-2 px-4 py-2 bg-brand-blue-primary text-white rounded-lg font-bold text-sm hover:bg-brand-blue-dark transition-colors disabled:opacity-50"

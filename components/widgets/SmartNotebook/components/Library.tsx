@@ -13,6 +13,7 @@ import {
 import { NotebookItem } from '@/types';
 import { getButtonAccessibilityProps } from '@/utils/accessibility';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 interface LibraryProps {
   notebooks: NotebookItem[];
@@ -79,6 +80,11 @@ export const Library: React.FC<LibraryProps> = ({
               >
                 <button
                   onClick={() => onChangeDisplayMode('cards')}
+                  {...tourFieldAttr(
+                    'smart-notebook.view-mode',
+                    'smartNotebook',
+                    'cards'
+                  )}
                   aria-pressed={displayMode === 'cards'}
                   aria-label="Card view"
                   title="Card view"
@@ -98,6 +104,11 @@ export const Library: React.FC<LibraryProps> = ({
                 </button>
                 <button
                   onClick={() => onChangeDisplayMode('list')}
+                  {...tourFieldAttr(
+                    'smart-notebook.view-mode',
+                    'smartNotebook',
+                    'list'
+                  )}
                   aria-pressed={displayMode === 'list'}
                   aria-label="List view"
                   title="List view"
@@ -119,6 +130,7 @@ export const Library: React.FC<LibraryProps> = ({
             )}
             <button
               onClick={() => fileInputRef.current?.click()}
+              {...tourTypeAttr('smart-notebook.import', 'smartNotebook')}
               disabled={isImporting}
               className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black uppercase tracking-widest flex items-center shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50 active:scale-95"
               style={{
@@ -210,6 +222,7 @@ export const Library: React.FC<LibraryProps> = ({
                     {...getButtonAccessibilityProps(() =>
                       handleSelect(notebook.id)
                     )}
+                    {...tourTypeAttr('smart-notebook.open', 'smartNotebook')}
                     className="group flex items-center bg-white rounded-xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all border border-slate-200 shadow-sm"
                     style={{
                       gap: 'min(12px, 3cqmin)',
@@ -259,6 +272,10 @@ export const Library: React.FC<LibraryProps> = ({
                       style={{ gap: 'min(4px, 1cqmin)' }}
                     >
                       <button
+                        {...tourTypeAttr(
+                          'smart-notebook.rename-notebook',
+                          'smartNotebook'
+                        )}
                         onClick={(e) => handleRename(e, notebook.id)}
                         aria-label="Rename notebook"
                         title="Rename notebook"
@@ -273,6 +290,10 @@ export const Library: React.FC<LibraryProps> = ({
                         />
                       </button>
                       <button
+                        {...tourTypeAttr(
+                          'smart-notebook.share-notebook',
+                          'smartNotebook'
+                        )}
                         onClick={(e) => handleShare(e, notebook.id)}
                         aria-label="Share notebook"
                         title="Share notebook"
@@ -287,6 +308,10 @@ export const Library: React.FC<LibraryProps> = ({
                         />
                       </button>
                       <button
+                        {...tourTypeAttr(
+                          'smart-notebook.delete-notebook',
+                          'smartNotebook'
+                        )}
                         onClick={(e) => handleDelete(e, notebook.id)}
                         aria-label="Delete notebook"
                         title="Delete notebook"
@@ -319,6 +344,7 @@ export const Library: React.FC<LibraryProps> = ({
                     {...getButtonAccessibilityProps(() =>
                       handleSelect(notebook.id)
                     )}
+                    {...tourTypeAttr('smart-notebook.open', 'smartNotebook')}
                     className="group relative aspect-[4/3] bg-white rounded-2xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all border border-slate-200 shadow-sm"
                   >
                     {firstPageUrl ? (
@@ -367,6 +393,10 @@ export const Library: React.FC<LibraryProps> = ({
                       }}
                     >
                       <button
+                        {...tourTypeAttr(
+                          'smart-notebook.rename-notebook',
+                          'smartNotebook'
+                        )}
                         onClick={(e) => handleRename(e, notebook.id)}
                         aria-label="Rename notebook"
                         title="Rename notebook"
@@ -381,6 +411,10 @@ export const Library: React.FC<LibraryProps> = ({
                         />
                       </button>
                       <button
+                        {...tourTypeAttr(
+                          'smart-notebook.share-notebook',
+                          'smartNotebook'
+                        )}
                         onClick={(e) => handleShare(e, notebook.id)}
                         aria-label="Share notebook"
                         title="Share notebook"
@@ -395,6 +429,10 @@ export const Library: React.FC<LibraryProps> = ({
                         />
                       </button>
                       <button
+                        {...tourTypeAttr(
+                          'smart-notebook.delete-notebook',
+                          'smartNotebook'
+                        )}
                         onClick={(e) => handleDelete(e, notebook.id)}
                         aria-label="Delete notebook"
                         title="Delete notebook"

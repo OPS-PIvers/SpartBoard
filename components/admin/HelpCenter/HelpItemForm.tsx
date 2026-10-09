@@ -308,6 +308,7 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
             </Field>
             <Field label="Related widgets">
               <ChecklistSelect
+                anchor={tourAttr('admin.help-center.related-widgets')}
                 label="Related widgets"
                 options={widgetOptions}
                 selected={draft.widgetTypes}

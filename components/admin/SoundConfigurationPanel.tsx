@@ -8,6 +8,7 @@ import {
 import { BuildingSelector } from './BuildingSelector';
 import { SoundGlobalConfig, BuildingSoundDefaults } from '@/types';
 import { Card } from '@/components/common/Card';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface SoundConfigurationPanelProps {
   config: SoundGlobalConfig;
@@ -85,6 +86,11 @@ export const SoundConfigurationPanel: React.FC<
             {VISUAL_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'sound',
+                  `visual-${opt.value}`
+                )}
                 onClick={() => handleUpdateBuilding({ visual: opt.value })}
                 className={`p-2 rounded-lg border text-left transition-colors ${
                   (currentBuildingConfig.visual ?? 'thermometer') === opt.value
@@ -117,6 +123,11 @@ export const SoundConfigurationPanel: React.FC<
             Higher picks up quieter sounds.
           </p>
           <input
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'sound',
+              'sensitivity'
+            )}
             type="range"
             min="0.1"
             max="3.0"

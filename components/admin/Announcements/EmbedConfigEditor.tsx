@@ -16,6 +16,7 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useScreenRecord } from '@/hooks/useScreenRecord';
 import { convertToEmbedUrl } from '@/utils/urlHelpers';
 import { extractYouTubeId } from '@/utils/youtube';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { EmbedTab } from './types';
 
 import { EmbedConfig } from '@/types';
@@ -222,6 +223,7 @@ export const EmbedConfigEditor: React.FC<{
         {TABS.map((tab) => (
           <button
             key={tab.id}
+            {...tourFieldAttr('admin.announcements.embed-tab', 'admin', tab.id)}
             onClick={() => setTab(tab.id)}
             className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
               activeTab === tab.id
@@ -243,6 +245,7 @@ export const EmbedConfigEditor: React.FC<{
           </label>
           <div className="flex items-start gap-2">
             <input
+              {...tourAttr('admin.announcements.embed-url')}
               type="url"
               value={rawUrl}
               onChange={(e) => setRawUrl(e.target.value)}
@@ -273,6 +276,7 @@ export const EmbedConfigEditor: React.FC<{
                 </p>
               </div>
               <button
+                {...tourAttr('admin.announcements.embed-copy-url')}
                 onClick={() => copyToClipboard(embedUrl)}
                 className="shrink-0 p-1 text-emerald-600 hover:bg-emerald-100 rounded"
                 title="Copy embed URL"
@@ -304,6 +308,7 @@ export const EmbedConfigEditor: React.FC<{
                   type="number"
                   min={0}
                   value={startAtMinutes === 0 ? '' : startAtMinutes}
+                  {...tourAttr('admin.announcements.embed-start-minutes')}
                   onChange={(e) => handleStartAtMinutesChange(e.target.value)}
                   placeholder="0"
                   aria-label="Start at minutes"
@@ -315,6 +320,7 @@ export const EmbedConfigEditor: React.FC<{
                   min={0}
                   max={59}
                   value={startAtSecsRemainder === 0 ? '' : startAtSecsRemainder}
+                  {...tourAttr('admin.announcements.embed-start-seconds')}
                   onChange={(e) => handleStartAtSecondsChange(e.target.value)}
                   placeholder="0"
                   aria-label="Start at seconds"
@@ -336,6 +342,7 @@ export const EmbedConfigEditor: React.FC<{
             </label>
             <textarea
               value={config.html ?? ''}
+              {...tourAttr('admin.announcements.embed-html')}
               onChange={(e) => onChange({ ...config, html: e.target.value })}
               className="w-full h-32 px-3 py-2 text-xs font-mono bg-slate-900 text-emerald-400 border border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
               placeholder={
@@ -369,6 +376,7 @@ export const EmbedConfigEditor: React.FC<{
               type="file"
               accept="video/*"
               className="hidden"
+              {...tourAttr('admin.announcements.embed-video-upload')}
               onChange={(e) => void handleVideoUpload(e)}
               disabled={uploadingVideo || !driveService}
             />
@@ -392,6 +400,7 @@ export const EmbedConfigEditor: React.FC<{
           <div className="flex flex-col items-center gap-3">
             {!isRecording && recordingUploadState === 'idle' && (
               <button
+                {...tourAttr('admin.announcements.embed-start-recording')}
                 onClick={() => void startRecording()}
                 disabled={!driveService}
                 className="flex items-center gap-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors"
@@ -407,6 +416,7 @@ export const EmbedConfigEditor: React.FC<{
                   Recording… {duration}s
                 </div>
                 <button
+                  {...tourAttr('admin.announcements.embed-stop-recording')}
                   onClick={stopRecording}
                   className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold rounded-xl transition-colors"
                 >
@@ -437,6 +447,7 @@ export const EmbedConfigEditor: React.FC<{
           {(recordingUploadState === 'done' ||
             recordingUploadState === 'error') && (
             <button
+              {...tourAttr('admin.announcements.embed-record-again')}
               onClick={() => setRecordingUploadState('idle')}
               className="text-xs text-slate-500 hover:text-slate-700 underline"
             >
@@ -483,6 +494,7 @@ export const EmbedConfigEditor: React.FC<{
               YouTube Live URL
             </label>
             <input
+              {...tourAttr('admin.announcements.embed-live-url')}
               type="url"
               value={rawUrl}
               onChange={(e) => setRawUrl(e.target.value)}
@@ -512,6 +524,7 @@ export const EmbedConfigEditor: React.FC<{
         <Toggle
           checked={config.autoplay ?? false}
           onChange={(v) => onChange({ ...config, autoplay: v })}
+          anchor={tourAttr('admin.announcements.embed-autoplay')}
           label="Auto-play video"
         />
         <div>

@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { Button } from '@/components/common/Button';
 import { Modal } from '@/components/common/Modal';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import { FileSpreadsheet, X, Send } from 'lucide-react';
 
 /**
@@ -93,6 +94,7 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
             onClick={handleClose}
             disabled={isSubmitting}
             className="p-2 hover:bg-white/20 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+            {...tourTypeAttr('lunch-count.report-close', 'lunchCount')}
             aria-label="Close modal"
           >
             <X className="w-5 h-5" />
@@ -209,6 +211,7 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
             <Button
               onClick={handleClose}
               variant="secondary"
+              {...tourTypeAttr('lunch-count.report-cancel', 'lunchCount')}
               className="flex-1 py-4 rounded-2xl font-black uppercase tracking-widest"
               disabled={isSubmitting}
             >
@@ -219,6 +222,7 @@ export const SubmitReportModal: React.FC<SubmitReportModalProps> = ({
                 void onSubmit(notes, extraPizza === '' ? 0 : extraPizza)
               }
               variant="success"
+              {...tourTypeAttr('lunch-count.report-confirm', 'lunchCount')}
               className="flex-[2] py-4 rounded-2xl font-black uppercase tracking-widest"
               isLoading={isSubmitting}
               icon={<Send className="w-4 h-4" />}

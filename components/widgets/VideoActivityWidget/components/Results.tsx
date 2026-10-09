@@ -3,6 +3,7 @@
  * Adapted from QuizResults. Shows per-student scores and per-question accuracy.
  */
 
+import { tourAttr } from '@/config/tourAnchors';
 import React, { useId, useMemo, useState } from 'react';
 import {
   Download,
@@ -658,6 +659,7 @@ export const Results: React.FC<ResultsProps> = ({
       {/* Header */}
       <SessionViewHeader
         onBack={onBack}
+        backAnchor={tourAttr('video-activity.results-back')}
         status={session.status === 'ended' ? 'ended' : 'live'}
         title={session.assignmentName}
         subtitle={session.activityTitle}
@@ -671,6 +673,7 @@ export const Results: React.FC<ResultsProps> = ({
               <ActionButton
                 variant="primary"
                 label="Push Grades"
+                anchor={tourAttr('video-activity.results-push-classroom')}
                 icon={GraduationCap}
                 loading={pushingGrades}
                 onClick={() => void handlePushGrades()}
@@ -685,6 +688,7 @@ export const Results: React.FC<ResultsProps> = ({
               <ActionButton
                 variant="primary"
                 label="Push to Schoology"
+                anchor={tourAttr('video-activity.results-push-schoology')}
                 icon={Send}
                 loading={pushingSchoology || toolColumnPush.busy}
                 onClick={() =>
@@ -701,6 +705,7 @@ export const Results: React.FC<ResultsProps> = ({
               <ActionButton
                 variant="secondary"
                 label="Assign make-up (self-paced)"
+                anchor={tourAttr('video-activity.results-assign-makeup')}
                 icon={UserPlus}
                 onClick={handleAssignMakeUp}
               />

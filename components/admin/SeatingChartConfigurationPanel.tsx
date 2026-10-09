@@ -7,6 +7,7 @@ import {
   canonicalizeBuildingKeyedRecord,
 } from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
+import { tourFieldAttr } from '@/config/tourAnchors';
 interface SeatingChartConfigurationPanelProps {
   config: Record<string, unknown>;
   onChange: (newConfig: Record<string, unknown>) => void;
@@ -79,6 +80,11 @@ export const SeatingChartConfigurationPanel: React.FC<
                 Default Roster Source
               </label>
               <select
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'seating-chart',
+                  'rosterMode'
+                )}
                 value={currentDefaults.rosterMode ?? 'class'}
                 onChange={(e) => {
                   const newRosterMode = e.target.value as 'class' | 'custom';

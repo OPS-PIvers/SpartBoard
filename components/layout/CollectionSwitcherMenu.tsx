@@ -13,6 +13,7 @@ import {
   type SortableListDragHandleProps,
 } from '@/components/common/SortableList';
 import { shiftId } from '@/utils/reorderIds';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   MENU_HEADER_CLASS,
   MENU_PANEL_CLASS,
@@ -194,6 +195,7 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
     if (editingId === c.id && onRename) {
       return (
         <InlineNameInput
+          anchor={tourAttr('board-nav.name-input')}
           key={c.id}
           initialValue={c.name}
           placeholder={t('boardsModal.newCollectionPrompt', {
@@ -237,6 +239,7 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
             itemRefs.current[(flatIndexById.get(c.id) ?? 0) + 1] = el;
           }}
           role="menuitem"
+          {...tourFieldAttr('board-nav.collection-row', 'collections', c.id)}
           onClick={() => {
             onSelect(c.id);
             onClose();
@@ -261,6 +264,11 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
                   defaultValue: 'Rename collection',
                 })}
                 onClick={() => setEditingId(c.id)}
+                anchor={tourFieldAttr(
+                  'board-nav.collection-edit',
+                  'collections',
+                  c.id
+                )}
               />
             )}
             {dragHandle && (
@@ -321,6 +329,7 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
           itemRefs.current[0] = el;
         }}
         role="menuitem"
+        {...tourAttr('board-nav.collection-root')}
         onClick={() => {
           onSelect(null);
           onClose();
@@ -335,6 +344,7 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
         <div className="mt-1 border-t border-white/10 pt-1">
           {isCreating ? (
             <InlineNameInput
+              anchor={tourAttr('board-nav.name-input')}
               placeholder={t('boardsModal.newCollectionPrompt', {
                 defaultValue: 'Collection name',
               })}
@@ -359,6 +369,7 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
               }}
               role="menuitem"
               data-new-collection
+              {...tourAttr('board-nav.new-collection')}
               onClick={() => setIsCreating(true)}
               className={itemClass(false)}
             >

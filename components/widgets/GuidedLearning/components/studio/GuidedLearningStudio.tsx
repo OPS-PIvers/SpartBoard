@@ -89,6 +89,7 @@ import {
   useMediaQuery,
 } from './useMediaQuery';
 import { SetTooLargeError } from '@/utils/firestoreDocSize';
+import { tourAttr } from '@/config/tourAnchors';
 
 const MAX_ISSUE_TOASTS = 3;
 const SMALL_SCREEN_NOTE_KEY = 'gl-studio-small-screen-note-dismissed';
@@ -739,6 +740,7 @@ const StudioSession: React.FC<
               <div className="flex items-center gap-1">
                 <button
                   type="button"
+                  {...tourAttr('studio.undo')}
                   onClick={undo}
                   disabled={!canUndo || readOnly}
                   aria-label={t('glStudio.undo')}
@@ -750,6 +752,7 @@ const StudioSession: React.FC<
                 </button>
                 <button
                   type="button"
+                  {...tourAttr('studio.redo')}
                   onClick={redo}
                   disabled={!canRedo || readOnly}
                   aria-label={t('glStudio.redo')}
@@ -764,6 +767,7 @@ const StudioSession: React.FC<
             {!playing && (
               <button
                 type="button"
+                {...tourAttr('studio.play')}
                 onClick={startPlay}
                 disabled={stepCount === 0}
                 title={t('glStudio.playShortcut')}
@@ -781,6 +785,7 @@ const StudioSession: React.FC<
             {!compact && (
               <button
                 type="button"
+                {...tourAttr('studio.shortcuts')}
                 onClick={() => setShortcutsOpen(true)}
                 aria-label={t('glStudio.shortcutsOpen')}
                 title={t('glStudio.shortcutsOpen')}
@@ -793,6 +798,7 @@ const StudioSession: React.FC<
             )}
             <button
               type="button"
+              {...tourAttr('studio.properties')}
               onClick={() => setPropertiesOpen((v) => !v)}
               aria-expanded={propertiesOpen}
               aria-controls="gl-studio-properties"
@@ -814,6 +820,7 @@ const StudioSession: React.FC<
             )}
             {folderPickerEnabled && !compact && (
               <button
+                {...tourAttr('studio.folder')}
                 ref={folderButtonRef}
                 type="button"
                 onClick={() => setFolderPickerOpen((v) => !v)}
@@ -846,6 +853,7 @@ const StudioSession: React.FC<
           </p>
           <button
             type="button"
+            {...tourAttr('studio.conflict-reload')}
             onClick={() => void reloadLatest()}
             disabled={resolving}
             className="rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 disabled:opacity-50"
@@ -854,6 +862,7 @@ const StudioSession: React.FC<
           </button>
           <button
             type="button"
+            {...tourAttr('studio.conflict-overwrite')}
             onClick={() => void overwrite()}
             disabled={resolving}
             className="rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 disabled:opacity-50"
@@ -884,6 +893,7 @@ const StudioSession: React.FC<
           <p className="min-w-0 flex-1">{t('glStudio.smallScreenNote')}</p>
           <button
             type="button"
+            {...tourAttr('studio.dismiss-note')}
             onClick={dismissNote}
             aria-label={t('glStudio.dismissSmallScreenNote')}
             title={t('glStudio.dismissSmallScreenNote')}
@@ -965,6 +975,7 @@ const StudioSession: React.FC<
           <button
             type="button"
             aria-label={t('glStudio.closeProperties')}
+            {...tourAttr('studio.properties-close')}
             onClick={() => setPropertiesOpen(false)}
             className="absolute inset-0 z-10 bg-slate-900/30 lg:hidden"
           />

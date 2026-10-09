@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 
 /**
  * Accepts the three CSS-valid hex forms an HTML color picker / Tailwind
@@ -47,6 +48,11 @@ interface HexColorFieldProps {
   id?: string;
   swatchClassName?: string;
   inputClassName?: string;
+  anchors?: {
+    swatch?: TourAnchorAttrs;
+    input?: TourAnchorAttrs;
+    clear?: TourAnchorAttrs;
+  };
 }
 
 /**
@@ -69,6 +75,7 @@ export const HexColorField: React.FC<HexColorFieldProps> = ({
   id,
   swatchClassName = 'w-10 h-8 rounded border border-slate-300 cursor-pointer p-0.5 bg-white shrink-0',
   inputClassName = 'flex-1 px-2 py-1.5 text-xs font-mono border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none',
+  anchors,
 }) => {
   const [draft, setDraft] = useState(value ?? '');
   // Resync when the committed value changes externally (e.g. the colour
@@ -89,6 +96,7 @@ export const HexColorField: React.FC<HexColorFieldProps> = ({
         onChange={(e) => onChange(e.target.value)}
         className={swatchClassName}
         aria-label={ariaLabel}
+        {...anchors?.swatch}
       />
       <input
         id={id}
@@ -117,11 +125,13 @@ export const HexColorField: React.FC<HexColorFieldProps> = ({
         }}
         placeholder={fallback}
         className={inputClassName}
+        {...anchors?.input}
       />
       {value && (
         <button
           type="button"
           onClick={() => onChange(undefined)}
+          {...anchors?.clear}
           className="text-xs text-slate-500 hover:text-red-500 font-semibold transition-colors"
         >
           Clear

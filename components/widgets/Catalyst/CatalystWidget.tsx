@@ -8,6 +8,7 @@ import { Zap, ImageOff, ChevronLeft } from 'lucide-react';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { playCleanUpUnlocked } from '@/components/widgets/StarterPack/audioUtils';
 import confetti from 'canvas-confetti';
+import { tourAttr } from '@/config/tourAnchors';
 
 export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -71,6 +72,7 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
               style={{ padding: 'min(8px, 1.5cqmin) min(12px, 2.5cqmin)' }}
             >
               <button
+                {...tourAttr('catalyst.back', widget.id, widget.type)}
                 onClick={() => setActiveSetId(null)}
                 className="rounded-full hover:bg-slate-200 transition-colors text-slate-600"
                 style={{
@@ -105,6 +107,7 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
               {activeSet.routines.map((routine) => (
                 <button
                   key={routine.id}
+                  {...tourAttr('catalyst.routine', widget.id, widget.type)}
                   onClick={() => handleExecute(routine.id)}
                   className="relative rounded-2xl overflow-hidden flex flex-col items-stretch text-left shadow-md hover:scale-[1.03] hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1 bg-slate-200"
                   style={{ minHeight: 'min(100px, 25cqmin)' }}
@@ -221,6 +224,7 @@ export const CatalystWidget: React.FC<{ widget: WidgetData }> = ({
             {sets.map((set) => (
               <button
                 key={set.id}
+                {...tourAttr('catalyst.set', widget.id, widget.type)}
                 onClick={() => setActiveSetId(set.id)}
                 disabled={!set.title && set.routines.length === 0}
                 className="relative rounded-2xl overflow-hidden flex flex-col items-stretch text-left shadow-md hover:scale-[1.03] hover:shadow-lg transition-all focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-1 bg-slate-200 disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"

@@ -111,6 +111,7 @@ import {
   GuidedLearningAssignStepper,
   type GuidedLearningStepperAssign,
 } from './components/GuidedLearningAssignStepper';
+import { tourAttr } from '@/config/tourAnchors';
 
 // Code-split (Phase 5): heavy GL surfaces load on demand, not with the dashboard.
 const GuidedLearningManager = lazy(() =>
@@ -1674,6 +1675,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                   action={
                     <button
                       type="button"
+                      {...tourAttr('gl-results.error-back')}
                       onClick={() => {
                         setResultsLoadError(null);
                         updateWidget(widget.id, {
@@ -1737,6 +1739,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                     </p>
                     <button
                       type="button"
+                      {...tourAttr('gl-results.error-back')}
                       onClick={closeResults}
                       className="inline-flex items-center rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-sm transition-colors"
                       style={{

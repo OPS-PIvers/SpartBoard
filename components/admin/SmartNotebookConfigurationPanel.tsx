@@ -10,6 +10,7 @@ import {
   canonicalizeBuildingKeyedRecord,
 } from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
+import { tourFieldAttr } from '@/config/tourAnchors';
 interface Props {
   config: SmartNotebookGlobalConfig;
   onChange: (newConfig: SmartNotebookGlobalConfig) => void;
@@ -103,6 +104,11 @@ export const SmartNotebookConfigurationPanel: React.FC<Props> = ({
                 </div>
                 <div className="flex items-center gap-2">
                   <input
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'smartNotebook',
+                      'storageLimitMb'
+                    )}
                     type="number"
                     min="0"
                     max="500"
