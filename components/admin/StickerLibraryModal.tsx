@@ -343,7 +343,7 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
                       {...tourFieldAttr(
                         'admin.stickers.remove',
                         'admin',
-                        index
+                        String(index)
                       )}
                       onClick={() => removeSticker(sticker.url)}
                       className="absolute top-2 right-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-red-600 p-1.5 z-10"
