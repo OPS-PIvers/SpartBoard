@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import {
   AlertTriangle,
   Clock,
@@ -74,8 +75,10 @@ const ToggleChip: React.FC<{
   label: string;
   on: boolean;
   onToggle: () => void;
-}> = ({ label, on, onToggle }) => (
+  anchor?: TourAnchorAttrs;
+}> = ({ label, on, onToggle, anchor }) => (
   <button
+    {...anchor}
     onClick={onToggle}
     aria-pressed={on}
     className={`rounded-md border font-sans font-medium transition-colors ${

@@ -513,6 +513,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
       title={draft.title}
       onTitleChange={(next) => patch({ title: next })}
       titlePlaceholder="Project title"
+      tourScope="projects"
       headerExtras={
         <FolderSelectField
           variant="header"

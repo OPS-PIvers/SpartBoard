@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { createPortal } from 'react-dom';
 import {
   Camera,
@@ -45,7 +46,8 @@ const CAPTURE_MENU_WIDTH = 260;
 
 export const CaptureMenuButton: React.FC<{
   onPick: (mode: CaptureMode) => void;
-}> = ({ onPick }) => {
+  anchor?: TourAnchorAttrs;
+}> = ({ onPick, anchor }) => {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -56,6 +58,7 @@ export const CaptureMenuButton: React.FC<{
   return (
     <div ref={containerRef} className="relative shrink-0">
       <button
+        {...anchor}
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
