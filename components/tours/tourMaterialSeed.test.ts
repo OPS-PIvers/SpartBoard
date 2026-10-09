@@ -8,6 +8,7 @@ import {
   tourMaterialItem,
 } from '@/utils/tourSandbox';
 import {
+  authorFreeSnapshot,
   checkpointAt,
   materialForOpenItem,
   resolveOpenMaterial,
@@ -94,5 +95,25 @@ describe('checkpointAt', () => {
     expect(checkpointAt(steps, 0)).toBe(0);
     expect(checkpointAt(steps, 1)).toBe(1);
     expect(checkpointAt(steps, 2)).toBe(1);
+  });
+});
+
+describe('authorFreeSnapshot', () => {
+  it("drops the author's Drive, account and sync ids and keeps the content", () => {
+    const meta = {
+      id: 'q1',
+      title: 'Quiz',
+      driveFileId: 'drive-1',
+      driveFileIds: ['d2'],
+      authorUid: 'author-1',
+      sync: { groupId: 'g1' },
+      questions: [{ id: 'a' }],
+    };
+    expect(authorFreeSnapshot(meta)).toEqual({
+      id: 'q1',
+      title: 'Quiz',
+      questions: [{ id: 'a' }],
+    });
+    expect(meta.driveFileId).toBe('drive-1');
   });
 });
