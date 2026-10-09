@@ -64,7 +64,7 @@ const TagInput: React.FC<TagInputProps> = ({
   return (
     <div className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-1.5 p-2 border border-slate-200 rounded-lg bg-white min-h-[40px]">
-        {tags.map((tag) => (
+        {tags.map((tag, tagIndex) => (
           <span
             key={tag}
             className="inline-flex items-center gap-1 px-2 py-0.5 bg-brand-blue-lighter text-brand-blue-dark text-xs font-bold rounded-full"
@@ -72,7 +72,11 @@ const TagInput: React.FC<TagInputProps> = ({
             {tag}
             <button
               type="button"
-              {...tourFieldAttr('admin.backgrounds.tag-remove', 'admin', id)}
+              {...tourFieldAttr(
+                'admin.backgrounds.tag-remove',
+                'admin',
+                `${id}:${tagIndex}`
+              )}
               onClick={() => removeTag(tag)}
               className="text-brand-blue-dark/60 hover:text-brand-blue-dark"
               aria-label={`Remove tag ${tag}`}
@@ -108,14 +112,14 @@ const TagInput: React.FC<TagInputProps> = ({
           {suggestions
             .filter((s) => !tags.includes(s))
             .slice(0, 8)
-            .map((s) => (
+            .map((s, suggestionIndex) => (
               <button
                 key={s}
                 type="button"
                 {...tourFieldAttr(
                   'admin.backgrounds.tag-suggestion',
                   'admin',
-                  id
+                  `${id}:${suggestionIndex}`
                 )}
                 onClick={() => addTag(s)}
                 className="px-2 py-0.5 text-xxs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-full"
@@ -461,7 +465,7 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
         <div className="border-t border-slate-100 bg-slate-50 px-4 py-3">
           <SettingsLabel>Beta Users</SettingsLabel>
           <div className="flex flex-wrap gap-1.5 mb-2">
-            {preset.betaUsers.map((email) => (
+            {preset.betaUsers.map((email, emailIndex) => (
               <div
                 key={email}
                 className="flex items-center gap-1.5 px-2 py-0.5 bg-white border border-blue-100 rounded-full text-xs text-slate-700"
@@ -471,7 +475,7 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
                   {...tourFieldAttr(
                     'admin.backgrounds.beta-user-remove',
                     'admin',
-                    preset.id
+                    `${preset.id}:${emailIndex}`
                   )}
                   onClick={() => void removeBetaUser(preset.id, email)}
                   className="text-red-500 hover:text-red-700"

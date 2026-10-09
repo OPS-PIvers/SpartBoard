@@ -2886,7 +2886,7 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
   {
     id: 'admin.announcements.target-remove',
     label: 'Remove target user button in the announcement form',
-    scope: 'board',
+    scope: 'field',
     panel: true,
     destructive: true,
   },

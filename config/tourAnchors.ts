@@ -2221,6 +2221,7 @@ export const TOUR_ANCHORS = {
   },
   'admin.announcements.target-remove': {
     label: 'Remove target user button in the announcement form',
+    perField: true,
     destructive: true,
     panel: true,
   },

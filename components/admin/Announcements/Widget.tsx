@@ -1671,7 +1671,7 @@ export const AnnouncementsManager: React.FC = () => {
               </div>
               {form.targetUsers.length > 0 && (
                 <div className="flex flex-wrap gap-2">
-                  {form.targetUsers.map((email) => (
+                  {form.targetUsers.map((email, emailIndex) => (
                     <span
                       key={email}
                       className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-100 border border-slate-200 rounded-full"
@@ -1679,7 +1679,11 @@ export const AnnouncementsManager: React.FC = () => {
                       {email}
                       <button
                         type="button"
-                        {...tourAttr('admin.announcements.target-remove')}
+                        {...tourFieldAttr(
+                          'admin.announcements.target-remove',
+                          'admin',
+                          String(emailIndex)
+                        )}
                         onClick={() => removeTargetUser(email)}
                         className="text-slate-400 hover:text-red-500 transition-colors"
                       >

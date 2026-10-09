@@ -346,7 +346,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
           <div className="flex-1 min-h-0 flex flex-col">
             <SettingsLabel className="shrink-0">Beta Users</SettingsLabel>
             <div className="flex-1 overflow-y-auto space-y-0.5 mb-1.5">
-              {preset.betaUsers.map((email) => (
+              {preset.betaUsers.map((email, emailIndex) => (
                 <div
                   key={email}
                   className="flex items-center justify-between p-0.5 px-1.5 bg-blue-50/50 rounded text-xxs border border-blue-100/50"
@@ -356,7 +356,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
                     {...tourFieldAttr(
                       'admin.backgrounds.beta-user-remove',
                       'admin',
-                      preset.id
+                      `${preset.id}:${emailIndex}`
                     )}
                     onClick={() => void removeBetaUser(preset.id, email)}
                     className="text-red-600 hover:bg-red-100 p-0.5 rounded transition-colors shrink-0"
