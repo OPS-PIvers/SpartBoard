@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { Minus, Plus } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
@@ -19,7 +20,8 @@ import {
 export const TabWarningThresholdRow: React.FC<{
   value: number | 'off' | undefined;
   onChange: (next: number | 'off') => void;
-}> = ({ value, onChange }) => {
+  anchors?: { toggle?: TourAnchorAttrs; count?: TourAnchorAttrs };
+}> = ({ value, onChange, anchors }) => {
   const effective = value ?? DEFAULT_TAB_WARNING_THRESHOLD;
   const enabled = effective !== 'off';
   const [inputValue, setInputValue] = useState<string>(
@@ -62,6 +64,7 @@ export const TabWarningThresholdRow: React.FC<{
           onChange={handleToggle}
           size="sm"
           label="Auto-submit after repeated tab switches"
+          anchor={anchors?.toggle}
         />
       </label>
       {enabled && (
@@ -70,6 +73,7 @@ export const TabWarningThresholdRow: React.FC<{
             Warnings before auto-submit
           </span>
           <input
+            {...anchors?.count}
             type="number"
             min={TAB_WARNING_THRESHOLD_MIN}
             max={TAB_WARNING_THRESHOLD_MAX}
