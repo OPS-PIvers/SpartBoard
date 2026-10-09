@@ -16,6 +16,7 @@ import type {
   ProjectsPendingImport,
 } from '@/types';
 import { Modal } from '@/components/common/Modal';
+import { tourAttr } from '@/config/tourAnchors';
 import {
   NO_STUDENT_SIGN_IN_WARNING,
   defaultGroupColor,
@@ -175,6 +176,7 @@ export const ProjectSetupGroupsModal: React.FC<
           <button
             type="button"
             onClick={onClose}
+            {...tourAttr('projects.setup-cancel')}
             disabled={busy}
             className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
           >
@@ -183,6 +185,7 @@ export const ProjectSetupGroupsModal: React.FC<
           <button
             type="button"
             onClick={() => void handleCommit()}
+            {...tourAttr('projects.setup-commit')}
             disabled={busy || !roster || count === 0 || wouldExceed}
             className="inline-flex items-center gap-1.5 rounded-xl bg-brand-blue-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
           >
@@ -201,6 +204,7 @@ export const ProjectSetupGroupsModal: React.FC<
           </label>
           <select
             id="project-setup-class"
+            {...tourAttr('projects.setup-class')}
             value={rosterId}
             onChange={(e) => setRosterId(e.target.value)}
             className={inputClass}
@@ -259,6 +263,7 @@ export const ProjectSetupGroupsModal: React.FC<
                 type="checkbox"
                 checked={carryNames}
                 onChange={(e) => setCarryNames(e.target.checked)}
+                {...tourAttr('projects.setup-carry-names')}
                 className="rounded border-slate-300"
               />
               Use the Group Maker&apos;s own group names on the board
@@ -280,6 +285,7 @@ export const ProjectSetupGroupsModal: React.FC<
             </label>
             <input
               id="project-setup-count"
+              {...tourAttr('projects.setup-count')}
               type="number"
               inputMode="numeric"
               min={1}

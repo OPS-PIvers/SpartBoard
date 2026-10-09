@@ -65,6 +65,11 @@ export const LimitsAndEditing: React.FC<LimitsAndEditingProps> = ({
           <button
             type="button"
             aria-pressed={!isPreset}
+            {...tourAttr(
+              'activity-wall-editor.max-posts-custom',
+              widgetId,
+              widgetType
+            )}
             onClick={() => onChange({ maxPostsPerStudent: 10 })}
             className={`rounded-xl border px-3 py-2 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
               !isPreset
@@ -85,6 +90,11 @@ export const LimitsAndEditing: React.FC<LimitsAndEditingProps> = ({
             </label>
             <input
               id={customId}
+              {...tourAttr(
+                'activity-wall-editor.max-posts-custom-input',
+                widgetId,
+                widgetType
+              )}
               type="number"
               min={1}
               max={999}
