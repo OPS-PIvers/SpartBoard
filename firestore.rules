@@ -1181,6 +1181,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // lti_tool_columns/{sessionId}/sections/{contextId} (AGS line-item URLs for
+    // SpartBoard-created gradebook columns) and lti_tool_columns_prefs/{teacherUid_contextId}
+    // are server-only. They have no match here on purpose: the default deny at the end
+    // covers them without adding compiled rules size.
+
     // PII-free NRPS membership endpoints, keyed by quiz session -> context. Written and
     // read only by CFs via Admin SDK; a doc holds a roster service URL no client should
     // enumerate, so deny all. `{document=**}` covers the contexts/{contextId} subcollection.
