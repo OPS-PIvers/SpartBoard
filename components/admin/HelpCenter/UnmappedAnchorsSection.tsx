@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
 import { Copy, ExternalLink, Link2, Loader2 } from 'lucide-react';
 import type { GuidedLearningSet } from '@/types';
@@ -110,6 +111,7 @@ export const UnmappedAnchorsSection: React.FC<UnmappedAnchorsSectionProps> = ({
         <button
           type="button"
           onClick={copyAll}
+          {...tourAttr('admin.help-center.unmapped-copy')}
           disabled={open.length === 0}
           className="flex items-center gap-1 px-2 py-1 rounded-md text-xs font-semibold text-brand-blue-primary hover:bg-slate-100 disabled:opacity-50"
         >
@@ -178,6 +180,7 @@ export const UnmappedAnchorsSection: React.FC<UnmappedAnchorsSectionProps> = ({
                     <button
                       type="button"
                       onClick={() => void rebind(item)}
+                      {...tourAttr('admin.help-center.unmapped-rebind')}
                       disabled={busy !== null}
                       className="ml-auto flex items-center gap-1 rounded-md bg-brand-blue-primary px-2 py-1 font-semibold text-white hover:bg-brand-blue-dark disabled:opacity-50"
                     >

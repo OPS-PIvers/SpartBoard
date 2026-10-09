@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { Toggle } from '@/components/common/Toggle';
 
 export const StepRowLabel: React.FC<{ text: string; sub?: boolean }> = ({
@@ -40,7 +41,8 @@ export const StepToggleRow: React.FC<{
   hint?: string;
   /** Rendered left of the toggle (a number field while the setting is on). */
   field?: React.ReactNode;
-}> = ({ label, checked, onChange, sub, disabled, hint, field }) => (
+  anchor?: TourAnchorAttrs;
+}> = ({ label, checked, onChange, sub, disabled, hint, field, anchor }) => (
   <StepRow label={label} sub={sub} hint={hint}>
     <span className="flex shrink-0 items-center gap-2">
       {field}
@@ -51,6 +53,7 @@ export const StepToggleRow: React.FC<{
         showLabels
         label={label}
         disabled={disabled}
+        anchor={anchor}
       />
     </span>
   </StepRow>
@@ -65,7 +68,17 @@ export const StepNumberField: React.FC<{
   ariaLabel: string;
   unit?: string;
   widthClass?: string;
-}> = ({ value, min, max, onCommit, ariaLabel, unit, widthClass = 'w-16' }) => {
+  anchor?: TourAnchorAttrs;
+}> = ({
+  value,
+  min,
+  max,
+  onCommit,
+  ariaLabel,
+  unit,
+  widthClass = 'w-16',
+  anchor,
+}) => {
   const [draft, setDraft] = useState(String(value));
   const [lastValue, setLastValue] = useState(value);
   if (value !== lastValue) {
@@ -83,6 +96,7 @@ export const StepNumberField: React.FC<{
   return (
     <span className="flex items-center gap-2">
       <input
+        {...anchor}
         type="number"
         min={min}
         max={max}

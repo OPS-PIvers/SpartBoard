@@ -9,6 +9,7 @@ import { INPUT } from '@/components/plc/redesignMockup/ui';
 import type { PlcUpdate } from '@/types';
 import type { PlcUpdateDraft } from '@/hooks/usePlcUpdates';
 import { isUpdateLinkUrl, splitComposeText } from '@/utils/teamUpdates';
+import { tourAttr } from '@/config/tourAnchors';
 
 export type AttachPicker = () => Promise<{ name: string; url: string } | null>;
 
@@ -87,6 +88,7 @@ export const UpdateComposer: React.FC<{
         aria-label="Post an update"
         value={text}
         onChange={(e) => setText(e.target.value)}
+        {...tourAttr('teams.update-composer.text')}
         className={`${INPUT} w-full resize-y`}
       />
       {linkOpen && (
@@ -98,6 +100,7 @@ export const UpdateComposer: React.FC<{
           placeholder="https://"
           aria-label="Add a link"
           aria-invalid={!linkOk}
+          {...tourAttr('teams.update-composer.link-input')}
           className={`${INPUT} mt-2 w-full`}
         />
       )}
@@ -112,6 +115,7 @@ export const UpdateComposer: React.FC<{
             icon={<X className="h-3.5 w-3.5" />}
             label="Remove"
             size="sm"
+            {...tourAttr('teams.update-composer.remove-attachment')}
             onClick={() => setAttachment(undefined)}
           />
         </p>
@@ -121,6 +125,7 @@ export const UpdateComposer: React.FC<{
           icon={<Paperclip className="h-4 w-4" />}
           label="Attach a file"
           size="sm"
+          {...tourAttr('teams.update-composer.attach')}
           onClick={() => void attach()}
           disabled={!onAttach}
         />
@@ -129,6 +134,7 @@ export const UpdateComposer: React.FC<{
           label="Add a link"
           size="sm"
           active={linkOpen}
+          {...tourAttr('teams.update-composer.add-link')}
           onClick={() => setLinkOpen((v) => !v)}
         />
         <label className="flex items-center gap-2 text-sm text-slate-700">
@@ -137,6 +143,7 @@ export const UpdateComposer: React.FC<{
             showLabels={false}
             checked={ackRequired}
             onChange={setAckRequired}
+            anchor={tourAttr('teams.update-composer.require-ack')}
             label="Require acknowledgement"
           />
           Require acknowledgement
@@ -147,13 +154,19 @@ export const UpdateComposer: React.FC<{
             showLabels={false}
             checked={weekly}
             onChange={setWeekly}
+            anchor={tourAttr('teams.update-composer.weekly-email')}
             label="Include in weekly email"
           />
           Include in weekly email
         </label>
         <span className="flex-1" />
         {onCancel && (
-          <Button size="sm" variant="ghost" onClick={onCancel}>
+          <Button
+            size="sm"
+            variant="ghost"
+            {...tourAttr('teams.update-composer.cancel')}
+            onClick={onCancel}
+          >
             Cancel
           </Button>
         )}
@@ -165,6 +178,7 @@ export const UpdateComposer: React.FC<{
             )
           }
           isLoading={busy}
+          {...tourAttr('teams.update-composer.submit')}
           onClick={() => void submit()}
         >
           {initial ? 'Save' : 'Post'}

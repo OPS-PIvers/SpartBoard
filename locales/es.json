@@ -3943,5 +3943,10 @@
     "addStep": "Añadir paso",
     "listTitle": "Elige un control",
     "recordFromHere": "Grabar desde aquí"
+  },
+  "widgetWhatsNew": {
+    "label": "Novedades",
+    "dismiss": "Descartar",
+    "gotIt": "Entendido"
   }
 }
