@@ -7,6 +7,7 @@
  * prompt / answers).
  */
 
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import {
@@ -298,6 +299,7 @@ export const VideoActivityEditorModal: React.FC<
     () =>
       canUseAi ? (
         <button
+          {...tourAttr('video-activity.editor-draft-ai')}
           onClick={() => setShowAiPrompt(true)}
           disabled={!hasYoutubeUrl}
           className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
@@ -318,6 +320,7 @@ export const VideoActivityEditorModal: React.FC<
 
   return (
     <EditorWorkspace
+      tourScope="video-activity"
       key={activity.id}
       isOpen={isOpen}
       title={title}
@@ -341,6 +344,11 @@ export const VideoActivityEditorModal: React.FC<
           <div className="px-4 pt-3 pb-0 border-b border-slate-200 bg-white shrink-0 flex gap-1">
             {(['questions', 'settings'] as const).map((tab) => (
               <button
+                {...tourFieldAttr(
+                  'video-activity.editor-tab',
+                  'video-activity',
+                  tab
+                )}
                 key={tab}
                 type="button"
                 onClick={() => setEditorTab(tab)}

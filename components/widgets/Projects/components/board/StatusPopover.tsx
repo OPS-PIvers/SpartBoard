@@ -127,6 +127,7 @@ export const StatusPopover: React.FC<StatusPopoverProps> = ({
             key={state}
             type="button"
             role="menuitemradio"
+            {...tourAttr('projects.status-option', widgetId, 'projects')}
             aria-checked={selected}
             onClick={() => {
               if (!selected) onPick(state);

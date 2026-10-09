@@ -3,6 +3,7 @@
  * Teachers navigate through questions and see correct/incorrect highlighting.
  */
 
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   ArrowLeft,
@@ -112,6 +113,7 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
           onBack ? (
             <button
               onClick={onBack}
+              {...tourTypeAttr('quiz-library.preview-go-back', 'quiz')}
               className="bg-brand-blue-primary text-white font-bold rounded-xl"
               style={{
                 padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',
@@ -137,6 +139,7 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
         {onBack && (
           <button
             onClick={onBack}
+            {...tourTypeAttr('quiz-library.preview-back', 'quiz')}
             className="p-1.5 hover:bg-brand-blue-primary/10 rounded-lg transition-colors text-brand-blue-primary"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -180,6 +183,7 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
           )}
           <button
             onClick={reset}
+            {...tourTypeAttr('quiz-library.preview-reset', 'quiz')}
             className="p-2 hover:bg-brand-blue-primary/10 rounded-xl transition-all active:rotate-180 duration-500 text-brand-blue-primary"
             title="Reset question"
           >
@@ -335,6 +339,7 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
         <button
           onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))}
           disabled={currentIndex === 0}
+          {...tourTypeAttr('quiz-library.preview-prev', 'quiz')}
           className="flex items-center bg-brand-blue-lighter hover:bg-brand-blue-primary/20 disabled:opacity-30 disabled:grayscale text-brand-blue-primary font-bold rounded-xl transition-all active:scale-90"
           style={{
             gap: 'min(6px, 1.5cqmin)',
@@ -356,6 +361,11 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
             <button
               key={i}
               onClick={() => setCurrentIndex(i)}
+              {...tourFieldAttr(
+                'quiz-library.preview-dot',
+                'quiz',
+                String(i + 1)
+              )}
               className={`rounded-full transition-all ${
                 i === currentIndex
                   ? 'bg-brand-blue-primary w-6'
@@ -373,6 +383,7 @@ export const QuizPreview: React.FC<QuizPreviewProps> = ({ quiz, onBack }) => {
             setCurrentIndex((i) => Math.min(quiz.questions.length - 1, i + 1))
           }
           disabled={currentIndex === quiz.questions.length - 1}
+          {...tourTypeAttr('quiz-library.preview-next', 'quiz')}
           className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-30 text-white font-bold rounded-xl shadow-md transition-all active:scale-90"
           style={{
             gap: 'min(6px, 1.5cqmin)',
@@ -403,7 +414,7 @@ const MCAnswerArea: React.FC<{
   onSelect: (ans: string) => void;
 }> = ({ options, selectedAnswer, question, showAnswer, onSelect }) => (
   <div className="flex flex-col" style={{ gap: 'min(10px, 2.5cqmin)' }}>
-    {options.map((opt) => {
+    {options.map((opt, optIndex) => {
       const isSelected = selectedAnswer === opt;
       const isCorrect = gradeAnswer(question, opt).isCorrect;
 
@@ -425,6 +436,11 @@ const MCAnswerArea: React.FC<{
         <button
           key={opt}
           onClick={() => !showAnswer && onSelect(opt)}
+          {...tourFieldAttr(
+            'quiz-library.preview-mc-option',
+            'quiz',
+            String.fromCharCode(65 + optIndex)
+          )}
           className={`w-full text-left rounded-2xl border-2 transition-all font-bold group ${variantClasses}`}
           style={{
             padding: 'min(12px, 3cqmin) min(16px, 4cqmin)',
@@ -493,7 +509,7 @@ const MultiAnswerArea: React.FC<{
       >
         Choose all that apply
       </p>
-      {options.map((opt) => {
+      {options.map((opt, optIndex) => {
         const isSelected = selected.has(opt);
         const isCorrect = correct.has(opt);
         let variantClasses = isSelected
@@ -516,6 +532,11 @@ const MultiAnswerArea: React.FC<{
             role="checkbox"
             aria-checked={isSelected}
             onClick={() => !showAnswer && toggle(opt)}
+            {...tourFieldAttr(
+              'quiz-library.preview-multi-option',
+              'quiz',
+              String.fromCharCode(65 + optIndex)
+            )}
             className={`w-full text-left rounded-2xl border-2 transition-all font-bold ${variantClasses}`}
             style={{
               padding: 'min(12px, 3cqmin) min(16px, 4cqmin)',
@@ -569,6 +590,7 @@ const MultiAnswerArea: React.FC<{
       {!showAnswer ? (
         <button
           onClick={onReveal}
+          {...tourTypeAttr('quiz-library.preview-check-answer', 'quiz')}
           className="flex items-center gap-2 text-brand-blue-primary font-black uppercase tracking-widest hover:underline"
           style={{ fontSize: 'min(10px, 3cqmin)' }}
         >
@@ -619,6 +641,11 @@ const FIBAnswerArea: React.FC<{
           type="text"
           disabled={showAnswer}
           aria-label={count > 1 ? `Blank ${i + 1}` : undefined}
+          {...tourFieldAttr(
+            'quiz-library.preview-blank-input',
+            'quiz',
+            String(i + 1)
+          )}
           className="w-full bg-white border-2 border-brand-blue-primary/10 rounded-2xl text-brand-blue-dark font-bold focus:outline-none focus:border-brand-blue-primary shadow-inner disabled:bg-brand-gray-lightest/50"
           style={{
             padding: 'min(12px, 3cqmin) min(16px, 4cqmin)',
@@ -631,6 +658,7 @@ const FIBAnswerArea: React.FC<{
     {!showAnswer && (
       <button
         onClick={onReveal}
+        {...tourTypeAttr('quiz-library.preview-reveal-fib', 'quiz')}
         className="flex items-center gap-2 text-brand-blue-primary font-black uppercase tracking-widest hover:underline"
         style={{ fontSize: 'min(10px, 3cqmin)' }}
       >
@@ -729,6 +757,7 @@ const StructuredAnswerArea: React.FC<{
       {!showAnswer && (
         <button
           onClick={onReveal}
+          {...tourTypeAttr('quiz-library.preview-reveal-sequence', 'quiz')}
           className="flex items-center gap-2 text-brand-blue-primary font-black uppercase tracking-widest hover:underline"
           style={{ fontSize: 'min(10px, 3cqmin)' }}
         >

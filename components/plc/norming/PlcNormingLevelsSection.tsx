@@ -13,6 +13,7 @@ import {
   parseNormingLevelLabels,
 } from '@/utils/plcNorming';
 import { NormingLevelSymbol } from './NormingLevelSymbol';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const RENAMEABLE = ['high', 'medium', 'low'] as const;
 
@@ -71,6 +72,7 @@ const LabelsEditor: React.FC<{ plc: Plc }> = ({ plc }) => {
             <NormingLevelSymbol level={level} className="w-3 h-3" />
           </span>
           <input
+            {...tourFieldAttr('plc-norming.level-label', 'plc', level)}
             type="text"
             maxLength={NORMING_LABEL_MAX}
             value={draft[level]}
@@ -88,6 +90,7 @@ const LabelsEditor: React.FC<{ plc: Plc }> = ({ plc }) => {
       ))}
       <div className="flex gap-2">
         <button
+          {...tourAttr('plc-norming.levels-save')}
           type="submit"
           disabled={busy}
           className="rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-blue-dark disabled:opacity-60"
@@ -96,6 +99,7 @@ const LabelsEditor: React.FC<{ plc: Plc }> = ({ plc }) => {
         </button>
         {plc.normingLevelLabels && (
           <button
+            {...tourAttr('plc-norming.levels-reset')}
             type="button"
             disabled={busy}
             onClick={() => void save(null)}

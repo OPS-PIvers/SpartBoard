@@ -17,6 +17,7 @@ import {
   TabExitsPopover,
 } from '@/components/common/TabExitsPopover';
 import { useServerNow } from '@/hooks/useServerNow';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { studentCanEnter } from '@/utils/periodAccess';
 import { MonitorStudent } from './useMonitorData';
 import { BucketKey } from './StatusBuckets';
@@ -164,7 +165,12 @@ const RowMenu: React.FC<{
         attemptLimit > 0 &&
         (r.completedAttempts ?? 0) >= attemptLimit));
 
-  const items: { label: string; danger?: boolean; onClick: () => void }[] = [];
+  const items: {
+    label: string;
+    danger?: boolean;
+    tour: ReturnType<typeof tourTypeAttr>;
+    onClick: () => void;
+  }[] = [];
   if (
     onLetIn &&
     r.studentUid &&
@@ -173,6 +179,7 @@ const RowMenu: React.FC<{
   )
     items.push({
       label: 'Let in now',
+      tour: tourTypeAttr('quiz-monitor.student-let-in', 'quiz'),
       onClick: () => {
         onLetIn(r.studentUid);
         setOpen(false);
@@ -181,17 +188,20 @@ const RowMenu: React.FC<{
   if (locked && onUnlockAttempt)
     items.push({
       label: 'Unlock attempt',
+      tour: tourTypeAttr('quiz-monitor.student-unlock-attempt', 'quiz'),
       onClick: () => onUnlockAttempt(student.key),
     });
   if (r.resultsLockedOut && onUnlockResults)
     items.push({
       label: 'Unlock results',
+      tour: tourTypeAttr('quiz-monitor.student-unlock-results', 'quiz'),
       onClick: () => onUnlockResults(student.key),
     });
   if (onRemove)
     items.push({
       label: confirmRemove ? 'Confirm remove' : 'Remove student',
       danger: true,
+      tour: tourTypeAttr('quiz-monitor.student-remove', 'quiz'),
       onClick: () => {
         if (!confirmRemove) {
           setConfirmRemove(true);
@@ -209,6 +219,11 @@ const RowMenu: React.FC<{
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label={`Actions for ${student.name}`}
+        {...tourFieldAttr(
+          'quiz-monitor.roster-row-actions',
+          'quiz',
+          student.key
+        )}
         className="rounded-md text-brand-gray-primary hover:bg-brand-gray-lightest hover:text-brand-blue-dark transition-colors"
         style={{ padding: 'min(4px, 1cqmin)' }}
       >
@@ -231,6 +246,7 @@ const RowMenu: React.FC<{
             <button
               key={item.label}
               onClick={item.onClick}
+              {...item.tour}
               className={`block w-full text-left font-sans transition-colors ${
                 item.danger
                   ? 'text-brand-red-primary hover:bg-red-50'
@@ -329,6 +345,7 @@ export const RosterList: React.FC<RosterListProps> = ({
           {bucket === 'done' && (
             <ToggleChip
               label="Scores"
+              anchor={tourTypeAttr('quiz-monitor.roster-scores', 'quiz')}
               on={config.monitorShowScores ?? false}
               onToggle={() =>
                 onUpdateConfig({
@@ -340,6 +357,7 @@ export const RosterList: React.FC<RosterListProps> = ({
           {tabWarningsAllowed && (
             <ToggleChip
               label="Tab warnings"
+              anchor={tourTypeAttr('quiz-monitor.roster-tab-warnings', 'quiz')}
               on={config.monitorShowTabWarnings ?? false}
               onToggle={() =>
                 onUpdateConfig({
@@ -353,6 +371,7 @@ export const RosterList: React.FC<RosterListProps> = ({
           {bucket === 'done' && (
             <ToggleChip
               label="Proficiency colors"
+              anchor={tourTypeAttr('quiz-monitor.roster-proficiency', 'quiz')}
               on={config.monitorShowProficiency ?? false}
               onToggle={() =>
                 onUpdateConfig({
@@ -369,6 +388,7 @@ export const RosterList: React.FC<RosterListProps> = ({
               onUpdateConfig({ monitorSortBy: e.target.value as MonitorSortBy })
             }
             aria-label="Sort students"
+            {...tourTypeAttr('quiz-monitor.roster-sort', 'quiz')}
             className="rounded-md border border-brand-gray-lighter bg-white text-brand-gray-dark font-sans"
             style={fieldStyle}
           >
@@ -385,6 +405,7 @@ export const RosterList: React.FC<RosterListProps> = ({
               })
             }
             aria-label="Filter students"
+            {...tourTypeAttr('quiz-monitor.roster-filter', 'quiz')}
             className="rounded-md border border-brand-gray-lighter bg-white text-brand-gray-dark font-sans"
             style={fieldStyle}
           >
@@ -437,6 +458,7 @@ export const RosterList: React.FC<RosterListProps> = ({
           {onClearHand && (
             <button
               onClick={() => onClearHand(s.key)}
+              {...tourFieldAttr('quiz-monitor.clear-hand', 'quiz', s.key)}
               className="shrink-0 rounded-md border border-brand-blue-primary text-brand-blue-primary hover:bg-brand-blue-primary hover:text-white font-sans font-medium transition-colors"
               style={fieldStyle}
             >

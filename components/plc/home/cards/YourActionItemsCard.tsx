@@ -36,6 +36,7 @@ import {
   type ActionItemView,
   type DueBucket,
 } from './yourActionItems';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface YourActionItemsCardProps {
   plc: Plc;
@@ -169,6 +170,7 @@ export const YourActionItemsCard: React.FC<YourActionItemsCardProps> = ({
 
       {/* Footer CTA — jump to the full To-Do list */}
       <button
+        {...tourFieldAttr('plc-home.card-link', 'plc', 'actions-all')}
         type="button"
         onClick={() => onNavigate('docs')}
         className="flex items-center justify-center gap-1.5 border-t border-slate-100 px-5 py-3 text-xs font-bold uppercase tracking-wider text-brand-blue-primary transition-colors hover:bg-brand-blue-lighter/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
@@ -210,6 +212,7 @@ const ActionItemRow: React.FC<{
   return (
     <li className="group flex items-center gap-2.5 rounded-xl px-2.5 py-2 transition-colors hover:bg-slate-50">
       <button
+        {...tourFieldAttr('plc-home.action-toggle', 'plc', actionItem.id)}
         type="button"
         onClick={() => void handleToggle()}
         disabled={busy}
