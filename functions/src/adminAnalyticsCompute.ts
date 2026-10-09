@@ -28,6 +28,7 @@ import {
   writeActivityDays,
 } from './adminAnalyticsHistory';
 import { OPEN_SOURCES } from './adminActiveStudents';
+import { chunk as chunksOf } from './shared';
 
 export interface AdminAnalyticsPayload {
   users: {
@@ -889,7 +890,7 @@ async function recordAndBuildStudentHistory(input: {
   const markerRef = db.doc(
     `organizations/${orgId}/analytics/student_history_estimate`
   );
-  const estimateOwed =
+  let estimateOwed =
     input.estimate &&
     !(await markerRef
       .get()
@@ -900,11 +901,19 @@ async function recordAndBuildStudentHistory(input: {
       .filter((d) => !d.estimated)
       .map((d) => d.date)
       .reduce((min, d) => (d < min ? d : min), today);
-    const events: [string, number][] = [...signIns];
-    events.push(
-      ...(await readStudentOpenEvents(new Set(signIns.map(([uid]) => uid))))
-    );
-    toWrite.push(...estimateActivityDays(events, firstMeasured));
+    try {
+      const opens = await readStudentOpenEvents(signIns.map(([uid]) => uid));
+      toWrite.push(
+        ...estimateActivityDays([...signIns, ...opens], firstMeasured)
+      );
+    } catch (err) {
+      // Today's measured day still records; the estimate retries next run.
+      estimateOwed = false;
+      console.error('[getAdminAnalytics] student estimate failed', {
+        orgId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   await writeActivityDays(orgId, toWrite, 'students');
@@ -918,27 +927,31 @@ async function recordAndBuildStudentHistory(input: {
 
 // Assignment opens and submissions by this org's SSO students, for the one-time student estimate.
 async function readStudentOpenEvents(
-  studentUids: Set<string>
+  studentUids: string[]
 ): Promise<[string, number][]> {
   const db = admin.firestore();
   const events: [string, number][] = [];
-  for (const group of new Set(OPEN_SOURCES.map((s) => s.group))) {
-    const sources = OPEN_SOURCES.filter((s) => s.group === group);
-    const fields = [
-      ...new Set(sources.flatMap((s) => [s.studentField, s.timeField])),
-    ];
-    const stream = db
-      .collectionGroup(group)
-      .select(...fields)
-      .stream() as unknown as AsyncIterable<admin.firestore.QueryDocumentSnapshot>;
-    for await (const doc of stream) {
-      const sessions = doc.ref.parent.parent?.parent.id;
-      const src = sources.find((s) => s.sessions === sessions);
-      if (!src) continue;
-      const uid: unknown = doc.get(src.studentField);
-      if (typeof uid !== 'string' || !studentUids.has(uid)) continue;
-      events.push([uid, toMs(doc.get(src.timeField))]);
-    }
+  // Same studentField + timeField shape as getActiveStudentsV1, so its composite indexes serve it.
+  const jobs = OPEN_SOURCES.flatMap((src) =>
+    chunksOf(studentUids, 30).map((ids) => ({ src, ids }))
+  );
+  for (const batch of chunksOf(jobs, 8)) {
+    await Promise.all(
+      batch.map(async ({ src, ids }) => {
+        const snap = await db
+          .collectionGroup(src.group)
+          .where(src.studentField, 'in', ids)
+          .where(src.timeField, '>=', 0)
+          .select(src.studentField, src.timeField)
+          .get();
+        for (const doc of snap.docs) {
+          if (doc.ref.parent.parent?.parent.id !== src.sessions) continue;
+          const uid: unknown = doc.get(src.studentField);
+          if (typeof uid !== 'string') continue;
+          events.push([uid, toMs(doc.get(src.timeField))]);
+        }
+      })
+    );
   }
   return events;
 }

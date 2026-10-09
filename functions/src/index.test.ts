@@ -357,25 +357,30 @@ const mockFirestore = {
       };
     }
 
-    if (name === 'responses') {
-      const docs = mockFirestoreState.studentResponses.map(
-        ([sessions, uid, at]) => ({
-          ref: { parent: { parent: { parent: { id: sessions } } } },
-          get: (field: string) =>
-            field === 'studentUid' ? uid : field === 'joinedAt' ? at : null,
-        })
-      );
+    if (name === 'responses' || name === 'submissions') {
       return {
-        select: vi.fn(() => ({
-          stream: vi.fn(() => ({
-            async *[Symbol.asyncIterator]() {
-              for (const doc of docs) {
-                await Promise.resolve();
-                yield doc;
-              }
-            },
-          })),
-        })),
+        where: (_f: string, _op: string, ids: string[]) => ({
+          where: () => ({
+            select: () => ({
+              get: () =>
+                Promise.resolve({
+                  docs: mockFirestoreState.studentResponses
+                    .filter(
+                      ([, uid]) => name === 'responses' && ids.includes(uid)
+                    )
+                    .map(([sessions, uid, at]) => ({
+                      ref: { parent: { parent: { parent: { id: sessions } } } },
+                      get: (field: string) =>
+                        field === 'studentUid'
+                          ? uid
+                          : field === 'joinedAt'
+                            ? at
+                            : null,
+                    })),
+                }),
+            }),
+          }),
+        }),
       };
     }
 
