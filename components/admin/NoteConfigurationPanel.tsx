@@ -183,6 +183,23 @@ export const NoteConfigurationPanel: React.FC<NoteConfigurationPanelProps> = ({
             Default Text Color
           </label>
           <HexColorField
+            anchors={{
+              swatch: tourFieldAttr(
+                'admin.widget-config.field',
+                'text',
+                'fontColorSwatch'
+              ),
+              input: tourFieldAttr(
+                'admin.widget-config.field',
+                'text',
+                'fontColorInput'
+              ),
+              clear: tourFieldAttr(
+                'admin.widget-config.field',
+                'text',
+                'fontColorClear'
+              ),
+            }}
             value={currentBuildingConfig.fontColor}
             onChange={(fontColor) => handleUpdateBuilding({ fontColor })}
             fallback="#334155"

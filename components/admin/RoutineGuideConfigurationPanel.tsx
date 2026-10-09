@@ -186,6 +186,11 @@ const RoutineEditor: React.FC<{
         <div>
           <span className={fieldLabel}>Icon</span>
           <IconPicker
+            anchor={tourFieldAttr(
+              'admin.widget-config.field',
+              'routineGuide',
+              'routineIcon'
+            )}
             currentIcon={routine.icon}
             color={getRoutineGuideColor(routine.color).id}
             onSelect={(icon) => set({ icon })}
@@ -306,6 +311,11 @@ const RoutineEditor: React.FC<{
                   onChange={(imageUrl) => setStep(i, { imageUrl })}
                 />
                 <IconPicker
+                  anchor={tourFieldAttr(
+                    'admin.widget-config.field',
+                    'routineGuide',
+                    `stepIcon-${i}`
+                  )}
                   currentIcon={step.icon ?? 'Circle'}
                   color={getRoutineGuideColor(step.color).id}
                   onSelect={(icon) => setStep(i, { icon })}

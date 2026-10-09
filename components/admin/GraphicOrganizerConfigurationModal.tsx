@@ -461,6 +461,18 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                       Default Surface Colour
                     </label>
                     <HexColorField
+                      anchors={{
+                        swatch: tourFieldAttr(
+                          'admin.widget-config.field',
+                          'graphic-organizer',
+                          'cardColorSwatch'
+                        ),
+                        input: tourFieldAttr(
+                          'admin.widget-config.field',
+                          'graphic-organizer',
+                          'cardColorInput'
+                        ),
+                      }}
                       value={currentAppearanceDefaults.cardColor}
                       onChange={(cardColor) =>
                         updateAppearanceDefaults({ cardColor })
