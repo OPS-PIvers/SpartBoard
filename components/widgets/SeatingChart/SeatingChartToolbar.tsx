@@ -72,6 +72,9 @@ export const SeatingChartToolbar: React.FC<SeatingChartToolbarProps> = ({
           <ActiveClassChip
             compact
             anchor={tourAttr('seating.class-chip', widgetId, 'seating-chart')}
+            groupAnchor={(groupId) =>
+              tourFieldAttr('seating.class-group', 'seating-chart', groupId)
+            }
             {...(groupSelection ? { groupSelection } : {})}
           />
         )}

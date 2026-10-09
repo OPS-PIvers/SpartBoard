@@ -11898,6 +11898,29 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'random.class-group': {
+    label: 'Group row under a class in the Randomizer class menu',
+    perField: true,
+    panel: true,
+  },
+  'seating.class-group': {
+    label: 'Group row under a class in the Seating Chart class menu',
+    perField: true,
+    panel: true,
+  },
+  'absent-students.clear-all': {
+    label: 'Clear all button in the absent students dialog',
+    panel: true,
+  },
+  'absent-students.close': {
+    label: 'Close button in the absent students dialog',
+    panel: true,
+  },
+  'absent-students.student': {
+    label: 'Student button in the absent students dialog',
+    perField: true,
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

@@ -4,7 +4,7 @@ import { Target, ChevronDown, UserX, Filter } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { Z_INDEX } from '@/config/zIndex';
-import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import type { ClassRoster } from '@/types';
 import { getLocalIsoDate } from '@/utils/localDate';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
@@ -417,6 +417,13 @@ export const RandomClassContextButton: React.FC<
                         {groupSelectable && (
                           <RosterGroupMenuItems
                             roster={r}
+                            anchor={(groupId) =>
+                              tourFieldAttr(
+                                'random.class-group',
+                                'random',
+                                groupId
+                              )
+                            }
                             selectedGroupId={isActive ? poolGroupId : null}
                             onSelect={(groupId) => {
                               if (!isActive) setActiveRoster(r.id);

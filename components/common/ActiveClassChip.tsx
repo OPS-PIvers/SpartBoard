@@ -36,6 +36,7 @@ interface ActiveClassChipProps {
   compact?: boolean;
   groupSelection?: ActiveClassChipGroupSelection;
   anchor?: TourAnchorAttrs;
+  groupAnchor?: (groupId: string) => TourAnchorAttrs;
 }
 
 export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
@@ -43,6 +44,7 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
   compact = false,
   groupSelection,
   anchor,
+  groupAnchor,
 }) => {
   const { rosters, activeRosterId, setActiveRoster } = useDashboard();
   const activeRoster = rosters.find((r) => r.id === activeRosterId);
@@ -365,6 +367,7 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
                     {groups.length > 0 && (
                       <RosterGroupMenuItems
                         roster={r}
+                        anchor={groupAnchor}
                         selectedGroupId={isActiveClass ? selectedGroupId : null}
                         onSelect={(groupId) => {
                           if (!isActiveClass) setActiveRoster(r.id);
