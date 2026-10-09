@@ -492,6 +492,7 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
               <TourAnchorList
                 value={pickingStep.tour?.anchor}
                 onPick={bindPick}
+                slots={playback.slots}
               />
             </div>
           ) : (
