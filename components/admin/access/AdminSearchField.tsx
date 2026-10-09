@@ -1,4 +1,5 @@
 import React from 'react';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { ArrowRight, Search, X } from 'lucide-react';
 import { useAccessSearch } from './accessSearchContext';
 import {
@@ -27,6 +28,7 @@ export const AdminSearchField: React.FC<{
           placeholder={placeholder}
           aria-label={placeholder}
           data-testid={`access-search-${tab}`}
+          {...tourFieldAttr('admin.access.search', 'admin', tab)}
           className="w-full pl-9 pr-9 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
         />
         {query && (
@@ -69,6 +71,7 @@ export const AccessSearchEmpty: React.FC<{
               key={t}
               type="button"
               onClick={() => goToTab(t)}
+              {...tourFieldAttr('admin.access.search-elsewhere', 'admin', t)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-sm font-semibold text-brand-blue-primary hover:border-brand-blue-light"
             >
               Found on {ACCESS_TAB_LABELS[t]}
