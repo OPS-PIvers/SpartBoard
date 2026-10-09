@@ -6,6 +6,7 @@
  * the paper exists. See docs/plans/shipped/QUIZ_PAPER_ANSWER_SHEETS.md §6.
  */
 
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
@@ -907,6 +908,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               type="button"
               disabled={stimulusBusy}
               onClick={closePdfPick}
+              {...tourTypeAttr('quiz-print.pdf-page-cancel', 'quiz')}
               className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50"
             >
               Cancel
@@ -926,6 +928,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             <input
               type="number"
               aria-label="Page number"
+              {...tourTypeAttr('quiz-print.pdf-page-number', 'quiz')}
               min={1}
               max={pdfPick.pages.pageCount}
               value={pdfPageDraft}
@@ -941,6 +944,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             <button
               type="button"
               disabled={stimulusBusy || pdfPageNumber === null}
+              {...tourTypeAttr('quiz-print.pdf-page-add', 'quiz')}
               onClick={() => {
                 if (pdfPageNumber !== null) void addPdfPage(pdfPageNumber);
               }}
@@ -967,6 +971,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               type="button"
               disabled={sharingBusy}
               onClick={() => void answerSharing(false)}
+              {...tourTypeAttr('quiz-print.share-print-only', 'quiz')}
               className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 disabled:opacity-50"
             >
               Print without sharing
@@ -975,6 +980,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               type="button"
               disabled={sharingBusy}
               onClick={() => void answerSharing(true)}
+              {...tourTypeAttr('quiz-print.share-and-print', 'quiz')}
               className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark disabled:opacity-50"
             >
               <Share2 className="h-4 w-4" />
@@ -1011,6 +1017,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             <button
               type="button"
               onClick={onClose}
+              {...tourTypeAttr('quiz-print.sheets-done', 'quiz')}
               className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
             >
               Done
@@ -1018,6 +1025,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             <button
               type="button"
               onClick={handlePrintTest}
+              {...tourTypeAttr('quiz-print.print-test-paper', 'quiz')}
               className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark"
             >
               <FileText className="h-4 w-4" />
@@ -1073,6 +1081,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             type="button"
             onClick={onClose}
             aria-label="Close"
+            {...tourTypeAttr('quiz-print.close', 'quiz')}
             className="shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
           >
             <X className="h-5 w-5" />
@@ -1096,6 +1105,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             <button
               type="button"
               onClick={onClose}
+              {...tourTypeAttr('quiz-print.cancel', 'quiz')}
               className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
             >
               Cancel
@@ -1103,6 +1113,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             <button
               type="button"
               onClick={handlePrintClick}
+              {...tourTypeAttr('quiz-print.print', 'quiz')}
               disabled={!canPrint}
               className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -1171,6 +1182,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               type="text"
               value={stubTitle}
               onChange={(e) => setStubTitle(e.target.value)}
+              {...tourTypeAttr('quiz-print.stub-title', 'quiz')}
               placeholder="Unit 3 Test"
               className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
             />
@@ -1198,6 +1210,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setReadDoc(null)}
+                    {...tourTypeAttr('quiz-print.import-remove', 'quiz')}
                     className="shrink-0 text-xs font-bold uppercase tracking-wide text-slate-500 transition-colors hover:text-brand-red-primary"
                   >
                     Remove
@@ -1262,6 +1275,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 min={1}
                 max={500}
                 value={stubQuestionCount}
+                {...tourTypeAttr('quiz-print.stub-question-count', 'quiz')}
                 onChange={(e) =>
                   setStubQuestionCount(
                     Math.max(1, Math.min(500, Number(e.target.value) || 1))
@@ -1283,6 +1297,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             {isStub ? (
               <select
                 value={stubChoiceCount}
+                {...tourTypeAttr('quiz-print.stub-choice-count', 'quiz')}
                 onChange={(e) => setStubChoiceCount(Number(e.target.value))}
                 className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
               >
@@ -1313,6 +1328,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               <input
                 type="number"
                 aria-label="Written question number"
+                {...tourTypeAttr('quiz-print.written-number', 'quiz')}
                 placeholder="#"
                 min={1}
                 max={stubQuestionCount}
@@ -1328,6 +1344,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               <button
                 type="button"
                 disabled={writtenDraftNumber === null}
+                {...tourTypeAttr('quiz-print.written-add', 'quiz')}
                 onClick={addStubWritten}
                 className="rounded-lg border border-slate-200 px-3 py-1 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 disabled:opacity-50"
               >
@@ -1352,6 +1369,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                         </span>
                         <select
                           aria-label={`Question ${n} box size`}
+                          {...tourFieldAttr(
+                            'quiz-print.written-box-size',
+                            'quiz',
+                            String(n)
+                          )}
                           value={w.size}
                           onChange={(e) =>
                             update({ size: e.target.value as PaperBoxSize })
@@ -1367,6 +1389,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                         <input
                           type="number"
                           aria-label={`Question ${n} points`}
+                          {...tourFieldAttr(
+                            'quiz-print.written-points',
+                            'quiz',
+                            String(n)
+                          )}
                           min={0}
                           max={100}
                           value={w.points}
@@ -1384,6 +1411,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                         <button
                           type="button"
                           aria-label={`Remove question ${n} written`}
+                          {...tourFieldAttr(
+                            'quiz-print.written-remove',
+                            'quiz',
+                            String(n)
+                          )}
                           onClick={() =>
                             setStubWritten((prev) => {
                               const next = { ...prev };
@@ -1443,6 +1475,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                         }
                       }}
                       onChange={(e) => toggleRoster(roster, e.target.checked)}
+                      {...tourFieldAttr(
+                        'quiz-print.roster-select',
+                        'quiz',
+                        roster.id
+                      )}
                       disabled={sorted.length === 0}
                       className="h-4 w-4 rounded border-slate-300"
                     />
@@ -1464,6 +1501,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                       }
                       aria-label={expanded ? 'Hide students' : 'Show students'}
                       aria-expanded={expanded}
+                      {...tourFieldAttr(
+                        'quiz-print.roster-expand',
+                        'quiz',
+                        roster.id
+                      )}
                       disabled={sorted.length === 0}
                       className="rounded p-0.5 text-slate-400 hover:bg-slate-100 disabled:opacity-40"
                     >
@@ -1492,6 +1534,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                                 e.target.checked
                               )
                             }
+                            {...tourFieldAttr(
+                              'quiz-print.student-select',
+                              'quiz',
+                              student.id
+                            )}
                             className="h-3.5 w-3.5 rounded border-slate-300"
                           />
                           <label
@@ -1522,6 +1569,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             type="number"
             min={0}
             max={MAX_SPARES}
+            {...tourTypeAttr('quiz-print.spare-count', 'quiz')}
             value={spareCount}
             onChange={(e) =>
               setSpareCount(
@@ -1560,6 +1608,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
               onChange={setIncludeQuestionText}
               disabled={sheetStimuli.length > 0}
               label="Include question text"
+              anchor={tourTypeAttr('quiz-print.include-question-text', 'quiz')}
               size="sm"
             />
           </div>
@@ -1571,6 +1620,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             checked={includeKeySheet}
             onChange={setIncludeKeySheet}
             label="Include an answer key sheet"
+            anchor={tourTypeAttr('quiz-print.include-key-sheet', 'quiz')}
             size="sm"
           />
         </div>

@@ -13,6 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import type { LibraryFolder, QuizData } from '@/types';
 import {
   extractedToQuizData,
@@ -278,6 +279,7 @@ export const CartridgeBankImportModal: React.FC<
       </h3>
       <button
         type="button"
+        {...tourTypeAttr('quiz-import.cartridge-close', 'quiz')}
         onClick={close}
         disabled={busy}
         className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 transition-colors shrink-0 disabled:opacity-40"
@@ -374,6 +376,7 @@ export const CartridgeBankImportModal: React.FC<
           </label>
           <input
             id="cartridge-bank-folder-name"
+            {...tourTypeAttr('quiz-import.cartridge-folder-name', 'quiz')}
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -399,6 +402,7 @@ export const CartridgeBankImportModal: React.FC<
           <span className="flex gap-3">
             <button
               type="button"
+              {...tourTypeAttr('quiz-import.cartridge-select-all', 'quiz')}
               onClick={() => setAll(true)}
               className="text-brand-blue-primary hover:underline"
             >
@@ -406,6 +410,7 @@ export const CartridgeBankImportModal: React.FC<
             </button>
             <button
               type="button"
+              {...tourTypeAttr('quiz-import.cartridge-select-none', 'quiz')}
               onClick={() => setAll(false)}
               className="text-brand-blue-primary hover:underline"
             >
@@ -439,6 +444,11 @@ export const CartridgeBankImportModal: React.FC<
                 >
                   <input
                     type="checkbox"
+                    {...tourFieldAttr(
+                      'quiz-import.cartridge-row-check',
+                      'quiz',
+                      id
+                    )}
                     className="mt-1 h-4 w-4 shrink-0 accent-brand-blue-primary"
                     checked={!row.empty && ticked.has(id)}
                     disabled={row.empty}
@@ -483,6 +493,11 @@ export const CartridgeBankImportModal: React.FC<
                   {!row.empty && (
                     <button
                       type="button"
+                      {...tourFieldAttr(
+                        'quiz-import.cartridge-row-expand',
+                        'quiz',
+                        id
+                      )}
                       onClick={() => toggleExpanded(id)}
                       aria-expanded={open}
                       aria-label={`${open ? 'Hide' : 'Show'} questions in ${row.bank.title}`}
@@ -505,6 +520,7 @@ export const CartridgeBankImportModal: React.FC<
           <label className="flex items-start gap-2 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700">
             <input
               type="checkbox"
+              {...tourTypeAttr('quiz-import.cartridge-share-pictures', 'quiz')}
               className="mt-0.5 h-4 w-4 shrink-0 accent-brand-blue-primary"
               checked={sharePictures && canUploadPictures}
               disabled={!canUploadPictures}
@@ -528,6 +544,7 @@ export const CartridgeBankImportModal: React.FC<
     <div className="flex items-center justify-between gap-3 px-6 py-3 bg-white">
       <button
         type="button"
+        {...tourTypeAttr('quiz-import.cartridge-cancel', 'quiz')}
         onClick={close}
         disabled={busy}
         className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors disabled:opacity-40"
@@ -537,6 +554,7 @@ export const CartridgeBankImportModal: React.FC<
       {read.kind === 'ready' && save.kind === 'idle' && (
         <button
           type="button"
+          {...tourTypeAttr('quiz-import.cartridge-import', 'quiz')}
           onClick={() => void runImport(selected)}
           disabled={selected.length === 0 || !name.trim()}
           className={footerButton}
@@ -548,6 +566,7 @@ export const CartridgeBankImportModal: React.FC<
       {save.kind === 'finished' && failedRows.length > 0 && (
         <button
           type="button"
+          {...tourTypeAttr('quiz-import.cartridge-retry', 'quiz')}
           onClick={() => void runImport(failedRows)}
           className={footerButton}
         >
