@@ -52,4 +52,4 @@ Once the PR merges and deploys, Tour Health shows **Rebind N steps** for each it
 | 2026-10-06 | #3892 | 3 | 8 | Prod only; dev queue empty. Per-row color swatches, group names, class rows and unlabeled dialog controls left for a human. |
 | 2026-10-06 | #3897 | 9 | 6 | Recheck of prod needs-human; open queues empty. 4 already had settings/per-field refs; Randomizer group color button and swatches newly keyed. |
 | 2026-10-07 | #3947 | 5 | 2 | Dev only; prod queue empty. PLC tab rail and per-item assignee select left for a human. |
-| 2026-10-09 | PR_NUM | 9 | 4 | Prod only; dev queue empty. Assign dialog controls tagged under `stepper.*`; dialog root, two unlabeled checkboxes and the per-class student menu left for a human. |
+| 2026-10-09 | #4021 | 9 | 4 | Prod only; dev queue empty. Assign dialog controls tagged under `stepper.*`; dialog root, two unlabeled checkboxes and the per-class student menu left for a human. |
