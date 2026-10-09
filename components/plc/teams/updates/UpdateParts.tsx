@@ -5,6 +5,7 @@ import { ExternalLink, Paperclip, ThumbsUp } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { TextLink } from '@/components/plc/redesignMockup/ui';
 import type { PlcUpdate } from '@/types';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 const openExternal = (url: string) =>
   window.open(url, '_blank', 'noopener,noreferrer');
@@ -29,6 +30,11 @@ export const UpdateBody: React.FC<{ update: PlcUpdate }> = ({ update }) => (
         <Paperclip className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
         <TextLink
           className="text-sm"
+          {...tourFieldAttr(
+            'teams.update.open-attachment',
+            'teams-updates',
+            update.id
+          )}
           onClick={() =>
             update.attachment && openExternal(update.attachment.url)
           }
@@ -45,6 +51,11 @@ export const UpdateBody: React.FC<{ update: PlcUpdate }> = ({ update }) => (
         />
         <TextLink
           className="text-sm"
+          {...tourFieldAttr(
+            'teams.update.open-link',
+            'teams-updates',
+            update.id
+          )}
           onClick={() => update.linkUrl && openExternal(update.linkUrl)}
         >
           {linkHost(update.linkUrl)}
@@ -58,7 +69,8 @@ export const ReactionButton: React.FC<{
   count: number;
   reacted: boolean;
   onToggle?: () => void;
-}> = ({ count, reacted, onToggle }) => (
+  anchorKey?: string;
+}> = ({ count, reacted, onToggle, anchorKey = '' }) => (
   <Button
     variant="ghost"
     size="sm"
@@ -70,6 +82,7 @@ export const ReactionButton: React.FC<{
     }
     aria-label={`${count} reactions`}
     aria-pressed={reacted}
+    {...tourFieldAttr('teams.update.react', 'teams-updates', anchorKey)}
     onClick={onToggle}
   >
     {count}

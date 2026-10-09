@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { Archive, FlaskConical, GraduationCap, Loader2 } from 'lucide-react';
 import type { GlobalFeature } from '@/types';
 import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
@@ -38,6 +39,11 @@ const DistrictSwitch: React.FC<{
         onChange={(next) => void state.change(next)}
         size="sm"
         label={`${sw.title} district switch`}
+        anchor={tourFieldAttr(
+          'admin.previews.district-switch',
+          'admin',
+          rolloutSwitchKey(sw)
+        )}
       />
     )}
   </span>
@@ -85,6 +91,7 @@ export const PreviewRow: React.FC<{
               onClick={graduate}
               disabled={graduating || editor.unsavedChanges.has(featureId)}
               data-testid={`graduate-${featureId}`}
+              {...tourFieldAttr('admin.previews.graduate', 'admin', featureId)}
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-green-300 bg-green-50 text-green-800 text-xs font-bold hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {graduating ? (

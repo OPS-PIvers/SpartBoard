@@ -1,4 +1,5 @@
 import React from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { Plus, Trash2 } from 'lucide-react';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import { inputClass } from './quizEditorFieldStyles';
@@ -12,6 +13,9 @@ interface MultiAnswerEditorProps {
     correctAnswer?: string;
     incorrectAnswers?: string[];
   }) => void;
+  /** Anchors for the correct / incorrect option inputs, keyed by row index. */
+  correctItemAnchor?: (index: number) => TourAnchorAttrs;
+  incorrectItemAnchor?: (index: number) => TourAnchorAttrs;
 }
 
 // `|` separates stored options, so it can never appear inside one.
@@ -26,6 +30,7 @@ interface OptionListProps {
   minItems: number;
   inputClassName: string;
   onItemsChange: (items: string[]) => void;
+  itemAnchor?: (index: number) => TourAnchorAttrs;
 }
 
 const OptionList: React.FC<OptionListProps> = ({
@@ -37,6 +42,7 @@ const OptionList: React.FC<OptionListProps> = ({
   minItems,
   inputClassName,
   onItemsChange,
+  itemAnchor,
 }) => (
   <div className="space-y-2">
     <label className={labelClassName}>{label}</label>
@@ -44,6 +50,7 @@ const OptionList: React.FC<OptionListProps> = ({
       {items.map((value, idx) => (
         <div key={idx} className="flex gap-2">
           <input
+            {...itemAnchor?.(idx)}
             type="text"
             value={value}
             aria-label={`${itemLabel} ${idx + 1}`}
@@ -98,6 +105,8 @@ export const MultiAnswerEditor: React.FC<MultiAnswerEditorProps> = ({
   correctAnswer,
   incorrectAnswers,
   onChange,
+  correctItemAnchor,
+  incorrectItemAnchor,
 }) => {
   // Blank rows survive the round trip: '' splits to [''] and 'A|' to ['A', ''].
   const correct = correctAnswer.split('|');
@@ -111,6 +120,7 @@ export const MultiAnswerEditor: React.FC<MultiAnswerEditorProps> = ({
         items={correct}
         minItems={1}
         inputClassName="w-full px-3 py-2 bg-white border-2 border-emerald-500/30 rounded-lg text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 text-sm"
+        itemAnchor={correctItemAnchor}
         onItemsChange={(items) => onChange({ correctAnswer: items.join('|') })}
       />
       <OptionList
@@ -121,6 +131,7 @@ export const MultiAnswerEditor: React.FC<MultiAnswerEditorProps> = ({
         items={incorrectAnswers}
         minItems={1}
         inputClassName={inputClass}
+        itemAnchor={incorrectItemAnchor}
         onItemsChange={(items) => onChange({ incorrectAnswers: items })}
       />
     </div>
@@ -131,7 +142,8 @@ export const MultiAnswerEditor: React.FC<MultiAnswerEditorProps> = ({
 export const AlternateAnswersEditor: React.FC<{
   alternates: string[];
   onChange: (next: string[]) => void;
-}> = ({ alternates, onChange }) => (
+  itemAnchor?: (index: number) => TourAnchorAttrs;
+}> = ({ alternates, onChange, itemAnchor }) => (
   <div className="mt-3">
     <OptionList
       label="Also Accept (optional)"
@@ -141,6 +153,7 @@ export const AlternateAnswersEditor: React.FC<{
       items={alternates}
       minItems={0}
       inputClassName={inputClass}
+      itemAnchor={itemAnchor}
       onItemsChange={onChange}
     />
   </div>
