@@ -1621,10 +1621,8 @@ export const LiveTourRunner: React.FC = () => {
     autoStage === 'blocked' ||
     autoStage === 'confirm' ||
     autoStage === 'fallback';
-  const editRect =
-    tour?.edit && rect
-      ? { x: rect.x, y: rect.y, w: rect.width, h: rect.height }
-      : null;
+  // The panel steps aside from a menu the control opened, not just the control.
+  const editRect = tour?.edit && spot ? spot : null;
   const playbackKey = tour?.edit
     ? JSON.stringify([
         stepIndex,
