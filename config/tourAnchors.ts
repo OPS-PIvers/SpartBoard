@@ -1947,6 +1947,7 @@ export const TOUR_ANCHORS = {
   'plc-share.pick-item': {
     label: 'Pick item button in the PLC share dialog',
     perField: true,
+    persists: true,
     panel: true,
   },
   'plc-share.target': {
