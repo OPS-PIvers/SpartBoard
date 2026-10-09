@@ -39,6 +39,7 @@ import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useDashboard } from '@/context/useDashboard';
 import { FONTS } from '@/config/fonts';
 import { HexColorField } from './HexColorField';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 const TEXT_SIZE_PRESET_OPTIONS: { value: TextSizePreset; label: string }[] = [
   { value: 'small', label: 'Small' },
@@ -321,12 +322,14 @@ export const CalendarConfigurationModal: React.FC<
       </p>
       <div className="flex gap-3">
         <button
+          {...tourTypeAttr('admin.widget-config.close', 'calendar')}
           onClick={onClose}
           className="px-6 py-2.5 rounded-2xl text-sm font-black text-slate-500 hover:bg-white transition-all border border-transparent hover:border-slate-200"
         >
           Cancel
         </button>
         <button
+          {...tourTypeAttr('admin.widget-config.save', 'calendar')}
           onClick={() => void handleSave()}
           disabled={saving}
           className="px-8 py-2.5 bg-brand-blue-primary text-white rounded-2xl text-sm font-black shadow-lg shadow-blue-500/20 hover:bg-brand-blue-dark transition-all flex items-center gap-2 disabled:opacity-50"
@@ -393,6 +396,11 @@ export const CalendarConfigurationModal: React.FC<
                     </span>
                     <input
                       type="number"
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'calendar',
+                        'updateFrequencyHours'
+                      )}
                       min="1"
                       max="24"
                       value={config.updateFrequencyHours ?? 4}
@@ -410,6 +418,11 @@ export const CalendarConfigurationModal: React.FC<
                     </span>
                   </div>
                   <button
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'calendar',
+                      'syncAll'
+                    )}
                     onClick={handleSyncAll}
                     // Disabled until the silent probe resolves to a REAL
                     // connection (true). While the probe is pending (null) or
@@ -482,6 +495,11 @@ export const CalendarConfigurationModal: React.FC<
                   </p>
                 </div>
                 <button
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'calendar',
+                    'addBlockedDate'
+                  )}
                   onClick={addBlockedDate}
                   className="flex items-center gap-2 px-3 py-1.5 bg-white text-red-600 border border-red-200 rounded-xl text-xs font-black hover:bg-red-100 transition-colors shadow-sm"
                 >
@@ -497,6 +515,11 @@ export const CalendarConfigurationModal: React.FC<
                   >
                     <input
                       type="date"
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'calendar',
+                        `blockedDate-${idx}`
+                      )}
                       value={date}
                       onChange={(e) => {
                         const next = [...config.blockedDates];
@@ -506,6 +529,11 @@ export const CalendarConfigurationModal: React.FC<
                       className="text-xs font-black text-red-700 outline-none bg-transparent"
                     />
                     <button
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'calendar',
+                        `removeBlockedDate-${idx}`
+                      )}
                       onClick={() => {
                         const next = config.blockedDates.filter(
                           (_, i) => i !== idx
@@ -554,6 +582,11 @@ export const CalendarConfigurationModal: React.FC<
                       </p>
                     </div>
                     <button
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'calendar',
+                        'addDefaultEvent'
+                      )}
                       onClick={addDefaultEvent}
                       className="flex items-center gap-2 px-3 py-1.5 bg-white text-brand-blue-primary border border-slate-200 rounded-xl text-xs font-black hover:bg-blue-50 transition-colors shadow-sm"
                     >
@@ -571,6 +604,11 @@ export const CalendarConfigurationModal: React.FC<
                           <div className="col-span-4">
                             <input
                               type="date"
+                              {...tourFieldAttr(
+                                'admin.widget-config.field',
+                                'calendar',
+                                `eventDate-${idx}`
+                              )}
                               value={event.date}
                               onChange={(e) => {
                                 const next = [...currentBuildingConfig.events];
@@ -586,6 +624,11 @@ export const CalendarConfigurationModal: React.FC<
                           <div className="col-span-8">
                             <input
                               type="text"
+                              {...tourFieldAttr(
+                                'admin.widget-config.field',
+                                'calendar',
+                                `eventTitle-${idx}`
+                              )}
                               value={event.title}
                               onChange={(e) => {
                                 const next = [...currentBuildingConfig.events];
@@ -601,6 +644,11 @@ export const CalendarConfigurationModal: React.FC<
                           </div>
                         </div>
                         <button
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'calendar',
+                            `removeDefaultEvent-${idx}`
+                          )}
                           onClick={() => {
                             const next = currentBuildingConfig.events.filter(
                               (_, i) => i !== idx
@@ -645,6 +693,11 @@ export const CalendarConfigurationModal: React.FC<
                         </div>
                       )}
                       <button
+                        {...tourFieldAttr(
+                          'admin.widget-config.field',
+                          'calendar',
+                          'addCalendarId'
+                        )}
                         onClick={() => {
                           const nextIds = [
                             ...(currentBuildingConfig.googleCalendarIds ?? []),
@@ -668,6 +721,11 @@ export const CalendarConfigurationModal: React.FC<
                         >
                           <input
                             type="text"
+                            {...tourFieldAttr(
+                              'admin.widget-config.field',
+                              'calendar',
+                              `calendarId-${idx}`
+                            )}
                             value={id}
                             onChange={(e) => {
                               const next = [
@@ -690,6 +748,11 @@ export const CalendarConfigurationModal: React.FC<
                             <ExternalLink className="w-4 h-4" />
                           </a>
                           <button
+                            {...tourFieldAttr(
+                              'admin.widget-config.field',
+                              'calendar',
+                              `removeCalendarId-${idx}`
+                            )}
                             onClick={() => {
                               const next = (
                                 currentBuildingConfig.googleCalendarIds ?? []
@@ -737,6 +800,11 @@ export const CalendarConfigurationModal: React.FC<
                     <input
                       id={`cal-days-visible-${selectedBuildingId}`}
                       type="number"
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'calendar',
+                        'daysVisible'
+                      )}
                       min="1"
                       max="30"
                       value={currentBuildingConfig.daysVisible ?? 5}
@@ -760,6 +828,11 @@ export const CalendarConfigurationModal: React.FC<
                     </label>
                     <select
                       id={`cal-font-${selectedBuildingId}`}
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'calendar',
+                        'fontFamily'
+                      )}
                       value={currentBuildingConfig.fontFamily ?? 'global'}
                       onChange={(e) => {
                         const selected = e.target.value;
@@ -789,6 +862,11 @@ export const CalendarConfigurationModal: React.FC<
                     </label>
                     <select
                       id={`cal-size-${selectedBuildingId}`}
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'calendar',
+                        'textSizePreset'
+                      )}
                       value={currentBuildingConfig.textSizePreset ?? 'medium'}
                       onChange={(e) =>
                         updateBuilding({
@@ -851,6 +929,11 @@ export const CalendarConfigurationModal: React.FC<
                     <input
                       id={`cal-opacity-${selectedBuildingId}`}
                       type="range"
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'calendar',
+                        'cardOpacity'
+                      )}
                       min="0"
                       max="1"
                       step="0.05"

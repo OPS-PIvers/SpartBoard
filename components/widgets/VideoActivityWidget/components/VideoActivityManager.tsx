@@ -17,6 +17,7 @@
  *     specific toggles flow through that slot, not by forking the primitive.
  */
 
+import { tourAttr } from '@/config/tourAnchors';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   Activity,
@@ -993,6 +994,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       subtitle="Create your first interactive video activity to get started."
       action={
         <button
+          {...tourAttr('video-activity.empty-create')}
           type="button"
           onClick={onNew}
           className="inline-flex items-center justify-center rounded-xl bg-brand-blue-primary text-white font-bold shadow-sm hover:bg-brand-blue-dark transition-colors"
@@ -1448,6 +1450,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         rightSlot={
           userId ? (
             <button
+              {...tourAttr('video-activity.selection-toggle')}
               type="button"
               onClick={() => {
                 if (selectionMode) {
@@ -1802,6 +1805,7 @@ const AssignBehaviorSummaryVA: React.FC<{
               Due Date <span className="font-normal">(optional)</span>
             </label>
             <input
+              {...tourAttr('video-activity.assign-due-date')}
               id="va-assign-due-date-input"
               type="date"
               data-testid="va-assign-due-date"
@@ -1819,6 +1823,7 @@ const AssignBehaviorSummaryVA: React.FC<{
               Behavior
             </p>
             <button
+              {...tourAttr('video-activity.behavior-open-editor')}
               type="button"
               onClick={onEditInActivity}
               className="text-xxs font-bold text-brand-blue-primary hover:text-brand-blue-dark transition-colors"

@@ -9,6 +9,7 @@
  * End controls map to the assignment-level pause/resume/deactivate hooks.
  */
 
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   AlertTriangle,
@@ -206,6 +207,11 @@ const StudentRow: React.FC<StudentRowProps> = ({
     if (isLocked) {
       lockBadge = (
         <button
+          {...tourFieldAttr(
+            'video-activity.monitor-unlock',
+            'video-activity',
+            response.studentUid
+          )}
           type="button"
           onClick={(e) => {
             e.stopPropagation();
@@ -335,6 +341,11 @@ const StudentRow: React.FC<StudentRowProps> = ({
         {lockBadge}
         {onLetIn && (
           <button
+            {...tourFieldAttr(
+              'video-activity.monitor-let-in',
+              'video-activity',
+              response.studentUid
+            )}
             type="button"
             onClick={(e) => {
               e.stopPropagation();
@@ -689,6 +700,7 @@ export const VideoActivityLiveMonitor: React.FC<
               >
                 {session.sessionOptions?.tabWarningsEnabled !== false && (
                   <button
+                    {...tourAttr('video-activity.monitor-tab-warnings')}
                     type="button"
                     onClick={() => setShowTabWarnings((v) => !v)}
                     className={`flex items-center gap-1 rounded-md font-bold transition-colors ${

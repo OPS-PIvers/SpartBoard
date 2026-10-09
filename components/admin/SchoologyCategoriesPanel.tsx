@@ -1,4 +1,5 @@
 // Admin card for `admin_settings/schoology_categories`: categories offered to a Schoology course that has none (SCHOOLOGY_TOOL_COLUMNS.md D13).
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import React, { useEffect, useState } from 'react';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { Loader2, Plus, School, X } from 'lucide-react';
@@ -112,6 +113,11 @@ export const SchoologyCategoriesPanel: React.FC = () => {
           {rows.map((r, i) => (
             <div key={r.key} className="flex items-center gap-2">
               <input
+                {...tourFieldAttr(
+                  'admin.schoology.category-name',
+                  'admin',
+                  String(i)
+                )}
                 aria-label={`Category ${i + 1} name`}
                 value={r.title}
                 maxLength={60}
@@ -125,6 +131,11 @@ export const SchoologyCategoriesPanel: React.FC = () => {
                 className={`${inputClass} flex-1 min-w-0`}
               />
               <input
+                {...tourFieldAttr(
+                  'admin.schoology.category-weight',
+                  'admin',
+                  String(i)
+                )}
                 aria-label={`Category ${i + 1} weight`}
                 type="number"
                 min={0}
@@ -155,6 +166,11 @@ export const SchoologyCategoriesPanel: React.FC = () => {
                 %
               </span>
               <button
+                {...tourFieldAttr(
+                  'admin.schoology.remove-category',
+                  'admin',
+                  String(i)
+                )}
                 type="button"
                 aria-label={`Remove ${r.title || `category ${i + 1}`}`}
                 onClick={() => update(rows.filter((x) => x.key !== r.key))}
@@ -166,6 +182,7 @@ export const SchoologyCategoriesPanel: React.FC = () => {
           ))}
           <div className="flex items-center justify-between">
             <button
+              {...tourAttr('admin.schoology.add-category')}
               type="button"
               disabled={rows.length >= 10}
               onClick={() =>
@@ -184,6 +201,7 @@ export const SchoologyCategoriesPanel: React.FC = () => {
           {error && <p className="text-sm text-brand-red-primary">{error}</p>}
           <div className="flex items-center gap-3">
             <button
+              {...tourAttr('admin.schoology.save')}
               type="button"
               disabled={!valid || saving}
               onClick={() => void save()}

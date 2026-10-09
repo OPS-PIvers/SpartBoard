@@ -7,6 +7,7 @@
  * write through the controller object the modal hands them.
  */
 
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import React, { useCallback, useLayoutEffect, useRef, useState } from 'react';
 import {
   AlertCircle,
@@ -86,6 +87,7 @@ export const VideoActivityEditorContextPane = React.memo(
           <div className="relative">
             <Youtube className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
             <input
+              {...tourAttr('video-activity.editor-youtube-url')}
               type="url"
               value={youtubeUrl}
               onChange={(e) => setYoutubeUrl(e.target.value)}
@@ -195,6 +197,11 @@ const QuestionPill = React.memo(function QuestionPill({
       }`}
     >
       <button
+        {...tourFieldAttr(
+          'video-activity.editor-question-pill',
+          'video-activity',
+          q.id
+        )}
         type="button"
         {...dragHandleAttributes}
         onPointerDown={
@@ -241,6 +248,11 @@ const QuestionPill = React.memo(function QuestionPill({
         )}
       </button>
       <button
+        {...tourFieldAttr(
+          'video-activity.editor-question-delete',
+          'video-activity',
+          q.id
+        )}
         type="button"
         onClick={() => onDelete(q.id)}
         aria-label={`Delete question ${idx + 1}`}
@@ -407,6 +419,7 @@ export const VideoActivityEditorDetailPane = React.memo(
           <div>
             <label className={labelClass}>Question prompt</label>
             <textarea
+              {...tourAttr('video-activity.editor-question-text')}
               value={q.text}
               onChange={(e) => updateQuestion(q.id, { text: e.target.value })}
               rows={3}
@@ -437,6 +450,11 @@ export const VideoActivityEditorDetailPane = React.memo(
                 const active = type === opt.value;
                 return (
                   <button
+                    {...tourFieldAttr(
+                      'video-activity.editor-question-type',
+                      'video-activity',
+                      opt.value
+                    )}
                     key={opt.value}
                     type="button"
                     aria-pressed={active}
@@ -480,6 +498,7 @@ export const VideoActivityEditorDetailPane = React.memo(
             <div>
               <label className={labelClass}>Timestamp (MM:SS)</label>
               <input
+                {...tourAttr('video-activity.editor-question-timestamp')}
                 type="text"
                 value={tsValue}
                 onChange={(e) => {
@@ -498,6 +517,7 @@ export const VideoActivityEditorDetailPane = React.memo(
               <label className={labelClass}>Time Limit</label>
               <div className="relative">
                 <input
+                  {...tourAttr('video-activity.editor-question-time-limit')}
                   type="number"
                   min={10}
                   max={300}
@@ -517,6 +537,7 @@ export const VideoActivityEditorDetailPane = React.memo(
             <div>
               <label className={labelClass}>Points</label>
               <input
+                {...tourAttr('video-activity.editor-question-points')}
                 type="number"
                 min={1}
                 step={1}
@@ -641,6 +662,11 @@ export const VideoActivityAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <button
+                    {...tourFieldAttr(
+                      'video-activity.ai-count-decrement',
+                      'video-activity',
+                      row.type
+                    )}
                     type="button"
                     onClick={() => setAiTypeCount(row.type, value - 1)}
                     disabled={value <= 0 || aiGenerating}
@@ -653,6 +679,11 @@ export const VideoActivityAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
                     {value}
                   </span>
                   <button
+                    {...tourFieldAttr(
+                      'video-activity.ai-count-increment',
+                      'video-activity',
+                      row.type
+                    )}
                     type="button"
                     onClick={() => setAiTypeCount(row.type, value + 1)}
                     disabled={value >= 15 || aiGenerating}
@@ -690,6 +721,7 @@ const McSubForm: React.FC<McSubFormProps> = ({
         Correct Answer
       </label>
       <input
+        {...tourAttr('video-activity.editor-correct-answer')}
         type="text"
         value={question.correctAnswer}
         onChange={(e) => onChangeCorrect(e.target.value)}
@@ -707,6 +739,11 @@ const McSubForm: React.FC<McSubFormProps> = ({
           : question.incorrectAnswers
         ).map((ans, idx) => (
           <input
+            {...tourFieldAttr(
+              'video-activity.editor-incorrect-answer',
+              'video-activity',
+              String(idx)
+            )}
             key={idx}
             type="text"
             value={ans}
@@ -739,6 +776,7 @@ const FibSubForm: React.FC<FibSubFormProps> = ({
           Canonical Answer
         </label>
         <input
+          {...tourAttr('video-activity.editor-fib-answer')}
           type="text"
           value={question.correctAnswer}
           onChange={(e) => onChangeCorrect(e.target.value)}
@@ -754,6 +792,7 @@ const FibSubForm: React.FC<FibSubFormProps> = ({
           </span>
         </label>
         <textarea
+          {...tourAttr('video-activity.editor-fib-variants')}
           value={variantsText}
           onChange={(e) => {
             const lines = e.target.value
@@ -861,6 +900,11 @@ const MaSubForm: React.FC<MaSubFormProps> = ({ question, onUpdate }) => {
             return (
               <div key={idx} className="flex items-center gap-2">
                 <button
+                  {...tourFieldAttr(
+                    'video-activity.editor-option-correct',
+                    'video-activity',
+                    String(idx)
+                  )}
                   type="button"
                   onClick={() => toggleAt(idx)}
                   aria-pressed={checked}
@@ -874,6 +918,11 @@ const MaSubForm: React.FC<MaSubFormProps> = ({ question, onUpdate }) => {
                   {checked ? '✓' : ''}
                 </button>
                 <input
+                  {...tourFieldAttr(
+                    'video-activity.editor-option-text',
+                    'video-activity',
+                    String(idx)
+                  )}
                   type="text"
                   value={row.text}
                   onChange={(e) => setOptionAt(idx, e.target.value)}
@@ -897,6 +946,7 @@ const MaSubForm: React.FC<MaSubFormProps> = ({ question, onUpdate }) => {
 
       <label className="flex items-center gap-2 cursor-pointer">
         <input
+          {...tourAttr('video-activity.editor-partial-credit')}
           type="checkbox"
           checked={question.allowPartialCredit ?? false}
           onChange={(e) => onUpdate({ allowPartialCredit: e.target.checked })}

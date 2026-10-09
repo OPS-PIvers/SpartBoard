@@ -11,6 +11,7 @@ import { STICKY_NOTE_COLORS } from '@/config/colors';
 import { FONTS } from '@/config/fonts';
 import { Card } from '@/components/common/Card';
 import { HexColorField } from './HexColorField';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface NoteConfigurationPanelProps {
   config: NoteGlobalConfig;
@@ -94,6 +95,11 @@ export const NoteConfigurationPanel: React.FC<NoteConfigurationPanelProps> = ({
             {STICKY_COLOR_OPTIONS.map(({ name, hex }) => (
               <button
                 key={name}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'text',
+                  `bgColor-${name}`
+                )}
                 onClick={() => handleUpdateBuilding({ bgColor: hex })}
                 title={name.charAt(0).toUpperCase() + name.slice(1)}
                 style={{ backgroundColor: hex }}
@@ -119,6 +125,11 @@ export const NoteConfigurationPanel: React.FC<NoteConfigurationPanelProps> = ({
             {FONT_SIZE_OPTIONS.map(({ value, label }) => (
               <button
                 key={value}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'text',
+                  `fontSize-${value}`
+                )}
                 onClick={() => handleUpdateBuilding({ fontSize: value })}
                 className={`flex-1 py-1.5 text-xxs font-bold rounded-lg border transition-colors ${
                   activeFontSize === value
@@ -139,6 +150,11 @@ export const NoteConfigurationPanel: React.FC<NoteConfigurationPanelProps> = ({
             Default Font Family
           </label>
           <select
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'text',
+              'fontFamily'
+            )}
             value={currentBuildingConfig.fontFamily ?? 'global'}
             onChange={(e) => {
               const selected = e.target.value;
@@ -183,6 +199,11 @@ export const NoteConfigurationPanel: React.FC<NoteConfigurationPanelProps> = ({
             {VERTICAL_ALIGN_OPTIONS.map(({ value, label }) => (
               <button
                 key={value}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'text',
+                  `verticalAlign-${value}`
+                )}
                 onClick={() => handleUpdateBuilding({ verticalAlign: value })}
                 className={`flex-1 py-1.5 text-xxs font-bold rounded-lg border transition-colors ${
                   activeVerticalAlign === value

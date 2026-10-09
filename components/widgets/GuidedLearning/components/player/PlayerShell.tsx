@@ -7,6 +7,7 @@ import { PROJECTOR_TEXT_VARS } from '../../utils/projectorTextVars';
 import { SpeedControl } from './SpeedControl';
 import { StepOutline } from './StepOutline';
 import { FOOTER_BUTTON_SIZE, FOOTER_ICON_SIZE } from './playerLayout';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface PlayerShellProps {
   topBar: React.ReactNode;
@@ -101,6 +102,7 @@ export const PlayerTopBar: React.FC<PlayerTopBarProps> = ({
     <>
       {onClose && (
         <button
+          {...tourAttr('gl-player.close')}
           onClick={onClose}
           className={`${iconBtn} transition-colors`}
           aria-label={t('glPlayer.closePlayer')}
@@ -156,6 +158,7 @@ export const PlayerTopBar: React.FC<PlayerTopBarProps> = ({
                 // eslint-disable-next-line no-restricted-syntax -- a pager with one tab per image
                 <button
                   key={`image-${imageIndex}`}
+                  {...tourAttr('gl-player.slide-thumb')}
                   onClick={() => onSelectImage?.(imageIndex)}
                   className={`rounded border font-bold transition-colors ${
                     imageIndex === currentImageIndex

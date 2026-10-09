@@ -28,6 +28,7 @@ import type { MiniAppSession } from '@/types';
 import { usePeriodAccess } from '@/hooks/usePeriodAccess';
 import { hasPeriodAccess } from '@/utils/periodAccess';
 import { PeriodAccessControls } from '@/components/common/sessionViews/PeriodAccessControls';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 interface SubmissionRow {
   id: string;
@@ -132,6 +133,7 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
             onClick={onClose}
             className="text-white/60 hover:text-white transition-colors"
             aria-label="Close submissions"
+            {...tourTypeAttr('mini-app.submissions-close', 'miniApp')}
           >
             <X className="w-5 h-5" />
           </button>
@@ -172,10 +174,11 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
                 {submissions.length}{' '}
                 {submissions.length === 1 ? 'submission' : 'submissions'}
               </p>
-              {submissions.map((s) => (
+              {submissions.map((s, rowIndex) => (
                 <SubmissionRowView
                   key={s.id}
                   submission={s}
+                  rowKey={`row-${rowIndex + 1}`}
                   studentName={formatStudentName(
                     byAssignmentPseudonym.get(s.id)
                   )}
@@ -195,16 +198,18 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
 
 const SubmissionRowView: React.FC<{
   submission: SubmissionRow;
+  rowKey: string;
   studentName: string;
   expanded: boolean;
   onToggle: () => void;
-}> = ({ submission, studentName, expanded, onToggle }) => {
+}> = ({ submission, rowKey, studentName, expanded, onToggle }) => {
   const Chevron = expanded ? ChevronDown : ChevronRight;
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3">
       <button
         onClick={onToggle}
+        {...tourFieldAttr('mini-app.submission-row', 'miniApp', rowKey)}
         className="w-full flex items-center gap-2 text-left"
       >
         <Chevron className="w-4 h-4 text-slate-500 shrink-0" />

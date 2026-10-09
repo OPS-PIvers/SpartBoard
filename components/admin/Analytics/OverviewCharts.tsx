@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import {
   Bar,
   BarChart,
@@ -165,6 +166,7 @@ export const ActiveUsersPanel: React.FC<{
           <div className="flex gap-0.5 font-semibold" role="group">
             {RANGES.map((r) => (
               <button
+                {...tourFieldAttr('admin.analytics.range', 'admin', r.id)}
                 key={r.id}
                 type="button"
                 aria-pressed={range === r.id}
@@ -353,6 +355,7 @@ export const DailyHeatmapPanel: React.FC<{
             <div className="flex gap-0.5 font-semibold" role="group">
               {HEATMAP_GROUPS.map((g) => (
                 <button
+                  {...tourFieldAttr('admin.analytics.group', 'admin', g.id)}
                   key={g.id}
                   type="button"
                   aria-pressed={group === g.id}
