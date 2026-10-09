@@ -1,5 +1,6 @@
 // Mini App's assign dialog on the stepper: name, Students submit work / Study resource, Classes, When (docs/plans/ASSIGN_STEPPER.md D20).
 import React, { useState } from 'react';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
 import type { ClassRoster } from '@/types';
 import { AssignStepper } from '@/components/common/library/assignStepper/AssignStepper';
@@ -93,11 +94,18 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
           rosters={rosters}
           value={classes}
           onChange={setClasses}
+          anchor={tourTypeAttr('mini-app.stepper-class-picker', 'miniApp')}
+          rowAnchor={(classId) =>
+            tourFieldAttr('mini-app.stepper-class-row', 'miniApp', classId)
+          }
         />
         <StudentPickMenu
           rosters={rosters}
           value={classes}
           onChange={setClasses}
+          rowAnchor={(classId) =>
+            tourFieldAttr('mini-app.stepper-student-menu', 'miniApp', classId)
+          }
         />
         <ModificationsLink
           rosters={rosters}
@@ -159,6 +167,7 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
         onChange={setKind}
         options={KIND_SWITCH_OPTIONS}
         ariaLabel="Student work"
+        anchor={tourTypeAttr('mini-app.stepper-kind-switch', 'miniApp')}
       />
     </div>
   );
