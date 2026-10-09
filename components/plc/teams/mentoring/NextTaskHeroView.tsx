@@ -17,6 +17,7 @@ import {
   dayAndDate,
   pairStatusLabel,
 } from './mentoringFormat';
+import { tourAttr } from '@/config/tourAnchors';
 
 export interface NextTaskHeroViewProps {
   task: MentoringTask | null;
@@ -51,6 +52,7 @@ export const NextTaskHeroView: React.FC<NextTaskHeroViewProps> = ({
             isLead && onPostTask ? (
               <Button
                 size="sm"
+                {...tourAttr('teams.mentoring.post-task')}
                 onClick={onPostTask}
                 icon={<Plus className="h-3.5 w-3.5" aria-hidden="true" />}
               >
@@ -77,11 +79,20 @@ export const NextTaskHeroView: React.FC<NextTaskHeroViewProps> = ({
         }`}
         actions={
           isLead ? (
-            <Button variant="secondary" size="sm" onClick={onOpenTracker}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={onOpenTracker}
+              {...tourAttr('teams.mentoring.open-tracker')}
+            >
               Open tracker
             </Button>
           ) : pair ? (
-            <Button size="sm" onClick={onOpenWorkspace}>
+            <Button
+              size="sm"
+              onClick={onOpenWorkspace}
+              {...tourAttr('teams.mentoring.open-workspace')}
+            >
               Open in workspace
             </Button>
           ) : null

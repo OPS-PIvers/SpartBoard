@@ -11,6 +11,7 @@ import {
   MENU_ITEM,
   MENU_PANEL,
 } from '@/components/plc/redesignMockup/ui';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export interface NotesListEntry {
   key: string;
@@ -32,6 +33,7 @@ const NoteListItem: React.FC<{ entry: NotesListEntry }> = ({ entry }) => (
   <button
     type="button"
     aria-current={entry.active || undefined}
+    {...tourFieldAttr('teams.notes.list-entry', 'teams-notes', entry.key)}
     onClick={entry.onSelect}
     className={`flex w-full flex-col rounded-xl px-3 py-2 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
       entry.active ? 'bg-brand-blue-lighter' : 'hover:bg-slate-100'
@@ -86,6 +88,7 @@ export const NotesDocsView: React.FC<NotesDocsViewProps> = ({
               size="sm"
               className="flex-1"
               disabled={creating}
+              {...tourAttr('teams.notes.new-meeting-note')}
               onClick={onNewMeetingNote}
               icon={<Plus className="h-3.5 w-3.5" aria-hidden="true" />}
             >
@@ -108,6 +111,7 @@ export const NotesDocsView: React.FC<NotesDocsViewProps> = ({
                   shape="square"
                   aria-haspopup="menu"
                   aria-expanded={menuOpen}
+                  {...tourAttr('teams.notes.new-menu')}
                   onClick={() => setMenuOpen((v) => !v)}
                 />
                 {menuOpen && (
@@ -120,6 +124,11 @@ export const NotesDocsView: React.FC<NotesDocsViewProps> = ({
                         key={item.key}
                         type="button"
                         role="menuitem"
+                        {...tourFieldAttr(
+                          'teams.notes.new-menu-item',
+                          'teams-notes',
+                          item.key
+                        )}
                         className={MENU_ITEM}
                         onClick={() => {
                           setMenuOpen(false);

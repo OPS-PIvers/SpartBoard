@@ -1,4 +1,5 @@
 import React from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { QuizSession, QuizConfig } from '@/types';
 
 interface QuizSettingsScreenProps {
@@ -17,7 +18,8 @@ const SettingRow: React.FC<{
   description?: string;
   on: boolean;
   onToggle: () => void;
-}> = ({ label, description, on, onToggle }) => (
+  anchor?: TourAnchorAttrs;
+}> = ({ label, description, on, onToggle, anchor }) => (
   <div
     className="flex items-center justify-between bg-white border border-brand-gray-lighter rounded-lg"
     style={{
@@ -42,6 +44,7 @@ const SettingRow: React.FC<{
       )}
     </div>
     <button
+      {...anchor}
       role="switch"
       aria-checked={on}
       aria-label={label}

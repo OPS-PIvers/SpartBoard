@@ -21,6 +21,7 @@ import {
   TextLink,
   type StatusTone,
 } from '@/components/plc/redesignMockup/ui';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export interface WorkspaceTaskRow {
   id: string;
@@ -80,6 +81,11 @@ const taskActions = (
         key="a"
         variant="ghost"
         size="sm"
+        {...tourFieldAttr(
+          'teams.workspace.view-submission',
+          'teams-mentoring',
+          t.id
+        )}
         onClick={() => p.onViewSubmission?.(t.id)}
       >
         View
@@ -91,6 +97,11 @@ const taskActions = (
       variant="secondary"
       size="sm"
       icon={DOC_ICON}
+      {...tourFieldAttr(
+        'teams.workspace.open-task-doc',
+        'teams-mentoring',
+        t.id
+      )}
       onClick={() => p.onOpenTaskDoc?.(t.id)}
     >
       Open doc
@@ -103,6 +114,11 @@ const taskActions = (
       <Button
         size="sm"
         disabled={p.busyTaskId === t.id}
+        {...tourFieldAttr(
+          'teams.workspace.submit-task',
+          'teams-mentoring',
+          t.id
+        )}
         onClick={() => p.onSubmitTask?.(t.id)}
       >
         Submit
@@ -140,9 +156,11 @@ const AddActionItem: React.FC<{
         value={text}
         maxLength={500}
         onChange={(e) => setText(e.target.value)}
+        {...tourAttr('teams.workspace.action-text')}
       />
       <select
         aria-label="Assignee"
+        {...tourAttr('teams.workspace.action-owner')}
         className={`${INPUT} py-1.5`}
         value={assignee}
         onChange={(e) => setAssignee(e.target.value)}
@@ -160,8 +178,15 @@ const AddActionItem: React.FC<{
         className={`${INPUT} py-1.5`}
         value={due}
         onChange={(e) => setDue(e.target.value)}
+        {...tourAttr('teams.workspace.action-due')}
       />
-      <Button type="submit" size="sm" variant="secondary" disabled={!text}>
+      <Button
+        type="submit"
+        size="sm"
+        variant="secondary"
+        disabled={!text}
+        {...tourAttr('teams.workspace.action-submit')}
+      >
         Add
       </Button>
     </form>
@@ -190,7 +215,13 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = (props) => {
     <div className="mx-auto w-full max-w-5xl px-6 pb-16">
       <Section first label="Workspace">
         {onBack && (
-          <TextLink quiet icon={ArrowLeft} className="mb-2" onClick={onBack}>
+          <TextLink
+            quiet
+            icon={ArrowLeft}
+            className="mb-2"
+            onClick={onBack}
+            {...tourAttr('teams.workspace.back')}
+          >
             Workspaces
           </TextLink>
         )}
@@ -229,6 +260,7 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = (props) => {
                   variant="ghost"
                   size="sm"
                   onClick={onNewCheckIn}
+                  {...tourAttr('teams.workspace.new-check-in')}
                   icon={<Plus className="h-3.5 w-3.5" aria-hidden="true" />}
                 >
                   New check-in
@@ -240,6 +272,11 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = (props) => {
                 <li key={c.id}>
                   <button
                     type="button"
+                    {...tourFieldAttr(
+                      'teams.workspace.open-check-in',
+                      'teams-mentoring',
+                      c.id
+                    )}
                     onClick={() => onOpenCheckIn?.(c.id)}
                     className="flex w-full items-center gap-3 rounded py-2.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
                   >
@@ -265,7 +302,11 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = (props) => {
           <div className="min-w-0">
             <SectionHead title="Action items">
               {canEdit && onAddActionItem && !adding && (
-                <TextLink icon={Plus} onClick={() => setAdding(true)}>
+                <TextLink
+                  icon={Plus}
+                  onClick={() => setAdding(true)}
+                  {...tourAttr('teams.workspace.add-action-item')}
+                >
                   Add
                 </TextLink>
               )}
@@ -279,6 +320,11 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = (props) => {
                     aria-checked={a.done}
                     aria-label={a.title}
                     disabled={!canEdit}
+                    {...tourFieldAttr(
+                      'teams.workspace.action-check',
+                      'teams-mentoring',
+                      a.id
+                    )}
                     onClick={() => onToggleActionItem?.(a.id)}
                     className={`shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 ${
                       a.done
@@ -311,7 +357,11 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = (props) => {
             <div className="mt-8">
               <SectionHead title="Working docs">
                 {canEdit && (
-                  <TextLink icon={Plus} onClick={onAddDoc}>
+                  <TextLink
+                    icon={Plus}
+                    onClick={onAddDoc}
+                    {...tourAttr('teams.workspace.add-doc')}
+                  >
                     Add a doc
                   </TextLink>
                 )}
@@ -321,6 +371,11 @@ export const WorkspaceView: React.FC<WorkspaceViewProps> = (props) => {
                   <li key={d.id}>
                     <button
                       type="button"
+                      {...tourFieldAttr(
+                        'teams.workspace.open-doc',
+                        'teams-mentoring',
+                        d.id
+                      )}
                       onClick={() => onOpenDoc?.(d.id)}
                       className="flex w-full items-center gap-3 rounded py-2.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
                     >
