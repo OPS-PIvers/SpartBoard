@@ -8124,6 +8124,33 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'admin.org.bulk-role-option': {
+    label: 'Role option in the Organization bulk role picker',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.org.user-role-option': {
+    label: 'Role option in an Organization user role picker',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.org.user-status-option': {
+    label: 'Status option in an Organization user status picker',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.widget-config.building-selector': {
+    label: 'Building tabs in a widget configuration panel',
+    panel: true,
+  },
+  'admin.widget-config.building-tab': {
+    label: 'Building tab in a widget configuration panel',
+    perField: true,
+    panel: true,
+  },
   'admin.org.org-status-filter': {
     label: 'Status filter in Organization list',
     panel: true,

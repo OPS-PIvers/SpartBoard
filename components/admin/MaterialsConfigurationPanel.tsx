@@ -280,6 +280,11 @@ export const MaterialsConfigurationPanel: React.FC<
                 </label>
                 <div className="flex items-center gap-2">
                   <IconPicker
+                    anchor={tourFieldAttr(
+                      'admin.widget-config.field',
+                      'materials',
+                      'icon'
+                    )}
                     currentIcon={draft.icon}
                     onSelect={(icon) =>
                       setDraft((current) => ({ ...current, icon }))

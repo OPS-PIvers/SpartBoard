@@ -10416,6 +10416,36 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     panel: true,
   },
   {
+    id: 'admin.org.bulk-role-option',
+    label: 'Role option in the Organization bulk role picker',
+    scope: 'field',
+    panel: true,
+  },
+  {
+    id: 'admin.org.user-role-option',
+    label: 'Role option in an Organization user role picker',
+    scope: 'field',
+    panel: true,
+  },
+  {
+    id: 'admin.org.user-status-option',
+    label: 'Status option in an Organization user status picker',
+    scope: 'field',
+    panel: true,
+  },
+  {
+    id: 'admin.widget-config.building-selector',
+    label: 'Building tabs in a widget configuration panel',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'admin.widget-config.building-tab',
+    label: 'Building tab in a widget configuration panel',
+    scope: 'field',
+    panel: true,
+  },
+  {
     id: 'admin.org.org-status-filter',
     label: 'Status filter in Organization list',
     scope: 'board',
