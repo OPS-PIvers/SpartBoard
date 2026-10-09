@@ -305,6 +305,13 @@ export const useNutrislice = ({
   const needsRetry = !!config.syncError || !config.cachedMenu;
   const checkedOnMountRef = useRef(false);
 
+  // Local date key, re-read each minute so an overnight-open board re-syncs after midnight.
+  const [todayKey, setTodayKey] = useState(() => new Date().toDateString());
+  useEffect(() => {
+    const id = setInterval(() => setTodayKey(new Date().toDateString()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   useEffect(() => {
     if (isSyncing) return;
 
@@ -320,10 +327,7 @@ export const useNutrislice = ({
     const lastSyncDate = config.lastSyncDate
       ? new Date(config.lastSyncDate)
       : null;
-    const today = new Date();
-
-    const isSyncedToday =
-      lastSyncDate && lastSyncDate.toDateString() === today.toDateString();
+    const isSyncedToday = lastSyncDate && lastSyncDate.toDateString() === todayKey;
 
     // Re-fetch if either we haven't synced today, or the cached payload still
     // uses the pre-images legacy string shape.
@@ -336,6 +340,7 @@ export const useNutrislice = ({
     isSyncing,
     hasLegacyShape,
     needsRetry,
+    todayKey,
   ]);
 
   return { isSyncing, fetchNutrislice };
