@@ -14,6 +14,7 @@ import {
   type PeriodWindowSource,
 } from '@/utils/periodPlan';
 import { WindowField } from './AssignWindowField';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export interface AssignPeriodAccessContext {
   /** Every bell period in the teacher's buildings, for the inline tag prompt. */
@@ -51,6 +52,7 @@ export const TagPrompt: React.FC<{
         className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-800"
         value=""
         disabled={saving}
+        {...tourFieldAttr('assign-periods.tag-roster', 'assign', roster.id)}
         onChange={async (e) => {
           const pick = context.bellOptions.find(
             (o) => bellKey(o) === e.target.value
@@ -106,6 +108,7 @@ const AssignmentRow: React.FC<{
               name: roster.name,
             }
           )}
+          {...tourFieldAttr('assign-periods.window', 'assign', roster.id)}
           className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-800"
           value={source}
           onChange={(e) =>
@@ -148,12 +151,22 @@ const AssignmentRow: React.FC<{
             label={t('assignTargeting.opensAt', 'Opens')}
             value={row?.openAt}
             onChange={(ms) => onRowChange({ ...row, source, openAt: ms })}
+            anchor={tourFieldAttr(
+              'assign-periods.custom-time',
+              'assign',
+              `${roster.id}:opens`
+            )}
           />
           <WindowField
             id={closeId}
             label={t('assignTargeting.closesAt', 'Closes')}
             value={row?.closeAt}
             onChange={(ms) => onRowChange({ ...row, source, closeAt: ms })}
+            anchor={tourFieldAttr(
+              'assign-periods.custom-time',
+              'assign',
+              `${roster.id}:closes`
+            )}
           />
         </div>
       )}
@@ -254,6 +267,7 @@ export const AssignPeriodAccessSection: React.FC<{
             onClick={() => setCustomizing((v) => !v)}
             aria-expanded={customizing}
             aria-controls={regionId}
+            {...tourAttr('assign-periods.customize')}
             className="flex items-center gap-1 text-xs font-semibold text-brand-blue-primary hover:text-brand-blue-dark"
           >
             {t('assignTargeting.periodCustomize', 'Customize per period')}

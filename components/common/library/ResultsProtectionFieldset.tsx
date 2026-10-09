@@ -5,6 +5,7 @@ import {
   RESULTS_TAB_WARNING_THRESHOLD_MIN,
   type ResultsProtection,
 } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 
 const clampThreshold = (raw: string): number | null => {
   const parsed = Number.parseInt(raw, 10);
@@ -57,6 +58,7 @@ export const ResultsProtectionFieldset: React.FC<
             onChange({ ...value, watermarkEnabled: e.target.checked })
           }
           disabled={disabled}
+          {...tourAttr('assign-results-protection.watermark')}
           className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
         />
         <span className="flex-1">
@@ -78,6 +80,7 @@ export const ResultsProtectionFieldset: React.FC<
               setThresholdText(String(value.tabWarningThreshold));
           }}
           disabled={disabled}
+          {...tourAttr('assign-results-protection.tab-warning')}
           className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
         />
         <span className="flex-1">
@@ -101,6 +104,7 @@ export const ResultsProtectionFieldset: React.FC<
             value={thresholdText}
             onChange={(e) => handleThresholdChange(e.target.value)}
             onBlur={handleThresholdBlur}
+            {...tourAttr('assign-results-protection.threshold')}
             disabled={disabled}
             className="w-16 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
           />

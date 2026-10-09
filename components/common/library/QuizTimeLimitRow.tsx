@@ -7,6 +7,7 @@ import {
   QUIZ_TIME_LIMIT_MIN_MINUTES,
   clampQuizTimeLimitMinutes,
 } from '@/utils/quizTimeLimit';
+import { tourAttr } from '@/config/tourAnchors';
 
 /** Overall quiz time limit in minutes; `null` = no limit. */
 export const QuizTimeLimitRow: React.FC<{
@@ -51,6 +52,7 @@ export const QuizTimeLimitRow: React.FC<{
             onChange={(e) => setInputValue(e.target.value)}
             onBlur={commit}
             aria-label={t('quizTimeLimit.minutes', 'Minutes')}
+            {...tourAttr('assign-quiz-time.minutes')}
             className="w-16 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
           />
           <span className="text-xs text-slate-700">

@@ -157,6 +157,9 @@ describe('tour anchor registry', () => {
       OPENS_ONLY.has(id) ||
       /^(assign-(destination|step)\.|plc-(assign|share)\.|admin-plc\.recovery-reassign)/.test(
         id
+      ) ||
+      /^(assign-(when|classes|students|students-legacy|mods|override|modal|targeting|availability|periods|per-class|settings|quiz-behavior|quiz-time|tab-warning|results-protection|video-behavior)|flashcards-assign|plc-video-assign|publish-scores|view-only-share)\./.test(
+        id
       );
     const unflagged = Object.entries(TOUR_ANCHORS)
       .filter(([id]) => /assign|share|publish|delete/.test(id))

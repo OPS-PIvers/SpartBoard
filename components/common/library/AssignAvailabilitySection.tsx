@@ -17,6 +17,7 @@ import {
   type AssignPeriodAccessContext,
 } from './AssignPeriodAccessSection';
 import { scaledFont } from './assignWindowUtils';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 type Side = 'opens' | 'closes';
 
@@ -74,6 +75,7 @@ export const PointField: React.FC<{
             onChange={(e) => {
               if (e.target.value) onChange({ ...point, day: e.target.value });
             }}
+            {...tourFieldAttr('assign-availability.date', 'assign', side)}
             className="w-[8.25rem] bg-transparent focus:outline-none"
           />
         </span>
@@ -91,6 +93,7 @@ export const PointField: React.FC<{
                   setJustPicked(true);
                   onChange({ ...point, time: pickedTime });
                 }}
+                {...tourFieldAttr('assign-availability.time', 'assign', side)}
                 className="min-w-0 flex-1 appearance-none bg-transparent pr-4 focus:outline-none"
               >
                 <option value="bell">{bellLabel}</option>
@@ -109,6 +112,7 @@ export const PointField: React.FC<{
                   label,
                 })}
                 autoFocus={justPicked}
+                {...tourFieldAttr('assign-availability.time', 'assign', side)}
                 value={timeValue}
                 onChange={(e) => {
                   if (e.target.value)
@@ -122,6 +126,7 @@ export const PointField: React.FC<{
                   aria-label={bellLabel}
                   title={bellLabel}
                   onClick={() => onChange({ ...point, time: 'bell' })}
+                  {...tourFieldAttr('assign-availability.bell', 'assign', side)}
                   className="rounded p-0.5 text-slate-400 hover:text-slate-700"
                 >
                   <X className="h-3.5 w-3.5" />
@@ -253,6 +258,11 @@ const WorkKindToggle: React.FC<{
           aria-checked={value === option.id}
           title={option.hint}
           onClick={() => onChange(option.id)}
+          {...tourFieldAttr(
+            'assign-availability.work-kind',
+            'assign',
+            option.id
+          )}
           className={`rounded-md px-2 py-1 font-semibold ${cqScaled ? '' : 'text-xs'} ${
             value === option.id
               ? 'bg-white text-slate-800 shadow-sm'
@@ -327,6 +337,7 @@ export const AssignAvailabilitySection: React.FC<{
           <span className="relative flex items-center">
             <select
               aria-label={t('assignAvailability.scope', 'Dates for')}
+              {...tourAttr('assign-availability.scope')}
               value={eachClass ? 'each' : 'all'}
               onChange={(e) =>
                 onChange(
@@ -468,6 +479,7 @@ export const AssignAvailabilitySection: React.FC<{
               onChange(next ? { ...rest, noEnd: true } : rest);
             }}
             label={t('assignAvailability.noEndDate', 'No end date')}
+            anchor={tourAttr('assign-availability.no-end')}
           />
         ) : (
           <Toggle
@@ -479,6 +491,7 @@ export const AssignAvailabilitySection: React.FC<{
               'assignAvailability.allowLate',
               'Allow submissions after close'
             )}
+            anchor={tourAttr('assign-availability.allow-late')}
           />
         )}
       </div>

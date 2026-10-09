@@ -89,6 +89,7 @@ import {
   EMPTY_ASSIGN_TARGETING_VALUE,
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export type { AssignTargetingValue } from '@/utils/studentTargetRef';
 export { EMPTY_ASSIGN_TARGETING_VALUE } from '@/utils/studentTargetRef';
@@ -346,6 +347,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
       label={scheduleLabel ?? t('assignTargeting.scheduleLabel', 'Schedule')}
       icon={CalendarClock}
       summary={scheduleSummary || undefined}
+      anchor={tourAttr('assign-targeting.schedule')}
     >
       <div className="grid grid-cols-2 gap-2">
         <WindowField
@@ -354,6 +356,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
           value={value.openAt}
           onChange={(ms) => patch({ openAt: ms })}
           cqScaled={cqScaled}
+          anchor={tourFieldAttr('assign-targeting.window', 'assign', 'opens')}
         />
         <WindowField
           id={closeAtId}
@@ -361,6 +364,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
           value={value.closeAt}
           onChange={(ms) => patch({ closeAt: ms })}
           cqScaled={cqScaled}
+          anchor={tourFieldAttr('assign-targeting.window', 'assign', 'closes')}
         />
         {showDueAt && (
           <WindowField
@@ -370,6 +374,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
             value={value.dueAt}
             onChange={(ms) => patch({ dueAt: ms })}
             cqScaled={cqScaled}
+            anchor={tourFieldAttr('assign-targeting.window', 'assign', 'due')}
           />
         )}
       </div>
@@ -418,6 +423,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
         type="button"
         onClick={openModifications}
         aria-expanded={false}
+        {...tourAttr('assign-targeting.open')}
         className={
           cqScaled
             ? 'group flex w-full items-center gap-2 py-1 font-bold text-brand-blue-dark hover:text-brand-blue-primary transition-colors'
@@ -469,6 +475,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
             <button
               type="button"
               onClick={clearModifications}
+              {...tourAttr('assign-targeting.clear')}
               className={
                 cqScaled
                   ? 'font-medium text-slate-500 hover:text-brand-red-primary transition-colors'
@@ -485,6 +492,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
           <button
             type="button"
             onClick={() => setExpanded(false)}
+            {...tourAttr('assign-targeting.collapse')}
             className={
               cqScaled
                 ? 'font-medium text-slate-500 hover:text-slate-700 transition-colors'
@@ -532,6 +540,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
         <button
           type="button"
           onClick={collapse}
+          {...tourAttr('assign-targeting.revert')}
           className={
             cqScaled
               ? 'font-medium text-slate-500 hover:text-slate-700 transition-colors'
@@ -547,6 +556,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
         <button
           type="button"
           onClick={() => setPickerOpen(true)}
+          {...tourAttr('assign-targeting.choose-students')}
           className={
             cqScaled
               ? 'inline-flex items-center gap-1.5 rounded-md bg-brand-blue-primary px-3 py-1.5 font-semibold text-white hover:bg-brand-blue-dark transition-colors'
@@ -609,6 +619,11 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
                 <button
                   type="button"
                   onClick={() => removeStudent(row.key)}
+                  {...tourFieldAttr(
+                    'assign-targeting.remove-student',
+                    'assign',
+                    row.key
+                  )}
                   className={
                     cqScaled
                       ? 'font-medium text-slate-400 hover:text-brand-red-primary transition-colors'

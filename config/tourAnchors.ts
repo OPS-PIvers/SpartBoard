@@ -665,6 +665,441 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  // Assign dialogs: stepper steps, legacy Assign window, student pickers, settings and publish.
+  'assign-when.mode': {
+    label: 'Manual or Scheduled switch in the Assign dialog',
+    panel: true,
+  },
+  'assign-when.scope': {
+    label:
+      'Same time or different time for each class button in the Assign dialog',
+    panel: true,
+  },
+  'assign-when.allow-late': {
+    label: 'Allow submissions after close switch in the Assign dialog',
+    panel: true,
+  },
+  'assign-when.window': {
+    label: 'Schedule switch in the Assign dialog',
+    panel: true,
+  },
+  'assign-classes.trigger': {
+    label: 'Classes menu button in the Assign dialog',
+    panel: true,
+  },
+  'assign-classes.option': {
+    label: 'Class checkbox in the Assign dialog classes menu',
+    perField: true,
+    panel: true,
+  },
+  'assign-classes.select-all': {
+    label: 'Select all button in the Assign dialog classes menu',
+    panel: true,
+  },
+  'assign-classes.clear': {
+    label: 'Clear button in the Assign dialog classes menu',
+    panel: true,
+  },
+  'assign-students.trigger': {
+    label: 'All students menu button for a class in the Assign dialog',
+    perField: true,
+    panel: true,
+  },
+  'assign-students.search': {
+    label: 'Search students box in the Assign dialog students menu',
+    panel: true,
+  },
+  'assign-students.group': {
+    label: 'Group button in the Assign dialog students menu',
+    perField: true,
+    panel: true,
+  },
+  'assign-students.option': {
+    label: 'Student checkbox in the Assign dialog students menu',
+    perField: true,
+    panel: true,
+  },
+  'assign-students.all': {
+    label: 'All students button in the Assign dialog students menu',
+    panel: true,
+  },
+  'assign-students.clear': {
+    label: 'Clear button in the Assign dialog students menu',
+    panel: true,
+  },
+  'sharing.plc-toggle': {
+    label: 'Share results with a PLC switch in the Assign dialog',
+    panel: true,
+  },
+  'sharing.plc-select': {
+    label: 'PLC dropdown in the Assign dialog',
+    panel: true,
+  },
+  'flashcards-check.strict': {
+    label: 'Strict mode switch in the Assign dialog flashcards check step',
+    panel: true,
+  },
+  'flashcards-check.test-type': {
+    label: 'Question type switch in the Assign dialog flashcards check step',
+    perField: true,
+    panel: true,
+  },
+  'flashcards-check.questions': {
+    label: 'Questions dropdown in the Assign dialog flashcards check step',
+    panel: true,
+  },
+  'flashcards-check.mastery': {
+    label:
+      'Correct in a row to master box in the Assign dialog flashcards check step',
+    panel: true,
+  },
+  'flashcards-check.score-visibility': {
+    label:
+      'Score visibility dropdown in the Assign dialog flashcards check step',
+    panel: true,
+  },
+  'assign-mods.open': {
+    label: 'Modifications link in the Assign dialog',
+    panel: true,
+  },
+  'assign-mods.back': {
+    label: 'Back button in the Assign dialog modifications view',
+    panel: true,
+  },
+  'assign-mods.clear': {
+    label:
+      'Clear all modifications button in the Assign dialog modifications view',
+    destructive: true,
+    panel: true,
+  },
+  'assign-mods.done': {
+    label: 'Done button in the Assign dialog modifications view',
+    panel: true,
+  },
+  'assign-mods.show-all': {
+    label:
+      'Show more or fewer students button in the Assign dialog modifications view',
+    panel: true,
+  },
+  'assign-mods.add-student': {
+    label: 'Add a student dropdown in the Assign dialog modifications view',
+    panel: true,
+  },
+  'assign-mods.skip-student': {
+    label: 'Skip this student switch in the Assign dialog modifications view',
+    perField: true,
+    panel: true,
+  },
+  'assign-mods.remove': {
+    label: 'Remove modification button in the Assign dialog modifications view',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'assign-mods.generate-translation': {
+    label:
+      'Generate translation button in the Assign dialog modifications view',
+    perField: true,
+    panel: true,
+  },
+  'assign-modal.cancel-header': {
+    label: 'Cancel button at the top of the Assign window',
+    panel: true,
+  },
+  'assign-modal.cancel': {
+    label: 'Cancel button at the bottom of the Assign window',
+    panel: true,
+  },
+  'assign-modal.confirm': {
+    label: 'Assign button at the bottom of the Assign window',
+    persists: true,
+    panel: true,
+  },
+  'assign-modal.name': {
+    label: 'Assignment Name box in the Assign window',
+    panel: true,
+  },
+  'assign-modal.mode': {
+    label: 'Session mode card in the Assign window',
+    perField: true,
+    panel: true,
+  },
+  'assign-students-legacy.close': {
+    label: 'Close button in the Choose students window',
+    panel: true,
+  },
+  'assign-students-legacy.cancel': {
+    label: 'Cancel button in the Choose students window',
+    panel: true,
+  },
+  'assign-students-legacy.confirm': {
+    label: 'Add students button in the Choose students window',
+    panel: true,
+  },
+  'assign-students-legacy.generate-translation': {
+    label: 'Generate translation button in the Choose students window',
+    perField: true,
+    panel: true,
+  },
+  'assign-students-legacy.remove-selected': {
+    label: 'Remove student button in the Choose students window',
+    perField: true,
+    panel: true,
+  },
+  'assign-students-legacy.roster': {
+    label: 'Class button in the Choose students window',
+    perField: true,
+    panel: true,
+  },
+  'assign-students-legacy.group': {
+    label: 'Group button in the Choose students window',
+    perField: true,
+    panel: true,
+  },
+  'assign-students-legacy.search': {
+    label: 'Search students box in the Choose students window',
+    panel: true,
+  },
+  'assign-students-legacy.select-all': {
+    label: 'Select all checkbox in the Choose students window',
+    panel: true,
+  },
+  'assign-students-legacy.student': {
+    label: 'Student checkbox in the Choose students window',
+    perField: true,
+    panel: true,
+  },
+  'assign-students-legacy.switch-roster': {
+    label: 'Choose another class button in the Choose students window',
+    panel: true,
+  },
+  'assign-students-legacy.clear-search': {
+    label: 'Clear search button in the Choose students window',
+    panel: true,
+  },
+  'assign-targeting.schedule': {
+    label: 'Schedule section header in the Assign window',
+    panel: true,
+  },
+  'assign-targeting.window': {
+    label: 'Opens, Closes or Due date box in the Assign window schedule',
+    perField: true,
+    panel: true,
+  },
+  'assign-targeting.open': {
+    label: 'Edit or add modifications button in the Assign window',
+    panel: true,
+  },
+  'assign-targeting.clear': {
+    label: 'Clear all modifications button in the Assign window',
+    destructive: true,
+    panel: true,
+  },
+  'assign-targeting.collapse': {
+    label: 'Done button in the Assign window modifications',
+    panel: true,
+  },
+  'assign-targeting.revert': {
+    label: 'Assign to whole class button in the Assign window',
+    panel: true,
+  },
+  'assign-targeting.choose-students': {
+    label: 'Choose students button in the Assign window',
+    panel: true,
+  },
+  'assign-targeting.remove-student': {
+    label: 'Remove student button in the Assign window',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'assign-availability.date': {
+    label: 'Opens or Closes date box in the Assign window availability',
+    perField: true,
+    panel: true,
+  },
+  'assign-availability.time': {
+    label: 'Opens or Closes time box in the Assign window availability',
+    perField: true,
+    panel: true,
+  },
+  'assign-availability.bell': {
+    label: 'Start or end of class button in the Assign window availability',
+    perField: true,
+    panel: true,
+  },
+  'assign-availability.scope': {
+    label:
+      'All classes or Each class dropdown in the Assign window availability',
+    panel: true,
+  },
+  'assign-availability.work-kind': {
+    label:
+      'Submissions Enabled or Study Resource option in the Assign window availability',
+    perField: true,
+    panel: true,
+  },
+  'assign-availability.allow-late': {
+    label:
+      'Allow submissions after close switch in the Assign window availability',
+    panel: true,
+  },
+  'assign-availability.no-end': {
+    label: 'No end date switch in the Assign window availability',
+    panel: true,
+  },
+  'assign-periods.tag-roster': {
+    label: 'Which period is this class dropdown in the Assign window',
+    perField: true,
+    panel: true,
+  },
+  'assign-periods.window': {
+    label: 'Window for a class dropdown in the Assign window periods',
+    perField: true,
+    panel: true,
+  },
+  'assign-periods.custom-time': {
+    label:
+      'Custom Opens or Closes box for a class in the Assign window periods',
+    perField: true,
+    panel: true,
+  },
+  'assign-periods.customize': {
+    label: 'Customize per period button in the Assign window',
+    panel: true,
+  },
+  'assign-periods.selector-close': {
+    label: 'Close button in the Class Periods popup',
+    panel: true,
+  },
+  'assign-periods.selector-period': {
+    label: 'Class period checkbox in the Class Periods popup',
+    perField: true,
+    panel: true,
+  },
+  'assign-periods.selector-cancel': {
+    label: 'Cancel button in the Class Periods popup',
+    panel: true,
+  },
+  'assign-periods.selector-save': {
+    label: 'Save button in the Class Periods popup',
+    panel: true,
+  },
+  'assign-per-class.mode': {
+    label: 'One date or Each class option in the Assign window due date',
+    perField: true,
+    panel: true,
+  },
+  'assign-per-class.date': {
+    label: 'Due date or time box for a class in the Assign window',
+    perField: true,
+    panel: true,
+  },
+  'assign-settings.attempts': {
+    label: 'Attempts allowed option in the Assign window',
+    perField: true,
+    panel: true,
+  },
+  'assign-settings.section': {
+    label:
+      'Question Randomization or Answer Feedback section header in the Assign window',
+    perField: true,
+    panel: true,
+  },
+  'assign-settings.disclosure': {
+    label: 'Edit settings button in the Assign window',
+    panel: true,
+  },
+  'assign-quiz-behavior.mode': {
+    label: 'Session mode card in the Quiz assign settings',
+    perField: true,
+    panel: true,
+  },
+  'assign-quiz-behavior.gamification': {
+    label: 'Gamification section header in the Quiz assign settings',
+    panel: true,
+  },
+  'assign-quiz-time.minutes': {
+    label: 'Time limit minutes box in the Quiz assign settings',
+    panel: true,
+  },
+  'assign-tab-warning.threshold-toggle': {
+    label:
+      'Auto-submit after repeated tab switches switch in the Assign window',
+    panel: true,
+  },
+  'assign-tab-warning.threshold': {
+    label: 'Warnings before auto-submit box in the Assign window',
+    panel: true,
+  },
+  'assign-tab-warning.away-toggle': {
+    label: 'Auto-submit if away too long switch in the Assign window',
+    panel: true,
+  },
+  'assign-tab-warning.away-preset': {
+    label: 'Time allowed away preset button in the Assign window',
+    perField: true,
+    panel: true,
+  },
+  'assign-tab-warning.away-less': {
+    label: 'Less time button in the Assign window tab-away limit',
+    panel: true,
+  },
+  'assign-tab-warning.away-more': {
+    label: 'More time button in the Assign window tab-away limit',
+    panel: true,
+  },
+  'assign-results-protection.watermark': {
+    label: 'Watermark checkbox in the Publish scores window',
+    panel: true,
+  },
+  'assign-results-protection.tab-warning': {
+    label: 'Tab-switch warning checkbox in the Publish scores window',
+    panel: true,
+  },
+  'assign-results-protection.threshold': {
+    label: 'Warnings before lockout box in the Publish scores window',
+    panel: true,
+  },
+  'assign-video-behavior.scoring': {
+    label: 'Scoring section header in the Video Activity assign settings',
+    panel: true,
+  },
+  'assign-video-behavior.score-visibility': {
+    label: 'Score visibility option in the Video Activity assign settings',
+    perField: true,
+    panel: true,
+  },
+  'view-only-share.close': {
+    label: 'Close button in the Share link window',
+    panel: true,
+  },
+  'view-only-share.confirm': {
+    label: 'Create Share Link button in the Share link window',
+    persists: true,
+    panel: true,
+  },
+  'view-only-share.copy': {
+    label: 'Copy Link button in the Share link window',
+    panel: true,
+  },
+  'view-only-share.open': {
+    label: 'Open in New Tab link in the Share link window',
+    panel: true,
+  },
+  'plc-video-assign.due-date': {
+    label: 'Due Date box in the PLC Video Activity assign window',
+    panel: true,
+  },
+  'plc-video-assign.teacher-name': {
+    label: 'Your Name box in the PLC Video Activity assign window',
+    panel: true,
+  },
+  'plc-video-assign.sheet-url': {
+    label:
+      'Shared Google Sheet URL box in the PLC Video Activity assign window',
+    panel: true,
+  },
   'review-start.mode-paced': {
     label: 'Teacher-paced card in the Start review dialog',
     panel: true,
