@@ -574,7 +574,6 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     enabled: folderViewEnabled,
     sourceKeys: buildingSourceKeys,
     ownFolders: folderState.folders,
-    ready: !buildingLoading && !folderState.loading,
   });
   const { folderIdOf } = sourceFolders;
   const entryFolderId = useCallback(

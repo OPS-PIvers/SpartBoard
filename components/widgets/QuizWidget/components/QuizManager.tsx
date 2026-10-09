@@ -449,7 +449,6 @@ interface QuizManagerProps {
   banksLoading?: boolean;
   /** Teammates' PLC-shared banks (kind 'plc'). */
   sharedBankSources?: BankSource[];
-  sharedBanksLoading?: boolean;
   onNewBank?: () => void;
   onImportBank?: () => void;
   onEditBank?: (meta: QuestionBankMetadata) => void;
@@ -701,7 +700,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   banks,
   banksLoading = false,
   sharedBankSources,
-  sharedBanksLoading,
   onNewBank,
   onImportBank,
   onEditBank,
@@ -2368,7 +2366,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         banks={banks}
         loading={banksLoading}
         sharedBankSources={sharedBankSources ?? []}
-        sharedBanksLoading={sharedBanksLoading}
         plcs={plcs}
         shell={{
           widgetLabel: 'Quiz',

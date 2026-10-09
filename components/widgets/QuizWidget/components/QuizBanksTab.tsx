@@ -52,8 +52,6 @@ export interface QuizBanksTabProps {
   loading: boolean;
   /** Teammates' shared banks (kind 'plc'); own banks are excluded upstream. */
   sharedBankSources: BankSource[];
-  /** False once every PLC's shared banks have loaded; gates cleanup of stale filings. */
-  sharedBanksLoading?: boolean;
   plcs: readonly Plc[];
   shell: Pick<
     LibraryShellProps,
@@ -134,7 +132,6 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   banks,
   loading,
   sharedBankSources,
-  sharedBanksLoading = true,
   plcs,
   shell,
   onNewBank,
@@ -188,7 +185,6 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
     enabled: folderViewEnabled,
     sourceKeys: teammateKeys,
     ownFolders: folderState.folders,
-    ready: !loading && !folderState.loading && !sharedBanksLoading,
   });
   const { folderIdOf, move: moveSource } = sourceFolders;
   const teammateFolderIds = useMemo(

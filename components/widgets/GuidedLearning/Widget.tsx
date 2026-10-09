@@ -1471,8 +1471,18 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                     void handleAssign(setId, driveFileId, buildingEntry);
                   }}
                   folderDeleteActions={{
-                    // Sets with open assignments delete like a single delete: files stay for students.
+                    isBlocked: (id) => openAssignmentIdsFor(id).length > 0,
+                    blockedReason: (n) =>
+                      n === 1
+                        ? '1 set has an open assignment'
+                        : `${n} sets have open assignments`,
                     deleteItems: async (ids) => {
+                      // The open-assignment check above is only trustworthy once assignments have loaded.
+                      if (assignmentsLoading) {
+                        throw new Error(
+                          "Couldn't check assignments. Try again in a moment."
+                        );
+                      }
                       const byId = new Map(sets.map((x) => [x.id, x]));
                       for (const id of ids) {
                         const meta = byId.get(id);
