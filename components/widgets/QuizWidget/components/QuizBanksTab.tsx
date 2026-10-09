@@ -13,6 +13,7 @@ import {
   FolderMinus,
 } from 'lucide-react';
 import type { Plc, QuestionBankMetadata } from '@/types';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import type { BankSource } from '@/hooks/useBankSources';
 import {
   LibraryShell,
@@ -521,6 +522,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
         userId ? (
           <button
             type="button"
+            {...tourTypeAttr('quiz-banks.select-mode', 'quiz')}
             onClick={() => {
               if (selectionMode) {
                 selection.clear();
@@ -559,6 +561,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
         action={
           <button
             type="button"
+            {...tourTypeAttr('quiz-banks.empty-new-bank', 'quiz')}
             onClick={onNewBank}
             className="flex items-center gap-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-2xl transition-all shadow-md active:scale-95 px-5 py-2.5 text-sm"
           >
@@ -647,6 +650,11 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
                 {onPreviewSharedBank && (
                   <button
                     type="button"
+                    {...tourFieldAttr(
+                      'quiz-banks.shared-preview',
+                      'quiz',
+                      source.key
+                    )}
                     onClick={() => onPreviewSharedBank(source)}
                     className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100"
                   >

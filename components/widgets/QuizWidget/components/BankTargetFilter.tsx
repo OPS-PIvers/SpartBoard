@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import type { QuestionTargetTag } from '@/types';
 import type { BankContent } from '@/utils/questionBanks';
 import { bankTagCounts } from './bankSlotHelpers';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 const KIND_CLASS: Record<QuestionTargetTag['kind'], string> = {
   standard: 'border-sky-300 bg-sky-50 text-sky-800',
@@ -42,6 +43,7 @@ export const BankTargetFilter: React.FC<BankTargetFilterProps> = ({
           <button
             key={tag.id}
             type="button"
+            {...tourFieldAttr('quiz-banks.target-filter-tag', 'quiz', tag.id)}
             aria-pressed={on}
             title={tag.code ? `${tag.code} — ${tag.label}` : tag.label}
             onClick={() =>
@@ -65,6 +67,7 @@ export const BankTargetFilter: React.FC<BankTargetFilterProps> = ({
       {value.length > 0 && (
         <button
           type="button"
+          {...tourTypeAttr('quiz-banks.target-filter-clear', 'quiz')}
           onClick={() => onChange([])}
           className="px-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800"
         >

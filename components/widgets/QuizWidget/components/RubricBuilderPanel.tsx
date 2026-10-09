@@ -25,6 +25,7 @@ import { useDialog } from '@/context/useDialog';
 import { useRubrics } from '@/hooks/useRubrics';
 import { parseRubricCsv, rubricToCsv } from '@/utils/rubricCsv';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 export interface RubricBuilderPanelProps {
   questionId: string;
@@ -454,6 +455,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
         role="separator"
         aria-orientation="vertical"
         aria-label="Resize rubric builder"
+        {...tourTypeAttr('quiz-rubric.builder-resize', 'quiz')}
         tabIndex={0}
         onPointerDown={handleResizeStart}
         onKeyDown={(e) => {
@@ -473,6 +475,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
           ref={focusCloseButton}
           onClick={onClose}
           aria-label="Close rubric builder"
+          {...tourTypeAttr('quiz-rubric.builder-close', 'quiz')}
           className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
         >
           <X className="w-4 h-4" />
@@ -493,6 +496,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
           </label>
           <select
             id="rubric-library-select"
+            {...tourTypeAttr('quiz-rubric.builder-library', 'quiz')}
             className={`${inputClass} appearance-none`}
             value=""
             onChange={async (e) => {
@@ -541,12 +545,14 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
               onChange={(e) => setImportCode(e.target.value)}
               placeholder="Paste a share code or link"
               aria-label="Rubric share code or link"
+              {...tourTypeAttr('quiz-rubric.builder-import-code', 'quiz')}
               className={`${inputClass} flex-1`}
             />
             <button
               onClick={() => void handleImport()}
               disabled={importing || !importCode.trim()}
               aria-label="Import shared rubric"
+              {...tourTypeAttr('quiz-rubric.builder-import', 'quiz')}
               className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors disabled:opacity-40"
             >
               {importing ? (
@@ -574,6 +580,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
           </label>
           <input
             id="rubric-title"
+            {...tourTypeAttr('quiz-rubric.builder-title', 'quiz')}
             type="text"
             value={draft.title}
             onChange={(e) =>
@@ -596,6 +603,11 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                 onChange={(e) => patchCriterion(c.id, { name: e.target.value })}
                 placeholder={`Criterion ${ci + 1}`}
                 aria-label={`Criterion ${ci + 1} name`}
+                {...tourFieldAttr(
+                  'quiz-rubric.criterion-name',
+                  'quiz',
+                  String(ci + 1)
+                )}
                 className={inputClass}
               />
               <button
@@ -607,6 +619,11 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                 }
                 disabled={ci === 0}
                 aria-label={`Move criterion ${ci + 1} up`}
+                {...tourFieldAttr(
+                  'quiz-rubric.criterion-up',
+                  'quiz',
+                  String(ci + 1)
+                )}
                 className="p-1 rounded text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
               >
                 <ArrowUp className="w-4 h-4" />
@@ -620,6 +637,11 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                 }
                 disabled={ci === draft.criteria.length - 1}
                 aria-label={`Move criterion ${ci + 1} down`}
+                {...tourFieldAttr(
+                  'quiz-rubric.criterion-down',
+                  'quiz',
+                  String(ci + 1)
+                )}
                 className="p-1 rounded text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
               >
                 <ArrowDown className="w-4 h-4" />
@@ -633,6 +655,11 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                 }
                 disabled={draft.criteria.length <= MIN_CRITERIA}
                 aria-label={`Remove criterion ${ci + 1}`}
+                {...tourFieldAttr(
+                  'quiz-rubric.criterion-remove',
+                  'quiz',
+                  String(ci + 1)
+                )}
                 className="p-1 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
               >
                 <Trash2 className="w-4 h-4" />
@@ -651,6 +678,11 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                   }}
                   placeholder="Level label"
                   aria-label={`Criterion ${ci + 1} level ${li + 1} label`}
+                  {...tourFieldAttr(
+                    'quiz-rubric.level-label',
+                    'quiz',
+                    `${ci + 1}-${li + 1}`
+                  )}
                   className={`${inputClass} resize-y overflow-hidden min-h-[38px]`}
                 />
                 <input
@@ -663,6 +695,11 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                     })
                   }
                   aria-label={`Criterion ${ci + 1} level ${li + 1} points`}
+                  {...tourFieldAttr(
+                    'quiz-rubric.level-points',
+                    'quiz',
+                    `${ci + 1}-${li + 1}`
+                  )}
                   className={`${inputClass} w-20`}
                 />
                 <textarea
@@ -677,6 +714,11 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                   }}
                   placeholder="Description"
                   aria-label={`Criterion ${ci + 1} level ${li + 1} description`}
+                  {...tourFieldAttr(
+                    'quiz-rubric.level-description',
+                    'quiz',
+                    `${ci + 1}-${li + 1}`
+                  )}
                   className={`${inputClass} resize-y overflow-hidden min-h-[38px]`}
                 />
                 <button
@@ -687,6 +729,11 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                   }
                   disabled={c.levels.length <= MIN_LEVELS}
                   aria-label={`Remove criterion ${ci + 1} level ${li + 1}`}
+                  {...tourFieldAttr(
+                    'quiz-rubric.level-remove',
+                    'quiz',
+                    `${ci + 1}-${li + 1}`
+                  )}
                   className="p-1 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -706,6 +753,11 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                     ],
                   })
                 }
+                {...tourFieldAttr(
+                  'quiz-rubric.level-add',
+                  'quiz',
+                  String(ci + 1)
+                )}
                 className="flex items-center gap-1.5 text-xs font-bold text-brand-blue-primary hover:text-brand-blue-dark transition-colors"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -722,6 +774,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
               criteria: [...prev.criteria, newCriterion()],
             }))
           }
+          {...tourTypeAttr('quiz-rubric.criterion-add', 'quiz')}
           className="flex items-center justify-center gap-1.5 w-full py-2 border-2 border-dashed border-slate-300 hover:border-brand-blue-primary/40 hover:bg-slate-100 hover:text-brand-blue-primary rounded-lg text-slate-600 font-bold text-xs transition-all"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -731,6 +784,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
         <div className="flex gap-2">
           <button
             onClick={() => setShowCsvHelp(true)}
+            {...tourTypeAttr('quiz-rubric.csv-import', 'quiz')}
             className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors"
           >
             <Upload className="w-3.5 h-3.5" />
@@ -750,6 +804,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
           />
           <button
             onClick={handleExport}
+            {...tourTypeAttr('quiz-rubric.csv-export', 'quiz')}
             className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors"
           >
             <Download className="w-3.5 h-3.5" />
@@ -758,6 +813,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
           <button
             onClick={() => void handleShare()}
             disabled={!canShare || sharing}
+            {...tourTypeAttr('quiz-rubric.share', 'quiz')}
             className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors disabled:opacity-40"
           >
             {sharing ? (
@@ -784,12 +840,14 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
               readOnly
               value={shareUrl}
               aria-label="Rubric share link"
+              {...tourTypeAttr('quiz-rubric.share-link', 'quiz')}
               className="flex-1 bg-transparent text-xs text-slate-700 focus:outline-none"
               onFocus={(e) => e.target.select()}
             />
             <button
               onClick={() => void handleCopyShareUrl()}
               aria-label="Copy rubric share link"
+              {...tourTypeAttr('quiz-rubric.share-copy', 'quiz')}
               className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
             >
               {copied ? (
@@ -845,12 +903,14 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
           <button
             onClick={() => void handleSaveToLibrary()}
             disabled={errors.length > 0}
+            {...tourTypeAttr('quiz-rubric.save-library', 'quiz')}
             className="flex-1 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors disabled:opacity-40"
           >
             Save to library
           </button>
           <button
             onClick={handleAttach}
+            {...tourTypeAttr('quiz-rubric.attach', 'quiz')}
             disabled={errors.length > 0}
             className="flex-1 px-3 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-lg text-xs font-bold transition-colors disabled:opacity-40"
           >
@@ -860,6 +920,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
         {existingSnapshot && (
           <button
             onClick={onDetach}
+            {...tourTypeAttr('quiz-rubric.detach', 'quiz')}
             className="w-full px-3 py-2 text-xs font-bold text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
           >
             Detach rubric
@@ -891,6 +952,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                 autoFocus
                 onClick={() => setShowCsvHelp(false)}
                 aria-label="Close CSV import help"
+                {...tourTypeAttr('quiz-rubric.csv-help-close', 'quiz')}
                 className="p-1 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
               >
                 <X className="w-4 h-4" />
@@ -911,6 +973,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                 )}
                 <button
                   onClick={handleDownloadTemplate}
+                  {...tourTypeAttr('quiz-rubric.csv-template', 'quiz')}
                   className="flex items-center justify-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors"
                 >
                   <Download className="w-3.5 h-3.5" />
@@ -927,6 +990,7 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                   setCsvDragOver(true);
                 }}
                 onDragLeave={() => setCsvDragOver(false)}
+                {...tourTypeAttr('quiz-rubric.csv-drop', 'quiz')}
                 onDrop={(e) => {
                   e.preventDefault();
                   setCsvDragOver(false);
