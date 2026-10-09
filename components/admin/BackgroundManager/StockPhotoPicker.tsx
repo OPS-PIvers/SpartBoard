@@ -140,7 +140,7 @@ export const StockPhotoPicker: React.FC<StockPhotoPickerProps> = ({
                   {...tourFieldAttr(
                     'admin.backgrounds.stock-photo',
                     'admin',
-                    photo.id
+                    String(photo.id)
                   )}
                   onClick={() => handleSelect(photo)}
                   className="group relative aspect-video rounded-lg overflow-hidden border-2 border-transparent hover:border-brand-blue-light transition-all focus:outline-none focus:ring-2 focus:ring-brand-blue-light"

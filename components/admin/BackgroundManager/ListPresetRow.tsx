@@ -86,7 +86,11 @@ const TagInput: React.FC<TagInputProps> = ({
           </span>
         ))}
         <input
-          {...tourFieldAttr('admin.backgrounds.tag-input', 'admin', id)}
+          {...tourFieldAttr(
+            'admin.backgrounds.tag-input',
+            'admin',
+            id ?? 'tags'
+          )}
           id={id}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
