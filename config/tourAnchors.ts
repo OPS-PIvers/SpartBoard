@@ -6818,6 +6818,38 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'video-activity.plc-share': {
+    label: 'Share button on the PLC video activities tab',
+    persists: true,
+  },
+  'video-activity.plc-import': {
+    label: 'Import button on a shared PLC video activity',
+    perField: true,
+    persists: true,
+  },
+  'video-activity.plc-edit': {
+    label: 'Edit button on a shared PLC video activity',
+    perField: true,
+    persists: true,
+  },
+  'video-activity.plc-versions': {
+    label: 'Versions button on a shared PLC video activity',
+    perField: true,
+  },
+  'video-activity.plc-unshare': {
+    label: 'Unshare button on a shared PLC video activity',
+    perField: true,
+    destructive: true,
+    persists: true,
+  },
+  'video-activity.plc-subtab': {
+    label: 'Sub-tab on the PLC video activities tab',
+    perField: true,
+  },
+  'video-activity.plc-new': {
+    label: 'New video activity button on the PLC video activities tab',
+    persists: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

@@ -8670,4 +8670,40 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     scope: 'board',
     panel: true,
   },
+  {
+    id: 'video-activity.plc-share',
+    label: 'Share button on the PLC video activities tab',
+    scope: 'board',
+  },
+  {
+    id: 'video-activity.plc-import',
+    label: 'Import button on a shared PLC video activity',
+    scope: 'field',
+  },
+  {
+    id: 'video-activity.plc-edit',
+    label: 'Edit button on a shared PLC video activity',
+    scope: 'field',
+  },
+  {
+    id: 'video-activity.plc-versions',
+    label: 'Versions button on a shared PLC video activity',
+    scope: 'field',
+  },
+  {
+    id: 'video-activity.plc-unshare',
+    label: 'Unshare button on a shared PLC video activity',
+    scope: 'field',
+    destructive: true,
+  },
+  {
+    id: 'video-activity.plc-subtab',
+    label: 'Sub-tab on the PLC video activities tab',
+    scope: 'field',
+  },
+  {
+    id: 'video-activity.plc-new',
+    label: 'New video activity button on the PLC video activities tab',
+    scope: 'board',
+  },
 ];
