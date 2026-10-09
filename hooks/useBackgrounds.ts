@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
@@ -30,11 +30,6 @@ export const useBackgrounds = () => {
     setManagedBackgrounds([]);
   }
 
-  // Refs to prevent race conditions when both queries update simultaneously
-  // (Used when not admin)
-  const publicBgsRef = useRef<BackgroundPreset[]>([]);
-  const betaBgsRef = useRef<BackgroundPreset[]>([]);
-
   useEffect(() => {
     if (!user) return;
 
@@ -64,8 +59,11 @@ export const useBackgrounds = () => {
       );
     } else {
       // Non-admins need separate queries to avoid reading restricted documents (admin-only)
+      // Per-subscription buffers so a previous user's results never leak in.
+      let publicBgs: BackgroundPreset[] = [];
+      let betaBgs: BackgroundPreset[] = [];
       const updateCombinedBackgrounds = () => {
-        const all = [...publicBgsRef.current, ...betaBgsRef.current];
+        const all = [...publicBgs, ...betaBgs];
         const unique = Array.from(new Map(all.map((b) => [b.id, b])).values());
         setManagedBackgrounds(unique.sort((a, b) => b.createdAt - a.createdAt));
       };
@@ -90,7 +88,7 @@ export const useBackgrounds = () => {
           onSnapshot(
             qBeta,
             (snapshot) => {
-              betaBgsRef.current = snapshot.docs.map(
+              betaBgs = snapshot.docs.map(
                 (d) => d.data() as BackgroundPreset
               );
               updateCombinedBackgrounds();
@@ -108,7 +106,7 @@ export const useBackgrounds = () => {
         onSnapshot(
           qPublic,
           (snapshot) => {
-            publicBgsRef.current = snapshot.docs.map(
+            publicBgs = snapshot.docs.map(
               (d) => d.data() as BackgroundPreset
             );
             updateCombinedBackgrounds();
