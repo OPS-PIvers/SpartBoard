@@ -489,8 +489,14 @@ const OverviewPanel: React.FC<{
 
       {history && history.days.length > 0 && (
         <>
-          <ActiveUsersPanel days={history.days} />
-          <DailyHeatmapPanel days={history.days} />
+          <ActiveUsersPanel
+            days={history.days}
+            studentDays={history.studentDays}
+          />
+          <DailyHeatmapPanel
+            days={history.days}
+            studentDays={history.studentDays}
+          />
         </>
       )}
 

@@ -17,19 +17,24 @@ import {
   type ActivityPoint,
   type ActivityRange,
   type ActivityUser,
+  type ChartWeek,
   type CohortRow,
   type MonthCount,
-  type WeekPoint,
   activityStats,
+  combineDays,
   filterRange,
   formatDay,
   formatMonth,
+  joinWeeks,
   recencyBuckets,
   toWeekly,
 } from './overviewMetrics';
 
 const NAVY = '#2d3f89';
 const SKY = '#0ea5e9';
+const AMBER_DARK = '#b45309';
+const AMBER = '#f59e0b';
+const STUDENT_DASH = '6 4';
 const MUTED = '#94a3b8';
 const GRID = '#e2e8f0';
 const AXIS = '#64748b';
@@ -51,13 +56,14 @@ const Panel: React.FC<
   </div>
 );
 
-const LegendLine: React.FC<{ color: string; label: string }> = ({
-  color,
-  label,
-}) => (
+const LegendLine: React.FC<{
+  color: string;
+  label: string;
+  dashed?: boolean;
+}> = ({ color, label, dashed }) => (
   <span className="inline-flex items-center gap-1.5">
     <span
-      className="inline-block w-4 border-t-[3px]"
+      className={`inline-block w-4 border-t-[3px] ${dashed ? 'border-dashed' : ''}`}
       style={{ borderColor: color }}
     />
     {label}
@@ -88,7 +94,7 @@ const ActivityTooltip = ({
   payload,
 }: {
   active?: boolean;
-  payload?: Array<{ payload?: WeekPoint }>;
+  payload?: Array<{ payload?: ChartWeek }>;
 }) => {
   const point = payload?.[0]?.payload;
   if (!active || !point) return null;
@@ -98,22 +104,38 @@ const ActivityTooltip = ({
         Week of {formatDay(point.week)}
         {point.estimated ? ' · Estimated' : ''}
       </p>
-      <p className="font-semibold">
-        Monthly active: {NUMBER.format(point.mau)}
-      </p>
-      <p className="font-semibold">
-        Avg daily active: {NUMBER.format(point.dau)}
-      </p>
+      {(
+        [
+          ['Staff monthly active', point.mau],
+          ['Staff avg daily active', point.dau],
+          ['Student monthly active', point.studentMau],
+          ['Student avg daily active', point.studentDau],
+        ] as const
+      ).map(([label, value]) =>
+        value === undefined ? null : (
+          <p key={label} className="font-semibold">
+            {label}: {NUMBER.format(value)}
+          </p>
+        )
+      )}
     </div>
   );
 };
 
-export const ActiveUsersPanel: React.FC<{ days: ActivityPoint[] }> = ({
-  days,
-}) => {
+export const ActiveUsersPanel: React.FC<{
+  days: ActivityPoint[];
+  studentDays?: ActivityPoint[];
+}> = ({ days, studentDays }) => {
   const [range, setRange] = useState<ActivityRange>('all');
-  const ranged = useMemo(() => filterRange(days, range), [days, range]);
-  const weeks = useMemo(() => toWeekly(ranged), [ranged]);
+  const weeks = useMemo(
+    () =>
+      joinWeeks(
+        toWeekly(filterRange(days, range)),
+        toWeekly(filterRange(studentDays ?? [], range))
+      ),
+    [days, studentDays, range]
+  );
+  const hasStudents = (studentDays?.length ?? 0) > 0;
   const stats = useMemo(() => activityStats(days), [days]);
   const estimatedWeeks = weeks.filter((w) => w.estimated);
   const hasEstimated = estimatedWeeks.length > 0;
@@ -123,8 +145,22 @@ export const ActiveUsersPanel: React.FC<{ days: ActivityPoint[] }> = ({
       title="Active Users"
       actions={
         <div className="flex flex-wrap items-center gap-5 text-xs text-slate-600">
-          <LegendLine color={NAVY} label="Monthly active" />
-          <LegendLine color={SKY} label="Avg daily active" />
+          <LegendLine color={NAVY} label="Staff monthly active" />
+          <LegendLine color={SKY} label="Staff avg daily active" />
+          {hasStudents && (
+            <>
+              <LegendLine
+                color={AMBER_DARK}
+                label="Student monthly active"
+                dashed
+              />
+              <LegendLine
+                color={AMBER}
+                label="Student avg daily active"
+                dashed
+              />
+            </>
+          )}
           {hasEstimated && <LegendSwatch color={GRID} label="Estimated" />}
           <div className="flex gap-0.5 font-semibold" role="group">
             {RANGES.map((r) => (
@@ -151,7 +187,7 @@ export const ActiveUsersPanel: React.FC<{ days: ActivityPoint[] }> = ({
           <p className="text-xl font-extrabold text-slate-900">
             {stats.stickiness !== null ? `${stats.stickiness}%` : '—'}
           </p>
-          DAU / MAU
+          Staff DAU / MAU
         </div>
         <div className="text-xs text-slate-500">
           <p className="text-xl font-extrabold text-slate-900">
@@ -159,13 +195,15 @@ export const ActiveUsersPanel: React.FC<{ days: ActivityPoint[] }> = ({
               ? `${stats.mauChange >= 0 ? '+' : ''}${NUMBER.format(stats.mauChange)}`
               : '—'}
           </p>
-          MAU vs 30 days ago
+          Staff MAU vs 30 days ago
         </div>
         <div className="text-xs text-slate-500">
           <p className="text-xl font-extrabold text-slate-900">
             {stats.peak ? NUMBER.format(stats.peak.dau) : '—'}
           </p>
-          {stats.peak ? `Peak DAU · ${formatDay(stats.peak.date)}` : 'Peak DAU'}
+          {stats.peak
+            ? `Staff peak DAU · ${formatDay(stats.peak.date)}`
+            : 'Staff peak DAU'}
         </div>
       </div>
       <ResponsiveContainer width="100%" height={300}>
@@ -197,7 +235,7 @@ export const ActiveUsersPanel: React.FC<{ days: ActivityPoint[] }> = ({
           <Line
             type="monotone"
             dataKey="mau"
-            name="Monthly active"
+            name="Staff monthly active"
             stroke={NAVY}
             strokeWidth={2.4}
             dot={false}
@@ -206,12 +244,36 @@ export const ActiveUsersPanel: React.FC<{ days: ActivityPoint[] }> = ({
           <Line
             type="monotone"
             dataKey="dau"
-            name="Avg daily active"
+            name="Staff avg daily active"
             stroke={SKY}
             strokeWidth={2}
             dot={false}
             isAnimationActive={false}
           />
+          {hasStudents && (
+            <Line
+              type="monotone"
+              dataKey="studentMau"
+              name="Student monthly active"
+              stroke={AMBER_DARK}
+              strokeWidth={2.4}
+              strokeDasharray={STUDENT_DASH}
+              dot={false}
+              isAnimationActive={false}
+            />
+          )}
+          {hasStudents && (
+            <Line
+              type="monotone"
+              dataKey="studentDau"
+              name="Student avg daily active"
+              stroke={AMBER}
+              strokeWidth={2}
+              strokeDasharray={STUDENT_DASH}
+              dot={false}
+              isAnimationActive={false}
+            />
+          )}
         </LineChart>
       </ResponsiveContainer>
     </Panel>
@@ -225,9 +287,35 @@ const heatColor = (t: number) => {
   return `rgb(${c.join(',')})`;
 };
 
-export const DailyHeatmapPanel: React.FC<{ days: ActivityPoint[] }> = ({
-  days,
-}) => {
+type HeatmapGroup = 'all' | 'staff' | 'students';
+
+const HEATMAP_GROUPS: { id: HeatmapGroup; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'staff', label: 'Staff' },
+  { id: 'students', label: 'Students' },
+];
+
+export const DailyHeatmapPanel: React.FC<{
+  days: ActivityPoint[];
+  studentDays?: ActivityPoint[];
+}> = ({ days: staffDays, studentDays }) => {
+  const hasStudents = (studentDays?.length ?? 0) > 0;
+  const [group, setGroup] = useState<HeatmapGroup>('all');
+  // Every view spans the combined dates so the grid keeps its size and columns when toggling.
+  const days = useMemo(() => {
+    if (!hasStudents) return staffDays;
+    const all = combineDays(staffDays, studentDays ?? []);
+    if (group === 'all') return all;
+    const pick = new Map(
+      (group === 'staff' ? staffDays : (studentDays ?? [])).map((d) => [
+        d.date,
+        d,
+      ])
+    );
+    return all.map(
+      (d) => pick.get(d.date) ?? { ...d, dau: 0, mau: 0, estimated: false }
+    );
+  }, [hasStudents, group, staffDays, studentDays]);
   const cells = useMemo(() => {
     const recent = days.slice(-371);
     if (recent.length === 0) return [];
@@ -260,16 +348,37 @@ export const DailyHeatmapPanel: React.FC<{ days: ActivityPoint[] }> = ({
     <Panel
       title="Daily Active Users by Day"
       actions={
-        <div className="flex items-center gap-1 text-xs text-slate-500">
-          0
-          {[0, 0.25, 0.5, 0.75, 1].map((t) => (
-            <span
-              key={t}
-              className="inline-block w-3 h-3 rounded-sm"
-              style={{ background: t === 0 ? ESTIMATED_FILL : heatColor(t) }}
-            />
-          ))}
-          {NUMBER.format(max)}
+        <div className="flex flex-wrap items-center gap-5 text-xs text-slate-500">
+          {hasStudents && (
+            <div className="flex gap-0.5 font-semibold" role="group">
+              {HEATMAP_GROUPS.map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  aria-pressed={group === g.id}
+                  onClick={() => setGroup(g.id)}
+                  className={`px-2.5 py-1 rounded-md transition-colors ${
+                    group === g.id
+                      ? 'bg-slate-200 text-slate-900'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  {g.label}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center gap-1">
+            0
+            {[0, 0.25, 0.5, 0.75, 1].map((t) => (
+              <span
+                key={t}
+                className="inline-block w-3 h-3 rounded-sm"
+                style={{ background: t === 0 ? ESTIMATED_FILL : heatColor(t) }}
+              />
+            ))}
+            {NUMBER.format(max)}
+          </div>
         </div>
       }
     >
