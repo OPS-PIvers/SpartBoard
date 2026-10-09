@@ -20,7 +20,6 @@
 import type React from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import type { LucideIcon } from 'lucide-react';
-import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import type { ClassRoster, WidgetType } from '@/types';
 import type { UploadedDocument } from '@/utils/quizDocumentImport/uploadIntake';
 import type { LibraryFolderViewModel } from './LibraryFolderViewContext';
@@ -114,7 +113,6 @@ export interface LibraryPrimaryAction {
    * locked") rather than just the raw count.
    */
   badgeAriaLabel?: string;
-  anchor?: TourAnchorAttrs;
 }
 
 /**
