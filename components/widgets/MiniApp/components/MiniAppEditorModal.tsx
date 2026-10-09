@@ -168,6 +168,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
 
   return (
     <EditorModalShell
+      tourScope="miniApp"
       isOpen={isOpen}
       title={title}
       onTitleChange={setTitle}

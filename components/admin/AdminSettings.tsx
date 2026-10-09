@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { getOpenModalCount } from '@/components/common/modalStore';
 import {
@@ -275,6 +276,7 @@ const RailTab: React.FC<{
     tabIndex={isActive ? 0 : -1}
     onClick={onClick}
     title={label}
+    {...tourFieldAttr('admin.settings.tab', 'admin', id)}
     className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm transition-colors justify-center lg:justify-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 ${
       isActive
         ? 'bg-white text-brand-blue-dark font-semibold shadow-sm'
@@ -364,6 +366,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
                 onClick={() => setShowMobileMenu(true)}
                 className="p-2 hover:bg-white/20 rounded-lg transition-colors shrink-0 -ml-2"
                 aria-label="Back to menu"
+                {...tourAttr('admin.settings.mobile-back')}
               >
                 <ChevronLeft className="w-6 h-6" />
               </button>
@@ -380,6 +383,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
             onClick={onClose}
             className="p-2 hover:bg-white/20 rounded-lg transition-colors shrink-0 -mr-2"
             aria-label="Close settings"
+            {...tourAttr('admin.settings.close')}
           >
             <X className="w-6 h-6" />
           </button>
@@ -398,6 +402,7 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
                 onClick={onClose}
                 className="p-2 mx-auto lg:mx-0 hover:bg-white/20 rounded-lg transition-colors shrink-0"
                 aria-label="Close settings"
+                {...tourAttr('admin.settings.close')}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -451,6 +456,11 @@ export const AdminSettings: React.FC<AdminSettingsProps> = ({ onClose }) => {
                           setActiveTab(tab.id);
                           setShowMobileMenu(false);
                         }}
+                        {...tourFieldAttr(
+                          'admin.settings.tab',
+                          'admin',
+                          tab.id
+                        )}
                         className="flex items-center justify-between p-4 min-h-[60px] hover:bg-slate-100 active:bg-slate-200 transition-colors border-b border-slate-100 last:border-b-0 w-full text-left"
                       >
                         <div className="flex items-center gap-4">

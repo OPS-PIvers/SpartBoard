@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { Loader2 } from 'lucide-react';
 import {
   markHelpCenterSets,
@@ -50,6 +51,7 @@ export const LinkedLibrarySets: React.FC<LinkedLibrarySetsProps> = ({
             type="button"
             disabled={busy.size > 0}
             onClick={() => void keepInHelp(inLibrary.map((set) => set.id))}
+            {...tourAttr('admin.help-center.keep-all-in-help')}
             className="shrink-0 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-50"
           >
             Move all to Help only
@@ -69,6 +71,11 @@ export const LinkedLibrarySets: React.FC<LinkedLibrarySetsProps> = ({
               type="button"
               disabled={busy.size > 0}
               onClick={() => void keepInHelp([set.id])}
+              {...tourFieldAttr(
+                'admin.help-center.keep-in-help',
+                'help',
+                set.id
+              )}
               aria-label={`Move ${set.title || 'Untitled activity'} to Help only`}
               className="flex shrink-0 items-center gap-1 px-2 py-1 rounded-md text-sm font-semibold text-brand-blue-primary hover:bg-slate-100 disabled:opacity-50"
             >

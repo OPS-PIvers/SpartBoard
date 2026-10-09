@@ -60,6 +60,7 @@ import {
   toDateInput,
 } from './noteFormat';
 import { buildItemAnalysis } from '@/utils/plcDataOverview';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export interface NoteEditorPaneProps {
   plc: Plc;
@@ -133,6 +134,7 @@ const DecisionEditor: React.FC<{
     <DecisionBlockView
       text={text}
       dateLabel={dateLabel}
+      anchorKey={block.id}
       linkLabel={link?.label ?? null}
       linkDetail={link?.detail ?? null}
       onOpenLink={link?.assessmentId ? onOpenLink : undefined}
@@ -167,6 +169,11 @@ const DecisionEditor: React.FC<{
                     },
               linkPicker: (
                 <QuietSelect
+                  tourProps={tourFieldAttr(
+                    'teams.note-block.link-picker',
+                    'teams-notes',
+                    block.id
+                  )}
                   label={t('teams.notes.decision.link', {
                     defaultValue: 'Link a question or target',
                   })}
@@ -237,6 +244,7 @@ export const AddBlockMenu: React.FC<{
         icon={Plus}
         aria-haspopup="menu"
         aria-expanded={open}
+        {...tourAttr('teams.notes.add-block')}
         onClick={() => setOpen((v) => !v)}
       >
         {t('teams.notes.addBlock', { defaultValue: 'Add block' })}
@@ -251,6 +259,11 @@ export const AddBlockMenu: React.FC<{
               key={item.kind}
               type="button"
               role="menuitem"
+              {...tourFieldAttr(
+                'teams.notes.add-block-item',
+                'teams-notes',
+                item.kind
+              )}
               className={MENU_ITEM}
               onClick={() => {
                 setOpen(false);
@@ -287,6 +300,7 @@ export const OptionsMenu: React.FC<{
         size="sm"
         aria-haspopup="menu"
         aria-expanded={open}
+        {...tourAttr('teams.notes.options')}
         onClick={() => setOpen((v) => !v)}
       />
       {open && (
@@ -299,6 +313,11 @@ export const OptionsMenu: React.FC<{
               key={item.key}
               type="button"
               role="menuitem"
+              {...(item.key === 'delete'
+                ? tourAttr('teams.notes.delete-note')
+                : item.key === 'docs'
+                  ? tourAttr('teams.notes.open-in-docs')
+                  : {})}
               className={MENU_ITEM}
               onClick={() => {
                 setOpen(false);
@@ -403,10 +422,16 @@ export const NoteEditorPane: React.FC<NoteEditorPaneProps> = ({
         <DataBlockView
           key={block.id}
           {...model}
+          anchorKey={block.id}
           onOpenData={onOpenData}
           picker={
             editable ? (
               <QuietSelect
+                tourProps={tourFieldAttr(
+                  'teams.note-block.assessment-picker',
+                  'teams-notes',
+                  block.id
+                )}
                 label={t('teams.notes.data.assessment', {
                   defaultValue: 'Assessment',
                 })}
@@ -465,6 +490,7 @@ export const NoteEditorPane: React.FC<NoteEditorPaneProps> = ({
             key={b.id}
             text={b.kind === 'agenda' ? b.text : ''}
             who={memberName(b.createdBy)}
+            anchorKey={b.id}
             onRemove={editable ? () => removeBlock(b.id) : undefined}
           />
         ))}
@@ -533,6 +559,11 @@ export const NoteEditorPane: React.FC<NoteEditorPaneProps> = ({
               )
             }
             rows={1}
+            {...tourFieldAttr(
+              'teams.notes.section-body',
+              'teams-notes',
+              String(index)
+            )}
             placeholder={
               hasBlocks || section.heading === null
                 ? undefined
@@ -637,6 +668,7 @@ export const NoteEditorPane: React.FC<NoteEditorPaneProps> = ({
       type="text"
       value={draft.title}
       onChange={(e) => draft.setTitle(e.target.value)}
+      {...tourAttr('teams.notes.title')}
       placeholder={t('plcDashboard.notes.titlePlaceholder', {
         defaultValue: 'Note title',
       })}

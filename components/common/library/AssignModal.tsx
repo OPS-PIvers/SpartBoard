@@ -45,6 +45,7 @@ export function AssignModal<TOptions>({
   confirmDisabled = false,
   confirmDisabledReason,
   confirmTourAttrs,
+  cancelTourAttrs,
   zIndex,
 }: AssignModalProps<TOptions>): React.ReactElement | null {
   const [submitting, setSubmitting] = useState(false);
@@ -111,6 +112,7 @@ export function AssignModal<TOptions>({
         type="button"
         onClick={onClose}
         disabled={submitting}
+        {...cancelTourAttrs}
         className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Cancel

@@ -12,6 +12,7 @@ import {
 } from '@/components/plc/teams/notes/noteFormat';
 import { openTeamNote } from '@/components/plc/teams/notes/teamNotesNavigation';
 import type { TeamHeroProps } from '@/components/plc/teams/types';
+import { tourAttr } from '@/config/tourAnchors';
 
 export const TeamNoteHero: React.FC<TeamHeroProps> = ({
   plc,
@@ -48,7 +49,10 @@ export const TeamNoteHero: React.FC<TeamHeroProps> = ({
             : when
         }
         actions={
-          <TextLink onClick={() => openTeamNote(plc.id, note.id)}>
+          <TextLink
+            onClick={() => openTeamNote(plc.id, note.id)}
+            {...tourAttr('teams.hero.open-note')}
+          >
             {t('teams.hub.openNote', { defaultValue: 'Open note' })}
           </TextLink>
         }
