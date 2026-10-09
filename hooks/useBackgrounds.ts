@@ -88,9 +88,7 @@ export const useBackgrounds = () => {
           onSnapshot(
             qBeta,
             (snapshot) => {
-              betaBgs = snapshot.docs.map(
-                (d) => d.data() as BackgroundPreset
-              );
+              betaBgs = snapshot.docs.map((d) => d.data() as BackgroundPreset);
               updateCombinedBackgrounds();
             },
             (error) => {
@@ -106,9 +104,7 @@ export const useBackgrounds = () => {
         onSnapshot(
           qPublic,
           (snapshot) => {
-            publicBgs = snapshot.docs.map(
-              (d) => d.data() as BackgroundPreset
-            );
+            publicBgs = snapshot.docs.map((d) => d.data() as BackgroundPreset);
             updateCombinedBackgrounds();
           },
           (error) => {

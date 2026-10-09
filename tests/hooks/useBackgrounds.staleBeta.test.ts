@@ -56,9 +56,7 @@ describe('useBackgrounds across users', () => {
       handlers.beta(snap([bg('secret-beta', 'beta')]));
       handlers.public(snap([bg('pub', 'public')]));
     });
-    expect(result.current.presets.map((p) => p.label)).toContain(
-      'secret-beta'
-    );
+    expect(result.current.presets.map((p) => p.label)).toContain('secret-beta');
 
     (useAuth as Mock).mockReturnValue(auth('b@x.org'));
     rerender();
