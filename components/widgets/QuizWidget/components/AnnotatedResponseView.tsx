@@ -40,6 +40,7 @@ import React, {
 import { Trash2, X } from 'lucide-react';
 import type { Rubric, WrittenAnswerAnnotation } from '@/types';
 import { RubricStrandChips, RubricStrandPills } from './RubricStrandChips';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import {
   toggleStrandTag,
   type RubricStrandTag,
@@ -789,6 +790,7 @@ const EditView: React.FC<EditProps> = ({
     <div ref={containerRef} className="relative">
       <article
         ref={articleRef}
+        {...tourTypeAttr('quiz-grading.annotate-text', 'quiz')}
         className="rich-text-content rounded-xl border border-slate-200 bg-white p-6 text-base leading-relaxed text-slate-800 max-w-none min-w-0 break-words cursor-text select-text"
         // The response is evidence: selectable for highlighting, never editable.
         contentEditable={false}
@@ -969,6 +971,7 @@ const AnchoredAnnotationEditor: React.FC<{
               aria-label={c.label}
               title={c.label}
               onClick={() => onColorChange(c.id)}
+              {...tourFieldAttr('quiz-grading.annotate-color', 'quiz', c.id)}
               className={`w-5 h-5 rounded-full ${c.swatch} ${
                 !isPending && annotation.highlightColor === c.id
                   ? 'ring-2 ring-violet-600'
@@ -984,6 +987,7 @@ const AnchoredAnnotationEditor: React.FC<{
               aria-label="Delete annotation"
               title="Delete"
               onClick={onDelete}
+              {...tourTypeAttr('quiz-grading.annotate-delete', 'quiz')}
               className="p-1 rounded text-slate-500 hover:bg-brand-red-lighter/40 hover:text-brand-red-dark transition-colors"
             >
               <Trash2 className="w-4 h-4" />
@@ -994,6 +998,7 @@ const AnchoredAnnotationEditor: React.FC<{
             aria-label="Close annotation editor"
             title="Close"
             onClick={onClose}
+            {...tourTypeAttr('quiz-grading.annotate-close', 'quiz')}
             className="p-1 rounded text-slate-500 hover:bg-slate-200 transition-colors"
           >
             <X className="w-4 h-4" />
@@ -1027,6 +1032,7 @@ const AnchoredAnnotationEditor: React.FC<{
         }}
         rows={3}
         aria-label="Comment on this highlight"
+        {...tourTypeAttr('quiz-grading.annotate-comment', 'quiz')}
         placeholder={
           isPending
             ? 'Margin comment (optional) — pick a color to commit'

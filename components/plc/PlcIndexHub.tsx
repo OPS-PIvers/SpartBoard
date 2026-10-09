@@ -31,6 +31,7 @@ import { groupTypeLabel } from './groupTypes';
 import { usePlcBuildingDirectory } from '@/hooks/usePlcBuildingDirectory';
 import { getPlcMembers, getPlcRole } from '@/utils/plc';
 import { buildPlcPath, spaNavigate } from '@/utils/plcPath';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcIndexHubProps {
   /** The user's own PLCs (already subscribed by `PlcRouteHost` via `usePlcs`). */
@@ -62,6 +63,7 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
     <div className="fixed inset-0 z-modal bg-slate-50 overflow-y-auto overscroll-none">
       <div className="max-w-2xl mx-auto px-4 py-8 md:py-12">
         <button
+          {...tourAttr('plc-index.close')}
           type="button"
           onClick={onClose}
           className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-brand-blue-primary transition-colors mb-6 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary rounded"
@@ -113,6 +115,7 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
               return (
                 <li key={plc.id}>
                   <button
+                    {...tourFieldAttr('plc-index.open-plc', 'plc', plc.id)}
                     type="button"
                     onClick={() => spaNavigate(buildPlcPath(plc.id))}
                     className="group w-full flex items-center gap-3 p-4 bg-white border border-slate-200 rounded-2xl hover:border-brand-blue-primary/40 hover:bg-brand-blue-lighter/20 transition-all text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"

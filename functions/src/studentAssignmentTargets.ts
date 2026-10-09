@@ -770,9 +770,14 @@ export async function handleSetAssignmentTargets(
       : [];
   })();
   const sessionClassIds = sessionClassIdsOf(sessionSnap);
-  const narrowedClassIds = input.studentTargetClassIds?.filter((id) =>
-    sessionClassIds.has(id)
-  );
+  const narrowedClassIds = input.studentTargetClassIds;
+  // Refuse rather than drop an unknown id, which would leave that class's other students seeing it.
+  if (narrowedClassIds?.some((id) => !sessionClassIds.has(id))) {
+    throw new HttpsError(
+      'failed-precondition',
+      'studentTargetClassIds names a class this session does not target.'
+    );
+  }
   // Narrow before pointers land; un-narrow only after the pointer deletes.
   const narrowedDuringWrite =
     narrowedClassIds === undefined

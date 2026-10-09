@@ -17,14 +17,15 @@ import { inputLight } from '@/components/common/lightChrome';
 import { iconBtn, secondaryBtn } from '@/components/tours/tourButtons';
 import { TOUR_MATERIAL_KINDS, isSandboxId } from '@/utils/tourSandbox';
 import { logError } from '@/utils/logError';
+import { authorFreeSnapshot } from '@/components/tours/tourMaterialSeed';
 
 const SOURCES: readonly TourMaterialSource[] = ['sample', 'teacher', 'created'];
 const inputClass = `w-full rounded-lg px-2.5 py-1.5 text-sm font-normal ${inputLight}`;
 const labelClass = 'flex flex-col gap-1 text-xs font-semibold text-slate-600';
 
 const asContent = (meta: object, data: object): TourMaterialContent => ({
-  meta: JSON.parse(JSON.stringify(meta)) as Record<string, unknown>,
-  data: JSON.parse(JSON.stringify(data)) as Record<string, unknown>,
+  meta: authorFreeSnapshot(meta),
+  data: authorFreeSnapshot(data),
 });
 
 interface SourceList {

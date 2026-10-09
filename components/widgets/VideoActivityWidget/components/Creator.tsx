@@ -12,6 +12,7 @@
  * draft) is unchanged from PR2a.
  */
 
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import React, { useId, useState } from 'react';
 import {
   ArrowLeft,
@@ -258,6 +259,7 @@ export const Creator: React.FC<CreatorProps> = ({
         style={{ padding: 'min(12px, 2.5cqmin) min(16px, 4cqmin)' }}
       >
         <button
+          {...tourAttr('video-activity.creator-back')}
           onClick={step === 'info' ? onBack : () => setStep('info')}
           className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors text-slate-500"
         >
@@ -290,6 +292,7 @@ export const Creator: React.FC<CreatorProps> = ({
                     Activity Title
                   </label>
                   <input
+                    {...tourAttr('video-activity.creator-title')}
                     id={activityTitleFieldId}
                     type="text"
                     value={title}
@@ -337,6 +340,11 @@ export const Creator: React.FC<CreatorProps> = ({
                       const active = discoverTab === id;
                       return (
                         <button
+                          {...tourFieldAttr(
+                            'video-activity.creator-discover-tab',
+                            'video-activity',
+                            id
+                          )}
                           key={id}
                           role="tab"
                           aria-selected={active}
@@ -374,6 +382,7 @@ export const Creator: React.FC<CreatorProps> = ({
                         }}
                       />
                       <input
+                        {...tourAttr('video-activity.creator-url')}
                         type="url"
                         value={url}
                         onChange={(e) => setUrl(e.target.value)}
@@ -430,6 +439,7 @@ export const Creator: React.FC<CreatorProps> = ({
               )}
 
               <button
+                {...tourAttr('video-activity.creator-next')}
                 onClick={handleNextFromInfo}
                 className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-black rounded-2xl shadow-lg shadow-brand-blue-primary/20 transition-all active:scale-[0.98] uppercase tracking-widest"
                 style={{ fontSize: 'min(14px, 4cqmin)' }}
@@ -443,6 +453,7 @@ export const Creator: React.FC<CreatorProps> = ({
             <div className="grid gap-3 animate-in fade-in zoom-in-95 duration-300">
               {aiEnabled && (
                 <button
+                  {...tourAttr('video-activity.creator-source-ai')}
                   onClick={() => setStep('ai')}
                   className="group relative p-5 bg-white border-2 border-slate-200 hover:border-indigo-500 hover:shadow-md rounded-2xl text-left transition-all overflow-hidden"
                 >
@@ -481,6 +492,7 @@ export const Creator: React.FC<CreatorProps> = ({
               )}
 
               <button
+                {...tourAttr('video-activity.creator-source-import')}
                 onClick={() => setStep('import')}
                 className="group relative p-5 bg-white border-2 border-slate-200 hover:border-emerald-500 hover:shadow-md rounded-2xl text-left transition-all overflow-hidden"
               >
@@ -518,6 +530,7 @@ export const Creator: React.FC<CreatorProps> = ({
               </button>
 
               <button
+                {...tourAttr('video-activity.creator-source-manual')}
                 onClick={handleManualCreate}
                 className="group relative p-5 bg-white border-2 border-slate-200 hover:border-brand-blue-primary hover:shadow-md rounded-2xl text-left transition-all overflow-hidden"
               >
@@ -576,6 +589,7 @@ export const Creator: React.FC<CreatorProps> = ({
                     <span>{questionCount}</span>
                   </div>
                   <input
+                    {...tourAttr('video-activity.creator-ai-count')}
                     type="range"
                     min={3}
                     max={15}
@@ -603,6 +617,7 @@ export const Creator: React.FC<CreatorProps> = ({
               )}
 
               <button
+                {...tourAttr('video-activity.creator-ai-generate')}
                 onClick={handleAIGenerate}
                 disabled={isGenerating}
                 className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black rounded-2xl shadow-lg shadow-indigo-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 uppercase tracking-widest"
@@ -672,6 +687,7 @@ const SearchTab: React.FC<SearchTabProps> = ({
           style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}
         />
         <input
+          {...tourAttr('video-activity.creator-search-query')}
           type="text"
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
@@ -684,6 +700,7 @@ const SearchTab: React.FC<SearchTabProps> = ({
         />
       </div>
       <button
+        {...tourAttr('video-activity.creator-search-submit')}
         type="button"
         onClick={onSubmit}
         disabled={query.trim().length === 0 || searching}
@@ -729,6 +746,11 @@ const SearchTab: React.FC<SearchTabProps> = ({
           const picked = pickedUrl.includes(r.videoId);
           return (
             <button
+              {...tourFieldAttr(
+                'video-activity.creator-result',
+                'video-activity',
+                r.videoId
+              )}
               key={r.videoId}
               type="button"
               onClick={() => onPick(r)}
@@ -811,6 +833,7 @@ const RecommendTab: React.FC<RecommendTabProps> = ({
   return (
     <div className="space-y-3">
       <textarea
+        {...tourAttr('video-activity.creator-recommend-topic')}
         value={topic}
         onChange={(e) => onTopicChange(e.target.value)}
         rows={3}
@@ -819,6 +842,7 @@ const RecommendTab: React.FC<RecommendTabProps> = ({
         style={{ fontSize: 'min(13px, 3.5cqmin)' }}
       />
       <button
+        {...tourAttr('video-activity.creator-recommend-submit')}
         type="button"
         onClick={onSubmit}
         disabled={topic.trim().length === 0 || recommending}
@@ -893,6 +917,7 @@ const RecommendTab: React.FC<RecommendTabProps> = ({
             </div>
           </div>
           <button
+            {...tourAttr('video-activity.creator-recommend-accept')}
             type="button"
             onClick={onAccept}
             disabled={accepted}

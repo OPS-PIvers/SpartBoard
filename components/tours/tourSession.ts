@@ -258,6 +258,18 @@ export const autopilotGate = (
   return risky ? 'confirm' : 'perform';
 };
 
+/** A sandboxed editor replay clicks through, but a real write never runs without the author. */
+export const replayGate = (
+  binding: Pick<GuidedLearningTourBinding, 'anchor' | 'teacherMustClick'>,
+  policy: TourAutopilotPolicy
+): 'perform' | 'confirm' | 'teacher' => {
+  const risky =
+    isDestructiveAnchor(binding.anchor) || isPersistsAnchor(binding.anchor);
+  if (!risky) return 'perform';
+  const gate = autopilotGate(binding, policy);
+  return gate === 'perform' ? 'confirm' : gate;
+};
+
 /** Whether autopilot must leave this step's click to the teacher. */
 export const teacherMustClick = (
   binding: Pick<GuidedLearningTourBinding, 'anchor' | 'teacherMustClick'>,

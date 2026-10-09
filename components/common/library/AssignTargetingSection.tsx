@@ -155,6 +155,8 @@ export interface AssignTargetingSectionProps {
   workKind?: WorkKindSetting;
   /** Collapsed-state summary for `scheduleExtra`. */
   scheduleExtraSummary?: string | null;
+  /** The host renders its own When step, so Schedule and Availability are hidden. */
+  scheduleHidden?: boolean;
 }
 
 /** `min(Xpx, Ycqmin)` square icon size, only when `cqScaled`. */
@@ -245,6 +247,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   availabilityEnabled = false,
   availabilityEachClass = true,
   workKind: workKindSetting,
+  scheduleHidden = false,
 }) => {
   const { t } = useTranslation();
   const [openedAt] = useState(() => new Date());
@@ -661,11 +664,14 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
 
   return (
     <div className="space-y-3">
-      {availabilityEnabled ? (
+      {scheduleHidden ? null : availabilityEnabled ? (
         <AssignAvailabilitySection
           value={
             value.availability ??
-            defaultAvailability(openedAt, !!periodAccess, workKind)
+            defaultAvailability(openedAt, !!periodAccess, workKind, {
+              rosters: rosters.filter((r) => effectiveRosterIds.includes(r.id)),
+              bellWindow: periodAccess?.bellWindow,
+            })
           }
           onChange={(availability) => patch({ availability })}
           rosters={rosters.filter((r) => effectiveRosterIds.includes(r.id))}

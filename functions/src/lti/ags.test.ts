@@ -197,6 +197,28 @@ describe('postScore', () => {
     });
   });
 
+  it('posts a comment with no score as Initialized/NotReady', async () => {
+    const fetchMock = vi.fn<
+      (url: string | URL, init?: unknown) => Promise<Response>
+    >(() => Promise.resolve(new Response(null, { status: 200 })));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await postScore({
+      lineitemUrl: 'https://x/li/1/lineitem',
+      accessToken: 'tok',
+      score: { userId: 'u1', scoreMaximum: 10, comment: 'Missing' },
+      timestamp: '2026-06-02T00:00:00Z',
+    });
+    const init = fetchMock.mock.calls[0][1] as { body: string };
+    expect(JSON.parse(init.body)).toEqual({
+      userId: 'u1',
+      activityProgress: 'Initialized',
+      gradingProgress: 'NotReady',
+      timestamp: '2026-06-02T00:00:00Z',
+      comment: 'Missing',
+    });
+  });
+
   // Regression (#2433 round-4 review): the error path drains the response
   // body so undici returns the socket to the pool, but the 200 OK success
   // path returned without consuming it. The AGS spec has the scores

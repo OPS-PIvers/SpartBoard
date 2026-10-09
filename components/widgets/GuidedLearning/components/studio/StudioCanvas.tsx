@@ -23,6 +23,7 @@ import { viewTransform } from './useCanvasViewport';
 import type { CanvasTools } from './useCanvasTools';
 import type { DevicePreset, StageGeometry, StageStep } from '../../types/stage';
 import type { GuidedLearningEditorController } from '../useGuidedLearningEditorState';
+import { tourAttr } from '@/config/tourAnchors';
 
 const NO_ANSWERS: ReadonlySet<string> = new Set();
 const noop = () => undefined;
@@ -326,6 +327,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
           aria-pressed={!addingStep && !blurActive}
           aria-label={t('glStudio.toolSelect')}
           title={t('glStudio.toolSelect')}
+          {...tourAttr('studio.tool-select')}
           onClick={() => chooseTool(null)}
           className={toolClass(!addingStep && !blurActive)}
         >
@@ -341,6 +343,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
               aria-pressed={addingStep && shape === s}
               aria-label={label}
               title={label}
+              {...tourAttr('studio.tool-shape')}
               onClick={() => chooseTool(s)}
               className={toolClass(addingStep && shape === s)}
             >
@@ -354,6 +357,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
           aria-pressed={blurActive}
           aria-label={t('glStudio.tool_blur')}
           title={canBlur ? t('glStudio.tool_blur') : t('glStudio.blurNoVideo')}
+          {...tourAttr('studio.tool-blur')}
           onClick={toggleBlur}
           disabled={!canBlur}
           className={`${toolClass(blurActive)} disabled:opacity-40`}
@@ -380,6 +384,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
                 key={m}
                 type="button"
                 aria-pressed={blurMode === m}
+                {...tourAttr('studio.blur-mode')}
                 onClick={() => setBlurMode(m)}
                 className={`rounded px-2 py-1 font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary ${
                   blurMode === m
@@ -393,6 +398,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
           </div>
           <button
             type="button"
+            {...tourAttr('studio.blur-apply')}
             onClick={() => void applyBlur()}
             disabled={blurRects.length === 0 || redaction.applying}
             className="rounded-md bg-brand-blue-primary px-3 py-1.5 font-bold text-white hover:bg-brand-blue-dark disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1"
@@ -403,6 +409,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
           </button>
           <button
             type="button"
+            {...tourAttr('studio.blur-cancel')}
             onClick={exitBlur}
             disabled={redaction.applying}
             className="rounded-md px-2 py-1.5 font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
@@ -425,6 +432,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
           type="button"
           aria-label={t('glStudio.zoomOut')}
           title={t('glStudio.zoomOut')}
+          {...tourAttr('studio.zoom-out')}
           onClick={() => zoomBy(1 / 1.25)}
           disabled={view.zoom <= 1}
           className={`${toolButton} text-slate-600 hover:bg-slate-100 disabled:opacity-40`}
@@ -441,6 +449,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
           type="button"
           aria-label={t('glStudio.zoomIn')}
           title={t('glStudio.zoomIn')}
+          {...tourAttr('studio.zoom-in')}
           onClick={() => zoomBy(1.25)}
           disabled={view.zoom >= 4}
           className={`${toolButton} text-slate-600 hover:bg-slate-100 disabled:opacity-40`}
@@ -451,6 +460,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
           type="button"
           aria-label={t('glStudio.zoomFit')}
           title={t('glStudio.zoomFit')}
+          {...tourAttr('studio.zoom-fit')}
           onClick={fit}
           className={`${toolButton} text-slate-600 hover:bg-slate-100`}
         >

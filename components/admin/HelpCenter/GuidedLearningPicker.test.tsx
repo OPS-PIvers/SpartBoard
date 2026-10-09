@@ -141,7 +141,21 @@ describe('GuidedLearningPicker', () => {
     expect(within(library).getByText('Building Lesson')).toBeTruthy();
   });
 
-  it('refreshes the one Help Center copy of a personal activity', async () => {
+  it('reuses the existing Help Center copy of a personal activity', async () => {
+    const { onSelect } = renderPicker();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose activity' }));
+    fireEvent.click(screen.getByText('My Roster Guide'));
+
+    await waitFor(() => expect(onSelect).toHaveBeenCalled());
+    expect(glState.loadBuildingSet).toHaveBeenCalledWith('help-p-1');
+    expect(glState.loadSetData).not.toHaveBeenCalled();
+    expect(glState.saveBuildingSet).not.toHaveBeenCalled();
+    expect(onSelect).toHaveBeenCalledWith('help-p-1', 'Older Roster Copy');
+  });
+
+  it('makes a Help Center copy of a personal activity picked the first time', async () => {
+    glState.loadBuildingSet.mockResolvedValue(null);
     glState.loadSetData.mockResolvedValue(
       set('p-1', 'My Roster Guide', {
         isBuilding: undefined,
@@ -156,7 +170,6 @@ describe('GuidedLearningPicker', () => {
     await waitFor(() => expect(onSelect).toHaveBeenCalled());
     const saved = glState.saveBuildingSet.mock.calls[0][0];
     expect(saved.id).toBe('help-p-1');
-    expect(saved.createdAt).toBe(5);
     expect(saved.helpCenter).toBe(true);
     expect(saved.isBuilding).toBe(true);
     expect(saved.authorUid).toBe('admin-1');

@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   CustomGridCell,
   CustomBlockDefinition,
@@ -67,6 +68,7 @@ export const CellEditor: React.FC<CellEditorProps> = ({
           </span>
         </span>
         <button
+          {...tourAttr('admin.widget-builder.cell-close')}
           onClick={onClose}
           className="p-1 rounded hover:bg-slate-600 text-slate-400 hover:text-white transition-colors"
           title="Close editor"
@@ -84,6 +86,7 @@ export const CellEditor: React.FC<CellEditorProps> = ({
                 Block
               </span>
               <button
+                {...tourAttr('admin.widget-builder.cell-remove-block')}
                 onClick={handleRemoveBlock}
                 className="flex items-center gap-1 px-2 py-1 text-xs text-red-400 hover:text-red-300 hover:bg-red-900/30 rounded transition-colors"
               >
@@ -120,6 +123,11 @@ export const CellEditor: React.FC<CellEditorProps> = ({
                           {key}
                         </label>
                         <input
+                          {...tourFieldAttr(
+                            'admin.widget-builder.cell-config',
+                            'admin',
+                            key
+                          )}
                           type={typeof val === 'number' ? 'number' : 'text'}
                           value={String(val)}
                           onChange={(e) => {
@@ -146,6 +154,11 @@ export const CellEditor: React.FC<CellEditorProps> = ({
                     return (
                       <div key={key} className="flex items-center gap-2">
                         <input
+                          {...tourFieldAttr(
+                            'admin.widget-builder.cell-config',
+                            'admin',
+                            key
+                          )}
                           type="checkbox"
                           id={`config-${key}`}
                           checked={val}
@@ -198,6 +211,11 @@ export const CellEditor: React.FC<CellEditorProps> = ({
                 ] as CustomBlockType[]
               ).map((type) => (
                 <button
+                  {...tourFieldAttr(
+                    'admin.widget-builder.cell-add-block',
+                    'admin',
+                    type
+                  )}
                   key={type}
                   onClick={() => handleAddBlock(type)}
                   className="flex items-center gap-1.5 px-2 py-1.5 bg-slate-900 hover:bg-slate-700 border border-slate-600 hover:border-blue-500 rounded text-xs text-slate-300 hover:text-white transition-colors text-left"

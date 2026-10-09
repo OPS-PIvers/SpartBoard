@@ -30,6 +30,7 @@ import {
   SkipBack,
   SkipForward,
 } from 'lucide-react';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 export interface SpotifyTransportControlsProps {
   isReady: boolean;
@@ -118,6 +119,7 @@ export const SpotifyTransportControls: React.FC<
           onToggleShuffle();
         }}
         disabled={!isReady}
+        {...tourTypeAttr('music.spotify-shuffle', 'music')}
         aria-label="Shuffle"
         aria-pressed={shuffle}
         className={toggleClass(shuffle)}
@@ -134,6 +136,7 @@ export const SpotifyTransportControls: React.FC<
           onPrevious();
         }}
         disabled={!isReady}
+        {...tourTypeAttr('music.spotify-previous', 'music')}
         aria-label="Previous"
         className={skipClass}
         style={{ width: s.skip, height: s.skip }}
@@ -152,6 +155,7 @@ export const SpotifyTransportControls: React.FC<
           onTogglePlay();
         }}
         disabled={!isReady}
+        {...tourTypeAttr('music.spotify-play-pause', 'music')}
         aria-label={isPlaying ? 'Pause' : 'Play'}
         className="rounded-full bg-white/90 hover:bg-white text-slate-900 flex items-center justify-center shadow-xl transition disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
         style={{ width: s.play, height: s.play }}
@@ -177,6 +181,7 @@ export const SpotifyTransportControls: React.FC<
           onNext();
         }}
         disabled={!isReady}
+        {...tourTypeAttr('music.spotify-next', 'music')}
         aria-label="Next"
         className={skipClass}
         style={{ width: s.skip, height: s.skip }}
@@ -195,6 +200,7 @@ export const SpotifyTransportControls: React.FC<
           onCycleRepeat();
         }}
         disabled={!isReady}
+        {...tourTypeAttr('music.spotify-repeat', 'music')}
         aria-label={repeatLabel(repeatMode)}
         aria-pressed={repeatActive}
         className={toggleClass(repeatActive)}

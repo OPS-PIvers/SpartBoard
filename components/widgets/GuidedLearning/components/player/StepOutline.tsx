@@ -9,6 +9,7 @@ import {
 } from '@/components/common/lightChrome';
 import { plainStepText } from '../../utils/stepText';
 import { TouchHitBox } from './TouchHitBox';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface Props {
   steps: GuidedLearningPublicStep[];
@@ -57,6 +58,7 @@ export const StepOutline: React.FC<Props> = ({
   return (
     <div ref={rootRef} className="relative flex-shrink-0">
       <button
+        {...tourAttr('gl-player.outline-open')}
         ref={buttonRef}
         type="button"
         aria-haspopup="dialog"
@@ -134,6 +136,7 @@ export const StepOutline: React.FC<Props> = ({
                   <li>
                     <button
                       type="button"
+                      {...tourAttr('gl-player.outline-step')}
                       aria-current={current ? 'step' : undefined}
                       disabled={!canJump(i)}
                       onClick={() => {

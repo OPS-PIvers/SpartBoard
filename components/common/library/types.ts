@@ -18,6 +18,7 @@
  */
 
 import type React from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import type { LucideIcon } from 'lucide-react';
 import type { ClassRoster, WidgetType } from '@/types';
 import type { UploadedDocument } from '@/utils/quizDocumentImport/uploadIntake';
@@ -98,6 +99,7 @@ export interface LibraryPrimaryAction {
   onClick: () => void;
   disabled?: boolean;
   disabledReason?: string;
+  anchor?: TourAnchorAttrs;
   /**
    * Optional count rendered as a small rose-coloured badge over the top-right
    * corner of the button. Hidden when undefined or `<= 0`. Used to surface
@@ -540,6 +542,8 @@ export interface AssignModalProps<TOptions> {
   confirmDisabledReason?: string;
   /** Live-tour anchor attributes for the confirm button. */
   confirmTourAttrs?: Record<string, string>;
+  /** Live-tour anchor attributes for the footer Cancel button. */
+  cancelTourAttrs?: Record<string, string>;
   /** Override the modal's z-index tier (e.g. "z-dialog"). See Modal's `zIndex` prop. */
   zIndex?: string;
 }

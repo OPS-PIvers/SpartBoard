@@ -7,7 +7,6 @@ import { useSourceFolders } from '@/components/common/library/useSourceFolders';
 
 const place = vi.fn().mockResolvedValue(undefined);
 const unplace = vi.fn().mockResolvedValue(undefined);
-const pruneMissing = vi.fn();
 let placements: LibraryPlacement[] = [];
 let placementsLoading = false;
 
@@ -21,7 +20,6 @@ vi.mock('@/hooks/useLibraryPlacements', async (importOriginal) => {
       loading: placementsLoading,
       place,
       unplace,
-      pruneMissing,
     }),
   };
 });
@@ -39,7 +37,6 @@ const run = (overrides: Partial<Parameters<typeof useSourceFolders>[0]> = {}) =>
       enabled: true,
       sourceKeys: KEYS,
       ownFolders: OWN,
-      ready: true,
       ...overrides,
     })
   ).result.current;
@@ -78,20 +75,19 @@ describe('useSourceFolders', () => {
     expect(unplace).toHaveBeenCalledTimes(2);
   });
 
-  it('keeps today’s folders and skips cleanup with the flag off', () => {
+  it('keeps today’s folders with the flag off', () => {
     const sf = run({ enabled: false });
     expect(sf.folders).toBe(OWN);
     expect(sf.placedChip('building:a')).toBeNull();
-    expect(pruneMissing).not.toHaveBeenCalled();
   });
 
-  it('cleans up only after every source has loaded', () => {
-    run({ ready: false });
-    expect(pruneMissing).not.toHaveBeenCalled();
-    run({ sourceKeys: [] });
-    expect(pruneMissing).not.toHaveBeenCalled();
-    run();
-    expect(pruneMissing).toHaveBeenCalledWith(new Set(KEYS));
+  it('keeps a filing when its item is missing from a partial source list', () => {
+    const sf = run({ sourceKeys: ['building:c'] });
+    expect(unplace).not.toHaveBeenCalled();
+    expect(place).not.toHaveBeenCalled();
+    expect(sf.placed).toEqual([]);
+    // Once the full list loads again, the filing is still there.
+    expect(run().folderIdOf('building:a')).toBe('unit');
   });
 
   it('shows no source folder when the widget has no source items', () => {

@@ -17,6 +17,7 @@
 import React from 'react';
 import { GraduationCap, MonitorPlay, School, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { tourAttr } from '@/config/tourAnchors';
 
 export type AssignDestination = 'spartboard' | 'classroom' | 'schoology';
 
@@ -24,6 +25,8 @@ interface AssignDestinationModalProps {
   quizTitle: string;
   /** Show the Google Classroom option (admin-gated by the host). */
   showClassroom: boolean;
+  /** Hidden once scores reach Schoology through SpartBoard-made columns (SCHOOLOGY_TOOL_COLUMNS.md D10). */
+  showSchoology?: boolean;
   onPick: (destination: AssignDestination) => void;
   onClose: () => void;
 }
@@ -33,11 +36,13 @@ interface DestinationOption {
   title: string;
   body: string;
   Icon: React.ComponentType<{ className?: string }>;
+  tour: ReturnType<typeof tourAttr>;
 }
 
 export const AssignDestinationModal: React.FC<AssignDestinationModalProps> = ({
   quizTitle,
   showClassroom,
+  showSchoology = true,
   onPick,
   onClose,
 }) => {
@@ -47,6 +52,7 @@ export const AssignDestinationModal: React.FC<AssignDestinationModalProps> = ({
       title: 'SpartBoard Only',
       body: 'Share a join link with your classes.',
       Icon: MonitorPlay,
+      tour: tourAttr('assign-destination.spartboard'),
     },
     ...(showClassroom
       ? [
@@ -55,15 +61,21 @@ export const AssignDestinationModal: React.FC<AssignDestinationModalProps> = ({
             title: 'Google Classroom',
             body: 'Post to a Classroom course with grade sync.',
             Icon: GraduationCap,
+            tour: tourAttr('assign-destination.classroom'),
           },
         ]
       : []),
-    {
-      id: 'schoology',
-      title: 'Schoology',
-      body: 'Add it from inside Schoology.',
-      Icon: School,
-    },
+    ...(showSchoology
+      ? [
+          {
+            id: 'schoology' as const,
+            title: 'Schoology',
+            body: 'Add it from inside Schoology.',
+            Icon: School,
+            tour: tourAttr('assign-destination.schoology'),
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -106,6 +118,7 @@ export const AssignDestinationModal: React.FC<AssignDestinationModalProps> = ({
             return (
               <button
                 key={opt.id}
+                {...opt.tour}
                 type="button"
                 onClick={() => onPick(opt.id)}
                 className="w-full text-left rounded-xl border border-slate-200 bg-white px-4 py-3 transition-all hover:border-brand-blue-primary hover:bg-brand-blue-lighter/20 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"

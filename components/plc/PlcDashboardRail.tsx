@@ -1,6 +1,7 @@
 // components/plc/PlcDashboardRail.tsx
 import React from 'react';
 import type { PlcSectionId } from './sections';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 export interface PlcRailItem<Id extends string = PlcSectionId> {
   id: Id;
@@ -26,6 +27,7 @@ export const PlcDashboardRail = <Id extends string = PlcSectionId>({
       const active = s.id === activeSection;
       return (
         <button
+          {...tourFieldAttr('plc-dashboard.section-tab', 'plc', s.id)}
           key={s.id}
           id={`plc-tab-${s.id}`}
           role="tab"

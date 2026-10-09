@@ -55,6 +55,9 @@ const MissingInfoForm: React.FC<Omit<MissingInfoModalProps, 'isOpen'>> = ({
   const [grade, setGrade] = useState(current.grade);
   const [schoolSite, setSchoolSite] = useState(current.schoolSite);
   const [showGradeError, setShowGradeError] = useState(false);
+  // The wheel opens on a placeholder time, so saving waits for the teacher to touch it.
+  const [timeTouched, setTimeTouched] = useState(false);
+  const markTimeTouched = () => setTimeTouched(true);
   const gradeOptions = GRADE_OPTIONS_BY_SITE[schoolSite];
   const showGrade = needsGrade || askSchool;
   const info: LunchInfo = {
@@ -149,7 +152,12 @@ const MissingInfoForm: React.FC<Omit<MissingInfoModalProps, 'isOpen'>> = ({
             <span className="text-xxs font-black text-slate-500 uppercase tracking-widest">
               Lunch time
             </span>
-            <div className="flex items-center justify-center gap-2">
+            <div
+              className="flex items-center justify-center gap-2"
+              onPointerDownCapture={markTimeTouched}
+              onKeyDownCapture={markTimeTouched}
+              onWheelCapture={markTimeTouched}
+            >
               <WheelPicker
                 label="Hour"
                 options={HOURS}
@@ -224,6 +232,7 @@ const MissingInfoForm: React.FC<Omit<MissingInfoModalProps, 'isOpen'>> = ({
           </Button>
           <Button
             onClick={handleSave}
+            disabled={needsTime && !timeTouched}
             variant="success"
             className="flex-[2] py-4 rounded-2xl font-black uppercase tracking-widest"
           >

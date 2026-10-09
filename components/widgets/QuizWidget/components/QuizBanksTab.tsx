@@ -13,6 +13,7 @@ import {
   FolderMinus,
 } from 'lucide-react';
 import type { Plc, QuestionBankMetadata } from '@/types';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import type { BankSource } from '@/hooks/useBankSources';
 import {
   LibraryShell,
@@ -44,6 +45,7 @@ import type { FolderDeleteActions } from '@/components/common/library/FolderSide
 import { useLibraryFolderViewEnabled } from '@/components/common/library/useFolderLibraryView';
 import { useSourceFolders } from '@/components/common/library/useSourceFolders';
 import { isSourceFolderId } from '@/components/common/library/sourceFolders';
+import { visibleTeammateBanks } from './teammateBankRows';
 import { placementSourceKey } from '@/hooks/useLibraryPlacements';
 
 export interface QuizBanksTabProps {
@@ -52,8 +54,6 @@ export interface QuizBanksTabProps {
   loading: boolean;
   /** Teammates' shared banks (kind 'plc'); own banks are excluded upstream. */
   sharedBankSources: BankSource[];
-  /** False once every PLC's shared banks have loaded; gates cleanup of stale filings. */
-  sharedBanksLoading?: boolean;
   plcs: readonly Plc[];
   shell: Pick<
     LibraryShellProps,
@@ -134,7 +134,6 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   banks,
   loading,
   sharedBankSources,
-  sharedBanksLoading = true,
   plcs,
   shell,
   onNewBank,
@@ -188,7 +187,6 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
     enabled: folderViewEnabled,
     sourceKeys: teammateKeys,
     ownFolders: folderState.folders,
-    ready: !loading && !folderState.loading && !sharedBanksLoading,
   });
   const { folderIdOf, move: moveSource } = sourceFolders;
   const teammateFolderIds = useMemo(
@@ -524,6 +522,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
         userId ? (
           <button
             type="button"
+            {...tourTypeAttr('quiz-banks.select-mode', 'quiz')}
             onClick={() => {
               if (selectionMode) {
                 selection.clear();
@@ -562,6 +561,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
         action={
           <button
             type="button"
+            {...tourTypeAttr('quiz-banks.empty-new-bank', 'quiz')}
             onClick={onNewBank}
             className="flex items-center gap-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-2xl transition-all shadow-md active:scale-95 px-5 py-2.5 text-sm"
           >
@@ -578,15 +578,12 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
 
   // Legacy view lists teammates' banks below the library; the folder view files them as rows.
   const showSharedBanks = !libraryView.folderView;
-  const fvLocation = libraryView.folderView?.location;
-  const sharedRows =
-    libraryView.folderView &&
-    !libraryView.folderView.searchActive &&
-    fvLocation?.kind === 'folder'
-      ? teammateBanks
-          .filter((t) => folderIdOf(t.key) === fvLocation.folderId)
-          .map(({ source, key }) => renderSharedRow(source, key))
-      : [];
+  const sharedRows = visibleTeammateBanks(
+    teammateBanks.map((t) => ({ ...t, title: t.source.title })),
+    libraryView.folderView,
+    libraryView.state.search,
+    folderIdOf
+  ).map(({ source, key }) => renderSharedRow(source, key));
 
   const body = loading ? (
     <div className="flex flex-col items-center justify-center h-full text-brand-blue-primary gap-3 py-10">
@@ -653,6 +650,11 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
                 {onPreviewSharedBank && (
                   <button
                     type="button"
+                    {...tourFieldAttr(
+                      'quiz-banks.shared-preview',
+                      'quiz',
+                      source.key
+                    )}
                     onClick={() => onPreviewSharedBank(source)}
                     className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100"
                   >

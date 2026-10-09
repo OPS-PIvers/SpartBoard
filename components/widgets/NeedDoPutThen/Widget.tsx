@@ -15,6 +15,7 @@ import {
   useDashboardActions,
 } from '@/context/dashboardCanvasStore';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
+import { tourAttr } from '@/config/tourAnchors';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { getFontClass, hexToRgba } from '@/utils/styles';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
@@ -641,6 +642,11 @@ export const NeedDoPutThenWidget: React.FC<{ widget: WidgetData }> = ({
           >
             <button
               type="button"
+              {...tourAttr(
+                'need-do-put-then.toggle-need',
+                widget.id,
+                widget.type
+              )}
               onClick={() => toggle('need')}
               className="rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors"
               style={{ padding: 'min(4px, 1cqmin)' }}
@@ -684,6 +690,11 @@ export const NeedDoPutThenWidget: React.FC<{ widget: WidgetData }> = ({
 
             <button
               type="button"
+              {...tourAttr(
+                'need-do-put-then.toggle-then',
+                widget.id,
+                widget.type
+              )}
               onClick={() => toggle('then')}
               className="rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors"
               style={{ padding: 'min(4px, 1cqmin)' }}
@@ -722,6 +733,11 @@ export const NeedDoPutThenWidget: React.FC<{ widget: WidgetData }> = ({
           <div className="flex items-center justify-center shrink-0">
             <button
               type="button"
+              {...tourAttr(
+                'need-do-put-then.toggle-put',
+                widget.id,
+                widget.type
+              )}
               onClick={() => toggle('put')}
               className="rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors"
               style={{ padding: 'min(4px, 1cqmin)' }}

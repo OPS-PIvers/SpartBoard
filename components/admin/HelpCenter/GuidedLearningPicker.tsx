@@ -1,4 +1,5 @@
 import React, { lazy, Suspense, useRef, useState } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { Check, GraduationCap, Loader2, Plus, Search } from 'lucide-react';
 import {
   Btn,
@@ -124,18 +125,22 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
   ): Promise<void> => {
     setCopyingId(setId);
     try {
+      const copyId = helpCopyId(setId);
+      // One copy per personal set: picking it again reuses that copy, keeping admin edits.
+      const existing = await loadBuildingSet(copyId);
+      if (existing) {
+        onSelect(existing.id, existing.title);
+        return;
+      }
       const loaded = await loadSetData(driveFileId);
       const now = Date.now();
-      // One copy per personal set: picking it again refreshes that copy.
-      const copyId = helpCopyId(setId);
-      const existing = buildingSets.find((set) => set.id === copyId);
       const copy: GuidedLearningSet = {
         ...loaded,
         id: copyId,
         isBuilding: true,
         helpCenter: true,
         authorUid: user?.uid,
-        createdAt: existing?.createdAt ?? now,
+        createdAt: now,
         updatedAt: now,
       };
       await saveBuildingSet(copy);
@@ -217,6 +222,7 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
               type="button"
               disabled={openingEditor}
               onClick={() => void handleEditSelected(selected.id)}
+              {...tourAttr('admin.help-center.gl-open-editor')}
               className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-brand-blue-primary hover:underline disabled:opacity-50"
             >
               {openingEditor && (
@@ -231,6 +237,7 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
           <button
             type="button"
             onClick={onChange}
+            {...tourAttr('admin.help-center.gl-change')}
             className="shrink-0 text-sm font-semibold text-slate-600 hover:underline"
           >
             Change
@@ -245,6 +252,7 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
               aria-expanded={menuOpen}
               disabled={copyingId !== null}
               onClick={() => setMenuOpen((open) => !open)}
+              {...tourAttr('admin.help-center.gl-choose')}
               icon={
                 copyingId !== null ? (
                   <Loader2
@@ -262,6 +270,7 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
           <Btn
             size="lg"
             onClick={handleCreate}
+            {...tourAttr('admin.help-center.gl-new')}
             icon={<Plus className="w-4 h-4" aria-hidden="true" />}
           >
             New activity
@@ -290,6 +299,7 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search activities..."
+              {...tourAttr('admin.help-center.gl-search')}
               aria-label="Search activities"
               className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30"
             />
@@ -318,6 +328,11 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
                     role="menuitemradio"
                     aria-checked={row.id === selectedSetId}
                     onClick={row.onPick}
+                    {...tourFieldAttr(
+                      'admin.help-center.gl-option',
+                      'help',
+                      row.id
+                    )}
                     className={`flex w-full items-start gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-50 focus:bg-slate-50 focus:outline-none ${row.id === selectedSetId ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
                   >
                     <span className="flex-1 break-words">{row.title}</span>

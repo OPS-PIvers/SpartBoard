@@ -7,6 +7,7 @@ import {
   type AssignClassesValue,
 } from './assignClassesValue';
 import { usePickMenu } from './usePickMenu';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 
 export interface ClassPickerMenuProps {
   rosters: ClassRoster[];
@@ -15,6 +16,10 @@ export interface ClassPickerMenuProps {
   /** One class at most (Video Activity live). */
   singleSelect?: boolean;
   disabled?: boolean;
+  /** Live-tour anchor for the picker button. */
+  anchor?: TourAnchorAttrs;
+  /** Live-tour anchor for one class's checkbox, keyed by class id. */
+  rowAnchor?: (classId: string) => TourAnchorAttrs;
 }
 
 /** Classes as a select-style button that opens a checklist menu (D5). */
@@ -24,6 +29,8 @@ export const ClassPickerMenu: React.FC<ClassPickerMenuProps> = ({
   onChange,
   singleSelect = false,
   disabled = false,
+  anchor,
+  rowAnchor,
 }) => {
   const { open, setOpen, rootRef, onKeyDown } = usePickMenu();
   const menuId = useId();
@@ -53,6 +60,7 @@ export const ClassPickerMenu: React.FC<ClassPickerMenuProps> = ({
   return (
     <div ref={rootRef} className="relative" onKeyDown={onKeyDown}>
       <button
+        {...anchor}
         type="button"
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
@@ -92,6 +100,7 @@ export const ClassPickerMenu: React.FC<ClassPickerMenuProps> = ({
                     }`}
                   >
                     <input
+                      {...rowAnchor?.(r.id)}
                       type={singleSelect ? 'radio' : 'checkbox'}
                       name={singleSelect ? menuId : undefined}
                       checked={value.classIds.includes(r.id)}

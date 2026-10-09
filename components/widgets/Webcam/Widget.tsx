@@ -20,6 +20,7 @@ import { useDialog } from '@/context/useDialog';
 import { extractTextWithGemini } from '@/utils/ai';
 import { WidgetLayout } from '../WidgetLayout';
 import { CapturedItem } from './types';
+import { tourAttr } from '@/config/tourAnchors';
 
 export const WebcamWidget: React.FC<{
   widget: WidgetData;
@@ -307,6 +308,7 @@ export const WebcamWidget: React.FC<{
               className="text-white/50"
               action={
                 <button
+                  {...tourAttr('webcam.retry-camera', _widget.id, _widget.type)}
                   onClick={() => window.location.reload()}
                   className="bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
                   style={{
@@ -355,6 +357,7 @@ export const WebcamWidget: React.FC<{
                   }}
                 >
                   <button
+                    {...tourAttr('webcam.take-photo', _widget.id, _widget.type)}
                     onClick={takePhoto}
                     disabled={
                       widgetConfig.isRemoteMode
@@ -373,6 +376,11 @@ export const WebcamWidget: React.FC<{
                     />
                   </button>
                   <button
+                    {...tourAttr(
+                      'webcam.extract-text',
+                      _widget.id,
+                      _widget.type
+                    )}
                     onClick={extractText}
                     disabled={
                       (widgetConfig.isRemoteMode
@@ -401,6 +409,7 @@ export const WebcamWidget: React.FC<{
                     )}
                   </button>
                   <button
+                    {...tourAttr('webcam.mirror', _widget.id, _widget.type)}
                     onClick={toggleMirror}
                     disabled={widgetConfig.isRemoteMode ? false : !stream}
                     className={`rounded-2xl text-white transition-all ${isMirrored ? 'bg-blue-500/30 text-blue-400' : 'hover:bg-white/30'}`}
@@ -417,6 +426,11 @@ export const WebcamWidget: React.FC<{
                   </button>
                   {devices.length > 1 && !widgetConfig.isRemoteMode && (
                     <button
+                      {...tourAttr(
+                        'webcam.switch-camera',
+                        _widget.id,
+                        _widget.type
+                      )}
                       onClick={switchCamera}
                       disabled={!stream}
                       className="hover:bg-white/30 rounded-2xl text-white"
@@ -433,6 +447,11 @@ export const WebcamWidget: React.FC<{
                   )}
                   {widgetConfig.isRemoteMode && (
                     <button
+                      {...tourAttr(
+                        'webcam.exit-remote',
+                        _widget.id,
+                        _widget.type
+                      )}
                       onClick={() => {
                         updateWidget(_widget.id, {
                           config: {
@@ -458,6 +477,7 @@ export const WebcamWidget: React.FC<{
                 </div>
 
                 <button
+                  {...tourAttr('webcam.open-gallery', _widget.id, _widget.type)}
                   onClick={() => setShowGallery(true)}
                   className="relative hover:bg-white/30 rounded-2xl text-white"
                   style={{ padding: 'min(12px, 2.5cqmin)' }}
@@ -552,6 +572,7 @@ export const WebcamWidget: React.FC<{
                   </h3>
                 </div>
                 <button
+                  {...tourAttr('webcam.text-close', _widget.id, _widget.type)}
                   onClick={() => setShowTextModal(false)}
                   className="hover:bg-white/30 rounded-lg text-white"
                   style={{ padding: 'min(8px, 2cqmin)' }}
@@ -589,6 +610,11 @@ export const WebcamWidget: React.FC<{
                 }}
               >
                 <button
+                  {...tourAttr(
+                    'webcam.send-to-notes',
+                    _widget.id,
+                    _widget.type
+                  )}
                   onClick={handleSendToNotes}
                   className="flex items-center bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl transition-all shadow-lg active:scale-95"
                   style={{
@@ -601,6 +627,7 @@ export const WebcamWidget: React.FC<{
                   Send to Notes
                 </button>
                 <button
+                  {...tourAttr('webcam.copy-text', _widget.id, _widget.type)}
                   onClick={handleCopy}
                   className="flex items-center bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-lg active:scale-95"
                   style={{
@@ -638,6 +665,11 @@ export const WebcamWidget: React.FC<{
                   style={{ gap: 'min(8px, 2cqmin)' }}
                 >
                   <button
+                    {...tourAttr(
+                      'webcam.clear-gallery',
+                      _widget.id,
+                      _widget.type
+                    )}
                     onClick={clearPhotos}
                     className="hover:bg-white/30 rounded-lg text-red-400"
                     style={{ padding: 'min(8px, 2cqmin)' }}
@@ -651,6 +683,11 @@ export const WebcamWidget: React.FC<{
                     />
                   </button>
                   <button
+                    {...tourAttr(
+                      'webcam.gallery-close',
+                      _widget.id,
+                      _widget.type
+                    )}
                     onClick={() => setShowGallery(false)}
                     className="hover:bg-white/30 rounded-lg text-white"
                     style={{ padding: 'min(8px, 2cqmin)' }}

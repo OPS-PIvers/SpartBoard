@@ -6,6 +6,8 @@ import type { QuizQuestion, VideoActivityQuestion } from '@/types';
 // Regression: attach flow's maxPoints must dedup duplicate question ids like other LMS-attach surfaces.
 
 let availabilityOn = false;
+let stepperOn = false;
+const saveLast = vi.fn();
 
 const mockCallable = vi.fn((_params: { maxPoints: number }) => ({
   data: { attachmentId: 'att-1' },
@@ -49,8 +51,13 @@ vi.mock('@/context/useAuth', () => ({
     googleAccessToken: 'drive-token',
     ensureGoogleScope: vi.fn(() => null),
     canAccessFeature: (id: string) =>
-      id === 'assign-availability' && availabilityOn,
+      (id === 'assign-availability' && availabilityOn) ||
+      (id === 'assign-stepper' && stepperOn),
   }),
+}));
+
+vi.mock('@/hooks/useLastQuizAssignSettings', () => ({
+  useLastQuizAssignSettings: () => ({ lastUsed: null, save: saveLast }),
 }));
 
 // Two entries sharing the same id — simulates a Drive-sync/arrayUnion duplicate.
@@ -271,6 +278,74 @@ describe('ClassroomAddonTeacherSpike attach flow — availability', () => {
       expect(settings.sessionOptions.dueAtHasTime).toBe(true);
     } finally {
       availabilityOn = false;
+    }
+  });
+
+  it('assign stepper on: the Quiz rule bodies drive the rules and an untouched When sets no window', async () => {
+    stepperOn = true;
+    saveLast.mockClear();
+    try {
+      render(<ClassroomAddonTeacherSpike />);
+      fireEvent.click(screen.getByRole('button', { name: 'Quiz' }));
+      fireEvent.click(await screen.findByRole('option', { name: 'My Quiz' }));
+      for (const name of [
+        'When',
+        'Attempts and order',
+        'Quiz integrity',
+        'What students see',
+      ])
+        expect(screen.getByRole('region', { name })).toBeTruthy();
+      // Schedule starts off, so no unsaved window or late-work switch shows.
+      expect(screen.queryByText('Opens')).toBeNull();
+      expect(
+        screen.queryByRole('switch', { name: 'Allow submissions after close' })
+      ).toBeNull();
+      fireEvent.click(
+        screen.getByRole('switch', { name: 'Shuffle questions' })
+      );
+      fireEvent.click(screen.getByRole('button', { name: /attach quiz/i }));
+      await waitFor(() => expect(createAssignment).toHaveBeenCalled());
+      const call = createAssignment.mock.calls.at(-1) as unknown[];
+      const settings = call[1] as {
+        sessionOptions: { shuffleQuestions?: boolean };
+        dueAt?: number;
+      };
+      const options = call[2] as Record<string, unknown>;
+      expect(settings.sessionOptions.shuffleQuestions).toBe(true);
+      // An untouched When sets no window, so nothing closes tonight.
+      expect(options.openAt).toBeNull();
+      expect(options.closeAt).toBeNull();
+      expect(settings.dueAt).toBeUndefined();
+      expect(saveLast).toHaveBeenCalledOnce();
+    } finally {
+      stepperOn = false;
+    }
+  });
+
+  it('assign stepper on: video activities get the When body, and Schedule on sets the due date', async () => {
+    stepperOn = true;
+    try {
+      render(<ClassroomAddonTeacherSpike />);
+      fireEvent.click(screen.getByRole('tab', { name: 'Video Activity' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Video Activity' }));
+      fireEvent.click(
+        await screen.findByRole('option', { name: 'My Video Activity' })
+      );
+      expect(screen.getByRole('region', { name: 'When' })).toBeTruthy();
+      expect(
+        screen.queryByRole('region', { name: 'Quiz integrity' })
+      ).toBeNull();
+      fireEvent.click(screen.getByRole('switch', { name: 'Schedule' }));
+      fireEvent.click(
+        screen.getByRole('button', { name: /attach video activity/i })
+      );
+      await waitFor(() => expect(createVaAssignment).toHaveBeenCalled());
+      const settings = (
+        createVaAssignment.mock.calls.at(-1) as unknown[]
+      )[1] as { sessionOptions: { dueAt?: number } };
+      expect(typeof settings.sessionOptions.dueAt).toBe('number');
+    } finally {
+      stepperOn = false;
     }
   });
 });

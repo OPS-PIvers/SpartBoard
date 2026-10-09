@@ -1,5 +1,6 @@
 import React from 'react';
 import { ChevronRight, Lock } from 'lucide-react';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { QuizSession, QuizData, QuizResponse, QuizQuestion } from '@/types';
 import { gradeAnswer } from '@/hooks/useQuizSession';
 import {
@@ -30,6 +31,7 @@ export const QuestionResults: React.FC<QuestionResultsProps> = ({
         <button
           key={q.id}
           onClick={() => onOpenQuestion(i)}
+          {...tourFieldAttr('quiz-monitor.question-result', 'quiz', q.id)}
           className="flex items-center justify-between bg-white border border-brand-gray-lighter rounded-lg hover:border-brand-blue-light transition-colors text-left"
           style={{
             padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',

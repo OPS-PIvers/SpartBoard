@@ -1,3 +1,4 @@
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Loader2, ImageOff } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
@@ -110,6 +111,7 @@ export const StockPhotoPicker: React.FC<StockPhotoPickerProps> = ({
             <input
               type="text"
               value={query}
+              {...tourAttr('admin.backgrounds.stock-search')}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search photos (e.g. classroom, nature, chalkboard)..."
               className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-light focus:border-transparent"
@@ -135,6 +137,11 @@ export const StockPhotoPicker: React.FC<StockPhotoPickerProps> = ({
               {photos.map((photo) => (
                 <button
                   key={photo.id}
+                  {...tourFieldAttr(
+                    'admin.backgrounds.stock-photo',
+                    'admin',
+                    String(photo.id)
+                  )}
                   onClick={() => handleSelect(photo)}
                   className="group relative aspect-video rounded-lg overflow-hidden border-2 border-transparent hover:border-brand-blue-light transition-all focus:outline-none focus:ring-2 focus:ring-brand-blue-light"
                 >
@@ -165,6 +172,7 @@ export const StockPhotoPicker: React.FC<StockPhotoPickerProps> = ({
           {!loading && hasMore && photos.length > 0 && (
             <div className="flex justify-center py-4">
               <button
+                {...tourAttr('admin.backgrounds.stock-load-more')}
                 onClick={handleLoadMore}
                 className="px-4 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium transition-colors"
               >

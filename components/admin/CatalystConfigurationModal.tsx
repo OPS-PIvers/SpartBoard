@@ -36,6 +36,7 @@ import { useStorage } from '@/hooks/useStorage';
 import { createBoardSnapshot } from '@/utils/widgetHelpers';
 import { useDialog } from '@/context/useDialog';
 import { isSafeIconUrl } from '@/components/widgets/Catalyst/catalystHelpers';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024; // 2 MB
 const ALLOWED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
@@ -454,6 +455,11 @@ export const CatalystConfigurationModal: React.FC<
           <div className="flex items-center gap-3">
             {view === 'set-editor' && (
               <button
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'catalyst',
+                  'backToSets'
+                )}
                 onClick={() => {
                   setView('sets-list');
                   revokePreview();
@@ -465,6 +471,11 @@ export const CatalystConfigurationModal: React.FC<
             )}
             {view === 'routine-editor' && (
               <button
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'catalyst',
+                  'backToSet'
+                )}
                 onClick={() => {
                   setView('set-editor');
                   revokePreview();
@@ -485,6 +496,7 @@ export const CatalystConfigurationModal: React.FC<
             </div>
           </div>
           <button
+            {...tourTypeAttr('admin.widget-config.close', 'catalyst')}
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 transition-colors"
           >
@@ -513,6 +525,11 @@ export const CatalystConfigurationModal: React.FC<
                 <p className="text-sm text-slate-500">Up to 4 sets.</p>
                 {sets.length < 4 && (
                   <button
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'catalyst',
+                      'addSet'
+                    )}
                     onClick={openNewSetEditor}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-colors shrink-0 ml-4"
                   >
@@ -525,6 +542,11 @@ export const CatalystConfigurationModal: React.FC<
                 {sets.map((set) => (
                   <button
                     key={set.id}
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'catalyst',
+                      `set-${set.id}`
+                    )}
                     onClick={() => openSetEditor(set)}
                     className="relative rounded-xl overflow-hidden border border-slate-200 shadow-sm group hover:ring-2 focus:outline-none focus:ring-2 focus:ring-indigo-400 text-left"
                     style={{ minHeight: 140 }}
@@ -575,6 +597,11 @@ export const CatalystConfigurationModal: React.FC<
                       </label>
                       <input
                         type="text"
+                        {...tourFieldAttr(
+                          'admin.widget-config.field',
+                          'catalyst',
+                          'setTitle'
+                        )}
                         value={setEditor.title}
                         onChange={(e) =>
                           setSetEditor((p) =>
@@ -590,6 +617,11 @@ export const CatalystConfigurationModal: React.FC<
                         Description (Optional)
                       </label>
                       <textarea
+                        {...tourFieldAttr(
+                          'admin.widget-config.field',
+                          'catalyst',
+                          'setDescription'
+                        )}
                         value={setEditor.description}
                         onChange={(e) =>
                           setSetEditor((p) =>
@@ -657,6 +689,11 @@ export const CatalystConfigurationModal: React.FC<
                     Routines
                   </h3>
                   <button
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'catalyst',
+                      'addRoutine'
+                    )}
                     onClick={() => openRoutineEditor()}
                     className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 text-indigo-700 rounded-lg text-xs font-bold hover:bg-indigo-100 transition-colors"
                   >
@@ -707,12 +744,22 @@ export const CatalystConfigurationModal: React.FC<
 
                         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 bg-slate-50 shadow-sm rounded-md border border-slate-200 p-0.5">
                           <button
+                            {...tourFieldAttr(
+                              'admin.widget-config.field',
+                              'catalyst',
+                              `editRoutine-${routine.id}`
+                            )}
                             onClick={() => openRoutineEditor(routine)}
                             className="p-1 hover:bg-slate-200 rounded text-slate-600"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
+                            {...tourFieldAttr(
+                              'admin.widget-config.field',
+                              'catalyst',
+                              `removeRoutine-${routine.id}`
+                            )}
                             onClick={() => void handleDeleteRoutine(routine.id)}
                             className="p-1 hover:bg-red-100 rounded text-red-600"
                           >
@@ -735,6 +782,11 @@ export const CatalystConfigurationModal: React.FC<
                     </label>
                     <input
                       type="text"
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'catalyst',
+                        'routineTitle'
+                      )}
                       value={routineEditor.title}
                       onChange={(e) =>
                         setRoutineEditor((p) => ({
@@ -751,6 +803,11 @@ export const CatalystConfigurationModal: React.FC<
                       Description (Optional)
                     </label>
                     <textarea
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'catalyst',
+                        'routineDescription'
+                      )}
                       value={routineEditor.description}
                       onChange={(e) =>
                         setRoutineEditor((p) => ({
@@ -771,6 +828,11 @@ export const CatalystConfigurationModal: React.FC<
                         <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                         <input
                           type="text"
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'catalyst',
+                            'iconSearch'
+                          )}
                           value={iconSearch}
                           onChange={(e) => setIconSearch(e.target.value)}
                           placeholder="Search icon names..."
@@ -790,6 +852,11 @@ export const CatalystConfigurationModal: React.FC<
                           return (
                             <button
                               key={name}
+                              {...tourFieldAttr(
+                                'admin.widget-config.field',
+                                'catalyst',
+                                `icon-${name}`
+                              )}
                               onClick={() =>
                                 setRoutineEditor((prev) => ({
                                   ...prev,
@@ -815,6 +882,11 @@ export const CatalystConfigurationModal: React.FC<
                           Button Color
                           <input
                             type="color"
+                            {...tourFieldAttr(
+                              'admin.widget-config.field',
+                              'catalyst',
+                              'buttonColor'
+                            )}
                             value={routineEditor.buttonColor}
                             onChange={(e) =>
                               setRoutineEditor((prev) => ({
@@ -829,6 +901,11 @@ export const CatalystConfigurationModal: React.FC<
                           Icon Color
                           <input
                             type="color"
+                            {...tourFieldAttr(
+                              'admin.widget-config.field',
+                              'catalyst',
+                              'iconColor'
+                            )}
                             value={routineEditor.iconColor}
                             onChange={(e) =>
                               setRoutineEditor((prev) => ({
@@ -911,6 +988,11 @@ export const CatalystConfigurationModal: React.FC<
                       </p>
                     </div>
                     <button
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'catalyst',
+                        'captureBoard'
+                      )}
                       onClick={() => {
                         const snapshot = createBoardSnapshot(
                           (activeDashboard?.widgets ?? []).filter(
@@ -952,6 +1034,7 @@ export const CatalystConfigurationModal: React.FC<
         {view === 'sets-list' && onSave && (
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
             <button
+              {...tourTypeAttr('admin.widget-config.save', 'catalyst')}
               onClick={() => {
                 onSave({
                   config: globalConfig as unknown as Record<string, unknown>,
@@ -974,6 +1057,11 @@ export const CatalystConfigurationModal: React.FC<
               </p>
             )}
             <button
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'catalyst',
+                'cancelSet'
+              )}
               onClick={() => {
                 setView('sets-list');
                 revokePreview();
@@ -984,6 +1072,7 @@ export const CatalystConfigurationModal: React.FC<
               Cancel
             </button>
             <button
+              {...tourTypeAttr('admin.widget-config.save', 'catalyst')}
               onClick={() => void handleSaveSet()}
               disabled={saving || uploading || isAuthBypass}
               className="flex items-center gap-2 px-5 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors disabled:opacity-60"
@@ -1001,6 +1090,11 @@ export const CatalystConfigurationModal: React.FC<
         {view === 'routine-editor' && (
           <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
             <button
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'catalyst',
+                'cancelRoutine'
+              )}
               onClick={() => {
                 setView('set-editor');
                 revokePreview();
@@ -1011,6 +1105,11 @@ export const CatalystConfigurationModal: React.FC<
               Cancel
             </button>
             <button
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'catalyst',
+                'applyRoutine'
+              )}
               onClick={handleSaveRoutine}
               disabled={saving || uploading}
               className="flex items-center gap-2 px-5 py-2 bg-slate-800 text-white rounded-xl text-sm font-bold hover:bg-slate-900 transition-colors disabled:opacity-60"

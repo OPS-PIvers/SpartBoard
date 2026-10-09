@@ -49,18 +49,24 @@ export interface QuizAssignStepperProps {
   onWhenChange: (next: AssignWhenValue) => void;
   behavior: QuizBehaviorSettings;
   onBehaviorChange: (next: QuizBehaviorSettings) => void;
-  targeting: AssignTargetingValue;
-  onTargetingChange: (next: AssignTargetingValue) => void;
-  sharing: SharingStepValue;
-  onSharingChange: (next: SharingStepValue) => void;
-  plcs: readonly Plc[];
+  /** Omit to leave out per-student modifications (PLC quiz assign). */
+  modifications?: {
+    targeting: AssignTargetingValue;
+    onTargetingChange: (next: AssignTargetingValue) => void;
+    quizContext: ModificationsQuizContext;
+  };
+  /** Omit when sharing is fixed (PLC quiz assign, D21): no Sharing step. */
+  sharing?: {
+    value: SharingStepValue;
+    onChange: (next: SharingStepValue) => void;
+    plcs: readonly Plc[];
+  };
   periodAccess?: AssignPeriodAccessContext;
-  quizContext: ModificationsQuizContext;
   hasManualGrading: boolean;
   handRaiseMode: QuizHandRaiseMode;
   submitLabel: string;
   onClose: () => void;
-  onSubmit: () => void;
+  onSubmit: () => void | Promise<void>;
 }
 
 export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
@@ -72,13 +78,9 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   onWhenChange,
   behavior,
   onBehaviorChange,
-  targeting,
-  onTargetingChange,
+  modifications,
   sharing,
-  onSharingChange,
-  plcs,
   periodAccess,
-  quizContext,
   hasManualGrading,
   handRaiseMode,
   submitLabel,
@@ -90,9 +92,10 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   const [modsOpen, setModsOpen] = useState(false);
   const usable = rosters.filter((r) => !r.loadError);
   const picked = usable.filter((r) => classes.classIds.includes(r.id));
-  const inPlc = isSharingStepAvailable(plcs, 'work');
+  const plcs = sharing?.plcs ?? [];
+  const inPlc = !!sharing && isSharingStepAvailable(plcs, 'work');
   const ctx = { kind: 'work' as const, inPlc };
-  const needsPlc = inPlc && sharingNeedsPlc(sharing, plcs);
+  const needsPlc = !!sharing && inPlc && sharingNeedsPlc(sharing.value, plcs);
 
   const bodies: Record<string, Omit<AssignStepDef, 'id' | 'title'>> = {
     classes: {
@@ -109,11 +112,11 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
             value={classes}
             onChange={onClassesChange}
           />
-          {picked.length > 0 && (
+          {modifications && picked.length > 0 && (
             <ModificationsLink
               rosters={usable}
               selectedRosterIds={classes.classIds}
-              value={targeting}
+              value={modifications.targeting}
               onOpen={() => setModsOpen(true)}
             />
           )}
@@ -134,16 +137,27 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
           variant="when"
           rosters={picked}
           periodAccess={periodAccess}
+          // Per-class due dates save without bells; only a period gate saves per-class opens.
+          perClass
+          sharedOpens={!periodAccess}
         />
       ),
     },
-    sharing: {
-      value: needsPlc ? PICK_A_PLC : formatSharingValue(sharing, { plcs }),
-      body: (
-        <SharingStep value={sharing} onChange={onSharingChange} plcs={plcs} />
-      ),
-    },
   };
+  if (sharing) {
+    bodies.sharing = {
+      value: needsPlc
+        ? PICK_A_PLC
+        : formatSharingValue(sharing.value, { plcs }),
+      body: (
+        <SharingStep
+          value={sharing.value}
+          onChange={sharing.onChange}
+          plcs={plcs}
+        />
+      ),
+    };
+  }
   const ruleSteps = new Map(
     quizRuleStepDefs({
       value: behavior,
@@ -174,16 +188,16 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
       disabled={needsPlc}
       disabledReason={needsPlc ? PICK_A_PLC : undefined}
       overlayView={
-        modsOpen ? (
+        modifications && modsOpen ? (
           <ModificationsView
             activityTitle={title}
             rosters={usable}
             selectedRosterIds={classes.classIds}
-            value={targeting}
-            onChange={onTargetingChange}
+            value={modifications.targeting}
+            onChange={modifications.onTargetingChange}
             onBack={() => setModsOpen(false)}
             quizMode
-            quizContext={quizContext}
+            quizContext={modifications.quizContext}
           />
         ) : undefined
       }

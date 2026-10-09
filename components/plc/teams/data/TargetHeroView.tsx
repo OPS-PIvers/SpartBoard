@@ -17,6 +17,7 @@ import {
 } from '@/components/plc/redesignMockup/ui';
 import { NoResults } from './DataOverviewSections';
 import { useBandLabel, useDateFormat } from './format';
+import { tourAttr } from '@/config/tourAnchors';
 
 export interface TargetHeroViewProps {
   row: MasteryRow | null;
@@ -70,6 +71,7 @@ export const TargetHeroView: React.FC<TargetHeroViewProps> = ({
             title={t('plcDataOverview.changeTitle', {
               defaultValue: 'Change what the team sees first',
             })}
+            {...tourAttr('teams.hero.change')}
             onClick={onChange}
           >
             {t('plcDataOverview.change', { defaultValue: 'Change' })}

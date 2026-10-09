@@ -11,6 +11,7 @@ import {
   type ActionItemStatusFilter,
   type ActionItemView,
 } from '@/utils/plcActionItemView';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface NoteActionItemsToolbarProps {
   view: ActionItemView;
@@ -47,6 +48,7 @@ const ToolbarMenu: React.FC<{
   return (
     <div ref={ref}>
       <button
+        {...tourFieldAttr('plc-notes.toolbar-menu', 'plc', ariaLabel)}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
@@ -77,6 +79,11 @@ const ToolbarMenu: React.FC<{
                 const checked = o.value === section.value;
                 return (
                   <button
+                    {...tourFieldAttr(
+                      'plc-notes.toolbar-option',
+                      'plc',
+                      o.value
+                    )}
                     key={o.value}
                     type="button"
                     role="menuitemradio"
@@ -213,6 +220,7 @@ export const NoteActionItemsToolbar: React.FC<NoteActionItemsToolbarProps> = ({
 
   const resetButton = !isDefaultActionItemView(view) && (
     <button
+      {...tourAttr('plc-notes.toolbar-reset')}
       type="button"
       onClick={() => onChange(DEFAULT_ACTION_ITEM_VIEW)}
       className="inline-flex items-center gap-0.5 px-1.5 py-1 text-xxs font-semibold text-slate-500 hover:text-slate-700 rounded-md hover:bg-slate-100 transition-colors"
@@ -304,6 +312,7 @@ export const NoteActionItemsToolbar: React.FC<NoteActionItemsToolbarProps> = ({
   return (
     <div className="shrink-0 flex items-center flex-wrap gap-1.5 mb-2">
       <select
+        {...tourFieldAttr('plc-notes.toolbar-select', 'plc', 'sort')}
         value={view.sort}
         onChange={(e) =>
           onChange({ ...view, sort: e.target.value as ActionItemSort })
@@ -320,6 +329,7 @@ export const NoteActionItemsToolbar: React.FC<NoteActionItemsToolbarProps> = ({
         ))}
       </select>
       <select
+        {...tourFieldAttr('plc-notes.toolbar-select', 'plc', 'status')}
         value={view.status}
         onChange={(e) =>
           onChange({
@@ -339,6 +349,7 @@ export const NoteActionItemsToolbar: React.FC<NoteActionItemsToolbarProps> = ({
         ))}
       </select>
       <select
+        {...tourFieldAttr('plc-notes.toolbar-select', 'plc', 'due')}
         value={view.due}
         onChange={(e) =>
           onChange({ ...view, due: e.target.value as ActionItemDueFilter })
@@ -355,6 +366,7 @@ export const NoteActionItemsToolbar: React.FC<NoteActionItemsToolbarProps> = ({
         ))}
       </select>
       <select
+        {...tourFieldAttr('plc-notes.toolbar-select', 'plc', 'assignee')}
         value={view.assignee}
         onChange={(e) => onChange({ ...view, assignee: e.target.value })}
         aria-label={t('plcDashboard.notes.actionItems.view.assigneeLabel', {

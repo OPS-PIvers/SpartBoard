@@ -12,6 +12,7 @@ import {
 } from '@/utils/questionBanks';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
 import { BankTargetFilter } from './BankTargetFilter';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import type { QuizEditorBankApi } from './QuizEditorModal';
 
 export interface BankPickerModalProps {
@@ -157,6 +158,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
     <button
       key={s.key}
       type="button"
+      {...tourFieldAttr('quiz-banks.picker-source', 'quiz', s.key)}
       onClick={() => chooseSource(s)}
       className="w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-left hover:bg-slate-100"
     >
@@ -180,6 +182,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
   const modeTab = (value: Mode, label: string, Icon: typeof Shuffle) => (
     <button
       type="button"
+      {...tourFieldAttr('quiz-banks.picker-mode', 'quiz', value)}
       role="tab"
       aria-selected={mode === value}
       onClick={() => setMode(value)}
@@ -211,6 +214,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
           {source && (
             <button
               type="button"
+              {...tourTypeAttr('quiz-banks.picker-back', 'quiz')}
               onClick={() => setSource(null)}
               aria-label="Back to banks"
               className="p-1 rounded text-slate-500 hover:bg-slate-100"
@@ -223,6 +227,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
           </h4>
           <button
             type="button"
+            {...tourTypeAttr('quiz-banks.picker-close', 'quiz')}
             onClick={onClose}
             aria-label="Close"
             className="p-1 rounded text-slate-500 hover:bg-slate-100"
@@ -239,6 +244,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
                 <input
                   autoFocus
                   type="search"
+                  {...tourTypeAttr('quiz-banks.picker-search', 'quiz')}
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Search banks"
@@ -298,6 +304,10 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
                       <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input
                         type="search"
+                        {...tourTypeAttr(
+                          'quiz-banks.picker-question-search',
+                          'quiz'
+                        )}
                         value={pickQuery}
                         onChange={(e) => setPickQuery(e.target.value)}
                         placeholder="Search questions"
@@ -307,6 +317,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
                     </div>
                     <button
                       type="button"
+                      {...tourTypeAttr('quiz-banks.picker-select-all', 'quiz')}
                       onClick={() =>
                         setPicked(
                           picked.size === pickRows.length
@@ -333,6 +344,11 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
                       >
                         <input
                           type="checkbox"
+                          {...tourFieldAttr(
+                            'quiz-banks.picker-question-check',
+                            'quiz',
+                            question.id
+                          )}
                           className="mt-1 accent-brand-blue-primary"
                           checked={picked.has(question.id)}
                           onChange={() => togglePicked(question.id)}
@@ -364,6 +380,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
                       </label>
                       <input
                         id="bank-pick-count"
+                        {...tourTypeAttr('quiz-banks.picker-count', 'quiz')}
                         type="number"
                         min={1}
                         max={eligible || undefined}
@@ -382,6 +399,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
                       </label>
                       <input
                         id="bank-pick-points"
+                        {...tourTypeAttr('quiz-banks.picker-points', 'quiz')}
                         type="number"
                         min={1}
                         max={100}
@@ -424,6 +442,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
             <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-slate-200">
               <button
                 type="button"
+                {...tourTypeAttr('quiz-banks.picker-cancel', 'quiz')}
                 onClick={onClose}
                 className="px-3 py-1.5 text-sm font-semibold rounded-lg text-slate-700 hover:bg-slate-100"
               >
@@ -431,6 +450,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
               </button>
               <button
                 type="button"
+                {...tourTypeAttr('quiz-banks.picker-submit', 'quiz')}
                 onClick={submit}
                 disabled={
                   !content ||

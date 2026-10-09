@@ -69,6 +69,16 @@ describe('tourSandbox', () => {
     await expect(keepSandboxItem('quiz', 'new')).resolves.toBe(false);
   });
 
+  it('offers a seeded sample to keep only after the tour changed it', () => {
+    startTourSandbox();
+    sandboxPut('quiz', 's', item('s', 'Sample'), 'sample');
+    expect(keepableSandboxItems()).toEqual([]);
+    sandboxPut('quiz', 's', item('s', 'Sample edited'));
+    expect(keepableSandboxItems()).toEqual([
+      { kind: 'quiz', id: 's', title: 'Sample edited' },
+    ]);
+  });
+
   it('binds materials to items for the run and forgets them at the end', () => {
     startTourSandbox();
     bindTourMaterial('m1', 'quiz', 'x');
