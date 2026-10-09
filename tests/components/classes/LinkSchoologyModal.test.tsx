@@ -8,9 +8,13 @@ vi.mock('@/config/firebase', () => ({ functions: {} }));
 
 const linkMock = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 const suggestMock = vi.fn<(...args: unknown[]) => Promise<unknown>>();
+const previewByUrlMock = vi.fn<(...args: unknown[]) => Promise<unknown>>();
+const linkByUrlMock = vi.fn<(...args: unknown[]) => Promise<unknown>>();
 vi.mock('@/utils/ltiCourseLinks', () => ({
   linkLtiCourse: (...args: unknown[]) => linkMock(...args),
   suggestLtiClassLinkMatch: (...args: unknown[]) => suggestMock(...args),
+  previewLtiSectionByUrl: (...args: unknown[]) => previewByUrlMock(...args),
+  linkLtiSectionByUrl: (...args: unknown[]) => linkByUrlMock(...args),
 }));
 
 import { LinkSchoologyModal } from '@/components/classes/LinkSchoologyModal';
@@ -173,5 +177,99 @@ describe('LinkSchoologyModal', () => {
     expect(
       screen.getByText(/All your Schoology sections are linked/i)
     ).toBeInTheDocument();
+  });
+
+  it('hides the paste-link field unless the flag is on', () => {
+    render(
+      <LinkSchoologyModal
+        isOpen
+        onClose={vi.fn()}
+        rosters={[roster('rA', 'Period 1', 'cl-A')]}
+        seenSections={[]}
+        addToast={addToast}
+        updateRoster={updateRoster}
+      />
+    );
+    expect(
+      screen.queryByLabelText(/Paste a Schoology course link/i)
+    ).toBeNull();
+  });
+
+  it('links a pasted course to the class with the most shared students', async () => {
+    const url = 'https://orono.schoology.com/course/7660186912/materials';
+    previewByUrlMock.mockResolvedValue({
+      contextId: '7660186912',
+      contextTitle: 'Biology · P2',
+      learnerCount: 24,
+      suggestions: [{ rosterId: 'rB', overlap: 22 }],
+      linkedRosterId: null,
+    });
+    linkByUrlMock.mockResolvedValue({
+      ok: true,
+      contextId: '7660186912',
+      contextTitle: 'Biology · P2',
+    });
+    render(
+      <LinkSchoologyModal
+        isOpen
+        onClose={vi.fn()}
+        rosters={[
+          roster('rA', 'Period 1', 'cl-A'),
+          roster('rB', 'Period 2', 'cl-B'),
+          roster('rT', 'Test class', undefined, 'mock-p1'),
+        ]}
+        seenSections={[]}
+        addToast={addToast}
+        updateRoster={updateRoster}
+        pasteLinkEnabled
+      />
+    );
+    expect(
+      screen.queryByText(/All your Schoology sections are linked/i)
+    ).toBeNull();
+    fireEvent.change(screen.getByLabelText(/Paste a Schoology course link/i), {
+      target: { value: url },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Check/i }));
+    await waitFor(() => expect(previewByUrlMock).toHaveBeenCalledWith({}, url));
+
+    const select = await screen.findByLabelText(/Class to link/i);
+    expect(select).toHaveValue('rB');
+    // A class with no shared students can't be picked; test classes are offered too.
+    expect(
+      screen.getByRole('option', { name: /Period 1 \(no shared students\)/ })
+    ).toBeDisabled();
+    expect(screen.getByRole('option', { name: /Test class/ })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Link$/i }));
+    await waitFor(() =>
+      expect(linkByUrlMock).toHaveBeenCalledWith({}, url, 'rB')
+    );
+    await waitFor(() =>
+      expect(updateRoster).toHaveBeenCalledWith('rB', {
+        ltiContextId: '7660186912',
+      })
+    );
+    expect(addToast).toHaveBeenCalledWith(
+      'Linked “Biology · P2” to Period 2.',
+      'success'
+    );
+  });
+
+  it('offers the paste field with only admin test classes', () => {
+    render(
+      <LinkSchoologyModal
+        isOpen
+        onClose={vi.fn()}
+        rosters={[roster('rT', 'Test class', undefined, 'mock-p1')]}
+        seenSections={[]}
+        addToast={addToast}
+        updateRoster={updateRoster}
+        pasteLinkEnabled
+      />
+    );
+    expect(
+      screen.getByLabelText(/Paste a Schoology course link/i)
+    ).toBeTruthy();
   });
 });

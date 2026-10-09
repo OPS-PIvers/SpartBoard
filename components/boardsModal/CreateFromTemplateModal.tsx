@@ -1,3 +1,4 @@
+import { tourAttr } from '@/config/tourAnchors';
 import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
@@ -248,6 +249,7 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
                       }
                     }}
                     disabled={busyTemplateId !== null}
+                    {...tourAttr('boards-modal.template-pick')}
                     className="text-left text-sm font-bold text-slate-800 hover:text-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {tpl.name}

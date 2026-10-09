@@ -150,8 +150,9 @@ vi.mock('@/hooks/useSetAssignmentTargets', () => ({
   }),
 }));
 
+let mockPeriodAccess: unknown = undefined;
 vi.mock('@/hooks/useTeacherBellPeriods', () => ({
-  useAssignPeriodAccess: () => undefined,
+  useAssignPeriodAccess: () => mockPeriodAccess,
 }));
 
 vi.mock('@/hooks/useQuizHandRaiseMode', () => ({
@@ -611,6 +612,20 @@ describe('PlcNewQuizAssignmentModal with quiz-review-split on (D12)', () => {
     expect(opts.speedBonusEnabled).toBe(false);
     expect(opts.showResultToStudent).toBeUndefined();
   });
+
+  it('does not save last-used settings without the stepper', async () => {
+    mockSaveLastUsed.mockClear();
+    await renderAndPickQuiz();
+    act(() => {
+      fireEvent.click(
+        screen.getByRole('button', { name: /create assignment/i })
+      );
+    });
+    await waitFor(() => {
+      expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
+    });
+    expect(mockSaveLastUsed).not.toHaveBeenCalled();
+  });
 });
 
 describe('PlcNewQuizAssignmentModal with assign-stepper on (D21)', () => {
@@ -672,10 +687,43 @@ describe('PlcNewQuizAssignmentModal with assign-stepper on (D21)', () => {
     );
     // Whole classes need no per-student fan-out.
     expect(mockSetAssignmentTargets).not.toHaveBeenCalled();
+    // No period gate, so it starts paused and the toast says so.
     expect(mockAddToast).toHaveBeenCalledWith(
-      '"{{title}}" created and shared with this PLC.',
+      '"{{title}}" created (paused) and shared with this PLC.',
       'success'
     );
+  });
+
+  it('drops "(paused)" from the toast only when a period gate creates it active', async () => {
+    mockPeriodAccess = {
+      bellOptions: [],
+      bellWindow: () => null,
+      onTagRoster: vi.fn(),
+    };
+    try {
+      await renderAndPickQuiz();
+      act(() => {
+        props().onClassesChange({
+          classIds: ['c1', 'c2'],
+          studentsByClass: {},
+        });
+      });
+      await act(async () => {
+        await props().onSubmit(undefined);
+      });
+      const [, , options] = mockCreateAssignment.mock.calls[0] as [
+        unknown,
+        unknown,
+        Record<string, unknown>,
+      ];
+      expect(options.initialStatus).toBe('active');
+      expect(mockAddToast).toHaveBeenCalledWith(
+        '"{{title}}" created and shared with this PLC.',
+        'success'
+      );
+    } finally {
+      mockPeriodAccess = undefined;
+    }
   });
 
   it('fans out picked students through setAssignmentTargets', async () => {

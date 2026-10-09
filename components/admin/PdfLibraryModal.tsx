@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useId, useRef } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   collection,
   onSnapshot,
@@ -368,6 +369,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
             {view !== 'editor' && (
               <div className="flex bg-slate-100 p-1 rounded-xl mr-2">
                 <button
+                  {...tourAttr('admin.pdf-library.tab-library')}
                   onClick={() => setView('list')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xxs font-black uppercase tracking-widest transition-all ${
                     view === 'list'
@@ -379,6 +381,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
                   Library
                 </button>
                 <button
+                  {...tourAttr('admin.pdf-library.tab-settings')}
                   onClick={() => setView('settings')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xxs font-black uppercase tracking-widest transition-all ${
                     view === 'settings'
@@ -392,6 +395,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
               </div>
             )}
             <button
+              {...tourAttr('admin.pdf-library.modal-close')}
               onClick={onClose}
               className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
               aria-label="Close"
@@ -432,6 +436,11 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
                     {/* Reorder handle / index */}
                     <div className="flex flex-col items-center gap-0.5 shrink-0">
                       <button
+                        {...tourFieldAttr(
+                          'admin.pdf-library.move-up',
+                          'admin',
+                          pdf.id
+                        )}
                         onClick={() => handleMoveUp(idx)}
                         disabled={idx === 0}
                         className="text-slate-300 hover:text-slate-500 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
@@ -476,6 +485,11 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
                     {/* Actions */}
                     <div className="flex items-center gap-1 shrink-0">
                       <button
+                        {...tourFieldAttr(
+                          'admin.pdf-library.edit',
+                          'admin',
+                          pdf.id
+                        )}
                         onClick={() => openEditor(pdf)}
                         className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         title="Edit"
@@ -483,6 +497,11 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
                         <Pencil className="w-4 h-4" />
                       </button>
                       <button
+                        {...tourFieldAttr(
+                          'admin.pdf-library.delete',
+                          'admin',
+                          pdf.id
+                        )}
                         onClick={() => handleDelete(pdf)}
                         className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                         title="Delete"
@@ -508,6 +527,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
             />
             <div className="pt-2">
               <button
+                {...tourAttr('admin.pdf-library.save-settings')}
                 onClick={handleSaveSettings}
                 disabled={isSavingSettings}
                 className="w-full flex items-center justify-center gap-2 px-5 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md shadow-red-100 transition-all active:scale-95"
@@ -538,6 +558,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
                   className="flex items-center gap-3"
                 >
                   <button
+                    {...tourAttr('admin.pdf-library.upload-pdf')}
                     onClick={() => fileInputRef.current?.click()}
                     className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-black uppercase tracking-wider transition-colors flex items-center gap-2"
                   >
@@ -565,6 +586,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
               <div>
                 <SettingsLabel htmlFor={pdfNameId}>PDF Name</SettingsLabel>
                 <input
+                  {...tourAttr('admin.pdf-library.title')}
                   id={pdfNameId}
                   type="text"
                   value={editTitle}
@@ -591,6 +613,11 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
                     const isSelected = editBuildings.includes(building.id);
                     return (
                       <button
+                        {...tourFieldAttr(
+                          'admin.pdf-library.building',
+                          'admin',
+                          building.id
+                        )}
                         key={building.id}
                         type="button"
                         onClick={() => toggleBuilding(building.id)}
@@ -623,12 +650,14 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
             {/* Footer Actions */}
             <div className="shrink-0 border-t border-slate-100 px-5 py-3 flex gap-3">
               <button
+                {...tourAttr('admin.pdf-library.cancel')}
                 onClick={cancelEditor}
                 className="px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors"
               >
                 Cancel
               </button>
               <button
+                {...tourAttr('admin.pdf-library.save')}
                 onClick={handleSave}
                 disabled={
                   saving || !editTitle.trim() || (!editFile && !editExistingUrl)
@@ -655,6 +684,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
         {view === 'list' && (
           <div className="shrink-0 border-t border-slate-100 px-5 py-3 flex items-center justify-end">
             <button
+              {...tourAttr('admin.pdf-library.new-pdf')}
               onClick={() => openEditor()}
               className="flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md shadow-red-200 transition-all"
             >

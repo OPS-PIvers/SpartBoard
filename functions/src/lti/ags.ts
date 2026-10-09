@@ -122,7 +122,8 @@ export function scoresUrl(lineitemUrl: string): string {
 export interface AgsScore {
   /** The LTI `sub` of the student (the platform user id). */
   userId: string;
-  scoreGiven: number;
+  /** Omitted for a comment-only post, which leaves the cell blank. */
+  scoreGiven?: number;
   scoreMaximum: number;
   comment?: string;
 }
@@ -138,12 +139,18 @@ export async function postScore(opts: {
   score: AgsScore;
   timestamp: string;
 }): Promise<{ ok: boolean; status: number; isRedirect: boolean }> {
+  const { scoreGiven } = opts.score;
+  // Schoology keeps a comment posted as Initialized/NotReady on a blank cell.
   const payload = {
     userId: opts.score.userId,
-    scoreGiven: opts.score.scoreGiven,
-    scoreMaximum: opts.score.scoreMaximum,
-    activityProgress: 'Completed',
-    gradingProgress: 'FullyGraded',
+    ...(scoreGiven === undefined
+      ? { activityProgress: 'Initialized', gradingProgress: 'NotReady' }
+      : {
+          scoreGiven,
+          scoreMaximum: opts.score.scoreMaximum,
+          activityProgress: 'Completed',
+          gradingProgress: 'FullyGraded',
+        }),
     timestamp: opts.timestamp,
     ...(opts.score.comment ? { comment: opts.score.comment } : {}),
   };

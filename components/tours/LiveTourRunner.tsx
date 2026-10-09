@@ -73,6 +73,7 @@ import {
   missingSetupWidgets,
   planTourSetup,
   autopilotGate,
+  replayGate,
   DEFAULT_TOUR_AUTOPILOT_POLICY,
   resolveTourAutopilotPolicy,
   tourLayoutOverridesAt,
@@ -115,6 +116,7 @@ import {
   type SavedTour,
 } from './tourResume';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
+import { openPopupBoxes, shieldTourUi, withNearbyPopups } from './popups';
 import { startTourRunLog, type TourRunLog } from './tourRuns';
 import {
   clearTourEdit,
@@ -262,12 +264,14 @@ const readViewport = () =>
     ? { w: 0, h: 0 }
     : { w: window.innerWidth, h: window.innerHeight };
 
-/** The dock, Sidebar pill and FABs, which the callout keeps clear of. */
-const tourObstacles = () =>
-  Array.from(document.querySelectorAll('[data-tour-obstacle]'))
+/** The dock, Sidebar pill, FABs and open menus, which the callout keeps clear of. */
+const tourObstacles = () => [
+  ...Array.from(document.querySelectorAll('[data-tour-obstacle]'))
     .map((el) => el.getBoundingClientRect())
     .filter((r) => r.width > 0 && r.height > 0)
-    .map((r) => ({ x: r.x, y: r.y, w: r.width, h: r.height }));
+    .map((r) => ({ x: r.x, y: r.y, w: r.width, h: r.height })),
+  ...openPopupBoxes(),
+];
 
 const SHAKE: Keyframe[] = [
   { transform: 'translateX(0)' },
@@ -1208,6 +1212,8 @@ export const LiveTourRunner: React.FC = () => {
     setTourRunning(active);
     return () => setTourRunning(false);
   }, [active]);
+  // Next and the bar never close a menu the step is about.
+  useEffect(() => (active ? shieldTourUi() : undefined), [active]);
   // Escape never destroys work: Keep on teardown, Cancel on the practice offer.
   const finishRef = useRef(finish);
   finishRef.current = !tour
@@ -1280,6 +1286,24 @@ export const LiveTourRunner: React.FC = () => {
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, [active]);
+  // A menu opened or closed by a click re-places the callout off it.
+  const [, setPopupKey] = useState('');
+  useEffect(() => {
+    if (!active) return;
+    const timers: number[] = [];
+    const check = () =>
+      setPopupKey(JSON.stringify(openPopupBoxes().map((b) => [b.x, b.y])));
+    const onInput = () => {
+      timers.push(window.setTimeout(check, 60), window.setTimeout(check, 350));
+    };
+    window.addEventListener('click', onInput, true);
+    window.addEventListener('keyup', onInput, true);
+    return () => {
+      window.removeEventListener('click', onInput, true);
+      window.removeEventListener('keyup', onInput, true);
+      timers.forEach((id) => window.clearTimeout(id));
+    };
+  }, [active]);
   useEffect(() => {
     if (!escapable) return;
     const onKey = (e: KeyboardEvent) => {
@@ -1320,8 +1344,12 @@ export const LiveTourRunner: React.FC = () => {
     ? { x: rect.x, y: rect.y, w: rect.width, h: rect.height }
     : null;
   const obstacles = tour ? tourObstacles() : [];
-  const placement = target
-    ? placeCallout({ box, target, container: viewport, obstacles })
+  // A menu the step's control opened is lit and kept clear along with it.
+  const spot = target
+    ? withNearbyPopups(target, tour ? openPopupBoxes() : [])
+    : null;
+  const placement = spot
+    ? placeCallout({ box, target: spot, container: viewport, obstacles })
     : null;
   const tether =
     placement && target
@@ -1418,11 +1446,11 @@ export const LiveTourRunner: React.FC = () => {
       setAuto(null);
       return;
     }
-    // A sandboxed editor replay clicks every step on the way to the selection.
+    // A sandboxed editor replay clicks every step on the way, stopping before real writes.
     const clickAll = !!tour.edit && !!tour.sandboxed && jumping;
     const gate = canPerform(binding)
       ? clickAll
-        ? 'perform'
+        ? replayGate(binding, tour.policy)
         : autopilotGate(binding, tour.policy)
       : 'teacher';
     if (gate === 'teacher' || (gate === 'confirm' && !consented)) {
@@ -1593,10 +1621,8 @@ export const LiveTourRunner: React.FC = () => {
     autoStage === 'blocked' ||
     autoStage === 'confirm' ||
     autoStage === 'fallback';
-  const editRect =
-    tour?.edit && rect
-      ? { x: rect.x, y: rect.y, w: rect.width, h: rect.height }
-      : null;
+  // The panel steps aside from a menu the control opened, not just the control.
+  const editRect = tour?.edit && spot ? spot : null;
   const playbackKey = tour?.edit
     ? JSON.stringify([
         stepIndex,
@@ -1971,7 +1997,9 @@ export const LiveTourRunner: React.FC = () => {
       <>
         {showDim && (
           <TourSpotlight
-            rect={rect}
+            rect={
+              spot && { x: spot.x, y: spot.y, width: spot.w, height: spot.h }
+            }
             onMisclick={misclick}
             pulse={anchor.centred}
             breathe={acted && !isMissing && !autoRunning && !autoBusy}

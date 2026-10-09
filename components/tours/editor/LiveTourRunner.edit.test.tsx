@@ -110,7 +110,12 @@ const makeSet = (steps: Binding[]): GuidedLearningSet =>
     tourSetup: { widgets: [], useTeacherBoard: true, autopilot: true },
   }) as unknown as GuidedLearningSet;
 
-const clicks = { boards: vi.fn(), dice: vi.fn(), menu: vi.fn() };
+const clicks = {
+  boards: vi.fn(),
+  dice: vi.fn(),
+  menu: vi.fn(),
+  invite: vi.fn(),
+};
 
 const Fixture: React.FC = () => (
   <div>
@@ -122,6 +127,9 @@ const Fixture: React.FC = () => (
     </button>
     <button {...tourAttr('sidebar.backgrounds')} onClick={clicks.menu}>
       Menu
+    </button>
+    <button {...tourAttr('plc-edit.send-invite')} onClick={clicks.invite}>
+      Invite
     </button>
   </div>
 );
@@ -351,6 +359,25 @@ describe('LiveTourRunner edit mode', () => {
       expect(clicks.boards).toHaveBeenCalledTimes(1);
       expect(clicks.dice).toHaveBeenCalledTimes(1);
       expect(getTourEditPlayback()).toMatchObject({ index: 2, jumping: false });
+    });
+
+    it('stops before a step that would write real data', async () => {
+      await edit(
+        makeSet([
+          STEPS[0],
+          { anchor: 'plc-edit.send-invite', action: 'click' },
+          ...STEPS.slice(1),
+        ]),
+        0,
+        true
+      );
+      await run(300);
+      act(() => selectTourEditStep(3));
+      await run(3000);
+      expect(clicks.boards).toHaveBeenCalledTimes(1);
+      expect(clicks.invite).not.toHaveBeenCalled();
+      expect(clicks.dice).not.toHaveBeenCalled();
+      expect(getTourEditPlayback().index).toBe(1);
     });
 
     it('keeps edits in a sandbox until the editor closes', async () => {

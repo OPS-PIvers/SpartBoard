@@ -122,6 +122,14 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
             value={item.task}
             onChange={(e) => onUpdate(item.id, { task: e.target.value })}
             placeholder="Task name"
+            {...(widgetType
+              ? tourFieldAttr(
+                  'widget-settings.schedule.event-name',
+                  widgetType,
+                  `event-${(rowIndex ?? 0) + 1}`
+                )
+              : {})}
+            data-tour-widget={widgetId}
             className="flex-1 px-2 py-1.5 text-sm border border-slate-200 rounded focus:border-blue-400 outline-none min-w-0"
           />
           {isOneOff && (
@@ -200,6 +208,14 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
                       writeDuration(Number(e.target.value), seconds)
                     }
                     aria-label="Timer minutes"
+                    {...(widgetType
+                      ? tourFieldAttr(
+                          'widget-settings.schedule.event-timer-minutes',
+                          widgetType,
+                          `event-${(rowIndex ?? 0) + 1}`
+                        )
+                      : {})}
+                    data-tour-widget={widgetId}
                     className="w-14 min-w-0 px-1.5 py-1 text-xs text-center border border-slate-200 rounded outline-none tabular-nums"
                   />
                   <span className="text-xs text-slate-400 font-semibold select-none">
@@ -215,6 +231,14 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
                       writeDuration(minutes, Number(e.target.value))
                     }
                     aria-label="Timer seconds"
+                    {...(widgetType
+                      ? tourFieldAttr(
+                          'widget-settings.schedule.event-timer-seconds',
+                          widgetType,
+                          `event-${(rowIndex ?? 0) + 1}`
+                        )
+                      : {})}
+                    data-tour-widget={widgetId}
                     className="w-14 min-w-0 px-1.5 py-1 text-xs text-center border border-slate-200 rounded outline-none tabular-nums"
                   />
                   <span className="text-xxs text-slate-400 uppercase tracking-wide ml-1">
@@ -227,6 +251,14 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
             <>
               <input
                 type="time"
+                {...(widgetType
+                  ? tourFieldAttr(
+                      'widget-settings.schedule.event-start-time',
+                      widgetType,
+                      `event-${(rowIndex ?? 0) + 1}`
+                    )
+                  : {})}
+                data-tour-widget={widgetId}
                 value={item.startTime ?? item.time ?? ''}
                 onChange={(e) =>
                   onUpdate(item.id, {
@@ -238,6 +270,14 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
               />
               <input
                 type="time"
+                {...(widgetType
+                  ? tourFieldAttr(
+                      'widget-settings.schedule.event-end-time',
+                      widgetType,
+                      `event-${(rowIndex ?? 0) + 1}`
+                    )
+                  : {})}
+                data-tour-widget={widgetId}
                 value={item.endTime ?? ''}
                 onChange={(e) => onUpdate(item.id, { endTime: e.target.value })}
                 className="flex-1 min-w-0 px-1.5 py-1 text-xs border border-slate-200 rounded outline-none"
@@ -282,6 +322,14 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
                 : 'Clock mode — click for timer'
             }
             aria-pressed={item.mode === 'timer'}
+            {...(widgetType
+              ? tourFieldAttr(
+                  'widget-settings.schedule.event-mode',
+                  widgetType,
+                  `event-${(rowIndex ?? 0) + 1}`
+                )
+              : {})}
+            data-tour-widget={widgetId}
           >
             <Timer className="w-3.5 h-3.5" />
           </button>
@@ -295,6 +343,14 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
             }`}
             title="Auto-launch widget"
             aria-pressed={isExpanded}
+            {...(widgetType
+              ? tourFieldAttr(
+                  'widget-settings.schedule.event-auto-launch',
+                  widgetType,
+                  `event-${(rowIndex ?? 0) + 1}`
+                )
+              : {})}
+            data-tour-widget={widgetId}
           >
             <Link className="w-3.5 h-3.5" />
           </button>
@@ -326,6 +382,14 @@ export const SortableScheduleItem: React.FC<SortableScheduleItemProps> =
                         : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                     }`}
                     aria-pressed={isSelected}
+                    {...(widgetType
+                      ? tourFieldAttr(
+                          'widget-settings.schedule.event-auto-launch-widget',
+                          widgetType,
+                          `event-${(rowIndex ?? 0) + 1}-${w.type}`
+                        )
+                      : {})}
+                    data-tour-widget={widgetId}
                   >
                     {isSelected && (
                       <CheckCircle2 className="w-2.5 h-2.5 text-blue-500 shrink-0" />

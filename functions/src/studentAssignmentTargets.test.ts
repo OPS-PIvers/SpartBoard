@@ -1552,16 +1552,18 @@ describe('handleSetAssignmentTargets — mixed class and student targets', () =>
     expect(narrowAt).toBeLessThan(pointerAt);
   });
 
-  it('ignores class ids the session does not target', async () => {
-    await runMixed(
-      baseInput({
-        targetMode: 'class',
-        add: [{ kind: 'classlink', sourcedId: SOURCED_C }],
-        studentTargetClassIds: [CLASS_B, 'class-elsewhere'],
-      })
-    );
-    expect(session().studentTargetClassIds).toEqual([CLASS_B]);
-    expect(assignment().studentTargetClassIds).toEqual([CLASS_B]);
+  it('refuses class ids the session does not target, before any write', async () => {
+    await expect(
+      runMixed(
+        baseInput({
+          targetMode: 'class',
+          add: [{ kind: 'classlink', sourcedId: SOURCED_C }],
+          studentTargetClassIds: [CLASS_B, 'class-elsewhere'],
+        })
+      )
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+    expect(state.writes).toEqual([]);
+    expect('studentTargetClassIds' in session()).toBe(false);
   });
 
   it('reveals a class going back to whole only after its pointers are deleted', async () => {

@@ -1,5 +1,5 @@
 import React from 'react';
-import type { tourAttr } from '@/config/tourAnchors';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 
 export interface ToggleProps {
   checked: boolean;
@@ -28,8 +28,8 @@ export interface ToggleProps {
    * 'transparent' - Semi-transparent background for dark containers
    */
   variant?: 'standard' | 'transparent';
-  /** Live-tour anchor attrs from `tourAttr`. */
-  anchor?: ReturnType<typeof tourAttr>;
+  /** Live-tour anchor attrs. */
+  anchor?: TourAnchorAttrs;
 }
 
 export const Toggle: React.FC<ToggleProps> = ({

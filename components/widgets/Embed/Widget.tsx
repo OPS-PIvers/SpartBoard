@@ -32,6 +32,7 @@ import { Z_INDEX } from '@/config/zIndex';
 import { applyAutoplay } from './applyAutoplay';
 import { applyStartAt } from './applyStartAt';
 import { applyLinkedSlide } from './applyLinkedSlide';
+import { tourAttr } from '@/config/tourAnchors';
 
 const NEW_WIDGET_SPACING = 20;
 const TOOLBAR_GAP = 6;
@@ -444,6 +445,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               >
                 <div className="flex items-center bg-white/80 backdrop-blur-sm shadow-sm border border-slate-200/50 rounded-lg overflow-hidden">
                   <button
+                    {...tourAttr('embed.zoom-out', widget.id, widget.type)}
                     onClick={handleZoomOut}
                     disabled={!canZoomOut}
                     className="text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
@@ -460,6 +462,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   </button>
                   <span title={isDefaultZoom ? 'Current zoom' : undefined}>
                     <button
+                      {...tourAttr('embed.zoom-level', widget.id, widget.type)}
                       onClick={handleZoomReset}
                       disabled={isDefaultZoom}
                       className="px-1 font-mono font-bold text-slate-600 select-none hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:cursor-default disabled:hover:text-slate-600 disabled:hover:bg-transparent"
@@ -473,6 +476,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     </button>
                   </span>
                   <button
+                    {...tourAttr('embed.zoom-in', widget.id, widget.type)}
                     onClick={handleZoomIn}
                     disabled={!canZoomIn}
                     className="text-slate-500 hover:text-blue-500 hover:bg-slate-50 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
@@ -489,6 +493,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   </button>
                   {!isDefaultZoom && (
                     <button
+                      {...tourAttr('embed.zoom-reset', widget.id, widget.type)}
                       onClick={handleZoomReset}
                       className="text-slate-400 hover:text-orange-500 hover:bg-orange-50 transition-colors border-l border-slate-200/50"
                       style={{ padding: 'min(8px, 1vmin)' }}
@@ -506,6 +511,11 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 </div>
                 {canGenerateApp && (
                   <button
+                    {...tourAttr(
+                      'embed.generate-mini-app',
+                      widget.id,
+                      widget.type
+                    )}
                     onClick={handleGenerateMiniApp}
                     disabled={isGeneratingApp}
                     className="bg-white/80 backdrop-blur-sm hover:bg-indigo-50 text-indigo-500 shadow-sm border border-indigo-200/50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
@@ -533,6 +543,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 )}
                 {canReload && (
                   <button
+                    {...tourAttr('embed.reload', widget.id, widget.type)}
                     onClick={(e) => {
                       e.stopPropagation();
                       setRefreshKey((prev) => prev + 1);
@@ -552,6 +563,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 )}
                 {displayMode === 'url' && sanitizedUrl && (
                   <a
+                    {...tourAttr('embed.open-link', widget.id, widget.type)}
                     href={sanitizedUrl}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -610,6 +622,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   "This website's security policy prevents it from being displayed here."}
               </p>
               <a
+                {...tourAttr('embed.open-blocked', widget.id, widget.type)}
                 href={sanitizedUrl}
                 target="_blank"
                 rel="noopener noreferrer"

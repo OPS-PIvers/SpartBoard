@@ -30,6 +30,7 @@ import {
 import { Z_INDEX } from '@/config/zIndex';
 import type { GuidedLearningMediaKind } from '@/utils/guidedLearningMedia';
 import { canCaptureDisplay, grabFrame } from '../utils/displayCapture';
+import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 export type CaptureMode = 'snap' | 'record' | 'video-file';
 
@@ -315,6 +316,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
           <button
             onClick={onClose}
             className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            {...tourAttr('modal.close')}
             aria-label="Close capture"
           >
             <X className="w-5 h-5" />
@@ -345,6 +347,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
                 <>
                   <Film className="w-10 h-10" />
                   <button
+                    {...tourAttr('gl-capture.upload')}
                     onClick={() => fileInputRef.current?.click()}
                     className="flex items-center gap-2 px-4 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg text-sm transition-colors"
                   >
@@ -357,6 +360,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
                 <>
                   <MonitorUp className="w-10 h-10" />
                   <button
+                    {...tourAttr('gl-capture.screen-start')}
                     onClick={() => void startShare()}
                     className="flex items-center gap-2 px-4 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg text-sm transition-colors"
                   >
@@ -385,6 +389,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
 
           {mode === 'snap' && sharing && (
             <button
+              {...tourAttr('gl-capture.snap')}
               onClick={() => void handleSnap()}
               disabled={busy}
               className="flex items-center gap-2 px-4 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white font-bold rounded-lg text-sm transition-colors"
@@ -400,6 +405,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
 
           {mode === 'record' && sharing && !recording && (
             <button
+              {...tourAttr('gl-capture.record-start')}
               onClick={startRecording}
               className="flex items-center gap-2 px-4 py-2 bg-brand-red-primary hover:bg-brand-red-dark text-white font-bold rounded-lg text-sm transition-colors"
             >
@@ -409,6 +415,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
           )}
           {mode === 'record' && recording && (
             <button
+              {...tourAttr('gl-capture.record-stop')}
               onClick={stopRecording}
               className="flex items-center gap-2 px-4 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg text-sm transition-colors"
             >
@@ -420,6 +427,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
           {mode === 'video-file' && videoFile && (
             <>
               <button
+                {...tourAttr('gl-capture.add-frame')}
                 onClick={() => {
                   videoRef.current?.pause();
                   void handleSnap();
@@ -435,6 +443,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
                 Add frame
               </button>
               <button
+                {...tourAttr('gl-capture.add-video')}
                 onClick={() => void handleAddWholeVideo()}
                 disabled={busy}
                 className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:border-slate-400 disabled:opacity-50 text-slate-700 font-bold rounded-lg text-sm transition-colors"
@@ -443,6 +452,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
                 Add whole video
               </button>
               <button
+                {...tourAttr('gl-capture.upload-video')}
                 onClick={() => fileInputRef.current?.click()}
                 className="text-xs font-bold text-slate-500 hover:text-slate-700 transition-colors px-2 py-2"
               >
@@ -453,6 +463,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
 
           {(mode === 'snap' || mode === 'record') && sharing && !recording && (
             <button
+              {...tourAttr('gl-capture.screen-stop')}
               onClick={stopStream}
               className="text-xs font-bold text-slate-500 hover:text-slate-700 transition-colors px-2 py-2"
             >
@@ -470,6 +481,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
               </span>
             )}
             <button
+              {...tourTypeAttr('editor.close', 'guided-learning')}
               onClick={onClose}
               className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg text-sm transition-colors"
             >

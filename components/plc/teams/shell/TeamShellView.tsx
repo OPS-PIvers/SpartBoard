@@ -17,6 +17,7 @@ import {
   HomeAvatarStack,
   type HomeAvatarPerson,
 } from '@/components/plc/home/HomeAvatarCluster';
+import { tourAttr } from '@/config/tourAnchors';
 
 export interface TeamRailItem {
   id: string;
@@ -136,6 +137,7 @@ export const TeamShellView: React.FC<TeamShellViewProps> = ({
           className={HEADER_BTN}
           aria-expanded={overlay === 'whatsnew'}
           data-team-overlay-toggle
+          {...tourAttr('teams.shell.whats-new')}
           onClick={() => toggle('whatsnew')}
         >
           <Bell className="h-4 w-4" aria-hidden="true" />
@@ -149,6 +151,7 @@ export const TeamShellView: React.FC<TeamShellViewProps> = ({
           className={HEADER_BTN}
           aria-expanded={overlay === 'myitems'}
           data-team-overlay-toggle
+          {...tourAttr('teams.shell.my-items')}
           onClick={() => toggle('myitems')}
         >
           <Inbox className="h-4 w-4" aria-hidden="true" />
@@ -171,6 +174,7 @@ export const TeamShellView: React.FC<TeamShellViewProps> = ({
             className={`${HEADER_ICON} hidden md:block`}
             aria-label={t('teams.header.search', { defaultValue: 'Search' })}
             title={t('teams.header.search', { defaultValue: 'Search' })}
+            {...tourAttr('teams.shell.search')}
             onClick={() => toggle('search')}
           >
             <Search className="h-5 w-5" aria-hidden="true" />
@@ -184,6 +188,7 @@ export const TeamShellView: React.FC<TeamShellViewProps> = ({
           aria-expanded={overlay === 'gear'}
           data-team-overlay-toggle
           aria-haspopup="menu"
+          {...tourAttr('teams.shell.team-menu')}
           onClick={() => toggle('gear')}
         >
           <SettingsIcon className="h-5 w-5" aria-hidden="true" />
@@ -193,6 +198,7 @@ export const TeamShellView: React.FC<TeamShellViewProps> = ({
           className={HEADER_ICON}
           aria-label={t('plcDashboard.close', { defaultValue: 'Close' })}
           title={t('plcDashboard.close', { defaultValue: 'Close' })}
+          {...tourAttr('teams.shell.close')}
           onClick={onClose}
         >
           <X className="h-5 w-5" aria-hidden="true" />

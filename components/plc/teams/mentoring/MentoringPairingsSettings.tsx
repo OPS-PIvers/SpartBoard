@@ -12,6 +12,7 @@ import {
 import type { Plc, PlcMentorRole } from '@/types';
 import { logError } from '@/utils/logError';
 import { mentoringRoster, pairNames } from '@/utils/mentoring';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const SELECT =
   'rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30';
@@ -62,6 +63,11 @@ export const MentoringPairingsSettings: React.FC<{ plc: Plc }> = ({ plc }) => {
                 aria-label={m.displayName || m.email}
                 className={SELECT}
                 disabled={busy}
+                {...tourFieldAttr(
+                  'teams.pairing.member-role',
+                  'teams-mentoring',
+                  m.uid
+                )}
                 value={m.mentorRole ?? ''}
                 onChange={(e) =>
                   void run(
@@ -99,6 +105,11 @@ export const MentoringPairingsSettings: React.FC<{ plc: Plc }> = ({ plc }) => {
                   variant="ghost"
                   size="sm"
                   disabled={busy}
+                  {...tourFieldAttr(
+                    'teams.pairing.remove',
+                    'teams-mentoring',
+                    ws.id
+                  )}
                   onClick={() => {
                     if (
                       window.confirm(
@@ -118,6 +129,7 @@ export const MentoringPairingsSettings: React.FC<{ plc: Plc }> = ({ plc }) => {
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <select
             aria-label="Mentor"
+            {...tourAttr('teams.pairing.mentor-select')}
             className={SELECT}
             value={mentor}
             onChange={(e) => setMentor(e.target.value)}
@@ -132,6 +144,7 @@ export const MentoringPairingsSettings: React.FC<{ plc: Plc }> = ({ plc }) => {
           <span className="text-sm text-slate-400">and</span>
           <select
             aria-label="Mentee"
+            {...tourAttr('teams.pairing.mentee-select')}
             className={SELECT}
             value={mentee}
             onChange={(e) => setMentee(e.target.value)}
@@ -147,6 +160,7 @@ export const MentoringPairingsSettings: React.FC<{ plc: Plc }> = ({ plc }) => {
             size="sm"
             variant="secondary"
             disabled={busy || !mentor || !mentee}
+            {...tourAttr('teams.pairing.add')}
             onClick={() =>
               void run(async () => {
                 await createPairing(plc, mentor, mentee);

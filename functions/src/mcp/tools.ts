@@ -27,7 +27,7 @@ import {
   CONTENT_TYPES,
   FOLDER_COLLECTIONS,
   FOLDER_COLORS,
-  MAX_FOLDERS,
+  loadAllFolders,
   assertFolder,
   folderPath,
   iso,
@@ -35,7 +35,6 @@ import {
   resolveFolderPath,
   run,
   titleAndFolderFilter,
-  toFolderRow,
   type FolderContentType,
   type FolderRow,
 } from './toolKit';
@@ -196,13 +195,8 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
       })
   );
 
-  const loadFolders = async (contentType: FolderContentType) => {
-    const snap = await db
-      .collection(`users/${uid}/${FOLDER_COLLECTIONS[contentType]}`)
-      .limit(MAX_FOLDERS)
-      .get();
-    return snap.docs.map((d) => toFolderRow(d.id, d.data()));
-  };
+  const loadFolders = (contentType: FolderContentType) =>
+    loadAllFolders(db, `users/${uid}/${FOLDER_COLLECTIONS[contentType]}`);
 
   server.registerTool(
     'list_folders',

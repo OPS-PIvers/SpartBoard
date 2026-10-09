@@ -27,6 +27,7 @@ import { ListOrdered, RefreshCcw } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useDialog } from '@/context/useDialog';
 import { useInSubShare } from '@/hooks/useShareContent';
+import { tourAttr } from '@/config/tourAnchors';
 
 /** A stable reference, so a share does not re-derive the queue every render. */
 const EMPTY_QUEUE: NextUpQueueItem[] = [];
@@ -375,6 +376,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
             {!inShare && (
               <>
                 <button
+                  {...tourAttr('next-up.reset-queue', widget.id, widget.type)}
                   onClick={handleResetQueue}
                   className="hover:bg-white/10 rounded transition-colors"
                   style={{ padding: 'min(4px, 1cqmin)' }}
@@ -388,6 +390,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
                   />
                 </button>
                 <button
+                  {...tourAttr('next-up.next-student', widget.id, widget.type)}
                   onClick={handleNextStudent}
                   disabled={loading}
                   className="bg-white/20 hover:bg-white/30 rounded font-bold transition-all text-white disabled:opacity-50"

@@ -13,7 +13,7 @@ import { useModalFullscreenEnabled } from '@/hooks/useModalFullscreenEnabled';
 import { useDialog } from '@/context/useDialog';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { useAutosave, type AutosaveStatus } from '@/hooks/useAutosave';
-import { tourTypeAttr } from '@/config/tourAnchors';
+import { tourTypeAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 
 export interface EditorAutosaveConfig {
   /**
@@ -132,6 +132,8 @@ interface EditorModalShellProps {
   allowFullscreen?: boolean;
   /** Widget type that scopes the title and Close live-tour anchors; omit to leave them untagged. */
   tourScope?: string;
+  /** Live-tour anchor for the Save button. */
+  saveAnchor?: TourAnchorAttrs;
   children: React.ReactNode;
 }
 
@@ -177,6 +179,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   saveErrorMessage = 'Could not save your changes. Please try again.',
   allowFullscreen = true,
   tourScope,
+  saveAnchor,
   children,
 }) => {
   const fullscreenAvailable = useModalFullscreenEnabled() && allowFullscreen;
@@ -388,6 +391,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
           {footerEnd ?? closeButton}
           {!hideSaveButton && !autosaveOn && (
             <button
+              {...saveAnchor}
               onClick={() => void handleSave()}
               disabled={saveDisabled || isSaving}
               className="flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
@@ -413,6 +417,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
     autosaveFlush,
     incompleteNotice,
     tourScope,
+    saveAnchor,
   ]);
 
   return (

@@ -399,6 +399,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     icon: LucideIcon;
     run: () => void;
     disabled: boolean;
+    tourAttrs: ReturnType<typeof tourAttr>;
   }[] = [
     ...(canOfferAnonymousJoin
       ? [
@@ -407,12 +408,18 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
             icon: Copy,
             run: () => void copyStudentLink(),
             disabled: false,
+            tourAttrs: tourAttr(
+              'activity-wall.copy-link',
+              widget.id,
+              widget.type
+            ),
           },
           {
             label: 'Add join QR to board',
             icon: QrCode,
             run: spawnQrWidget,
             disabled: isActiveBoardReadOnly,
+            tourAttrs: tourAttr('activity-wall.add-qr', widget.id, widget.type),
           },
         ]
       : []),
@@ -421,6 +428,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
       icon: Share2,
       run: () => setShareOpen(true),
       disabled: false,
+      tourAttrs: tourAttr('activity-wall.share', widget.id, widget.type),
     },
     ...(studentUrl
       ? [
@@ -429,6 +437,11 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
             icon: ExternalLink,
             run: () => window.open(studentUrl, '_blank', 'noopener'),
             disabled: false,
+            tourAttrs: tourAttr(
+              'activity-wall.open-student-view',
+              widget.id,
+              widget.type
+            ),
           },
         ]
       : []),
@@ -440,12 +453,14 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
           config: { ...config, imageSize: nextWallImageSize(imageSize) },
         }),
       disabled: isActiveBoardReadOnly,
+      tourAttrs: tourAttr('activity-wall.image-size', widget.id, widget.type),
     },
     {
       label: 'Open wall library',
       icon: LibraryBig,
       run: () => setLibraryOpen(true),
       disabled: false,
+      tourAttrs: tourAttr('activity-wall.library', widget.id, widget.type),
     },
   ];
 
@@ -502,6 +517,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
 
           <button
             type="button"
+            {...tourAttr('activity-wall.visibility', widget.id, widget.type)}
             onClick={toggleVisibleHidden}
             disabled={isActiveBoardReadOnly}
             aria-pressed={isVisibleWall}
@@ -553,6 +569,11 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
             <div className="relative" ref={toolbarMenuRef}>
               <button
                 type="button"
+                {...tourAttr(
+                  'activity-wall.more-actions',
+                  widget.id,
+                  widget.type
+                )}
                 onClick={() => setToolbarMenuOpen((open) => !open)}
                 aria-label="More wall actions"
                 aria-expanded={toolbarMenuOpen}
@@ -573,19 +594,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                       key={action.label}
                       type="button"
                       role="menuitem"
-                      {...(action.label === 'Share'
-                        ? tourAttr(
-                            'activity-wall.share',
-                            widget.id,
-                            widget.type
-                          )
-                        : action.label === 'Open wall library'
-                          ? tourAttr(
-                              'activity-wall.library',
-                              widget.id,
-                              widget.type
-                            )
-                          : {})}
+                      {...action.tourAttrs}
                       disabled={action.disabled}
                       onClick={() => {
                         setToolbarMenuOpen(false);
@@ -616,11 +625,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
               <button
                 key={action.label}
                 type="button"
-                {...(action.label === 'Share'
-                  ? tourAttr('activity-wall.share', widget.id, widget.type)
-                  : action.label === 'Open wall library'
-                    ? tourAttr('activity-wall.library', widget.id, widget.type)
-                    : {})}
+                {...action.tourAttrs}
                 onClick={action.run}
                 disabled={action.disabled}
                 aria-label={action.label}
@@ -663,6 +668,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         {driveSync.needsConsent > 0 && (
           <button
             type="button"
+            {...tourAttr('activity-wall.connect-drive', widget.id, widget.type)}
             onClick={() => void connectDrive()}
             disabled={connectingDrive}
             className="shrink-0 rounded-lg bg-amber-400 font-bold text-amber-950 transition-colors hover:bg-amber-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 disabled:opacity-50"
@@ -692,6 +698,11 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         action={
           <button
             type="button"
+            {...tourAttr(
+              'activity-wall.empty-open-library',
+              widget.id,
+              widget.type
+            )}
             onClick={() => setLibraryOpen(true)}
             className="rounded-lg bg-brand-blue-primary font-bold text-white transition-colors hover:bg-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             style={{
@@ -729,6 +740,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         pendingCount > 0 ? (
           <button
             type="button"
+            {...tourAttr('activity-wall.review-posts', widget.id, widget.type)}
             onClick={() => setModerationOpen(true)}
             className="rounded-lg bg-brand-blue-primary font-bold text-white transition-colors hover:bg-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
             style={{

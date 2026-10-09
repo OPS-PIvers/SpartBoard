@@ -3,6 +3,7 @@ import type { FinalScore } from '@/utils/gradebook/gradebookCore';
 import {
   buildGradebookPushPlan,
   readLmsLink,
+  schoologyLinkedTargets,
   schoologyMaxPoints,
 } from '@/utils/gradebook/lmsPush';
 
@@ -60,6 +61,27 @@ describe('buildGradebookPushPlan', () => {
     expect(plan.entries).toEqual([]);
   });
 
+  it('lists Missing cells with no score for tool columns', () => {
+    const missing = [{ id: 'missing', auto: true }];
+    const plan = buildGradebookPushPlan(
+      [
+        cell('a', {
+          pct: 0,
+          source: 'flag',
+          flagId: 'missing',
+          flags: missing,
+        }),
+        cell('b', { status: 'empty', source: null, flags: missing }),
+        cell('c', { status: 'excluded', flags: missing }),
+        cell('d', { status: 'not-assigned', source: null, flags: missing }),
+        cell('e', { pct: 60, source: 'override', flags: missing }),
+      ],
+      10
+    );
+    expect(plan.missing).toEqual(['a', 'b']);
+    expect(plan.entries).toEqual([{ pseudonymUid: 'e', pointsEarned: 6 }]);
+  });
+
   it('leaves empty and not-assigned cells out and clamps overrides above max', () => {
     const plan = buildGradebookPushPlan(
       [
@@ -87,9 +109,34 @@ describe('readLmsLink', () => {
     });
     expect(readLmsLink({ ltiAttachment: { contextId: 'x' } })).toEqual({
       lms: 'schoology',
+      mode: 'launch',
     });
     expect(readLmsLink({})).toBeNull();
     expect(readLmsLink(null)).toBeNull();
+  });
+
+  it('uses a tool column for a class linked to Schoology, only with the flag on', () => {
+    const targets = schoologyLinkedTargets([
+      { id: 'r1', ltiContextId: '123', classlinkClassId: 'cl-1' },
+      { id: 'r2', classlinkClassId: 'cl-2' },
+    ]);
+    expect(readLmsLink({ rosterIds: ['r1'] }, targets)).toEqual({
+      lms: 'schoology',
+      mode: 'tool-column',
+      columnExists: false,
+    });
+    expect(
+      readLmsLink({ classIds: ['cl-1'], ltiToolColumn: true }, targets)
+    ).toEqual({ lms: 'schoology', mode: 'tool-column', columnExists: true });
+    expect(readLmsLink({ rosterIds: ['r2'] }, targets)).toBeNull();
+    expect(readLmsLink({ rosterIds: ['r1'] }, null)).toBeNull();
+    // A Schoology launch and a Classroom attachment both win over a tool column.
+    expect(
+      readLmsLink({ rosterIds: ['r1'], ltiAttachment: { x: 1 } }, targets)
+    ).toEqual({ lms: 'schoology', mode: 'launch' });
+    expect(
+      readLmsLink({ rosterIds: ['r1'], classroomAttachment: att }, targets)?.lms
+    ).toBe('classroom');
   });
 });
 

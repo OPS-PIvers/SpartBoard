@@ -1,4 +1,5 @@
 // Admin card for `admin_settings/subjects`: the content areas teachers pick in their profile.
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import React, { useState } from 'react';
 import { doc, setDoc } from 'firebase/firestore';
 import {
@@ -102,6 +103,11 @@ export const SubjectsPanel: React.FC = () => {
                   <div className="flex-1 min-w-0">
                     {editing ? (
                       <input
+                        {...tourFieldAttr(
+                          'admin.subjects.rename-input',
+                          'admin',
+                          subject.id
+                        )}
                         autoFocus
                         aria-label={`Rename ${subject.label}`}
                         value={editLabel}
@@ -137,6 +143,11 @@ export const SubjectsPanel: React.FC = () => {
                     )}
                   </div>
                   <button
+                    {...tourFieldAttr(
+                      'admin.subjects.rename',
+                      'admin',
+                      subject.id
+                    )}
                     type="button"
                     onClick={() => {
                       setEditingId(subject.id);
@@ -149,6 +160,11 @@ export const SubjectsPanel: React.FC = () => {
                     <Pencil className="w-4 h-4" />
                   </button>
                   <button
+                    {...tourFieldAttr(
+                      'admin.subjects.archive',
+                      'admin',
+                      subject.id
+                    )}
                     type="button"
                     onClick={() =>
                       void setArchived(subject.id, !subject.archived)
@@ -185,6 +201,7 @@ export const SubjectsPanel: React.FC = () => {
             }}
           >
             <input
+              {...tourAttr('admin.subjects.new-label')}
               aria-label="New content area"
               placeholder="Add a content area"
               value={newLabel}
@@ -192,6 +209,7 @@ export const SubjectsPanel: React.FC = () => {
               className={`${inputClass} flex-1`}
             />
             <button
+              {...tourAttr('admin.subjects.add')}
               type="submit"
               disabled={saving || !newLabel.trim()}
               className="inline-flex items-center gap-1.5 rounded-md bg-brand-blue-primary px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-blue-dark disabled:opacity-50"

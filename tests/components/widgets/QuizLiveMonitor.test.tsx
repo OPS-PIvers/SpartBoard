@@ -13,6 +13,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
+import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
 import type {
   ClassRoster,
   QuizConfig,
@@ -274,9 +275,6 @@ describe('QuizLiveMonitor (rebuilt)', () => {
     openBucket(/In progress/);
     expect(screen.queryByText(/Raised hand/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Idle/)).not.toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /Board view on/ })
-    ).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('teacher view pins raised hands above the rest with a Clear action and badges idle rows', async () => {
@@ -376,9 +374,18 @@ describe('QuizLiveMonitor (rebuilt)', () => {
         assessmentOnly,
         session: { soundEffectsEnabled: true },
       });
-      fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
-      expect(!!screen.queryByText('Mute sounds')).toBe(!assessmentOnly);
-      fireEvent.click(screen.getByText('Quiz settings'));
+      expect(!!screen.queryByRole('button', { name: 'More actions' })).toBe(
+        !assessmentOnly
+      );
+      if (!assessmentOnly) {
+        fireEvent.click(screen.getByRole('button', { name: 'More actions' }));
+        expect(screen.getByText('Mute sounds')).toBeInTheDocument();
+        expect(screen.getByText('Present to class')).toBeInTheDocument();
+      }
+      expect(
+        screen.getByRole('button', { name: 'Question results' })
+      ).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Quiz settings' }));
       for (const name of [
         'Podium between questions',
         'Answer reveal on board',
@@ -477,11 +484,14 @@ describe('QuizLiveMonitor (rebuilt)', () => {
     const { rerender } = render(<QuizLiveMonitor {...props} />);
     expect(screen.getByRole('combobox', { name: 'Class' })).toHaveValue('cl-1');
     expect(
-      screen.getByRole('button', { name: /^3\s+Closed/ })
+      screen.getByRole('option', { name: 'Period 3 · Closed' })
     ).toBeInTheDocument();
+    // No close time, so there is nothing to extend.
     expect(
-      screen.getByRole('button', { name: 'More time for Period 1' })
-    ).toBeInTheDocument();
+      screen.queryByRole('button', { name: 'More time for Period 1' })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/done$/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Assessment Mode/)).not.toBeInTheDocument();
     rerender(
       <QuizLiveMonitor
         {...props}
@@ -539,11 +549,48 @@ describe('QuizLiveMonitor (rebuilt)', () => {
     ).toBeInTheDocument();
   });
 
-  it('does not call onEnd when the End confirm is declined', async () => {
+  it('drops Join code when join codes are off for the teacher building', () => {
+    const auth = (buildings: string[]) =>
+      ({
+        canAccessFeature: () => true,
+        globalPermissions: [
+          { featureId: 'anonymous-join', enabled: true, buildings: ['hs'] },
+        ],
+        selectedBuildings: buildings,
+      }) as unknown as AuthContextType;
+    const monitor = (
+      <QuizLiveMonitor
+        session={makeSession()}
+        responses={[]}
+        quizData={makeQuizData()}
+        onAdvance={noopAsync}
+        onEnd={noopAsync}
+        config={makeConfig()}
+        rosters={[]}
+        onUpdateConfig={vi.fn()}
+      />
+    );
+    const { rerender } = render(
+      <AuthContext.Provider value={auth(['hs'])}>
+        {monitor}
+      </AuthContext.Provider>
+    );
+    expect(
+      screen.getByRole('button', { name: 'Join code' })
+    ).toBeInTheDocument();
+    rerender(
+      <AuthContext.Provider value={auth(['ms'])}>
+        {monitor}
+      </AuthContext.Provider>
+    );
+    expect(screen.queryByRole('button', { name: 'Join code' })).toBeNull();
+  });
+
+  it('does not call onEnd when the Close all confirm is declined', async () => {
     const onEnd = vi.fn().mockResolvedValue(undefined);
     renderMonitor({ onEnd });
     showConfirm.mockResolvedValueOnce(false);
-    fireEvent.click(screen.getByRole('button', { name: /End/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close all' }));
     await act(async () => {
       await Promise.resolve();
     });

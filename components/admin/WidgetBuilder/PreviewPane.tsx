@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import { RefreshCw, Puzzle } from 'lucide-react';
 
 interface PreviewPaneProps {
@@ -22,6 +23,7 @@ export const PreviewPane: React.FC<PreviewPaneProps> = ({
         </span>
         {mode === 'code' && (
           <button
+            {...tourAttr('admin.widget-builder.refresh-preview')}
             onClick={() => setKey((k) => k + 1)}
             className="flex items-center gap-1 px-2 py-1 text-xs text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"
             title="Refresh preview"

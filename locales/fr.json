@@ -3932,6 +3932,7 @@
   },
   "tourPicker": {
     "prompt": "Cliquez sur une commande pour cette étape",
+    "altHint": "Maintenez Alt pour ouvrir d'abord un menu",
     "chooseFromList": "Choisir dans la liste",
     "cancel": "Annuler",
     "search": "Rechercher des commandes",
@@ -3942,5 +3943,10 @@
     "addStep": "Ajouter une étape",
     "listTitle": "Choisissez une commande",
     "recordFromHere": "Enregistrer à partir d'ici"
+  },
+  "widgetWhatsNew": {
+    "label": "Nouveautés",
+    "dismiss": "Ignorer",
+    "gotIt": "Compris"
   }
 }

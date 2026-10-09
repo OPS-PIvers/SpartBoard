@@ -7,6 +7,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CloudDownload, FilePlus, FileText, Loader2, X } from 'lucide-react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { useFilesDrop } from '@/hooks/useFileDrop';
 import { documentKind } from '@/utils/quizDocumentImport/fileKind';
 import {
@@ -60,6 +61,7 @@ interface TestAndKeyUploaderProps {
   keyBehindLink?: boolean;
   /** Renders the submit button here instead, e.g. a modal footer. */
   submitContainer?: Element | null;
+  anchor?: TourAnchorAttrs;
   /** Test seams. */
   looksLikeKey?: (file: Blob, name: string) => Promise<boolean>;
   decode?: (file: File) => Promise<File>;
@@ -98,6 +100,7 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
   children,
   keyBehindLink = false,
   submitContainer,
+  anchor,
   looksLikeKey = looksLikeAnswerKey,
   decode = decodeIfHeic,
 }) => {
@@ -362,7 +365,7 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
   );
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" {...anchor}>
       <div
         className={`grid gap-3 ${showTest && showKey && !keyCollapsed ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-1'}`}
       >

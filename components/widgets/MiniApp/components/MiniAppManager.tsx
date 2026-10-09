@@ -95,6 +95,7 @@ import {
   LIBRARY_ITEM_NOUNS,
   useLibraryDeleteConfirm,
 } from '@/components/common/library/useLibraryDeleteConfirm';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
@@ -425,7 +426,6 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     enabled: folderViewEnabled,
     sourceKeys: globalSourceKeys,
     ownFolders: folderState.folders,
-    ready: !folderState.loading,
   });
   const { folderIdOf, move: moveSource } = sourceFolders;
   const getFolderIdOfRow = useCallback(
@@ -1422,6 +1422,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
                 fontSize: 'min(11px, 4cqmin)',
               }}
               aria-pressed={selectionMode}
+              {...tourTypeAttr('mini-app.select-mode', 'miniApp')}
               title={
                 selectionMode ? 'Exit selection mode' : 'Enter selection mode'
               }

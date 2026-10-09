@@ -1,5 +1,6 @@
 import React from 'react';
 import type { DrilldownStudent } from '@/utils/quizQuestionDrilldown';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface DrilldownNameListProps {
   students: DrilldownStudent[];
@@ -18,7 +19,7 @@ export const DrilldownNameList: React.FC<DrilldownNameListProps> = ({
     className="flex flex-col"
     style={{ gap: 'min(1px, 0.3cqmin)', marginTop: 'min(4px, 1cqmin)' }}
   >
-    {students.map((s) => {
+    {students.map((s, index) => {
       const name = formatStudentName(s);
       return (
         <li
@@ -31,6 +32,11 @@ export const DrilldownNameList: React.FC<DrilldownNameListProps> = ({
               type="button"
               onClick={() => onOpenStudent(s.responseKey)}
               title={`Open ${name}'s answers`}
+              {...tourFieldAttr(
+                'quiz-results.drilldown-open-student',
+                'quiz',
+                String(index)
+              )}
               className="max-w-full truncate text-left rounded hover:underline hover:text-brand-blue-dark focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
             >
               {name}

@@ -1,3 +1,4 @@
+import { tourFieldAttr } from '@/config/tourAnchors';
 import React from 'react';
 import { LunchCountGlobalConfig } from '@/types';
 
@@ -47,6 +48,11 @@ export const LunchCountConfigurationPanel: React.FC<
                 : 'border-slate-300 focus:ring-brand-blue-primary'
             }`}
             placeholder="Schumann spreadsheet ID"
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'lunchCount',
+              'schumannSheetId'
+            )}
           />
           {isSchumannIdMalformed && (
             <p className="text-xxs text-red-600 font-bold mt-1">
@@ -74,6 +80,11 @@ export const LunchCountConfigurationPanel: React.FC<
                 : 'border-slate-300 focus:ring-brand-blue-primary'
             }`}
             placeholder="Intermediate spreadsheet ID"
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'lunchCount',
+              'intermediateSheetId'
+            )}
           />
           {isIntermediateIdMalformed && (
             <p className="text-xxs text-red-600 font-bold mt-1">
@@ -101,6 +112,11 @@ export const LunchCountConfigurationPanel: React.FC<
                 : 'border-slate-300 focus:ring-brand-blue-primary'
             }`}
             placeholder="https://script.google.com/macros/s/.../exec"
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'lunchCount',
+              'submissionUrl'
+            )}
           />
           {isUrlMalformed && (
             <p className="text-xxs text-red-600 font-bold mt-1">

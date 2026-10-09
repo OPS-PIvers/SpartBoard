@@ -14,6 +14,7 @@ import {
   narrationTextHash,
 } from '../../utils/narration';
 import type { GuidedLearningEditorController } from '../useGuidedLearningEditorState';
+import { tourAttr } from '@/config/tourAnchors';
 
 /** Longest take the Studio records, in seconds. */
 const TAKE_LIMIT_SECONDS = 120;
@@ -109,7 +110,12 @@ const NarrationRecorder: React.FC<RecorderProps> = ({
       )}
       <div className="flex flex-wrap gap-1.5">
         {rec.phase === 'recording' ? (
-          <button type="button" onClick={rec.stop} className={primaryBtn}>
+          <button
+            type="button"
+            {...tourAttr('studio.narration-stop')}
+            onClick={rec.stop}
+            className={primaryBtn}
+          >
             <Square className="h-3.5 w-3.5" aria-hidden="true" />
             {t('glStudio.recStop', {
               time: formatClock(rec.recordSecondsLeft ?? 0),
@@ -119,6 +125,7 @@ const NarrationRecorder: React.FC<RecorderProps> = ({
           <>
             <button
               type="button"
+              {...tourAttr('studio.narration-save')}
               onClick={() => void save()}
               disabled={saving}
               className={primaryBtn}
@@ -127,6 +134,7 @@ const NarrationRecorder: React.FC<RecorderProps> = ({
             </button>
             <button
               type="button"
+              {...tourAttr('studio.narration-discard')}
               onClick={rec.discard}
               disabled={saving}
               className={secondaryBtn}
@@ -137,6 +145,7 @@ const NarrationRecorder: React.FC<RecorderProps> = ({
         ) : (
           <button
             type="button"
+            {...tourAttr('studio.narration-record')}
             onClick={() => void rec.start()}
             disabled={rec.phase === 'requesting-permission'}
             className={primaryBtn}
@@ -149,6 +158,7 @@ const NarrationRecorder: React.FC<RecorderProps> = ({
         )}
         <button
           type="button"
+          {...tourAttr('studio.narration-cancel')}
           onClick={onCancel}
           disabled={saving}
           className={secondaryBtn}
@@ -265,6 +275,7 @@ export const StudioNarration: React.FC<StudioNarrationProps> = ({
         <div className="flex flex-wrap gap-1.5">
           <button
             type="button"
+            {...tourAttr('studio.narration-generate')}
             onClick={() => void generate()}
             disabled={generating || !sourceText}
             title={sourceText ? undefined : t('glStudio.narrationNoText')}
@@ -279,6 +290,7 @@ export const StudioNarration: React.FC<StudioNarrationProps> = ({
           </button>
           <button
             type="button"
+            {...tourAttr('studio.narration-open-recorder')}
             onClick={() => setRecording(true)}
             disabled={generating}
             className={secondaryBtn}
@@ -291,6 +303,7 @@ export const StudioNarration: React.FC<StudioNarrationProps> = ({
           {narration && (
             <button
               type="button"
+              {...tourAttr('studio.narration-delete')}
               onClick={() => setStepNarration(step.id, undefined)}
               disabled={generating}
               className={secondaryBtn}
@@ -363,6 +376,7 @@ export const StudioNarrationBatch: React.FC<{
       </span>
       <button
         type="button"
+        {...tourAttr('studio.narration-batch-generate')}
         onClick={() => void run()}
         disabled={progress !== null || steps.length === 0}
         className={`${secondaryBtn} self-start`}

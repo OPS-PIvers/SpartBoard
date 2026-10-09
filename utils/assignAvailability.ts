@@ -58,31 +58,37 @@ const pad = (n: number): string => String(n).padStart(2, '0');
 const localTime = (d: Date): string =>
   `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
-/** Today, start to end of class when bells are known, else now to 11:59 PM. */
-export function defaultAvailability(
-  now: Date,
-  bellAvailable: boolean,
-  workKind?: WorkKind
-): AssignAvailability {
-  const day = getLocalIsoDate(now);
-  const rounded = new Date(now);
-  rounded.setMinutes(Math.floor(now.getMinutes() / 5) * 5, 0, 0);
-  return {
-    ...(workKind === 'resource' ? { noEnd: true } : {}),
-    all: bellAvailable
-      ? { opens: { day, time: 'bell' }, closes: { day, time: 'bell' } }
-      : {
-          opens: { day, time: localTime(rounded) },
-          closes: { day, time: '23:59' },
-        },
-    allowLate: false,
-  };
-}
-
 const dayDate = (day: string): Date => {
   const [y, m, d] = day.split('-').map(Number);
   return new Date(y, (m ?? 1) - 1, d ?? 1);
 };
+
+/** Today, start to end of class when bells are known and no checked class has ended, else now to 11:59 PM. */
+export function defaultAvailability(
+  now: Date,
+  bellAvailable: boolean,
+  workKind?: WorkKind,
+  bells?: { rosters: readonly PeriodRoster[]; bellWindow?: BellWindowFn }
+): AssignAvailability {
+  const day = getLocalIsoDate(now);
+  const rounded = new Date(now);
+  rounded.setMinutes(Math.floor(now.getMinutes() / 5) * 5, 0, 0);
+  const bellOver = (bells?.rosters ?? []).some((roster) => {
+    const bell = bells?.bellWindow?.(roster, dayDate(day));
+    return !!bell && bell.closeAt <= now.getTime();
+  });
+  return {
+    ...(workKind === 'resource' ? { noEnd: true } : {}),
+    all:
+      bellAvailable && !bellOver
+        ? { opens: { day, time: 'bell' }, closes: { day, time: 'bell' } }
+        : {
+            opens: { day, time: localTime(rounded) },
+            closes: { day, time: '23:59' },
+          },
+    allowLate: false,
+  };
+}
 
 /** One point as epoch ms; a bell the roster can't resolve that day falls back to the whole day. */
 export function resolvePoint(
@@ -126,6 +132,19 @@ export function closesBeforeOpens(
     const open = resolvePoint(spec.opens, 'opens', roster, bellWindow);
     const close = resolvePoint(spec.closes, 'closes', roster, bellWindow);
     return open != null && close != null && close <= open;
+  });
+}
+
+/** True when the spec has already closed for any of the classes. */
+export function closesInPast(
+  spec: AvailabilitySpec,
+  rosters: readonly PeriodRoster[],
+  bellWindow: BellWindowFn | undefined,
+  now: number
+): boolean {
+  return (rosters.length > 0 ? rosters : [null]).some((roster) => {
+    const close = resolvePoint(spec.closes, 'closes', roster, bellWindow);
+    return close != null && close <= now;
   });
 }
 
@@ -219,7 +238,8 @@ export function applyAvailability(
   if (!enabled) return { targeting: rest };
   const workKind = chosenWorkKind(value, workKindSetting);
   const resolved = resolveAvailability(
-    availability ?? defaultAvailability(now, !!bellWindow, workKind),
+    availability ??
+      defaultAvailability(now, !!bellWindow, workKind, { rosters, bellWindow }),
     rosters,
     bellWindow,
     workKind

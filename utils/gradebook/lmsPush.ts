@@ -21,21 +21,63 @@ export function isGradebookPushKind(
 
 export type GradebookLmsLink =
   | { lms: 'classroom'; attachments: ClassroomAttachmentLink[] }
-  | { lms: 'schoology' }
+  | { lms: 'schoology'; mode: 'launch' }
+  /** SpartBoard makes the gradebook column itself (SCHOOLOGY_TOOL_COLUMNS.md D9). */
+  | { lms: 'schoology'; mode: 'tool-column'; columnExists: boolean }
   | null;
 
-/** An assignment is a Classroom attachment or a Schoology launch, never both. */
+/** The teacher's classes linked to a Schoology section (rosters carry the mirrored `ltiContextId`). */
+export interface SchoologyLinkedTargets {
+  rosterIds: ReadonlySet<string>;
+  classIds: ReadonlySet<string>;
+}
+
+export function schoologyLinkedTargets(
+  rosters: readonly {
+    id: string;
+    ltiContextId?: string;
+    classlinkClassId?: string;
+    testClassId?: string;
+  }[]
+): SchoologyLinkedTargets {
+  const rosterIds = new Set<string>();
+  const classIds = new Set<string>();
+  for (const r of rosters) {
+    if (!r.ltiContextId) continue;
+    rosterIds.add(r.id);
+    if (r.classlinkClassId) classIds.add(r.classlinkClassId);
+    if (r.testClassId) classIds.add(r.testClassId);
+  }
+  return { rosterIds, classIds };
+}
+
+/** An assignment is a Classroom attachment, a Schoology launch, or (flag on) a tool column for a linked class. */
 export function readLmsLink(
   session: {
     classroomAttachments?: ClassroomAttachmentLink[] | null;
     classroomAttachment?: ClassroomAttachmentLink | null;
     ltiAttachment?: unknown;
-  } | null
+    ltiToolColumn?: boolean;
+    rosterIds?: string[];
+    classIds?: string[];
+  } | null,
+  toolColumns: SchoologyLinkedTargets | null = null
 ): GradebookLmsLink {
   if (!session) return null;
   const attachments = getClassroomAttachments(session);
   if (attachments.length > 0) return { lms: 'classroom', attachments };
-  if (session.ltiAttachment) return { lms: 'schoology' };
+  if (session.ltiAttachment) return { lms: 'schoology', mode: 'launch' };
+  if (
+    toolColumns &&
+    ((session.rosterIds ?? []).some((id) => toolColumns.rosterIds.has(id)) ||
+      (session.classIds ?? []).some((id) => toolColumns.classIds.has(id)))
+  ) {
+    return {
+      lms: 'schoology',
+      mode: 'tool-column',
+      columnExists: session.ltiToolColumn === true,
+    };
+  }
   return null;
 }
 
@@ -46,6 +88,8 @@ export interface GradebookPushCell {
 
 export interface GradebookPushPlan {
   entries: ClassroomGradeEntry[];
+  /** Students whose cell shows the Missing flag and no score; only tool columns send these. */
+  missing: string[];
   /** Awaiting a teacher grade: left out so a partial score never lands (RR-06). */
   awaiting: number;
   /** Excused or otherwise excluded: never sent, not even a 0. */
@@ -57,7 +101,12 @@ export function buildGradebookPushPlan(
   cells: readonly GradebookPushCell[],
   maxPoints: number
 ): GradebookPushPlan {
-  const plan: GradebookPushPlan = { entries: [], awaiting: 0, excluded: 0 };
+  const plan: GradebookPushPlan = {
+    entries: [],
+    missing: [],
+    awaiting: 0,
+    excluded: 0,
+  };
   for (const { student, final } of cells) {
     if (final.status === 'awaiting') {
       plan.awaiting++;
@@ -67,19 +116,26 @@ export function buildGradebookPushPlan(
       plan.excluded++;
       continue;
     }
-    if (
-      final.status !== 'scored' ||
-      final.pct === null ||
-      !Number.isFinite(final.pct) ||
-      (final.source !== 'raw' && final.source !== 'override')
-    ) {
+    const raw =
+      final.status === 'scored' &&
+      final.pct !== null &&
+      Number.isFinite(final.pct) &&
+      (final.source === 'raw' || final.source === 'override');
+    if (!raw) {
+      // Tool columns send Schoology's own Missing flag for these (SCHOOLOGY_TOOL_COLUMNS.md D12).
+      if (
+        final.status !== 'not-assigned' &&
+        final.flags.some((f) => f.id === 'missing')
+      ) {
+        plan.missing.push(student.uid);
+      }
       continue;
     }
     plan.entries.push({
       pseudonymUid: student.uid,
       pointsEarned: Math.max(
         0,
-        Math.min(maxPoints, Math.round((final.pct / 100) * maxPoints))
+        Math.min(maxPoints, Math.round(((final.pct ?? 0) / 100) * maxPoints))
       ),
     });
   }

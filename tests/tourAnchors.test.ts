@@ -100,12 +100,69 @@ describe('tour anchor registry', () => {
       'sub-share.done',
       'quiz-settings.assignment-archive',
       'activity-wall-editor.allow-delete',
+      'assign-stepper.cancel',
+      'boards-modal.collection-share',
+      'share-link.mode-synced',
+      'share-link.mode-view-only',
+      'share-link.mode-copy',
+      'share-link.mode-substitute',
+      'share-link.close',
+      'share-link.url',
+      'share-link.copy',
+      'share-link.done',
+      'share-link.sub-expires',
+      'share-link.sub-building',
+      'share-link.sub-preset-email',
+      'share-link.sub-remove-email',
+      'share-link.sub-email-input',
+      'share-link.add-sub-email',
+      'share-link.plc-scope',
+      'sub-share.expires',
+      'sub-share.email-chip',
+      'sub-share.remove-email',
+      'sub-share.cancel',
+      'sub-share.url',
+      'sub-share.copy-link',
+      'share-collection.share-with-sub',
+      'share-collection.mode-copy',
+      'share-collection.mode-substitute',
+      'share-collection.ttl',
+      'share-collection.building',
+      'share-collection.preset-email',
+      'share-collection.remove-email',
+      'share-collection.email-input',
+      'share-collection.add-email',
+      'share-collection.cancel',
+      'share-collection.url',
+      'share-collection.copy-link',
+      'share-collection.done',
+      'share-import.close',
+      'share-import.cancel',
+      'import-shared-collection.cancel',
+      'share-status.chip',
+      'share-status.close',
+      'publish-scores.close',
+      'publish-scores.level',
+      'publish-scores.written-mode',
+      'publish-scores.cancel',
+      'quiz-import.cartridge-share-pictures',
+      'quiz-import.paper-assignment',
+      'quiz-banks.shared-preview',
+      'quiz-results.student-delete-cancel',
+      'quiz-rubric.share-link',
+      'quiz-rubric.share-copy',
     ]);
+    // Destination options and step headers only move through the Assign dialog.
+    const opensOnly = (id: string) =>
+      OPENS_ONLY.has(id) ||
+      /^(assign-(destination|step)\.|plc-(assign|share)\.|admin-plc\.recovery-reassign)/.test(
+        id
+      );
     const unflagged = Object.entries(TOUR_ANCHORS)
       .filter(([id]) => /assign|share|publish|delete/.test(id))
       .filter(([id, def]) => {
         const d = def as TourAnchorDef;
-        return !d.persists && !d.destructive && !OPENS_ONLY.has(id);
+        return !d.persists && !d.destructive && !opensOnly(id);
       })
       .map(([id]) => id);
     expect(

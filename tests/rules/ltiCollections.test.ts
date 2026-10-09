@@ -61,6 +61,8 @@ const STATE_PATH = `lti_oidc_state/${STATE_ID}`;
 const LAUNCH_CODE_PATH = `lti_launch_codes/${LAUNCH_CODE}`;
 const COURSE_LINK_PATH = `lti_course_links/${CONTEXT_ID}`;
 const GRADE_LINK_PATH = `lti_grade_links/${PSEUDONYM_UID}/resources/${RESOURCE_LINK_ID}`;
+const TOOL_COLUMN_PATH = `lti_tool_columns/session-1/sections/${CONTEXT_ID}`;
+const TOOL_COLUMN_PREFS_PATH = `lti_tool_columns_prefs/${TEACHER_UID}_${CONTEXT_ID}`;
 const SEEN_SECTION_PATH = `users/${TEACHER_UID}/lti_seen_sections/${CONTEXT_ID}`;
 
 const RULES_PATH = fileURLToPath(
@@ -282,6 +284,20 @@ describe('LTI collections — authenticated (non-student) client', () => {
   it('cannot write lti_grade_links resource (server-only)', async () => {
     await assertFails(
       setDoc(doc(asTeacher(), GRADE_LINK_PATH), { lineitemUrl: 'x' })
+    );
+  });
+
+  it('cannot read or write lti_tool_columns (server-only, holds AGS URLs)', async () => {
+    await assertFails(getDoc(doc(asTeacher(), TOOL_COLUMN_PATH)));
+    await assertFails(
+      setDoc(doc(asTeacher(), TOOL_COLUMN_PATH), { lineitemUrl: 'x' })
+    );
+  });
+
+  it('cannot read or write lti_tool_columns_prefs (server-only)', async () => {
+    await assertFails(getDoc(doc(asTeacher(), TOOL_COLUMN_PREFS_PATH)));
+    await assertFails(
+      setDoc(doc(asTeacher(), TOOL_COLUMN_PREFS_PATH), { categoryId: '1' })
     );
   });
 });

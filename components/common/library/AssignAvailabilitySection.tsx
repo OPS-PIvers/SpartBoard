@@ -5,6 +5,7 @@ import type { ClassRoster } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
 import {
   closesBeforeOpens,
+  closesInPast,
   specForRoster,
   type AssignAvailability,
   type AvailabilityPoint,
@@ -138,6 +139,8 @@ export const SpecRows: React.FC<{
   spec: AvailabilitySpec;
   bellAvailable: boolean;
   backwards: boolean;
+  /** The close is already in the past, so students would never see it. */
+  closed?: boolean;
   onChange: (spec: AvailabilitySpec) => void;
   cqScaled?: boolean;
   resource?: boolean;
@@ -147,6 +150,7 @@ export const SpecRows: React.FC<{
   spec,
   bellAvailable,
   backwards,
+  closed,
   onChange,
   cqScaled,
   resource,
@@ -196,6 +200,15 @@ export const SpecRows: React.FC<{
           style={scaledFont(cqScaled, 12, 4.5)}
         >
           {t('assignAvailability.closesBeforeOpens', 'Closes before it opens.')}
+        </p>
+      )}
+      {closed && !backwards && !noEnd && (
+        <p
+          role="alert"
+          className={`font-medium text-brand-red-primary ${cqScaled ? '' : 'text-xs'}`}
+          style={scaledFont(cqScaled, 12, 4.5)}
+        >
+          {t('assignAvailability.alreadyClosed', 'Already closed.')}
         </p>
       )}
     </div>
@@ -290,6 +303,7 @@ export const AssignAvailabilitySection: React.FC<{
   const usesBell = (spec: AvailabilitySpec) =>
     spec.opens.time === 'bell' || spec.closes.time === 'bell';
   const bellWindow = periodAccess?.bellWindow;
+  const [openedAt] = useState(() => Date.now());
   const untagged =
     periodAccess && bellAvailable
       ? rosters.filter(
@@ -395,6 +409,12 @@ export const AssignAvailabilitySection: React.FC<{
                 [roster],
                 bellWindow
               )}
+              closed={closesInPast(
+                specForRoster(value, roster.id),
+                [roster],
+                bellWindow,
+                openedAt
+              )}
               onChange={(spec) =>
                 onChange({
                   ...value,
@@ -413,6 +433,7 @@ export const AssignAvailabilitySection: React.FC<{
           spec={value.all}
           bellAvailable={bellAvailable}
           backwards={closesBeforeOpens(value.all, rosters, bellWindow)}
+          closed={closesInPast(value.all, rosters, bellWindow, openedAt)}
           onChange={(all) => onChange({ ...value, all })}
           cqScaled={cqScaled}
           resource={resource}

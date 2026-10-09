@@ -6,6 +6,7 @@ import { Cloud, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { PlcImportModeOptions } from './PlcImportModeOptions';
 import type { SharedAssignmentImportMode } from '@/hooks/useQuizAssignments';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface PlcQuizImportModalProps {
   /** Title of the PLC quiz being imported, displayed under the modal header. */
@@ -56,6 +57,7 @@ export const PlcQuizImportModal: React.FC<PlcQuizImportModalProps> = ({
             </div>
           </div>
           <button
+            {...tourAttr('plc-import.close')}
             type="button"
             onClick={onClose}
             aria-label={t('plcDashboard.quizImportModal.close', {

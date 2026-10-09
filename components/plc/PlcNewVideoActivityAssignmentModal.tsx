@@ -31,6 +31,7 @@
  * by this flow.
  */
 
+import { tourAttr } from '@/config/tourAnchors';
 import React, { useCallback, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { doc, writeBatch } from 'firebase/firestore';
@@ -685,6 +686,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
               </span>
             </label>
             <input
+              {...tourAttr('video-activity.plc-assign-due-date')}
               id="plc-va-assign-due-date"
               type="date"
               data-testid="plc-va-assign-due-date"
@@ -780,6 +782,7 @@ const PlcSharingStepBody: React.FC<{
           })}
         </label>
         <input
+          {...tourAttr('video-activity.plc-teacher-name')}
           id={nameId}
           type="text"
           value={teacherName}
@@ -806,6 +809,7 @@ const PlcSharingStepBody: React.FC<{
             })}
           </label>
           <input
+            {...tourAttr('video-activity.plc-sheet-url')}
             id={urlId}
             type="text"
             value={plcSheetUrl}

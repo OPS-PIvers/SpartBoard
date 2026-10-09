@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Star, FolderOpen, Settings2 } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface SidebarBoardsActiveProps {
   isVisible: boolean;
@@ -50,6 +51,7 @@ export const SidebarBoardsActive: React.FC<SidebarBoardsActiveProps> = ({
             <button
               key={db.id}
               onClick={() => loadDashboard(db.id)}
+              {...tourFieldAttr('sidebar.board-item', 'boards', db.id)}
               className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-left transition-colors ${
                 isActive
                   ? 'bg-brand-blue-primary text-white'
@@ -73,6 +75,7 @@ export const SidebarBoardsActive: React.FC<SidebarBoardsActiveProps> = ({
 
       <button
         onClick={onOpenModal}
+        {...tourAttr('sidebar.manage-boards')}
         className="flex items-center justify-center gap-2 px-3 py-3 rounded-xl text-xxs font-bold uppercase tracking-wider text-white bg-brand-blue-primary hover:bg-brand-blue-dark shadow-sm transition mt-auto"
       >
         <Settings2 className="w-4 h-4" />

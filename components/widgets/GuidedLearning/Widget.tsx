@@ -100,13 +100,18 @@ import {
   withFrozenAnswerKeys,
 } from './utils/resultsScoring';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
-import { isSandboxId, isSandboxed } from '@/utils/tourSandbox';
+import {
+  isSandboxId,
+  isSandboxed,
+  isTourSandboxActive,
+} from '@/utils/tourSandbox';
 import { useTourMaterialEditor } from '@/components/tours/tourMaterials';
 import type { AssignClassesValue } from '@/components/common/library/assignStepper/assignClassesValue';
 import {
   GuidedLearningAssignStepper,
   type GuidedLearningStepperAssign,
 } from './components/GuidedLearningAssignStepper';
+import { tourAttr } from '@/config/tourAnchors';
 
 // Code-split (Phase 5): heavy GL surfaces load on demand, not with the dashboard.
 const GuidedLearningManager = lazy(() =>
@@ -1152,7 +1157,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   // metadata doc in a single batch — the Drive blob is untouched.
   const handleReorderPersonal = useCallback(
     async (orderedIds: string[]) => {
-      if (!user?.uid) return;
+      if (!user?.uid || isTourSandboxActive()) return;
       const batch = writeBatch(db);
       orderedIds.forEach((id, index) => {
         batch.update(doc(db, 'users', user.uid, GL_PERSONAL_COLLECTION, id), {
@@ -1467,8 +1472,18 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                     void handleAssign(setId, driveFileId, buildingEntry);
                   }}
                   folderDeleteActions={{
-                    // Sets with open assignments delete like a single delete: files stay for students.
+                    isBlocked: (id) => openAssignmentIdsFor(id).length > 0,
+                    blockedReason: (n) =>
+                      n === 1
+                        ? '1 set has an open assignment'
+                        : `${n} sets have open assignments`,
                     deleteItems: async (ids) => {
+                      // The open-assignment check above is only trustworthy once assignments have loaded.
+                      if (assignmentsLoading) {
+                        throw new Error(
+                          "Couldn't check assignments. Try again in a moment."
+                        );
+                      }
                       const byId = new Map(sets.map((x) => [x.id, x]));
                       for (const id of ids) {
                         const meta = byId.get(id);
@@ -1660,6 +1675,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                   action={
                     <button
                       type="button"
+                      {...tourAttr('gl-results.error-back')}
                       onClick={() => {
                         setResultsLoadError(null);
                         updateWidget(widget.id, {
@@ -1723,6 +1739,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                     </p>
                     <button
                       type="button"
+                      {...tourAttr('gl-results.error-back')}
                       onClick={closeResults}
                       className="inline-flex items-center rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-sm transition-colors"
                       style={{

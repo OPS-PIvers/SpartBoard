@@ -58,6 +58,8 @@ interface MembershipPage {
   nextUrl: string | null;
   /** True when the SSRF guard refused a redirect (distinct from a network failure). */
   isRedirect: boolean;
+  /** The container's `context.title`, when the platform sends one. */
+  contextTitle?: string;
 }
 
 const asStr = (v: unknown): string =>
@@ -120,17 +122,22 @@ export const nrpsNet = {
           isRedirect,
         };
       }
-      const body = (await res.json()) as { members?: unknown };
+      const body = (await res.json()) as {
+        members?: unknown;
+        context?: { title?: unknown };
+      };
       const members = Array.isArray(body.members)
         ? (body.members as RawMember[])
         : [];
       const nextUrl = parseNextLink(res.headers.get('link'));
+      const contextTitle = asStr(body.context?.title);
       return {
         ok: true,
         status: res.status,
         members,
         nextUrl,
         isRedirect: false,
+        ...(contextTitle ? { contextTitle } : {}),
       };
     } catch (err) {
       // Network failure / timeout / abort → empty page; the caller surfaces a
@@ -168,7 +175,16 @@ export async function fetchNrpsMembers(
   membershipUrl: string,
   accessToken: string
 ): Promise<NrpsMember[]> {
+  return (await fetchNrpsMembership(membershipUrl, accessToken)).members;
+}
+
+/** `fetchNrpsMembers` plus the section title from the first page. */
+export async function fetchNrpsMembership(
+  membershipUrl: string,
+  accessToken: string
+): Promise<{ members: NrpsMember[]; contextTitle: string | null }> {
   const out: NrpsMember[] = [];
+  let contextTitle: string | null = null;
   let url: string | null = membershipUrl;
   let page = 0;
   while (url && page < MAX_PAGES) {
@@ -190,6 +206,7 @@ export async function fetchNrpsMembers(
       }
       break; // partial roster is better than none
     }
+    if (page === 0) contextTitle = result.contextTitle ?? null;
     for (const m of result.members) {
       const userId = asStr(m.user_id);
       if (!userId) continue;
@@ -213,5 +230,5 @@ export async function fetchNrpsMembers(
     url = result.nextUrl;
     page += 1;
   }
-  return out;
+  return { members: out, contextTitle };
 }

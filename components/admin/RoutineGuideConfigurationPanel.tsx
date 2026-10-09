@@ -33,6 +33,7 @@ import { logError } from '@/utils/logError';
 import { IconPicker } from '@/components/widgets/InstructionalRoutines/IconPicker';
 import { QUICK_TOOLS } from '@/components/widgets/InstructionalRoutines/constants';
 import { RoutineIcon } from '@/components/widgets/RoutineGuide/RoutineIcon';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 interface RoutineGuideConfigurationPanelProps {
   config: RoutineGuideGlobalConfig;
@@ -60,9 +61,11 @@ const fieldLabel = 'block text-xs font-bold text-slate-600 mb-1';
 const ColorSelect: React.FC<{
   value?: string;
   label: string;
+  fieldKey: string;
   onChange: (id: string) => void;
-}> = ({ value, label, onChange }) => (
+}> = ({ value, label, fieldKey, onChange }) => (
   <select
+    {...tourFieldAttr('admin.widget-config.field', 'routineGuide', fieldKey)}
     aria-label={label}
     value={getRoutineGuideColor(value).id}
     onChange={(e) => onChange(e.target.value)}
@@ -94,6 +97,11 @@ const StepImage: React.FC<{
         />
         <button
           type="button"
+          {...tourFieldAttr(
+            'admin.widget-config.field',
+            'routineGuide',
+            `removeStepImage-${stepNumber}`
+          )}
           aria-label={`Remove step ${stepNumber} image`}
           onClick={() => onChange(undefined)}
           className="absolute -top-1.5 -right-1.5 bg-white border border-slate-300 rounded-full p-0.5 text-slate-600 hover:text-red-600"
@@ -166,6 +174,7 @@ const RoutineEditor: React.FC<{
     <div className="space-y-5">
       <button
         type="button"
+        {...tourTypeAttr('admin.widget-config.close', 'routineGuide')}
         onClick={onDone}
         className="inline-flex items-center gap-1.5 text-sm font-bold text-slate-600 hover:text-slate-900"
       >
@@ -177,6 +186,11 @@ const RoutineEditor: React.FC<{
         <div>
           <span className={fieldLabel}>Icon</span>
           <IconPicker
+            anchor={tourFieldAttr(
+              'admin.widget-config.field',
+              'routineGuide',
+              'routineIcon'
+            )}
             currentIcon={routine.icon}
             color={getRoutineGuideColor(routine.color).id}
             onSelect={(icon) => set({ icon })}
@@ -186,6 +200,7 @@ const RoutineEditor: React.FC<{
           <span className={fieldLabel}>Color</span>
           <ColorSelect
             label="Routine color"
+            fieldKey="routineColor"
             value={routine.color}
             onChange={(color) => set({ color })}
           />
@@ -193,6 +208,11 @@ const RoutineEditor: React.FC<{
         <label className="flex-1">
           <span className={fieldLabel}>Name</span>
           <input
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'routineGuide',
+              'routineName'
+            )}
             type="text"
             value={routine.name}
             onChange={(e) => set({ name: e.target.value })}
@@ -210,6 +230,11 @@ const RoutineEditor: React.FC<{
               className="inline-flex items-center gap-1.5 text-sm text-slate-700"
             >
               <input
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'routineGuide',
+                  `grade-${g}`
+                )}
                 type="checkbox"
                 checked={routine.gradeLevels.includes(g)}
                 onChange={() => toggleGrade(g)}
@@ -230,6 +255,11 @@ const RoutineEditor: React.FC<{
                 className="inline-flex items-center gap-1.5 text-sm text-slate-700"
               >
                 <input
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'routineGuide',
+                    `category-${c.id}`
+                  )}
                   type="checkbox"
                   checked={routine.categoryIds.includes(c.id)}
                   onChange={() =>
@@ -251,6 +281,11 @@ const RoutineEditor: React.FC<{
         <label key={f.key} className="block">
           <span className={fieldLabel}>{f.label}</span>
           <textarea
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'routineGuide',
+              `info-${f.key}`
+            )}
             rows={3}
             value={routine.info?.[f.key] ?? ''}
             onChange={(e) =>
@@ -276,16 +311,27 @@ const RoutineEditor: React.FC<{
                   onChange={(imageUrl) => setStep(i, { imageUrl })}
                 />
                 <IconPicker
+                  anchor={tourFieldAttr(
+                    'admin.widget-config.field',
+                    'routineGuide',
+                    `stepIcon-${i}`
+                  )}
                   currentIcon={step.icon ?? 'Circle'}
                   color={getRoutineGuideColor(step.color).id}
                   onSelect={(icon) => setStep(i, { icon })}
                 />
                 <ColorSelect
                   label={`Step ${i + 1} color`}
+                  fieldKey={`stepColor-${step.id}`}
                   value={step.color}
                   onChange={(color) => setStep(i, { color })}
                 />
                 <input
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'routineGuide',
+                    `stepLabel-${step.id}`
+                  )}
                   type="text"
                   aria-label={`Step ${i + 1} label`}
                   placeholder="Label"
@@ -296,6 +342,11 @@ const RoutineEditor: React.FC<{
                   className={`${inputClass} max-w-[9rem]`}
                 />
                 <select
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'routineGuide',
+                    `stepTool-${step.id}`
+                  )}
                   aria-label={`Step ${i + 1} tool`}
                   value={step.attachedWidget?.label ?? 'None'}
                   onChange={(e) => {
@@ -330,6 +381,11 @@ const RoutineEditor: React.FC<{
                 <div className="ml-auto flex items-center">
                   <button
                     type="button"
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'routineGuide',
+                      `moveUp-${step.id}`
+                    )}
                     aria-label={`Move step ${i + 1} up`}
                     disabled={i === 0}
                     onClick={() => moveStep(i, -1)}
@@ -339,6 +395,11 @@ const RoutineEditor: React.FC<{
                   </button>
                   <button
                     type="button"
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'routineGuide',
+                      `moveDown-${step.id}`
+                    )}
                     aria-label={`Move step ${i + 1} down`}
                     disabled={i === routine.steps.length - 1}
                     onClick={() => moveStep(i, 1)}
@@ -348,6 +409,11 @@ const RoutineEditor: React.FC<{
                   </button>
                   <button
                     type="button"
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'routineGuide',
+                      `remove-${step.id}`
+                    )}
                     aria-label={`Delete step ${i + 1}`}
                     disabled={routine.steps.length === 1}
                     onClick={() =>
@@ -360,6 +426,11 @@ const RoutineEditor: React.FC<{
                 </div>
               </div>
               <textarea
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'routineGuide',
+                  `stepText-${step.id}`
+                )}
                 aria-label={`Step ${i + 1} text`}
                 rows={2}
                 value={step.text}
@@ -371,6 +442,11 @@ const RoutineEditor: React.FC<{
         </ol>
         <button
           type="button"
+          {...tourFieldAttr(
+            'admin.widget-config.field',
+            'routineGuide',
+            'addStep'
+          )}
           onClick={() => set({ steps: [...routine.steps, newStep()] })}
           className="mt-2 inline-flex items-center gap-1.5 text-sm font-bold text-blue-700 hover:text-blue-900"
         >
@@ -443,6 +519,11 @@ export const RoutineGuideConfigurationPanel: React.FC<
           </h5>
           <button
             type="button"
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'routineGuide',
+              'addCategory'
+            )}
             onClick={() =>
               saveCategories([
                 ...categories,
@@ -459,6 +540,11 @@ export const RoutineGuideConfigurationPanel: React.FC<
           {categories.map((c, i) => (
             <li key={c.id} className="flex items-center gap-2 px-3 py-1.5">
               <input
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'routineGuide',
+                  `categoryName-${c.id}`
+                )}
                 type="text"
                 aria-label={`Category ${i + 1} name`}
                 value={c.label}
@@ -477,6 +563,11 @@ export const RoutineGuideConfigurationPanel: React.FC<
               </span>
               <button
                 type="button"
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'routineGuide',
+                  `removeCategory-${c.id}`
+                )}
                 aria-label={`Delete category ${c.label}`}
                 onClick={() =>
                   saveCategories(categories.filter((x) => x.id !== c.id))
@@ -496,6 +587,7 @@ export const RoutineGuideConfigurationPanel: React.FC<
           </h5>
           <button
             type="button"
+            {...tourTypeAttr('admin.widget-config.add', 'routineGuide')}
             onClick={addRoutine}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-bold text-white bg-slate-800 hover:bg-slate-900 rounded-lg"
           >
@@ -528,6 +620,11 @@ export const RoutineGuideConfigurationPanel: React.FC<
                   <span className="flex items-center gap-2">
                     <button
                       type="button"
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'routineGuide',
+                        `confirmDelete-${r.id}`
+                      )}
                       onClick={() => {
                         save(routines.filter((x) => x.id !== r.id));
                         setConfirmDeleteId(null);
@@ -538,6 +635,11 @@ export const RoutineGuideConfigurationPanel: React.FC<
                     </button>
                     <button
                       type="button"
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'routineGuide',
+                        `cancelDelete-${r.id}`
+                      )}
                       onClick={() => setConfirmDeleteId(null)}
                       className="px-2.5 py-1 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-md"
                     >
@@ -548,6 +650,11 @@ export const RoutineGuideConfigurationPanel: React.FC<
                   <span className="flex items-center">
                     <button
                       type="button"
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'routineGuide',
+                        `edit-${r.id}`
+                      )}
                       aria-label={`Edit ${r.name}`}
                       onClick={() => setEditingId(r.id)}
                       className="p-1.5 text-slate-500 hover:text-slate-900"
@@ -556,6 +663,11 @@ export const RoutineGuideConfigurationPanel: React.FC<
                     </button>
                     <button
                       type="button"
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'routineGuide',
+                        `delete-${r.id}`
+                      )}
                       aria-label={`Delete ${r.name}`}
                       onClick={() => setConfirmDeleteId(r.id)}
                       className="p-1.5 text-slate-500 hover:text-red-600"

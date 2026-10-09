@@ -5,7 +5,6 @@ import { resolveStimuli } from '@/utils/quizStimuli';
 import { CollapsibleStimuli } from '@/components/quiz/QuizStimulusView';
 import { formatRevealedAnswer } from '@/utils/quizFibAlternates';
 import { tourAttr } from '@/config/tourAnchors';
-import { QUIZ_STUDENT_MODE_LABEL } from '@/utils/quizBehavior';
 import { sectionStartingAt } from '@/utils/reviewLaunch';
 
 interface CurrentQuestionCardProps {
@@ -129,39 +128,15 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
     );
   }
 
+  // Self-paced: the status counts below carry progress, so only class controls show.
   if (isSelfPaced || !currentQ) {
-    const summary = (
-      <div
-        className="flex items-center justify-between"
-        style={{ gap: 'min(8px, 2cqmin)' }}
-      >
-        <p
-          className="text-brand-gray-dark"
-          style={{ fontSize: 'min(13px, 4.5cqmin)' }}
-        >
-          {QUIZ_STUDENT_MODE_LABEL} · {session.totalQuestions} questions
-          {isSelfPaced && session.timeLimitMinutes != null
-            ? ` · ${session.timeLimitMinutes} min limit`
-            : ''}
-        </p>
-        <p
-          className="font-sans font-semibold text-brand-blue-dark tabular-nums"
-          style={{ fontSize: 'min(13px, 4.5cqmin)' }}
-        >
-          {doneCount} of {total} done
-        </p>
-      </div>
-    );
+    if (!periodControls) return null;
     return (
       <div
-        className="bg-brand-blue-lighter rounded-xl flex flex-col"
-        style={{
-          padding: 'min(12px, 3cqmin) min(16px, 3.5cqmin)',
-          gap: 'min(10px, 2.5cqmin)',
-        }}
+        className="border-b border-brand-gray-lightest"
+        style={{ paddingBottom: 'min(10px, 2.5cqmin)' }}
       >
         {periodControls}
-        {summary}
       </div>
     );
   }

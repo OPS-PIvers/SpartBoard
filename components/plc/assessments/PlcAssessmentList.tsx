@@ -69,6 +69,7 @@ import {
   type AssessmentRowStatus,
 } from './assessmentListSelectors';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcAssessmentListProps {
   plc: Plc;
@@ -336,6 +337,7 @@ const AssessmentRow: React.FC<RowProps> = ({
       )}
       {row.assessmentId ? (
         <button
+          {...tourFieldAttr('plc-assessments.open', 'plc', row.id)}
           type="button"
           onClick={() => onOpen(row.assessmentId as string)}
           className="flex items-center gap-3 flex-1 min-w-0 text-left rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
@@ -352,6 +354,7 @@ const AssessmentRow: React.FC<RowProps> = ({
 
       {canEdit && !row.archived && row.plcQuizId && (
         <button
+          {...tourFieldAttr('plc-assessments.assign', 'plc', row.id)}
           type="button"
           onClick={() => onAssign(row)}
           disabled={busy}
@@ -367,6 +370,7 @@ const AssessmentRow: React.FC<RowProps> = ({
       {canEdit && (
         <div ref={menuRef} className="relative shrink-0">
           <button
+            {...tourFieldAttr('plc-assessments.menu', 'plc', row.id)}
             type="button"
             onClick={() => setMenuOpen((v) => !v)}
             aria-haspopup="menu"
@@ -386,6 +390,11 @@ const AssessmentRow: React.FC<RowProps> = ({
             >
               {row.archived ? (
                 <button
+                  {...tourFieldAttr(
+                    'plc-assessments.menu-item',
+                    'plc',
+                    'restore'
+                  )}
                   type="button"
                   role="menuitem"
                   onClick={() => {
@@ -404,6 +413,11 @@ const AssessmentRow: React.FC<RowProps> = ({
                   {canUseLibraryActions && (
                     <>
                       <button
+                        {...tourFieldAttr(
+                          'plc-assessments.menu-item',
+                          'plc',
+                          'import'
+                        )}
                         type="button"
                         role="menuitem"
                         onClick={() => {
@@ -422,6 +436,11 @@ const AssessmentRow: React.FC<RowProps> = ({
                             })}
                       </button>
                       <button
+                        {...tourFieldAttr(
+                          'plc-assessments.menu-item',
+                          'plc',
+                          'edit'
+                        )}
                         type="button"
                         role="menuitem"
                         onClick={() => {
@@ -436,6 +455,11 @@ const AssessmentRow: React.FC<RowProps> = ({
                         })}
                       </button>
                       <button
+                        {...tourFieldAttr(
+                          'plc-assessments.menu-item',
+                          'plc',
+                          'version-history'
+                        )}
                         type="button"
                         role="menuitem"
                         onClick={() => {
@@ -451,6 +475,11 @@ const AssessmentRow: React.FC<RowProps> = ({
                       </button>
                       {canPrintForTeammate && (
                         <button
+                          {...tourFieldAttr(
+                            'plc-assessments.menu-item',
+                            'plc',
+                            'print-teammate'
+                          )}
                           type="button"
                           role="menuitem"
                           onClick={() => {
@@ -470,6 +499,11 @@ const AssessmentRow: React.FC<RowProps> = ({
                   )}
                   {row.assessmentId && (
                     <button
+                      {...tourFieldAttr(
+                        'plc-assessments.menu-item',
+                        'plc',
+                        'rename'
+                      )}
                       type="button"
                       role="menuitem"
                       onClick={() => {
@@ -486,6 +520,11 @@ const AssessmentRow: React.FC<RowProps> = ({
                   )}
                   <div className="relative">
                     <button
+                      {...tourFieldAttr(
+                        'plc-assessments.menu-item',
+                        'plc',
+                        'move-to-folder'
+                      )}
                       type="button"
                       role="menuitem"
                       aria-haspopup="menu"
@@ -504,6 +543,11 @@ const AssessmentRow: React.FC<RowProps> = ({
                         className="absolute left-full top-0 ml-1 z-20 min-w-[10rem] max-h-64 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-lg py-1"
                       >
                         <button
+                          {...tourFieldAttr(
+                            'plc-assessments.menu-item',
+                            'plc',
+                            'no-folder'
+                          )}
                           type="button"
                           role="menuitem"
                           onClick={() => {
@@ -522,6 +566,11 @@ const AssessmentRow: React.FC<RowProps> = ({
                         </button>
                         {folders.map((folder) => (
                           <button
+                            {...tourFieldAttr(
+                              'plc-assessments.menu-folder',
+                              'plc',
+                              folder.id
+                            )}
                             key={folder.id}
                             type="button"
                             role="menuitem"
@@ -542,6 +591,11 @@ const AssessmentRow: React.FC<RowProps> = ({
                     )}
                   </div>
                   <button
+                    {...tourFieldAttr(
+                      'plc-assessments.menu-archive',
+                      'plc',
+                      row.id
+                    )}
                     type="button"
                     role="menuitem"
                     onClick={() => {
@@ -966,6 +1020,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
 
   const shareButton = canEdit ? (
     <button
+      {...tourAttr('plc-assessments.share')}
       type="button"
       onClick={quizActions.openSharePicker}
       disabled={!isDriveConnected}
@@ -992,6 +1047,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
   const canAssignFromLibrary = canEdit && canAccessFeature('plc-home-v2');
   const assignFromLibraryButton = canAssignFromLibrary ? (
     <button
+      {...tourAttr('plc-assessments.library-assign')}
       type="button"
       onClick={() => setLibraryAssignOpen(true)}
       disabled={!isDriveConnected}
@@ -1029,6 +1085,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
               const active = filter === f.id;
               return (
                 <button
+                  {...tourFieldAttr('plc-assessments.filter', 'plc', f.id)}
                   key={f.id}
                   type="button"
                   aria-pressed={active}
@@ -1050,6 +1107,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
               aria-hidden="true"
             />
             <input
+              {...tourAttr('plc-assessments.search')}
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -1064,6 +1122,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
           </label>
           {targetOptions.length > 0 && (
             <select
+              {...tourAttr('plc-assessments.target-filter')}
               value={targetFilter ?? ''}
               onChange={(event) => setTargetFilter(event.target.value || null)}
               aria-label={t('plcDashboard.assessmentList.targetFilterLabel', {
@@ -1225,6 +1284,11 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
           <div className="flex flex-wrap gap-1.5">
             {suggestions.map((name) => (
               <button
+                {...tourFieldAttr(
+                  'plc-assessments.suggested-folder',
+                  'plc',
+                  name
+                )}
                 key={name}
                 type="button"
                 onClick={() => void handleCreateSuggestedFolder(name)}

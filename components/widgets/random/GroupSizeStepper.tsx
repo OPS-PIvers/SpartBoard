@@ -1,6 +1,7 @@
 import React from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface GroupSizeStepperProps {
   value: number;
@@ -16,6 +17,8 @@ interface GroupSizeStepperProps {
   /** Tooltip + accessible name for the label button. */
   labelTitle?: string;
   tourProps?: Record<string, string>;
+  /** Field key for the minus, plus and label buttons' tour anchors. */
+  tourField?: string;
 }
 
 export const GroupSizeStepper: React.FC<GroupSizeStepperProps> = ({
@@ -28,6 +31,7 @@ export const GroupSizeStepper: React.FC<GroupSizeStepperProps> = ({
   onLabelClick,
   labelTitle,
   tourProps,
+  tourField,
 }) => {
   const { t } = useTranslation();
   const decrement = () => onChange(Math.max(min, value - 1));
@@ -48,6 +52,9 @@ export const GroupSizeStepper: React.FC<GroupSizeStepperProps> = ({
         type="button"
         onClick={decrement}
         disabled={atMin}
+        {...(tourField
+          ? tourFieldAttr('random.group-size-down', 'random', tourField)
+          : {})}
         className="flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         style={{
           width: 'clamp(28px, 7cqmin, 48px)',
@@ -77,6 +84,9 @@ export const GroupSizeStepper: React.FC<GroupSizeStepperProps> = ({
             <button
               type="button"
               onClick={onLabelClick}
+              {...(tourField
+                ? tourFieldAttr('random.group-size-mode', 'random', tourField)
+                : {})}
               title={labelTitle}
               aria-label={labelTitle}
               className="uppercase tracking-wider text-slate-500 font-bold leading-none rounded bg-slate-100 hover:bg-slate-200 transition-colors"
@@ -106,6 +116,9 @@ export const GroupSizeStepper: React.FC<GroupSizeStepperProps> = ({
         type="button"
         onClick={increment}
         disabled={atMax}
+        {...(tourField
+          ? tourFieldAttr('random.group-size-up', 'random', tourField)
+          : {})}
         className="flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         style={{
           width: 'clamp(28px, 7cqmin, 48px)',

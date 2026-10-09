@@ -33,7 +33,7 @@ import {
   isFreeResponseType,
 } from '@/types';
 import { useClickOutside } from '@/hooks/useClickOutside';
-import { tourTypeAttr } from '@/config/tourAnchors';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { BankSlotDetail, BankSlotRow } from './BankSlotRow';
 import { SectionRow } from './SectionRow';
 import { sectionQuestionCounts } from '@/utils/quizSections';
@@ -289,6 +289,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
             <button
               type="button"
               onClick={onAddAnswerKey}
+              {...tourTypeAttr('quiz-editor.add-answer-key', 'quiz')}
               className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-lg text-xs font-bold transition-colors"
             >
               <KeyRound className="w-3.5 h-3.5" aria-hidden />
@@ -307,6 +308,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
               type="button"
               onClick={() => setBankNotice(null)}
               aria-label="Dismiss"
+              {...tourTypeAttr('quiz-editor.bank-notice-dismiss', 'quiz')}
               className="text-emerald-700 hover:text-emerald-900"
             >
               ×
@@ -344,6 +346,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
                 <button
                   type="button"
                   onClick={() => setBulkPickerOpen(true)}
+                  {...tourTypeAttr('quiz-editor.bulk-tag', 'quiz')}
                   className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-colors"
                 >
                   <Tag className="w-3.5 h-3.5" />
@@ -353,6 +356,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
                   <button
                     type="button"
                     onClick={() => setSaveToBankOpen(true)}
+                    {...tourTypeAttr('quiz-editor.bulk-save-bank', 'quiz')}
                     className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-colors"
                   >
                     <Library className="w-3.5 h-3.5" />
@@ -362,6 +366,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
                 <button
                   type="button"
                   onClick={deleteChecked}
+                  {...tourTypeAttr('quiz-editor.bulk-delete', 'quiz')}
                   className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-red-50 border border-slate-300 text-red-600 rounded-lg text-xs font-bold transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -370,6 +375,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
                 <button
                   type="button"
                   onClick={() => setAllChecked(false)}
+                  {...tourTypeAttr('quiz-editor.bulk-clear', 'quiz')}
                   className="px-2 py-1 text-xs font-semibold text-slate-600 hover:text-slate-900"
                 >
                   Clear
@@ -379,6 +385,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
             {aiEnabled && (
               <button
                 onClick={() => setShowAiPrompt(true)}
+                {...tourTypeAttr('quiz-editor.draft-ai', 'quiz')}
                 className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-colors"
                 title="Generate questions with AI"
               >
@@ -420,6 +427,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
                         setAddMenuOpen(false);
                         addQuestion();
                       }}
+                      {...tourTypeAttr('quiz-editor.add-blank', 'quiz')}
                       className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100"
                     >
                       <Plus className="w-3.5 h-3.5" />
@@ -433,6 +441,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
                           setAddMenuOpen(false);
                           addSection();
                         }}
+                        {...tourTypeAttr('quiz-editor.add-section', 'quiz')}
                         className="w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs font-semibold text-slate-700 hover:bg-slate-100"
                       >
                         <Heading className="w-3.5 h-3.5" />
@@ -444,6 +453,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
                         type="button"
                         role="menuitem"
                         disabled={!banksAvailable}
+                        {...tourTypeAttr('quiz-editor.add-from-bank', 'quiz')}
                         onClick={() => {
                           setAddMenuOpen(false);
                           setBankPickerOpen(true);
@@ -635,6 +645,7 @@ const QuestionRow = React.memo(function QuestionRow({
   return (
     <div
       onClick={() => onSelect(question.id)}
+      {...tourFieldAttr('quiz-editor.question-row', 'quiz', String(index + 1))}
       className={`group flex items-center gap-2 px-2.5 py-2 rounded-lg border bg-white cursor-pointer transition-all ${
         isSelected
           ? 'border-brand-blue-primary ring-2 ring-brand-blue-primary/15'
@@ -651,6 +662,11 @@ const QuestionRow = React.memo(function QuestionRow({
         }
         onClick={(e) => e.stopPropagation()}
         aria-label="Drag to reorder"
+        {...tourFieldAttr(
+          'quiz-editor.question-drag',
+          'quiz',
+          String(index + 1)
+        )}
         className="text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing touch-none p-0.5"
       >
         <GripVertical className="w-4 h-4" />
@@ -666,6 +682,11 @@ const QuestionRow = React.memo(function QuestionRow({
           )
         }
         aria-label={`Select question ${index + 1}`}
+        {...tourFieldAttr(
+          'quiz-editor.question-select',
+          'quiz',
+          String(index + 1)
+        )}
         className={`shrink-0 accent-brand-blue-primary transition-opacity ${
           isChecked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
         }`}
@@ -720,6 +741,11 @@ const QuestionRow = React.memo(function QuestionRow({
         }}
         aria-label="Duplicate question"
         title="Duplicate question"
+        {...tourFieldAttr(
+          'quiz-editor.question-duplicate',
+          'quiz',
+          String(index + 1)
+        )}
         className="text-slate-300 hover:text-brand-blue-primary hover:bg-slate-100 rounded p-1 transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
       >
         <Copy className="w-3.5 h-3.5" />
@@ -732,6 +758,11 @@ const QuestionRow = React.memo(function QuestionRow({
         }}
         aria-label="Delete question"
         title="Delete question"
+        {...tourFieldAttr(
+          'quiz-editor.question-delete',
+          'quiz',
+          String(index + 1)
+        )}
         className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded p-1 transition-colors opacity-0 group-hover:opacity-100"
       >
         <Trash2 className="w-3.5 h-3.5" />
@@ -936,6 +967,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   });
                 }}
                 className="flex items-center gap-1 text-xs font-semibold text-brand-blue-primary hover:underline"
+                {...tourTypeAttr('quiz-editor.prompt-blank', 'quiz')}
               >
                 <Plus className="w-3.5 h-3.5" />
                 Blank
@@ -966,6 +998,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               type="button"
               onClick={() => setPickerOpen(true)}
               className="flex items-center gap-1 text-xs font-semibold text-brand-blue-primary hover:underline"
+              {...tourTypeAttr('quiz-editor.targets-edit', 'quiz')}
             >
               <Tag className="w-3.5 h-3.5" />
               {q.targets?.length ? 'Edit' : 'Add'}
@@ -1101,6 +1134,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   })
                 }
                 className={`${inputClass} pr-12 disabled:bg-slate-100 disabled:text-slate-600`}
+                {...tourTypeAttr('quiz-editor.time-limit', 'quiz')}
               />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xxs uppercase tracking-wider">
                 Sec
@@ -1136,6 +1170,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 })
               }
               className={`${inputClass} disabled:bg-slate-100 disabled:text-slate-600`}
+              {...tourTypeAttr('quiz-editor.points', 'quiz')}
             />
             {q.rubricSnapshot && (
               <p
@@ -1163,6 +1198,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               }
               placeholder="e.g. 2·3"
               className={inputClass}
+              {...tourTypeAttr('quiz-editor.printed-number', 'quiz')}
             />
           </div>
         )}
@@ -1200,6 +1236,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   })
                 }
                 className="w-4 h-4 accent-brand-blue-primary"
+                {...tourTypeAttr('quiz-editor.partial-credit', 'quiz')}
               />
               <span className="font-bold text-xs text-slate-700 whitespace-nowrap">
                 Partial credit
@@ -1273,6 +1310,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                     }
                     placeholder="e.g. Cite at least two pieces of evidence."
                     className={inputClass}
+                    {...tourTypeAttr('quiz-editor.placeholder', 'quiz')}
                   />
                 </div>
                 <WordLimitFields
@@ -1297,12 +1335,14 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   <button
                     onClick={() => setShowRubricBuilder(true)}
                     className="px-2.5 py-1 border border-slate-300 rounded-lg text-xs font-bold text-slate-700"
+                    {...tourTypeAttr('quiz-editor.rubric-edit', 'quiz')}
                   >
                     Edit
                   </button>
                   <button
                     onClick={handleDetachRubric}
                     className="px-2.5 py-1 border border-rose-200 rounded-lg text-xs font-bold text-rose-700"
+                    {...tourTypeAttr('quiz-editor.rubric-detach', 'quiz')}
                   >
                     Detach
                   </button>
@@ -1311,6 +1351,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 <button
                   onClick={() => setShowRubricBuilder(true)}
                   className="px-3 py-2 border border-slate-300 rounded-lg text-xs font-bold text-slate-700"
+                  {...tourTypeAttr('quiz-editor.rubric-attach', 'quiz')}
                 >
                   Attach Rubric
                 </button>
@@ -1346,6 +1387,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               }
               className="w-full px-3 py-2 bg-white border-2 border-emerald-500/30 rounded-lg text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 text-sm"
               placeholder="Enter the definitive answer"
+              {...tourTypeAttr('quiz-editor.fib-answer', 'quiz')}
             />
             {questionNeedsKey(q) && (
               <p
@@ -1385,12 +1427,22 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                     onChange={(e) => updateIncorrect(q.id, idx, e.target.value)}
                     placeholder={`Distractor ${idx + 1}`}
                     className={inputClass}
+                    {...tourFieldAttr(
+                      'quiz-editor.distractor',
+                      'quiz',
+                      String(idx + 1)
+                    )}
                   />
                   {q.incorrectAnswers.length > 1 && (
                     <button
                       onClick={() => removeIncorrect(q.id, idx)}
                       className="px-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                       aria-label={`Remove distractor ${idx + 1}`}
+                      {...tourFieldAttr(
+                        'quiz-editor.distractor-remove',
+                        'quiz',
+                        String(idx + 1)
+                      )}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -1400,6 +1452,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               {q.incorrectAnswers.length < 4 && (
                 <button
                   onClick={() => addIncorrect(q.id)}
+                  {...tourTypeAttr('quiz-editor.distractor-add', 'quiz')}
                   className="flex items-center justify-center gap-1.5 py-2 border-2 border-dashed border-slate-300 hover:border-brand-blue-primary/40 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-brand-blue-primary font-bold transition-all text-xs"
                 >
                   <Plus className="w-3.5 h-3.5" />
@@ -1484,6 +1537,7 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
         className="w-full h-24 p-4 bg-white border-2 border-indigo-100 rounded-2xl text-sm text-indigo-900 placeholder-indigo-300 focus:outline-none focus:border-indigo-500 resize-none shadow-inner"
         autoFocus
         aria-label="Describe your quiz"
+        {...tourTypeAttr('quiz-editor.ai-prompt', 'quiz')}
       />
       <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 space-y-3">
         <div className="flex items-center justify-between text-xs font-bold text-indigo-700/70 uppercase tracking-widest">
@@ -1512,6 +1566,11 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
                     disabled={value <= 0 || aiGenerating}
                     className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold hover:bg-indigo-200 disabled:opacity-30 disabled:cursor-not-allowed"
                     aria-label={`Decrease ${row.label} count`}
+                    {...tourFieldAttr(
+                      'quiz-editor.ai-count-dec',
+                      'quiz',
+                      row.type
+                    )}
                   >
                     –
                   </button>
@@ -1524,6 +1583,11 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
                     disabled={value >= 15 || aiGenerating}
                     className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold hover:bg-indigo-200 disabled:opacity-30 disabled:cursor-not-allowed"
                     aria-label={`Increase ${row.label} count`}
+                    {...tourFieldAttr(
+                      'quiz-editor.ai-count-inc',
+                      'quiz',
+                      row.type
+                    )}
                   >
                     +
                   </button>

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import {
   ref as storageRef,
@@ -174,6 +175,7 @@ const ThumbnailInput: React.FC<ThumbnailInputProps> = ({
 
         <div className="flex-1 min-w-0 space-y-1.5">
           <input
+            {...tourAttr('admin.music.thumbnail-url')}
             type="url"
             placeholder="https://… image URL"
             value={thumbnail.startsWith('data:') ? '' : thumbnail}
@@ -183,6 +185,7 @@ const ThumbnailInput: React.FC<ThumbnailInputProps> = ({
           <p className="text-xs text-slate-400">
             Paste an image (Ctrl+V here), drop a file, or{' '}
             <button
+              {...tourAttr('admin.music.thumbnail-browse')}
               type="button"
               onClick={() => fileInputRef.current?.click()}
               className="text-indigo-500 hover:underline font-medium"
@@ -194,6 +197,7 @@ const ThumbnailInput: React.FC<ThumbnailInputProps> = ({
 
         {thumbnail && (
           <button
+            {...tourAttr('admin.music.thumbnail-remove')}
             type="button"
             onClick={() => onChange('')}
             className="absolute top-1.5 right-1.5 p-0.5 rounded-full bg-white/80 hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
@@ -372,6 +376,7 @@ export const MusicManager: React.FC = () => {
     <div className="space-y-4">
       <div className="flex items-center justify-end">
         <Button
+          {...tourAttr('admin.music.add-station')}
           onClick={handleAddStation}
           className="bg-indigo-600 hover:bg-indigo-700 text-white"
           size="sm"
@@ -405,6 +410,7 @@ export const MusicManager: React.FC = () => {
                   {/* Row 1: Title + Channel */}
                   <div className="grid grid-cols-2 gap-3">
                     <input
+                      {...tourAttr('admin.music.title')}
                       type="text"
                       placeholder="Title (e.g. Lofi Beats)"
                       value={editForm.title ?? ''}
@@ -414,6 +420,7 @@ export const MusicManager: React.FC = () => {
                       className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
                     />
                     <input
+                      {...tourAttr('admin.music.channel')}
                       type="text"
                       placeholder="Channel / Artist"
                       value={editForm.channel ?? ''}
@@ -427,6 +434,7 @@ export const MusicManager: React.FC = () => {
                   {/* Row 2: URL (auto-fetches YouTube thumbnail) */}
                   <div>
                     <input
+                      {...tourAttr('admin.music.url')}
                       type="url"
                       placeholder="YouTube or Spotify URL"
                       value={editForm.url ?? ''}
@@ -459,6 +467,7 @@ export const MusicManager: React.FC = () => {
                       Genre
                     </label>
                     <select
+                      {...tourAttr('admin.music.genre')}
                       value={editForm.genre ?? ''}
                       onChange={(e) =>
                         setEditForm({
@@ -492,6 +501,11 @@ export const MusicManager: React.FC = () => {
                         );
                         return (
                           <button
+                            {...tourFieldAttr(
+                              'admin.music.building',
+                              'admin',
+                              building.id
+                            )}
                             key={building.id}
                             type="button"
                             onClick={() => toggleBuildingInForm(building.id)}
@@ -539,11 +553,17 @@ export const MusicManager: React.FC = () => {
                   )}
 
                   <div className="flex justify-end gap-2 pt-1">
-                    <Button variant="ghost" size="sm" onClick={cancelEdit}>
+                    <Button
+                      {...tourAttr('admin.music.cancel')}
+                      variant="ghost"
+                      size="sm"
+                      onClick={cancelEdit}
+                    >
                       <X className="w-4 h-4 mr-1" />
                       Cancel
                     </Button>
                     <Button
+                      {...tourAttr('admin.music.save')}
                       size="sm"
                       onClick={saveEdit}
                       disabled={isThumbnailUploading}
@@ -599,6 +619,11 @@ export const MusicManager: React.FC = () => {
                   </div>
                   <div className="flex gap-1.5 pr-1 shrink-0">
                     <Button
+                      {...tourFieldAttr(
+                        'admin.music.edit',
+                        'admin',
+                        station.id
+                      )}
                       variant="ghost"
                       size="icon"
                       onClick={() => startEdit(station)}
@@ -607,6 +632,11 @@ export const MusicManager: React.FC = () => {
                       <Edit2 className="w-4 h-4" />
                     </Button>
                     <Button
+                      {...tourFieldAttr(
+                        'admin.music.delete',
+                        'admin',
+                        station.id
+                      )}
                       variant="ghost"
                       size="icon"
                       onClick={() => setDeleteConfirmId(station.id)}

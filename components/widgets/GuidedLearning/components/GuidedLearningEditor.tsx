@@ -43,6 +43,7 @@ import {
   PULSE_OPTIONS,
   TRANSITION_OPTIONS,
 } from './editorShared/setOptions';
+import { tourAttr } from '@/config/tourAnchors';
 
 // ─── Context pane ────────────────────────────────────────────────────────────
 
@@ -341,6 +342,7 @@ export const GuidedLearningEditorContextPane = React.memo(
             type="text"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+            {...tourAttr('gl-editor.description')}
             placeholder="Add a description (optional)"
             className="w-full bg-transparent border-0 text-slate-600 placeholder:text-slate-400 focus:outline-none text-sm p-0"
           />
@@ -353,6 +355,7 @@ export const GuidedLearningEditorContextPane = React.memo(
             {MODE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
+                {...tourAttr('gl-editor.mode')}
                 onClick={() => setMode(opt.value)}
                 title={opt.desc}
                 className={`shrink-0 px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
@@ -416,6 +419,7 @@ export const GuidedLearningEditorContextPane = React.memo(
                     return (
                       <button
                         key={url}
+                        {...tourAttr('gl-editor.slide-tab')}
                         onClick={() => setCurrentImageIndex(idx)}
                         className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-bold border transition-colors ${
                           idx === currentImageIndex
@@ -434,6 +438,7 @@ export const GuidedLearningEditorContextPane = React.memo(
               <div
                 ref={imageContainerRef}
                 className={`flex-1 min-h-0 relative rounded-lg overflow-hidden bg-slate-200 border border-slate-300 ${addingStep ? 'cursor-crosshair' : ''}`}
+                {...tourAttr('gl-editor.canvas')}
                 onClick={handleImageClick}
                 data-no-drag={addingStep ? 'true' : undefined}
               >
@@ -605,6 +610,7 @@ export const GuidedLearningEditorContextPane = React.memo(
           {/* Action toolbar */}
           <div className="flex flex-wrap gap-2 shrink-0">
             <button
+              {...tourAttr('gl-editor.upload')}
               onClick={() => fileInputRef.current?.click()}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg transition-colors text-sm"
             >
@@ -613,6 +619,7 @@ export const GuidedLearningEditorContextPane = React.memo(
             </button>
             <CaptureMenuButton onPick={setCaptureMode} />
             <button
+              {...tourAttr('gl-editor.paste')}
               onClick={() => void uploadFromClipboard()}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:border-slate-400 text-slate-700 font-bold rounded-lg transition-colors text-sm"
               title="Paste an image from your clipboard (or press Ctrl+V anywhere)"
@@ -623,6 +630,7 @@ export const GuidedLearningEditorContextPane = React.memo(
             {imageUrls.length > 0 && (
               <>
                 <button
+                  {...tourAttr('gl-editor.add-step')}
                   onClick={() => setAddingStep(!addingStep)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 font-bold rounded-lg transition-colors text-sm border ${
                     addingStep
@@ -635,6 +643,7 @@ export const GuidedLearningEditorContextPane = React.memo(
                 </button>
                 {currentKind === 'video' && (
                   <button
+                    {...tourAttr('gl-editor.trim-toggle')}
                     onClick={() => setTrimOpen((v) => !v)}
                     aria-expanded={trimOpen}
                     className={`flex items-center gap-1.5 px-3 py-1.5 font-bold rounded-lg transition-colors text-sm border ${
@@ -654,6 +663,7 @@ export const GuidedLearningEditorContextPane = React.memo(
                       onClick={() => moveImage(currentImageIndex, -1)}
                       disabled={currentImageIndex === 0}
                       className="p-1.5 text-slate-500 disabled:opacity-30 hover:bg-slate-200 rounded transition-colors"
+                      {...tourAttr('gl-editor.slide-earlier')}
                       aria-label="Move slide earlier"
                     >
                       <ChevronUp className="w-4 h-4" />
@@ -662,6 +672,7 @@ export const GuidedLearningEditorContextPane = React.memo(
                       onClick={() => moveImage(currentImageIndex, 1)}
                       disabled={currentImageIndex === imageUrls.length - 1}
                       className="p-1.5 text-slate-500 disabled:opacity-30 hover:bg-slate-200 rounded transition-colors"
+                      {...tourAttr('gl-editor.slide-later')}
                       aria-label="Move slide later"
                     >
                       <ChevronDown className="w-4 h-4" />
@@ -671,6 +682,7 @@ export const GuidedLearningEditorContextPane = React.memo(
                 <button
                   onClick={() => deleteImage(currentImageIndex)}
                   className={`flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:border-red-300 hover:bg-red-50 text-slate-700 hover:text-red-700 font-bold rounded-lg transition-colors text-sm ${imageUrls.length > 1 ? '' : 'ml-auto'}`}
+                  {...tourAttr('gl-editor.slide-delete')}
                   aria-label="Delete current slide"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -787,6 +799,7 @@ export const GuidedLearningEditorDetailPane = React.memo(
               )}
               {imageUrls.length > 0 && !addingStep && (
                 <button
+                  {...tourAttr('gl-editor.add-step')}
                   onClick={() => {
                     setSelectedStepId(null);
                     setAddingStep(true);
@@ -865,6 +878,7 @@ const StepPill = React.memo(function StepPill({
           | React.PointerEventHandler<HTMLButtonElement>
           | undefined
       }
+      {...tourAttr('gl-editor.step-chip')}
       onClick={() => onSelect(s)}
       aria-label={`Step ${idx + 1}${imageCount > 1 ? ` on image ${s.imageIndex + 1}` : ''}${s.label ? `: ${s.label}` : ''}`}
       title={s.label?.trim() ? s.label : `Step ${idx + 1}`}
@@ -1158,6 +1172,7 @@ const HotspotMarker = React.memo(function HotspotMarker({
     <button
       type="button"
       onPointerDown={handlePointerDown}
+      {...tourAttr('gl-editor.hotspot-marker')}
       aria-label={`Hotspot ${stepNumber} — drag to move, click to edit`}
       className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing select-none shadow-md transition-transform touch-none ${
         isSelected
