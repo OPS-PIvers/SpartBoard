@@ -31,7 +31,6 @@
  * by this flow.
  */
 
-import { tourAttr } from '@/config/tourAnchors';
 import React, { useCallback, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { doc, writeBatch } from 'firebase/firestore';
@@ -96,6 +95,7 @@ import { ToggleRow } from '@/components/common/library/AssignmentSettingsToggleG
 import { applyAvailability } from '@/utils/assignAvailability';
 import { EMPTY_ASSIGN_TARGETING_VALUE } from '@/utils/studentTargetRef';
 import { formatShortDate, isPlcSheetUrlInvalid } from './newAssignmentHelpers';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface PlcNewVideoActivityAssignmentModalProps {
   plc: Plc;
@@ -690,6 +690,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
               id="plc-va-assign-due-date"
               type="date"
               data-testid="plc-va-assign-due-date"
+              {...tourAttr('plc-video-assign.due-date')}
               value={dueDateInputValue}
               onChange={(e) => {
                 const val = e.target.value;
@@ -787,6 +788,7 @@ const PlcSharingStepBody: React.FC<{
           type="text"
           value={teacherName}
           onChange={(e) => onTeacherNameChange(e.target.value)}
+          {...tourAttr('plc-video-assign.teacher-name')}
           placeholder={t(
             'plcDashboard.newAssignment.sharing.teacherNamePlaceholder',
             { defaultValue: 'e.g. Ms. Smith' }
@@ -815,6 +817,7 @@ const PlcSharingStepBody: React.FC<{
             type="text"
             value={plcSheetUrl}
             onChange={(e) => onPlcSheetUrlChange(e.target.value)}
+            {...tourAttr('plc-video-assign.sheet-url')}
             placeholder={t(
               'plcDashboard.newAssignment.sharing.sheetUrlPlaceholder',
               { defaultValue: 'https://docs.google.com/spreadsheets/d/...' }
