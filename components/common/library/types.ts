@@ -540,6 +540,8 @@ export interface AssignModalProps<TOptions> {
   confirmDisabledReason?: string;
   /** Live-tour anchor attributes for the confirm button. */
   confirmTourAttrs?: Record<string, string>;
+  /** Live-tour anchor attributes for the footer Cancel button. */
+  cancelTourAttrs?: Record<string, string>;
   /** Override the modal's z-index tier (e.g. "z-dialog"). See Modal's `zIndex` prop. */
   zIndex?: string;
 }

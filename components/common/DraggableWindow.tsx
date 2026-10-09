@@ -8,6 +8,7 @@ import React, {
   useSyncExternalStore,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { WidgetWhatsNew } from './WidgetWhatsNewNotice';
 import { useTranslation } from 'react-i18next';
 import {
   X,
@@ -3093,6 +3094,23 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       {(isMaximized || isSpotlighted) && typeof document !== 'undefined'
         ? createPortal(content, document.body)
         : content}
+
+      {!isMaximized &&
+        !isSpotlighted &&
+        !widget.minimized &&
+        !isDragging &&
+        !isResizing && (
+          <WidgetWhatsNew
+            widgetType={widget.type}
+            box={{
+              left: override?.x ?? widget.x,
+              top: override?.y ?? widget.y,
+              width: Math.max(renderMinW ?? 0, override?.w ?? widget.w),
+              height: Math.max(renderMinH ?? 0, override?.h ?? widget.h),
+            }}
+            zIndex={widget.z}
+          />
+        )}
 
       {/* TOOL MENU PORTAL — suppressed while maximized; the bottom-right FAB
           cluster provides the relevant actions full-screen instead. */}

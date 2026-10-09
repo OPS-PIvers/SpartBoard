@@ -1,4 +1,5 @@
 import React from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import {
   ChevronDown,
   EyeOff,
@@ -111,7 +112,8 @@ const LabeledToggle: React.FC<{
   onChange: (v: boolean) => void;
   disabled: boolean;
   children: string;
-}> = ({ checked, onChange, disabled, children }) => (
+  anchor?: TourAnchorAttrs;
+}> = ({ checked, onChange, disabled, children, anchor }) => (
   <div className="flex items-center gap-2 text-[13px] text-slate-600">
     <Toggle
       checked={checked}
@@ -120,6 +122,7 @@ const LabeledToggle: React.FC<{
       size="xs"
       showLabels={false}
       label={children}
+      anchor={anchor}
     />
     <span>{children}</span>
   </div>

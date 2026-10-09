@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { ChevronDown, CircleHelp, Download, Eye } from 'lucide-react';
 import { CellPopover } from '@/components/admin/Organization/components/primitives';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
@@ -65,7 +66,8 @@ const ToggleRow: React.FC<{
   checked: boolean;
   onChange: (on: boolean) => void;
   label: string;
-}> = ({ checked, onChange, label }) => (
+  anchor?: TourAnchorAttrs;
+}> = ({ checked, onChange, label, anchor }) => (
   <div className="flex items-center gap-2 text-[13px] text-slate-600">
     <Toggle
       size="xs"
@@ -73,6 +75,7 @@ const ToggleRow: React.FC<{
       checked={checked}
       onChange={onChange}
       label={label}
+      anchor={anchor}
     />
     <span onClick={() => onChange(!checked)} className="cursor-pointer">
       {label}

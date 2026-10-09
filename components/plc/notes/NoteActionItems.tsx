@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
 import {
   CalendarDays,
@@ -89,6 +89,7 @@ const DueDateText: React.FC<{
       {canEdit ? (
         <>
           <button
+            {...tourAttr('plc-notes.action-due-open')}
             type="button"
             onClick={() => {
               try {
@@ -202,6 +203,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
           </button>
         )}
         <input
+          {...tourFieldAttr('plc-notes.action-check', 'plc', item.id)}
           type="checkbox"
           checked={item.done}
           disabled={!canEdit}
@@ -224,6 +226,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
         />
         {panel ? (
           <textarea
+            {...tourFieldAttr('plc-notes.action-edit', 'plc', item.id)}
             rows={1}
             value={item.text}
             readOnly={!canEdit}
@@ -236,6 +239,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
           />
         ) : (
           <input
+            {...tourFieldAttr('plc-notes.action-edit', 'plc', item.id)}
             type="text"
             value={item.text}
             readOnly={!canEdit}
@@ -251,6 +255,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
       <>
         {canEdit ? (
           <select
+            {...tourFieldAttr('plc-notes.action-owner', 'plc', item.id)}
             value={item.assigneeUid ?? ''}
             onChange={(e) =>
               updateItem(item.id, {
@@ -281,6 +286,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
           )
         )}
         <input
+          {...tourFieldAttr('plc-notes.action-due', 'plc', item.id)}
           type="date"
           value={msToDateInput(item.dueAt)}
           disabled={!canEdit}
@@ -307,6 +313,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
           />
           {canEdit ? (
             <select
+              {...tourFieldAttr('plc-notes.action-owner', 'plc', item.id)}
               value={item.assigneeUid ?? ''}
               onChange={(e) =>
                 updateItem(item.id, { assigneeUid: e.target.value || null })
@@ -353,6 +360,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
       <>
         {canEdit && (
           <button
+            {...tourFieldAttr('plc-notes.action-remove', 'plc', item.id)}
             type="button"
             onClick={() => removeItem(item.id)}
             aria-label={t('plcDashboard.notes.actionItems.remove', {

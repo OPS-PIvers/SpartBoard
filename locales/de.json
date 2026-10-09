@@ -3943,5 +3943,10 @@
     "addStep": "Schritt hinzufügen",
     "listTitle": "Bedienelement wählen",
     "recordFromHere": "Ab hier aufnehmen"
+  },
+  "widgetWhatsNew": {
+    "label": "Neu",
+    "dismiss": "Ausblenden",
+    "gotIt": "Verstanden"
   }
 }

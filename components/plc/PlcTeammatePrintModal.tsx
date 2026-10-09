@@ -38,6 +38,7 @@ import {
   type CreateTeammatePaperBatchResult,
   type TeammatePrintRoster,
 } from '@/hooks/usePlcTeammatePrintContext';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const MAX_SPARES = 20;
 
@@ -323,6 +324,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
           {sortedTeammates.map((m) => (
             <li key={m.uid}>
               <button
+                {...tourFieldAttr('plc-print.teammate', 'plc', m.uid)}
                 type="button"
                 onClick={() => setTargetUid(m.uid)}
                 className="flex w-full items-center gap-3 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-left transition-colors hover:border-brand-blue-light focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
@@ -458,6 +460,11 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
           >
             <div className="flex items-center gap-3 px-3 py-2.5">
               <input
+                {...tourFieldAttr(
+                  'plc-print.roster-checkbox',
+                  'plc',
+                  roster.id
+                )}
                 type="checkbox"
                 checked={selected}
                 onChange={() => toggleRoster(roster)}
@@ -482,6 +489,11 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
               </span>
               {!namesUnavailable && (
                 <button
+                  {...tourFieldAttr(
+                    'plc-print.roster-expand',
+                    'plc',
+                    roster.id
+                  )}
                   type="button"
                   onClick={() =>
                     setExpandedRosterId(expanded ? null : roster.id)
@@ -509,6 +521,11 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
                   <li key={student.id}>
                     <label className="flex items-center gap-2 py-1 text-sm text-slate-700">
                       <input
+                        {...tourFieldAttr(
+                          'plc-print.student-checkbox',
+                          'plc',
+                          student.id
+                        )}
                         type="checkbox"
                         checked={!excludedStudentIds.has(student.id)}
                         onChange={() => toggleStudent(student.id)}
@@ -598,6 +615,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
               </span>
             </label>
             <input
+              {...tourAttr('plc-print.spares')}
               id="teammate-print-spares"
               type="number"
               min={0}
@@ -705,6 +723,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
         <span />
       ) : (
         <button
+          {...tourAttr('plc-print.withdraw')}
           type="button"
           onClick={() => void handleWithdraw()}
           disabled={printing}
@@ -717,6 +736,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
       )}
       <div className="flex items-center gap-2">
         <button
+          {...tourAttr('plc-print.close')}
           type="button"
           onClick={onClose}
           className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
@@ -725,6 +745,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
         </button>
         {!withdrawn && (
           <button
+            {...tourAttr('plc-print.test-print')}
             type="button"
             onClick={handlePrintTest}
             className="inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-2 text-xs font-bold text-white"
@@ -743,6 +764,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
     targetUid === null ? null : (
       <div className="flex items-center justify-between gap-3">
         <button
+          {...tourAttr('plc-print.back')}
           type="button"
           onClick={backToPicker}
           className="rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
@@ -759,6 +781,7 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
             })}
           </span>
           <button
+            {...tourAttr('plc-print.print')}
             type="button"
             onClick={() => void handlePrint()}
             disabled={!canPrint}
