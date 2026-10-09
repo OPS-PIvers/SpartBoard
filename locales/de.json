@@ -3932,6 +3932,7 @@
   },
   "tourPicker": {
     "prompt": "Klicken Sie auf ein Bedienelement für diesen Schritt",
+    "altHint": "Alt gedrückt halten, um zuerst ein Menü zu öffnen",
     "chooseFromList": "Aus Liste wählen",
     "cancel": "Abbrechen",
     "search": "Bedienelemente suchen",

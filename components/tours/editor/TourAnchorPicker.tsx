@@ -94,8 +94,9 @@ export const TourAnchorPicker: React.FC<Props> = ({
       );
     };
     const onSwallow = (e: Event) => {
-      // Fast-forward's own clicks still reach the board.
-      if (isScriptedClick() || ignored(e.target)) return;
+      // Fast-forward's own clicks still reach the board, and Alt clicks through to open a menu.
+      if (isScriptedClick() || ignored(e.target) || (e as MouseEvent).altKey)
+        return;
       e.preventDefault();
       e.stopPropagation();
       if (e.type !== 'click') return;
@@ -184,8 +185,13 @@ export const TourAnchorPicker: React.FC<Props> = ({
         className={`fixed left-1/2 top-4 flex -translate-x-1/2 items-center gap-1 rounded-2xl py-1.5 pl-4 pr-1.5 ${chromeSurface}`}
         style={{ zIndex: Z_INDEX.tourCallout }}
       >
-        <span className="mr-2 whitespace-nowrap text-sm font-semibold">
-          {t('tourPicker.prompt')}
+        <span className="mr-2 flex flex-col">
+          <span className="whitespace-nowrap text-sm font-semibold">
+            {t('tourPicker.prompt')}
+          </span>
+          <span className="whitespace-nowrap text-xs text-slate-500">
+            {t('tourPicker.altHint')}
+          </span>
         </span>
         {onChooseFromList && (
           <button
