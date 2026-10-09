@@ -11,6 +11,7 @@ import { canEditPlcContent } from '@/utils/plc';
 import { GoalEditorModal } from '@/components/plc/goals/GoalEditorModal';
 import {
   routineFor,
+  useGoalGradeLevels,
   useGoalRoutineOptions,
 } from '@/components/plc/goals/routineOptions';
 import { TileEmpty, TileFrame } from './TileFrame';
@@ -27,6 +28,7 @@ export const GoalsTile: React.FC<PlcHomeTileProps> = ({
   const { plc, uid } = ctx;
   const { goals, loading, saveGoal, deleteGoal } = usePlcGoals(plc.id);
   const routines = useGoalRoutineOptions();
+  const gradeLevels = useGoalGradeLevels(plc);
   const canEdit = !!uid && canEditPlcContent(plc, uid);
   const [editing, setEditing] = useState<PlcGoal | 'new' | null>(null);
   const [info, setInfo] = useState<RoutineGuideRoutine | null>(null);
@@ -148,6 +150,7 @@ export const GoalsTile: React.FC<PlcHomeTileProps> = ({
           goal={editing === 'new' ? null : editing}
           nextOrder={goals.length}
           routines={routines}
+          gradeLevels={gradeLevels}
           onSave={async (draft) => {
             await saveGoal(draft);
           }}

@@ -1608,6 +1608,10 @@ export interface PlcGoal {
   id: string;
   title: string;
   measure?: string;
+  /** SMART frame pieces; title is the sentence built from them. YYYY-MM-DD. */
+  dueDate?: string;
+  students?: string;
+  outcome?: string;
   baseline?: number;
   current?: number;
   target?: number;
