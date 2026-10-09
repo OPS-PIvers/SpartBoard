@@ -89,7 +89,7 @@ import {
   useMediaQuery,
 } from './useMediaQuery';
 import { SetTooLargeError } from '@/utils/firestoreDocSize';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const MAX_ISSUE_TOASTS = 3;
 const SMALL_SCREEN_NOTE_KEY = 'gl-studio-small-screen-note-dismissed';
@@ -813,6 +813,10 @@ const StudioSession: React.FC<
                   label={t('glStudio.moreActions')}
                   items={overflowItems}
                   testId="gl-studio-more"
+                  anchor={tourAttr('studio.more-actions')}
+                  itemAnchor={(id) =>
+                    tourFieldAttr('studio.menu-item', 'guided-learning', id)
+                  }
                   iconClassName="h-5 w-5"
                   triggerClassName="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
                 />
@@ -1030,6 +1034,10 @@ const StudioSession: React.FC<
           onSelect={(next) => onFolderChange?.(next)}
           onClose={() => setFolderPickerOpen(false)}
           title={t('glStudio.selectFolder')}
+          rootAnchor={tourAttr('gl-folder-picker.root')}
+          rowAnchor={(id) =>
+            tourFieldAttr('gl-folder-picker.folder', 'guided-learning', id)
+          }
         />
       )}
     </div>,

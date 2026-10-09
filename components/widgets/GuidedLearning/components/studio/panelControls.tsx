@@ -1,5 +1,6 @@
 import React, { useId } from 'react';
 import { Check } from 'lucide-react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 
 export const fieldLabelClass = 'text-xs font-bold text-slate-600';
 export const inputClass =
@@ -24,6 +25,7 @@ interface ChoiceGroupProps<T extends string> {
   testId?: string;
   /** Also show the chosen option's description under the choices. */
   showSelectedDesc?: boolean;
+  optionAnchor?: (value: T) => TourAnchorAttrs;
 }
 
 /** A small set of pressable choices; each option's description is its tooltip. */
@@ -34,6 +36,7 @@ export function ChoiceGroup<T extends string>({
   onChange,
   testId,
   showSelectedDesc,
+  optionAnchor,
 }: ChoiceGroupProps<T>) {
   const current = showSelectedDesc
     ? options.find((o) => o.value === value)
@@ -46,6 +49,7 @@ export function ChoiceGroup<T extends string>({
           const on = opt.value === value;
           return (
             <button
+              {...optionAnchor?.(opt.value)}
               key={opt.value}
               type="button"
               aria-pressed={on}

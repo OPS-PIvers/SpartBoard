@@ -29,6 +29,7 @@ import type {
 } from '@/types';
 import type { FolderDeleteUndo } from '@/hooks/useFolderTree';
 import { collectDescendantIds } from '@/utils/folderTree';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { FolderTree } from './FolderTree';
 import { folderDroppableId, type FolderDropData } from './folderDropTargets';
 import { useFolderPanelMode } from './LibraryFolderPanelContext';
@@ -114,6 +115,12 @@ export interface FolderSidebarProps {
 
   /** Folder view model; when set the panel navigates places instead of filtering. */
   folderView?: LibraryFolderViewModel | null;
+
+  anchors?: {
+    newFolder?: TourAnchorAttrs;
+    root?: TourAnchorAttrs;
+    newFolderInput?: TourAnchorAttrs;
+  };
 }
 
 // Matches no folder, so the tree highlights nothing while All items or Recent is open.
@@ -134,6 +141,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   error = null,
   enableDrop = false,
   folderView = null,
+  anchors,
 }) => {
   const rootDropData = useMemo<FolderDropData>(
     () => ({ type: 'folder', folderId: null }),
@@ -393,6 +401,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
           </span>
           {onCreateFolder && (
             <button
+              {...anchors?.newFolder}
               type="button"
               onClick={() => {
                 setCreatingUnder(null);
@@ -415,6 +424,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
 
       {/* Root entry: "Library" in the folder view, "All items" otherwise */}
       <SidebarNavButton
+        anchor={anchors?.root}
         dropRef={enableDrop ? rootDroppable.setNodeRef : undefined}
         isOver={isRootOver}
         isRail={isRail}
@@ -432,6 +442,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
       {/* Inline new-folder at root */}
       {!isRail && creatingUnder === null && (
         <NewFolderInput
+          anchor={anchors?.newFolderInput}
           value={newName}
           onChange={setNewName}
           onCommit={() => handleCreate(null)}
@@ -507,6 +518,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
       {!isRail && creatingUnder && creatingUnder !== null && (
         <div className="ml-6">
           <NewFolderInput
+            anchor={anchors?.newFolderInput}
             value={newName}
             onChange={setNewName}
             onCommit={() => handleCreate(creatingUnder)}
@@ -592,6 +604,7 @@ const SidebarNavButton: React.FC<{
   count?: number;
   isOver?: boolean;
   dropRef?: (node: HTMLElement | null) => void;
+  anchor?: TourAnchorAttrs;
   onClick: () => void;
 }> = ({
   icon: Icon,
@@ -601,9 +614,11 @@ const SidebarNavButton: React.FC<{
   count,
   isOver,
   dropRef,
+  anchor,
   onClick,
 }) => (
   <button
+    {...anchor}
     ref={dropRef}
     type="button"
     onClick={onClick}
@@ -655,7 +670,8 @@ const NewFolderInput: React.FC<{
   onChange: (v: string) => void;
   onCommit: () => void;
   onCancel: () => void;
-}> = ({ value, onChange, onCommit, onCancel }) => {
+  anchor?: TourAnchorAttrs;
+}> = ({ value, onChange, onCommit, onCancel, anchor }) => {
   // Set to true synchronously before calling onCancel() so that the
   // synchronous blur event fired by unmounting the focused input (which
   // carries a stale onBlur closure still holding the typed text) does not
@@ -665,6 +681,7 @@ const NewFolderInput: React.FC<{
 
   return (
     <input
+      {...anchor}
       autoFocus
       type="text"
       value={value}

@@ -10,7 +10,7 @@ import type { GuidedLearningEditorController } from '../useGuidedLearningEditorS
 import { stepsInIdOrder } from './timelineOrder';
 import { StudioMenu } from './StudioMenu';
 import { modShortcutLabel } from './useStudioShortcuts';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface StepChip {
   id: string;
@@ -194,6 +194,10 @@ const TimelineBody = React.memo(function TimelineBody({
       <StudioMenu
         label={t('glStudio.stepActions')}
         testId="gl-studio-step-menu"
+        anchor={tourAttr('studio.timeline-step-actions')}
+        itemAnchor={(id) =>
+          tourFieldAttr('studio.menu-item', 'guided-learning', id)
+        }
         triggerClassName="flex shrink-0 items-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 transition-colors hover:border-slate-400"
         items={[
           {
