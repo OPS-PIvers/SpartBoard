@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
 import {
   X,
@@ -231,6 +232,7 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
           </h3>
           <div className="flex items-center gap-2">
             <button
+              {...tourAttr('admin.stickers.save')}
               onClick={() => void onSave()}
               disabled={isSaving || !hasUnsavedChanges}
               className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
@@ -247,6 +249,7 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
                   : t('common.saved')}
             </button>
             <button
+              {...tourAttr('admin.stickers.modal-close')}
               onClick={handleClose}
               className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
             >
@@ -263,6 +266,7 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
 
           {/* Upload zone */}
           <div
+            {...tourAttr('admin.stickers.upload')}
             onDragOver={(e) => {
               e.preventDefault();
               setIsDragging(true);
@@ -336,6 +340,11 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
                       className="w-full h-full object-contain p-4"
                     />
                     <button
+                      {...tourFieldAttr(
+                        'admin.stickers.remove',
+                        'admin',
+                        index
+                      )}
                       onClick={() => removeSticker(sticker.url)}
                       className="absolute top-2 right-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-red-600 p-1.5 z-10"
                       title="Remove from global library"
@@ -361,6 +370,11 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
                         const isSelected = sticker.gradeLevels?.includes(level);
                         return (
                           <button
+                            {...tourFieldAttr(
+                              'admin.stickers.grade-level',
+                              'admin',
+                              level
+                            )}
                             key={level}
                             onClick={() => toggleGradeLevel(sticker.url, level)}
                             className={`px-2 py-1.5 rounded-lg text-xxs font-black uppercase transition-all border-2 ${

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { CustomWidgetSettingDef } from '@/types';
 import { Plus, Trash2, GripVertical } from 'lucide-react';
 
@@ -75,6 +76,7 @@ export const SettingsDefEditor: React.FC<SettingsDefEditorProps> = ({
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-slate-200">Admin Settings</h3>
         <button
+          {...tourAttr('admin.widget-builder.setting-add')}
           onClick={() => setIsAdding((v) => !v)}
           className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
         >
@@ -94,6 +96,7 @@ export const SettingsDefEditor: React.FC<SettingsDefEditorProps> = ({
                 Key (identifier)
               </label>
               <input
+                {...tourAttr('admin.widget-builder.setting-key')}
                 type="text"
                 value={newDef.key}
                 onChange={(e) =>
@@ -108,6 +111,7 @@ export const SettingsDefEditor: React.FC<SettingsDefEditorProps> = ({
                 Display Label
               </label>
               <input
+                {...tourAttr('admin.widget-builder.setting-label')}
                 type="text"
                 value={newDef.label}
                 onChange={(e) =>
@@ -125,6 +129,11 @@ export const SettingsDefEditor: React.FC<SettingsDefEditorProps> = ({
               {(['string', 'number', 'boolean', 'select'] as SettingType[]).map(
                 (t) => (
                   <button
+                    {...tourFieldAttr(
+                      'admin.widget-builder.setting-type',
+                      'admin',
+                      t
+                    )}
                     key={t}
                     onClick={() => handleTypeChange(t)}
                     className={`px-2 py-1 text-xs rounded border transition-colors ${
@@ -146,6 +155,7 @@ export const SettingsDefEditor: React.FC<SettingsDefEditorProps> = ({
             </label>
             {newDef.type === 'boolean' ? (
               <select
+                {...tourAttr('admin.widget-builder.setting-default')}
                 value={String(newDef.defaultValue)}
                 onChange={(e) =>
                   setNewDef((p) => ({
@@ -160,6 +170,7 @@ export const SettingsDefEditor: React.FC<SettingsDefEditorProps> = ({
               </select>
             ) : newDef.type === 'number' ? (
               <input
+                {...tourAttr('admin.widget-builder.setting-default')}
                 type="number"
                 value={Number(newDef.defaultValue)}
                 onChange={(e) =>
@@ -172,6 +183,7 @@ export const SettingsDefEditor: React.FC<SettingsDefEditorProps> = ({
               />
             ) : (
               <input
+                {...tourAttr('admin.widget-builder.setting-default')}
                 type="text"
                 value={String(newDef.defaultValue)}
                 onChange={(e) =>
@@ -189,6 +201,7 @@ export const SettingsDefEditor: React.FC<SettingsDefEditorProps> = ({
                 Options (one per line)
               </label>
               <textarea
+                {...tourAttr('admin.widget-builder.setting-options')}
                 value={optionsText}
                 onChange={(e) => setOptionsText(e.target.value)}
                 rows={3}
@@ -200,6 +213,7 @@ export const SettingsDefEditor: React.FC<SettingsDefEditorProps> = ({
 
           <div className="flex gap-2">
             <button
+              {...tourAttr('admin.widget-builder.setting-save')}
               onClick={handleAdd}
               disabled={!newDef.key.trim() || !newDef.label.trim()}
               className="flex-1 px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded transition-colors"
@@ -207,6 +221,7 @@ export const SettingsDefEditor: React.FC<SettingsDefEditorProps> = ({
               Add Setting
             </button>
             <button
+              {...tourAttr('admin.widget-builder.setting-cancel')}
               onClick={() => setIsAdding(false)}
               className="px-3 py-1.5 text-xs text-slate-400 hover:text-slate-200 hover:bg-slate-700 rounded transition-colors"
             >
@@ -252,6 +267,11 @@ export const SettingsDefEditor: React.FC<SettingsDefEditorProps> = ({
               </p>
             </div>
             <button
+              {...tourFieldAttr(
+                'admin.widget-builder.setting-delete',
+                'admin',
+                def.key
+              )}
               onClick={() => handleDelete(def.key)}
               className="p-1 text-slate-500 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors flex-shrink-0"
               title="Delete setting"

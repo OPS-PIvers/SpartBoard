@@ -2017,6 +2017,941 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'admin.analytics.active-students-search': {
+    label: 'Search field in the active students list',
+    panel: true,
+  },
+  'admin.analytics.building-filter': {
+    label: 'Building filter dropdown in Analytics',
+    panel: true,
+  },
+  'admin.analytics.domain-filter': {
+    label: 'Domain filter dropdown in Analytics',
+    panel: true,
+  },
+  'admin.analytics.group': {
+    label: 'Group by buttons in Analytics overview',
+    perField: true,
+    panel: true,
+  },
+  'admin.analytics.kpi-card': {
+    label: 'KPI cards in Analytics overview',
+    perField: true,
+    panel: true,
+  },
+  'admin.analytics.range': {
+    label: 'Time range buttons in Analytics overview',
+    perField: true,
+    panel: true,
+  },
+  'admin.analytics.tab': {
+    label: 'Analytics tabs',
+    perField: true,
+    panel: true,
+  },
+  'admin.analytics.table-sort': {
+    label: 'Sortable column buttons in Analytics tables',
+    perField: true,
+    panel: true,
+  },
+  'admin.analytics.user-search': {
+    label: 'Email search field in the users table',
+    panel: true,
+  },
+  'admin.analytics.user-sort': {
+    label: 'Sortable column headers in the users table',
+    perField: true,
+    panel: true,
+  },
+  'admin.analytics.widget-search': {
+    label: 'Search field in the widget usage table',
+    panel: true,
+  },
+  'admin.analytics.widget-sort': {
+    label: 'Sortable column buttons in the widget usage table',
+    perField: true,
+    panel: true,
+  },
+  'admin.analytics.widget-users-search': {
+    label: 'Email search field in a widget usage row',
+    panel: true,
+  },
+  'admin.analytics.widget-users-toggle': {
+    label: 'Show users button in a widget usage row',
+    perField: true,
+    panel: true,
+  },
+  'admin.dock-defaults.building': {
+    label: 'Dock by default switch for a building',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.gradebook-settings.add-period': {
+    label: 'Add period button in Gradebook settings',
+    persists: true,
+    panel: true,
+  },
+  'admin.gradebook-settings.cancel-remove-configuration': {
+    label: 'Cancel delete configuration button in Gradebook settings',
+    panel: true,
+  },
+  'admin.gradebook-settings.cancel-remove-period-set': {
+    label: 'Cancel delete period set button in Gradebook settings',
+    panel: true,
+  },
+  'admin.gradebook-settings.configuration-name': {
+    label: 'Configuration name field in Gradebook settings',
+    panel: true,
+  },
+  'admin.gradebook-settings.configuration-select': {
+    label: 'Configuration dropdown in Gradebook settings',
+    panel: true,
+  },
+  'admin.gradebook-settings.confirm-delete-configuration': {
+    label: 'Confirm delete configuration button in Gradebook settings',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.gradebook-settings.confirm-delete-period-set': {
+    label: 'Confirm delete period set button in Gradebook settings',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.gradebook-settings.default-configuration': {
+    label: 'Default configuration switch in Gradebook settings',
+    persists: true,
+    panel: true,
+  },
+  'admin.gradebook-settings.delete-configuration': {
+    label: 'Delete configuration button in Gradebook settings',
+    destructive: true,
+    panel: true,
+  },
+  'admin.gradebook-settings.delete-period-set': {
+    label: 'Delete period set button in Gradebook settings',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.gradebook-settings.duplicate-configuration': {
+    label: 'Duplicate configuration button in Gradebook settings',
+    persists: true,
+    panel: true,
+  },
+  'admin.gradebook-settings.new-configuration': {
+    label: 'New configuration button in Gradebook settings',
+    persists: true,
+    panel: true,
+  },
+  'admin.gradebook-settings.new-period-set': {
+    label: 'New period set button in Gradebook settings',
+    persists: true,
+    panel: true,
+  },
+  'admin.gradebook-settings.period-date': {
+    label: 'Period start and end date fields in Gradebook settings',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.gradebook-settings.period-name': {
+    label: 'Period name field in Gradebook settings',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.gradebook-settings.period-preset': {
+    label: 'Quarters and semesters preset buttons in Gradebook settings',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.gradebook-settings.period-set-name': {
+    label: 'Period set name field in Gradebook settings',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.gradebook-settings.remove-period': {
+    label: 'Remove period button in Gradebook settings',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.gradebook-settings.rename-configuration': {
+    label: 'Rename configuration button in Gradebook settings',
+    panel: true,
+  },
+  'admin.links.copy': {
+    label: 'Copy short URL button in a short link row',
+    perField: true,
+    panel: true,
+  },
+  'admin.links.copy-created': {
+    label: 'Copy button for the newly created short link',
+    panel: true,
+  },
+  'admin.links.create': {
+    label: 'Create short link button',
+    persists: true,
+    panel: true,
+  },
+  'admin.links.delete': {
+    label: 'Delete button in a short link row',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.links.destination': {
+    label: 'Destination URL field in the short link form',
+    panel: true,
+  },
+  'admin.links.edit': {
+    label: 'Edit button in a short link row',
+    perField: true,
+    panel: true,
+  },
+  'admin.links.edit-cancel': {
+    label: 'Cancel button in the edit short link dialog',
+    panel: true,
+  },
+  'admin.links.edit-destination': {
+    label: 'Destination field in the edit short link dialog',
+    panel: true,
+  },
+  'admin.links.edit-label': {
+    label: 'Label field in the edit short link dialog',
+    panel: true,
+  },
+  'admin.links.edit-save': {
+    label: 'Save button in the edit short link dialog',
+    persists: true,
+    panel: true,
+  },
+  'admin.links.label': {
+    label: 'Label field in the short link form',
+    panel: true,
+  },
+  'admin.links.modal-close': {
+    label: 'Close button in the edit short link dialog',
+    panel: true,
+  },
+  'admin.links.search': {
+    label: 'Search field in the short links list',
+    panel: true,
+  },
+  'admin.links.shorten-url': {
+    label: 'Shorten URL button',
+    persists: true,
+    panel: true,
+  },
+  'admin.links.slug': {
+    label: 'Custom slug field in the short link form',
+    panel: true,
+  },
+  'admin.mini-app-library.building': {
+    label: 'Building buttons in the mini app editor',
+    perField: true,
+    panel: true,
+  },
+  'admin.mini-app-library.cancel': {
+    label: 'Cancel button in the mini app editor',
+    panel: true,
+  },
+  'admin.mini-app-library.delete': {
+    label: 'Delete button in a mini app row',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.mini-app-library.edit': {
+    label: 'Edit button in a mini app row',
+    perField: true,
+    panel: true,
+  },
+  'admin.mini-app-library.html-code': {
+    label: 'HTML code field in the mini app editor',
+    panel: true,
+  },
+  'admin.mini-app-library.modal-close': {
+    label: 'Close button in the mini app library',
+    panel: true,
+  },
+  'admin.mini-app-library.move-up': {
+    label: 'Move up button in a mini app row',
+    perField: true,
+    panel: true,
+  },
+  'admin.mini-app-library.new-app': {
+    label: 'New app button in the mini app library',
+    panel: true,
+  },
+  'admin.mini-app-library.save': {
+    label: 'Save button in the mini app editor',
+    persists: true,
+    panel: true,
+  },
+  'admin.mini-app-library.title': {
+    label: 'Title field in the mini app editor',
+    panel: true,
+  },
+  'admin.music.add-station': {
+    label: 'Add station button in Music manager',
+    panel: true,
+  },
+  'admin.music.building': {
+    label: 'Building buttons in the station editor',
+    perField: true,
+    panel: true,
+  },
+  'admin.music.cancel': {
+    label: 'Cancel button in the station editor',
+    panel: true,
+  },
+  'admin.music.channel': {
+    label: 'Channel field in the station editor',
+    panel: true,
+  },
+  'admin.music.delete': {
+    label: 'Delete button in a station row',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.music.edit': {
+    label: 'Edit button in a station row',
+    perField: true,
+    panel: true,
+  },
+  'admin.music.genre': {
+    label: 'Genre dropdown in the station editor',
+    panel: true,
+  },
+  'admin.music.modal-close': {
+    label: 'Close button in the music library dialog',
+    panel: true,
+  },
+  'admin.music.modal-done': {
+    label: 'Close footer button in the music library dialog',
+    panel: true,
+  },
+  'admin.music.save': {
+    label: 'Save station button in the station editor',
+    persists: true,
+    panel: true,
+  },
+  'admin.music.thumbnail-browse': {
+    label: 'Browse thumbnail button in the station editor',
+    panel: true,
+  },
+  'admin.music.thumbnail-remove': {
+    label: 'Remove thumbnail button in the station editor',
+    destructive: true,
+    panel: true,
+  },
+  'admin.music.thumbnail-url': {
+    label: 'Thumbnail image URL field in the station editor',
+    panel: true,
+  },
+  'admin.music.title': {
+    label: 'Title field in the station editor',
+    panel: true,
+  },
+  'admin.music.url': {
+    label: 'URL field in the station editor',
+    panel: true,
+  },
+  'admin.pdf-library.building': {
+    label: 'Building buttons in the PDF editor',
+    perField: true,
+    panel: true,
+  },
+  'admin.pdf-library.cancel': {
+    label: 'Cancel button in the PDF editor',
+    panel: true,
+  },
+  'admin.pdf-library.delete': {
+    label: 'Delete button in a PDF row',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.pdf-library.edit': {
+    label: 'Edit button in a PDF row',
+    perField: true,
+    panel: true,
+  },
+  'admin.pdf-library.modal-close': {
+    label: 'Close button in the PDF library',
+    panel: true,
+  },
+  'admin.pdf-library.move-up': {
+    label: 'Move up button in a PDF row',
+    perField: true,
+    panel: true,
+  },
+  'admin.pdf-library.new-pdf': {
+    label: 'New PDF button in the PDF library',
+    panel: true,
+  },
+  'admin.pdf-library.save': {
+    label: 'Save button in the PDF editor',
+    persists: true,
+    panel: true,
+  },
+  'admin.pdf-library.save-settings': {
+    label: 'Save settings button in the PDF library',
+    persists: true,
+    panel: true,
+  },
+  'admin.pdf-library.tab-library': {
+    label: 'Library tab in the PDF library',
+    panel: true,
+  },
+  'admin.pdf-library.tab-settings': {
+    label: 'Settings tab in the PDF library',
+    panel: true,
+  },
+  'admin.pdf-library.title': {
+    label: 'Title field in the PDF editor',
+    panel: true,
+  },
+  'admin.pdf-library.upload-pdf': {
+    label: 'Upload PDF button in the PDF editor',
+    persists: true,
+    panel: true,
+  },
+  'admin.routines.close': {
+    label: 'Close button in Instructional routines manager',
+    panel: true,
+  },
+  'admin.routines.delete': {
+    label: 'Delete button in a routine row',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.routines.edit': {
+    label: 'Edit button in a routine row',
+    perField: true,
+    panel: true,
+  },
+  'admin.routines.new-routine': {
+    label: 'New routine button in Instructional routines manager',
+    panel: true,
+  },
+  'admin.save-template.building': {
+    label: 'Building buttons in Save as template',
+    perField: true,
+    panel: true,
+  },
+  'admin.save-template.existing-template': {
+    label: 'Existing template dropdown in Save as template',
+    panel: true,
+  },
+  'admin.save-template.new-name': {
+    label: 'New template name field in Save as template',
+    panel: true,
+  },
+  'admin.save-template.save-new': {
+    label: 'Save as new template button',
+    persists: true,
+    panel: true,
+  },
+  'admin.save-template.update-existing': {
+    label: 'Update template button in Save as template',
+    persists: true,
+    panel: true,
+  },
+  'admin.schoology.add-category': {
+    label: 'Add category button in Schoology categories',
+    panel: true,
+  },
+  'admin.schoology.category-name': {
+    label: 'Category name field in Schoology categories',
+    perField: true,
+    panel: true,
+  },
+  'admin.schoology.category-weight': {
+    label: 'Category weight field in Schoology categories',
+    perField: true,
+    panel: true,
+  },
+  'admin.schoology.remove-category': {
+    label: 'Remove category button in Schoology categories',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.schoology.save': {
+    label: 'Save button in Schoology categories',
+    persists: true,
+    panel: true,
+  },
+  'admin.standards.seed': {
+    label: 'Seed standards button',
+    persists: true,
+    panel: true,
+  },
+  'admin.stickers.grade-level': {
+    label: 'Grade level buttons on a sticker',
+    perField: true,
+    panel: true,
+  },
+  'admin.stickers.modal-close': {
+    label: 'Close button in the sticker library',
+    panel: true,
+  },
+  'admin.stickers.remove': {
+    label: 'Remove button on a sticker',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.stickers.save': {
+    label: 'Save button in the sticker library',
+    persists: true,
+    panel: true,
+  },
+  'admin.stickers.upload': {
+    label: 'Upload area in the sticker library',
+    persists: true,
+    panel: true,
+  },
+  'admin.sub-presets.add-email': {
+    label: 'Add email button in Preset sub emails',
+    panel: true,
+  },
+  'admin.sub-presets.building': {
+    label: 'Building dropdown in Preset sub emails',
+    panel: true,
+  },
+  'admin.sub-presets.email': {
+    label: 'Email field in Preset sub emails',
+    panel: true,
+  },
+  'admin.sub-presets.remove-email': {
+    label: 'Remove email button in Preset sub emails',
+    destructive: true,
+    panel: true,
+  },
+  'admin.sub-presets.save': {
+    label: 'Save button in Preset sub emails',
+    persists: true,
+    panel: true,
+  },
+  'admin.subjects.add': {
+    label: 'Add content area button in Subjects',
+    persists: true,
+    panel: true,
+  },
+  'admin.subjects.archive': {
+    label: 'Archive or restore button in a subject row',
+    perField: true,
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.subjects.new-label': {
+    label: 'New content area field in Subjects',
+    panel: true,
+  },
+  'admin.subjects.rename': {
+    label: 'Rename button in a subject row',
+    perField: true,
+    panel: true,
+  },
+  'admin.subjects.rename-input': {
+    label: 'Rename field in a subject row',
+    perField: true,
+    panel: true,
+  },
+  'admin.templates.access-level': {
+    label: 'Access level buttons in a template row',
+    perField: true,
+    panel: true,
+  },
+  'admin.templates.all-buildings': {
+    label: 'All buildings button in a template row',
+    perField: true,
+    panel: true,
+  },
+  'admin.templates.building': {
+    label: 'Building buttons in a template row',
+    perField: true,
+    panel: true,
+  },
+  'admin.templates.cancel': {
+    label: 'Cancel button in the new template form',
+    panel: true,
+  },
+  'admin.templates.create': {
+    label: 'Create button in the new template form',
+    persists: true,
+    panel: true,
+  },
+  'admin.templates.delete': {
+    label: 'Delete button in a template row',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.templates.description': {
+    label: 'Template description field in a template row',
+    perField: true,
+    panel: true,
+  },
+  'admin.templates.enabled': {
+    label: 'Enabled switch in a template row',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.templates.name': {
+    label: 'Template name field in a template row',
+    perField: true,
+    panel: true,
+  },
+  'admin.templates.new-description': {
+    label: 'Description field in the new template form',
+    panel: true,
+  },
+  'admin.templates.new-name': {
+    label: 'Name field in the new template form',
+    panel: true,
+  },
+  'admin.templates.new-template': {
+    label: 'New template button in Dashboard templates',
+    panel: true,
+  },
+  'admin.templates.save': {
+    label: 'Save button in a template row',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.templates.type-filter': {
+    label: 'Template type filter buttons',
+    perField: true,
+    panel: true,
+  },
+  'admin.view-as-log.filter': {
+    label: 'Filter dropdown in the View as log',
+    panel: true,
+  },
+  'admin.view-as-log.filter-admin': {
+    label: 'Admin filter button in a View as log entry',
+    panel: true,
+  },
+  'admin.view-as-log.filter-teacher': {
+    label: 'Teacher filter button in a View as log entry',
+    panel: true,
+  },
+  'admin.view-as-log.keep-current': {
+    label: 'Keep current button in the revert confirmation',
+    panel: true,
+  },
+  'admin.view-as-log.load-more': {
+    label: 'Load more button in the View as log',
+    panel: true,
+  },
+  'admin.view-as-log.revert': {
+    label: 'Revert button in a View as log entry',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.view-as-log.revert-anyway': {
+    label: 'Revert anyway button in the revert confirmation',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.view-as-log.toggle-changes': {
+    label: 'Show or hide changes button in a View as log entry',
+    panel: true,
+  },
+  'admin.widget-builder.ai-add': {
+    label: 'Add feature button in the Widget builder AI panel',
+    panel: true,
+  },
+  'admin.widget-builder.ai-explain': {
+    label: 'Explain button in the Widget builder AI panel',
+    panel: true,
+  },
+  'admin.widget-builder.ai-fix': {
+    label: 'Fix errors button in the Widget builder AI panel',
+    panel: true,
+  },
+  'admin.widget-builder.ai-generate': {
+    label: 'Generate button in the Widget builder AI panel',
+    panel: true,
+  },
+  'admin.widget-builder.ai-prompt': {
+    label: 'Description field in the Widget builder AI panel',
+    panel: true,
+  },
+  'admin.widget-builder.back': {
+    label: 'Back button in Widget builder',
+    panel: true,
+  },
+  'admin.widget-builder.build-step': {
+    label: 'Build step buttons in Widget builder',
+    perField: true,
+    panel: true,
+  },
+  'admin.widget-builder.cell-add-block': {
+    label: 'Add block button in the cell editor',
+    perField: true,
+    panel: true,
+  },
+  'admin.widget-builder.cell-close': {
+    label: 'Close button in the cell editor',
+    panel: true,
+  },
+  'admin.widget-builder.cell-config': {
+    label: 'Block setting field in the cell editor',
+    perField: true,
+    panel: true,
+  },
+  'admin.widget-builder.cell-remove-block': {
+    label: 'Remove block button in the cell editor',
+    destructive: true,
+    panel: true,
+  },
+  'admin.widget-builder.close': {
+    label: 'Close button in Widget builder',
+    panel: true,
+  },
+  'admin.widget-builder.connection-action': {
+    label: 'Action dropdown in a connection rule',
+    panel: true,
+  },
+  'admin.widget-builder.connection-cancel': {
+    label: 'Cancel button in a new connection rule',
+    panel: true,
+  },
+  'admin.widget-builder.connection-condition-block': {
+    label: 'Condition block dropdown in a connection rule',
+    panel: true,
+  },
+  'admin.widget-builder.connection-condition-operator': {
+    label: 'Condition operator dropdown in a connection rule',
+    panel: true,
+  },
+  'admin.widget-builder.connection-condition-value': {
+    label: 'Condition value field in a connection rule',
+    panel: true,
+  },
+  'admin.widget-builder.connection-delete': {
+    label: 'Delete button in a connection row',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.widget-builder.connection-event': {
+    label: 'Event dropdown in a connection rule',
+    panel: true,
+  },
+  'admin.widget-builder.connection-event-count': {
+    label: 'Event count field in a connection rule',
+    panel: true,
+  },
+  'admin.widget-builder.connection-has-condition': {
+    label: 'Add condition checkbox in a connection rule',
+    panel: true,
+  },
+  'admin.widget-builder.connection-new': {
+    label: 'New rule button in Connections',
+    panel: true,
+  },
+  'admin.widget-builder.connection-payload': {
+    label: 'Action text field in a connection rule',
+    panel: true,
+  },
+  'admin.widget-builder.connection-save': {
+    label: 'Save rule button in Connections',
+    panel: true,
+  },
+  'admin.widget-builder.connection-source': {
+    label: 'Source block dropdown in a connection rule',
+    panel: true,
+  },
+  'admin.widget-builder.connection-target': {
+    label: 'Target block dropdown in a connection rule',
+    panel: true,
+  },
+  'admin.widget-builder.connection-value': {
+    label: 'Action value field in a connection rule',
+    panel: true,
+  },
+  'admin.widget-builder.delete': {
+    label: 'Delete button in a custom widget row',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.widget-builder.edit': {
+    label: 'Edit button in a custom widget row',
+    perField: true,
+    panel: true,
+  },
+  'admin.widget-builder.grid-columns-less': {
+    label: 'Fewer columns button in the builder grid',
+    panel: true,
+  },
+  'admin.widget-builder.grid-columns-more': {
+    label: 'More columns button in the builder grid',
+    panel: true,
+  },
+  'admin.widget-builder.grid-merge': {
+    label: 'Merge selected cells button in the builder grid',
+    panel: true,
+  },
+  'admin.widget-builder.grid-rows-less': {
+    label: 'Fewer rows button in the builder grid',
+    panel: true,
+  },
+  'admin.widget-builder.grid-rows-more': {
+    label: 'More rows button in the builder grid',
+    panel: true,
+  },
+  'admin.widget-builder.grid-split': {
+    label: 'Split cell button in the builder grid',
+    panel: true,
+  },
+  'admin.widget-builder.meta-access-level': {
+    label: 'Access level buttons in Widget builder details',
+    perField: true,
+    panel: true,
+  },
+  'admin.widget-builder.meta-beta-users': {
+    label: 'Beta users field in Widget builder details',
+    panel: true,
+  },
+  'admin.widget-builder.meta-building': {
+    label: 'Building checkboxes in Widget builder details',
+    perField: true,
+    panel: true,
+  },
+  'admin.widget-builder.meta-color': {
+    label: 'Color buttons in Widget builder details',
+    perField: true,
+    panel: true,
+  },
+  'admin.widget-builder.meta-description': {
+    label: 'Description field in Widget builder details',
+    panel: true,
+  },
+  'admin.widget-builder.meta-height': {
+    label: 'Default height field in Widget builder details',
+    panel: true,
+  },
+  'admin.widget-builder.meta-icon': {
+    label: 'Icon buttons in Widget builder details',
+    perField: true,
+    panel: true,
+  },
+  'admin.widget-builder.meta-slug': {
+    label: 'Slug field in Widget builder details',
+    panel: true,
+  },
+  'admin.widget-builder.meta-title': {
+    label: 'Title field in Widget builder details',
+    panel: true,
+  },
+  'admin.widget-builder.meta-width': {
+    label: 'Default width field in Widget builder details',
+    panel: true,
+  },
+  'admin.widget-builder.mode-card': {
+    label: 'Build mode cards in Widget builder',
+    perField: true,
+    panel: true,
+  },
+  'admin.widget-builder.new-widget': {
+    label: 'New widget button in Widget builder',
+    panel: true,
+  },
+  'admin.widget-builder.next': {
+    label: 'Next button in Widget builder',
+    panel: true,
+  },
+  'admin.widget-builder.palette-block': {
+    label: 'Block buttons in the Widget builder palette',
+    perField: true,
+    panel: true,
+  },
+  'admin.widget-builder.preview-height': {
+    label: 'Preview height slider in Widget builder',
+    panel: true,
+  },
+  'admin.widget-builder.preview-width': {
+    label: 'Preview width slider in Widget builder',
+    panel: true,
+  },
+  'admin.widget-builder.publish': {
+    label: 'Publish or unpublish button in a custom widget row',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.widget-builder.publish-widget': {
+    label: 'Publish widget button in Widget builder',
+    persists: true,
+    panel: true,
+  },
+  'admin.widget-builder.refresh-preview': {
+    label: 'Refresh preview button in Widget builder',
+    panel: true,
+  },
+  'admin.widget-builder.save-draft': {
+    label: 'Save as draft button in Widget builder',
+    persists: true,
+    panel: true,
+  },
+  'admin.widget-builder.setting-add': {
+    label: 'Add setting button in Widget builder settings',
+    panel: true,
+  },
+  'admin.widget-builder.setting-cancel': {
+    label: 'Cancel button in the new setting form',
+    panel: true,
+  },
+  'admin.widget-builder.setting-default': {
+    label: 'Setting default value control in Widget builder settings',
+    panel: true,
+  },
+  'admin.widget-builder.setting-delete': {
+    label: 'Delete button in a setting row',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.widget-builder.setting-key': {
+    label: 'Setting key field in Widget builder settings',
+    panel: true,
+  },
+  'admin.widget-builder.setting-label': {
+    label: 'Setting label field in Widget builder settings',
+    panel: true,
+  },
+  'admin.widget-builder.setting-options': {
+    label: 'Setting options field in Widget builder settings',
+    panel: true,
+  },
+  'admin.widget-builder.setting-save': {
+    label: 'Add setting button in the new setting form',
+    panel: true,
+  },
+  'admin.widget-builder.setting-type': {
+    label: 'Setting type buttons in Widget builder settings',
+    perField: true,
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

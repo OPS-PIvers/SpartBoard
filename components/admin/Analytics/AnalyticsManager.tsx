@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   Bar,
   BarChart,
@@ -334,6 +335,7 @@ const KpiCard: React.FC<{
   onClick?: () => void;
 }> = ({ title, value, subtitle, onClick }) => (
   <div
+    {...tourFieldAttr('admin.analytics.kpi-card', 'admin', title)}
     className={`bg-white border border-slate-200 rounded-2xl p-5 shadow-sm${onClick ? ' cursor-pointer hover:border-slate-300 hover:shadow-md transition-all' : ''}`}
     onClick={onClick}
     onKeyDown={
@@ -647,6 +649,7 @@ const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
         className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 ${align}`}
       >
         <button
+          {...tourFieldAttr('admin.analytics.widget-sort', 'admin', key)}
           type="button"
           onClick={() => toggleWidgetSort(key)}
           className="hover:text-slate-900 transition-colors"
@@ -718,6 +721,7 @@ const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
             All Widgets
           </h3>
           <input
+            {...tourAttr('admin.analytics.widget-search')}
             type="text"
             placeholder="Search widgets..."
             value={widgetSearch}
@@ -789,6 +793,11 @@ const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
                       </td>
                       <td className="px-4 py-3 text-center">
                         <button
+                          {...tourFieldAttr(
+                            'admin.analytics.widget-users-toggle',
+                            'admin',
+                            row.type
+                          )}
                           type="button"
                           disabled={!row.usersAvailable}
                           onClick={() => {
@@ -822,6 +831,9 @@ const WidgetsPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
                           ) : (
                             <div className="space-y-2">
                               <input
+                                {...tourAttr(
+                                  'admin.analytics.widget-users-search'
+                                )}
                                 type="text"
                                 placeholder="Search emails..."
                                 value={emailSearch}
@@ -1261,6 +1273,7 @@ const KpiUserModal: React.FC<{
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
+              {...tourAttr('admin.analytics.user-search')}
               type="text"
               placeholder="Search by email…"
               value={emailSearch}
@@ -1269,6 +1282,7 @@ const KpiUserModal: React.FC<{
             />
           </div>
           <select
+            {...tourAttr('admin.analytics.building-filter')}
             value={buildingFilter}
             onChange={(e) => setBuildingFilter(e.target.value)}
             className="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1296,6 +1310,11 @@ const KpiUserModal: React.FC<{
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
                 <th
+                  {...tourFieldAttr(
+                    'admin.analytics.user-sort',
+                    'admin',
+                    'email'
+                  )}
                   className="text-left px-4 py-2.5 font-semibold text-slate-600 cursor-pointer select-none hover:bg-slate-100 transition-colors"
                   onClick={() => handleSort('email')}
                 >
@@ -1304,6 +1323,11 @@ const KpiUserModal: React.FC<{
                   </span>
                 </th>
                 <th
+                  {...tourFieldAttr(
+                    'admin.analytics.user-sort',
+                    'admin',
+                    'building'
+                  )}
                   className="text-left px-4 py-2.5 font-semibold text-slate-600 cursor-pointer select-none hover:bg-slate-100 transition-colors"
                   onClick={() => handleSort('building')}
                 >
@@ -1312,6 +1336,11 @@ const KpiUserModal: React.FC<{
                   </span>
                 </th>
                 <th
+                  {...tourFieldAttr(
+                    'admin.analytics.user-sort',
+                    'admin',
+                    'lastActive'
+                  )}
                   className="text-left px-4 py-2.5 font-semibold text-slate-600 cursor-pointer select-none hover:bg-slate-100 transition-colors"
                   onClick={() => handleSort('lastActive')}
                 >
@@ -1392,6 +1421,7 @@ const DataTable: React.FC<{
         className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-500 ${align}`}
       >
         <button
+          {...tourFieldAttr('admin.analytics.table-sort', 'admin', key)}
           type="button"
           onClick={() => onSort(key)}
           className="hover:text-slate-900 transition-colors"
@@ -1759,6 +1789,7 @@ export const AnalyticsManager: React.FC = () => {
       <div className="flex gap-1">
         {tabs.map((tab) => (
           <button
+            {...tourFieldAttr('admin.analytics.tab', 'admin', tab.id)}
             key={tab.id}
             role="tab"
             type="button"
@@ -1879,6 +1910,7 @@ export const AnalyticsManager: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           <select
+            {...tourAttr('admin.analytics.domain-filter')}
             value={selectedDomain}
             onChange={(e) => setSelectedDomain(e.target.value)}
             aria-label="Filter by domain"
@@ -1892,6 +1924,7 @@ export const AnalyticsManager: React.FC = () => {
             ))}
           </select>
           <select
+            {...tourAttr('admin.analytics.building-filter')}
             value={selectedBuilding}
             onChange={(e) => setSelectedBuilding(e.target.value)}
             aria-label="Filter by building"
