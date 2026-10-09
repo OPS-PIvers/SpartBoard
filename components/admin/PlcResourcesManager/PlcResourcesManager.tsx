@@ -10,6 +10,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { PlcTargetPicker, PlcTargetPickerValue } from './PlcTargetPicker';
 import { PlcRecoveryPanel } from './PlcRecoveryPanel';
 import { PlcResourceKind } from '@/types';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 // English fallbacks only — the real, localized strings live at
 // plcDashboard.resources.kindBadge.<kind> in locales/*.json.
@@ -179,6 +180,7 @@ export const PlcResourcesManager: React.FC = () => {
         </div>
         {!showForm && (
           <button
+            {...tourAttr('admin-plc.resource-new')}
             onClick={() => setShowForm(true)}
             className="flex items-center gap-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
           >
@@ -216,6 +218,7 @@ export const PlcResourcesManager: React.FC = () => {
                   })}
             </span>
             <button
+              {...tourAttr('admin-plc.resource-close')}
               type="button"
               onClick={resetForm}
               className="p-1 text-slate-400 hover:text-slate-600 rounded"
@@ -233,6 +236,7 @@ export const PlcResourcesManager: React.FC = () => {
               {t('plcDashboard.resources.kindLabel', { defaultValue: 'Kind' })}
             </label>
             <select
+              {...tourFieldAttr('admin-plc.resource-field', 'plc', 'kind')}
               value={form.kind}
               onChange={(e) =>
                 setForm((f) => ({
@@ -258,6 +262,7 @@ export const PlcResourcesManager: React.FC = () => {
               })}
             </label>
             <input
+              {...tourFieldAttr('admin-plc.resource-field', 'plc', 'title')}
               type="text"
               value={form.title}
               onChange={(e) =>
@@ -282,6 +287,7 @@ export const PlcResourcesManager: React.FC = () => {
                   })}
             </label>
             <input
+              {...tourFieldAttr('admin-plc.resource-field', 'plc', 'reference')}
               type={form.kind === 'doc' ? 'url' : 'text'}
               value={form.refId}
               onChange={(e) =>
@@ -304,6 +310,11 @@ export const PlcResourcesManager: React.FC = () => {
               })}
             </label>
             <textarea
+              {...tourFieldAttr(
+                'admin-plc.resource-field',
+                'plc',
+                'description'
+              )}
               value={form.description}
               onChange={(e) =>
                 setForm((f) => ({ ...f, description: e.target.value }))
@@ -333,6 +344,7 @@ export const PlcResourcesManager: React.FC = () => {
           {/* Actions */}
           <div className="flex gap-2 pt-1">
             <button
+              {...tourAttr('admin-plc.resource-save')}
               type="submit"
               disabled={submitting}
               className="flex items-center gap-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-60 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
@@ -347,6 +359,7 @@ export const PlcResourcesManager: React.FC = () => {
                   })}
             </button>
             <button
+              {...tourAttr('admin-plc.resource-cancel')}
               type="button"
               onClick={resetForm}
               className="text-slate-500 hover:text-slate-700 text-sm px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors"
@@ -416,6 +429,7 @@ export const PlcResourcesManager: React.FC = () => {
                 </div>
                 <div className="flex gap-1 shrink-0">
                   <button
+                    {...tourFieldAttr('admin-plc.resource-edit', 'plc', res.id)}
                     onClick={() => handleEdit(res)}
                     className="p-1.5 text-slate-400 hover:text-brand-blue-primary rounded-lg hover:bg-slate-100 transition-colors"
                     aria-label={t('plcDashboard.resources.editAction', {
@@ -426,6 +440,11 @@ export const PlcResourcesManager: React.FC = () => {
                     <Pencil className="w-4 h-4" />
                   </button>
                   <button
+                    {...tourFieldAttr(
+                      'admin-plc.resource-delete',
+                      'plc',
+                      res.id
+                    )}
                     onClick={() => handleDelete(res.id)}
                     className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
                     aria-label={t('plcDashboard.resources.deleteAction', {

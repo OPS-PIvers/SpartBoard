@@ -18,6 +18,7 @@ import {
   type PlcTrashItemType,
 } from '@/hooks/usePlcTrash';
 import { logError } from '@/utils/logError';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcTrashBodyProps {
   plc: Plc;
@@ -191,6 +192,11 @@ export const PlcTrashBody: React.FC<PlcTrashBodyProps> = ({ plc }) => {
                   </div>
                 </div>
                 <button
+                  {...tourFieldAttr(
+                    'plc-settings.trash-restore',
+                    'plc',
+                    item.id
+                  )}
                   type="button"
                   onClick={() => void handleRestore(item)}
                   disabled={restoringId !== null}

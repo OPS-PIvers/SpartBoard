@@ -7,6 +7,7 @@ import { PLC_NORMING_LEVELS, normingLabelFor } from '@/utils/plcNorming';
 import { callSetPlcNormingFlag } from '@/hooks/usePlcNorming';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { NormingLevelSymbol } from './NormingLevelSymbol';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export interface PlcNormingFlagControlProps {
   sessionId: string;
@@ -94,6 +95,7 @@ export const PlcNormingFlagControl: React.FC<PlcNormingFlagControlProps> = ({
   return (
     <div className="flex flex-col items-start gap-1.5">
       <button
+        {...tourAttr('plc-norming.flag-toggle')}
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
@@ -128,6 +130,7 @@ export const PlcNormingFlagControl: React.FC<PlcNormingFlagControlProps> = ({
               const tabbable = active || (shown === null && idx === 0);
               return (
                 <button
+                  {...tourFieldAttr('plc-norming.flag-level', 'plc', l)}
                   key={l}
                   type="button"
                   disabled={busy}

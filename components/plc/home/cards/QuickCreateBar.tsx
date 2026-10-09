@@ -36,6 +36,7 @@ import { PlcNewQuizAssignmentModal } from '@/components/plc/PlcNewQuizAssignment
 import { PlcNewVideoActivityAssignmentModal } from '@/components/plc/PlcNewVideoActivityAssignmentModal';
 import { PlcAddDocModal } from '@/components/plc/docs/PlcAddDocModal';
 import { PlcViewerReadOnlyBadge } from '@/components/plc/viewer/PlcViewerReadOnlyBadge';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface QuickCreateBarProps {
   plc: Plc;
@@ -157,6 +158,7 @@ export const QuickCreateBar: React.FC<QuickCreateBarProps> = ({
         return (
           <React.Fragment key={action.key}>
             <button
+              {...tourFieldAttr('plc-home.quick-create', 'plc', action.key)}
               type="button"
               aria-label={action.label}
               aria-disabled={disabled}

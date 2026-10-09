@@ -1718,6 +1718,1213 @@ export const TOUR_ANCHORS = {
     panel: true,
     destructive: true,
   },
+  // PLC pages, modals and admin tools
+  'admin-plc.group-new': {
+    label: 'Group new button in the PLC admin tools',
+    persists: true,
+  },
+  'admin-plc.group-field': {
+    label: 'Group field field in the PLC admin tools',
+    perField: true,
+    panel: true,
+  },
+  'admin-plc.group-reset': {
+    label: 'Group reset button in the PLC admin tools',
+    panel: true,
+    destructive: true,
+  },
+  'admin-plc.group-create': {
+    label: 'Group create button in the PLC admin tools',
+    persists: true,
+    panel: true,
+  },
+  'admin-plc.group-rename-input': {
+    label: 'Group rename input field in the PLC admin tools',
+    perField: true,
+    panel: true,
+  },
+  'admin-plc.group-rename-save': {
+    label: 'Group rename save button in the PLC admin tools',
+    persists: true,
+    perField: true,
+    panel: true,
+  },
+  'admin-plc.group-rename-cancel': {
+    label: 'Group rename cancel button in the PLC admin tools',
+    perField: true,
+    panel: true,
+  },
+  'admin-plc.group-auto-roster': {
+    label: 'Group auto roster field in the PLC admin tools',
+    persists: true,
+    perField: true,
+  },
+  'admin-plc.group-sync': {
+    label: 'Group sync button in the PLC admin tools',
+    persists: true,
+    perField: true,
+  },
+  'admin-plc.group-rename': {
+    label: 'Group rename button in the PLC admin tools',
+    persists: true,
+    perField: true,
+  },
+  'admin-plc.group-members': {
+    label: 'Group members button in the PLC admin tools',
+    perField: true,
+  },
+  'admin-plc.group-delete': {
+    label: 'Group delete button in the PLC admin tools',
+    perField: true,
+    destructive: true,
+  },
+  'admin-plc.member-role': {
+    label: 'Member role select in the PLC admin tools',
+    persists: true,
+    perField: true,
+  },
+  'admin-plc.member-remove': {
+    label: 'Member remove button in the PLC admin tools',
+    perField: true,
+    destructive: true,
+  },
+  'admin-plc.member-add-person': {
+    label: 'Member add person select in the PLC admin tools',
+  },
+  'admin-plc.member-add-role': {
+    label: 'Member add role select in the PLC admin tools',
+    persists: true,
+  },
+  'admin-plc.member-add': {
+    label: 'Member add button in the PLC admin tools',
+    persists: true,
+  },
+  'admin-plc.recovery-members': {
+    label: 'Recovery members button in the PLC admin tools',
+    perField: true,
+  },
+  'admin-plc.recovery-reassign': {
+    label: 'Recovery reassign button in the PLC admin tools',
+    perField: true,
+  },
+  'admin-plc.recovery-dissolve': {
+    label: 'Recovery dissolve button in the PLC admin tools',
+    perField: true,
+    destructive: true,
+  },
+  'admin-plc.recovery-new-lead': {
+    label: 'Recovery new lead select in the PLC admin tools',
+    panel: true,
+  },
+  'admin-plc.recovery-reassign-confirm': {
+    label: 'Recovery reassign confirm button in the PLC admin tools',
+    persists: true,
+    panel: true,
+  },
+  'admin-plc.recovery-reassign-cancel': {
+    label: 'Recovery reassign cancel button in the PLC admin tools',
+    panel: true,
+  },
+  'admin-plc.resource-new': {
+    label: 'Resource new button in the PLC admin tools',
+    persists: true,
+  },
+  'admin-plc.resource-close': {
+    label: 'Resource close button in the PLC admin tools',
+    panel: true,
+  },
+  'admin-plc.resource-field': {
+    label: 'Resource field field in the PLC admin tools',
+    perField: true,
+    panel: true,
+  },
+  'admin-plc.resource-save': {
+    label: 'Resource save button in the PLC admin tools',
+    persists: true,
+    panel: true,
+  },
+  'admin-plc.resource-cancel': {
+    label: 'Resource cancel button in the PLC admin tools',
+    panel: true,
+  },
+  'admin-plc.resource-edit': {
+    label: 'Resource edit button in the PLC admin tools',
+    perField: true,
+  },
+  'admin-plc.resource-delete': {
+    label: 'Resource delete button in the PLC admin tools',
+    perField: true,
+    destructive: true,
+  },
+  'admin-plc.target-scope': {
+    label: 'Target scope field in the PLC admin tools',
+    perField: true,
+  },
+  'admin-plc.target-plc': {
+    label: 'Target plc checkbox in the PLC admin tools',
+    perField: true,
+  },
+  'help-center.guides.copy-link': {
+    label: 'Copy link button on a Help Center guide row',
+  },
+  'help-center.viewer.copy-link': {
+    label: 'Copy link button in the Help Center guide viewer',
+  },
+  'plc-edit.group-type': {
+    label: 'Group type select in the PLC edit modal',
+  },
+  'plcs.empty-create': {
+    label: 'Create PLC button in the empty My PLCs list',
+    persists: true,
+  },
+  'plc-import.close': {
+    label: 'Close button in the PLC import dialog',
+    panel: true,
+  },
+  'plc-dashboard.back': {
+    label: 'Back button in the PLC dashboard',
+  },
+  'plc-dashboard.close': {
+    label: 'Close button in the PLC dashboard',
+  },
+  'plc-dashboard.section-row': {
+    label: 'Section row button in the PLC dashboard',
+    perField: true,
+  },
+  'plc-dashboard.section-tab': {
+    label: 'Section tab button in the PLC dashboard',
+    perField: true,
+  },
+  'plc-import.mode': {
+    label: 'Mode button in the PLC import dialog',
+    persists: true,
+    perField: true,
+    panel: true,
+  },
+  'plc-index.close': {
+    label: 'Close button in the PLC list page',
+  },
+  'plc-index.open-plc': {
+    label: 'Open plc button in the PLC list page',
+    perField: true,
+  },
+  'plc-assign.teacher-name': {
+    label: 'Teacher name field in the PLC assign dialog',
+    panel: true,
+  },
+  'plc-assign.sheet-url': {
+    label: 'Sheet url field in the PLC assign dialog',
+    panel: true,
+  },
+  'plc-assign.close': {
+    label: 'Close button in the PLC assign dialog',
+    panel: true,
+  },
+  'plc-assign.due-date': {
+    label: 'Due date field in the PLC assign dialog',
+    panel: true,
+  },
+  'plc-assign.cancel': {
+    label: 'Cancel button in the PLC assign dialog',
+    panel: true,
+  },
+  'plc-assign.submit': {
+    label: 'Submit button in the PLC assign dialog',
+    persists: true,
+    panel: true,
+  },
+  'plc-dashboard.home': {
+    label: 'Home button in the PLC dashboard',
+  },
+  'plc-share.close': {
+    label: 'Close button in the PLC share dialog',
+    panel: true,
+  },
+  'plc-share.search': {
+    label: 'Search field in the PLC share dialog',
+    panel: true,
+  },
+  'plc-share.pick-item': {
+    label: 'Pick item button in the PLC share dialog',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'plc-share.target': {
+    label: 'Target field in the PLC share dialog',
+    perField: true,
+    panel: true,
+  },
+  'plc-share.cancel': {
+    label: 'Cancel button in the PLC share dialog',
+    panel: true,
+  },
+  'plc-share.submit': {
+    label: 'Submit button in the PLC share dialog',
+    persists: true,
+    panel: true,
+  },
+  'plc-print.teammate': {
+    label: 'Teammate button in the teammate print dialog',
+    perField: true,
+    panel: true,
+  },
+  'plc-print.roster-checkbox': {
+    label: 'Roster checkbox checkbox in the teammate print dialog',
+    perField: true,
+    panel: true,
+  },
+  'plc-print.roster-expand': {
+    label: 'Roster expand button in the teammate print dialog',
+    perField: true,
+    panel: true,
+  },
+  'plc-print.student-checkbox': {
+    label: 'Student checkbox checkbox in the teammate print dialog',
+    perField: true,
+    panel: true,
+  },
+  'plc-print.spares': {
+    label: 'Spares field in the teammate print dialog',
+    panel: true,
+  },
+  'plc-print.withdraw': {
+    label: 'Withdraw button in the teammate print dialog',
+    panel: true,
+    destructive: true,
+  },
+  'plc-print.close': {
+    label: 'Close button in the teammate print dialog',
+    panel: true,
+  },
+  'plc-print.test-print': {
+    label: 'Test print button in the teammate print dialog',
+    persists: true,
+    panel: true,
+  },
+  'plc-print.back': {
+    label: 'Back button in the teammate print dialog',
+    panel: true,
+  },
+  'plc-print.print': {
+    label: 'Print button in the teammate print dialog',
+    persists: true,
+    panel: true,
+  },
+  'plc-assessments.detail-expand': {
+    label: 'Detail expand button in the PLC assessments tab',
+    perField: true,
+  },
+  'plc-assessments.detail-back': {
+    label: 'Detail back button in the PLC assessments tab',
+  },
+  'plc-assessments.detail-sort': {
+    label: 'Detail sort button in the PLC assessments tab',
+    perField: true,
+  },
+  'plc-assessments.open': {
+    label: 'Open button in the PLC assessments tab',
+    perField: true,
+  },
+  'plc-assessments.assign': {
+    label: 'Assign button in the PLC assessments tab',
+    persists: true,
+    perField: true,
+  },
+  'plc-assessments.menu': {
+    label: 'Menu button in the PLC assessments tab',
+    perField: true,
+    panel: true,
+  },
+  'plc-assessments.menu-item': {
+    label: 'Menu item button in the PLC assessments tab',
+    perField: true,
+    panel: true,
+  },
+  'plc-assessments.menu-folder': {
+    label: 'Menu folder button in the PLC assessments tab',
+    perField: true,
+    panel: true,
+  },
+  'plc-assessments.menu-archive': {
+    label: 'Menu archive button in the PLC assessments tab',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'plc-assessments.share': {
+    label: 'Share button in the PLC assessments tab',
+    persists: true,
+  },
+  'plc-assessments.library-assign': {
+    label: 'Library assign button in the PLC assessments tab',
+    persists: true,
+  },
+  'plc-assessments.filter': {
+    label: 'Filter button in the PLC assessments tab',
+    perField: true,
+  },
+  'plc-assessments.search': {
+    label: 'Search field in the PLC assessments tab',
+  },
+  'plc-assessments.target-filter': {
+    label: 'Target filter select in the PLC assessments tab',
+  },
+  'plc-assessments.suggested-folder': {
+    label: 'Suggested folder button in the PLC assessments tab',
+    perField: true,
+  },
+  'plc-assign.quiz-mode': {
+    label: 'Quiz mode button in the PLC assign dialog',
+    perField: true,
+    panel: true,
+  },
+  'plc-members.role': {
+    label: 'Role select in the PLC members tab',
+    persists: true,
+    perField: true,
+  },
+  'plc-members.transfer-lead': {
+    label: 'Transfer lead button in the PLC members tab',
+    perField: true,
+    destructive: true,
+  },
+  'plc-members.remove': {
+    label: 'Remove button in the PLC members tab',
+    perField: true,
+    destructive: true,
+  },
+  'plc-members.send-invite': {
+    label: 'Send invite button in the PLC members tab',
+    persists: true,
+  },
+  'plc-members.revoke-invite': {
+    label: 'Revoke invite button in the PLC members tab',
+    perField: true,
+    destructive: true,
+  },
+  'plc-members.leave': {
+    label: 'Leave button in the PLC members tab',
+    destructive: true,
+  },
+  'plc-notes.new-note': {
+    label: 'New note button in the PLC notes tab',
+    persists: true,
+    perField: true,
+  },
+  'plc-notes.new-menu': {
+    label: 'New menu button in the PLC notes tab',
+  },
+  'plc-notes.new-menu-item': {
+    label: 'New menu item button in the PLC notes tab',
+    perField: true,
+    panel: true,
+  },
+  'plc-notes.doc-select': {
+    label: 'Doc select button in the PLC notes tab',
+    perField: true,
+  },
+  'plc-notes.note-select': {
+    label: 'Note select button in the PLC notes tab',
+    perField: true,
+  },
+  'plc-notes.open-in-docs': {
+    label: 'Open in docs button in the PLC notes tab',
+    persists: true,
+  },
+  'plc-notes.doc-link': {
+    label: 'Doc link link in the PLC notes tab',
+  },
+  'plc-notes.doc-delete': {
+    label: 'Doc delete button in the PLC notes tab',
+    destructive: true,
+  },
+  'plc-notes.title': {
+    label: 'Title field in the PLC notes tab',
+  },
+  'plc-notes.body-mode': {
+    label: 'Body mode button in the PLC notes tab',
+  },
+  'plc-notes.note-delete': {
+    label: 'Note delete button in the PLC notes tab',
+    destructive: true,
+  },
+  'plc-notes.body': {
+    label: 'Body text box in the PLC notes tab',
+  },
+  'plc-notes.rollup-toggle': {
+    label: 'Rollup toggle button in the PLC notes tab',
+  },
+  'plc-notes.docs-tab': {
+    label: 'Docs tab button in the PLC notes tab',
+    perField: true,
+  },
+  'plc-notes.docs-import': {
+    label: 'Docs import button in the PLC notes tab',
+  },
+  'plc-assessments.tab': {
+    label: 'Tab button in the PLC assessments tab',
+    perField: true,
+  },
+  'plc-flashcards.set-expand': {
+    label: 'Set expand button in the PLC flashcards tab',
+  },
+  'plc-flashcards.import': {
+    label: 'Import button in the PLC flashcards tab',
+    persists: true,
+  },
+  'plc-flashcards.unshare': {
+    label: 'Unshare button in the PLC flashcards tab',
+    persists: true,
+    destructive: true,
+  },
+  'plc-flashcards.share': {
+    label: 'Share button in the PLC flashcards tab',
+    persists: true,
+  },
+  'plc-notes.rich-tool': {
+    label: 'Rich tool button in the PLC notes tab',
+    perField: true,
+  },
+  'plc-banks.share': {
+    label: 'Share button in the PLC question banks tab',
+    persists: true,
+  },
+  'plc-banks.import': {
+    label: 'Import button in the PLC question banks tab',
+    persists: true,
+    perField: true,
+  },
+  'plc-banks.unshare': {
+    label: 'Unshare button in the PLC question banks tab',
+    persists: true,
+    perField: true,
+    destructive: true,
+  },
+  'plc-rubrics.share': {
+    label: 'Share button in the PLC rubrics tab',
+    persists: true,
+  },
+  'plc-rubrics.import': {
+    label: 'Import button in the PLC rubrics tab',
+    persists: true,
+    perField: true,
+  },
+  'plc-rubrics.unshare': {
+    label: 'Unshare button in the PLC rubrics tab',
+    persists: true,
+    perField: true,
+    destructive: true,
+  },
+  'plc-boards.open-board': {
+    label: 'Open board link in the PLC shared boards tab',
+    perField: true,
+  },
+  'plc-video.share': {
+    label: 'Share button in the PLC video activities tab',
+    persists: true,
+  },
+  'plc-video.import': {
+    label: 'Import button in the PLC video activities tab',
+    persists: true,
+    perField: true,
+  },
+  'plc-video.edit': {
+    label: 'Edit button in the PLC video activities tab',
+    perField: true,
+  },
+  'plc-video.version-history': {
+    label: 'Version history button in the PLC video activities tab',
+    perField: true,
+  },
+  'plc-video.unshare': {
+    label: 'Unshare button in the PLC video activities tab',
+    persists: true,
+    perField: true,
+    destructive: true,
+  },
+  'plc-video.tab': {
+    label: 'Tab button in the PLC video activities tab',
+    perField: true,
+  },
+  'plc-video.cta': {
+    label: 'Cta button in the PLC video activities tab',
+    persists: true,
+  },
+  'plc-comments.delete': {
+    label: 'Delete button in the PLC comments thread',
+    perField: true,
+    destructive: true,
+  },
+  'plc-comments.input': {
+    label: 'Input text box in the PLC comments thread',
+  },
+  'plc-comments.post': {
+    label: 'Post button in the PLC comments thread',
+    persists: true,
+  },
+  'plc-comments.mention': {
+    label: 'Mention button in the PLC comments thread',
+    perField: true,
+  },
+  'plc-docs.add-close': {
+    label: 'Add close button in the PLC docs tab',
+    panel: true,
+  },
+  'plc-docs.add-title': {
+    label: 'Add title field in the PLC docs tab',
+    panel: true,
+  },
+  'plc-docs.add-url': {
+    label: 'Add url field in the PLC docs tab',
+    panel: true,
+  },
+  'plc-docs.add-cancel': {
+    label: 'Add cancel button in the PLC docs tab',
+    panel: true,
+  },
+  'plc-docs.add-submit': {
+    label: 'Add submit button in the PLC docs tab',
+    persists: true,
+    panel: true,
+  },
+  'plc-docs.rename-input': {
+    label: 'Rename input field in the PLC docs tab',
+  },
+  'plc-docs.rename-confirm': {
+    label: 'Rename confirm button in the PLC docs tab',
+    persists: true,
+    perField: true,
+  },
+  'plc-docs.rename-cancel': {
+    label: 'Rename cancel button in the PLC docs tab',
+    perField: true,
+  },
+  'plc-docs.rename': {
+    label: 'Rename button in the PLC docs tab',
+    persists: true,
+    perField: true,
+  },
+  'plc-docs.remove': {
+    label: 'Remove button in the PLC docs tab',
+    perField: true,
+    destructive: true,
+  },
+  'plc-docs.new-title': {
+    label: 'New title field in the PLC docs tab',
+  },
+  'plc-docs.new-url': {
+    label: 'New url field in the PLC docs tab',
+  },
+  'plc-docs.new-add': {
+    label: 'New add button in the PLC docs tab',
+    persists: true,
+  },
+  'plc-docs.add-doc': {
+    label: 'Add doc button in the PLC docs tab',
+    persists: true,
+    panel: true,
+  },
+  'plc-docs.open-doc': {
+    label: 'Open doc link in the PLC docs tab',
+  },
+  'plc-goals.delete': {
+    label: 'Delete button in the PLC goal editor',
+    panel: true,
+    destructive: true,
+  },
+  'plc-goals.cancel': {
+    label: 'Cancel button in the PLC goal editor',
+    panel: true,
+  },
+  'plc-goals.save': {
+    label: 'Save button in the PLC goal editor',
+    persists: true,
+    panel: true,
+  },
+  'plc-goals.field': {
+    label: 'Field field in the PLC goal editor',
+    perField: true,
+    panel: true,
+  },
+  'plc-goals.practice-text': {
+    label: 'Practice text field in the PLC goal editor',
+    perField: true,
+    panel: true,
+  },
+  'plc-goals.practice-remove': {
+    label: 'Practice remove button in the PLC goal editor',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'plc-goals.practice-add': {
+    label: 'Practice add button in the PLC goal editor',
+    persists: true,
+    panel: true,
+  },
+  'plc-goals.routine-select': {
+    label: 'Routine select select in the PLC goal editor',
+    panel: true,
+  },
+  'plc-goals.routine-grades': {
+    label: 'Routine grades select in the PLC goal editor',
+    panel: true,
+  },
+  'plc-home.members-avatars': {
+    label: 'Members avatars button in the PLC home',
+  },
+  'plc-home.remove-tile': {
+    label: 'Remove tile button in the PLC home',
+    perField: true,
+    destructive: true,
+  },
+  'plc-home.add-tile-menu': {
+    label: 'Add tile menu button in the PLC home',
+  },
+  'plc-home.add-tile-option': {
+    label: 'Add tile option button in the PLC home',
+    perField: true,
+    panel: true,
+  },
+  'plc-home.spotlight': {
+    label: 'Spotlight button in the PLC home',
+    perField: true,
+  },
+  'plc-home.customize-done': {
+    label: 'Customize done button in the PLC home',
+    persists: true,
+  },
+  'plc-home.customize-open': {
+    label: 'Customize open button in the PLC home',
+  },
+  'plc-home.customize-clear': {
+    label: 'Customize clear button in the PLC home',
+    destructive: true,
+  },
+  'plc-home.card-link': {
+    label: 'Card link button in the PLC home',
+    perField: true,
+  },
+  'plc-home.members-manage': {
+    label: 'Members manage button in the PLC home',
+  },
+  'plc-home.quick-create': {
+    label: 'Quick create button in the PLC home',
+    persists: true,
+    perField: true,
+  },
+  'plc-home.action-toggle': {
+    label: 'Action toggle checkbox in the PLC home',
+    persists: true,
+    perField: true,
+  },
+  'plc-home.action-done': {
+    label: 'Action done button in the PLC home',
+    persists: true,
+  },
+  'plc-home.doc-open': {
+    label: 'Doc open button in the PLC home',
+    perField: true,
+  },
+  'plc-home.goal-add': {
+    label: 'Goal add button in the PLC home',
+    persists: true,
+  },
+  'plc-home.goal-edit': {
+    label: 'Goal edit button in the PLC home',
+    perField: true,
+  },
+  'plc-home.routine-info': {
+    label: 'Routine info button in the PLC home',
+  },
+  'plc-home.meeting-move-date': {
+    label: 'Meeting move date field in the PLC home',
+    panel: true,
+  },
+  'plc-home.meeting-move-save': {
+    label: 'Meeting move save button in the PLC home',
+    persists: true,
+    panel: true,
+  },
+  'plc-home.meeting-move-cancel': {
+    label: 'Meeting move cancel button in the PLC home',
+    panel: true,
+  },
+  'plc-home.meeting-move': {
+    label: 'Meeting move button in the PLC home',
+  },
+  'plc-home.meeting-skip': {
+    label: 'Meeting skip button in the PLC home',
+    persists: true,
+  },
+  'plc-home.meeting-open': {
+    label: 'Meeting open button in the PLC home',
+  },
+  'plc-home.results-targets': {
+    label: 'Results targets button in the PLC home',
+  },
+  'plc-home.results-meeting': {
+    label: 'Results meeting button in the PLC home',
+  },
+  'plc-home.tile-link': {
+    label: 'Tile link button in the PLC home',
+  },
+  'plc-meeting.home': {
+    label: 'Home button in the PLC meeting mode',
+  },
+  'plc-meeting.back': {
+    label: 'Back button in the PLC meeting mode',
+  },
+  'plc-meeting.save': {
+    label: 'Save button in the PLC meeting mode',
+    persists: true,
+  },
+  'plc-meeting.next': {
+    label: 'Next button in the PLC meeting mode',
+  },
+  'plc-meeting.view-record': {
+    label: 'View record button in the PLC meeting mode',
+  },
+  'plc-meeting.start-over': {
+    label: 'Start over button in the PLC meeting mode',
+  },
+  'plc-meeting.export': {
+    label: 'Export button in the PLC meeting mode',
+    persists: true,
+    perField: true,
+  },
+  'plc-meeting.go-live': {
+    label: 'Go live button in the PLC meeting mode',
+  },
+  'plc-meeting.discuss': {
+    label: 'Discuss button in the PLC meeting mode',
+    perField: true,
+  },
+  'plc-meeting.discuss-question': {
+    label: 'Discuss question button in the PLC meeting mode',
+    perField: true,
+  },
+  'plc-meeting.step': {
+    label: 'Step button in the PLC meeting mode',
+    perField: true,
+  },
+  'plc-meeting.review-toggle': {
+    label: 'Review toggle button in the PLC meeting mode',
+    perField: true,
+  },
+  'plc-meeting.decision-input': {
+    label: 'Decision input text box in the PLC meeting mode',
+  },
+  'plc-meeting.decision-add': {
+    label: 'Decision add button in the PLC meeting mode',
+    persists: true,
+  },
+  'plc-meeting.decision-remove': {
+    label: 'Decision remove button in the PLC meeting mode',
+    perField: true,
+    destructive: true,
+  },
+  'plc-meeting.action-input': {
+    label: 'Action input field in the PLC meeting mode',
+  },
+  'plc-meeting.action-owner': {
+    label: 'Action assignee select in the PLC meeting mode',
+  },
+  'plc-meeting.action-due': {
+    label: 'Action due field in the PLC meeting mode',
+  },
+  'plc-meeting.action-add': {
+    label: 'Action add button in the PLC meeting mode',
+    persists: true,
+  },
+  'plc-meeting.action-remove': {
+    label: 'Action remove button in the PLC meeting mode',
+    perField: true,
+    destructive: true,
+  },
+  'plc-norming.flag-toggle': {
+    label: 'Flag toggle button in the PLC norming controls',
+  },
+  'plc-norming.flag-level': {
+    label: 'Flag level button in the PLC norming controls',
+    persists: true,
+    perField: true,
+  },
+  'plc-norming.level-label': {
+    label: 'Level label field in the PLC norming controls',
+    perField: true,
+  },
+  'plc-norming.levels-save': {
+    label: 'Levels save button in the PLC norming controls',
+    persists: true,
+  },
+  'plc-norming.levels-reset': {
+    label: 'Levels reset button in the PLC norming controls',
+    destructive: true,
+  },
+  'plc-norming.load': {
+    label: 'Load button in the PLC norming controls',
+    persists: true,
+  },
+  'plc-norming.remove': {
+    label: 'Remove button in the PLC norming controls',
+    destructive: true,
+  },
+  'plc-notes.action-due-open': {
+    label: 'Action due open button in the PLC notes tab',
+    panel: true,
+  },
+  'plc-notes.action-check': {
+    label: 'Action check checkbox in the PLC notes tab',
+    persists: true,
+    perField: true,
+    panel: true,
+  },
+  'plc-notes.action-edit': {
+    label: 'Action edit field in the PLC notes tab',
+    perField: true,
+    panel: true,
+  },
+  'plc-notes.action-owner': {
+    label: 'Action assignee select in the PLC notes tab',
+    perField: true,
+    panel: true,
+  },
+  'plc-notes.action-due': {
+    label: 'Action due field in the PLC notes tab',
+    perField: true,
+    panel: true,
+  },
+  'plc-notes.action-remove': {
+    label: 'Action remove button in the PLC notes tab',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'plc-notes.toolbar-menu': {
+    label: 'Toolbar menu button in the PLC notes tab',
+    perField: true,
+  },
+  'plc-notes.toolbar-option': {
+    label: 'Toolbar option button in the PLC notes tab',
+    perField: true,
+    panel: true,
+  },
+  'plc-notes.toolbar-reset': {
+    label: 'Toolbar reset button in the PLC notes tab',
+    persists: true,
+    destructive: true,
+  },
+  'plc-notes.toolbar-select': {
+    label: 'Toolbar select select in the PLC notes tab',
+    perField: true,
+  },
+  'plc-notes.panel-open': {
+    label: 'Panel open button in the PLC notes tab',
+  },
+  'plc-notes.panel-select': {
+    label: 'Panel select button in the PLC notes tab',
+    perField: true,
+  },
+  'plc-notes.panel-close': {
+    label: 'Panel close button in the PLC notes tab',
+  },
+  'plc-notes.review-insert': {
+    label: 'Review insert button in the PLC notes tab',
+    persists: true,
+    panel: true,
+  },
+  'plc-notes.review-replace': {
+    label: 'Review replace button in the PLC notes tab',
+    panel: true,
+    destructive: true,
+  },
+  'plc-notes.review-regenerate': {
+    label: 'Review regenerate button in the PLC notes tab',
+    persists: true,
+    panel: true,
+  },
+  'plc-notes.review-dismiss': {
+    label: 'Review dismiss button in the PLC notes tab',
+    panel: true,
+    destructive: true,
+  },
+  'plc-notes.review-owner': {
+    label: 'Review owner select in the PLC notes tab',
+    perField: true,
+    panel: true,
+  },
+  'plc-notes.review-open': {
+    label: 'Review open button in the PLC notes tab',
+    panel: true,
+  },
+  'plc-notes.request-notes': {
+    label: 'Request notes button in the PLC notes tab',
+    persists: true,
+  },
+  'plc-notes.transcript-toggle': {
+    label: 'Transcript toggle button in the PLC notes tab',
+  },
+  'plc-recording.resume': {
+    label: 'Resume button in the PLC recording controls',
+  },
+  'plc-recording.pause': {
+    label: 'Pause button in the PLC recording controls',
+    persists: true,
+  },
+  'plc-recording.stop': {
+    label: 'Stop button in the PLC recording controls',
+    persists: true,
+  },
+  'plc-recording.start': {
+    label: 'Start button in the PLC recording controls',
+    persists: true,
+  },
+  'plc-recording.mic-menu': {
+    label: 'Mic menu button in the PLC recording controls',
+  },
+  'plc-recording.mic-device': {
+    label: 'Mic device button in the PLC recording controls',
+    perField: true,
+    panel: true,
+  },
+  'plc-recording.play': {
+    label: 'Play button in the PLC recording controls',
+  },
+  'plc-recording.seek': {
+    label: 'Seek field in the PLC recording controls',
+  },
+  'plc-recording.download': {
+    label: 'Download button in the PLC recording controls',
+    persists: true,
+  },
+  'plc-recording.delete': {
+    label: 'Delete button in the PLC recording controls',
+    destructive: true,
+  },
+  'plc-resources.add-link': {
+    label: 'Add link button in the PLC resources tab',
+  },
+  'plc-resources.link-field': {
+    label: 'Link field field in the PLC resources tab',
+    perField: true,
+    panel: true,
+  },
+  'plc-resources.link-cancel': {
+    label: 'Link cancel button in the PLC resources tab',
+    panel: true,
+  },
+  'plc-resources.link-save': {
+    label: 'Link save button in the PLC resources tab',
+    persists: true,
+    panel: true,
+  },
+  'plc-resources.link-open': {
+    label: 'Link open link in the PLC resources tab',
+    perField: true,
+  },
+  'plc-resources.link-remove': {
+    label: 'Link remove button in the PLC resources tab',
+    perField: true,
+    destructive: true,
+  },
+  'plc-resources.use': {
+    label: 'Use button in the PLC resources tab',
+    persists: true,
+    perField: true,
+  },
+  'plc-search.input': {
+    label: 'Input field in the PLC search box',
+  },
+  'plc-search.clear': {
+    label: 'Clear button in the PLC search box',
+    destructive: true,
+  },
+  'plc-search.result': {
+    label: 'Result button in the PLC search box',
+    perField: true,
+  },
+  'plc-settings.target-chip-remove': {
+    label: 'Target chip remove button in the PLC settings tab',
+    perField: true,
+    destructive: true,
+  },
+  'plc-settings.target-picker-open': {
+    label: 'Target picker open button in the PLC settings tab',
+  },
+  'plc-settings.target-restore': {
+    label: 'Target restore button in the PLC settings tab',
+    persists: true,
+    perField: true,
+  },
+  'plc-settings.target-archived-toggle': {
+    label: 'Target archived toggle button in the PLC settings tab',
+  },
+  'plc-settings.target-archive': {
+    label: 'Target archive button in the PLC settings tab',
+    perField: true,
+    destructive: true,
+  },
+  'plc-settings.target-add-panel': {
+    label: 'Target add panel button in the PLC settings tab',
+  },
+  'plc-settings.target-paste-panel': {
+    label: 'Target paste panel button in the PLC settings tab',
+    panel: true,
+  },
+  'plc-settings.target-csv-panel': {
+    label: 'Target csv panel button in the PLC settings tab',
+    panel: true,
+  },
+  'plc-settings.target-code': {
+    label: 'Target code field in the PLC settings tab',
+    panel: true,
+  },
+  'plc-settings.target-label': {
+    label: 'Target label field in the PLC settings tab',
+    panel: true,
+  },
+  'plc-settings.target-grade': {
+    label: 'Target grade button in the PLC settings tab',
+    perField: true,
+    panel: true,
+  },
+  'plc-settings.target-subject': {
+    label: 'Target subject select in the PLC settings tab',
+    panel: true,
+  },
+  'plc-settings.target-add-save': {
+    label: 'Target add save button in the PLC settings tab',
+    persists: true,
+    panel: true,
+  },
+  'plc-settings.target-paste-text': {
+    label: 'Target paste text text box in the PLC settings tab',
+    panel: true,
+  },
+  'plc-settings.target-paste-import': {
+    label: 'Target paste import button in the PLC settings tab',
+    panel: true,
+  },
+  'plc-settings.target-csv-template': {
+    label: 'Target csv template button in the PLC settings tab',
+    panel: true,
+  },
+  'plc-settings.target-csv-file': {
+    label: 'Target csv file field in the PLC settings tab',
+    panel: true,
+  },
+  'plc-settings.target-csv-import': {
+    label: 'Target csv import button in the PLC settings tab',
+    panel: true,
+  },
+  'plc-settings.cutoff-input': {
+    label: 'Cutoff input field in the PLC settings tab',
+    perField: true,
+    panel: true,
+  },
+  'plc-settings.cutoff-save': {
+    label: 'Cutoff save button in the PLC settings tab',
+    persists: true,
+    panel: true,
+  },
+  'plc-settings.gradebook-stop-sharing': {
+    label: 'Gradebook stop sharing button in the PLC settings tab',
+    destructive: true,
+  },
+  'plc-settings.gradebook-stop-confirm': {
+    label: 'Gradebook stop confirm button in the PLC settings tab',
+    destructive: true,
+  },
+  'plc-settings.gradebook-stop-cancel': {
+    label: 'Gradebook stop cancel button in the PLC settings tab',
+  },
+  'plc-settings.gradebook-share': {
+    label: 'Gradebook share button in the PLC settings tab',
+    persists: true,
+  },
+  'plc-settings.cadence-frequency': {
+    label: 'Cadence frequency select in the PLC settings tab',
+  },
+  'plc-settings.cadence-nth': {
+    label: 'Cadence nth select in the PLC settings tab',
+  },
+  'plc-settings.cadence-weekday': {
+    label: 'Cadence weekday select in the PLC settings tab',
+  },
+  'plc-settings.cadence-time': {
+    label: 'Cadence time field in the PLC settings tab',
+  },
+  'plc-settings.cadence-anchor-date': {
+    label: 'Cadence anchor date field in the PLC settings tab',
+  },
+  'plc-settings.cadence-agenda': {
+    label: 'Cadence agenda text box in the PLC settings tab',
+  },
+  'plc-settings.cadence-save': {
+    label: 'Cadence save button in the PLC settings tab',
+    persists: true,
+  },
+  'plc-settings.cadence-clear': {
+    label: 'Cadence clear button in the PLC settings tab',
+    destructive: true,
+  },
+  'plc-settings.trash-restore': {
+    label: 'Trash restore button in the PLC settings tab',
+    persists: true,
+    perField: true,
+  },
+  'plc-sync.keep-mine': {
+    label: 'Keep mine button in the PLC sync conflict prompt',
+    persists: true,
+    panel: true,
+  },
+  'plc-sync.pull-theirs': {
+    label: 'Pull theirs button in the PLC sync conflict prompt',
+    persists: true,
+    panel: true,
+  },
+  'plc-assign.row-monitor': {
+    label: 'Row monitor button in the PLC assignments list',
+  },
+  'plc-assign.row-results': {
+    label: 'Row results button in the PLC assignments list',
+  },
+  'plc-assign.row-assign': {
+    label: 'Row assign button in the PLC assignments list',
+    persists: true,
+  },
+  'plc-assign.row-sheet': {
+    label: 'Row sheet link in the PLC assignments list',
+  },
+  'plc-settings.feature-switch': {
+    label: 'Feature switch checkbox in the PLC settings tab',
+    persists: true,
+    perField: true,
+  },
+  'plc-settings.digest': {
+    label: 'Digest button in the PLC settings tab',
+    persists: true,
+  },
+  'plc-settings.trash-toggle': {
+    label: 'Trash toggle button in the PLC settings tab',
+  },
+  'plc-versions.close': {
+    label: 'Close button in the PLC version history panel',
+    panel: true,
+  },
+  'plc-versions.reload': {
+    label: 'Reload button in the PLC version history panel',
+    persists: true,
+    panel: true,
+  },
+  'plc-versions.restore': {
+    label: 'Restore button in the PLC version history panel',
+    persists: true,
+    perField: true,
+    panel: true,
+  },
   // Teams pages: Notes & Docs, Updates, shell, building, mentoring, data, department and admin defaults.
   'teams.actions.add': {
     label: 'Add action item box in a note',
@@ -2857,6 +4064,504 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
 
+  // Activity Wall, Projects and Review start.
+  'activity-wall.visibility': {
+    label: 'Visible/Hidden posts toggle in Activity Wall',
+    perWidget: true,
+    persists: true,
+  },
+  'activity-wall.more-actions': {
+    label: 'More wall actions button in Activity Wall',
+    perWidget: true,
+  },
+  'activity-wall.copy-link': {
+    label: 'Copy student link action in Activity Wall',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall.add-qr': {
+    label: 'Add join QR to board action in Activity Wall',
+    perWidget: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall.open-student-view': {
+    label: 'Open student view action in Activity Wall',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall.image-size': {
+    label: 'Image size action in Activity Wall',
+    perWidget: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall.connect-drive': {
+    label: 'Connect Google Drive button in Activity Wall',
+    perWidget: true,
+    persists: true,
+  },
+  'activity-wall.empty-open-library': {
+    label: 'Open library button in the empty Activity Wall',
+    perWidget: true,
+  },
+  'activity-wall.review-posts': {
+    label: 'Review posts button in the empty Activity Wall',
+    perWidget: true,
+  },
+  'activity-wall-moderation.edit-title': {
+    label: 'Post title box in Moderate posts',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-moderation.edit-text': {
+    label: 'Post text box in Moderate posts',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-moderation.edit-save': {
+    label: 'Save post edit button in Moderate posts',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall-moderation.edit-start': {
+    label: 'Edit post button in Moderate posts',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-moderation.approve': {
+    label: 'Approve post button in Moderate posts',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall-moderation.reject': {
+    label: 'Reject post button in Moderate posts',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall-moderation.pin': {
+    label: 'Pin or unpin post button in Moderate posts',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall-moderation.delete': {
+    label: 'Delete post button in Moderate posts',
+    perWidgetType: true,
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall-link.url': {
+    label: 'Link box in the Activity Wall share dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-link.copy': {
+    label: 'Copy link button in the Activity Wall share dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-link.add-qr': {
+    label: 'Add join QR to board button in the Activity Wall share dialog',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall-link.close': {
+    label: 'Close button in the Activity Wall share dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-link.expiration-toggle': {
+    label: 'Set link expiration checkbox in the Activity Wall share dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-link.expiration-date': {
+    label: 'Expiration date box in the Activity Wall share dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-link.create-gallery': {
+    label: 'Create gallery link button in the Activity Wall share dialog',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall-link.done': {
+    label: 'Done button in the Activity Wall share dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-link.tab': {
+    label:
+      'Student link or Public gallery tab in the Activity Wall share dialog',
+    perField: true,
+    panel: true,
+  },
+  'activity-wall-library.empty-new': {
+    label: 'New wall button in the empty wall library',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-editor.change-layout': {
+    label: 'Change layout button in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.prompt': {
+    label: 'Prompt box in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.submission-type': {
+    label: 'Submission type toggle in the Activity Wall editor',
+    perField: true,
+    panel: true,
+  },
+  'activity-wall-editor.max-posts-custom': {
+    label: 'Custom max posts button in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.max-posts-custom-input': {
+    label: 'Custom max posts box in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.target-classes': {
+    label: 'Target classes list in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.section-label': {
+    label: 'Column or row name box in the Activity Wall editor',
+    panel: true,
+  },
+  'activity-wall-editor.section-move': {
+    label: 'Move column or row button in the Activity Wall editor',
+    panel: true,
+  },
+  'activity-wall-editor.section-remove': {
+    label: 'Remove column or row button in the Activity Wall editor',
+    destructive: true,
+    panel: true,
+  },
+  'activity-wall-editor.section-add': {
+    label: 'Add column or row button in the Activity Wall editor',
+    panel: true,
+  },
+  'activity-wall-editor.map-start': {
+    label: 'Map start view picker in the Activity Wall editor',
+    panel: true,
+  },
+  'activity-wall-editor.map-zoom': {
+    label: 'Map zoom slider in the Activity Wall editor',
+    panel: true,
+  },
+  'projects.back-to-library': {
+    label: 'Library back button on the Projects board',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.manage-groups': {
+    label: 'Manage groups button on the Projects board',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.review-waiting': {
+    label: 'Waiting for review button on the Projects board',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.layout-bars': {
+    label: 'Bars layout button on the Projects board',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.layout-grid': {
+    label: 'Grid layout button on the Projects board',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.actions-menu': {
+    label: 'Project actions menu button on the Projects board',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.actions-menu-item': {
+    label: 'Item in the Project actions menu',
+    perField: true,
+    panel: true,
+  },
+  'projects.selection-mode': {
+    label: 'Select button in the Projects library',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.discard-import': {
+    label: 'Discard button on the Group Maker import banner',
+    perWidget: true,
+    requires: 'widget-restored',
+    destructive: true,
+    persists: true,
+  },
+  'projects.status-option': {
+    label: 'Step status choice in the Projects status menu',
+    perWidget: true,
+    panel: true,
+  },
+  'projects.group-student-view': {
+    label: 'Group student view button on the Projects board',
+    perWidgetType: true,
+    requires: 'widget-restored',
+  },
+  'projects.group-expand': {
+    label: 'Expand group button on the Projects board',
+    perWidgetType: true,
+    requires: 'widget-restored',
+  },
+  'projects.step-cell': {
+    label: 'Step status cell on the Projects board',
+    perWidgetType: true,
+    requires: 'widget-restored',
+  },
+  'projects-editor.description': {
+    label: 'Description box in the project editor',
+    panel: true,
+  },
+  'projects-editor.due': {
+    label: 'Due date box in the project editor',
+    panel: true,
+  },
+  'projects-editor.rubric': {
+    label: 'Rubric picker in the project editor',
+    panel: true,
+  },
+  'projects-editor.rubric-edit': {
+    label: 'New or Edit rubric button in the project editor',
+    panel: true,
+  },
+  'projects-editor.paste-steps': {
+    label: 'Paste steps button in the project editor',
+    panel: true,
+  },
+  'projects-editor.add-step': {
+    label: 'Add step button in the project editor',
+    panel: true,
+  },
+  'projects-editor.bulk-text': {
+    label: 'One step per line box in the project editor',
+    panel: true,
+  },
+  'projects-editor.bulk-apply': {
+    label: 'Use these steps button in the project editor',
+    panel: true,
+  },
+  'projects-editor.bulk-cancel': {
+    label: 'Cancel pasted steps button in the project editor',
+    panel: true,
+  },
+  'projects-editor.step-reorder': {
+    label: 'Step drag handle in the project editor',
+    panel: true,
+  },
+  'projects-editor.step-select': {
+    label: 'Step row in the project editor',
+    panel: true,
+  },
+  'projects-editor.step-delete': {
+    label: 'Delete step button in the project editor',
+    destructive: true,
+    panel: true,
+  },
+  'projects-editor.step-title': {
+    label: 'Step title box in the project editor',
+    panel: true,
+  },
+  'projects-editor.step-description': {
+    label: 'Step description box in the project editor',
+    panel: true,
+  },
+  'projects-editor.step-due': {
+    label: 'Step due date box in the project editor',
+    panel: true,
+  },
+  'projects-editor.step-approval': {
+    label: 'Needs your approval toggle in the project editor',
+    panel: true,
+  },
+  'projects.groups-class': {
+    label: 'Class picker in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.group-color': {
+    label: 'Group color button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.member-select': {
+    label: 'Student chip in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.member-remove': {
+    label: 'Take student out of group button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.add-group': {
+    label: 'Add group button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.spread-students': {
+    label: 'Spread ungrouped students button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.group-name': {
+    label: 'Group name box in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.group-delete': {
+    label: 'Delete group button in the Manage groups dialog',
+    destructive: true,
+    panel: true,
+  },
+  'projects.group-keep': {
+    label: 'Keep group button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.group-delete-confirm': {
+    label: 'Confirm delete group button in the Manage groups dialog',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'projects.group-move-here': {
+    label: 'Move here button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.take-out': {
+    label:
+      'Take selected student out of group button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.groups-undo': {
+    label: 'Undo changes button in the Manage groups dialog',
+    destructive: true,
+    panel: true,
+  },
+  'projects.groups-close': {
+    label: 'Cancel or Close button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.groups-save': {
+    label: 'Save changes button in the Manage groups dialog',
+    persists: true,
+    panel: true,
+  },
+  'projects.setup-cancel': {
+    label: 'Cancel button in the Set up groups dialog',
+    panel: true,
+  },
+  'projects.setup-commit': {
+    label: 'Add groups button in the Set up groups dialog',
+    persists: true,
+    panel: true,
+  },
+  'projects.setup-class': {
+    label: 'Class picker in the Set up groups dialog',
+    panel: true,
+  },
+  'projects.setup-carry-names': {
+    label: 'Use Group Maker names checkbox in the Set up groups dialog',
+    panel: true,
+  },
+  'projects.setup-count': {
+    label: 'How many groups box in the Set up groups dialog',
+    panel: true,
+  },
+  'projects.grade-prev': {
+    label: 'Previous group button in the project grader',
+    panel: true,
+  },
+  'projects.grade-skip': {
+    label: 'Skip button in the project grader',
+    panel: true,
+  },
+  'projects.grade-save': {
+    label: 'Save grade button in the project grader',
+    persists: true,
+    panel: true,
+  },
+  'projects.grade-save-next': {
+    label: 'Save and next button in the project grader',
+    persists: true,
+    panel: true,
+  },
+  'projects.grade-queue-item': {
+    label: 'Group in the project grader queue',
+    panel: true,
+  },
+  'projects.grade-feedback': {
+    label: 'Comment to the group box in the project grader',
+    panel: true,
+  },
+  'projects.grade-override': {
+    label: 'Individual points box in the project grader',
+    panel: true,
+  },
+  'projects.grade-override-note': {
+    label: 'Individual score note box in the project grader',
+    panel: true,
+  },
+  'projects.grade-visible': {
+    label: 'Let this group see their score toggle in the project grader',
+    persists: true,
+    panel: true,
+  },
+  'projects.view-rubric': {
+    label: 'How this is scored button in the group view',
+    panel: true,
+  },
+  'projects.view-close': {
+    label: 'Close button in the group view',
+    panel: true,
+  },
+  'review-start.class-picker': {
+    label: 'Class picker in the Start review dialog',
+    panel: true,
+  },
+  'review-start.hand-raise': {
+    label: 'Raise a hand toggle in the Start review dialog',
+    panel: true,
+  },
+  'review-start.read-aloud': {
+    label: 'Read aloud toggle in the Start review dialog',
+    panel: true,
+  },
+  'review-start.speed-bonus': {
+    label: 'Speed Bonus Points toggle in the Start review dialog',
+    panel: true,
+  },
+  'review-start.streak-bonus': {
+    label: 'Streak Bonuses toggle in the Start review dialog',
+    panel: true,
+  },
+  'review-start.podium': {
+    label: 'Podium Between Questions toggle in the Start review dialog',
+    panel: true,
+  },
+  'review-start.sound-effects': {
+    label: 'Sound Effects toggle in the Start review dialog',
+    panel: true,
+  },
+  'review-start.tab-warning': {
+    label: 'Tab warning threshold row in the Start review dialog',
+    panel: true,
+  },
+
   // Video Activity editor, live monitor, results and student app.
   'video-activity.creator-back': {
     label: 'Back arrow in the video activity creator',
@@ -3106,38 +4811,6 @@ export const TOUR_ANCHORS = {
     label: 'PLC sheet URL box in the PLC video activity assign dialog',
     persists: true,
     panel: true,
-  },
-  'video-activity.plc-share': {
-    label: 'Share button on the PLC video activities tab',
-    persists: true,
-  },
-  'video-activity.plc-import': {
-    label: 'Import button on a shared PLC video activity',
-    perField: true,
-    persists: true,
-  },
-  'video-activity.plc-edit': {
-    label: 'Edit button on a shared PLC video activity',
-    perField: true,
-    persists: true,
-  },
-  'video-activity.plc-versions': {
-    label: 'Versions button on a shared PLC video activity',
-    perField: true,
-  },
-  'video-activity.plc-unshare': {
-    label: 'Unshare button on a shared PLC video activity',
-    perField: true,
-    destructive: true,
-    persists: true,
-  },
-  'video-activity.plc-subtab': {
-    label: 'Sub-tab on the PLC video activities tab',
-    perField: true,
-  },
-  'video-activity.plc-new': {
-    label: 'New video activity button on the PLC video activities tab',
-    persists: true,
   },
 } as const satisfies Record<string, TourAnchorDef>;
 

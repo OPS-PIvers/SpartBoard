@@ -33,7 +33,6 @@
  *     snapshot.
  */
 
-import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -90,6 +89,7 @@ import {
   type PlcSharePickerItem,
 } from '../PlcSharePickerModal';
 import { VideoActivityEditorModal } from '@/components/widgets/VideoActivityWidget/components/VideoActivityEditorModal';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcVideoActivitiesBodyProps {
   plc: Plc;
@@ -878,7 +878,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
 
   const shareCta = !canEdit ? null : (
     <button
-      {...tourAttr('video-activity.plc-share')}
+      {...tourAttr('plc-video.share')}
       type="button"
       onClick={() => setSharePickerOpen(true)}
       disabled={!isDriveConnected || personalActivities.length === 0}
@@ -1037,11 +1037,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
               </div>
               <div className="shrink-0 flex items-center gap-1.5">
                 <button
-                  {...tourFieldAttr(
-                    'video-activity.plc-import',
-                    'video-activity',
-                    activity.syncGroupId
-                  )}
+                  {...tourFieldAttr('plc-video.import', 'plc', activity.id)}
                   type="button"
                   onClick={() =>
                     setImportTarget({
@@ -1083,11 +1079,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
                 </button>
                 {canEdit && (
                   <button
-                    {...tourFieldAttr(
-                      'video-activity.plc-edit',
-                      'video-activity',
-                      activity.syncGroupId
-                    )}
+                    {...tourFieldAttr('plc-video.edit', 'plc', activity.id)}
                     type="button"
                     onClick={() =>
                       void handleEdit({
@@ -1123,9 +1115,9 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
                 {canEdit && (
                   <button
                     {...tourFieldAttr(
-                      'video-activity.plc-versions',
-                      'video-activity',
-                      activity.syncGroupId
+                      'plc-video.version-history',
+                      'plc',
+                      activity.id
                     )}
                     type="button"
                     onClick={() =>
@@ -1149,11 +1141,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
                 )}
                 {canEdit && (
                   <button
-                    {...tourFieldAttr(
-                      'video-activity.plc-unshare',
-                      'video-activity',
-                      activity.syncGroupId
-                    )}
+                    {...tourFieldAttr('plc-video.unshare', 'plc', activity.id)}
                     type="button"
                     onClick={() =>
                       void handleUnshare(activity.id, activity.title)

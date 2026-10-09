@@ -42,6 +42,7 @@ import {
   PlcSharedBoardEntry,
   usePlcSharedBoards,
 } from '@/hooks/usePlcSharedBoards';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcSharedBoardsBodyProps {
   plc: Plc;
@@ -205,6 +206,7 @@ export const PlcSharedBoardsBody: React.FC<PlcSharedBoardsBodyProps> = ({
                 </div>
               </div>
               <a
+                {...tourFieldAttr('plc-boards.open-board', 'plc', board.id)}
                 href={`/share/${encodeURIComponent(board.id)}`}
                 className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-lighter hover:bg-brand-blue-light/30 text-brand-blue-primary rounded-lg text-xxs font-bold uppercase tracking-wider transition-colors"
                 title={t('plcDashboard.sharedBoards.openShareTooltip', {
