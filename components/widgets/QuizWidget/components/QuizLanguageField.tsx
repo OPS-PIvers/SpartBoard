@@ -1,4 +1,5 @@
 // Read-aloud language picker for the quiz editor's Settings tab (docs/plans/shipped/QUIZ_READ_ALOUD.md §6.1).
+import { tourTypeAttr } from '@/config/tourAnchors';
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -37,6 +38,7 @@ export const QuizLanguageField: React.FC<{
         <select
           className={inputClass}
           value={selectValue}
+          {...tourTypeAttr('quiz-library.language-read-aloud-select', 'quiz')}
           onChange={(e) => {
             if (e.target.value === OTHER) {
               setOtherOpen(true);
@@ -67,6 +69,7 @@ export const QuizLanguageField: React.FC<{
             type="text"
             className={inputClass}
             value={isPreset(value) ? '' : value}
+            {...tourTypeAttr('quiz-library.language-tag-input', 'quiz')}
             placeholder="pt-BR"
             spellCheck={false}
             onChange={(e) => onChange(e.target.value.trim())}

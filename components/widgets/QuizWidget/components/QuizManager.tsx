@@ -25,7 +25,7 @@ import React, {
 } from 'react';
 import { useQuizTranslations } from '@/hooks/useQuizTranslations';
 import { useTranslation } from 'react-i18next';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
 import {
   Plus,
   PencilLine,
@@ -2918,6 +2918,7 @@ const LibraryTabContent: React.FC<{
           <button
             type="button"
             onClick={onImport}
+            {...tourTypeAttr('quiz-library.empty-import', tourWidgetType)}
             className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-2xl transition-all shadow-md active:scale-95"
             style={{
               gap: 'min(8px, 2cqmin)',
