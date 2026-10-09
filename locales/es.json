@@ -3942,6 +3942,9 @@
     "pick": "Elegir",
     "addStep": "Añadir paso",
     "listTitle": "Elige un control",
+    "onScreen": "En pantalla",
+    "elsewhere": "En otros lugares",
+    "showMore": "Mostrar {{count}} más",
     "recordFromHere": "Grabar desde aquí"
   },
   "widgetWhatsNew": {

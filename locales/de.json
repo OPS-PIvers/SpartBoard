@@ -3942,6 +3942,9 @@
     "pick": "Auswählen",
     "addStep": "Schritt hinzufügen",
     "listTitle": "Bedienelement wählen",
+    "onScreen": "Auf dem Bildschirm",
+    "elsewhere": "Überall sonst",
+    "showMore": "{{count}} weitere anzeigen",
     "recordFromHere": "Ab hier aufnehmen"
   },
   "widgetWhatsNew": {

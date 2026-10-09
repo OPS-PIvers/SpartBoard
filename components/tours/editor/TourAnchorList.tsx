@@ -111,7 +111,7 @@ function scanScreen(slots: TourSlots | undefined): OnScreen[] {
     const r = el.getBoundingClientRect();
     if (r.bottom < 0 || r.right < 0) return;
     if (r.top > window.innerHeight || r.left > window.innerWidth) return;
-    const hit = registeredAnchorAt(el, slots);
+    const hit = registeredAnchorAt(el, slots ?? {});
     if (!hit) return;
     const key = `${hit.pick.anchor}@${hit.pick.slot ?? ''}`;
     if (seen.has(key)) return;
