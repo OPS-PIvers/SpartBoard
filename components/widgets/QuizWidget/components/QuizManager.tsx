@@ -2186,6 +2186,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             icon: Combine,
             onClick: () => void handleBulkMerge(),
             disabled: selection.count < 2,
+            anchor: tourTypeAttr('quiz-library.bulk-merge', 'quiz'),
           },
         ]
       : []),
@@ -2196,6 +2197,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             label: 'Share with PLC',
             icon: Users2,
             onClick: handleBulkSharePlc,
+            anchor: tourTypeAttr('quiz-library.bulk-share-plc', 'quiz'),
           },
         ]
       : []),
@@ -3055,6 +3057,7 @@ const LibraryTabContent: React.FC<{
           primaryAction={{
             label: 'Open editor',
             icon: Edit2,
+            anchor: tourTypeAttr('quiz-library.preview-open-editor', 'quiz'),
             onClick: () => {
               const q = previewQuiz;
               onPreviewQuiz(null);
@@ -3065,6 +3068,10 @@ const LibraryTabContent: React.FC<{
             {
               label: 'Check answers',
               icon: Eye,
+              anchor: tourTypeAttr(
+                'quiz-library.preview-check-answers',
+                'quiz'
+              ),
               onClick: () => {
                 const q = previewQuiz;
                 onPreviewQuiz(null);

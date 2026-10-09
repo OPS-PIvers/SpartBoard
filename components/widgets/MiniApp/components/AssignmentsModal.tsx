@@ -5,6 +5,7 @@
  */
 
 import React, { useState } from 'react';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import {
   X,
   BarChart3,
@@ -101,6 +102,7 @@ export const AssignmentsModal: React.FC<AssignmentsModalProps> = ({
             onClick={onClose}
             className="text-white/60 hover:text-white transition-colors"
             aria-label="Close assignments"
+            {...tourTypeAttr('mini-app.sessions-close', 'miniApp')}
           >
             <X className="w-5 h-5" />
           </button>
@@ -128,7 +130,7 @@ export const AssignmentsModal: React.FC<AssignmentsModalProps> = ({
             </div>
           ) : (
             <div className="space-y-3">
-              {sessions.map((session) => {
+              {sessions.map((session, sessionIndex) => {
                 const isEditing = editingSessionId === session.id;
                 const isSaving = savingSessionId === session.id;
                 const link = getLink(session.id);
@@ -146,10 +148,20 @@ export const AssignmentsModal: React.FC<AssignmentsModalProps> = ({
                               type="text"
                               value={draftName}
                               onChange={(e) => setDraftName(e.target.value)}
+                              {...tourFieldAttr(
+                                'mini-app.session-rename-input',
+                                'miniApp',
+                                `row-${sessionIndex + 1}`
+                              )}
                               className="flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 outline-none focus:border-brand-blue-primary"
                             />
                             <button
                               onClick={() => void handleSaveRename(session.id)}
+                              {...tourFieldAttr(
+                                'mini-app.session-rename-save',
+                                'miniApp',
+                                `row-${sessionIndex + 1}`
+                              )}
                               disabled={
                                 isSaving || draftName.trim().length === 0
                               }
@@ -200,6 +212,11 @@ export const AssignmentsModal: React.FC<AssignmentsModalProps> = ({
                           }}
                           className="rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-700 border border-slate-200 hover:bg-slate-100"
                           title="Rename assignment"
+                          {...tourFieldAttr(
+                            'mini-app.session-rename',
+                            'miniApp',
+                            `row-${sessionIndex + 1}`
+                          )}
                         >
                           <span className="inline-flex items-center gap-1">
                             <Pencil className="w-3 h-3" />
@@ -212,6 +229,11 @@ export const AssignmentsModal: React.FC<AssignmentsModalProps> = ({
                     <div className="flex flex-wrap items-center gap-2">
                       <button
                         onClick={() => void handleCopy(session.id)}
+                        {...tourFieldAttr(
+                          'mini-app.session-copy-link',
+                          'miniApp',
+                          `row-${sessionIndex + 1}`
+                        )}
                         className="rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-700 border border-slate-200 hover:bg-slate-100 inline-flex items-center gap-1"
                       >
                         {copiedId === session.id ? (
@@ -230,6 +252,11 @@ export const AssignmentsModal: React.FC<AssignmentsModalProps> = ({
                         href={link}
                         target="_blank"
                         rel="noopener noreferrer"
+                        {...tourFieldAttr(
+                          'mini-app.session-open',
+                          'miniApp',
+                          `row-${sessionIndex + 1}`
+                        )}
                         className="rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-700 border border-slate-200 hover:bg-slate-100 inline-flex items-center gap-1"
                       >
                         <Link2 className="w-3 h-3" />
@@ -248,6 +275,11 @@ export const AssignmentsModal: React.FC<AssignmentsModalProps> = ({
                           onClick={() => setViewingSubmissionsFor(session)}
                           className="rounded-xl bg-white px-3 py-2 text-xs font-bold text-slate-700 border border-slate-200 hover:bg-slate-100 inline-flex items-center gap-1"
                           title="View student submissions"
+                          {...tourFieldAttr(
+                            'mini-app.session-submissions',
+                            'miniApp',
+                            `row-${sessionIndex + 1}`
+                          )}
                         >
                           <Inbox className="w-3 h-3" />
                           Submissions
@@ -258,6 +290,11 @@ export const AssignmentsModal: React.FC<AssignmentsModalProps> = ({
                           <>
                             <button
                               onClick={() => void handleEndSession(session.id)}
+                              {...tourFieldAttr(
+                                'mini-app.session-end-confirm',
+                                'miniApp',
+                                `row-${sessionIndex + 1}`
+                              )}
                               disabled={isSaving}
                               className="rounded-xl bg-brand-red-primary px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
                             >
@@ -273,6 +310,11 @@ export const AssignmentsModal: React.FC<AssignmentsModalProps> = ({
                         ) : (
                           <button
                             onClick={() => setConfirmEndId(session.id)}
+                            {...tourFieldAttr(
+                              'mini-app.session-end',
+                              'miniApp',
+                              `row-${sessionIndex + 1}`
+                            )}
                             className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-bold text-amber-700 border border-amber-200 hover:bg-amber-100"
                           >
                             <span className="inline-flex items-center gap-1">

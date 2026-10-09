@@ -27,6 +27,7 @@ import {
 import type { FlashcardCard, FlashcardSet } from '@/types';
 import { FlashcardLanguageField } from './FlashcardLanguageField';
 import { PasteImportDrawer } from './PasteImportDrawer';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 interface FlashcardEditorProps {
   initialSet: FlashcardSet;
@@ -78,6 +79,11 @@ const SortableCardRow: React.FC<SortableCardRowProps> = ({
         className="cursor-grab rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 active:cursor-grabbing"
         style={{ padding: 'min(6px, 1.5cqmin)' }}
         aria-label={`Move card ${index + 1}`}
+        {...tourFieldAttr(
+          'flashcards.card-move',
+          'flashcards',
+          `row-${index + 1}`
+        )}
         {...attributes}
         {...listeners}
       >
@@ -107,6 +113,11 @@ const SortableCardRow: React.FC<SortableCardRowProps> = ({
             fontSize: 'min(13px, 4cqmin)',
           }}
           placeholder="Term"
+          {...tourFieldAttr(
+            'flashcards.card-term',
+            'flashcards',
+            `row-${index + 1}`
+          )}
         />
       </label>
       <label className="min-w-0">
@@ -130,6 +141,11 @@ const SortableCardRow: React.FC<SortableCardRowProps> = ({
             fontSize: 'min(13px, 4cqmin)',
           }}
           placeholder="Definition"
+          {...tourFieldAttr(
+            'flashcards.card-definition',
+            'flashcards',
+            `row-${index + 1}`
+          )}
         />
       </label>
       <button
@@ -138,6 +154,11 @@ const SortableCardRow: React.FC<SortableCardRowProps> = ({
         className="rounded-lg text-rose-600/70 hover:bg-rose-50 hover:text-rose-700"
         style={{ padding: 'min(6px, 1.5cqmin)' }}
         aria-label={`Delete card ${index + 1}`}
+        {...tourFieldAttr(
+          'flashcards.card-delete',
+          'flashcards',
+          `row-${index + 1}`
+        )}
       >
         <Trash2
           style={{
@@ -267,6 +288,7 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
               className="rounded-xl text-white/80 hover:bg-white/10 hover:text-white"
               style={{ padding: 'min(7px, 1.8cqmin)' }}
               aria-label="Back to flashcard library"
+              {...tourTypeAttr('flashcards.editor-back', 'flashcards')}
             >
               <ArrowLeft
                 style={{
@@ -297,6 +319,7 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
             <button
               type="button"
               onClick={() => setPasteOpen(true)}
+              {...tourTypeAttr('flashcards.editor-paste', 'flashcards')}
               className="inline-flex items-center rounded-xl border border-white/20 bg-white/10 font-bold text-white hover:bg-white/20"
               style={{
                 gap: 'min(6px, 1.5cqmin)',
@@ -316,6 +339,7 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
               type="button"
               onClick={() => void handleSave()}
               disabled={saving}
+              {...tourTypeAttr('flashcards.editor-save', 'flashcards')}
               className="inline-flex items-center rounded-xl bg-rose-600 font-black text-white hover:bg-rose-500 disabled:cursor-not-allowed disabled:opacity-50"
               style={{
                 gap: 'min(6px, 1.5cqmin)',
@@ -370,6 +394,7 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
                     fontSize: 'min(15px, 4.6cqmin)',
                   }}
                   placeholder="Unit vocabulary"
+                  {...tourTypeAttr('editor.title', 'flashcards')}
                 />
               </label>
               <label className="@[640px]:col-span-2">
@@ -389,17 +414,23 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
                     fontSize: 'min(13px, 4cqmin)',
                   }}
                   placeholder="What this set covers"
+                  {...tourTypeAttr(
+                    'flashcards.editor-description',
+                    'flashcards'
+                  )}
                 />
               </label>
               <FlashcardLanguageField
                 label="Term language"
                 value={termLanguage}
                 onChange={setTermLanguage}
+                tourField="term"
               />
               <FlashcardLanguageField
                 label="Definition language"
                 value={definitionLanguage}
                 onChange={setDefinitionLanguage}
+                tourField="definition"
               />
             </div>
 
@@ -449,6 +480,7 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
               type="button"
               onClick={() => addCardAfter(cards.length - 1)}
               disabled={cards.length >= 500}
+              {...tourTypeAttr('flashcards.add-card', 'flashcards')}
               className="inline-flex w-full items-center justify-center rounded-2xl border-2 border-dashed border-rose-200 font-black text-rose-700 hover:border-rose-300 hover:bg-rose-50 disabled:opacity-40"
               style={{
                 gap: 'min(6px, 1.5cqmin)',

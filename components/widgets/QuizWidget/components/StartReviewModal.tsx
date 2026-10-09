@@ -133,6 +133,7 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
         'Every question needs a teacher grade.'
       )}
       confirmTourAttrs={tourAttr('review-start.confirm')}
+      cancelTourAttrs={tourAttr('review-start.cancel')}
       onAssign={() => onStart(settings, picker.rosterIds)}
       extraSlot={
         <div data-testid="start-review-options" className="space-y-3">
@@ -317,7 +318,10 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
                     />
                   </div>
                 )}
-                <CollapsibleSection label="Gamification">
+                <CollapsibleSection
+                  label="Gamification"
+                  anchor={tourAttr('review-start.gamification')}
+                >
                   <div {...tourAttr('review-start.speed-bonus')}>
                     <ToggleRow
                       compact

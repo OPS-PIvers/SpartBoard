@@ -18,6 +18,7 @@ import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { useEmbedConfig } from './hooks/useEmbedConfig';
 import { TRUSTED_EMBED_HOSTNAMES } from './trustedHostnames';
 import type { EmbedConfig } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface CompatibilityResult {
   isEmbeddable: boolean;
@@ -149,6 +150,7 @@ const EmbedVerifyControlImpl: React.FC<Props> = ({
       <div className="flex gap-2">
         <button
           type="button"
+          {...tourAttr('widget-settings.embed.verify', widget.id, widget.type)}
           onClick={handleVerify}
           disabled={!url || isVerifying}
           className="px-3 py-2 bg-slate-900 text-white rounded-lg text-xxs font-bold hover:bg-slate-800 disabled:bg-slate-200 transition-all flex items-center gap-2 shrink-0"

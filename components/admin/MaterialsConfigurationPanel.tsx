@@ -1,3 +1,4 @@
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import React, { useMemo, useState } from 'react';
 import * as LucideIcons from 'lucide-react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
@@ -203,6 +204,11 @@ export const MaterialsConfigurationPanel: React.FC<
           <input
             type="checkbox"
             checked={allowTeacherMaterials}
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'materials',
+              'allowTeacherMaterials'
+            )}
             onChange={(e) =>
               onChange({ ...config, allowTeacherMaterials: e.target.checked })
             }
@@ -227,7 +233,16 @@ export const MaterialsConfigurationPanel: React.FC<
             </label>
           </div>
           {editingId && (
-            <Button variant="ghost" size="sm" onClick={resetDraft}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={resetDraft}
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'materials',
+                'cancelEdit'
+              )}
+            >
               Cancel Edit
             </Button>
           )}
@@ -250,6 +265,11 @@ export const MaterialsConfigurationPanel: React.FC<
                     }))
                   }
                   placeholder="Glue sticks"
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'materials',
+                    'materialName'
+                  )}
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-brand-blue-primary"
                 />
               </div>
@@ -260,6 +280,11 @@ export const MaterialsConfigurationPanel: React.FC<
                 </label>
                 <div className="flex items-center gap-2">
                   <IconPicker
+                    anchor={tourFieldAttr(
+                      'admin.widget-config.field',
+                      'materials',
+                      'icon'
+                    )}
                     currentIcon={draft.icon}
                     onSelect={(icon) =>
                       setDraft((current) => ({ ...current, icon }))
@@ -285,6 +310,11 @@ export const MaterialsConfigurationPanel: React.FC<
                     <button
                       key={iconName}
                       type="button"
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'materials',
+                        `suggestedIcon-${iconName}`
+                      )}
                       onClick={() =>
                         setDraft((current) => ({ ...current, icon: iconName }))
                       }
@@ -313,6 +343,11 @@ export const MaterialsConfigurationPanel: React.FC<
                   value={iconQuery}
                   onChange={(e) => setIconQuery(e.target.value)}
                   placeholder="Search more icons..."
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'materials',
+                    'iconSearch'
+                  )}
                   className="w-full rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-brand-blue-primary"
                 />
               </div>
@@ -324,6 +359,11 @@ export const MaterialsConfigurationPanel: React.FC<
                       <button
                         key={iconName}
                         type="button"
+                        {...tourFieldAttr(
+                          'admin.widget-config.field',
+                          'materials',
+                          `searchIcon-${iconName}`
+                        )}
                         onClick={() =>
                           setDraft((current) => ({
                             ...current,
@@ -354,6 +394,11 @@ export const MaterialsConfigurationPanel: React.FC<
                   <button
                     key={color}
                     type="button"
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'materials',
+                      `colorSwatch-${color}`
+                    )}
                     onClick={() =>
                       setDraft((current) => ({ ...current, color }))
                     }
@@ -369,6 +414,11 @@ export const MaterialsConfigurationPanel: React.FC<
                 <input
                   type="color"
                   aria-label="Material color"
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'materials',
+                    'colorCustom'
+                  )}
                   value={draft.color}
                   onChange={(e) =>
                     setDraft((current) => ({
@@ -386,6 +436,7 @@ export const MaterialsConfigurationPanel: React.FC<
                 variant="primary"
                 size="sm"
                 onClick={saveCustomMaterial}
+                {...tourTypeAttr('admin.widget-config.add', 'materials')}
                 disabled={!draft.label.trim()}
               >
                 <Plus className="h-4 w-4" />
@@ -444,12 +495,22 @@ export const MaterialsConfigurationPanel: React.FC<
                         variant="ghost"
                         size="sm"
                         onClick={() => startEditing(material)}
+                        {...tourFieldAttr(
+                          'admin.widget-config.field',
+                          'materials',
+                          `edit-${material.id}`
+                        )}
                       >
                         Edit
                       </Button>
                       <button
                         type="button"
                         onClick={() => removeCustomMaterial(material.id)}
+                        {...tourFieldAttr(
+                          'admin.widget-config.field',
+                          'materials',
+                          `remove-${material.id}`
+                        )}
                         className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-500"
                         aria-label={`Remove ${material.label}`}
                         title={`Remove ${material.label}`}
@@ -491,6 +552,11 @@ export const MaterialsConfigurationPanel: React.FC<
           <button
             type="button"
             onClick={toggleAll}
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'materials',
+              'toggleAll'
+            )}
             className="text-xxs font-bold text-brand-blue-primary hover:text-brand-blue-dark transition-colors"
           >
             {isAllSelected ? 'Deselect All' : 'Select All'}
@@ -506,6 +572,11 @@ export const MaterialsConfigurationPanel: React.FC<
                 key={item.id}
                 type="button"
                 onClick={() => toggleItem(item.id)}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'materials',
+                  `item-${item.id}`
+                )}
                 className={`flex items-center gap-2 rounded-lg border p-2 text-left transition-colors ${
                   isSelected
                     ? 'border-brand-blue-primary shadow-sm ring-1 ring-brand-blue-primary/20'

@@ -24,7 +24,7 @@ import { SubmissionTypesToggles } from './SubmissionTypesToggles';
 import { ModerationAndAccess } from './ModerationAndAccess';
 import { LimitsAndEditing } from './LimitsAndEditing';
 import { EngagementSettings } from './EngagementSettings';
-import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 interface WallEditorModalProps {
   open: boolean;
@@ -396,7 +396,15 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
           />
 
           {!isWordCloud && (
-            <CollapsibleSection label="Submission types" defaultOpen>
+            <CollapsibleSection
+              label="Submission types"
+              defaultOpen
+              anchor={tourFieldAttr(
+                'activity-wall-editor.section',
+                'activity-wall',
+                'submission-types'
+              )}
+            >
               <SubmissionTypesToggles
                 value={
                   draft.allowedTypes ?? {
@@ -413,7 +421,14 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
             </CollapsibleSection>
           )}
 
-          <CollapsibleSection label="Appearance">
+          <CollapsibleSection
+            label="Appearance"
+            anchor={tourFieldAttr(
+              'activity-wall-editor.section',
+              'activity-wall',
+              'appearance'
+            )}
+          >
             <AppearancePicker
               value={
                 draft.appearance ?? {
@@ -427,7 +442,14 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
             />
           </CollapsibleSection>
 
-          <CollapsibleSection label="Moderation & access">
+          <CollapsibleSection
+            label="Moderation & access"
+            anchor={tourFieldAttr(
+              'activity-wall-editor.section',
+              'activity-wall',
+              'moderation'
+            )}
+          >
             <ModerationAndAccess
               moderationEnabled={draft.moderationEnabled}
               allowGuests={draft.allowGuests ?? false}
@@ -441,7 +463,14 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
             />
           </CollapsibleSection>
 
-          <CollapsibleSection label="Engagement">
+          <CollapsibleSection
+            label="Engagement"
+            anchor={tourFieldAttr(
+              'activity-wall-editor.section',
+              'activity-wall',
+              'engagement'
+            )}
+          >
             <EngagementSettings
               allowLikes={draft.allowLikes ?? false}
               allowComments={draft.allowComments ?? false}
@@ -452,7 +481,14 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
             />
           </CollapsibleSection>
 
-          <CollapsibleSection label="Limits & editing">
+          <CollapsibleSection
+            label="Limits & editing"
+            anchor={tourFieldAttr(
+              'activity-wall-editor.section',
+              'activity-wall',
+              'limits'
+            )}
+          >
             <LimitsAndEditing
               maxPostsPerStudent={draft.maxPostsPerStudent ?? 0}
               allowStudentEdit={draft.allowStudentEdit ?? false}

@@ -21,6 +21,7 @@ import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
 import { SpotifyPremiumDialog } from '@/components/spotify/SpotifyPremiumDialog';
 import { hasDismissedSpotifyPremiumNotice } from '@/utils/spotifyPremiumNotice';
 import type { TranslateFn } from '@/components/settings/schema/types';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface Props {
   widget: WidgetData;
@@ -98,6 +99,11 @@ export const PersonalSpotifyPanel: React.FC<Props> = ({ widget, t }) => {
         <button
           type="button"
           onClick={handleConnectClick}
+          {...tourAttr(
+            'widget-settings.music.spotify-connect',
+            widget.id,
+            widget.type
+          )}
           className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition shadow-sm"
         >
           <Music2 className="w-4 h-4" />
@@ -140,6 +146,11 @@ export const PersonalSpotifyPanel: React.FC<Props> = ({ widget, t }) => {
             <button
               type="button"
               onClick={triggerDisconnect}
+              {...tourAttr(
+                'widget-settings.music.spotify-disconnect',
+                widget.id,
+                widget.type
+              )}
               className="flex-1 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-medium transition"
             >
               {label('spotifyDisconnect')}
@@ -147,6 +158,11 @@ export const PersonalSpotifyPanel: React.FC<Props> = ({ widget, t }) => {
             <button
               type="button"
               onClick={handleConnectClick}
+              {...tourAttr(
+                'widget-settings.music.spotify-retry',
+                widget.id,
+                widget.type
+              )}
               className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition"
             >
               {label('spotifyTryAgain')}
@@ -186,6 +202,11 @@ export const PersonalSpotifyPanel: React.FC<Props> = ({ widget, t }) => {
             <button
               type="button"
               onClick={() => void triggerDisconnect()}
+              {...tourAttr(
+                'widget-settings.music.spotify-disconnect',
+                widget.id,
+                widget.type
+              )}
               className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition"
               title={label('spotifyDisconnect')}
               aria-label={label('spotifyDisconnect')}
