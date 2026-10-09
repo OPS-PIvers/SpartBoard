@@ -96,7 +96,7 @@ export const StaffEmailInput: React.FC<StaffEmailInputProps> = ({
         setActiveIndex((active - 1 + matches.length) % matches.length);
         return;
       }
-      if (e.key === 'Enter' || e.key === 'Tab') {
+      if (e.key === 'Enter') {
         const choice = matches[active];
         if (choice) {
           e.preventDefault();
