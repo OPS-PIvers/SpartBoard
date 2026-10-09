@@ -1,6 +1,5 @@
-import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import React, { useState, useEffect, useCallback } from 'react';
-import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import {
   collection,
   onSnapshot,
