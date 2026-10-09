@@ -203,6 +203,11 @@ describe('LtiDeepLinkPicker — assign stepper step bodies', () => {
         expect(screen.getByRole('region', { name })).toBeTruthy();
       expect(screen.queryByLabelText(/due date \(optional\)/i)).toBeNull();
       expect(screen.queryByText('Manual')).toBeNull();
+      // Schedule starts off, so no unsaved window or late-work switch shows.
+      expect(screen.queryByText('Opens')).toBeNull();
+      expect(
+        screen.queryByRole('switch', { name: 'Allow submissions after close' })
+      ).toBeNull();
       fireEvent.click(
         screen.getByRole('switch', { name: 'Shuffle questions' })
       );
@@ -245,15 +250,14 @@ describe('LtiDeepLinkPicker — edited When', () => {
     window.history.pushState({}, '', '/lti/deep-link?lc=code-1');
   });
 
-  it('flag on: an edited When sets the window and the line item due date', async () => {
+  it('flag on: Schedule on sets the window and the line item due date', async () => {
     stepperOn = true;
     try {
       render(<LtiDeepLinkPicker />);
       fireEvent.click(await screen.findByRole('button', { name: 'Quiz' }));
       fireEvent.click(await screen.findByRole('option', { name: 'My Quiz' }));
-      fireEvent.click(
-        screen.getByRole('switch', { name: 'Allow submissions after close' })
-      );
+      fireEvent.click(screen.getByRole('switch', { name: 'Schedule' }));
+      expect(screen.getByText('Opens')).toBeTruthy();
       fireEvent.click(
         screen.getByRole('button', { name: /add quiz to schoology/i })
       );

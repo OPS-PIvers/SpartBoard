@@ -331,7 +331,7 @@ const LtiDeepLinkFlow: React.FC = () => {
       manualAvailable: false,
     })
   );
-  const [assignWhenEdited, setAssignWhenEdited] = useState(false);
+  const [assignWindowOn, setAssignWindowOn] = useState(false);
   const [editedAssignSettings, setEditedAssignSettings] =
     useState<QuizBehaviorSettings | null>(null);
   const splitAssignSettings = useMemo(
@@ -581,8 +581,8 @@ const LtiDeepLinkFlow: React.FC = () => {
     targeting: AssignTargetingValue;
     dueAt: number | null;
   } => {
-    // Unedited, the When step sets no window, so the Schoology item has no due date.
-    if (stepperOn ? !assignWhenEdited : !availabilityOn)
+    // With Schedule off the When step sets no window, so the Schoology item has no due date.
+    if (stepperOn ? !assignWindowOn : !availabilityOn)
       return { targeting: assignTargeting, dueAt };
     const { targeting } = applyAvailability(
       stepperOn
@@ -599,7 +599,7 @@ const LtiDeepLinkFlow: React.FC = () => {
     availabilityOn,
     stepperOn,
     assignWhen,
-    assignWhenEdited,
+    assignWindowOn,
     assignTargeting,
     dueAt,
     rosters,
@@ -1301,10 +1301,9 @@ const LtiDeepLinkFlow: React.FC = () => {
                   <InlineAssignStepBodies
                     activity={kind === 'quiz' ? 'quiz' : 'video'}
                     when={assignWhen}
-                    onWhenChange={(next) => {
-                      setAssignWhen(next);
-                      setAssignWhenEdited(true);
-                    }}
+                    onWhenChange={setAssignWhen}
+                    windowOn={assignWindowOn}
+                    onWindowOnChange={setAssignWindowOn}
                     rosters={rosters.filter((r) =>
                       ltiSelectedRosterIds.includes(r.id)
                     )}

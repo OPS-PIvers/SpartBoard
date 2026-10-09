@@ -1,7 +1,9 @@
 // The When body and, for quizzes, the three Quiz rule bodies laid out flat for pages without the stepper shell (D22).
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import type { ClassRoster, QuizBehaviorSettings } from '@/types';
 import { useQuizHandRaiseMode } from '@/hooks/useQuizHandRaiseMode';
+import { Toggle } from '@/components/common/Toggle';
 import { AssignWhenStep } from './AssignWhenStep';
 import type { AssignWhenValue } from './assignWhenValue';
 import { getAssignStepTitle } from './assignSteps';
@@ -18,6 +20,9 @@ export interface InlineAssignStepBodiesProps {
   behavior?: QuizBehaviorSettings;
   onBehaviorChange?: (next: QuizBehaviorSettings) => void;
   disabled?: boolean;
+  /** With onWindowOnChange, the When body shows only while the Schedule switch is on. */
+  windowOn?: boolean;
+  onWindowOnChange?: (on: boolean) => void;
 }
 
 const Section: React.FC<{ title: string; children: React.ReactNode }> = ({
@@ -38,7 +43,10 @@ export const InlineAssignStepBodies: React.FC<InlineAssignStepBodiesProps> = ({
   behavior,
   onBehaviorChange,
   disabled = false,
+  windowOn = true,
+  onWindowOnChange,
 }) => {
+  const { t } = useTranslation();
   const gates = useQuizRuleGates();
   const handRaiseMode = useQuizHandRaiseMode();
   const ruleSteps =
@@ -50,6 +58,7 @@ export const InlineAssignStepBodies: React.FC<InlineAssignStepBodiesProps> = ({
           handRaiseMode,
         })
       : [];
+  const scheduleLabel = t('assignTargeting.scheduleLabel', 'Schedule');
   return (
     <fieldset
       disabled={disabled}
@@ -57,12 +66,27 @@ export const InlineAssignStepBodies: React.FC<InlineAssignStepBodiesProps> = ({
       className="min-w-0 divide-y divide-slate-200"
     >
       <Section title={getAssignStepTitle('when', activity, { kind: 'work' })}>
-        <AssignWhenStep
-          value={when}
-          onChange={onWhenChange}
-          variant="when"
-          rosters={rosters}
-        />
+        {onWindowOnChange && (
+          <div className="flex min-h-[2rem] items-center justify-between gap-3">
+            <span className="text-sm font-medium text-slate-700">
+              {scheduleLabel}
+            </span>
+            <Toggle
+              size="sm"
+              checked={windowOn}
+              onChange={onWindowOnChange}
+              label={scheduleLabel}
+            />
+          </div>
+        )}
+        {windowOn && (
+          <AssignWhenStep
+            value={when}
+            onChange={onWhenChange}
+            variant="when"
+            rosters={rosters}
+          />
+        )}
       </Section>
       {ruleSteps.map((step) => (
         <Section key={step.id} title={step.title}>
