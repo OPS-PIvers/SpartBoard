@@ -47,7 +47,8 @@ const CAPTURE_MENU_WIDTH = 260;
 export const CaptureMenuButton: React.FC<{
   onPick: (mode: CaptureMode) => void;
   anchor?: TourAnchorAttrs;
-}> = ({ onPick, anchor }) => {
+  itemAnchor?: (mode: CaptureMode) => TourAnchorAttrs;
+}> = ({ onPick, anchor, itemAnchor }) => {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -105,6 +106,7 @@ export const CaptureMenuButton: React.FC<{
           >
             {CAPTURE_OPTIONS.map((opt) => (
               <button
+                {...itemAnchor?.(opt.value)}
                 key={opt.value}
                 role="menuitem"
                 type="button"

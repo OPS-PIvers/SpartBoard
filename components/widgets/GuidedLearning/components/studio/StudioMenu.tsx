@@ -26,6 +26,7 @@ export const StudioMenu: React.FC<{
   testId?: string;
   iconClassName?: string;
   anchor?: TourAnchorAttrs;
+  itemAnchor?: (itemId: string) => TourAnchorAttrs;
 }> = ({
   label,
   items,
@@ -33,6 +34,7 @@ export const StudioMenu: React.FC<{
   testId,
   iconClassName = 'h-3.5 w-3.5',
   anchor,
+  itemAnchor,
 }) => {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -110,6 +112,7 @@ export const StudioMenu: React.FC<{
           >
             {items.map((item) => (
               <button
+                {...itemAnchor?.(item.id)}
                 key={item.id}
                 type="button"
                 role="menuitem"

@@ -18,7 +18,7 @@ import {
   inputClass,
   quietButtonClass,
 } from './panelControls';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 type StepChange = (next: GuidedLearningStep, field?: string | false) => void;
 
@@ -113,6 +113,13 @@ export const StudioStepFields: React.FC<{
       {usesFocus && (
         <ChoiceGroup
           legend={t('glStudio.overlay')}
+          optionAnchor={(v) =>
+            tourFieldAttr(
+              'studio.panel-option',
+              'guided-learning',
+              `overlay-${v}`
+            )
+          }
           value={overlay}
           options={OVERLAYS.map((value) => ({
             value,
@@ -138,6 +145,13 @@ export const StudioStepFields: React.FC<{
       {usesFocus && overlay === 'banner' && (
         <ChoiceGroup
           legend={t('glStudio.bannerTone')}
+          optionAnchor={(v) =>
+            tourFieldAttr(
+              'studio.panel-option',
+              'guided-learning',
+              `bannerTone-${v}`
+            )
+          }
           value={step.bannerTone ?? 'blue'}
           options={BANNER_TONES.map((value) => ({
             value,
