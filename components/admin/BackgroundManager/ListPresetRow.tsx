@@ -1,3 +1,4 @@
+import { tourFieldAttr } from '@/config/tourAnchors';
 import React from 'react';
 import {
   Video,
@@ -71,6 +72,7 @@ const TagInput: React.FC<TagInputProps> = ({
             {tag}
             <button
               type="button"
+              {...tourFieldAttr('admin.backgrounds.tag-remove', 'admin', id)}
               onClick={() => removeTag(tag)}
               className="text-brand-blue-dark/60 hover:text-brand-blue-dark"
               aria-label={`Remove tag ${tag}`}
@@ -80,6 +82,7 @@ const TagInput: React.FC<TagInputProps> = ({
           </span>
         ))}
         <input
+          {...tourFieldAttr('admin.backgrounds.tag-input', 'admin', id)}
           id={id}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -109,6 +112,11 @@ const TagInput: React.FC<TagInputProps> = ({
               <button
                 key={s}
                 type="button"
+                {...tourFieldAttr(
+                  'admin.backgrounds.tag-suggestion',
+                  'admin',
+                  id
+                )}
                 onClick={() => addTag(s)}
                 className="px-2 py-0.5 text-xxs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-full"
               >
@@ -170,11 +178,21 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
               <input
                 type="text"
                 value={editName}
+                {...tourFieldAttr(
+                  'admin.backgrounds.rename-input',
+                  'admin',
+                  preset.id
+                )}
                 onChange={(e) => setEditName(e.target.value)}
                 className="flex-1 px-2 py-1 text-xs border border-brand-blue-light rounded focus:outline-none focus:ring-1 focus:ring-brand-blue-primary"
                 autoFocus
               />
               <button
+                {...tourFieldAttr(
+                  'admin.backgrounds.rename-save',
+                  'admin',
+                  preset.id
+                )}
                 onClick={() => {
                   if (editName.trim()) {
                     void updatePreset(preset.id, { label: editName.trim() });
@@ -186,6 +204,11 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
                 <Check className="w-3.5 h-3.5" />
               </button>
               <button
+                {...tourFieldAttr(
+                  'admin.backgrounds.rename-cancel',
+                  'admin',
+                  preset.id
+                )}
                 onClick={() => setEditingId(null)}
                 className="p-1 text-red-500 hover:bg-red-50 rounded"
               >
@@ -201,6 +224,11 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
                 {preset.label}
               </span>
               <button
+                {...tourFieldAttr(
+                  'admin.backgrounds.rename-edit',
+                  'admin',
+                  preset.id
+                )}
                 onClick={() => {
                   setEditingId(preset.id);
                   setEditName(preset.label);
@@ -225,6 +253,11 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
             onChange={(checked) =>
               void updatePreset(preset.id, { active: checked })
             }
+            anchor={tourFieldAttr(
+              'admin.backgrounds.active-toggle',
+              'admin',
+              preset.id
+            )}
             size="sm"
             activeColor="bg-green-500"
             label={`${preset.label} active`}
@@ -237,6 +270,11 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
         <div className="flex items-center gap-1 shrink-0">
           {(['admin', 'beta', 'public'] as AccessLevel[]).map((level) => (
             <button
+              {...tourFieldAttr(
+                'admin.backgrounds.access-level',
+                'admin',
+                `${preset.id}:${level}`
+              )}
               key={level}
               onClick={() =>
                 void updatePreset(preset.id, { accessLevel: level })
@@ -264,6 +302,11 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
               <input
                 type="text"
                 value={editingCategoryValue}
+                {...tourFieldAttr(
+                  'admin.backgrounds.category-input',
+                  'admin',
+                  preset.id
+                )}
                 onChange={(e) => setEditingCategoryValue(e.target.value)}
                 list={`cats-${preset.id}`}
                 placeholder="Category..."
@@ -276,6 +319,11 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
                 ))}
               </datalist>
               <button
+                {...tourFieldAttr(
+                  'admin.backgrounds.category-save',
+                  'admin',
+                  preset.id
+                )}
                 onClick={() => {
                   const trimmed = editingCategoryValue.trim();
                   if (trimmed) {
@@ -291,6 +339,11 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
                 <Check className="w-3.5 h-3.5" />
               </button>
               <button
+                {...tourFieldAttr(
+                  'admin.backgrounds.category-cancel',
+                  'admin',
+                  preset.id
+                )}
                 onClick={() => {
                   setEditingCategoryPresetId(null);
                   setEditingCategoryValue('');
@@ -302,6 +355,11 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
             </div>
           ) : (
             <button
+              {...tourFieldAttr(
+                'admin.backgrounds.category-edit',
+                'admin',
+                preset.id
+              )}
               onClick={() => {
                 setEditingCategoryPresetId(preset.id);
                 setEditingCategoryValue(preset.category ?? '');
@@ -325,6 +383,11 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
             return (
               <button
                 key={b.id}
+                {...tourFieldAttr(
+                  'admin.backgrounds.building-toggle',
+                  'admin',
+                  `${preset.id}:${b.id}`
+                )}
                 onClick={() => void toggleBuildingId(preset.id, b.id)}
                 className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
                   assigned
@@ -345,6 +408,11 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
         {/* Featured */}
         <button
           type="button"
+          {...tourFieldAttr(
+            'admin.backgrounds.featured-toggle',
+            'admin',
+            preset.id
+          )}
           onClick={() => void toggleFeatured(preset.id)}
           className={`p-1.5 rounded-lg transition-colors shrink-0 ${
             preset.featured
@@ -364,6 +432,11 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
 
         {/* Delete */}
         <button
+          {...tourFieldAttr(
+            'admin.backgrounds.delete-preset',
+            'admin',
+            preset.id
+          )}
           onClick={() => void deletePreset(preset)}
           className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0 ml-1"
           title="Delete background"
@@ -395,6 +468,11 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
               >
                 {email}
                 <button
+                  {...tourFieldAttr(
+                    'admin.backgrounds.beta-user-remove',
+                    'admin',
+                    preset.id
+                  )}
                   onClick={() => void removeBetaUser(preset.id, email)}
                   className="text-red-500 hover:text-red-700"
                 >
@@ -415,12 +493,22 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
             }}
           >
             <input
+              {...tourFieldAttr(
+                'admin.backgrounds.beta-user-input',
+                'admin',
+                preset.id
+              )}
               name="betaEmail"
               type="email"
               placeholder="Add email..."
               className="flex-1 px-2 py-1 border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-brand-blue-primary"
             />
             <button
+              {...tourFieldAttr(
+                'admin.backgrounds.beta-user-add',
+                'admin',
+                preset.id
+              )}
               type="submit"
               className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"
             >

@@ -1,3 +1,4 @@
+import { tourFieldAttr } from '@/config/tourAnchors';
 import React from 'react';
 import { Video, Pencil, Check, X, Tag, Plus, Trash2, Star } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
@@ -52,6 +53,11 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
         <div className="absolute top-1.5 right-1.5 z-10 flex items-center gap-1">
           <button
             type="button"
+            {...tourFieldAttr(
+              'admin.backgrounds.featured-toggle',
+              'admin',
+              preset.id
+            )}
             onClick={() => void toggleFeatured(preset.id)}
             className={`p-1.5 rounded-lg shadow-md transition-all scale-90 hover:scale-100 ${
               preset.featured
@@ -71,6 +77,11 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
             />
           </button>
           <button
+            {...tourFieldAttr(
+              'admin.backgrounds.delete-preset',
+              'admin',
+              preset.id
+            )}
             onClick={() => void deletePreset(preset)}
             className="p-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 shadow-md transition-all scale-90 hover:scale-100"
             title="Delete background"
@@ -87,6 +98,11 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
             onChange={(checked) =>
               void updatePreset(preset.id, { active: checked })
             }
+            anchor={tourFieldAttr(
+              'admin.backgrounds.active-toggle',
+              'admin',
+              preset.id
+            )}
             size="xs"
             activeColor="bg-green-500"
             showLabels={false}
@@ -105,11 +121,21 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
               <input
                 type="text"
                 value={editName}
+                {...tourFieldAttr(
+                  'admin.backgrounds.rename-input',
+                  'admin',
+                  preset.id
+                )}
                 onChange={(e) => setEditName(e.target.value)}
                 className="flex-1 px-2 py-1 text-xs border border-brand-blue-light rounded focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
                 autoFocus
               />
               <button
+                {...tourFieldAttr(
+                  'admin.backgrounds.rename-save',
+                  'admin',
+                  preset.id
+                )}
                 onClick={() => {
                   if (editName.trim()) {
                     void updatePreset(preset.id, { label: editName.trim() });
@@ -121,6 +147,11 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
                 <Check className="w-3.5 h-3.5" />
               </button>
               <button
+                {...tourFieldAttr(
+                  'admin.backgrounds.rename-cancel',
+                  'admin',
+                  preset.id
+                )}
                 onClick={() => setEditingId(null)}
                 className="p-1 text-red-500 hover:bg-red-50 rounded"
               >
@@ -136,6 +167,11 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
                 {preset.label}
               </h4>
               <button
+                {...tourFieldAttr(
+                  'admin.backgrounds.rename-edit',
+                  'admin',
+                  preset.id
+                )}
                 onClick={() => {
                   setEditingId(preset.id);
                   setEditName(preset.label);
@@ -160,6 +196,11 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
           >
             {(['admin', 'beta', 'public'] as AccessLevel[]).map((level) => (
               <button
+                {...tourFieldAttr(
+                  'admin.backgrounds.access-level',
+                  'admin',
+                  `${preset.id}:${level}`
+                )}
                 key={level}
                 onClick={() =>
                   void updatePreset(preset.id, { accessLevel: level })
@@ -186,6 +227,11 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
               <input
                 type="text"
                 value={editingCategoryValue}
+                {...tourFieldAttr(
+                  'admin.backgrounds.category-input',
+                  'admin',
+                  preset.id
+                )}
                 onChange={(e) => setEditingCategoryValue(e.target.value)}
                 list={`cats-grid-${preset.id}`}
                 placeholder="Category..."
@@ -198,6 +244,11 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
                 ))}
               </datalist>
               <button
+                {...tourFieldAttr(
+                  'admin.backgrounds.category-save',
+                  'admin',
+                  preset.id
+                )}
                 onClick={() => {
                   const trimmed = editingCategoryValue.trim();
                   if (trimmed) {
@@ -213,6 +264,11 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
                 <Check className="w-3 h-3" />
               </button>
               <button
+                {...tourFieldAttr(
+                  'admin.backgrounds.category-cancel',
+                  'admin',
+                  preset.id
+                )}
                 onClick={() => {
                   setEditingCategoryPresetId(null);
                   setEditingCategoryValue('');
@@ -224,6 +280,11 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
             </div>
           ) : (
             <button
+              {...tourFieldAttr(
+                'admin.backgrounds.category-edit',
+                'admin',
+                preset.id
+              )}
               onClick={() => {
                 setEditingCategoryPresetId(preset.id);
                 setEditingCategoryValue(preset.category ?? '');
@@ -255,6 +316,11 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
               return (
                 <button
                   key={b.id}
+                  {...tourFieldAttr(
+                    'admin.backgrounds.building-toggle',
+                    'admin',
+                    `${preset.id}:${b.id}`
+                  )}
                   onClick={() => void toggleBuildingId(preset.id, b.id)}
                   className={`px-1.5 py-0.5 rounded text-xxs font-bold border transition-all ${
                     assigned
@@ -287,6 +353,11 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
                 >
                   <span className="text-slate-700 truncate mr-2">{email}</span>
                   <button
+                    {...tourFieldAttr(
+                      'admin.backgrounds.beta-user-remove',
+                      'admin',
+                      preset.id
+                    )}
                     onClick={() => void removeBetaUser(preset.id, email)}
                     className="text-red-600 hover:bg-red-100 p-0.5 rounded transition-colors shrink-0"
                   >
@@ -307,12 +378,22 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
               }}
             >
               <input
+                {...tourFieldAttr(
+                  'admin.backgrounds.beta-user-input',
+                  'admin',
+                  preset.id
+                )}
                 name="betaEmail"
                 type="email"
                 placeholder="Add email..."
                 className="flex-1 px-2 py-1 border border-slate-200 rounded text-xxs focus:outline-none focus:ring-1 focus:ring-brand-blue-primary"
               />
               <button
+                {...tourFieldAttr(
+                  'admin.backgrounds.beta-user-add',
+                  'admin',
+                  preset.id
+                )}
                 type="submit"
                 className="p-1 px-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
               >

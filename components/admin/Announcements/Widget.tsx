@@ -1,3 +1,4 @@
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import {
   collection,
@@ -187,6 +188,7 @@ const QRConfigEditor: React.FC<{
     </label>
     <input
       type="url"
+      {...tourAttr('admin.announcements.qr-url')}
       value={(config.url as string) ?? ''}
       onChange={(e) => onChange({ ...config, url: e.target.value })}
       className="w-full px-3 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
@@ -213,6 +215,11 @@ const ExpectationsConfigEditor: React.FC<{
           {[null, 0, 1, 2, 3, 4].map((level) => (
             <button
               key={String(level)}
+              {...tourFieldAttr(
+                'admin.announcements.voice-level',
+                'admin',
+                String(level)
+              )}
               onClick={() => onChange({ ...config, voiceLevel: level })}
               className={`flex-1 py-1.5 text-xs rounded-md border transition-colors ${
                 voiceLevel === level
@@ -230,6 +237,7 @@ const ExpectationsConfigEditor: React.FC<{
           Work Mode
         </label>
         <select
+          {...tourAttr('admin.announcements.work-mode')}
           value={workMode ?? ''}
           onChange={(e) =>
             onChange({ ...config, workMode: e.target.value || null })
@@ -247,6 +255,7 @@ const ExpectationsConfigEditor: React.FC<{
           Interaction Mode
         </label>
         <select
+          {...tourAttr('admin.announcements.interaction-mode')}
           value={interactionMode ?? ''}
           onChange={(e) =>
             onChange({ ...config, interactionMode: e.target.value || null })
@@ -294,6 +303,7 @@ const GenericConfigEditor: React.FC<{
           Widget Config (JSON)
         </label>
         <button
+          {...tourAttr('admin.announcements.json-reset')}
           onClick={() => {
             const defaults = getDefaultConfig(widgetType);
             setJsonStr(JSON.stringify(defaults, null, 2));
@@ -306,6 +316,7 @@ const GenericConfigEditor: React.FC<{
         </button>
       </div>
       <textarea
+        {...tourAttr('admin.announcements.json-config')}
         value={jsonStr}
         onChange={(e) => setJsonStr(e.target.value)}
         onBlur={handleBlur}
@@ -436,6 +447,7 @@ const FormSection: React.FC<{
   return (
     <div className="border border-slate-200 rounded-xl overflow-hidden">
       <button
+        {...tourFieldAttr('admin.announcements.section-toggle', 'admin', title)}
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors"
       >
@@ -592,6 +604,7 @@ export const PollResponsesPanel: React.FC<{
           </span>
         </div>
         <button
+          {...tourAttr('admin.announcements.poll-results-close')}
           onClick={onClose}
           className="p-1 text-slate-400 hover:text-slate-600 rounded"
         >
@@ -629,6 +642,7 @@ export const PollResponsesPanel: React.FC<{
       </div>
       <div className="px-4 py-3 border-t border-slate-200 bg-slate-50">
         <button
+          {...tourAttr('admin.announcements.poll-export-csv')}
           onClick={exportCsv}
           className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors"
         >
@@ -1001,6 +1015,7 @@ export const AnnouncementsManager: React.FC = () => {
             </span>
           </div>
           <button
+            {...tourAttr('admin.announcements.new')}
             onClick={openCreate}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary text-white text-xs font-semibold rounded-lg hover:bg-brand-blue-dark transition-colors shadow-sm"
           >
@@ -1087,6 +1102,11 @@ export const AnnouncementsManager: React.FC = () => {
                     {/* Poll results button */}
                     {a.widgetType === 'poll' && (
                       <button
+                        {...tourFieldAttr(
+                          'admin.announcements.poll-results',
+                          'admin',
+                          a.id
+                        )}
                         onClick={() =>
                           setViewingResponsesId(
                             viewingResponsesId === a.id ? null : a.id
@@ -1104,6 +1124,11 @@ export const AnnouncementsManager: React.FC = () => {
                     )}
                     {/* Activate / Deactivate */}
                     <button
+                      {...tourFieldAttr(
+                        'admin.announcements.toggle-active',
+                        'admin',
+                        a.id
+                      )}
                       onClick={() => void handleToggleActive(a)}
                       title={
                         a.isActive
@@ -1129,6 +1154,11 @@ export const AnnouncementsManager: React.FC = () => {
                       )}
                     </button>
                     <button
+                      {...tourFieldAttr(
+                        'admin.announcements.edit',
+                        'admin',
+                        a.id
+                      )}
                       onClick={() => openEdit(a)}
                       title="Edit announcement"
                       className="p-2 text-slate-500 hover:text-brand-blue-primary hover:bg-blue-50 rounded-lg transition-colors"
@@ -1136,6 +1166,11 @@ export const AnnouncementsManager: React.FC = () => {
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button
+                      {...tourFieldAttr(
+                        'admin.announcements.duplicate',
+                        'admin',
+                        a.id
+                      )}
                       onClick={() => void handleDuplicate(a)}
                       title="Duplicate announcement"
                       className="p-2 text-slate-500 hover:text-brand-blue-primary hover:bg-blue-50 rounded-lg transition-colors"
@@ -1145,12 +1180,22 @@ export const AnnouncementsManager: React.FC = () => {
                     {confirmDeleteId === a.id ? (
                       <div className="flex items-center gap-1">
                         <button
+                          {...tourFieldAttr(
+                            'admin.announcements.delete-confirm',
+                            'admin',
+                            a.id
+                          )}
                           onClick={() => void handleDelete(a.id)}
                           className="px-2 py-1 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
                         >
                           Delete
                         </button>
                         <button
+                          {...tourFieldAttr(
+                            'admin.announcements.remove-cancel',
+                            'admin',
+                            a.id
+                          )}
                           onClick={() => setConfirmDeleteId(null)}
                           className="px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
                         >
@@ -1159,6 +1204,11 @@ export const AnnouncementsManager: React.FC = () => {
                       </div>
                     ) : (
                       <button
+                        {...tourFieldAttr(
+                          'admin.announcements.delete',
+                          'admin',
+                          a.id
+                        )}
                         onClick={() => setConfirmDeleteId(a.id)}
                         title="Delete announcement"
                         className="p-2 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
@@ -1182,6 +1232,7 @@ export const AnnouncementsManager: React.FC = () => {
               {editingId ? 'Edit Announcement' : 'New Announcement'}
             </h3>
             <button
+              {...tourAttr('admin.announcements.form-close')}
               onClick={closeForm}
               className="p-1 text-slate-400 hover:text-slate-600 rounded-lg transition-colors"
             >
@@ -1197,6 +1248,7 @@ export const AnnouncementsManager: React.FC = () => {
               </label>
               <input
                 type="text"
+                {...tourAttr('admin.announcements.name')}
                 value={form.name}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, name: e.target.value }))
@@ -1213,6 +1265,7 @@ export const AnnouncementsManager: React.FC = () => {
                   Widget Type
                 </label>
                 <select
+                  {...tourAttr('admin.announcements.widget-type')}
                   value={form.widgetType}
                   onChange={(e) =>
                     handleWidgetTypeChange(e.target.value as WidgetType)
@@ -1241,6 +1294,7 @@ export const AnnouncementsManager: React.FC = () => {
                     onChange={(checked) =>
                       setForm((f) => ({ ...f, maximized: checked }))
                     }
+                    anchor={tourAttr('admin.announcements.maximize')}
                     label="Maximize (full screen)"
                   />
                   <span className="text-sm font-medium text-slate-700">
@@ -1256,6 +1310,7 @@ export const AnnouncementsManager: React.FC = () => {
                     </label>
                     <input
                       type="number"
+                      {...tourAttr('admin.announcements.width')}
                       min={200}
                       max={1920}
                       step={10}
@@ -1280,6 +1335,7 @@ export const AnnouncementsManager: React.FC = () => {
                     </label>
                     <input
                       type="number"
+                      {...tourAttr('admin.announcements.height')}
                       min={100}
                       max={1080}
                       step={10}
@@ -1320,6 +1376,11 @@ export const AnnouncementsManager: React.FC = () => {
                   >
                     <input
                       type="radio"
+                      {...tourFieldAttr(
+                        'admin.announcements.activation-type',
+                        'admin',
+                        opt.value
+                      )}
                       name="activationType"
                       value={opt.value}
                       checked={form.activationType === opt.value}
@@ -1350,6 +1411,7 @@ export const AnnouncementsManager: React.FC = () => {
                       </label>
                       <input
                         type="date"
+                        {...tourAttr('admin.announcements.start-date')}
                         value={form.scheduledActivationDate}
                         onChange={(e) =>
                           setForm((f) => ({
@@ -1366,6 +1428,7 @@ export const AnnouncementsManager: React.FC = () => {
                       </label>
                       <input
                         type="time"
+                        {...tourAttr('admin.announcements.start-time')}
                         value={form.scheduledActivationTime}
                         onChange={(e) =>
                           setForm((f) => ({
@@ -1392,6 +1455,7 @@ export const AnnouncementsManager: React.FC = () => {
                     onChange={(v) =>
                       setForm((f) => ({ ...f, autoDeactivateEnabled: v }))
                     }
+                    anchor={tourAttr('admin.announcements.auto-deactivate')}
                     label="Auto-deactivate at end date/time"
                   />
                   <div className="text-sm font-medium text-slate-700">
@@ -1406,6 +1470,7 @@ export const AnnouncementsManager: React.FC = () => {
                       </label>
                       <input
                         type="date"
+                        {...tourAttr('admin.announcements.end-date')}
                         value={form.scheduledEndDate}
                         onChange={(e) =>
                           setForm((f) => ({
@@ -1422,6 +1487,7 @@ export const AnnouncementsManager: React.FC = () => {
                       </label>
                       <input
                         type="time"
+                        {...tourAttr('admin.announcements.end-time')}
                         value={form.scheduledEndTime}
                         onChange={(e) =>
                           setForm((f) => ({
@@ -1447,6 +1513,11 @@ export const AnnouncementsManager: React.FC = () => {
                   >
                     <input
                       type="radio"
+                      {...tourFieldAttr(
+                        'admin.announcements.dismissal-type',
+                        'admin',
+                        opt.value
+                      )}
                       name="dismissalType"
                       value={opt.value}
                       checked={form.dismissalType === opt.value}
@@ -1475,6 +1546,7 @@ export const AnnouncementsManager: React.FC = () => {
                   </label>
                   <input
                     type="time"
+                    {...tourAttr('admin.announcements.dismissal-time')}
                     value={form.scheduledDismissalTime}
                     onChange={(e) =>
                       setForm((f) => ({
@@ -1494,6 +1566,7 @@ export const AnnouncementsManager: React.FC = () => {
                   <div className="flex gap-2">
                     <input
                       type="number"
+                      {...tourAttr('admin.announcements.dismissal-duration')}
                       min={1}
                       max={
                         form.dismissalDurationUnit === 'minutes' ? 1440 : 86400
@@ -1510,6 +1583,7 @@ export const AnnouncementsManager: React.FC = () => {
                       className="flex-1 px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
                     />
                     <select
+                      {...tourAttr('admin.announcements.dismissal-unit')}
                       value={form.dismissalDurationUnit}
                       onChange={(e) =>
                         setForm((f) => ({
@@ -1543,6 +1617,11 @@ export const AnnouncementsManager: React.FC = () => {
                     <Toggle
                       checked={form.targetBuildings.includes(b.id)}
                       onChange={() => toggleBuilding(b.id)}
+                      anchor={tourFieldAttr(
+                        'admin.announcements.target-building',
+                        'admin',
+                        b.id
+                      )}
                       label={`Target ${b.name}`}
                     />
                     <div>
@@ -1569,6 +1648,7 @@ export const AnnouncementsManager: React.FC = () => {
               <div className="flex gap-2">
                 <input
                   type="email"
+                  {...tourAttr('admin.announcements.target-email')}
                   value={targetEmailInput}
                   onChange={(e) => setTargetEmailInput(e.target.value)}
                   onKeyDown={(e) => {
@@ -1582,6 +1662,7 @@ export const AnnouncementsManager: React.FC = () => {
                 />
                 <button
                   type="button"
+                  {...tourAttr('admin.announcements.target-add')}
                   onClick={addTargetUser}
                   className="px-3 py-1.5 text-sm font-medium text-white bg-brand-blue-primary hover:bg-brand-blue-dark rounded-lg transition-colors"
                 >
@@ -1598,6 +1679,7 @@ export const AnnouncementsManager: React.FC = () => {
                       {email}
                       <button
                         type="button"
+                        {...tourAttr('admin.announcements.target-remove')}
                         onClick={() => removeTargetUser(email)}
                         className="text-slate-400 hover:text-red-500 transition-colors"
                       >
@@ -1619,12 +1701,14 @@ export const AnnouncementsManager: React.FC = () => {
           {/* Footer */}
           <div className="sticky bottom-0 flex justify-end gap-3 px-5 py-4 bg-white border-t border-slate-200">
             <button
+              {...tourAttr('admin.announcements.form-cancel')}
               onClick={closeForm}
               className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
             >
               Cancel
             </button>
             <button
+              {...tourAttr('admin.announcements.form-save')}
               onClick={() => void handleSave()}
               disabled={saving}
               className="flex items-center gap-2 px-5 py-2 text-sm font-semibold text-white bg-brand-blue-primary hover:bg-brand-blue-dark rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
