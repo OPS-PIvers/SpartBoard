@@ -1,8 +1,11 @@
-import { useEffect, useState } from 'react';
+import type React from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
+import { useDashboard } from '@/context/useDashboard';
+import { useSchoologyToolColumnPush } from '@/hooks/useSchoologyToolColumnPush';
 import { requestClassroomTeacherToken } from '@/components/classroomAddon/gisOAuth';
 import {
   GRADE_PUSH_GENERIC_ERROR_MESSAGE,
@@ -25,6 +28,7 @@ import {
   buildGradebookPushPlan,
   isGradebookPushKind,
   readLmsLink,
+  schoologyLinkedTargets,
   schoologyMaxPoints,
   type GradebookLmsLink,
   type GradebookPushPlan,
@@ -46,6 +50,8 @@ export interface GradebookLmsPush {
   /** What a push would send right now, or null when there is no usable scale. */
   plan: GradebookPushPlan | null;
   push: () => Promise<GradebookPushOutcome | null>;
+  /** The tool-column confirmation dialog, when one is open. */
+  dialog: React.ReactNode;
 }
 
 const skippedNote = (plan: GradebookPushPlan): string =>
@@ -54,9 +60,16 @@ const skippedNote = (plan: GradebookPushPlan): string =>
 /** D22 Push from the column header: final scores to the assignment's Classroom or Schoology link. */
 export function useGradebookLmsPush(
   column: GradebookColumnRef,
-  cells: GradebookCellData[]
+  cells: GradebookCellData[],
+  onToolColumnDone?: (outcome: GradebookPushOutcome) => void
 ): GradebookLmsPush {
   const { user, canAccessFeature } = useAuth();
+  const { rosters } = useDashboard();
+  const toolColumnsOn = canAccessFeature('schoology-tool-columns');
+  const linkedTargets = useMemo(
+    () => (toolColumnsOn ? schoologyLinkedTargets(rosters) : null),
+    [toolColumnsOn, rosters]
+  );
   const pushable = isGradebookPushKind(column.kind);
   const [loaded, setLoaded] = useState<{
     sessionId: string;
@@ -73,7 +86,7 @@ export function useGradebookLmsPush(
         if (cancelled) return;
         setLoaded({
           sessionId: column.sessionId,
-          link: readLmsLink(snap.exists() ? snap.data() : null),
+          link: readLmsLink(snap.exists() ? snap.data() : null, linkedTargets),
         });
       })
       .catch((err: unknown) => {
@@ -83,7 +96,7 @@ export function useGradebookLmsPush(
     return () => {
       cancelled = true;
     };
-  }, [pushable, user?.uid, column.kind, column.sessionId]);
+  }, [pushable, user?.uid, column.kind, column.sessionId, linkedTargets]);
 
   let link: GradebookLmsLink | undefined = !pushable
     ? null
@@ -109,6 +122,28 @@ export function useGradebookLmsPush(
       ? buildGradebookPushPlan(cells, maxPoints)
       : null;
 
+  const toolColumn = useSchoologyToolColumnPush({
+    sessionId: column.sessionId,
+    kind: column.kind === 'video-activity' ? 'va' : 'quiz',
+    title: column.title,
+    buildPayload: () =>
+      Promise.resolve(
+        plan && maxPoints !== null
+          ? {
+              maxPoints,
+              grades: [
+                ...plan.entries,
+                ...plan.missing.map((uid) => ({
+                  pseudonymUid: uid,
+                  missing: true as const,
+                })),
+              ],
+            }
+          : null
+      ),
+    onDone: (message, ok) => onToolColumnDone?.({ ok, message }),
+  });
+
   const push = async (): Promise<GradebookPushOutcome | null> => {
     if (!link) return null;
     if (!plan || maxPoints === null) {
@@ -119,6 +154,11 @@ export function useGradebookLmsPush(
             ? MISSING_MAX_POINTS_MESSAGE
             : 'This assignment has no point total to push against.',
       };
+    }
+    if (link.lms === 'schoology' && link.mode === 'tool-column') {
+      // The hook reports through onToolColumnDone, after any confirmation.
+      await toolColumn.start();
+      return null;
     }
     if (link.lms === 'schoology') {
       try {
@@ -189,5 +229,5 @@ export function useGradebookLmsPush(
     return outcome;
   };
 
-  return { link, plan, push };
+  return { link, plan, push, dialog: toolColumn.dialog };
 }

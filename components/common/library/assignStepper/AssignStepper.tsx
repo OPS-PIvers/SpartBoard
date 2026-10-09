@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Loader2, Rocket } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
+import { tourAttr } from '@/config/tourAnchors';
 import { AssignStep } from './AssignStep';
 import type { AssignStepDef } from './assignSteps';
 
@@ -121,6 +122,7 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
         </h3>
       </div>
       <button
+        {...tourAttr('assign-stepper.cancel')}
         type="button"
         onClick={onClose}
         disabled={submitting}
@@ -134,6 +136,7 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
   const footer = (
     <div className="flex items-center justify-end gap-2 px-6 py-3">
       <button
+        {...tourAttr('assign-stepper.submit')}
         type="button"
         onClick={() => void handleSubmit()}
         disabled={blocked}
@@ -168,6 +171,7 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
         {steps.map((step, i) => (
           <AssignStep
             key={step.id}
+            id={step.id}
             ref={(el) => {
               stepRefs.current[i] = el;
             }}

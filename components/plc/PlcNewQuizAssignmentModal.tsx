@@ -94,6 +94,7 @@ import {
 } from '@/components/common/library/assignStepper/assignWhenValue';
 import { QuizAssignStepper } from '@/components/widgets/QuizWidget/components/QuizAssignStepper';
 import { planPlcQuizStepperAssign } from './plcQuizStepperAssign';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface PlcNewQuizAssignmentModalProps {
   plc: Plc;
@@ -434,7 +435,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
           }
         );
 
-        if (prefillLastUsed) {
+        if (stepperOn) {
           saveLastAssignSettings({
             sessionMode: behavior.sessionMode,
             sessionOptions,
@@ -501,21 +502,22 @@ export const PlcNewQuizAssignmentModal: React.FC<
           }
         }
 
-        // The stepper gates by period or dates, so it is not always paused.
-        const createdKey = stepperPlan ? 'StepperCreated' : 'Created';
+        // Only a period gate creates it active; otherwise it starts paused.
+        const gated = !!stepperPlan?.periodGate;
+        const createdKey = gated ? 'StepperCreated' : 'Created';
         addToast(
           groupWording
             ? t(`plcDashboard.newAssignment.quiz.group${createdKey}`, {
                 title: pickedQuiz.title,
-                defaultValue: stepperPlan
+                defaultValue: gated
                   ? '"{{title}}" created and shared with this group.'
                   : '"{{title}}" created (paused) and shared with this group.',
               })
             : t(
-                `plcDashboard.newAssignment.quiz.${stepperPlan ? 'stepperCreated' : 'created'}`,
+                `plcDashboard.newAssignment.quiz.${gated ? 'stepperCreated' : 'created'}`,
                 {
                   title: pickedQuiz.title,
-                  defaultValue: stepperPlan
+                  defaultValue: gated
                     ? '"{{title}}" created and shared with this PLC.'
                     : '"{{title}}" created (paused) and shared with this PLC.',
                 }
@@ -590,7 +592,6 @@ export const PlcNewQuizAssignmentModal: React.FC<
       stepperWhen,
       stepperClasses,
       periodAccess,
-      prefillLastUsed,
       saveLastAssignSettings,
       setAssignmentTargets,
       setAssignmentTargetSkippedCount,
@@ -699,6 +700,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
             </p>
           </div>
           <button
+            {...tourAttr('plc-assign.close')}
             type="button"
             onClick={onClose}
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
@@ -736,6 +738,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
               })}
             </label>
             <input
+              {...tourAttr('plc-assign.due-date')}
               id="plc-assign-due-date-input"
               type="date"
               data-testid="plc-assign-due-date"
@@ -786,6 +789,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100">
           <button
+            {...tourAttr('plc-assign.cancel')}
             type="button"
             onClick={onClose}
             className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
@@ -793,6 +797,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
             {t('common.cancel', { defaultValue: 'Cancel' })}
           </button>
           <button
+            {...tourAttr('plc-assign.submit')}
             type="button"
             onClick={() => void handleSubmit()}
             disabled={submitting || outward.locked}

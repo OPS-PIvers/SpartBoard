@@ -1,4 +1,5 @@
 import React from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import { X, Link2 } from 'lucide-react';
 
 import { ShortLinkCreateForm } from './LinkShortenerManager';
@@ -53,6 +54,7 @@ export const ShortLinkQuickCreate: React.FC<ShortLinkQuickCreateProps> = ({
             </h3>
           </div>
           <button
+            {...tourAttr('admin.links.modal-close')}
             type="button"
             onClick={onClose}
             aria-label="Close"

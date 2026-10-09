@@ -4,6 +4,7 @@ import type { GuidedLearningSet } from '@/types';
 import {
   autopilotGate,
   liveTourStepsOf,
+  replayGate,
   resolveTourAutopilotPolicy,
   teacherMustClick,
   tourWelcome,
@@ -128,6 +129,41 @@ describe('teacherMustClick', () => {
     ).toBe('teacher');
     expect(autopilotGate({ anchor: '' }, p)).toBe('teacher');
     expect(teacherMustClick({ anchor: 'widget.close' }, p)).toBe(false);
+  });
+});
+
+describe('replayGate', () => {
+  it('clicks safe steps whatever the policy', () => {
+    expect(replayGate({ anchor: 'sidebar.boards' }, 'tour-safe')).toBe(
+      'perform'
+    );
+    expect(replayGate({ anchor: 'not.registered' }, 'tour-safe')).toBe(
+      'perform'
+    );
+    expect(
+      replayGate(
+        { anchor: 'sidebar.boards', teacherMustClick: true },
+        'tour-safe'
+      )
+    ).toBe('perform');
+  });
+
+  it('never performs destructive or persists steps on its own', () => {
+    for (const p of ['tour-safe', 'destructive-only', 'confirm'] as const) {
+      for (const binding of [
+        { anchor: 'widget.close' },
+        { anchor: 'classes.delete-roster' },
+        { anchor: PERSISTS_ID },
+        { anchor: 'widget.close', teacherMustClick: false },
+      ]) {
+        expect(replayGate(binding, p)).not.toBe('perform');
+      }
+    }
+    expect(replayGate({ anchor: PERSISTS_ID }, 'tour-safe')).toBe('teacher');
+    expect(replayGate({ anchor: PERSISTS_ID }, 'confirm')).toBe('confirm');
+    expect(replayGate({ anchor: PERSISTS_ID }, 'destructive-only')).toBe(
+      'confirm'
+    );
   });
 });
 

@@ -448,6 +448,10 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
                         : 'Show folders'
                   }
                   aria-label="Toggle folder panel"
+                  {...tourTypeAttr(
+                    'library-shell.folder-panel-toggle',
+                    widgetType ?? 'library'
+                  )}
                 >
                   <ChevronsLeft
                     style={{
@@ -481,6 +485,10 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
               }}
               title="Show folders"
               aria-label="Show folders"
+              {...tourTypeAttr(
+                'library-shell.show-folders',
+                widgetType ?? 'library'
+              )}
             >
               <ChevronsRight
                 style={{

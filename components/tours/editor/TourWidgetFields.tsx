@@ -28,7 +28,7 @@ export const TourWidgetFields: React.FC<Props> = ({
   const { t } = useTranslation();
   const { id, widgetType, fieldKey } = parseTourAnchorRef(tour.anchor ?? '');
   const def: TourAnchorDef | undefined = isTourAnchorId(id)
-    ? TOUR_ANCHORS[id]
+    ? (TOUR_ANCHORS as Record<string, TourAnchorDef>)[id]
     : undefined;
   const perField = !!def?.perField;
   const needsType = !!def?.perWidgetType || perField;

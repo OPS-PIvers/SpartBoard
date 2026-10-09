@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import { FlaskConical, Plus, Users, Mail } from 'lucide-react';
 import { useDialog } from '@/context/useDialog';
 import type { TestClassRecord } from '@/hooks/useTestClasses';
@@ -63,6 +64,7 @@ export const TestClassesView: React.FC<Props> = ({
         blurb="Mock classes for testing student sign-in."
         actions={
           <Btn
+            {...tourAttr('admin.org.new-test-class')}
             variant="primary"
             icon={<Plus size={14} />}
             onClick={() => setShowAdd(true)}
@@ -79,6 +81,7 @@ export const TestClassesView: React.FC<Props> = ({
           message="Create a test class with a few member emails to enable PII-free student SSO testing without ClassLink."
           cta={
             <Btn
+              {...tourAttr('admin.org.new-test-class')}
               variant="primary"
               icon={<Plus size={14} />}
               onClick={() => setShowAdd(true)}
@@ -244,10 +247,15 @@ const TestClassModal: React.FC<ModalProps> = ({
       icon={<FlaskConical size={18} />}
       footer={
         <>
-          <Btn variant="ghost" onClick={onClose}>
+          <Btn
+            {...tourAttr('admin.org.test-class-cancel')}
+            variant="ghost"
+            onClick={onClose}
+          >
             Cancel
           </Btn>
           <Btn
+            {...tourAttr('admin.org.test-class-save')}
             variant="primary"
             disabled={!canSubmit}
             onClick={() =>
@@ -273,6 +281,7 @@ const TestClassModal: React.FC<ModalProps> = ({
             htmlFor="test-class-id"
           >
             <Input
+              {...tourAttr('admin.org.test-class-id')}
               id="test-class-id"
               value={classId}
               onChange={(e) => setClassId(e.target.value)}
@@ -282,6 +291,7 @@ const TestClassModal: React.FC<ModalProps> = ({
         )}
         <Field label="Title" required htmlFor="test-class-title">
           <Input
+            {...tourAttr('admin.org.test-class-title')}
             id="test-class-title"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -291,6 +301,7 @@ const TestClassModal: React.FC<ModalProps> = ({
         </Field>
         <Field label="Subject" htmlFor="test-class-subject">
           <Input
+            {...tourAttr('admin.org.test-class-subject')}
             id="test-class-subject"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
@@ -304,6 +315,7 @@ const TestClassModal: React.FC<ModalProps> = ({
           htmlFor="test-class-emails"
         >
           <Textarea
+            {...tourAttr('admin.org.test-class-emails')}
             id="test-class-emails"
             rows={6}
             value={emails}

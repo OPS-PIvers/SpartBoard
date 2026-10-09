@@ -18,6 +18,7 @@ export interface CohortRow {
 
 export interface AnalyticsHistory {
   days: ActivityPoint[];
+  studentDays?: ActivityPoint[];
   newUsersByMonth: MonthCount[];
   cohorts: CohortRow[];
 }
@@ -85,6 +86,55 @@ export function toWeekly(days: ActivityPoint[]): WeekPoint[] {
       estimated: list.some((d) => d.estimated),
     };
   });
+}
+
+export interface ChartWeek {
+  week: string;
+  dau?: number;
+  mau?: number;
+  studentDau?: number;
+  studentMau?: number;
+  estimated: boolean;
+}
+
+/** Joins staff and student weeks; a week missing from one series leaves a gap in its lines. */
+export function joinWeeks(
+  staff: WeekPoint[],
+  students: WeekPoint[]
+): ChartWeek[] {
+  const out = new Map<string, ChartWeek>();
+  for (const w of staff) out.set(w.week, { ...w });
+  for (const w of students) {
+    const row = out.get(w.week) ?? { week: w.week, estimated: false };
+    row.studentDau = w.dau;
+    row.studentMau = w.mau;
+    row.estimated = row.estimated || w.estimated;
+    out.set(w.week, row);
+  }
+  return [...out.values()].sort((a, b) => a.week.localeCompare(b.week));
+}
+
+/** Per-day sum of two series; a day is estimated when either side is. */
+export function combineDays(
+  a: ActivityPoint[],
+  b: ActivityPoint[]
+): ActivityPoint[] {
+  const out = new Map<string, ActivityPoint>();
+  for (const d of [...a, ...b]) {
+    const prev = out.get(d.date);
+    out.set(
+      d.date,
+      prev
+        ? {
+            date: d.date,
+            dau: prev.dau + d.dau,
+            mau: prev.mau + d.mau,
+            estimated: prev.estimated || d.estimated,
+          }
+        : { ...d }
+    );
+  }
+  return [...out.values()].sort((x, y) => x.date.localeCompare(y.date));
 }
 
 export interface ActivityStats {

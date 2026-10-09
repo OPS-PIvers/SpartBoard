@@ -25,6 +25,7 @@ import { PlcProvider } from '@/context/PlcContext';
 import { PlcDashboard } from './PlcDashboard';
 import { PlcIndexHub } from './PlcIndexHub';
 import { spaNavigate, type ParsedPlcPath } from '@/utils/plcPath';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface PlcRouteHostProps {
   /** Parsed pathname — the single source of truth for which PLC + section. */
@@ -108,6 +109,7 @@ export const PlcRouteHost: React.FC<PlcRouteHostProps> = ({ parsed }) => {
             })}
           </p>
           <button
+            {...tourAttr('plc-dashboard.home')}
             type="button"
             onClick={goHome}
             className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"

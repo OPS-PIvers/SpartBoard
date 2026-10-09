@@ -8,6 +8,11 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useBackdropDismiss } from '@/hooks/useBackdropDismiss';
+import {
+  tourAttr,
+  tourFieldAttr,
+  type TourAnchorAttrs,
+} from '@/config/tourAnchors';
 
 // Capture-phase + stopImmediatePropagation to pre-empt AdminSettings' bubble-phase document listener; mirrors captureEscape in components/common/Modal.tsx.
 // Constraint: first-mounted wins, so nesting two of these would dismiss the outer one — no call site does today.
@@ -453,6 +458,7 @@ export const RowMenu: React.FC<{ items: MenuItem[]; label?: string }> = ({
       <button
         ref={triggerRef}
         type="button"
+        {...tourAttr('admin.org.row-menu')}
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}
@@ -486,6 +492,11 @@ export const RowMenu: React.FC<{ items: MenuItem[]; label?: string }> = ({
               <button
                 key={i}
                 role="menuitem"
+                {...tourFieldAttr(
+                  'admin.org.row-menu-item',
+                  'admin',
+                  String(i)
+                )}
                 disabled={item.disabled}
                 onClick={() => {
                   setOpen(false);
@@ -647,11 +658,13 @@ export const PopoverOption: React.FC<{
    * for menu-context usages, which keep plain button semantics.
    */
   ariaPressed?: boolean;
-}> = ({ onClick, selected, icon, label, description, ariaPressed }) => (
+  anchor?: TourAnchorAttrs;
+}> = ({ onClick, selected, icon, label, description, ariaPressed, anchor }) => (
   <button
     type="button"
     onClick={onClick}
     aria-pressed={ariaPressed}
+    {...anchor}
     className="w-full text-left px-3 py-2 flex items-start gap-2.5 rounded-lg hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
   >
     {icon && <span className="mt-0.5">{icon}</span>}
@@ -758,6 +771,7 @@ const ConfirmInner: React.FC<ConfirmProps> = ({
                 <Input
                   value={typed}
                   onChange={(e) => setTyped(e.target.value)}
+                  {...tourAttr('admin.org.confirm-typing')}
                   autoFocus
                 />
               </Field>
@@ -765,13 +779,19 @@ const ConfirmInner: React.FC<ConfirmProps> = ({
           )}
         </div>
         <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
-          <Btn variant="ghost" onClick={onCancel} disabled={busy}>
+          <Btn
+            variant="ghost"
+            onClick={onCancel}
+            disabled={busy}
+            {...tourAttr('admin.org.confirm-cancel')}
+          >
             Cancel
           </Btn>
           <Btn
             variant={destructive ? 'danger' : 'primary'}
             onClick={onConfirm}
             disabled={!typingOk || busy || confirmDisabled}
+            {...tourAttr('admin.org.confirm-ok')}
           >
             {confirmLabel}
           </Btn>
@@ -821,6 +841,7 @@ export const LocalModal: React.FC<{
           <button
             type="button"
             onClick={onClose}
+            {...tourAttr('admin.org.modal-close')}
             aria-label="Close"
             className="h-8 w-8 rounded-md flex items-center justify-center text-slate-500 hover:bg-slate-100"
           >

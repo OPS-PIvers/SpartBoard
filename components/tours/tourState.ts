@@ -1,3 +1,5 @@
+import { useSyncExternalStore } from 'react';
+
 export interface TourStartRequest {
   setId: string;
   /** Index among ALL of the set's steps (liveTourStepsOf), not only the anchored ones. */
@@ -17,11 +19,25 @@ export function requestStartTour(req: TourStartRequest): void {
   );
 }
 
+const runningListeners = new Set<() => void>();
+
 export const setTourRunning = (running: boolean): void => {
+  if (tourRunning === running) return;
   tourRunning = running;
+  runningListeners.forEach((fn) => fn());
 };
 
 export const isTourRunning = (): boolean => tourRunning;
+
+export const subscribeTourRunning = (fn: () => void): (() => void) => {
+  runningListeners.add(fn);
+  return () => {
+    runningListeners.delete(fn);
+  };
+};
+
+export const useTourRunning = (): boolean =>
+  useSyncExternalStore(subscribeTourRunning, isTourRunning, isTourRunning);
 
 export const TOUR_RECORD_EVENT = 'spart:record-tour';
 

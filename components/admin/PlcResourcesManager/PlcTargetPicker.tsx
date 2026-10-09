@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePlcs } from '@/hooks/usePlcs';
 import { PlcResourceScope } from '@/types';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 export interface PlcTargetPickerValue {
   scope: PlcResourceScope;
@@ -52,6 +53,7 @@ export const PlcTargetPicker: React.FC<PlcTargetPickerProps> = ({
         {/* All PLCs radio */}
         <label className="flex items-center gap-2 cursor-pointer mb-2">
           <input
+            {...tourFieldAttr('admin-plc.target-scope', 'plc', 'all')}
             type="radio"
             name="plc-resource-scope"
             value="all"
@@ -70,6 +72,7 @@ export const PlcTargetPicker: React.FC<PlcTargetPickerProps> = ({
         {/* Selected PLCs radio */}
         <label className="flex items-center gap-2 cursor-pointer">
           <input
+            {...tourFieldAttr('admin-plc.target-scope', 'plc', 'selected')}
             type="radio"
             name="plc-resource-scope"
             value="selected"
@@ -129,6 +132,7 @@ export const PlcTargetPicker: React.FC<PlcTargetPickerProps> = ({
                     className="flex items-center gap-2 cursor-pointer py-0.5"
                   >
                     <input
+                      {...tourFieldAttr('admin-plc.target-plc', 'plc', plc.id)}
                       type="checkbox"
                       checked={checked}
                       disabled={disabled}

@@ -9,6 +9,7 @@ import {
 import { useStorage } from '@/hooks/useStorage';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { isSafeIconUrl } from '@/components/widgets/Catalyst/catalystHelpers';
 import { URL_COLORS } from './icons';
 
@@ -147,6 +148,7 @@ export const LinkBackgroundInput: React.FC<LinkBackgroundInputProps> = ({
       <div className="grid grid-cols-2 gap-2">
         <button
           type="button"
+          {...tourFieldAttr('url.background-tab', 'url', 'color')}
           onClick={() => setTab('color')}
           className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xxs font-black uppercase tracking-widest transition-all border-2 ${
             tab === 'color'
@@ -159,6 +161,7 @@ export const LinkBackgroundInput: React.FC<LinkBackgroundInputProps> = ({
         </button>
         <button
           type="button"
+          {...tourFieldAttr('url.background-tab', 'url', 'image')}
           onClick={() => setTab('image')}
           className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xxs font-black uppercase tracking-widest transition-all border-2 ${
             tab === 'image'
@@ -177,6 +180,7 @@ export const LinkBackgroundInput: React.FC<LinkBackgroundInputProps> = ({
             <button
               key={c}
               type="button"
+              {...tourFieldAttr('url.color', 'url', c)}
               onClick={() => void handlePickColor(c)}
               className={`w-8 h-8 rounded-full border-2 transition-all ${
                 color === c && !imageUrl
@@ -236,6 +240,7 @@ export const LinkBackgroundInput: React.FC<LinkBackgroundInputProps> = ({
                     onClick={() => fileInputRef.current?.click()}
                     disabled={uploading}
                     className="p-1.5 rounded-md text-slate-400 hover:text-brand-blue-primary hover:bg-blue-50 transition-colors"
+                    {...tourFieldAttr('url.upload-image', 'url', 'replace')}
                     title="Replace image"
                   >
                     {uploading ? (
@@ -246,6 +251,7 @@ export const LinkBackgroundInput: React.FC<LinkBackgroundInputProps> = ({
                   </button>
                   <button
                     type="button"
+                    {...tourFieldAttr('url.remove-image', 'url', 'image')}
                     onClick={() => void handleClearImage()}
                     disabled={uploading}
                     className="p-1.5 rounded-md text-slate-400 hover:text-brand-red-primary hover:bg-red-50 transition-colors"
@@ -260,6 +266,7 @@ export const LinkBackgroundInput: React.FC<LinkBackgroundInputProps> = ({
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
+              {...tourFieldAttr('url.upload-image', 'url', 'new')}
               disabled={uploading}
               className="w-full p-4 rounded-lg border-2 border-dashed border-slate-200 text-slate-500 hover:border-brand-blue-primary hover:bg-blue-50 transition-all flex flex-col items-center gap-2"
             >

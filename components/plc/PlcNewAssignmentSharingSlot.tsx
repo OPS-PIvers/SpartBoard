@@ -14,6 +14,7 @@ import React, { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertTriangle, Share2 } from 'lucide-react';
 import { ToggleRow } from '@/components/common/library/AssignmentSettingsToggleGroup';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface PlcNewAssignmentSharingSlotProps {
   plcName: string;
@@ -72,6 +73,7 @@ export const PlcNewAssignmentSharingSlot: React.FC<
             })}
           </label>
           <input
+            {...tourAttr('plc-assign.teacher-name')}
             id={teacherNameId}
             type="text"
             value={teacherName}
@@ -103,6 +105,7 @@ export const PlcNewAssignmentSharingSlot: React.FC<
               })}
             </label>
             <input
+              {...tourAttr('plc-assign.sheet-url')}
               id={sheetUrlId}
               type="text"
               value={sheet.plcSheetUrl}

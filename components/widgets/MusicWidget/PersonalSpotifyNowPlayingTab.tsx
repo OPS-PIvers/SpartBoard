@@ -18,6 +18,7 @@ import { spotifyOpenUrlFromInput } from '@/utils/spotifyAuth';
 import { SpotifyPlaybackTrack } from '@/hooks/useSpotifyWebPlayback';
 import { buildSpotifyEmbedUrl } from './utils';
 import { SpotifyTransportControls } from './SpotifyTransportControls';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 export interface PersonalSpotifyNowPlayingProps {
   url: string | null;
@@ -74,6 +75,7 @@ export const PersonalSpotifyNowPlayingTab: React.FC<
         <button
           type="button"
           onClick={onSwitchToLibrary}
+          {...tourTypeAttr('music.spotify-open-library', 'music')}
           className="text-green-400 hover:text-green-300 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70 rounded"
           style={{
             fontSize: 'min(12px, 3.5cqmin)',

@@ -48,6 +48,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Card } from '@/components/common/Card';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 interface ScheduleConfigurationPanelProps {
   config: ScheduleGlobalConfig;
@@ -132,6 +133,11 @@ const SortableItem: React.FC<SortableItemProps> = React.memo(
         <div className="flex-1 grid grid-cols-12 gap-2">
           <div className={showPeriodField ? 'col-span-4' : 'col-span-6'}>
             <input
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'schedule',
+                `task-${item.id}`
+              )}
               type="text"
               value={item.task}
               onChange={(e) =>
@@ -143,6 +149,11 @@ const SortableItem: React.FC<SortableItemProps> = React.memo(
           </div>
           <div className="col-span-2">
             <input
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'schedule',
+                `startTime-${item.id}`
+              )}
               type="time"
               value={item.startTime}
               onChange={(e) =>
@@ -153,6 +164,11 @@ const SortableItem: React.FC<SortableItemProps> = React.memo(
           </div>
           <div className="col-span-2">
             <input
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'schedule',
+                `endTime-${item.id}`
+              )}
               type="time"
               value={item.endTime}
               onChange={(e) =>
@@ -164,6 +180,11 @@ const SortableItem: React.FC<SortableItemProps> = React.memo(
           {showPeriodField && (
             <div className="col-span-2">
               <input
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'schedule',
+                  `periodId-${item.id}`
+                )}
                 type="text"
                 value={item.isClassPeriod ? (item.periodId ?? '') : ''}
                 onChange={(e) => {
@@ -185,6 +206,11 @@ const SortableItem: React.FC<SortableItemProps> = React.memo(
           )}
           <div className="col-span-2 flex items-center justify-end">
             <button
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'schedule',
+                `remove-${item.id}`
+              )}
               onClick={() => item.id && onDelete(item.id)}
               className="text-red-400 hover:text-red-600 p-1 transition-colors"
             >
@@ -233,6 +259,11 @@ const SpecialDaysCard: React.FC<SpecialDaysCardProps> = ({
             {date}
           </span>
           <select
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'schedule',
+              `specialDaySchedule-${date}`
+            )}
             value={scheduleId}
             onChange={(e) =>
               onChange({ ...dateOverrides, [date]: e.target.value })
@@ -250,6 +281,11 @@ const SpecialDaysCard: React.FC<SpecialDaysCardProps> = ({
             ))}
           </select>
           <button
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'schedule',
+              `removeSpecialDay-${date}`
+            )}
             onClick={() => onChange(without(date))}
             aria-label={`Remove ${date}`}
             className="text-red-400 hover:text-red-600 p-1 transition-colors"
@@ -260,6 +296,11 @@ const SpecialDaysCard: React.FC<SpecialDaysCardProps> = ({
       ))}
       <div className="flex items-center gap-2">
         <input
+          {...tourFieldAttr(
+            'admin.widget-config.field',
+            'schedule',
+            'specialDayDate'
+          )}
           type="date"
           value={newDate}
           onChange={(e) => setNewDate(e.target.value)}
@@ -267,6 +308,11 @@ const SpecialDaysCard: React.FC<SpecialDaysCardProps> = ({
           className="px-2 py-1.5 text-xs border border-slate-200 rounded outline-none"
         />
         <button
+          {...tourFieldAttr(
+            'admin.widget-config.field',
+            'schedule',
+            'addSpecialDay'
+          )}
           disabled={
             !newDate || schedules.length === 0 || newDate in dateOverrides
           }
@@ -499,6 +545,7 @@ export const ScheduleConfigurationPanel: React.FC<
                 <Clock className="w-3.5 h-3.5" /> Building Schedules
               </h5>
               <button
+                {...tourTypeAttr('admin.widget-config.add', 'schedule')}
                 onClick={handleAddSchedule}
                 className="text-xxs font-bold text-brand-blue-primary hover:text-brand-blue-dark flex items-center gap-1"
               >
@@ -519,6 +566,11 @@ export const ScheduleConfigurationPanel: React.FC<
                 >
                   <div className="flex items-center justify-between gap-3 mb-2">
                     <input
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'schedule',
+                        `scheduleName-${s.id}`
+                      )}
                       type="text"
                       value={s.name}
                       onChange={(e) =>
@@ -529,6 +581,11 @@ export const ScheduleConfigurationPanel: React.FC<
                     />
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
+                        {...tourFieldAttr(
+                          'admin.widget-config.field',
+                          'schedule',
+                          `edit-${s.id}`
+                        )}
                         onClick={() => setActiveScheduleId(s.id)}
                         className="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded"
                         title="Edit items"
@@ -536,6 +593,10 @@ export const ScheduleConfigurationPanel: React.FC<
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button
+                        {...tourTypeAttr(
+                          'admin.widget-config.remove',
+                          'schedule'
+                        )}
                         onClick={() => handleDeleteSchedule(s.id)}
                         className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded"
                         title="Delete schedule"
@@ -552,6 +613,11 @@ export const ScheduleConfigurationPanel: React.FC<
                         return (
                           <button
                             key={d.id}
+                            {...tourFieldAttr(
+                              'admin.widget-config.field',
+                              'schedule',
+                              `day-${s.id}-${d.id}`
+                            )}
                             aria-label={d.fullName}
                             title={d.fullName}
                             onClick={() => {
@@ -572,6 +638,11 @@ export const ScheduleConfigurationPanel: React.FC<
                       })}
                     </div>
                     <button
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'schedule',
+                        `openItems-${s.id}`
+                      )}
                       onClick={() => setActiveScheduleId(s.id)}
                       className="text-xxs font-bold text-blue-500 hover:underline flex items-center gap-0.5"
                     >
@@ -592,6 +663,7 @@ export const ScheduleConfigurationPanel: React.FC<
           <div>
             <div className="flex items-center justify-between mb-3">
               <button
+                {...tourTypeAttr('admin.widget-config.close', 'schedule')}
                 onClick={() => setActiveScheduleId(null)}
                 className="text-xxs text-slate-400 uppercase tracking-widest hover:text-blue-500 flex items-center gap-1"
               >
@@ -601,6 +673,11 @@ export const ScheduleConfigurationPanel: React.FC<
                 <div className="flex items-center gap-2">
                   <Clock className="w-3 h-3 text-slate-400" />
                   <input
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'schedule',
+                      'activeScheduleName'
+                    )}
                     type="text"
                     value={activeSchedule?.name ?? ''}
                     onChange={(e) =>
@@ -614,6 +691,11 @@ export const ScheduleConfigurationPanel: React.FC<
                 </div>
                 <div className="flex items-center gap-2 ml-2 pl-2 border-l border-slate-200">
                   <button
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'schedule',
+                      'sortByTime'
+                    )}
                     onClick={handleSortByTime}
                     className="text-xxs flex items-center gap-1 text-slate-500 hover:text-brand-blue-primary font-bold uppercase transition-colors"
                     title="Sort items by start time"
@@ -621,6 +703,11 @@ export const ScheduleConfigurationPanel: React.FC<
                     <ArrowUpDown className="w-3 h-3" /> Sort
                   </button>
                   <button
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'schedule',
+                      'addItem'
+                    )}
                     onClick={handleAddItem}
                     className="text-xs flex items-center gap-1 text-blue-600 hover:text-blue-700 font-bold"
                   >
@@ -691,6 +778,11 @@ export const ScheduleConfigurationPanel: React.FC<
             </label>
             <select
               id={`sched-font-${selectedBuildingId}`}
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'schedule',
+                'fontFamily'
+              )}
               value={currentBuildingConfig.fontFamily ?? 'global'}
               onChange={(e) => {
                 const selected = e.target.value;
@@ -723,6 +815,11 @@ export const ScheduleConfigurationPanel: React.FC<
             </label>
             <select
               id={`sched-size-${selectedBuildingId}`}
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'schedule',
+                'textSizePreset'
+              )}
               value={currentBuildingConfig.textSizePreset ?? 'medium'}
               onChange={(e) =>
                 handleUpdateBuilding({
@@ -784,6 +881,11 @@ export const ScheduleConfigurationPanel: React.FC<
             </label>
             <input
               id={`sched-opacity-${selectedBuildingId}`}
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'schedule',
+                'cardOpacity'
+              )}
               type="range"
               min="0"
               max="1"
@@ -816,6 +918,11 @@ export const ScheduleConfigurationPanel: React.FC<
             </div>
             <input
               id={`sched-autoprogress-${selectedBuildingId}`}
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'schedule',
+                'autoProgress'
+              )}
               type="checkbox"
               checked={currentBuildingConfig.autoProgress ?? false}
               onChange={(e) =>
@@ -840,6 +947,11 @@ export const ScheduleConfigurationPanel: React.FC<
             </div>
             <input
               id={`sched-autoscroll-${selectedBuildingId}`}
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'schedule',
+                'autoScroll'
+              )}
               type="checkbox"
               checked={currentBuildingConfig.autoScroll ?? false}
               onChange={(e) =>

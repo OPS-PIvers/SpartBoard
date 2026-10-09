@@ -921,6 +921,23 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
     expect(screen.getAllByLabelText('Closes')).toHaveLength(2);
   });
 
+  it('keeps the full modal for a Review assignment', () => {
+    render(
+      withStepper(
+        <QuizAssignmentSettingsModal
+          assignment={saved({ sessionMode: 'teacher' })}
+          rosters={rosters}
+          onSave={vi.fn()}
+          onClose={vi.fn()}
+        />
+      )
+    );
+    expect(
+      screen.getByTestId('assignment-behavior-summary')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Quiz integrity')).not.toBeInTheDocument();
+  });
+
   it('shows the Manual state with no dates for a Manual start', () => {
     render(
       withStepper(

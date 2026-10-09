@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Folder, ChevronRight } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
 import { BoardsModal } from '@/components/boardsModal/BoardsModal';
+import { tourAttr } from '@/config/tourAnchors';
 
 const DISPLAY_MS = 3000;
 
@@ -57,6 +58,7 @@ export const BoardBreadcrumb: FC = () => {
       <button
         type="button"
         onClick={() => setIsModalOpen(true)}
+        {...tourAttr('board-nav.breadcrumb')}
         data-screenshot="exclude"
         aria-label={t('boardBreadcrumb.openManager', {
           defaultValue: 'Manage Boards',

@@ -45,6 +45,7 @@ import type {
   PlcSearchResult,
   PlcSearchSection,
 } from './plcSearchIndex';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcSearchBoxProps {
   /** The active PLC's id — targets the on-demand boards subscription. */
@@ -175,6 +176,7 @@ export const PlcSearchBox: React.FC<PlcSearchBoxProps> = ({
           aria-hidden="true"
         />
         <input
+          {...tourAttr('plc-search.input')}
           ref={inputRef}
           type="text"
           role="combobox"
@@ -216,6 +218,7 @@ export const PlcSearchBox: React.FC<PlcSearchBoxProps> = ({
         />
         {query && (
           <button
+            {...tourAttr('plc-search.clear')}
             type="button"
             onClick={() => {
               setQuery('');
@@ -283,6 +286,11 @@ export const PlcSearchBox: React.FC<PlcSearchBoxProps> = ({
                             role="presentation"
                           >
                             <button
+                              {...tourFieldAttr(
+                                'plc-search.result',
+                                'plc',
+                                result.id
+                              )}
                               type="button"
                               id={optionId(flatIndex)}
                               role="option"

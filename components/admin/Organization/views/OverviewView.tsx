@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import { LayoutGrid, Sparkles, Package, Archive, Lock } from 'lucide-react';
 import type {
   ActorRole,
@@ -76,6 +77,7 @@ export const OverviewView: React.FC<Props> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field label="Organization name">
               <Input
+                {...tourAttr('admin.org.overview-name')}
                 value={org.name}
                 onChange={(e) => onUpdate({ name: e.target.value })}
                 disabled={!canEditOrg}
@@ -83,6 +85,7 @@ export const OverviewView: React.FC<Props> = ({
             </Field>
             <Field label="Short name" hint="Used in emails and the sidebar">
               <Input
+                {...tourAttr('admin.org.overview-short-name')}
                 value={org.shortName}
                 onChange={(e) => onUpdate({ shortName: e.target.value })}
                 disabled={!canEditOrg}
@@ -90,6 +93,7 @@ export const OverviewView: React.FC<Props> = ({
             </Field>
             <Field label="Short code" hint="2-4 letters, used in avatars">
               <Input
+                {...tourAttr('admin.org.overview-short-code')}
                 value={org.shortCode}
                 onChange={(e) =>
                   onUpdate({
@@ -101,6 +105,7 @@ export const OverviewView: React.FC<Props> = ({
             </Field>
             <Field label="State">
               <Input
+                {...tourAttr('admin.org.overview-state')}
                 value={org.state}
                 onChange={(e) => onUpdate({ state: e.target.value })}
                 disabled={!canEditOrg}
@@ -109,6 +114,7 @@ export const OverviewView: React.FC<Props> = ({
             <div className="md:col-span-2">
               <Field label="Primary admin">
                 <Input
+                  {...tourAttr('admin.org.overview-primary-admin')}
                   value={org.primaryAdminEmail}
                   onChange={(e) =>
                     onUpdate({ primaryAdminEmail: e.target.value })
@@ -139,6 +145,7 @@ export const OverviewView: React.FC<Props> = ({
               </p>
             </div>
             <Toggle
+              anchor={tourAttr('admin.org.overview-ai-toggle')}
               checked={org.aiEnabled}
               onChange={(v) => onUpdate({ aiEnabled: v })}
               disabled={!isSuperAdmin || aiGated}
@@ -240,6 +247,7 @@ export const OverviewView: React.FC<Props> = ({
               </p>
             </div>
             <Btn
+              {...tourAttr('admin.org.archive-org')}
               variant="dangerGhost"
               onClick={() => setConfirmArchive(true)}
               disabled={!isSuperAdmin}

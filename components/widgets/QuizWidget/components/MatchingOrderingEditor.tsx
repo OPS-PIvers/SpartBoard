@@ -26,6 +26,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { useResetOnChange } from '@/hooks/useResetOnChange';
 import { normalizeAnswer } from '@/hooks/useQuizSession';
 
@@ -334,7 +335,7 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
             strategy={verticalListSortingStrategy}
           >
             <div className="space-y-1.5">
-              {rows.map((row) => {
+              {rows.map((row, i) => {
                 const isDuplicateTerm = duplicateTermRowIds.has(row.id);
                 return (
                   <SortableRow key={row.id} id={row.id}>
@@ -344,6 +345,11 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
                           type="button"
                           className="flex items-center justify-center text-brand-blue-primary/30 hover:text-brand-blue-primary cursor-grab active:cursor-grabbing touch-none"
                           aria-label="Drag to reorder"
+                          {...tourFieldAttr(
+                            'quiz-editor.match-drag',
+                            'quiz',
+                            String(i + 1)
+                          )}
                           {...listeners}
                           {...attributes}
                         >
@@ -358,6 +364,11 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
                             })
                           }
                           placeholder="Term"
+                          {...tourFieldAttr(
+                            'quiz-editor.match-term',
+                            'quiz',
+                            String(i + 1)
+                          )}
                           aria-invalid={isDuplicateTerm}
                           aria-describedby={
                             isDuplicateTerm ? warningId : undefined
@@ -377,6 +388,11 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
                             })
                           }
                           placeholder="Match"
+                          {...tourFieldAttr(
+                            'quiz-editor.match-definition',
+                            'quiz',
+                            String(i + 1)
+                          )}
                           className="px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 shadow-sm text-sm"
                         />
                         <button
@@ -385,6 +401,11 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
                           disabled={rows.length <= 2}
                           className="flex items-center justify-center p-1.5 text-brand-red-primary hover:bg-brand-red-lighter rounded-lg transition-colors disabled:opacity-20 disabled:hover:bg-transparent"
                           aria-label="Remove pair"
+                          {...tourFieldAttr(
+                            'quiz-editor.match-remove',
+                            'quiz',
+                            String(i + 1)
+                          )}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -399,6 +420,7 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
         <button
           type="button"
           onClick={addRow}
+          {...tourTypeAttr('quiz-editor.match-add', 'quiz')}
           className="mt-2 flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -433,6 +455,11 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
                   updateDistractor(i, sanitizeDefinition(e.target.value))
                 }
                 placeholder={`Distractor ${i + 1}`}
+                {...tourFieldAttr(
+                  'quiz-editor.match-distractor',
+                  'quiz',
+                  String(i + 1)
+                )}
                 className="flex-1 px-3 py-1.5 bg-white border border-brand-red-primary/20 rounded-xl text-brand-blue-dark font-medium focus:outline-none focus:border-brand-red-primary shadow-sm text-sm"
               />
               <button
@@ -440,6 +467,11 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
                 onClick={() => removeDistractor(i)}
                 className="p-1.5 text-brand-red-primary hover:bg-brand-red-lighter rounded-lg transition-colors"
                 aria-label={`Remove distractor ${i + 1}`}
+                {...tourFieldAttr(
+                  'quiz-editor.match-distractor-remove',
+                  'quiz',
+                  String(i + 1)
+                )}
               >
                 <Trash2 className="w-4 h-4" />
               </button>
@@ -448,6 +480,7 @@ export const MatchingAnswerEditor = React.memo(function MatchingAnswerEditor({
           <button
             type="button"
             onClick={addDistractor}
+            {...tourTypeAttr('quiz-editor.match-distractor-add', 'quiz')}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-brand-blue-dark hover:bg-brand-blue-lighter rounded-lg transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -551,6 +584,11 @@ export const OrderingAnswerEditor = React.memo(function OrderingAnswerEditor({
                       type="button"
                       className="flex items-center justify-center text-brand-blue-primary/30 hover:text-brand-blue-primary cursor-grab active:cursor-grabbing touch-none"
                       aria-label="Drag to reorder"
+                      {...tourFieldAttr(
+                        'quiz-editor.order-drag',
+                        'quiz',
+                        String(i + 1)
+                      )}
                       {...listeners}
                       {...attributes}
                     >
@@ -566,6 +604,11 @@ export const OrderingAnswerEditor = React.memo(function OrderingAnswerEditor({
                         updateRow(row.id, sanitizeOrderingItem(e.target.value))
                       }
                       placeholder={`Item ${i + 1}`}
+                      {...tourFieldAttr(
+                        'quiz-editor.order-item',
+                        'quiz',
+                        String(i + 1)
+                      )}
                       className="flex-1 px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 shadow-sm text-sm"
                     />
                     <div className="flex items-center">
@@ -575,6 +618,11 @@ export const OrderingAnswerEditor = React.memo(function OrderingAnswerEditor({
                         disabled={i === 0}
                         className="p-1 text-brand-blue-primary hover:bg-brand-blue-lighter rounded transition-colors disabled:opacity-20"
                         aria-label="Move up"
+                        {...tourFieldAttr(
+                          'quiz-editor.order-up',
+                          'quiz',
+                          String(i + 1)
+                        )}
                       >
                         ▲
                       </button>
@@ -584,6 +632,11 @@ export const OrderingAnswerEditor = React.memo(function OrderingAnswerEditor({
                         disabled={i === rows.length - 1}
                         className="p-1 text-brand-blue-primary hover:bg-brand-blue-lighter rounded transition-colors disabled:opacity-20"
                         aria-label="Move down"
+                        {...tourFieldAttr(
+                          'quiz-editor.order-down',
+                          'quiz',
+                          String(i + 1)
+                        )}
                       >
                         ▼
                       </button>
@@ -594,6 +647,11 @@ export const OrderingAnswerEditor = React.memo(function OrderingAnswerEditor({
                       disabled={rows.length <= 2}
                       className="flex items-center justify-center p-1.5 text-brand-red-primary hover:bg-brand-red-lighter rounded-lg transition-colors disabled:opacity-20 disabled:hover:bg-transparent"
                       aria-label="Remove item"
+                      {...tourFieldAttr(
+                        'quiz-editor.order-remove',
+                        'quiz',
+                        String(i + 1)
+                      )}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -607,6 +665,7 @@ export const OrderingAnswerEditor = React.memo(function OrderingAnswerEditor({
       <button
         type="button"
         onClick={addRow}
+        {...tourTypeAttr('quiz-editor.order-add', 'quiz')}
         className="mt-2 flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
       >
         <Plus className="w-3.5 h-3.5" />

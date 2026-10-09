@@ -48,6 +48,7 @@ import {
   listSyncedVideoActivityVersions,
   restoreSyncedVideoActivityVersion,
 } from '@/hooks/useSyncedVideoActivityGroups';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export type PlcVersionKind = 'quiz' | 'video-activity';
 
@@ -226,6 +227,7 @@ export const PlcVersionHistoryPanel: React.FC<PlcVersionHistoryPanelProps> = ({
             </div>
           </div>
           <button
+            {...tourAttr('plc-versions.close')}
             type="button"
             onClick={onClose}
             aria-label={t('plcDashboard.versions.close', {
@@ -279,6 +281,7 @@ export const PlcVersionHistoryPanel: React.FC<PlcVersionHistoryPanelProps> = ({
               })}
             </p>
             <button
+              {...tourAttr('plc-versions.reload')}
               type="button"
               onClick={() => void load()}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
@@ -339,6 +342,11 @@ export const PlcVersionHistoryPanel: React.FC<PlcVersionHistoryPanelProps> = ({
                     </div>
                   </div>
                   <button
+                    {...tourFieldAttr(
+                      'plc-versions.restore',
+                      'plc',
+                      String(snap.version)
+                    )}
                     type="button"
                     onClick={() => void handleRestore(snap.version)}
                     disabled={anyRestoring}

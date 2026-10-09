@@ -11,6 +11,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
 import { useViewAsOutward } from '@/hooks/useViewAsOutward';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface MagicLayoutModalProps {
   onClose: () => void;
@@ -77,6 +78,7 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
         </div>
 
         <textarea
+          {...tourAttr('dock.magic-layout-input')}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           autoFocus
@@ -114,9 +116,14 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
               'Small group rotations with a timer',
               'Morning meeting with weather and calendar',
               'Math lesson with a poll and scratchpad',
-            ].map((suggestion) => (
+            ].map((suggestion, index) => (
               <button
                 key={suggestion}
+                {...tourFieldAttr(
+                  'dock.magic-layout-suggestion',
+                  'magic',
+                  String(index)
+                )}
                 onClick={() => setDescription(suggestion)}
                 className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-xxs font-bold text-slate-600 rounded-lg transition-colors"
               >
@@ -129,6 +136,7 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
         <div className="flex gap-3">
           <button
             onClick={handleClose}
+            {...tourAttr('dock.magic-layout-cancel')}
             className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-500 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors"
             disabled={isGenerating}
           >
@@ -136,6 +144,7 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
           </button>
           <button
             onClick={handleGenerate}
+            {...tourAttr('dock.magic-layout-apply')}
             disabled={isGenerating || !description.trim() || outward.locked}
             title={outward.lockedTitle}
             className="flex-[2] py-3 text-xs font-black uppercase tracking-widest text-white bg-brand-blue-primary hover:bg-brand-blue-dark rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"

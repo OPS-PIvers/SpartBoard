@@ -2471,6 +2471,16 @@ export const ActiveQuiz: React.FC<{
     }
   }, [timeLeft, submitted, session.soundEffectsEnabled]);
 
+  // Same last-question rule as handleSubmit, read by the timeout effect below.
+  const timeoutFinishesQuizRef = useRef(false);
+  timeoutFinishesQuizRef.current =
+    currentIndex >= effectiveTotalQuestions - 1 &&
+    myResponse?.status !== 'completed';
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+  // Synced below once openRecordingQuestions is computed.
+  const openRecordingCountRef = useRef(0);
+
   // Side-effect: submit the answer when auto-submit is triggered.
   useEffect(() => {
     if (!autoSubmitTriggeredFor) return;
@@ -2505,6 +2515,7 @@ export const ActiveQuiz: React.FC<{
       isFreeResponseType(question.type) &&
       wordLimitStatus(answerWords, question).blocked &&
       answerWords < (question.minWords ?? 0);
+    const finishesQuiz = timeoutFinishesQuizRef.current;
     void onAnswerRef
       .current(
         autoSubmitTriggeredFor,
@@ -2512,9 +2523,31 @@ export const ActiveQuiz: React.FC<{
         0, // Speed bonus is 0 when timer expires
         timedOutUnderMinimum ? { timedOutUnderMinimum: true } : undefined
       )
-      .catch((err: unknown) => {
-        console.error('[QuizStudentApp] auto-submit failed:', err);
-      });
+      .then(
+        async () => {
+          if (!finishesQuiz) return;
+          // Same gate as handleSubmitAndAdvance: an open recording slot blocks completion.
+          if (openRecordingCountRef.current > 0) {
+            setSubmitted(false);
+            setSubmitBlocked(true);
+            return;
+          }
+          try {
+            await onCompleteRef.current();
+          } catch (err) {
+            console.error('[QuizStudentApp] onComplete failed:', err);
+            setSubmitted(false);
+            setSaveError("Couldn't submit your quiz. Tap to try again.");
+          }
+        },
+        (err: unknown) => {
+          console.error('[QuizStudentApp] auto-submit failed:', err);
+          // Mid-quiz, stay submitted so NEXT QUESTION still moves on.
+          if (!finishesQuiz) return;
+          setSubmitted(false);
+          setSaveError("Couldn't save your answer. Tap to try again.");
+        }
+      );
   }, [autoSubmitTriggeredFor]);
 
   // Per-question draft autosave driven by the live answer cache. The
@@ -2957,6 +2990,7 @@ export const ActiveQuiz: React.FC<{
   const openRecordingQuestions = recordingQuestionEntries
     .filter(({ q }) => openRecordingIds.has(q.id))
     .map(({ q, index }) => ({ id: q.id, index, text: q.text }));
+  openRecordingCountRef.current = openRecordingQuestions.length;
 
   const jumpToOpenRecording = (index: number) => {
     setSubmitBlocked(false);

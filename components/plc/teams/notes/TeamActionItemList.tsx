@@ -8,12 +8,14 @@ import { IconButton } from '@/components/common/IconButton';
 import { META } from '@/components/plc/redesignMockup/ui';
 import { MAX_ACTION_ITEMS, newActionItem } from '@/utils/plcActionItems';
 import { formatShortDate, fromDateInput, toDateInput } from './noteFormat';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const DueControl: React.FC<{
+  itemId: string;
   dueAt: number | null;
   canEdit: boolean;
   onChange: (dueAt: number | null) => void;
-}> = ({ dueAt, canEdit, onChange }) => {
+}> = ({ itemId, dueAt, canEdit, onChange }) => {
   const { t } = useTranslation();
   const ref = useRef<HTMLInputElement>(null);
   const text =
@@ -30,6 +32,7 @@ const DueControl: React.FC<{
     <span className="relative inline-flex">
       <button
         type="button"
+        {...tourFieldAttr('teams.actions.due-date', 'teams-notes', itemId)}
         onClick={() => {
           try {
             ref.current?.showPicker();
@@ -97,6 +100,7 @@ export const TeamActionItemList: React.FC<{
               aria-checked={item.done}
               aria-label={item.text}
               disabled={!editable}
+              {...tourFieldAttr('teams.actions.check', 'teams-notes', item.id)}
               onClick={() =>
                 update(item.id, {
                   done: !item.done,
@@ -124,6 +128,11 @@ export const TeamActionItemList: React.FC<{
                     defaultValue: 'Action items',
                   })}
                   onChange={(e) => update(item.id, { text: e.target.value })}
+                  {...tourFieldAttr(
+                    'teams.actions.text',
+                    'teams-notes',
+                    item.id
+                  )}
                   className={`block w-full border-0 bg-transparent p-0 text-sm focus:outline-none focus:ring-0 ${item.done ? 'text-slate-400 line-through' : 'text-slate-800'}`}
                 />
               ) : (
@@ -145,6 +154,11 @@ export const TeamActionItemList: React.FC<{
                     aria-label={t('plcDashboard.notes.actionItems.assignee', {
                       defaultValue: 'Assignee',
                     })}
+                    {...tourFieldAttr(
+                      'teams.actions.owner',
+                      'teams-notes',
+                      item.id
+                    )}
                     className={`appearance-none border-0 bg-transparent bg-none p-0 text-xs [field-sizing:content] hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${item.assigneeUid ? '' : 'text-slate-400'}`}
                   >
                     <option value="">{unassigned}</option>
@@ -161,6 +175,7 @@ export const TeamActionItemList: React.FC<{
                   <span aria-hidden="true">·</span>
                 )}
                 <DueControl
+                  itemId={item.id}
                   dueAt={item.dueAt ?? null}
                   canEdit={editable}
                   onChange={(dueAt) => update(item.id, { dueAt })}
@@ -175,6 +190,11 @@ export const TeamActionItemList: React.FC<{
                     defaultValue: 'Remove action item',
                   })}
                   size="sm"
+                  {...tourFieldAttr(
+                    'teams.actions.remove',
+                    'teams-notes',
+                    item.id
+                  )}
                   onClick={() =>
                     onChange?.(items.filter((i) => i.id !== item.id))
                   }
@@ -196,6 +216,7 @@ export const TeamActionItemList: React.FC<{
             }
           }}
           onBlur={add}
+          {...tourAttr('teams.actions.add')}
           placeholder={t('plcDashboard.notes.actionItems.addPlaceholder', {
             defaultValue: 'What needs to happen?',
           })}

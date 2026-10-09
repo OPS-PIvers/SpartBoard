@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { Plus, Pencil, Trash2, Eye, EyeOff, Code2, Puzzle } from 'lucide-react';
 import { CustomWidgetDoc } from '@/types';
 import { useCustomWidgets } from '@/context/useCustomWidgets';
@@ -54,6 +55,7 @@ export const WidgetBuilderManager: React.FC = () => {
       <div className="flex items-center justify-between">
         <h2 className="text-base font-bold text-white">Widget Builder</h2>
         <button
+          {...tourAttr('admin.widget-builder.new-widget')}
           onClick={handleNew}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
         >
@@ -187,6 +189,11 @@ export const WidgetBuilderManager: React.FC = () => {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
                       <button
+                        {...tourFieldAttr(
+                          'admin.widget-builder.edit',
+                          'admin',
+                          widget.id
+                        )}
                         onClick={() => handleEdit(widget)}
                         className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"
                         title="Edit widget"
@@ -195,6 +202,11 @@ export const WidgetBuilderManager: React.FC = () => {
                       </button>
 
                       <button
+                        {...tourFieldAttr(
+                          'admin.widget-builder.publish',
+                          'admin',
+                          widget.id
+                        )}
                         onClick={() => handleTogglePublished(widget)}
                         disabled={togglingId === widget.id}
                         className={`p-1.5 rounded transition-colors disabled:opacity-50 ${
@@ -212,6 +224,11 @@ export const WidgetBuilderManager: React.FC = () => {
                       </button>
 
                       <button
+                        {...tourFieldAttr(
+                          'admin.widget-builder.delete',
+                          'admin',
+                          widget.id
+                        )}
                         onClick={() => handleDelete(widget)}
                         className="p-1.5 text-slate-400 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors"
                         title="Delete widget"

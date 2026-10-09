@@ -2,6 +2,7 @@ import React from 'react';
 import { Plus, X } from 'lucide-react';
 import type { QuizQuestion } from '@/types';
 import { joinBlanks, splitBlanks } from '@/utils/quizFibBlanks';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { inputClass } from './quizEditorFieldStyles';
 
 type BlankFields = Pick<QuizQuestion, 'correctAnswer' | 'blankAlternates'>;
@@ -60,6 +61,7 @@ export const FibBlanksEditor: React.FC<{
               aria-label={`Blank ${i + 1} answer`}
               placeholder={`Blank ${i + 1}`}
               onChange={(e) => setAnswer(i, e.target.value)}
+              {...tourFieldAttr('quiz-editor.fib-blank', 'quiz', String(i + 1))}
               className={answerInputClass}
             />
           </div>
@@ -70,6 +72,11 @@ export const FibBlanksEditor: React.FC<{
                 value={alt}
                 aria-label={`Blank ${i + 1} also accept ${j + 1}`}
                 placeholder="Also accept"
+                {...tourFieldAttr(
+                  'quiz-editor.fib-alternate',
+                  'quiz',
+                  `${i + 1}.${j + 1}`
+                )}
                 onChange={(e) =>
                   setAlternates(
                     i,
@@ -90,6 +97,11 @@ export const FibBlanksEditor: React.FC<{
                 }
                 className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                 aria-label={`Remove blank ${i + 1} also accept ${j + 1}`}
+                {...tourFieldAttr(
+                  'quiz-editor.fib-alternate-remove',
+                  'quiz',
+                  `${i + 1}.${j + 1}`
+                )}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -99,6 +111,11 @@ export const FibBlanksEditor: React.FC<{
             <button
               type="button"
               onClick={() => setAlternates(i, [...alternates[i], ''])}
+              {...tourFieldAttr(
+                'quiz-editor.fib-alternate-add',
+                'quiz',
+                String(i + 1)
+              )}
               className="ml-8 inline-flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-brand-blue-primary"
             >
               <Plus className="w-3.5 h-3.5" />

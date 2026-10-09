@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { GripVertical, Plus, Trash2 } from 'lucide-react';
 import { SortableList } from '@/components/common/SortableList';
 import type { HelpCategory, HelpResourceItem } from '@/types/helpCenter';
@@ -86,6 +87,11 @@ export const HelpCategoryEditor: React.FC<HelpCategoryEditorProps> = ({
             <button
               type="button"
               aria-label={`Delete ${category.name}`}
+              {...tourFieldAttr(
+                'admin.help-center.category-delete',
+                'help',
+                category.id
+              )}
               onClick={() => void handleDelete(category)}
               className="text-slate-400 hover:text-red-600"
             >
@@ -101,11 +107,13 @@ export const HelpCategoryEditor: React.FC<HelpCategoryEditorProps> = ({
           onChange={(e) => setNewName(e.target.value)}
           placeholder="New category"
           aria-label="New category name"
+          {...tourAttr('admin.help-center.category-name')}
           className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-sm"
         />
         <button
           type="button"
           onClick={() => void handleAdd()}
+          {...tourAttr('admin.help-center.category-add')}
           className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-900 text-white text-sm"
         >
           <Plus className="w-4 h-4" />

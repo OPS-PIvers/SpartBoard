@@ -8,6 +8,7 @@ import {
 import { BuildingSelector } from './BuildingSelector';
 import { DiceGlobalConfig, BuildingDiceDefaults } from '@/types';
 import { Card } from '@/components/common/Card';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface DiceConfigurationPanelProps {
   config: DiceGlobalConfig;
@@ -73,6 +74,11 @@ export const DiceConfigurationPanel: React.FC<DiceConfigurationPanelProps> = ({
             {DICE_COUNTS.map((count) => (
               <button
                 key={count}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'dice',
+                  `count-${count}`
+                )}
                 onClick={() => handleUpdateBuilding({ count })}
                 className={`flex-1 py-2 rounded-lg border-2 text-sm font-black transition-all ${
                   currentCount === count

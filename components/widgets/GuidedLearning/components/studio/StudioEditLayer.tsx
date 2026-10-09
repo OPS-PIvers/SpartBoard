@@ -48,6 +48,7 @@ import {
 import { useDeviceFrame } from './deviceFrameContext';
 import { CalloutToolbar } from './CalloutToolbar';
 import { isDoubleTap, type Tap } from './touchGestures';
+import { tourAttr } from '@/config/tourAnchors';
 
 export type DrawShape = GuidedLearningRegion['shape'];
 
@@ -1029,6 +1030,7 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
           <button
             key={i}
             type="button"
+            {...tourAttr('studio.vertex-handle')}
             data-gl-vertex={i}
             aria-label={t('glStudio.vertexN', { n: i + 1 })}
             className="absolute cursor-grab rounded-full border border-sky-500 bg-white shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
@@ -1159,6 +1161,7 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
             <button
               type="button"
               onPointerDown={(e) => e.stopPropagation()}
+              {...tourAttr('studio.callout-reset-position')}
               onClick={() => onChange(clearCalloutPin(selected))}
               className="flex items-center gap-1 whitespace-nowrap rounded-full bg-slate-900 px-2.5 py-1 text-xs font-bold text-white shadow-lg hover:bg-slate-700"
             >

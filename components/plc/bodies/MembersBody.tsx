@@ -17,6 +17,8 @@ import { usePlcs } from '@/hooks/usePlcs';
 import { usePlcInvitations } from '@/hooks/usePlcInvitations';
 import { getPlcMembers, getPlcRole, isPlcLeadOrCoLead } from '@/utils/plc';
 import { logError } from '@/utils/logError';
+import { StaffEmailInput } from '@/components/common/StaffEmailInput';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface MembersBodyProps {
   plc: Plc;
@@ -77,8 +79,11 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
   compact = false,
 }) => {
   const { t } = useTranslation();
-  const { user, canAccessFeature } = useAuth();
+  const { user, canAccessFeature, orgId } = useAuth();
   const groupWording = canAccessFeature('my-groups');
+  const suggestOrgId = canAccessFeature('team-email-suggest')
+    ? (plc.orgId ?? orgId)
+    : null;
   const { showConfirm } = useDialog();
   const { removeMember, setMemberRole, transferLead, leavePlc } = usePlcs({
     enabled: !compact,
@@ -136,6 +141,15 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
       (inv) => inv.plcId === plc.id && inv.status === 'pending'
     );
   }, [sentInvites, plc.id, compact]);
+
+  const suggestExclude = useMemo(
+    () =>
+      new Set([
+        ...memberEmailsLower,
+        ...pendingInvitesForThisPlc.map((inv) => inv.inviteeEmailLower),
+      ]),
+    [memberEmailsLower, pendingInvitesForThisPlc]
+  );
 
   const roleLabel = (role: PlcRole): string => {
     switch (role) {
@@ -500,6 +514,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
                       })}
                     </label>
                     <select
+                      {...tourFieldAttr('plc-members.role', 'plc', m.uid)}
                       id={`plc-role-${m.uid}`}
                       value={m.role === 'lead' ? 'member' : m.role}
                       disabled={rowBusy}
@@ -515,6 +530,11 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
                       ))}
                     </select>
                     <button
+                      {...tourFieldAttr(
+                        'plc-members.transfer-lead',
+                        'plc',
+                        m.uid
+                      )}
                       type="button"
                       onClick={() => void handleTransferLead(m)}
                       disabled={rowBusy}
@@ -530,6 +550,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
                       <Crown aria-hidden="true" className="w-4 h-4" />
                     </button>
                     <button
+                      {...tourFieldAttr('plc-members.remove', 'plc', m.uid)}
                       type="button"
                       onClick={() => void handleRemoveMember(m)}
                       disabled={rowBusy}
@@ -574,36 +595,39 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
             </h3>
           </header>
           <div className="flex gap-2">
-            <div className="flex-1 relative">
-              <Mail
-                aria-hidden="true"
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
-              />
-              <input
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    void handleSendInvite();
-                  }
-                }}
-                placeholder={t('plcDashboard.members.invitePlaceholder', {
-                  defaultValue: 'teacher@school.edu',
-                })}
-                aria-label={t('plcDashboard.members.inviteHeading', {
-                  defaultValue: 'Invite a teacher',
-                })}
-                aria-invalid={inviteError != null}
-                aria-describedby="plc-invite-feedback"
-                className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 rounded-lg text-sm text-slate-700 transition-colors"
-                disabled={inviteSubmitting}
-              />
-            </div>
+            <StaffEmailInput
+              wrapperClassName="flex-1 relative"
+              leading={
+                <Mail
+                  aria-hidden="true"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
+                />
+              }
+              orgId={suggestOrgId}
+              exclude={suggestExclude}
+              inputMode="email"
+              autoComplete="email"
+              value={inviteEmail}
+              onValueChange={setInviteEmail}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  void handleSendInvite();
+                }
+              }}
+              placeholder={t('plcDashboard.members.invitePlaceholder', {
+                defaultValue: 'teacher@school.edu',
+              })}
+              aria-label={t('plcDashboard.members.inviteHeading', {
+                defaultValue: 'Invite a teacher',
+              })}
+              aria-invalid={inviteError != null}
+              aria-describedby="plc-invite-feedback"
+              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 rounded-lg text-sm text-slate-700 transition-colors"
+              disabled={inviteSubmitting}
+            />
             <button
+              {...tourAttr('plc-members.send-invite')}
               type="button"
               onClick={() => void handleSendInvite()}
               disabled={inviteSubmitting || !inviteEmail.trim()}
@@ -675,6 +699,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
                   </div>
                 </div>
                 <button
+                  {...tourFieldAttr('plc-members.revoke-invite', 'plc', inv.id)}
                   type="button"
                   onClick={() => void handleRevokeInvite(inv)}
                   className="inline-flex items-center gap-1 px-2 py-1 text-xxs font-bold uppercase tracking-wider text-slate-600 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
@@ -712,6 +737,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
       {myRole != null && myRole !== 'lead' && (
         <section className="pt-2 border-t border-slate-100">
           <button
+            {...tourAttr('plc-members.leave')}
             type="button"
             onClick={() => void handleLeave()}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-xxs font-bold uppercase tracking-wider text-red-600 hover:bg-red-50 rounded-lg transition-colors"

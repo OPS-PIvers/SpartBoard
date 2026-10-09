@@ -1,3 +1,4 @@
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import React, { useCallback, useRef, useState } from 'react';
 import {
   X,
@@ -211,6 +212,7 @@ export const WorkSymbolsConfigurationModal: React.FC<
           </div>
           <button
             onClick={handleClose}
+            {...tourTypeAttr('admin.widget-config.close', 'work-symbols')}
             className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
           >
             <X className="w-5 h-5 text-slate-500" />
@@ -295,6 +297,11 @@ export const WorkSymbolsConfigurationModal: React.FC<
                     />
                     <button
                       onClick={() => removeSymbol(symbol)}
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'work-symbols',
+                        `remove-${symbol.id}`
+                      )}
                       className="absolute top-2 right-2 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-red-600 p-1.5 z-10"
                       title="Remove symbol"
                     >
@@ -305,6 +312,11 @@ export const WorkSymbolsConfigurationModal: React.FC<
                   {/* Title input */}
                   <input
                     type="text"
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'work-symbols',
+                      `title-${symbol.id}`
+                    )}
                     value={symbol.title}
                     onChange={(e) =>
                       updateSymbolTitle(symbol.id, e.target.value)
@@ -337,6 +349,11 @@ export const WorkSymbolsConfigurationModal: React.FC<
                           return (
                             <button
                               key={b.id}
+                              {...tourFieldAttr(
+                                'admin.widget-config.field',
+                                'work-symbols',
+                                `building-${symbol.id}-${b.id}`
+                              )}
                               onClick={() => {
                                 if (isAllBuildings) {
                                   // Switching from "all" to explicit: set all except this one
@@ -397,12 +414,17 @@ export const WorkSymbolsConfigurationModal: React.FC<
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 p-4 border-t border-slate-200">
-          <Button variant="ghost" onClick={handleClose}>
+          <Button
+            variant="ghost"
+            onClick={handleClose}
+            {...tourTypeAttr('admin.widget-config.close', 'work-symbols')}
+          >
             Cancel
           </Button>
           <Button
             variant="primary"
             onClick={handleSave}
+            {...tourTypeAttr('admin.widget-config.save', 'work-symbols')}
             isLoading={isSaving}
             icon={<Save className="w-4 h-4" />}
           >
