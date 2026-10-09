@@ -14,6 +14,7 @@ import {
 } from '@/utils/youtube';
 import { PersonalSpotifyPlayer } from './PersonalSpotifyPlayer';
 import { useAuth } from '@/context/useAuth';
+import { tourAttr } from '@/config/tourAnchors';
 
 // ---------------------------------------------------------------------------
 // Shared play/pause overlay button
@@ -25,6 +26,7 @@ interface PlayButtonProps {
   onClick: () => void;
   /** Size of the button as a CSS dimension string, e.g. "30%" or "min(56px, 18cqmin)" */
   size?: string;
+  tourProps?: Record<string, string>;
 }
 
 const PlayButton: React.FC<PlayButtonProps> = ({
@@ -32,6 +34,7 @@ const PlayButton: React.FC<PlayButtonProps> = ({
   isPlaying,
   onClick,
   size = '30%',
+  tourProps,
 }) => {
   const handleClick = (e: React.MouseEvent) => {
     // Stop bubbling so a parent overlay with the same onClick doesn't fire twice.
@@ -46,6 +49,7 @@ const PlayButton: React.FC<PlayButtonProps> = ({
       className="rounded-full shadow-xl backdrop-blur-sm bg-white/90 flex items-center justify-center transform transition-transform active:scale-90"
       style={{ width: size, height: size }}
       onClick={handleClick}
+      {...tourProps}
     >
       {!isPlayerReady ? (
         <div
@@ -303,6 +307,11 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               {/* Centered play/pause button */}
               <div className="absolute inset-0 flex items-center justify-center">
                 <PlayButton
+                  tourProps={tourAttr(
+                    'music.play-pause',
+                    widget.id,
+                    widget.type
+                  )}
                   isPlayerReady={isPlayerReady}
                   isPlaying={isPlaying}
                   onClick={togglePlay}
@@ -384,6 +393,11 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   onClick={togglePlay}
                 >
                   <PlayButton
+                    tourProps={tourAttr(
+                      'music.play-pause',
+                      widget.id,
+                      widget.type
+                    )}
                     isPlayerReady={isPlayerReady}
                     isPlaying={isPlaying}
                     onClick={togglePlay}
@@ -522,6 +536,11 @@ const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   onClick={togglePlay}
                 >
                   <PlayButton
+                    tourProps={tourAttr(
+                      'music.play-pause',
+                      widget.id,
+                      widget.type
+                    )}
                     isPlayerReady={isPlayerReady}
                     isPlaying={isPlaying}
                     onClick={togglePlay}

@@ -47,6 +47,7 @@ import { toLunchCountSchoolSite } from '@/config/buildings';
 
 import { WidgetLayout } from '../WidgetLayout';
 import { hexToRgba } from '@/utils/styles';
+import { tourAttr } from '@/config/tourAnchors';
 
 const PEEK_AUTO_DISMISS_MS = 4000;
 
@@ -685,6 +686,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
 
             {/* Subtle Refresh Button - only visible on hover */}
             <Button
+              {...tourAttr('lunch-count.refresh-menu', widget.id, widget.type)}
               onClick={() => void fetchNutrislice()}
               variant="ghost"
               size="sm"
@@ -806,6 +808,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
             </div>
 
             <Button
+              {...tourAttr('lunch-count.open-report', widget.id, widget.type)}
               onClick={handleOpenReport}
               disabled={reportStats.remaining > 0 || reportStats.total === 0}
               variant={
@@ -857,6 +860,11 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
               style={{ gap: 'min(6px, 1.5cqmin)' }}
             >
               <Button
+                {...tourAttr(
+                  'lunch-count.refresh-menu',
+                  widget.id,
+                  widget.type
+                )}
                 onClick={() => void fetchNutrislice()}
                 variant="ghost"
                 size="sm"
@@ -877,6 +885,11 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                 />
               </Button>
               <Button
+                {...tourAttr(
+                  'lunch-count.reset-assignments',
+                  widget.id,
+                  widget.type
+                )}
                 onClick={() =>
                   updateWidget(widget.id, {
                     config: { ...config, assignments: {} },
@@ -1229,6 +1242,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
           <button
             ref={peekCloseButtonRef}
             type="button"
+            {...tourAttr('lunch-count.photo-close', widget.id, widget.type)}
             onClick={closePeek}
             className="absolute z-10 rounded-full bg-white/80 hover:bg-white text-slate-600 shadow-md focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
             style={{

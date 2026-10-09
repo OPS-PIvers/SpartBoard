@@ -16,6 +16,7 @@ import React, { useContext, useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, ChevronUp, Copy } from 'lucide-react';
 import type { Rubric, StudentOverride } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 import { summarizeOverride } from '@/utils/studentOverrideSummary';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { AuthContext } from '@/context/AuthContextValue';
@@ -242,6 +243,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
         type="button"
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
+        {...tourAttr('override-row.toggle')}
         className={
           card
             ? 'w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left'
@@ -315,6 +317,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
               <select
                 value={copySourceId}
                 onChange={(e) => setCopySourceId(e.target.value)}
+                {...tourAttr('override-row.copy-source')}
                 aria-label={t(
                   'studentOverride.copyFromLabel',
                   'Copy overrides from'
@@ -334,6 +337,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
                 type="button"
                 onClick={handleCopy}
                 disabled={!copySourceId}
+                {...tourAttr('override-row.copy')}
                 className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
               >
                 <Copy className="w-3.5 h-3.5" />
@@ -369,6 +373,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
                 <input
                   type="checkbox"
                   checked={override.readAloud === true}
+                  {...tourAttr('override-row.read-aloud')}
                   onChange={(e) =>
                     patch({ readAloud: e.target.checked ? true : undefined })
                   }
@@ -388,6 +393,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
               </label>
               <select
                 value={override.language ?? ''}
+                {...tourAttr('override-row.language')}
                 onChange={(e) =>
                   patch({ language: e.target.value || undefined })
                 }
@@ -427,6 +433,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
               <div className="mt-1 flex items-center gap-2">
                 <input
                   id={tabWarningInputId}
+                  {...tourAttr('override-row.tab-warning')}
                   type="number"
                   min={1}
                   disabled={override.tabWarningThreshold === 'off'}
@@ -452,6 +459,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
                   <input
                     type="checkbox"
                     checked={override.tabWarningThreshold === 'off'}
+                    {...tourAttr('override-row.tab-warning-off')}
                     onChange={(e) =>
                       patch({
                         tabWarningThreshold: e.target.checked
@@ -480,6 +488,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
               <div className="mt-1 flex items-center gap-2">
                 <input
                   id={tabAwayInputId}
+                  {...tourAttr('override-row.tab-away')}
                   type="number"
                   min={TAB_AWAY_LIMIT_MIN_SECONDS}
                   max={TAB_AWAY_LIMIT_MAX_SECONDS}
@@ -512,6 +521,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
                   <input
                     type="checkbox"
                     checked={override.tabAwayLimit === 'off'}
+                    {...tourAttr('override-row.tab-away-off')}
                     onChange={(e) =>
                       patch({
                         tabAwayLimit: e.target.checked ? 'off' : undefined,
@@ -535,6 +545,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
                   <input
                     type="datetime-local"
                     value={msToLocalInputValue(override.openAt)}
+                    {...tourAttr('override-row.window-open')}
                     onChange={(e) =>
                       patch({ openAt: localInputValueToMs(e.target.value) })
                     }
@@ -546,6 +557,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
                   <input
                     type="datetime-local"
                     value={msToLocalInputValue(override.closeAt)}
+                    {...tourAttr('override-row.window-close')}
                     onChange={(e) =>
                       patch({ closeAt: localInputValueToMs(e.target.value) })
                     }
@@ -570,6 +582,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
                     <input
                       type="checkbox"
                       checked={isQuestionIncluded(q.id)}
+                      {...tourAttr('override-row.question')}
                       onChange={() => toggleQuestion(q.id)}
                     />
                     <span className="truncate">{q.label}</span>
@@ -608,6 +621,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
                               type="checkbox"
                               checked={hidden}
                               disabled={opt.isCorrect}
+                              {...tourAttr('override-row.hidden-option')}
                               onChange={() => toggleHiddenOption(q, opt)}
                             />
                             {opt.text}
@@ -662,6 +676,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
                       </label>
                       <select
                         id={`${rubricSelectIdBase}-${q.id}`}
+                        {...tourAttr('override-row.rubric')}
                         value={selectValue}
                         onChange={(e) => {
                           const v = e.target.value;

@@ -22,6 +22,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Disc3, ListMusic, Search, X } from 'lucide-react';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 export type DefaultTabView = 'player' | 'songs' | 'playlists';
 
@@ -139,6 +140,7 @@ export const PersonalSpotifyDefaultTabBar: React.FC<Props> = ({
               type="button"
               tabIndex={searchOpen ? -1 : 0}
               onClick={() => onSelectView(isOn ? 'player' : view)}
+              {...tourFieldAttr('music.spotify-tab', 'music', view)}
               aria-pressed={isOn}
               aria-label={label}
               className={`${PILL_BASE} ${
@@ -159,6 +161,7 @@ export const PersonalSpotifyDefaultTabBar: React.FC<Props> = ({
           type="button"
           tabIndex={searchOpen ? -1 : 0}
           onClick={() => onToggleSearch(true)}
+          {...tourTypeAttr('music.spotify-search-open', 'music')}
           aria-label="Search"
           aria-expanded={searchOpen}
           className={`${PILL_BASE} bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white`}
@@ -196,6 +199,7 @@ export const PersonalSpotifyDefaultTabBar: React.FC<Props> = ({
               type="text"
               value={query}
               onChange={(e) => onQueryChange(e.target.value)}
+              {...tourTypeAttr('music.spotify-search', 'music')}
               placeholder="Search Spotify…"
               aria-label="Search Spotify"
               className="w-full bg-slate-800 border border-slate-700 rounded-full text-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
@@ -210,6 +214,7 @@ export const PersonalSpotifyDefaultTabBar: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => onToggleSearch(false)}
+              {...tourTypeAttr('music.spotify-search-close', 'music')}
               aria-label="Close search"
               className="absolute text-slate-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70 rounded-full flex items-center justify-center"
               style={{

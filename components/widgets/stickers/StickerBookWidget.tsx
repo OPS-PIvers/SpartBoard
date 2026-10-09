@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { Z_INDEX } from '@/config/zIndex';
 import {
   Upload,
@@ -90,6 +91,7 @@ const SortableSticker: React.FC<{
         onDragStart(e, sticker.url);
       }}
       onClick={() => onStickerClick(sticker.url)}
+      {...tourTypeAttr('stickers.sticker', 'stickers')}
       className={`group relative aspect-square flex items-center justify-center bg-white rounded-2xl shadow-sm hover:shadow-md transition-all border border-slate-100 hover:border-blue-200 cursor-pointer ${isDragging ? 'opacity-50 ring-2 ring-blue-500' : ''}`}
       title={t('widgets.stickers.dragOrClick')}
     >
@@ -132,6 +134,7 @@ const SortableSticker: React.FC<{
         type="button"
         onPointerDown={(e) => e.stopPropagation()} // prevent sorting drag
         onClick={(e) => toggleFavorite(e, sticker.url)}
+        {...tourTypeAttr('stickers.favorite', 'stickers')}
         className="absolute -bottom-1.5 -right-1.5 bg-white text-slate-400 rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-md hover:text-red-500 z-10 p-1 scale-75 group-hover:scale-100"
         title={t('widgets.stickers.favoriteSticker', 'Favorite')}
         aria-label={t('widgets.stickers.favoriteSticker', 'Favorite')}
@@ -150,6 +153,7 @@ const SortableSticker: React.FC<{
             e.stopPropagation();
             onDeleteCustom();
           }}
+          {...tourTypeAttr('stickers.remove-custom', 'stickers')}
           className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-all shadow-lg hover:bg-red-600 scale-75 group-hover:scale-100 z-10"
           style={{ padding: 'min(6px, 1.5cqmin)' }}
           title={t('widgets.stickers.deleteSticker')}
@@ -484,6 +488,7 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
           <div className="flex" style={{ gap: 'min(8px, 2cqmin)' }}>
             <button
               onClick={clearAllStickers}
+              {...tourAttr('stickers.clear-all', widget.id, widget.type)}
               className="flex items-center bg-red-50 text-red-600 rounded-full hover:bg-red-100 transition-colors uppercase font-black tracking-widest border border-red-100 shadow-sm"
               style={{
                 gap: 'min(4px, 1cqmin)',
@@ -501,6 +506,7 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
               {t('common.clearAll')}
             </button>
             <label
+              {...tourAttr('stickers.upload', widget.id, widget.type)}
               className={`flex items-center bg-blue-600 text-white rounded-full font-black uppercase tracking-widest cursor-pointer hover:bg-blue-700 transition-all shadow-md shadow-blue-500/20 ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
               style={{
                 gap: 'min(8px, 2cqmin)',
@@ -550,6 +556,7 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
             <button
               type="button"
               onClick={() => setFilter('all')}
+              {...tourFieldAttr('stickers.filter', 'stickers', 'all')}
               className={`flex-1 text-center font-bold uppercase tracking-widest rounded-lg transition-all ${filter === 'all' ? 'bg-white text-slate-700 shadow-sm scale-100' : 'text-slate-500 hover:text-slate-600 hover:bg-white/50 scale-95'}`}
               style={{
                 fontSize: 'min(10px, 2.5cqmin)',
@@ -561,6 +568,7 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
             <button
               type="button"
               onClick={() => setFilter('favorites')}
+              {...tourFieldAttr('stickers.filter', 'stickers', 'favorites')}
               className={`flex-1 text-center font-bold uppercase tracking-widest rounded-lg transition-all ${filter === 'favorites' ? 'bg-white text-slate-700 shadow-sm scale-100' : 'text-slate-500 hover:text-slate-600 hover:bg-white/50 scale-95'}`}
               style={{
                 fontSize: 'min(10px, 2.5cqmin)',
@@ -572,6 +580,7 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
             <button
               type="button"
               onClick={() => setFilter('mine')}
+              {...tourFieldAttr('stickers.filter', 'stickers', 'mine')}
               className={`flex-1 text-center font-bold uppercase tracking-widest rounded-lg transition-all ${filter === 'mine' ? 'bg-white text-slate-700 shadow-sm scale-100' : 'text-slate-500 hover:text-slate-600 hover:bg-white/50 scale-95'}`}
               style={{
                 fontSize: 'min(10px, 2.5cqmin)',
@@ -593,6 +602,7 @@ export const StickerBookWidget: React.FC<{ widget: WidgetData }> = ({
               gap: 'min(8px, 2cqmin)',
             }}
             onClick={() => fileInputRef.current?.click()}
+            {...tourAttr('stickers.upload-zone', widget.id, widget.type)}
           >
             {uploading ? (
               <Loader2
