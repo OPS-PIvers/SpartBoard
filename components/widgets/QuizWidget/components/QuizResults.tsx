@@ -192,6 +192,9 @@ import type {
 } from '@/utils/quizFibAnswers';
 import { QuizTargetResults } from './QuizTargetResults';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
+import { useSchoologyToolColumnPush } from '@/hooks/useSchoologyToolColumnPush';
+import { readLmsLink, schoologyLinkedTargets } from '@/utils/gradebook/lmsPush';
+import { buildToolColumnGrades } from '@/utils/schoologyToolColumns';
 import { ViewAsStudentButton } from '@/components/viewAs/ViewAsStudentButton';
 
 /**
@@ -1890,7 +1893,48 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     !isReview &&
     classroomAttachments.length > 0 &&
     canAccessFeature('google-classroom');
-  const showSchoologyPush = !isReview && !!ltiAttachment;
+  const toolColumnsOn = canAccessFeature('schoology-tool-columns');
+  const schoologyTargets = useMemo(
+    () => (toolColumnsOn ? schoologyLinkedTargets(rosters) : null),
+    [toolColumnsOn, rosters]
+  );
+  const lmsLink = readLmsLink(session ?? null, schoologyTargets);
+  // SpartBoard makes the Schoology column itself (SCHOOLOGY_TOOL_COLUMNS.md D9).
+  const toolColumnMode =
+    !isReview && lmsLink?.lms === 'schoology' && lmsLink.mode === 'tool-column';
+  const toolColumnPush = useSchoologyToolColumnPush({
+    sessionId: session?.id,
+    kind: 'quiz',
+    title: quiz.title,
+    buildPayload: async () => {
+      const maxPoints = quizMaxPoints(quiz.questions, session?.sections);
+      const scored = withFinalScores(
+        buildQuizClassroomGradeEntries(
+          completed,
+          quiz.questions,
+          maxPoints,
+          fibGrading
+        ),
+        maxPoints
+      );
+      if (!session?.id) return null;
+      return {
+        maxPoints,
+        grades: await buildToolColumnGrades({
+          kind: 'quiz',
+          ownerUid: user?.uid,
+          sessionId: session.id,
+          assignmentId: session.assignmentId,
+          scored,
+          rosterUids: classLinkNames.keys(),
+          refKeyByUid: targetRefKeyByStudentUid,
+          submittedUids: new Set(completed.map((r) => r.studentUid)),
+        }),
+      };
+    },
+    onDone: (message, ok) => addToast(message, ok ? 'success' : 'error'),
+  });
+  const showSchoologyPush = !isReview && (!!ltiAttachment || toolColumnMode);
 
   // With zero responses the body shows the empty state, so the shell behaves
   // as home (title + back-out semantics) even if a drill-down was open when
@@ -2322,10 +2366,19 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               Push Grades
             </button>
           )}
+          {toolColumnPush.dialog}
           {showSchoologyPush && (
             <button
-              onClick={() => void handlePushSchoologyGrades()}
-              disabled={pushingSchoologyGrades || schoologyGrades.length === 0}
+              onClick={() =>
+                void (ltiAttachment
+                  ? handlePushSchoologyGrades()
+                  : toolColumnPush.start())
+              }
+              disabled={
+                ltiAttachment
+                  ? pushingSchoologyGrades || schoologyGrades.length === 0
+                  : toolColumnPush.busy
+              }
               className="inline-flex items-center bg-brand-blue-primary hover:bg-brand-blue-light text-white font-sans font-semibold rounded-md transition-colors disabled:opacity-60"
               style={{
                 gap: 'min(6px, 1.5cqmin)',
@@ -2333,7 +2386,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                 fontSize: 'min(13px, 4.5cqmin)',
               }}
             >
-              {pushingSchoologyGrades ? (
+              {pushingSchoologyGrades || toolColumnPush.busy ? (
                 <Loader2
                   className="animate-spin"
                   style={{

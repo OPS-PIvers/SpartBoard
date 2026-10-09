@@ -748,6 +748,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const assessmentOnly = !isReview && canAccessFeature('quiz-review-split');
   // Plan D16/D12: the stepper replaces the assign dialog and always prefills last-used rules.
   const stepperOn = !isReview && canAccessFeature('assign-stepper');
+  const schoologyToolColumns = canAccessFeature('schoology-tool-columns');
   const prefillLastUsed = assessmentOnly || stepperOn;
   const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
     userId,
@@ -857,6 +858,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           setViewOnlyShareTarget(quiz);
           setViewOnlyShareLink(null);
           setViewOnlyShareError(null);
+        } else if (schoologyToolColumns && !canAssignToClassroom) {
+          // SpartBoard is the only destination left, so skip the chooser.
+          setAssignDestination('spartboard');
+          setAssignBehavior(seedBehavior(quiz));
+          setAssignTarget(quiz);
         } else {
           // Open the destination chooser first; it routes to the SpartBoard assign
           // modal, the Google Classroom flow, or the Schoology how-to.
@@ -864,7 +870,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         }
       });
     },
-    [isViewOnly, claudeReview, isReview, onStartReview]
+    [
+      isViewOnly,
+      claudeReview,
+      isReview,
+      onStartReview,
+      schoologyToolColumns,
+      canAssignToClassroom,
+      seedBehavior,
+    ]
   );
 
   // Route a chooser pick to the right flow. SpartBoard/Classroom both continue
@@ -2774,6 +2788,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         <AssignDestinationModal
           quizTitle={chooserTarget.title}
           showClassroom={canAssignToClassroom}
+          showSchoology={!schoologyToolColumns}
           onPick={handlePickDestination}
           onClose={() => setChooserTarget(null)}
         />
