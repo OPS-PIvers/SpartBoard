@@ -43,9 +43,11 @@ describe('TourAnchorList', () => {
   it('carries the widget type to another per-type anchor but not to a plain one', () => {
     const onPick = vi.fn();
     render(<TourAnchorList value="dock.item:clock" onPick={onPick} />);
-    fireEvent.change(search(), { target: { value: 'library.item' } });
+    fireEvent.change(search(), { target: { value: 'library.item-hide' } });
     fireEvent.keyDown(search(), { key: 'Enter' });
-    expect(onPick).toHaveBeenLastCalledWith({ anchor: 'library.item:clock' });
+    expect(onPick).toHaveBeenLastCalledWith({
+      anchor: 'library.item-hide:clock',
+    });
     fireEvent.change(search(), { target: { value: 'dock.open-tools' } });
     fireEvent.keyDown(search(), { key: 'Enter' });
     expect(onPick).toHaveBeenLastCalledWith({ anchor: 'dock.open-tools' });

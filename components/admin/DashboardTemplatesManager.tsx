@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   collection,
   doc,
@@ -277,6 +278,7 @@ export const DashboardTemplatesManager: React.FC = () => {
           Dashboard Templates
         </h2>
         <button
+          {...tourAttr('admin.templates.new-template')}
           onClick={() => setShowForm((v) => !v)}
           className="flex items-center gap-2 px-4 py-2 bg-brand-blue-primary text-white rounded-xl font-bold text-sm hover:bg-brand-blue-dark transition-colors shrink-0"
         >
@@ -298,6 +300,7 @@ export const DashboardTemplatesManager: React.FC = () => {
               Template Name *
             </label>
             <input
+              {...tourAttr('admin.templates.new-name')}
               type="text"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -311,6 +314,7 @@ export const DashboardTemplatesManager: React.FC = () => {
               Description
             </label>
             <input
+              {...tourAttr('admin.templates.new-description')}
               type="text"
               value={form.description}
               onChange={(e) =>
@@ -323,6 +327,7 @@ export const DashboardTemplatesManager: React.FC = () => {
 
           <div className="flex gap-2 pt-1">
             <button
+              {...tourAttr('admin.templates.create')}
               onClick={() => void handleCreate()}
               disabled={creating || !form.name.trim()}
               className="flex items-center gap-2 px-4 py-2 bg-brand-blue-primary text-white rounded-lg font-bold text-sm hover:bg-brand-blue-dark transition-colors disabled:opacity-50"
@@ -335,6 +340,7 @@ export const DashboardTemplatesManager: React.FC = () => {
               Create
             </button>
             <button
+              {...tourAttr('admin.templates.cancel')}
               onClick={() => {
                 setShowForm(false);
                 setForm(DEFAULT_FORM);
@@ -372,6 +378,7 @@ export const DashboardTemplatesManager: React.FC = () => {
           <div className="flex items-center gap-1.5 mb-3">
             {(['all', 'board', 'collection'] as const).map((k) => (
               <button
+                {...tourFieldAttr('admin.templates.type-filter', 'admin', k)}
                 key={k}
                 type="button"
                 onClick={() => setTypeFilter(k)}
@@ -416,6 +423,11 @@ export const DashboardTemplatesManager: React.FC = () => {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5 mb-0.5">
                             <input
+                              {...tourFieldAttr(
+                                'admin.templates.name',
+                                'admin',
+                                template.id
+                              )}
                               type="text"
                               value={local.name}
                               onChange={(e) =>
@@ -439,6 +451,11 @@ export const DashboardTemplatesManager: React.FC = () => {
                             </span>
                           </div>
                           <input
+                            {...tourFieldAttr(
+                              'admin.templates.description',
+                              'admin',
+                              template.id
+                            )}
                             type="text"
                             value={local.description}
                             onChange={(e) =>
@@ -460,6 +477,11 @@ export const DashboardTemplatesManager: React.FC = () => {
                           Enabled
                         </span>
                         <Toggle
+                          anchor={tourFieldAttr(
+                            'admin.templates.enabled',
+                            'admin',
+                            template.id
+                          )}
                           checked={local.enabled}
                           onChange={(checked) =>
                             updateLocal(template.id, { enabled: checked })
@@ -476,6 +498,11 @@ export const DashboardTemplatesManager: React.FC = () => {
                         {(['admin', 'beta', 'public'] as AccessLevel[]).map(
                           (level) => (
                             <button
+                              {...tourFieldAttr(
+                                'admin.templates.access-level',
+                                'admin',
+                                level
+                              )}
                               key={level}
                               onClick={() =>
                                 updateLocal(template.id, { accessLevel: level })
@@ -504,6 +531,11 @@ export const DashboardTemplatesManager: React.FC = () => {
                               );
                               return (
                                 <button
+                                  {...tourFieldAttr(
+                                    'admin.templates.building',
+                                    'admin',
+                                    b.id
+                                  )}
                                   key={b.id}
                                   onClick={() =>
                                     toggleBuilding(template.id, b.id)
@@ -520,6 +552,11 @@ export const DashboardTemplatesManager: React.FC = () => {
                               );
                             })}
                             <button
+                              {...tourFieldAttr(
+                                'admin.templates.all-buildings',
+                                'admin',
+                                template.id
+                              )}
                               onClick={() =>
                                 updateLocal(template.id, {
                                   targetBuildings: [],
@@ -540,6 +577,11 @@ export const DashboardTemplatesManager: React.FC = () => {
                       {/* Actions */}
                       <div className="flex items-center gap-1 ml-auto pl-3 border-l border-slate-100 shrink-0">
                         <button
+                          {...tourFieldAttr(
+                            'admin.templates.save',
+                            'admin',
+                            template.id
+                          )}
                           onClick={() => void handleSave(template.id)}
                           disabled={isSaving || !hasUnsaved}
                           title={
@@ -558,6 +600,11 @@ export const DashboardTemplatesManager: React.FC = () => {
                           )}
                         </button>
                         <button
+                          {...tourFieldAttr(
+                            'admin.templates.delete',
+                            'admin',
+                            template.id
+                          )}
                           onClick={() => void handleDelete(template)}
                           title="Delete template"
                           className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"

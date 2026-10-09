@@ -1,5 +1,6 @@
 import React from 'react';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { sanitizeHtml } from '@/utils/security';
 import { TEXT_WIDGET_TEMPLATES } from './constants';
 
@@ -20,6 +21,11 @@ export const TemplateGrid: React.FC<TemplateGridProps> = ({ ctx }) => {
         <button
           key={template.name}
           type="button"
+          {...tourFieldAttr(
+            'widget-settings.text.template',
+            ctx.widget.type,
+            template.name
+          )}
           onClick={() =>
             ctx.updateConfig({ content: sanitizeHtml(template.content) })
           }

@@ -1,3 +1,4 @@
+import { tourAttr } from '@/config/tourAnchors';
 import React, { useEffect, useState, useCallback } from 'react';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -550,6 +551,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
           <button
             onClick={onClose}
             aria-label={t('boardsModal.close', { defaultValue: 'Close' })}
+            {...tourAttr('boards-modal.close')}
             className="p-2 hover:bg-white/20 rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />

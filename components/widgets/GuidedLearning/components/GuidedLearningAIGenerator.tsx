@@ -43,6 +43,7 @@ import { blobToBase64 } from '@/utils/fileEncoding';
 import { prepareImageForUpload } from '@/utils/guidedLearningMedia';
 import { Z_INDEX } from '@/config/zIndex';
 import { useViewAsOutward } from '@/hooks/useViewAsOutward';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface Props {
   onClose: () => void;
@@ -113,6 +114,7 @@ const SortableImageRow: React.FC<SortableImageRowProps> = ({
           {...(disabled ? {} : listeners)}
           disabled={disabled}
           className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-600 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          {...tourAttr('gl-ai.image-reorder')}
           aria-label="Drag to reorder"
         >
           <GripVertical
@@ -156,6 +158,7 @@ const SortableImageRow: React.FC<SortableImageRowProps> = ({
             onClick={() => onRemove(image.id)}
             disabled={disabled}
             className="p-1 text-slate-400 hover:text-brand-red-primary transition-colors disabled:opacity-50"
+            {...tourAttr('gl-ai.image-remove')}
             aria-label="Remove image"
           >
             <Trash2
@@ -169,6 +172,7 @@ const SortableImageRow: React.FC<SortableImageRowProps> = ({
         <textarea
           value={image.caption}
           onChange={(e) => onCaptionChange(image.id, e.target.value)}
+          {...tourAttr('gl-ai.image-notes')}
           placeholder="Optional notes for this image…"
           rows={2}
           disabled={disabled}
@@ -425,6 +429,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
         <button
           onClick={onClose}
           className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
+          {...tourAttr('modal.close')}
           aria-label="Close generator"
         >
           <X
@@ -440,6 +445,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
         <div className="flex flex-col" style={{ gap: 'min(8px, 2cqmin)' }}>
           <button
             type="button"
+            {...tourAttr('gl-ai.add-images')}
             onClick={() => fileRef.current?.click()}
             disabled={busy}
             className="w-full border-2 border-dashed border-slate-300 rounded-xl text-center hover:border-indigo-400 hover:bg-indigo-50/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -566,6 +572,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
             rows={3}
+            {...tourAttr('gl-ai.prompt')}
             placeholder="e.g. Focus on vocabulary, include 3 questions, make it for 5th grade…"
             className="w-full bg-white border border-slate-200 rounded-lg text-slate-800 resize-none focus:border-indigo-500 focus:outline-none placeholder:text-slate-400"
             style={{
@@ -598,6 +605,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
       </div>
 
       <button
+        {...tourAttr('gl-ai.generate')}
         onClick={handleGenerate}
         disabled={images.length === 0 || busy || outward.locked}
         title={outward.lockedTitle}

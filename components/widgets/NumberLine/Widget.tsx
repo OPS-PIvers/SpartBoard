@@ -4,6 +4,7 @@ import { WidgetData, NumberLineConfig, NumberLineMarker } from '@/types';
 import { WidgetLayout } from '../WidgetLayout';
 import { WIDGET_PALETTE } from '@/config/colors';
 import { hexToRgba } from '@/utils/styles';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 // Map the typography preset id ('sans', 'handwritten', etc.) to the
 // Tailwind utility class so the SVG <text> element picks up the same
@@ -286,6 +287,11 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
                       className="cursor-pointer"
                       onMouseEnter={() => setHoveredTick(i)}
                       onMouseLeave={() => setHoveredTick(null)}
+                      {...tourFieldAttr(
+                        'number-line.add-marker',
+                        widget.type,
+                        String(val)
+                      )}
                       onClick={() => addMarker(val)}
                     />
                     {isHovered && (

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { CustomGridDefinition, BlockConnection, BlockAction } from '@/types';
 import {
   BLOCK_EVENTS as BLOCK_EVENTS_MAP,
@@ -159,6 +160,7 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
           </span>
         </div>
         <button
+          {...tourAttr('admin.widget-builder.connection-new')}
           onClick={() => setIsAdding((v) => !v)}
           className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
         >
@@ -194,6 +196,7 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
                 1) When this block...
               </label>
               <select
+                {...tourAttr('admin.widget-builder.connection-source')}
                 value={form.sourceBlockId}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, sourceBlockId: e.target.value }))
@@ -215,6 +218,7 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
               </label>
               <div className="flex gap-2">
                 <select
+                  {...tourAttr('admin.widget-builder.connection-event')}
                   value={form.eventBase}
                   onChange={(e) =>
                     setForm((p) => ({ ...p, eventBase: e.target.value }))
@@ -229,6 +233,7 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
                 </select>
                 {eventRequiresN && (
                   <input
+                    {...tourAttr('admin.widget-builder.connection-event-count')}
                     type="number"
                     min={1}
                     value={form.eventN}
@@ -250,6 +255,7 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
                 3) Affect this block
               </label>
               <select
+                {...tourAttr('admin.widget-builder.connection-target')}
                 value={form.targetBlockId}
                 onChange={(e) =>
                   setForm((p) => ({ ...p, targetBlockId: e.target.value }))
@@ -272,6 +278,7 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
                 4) Then do this action
               </label>
               <select
+                {...tourAttr('admin.widget-builder.connection-action')}
                 value={form.action}
                 onChange={(e) =>
                   setForm((p) => ({
@@ -299,6 +306,7 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
                       : 'Text value'}
                 </label>
                 <input
+                  {...tourAttr('admin.widget-builder.connection-payload')}
                   type="text"
                   value={form.actionPayload}
                   onChange={(e) =>
@@ -332,6 +340,7 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
                       : 'Numeric value'}
                 </label>
                 <input
+                  {...tourAttr('admin.widget-builder.connection-value')}
                   id="action-value-input"
                   type="number"
                   value={form.actionValue}
@@ -349,6 +358,7 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
 
             <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
               <input
+                {...tourAttr('admin.widget-builder.connection-has-condition')}
                 type="checkbox"
                 checked={form.hasCondition}
                 onChange={(e) =>
@@ -361,6 +371,9 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
             {form.hasCondition && (
               <div className="mt-1 bg-slate-800 border border-slate-600 rounded p-2 space-y-1">
                 <select
+                  {...tourAttr(
+                    'admin.widget-builder.connection-condition-block'
+                  )}
                   value={form.conditionWatchBlockId}
                   onChange={(e) =>
                     setForm((p) => ({
@@ -379,6 +392,9 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
                 </select>
                 <div className="flex gap-1">
                   <select
+                    {...tourAttr(
+                      'admin.widget-builder.connection-condition-operator'
+                    )}
                     value={form.conditionOperator}
                     onChange={(e) =>
                       setForm((p) => ({
@@ -398,6 +414,9 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
                     <option value="neq">≠ (neq)</option>
                   </select>
                   <input
+                    {...tourAttr(
+                      'admin.widget-builder.connection-condition-value'
+                    )}
                     type="number"
                     value={form.conditionValue}
                     onChange={(e) =>
@@ -414,6 +433,7 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
 
             <div className="flex gap-2 pt-1">
               <button
+                {...tourAttr('admin.widget-builder.connection-save')}
                 onClick={handleAdd}
                 disabled={!form.sourceBlockId || !form.targetBlockId}
                 className="flex-1 px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded transition-colors"
@@ -421,6 +441,7 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
                 Save Rule
               </button>
               <button
+                {...tourAttr('admin.widget-builder.connection-cancel')}
                 onClick={() => {
                   setIsAdding(false);
                   setForm(BLANK_FORM);
@@ -467,6 +488,11 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
               )}
             </div>
             <button
+              {...tourFieldAttr(
+                'admin.widget-builder.connection-delete',
+                'admin',
+                conn.id
+              )}
               onClick={() => handleDelete(conn.id)}
               className="p-1 text-slate-500 hover:text-red-400 hover:bg-red-900/20 rounded transition-colors flex-shrink-0"
               title="Delete connection"

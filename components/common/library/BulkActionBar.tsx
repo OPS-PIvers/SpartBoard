@@ -14,6 +14,7 @@ import React, { useRef, useState } from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { FolderInput, Trash2, X, type LucideIcon } from 'lucide-react';
 import type { LibraryFolder } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 import { FolderPickerPopover } from './FolderPickerPopover';
 
 /**
@@ -113,6 +114,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
                 if (!disabled) void action.onClick();
               }}
               disabled={disabled}
+              {...tourAttr('library-shell.bulk-action')}
               className={`inline-flex items-center rounded-lg bg-white font-bold uppercase tracking-wider shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                 action.destructive
                   ? 'text-brand-red-dark ring-1 ring-brand-red-primary/20 hover:bg-brand-red-lighter/30 hover:ring-brand-red-primary/40'
@@ -155,6 +157,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
                 fontSize: 'min(12px, 4.5cqmin)',
               }}
               aria-haspopup="dialog"
+              {...tourAttr('library-shell.bulk-move')}
               aria-expanded={showFolderPicker}
             >
               <FolderInput
@@ -189,6 +192,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
               if (!busy) await onDelete();
             }}
             disabled={busy}
+            {...tourAttr('library-shell.bulk-delete')}
             className="inline-flex items-center rounded-lg bg-white font-bold uppercase tracking-wider text-brand-red-dark shadow-sm transition-colors hover:bg-brand-red-lighter/30 disabled:cursor-not-allowed disabled:opacity-50"
             style={{
               gap: 'min(6px, 1.5cqmin)',
@@ -220,6 +224,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
             fontSize: 'min(12px, 4.5cqmin)',
           }}
           aria-label="Clear selection"
+          {...tourAttr('library-shell.bulk-clear')}
         >
           <X
             style={{

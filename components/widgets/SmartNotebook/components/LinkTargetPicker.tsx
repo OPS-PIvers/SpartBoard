@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { ArrowRight, Link2, Unlink2, X } from 'lucide-react';
 import { NotebookSection } from '@/types';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 interface LinkTargetPickerProps {
   /** Pages available as link targets, in order. */
@@ -115,6 +116,7 @@ export const LinkTargetPicker: React.FC<LinkTargetPickerProps> = ({
             {currentTarget !== null && onJumpToTarget && (
               <button
                 onClick={onJumpToTarget}
+                {...tourTypeAttr('smart-notebook.link-go', 'smartNotebook')}
                 className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition-colors flex items-center"
                 style={{
                   padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
@@ -139,6 +141,7 @@ export const LinkTargetPicker: React.FC<LinkTargetPickerProps> = ({
             {currentTarget !== null && onRemove && (
               <button
                 onClick={onRemove}
+                {...tourTypeAttr('smart-notebook.link-remove', 'smartNotebook')}
                 className="bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors flex items-center"
                 style={{
                   padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
@@ -162,6 +165,7 @@ export const LinkTargetPicker: React.FC<LinkTargetPickerProps> = ({
             )}
             <button
               onClick={onClose}
+              {...tourTypeAttr('smart-notebook.link-close', 'smartNotebook')}
               className="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
               style={{ padding: 'min(6px, 1.5cqmin)' }}
               aria-label="Close"
@@ -207,6 +211,11 @@ export const LinkTargetPicker: React.FC<LinkTargetPickerProps> = ({
                     <button
                       key={page}
                       data-page={page}
+                      {...tourFieldAttr(
+                        'smart-notebook.link-page',
+                        'smartNotebook',
+                        String(page + 1)
+                      )}
                       onClick={() => {
                         if (isSource) return; // can't link a page to itself
                         onSelect(page);

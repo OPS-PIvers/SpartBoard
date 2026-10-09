@@ -19,6 +19,7 @@ import {
   hintClass,
   quietButtonClass,
 } from './panelControls';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface StudioRegionControlsProps {
   step: GuidedLearningStep;
@@ -97,6 +98,7 @@ export const StudioRegionControls: React.FC<StudioRegionControlsProps> = ({
             min={0}
             max={50}
             step={1}
+            {...tourAttr('studio.region-corner')}
             value={step.region.cornerPct ?? 0}
             onChange={(e) =>
               onChange(setCorner(step, Number(e.target.value)), 'corner')
@@ -127,6 +129,7 @@ export const StudioRegionControls: React.FC<StudioRegionControlsProps> = ({
         {canReset && (
           <button
             type="button"
+            {...tourAttr('studio.region-reset')}
             onClick={() => onChange(resetCalloutPlacement(step, styled), false)}
             className={quietButtonClass}
           >

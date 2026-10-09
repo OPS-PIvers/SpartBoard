@@ -313,6 +313,11 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
               startRename();
             }}
             onPointerDown={(e) => e.stopPropagation()}
+            {...tourFieldAttr(
+              'random.group-rename',
+              'random',
+              String(groupNumber)
+            )}
             aria-label={`Rename ${groupName}`}
             title={`Rename ${groupName}`}
             style={{ padding: 'clamp(2px, 0.6cqmin, 4px)' }}
@@ -379,6 +384,11 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
                     setColorPickerOpen(false);
                   }}
                   className="w-6 h-6 rounded-full bg-brand-blue-primary border-2 border-white ring-1 ring-slate-200 hover:scale-110 transition-transform"
+                  {...tourFieldAttr(
+                    'random.group-color-swatch',
+                    'random',
+                    'default'
+                  )}
                   aria-label="Reset to default color"
                   title="Default (brand blue)"
                 />

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useId } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   collection,
   onSnapshot,
@@ -238,6 +239,7 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
           </div>
 
           <button
+            {...tourAttr('admin.mini-app-library.modal-close')}
             onClick={onClose}
             className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
             aria-label="Close"
@@ -277,6 +279,11 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
                     {/* Reorder handle / index */}
                     <div className="flex flex-col items-center gap-0.5 shrink-0">
                       <button
+                        {...tourFieldAttr(
+                          'admin.mini-app-library.move-up',
+                          'admin',
+                          app.id
+                        )}
                         onClick={() => handleMoveUp(idx)}
                         disabled={idx === 0}
                         className="text-slate-300 hover:text-slate-500 disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
@@ -321,6 +328,11 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
                     {/* Actions */}
                     <div className="flex items-center gap-1 shrink-0">
                       <button
+                        {...tourFieldAttr(
+                          'admin.mini-app-library.edit',
+                          'admin',
+                          app.id
+                        )}
                         onClick={() => openEditor(app)}
                         className="p-1.5 text-slate-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors"
                         title="Edit"
@@ -328,6 +340,11 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
                         <Pencil className="w-4 h-4" />
                       </button>
                       <button
+                        {...tourFieldAttr(
+                          'admin.mini-app-library.delete',
+                          'admin',
+                          app.id
+                        )}
                         onClick={() => handleDelete(app)}
                         className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                         title="Delete"
@@ -348,6 +365,7 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
               <div>
                 <SettingsLabel htmlFor={titleInputId}>App Title</SettingsLabel>
                 <input
+                  {...tourAttr('admin.mini-app-library.title')}
                   id={titleInputId}
                   type="text"
                   value={editTitle}
@@ -374,6 +392,11 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
                     const isSelected = editBuildings.includes(building.id);
                     return (
                       <button
+                        {...tourFieldAttr(
+                          'admin.mini-app-library.building',
+                          'admin',
+                          building.id
+                        )}
                         key={building.id}
                         type="button"
                         onClick={() => toggleBuilding(building.id)}
@@ -409,6 +432,7 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
                   HTML Code
                 </SettingsLabel>
                 <textarea
+                  {...tourAttr('admin.mini-app-library.html-code')}
                   id={htmlCodeId}
                   value={editCode}
                   onChange={(e) => setEditCode(e.target.value)}
@@ -423,12 +447,14 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
             {/* Footer Actions */}
             <div className="shrink-0 border-t border-slate-100 px-5 py-3 flex gap-3">
               <button
+                {...tourAttr('admin.mini-app-library.cancel')}
                 onClick={cancelEditor}
                 className="px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors"
               >
                 Cancel
               </button>
               <button
+                {...tourAttr('admin.mini-app-library.save')}
                 onClick={handleSave}
                 disabled={saving || !editTitle.trim() || !editCode.trim()}
                 className="flex-1 flex items-center justify-center gap-2 px-5 py-2 bg-violet-600 hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md shadow-violet-200 transition-all"
@@ -450,6 +476,7 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
         {view === 'list' && (
           <div className="shrink-0 border-t border-slate-100 px-5 py-3 flex items-center justify-end">
             <button
+              {...tourAttr('admin.mini-app-library.new-app')}
               onClick={() => openEditor()}
               className="flex items-center gap-1.5 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-md shadow-violet-200 transition-all"
             >

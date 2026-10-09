@@ -2,6 +2,7 @@ import React from 'react';
 import { Check, Lock } from 'lucide-react';
 import { useDraggable } from '@dnd-kit/core';
 import { chipViewTransitionName } from '@/utils/viewTransition';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 interface StudentChipProps {
   name: string;
@@ -121,6 +122,7 @@ export const StudentChip: React.FC<StudentChipProps> = ({
         style={{
           padding: '0.15em',
         }}
+        {...tourTypeAttr('random.chip-lock', 'random')}
         aria-label={locked ? `Unlock ${name}` : `Lock ${name}`}
         title={
           locked
@@ -155,6 +157,7 @@ export const StudentChip: React.FC<StudentChipProps> = ({
           style={{
             padding: '0.15em',
           }}
+          {...tourTypeAttr('random.chip-done', 'random')}
           aria-label={
             done ? `Mark ${name} as not done` : `Mark ${name} as done`
           }

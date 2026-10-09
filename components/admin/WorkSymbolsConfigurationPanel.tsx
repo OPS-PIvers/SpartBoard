@@ -1,3 +1,4 @@
+import { tourFieldAttr } from '@/config/tourAnchors';
 import React from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
@@ -98,6 +99,11 @@ export const WorkSymbolsConfigurationPanel: React.FC<
           </label>
           <select
             id={`ws-font-${selectedBuildingId}`}
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'work-symbols',
+              'fontFamily'
+            )}
             value={currentBuildingConfig.fontFamily ?? 'global'}
             onChange={(e) => {
               const selected = e.target.value;
@@ -130,6 +136,11 @@ export const WorkSymbolsConfigurationPanel: React.FC<
           </label>
           <select
             id={`ws-size-${selectedBuildingId}`}
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'work-symbols',
+              'textSizePreset'
+            )}
             value={currentBuildingConfig.textSizePreset ?? 'medium'}
             onChange={(e) =>
               handleUpdateBuilding({
@@ -154,13 +165,21 @@ export const WorkSymbolsConfigurationPanel: React.FC<
           >
             Default Text Colour
           </label>
-          <HexColorField
-            id={`ws-color-${selectedBuildingId}`}
-            value={currentBuildingConfig.fontColor}
-            onChange={(fontColor) => handleUpdateBuilding({ fontColor })}
-            fallback="#1e293b"
-            ariaLabel="Pick default Work Symbols text colour"
-          />
+          <div
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'work-symbols',
+              'fontColor'
+            )}
+          >
+            <HexColorField
+              id={`ws-color-${selectedBuildingId}`}
+              value={currentBuildingConfig.fontColor}
+              onChange={(fontColor) => handleUpdateBuilding({ fontColor })}
+              fallback="#1e293b"
+              ariaLabel="Pick default Work Symbols text colour"
+            />
+          </div>
         </div>
 
         {/* Default Title Position */}
@@ -173,6 +192,11 @@ export const WorkSymbolsConfigurationPanel: React.FC<
           </label>
           <select
             id={`ws-title-pos-${selectedBuildingId}`}
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'work-symbols',
+              'titlePosition'
+            )}
             value={currentBuildingConfig.titlePosition ?? 'bottom'}
             onChange={(e) =>
               handleUpdateBuilding({

@@ -48,7 +48,7 @@ import {
   refocusIfLost,
 } from './boardNavMenu';
 import { BoardsModal } from '@/components/boardsModal/BoardsModal';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const getBoardId = (d: Dashboard) => d.id;
 
@@ -347,6 +347,7 @@ export const BoardNavFab: FC = () => {
     if (editingBoardId === db.id) {
       return (
         <InlineNameInput
+          anchor={tourAttr('board-nav.name-input')}
           key={`${keyPrefix}${db.id}`}
           initialValue={db.name}
           placeholder={t('boardsModal.newBoardPrompt', {
@@ -385,6 +386,7 @@ export const BoardNavFab: FC = () => {
             itemRefs.current[slot] = el;
           }}
           role="menuitem"
+          {...tourFieldAttr('board-nav.board-item', 'boards', db.id)}
           onClick={() => {
             loadDashboard(db.id);
             closeBoardsMenu();
@@ -399,6 +401,7 @@ export const BoardNavFab: FC = () => {
             icon={Pencil}
             label={t('boardNav.renameBoard', { defaultValue: 'Rename board' })}
             onClick={() => setEditingBoardId(db.id)}
+            anchor={tourFieldAttr('board-nav.rename-board', 'boards', db.id)}
           />
           <RowActionButton
             icon={FolderInput}
@@ -406,6 +409,7 @@ export const BoardNavFab: FC = () => {
               defaultValue: 'Move to Collection',
             })}
             onClick={() => setMovingBoardId(db.id)}
+            anchor={tourFieldAttr('board-nav.move-board', 'boards', db.id)}
           />
           {dragHandle && (
             <RowDragHandle
@@ -576,6 +580,7 @@ export const BoardNavFab: FC = () => {
           <div className="mt-1 border-t border-white/10 pt-1">
             {isCreatingBoard ? (
               <InlineNameInput
+                anchor={tourAttr('board-nav.name-input')}
                 placeholder={t('boardsModal.newBoardPrompt', {
                   defaultValue: 'Board name',
                 })}
