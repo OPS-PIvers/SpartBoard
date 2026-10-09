@@ -209,6 +209,7 @@ export const GoalEditorModal: React.FC<GoalEditorModalProps> = ({
       isOpen
       onClose={onClose}
       maxWidth="max-w-2xl"
+      closeTourId="plc-goals.close"
       title={
         goal
           ? t('plcGoals.editTitle', { defaultValue: 'Edit goal' })

@@ -324,6 +324,7 @@ const AssessmentRow: React.FC<RowProps> = ({
     >
       {canEdit && !row.archived && (
         <button
+          {...tourFieldAttr('plc-assessments.drag', 'plc', row.id)}
           type="button"
           {...attributes}
           {...listeners}

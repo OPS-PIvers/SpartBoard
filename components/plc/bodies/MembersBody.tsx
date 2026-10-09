@@ -596,6 +596,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
           </header>
           <div className="flex gap-2">
             <StaffEmailInput
+              {...tourAttr('plc-members.invite-email')}
               wrapperClassName="flex-1 relative"
               leading={
                 <Mail

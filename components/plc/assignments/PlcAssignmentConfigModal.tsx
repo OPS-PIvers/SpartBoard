@@ -660,6 +660,28 @@ export const PlcAssignmentConfigModal: React.FC<
                 onAttemptLimitChange={setAttemptLimit}
                 shuffleQuestionsAvailable={false}
                 showCopyPasteToggle
+                anchors={{
+                  focusMode: tourFieldAttr(
+                    'plc-assign.option-toggle',
+                    'plc',
+                    'focus-mode'
+                  ),
+                  copyPaste: tourFieldAttr(
+                    'plc-assign.option-toggle',
+                    'plc',
+                    'copy-paste'
+                  ),
+                  shuffleQuestions: tourFieldAttr(
+                    'plc-assign.option-toggle',
+                    'plc',
+                    'shuffle-questions'
+                  ),
+                  shuffleAnswerOptions: tourFieldAttr(
+                    'plc-assign.option-toggle',
+                    'plc',
+                    'shuffle-answers'
+                  ),
+                }}
               />
             </>
           ) : vaBehavior ? (
@@ -692,6 +714,23 @@ export const PlcAssignmentConfigModal: React.FC<
               attemptLimit={undefined}
               onAttemptLimitChange={undefined}
               shuffleQuestionsAvailable
+              anchors={{
+                focusMode: tourFieldAttr(
+                  'plc-assign.option-toggle',
+                  'plc',
+                  'focus-mode'
+                ),
+                shuffleQuestions: tourFieldAttr(
+                  'plc-assign.option-toggle',
+                  'plc',
+                  'shuffle-questions'
+                ),
+                shuffleAnswerOptions: tourFieldAttr(
+                  'plc-assign.option-toggle',
+                  'plc',
+                  'shuffle-answers'
+                ),
+              }}
             />
           )}
 
