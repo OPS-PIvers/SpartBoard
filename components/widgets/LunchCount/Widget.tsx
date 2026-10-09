@@ -795,6 +795,11 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
               {rosterMode === 'class' && (
                 <ActiveClassChip
                   compact
+                  anchor={tourAttr(
+                    'lunch-count.class-chip',
+                    widget.id,
+                    widget.type
+                  )}
                   {...(rosterGroupsEnabled
                     ? {
                         groupSelection: {

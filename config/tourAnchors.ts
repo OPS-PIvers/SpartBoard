@@ -4706,6 +4706,23 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'override-row.extended-time': {
+    label: 'Extended time options in a student override',
+    panel: true,
+  },
+  'seating.class-chip': {
+    label: 'Class picker chip in the Seating Chart toolbar',
+    perWidget: true,
+  },
+  'lunch-count.class-chip': {
+    label: 'Class picker chip in Lunch Count',
+    perWidget: true,
+  },
+  'drawing.pen-colors': {
+    label: 'Pen color row in the Drawing tool options',
+    perWidget: true,
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

@@ -352,6 +352,7 @@ export const OverrideEditorRow: React.FC<OverrideEditorRowProps> = ({
             </span>
             <div className="mt-1">
               <SegmentedControl
+                anchor={tourAttr('override-row.extended-time')}
                 ariaLabel={t('studentOverride.timeMultiplier', 'Extended time')}
                 value={timeMultiplierIdForValue(override.timeMultiplier)}
                 onChange={(id) =>

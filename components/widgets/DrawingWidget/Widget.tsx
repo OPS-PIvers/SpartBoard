@@ -1446,6 +1446,7 @@ export const DrawingWidget: React.FC<{
                 variant="whiteboard"
                 value={color}
                 onSelect={setColor}
+                anchor={tourAttr('drawing.pen-colors', widget.id, widget.type)}
                 className="flex items-center justify-between mb-3"
               />
             )}
