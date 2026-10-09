@@ -62,7 +62,7 @@ export async function assertFolder(
   }
 }
 
-export const MAX_FOLDERS = 500;
+export const FOLDER_PAGE_SIZE = 500;
 
 /** Folder colour palette, matching LibraryFolder.color in the client. */
 export const FOLDER_COLORS = [
@@ -95,6 +95,26 @@ export function toFolderRow(
     order: Number(data.order ?? 0),
     color: typeof data.color === 'string' && data.color ? data.color : null,
   };
+}
+
+// Reads every folder page by page, so a large library never misses an existing folder.
+export async function loadAllFolders(
+  db: admin.firestore.Firestore,
+  collectionPath: string
+): Promise<FolderRow[]> {
+  const rows: FolderRow[] = [];
+  let last: admin.firestore.QueryDocumentSnapshot | undefined;
+  for (;;) {
+    let q = db
+      .collection(collectionPath)
+      .orderBy(admin.firestore.FieldPath.documentId())
+      .limit(FOLDER_PAGE_SIZE);
+    if (last) q = q.startAfter(last);
+    const snap = await q.get();
+    for (const d of snap.docs) rows.push(toFolderRow(d.id, d.data()));
+    if (snap.docs.length < FOLDER_PAGE_SIZE) return rows;
+    last = snap.docs[snap.docs.length - 1];
+  }
 }
 
 /** Folder names from the top level down to this folder; a cycle or missing parent stops the walk. */

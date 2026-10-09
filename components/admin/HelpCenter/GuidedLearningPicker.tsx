@@ -124,18 +124,22 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
   ): Promise<void> => {
     setCopyingId(setId);
     try {
+      const copyId = helpCopyId(setId);
+      // One copy per personal set: picking it again reuses that copy, keeping admin edits.
+      const existing = await loadBuildingSet(copyId);
+      if (existing) {
+        onSelect(existing.id, existing.title);
+        return;
+      }
       const loaded = await loadSetData(driveFileId);
       const now = Date.now();
-      // One copy per personal set: picking it again refreshes that copy.
-      const copyId = helpCopyId(setId);
-      const existing = buildingSets.find((set) => set.id === copyId);
       const copy: GuidedLearningSet = {
         ...loaded,
         id: copyId,
         isBuilding: true,
         helpCenter: true,
         authorUid: user?.uid,
-        createdAt: existing?.createdAt ?? now,
+        createdAt: now,
         updatedAt: now,
       };
       await saveBuildingSet(copy);

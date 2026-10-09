@@ -75,8 +75,6 @@ export interface UseLibraryPlacementsResult {
   place: (sourceKey: string, folderId: string, order?: number) => Promise<void>;
   /** Return a source item to its source folder. */
   unplace: (sourceKey: string) => Promise<void>;
-  /** Drops placements whose source item is gone (D23); call only after every source has loaded. */
-  pruneMissing: (liveKeys: ReadonlySet<string>) => void;
 }
 
 export function useLibraryPlacements(
@@ -116,24 +114,8 @@ export function useLibraryPlacements(
     [path]
   );
 
-  const pruneMissing = useCallback(
-    (liveKeys: ReadonlySet<string>) => {
-      if (!path || loading) return;
-      for (const p of placements) {
-        if (liveKeys.has(p.sourceKey)) continue;
-        deleteDoc(doc(db, path, p.sourceKey)).catch((err: unknown) =>
-          logError('useLibraryPlacements.prune', err, {
-            path,
-            sourceKey: p.sourceKey,
-          })
-        );
-      }
-    },
-    [path, loading, placements]
-  );
-
   return useMemo(
-    () => ({ byKey, loading, place, unplace, pruneMissing }),
-    [byKey, loading, place, unplace, pruneMissing]
+    () => ({ byKey, loading, place, unplace }),
+    [byKey, loading, place, unplace]
   );
 }

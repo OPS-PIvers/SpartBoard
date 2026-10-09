@@ -425,7 +425,6 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     enabled: folderViewEnabled,
     sourceKeys: globalSourceKeys,
     ownFolders: folderState.folders,
-    ready: !folderState.loading,
   });
   const { folderIdOf, move: moveSource } = sourceFolders;
   const getFolderIdOfRow = useCallback(

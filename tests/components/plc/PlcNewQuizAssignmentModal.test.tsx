@@ -612,6 +612,20 @@ describe('PlcNewQuizAssignmentModal with quiz-review-split on (D12)', () => {
     expect(opts.speedBonusEnabled).toBe(false);
     expect(opts.showResultToStudent).toBeUndefined();
   });
+
+  it('does not save last-used settings without the stepper', async () => {
+    mockSaveLastUsed.mockClear();
+    await renderAndPickQuiz();
+    act(() => {
+      fireEvent.click(
+        screen.getByRole('button', { name: /create assignment/i })
+      );
+    });
+    await waitFor(() => {
+      expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
+    });
+    expect(mockSaveLastUsed).not.toHaveBeenCalled();
+  });
 });
 
 describe('PlcNewQuizAssignmentModal with assign-stepper on (D21)', () => {

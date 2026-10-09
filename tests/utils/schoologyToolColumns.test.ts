@@ -110,6 +110,26 @@ describe('formatToolColumnPushToast', () => {
     })),
   });
 
+  it('explains a section the caller does not teach instead of asking for a retry', () => {
+    const { message, failed } = formatToolColumnPushToast(
+      data(
+        [
+          {
+            pseudonymUid: 'a',
+            ok: false,
+            reason: 'not a teacher of the Schoology section',
+          },
+        ],
+        [{ status: 'failed' }]
+      )
+    );
+    expect(failed).toBe(0);
+    expect(message).toContain(
+      "You aren't listed as a teacher of the Schoology section"
+    );
+    expect(message).not.toContain('Try again');
+  });
+
   it('counts grades, Missing, unchanged and outsiders', () => {
     const { message, failed } = formatToolColumnPushToast(
       data([
