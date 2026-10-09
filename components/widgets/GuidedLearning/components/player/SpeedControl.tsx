@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { focusRing } from '@/components/common/lightChrome';
 import { LEARNER_SPEEDS, type LearnerSpeed } from '../../utils/motion';
 import { TouchHitBox } from './TouchHitBox';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface Props {
   speed: LearnerSpeed;
@@ -31,6 +32,7 @@ export const SpeedControl: React.FC<Props> = ({ speed, onChange }) => {
           type="button"
           aria-pressed={s === speed}
           aria-label={t('glPlayer.speedOption', { speed: LABELS[s] })}
+          {...tourAttr('gl-player.speed-option')}
           onClick={() => onChange(s)}
           className={`relative rounded-full font-bold tabular-nums transition-colors ${focusRing} ${
             s === speed

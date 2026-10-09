@@ -18,6 +18,7 @@ import {
   inputClass,
   quietButtonClass,
 } from './panelControls';
+import { tourAttr } from '@/config/tourAnchors';
 
 type StepChange = (next: GuidedLearningStep, field?: string | false) => void;
 
@@ -58,6 +59,7 @@ export const StudioStepFields: React.FC<{
       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-3">
         <Field label={t('glStudio.interaction')}>
           <select
+            {...tourAttr('studio.step-interaction')}
             value={type}
             onChange={(e) =>
               update(
@@ -80,6 +82,7 @@ export const StudioStepFields: React.FC<{
         {slideCount >= 2 && (
           <Field label={t('glStudio.onSlide')}>
             <select
+              {...tourAttr('studio.step-slide')}
               value={step.imageIndex}
               onChange={(e) =>
                 update({ imageIndex: Number(e.target.value) || 0 }, false)
@@ -101,6 +104,7 @@ export const StudioStepFields: React.FC<{
           type="text"
           value={step.label ?? ''}
           onChange={(e) => update({ label: e.target.value }, 'label')}
+          {...tourAttr('studio.step-label')}
           placeholder={t('glStudio.inlineLabelPlaceholder')}
           className={inputClass}
         />
@@ -124,6 +128,7 @@ export const StudioStepFields: React.FC<{
             value={step.text ?? ''}
             onChange={(e) => update({ text: e.target.value }, 'text')}
             rows={4}
+            {...tourAttr('studio.step-text')}
             placeholder={t('glStudio.inlineTextPlaceholder')}
             className={`${inputClass} resize-none`}
           />
@@ -222,6 +227,7 @@ export const StudioStepPlayback: React.FC<{
           min={0}
           max={120}
           value={step.autoAdvanceDuration ?? ''}
+          {...tourAttr('studio.step-auto-advance')}
           placeholder={t('glStudio.autoAdvanceAuto')}
           onChange={(e) => {
             const next = { ...step };
@@ -239,6 +245,7 @@ export const StudioStepPlayback: React.FC<{
       <label className="flex items-start gap-2 text-sm text-slate-700">
         <input
           type="checkbox"
+          {...tourAttr('studio.step-hide-marker')}
           checked={Boolean(step.hotspotAlwaysHidden ?? step.hideStepNumber)}
           onChange={(e) =>
             onChange({ ...step, hotspotAlwaysHidden: e.target.checked }, false)
@@ -274,6 +281,7 @@ const RangeField: React.FC<{
     }
   >
     <input
+      {...tourAttr('studio.step-range')}
       type="range"
       min={min}
       max={max}
@@ -337,6 +345,7 @@ const MediaField: React.FC<{
           type="url"
           value={url}
           onChange={(e) => onUrl(e.target.value)}
+          {...tourAttr('studio.step-url')}
           placeholder={placeholder}
           className={inputClass}
         />
@@ -355,6 +364,7 @@ const MediaField: React.FC<{
       />
       <button
         type="button"
+        {...tourAttr('studio.step-upload')}
         onClick={() => inputRef.current?.click()}
         disabled={progress !== null}
         className={quietButtonClass}

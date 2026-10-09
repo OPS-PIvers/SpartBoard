@@ -1870,6 +1870,621 @@ export const TOUR_ANCHORS = {
     label: 'Fullscreen toggle button in the resource viewer',
     panel: true,
   },
+  // Guided Learning editor, Studio, player and results.
+  'gl-results.error-back': {
+    label: 'Back to library button in the results error state',
+  },
+  'gl-editor.draft-ai': {
+    label: 'Draft with AI button in the Guided Learning editor',
+    panel: true,
+  },
+  'gl-editor.open-classic': {
+    label: 'Open classic editor link in the Studio header',
+    panel: true,
+  },
+  'gl-ai.image-reorder': {
+    label: 'Drag handle on a source image in the AI generator',
+    panel: true,
+  },
+  'gl-ai.image-remove': {
+    label: 'Remove button on a source image in the AI generator',
+    destructive: true,
+    panel: true,
+  },
+  'gl-ai.image-notes': {
+    label: 'Notes box on a source image in the AI generator',
+    panel: true,
+  },
+  'gl-ai.add-images': {
+    label: 'Add source images drop zone in the AI generator',
+    panel: true,
+  },
+  'gl-ai.prompt': {
+    label: 'Extra instructions box in the AI generator',
+    panel: true,
+  },
+  'gl-ai.generate': {
+    label: 'Generate button in the AI generator',
+    persists: true,
+    panel: true,
+  },
+  'gl-editor.description': {
+    label: 'Description box in the classic editor',
+    panel: true,
+  },
+  'gl-editor.mode': { label: 'Mode pill in the classic editor', panel: true },
+  'gl-editor.slide-tab': {
+    label: 'Slide tab in the classic editor',
+    panel: true,
+  },
+  'gl-editor.canvas': {
+    label: 'Image canvas in the classic editor',
+    panel: true,
+  },
+  'gl-editor.upload': {
+    label: 'Add media button in the classic editor',
+    panel: true,
+  },
+  'gl-editor.paste': {
+    label: 'Paste from clipboard button in the classic editor',
+    panel: true,
+  },
+  'gl-editor.add-step': {
+    label: 'Add hotspot button in the classic editor',
+    panel: true,
+  },
+  'gl-editor.trim-toggle': {
+    label: 'Trim toggle in the classic editor',
+    panel: true,
+  },
+  'gl-editor.slide-earlier': {
+    label: 'Move slide earlier button in the classic editor',
+    panel: true,
+  },
+  'gl-editor.slide-later': {
+    label: 'Move slide later button in the classic editor',
+    panel: true,
+  },
+  'gl-editor.slide-delete': {
+    label: 'Delete slide button in the classic editor',
+    destructive: true,
+    panel: true,
+  },
+  'gl-editor.step-chip': {
+    label: 'Step chip in the classic editor step list',
+    panel: true,
+  },
+  'gl-editor.hotspot-marker': {
+    label: 'Hotspot marker on the classic editor canvas',
+    panel: true,
+  },
+  'gl-editor.welcome': {
+    label: 'Welcome screen chip in the classic editor',
+    panel: true,
+  },
+  'gl-editor.welcome-enabled': {
+    label: 'Show welcome screen checkbox',
+    panel: true,
+  },
+  'gl-editor.welcome-message': { label: 'Welcome message box', panel: true },
+  'gl-editor.trim': { label: 'Video trim bar', panel: true },
+  'gl-editor.trim-reset': {
+    label: 'Reset trim button in the video trim bar',
+    panel: true,
+  },
+  'gl-editor.folder': {
+    label: 'Folder picker button in the editor header',
+    panel: true,
+  },
+  'gl-editor.step-delete': {
+    label: 'Delete step button in the classic step editor',
+    destructive: true,
+    panel: true,
+  },
+  'gl-editor.step-label': {
+    label: 'Step label box in the classic step editor',
+    panel: true,
+  },
+  'gl-editor.step-interaction': {
+    label: 'Interaction type select in the classic step editor',
+    panel: true,
+  },
+  'gl-editor.step-slide': {
+    label: 'Slide select in the classic step editor',
+    panel: true,
+  },
+  'gl-editor.step-hide-marker': {
+    label: 'Always hide hotspot marker checkbox',
+    panel: true,
+  },
+  'gl-editor.step-text': {
+    label: 'Text content box in the classic step editor',
+    panel: true,
+  },
+  'gl-editor.step-tooltip-position': {
+    label: 'Tooltip position select',
+    panel: true,
+  },
+  'gl-editor.step-tooltip-offset': {
+    label: 'Tooltip distance slider',
+    panel: true,
+  },
+  'gl-editor.step-audio-url': { label: 'Audio URL box', panel: true },
+  'gl-editor.step-video-url': { label: 'Video URL box', panel: true },
+  'gl-editor.step-zoom': { label: 'Pan and zoom scale slider', panel: true },
+  'gl-editor.step-spotlight': { label: 'Spotlight radius slider', panel: true },
+  'gl-editor.step-overlay': { label: 'Overlay style select', panel: true },
+  'gl-editor.step-overlay-text': { label: 'Overlay text box', panel: true },
+  'gl-editor.step-banner-tone': { label: 'Banner tone select', panel: true },
+  'gl-editor.step-auto-advance': {
+    label: 'Auto-advance seconds box',
+    panel: true,
+  },
+  'gl-editor.step-upload': {
+    label: 'Upload media button in the classic step editor',
+    panel: true,
+  },
+  'gl-editor.question-type': {
+    label: 'Question type select in the classic step editor',
+    panel: true,
+  },
+  'gl-editor.question-text': {
+    label: 'Question text box in the classic step editor',
+    panel: true,
+  },
+  'gl-editor.question-correct': {
+    label: 'Correct answer radio in the classic step editor',
+    panel: true,
+  },
+  'gl-editor.question-choice': {
+    label: 'Answer choice box in the classic step editor',
+    panel: true,
+  },
+  'gl-editor.question-choice-remove': {
+    label: 'Remove answer choice button in the classic step editor',
+    destructive: true,
+    panel: true,
+  },
+  'gl-editor.question-choice-add': {
+    label: 'Add answer choice button in the classic step editor',
+    panel: true,
+  },
+  'gl-editor.question-match-left': {
+    label: 'Matching term box in the classic step editor',
+    panel: true,
+  },
+  'gl-editor.question-match-right': {
+    label: 'Matching definition box in the classic step editor',
+    panel: true,
+  },
+  'gl-editor.question-match-remove': {
+    label: 'Remove matching pair button in the classic step editor',
+    destructive: true,
+    panel: true,
+  },
+  'gl-editor.question-match-add': {
+    label: 'Add matching pair button in the classic step editor',
+    panel: true,
+  },
+  'gl-editor.question-sort-item': {
+    label: 'Sorting item box in the classic step editor',
+    panel: true,
+  },
+  'gl-editor.question-sort-remove': {
+    label: 'Remove sorting item button in the classic step editor',
+    destructive: true,
+    panel: true,
+  },
+  'gl-editor.question-sort-add': {
+    label: 'Add sorting item button in the classic step editor',
+    panel: true,
+  },
+  'gl-manager.show-older': { label: 'Show older assignments button' },
+  'gl-manager.select-mode': {
+    label: 'Select mode toggle in the Guided Learning library',
+  },
+  'gl-manager.preview-play': {
+    label: 'Play preview button in the Guided Learning library',
+  },
+  'gl-player.read-aloud': { label: 'Read aloud button in the player' },
+  'gl-player.prev': { label: 'Previous step button in the player' },
+  'gl-player.play-pause': { label: 'Play or pause button in the player' },
+  'gl-player.step-dot': { label: 'Step progress dot in the player' },
+  'gl-player.next': { label: 'Next step button in the player' },
+  'gl-player.hotspot': { label: 'Hotspot on the player slide' },
+  'gl-player.retry-slide': { label: 'Retry slide load button in the player' },
+  'gl-player.reset-zoom': { label: 'Reset zoom button in the player' },
+  'gl-player.outline-open': { label: 'Open outline button in the player' },
+  'gl-player.close': { label: 'Close button in the player' },
+  'gl-player.slide-thumb': { label: 'Slide thumbnail in the player' },
+  'gl-player.more': { label: 'More actions button in the player footer' },
+  'gl-player.resume': { label: 'Resume button in the player resume prompt' },
+  'gl-player.resume-start-over': {
+    label: 'Start over button in the player resume prompt',
+    destructive: true,
+  },
+  'gl-player.speed-option': {
+    label: 'Playback speed option in the player',
+    panel: true,
+  },
+  'gl-player.outline-step': {
+    label: 'Step in the player outline',
+    panel: true,
+  },
+  'gl-player.scrubber': { label: 'Watch scrubber in the player' },
+  'gl-results.back': { label: 'Back button in the results header' },
+  'gl-results.export': { label: 'Export button in the results header' },
+  'gl-results.period-start-all': {
+    label: 'Start all periods button in results',
+    persists: true,
+  },
+  'gl-results.period-pause-all': {
+    label: 'Pause all periods button in results',
+    persists: true,
+  },
+  'gl-capture.upload': {
+    label: 'Upload file button in the capture dialog',
+    panel: true,
+  },
+  'gl-capture.screen-start': {
+    label: 'Share screen button in the capture dialog',
+    panel: true,
+  },
+  'gl-capture.snap': {
+    label: 'Snap frame button in the capture dialog',
+    panel: true,
+  },
+  'gl-capture.record-start': {
+    label: 'Start recording button in the capture dialog',
+    panel: true,
+  },
+  'gl-capture.record-stop': {
+    label: 'Stop recording button in the capture dialog',
+    panel: true,
+  },
+  'gl-capture.add-frame': {
+    label: 'Add frame button in the capture dialog',
+    panel: true,
+  },
+  'gl-capture.add-video': {
+    label: 'Add whole video button in the capture dialog',
+    panel: true,
+  },
+  'gl-capture.upload-video': {
+    label: 'Upload video file button in the capture dialog',
+    panel: true,
+  },
+  'gl-capture.screen-stop': {
+    label: 'Stop sharing button in the capture dialog',
+    panel: true,
+  },
+  'studio.blur-remove': {
+    label: 'Remove blur box button on the Studio canvas',
+    panel: true,
+  },
+  'studio.callout-edit-text': {
+    label: 'Edit callout text button',
+    panel: true,
+  },
+  'studio.callout-reset-position': {
+    label: 'Reset callout position button',
+    panel: true,
+  },
+  'studio.callout-reset-size': {
+    label: 'Reset callout size button',
+    panel: true,
+  },
+  'studio.callout-kind': { label: 'Toggle callout kind button', panel: true },
+  'studio.callout-tone': { label: 'Callout colour option', panel: true },
+  'studio.callout-delete': {
+    label: 'Delete callout step button',
+    destructive: true,
+    panel: true,
+  },
+  'studio.device-size': { label: 'Custom preview size box', panel: true },
+  'studio.device-preset': { label: 'Preview device select', panel: true },
+  'studio.callout-label': { label: 'Inline callout label box', panel: true },
+  'studio.callout-text': { label: 'Inline callout text box', panel: true },
+  'studio.undo': { label: 'Undo button in the Studio top bar', panel: true },
+  'studio.redo': { label: 'Redo button in the Studio top bar', panel: true },
+  'studio.play': { label: 'Play button in the Studio top bar', panel: true },
+  'studio.shortcuts': {
+    label: 'Keyboard shortcuts button in the Studio top bar',
+    panel: true,
+  },
+  'studio.properties': {
+    label: 'Properties panel toggle in the Studio top bar',
+    panel: true,
+  },
+  'studio.folder': {
+    label: 'Folder picker button in the Studio top bar',
+    panel: true,
+  },
+  'studio.conflict-reload': {
+    label: 'Reload latest version button in the Studio conflict banner',
+    destructive: true,
+    panel: true,
+  },
+  'studio.conflict-overwrite': {
+    label: 'Overwrite button in the Studio conflict banner',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'studio.dismiss-note': {
+    label: 'Dismiss button on the Studio small-screen note',
+    panel: true,
+  },
+  'studio.properties-close': {
+    label: 'Close properties panel button',
+    panel: true,
+  },
+  'studio.tool-select': {
+    label: 'Select tool on the Studio canvas',
+    panel: true,
+  },
+  'studio.tool-shape': {
+    label: 'Shape tool on the Studio canvas',
+    panel: true,
+  },
+  'studio.tool-blur': { label: 'Blur tool on the Studio canvas', panel: true },
+  'studio.blur-mode': {
+    label: 'Blur mode button on the Studio canvas',
+    panel: true,
+  },
+  'studio.blur-apply': {
+    label: 'Apply blur button on the Studio canvas',
+    persists: true,
+    panel: true,
+  },
+  'studio.blur-cancel': {
+    label: 'Cancel blur button on the Studio canvas',
+    panel: true,
+  },
+  'studio.zoom-out': {
+    label: 'Zoom out button on the Studio canvas',
+    panel: true,
+  },
+  'studio.zoom-in': {
+    label: 'Zoom in button on the Studio canvas',
+    panel: true,
+  },
+  'studio.zoom-fit': {
+    label: 'Zoom to fit button on the Studio canvas',
+    panel: true,
+  },
+  'studio.vertex-handle': {
+    label: 'Polygon vertex handle on the Studio canvas',
+    panel: true,
+  },
+  'studio.slide-thumb': {
+    label: 'Slide thumbnail in the Studio filmstrip',
+    panel: true,
+  },
+  'studio.slide-delete': {
+    label: 'Delete slide button in the Studio filmstrip',
+    destructive: true,
+    panel: true,
+  },
+  'studio.slides-show': {
+    label: 'Show slides button in the Studio filmstrip',
+    panel: true,
+  },
+  'studio.slides-hide': {
+    label: 'Hide slides button in the Studio filmstrip',
+    panel: true,
+  },
+  'studio.upload-slide': {
+    label: 'Add media button in the Studio filmstrip',
+    panel: true,
+  },
+  'studio.paste-slide': {
+    label: 'Paste slide button in the Studio filmstrip',
+    panel: true,
+  },
+  'studio.narration-stop': {
+    label: 'Stop narration recording button',
+    panel: true,
+  },
+  'studio.narration-save': {
+    label: 'Save narration button',
+    persists: true,
+    panel: true,
+  },
+  'studio.narration-discard': {
+    label: 'Discard narration recording button',
+    destructive: true,
+    panel: true,
+  },
+  'studio.narration-record': {
+    label: 'Start narration recording button',
+    panel: true,
+  },
+  'studio.narration-cancel': {
+    label: 'Cancel narration recording button',
+    panel: true,
+  },
+  'studio.narration-generate': {
+    label: 'Generate narration with AI button',
+    persists: true,
+    panel: true,
+  },
+  'studio.narration-open-recorder': {
+    label: 'Record narration button',
+    panel: true,
+  },
+  'studio.narration-delete': {
+    label: 'Delete narration button',
+    destructive: true,
+    panel: true,
+  },
+  'studio.narration-batch-generate': {
+    label: 'Generate narration for all steps button',
+    persists: true,
+    panel: true,
+  },
+  'studio.play-exit': {
+    label: 'Back to editing button in Studio play mode',
+    panel: true,
+  },
+  'studio.play-show-key': {
+    label: 'Show answer key switch in Studio play mode',
+    panel: true,
+  },
+  'studio.props-delete-step': {
+    label: 'Delete step button in the Studio properties panel',
+    destructive: true,
+    panel: true,
+  },
+  'studio.props-mark-reviewed': {
+    label: 'Mark reviewed button in the Studio properties panel',
+    persists: true,
+    panel: true,
+  },
+  'studio.props-description': {
+    label: 'Description box in the Studio properties panel',
+    panel: true,
+  },
+  'studio.props-welcome-enabled': {
+    label: 'Welcome screen checkbox in the Studio properties panel',
+    panel: true,
+  },
+  'studio.props-welcome-message': {
+    label: 'Welcome message box in the Studio properties panel',
+    panel: true,
+  },
+  'studio.props-edit-on-board': {
+    label: 'Edit on board button in the Studio properties panel',
+    panel: true,
+  },
+  'studio.question-text': { label: 'Question text box in Studio', panel: true },
+  'studio.question-correct': {
+    label: 'Correct answer radio in Studio',
+    panel: true,
+  },
+  'studio.question-choice': {
+    label: 'Answer choice box in Studio',
+    panel: true,
+  },
+  'studio.question-choice-remove': {
+    label: 'Remove answer choice button in Studio',
+    destructive: true,
+    panel: true,
+  },
+  'studio.question-choice-add': {
+    label: 'Add answer choice button in Studio',
+    panel: true,
+  },
+  'studio.question-match-left': {
+    label: 'Matching term box in Studio',
+    panel: true,
+  },
+  'studio.question-match-right': {
+    label: 'Matching definition box in Studio',
+    panel: true,
+  },
+  'studio.question-match-remove': {
+    label: 'Remove matching pair button in Studio',
+    destructive: true,
+    panel: true,
+  },
+  'studio.question-match-add': {
+    label: 'Add matching pair button in Studio',
+    panel: true,
+  },
+  'studio.question-sort-item': {
+    label: 'Sorting item box in Studio',
+    panel: true,
+  },
+  'studio.question-sort-remove': {
+    label: 'Remove sorting item button in Studio',
+    destructive: true,
+    panel: true,
+  },
+  'studio.question-sort-add': {
+    label: 'Add sorting item button in Studio',
+    panel: true,
+  },
+  'studio.region-corner': {
+    label: 'Corner radius slider for a hotspot region',
+    panel: true,
+  },
+  'studio.region-reset': {
+    label: 'Reset placement button for a hotspot region',
+    panel: true,
+  },
+  'studio.hub-upload': {
+    label: 'Upload card in the Studio start hub',
+    panel: true,
+  },
+  'studio.hub-paste': {
+    label: 'Paste card in the Studio start hub',
+    panel: true,
+  },
+  'studio.hub-capture': {
+    label: 'Capture card in the Studio start hub',
+    panel: true,
+  },
+  'studio.hub-record': {
+    label: 'Record a tour card in the Studio start hub',
+    panel: true,
+  },
+  'studio.hub-ai': {
+    label: 'Draft with AI card in the Studio start hub',
+    panel: true,
+  },
+  'studio.hub-import': {
+    label: 'Import card in the Studio start hub',
+    panel: true,
+  },
+  'studio.step-interaction': {
+    label: 'Interaction type select in the Studio step fields',
+    panel: true,
+  },
+  'studio.step-slide': {
+    label: 'Slide select in the Studio step fields',
+    panel: true,
+  },
+  'studio.step-label': {
+    label: 'Step label box in the Studio step fields',
+    panel: true,
+  },
+  'studio.step-text': {
+    label: 'Step text box in the Studio step fields',
+    panel: true,
+  },
+  'studio.step-auto-advance': {
+    label: 'Auto-advance seconds box in the Studio step fields',
+    panel: true,
+  },
+  'studio.step-hide-marker': {
+    label: 'Always hide hotspot marker checkbox in Studio',
+    panel: true,
+  },
+  'studio.step-range': {
+    label: 'Slider in the Studio step fields',
+    panel: true,
+  },
+  'studio.step-url': {
+    label: 'Media URL box in the Studio step fields',
+    panel: true,
+  },
+  'studio.step-upload': {
+    label: 'Upload media button in the Studio step fields',
+    panel: true,
+  },
+  'studio.timeline-slide': {
+    label: 'Go to slide button in the Studio timeline',
+    panel: true,
+  },
+  'studio.timeline-step': {
+    label: 'Step chip in the Studio timeline',
+    panel: true,
+  },
+  'studio.add-step': {
+    label: 'Add step button in the Studio timeline',
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;
