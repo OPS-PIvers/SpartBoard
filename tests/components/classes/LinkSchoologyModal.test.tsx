@@ -235,11 +235,11 @@ describe('LinkSchoologyModal', () => {
 
     const select = await screen.findByLabelText(/Class to link/i);
     expect(select).toHaveValue('rB');
-    // A class with no shared students can't be picked, and test classes aren't offered.
+    // A class with no shared students can't be picked; test classes are offered too.
     expect(
       screen.getByRole('option', { name: /Period 1 \(no shared students\)/ })
     ).toBeDisabled();
-    expect(screen.queryByRole('option', { name: /Test class/ })).toBeNull();
+    expect(screen.getByRole('option', { name: /Test class/ })).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /^Link$/i }));
     await waitFor(() =>
@@ -254,5 +254,22 @@ describe('LinkSchoologyModal', () => {
       'Linked “Biology · P2” to Period 2.',
       'success'
     );
+  });
+
+  it('offers the paste field with only admin test classes', () => {
+    render(
+      <LinkSchoologyModal
+        isOpen
+        onClose={vi.fn()}
+        rosters={[roster('rT', 'Test class', undefined, 'mock-p1')]}
+        seenSections={[]}
+        addToast={addToast}
+        updateRoster={updateRoster}
+        pasteLinkEnabled
+      />
+    );
+    expect(
+      screen.getByLabelText(/Paste a Schoology course link/i)
+    ).toBeTruthy();
   });
 });

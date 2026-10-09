@@ -253,9 +253,9 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
       ariaLabel="Link to Schoology"
     >
       <div className="py-4 space-y-3">
-        {pasteLinkEnabled && matchCandidates.length > 0 && (
+        {pasteLinkEnabled && candidateRosters.length > 0 && (
           <SchoologyPasteLink
-            rosters={matchCandidates}
+            rosters={candidateRosters}
             addToast={addToast}
             updateRoster={updateRoster}
           />

@@ -23,7 +23,8 @@ import {
   AGS_SCOPE_SCORE,
   NRPS_SCOPE,
 } from './config';
-import { ALLOWED_ORIGINS } from '../classlinkShared';
+import { ALLOWED_ORIGINS, computeStudentUid } from '../classlinkShared';
+import { loadTestClassMembership } from '../studentAssignmentTargets';
 import { getAgsAccessToken, postScore } from './ags';
 import { fetchNrpsMembers, type NrpsMember } from './nrps';
 import { ltiStudentUid } from './identity';
@@ -215,7 +216,12 @@ export async function targetSections(
       (testClassId && classIds.has(testClassId)) ||
       (rosterId && rosterIds.has(rosterId));
     if (!targeted || !isSchoologySectionId(d.id)) continue;
-    out.push({ contextId: d.id, title: str(l.contextTitle), classlinkClassId });
+    out.push({
+      contextId: d.id,
+      title: str(l.contextTitle),
+      classlinkClassId,
+      testClassId,
+    });
   }
   return out;
 }
@@ -364,7 +370,8 @@ function restOps(): RestOps | null {
 
 async function buildDeps(
   db: admin.firestore.Firestore,
-  store: ColumnStore
+  store: ColumnStore,
+  callerEmail: string
 ): Promise<ToolColumnDeps> {
   const cfg = await getLtiPlatformConfig(db);
   const hmac = STUDENT_PSEUDONYM_HMAC_SECRET.value();
@@ -425,6 +432,16 @@ async function buildDeps(
         classId,
         hmac
       ),
+    testClassUids: async (testClassId) => {
+      const { membership } = await loadTestClassMembership(db, callerEmail, [
+        testClassId,
+      ]);
+      const out = new Map<string, string>();
+      for (const mail of membership.keys()) {
+        out.set(mail, computeStudentUid(`test:${mail}`, hmac));
+      }
+      return out;
+    },
     rest: restOps(),
     store,
   };
@@ -665,7 +682,7 @@ export const ltiPushToolColumnV1 = onCall(
       uid,
       session.kind
     );
-    const deps = await buildDeps(db, store);
+    const deps = await buildDeps(db, store, email);
     const resourceId = toolColumnResourceId(session.kind, session.sessionId);
 
     const outcomes = [];

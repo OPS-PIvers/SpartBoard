@@ -152,6 +152,7 @@ beforeEach(() => {
     subUid: subUidOf,
     bridgeUids: vi.fn(async () => new Map([['su-2', 'cl-bob']])),
     oneRosterUids: vi.fn(async () => new Map([['c@school.edu', 'cl-carol']])),
+    testClassUids: vi.fn(async () => new Map<string, string>()),
     rest: makeRest(),
     store,
   };
@@ -539,6 +540,27 @@ describe('pushSection: matching', () => {
     expect(posted()).toEqual([
       { userId: '1::hash1', scoreGiven: 5, scoreMaximum: 10 },
     ]);
+  });
+
+  it('matches a test-class section by member email', async () => {
+    deps.testClassUids = vi.fn(
+      async () => new Map([['b@school.edu', 'test-bob']])
+    );
+    const out = await pushSection(
+      deps,
+      input({
+        section: {
+          contextId: CTX,
+          title: 'Bio P2',
+          classlinkClassId: null,
+          testClassId: 'mock-p1',
+        },
+        grades: [{ pseudonymUid: 'test-bob', pointsEarned: 4 }],
+      })
+    );
+    expect(deps.testClassUids).toHaveBeenCalledWith('mock-p1');
+    expect(deps.oneRosterUids).not.toHaveBeenCalled();
+    expect(out.results[0].ok).toBe(true);
   });
 
   it('still pushes when the OneRoster lookup fails', async () => {

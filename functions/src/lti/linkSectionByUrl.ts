@@ -23,6 +23,7 @@ import { LTI_COURSE_LINKS_COLLECTION } from './courseLinkEndpoints';
 import { USERS_COLLECTION } from './nrpsStore';
 import { classroomAddonNet } from '../classroomAddonAuth';
 import { isGlobalFeatureGranted } from '../quizMediaArchive';
+import { loadTestClassMembership } from '../studentAssignmentTargets';
 import { assertViewAsAllowed } from '../viewAsGuard';
 
 export const SCHOOLOGY_TOOL_COLUMNS_FEATURE = 'schoology-tool-columns';
@@ -89,11 +90,13 @@ export function activeLearnerEmails(members: NrpsMember[]): Set<string> {
 
 interface OwnedRoster {
   rosterId: string;
-  classlinkClassId: string;
+  /** Exactly one of these is set: a real ClassLink class or an admin test class. */
+  classlinkClassId: string | null;
+  testClassId: string | null;
   classlinkOrgId: string | null;
 }
 
-async function ownedClasslinkRosters(
+async function ownedLinkableRosters(
   db: admin.firestore.Firestore,
   uid: string
 ): Promise<OwnedRoster[]> {
@@ -106,14 +109,19 @@ async function ownedClasslinkRosters(
   for (const d of snap.docs) {
     const data = d.data() as {
       classlinkClassId?: unknown;
+      testClassId?: unknown;
       classlinkOrgId?: unknown;
     };
-    if (typeof data.classlinkClassId === 'string' && data.classlinkClassId) {
+    const str = (v: unknown): string | null =>
+      typeof v === 'string' && v ? v : null;
+    const classlinkClassId = str(data.classlinkClassId);
+    const testClassId = classlinkClassId ? null : str(data.testClassId);
+    if (classlinkClassId || testClassId) {
       out.push({
         rosterId: d.id,
-        classlinkClassId: data.classlinkClassId,
-        classlinkOrgId:
-          typeof data.classlinkOrgId === 'string' ? data.classlinkOrgId : null,
+        classlinkClassId,
+        testClassId,
+        classlinkOrgId: str(data.classlinkOrgId),
       });
     }
   }
@@ -160,6 +168,57 @@ async function overlapByClass(
         }
       })
     );
+  }
+  return out;
+}
+
+/**
+ * Section learners in each roster's class: ClassLink classes through OneRoster
+ * (when configured), admin test classes through their `memberEmails` (org admins only).
+ */
+async function overlapByRoster(
+  db: admin.firestore.Firestore,
+  callerEmail: string,
+  creds: ClasslinkCreds | null,
+  rosters: OwnedRoster[],
+  learnerEmails: Set<string>
+): Promise<Map<string, number>> {
+  const classIds = [
+    ...new Set(
+      rosters.map((r) => r.classlinkClassId).filter((c): c is string => !!c)
+    ),
+  ].slice(0, MAX_CANDIDATE_CLASSES);
+  const testIds = [
+    ...new Set(
+      rosters.map((r) => r.testClassId).filter((c): c is string => !!c)
+    ),
+  ].slice(0, MAX_CANDIDATE_CLASSES);
+  const [classlink, test] = await Promise.all([
+    creds && classIds.length > 0
+      ? overlapByClass(creds, classIds, learnerEmails)
+      : Promise.resolve(new Map<string, number>()),
+    testIds.length > 0
+      ? loadTestClassMembership(db, callerEmail, testIds).then(
+          ({ membership }) => {
+            const counts = new Map<string, number>();
+            for (const [mail, classId] of membership) {
+              if (learnerEmails.has(mail)) {
+                counts.set(classId, (counts.get(classId) ?? 0) + 1);
+              }
+            }
+            return counts;
+          }
+        )
+      : Promise.resolve(new Map<string, number>()),
+  ]);
+  const out = new Map<string, number>();
+  for (const r of rosters) {
+    const n = r.classlinkClassId
+      ? classlink.get(r.classlinkClassId)
+      : r.testClassId
+        ? test.get(r.testClassId)
+        : undefined;
+    out.set(r.rosterId, n ?? 0);
   }
   return out;
 }
@@ -273,19 +332,18 @@ export const ltiLinkSectionByUrlV1 = onCall(
       );
     }
 
-    const creds: ClasslinkCreds = {
+    const rawCreds: ClasslinkCreds = {
       tenantUrl: CLASSLINK_TENANT_URL.value(),
       clientId: CLASSLINK_CLIENT_ID.value(),
       clientSecret: CLASSLINK_CLIENT_SECRET.value(),
     };
-    if (!creds.tenantUrl || !creds.clientId || !creds.clientSecret) {
-      throw new HttpsError(
-        'failed-precondition',
-        'ClassLink isn’t set up, so classes can’t be matched.'
-      );
-    }
+    // Without ClassLink (dev), only admin test classes can be matched.
+    const creds =
+      rawCreds.tenantUrl && rawCreds.clientId && rawCreds.clientSecret
+        ? rawCreds
+        : null;
 
-    const owned = await ownedClasslinkRosters(db, callerUid);
+    const owned = await ownedLinkableRosters(db, callerUid);
     const storedTitle =
       typeof existing.data()?.contextTitle === 'string'
         ? (existing.data()?.contextTitle as string)
@@ -293,15 +351,17 @@ export const ltiLinkSectionByUrlV1 = onCall(
     const title = contextTitle ?? storedTitle;
 
     if (rosterId === null) {
-      const classIds = [...new Set(owned.map((r) => r.classlinkClassId))].slice(
-        0,
-        MAX_CANDIDATE_CLASSES
+      const overlaps = await overlapByRoster(
+        db,
+        email,
+        creds,
+        owned,
+        learnerEmails
       );
-      const overlaps = await overlapByClass(creds, classIds, learnerEmails);
       const suggestions: LinkByUrlSuggestion[] = owned
         .map((r) => ({
           rosterId: r.rosterId,
-          overlap: overlaps.get(r.classlinkClassId) ?? 0,
+          overlap: overlaps.get(r.rosterId) ?? 0,
         }))
         .filter((s) => s.overlap > 0)
         .sort((a, b) => b.overlap - a.overlap);
@@ -322,13 +382,13 @@ export const ltiLinkSectionByUrlV1 = onCall(
     if (!roster) {
       throw new HttpsError(
         'permission-denied',
-        'You can only link one of your own ClassLink classes.'
+        'You can only link one of your own classes.'
       );
     }
     const overlap =
-      (
-        await overlapByClass(creds, [roster.classlinkClassId], learnerEmails)
-      ).get(roster.classlinkClassId) ?? 0;
+      (await overlapByRoster(db, email, creds, [roster], learnerEmails)).get(
+        roster.rosterId
+      ) ?? 0;
     if (overlap === 0) {
       throw new HttpsError(
         'failed-precondition',
@@ -350,7 +410,7 @@ export const ltiLinkSectionByUrlV1 = onCall(
         teacherUid: callerUid,
         contextId,
         classlinkClassId: roster.classlinkClassId,
-        testClassId: null,
+        testClassId: roster.testClassId,
         classlinkOrgId: roster.classlinkOrgId,
         contextTitle: title,
         rosterId: roster.rosterId,

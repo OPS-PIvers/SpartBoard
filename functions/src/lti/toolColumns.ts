@@ -124,6 +124,8 @@ export interface ToolColumnDeps {
   bridgeUids(subUids: string[]): Promise<Map<string, string>>;
   /** Lowercased email → SpartBoard uid for a ClassLink class. */
   oneRosterUids(classlinkClassId: string): Promise<Map<string, string>>;
+  /** Lowercased email → SpartBoard uid for an admin test class (mock ClassLink). */
+  testClassUids(testClassId: string): Promise<Map<string, string>>;
   rest: RestOps | null;
   store: ColumnStore;
 }
@@ -149,6 +151,7 @@ export interface TargetSection {
   contextId: string;
   title: string | null;
   classlinkClassId: string | null;
+  testClassId?: string | null;
 }
 
 export type SectionStatus =
@@ -375,12 +378,14 @@ async function matchMembers(
     .bridgeUids(subUids)
     .catch(() => new Map<string, string>());
   let byEmail = new Map<string, string>();
-  if (section.classlinkClassId) {
-    try {
+  try {
+    if (section.classlinkClassId) {
       byEmail = await deps.oneRosterUids(section.classlinkClassId);
-    } catch (err) {
-      console.warn('[toolColumns] OneRoster lookup failed:', err);
+    } else if (section.testClassId) {
+      byEmail = await deps.testClassUids(section.testClassId);
     }
+  } catch (err) {
+    console.warn('[toolColumns] class roster lookup failed:', err);
   }
   const out = new Map<string, { sub: string; subUid: string }>();
   learners.forEach((m, i) => {

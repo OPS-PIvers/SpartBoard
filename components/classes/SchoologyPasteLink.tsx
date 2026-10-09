@@ -9,7 +9,7 @@ import {
 } from '@/utils/ltiCourseLinks';
 
 interface SchoologyPasteLinkProps {
-  /** The teacher's ClassLink rosters (the only classes a pasted course can link to). */
+  /** The teacher's ClassLink and admin test-class rosters. */
   rosters: ClassRoster[];
   addToast: (message: string, type: 'success' | 'error' | 'info') => void;
   updateRoster: (id: string, updates: Partial<ClassRoster>) => Promise<void>;
@@ -49,7 +49,7 @@ export const SchoologyPasteLink: React.FC<SchoologyPasteLinkProps> = ({
       setRosterId(res.suggestions[0]?.rosterId ?? '');
       if (res.suggestions.length === 0) {
         addToast(
-          'None of your ClassLink classes share students with that course.',
+          'None of your classes share students with that course.',
           'info'
         );
       }

@@ -15,11 +15,15 @@ vi.mock('firebase-functions/v2/https', () => {
   return { onCall: (_o: unknown, handler: unknown) => handler, HttpsError };
 });
 
+// Dev has no ClassLink: tests flip this to blank the tenant URL.
+const classlink = { on: true };
 vi.mock('firebase-functions/params', () => ({
   defineSecret: (name: string) => ({
     value: () =>
       name === 'CLASSLINK_TENANT_URL'
-        ? 'https://tenant.example'
+        ? classlink.on
+          ? 'https://tenant.example'
+          : ''
         : `secret:${name}`,
   }),
 }));
@@ -90,12 +94,20 @@ vi.mock('./ags', () => ({
   getAgsAccessToken: vi.fn().mockResolvedValue('nrps-token'),
 }));
 
-const { fetchNrpsMembershipMock, fetchClassStudentsMock, grantedMock } =
-  vi.hoisted(() => ({
-    fetchNrpsMembershipMock: vi.fn(),
-    fetchClassStudentsMock: vi.fn(),
-    grantedMock: vi.fn(),
-  }));
+const {
+  fetchNrpsMembershipMock,
+  fetchClassStudentsMock,
+  grantedMock,
+  testMembershipMock,
+} = vi.hoisted(() => ({
+  fetchNrpsMembershipMock: vi.fn(),
+  fetchClassStudentsMock: vi.fn(),
+  grantedMock: vi.fn(),
+  testMembershipMock: vi.fn(),
+}));
+vi.mock('../studentAssignmentTargets', () => ({
+  loadTestClassMembership: testMembershipMock,
+}));
 vi.mock('./nrps', () => ({ fetchNrpsMembership: fetchNrpsMembershipMock }));
 vi.mock('../classroomAddonAuth', () => ({
   classroomAddonNet: { fetchClassStudents: fetchClassStudentsMock },
@@ -139,6 +151,15 @@ const member = (
 });
 
 beforeEach(() => {
+  classlink.on = true;
+  // An org admin's test class with one of the section's learners.
+  testMembershipMock.mockReset().mockResolvedValue({
+    authorized: true,
+    membership: new Map([
+      ['a@school.edu', 'mock-p1'],
+      ['x@school.edu', 'mock-p1'],
+    ]),
+  });
   rosters = [
     { id: 'r-1', data: { classlinkClassId: 'cl-1', classlinkOrgId: 'org' } },
     { id: 'r-2', data: { classlinkClassId: 'cl-2' } },
@@ -258,6 +279,7 @@ describe('ltiLinkSectionByUrlV1', () => {
       suggestions: [
         { rosterId: 'r-1', overlap: 2 },
         { rosterId: 'r-2', overlap: 1 },
+        { rosterId: 'r-test', overlap: 1 },
       ],
       linkedRosterId: null,
     });
@@ -289,12 +311,45 @@ describe('ltiLinkSectionByUrlV1', () => {
     expect(courseLinks.size).toBe(0);
   });
 
-  it('refuses a roster the caller does not own (or a test class)', async () => {
-    for (const rosterId of ['someone-elses', 'r-test']) {
-      await expect(
-        call({ auth: TEACHER, data: { url: URL_OK, rosterId } })
-      ).rejects.toMatchObject({ code: 'permission-denied' });
-    }
+  it('refuses a roster the caller does not own', async () => {
+    await expect(
+      call({ auth: TEACHER, data: { url: URL_OK, rosterId: 'someone-elses' } })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('links an admin test class by its member emails', async () => {
+    const res = await call({
+      auth: TEACHER,
+      data: { url: URL_OK, rosterId: 'r-test' },
+    });
+    expect(res).toMatchObject({ ok: true, overlap: 1 });
+    expect(testMembershipMock).toHaveBeenCalledWith(
+      expect.anything(),
+      'T@school.edu',
+      ['mock-p1']
+    );
+    expect(courseLinks.get('7660186912')).toMatchObject({
+      classlinkClassId: null,
+      testClassId: 'mock-p1',
+      rosterId: 'r-test',
+    });
+  });
+
+  it('refuses a test class when the caller is not a test-class admin', async () => {
+    testMembershipMock.mockResolvedValue({
+      authorized: false,
+      membership: new Map(),
+    });
+    await expect(
+      call({ auth: TEACHER, data: { url: URL_OK, rosterId: 'r-test' } })
+    ).rejects.toThrow(/None of this Schoology course/);
+  });
+
+  it('matches only test classes when ClassLink is not set up', async () => {
+    classlink.on = false;
+    const res = await call({ auth: TEACHER, data: { url: URL_OK } });
+    expect(res.suggestions).toEqual([{ rosterId: 'r-test', overlap: 1 }]);
+    expect(fetchClassStudentsMock).not.toHaveBeenCalled();
   });
 
   it('never re-points a section another teacher linked', async () => {
