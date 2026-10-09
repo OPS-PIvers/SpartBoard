@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { ChevronDown } from 'lucide-react';
 import type { GlobalFeature, GlobalFeaturePermission } from '@/types';
 import { audienceSummary, groupFeatureSwitches } from './featureSwitchGroups';
@@ -44,6 +45,7 @@ const SwitchRow: React.FC<{
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-controls={panelId}
+          {...tourFieldAttr('admin.access.expand', 'admin', featureId)}
           className="flex items-center gap-3 min-w-0 flex-1 text-left"
         >
           <span
@@ -71,6 +73,7 @@ const SwitchRow: React.FC<{
           onChange={(enabled) => onUpdate({ enabled })}
           size="sm"
           label={`${name} enabled`}
+          anchor={tourFieldAttr('admin.access.enabled', 'admin', featureId)}
         />
       </div>
       {open && (
@@ -86,6 +89,7 @@ const SwitchRow: React.FC<{
               value={permission.accessLevel}
               onChange={(accessLevel) => onUpdate({ accessLevel })}
               label={name}
+              anchorKey={featureId}
             />
           </div>
           <PermissionBuildingMultiSelect
