@@ -250,6 +250,7 @@ export const TOOL_COLUMN_BENIGN_REASONS: ReadonlySet<string> = new Set([
   'duplicate student',
   'no Schoology category',
   'no Schoology column',
+  'not a teacher of the Schoology section',
 ]);
 
 const plural = (n: number, one: string, many: string): string =>
@@ -293,6 +294,11 @@ export function formatToolColumnPushToast(data: ToolColumnPushData): {
   if (pin > 0) {
     parts.push(
       `${plural(pin, 'PIN student', 'PIN students')} can't be matched.`
+    );
+  }
+  if (count('not a teacher of the Schoology section') > 0) {
+    parts.push(
+      "You aren't listed as a teacher of the Schoology section, so its grades weren't pushed."
     );
   }
   const blocked = data.sections.filter((s) => s.status === 'needs-category');
