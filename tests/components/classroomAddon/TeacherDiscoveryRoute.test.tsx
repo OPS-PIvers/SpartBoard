@@ -295,6 +295,11 @@ describe('ClassroomAddonTeacherSpike attach flow — availability', () => {
         'What students see',
       ])
         expect(screen.getByRole('region', { name })).toBeTruthy();
+      // Schedule starts off, so no unsaved window or late-work switch shows.
+      expect(screen.queryByText('Opens')).toBeNull();
+      expect(
+        screen.queryByRole('switch', { name: 'Allow submissions after close' })
+      ).toBeNull();
       fireEvent.click(
         screen.getByRole('switch', { name: 'Shuffle questions' })
       );
@@ -317,7 +322,7 @@ describe('ClassroomAddonTeacherSpike attach flow — availability', () => {
     }
   });
 
-  it('assign stepper on: video activities get the When body, and an edited When sets the due date', async () => {
+  it('assign stepper on: video activities get the When body, and Schedule on sets the due date', async () => {
     stepperOn = true;
     try {
       render(<ClassroomAddonTeacherSpike />);
@@ -330,9 +335,7 @@ describe('ClassroomAddonTeacherSpike attach flow — availability', () => {
       expect(
         screen.queryByRole('region', { name: 'Quiz integrity' })
       ).toBeNull();
-      fireEvent.click(
-        screen.getByRole('switch', { name: 'Allow submissions after close' })
-      );
+      fireEvent.click(screen.getByRole('switch', { name: 'Schedule' }));
       fireEvent.click(
         screen.getByRole('button', { name: /attach video activity/i })
       );

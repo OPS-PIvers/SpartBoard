@@ -293,4 +293,36 @@ describe('QuizStudentApp — question timer runs out', () => {
     expect(mockCompleteQuiz).not.toHaveBeenCalled();
     consoleSpy.mockRestore();
   }, 10000);
+
+  it('keeps NEXT QUESTION when a blank mid-quiz timeout fails to save', async () => {
+    mockSubmitAnswer.mockImplementation(
+      (_q: string, _a: string, _b?: number, opts?: { isDraft?: boolean }) =>
+        opts?.isDraft ? Promise.resolve() : Promise.reject(new Error('offline'))
+    );
+    const consoleSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    startQuiz([mcQuestion('q1', 'Pick one'), mcQuestion('q2', 'Pick two')]);
+    render(<QuizStudentApp />);
+    await screen.findByText(/Pick one/i);
+
+    expect(
+      await screen.findByRole(
+        'button',
+        { name: /NEXT QUESTION/ },
+        { timeout: 4000 }
+      )
+    ).toBeEnabled();
+    await waitFor(() =>
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '[QuizStudentApp] auto-submit failed:',
+        expect.any(Error)
+      )
+    );
+    expect(screen.getByRole('button', { name: /NEXT QUESTION/ })).toBeEnabled();
+    expect(
+      screen.queryByText(/Couldn't save your answer/i)
+    ).not.toBeInTheDocument();
+    consoleSpy.mockRestore();
+  }, 10000);
 });
