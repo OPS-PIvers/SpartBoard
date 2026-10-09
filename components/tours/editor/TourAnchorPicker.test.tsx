@@ -12,6 +12,7 @@ const board = () => (
     <button type="button" data-tour="not.registered" onClick={boardClick}>
       Other
     </button>
+    <span>Plain text</span>
   </div>
 );
 const boardClick = vi.fn();
@@ -61,6 +62,23 @@ describe('TourAnchorPicker', () => {
     expect(onPick).not.toHaveBeenCalled();
   });
 
+  it('picks nothing behind a dialog', () => {
+    const { onPick } = setup();
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    const text = document.createElement('p');
+    dialog.appendChild(text);
+    document.body.appendChild(dialog);
+    document.elementsFromPoint = () => [
+      text,
+      dialog,
+      screen.getByText('Tools'),
+    ];
+    fireEvent.click(text);
+    expect(onPick).not.toHaveBeenCalled();
+  });
+
   it('outlines a registered anchor on hover and names it', () => {
     setup();
     fireEvent.pointerMove(screen.getByText('Tools'));
@@ -68,6 +86,10 @@ describe('TourAnchorPicker', () => {
       'Open Tools button in the collapsed dock'
     );
     fireEvent.pointerMove(screen.getByText('Other'));
+    expect(screen.getByTestId('tour-anchor-picker-outline')).toHaveTextContent(
+      'other'
+    );
+    fireEvent.pointerMove(screen.getByText('Plain text'));
     expect(screen.queryByTestId('tour-anchor-picker-outline')).toBeNull();
   });
 
@@ -81,12 +103,29 @@ describe('TourAnchorPicker', () => {
     expect(boardClick).not.toHaveBeenCalled();
   });
 
-  it('ignores clicks on unregistered controls', () => {
+  it('binds an untagged control by its role and name', () => {
     boardClick.mockClear();
     const { onPick } = setup();
     fireEvent.click(screen.getByText('Other'));
-    expect(onPick).not.toHaveBeenCalled();
+    expect(onPick).toHaveBeenCalledWith({
+      anchor: '',
+      fallback: { role: 'button', name: 'other' },
+    });
     expect(boardClick).not.toHaveBeenCalled();
+  });
+
+  it('ignores clicks on things that are not controls', () => {
+    const { onPick } = setup();
+    fireEvent.click(screen.getByText('Plain text'));
+    expect(onPick).not.toHaveBeenCalled();
+  });
+
+  it('lets an Alt click through so a menu can be opened first', () => {
+    boardClick.mockClear();
+    const { onPick } = setup();
+    fireEvent.click(screen.getByText('Tools'), { altKey: true });
+    expect(boardClick).toHaveBeenCalled();
+    expect(onPick).not.toHaveBeenCalled();
   });
 
   it('cancels on Escape and from its bar', () => {

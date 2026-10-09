@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import { Download, Plus, Search } from 'lucide-react';
 import type { OrgRecord, Plan } from '@/components/admin/Organization/types';
 import {
@@ -54,6 +55,7 @@ export const AllOrganizationsView: React.FC<Props> = ({
         actions={
           <>
             <Btn
+              {...tourAttr('admin.org.export-orgs')}
               variant="secondary"
               icon={<Download size={14} />}
               onClick={() =>
@@ -63,6 +65,7 @@ export const AllOrganizationsView: React.FC<Props> = ({
               Export list
             </Btn>
             <Btn
+              {...tourAttr('admin.org.new-org')}
               variant="primary"
               icon={<Plus size={14} />}
               onClick={() => setShowCreate(true)}
@@ -80,6 +83,7 @@ export const AllOrganizationsView: React.FC<Props> = ({
             className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
           />
           <Input
+            {...tourAttr('admin.org.org-search')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search organizations..."
@@ -88,6 +92,7 @@ export const AllOrganizationsView: React.FC<Props> = ({
           />
         </div>
         <Segmented
+          anchor={tourAttr('admin.org.org-status-filter')}
           value={status}
           onChange={setStatus}
           options={[
@@ -253,10 +258,15 @@ const CreateOrgModal: React.FC<{
       icon={<Plus size={18} />}
       footer={
         <>
-          <Btn variant="ghost" onClick={onClose}>
+          <Btn
+            {...tourAttr('admin.org.new-org-cancel')}
+            variant="ghost"
+            onClick={onClose}
+          >
             Cancel
           </Btn>
           <Btn
+            {...tourAttr('admin.org.new-org-create')}
             variant="primary"
             onClick={() =>
               onCreate({
@@ -276,6 +286,7 @@ const CreateOrgModal: React.FC<{
       <div className="space-y-4">
         <Field label="Organization name" required>
           <Input
+            {...tourAttr('admin.org.new-org-name')}
             value={name}
             onChange={(e) => {
               setName(e.target.value);
@@ -288,6 +299,7 @@ const CreateOrgModal: React.FC<{
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Short code" hint="2-4 letters, used in avatars">
             <Input
+              {...tourAttr('admin.org.new-org-short-code')}
               value={shortCode}
               onChange={(e) =>
                 setShortCode(e.target.value.toUpperCase().slice(0, 4))
@@ -296,6 +308,7 @@ const CreateOrgModal: React.FC<{
           </Field>
           <Field label="Plan">
             <Select
+              {...tourAttr('admin.org.new-org-plan')}
               value={plan}
               onChange={(e) => setPlan(e.target.value as Plan)}
             >
@@ -307,6 +320,7 @@ const CreateOrgModal: React.FC<{
         </div>
         <Field label="Primary admin email" required>
           <Input
+            {...tourAttr('admin.org.new-org-admin-email')}
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}

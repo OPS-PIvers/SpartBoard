@@ -2,6 +2,7 @@ import React from 'react';
 import { Folder, Copy, Share2, Loader2, Pencil } from 'lucide-react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
+import { tourAttr } from '@/config/tourAnchors';
 import type { Collection } from '@/types';
 import { hexToRgba, collectionTextColor } from '@/utils/collectionColor';
 import { DropInsertionBar } from './DropInsertionBar';
@@ -84,6 +85,7 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
       ref={setRef}
       {...attributes}
       {...listeners}
+      {...tourAttr('boards-modal.collection-open')}
       className={`relative group rounded-xl border p-4 cursor-grab active:cursor-grabbing transition-all hover:shadow-md ${
         isDragging ? 'opacity-50' : ''
       } ${
@@ -120,6 +122,7 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
             : t('boardsModal.select', { defaultValue: 'Select' })
         }
         aria-pressed={isSelected}
+        {...tourAttr('boards-modal.collection-select')}
         className={`absolute top-2 right-2 z-10 w-5 h-5 rounded border-2 flex items-center justify-center transition hover:scale-110 motion-reduce:hover:scale-100 shadow-md ring-1 ring-black/10 ${
           isSelected
             ? 'bg-brand-blue-primary border-brand-blue-primary'
@@ -183,6 +186,7 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
             defaultValue: 'Edit Collection',
           })}
           aria-haspopup="menu"
+          {...tourAttr('boards-modal.collection-edit')}
           className={`p-1 rounded hover:text-slate-700 hover:bg-slate-100 transition ${
             collection.color ? 'text-slate-500' : 'text-slate-400'
           }`}
@@ -200,6 +204,7 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
             aria-label={t('collectionMenu.share', {
               defaultValue: 'Share Collection',
             })}
+            {...tourAttr('boards-modal.collection-share')}
             className={`p-1 rounded hover:text-brand-blue-primary hover:bg-brand-blue-lighter transition ${
               collection.color ? 'text-slate-500' : 'text-slate-300'
             }`}
@@ -220,6 +225,7 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
           aria-label={t('collectionMenu.duplicate', {
             defaultValue: 'Duplicate Collection',
           })}
+          {...tourAttr('boards-modal.collection-duplicate')}
           className={`p-1 rounded hover:text-slate-700 hover:bg-slate-100 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent ${
             collection.color
               ? 'text-slate-500 disabled:hover:text-slate-500'

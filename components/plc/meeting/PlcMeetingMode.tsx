@@ -85,6 +85,7 @@ import {
 } from './PlcMeetingSteps';
 import { PlcMeetingRecordView } from './PlcMeetingRecordView';
 import { pickInProgressMeeting } from '@/components/plc/home/cards/commonAssessmentBannerSelectors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcMeetingModeProps {
   plc: Plc;
@@ -506,6 +507,7 @@ const PlcMeetingLiveFlow: React.FC<{
         />
         <div className="flex items-center gap-2">
           <button
+            {...tourAttr('plc-meeting.home')}
             type="button"
             onClick={() => onNavigate('home')}
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800 px-2.5 py-1.5 rounded-lg hover:bg-slate-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
@@ -607,6 +609,7 @@ const PlcMeetingLiveFlow: React.FC<{
       {!(isLastStep && savedMeetingId) && (
         <div className="border-t border-slate-200 bg-white px-4 lg:px-6 py-3 flex items-center justify-between gap-3">
           <button
+            {...tourAttr('plc-meeting.back')}
             type="button"
             onClick={handleBack}
             disabled={currentIndex === 0}
@@ -618,6 +621,7 @@ const PlcMeetingLiveFlow: React.FC<{
 
           {isLastStep ? (
             <button
+              {...tourAttr('plc-meeting.save')}
               type="button"
               onClick={handleSave}
               disabled={saving || !canEdit}
@@ -634,6 +638,7 @@ const PlcMeetingLiveFlow: React.FC<{
             </button>
           ) : (
             <button
+              {...tourAttr('plc-meeting.next')}
               type="button"
               onClick={handleNext}
               className="inline-flex items-center gap-2 text-sm font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark px-5 py-2.5 rounded-xl shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
@@ -692,6 +697,7 @@ const SaveStep: React.FC<{
           </h2>
           <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
             <button
+              {...tourAttr('plc-meeting.view-record')}
               type="button"
               onClick={() => onViewRecord(savedMeetingId)}
               className="inline-flex items-center gap-2 text-sm font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark px-5 py-2.5 rounded-xl shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
@@ -701,6 +707,7 @@ const SaveStep: React.FC<{
               })}
             </button>
             <button
+              {...tourAttr('plc-meeting.start-over')}
               type="button"
               onClick={onStartOver}
               className="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 px-5 py-2.5 rounded-xl transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
@@ -940,6 +947,7 @@ export const MeetingExportButtons: React.FC<{
   return (
     <div className="flex flex-wrap items-center gap-3">
       <button
+        {...tourFieldAttr('plc-meeting.export', 'plc', 'sheet')}
         type="button"
         onClick={() => handleExport('sheet')}
         disabled={busy !== null}
@@ -955,6 +963,7 @@ export const MeetingExportButtons: React.FC<{
         })}
       </button>
       <button
+        {...tourFieldAttr('plc-meeting.export', 'plc', 'pdf')}
         type="button"
         onClick={() => handleExport('pdf')}
         disabled={busy !== null}

@@ -58,6 +58,7 @@ import type {
 import { SlideBackdrop } from './player/SlideBackdrop';
 import type { RedactMode, RedactRect } from '../utils/redactImage';
 import { focusRing } from '@/components/common/lightChrome';
+import { tourAttr } from '@/config/tourAnchors';
 
 /**
  * Clamp a video trim against the player's loaded metadata. The editor already
@@ -1155,6 +1156,7 @@ const StageBody: React.FC<
               <button
                 key={`region-${step.id}`}
                 type="button"
+                {...tourAttr('gl-player.hotspot')}
                 data-gl-region={step.id}
                 onClick={() => onPinClick(step.id)}
                 aria-label={
@@ -1233,6 +1235,7 @@ const StageBody: React.FC<
               }}
             >
               <button
+                {...tourAttr('gl-player.hotspot')}
                 onClick={() => onPinClick(step.id)}
                 className={`group relative flex items-center justify-center rounded-full border-2 border-white transition-all shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 bg-white/25 hover:bg-white/35 ${
                   // 'reminder' wiggle is applied to the button itself
@@ -1299,6 +1302,7 @@ const StageBody: React.FC<
             action={
               <button
                 type="button"
+                {...tourAttr('gl-player.retry-slide')}
                 onClick={retrySlide}
                 className="flex items-center rounded-full bg-white text-slate-900 font-bold hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/90 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                 style={{
@@ -1331,6 +1335,7 @@ const StageBody: React.FC<
           (Banner included), which top out at z-30. */}
       {schemaV2 && renderedTransform.scale > 1 && onResetZoom && (
         <button
+          {...tourAttr('gl-player.reset-zoom')}
           onClick={onResetZoom}
           aria-label={t('glPlayer.resetView')}
           className={`absolute left-1/2 -translate-x-1/2 z-40 rounded-full bg-white border border-slate-200 shadow-md hover:bg-slate-50 transition-all duration-200 active:scale-95 ${focusRing}`}

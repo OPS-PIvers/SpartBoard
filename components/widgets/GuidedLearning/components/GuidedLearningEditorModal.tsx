@@ -29,6 +29,7 @@ import {
 import { useGuidedLearningEditorState } from './useGuidedLearningEditorState';
 import { GuidedLearningAIGenerator } from './GuidedLearningAIGenerator';
 import type { GuidedLearningSaveGuard } from '../utils/saveConflict';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface GuidedLearningEditorModalProps {
   isOpen: boolean;
@@ -158,6 +159,7 @@ export const GuidedLearningEditorModal: React.FC<
     () =>
       folderPickerEnabled ? (
         <button
+          {...tourAttr('gl-editor.folder')}
           ref={folderButtonRef}
           type="button"
           onClick={() => setFolderPickerOpen((v) => !v)}
@@ -182,6 +184,7 @@ export const GuidedLearningEditorModal: React.FC<
     () =>
       canUseAi ? (
         <button
+          {...tourAttr('gl-editor.draft-ai')}
           onClick={() => setShowAiGen(true)}
           className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
           title="Generate with AI (Admin)"

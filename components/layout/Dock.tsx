@@ -1459,6 +1459,7 @@ export const Dock: React.FC = () => {
                 {session?.isActive && canAccessFeature('live-session') && (
                   <button
                     ref={liveButtonRef}
+                    {...tourAttr('dock.live-session')}
                     onClick={() => {
                       if (showLiveInfo) {
                         setShowLiveInfo(false);
@@ -1517,6 +1518,7 @@ export const Dock: React.FC = () => {
                       <div className="p-2 border-t border-white/30">
                         <button
                           onClick={() => setShowLiveInfo(false)}
+                          {...tourAttr('dock.live-popover-close')}
                           className="w-full py-2 bg-white/50 hover:bg-white/60 text-slate-700 rounded-lg text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-slate-400 focus-visible:ring-offset-white"
                         >
                           {t('common.close')}
@@ -1564,6 +1566,7 @@ export const Dock: React.FC = () => {
                         onClick={() =>
                           updateWidget(cw.id, { minimized: false })
                         }
+                        {...tourAttr('dock.restore-custom')}
                         className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-pan-x flex-shrink-0"
                         title={`Restore: ${customWidgetTitleById.get((cw.config as { customWidgetId?: string }).customWidgetId ?? '') ?? 'Custom Widget'}`}
                       >
@@ -1636,6 +1639,7 @@ export const Dock: React.FC = () => {
             {activeDashboard?.settings?.quickAccessWidgets?.[0] && (
               <QuickAccessButton
                 type={activeDashboard.settings.quickAccessWidgets[0]}
+                anchor={tourAttr('dock.quick-access-1')}
                 onClick={() => {
                   const type =
                     activeDashboard.settings?.quickAccessWidgets?.[0];
@@ -1675,6 +1679,7 @@ export const Dock: React.FC = () => {
             {activeDashboard?.settings?.quickAccessWidgets?.[1] && (
               <QuickAccessButton
                 type={activeDashboard.settings.quickAccessWidgets[1]}
+                anchor={tourAttr('dock.quick-access-2')}
                 onClick={() => {
                   const type =
                     activeDashboard.settings?.quickAccessWidgets?.[1];

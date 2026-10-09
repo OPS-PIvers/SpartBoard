@@ -16,6 +16,11 @@ export const SCHOOLOGY_TOKEN_URL =
 export const SCHOOLOGY_JWKS_URI =
   'https://lti-service.svc.schoology.com/lti-service/.well-known/jwks';
 
+// The LTI service host and SpartBoard's Schoology tool id; every section's AGS and
+// NRPS URLs are this template keyed by section id (proven against 364 saved URLs).
+export const SCHOOLOGY_LTI_SERVICE_HOST = 'lti-service.svc.schoology.com';
+export const SCHOOLOGY_TOOL_ID = '8409082949';
+
 // Our tool's public origin (login-init / launch / jwks all live here).
 export const TOOL_ORIGIN = 'https://spartboard.web.app';
 export const TOOL_LOGIN_URL = `${TOOL_ORIGIN}/lti/login`;

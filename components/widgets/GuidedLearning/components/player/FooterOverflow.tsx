@@ -3,6 +3,7 @@ import { MoreHorizontal } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { chromeSurface, focusRing } from '@/components/common/lightChrome';
 import { TouchHitBox } from './TouchHitBox';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface Props {
   children: React.ReactNode;
@@ -29,6 +30,7 @@ export const FooterOverflow: React.FC<Props> = ({ children }) => {
   return (
     <div ref={rootRef} className="relative flex-shrink-0">
       <button
+        {...tourAttr('gl-player.more')}
         ref={buttonRef}
         type="button"
         aria-haspopup="dialog"

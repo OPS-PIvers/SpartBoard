@@ -12,8 +12,10 @@ import {
   Trash2,
 } from 'lucide-react';
 import { FloatingPanel } from '@/components/common/FloatingPanel';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface FurnitureItemRendererProps {
+  widgetId?: string;
   item: FurnitureItem;
   mode: 'setup' | 'assign' | 'interact';
   isSelected: boolean;
@@ -34,6 +36,7 @@ interface FurnitureItemRendererProps {
 
 export const FurnitureItemRenderer = memo(
   ({
+    widgetId,
     item,
     mode,
     isSelected,
@@ -140,6 +143,11 @@ export const FurnitureItemRenderer = memo(
                 e.stopPropagation();
                 onRotate(item.id, -45);
               }}
+              {...tourAttr(
+                'seating.rotate-item-left',
+                widgetId,
+                'seating-chart'
+              )}
               className="p-1.5 hover:bg-slate-100 rounded-full text-slate-600 transition-colors"
               title="Rotate Left"
             >
@@ -150,6 +158,11 @@ export const FurnitureItemRenderer = memo(
                 e.stopPropagation();
                 onRotate(item.id, 45);
               }}
+              {...tourAttr(
+                'seating.rotate-item-right',
+                widgetId,
+                'seating-chart'
+              )}
               className="p-1.5 hover:bg-slate-100 rounded-full text-slate-600 transition-colors"
               title="Rotate Right"
             >
@@ -161,6 +174,7 @@ export const FurnitureItemRenderer = memo(
                 e.stopPropagation();
                 onDuplicate(item.id);
               }}
+              {...tourAttr('seating.duplicate-item', widgetId, 'seating-chart')}
               className="p-1.5 hover:bg-slate-100 rounded-full text-slate-600 transition-colors"
               title="Duplicate"
             >
@@ -171,6 +185,7 @@ export const FurnitureItemRenderer = memo(
                 e.stopPropagation();
                 onRemove(item.id);
               }}
+              {...tourAttr('seating.remove-item', widgetId, 'seating-chart')}
               className="p-1.5 hover:bg-red-50 rounded-full text-red-500 transition-colors"
               title="Delete"
             >
@@ -209,6 +224,11 @@ export const FurnitureItemRenderer = memo(
                         e.stopPropagation();
                         onRemoveAssignment(student.id);
                       }}
+                      {...tourAttr(
+                        'seating.unseat-student',
+                        widgetId,
+                        'seating-chart'
+                      )}
                       className="ml-1 text-red-400 hover:text-red-600"
                     >
                       &times;

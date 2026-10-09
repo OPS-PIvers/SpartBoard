@@ -8,6 +8,8 @@ export interface SandboxItem extends TourMaterialContent {
   origin: SandboxOrigin;
   /** Bumped on every write, so lists re-sort newest first. */
   seq: number;
+  /** Written again after it was first put, so a sample the teacher worked on. */
+  changed?: boolean;
 }
 
 type Shelf = ReadonlyMap<string, SandboxItem>;
@@ -119,10 +121,12 @@ export const sandboxPut = (
 ): void => {
   if (!state.active) return;
   const shelf = new Map(state.items[kind]);
+  const prev = shelf.get(id);
   shelf.set(id, {
     ...content,
-    origin: shelf.get(id)?.origin ?? origin,
+    origin: prev?.origin ?? origin,
     seq: ++seq,
+    changed: !!prev,
   });
   emit({ ...state, items: { ...state.items, [kind]: shelf } });
 };
@@ -190,7 +194,11 @@ export const keepableSandboxItems = (): {
 }[] =>
   TOUR_MATERIAL_KINDS.flatMap((kind) =>
     [...state.items[kind]]
-      .filter(([, item]) => item.origin !== 'copy')
+      .filter(
+        ([, item]) =>
+          item.origin === 'created' ||
+          (item.origin === 'sample' && item.changed)
+      )
       .map(([id, item]) => ({
         kind,
         id,

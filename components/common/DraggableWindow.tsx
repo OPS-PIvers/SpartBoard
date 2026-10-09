@@ -8,6 +8,7 @@ import React, {
   useSyncExternalStore,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { WidgetWhatsNew } from './WidgetWhatsNewNotice';
 import { useTranslation } from 'react-i18next';
 import {
   X,
@@ -76,6 +77,7 @@ import { PenColorSwatches } from '@/components/common/PenColorSwatches';
 import { WIDGET_PALETTE } from '@/config/colors';
 import { Z_INDEX } from '@/config/zIndex';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { useTourRunning } from '@/components/tours/tourState';
 import { getWidgetMinSize, hasExplicitMinSize } from '@/config/widgetEnvelopes';
 
 // Widgets that cannot be snapshotted due to CORS/Technical limitations
@@ -661,6 +663,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const [prevIsMaximized, setPrevIsMaximized] = useState(isMaximized);
   // The maximized controls hide off the top edge until the pointer comes near it.
   const [maxBarShown, setMaxBarShown] = useState(false);
+  // A running live tour keeps the bar out so its anchors stay clickable.
+  const tourRunning = useTourRunning();
+  const maxBarVisible = maxBarShown || tourRunning;
   if (isMaximized !== prevIsMaximized) {
     setPrevIsMaximized(isMaximized);
     if (!isMaximized) {
@@ -2919,7 +2924,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
       {/* Maximized top bar: restore + a kebab with the actions still useful
           full-screen. It slides down near the top edge so content stays full-bleed. */}
-      {isMaximized && !maxBarShown && !showMaxMenu && (
+      {isMaximized && !maxBarVisible && !showMaxMenu && (
         <div
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-0 top-1.5 z-widget-control mx-auto h-1 w-10 rounded-full bg-slate-400/60"
@@ -2930,7 +2935,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           ref={maxMenuRef}
           data-max-bar=""
           className={`absolute inset-x-0 top-0 z-widget-control mx-auto flex w-fit flex-col items-center gap-2 pt-3 transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none focus-within:pointer-events-auto focus-within:translate-y-0 focus-within:opacity-100 ${
-            maxBarShown || showMaxMenu
+            maxBarVisible || showMaxMenu
               ? 'pointer-events-auto translate-y-0 opacity-100'
               : 'pointer-events-none -translate-y-full opacity-0'
           }`}
@@ -3089,6 +3094,23 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       {(isMaximized || isSpotlighted) && typeof document !== 'undefined'
         ? createPortal(content, document.body)
         : content}
+
+      {!isMaximized &&
+        !isSpotlighted &&
+        !widget.minimized &&
+        !isDragging &&
+        !isResizing && (
+          <WidgetWhatsNew
+            widgetType={widget.type}
+            box={{
+              left: override?.x ?? widget.x,
+              top: override?.y ?? widget.y,
+              width: Math.max(renderMinW ?? 0, override?.w ?? widget.w),
+              height: Math.max(renderMinH ?? 0, override?.h ?? widget.h),
+            }}
+            zIndex={widget.z}
+          />
+        )}
 
       {/* TOOL MENU PORTAL — suppressed while maximized; the bottom-right FAB
           cluster provides the relevant actions full-screen instead. */}

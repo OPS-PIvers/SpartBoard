@@ -1608,6 +1608,10 @@ export interface PlcGoal {
   id: string;
   title: string;
   measure?: string;
+  /** SMART frame pieces; title is the sentence built from them. YYYY-MM-DD. */
+  dueDate?: string;
+  students?: string;
+  outcome?: string;
   baseline?: number;
   current?: number;
   target?: number;
@@ -5196,6 +5200,8 @@ export interface QuizSession
    * (`maxPoints`) is derived from the quiz at push time, not stored here.
    */
   ltiAttachment?: LtiAttachmentLink;
+  /** Set by the server once SpartBoard made a Schoology gradebook column for this assignment (SCHOOLOGY_TOOL_COLUMNS.md D5). */
+  ltiToolColumn?: boolean;
   /** Mirrors `QuizAssignment.openAt`/`closeAt`. Absent = always open. */
   openAt?: number | null;
   closeAt?: number | null;
@@ -7296,6 +7302,8 @@ export interface VideoActivitySession
    * view. Mirrors `QuizSession.ltiAttachment`.
    */
   ltiAttachment?: LtiAttachmentLink;
+  /** Set by the server once SpartBoard made a Schoology gradebook column for this assignment (SCHOOLOGY_TOOL_COLUMNS.md D5). */
+  ltiToolColumn?: boolean;
   /** Mirrors `VideoActivityAssignment.openAt`/`closeAt`. Absent = always open. */
   openAt?: number | null;
   closeAt?: number | null;
@@ -9962,7 +9970,13 @@ export type GlobalFeature =
   /** Widget libraries open on folders with a path bar, Recent view and drag filing (docs/plans/LIBRARY_FOLDERS.md D26). */
   | 'library-folder-view'
   /** Assign as an accordion stepper (docs/plans/ASSIGN_STEPPER.md D16). */
-  | 'assign-stepper';
+  | 'assign-stepper'
+  /** Team invite boxes suggest staff emails from the org directory as you type. */
+  | 'team-email-suggest'
+  /** Push scores into a SpartBoard-made Schoology gradebook column (docs/plans/SCHOOLOGY_TOOL_COLUMNS.md D11). */
+  | 'schoology-tool-columns'
+  /** A what's-new button under a widget whose changelog entry carries a note for that widget type. */
+  | 'widget-whats-new';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

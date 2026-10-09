@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { MonitorX, Pause, Play, Users } from 'lucide-react';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 interface PresentControlsProps {
   showNames: boolean;
@@ -54,6 +55,7 @@ export const PresentControls: React.FC<PresentControlsProps> = ({
         <button
           onClick={onToggleNames}
           aria-pressed={showNames}
+          {...tourTypeAttr('quiz-present.names', 'quiz')}
           className={`inline-flex items-center rounded-md border font-sans font-semibold transition-colors ${
             showNames
               ? 'bg-brand-blue-primary border-brand-blue-primary text-white'
@@ -78,6 +80,7 @@ export const PresentControls: React.FC<PresentControlsProps> = ({
           <>
             <button
               onClick={onPlayMedia}
+              {...tourTypeAttr('quiz-present.play-media', 'quiz')}
               className="inline-flex items-center rounded-md border border-brand-gray-lighter bg-white text-brand-gray-dark font-sans font-semibold transition-colors hover:border-brand-blue-light"
               style={{
                 gap: 'min(6px, 1.5cqmin)',
@@ -97,6 +100,7 @@ export const PresentControls: React.FC<PresentControlsProps> = ({
             <button
               onClick={onPauseMedia}
               aria-label="Pause media"
+              {...tourTypeAttr('quiz-present.pause-media', 'quiz')}
               className="rounded-md border border-brand-gray-lighter bg-white text-brand-gray-dark transition-colors hover:border-brand-blue-light"
               style={{ padding: 'min(6px, 1.5cqmin)' }}
             >
@@ -111,6 +115,7 @@ export const PresentControls: React.FC<PresentControlsProps> = ({
         )}
         <button
           onClick={onExit}
+          {...tourTypeAttr('quiz-present.close', 'quiz')}
           className="inline-flex items-center rounded-md border border-brand-gray-lighter bg-white text-brand-red-primary font-sans font-semibold transition-colors hover:border-brand-red-light ml-auto"
           style={{
             gap: 'min(6px, 1.5cqmin)',
@@ -138,6 +143,7 @@ export const PresentControls: React.FC<PresentControlsProps> = ({
           </span>
           <input
             value={draft}
+            {...tourTypeAttr('quiz-present.pause-message', 'quiz')}
             onChange={(e) => setDraft(e.target.value)}
             onBlur={() => onSavePauseMessage(draft.trim())}
             onKeyDown={(e) => {

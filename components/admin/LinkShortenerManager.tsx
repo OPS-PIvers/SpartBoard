@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   Link2,
   Plus,
@@ -169,6 +170,7 @@ export const ShortLinkCreateForm: React.FC<CreateFormProps> = ({
           Destination URL
         </label>
         <input
+          {...tourAttr('admin.links.destination')}
           type="url"
           value={destination}
           onChange={(event) => setDestination(event.target.value)}
@@ -191,6 +193,7 @@ export const ShortLinkCreateForm: React.FC<CreateFormProps> = ({
               /r/
             </span>
             <input
+              {...tourAttr('admin.links.slug')}
               type="text"
               value={slug}
               onChange={(event) => setSlug(event.target.value)}
@@ -208,6 +211,7 @@ export const ShortLinkCreateForm: React.FC<CreateFormProps> = ({
             </span>
           </label>
           <input
+            {...tourAttr('admin.links.label')}
             type="text"
             value={label}
             onChange={(event) => setLabel(event.target.value)}
@@ -224,6 +228,7 @@ export const ShortLinkCreateForm: React.FC<CreateFormProps> = ({
       )}
 
       <button
+        {...tourAttr('admin.links.create')}
         type="submit"
         disabled={submitting}
         className="self-start inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-blue-primary text-white text-sm font-semibold hover:bg-brand-blue-dark disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
@@ -243,6 +248,7 @@ export const ShortLinkCreateForm: React.FC<CreateFormProps> = ({
             {buildShortUrl(created.code)}
           </code>
           <button
+            {...tourAttr('admin.links.copy-created')}
             type="button"
             onClick={() => handleCopy(buildShortUrl(created.code))}
             className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white border border-emerald-200 text-emerald-700 text-xs font-semibold hover:bg-emerald-100 transition-colors"
@@ -314,6 +320,7 @@ const EditModal: React.FC<EditModalProps> = ({ link, onClose, onSaved }) => {
             </p>
           </div>
           <button
+            {...tourAttr('admin.links.modal-close')}
             type="button"
             onClick={onClose}
             aria-label="Close"
@@ -328,6 +335,7 @@ const EditModal: React.FC<EditModalProps> = ({ link, onClose, onSaved }) => {
             Destination URL
           </label>
           <input
+            {...tourAttr('admin.links.edit-destination')}
             type="url"
             value={destination}
             onChange={(event) => setDestination(event.target.value)}
@@ -341,6 +349,7 @@ const EditModal: React.FC<EditModalProps> = ({ link, onClose, onSaved }) => {
             Label
           </label>
           <input
+            {...tourAttr('admin.links.edit-label')}
             type="text"
             value={label}
             onChange={(event) => setLabel(event.target.value)}
@@ -362,6 +371,7 @@ const EditModal: React.FC<EditModalProps> = ({ link, onClose, onSaved }) => {
 
         <div className="flex items-center justify-end gap-2 pt-2">
           <button
+            {...tourAttr('admin.links.edit-cancel')}
             type="button"
             onClick={onClose}
             className="px-3 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100"
@@ -369,6 +379,7 @@ const EditModal: React.FC<EditModalProps> = ({ link, onClose, onSaved }) => {
             Cancel
           </button>
           <button
+            {...tourAttr('admin.links.edit-save')}
             type="submit"
             disabled={saving}
             className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-brand-blue-primary text-white text-sm font-semibold hover:bg-brand-blue-dark disabled:opacity-60"
@@ -488,6 +499,7 @@ export const LinkShortenerManager: React.FC = () => {
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
+              {...tourAttr('admin.links.search')}
               type="text"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -540,6 +552,11 @@ export const LinkShortenerManager: React.FC = () => {
                           /r/{link.code}
                         </code>
                         <button
+                          {...tourFieldAttr(
+                            'admin.links.copy',
+                            'admin',
+                            link.code
+                          )}
                           type="button"
                           onClick={() => handleCopy(link.code)}
                           aria-label="Copy short URL"
@@ -580,6 +597,11 @@ export const LinkShortenerManager: React.FC = () => {
                     <td className="px-4 py-3 align-top text-right">
                       <div className="inline-flex items-center gap-1">
                         <button
+                          {...tourFieldAttr(
+                            'admin.links.edit',
+                            'admin',
+                            link.code
+                          )}
                           type="button"
                           onClick={() => setEditing(link)}
                           aria-label="Edit link"
@@ -588,6 +610,11 @@ export const LinkShortenerManager: React.FC = () => {
                           <Pencil className="w-4 h-4" />
                         </button>
                         <button
+                          {...tourFieldAttr(
+                            'admin.links.delete',
+                            'admin',
+                            link.code
+                          )}
                           type="button"
                           onClick={() => handleDelete(link)}
                           aria-label="Delete link"

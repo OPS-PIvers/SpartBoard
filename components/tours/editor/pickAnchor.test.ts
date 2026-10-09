@@ -72,6 +72,49 @@ describe('resolvePickTarget', () => {
   });
 });
 
+describe('resolvePickTarget in menus and widgets', () => {
+  it('binds an untagged menu item inside its opener tag by role and name', () => {
+    mount(
+      '<div data-tour="settings.help"><button aria-haspopup="menu">?</button><div role="menu"><button id="t" role="menuitem">Open guides</button></div></div>'
+    );
+    expect(resolvePickTarget(document.getElementById('t'))).toMatchObject({
+      pick: {
+        anchor: '',
+        fallback: { role: 'menuitem', name: 'open guides' },
+      },
+      label: 'open guides',
+    });
+  });
+
+  it('binds an untagged control inside a whole widget, not the widget', () => {
+    mount(
+      '<div data-tour="widget.window" data-tour-widget="w-1" data-tour-widget-type="drawing"><button id="t" aria-label="Stroke eraser"><svg></svg></button></div>'
+    );
+    const hit = resolvePickTarget(document.getElementById('t'));
+    expect(hit?.pick).toEqual({
+      anchor: '',
+      fallback: { role: 'button', name: 'stroke eraser' },
+    });
+    expect(hit?.label).toBe('Stroke eraser');
+  });
+
+  it('binds an untagged control in a popover portalled outside any tag', () => {
+    mount('<div role="dialog"><button id="t">Lasso eraser</button></div>');
+    expect(resolvePickTarget(document.getElementById('t'))?.pick.anchor).toBe(
+      ''
+    );
+  });
+
+  it('keeps a tagged row for the switch inside it', () => {
+    mount(
+      '<div data-tour-widget="w-1"><div data-tour="settings.field" data-tour-widget-type="clock" data-tour-field="format24"><button id="t" role="switch">24 hour</button></div></div>'
+    );
+    expect(resolvePickTarget(document.getElementById('t'))?.pick.anchor).toBe(
+      'settings.field:clock#format24'
+    );
+  });
+});
+
 describe('applyAnchorPick', () => {
   it('keeps the action and value and clears the old binding details', () => {
     expect(

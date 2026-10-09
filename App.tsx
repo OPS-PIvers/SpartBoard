@@ -318,6 +318,13 @@ const TeamsAdminDefaultsDevHarness = import.meta.env.DEV
       )
     )
   : null;
+const MemberSuggestDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/plc/teams/dev/MemberSuggestDevHarness').then(
+        (module) => ({ default: module.MemberSuggestDevHarness })
+      )
+    )
+  : null;
 const SpartyDevGallery = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/SpartyDevGallery').then((module) => ({
@@ -1005,6 +1012,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <TeamsB4DevHarness />
+      </Suspense>
+    );
+  }
+
+  if (
+    import.meta.env.DEV &&
+    MemberSuggestDevHarness &&
+    isAuthBypass &&
+    pathname === '/team-email-suggest-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <MemberSuggestDevHarness />
       </Suspense>
     );
   }

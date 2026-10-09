@@ -5,6 +5,7 @@ import {
   NOTEBOOK_MIN_ZOOM,
   NotebookZoom,
 } from '../useNotebookZoom';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 interface NotebookZoomControlsProps {
   zoom: NotebookZoom;
@@ -26,6 +27,7 @@ export const NotebookZoomControls: React.FC<NotebookZoomControlsProps> = ({
     <div className="flex items-center" style={{ gap: 'min(6px, 1.5cqmin)' }}>
       <button
         onClick={zoom.zoomOut}
+        {...tourTypeAttr('smart-notebook.zoom-out', 'smartNotebook')}
         disabled={zoom.scale <= NOTEBOOK_MIN_ZOOM}
         className={btnClass}
         style={btnStyle}
@@ -36,6 +38,7 @@ export const NotebookZoomControls: React.FC<NotebookZoomControlsProps> = ({
       </button>
       <button
         onClick={zoom.reset}
+        {...tourTypeAttr('smart-notebook.zoom-reset', 'smartNotebook')}
         className="rounded-lg hover:bg-slate-100 font-black text-slate-700 tracking-widest uppercase transition-colors"
         style={{
           fontSize: 'min(11px, 2.8cqmin)',
@@ -49,6 +52,7 @@ export const NotebookZoomControls: React.FC<NotebookZoomControlsProps> = ({
       </button>
       <button
         onClick={zoom.zoomIn}
+        {...tourTypeAttr('smart-notebook.zoom-in', 'smartNotebook')}
         disabled={zoom.scale >= NOTEBOOK_MAX_ZOOM}
         className={btnClass}
         style={btnStyle}

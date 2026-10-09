@@ -1,3 +1,4 @@
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { Card } from '@/components/common/Card';
 import React from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
@@ -82,6 +83,11 @@ export const HotspotImageConfigurationPanel: React.FC<
             {THEME_OPTIONS.map((theme) => (
               <button
                 key={theme.value}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'hotspot-image',
+                  `popoverTheme-${theme.value}`
+                )}
                 onClick={() =>
                   handleUpdateBuilding({
                     popoverTheme: theme.value,

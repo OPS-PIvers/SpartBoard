@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Eye, Loader2, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { PUBLISH_LEVEL_OPTIONS } from '@/components/common/library/publishScoreLevels';
 import {
   RESULTS_PROTECTION_DEFAULTS,
@@ -97,6 +98,7 @@ export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
             onClick={onClose}
             disabled={submitting}
             aria-label="Close"
+            {...tourAttr('modal.close')}
             className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors disabled:opacity-50"
           >
             <X className="w-5 h-5" />
@@ -124,6 +126,11 @@ export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
                 <input
                   type="radio"
                   name="student-results-level"
+                  {...tourFieldAttr(
+                    'quiz-results.show-results-level',
+                    'quiz',
+                    id
+                  )}
                   value={id}
                   checked={active}
                   onChange={() => setVisibility(id)}
@@ -157,6 +164,11 @@ export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
                 <input
                   type="radio"
                   name="student-results-expiry"
+                  {...tourFieldAttr(
+                    'quiz-results.show-results-expiry',
+                    'quiz',
+                    opt.id
+                  )}
                   value={opt.id}
                   checked={expiry === opt.id}
                   onChange={() => setExpiry(opt.id)}
@@ -186,6 +198,7 @@ export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
             type="button"
             onClick={onClose}
             disabled={submitting}
+            {...tourTypeAttr('quiz-results.show-results-cancel', 'quiz')}
             className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
           >
             Cancel
@@ -194,6 +207,7 @@ export const ShowResultsDialog: React.FC<ShowResultsDialogProps> = ({
             type="button"
             onClick={() => void handleConfirm()}
             disabled={submitting}
+            {...tourTypeAttr('quiz-results.show-results-confirm', 'quiz')}
             className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white hover:bg-brand-blue-light disabled:opacity-60"
           >
             {submitting && <Loader2 className="w-4 h-4 animate-spin" />}

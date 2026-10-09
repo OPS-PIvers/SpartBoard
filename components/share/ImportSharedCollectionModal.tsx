@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Folder } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
 import type { SharedCollection } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface ImportSharedCollectionModalProps {
   shareId: string;
@@ -162,6 +163,7 @@ export const ImportSharedCollectionModal: FC<
             <button
               type="button"
               onClick={onClose}
+              {...tourAttr('import-shared-collection.cancel')}
               className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded"
             >
               {t('common.cancel', { defaultValue: 'Cancel' })}
@@ -169,6 +171,7 @@ export const ImportSharedCollectionModal: FC<
             <button
               type="button"
               onClick={() => void handleImport()}
+              {...tourAttr('import-shared-collection.import')}
               disabled={
                 busy ||
                 state.kind !== 'found' ||

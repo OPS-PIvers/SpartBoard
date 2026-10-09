@@ -25,7 +25,7 @@ import React, {
 } from 'react';
 import { useQuizTranslations } from '@/hooks/useQuizTranslations';
 import { useTranslation } from 'react-i18next';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
 import {
   Plus,
   PencilLine,
@@ -449,7 +449,6 @@ interface QuizManagerProps {
   banksLoading?: boolean;
   /** Teammates' PLC-shared banks (kind 'plc'). */
   sharedBankSources?: BankSource[];
-  sharedBanksLoading?: boolean;
   onNewBank?: () => void;
   onImportBank?: () => void;
   onEditBank?: (meta: QuestionBankMetadata) => void;
@@ -701,7 +700,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   banks,
   banksLoading = false,
   sharedBankSources,
-  sharedBanksLoading,
   onNewBank,
   onImportBank,
   onEditBank,
@@ -748,6 +746,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const assessmentOnly = !isReview && canAccessFeature('quiz-review-split');
   // Plan D16/D12: the stepper replaces the assign dialog and always prefills last-used rules.
   const stepperOn = !isReview && canAccessFeature('assign-stepper');
+  const schoologyToolColumns = canAccessFeature('schoology-tool-columns');
   const prefillLastUsed = assessmentOnly || stepperOn;
   const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
     userId,
@@ -857,6 +856,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           setViewOnlyShareTarget(quiz);
           setViewOnlyShareLink(null);
           setViewOnlyShareError(null);
+        } else if (
+          stepperOn ||
+          (schoologyToolColumns && !canAssignToClassroom)
+        ) {
+          // Stepper (Classroom posts from the assignment's menu) or no other destination: skip the chooser.
+          setAssignDestination('spartboard');
+          setAssignBehavior(seedBehavior(quiz));
+          setAssignTarget(quiz);
         } else {
           // Open the destination chooser first; it routes to the SpartBoard assign
           // modal, the Google Classroom flow, or the Schoology how-to.
@@ -864,7 +871,16 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         }
       });
     },
-    [isViewOnly, claudeReview, isReview, onStartReview]
+    [
+      isViewOnly,
+      claudeReview,
+      isReview,
+      onStartReview,
+      stepperOn,
+      schoologyToolColumns,
+      canAssignToClassroom,
+      seedBehavior,
+    ]
   );
 
   // Route a chooser pick to the right flow. SpartBoard/Classroom both continue
@@ -2170,6 +2186,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             icon: Combine,
             onClick: () => void handleBulkMerge(),
             disabled: selection.count < 2,
+            anchor: tourTypeAttr('quiz-library.bulk-merge', 'quiz'),
           },
         ]
       : []),
@@ -2180,6 +2197,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             label: 'Share with PLC',
             icon: Users2,
             onClick: handleBulkSharePlc,
+            anchor: tourTypeAttr('quiz-library.bulk-share-plc', 'quiz'),
           },
         ]
       : []),
@@ -2354,7 +2372,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         banks={banks}
         loading={banksLoading}
         sharedBankSources={sharedBankSources ?? []}
-        sharedBanksLoading={sharedBanksLoading}
         plcs={plcs}
         shell={{
           widgetLabel: 'Quiz',
@@ -2774,6 +2791,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         <AssignDestinationModal
           quizTitle={chooserTarget.title}
           showClassroom={canAssignToClassroom}
+          showSchoology={!schoologyToolColumns}
           onPick={handlePickDestination}
           onClose={() => setChooserTarget(null)}
         />
@@ -2902,6 +2920,7 @@ const LibraryTabContent: React.FC<{
           <button
             type="button"
             onClick={onImport}
+            {...tourTypeAttr('quiz-library.empty-import', tourWidgetType)}
             className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-2xl transition-all shadow-md active:scale-95"
             style={{
               gap: 'min(8px, 2cqmin)',
@@ -3038,6 +3057,7 @@ const LibraryTabContent: React.FC<{
           primaryAction={{
             label: 'Open editor',
             icon: Edit2,
+            anchor: tourTypeAttr('quiz-library.preview-open-editor', 'quiz'),
             onClick: () => {
               const q = previewQuiz;
               onPreviewQuiz(null);
@@ -3048,6 +3068,10 @@ const LibraryTabContent: React.FC<{
             {
               label: 'Check answers',
               icon: Eye,
+              anchor: tourTypeAttr(
+                'quiz-library.preview-check-answers',
+                'quiz'
+              ),
               onClick: () => {
                 const q = previewQuiz;
                 onPreviewQuiz(null);

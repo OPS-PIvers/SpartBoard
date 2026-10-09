@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Check, Copy, ExternalLink } from 'lucide-react';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import { QuizSession } from '@/types';
 import { withPreviewFlag } from '@/utils/urlHelpers';
 
@@ -56,6 +57,7 @@ export const JoinCodeScreen: React.FC<{ session: QuizSession }> = ({
       >
         <button
           onClick={handleCopy}
+          {...tourTypeAttr('quiz-monitor.copy-join-link', 'quiz')}
           className="inline-flex items-center bg-brand-blue-primary hover:bg-brand-blue-light text-white font-sans font-semibold rounded-md transition-colors"
           style={{
             gap: 'min(6px, 1.5cqmin)',
@@ -82,6 +84,7 @@ export const JoinCodeScreen: React.FC<{ session: QuizSession }> = ({
         </button>
         <a
           href={withPreviewFlag(joinUrl)}
+          {...tourTypeAttr('quiz-monitor.open-join-link', 'quiz')}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center bg-white border border-brand-gray-lighter hover:border-brand-blue-light text-brand-blue-primary font-sans font-semibold rounded-md transition-colors"

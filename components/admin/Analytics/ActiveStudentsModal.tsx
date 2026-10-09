@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import { httpsCallable } from 'firebase/functions';
 import {
   AlertTriangle,
@@ -144,6 +145,7 @@ export const ActiveStudentsModal: React.FC<{
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
+                {...tourAttr('admin.analytics.active-students-search')}
                 type="text"
                 placeholder="Search by student or teacher…"
                 value={search}

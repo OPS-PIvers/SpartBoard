@@ -1644,12 +1644,14 @@ export const DashboardView: React.FC = () => {
                   setGroupBuildMode(false);
                   setSelectedWidgetIds([]);
                 }}
+                {...tourAttr('dashboard.group-cancel')}
                 className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800 transition-colors"
               >
                 {t('common.cancel')}
               </button>
               <button
                 disabled={selectedWidgetIds.length < 2}
+                {...tourAttr('dashboard.group-widgets')}
                 onClick={() => {
                   groupWidgets(selectedWidgetIds);
                   setGroupBuildMode(false);
@@ -1761,6 +1763,7 @@ export const DashboardView: React.FC = () => {
             dashboards.length > 1 ? 'bottom-16' : 'bottom-6'
           }`}
           aria-label="Toggle background video sound"
+          {...tourAttr('dashboard.bg-sound-toggle')}
         >
           <div className="relative flex items-center justify-center w-full h-full">
             <Music className="w-4 h-4" />

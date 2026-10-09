@@ -27,6 +27,12 @@ import {
   findTargetMastery,
 } from '../dataOverviewModel';
 import { BUILT_IN_TEAM_TYPE_PRESETS } from '@/config/teamTypePresets';
+import { BUILT_IN_ROUTINE_GUIDE_ROUTINES } from '@/config/routineGuide';
+import { GoalEditorModal } from '@/components/plc/goals/GoalEditorModal';
+
+const ROUTINES = [...BUILT_IN_ROUTINE_GUIDE_ROUTINES].sort((a, b) =>
+  a.name.localeCompare(b.name)
+);
 
 const PAGES: ShellPage[] = [
   { id: 'data', label: 'Data overview', icon: BarChart3 },
@@ -100,12 +106,16 @@ function readParams() {
     coach: params.get('coach') === '1',
     capture: params.get('capture') === '1',
     empty: params.get('empty') === '1',
+    edit: params.get('edit'),
   };
 }
 
 export const TeamsPlcDataDevHarness: React.FC = () => {
   const [initial] = useState(readParams);
   const [screen, setScreen] = useState(initial.screen);
+  const [editing, setEditing] = useState<PlcGoal | 'new' | null>(
+    initial.edit === 'new' ? 'new' : initial.edit === '1' ? GOAL : null
+  );
   const { lead, tagged, empty, hero: heroKind } = initial;
   const aggregates = useMemo(
     () => (empty ? [] : tagged ? AGGREGATES : AGGREGATES.map(untag)),
@@ -137,8 +147,8 @@ export const TeamsPlcDataDevHarness: React.FC = () => {
       hero={heroAsHero}
       pinned={heroAsHero}
       pinnedBy="Priya Shah"
-      onEdit={() => undefined}
-      onAdd={() => undefined}
+      onEdit={setEditing}
+      onAdd={() => setEditing('new')}
       coach={() => Promise.resolve(COACH_RESULT)}
       initialResult={initial.coach ? COACH_RESULT : null}
     />
@@ -209,6 +219,17 @@ export const TeamsPlcDataDevHarness: React.FC = () => {
             onOpenAssessment={() => undefined}
             onAllAssessments={() => undefined}
           />
+          {editing && (
+            <GoalEditorModal
+              goal={editing === 'new' ? null : editing}
+              showProgress
+              nextOrder={1}
+              routines={ROUTINES}
+              gradeLevels={['6-8']}
+              onSave={() => Promise.resolve()}
+              onClose={() => setEditing(null)}
+            />
+          )}
           {screen === 'targets' && (
             <ManageTargetsModal
               list={{ targets: LEARNING_TARGETS, updatedAt: MOCK_NOW }}
