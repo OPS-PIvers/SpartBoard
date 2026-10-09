@@ -26,7 +26,7 @@ import {
 } from './panelControls';
 import type { GuidedLearningEditorController } from '../useGuidedLearningEditorState';
 import { markReviewed } from './aiDraftReview';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface StudioPropertiesPanelProps {
   state: GuidedLearningEditorController;
@@ -243,6 +243,13 @@ const ActivitySection: React.FC<{
       </Field>
       <ChoiceGroup
         legend={t('glStudio.playMode')}
+        optionAnchor={(v) =>
+          tourFieldAttr(
+            'studio.panel-option',
+            'guided-learning',
+            `playMode-${v}`
+          )
+        }
         value={mode}
         options={(canOfferTour || mode === 'tour'
           ? [...MODES, 'tour' as const]
@@ -258,6 +265,13 @@ const ActivitySection: React.FC<{
       {mode === 'guided' && (
         <ChoiceGroup
           legend={t('glStudio.watchPace')}
+          optionAnchor={(v) =>
+            tourFieldAttr(
+              'studio.panel-option',
+              'guided-learning',
+              `watchPace-${v}`
+            )
+          }
           value={watchPace ?? 'standard'}
           options={PACES.map((value) => ({
             value,
@@ -371,6 +385,13 @@ const SlideSection: React.FC<{
       <Group title={t('glStudio.allSlides')}>
         <ChoiceGroup
           legend={t('glStudio.pulse')}
+          optionAnchor={(v) =>
+            tourFieldAttr(
+              'studio.panel-option',
+              'guided-learning',
+              `pulse-${v}`
+            )
+          }
           value={hotspotPulse}
           options={PULSES.map((value) => ({
             value,
@@ -383,6 +404,13 @@ const SlideSection: React.FC<{
         />
         <ChoiceGroup
           legend={t('glStudio.transition')}
+          optionAnchor={(v) =>
+            tourFieldAttr(
+              'studio.panel-option',
+              'guided-learning',
+              `transition-${v}`
+            )
+          }
           value={imageTransition}
           options={TRANSITIONS.map((value) => ({
             value,

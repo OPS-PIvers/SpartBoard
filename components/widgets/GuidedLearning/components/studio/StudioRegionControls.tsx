@@ -19,7 +19,7 @@ import {
   hintClass,
   quietButtonClass,
 } from './panelControls';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface StudioRegionControlsProps {
   step: GuidedLearningStep;
@@ -78,6 +78,13 @@ export const StudioRegionControls: React.FC<StudioRegionControlsProps> = ({
     >
       <ChoiceGroup
         legend={t('glStudio.targetShape')}
+        optionAnchor={(v) =>
+          tourFieldAttr(
+            'studio.panel-option',
+            'guided-learning',
+            `targetShape-${v}`
+          )
+        }
         value={current}
         options={SHAPES.map((s) => ({
           value: s,

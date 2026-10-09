@@ -15,7 +15,7 @@ import {
 } from './panelControls';
 import { useAuth } from '@/context/useAuth';
 import { TargetsField } from '@/components/quiz/targets/TargetsField';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 type StepChange = (next: GuidedLearningStep, field?: string | false) => void;
 
@@ -57,6 +57,13 @@ export const StudioQuestionFields: React.FC<{
     <div className="flex flex-col gap-4" data-testid="gl-studio-question">
       <ChoiceGroup
         legend={t('glStudio.questionType')}
+        optionAnchor={(v) =>
+          tourFieldAttr(
+            'studio.panel-option',
+            'guided-learning',
+            `questionType-${v}`
+          )
+        }
         value={q.type}
         options={QUESTION_TYPES.map((value) => ({
           value,
