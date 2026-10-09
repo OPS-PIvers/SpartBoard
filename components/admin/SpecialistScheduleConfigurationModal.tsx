@@ -27,6 +27,7 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { Modal } from '@/components/common/Modal';
 import { Button } from '@/components/common/Button';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { Card } from '@/components/common/Card';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
@@ -361,6 +362,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
       </div>
       <button
         onClick={onClose}
+        {...tourTypeAttr('admin.widget-config.close', 'specialist-schedule')}
         className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
       >
         <X className="w-6 h-6" />
@@ -376,12 +378,18 @@ export const SpecialistScheduleConfigurationModal: React.FC<
       <div className="flex gap-3">
         <button
           onClick={onClose}
+          {...tourFieldAttr(
+            'admin.widget-config.field',
+            'specialist-schedule',
+            'cancel'
+          )}
           className="px-6 py-2.5 rounded-2xl text-sm font-black text-slate-500 hover:bg-white transition-all border border-transparent hover:border-slate-200"
         >
           Cancel
         </button>
         <button
           onClick={() => void handleSave()}
+          {...tourTypeAttr('admin.widget-config.save', 'specialist-schedule')}
           disabled={saving}
           className="px-8 py-2.5 bg-teal-600 text-white rounded-2xl text-sm font-black shadow-lg shadow-teal-500/20 hover:bg-teal-700 transition-all flex items-center gap-2 disabled:opacity-50"
         >
@@ -457,6 +465,11 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                       <div className="flex bg-white rounded-lg p-1 border border-slate-200">
                         <button
                           onClick={() => setRotationMode('calendar')}
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'specialist-schedule',
+                            'rotationMode-calendar'
+                          )}
                           aria-pressed={!isBlockMode}
                           className={`px-3 py-1 text-xs font-bold rounded ${!isBlockMode ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
                         >
@@ -464,6 +477,11 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                         </button>
                         <button
                           onClick={() => setRotationMode('blocks')}
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'specialist-schedule',
+                            'rotationMode-blocks'
+                          )}
                           aria-pressed={isBlockMode}
                           className={`px-3 py-1 text-xs font-bold rounded ${isBlockMode ? 'bg-teal-600 text-white shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
                         >
@@ -481,6 +499,11 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                       </label>
                       <input
                         id="specialist-cycle-length"
+                        {...tourFieldAttr(
+                          'admin.widget-config.field',
+                          'specialist-schedule',
+                          'cycleLength'
+                        )}
                         type="number"
                         min={MIN_CYCLE_LENGTH}
                         max={MAX_CYCLE_LENGTH}
@@ -497,6 +520,11 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                       </span>
                       <input
                         type="text"
+                        {...tourFieldAttr(
+                          'admin.widget-config.field',
+                          'specialist-schedule',
+                          'dayLabel'
+                        )}
                         value={currentBuildingConfig.dayLabel ?? ''}
                         onChange={(e) =>
                           updateBuilding({ dayLabel: e.target.value })
@@ -513,6 +541,11 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                         </span>
                         <input
                           type="date"
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'specialist-schedule',
+                            'startDate'
+                          )}
                           value={currentBuildingConfig.startDate ?? ''}
                           onChange={(e) =>
                             updateBuilding({ startDate: e.target.value })
@@ -537,6 +570,11 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                           </p>
                           <button
                             onClick={clearPreStartDays}
+                            {...tourFieldAttr(
+                              'admin.widget-config.field',
+                              'specialist-schedule',
+                              'clearPreStartDays'
+                            )}
                             className="text-xxs font-black uppercase tracking-wider text-amber-700 hover:text-amber-900 underline"
                           >
                             Unmark them
@@ -566,6 +604,11 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                           </span>
                           <input
                             type="text"
+                            {...tourFieldAttr(
+                              'admin.widget-config.field',
+                              'specialist-schedule',
+                              `dayName-${num}`
+                            )}
                             value={
                               currentBuildingConfig.customDayNames?.[num] ?? ''
                             }
@@ -593,6 +636,11 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                     <div className="flex gap-2">
                       <input
                         type="text"
+                        {...tourFieldAttr(
+                          'admin.widget-config.field',
+                          'specialist-schedule',
+                          'newOption'
+                        )}
                         value={newOption}
                         onChange={(e) => setNewOption(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && addOption()}
@@ -601,6 +649,10 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                       />
                       <button
                         onClick={addOption}
+                        {...tourTypeAttr(
+                          'admin.widget-config.add',
+                          'specialist-schedule'
+                        )}
                         className="p-1.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700"
                       >
                         <Plus className="w-4 h-4" />
@@ -619,6 +671,11 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                             </span>
                             <button
                               onClick={() => removeOption(option)}
+                              {...tourFieldAttr(
+                                'admin.widget-config.field',
+                                'specialist-schedule',
+                                `remove-${option}`
+                              )}
                               className="p-1 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
@@ -703,6 +760,11 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                                 </label>
                                 <input
                                   id={`specialist-block-start-date-${i}`}
+                                  {...tourFieldAttr(
+                                    'admin.widget-config.field',
+                                    'specialist-schedule',
+                                    `blockStart-${i}`
+                                  )}
                                   type="date"
                                   value={
                                     currentBuildingConfig.blocks?.[i]
@@ -723,6 +785,11 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                                 </label>
                                 <input
                                   id={`specialist-block-end-date-${i}`}
+                                  {...tourFieldAttr(
+                                    'admin.widget-config.field',
+                                    'specialist-schedule',
+                                    `blockEnd-${i}`
+                                  )}
                                   type="date"
                                   value={
                                     currentBuildingConfig.blocks?.[i]
@@ -747,6 +814,11 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                     >
                       <div className="bg-slate-50 p-3 flex items-center justify-between border-b border-slate-200">
                         <button
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'specialist-schedule',
+                            'prevMonth'
+                          )}
                           onClick={() =>
                             setCurrentMonth(
                               new Date(
@@ -767,6 +839,11 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                           })}
                         </h4>
                         <button
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'specialist-schedule',
+                            'nextMonth'
+                          )}
                           onClick={() =>
                             setCurrentMonth(
                               new Date(
@@ -806,6 +883,11 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                             return (
                               <button
                                 key={dateStr}
+                                {...tourFieldAttr(
+                                  'admin.widget-config.field',
+                                  'specialist-schedule',
+                                  `day-${dateStr}`
+                                )}
                                 onClick={() => toggleSchoolDay(date)}
                                 className={`
                                   aspect-square flex items-center justify-center text-xs rounded-lg font-bold transition-all
@@ -828,6 +910,11 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                         variant="secondary"
                         className="flex-1 text-xxs"
                         onClick={selectAllWeekdays}
+                        {...tourFieldAttr(
+                          'admin.widget-config.field',
+                          'specialist-schedule',
+                          'selectWeekdays'
+                        )}
                       >
                         Select M-F
                       </Button>
@@ -835,6 +922,11 @@ export const SpecialistScheduleConfigurationModal: React.FC<
                         variant="secondary"
                         className="flex-1 text-xxs"
                         onClick={clearMonth}
+                        {...tourFieldAttr(
+                          'admin.widget-config.field',
+                          'specialist-schedule',
+                          'clearMonth'
+                        )}
                       >
                         Clear Month
                       </Button>

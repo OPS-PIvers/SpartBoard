@@ -72,6 +72,7 @@ export const BuildingsView: React.FC<Props> = ({
         actions={
           <>
             <Segmented
+              anchor={tourAttr('admin.org.building-view-mode')}
               value={view}
               onChange={setView}
               options={[

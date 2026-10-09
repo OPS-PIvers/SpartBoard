@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { useDashboard } from '@/context/useDashboard';
 import { Star, Plus } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface Props {
   onClose: () => void;
@@ -113,6 +114,7 @@ const ClassRosterMenu: React.FC<Props> = ({
             className={`flex items-center justify-between rounded hover:bg-slate-50 group ${activeRosterId === r.id ? 'bg-blue-50' : ''}`}
           >
             <button
+              {...tourFieldAttr('classes.roster-menu-item', 'classes', r.id)}
               className="flex items-center gap-2 p-2 flex-1 text-left"
               onClick={() =>
                 setActiveRoster(activeRosterId === r.id ? null : r.id)
@@ -140,6 +142,7 @@ const ClassRosterMenu: React.FC<Props> = ({
       <div className="p-2 border-t bg-slate-50">
         <button
           onClick={onOpenFullEditor}
+          {...tourAttr('classes.open-full-editor')}
           className="w-full bg-blue-600 text-white py-2 rounded text-xs font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-colors"
         >
           <Plus size={14} /> Open Full Editor

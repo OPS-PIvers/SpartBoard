@@ -17,6 +17,7 @@ import {
 } from '@/components/widgets/math-tools/mathToolUtils';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { GRADE_LABELS, PALETTE_SECTIONS } from './constants';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export const MathToolsWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -142,6 +143,7 @@ export const MathToolsWidget: React.FC<{ widget: WidgetData }> = ({
             Grade
           </span>
           <select
+            {...tourAttr('math-tools.grade-filter', widget.id, widget.type)}
             value={gradeFilter}
             onChange={(e) =>
               setGradeFilter(e.target.value as GradeLevel | 'all')
@@ -178,6 +180,7 @@ export const MathToolsWidget: React.FC<{ widget: WidgetData }> = ({
         {PALETTE_SECTIONS.map((s) => (
           <button
             key={s.id}
+            {...tourFieldAttr('math-tools.tab', 'mathTools', s.id)}
             onClick={() => setActiveTab(s.id)}
             className={`rounded-t-xl font-black transition-colors border-t border-x ${
               activeTab === s.id
@@ -257,6 +260,7 @@ export const MathToolsWidget: React.FC<{ widget: WidgetData }> = ({
               {visibleTools.map((tool) => (
                 <button
                   key={tool.type}
+                  {...tourFieldAttr('math-tools.tool', 'mathTools', tool.type)}
                   onClick={() =>
                     activeSection.mode === 'sticker-whole'
                       ? handleSpawnSticker(tool.type)
@@ -344,6 +348,11 @@ export const MathToolsWidget: React.FC<{ widget: WidgetData }> = ({
                       {subItems.map((item) => (
                         <button
                           key={item.id}
+                          {...tourFieldAttr(
+                            'math-tools.piece',
+                            'mathTools',
+                            `${tool.type}.${item.id}`
+                          )}
                           onClick={() => handleSpawnPiece(tool.type, item)}
                           title={item.description ?? item.label}
                           className="flex flex-col items-center justify-center bg-white border border-slate-200 rounded-xl font-black text-slate-600 hover:bg-brand-blue-lighter hover:border-brand-blue-light hover:text-brand-blue-dark transition-all active:scale-95 shadow-sm hover:shadow"

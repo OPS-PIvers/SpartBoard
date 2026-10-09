@@ -82,7 +82,7 @@ import { ShuffleList } from './ShuffleList';
 
 import { WidgetLayout } from '../WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface ModeCycleEntry {
   id: string;
@@ -1726,6 +1726,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
     const emptyAction = everyoneAbsent ? (
       <button
+        {...tourAttr('random.show-absent', widget.id, widget.type)}
         onClick={() => setAbsentModalOpen(true)}
         className="flex items-center bg-brand-blue-primary text-white rounded-full font-bold hover:bg-brand-blue-dark transition-colors"
         style={{
@@ -1973,6 +1974,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               }}
             >
               <GroupSizeStepper
+                tourField="expert"
                 value={displayNumExpertGroups}
                 onChange={setNumExpertGroups}
                 label={t('widgets.random.expertLabelShort', {
@@ -1986,6 +1988,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 variant={jigsawView === 'expert' ? 'primary' : 'secondary'}
                 shape="pill"
                 size="md"
+                {...tourFieldAttr('random.jigsaw-view', 'random', 'expert')}
                 onClick={() => setJigsawView('expert')}
                 disabled={jigsawView === 'expert'}
                 aria-pressed={jigsawView === 'expert'}
@@ -2020,6 +2023,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 </span>
               </Button>
               <GroupSizeStepper
+                tourField="home"
                 value={displayNumHomeGroups}
                 onChange={setNumHomeGroups}
                 label={t('widgets.random.homeLabelShort', {
@@ -2033,6 +2037,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 variant={jigsawView === 'home' ? 'primary' : 'secondary'}
                 shape="pill"
                 size="md"
+                {...tourFieldAttr('random.jigsaw-view', 'random', 'home')}
                 onClick={() => setJigsawView('home')}
                 disabled={jigsawView === 'home'}
                 aria-pressed={jigsawView === 'home'}
@@ -2110,6 +2115,11 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   <Button
                     variant="secondary"
                     shape="pill"
+                    {...tourAttr(
+                      'random.send-to-scoreboard',
+                      widget.id,
+                      widget.type
+                    )}
                     onClick={handleSendToScoreboard}
                     aria-label={t('widgets.random.sendToScoreboard')}
                     style={{
@@ -2132,6 +2142,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 )}
               {mode === 'groups' && (
                 <GroupSizeStepper
+                  tourField="size"
                   value={groupCountMode ? displayNumGroups : groupSize}
                   onChange={groupCountMode ? setNumGroups : setGroupSize}
                   label={
@@ -2172,6 +2183,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               {mode === 'jigsaw' && !hasJigsawGroups && (
                 <>
                   <GroupSizeStepper
+                    tourField="home"
                     value={displayNumHomeGroups}
                     onChange={setNumHomeGroups}
                     label={t('widgets.random.homeLabelShort', {
@@ -2182,6 +2194,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     })}
                   />
                   <GroupSizeStepper
+                    tourField="expert"
                     value={displayNumExpertGroups}
                     onChange={setNumExpertGroups}
                     label={t('widgets.random.expertLabelShort', {
@@ -2206,6 +2219,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   <Button
                     variant="secondary"
                     shape="pill"
+                    {...tourAttr('random.rotate', widget.id, widget.type)}
                     onClick={handleRotate}
                     aria-label={t('widgets.random.rotateGroups', {
                       defaultValue: 'Rotate groups',

@@ -3942,6 +3942,9 @@
     "pick": "Choisir",
     "addStep": "Ajouter une étape",
     "listTitle": "Choisissez une commande",
+    "onScreen": "À l’écran",
+    "elsewhere": "Ailleurs",
+    "showMore": "Afficher {{count}} de plus",
     "recordFromHere": "Enregistrer à partir d'ici"
   },
   "widgetWhatsNew": {

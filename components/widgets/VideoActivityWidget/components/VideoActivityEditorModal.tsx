@@ -7,7 +7,7 @@
  * prompt / answers).
  */
 
-import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import React, { useCallback, useMemo, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import {
@@ -321,6 +321,7 @@ export const VideoActivityEditorModal: React.FC<
   return (
     <EditorWorkspace
       tourScope="video-activity"
+      saveAnchor={tourTypeAttr('editor.save', 'video-activity')}
       key={activity.id}
       isOpen={isOpen}
       title={title}

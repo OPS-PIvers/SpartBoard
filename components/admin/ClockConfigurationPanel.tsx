@@ -12,6 +12,7 @@ import { STANDARD_COLORS } from '@/config/colors';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { Card } from '@/components/common/Card';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 interface ClockConfigurationPanelProps {
   config: ClockGlobalConfig;
@@ -94,6 +95,11 @@ export const ClockConfigurationPanel: React.FC<
             onChange={(checked) => handleUpdateBuilding({ format24: checked })}
             size="xs"
             showLabels={false}
+            anchor={tourFieldAttr(
+              'admin.widget-config.field',
+              'clock',
+              'format24'
+            )}
           />
         </div>
 
@@ -118,6 +124,11 @@ export const ClockConfigurationPanel: React.FC<
               return (
                 <button
                   key={opt.value}
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'clock',
+                    `fontFamily-${opt.value}`
+                  )}
                   role="radio"
                   aria-checked={checked}
                   tabIndex={checked ? 0 : -1}
@@ -149,6 +160,11 @@ export const ClockConfigurationPanel: React.FC<
           >
             <input
               type="color"
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'clock',
+                'themeColorPicker'
+              )}
               value={currentBuildingConfig.themeColor ?? STANDARD_COLORS.slate}
               onChange={(e) =>
                 handleUpdateBuilding({ themeColor: e.target.value })
@@ -158,6 +174,11 @@ export const ClockConfigurationPanel: React.FC<
             />
             <input
               type="text"
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'clock',
+                'themeColor'
+              )}
               value={currentBuildingConfig.themeColor ?? ''}
               onChange={(e) =>
                 handleUpdateBuilding({
@@ -169,6 +190,7 @@ export const ClockConfigurationPanel: React.FC<
             />
             {currentBuildingConfig.themeColor && (
               <button
+                {...tourTypeAttr('admin.widget-config.remove', 'clock')}
                 onClick={() => handleUpdateBuilding({ themeColor: undefined })}
                 className="text-xxs text-slate-400 hover:text-red-500 font-bold transition-colors"
               >
@@ -199,6 +221,11 @@ export const ClockConfigurationPanel: React.FC<
               return (
                 <button
                   key={opt.value}
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'clock',
+                    `clockStyle-${opt.value}`
+                  )}
                   role="radio"
                   aria-checked={checked}
                   tabIndex={checked ? 0 : -1}
@@ -232,6 +259,7 @@ export const ClockConfigurationPanel: React.FC<
             onChange={(checked) => handleUpdateBuilding({ glow: checked })}
             size="xs"
             showLabels={false}
+            anchor={tourFieldAttr('admin.widget-config.field', 'clock', 'glow')}
           />
         </div>
       </Card>

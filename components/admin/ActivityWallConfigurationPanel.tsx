@@ -16,6 +16,7 @@ import {
   ActivityWallLayout,
   BuildingActivityWallDefaults,
 } from '@/types';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 // Both defaults surfaces share one buildingDefaults[buildingId] record.
 type ActivityWallBuildingRecord = ActivityWallBuildingConfig &
@@ -113,6 +114,11 @@ export const ActivityWallConfigurationPanel: React.FC<
           </label>
           <select
             id="aw-default-layout"
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'activity-wall',
+              'defaultLayout'
+            )}
             value={currentBuildingConfig.defaultLayout ?? 'wall'}
             onChange={(event) =>
               handleUpdateBuilding({
@@ -135,6 +141,11 @@ export const ActivityWallConfigurationPanel: React.FC<
           </span>
           <input
             type="checkbox"
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'activity-wall',
+              'defaultAllowGuests'
+            )}
             checked={currentBuildingConfig.defaultAllowGuests ?? false}
             onChange={(event) =>
               handleUpdateBuilding({ defaultAllowGuests: event.target.checked })
@@ -149,6 +160,11 @@ export const ActivityWallConfigurationPanel: React.FC<
           </span>
           <input
             type="checkbox"
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'activity-wall',
+              'defaultShowNames'
+            )}
             checked={currentBuildingConfig.defaultShowNames ?? false}
             onChange={(event) =>
               handleUpdateBuilding({ defaultShowNames: event.target.checked })
@@ -167,6 +183,11 @@ export const ActivityWallConfigurationPanel: React.FC<
           <p className="text-xxs text-slate-500 mb-2">0 means unlimited.</p>
           <input
             id="aw-default-max-posts"
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'activity-wall',
+              'defaultMaxPostsPerStudent'
+            )}
             type="number"
             min={0}
             max={999}
@@ -195,6 +216,11 @@ export const ActivityWallConfigurationPanel: React.FC<
               {MODE_OPTIONS.map((mode) => (
                 <button
                   key={mode}
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'activity-wall',
+                    `defaultMode-${mode}`
+                  )}
                   type="button"
                   onClick={() => handleUpdateBuilding({ defaultMode: mode })}
                   className={`rounded-xl border px-3 py-2 text-xs font-semibold transition-colors ${
@@ -217,6 +243,11 @@ export const ActivityWallConfigurationPanel: React.FC<
             </span>
             <input
               type="checkbox"
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'activity-wall',
+                'defaultModerationEnabled'
+              )}
               checked={currentBuildingConfig.defaultModerationEnabled ?? false}
               onChange={(event) =>
                 handleUpdateBuilding({
@@ -237,6 +268,11 @@ export const ActivityWallConfigurationPanel: React.FC<
           </label>
           <select
             id="aw-default-identification-mode"
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'activity-wall',
+              'defaultIdentificationMode'
+            )}
             value={
               currentBuildingConfig.defaultIdentificationMode ?? 'anonymous'
             }
@@ -277,6 +313,11 @@ export const ActivityWallConfigurationPanel: React.FC<
             </label>
             <select
               id={`aw-font-${selectedBuildingId}`}
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'activity-wall',
+                'fontFamily'
+              )}
               value={currentBuildingConfig.fontFamily ?? 'global'}
               onChange={(event) => {
                 const selected = event.target.value;
@@ -338,6 +379,11 @@ export const ActivityWallConfigurationPanel: React.FC<
             </label>
             <input
               id={`aw-opacity-${selectedBuildingId}`}
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'activity-wall',
+                'cardOpacity'
+              )}
               type="range"
               min="0"
               max="1"
@@ -362,6 +408,11 @@ export const ActivityWallConfigurationPanel: React.FC<
             </label>
             <select
               id={`aw-image-size-${selectedBuildingId}`}
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'activity-wall',
+                'imageSize'
+              )}
               value={currentBuildingConfig.imageSize ?? 'medium'}
               onChange={(event) =>
                 handleUpdateBuilding({

@@ -1246,6 +1246,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
             ) : (
               <TestAndKeyUploader
                 keyBehindLink
+                anchor={tourTypeAttr('quiz-print.import-questions', 'quiz')}
                 pickFromDrive={pickDocument}
                 submitLabel="Import"
                 busy={readingDoc}

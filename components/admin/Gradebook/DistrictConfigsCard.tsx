@@ -269,6 +269,7 @@ export const DistrictConfigsCard: React.FC<DistrictConfigsCardProps> = ({
         <div className="flex flex-wrap items-center gap-3">
           <span className={ROW_LABEL}>Buildings</span>
           <ChecklistSelect
+            anchor={tourAttr('admin.gradebook-settings.district-buildings')}
             label="Buildings"
             emptyText="No buildings"
             className="flex-1 max-w-[320px]"

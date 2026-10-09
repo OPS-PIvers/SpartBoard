@@ -8,6 +8,7 @@ import {
 } from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import { HexColorField } from './HexColorField';
+import { tourFieldAttr } from '@/config/tourAnchors';
 interface Props {
   config: Record<string, unknown>;
   onChange: (newConfig: Record<string, unknown>) => void;
@@ -66,6 +67,11 @@ export const ConceptWebConfigurationPanel: React.FC<Props> = ({
               </label>
               <input
                 type="number"
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'concept-web',
+                  'defaultNodeWidth'
+                )}
                 min="5"
                 max="50"
                 value={buildingConfig.defaultNodeWidth ?? 15}
@@ -86,6 +92,11 @@ export const ConceptWebConfigurationPanel: React.FC<Props> = ({
               </label>
               <input
                 type="number"
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'concept-web',
+                  'defaultNodeHeight'
+                )}
                 min="5"
                 max="50"
                 value={buildingConfig.defaultNodeHeight ?? 15}
@@ -108,6 +119,11 @@ export const ConceptWebConfigurationPanel: React.FC<Props> = ({
             Default Font Family
           </h3>
           <select
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'concept-web',
+              'fontFamily'
+            )}
             value={buildingConfig.fontFamily ?? 'global'}
             onChange={(e) => {
               const selected = e.target.value;
@@ -151,6 +167,11 @@ export const ConceptWebConfigurationPanel: React.FC<Props> = ({
               </label>
               <input
                 type="range"
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'concept-web',
+                  'cardOpacity'
+                )}
                 min="0"
                 max="1"
                 step="0.05"
