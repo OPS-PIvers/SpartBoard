@@ -99,7 +99,9 @@ async function jobsWhere(
   while (docs.length < MAX_JOBS_PER_PASS) {
     const ordered = bounded.orderBy(field).limit(JOB_QUERY_LIMIT);
     const page = (
-      await (docs.length ? ordered.startAfter(docs[docs.length - 1]) : ordered).get()
+      await (
+        docs.length ? ordered.startAfter(docs[docs.length - 1]) : ordered
+      ).get()
     ).docs;
     docs.push(...page);
     if (page.length < JOB_QUERY_LIMIT) break;
