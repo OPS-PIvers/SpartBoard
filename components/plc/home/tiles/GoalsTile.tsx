@@ -11,10 +11,12 @@ import { canEditPlcContent } from '@/utils/plc';
 import { GoalEditorModal } from '@/components/plc/goals/GoalEditorModal';
 import {
   routineFor,
+  useGoalGradeLevels,
   useGoalRoutineOptions,
 } from '@/components/plc/goals/routineOptions';
 import { TileEmpty, TileFrame } from './TileFrame';
 import type { PlcHomeTileProps } from './tileTypes';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const COMPACT_LIMIT = 3;
 
@@ -27,6 +29,7 @@ export const GoalsTile: React.FC<PlcHomeTileProps> = ({
   const { plc, uid } = ctx;
   const { goals, loading, saveGoal, deleteGoal } = usePlcGoals(plc.id);
   const routines = useGoalRoutineOptions();
+  const gradeLevels = useGoalGradeLevels(plc);
   const canEdit = !!uid && canEditPlcContent(plc, uid);
   const [editing, setEditing] = useState<PlcGoal | 'new' | null>(null);
   const [info, setInfo] = useState<RoutineGuideRoutine | null>(null);
@@ -42,6 +45,7 @@ export const GoalsTile: React.FC<PlcHomeTileProps> = ({
         <>
           {canEdit && (
             <button
+              {...tourAttr('plc-home.goal-add')}
               type="button"
               onClick={() => setEditing('new')}
               aria-label={t('plcGoals.add', { defaultValue: 'Add goal' })}
@@ -76,6 +80,7 @@ export const GoalsTile: React.FC<PlcHomeTileProps> = ({
                 </div>
                 {canEdit && (
                   <button
+                    {...tourFieldAttr('plc-home.goal-edit', 'plc', goal.id)}
                     type="button"
                     onClick={() => setEditing(goal)}
                     aria-label={t('plcGoals.edit', {
@@ -108,6 +113,7 @@ export const GoalsTile: React.FC<PlcHomeTileProps> = ({
                         </span>
                         {routine && hasRoutineInfo(routine) && (
                           <button
+                            {...tourAttr('plc-home.routine-info')}
                             type="button"
                             onClick={() => setInfo(routine)}
                             aria-label={t('plcGoals.routineInfo', {
@@ -148,6 +154,7 @@ export const GoalsTile: React.FC<PlcHomeTileProps> = ({
           goal={editing === 'new' ? null : editing}
           nextOrder={goals.length}
           routines={routines}
+          gradeLevels={gradeLevels}
           onSave={async (draft) => {
             await saveGoal(draft);
           }}

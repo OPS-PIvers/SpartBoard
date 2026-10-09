@@ -1,6 +1,7 @@
 import React from 'react';
 import { useDashboardActions } from '@/context/dashboardCanvasStore';
 import { WidgetData, TrafficConfig } from '@/types';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 import { WidgetLayout } from '../WidgetLayout';
 
@@ -28,6 +29,7 @@ export const TrafficLightWidget: React.FC<{ widget: WidgetData }> = ({
         <div className="flex items-center justify-center h-full w-full p-[min(4px,1cqmin)]">
           <div className="bg-slate-900/80 rounded-[2.5rem] shadow-inner flex flex-col items-center border-2 border-slate-700 p-[min(12px,3cqh)] gap-[min(12px,3cqh)] h-[95%] w-[95%] justify-center">
             <button
+              {...tourFieldAttr('traffic-light.light', widget.type, 'red')}
               onClick={() => {
                 toggle('red');
               }}
@@ -40,6 +42,7 @@ export const TrafficLightWidget: React.FC<{ widget: WidgetData }> = ({
               }}
             />
             <button
+              {...tourFieldAttr('traffic-light.light', widget.type, 'yellow')}
               onClick={() => {
                 toggle('yellow');
               }}
@@ -52,6 +55,7 @@ export const TrafficLightWidget: React.FC<{ widget: WidgetData }> = ({
               }}
             />
             <button
+              {...tourFieldAttr('traffic-light.light', widget.type, 'green')}
               onClick={() => {
                 toggle('green');
               }}

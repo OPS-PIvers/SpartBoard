@@ -4,7 +4,7 @@ import { Check, Plus, RotateCcw } from 'lucide-react';
 import { usePenColors } from '@/hooks/usePenColors';
 import { toPenHex } from '@/utils/penColors';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
-import { tourFieldAttr } from '@/config/tourAnchors';
+import { tourFieldAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 
 const LONG_PRESS_MS = 500;
 
@@ -54,6 +54,7 @@ interface PenColorSwatchesProps {
   onSelect: (color: string) => void;
   variant: PenColorVariant;
   className?: string;
+  anchor?: TourAnchorAttrs;
 }
 
 /** The teacher's 5 pen presets + a custom color picker; right-click or long-press a preset to change it. */
@@ -62,6 +63,7 @@ export const PenColorSwatches: React.FC<PenColorSwatchesProps> = ({
   onSelect,
   variant,
   className = '',
+  anchor,
 }) => {
   const { t } = useTranslation();
   const { colors, canEdit, isCustomized, replaceColor, resetColors } =
@@ -225,7 +227,12 @@ export const PenColorSwatches: React.FC<PenColorSwatchesProps> = ({
   }
 
   return (
-    <div role="group" aria-label={t('penColors.group')} className={className}>
+    <div
+      role="group"
+      aria-label={t('penColors.group')}
+      className={className}
+      {...anchor}
+    >
       {hiddenInputs}
       {colors.map((c, index) => {
         const label = t('penColors.preset', { index: index + 1 });

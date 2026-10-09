@@ -8,6 +8,7 @@ import {
   clampCustomSize,
   customPreset,
 } from './devicePresets';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface DevicePresetPickerProps {
   preset: DevicePreset;
@@ -31,6 +32,7 @@ const SizeField: React.FC<{
   return (
     <input
       type="number"
+      {...tourAttr('studio.device-size')}
       aria-label={label}
       value={draft}
       min={CUSTOM_SIZE_LIMITS.min}
@@ -63,6 +65,7 @@ export const DevicePresetPicker: React.FC<DevicePresetPickerProps> = ({
           {t('glStudio.previewSize')}
         </span>
         <select
+          {...tourAttr('studio.device-preset')}
           value={preset.id}
           onChange={(e) => {
             const id = e.target.value as DevicePreset['id'];

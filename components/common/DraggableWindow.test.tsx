@@ -19,6 +19,7 @@ import {
   type MockInstance,
 } from 'vitest';
 import { DraggableWindow } from './DraggableWindow';
+import { setTourRunning } from '@/components/tours/tourState';
 import { WidgetData, GlobalStyle } from '@/types';
 import {
   DashboardContext,
@@ -1293,6 +1294,21 @@ describe('DraggableWindow', () => {
       'test-widget',
       expect.objectContaining({ maximized: false })
     );
+  });
+
+  it('keeps the maximized bar out while a live tour runs', () => {
+    renderComponent({ maximized: true });
+    const bar = document.querySelector('[data-max-bar]');
+    expect(bar?.className).toContain('pointer-events-none');
+
+    act(() => setTourRunning(true));
+    try {
+      expect(bar?.className).toContain('pointer-events-auto');
+      expect(bar?.className).not.toContain('opacity-0');
+    } finally {
+      act(() => setTourRunning(false));
+    }
+    expect(bar?.className).toContain('pointer-events-none');
   });
 
   it('does NOT close the FAB kebab menu when Escape comes from a text input inside [data-draggable-window]', () => {

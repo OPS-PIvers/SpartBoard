@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { focusRing } from '@/components/common/lightChrome';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface Props {
   count: number;
@@ -30,6 +31,7 @@ export const WatchScrubber: React.FC<Props> = ({
 
   return (
     <div
+      {...tourAttr('gl-player.scrubber')}
       role="slider"
       tabIndex={0}
       aria-label={t('glPlayer.position')}

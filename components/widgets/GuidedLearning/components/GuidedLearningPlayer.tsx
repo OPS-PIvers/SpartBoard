@@ -55,6 +55,7 @@ import {
   FOOTER_ICON_SIZE,
   playerShowsFooter,
 } from './player/playerLayout';
+import { tourAttr } from '@/config/tourAnchors';
 
 const nowMs = (): number => performance.now();
 
@@ -711,6 +712,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   const readAloudToggle = (
     <button
       type="button"
+      {...tourAttr('gl-player.read-aloud')}
       aria-pressed={readAloud}
       aria-label={t('glPlayer.readAloud')}
       title={t('glPlayer.readAloud')}
@@ -818,6 +820,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
         playerShowsFooter(mode, steps.length) ? (
           <>
             <button
+              {...tourAttr('gl-player.prev')}
               onClick={goPrev}
               disabled={currentIdx === 0}
               aria-label={t('glPlayer.prev')}
@@ -829,6 +832,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
             </button>
             {footerKind === 'guided' && (
               <button
+                {...tourAttr('gl-player.play-pause')}
                 onClick={() => setPlaying((v) => !v)}
                 aria-label={playing ? t('glPlayer.pause') : t('glPlayer.play')}
                 className={footerButtonClass}
@@ -893,6 +897,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                 {steps.map((s, i) => (
                   <button
                     key={s.id}
+                    {...tourAttr('gl-player.step-dot')}
                     onClick={() => jumpTo(i)}
                     className={`${playerV2 ? 'relative ' : ''}rounded-full transition-all ${focusRing} ${
                       i === currentIdx
@@ -945,6 +950,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
               </span>
             )}
             <button
+              {...tourAttr('gl-player.next')}
               onClick={goNext}
               disabled={nextDisabled}
               aria-label={t('glPlayer.next')}

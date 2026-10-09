@@ -19,6 +19,7 @@ import { generateRandomCode } from '@/utils/shortLinkValidation';
 import { buildGalleryLink, buildShortLinkUrl } from '@/utils/activityWallLinks';
 import type { ActivityWallLibraryEntry, SharedActivityWall } from '@/types';
 import { isSandboxed } from '@/utils/tourSandbox';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 type ShareTab = 'student' | 'gallery';
 
@@ -95,10 +96,12 @@ const CopyableLink: React.FC<CopyableLinkProps> = ({
       onFocus={(e) => e.currentTarget.select()}
       className="flex-1 bg-transparent text-xs text-slate-700 truncate focus:outline-none"
       aria-label={label}
+      {...tourTypeAttr('activity-wall-link.url', 'activity-wall')}
     />
     <button
       type="button"
       onClick={onCopy}
+      {...tourTypeAttr('activity-wall-link.copy', 'activity-wall')}
       className={`shrink-0 inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-bold transition-colors cursor-pointer ${
         copied
           ? 'bg-emerald-100 text-emerald-700'
@@ -294,6 +297,7 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
         <button
           type="button"
           onClick={onAddQr}
+          {...tourTypeAttr('activity-wall-link.add-qr', 'activity-wall')}
           className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm py-2 transition-colors cursor-pointer"
         >
           <QrCode className="w-4 h-4" aria-hidden="true" />
@@ -322,6 +326,7 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
       <button
         type="button"
         onClick={onClose}
+        {...tourTypeAttr('activity-wall-link.done', 'activity-wall')}
         className="w-full rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm py-2 transition-colors cursor-pointer"
       >
         Done
@@ -381,6 +386,10 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
             className="mt-1 h-4 w-4 accent-brand-blue-primary cursor-pointer"
             checked={enableExpiration}
             onChange={(e) => setEnableExpiration(e.target.checked)}
+            {...tourTypeAttr(
+              'activity-wall-link.expiration-toggle',
+              'activity-wall'
+            )}
           />
         </label>
         {enableExpiration && (
@@ -390,6 +399,10 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
               value={expiresAtInput}
               min={minExpirationInput}
               onChange={(e) => setExpiresAtInput(e.target.value)}
+              {...tourTypeAttr(
+                'activity-wall-link.expiration-date',
+                'activity-wall'
+              )}
               className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
             />
           </div>
@@ -401,6 +414,7 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
       <button
         type="button"
         onClick={() => void handleCreate()}
+        {...tourTypeAttr('activity-wall-link.create-gallery', 'activity-wall')}
         disabled={creating || !entry || !sessionId || !teacherUid}
         className="w-full rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold text-sm py-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
       >
@@ -444,6 +458,7 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
               type="button"
               onClick={onClose}
               aria-label="Close"
+              {...tourTypeAttr('activity-wall-link.close', 'activity-wall')}
               className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
@@ -463,6 +478,11 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
                   tabIndex={selected ? 0 : -1}
                   onClick={() => setTab(t.id)}
                   onKeyDown={onTabKeyDown}
+                  {...tourFieldAttr(
+                    'activity-wall-link.tab',
+                    'activity-wall',
+                    t.id
+                  )}
                   className={`-mb-px border-b-2 px-3 py-2 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
                     selected
                       ? 'border-brand-blue-primary text-brand-blue-primary'

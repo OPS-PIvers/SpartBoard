@@ -1,6 +1,7 @@
 import React from 'react';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import { resolveLabel } from '@/components/settings/renderer/resolveLabel';
+import { tourAttr } from '@/config/tourAnchors';
 import { toLunchCountSchoolSite } from '@/config/buildings';
 import { GRADE_OPTIONS_BY_SITE, SCHOOL_SITE_OPTIONS } from './gradeOptions';
 import type { LunchCountSchoolSite } from './gradeOptions';
@@ -25,6 +26,11 @@ const SchoolSiteControlImpl: React.FC<CustomRenderCtx> = ({
   return (
     <select
       id={id}
+      {...tourAttr(
+        'widget-settings.lunch-count.school-site',
+        widget.id,
+        widget.type
+      )}
       value={site}
       aria-labelledby={labelId}
       aria-describedby={describedBy}

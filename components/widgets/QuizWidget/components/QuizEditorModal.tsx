@@ -50,11 +50,19 @@ import { FolderSelectField } from '@/components/common/library/FolderSelectField
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import { useTranslation } from 'react-i18next';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import { useQuizTranslations } from '@/hooks/useQuizTranslations';
 import {
   QuizLanguagesContextPane,
   QuizLanguagesDetailPane,
 } from './QuizLanguagesPane';
+
+const EDITOR_TAB_ANCHORS = {
+  questions: tourTypeAttr('quiz-editor.tab-questions', 'quiz'),
+  stimuli: tourTypeAttr('quiz-editor.tab-stimuli', 'quiz'),
+  settings: tourTypeAttr('quiz-editor.tab-settings', 'quiz'),
+  languages: tourTypeAttr('quiz-editor.tab-languages', 'quiz'),
+} as const;
 
 /** Bank access the editor needs for the picker, slot rows and "Save to bank". */
 export interface QuizEditorBankApi {
@@ -545,6 +553,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       aiEnabled ? (
         <button
           onClick={() => setShowAiPrompt(true)}
+          {...tourTypeAttr('quiz-editor.footer-draft-ai', 'quiz')}
           className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
           title="Generate with AI"
         >
@@ -577,6 +586,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
           <button
             type="button"
             onClick={() => setTargetPickerOpen(true)}
+            {...tourTypeAttr('quiz-editor.bank-targets-add', 'quiz')}
             className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2 py-0.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100"
           >
             <Plus className="h-3 w-3" aria-hidden="true" />
@@ -640,6 +650,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
                       : undefined
                   }
                   onClick={() => setEditorTab(tab)}
+                  {...EDITOR_TAB_ANCHORS[tab]}
                   className={`px-3 py-2 rounded-t-lg text-xs font-black uppercase tracking-wider transition-colors ${
                     disabled
                       ? 'text-slate-300 cursor-not-allowed'

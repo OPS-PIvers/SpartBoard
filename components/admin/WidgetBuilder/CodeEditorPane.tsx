@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import Editor from '@monaco-editor/react';
 import { GeminiPanel } from './GeminiPanel';
 import { RefreshCw } from 'lucide-react';
@@ -120,6 +121,7 @@ export const CodeEditorPane: React.FC<CodeEditorPaneProps> = ({
         <div className="px-3 py-2 bg-slate-800 border border-slate-700 rounded-t-lg border-b-0 flex items-center justify-between">
           <span className="text-xs font-mono text-slate-400">Preview</span>
           <button
+            {...tourAttr('admin.widget-builder.refresh-preview')}
             onClick={() => setPreviewKey((k) => k + 1)}
             className="flex items-center gap-1 px-2 py-1 text-xs text-slate-400 hover:text-white hover:bg-slate-700 rounded transition-colors"
             title="Refresh preview"
@@ -133,6 +135,7 @@ export const CodeEditorPane: React.FC<CodeEditorPaneProps> = ({
             <label className="text-xs text-slate-400">
               Width: {previewWidth}px
               <input
+                {...tourAttr('admin.widget-builder.preview-width')}
                 className="w-full mt-1"
                 type="range"
                 min={220}
@@ -145,6 +148,7 @@ export const CodeEditorPane: React.FC<CodeEditorPaneProps> = ({
             <label className="text-xs text-slate-400">
               Height: {previewHeight}px
               <input
+                {...tourAttr('admin.widget-builder.preview-height')}
                 className="w-full mt-1"
                 type="range"
                 min={160}

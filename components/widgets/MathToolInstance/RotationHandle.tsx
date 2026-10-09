@@ -1,4 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 interface RotationHandleProps {
   rotation: number;
@@ -157,6 +158,7 @@ export const RotationHandle: React.FC<RotationHandleProps> = ({
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         onDoubleClick={handleDoubleClick}
+        {...tourTypeAttr('math-tool.rotate', 'mathTool')}
         aria-label="Rotate math tool"
         title="Drag to rotate · Click to snap 45° · Double-click to reset"
       >

@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   X,
   ChevronLeft,
@@ -197,6 +198,7 @@ const ModeCard: React.FC<ModeCardProps> = ({
   onClick,
 }) => (
   <button
+    {...tourFieldAttr('admin.widget-builder.mode-card', 'admin', title)}
     onClick={onClick}
     className="flex flex-col items-center gap-4 p-8 bg-slate-800 hover:bg-slate-700 border-2 border-slate-600 hover:border-blue-500 rounded-2xl transition-all group text-center flex-1"
   >
@@ -334,6 +336,7 @@ export const WidgetBuilderModal: React.FC<WidgetBuilderModalProps> = ({
           </div>
 
           <button
+            {...tourAttr('admin.widget-builder.close')}
             onClick={onClose}
             className="p-2 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
             title="Close"
@@ -400,6 +403,11 @@ export const WidgetBuilderModal: React.FC<WidgetBuilderModalProps> = ({
                       const active = blockBuildStep === item.key;
                       return (
                         <button
+                          {...tourFieldAttr(
+                            'admin.widget-builder.build-step',
+                            'admin',
+                            item.key
+                          )}
                           key={item.key}
                           onClick={() =>
                             setBlockBuildStep(
@@ -665,6 +673,7 @@ export const WidgetBuilderModal: React.FC<WidgetBuilderModalProps> = ({
                 {/* Action buttons */}
                 <div className="flex gap-3 justify-end flex-shrink-0">
                   <button
+                    {...tourAttr('admin.widget-builder.save-draft')}
                     onClick={() => handleSave(false)}
                     disabled={saving || !state.meta.title.trim()}
                     className="px-5 py-2 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
@@ -672,6 +681,7 @@ export const WidgetBuilderModal: React.FC<WidgetBuilderModalProps> = ({
                     {saving ? 'Saving...' : 'Save as Draft'}
                   </button>
                   <button
+                    {...tourAttr('admin.widget-builder.publish-widget')}
                     onClick={() => handleSave(true)}
                     disabled={saving || !state.meta.title.trim()}
                     className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-colors"
@@ -688,6 +698,7 @@ export const WidgetBuilderModal: React.FC<WidgetBuilderModalProps> = ({
         {state.step !== 'mode' && state.step !== 'preview' && (
           <div className="flex items-center justify-between px-6 py-3 bg-slate-800 border-t border-slate-700 flex-shrink-0">
             <button
+              {...tourAttr('admin.widget-builder.back')}
               onClick={handleBack}
               disabled={isFirstStep}
               className="flex items-center gap-2 px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-700 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
@@ -697,6 +708,7 @@ export const WidgetBuilderModal: React.FC<WidgetBuilderModalProps> = ({
             </button>
 
             <button
+              {...tourAttr('admin.widget-builder.next')}
               onClick={handleNext}
               disabled={isLastStep}
               className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
@@ -711,6 +723,7 @@ export const WidgetBuilderModal: React.FC<WidgetBuilderModalProps> = ({
         {state.step === 'preview' && (
           <div className="flex items-center px-6 py-3 bg-slate-800 border-t border-slate-700 flex-shrink-0">
             <button
+              {...tourAttr('admin.widget-builder.back')}
               onClick={handleBack}
               className="flex items-center gap-2 px-4 py-2 text-sm text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
             >

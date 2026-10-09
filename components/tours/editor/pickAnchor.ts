@@ -8,6 +8,7 @@ import {
 } from '@/config/tourAnchors';
 import { accessibleName, roleOf } from '@/components/tours/resolveTourAnchor';
 import type { TourSlots } from '@/components/tours/tourSession';
+import { untaggedControlOf } from '@/components/tours/popups';
 
 /** What Pick control or the anchor list chose for a step. */
 export interface TourAnchorPick {
@@ -27,12 +28,32 @@ const defOf = (id: TourAnchorId): TourAnchorDef => TOUR_ANCHORS[id];
 const isWidgetScoped = (def: TourAnchorDef) =>
   !!(def.perWidget ?? def.perWidgetType ?? def.perField);
 
-/** The nearest registered anchor at or above `target`; unregistered tags and the picker's own UI are skipped. */
+/** An untagged control, bound by its role and name like a recorded click. */
+const untaggedPick = (control: HTMLElement): PickTarget => {
+  const name = accessibleName(control);
+  return {
+    pick: { anchor: '', fallback: { role: roleOf(control) ?? '', name } },
+    element: control,
+    label: control.getAttribute('aria-label')?.trim() ?? name,
+  };
+};
+
+/** The nearest registered anchor at or above `target`, or an untagged menu item or widget control under it. */
 export function resolvePickTarget(
   target: Element | null,
   slots: TourSlots = {}
 ): PickTarget | null {
   if (!target || target.closest('[data-tour-ignore]')) return null;
+  const tagged = registeredAnchorAt(target, slots);
+  const control = untaggedControlOf(target, tagged?.element ?? null);
+  return control ? untaggedPick(control) : tagged;
+}
+
+/** The nearest registered anchor at or above `target`; unregistered tags and the whole board are skipped. */
+function registeredAnchorAt(
+  target: Element,
+  slots: TourSlots
+): PickTarget | null {
   for (
     let el = target.closest<HTMLElement>('[data-tour]');
     el;

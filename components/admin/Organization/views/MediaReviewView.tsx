@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
@@ -145,6 +146,7 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
         blurb={t('admin.mediaReview.blurb')}
         actions={
           <Btn
+            {...tourAttr('admin.org.media-refresh')}
             variant="secondary"
             icon={<RefreshCw size={14} aria-hidden />}
             onClick={onReload}
@@ -161,6 +163,7 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
           htmlFor="mr-teacher"
         >
           <Select
+            {...tourAttr('admin.org.media-teacher-filter')}
             id="mr-teacher"
             value={filters.teacherUid}
             onChange={(e) => setFilter({ teacherUid: e.target.value })}
@@ -175,6 +178,7 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
         </Field>
         <Field label={t('admin.mediaReview.filterAfter')} htmlFor="mr-after">
           <Input
+            {...tourAttr('admin.org.media-after-date')}
             id="mr-after"
             type="date"
             value={filters.afterDate}
@@ -183,6 +187,7 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
         </Field>
         <Field label={t('admin.mediaReview.filterBefore')} htmlFor="mr-before">
           <Input
+            {...tourAttr('admin.org.media-before-date')}
             id="mr-before"
             type="date"
             value={filters.beforeDate}
@@ -194,6 +199,7 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
       {(filters.teacherUid || filters.afterDate || filters.beforeDate) && (
         <div className="mb-4">
           <Btn
+            {...tourAttr('admin.org.media-clear-filters')}
             variant="ghost"
             size="sm"
             onClick={() => onFiltersChange(EMPTY_MEDIA_FILTERS)}
@@ -242,7 +248,12 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
                 </ul>
               )}
             </div>
-            <Btn variant="ghost" size="sm" onClick={onDismissResults}>
+            <Btn
+              {...tourAttr('admin.org.media-dismiss-results')}
+              variant="ghost"
+              size="sm"
+              onClick={onDismissResults}
+            >
               {t('admin.mediaReview.dismiss')}
             </Btn>
           </div>
@@ -281,7 +292,12 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
               </div>
               <p className="text-xs text-slate-600 mt-1 break-words">{error}</p>
               <div className="mt-3">
-                <Btn variant="secondary" size="sm" onClick={onReload}>
+                <Btn
+                  {...tourAttr('admin.org.media-retry')}
+                  variant="secondary"
+                  size="sm"
+                  onClick={onReload}
+                >
                   {t('admin.mediaReview.retry')}
                 </Btn>
               </div>
@@ -301,6 +317,7 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
               {t('admin.mediaReview.rowCount', { count: rows.length })}
             </div>
             <Btn
+              {...tourAttr('admin.org.media-delete-selected')}
               variant="danger"
               size="sm"
               icon={<Trash2 size={14} aria-hidden />}
@@ -327,6 +344,7 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
                   <tr className="border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                     <th scope="col" className="px-4 py-3 w-10">
                       <input
+                        {...tourAttr('admin.org.media-select-all')}
                         type="checkbox"
                         className="h-4 w-4 rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
                         checked={allSelected}
@@ -366,6 +384,7 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
                       >
                         <td className="px-4 py-3 align-top">
                           <input
+                            {...tourAttr('admin.org.media-select-row')}
                             type="checkbox"
                             className="h-4 w-4 rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
                             checked={selected.has(key)}
@@ -442,10 +461,15 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
         icon={<ShieldAlert size={18} />}
         footer={
           <>
-            <Btn variant="ghost" onClick={closeConfirm}>
+            <Btn
+              {...tourAttr('admin.org.media-remove-cancel')}
+              variant="ghost"
+              onClick={closeConfirm}
+            >
               {t('admin.mediaReview.cancel')}
             </Btn>
             <Btn
+              {...tourAttr('admin.org.media-delete-confirm')}
               variant="danger"
               disabled={typed !== confirmWord || deleting}
               onClick={runDelete}
@@ -493,6 +517,7 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
             htmlFor="mr-confirm"
           >
             <Input
+              {...tourAttr('admin.org.media-remove-typing')}
               id="mr-confirm"
               value={typed}
               onChange={(e) => setTyped(e.target.value)}

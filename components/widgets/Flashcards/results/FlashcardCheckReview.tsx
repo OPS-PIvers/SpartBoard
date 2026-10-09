@@ -11,6 +11,7 @@ import {
   checkCardAccuracy,
   type FlashcardResultRecord,
 } from '@/utils/flashcardResults';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { ResultsSection, SectionEmpty } from './resultsShared';
 
 interface FlashcardCheckReviewProps {
@@ -104,7 +105,7 @@ export const FlashcardCheckReview: React.FC<FlashcardCheckReviewProps> = ({
         {rows.length === 0 ? (
           <SectionEmpty message="No student has opened this Check yet." />
         ) : (
-          rows.map((row) => (
+          rows.map((row, rowIndex) => (
             <SessionRow
               key={row.studentUid}
               dot={{
@@ -127,6 +128,13 @@ export const FlashcardCheckReview: React.FC<FlashcardCheckReviewProps> = ({
                   )}
                   <OverflowMenu
                     ariaLabel={`Actions for ${nameFor(row.studentUid)}`}
+                    tourId="flashcards.student-menu-item"
+                    tourScope="flashcards"
+                    triggerProps={tourFieldAttr(
+                      'flashcards.student-actions',
+                      'flashcards',
+                      `row-${rowIndex + 1}`
+                    )}
                     items={[
                       ...(letInFor?.(row.studentUid)
                         ? [
@@ -174,7 +182,7 @@ export const FlashcardCheckReview: React.FC<FlashcardCheckReviewProps> = ({
         {flags.length === 0 ? (
           <SectionEmpty message="No student has flagged an answer." />
         ) : (
-          flags.map((flag) => {
+          flags.map((flag, flagIndex) => {
             const key = `${flag.studentUid}:${flag.cardId}`;
             return (
               <SessionRow
@@ -200,6 +208,11 @@ export const FlashcardCheckReview: React.FC<FlashcardCheckReviewProps> = ({
                           void resolve(flag.studentUid, flag.cardId, true)
                         }
                         disabled={flag.accepted === true}
+                        {...tourFieldAttr(
+                          'flashcards.flag-accept',
+                          'flashcards',
+                          `row-${flagIndex + 1}`
+                        )}
                         className="rounded-xl border border-emerald-200 font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-40"
                         style={{
                           fontSize: 'min(11px, 3.2cqmin)',
@@ -214,6 +227,11 @@ export const FlashcardCheckReview: React.FC<FlashcardCheckReviewProps> = ({
                           void resolve(flag.studentUid, flag.cardId, false)
                         }
                         disabled={flag.accepted === false}
+                        {...tourFieldAttr(
+                          'flashcards.flag-dismiss',
+                          'flashcards',
+                          `row-${flagIndex + 1}`
+                        )}
                         className="rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40"
                         style={{
                           fontSize: 'min(11px, 3.2cqmin)',

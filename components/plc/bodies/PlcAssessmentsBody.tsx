@@ -18,6 +18,7 @@ import { PlcRubricLibraryBody } from './PlcRubricLibraryBody';
 import { PlcQuestionBanksBody } from './PlcQuestionBanksBody';
 import { PlcFlashcardsBody } from './PlcFlashcardsBody';
 import { useAuth } from '@/context/useAuth';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 type AssessmentType =
   | 'quiz'
@@ -130,6 +131,7 @@ export const PlcAssessmentsBody: React.FC<PlcAssessmentsBodyProps> = ({
         const isActive = effectiveType === item.id;
         return (
           <button
+            {...tourFieldAttr('plc-assessments.tab', 'plc', item.id)}
             key={item.id}
             role="tab"
             id={tabButtonId(item.id)}

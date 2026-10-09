@@ -1,4 +1,5 @@
 import React from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 
 export const FIELD =
   'h-9 px-2.5 rounded-lg border border-slate-300 bg-white text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30 disabled:bg-slate-50 disabled:text-slate-500';
@@ -40,6 +41,7 @@ export const PctInput: React.FC<{
   max?: number;
   placeholder?: string;
   compact?: boolean;
+  anchor?: TourAnchorAttrs;
 }> = ({
   value,
   onCommit,
@@ -49,6 +51,7 @@ export const PctInput: React.FC<{
   max = 100,
   placeholder,
   compact = false,
+  anchor,
 }) => (
   <span className="inline-flex items-center gap-1.5 text-sm text-slate-500">
     <CommitInput
@@ -61,6 +64,7 @@ export const PctInput: React.FC<{
       disabled={disabled}
       placeholder={placeholder}
       aria-label={label}
+      {...anchor}
       className={compact ? '!h-8 w-[68px] !pl-2 !pr-1' : 'w-[76px]'}
     />
     <span>%</span>

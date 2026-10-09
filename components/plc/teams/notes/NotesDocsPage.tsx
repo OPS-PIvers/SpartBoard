@@ -55,6 +55,7 @@ import { formatShortDate, isSameDay } from './noteFormat';
 import { openTeamPage, takePendingNotesItem } from './teamNotesNavigation';
 import { useTeamNav } from '@/components/plc/teams/TeamNavContext';
 import type { TeamPageProps } from '@/components/plc/teams/types';
+import { tourAttr } from '@/config/tourAnchors';
 
 type Selection =
   | { kind: 'note'; id: string }
@@ -104,6 +105,7 @@ const DocPane: React.FC<{
           href={ensureProtocol(doc.url)}
           target="_blank"
           rel="noopener noreferrer"
+          {...tourAttr('teams.notes.doc-open')}
           className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-slate-200 px-3 py-1.5 text-xxs font-black uppercase tracking-widest text-slate-600 transition hover:bg-slate-300"
         >
           <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
@@ -118,6 +120,7 @@ const DocPane: React.FC<{
               defaultValue: 'Remove doc',
             })}
             size="sm"
+            {...tourAttr('teams.notes.doc-remove')}
             onClick={onRemove}
           />
         )}

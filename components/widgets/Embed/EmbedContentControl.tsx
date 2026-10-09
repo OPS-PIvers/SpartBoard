@@ -1,6 +1,7 @@
 import React from 'react';
 import { Code, Link2, Loader2 } from 'lucide-react';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
+import { tourAttr } from '@/config/tourAnchors';
 import { resolveLabel } from '@/components/settings/renderer/resolveLabel';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { useEmbedConfig } from './hooks/useEmbedConfig';
@@ -66,6 +67,11 @@ const EmbedContentControlImpl: React.FC<Props> = ({
             type="button"
             role="radio"
             aria-checked={mode === 'url'}
+            {...tourAttr(
+              'widget-settings.embed.mode-url',
+              widget.id,
+              widget.type
+            )}
             onClick={() => updateConfig({ mode: 'url' })}
             className={`flex-1 py-1.5 text-xxs rounded-lg transition-all flex items-center justify-center gap-2 ${
               mode === 'url'
@@ -80,6 +86,11 @@ const EmbedContentControlImpl: React.FC<Props> = ({
             type="button"
             role="radio"
             aria-checked={mode === 'code'}
+            {...tourAttr(
+              'widget-settings.embed.mode-code',
+              widget.id,
+              widget.type
+            )}
             onClick={() => updateConfig({ mode: 'code' })}
             className={`flex-1 py-1.5 text-xxs rounded-lg transition-all flex items-center justify-center gap-2 ${
               mode === 'code'
@@ -105,6 +116,7 @@ const EmbedContentControlImpl: React.FC<Props> = ({
             <input
               id={urlInputId}
               type="text"
+              {...tourAttr('widget-settings.embed.url', widget.id, widget.type)}
               value={url}
               placeholder="https://example.com..."
               onChange={(e) => updateConfig({ url: e.target.value })}
@@ -130,6 +142,7 @@ const EmbedContentControlImpl: React.FC<Props> = ({
           </label>
           <textarea
             id={htmlInputId}
+            {...tourAttr('widget-settings.embed.html', widget.id, widget.type)}
             value={html}
             placeholder={
               '<html>\n  <style>body { background: #f0f; }</style>\n  <body><h1>Hello Class!</h1></body>\n</html>'

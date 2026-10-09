@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal } from '@/components/common/Modal';
 import type { FlashcardScoreVisibility } from '@/types';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 export type PublishableFlashcardVisibility = Exclude<
   FlashcardScoreVisibility,
@@ -66,6 +67,7 @@ export const FlashcardPublishScoresModal: React.FC<
           <button
             type="button"
             onClick={onClose}
+            {...tourTypeAttr('flashcards.scores-cancel', 'flashcards')}
             className="rounded-xl px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100"
           >
             Cancel
@@ -74,6 +76,7 @@ export const FlashcardPublishScoresModal: React.FC<
             type="button"
             disabled={saving}
             onClick={() => void confirm()}
+            {...tourTypeAttr('flashcards.publish-confirm', 'flashcards')}
             className="rounded-xl bg-brand-blue-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
           >
             {saving ? 'Publishing…' : 'Publish'}
@@ -97,6 +100,11 @@ export const FlashcardPublishScoresModal: React.FC<
             <input
               type="radio"
               name="flashcard-score-visibility"
+              {...tourFieldAttr(
+                'flashcards.scores-visibility',
+                'flashcards',
+                option.id
+              )}
               className="mt-1"
               checked={visibility === option.id}
               onChange={() => setVisibility(option.id)}

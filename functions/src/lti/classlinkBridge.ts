@@ -138,28 +138,45 @@ async function resolveLive(
   const classlinkClassId = (linkSnap.data() ?? {}).classlinkClassId as unknown;
   if (typeof classlinkClassId !== 'string' || !classlinkClassId) return null;
 
-  const students = await classroomAddonNet.fetchClassStudents(
-    tenantUrl,
-    clientId,
-    clientSecret,
-    classlinkClassId
+  const uidsByEmail = await oneRosterUidsByEmail(
+    classlink,
+    classlinkClassId,
+    hmacSecret
   );
-  const emailLower = email.toLowerCase();
-  const match = students.find(
-    (s) => (s.email ?? '').toLowerCase() === emailLower
-  );
-  if (!match?.sourcedId) {
+  const uid = uidsByEmail.get(email.toLowerCase());
+  if (!uid) {
     console.warn(
       '[ltiClasslinkBridge] linked section but launch email not in the ' +
         'OneRoster roster; per-student overrides will not reach this student.'
     );
     return null;
   }
-  return {
-    uid: computeStudentUid(match.sourcedId, hmacSecret),
-    classlinkClassId,
-    live: true,
-  };
+  return { uid, classlinkClassId, live: true };
+}
+
+/**
+ * A ClassLink class's students as lowercased email → SpartBoard uid (the uid
+ * their ClassLink SSO mints). Emails stay in memory; callers must not persist them.
+ */
+export async function oneRosterUidsByEmail(
+  classlink: ClasslinkCredentials,
+  classlinkClassId: string,
+  hmacSecret: string
+): Promise<Map<string, string>> {
+  const students = await classroomAddonNet.fetchClassStudents(
+    classlink.tenantUrl,
+    classlink.clientId,
+    classlink.clientSecret,
+    classlinkClassId
+  );
+  const out = new Map<string, string>();
+  for (const s of students) {
+    const email = (s.email ?? '').toLowerCase();
+    if (email && s.sourcedId && !out.has(email)) {
+      out.set(email, computeStudentUid(s.sourcedId, hmacSecret));
+    }
+  }
+  return out;
 }
 
 /** Record the mapping so a later failed live resolve keeps this identity. */

@@ -45,6 +45,11 @@ import {
 } from '@/utils/videoActivityGrading';
 import { getClassroomAttachments } from '@/utils/classroomAttachments';
 import { runPublishGradePush } from '@/utils/publishGradePush';
+import {
+  offerToolColumnRemoval,
+  sessionHasToolColumn,
+} from '@/utils/schoologyToolColumns';
+import { useDialog } from '@/context/useDialog';
 import { loadFinalScoreOverlay } from '@/hooks/gradebook/useFinalScoreOverlay';
 import { applyFinalScoresToEntries } from '@/utils/gradebook/finalScoreOverlay';
 import { videoActivityLiveRaw } from '@/utils/gradebook/liveRawScores';
@@ -127,6 +132,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget, addToast, rosters, updateRoster } = useDashboard();
+  const { showConfirm } = useDialog();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const {
     user,
@@ -1043,8 +1049,19 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         }}
         onArchiveDelete={async (assignment) => {
           try {
+            const hadColumn =
+              canAccessFeature('schoology-tool-columns') &&
+              (await sessionHasToolColumn('va', assignment.id));
             await deleteAssignment(assignment.id);
             addToast('Assignment deleted.', 'success');
+            if (hadColumn) {
+              await offerToolColumnRemoval({
+                functions,
+                sessionId: assignment.id,
+                showConfirm,
+                addToast,
+              });
+            }
           } catch (err) {
             addToast(
               err instanceof Error ? err.message : 'Delete failed',
@@ -1305,6 +1322,9 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
                 kind: 'va',
                 sessionId: target.id,
                 classroomFinalAttachments,
+                schoologyToolColumns: canAccessFeature(
+                  'schoology-tool-columns'
+                ),
                 classroomToken,
                 schoologyMaxPoints: videoActivityMaxPoints(data.questions),
                 buildClassroomGrades: (responses) => {

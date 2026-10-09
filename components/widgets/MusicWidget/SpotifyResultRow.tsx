@@ -1,5 +1,6 @@
 import React from 'react';
 import { Play, Music2 } from 'lucide-react';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 interface Props {
   name: string;
@@ -19,6 +20,7 @@ export const SpotifyResultRow: React.FC<Props> = ({
   <button
     type="button"
     onClick={onClick}
+    {...tourTypeAttr('music.spotify-result', 'music')}
     className="w-full flex items-center rounded-lg hover:bg-white/5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
     style={{
       gap: 'min(12px, 3cqmin)',

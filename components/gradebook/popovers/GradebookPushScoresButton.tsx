@@ -9,24 +9,31 @@ export const GradebookPushScoresButton: React.FC<{
   columnCells: GradebookCellData[];
   onNotify?: (message: string) => void;
 }> = ({ column, columnCells, onNotify }) => {
-  const { link, push } = useGradebookLmsPush(column, columnCells);
+  const { link, push, dialog } = useGradebookLmsPush(
+    column,
+    columnCells,
+    (outcome) => onNotify?.(outcome.message)
+  );
   const [pushing, setPushing] = useState(false);
   if (!link) return null;
   const lms = link.lms === 'classroom' ? 'Google Classroom' : 'Schoology';
   return (
-    <Btn
-      className="px-2"
-      disabled={pushing}
-      title={`Send final scores to ${lms}`}
-      aria-label={`Push final scores to ${lms}`}
-      onClick={() => {
-        setPushing(true);
-        void push()
-          .then((outcome) => outcome && onNotify?.(outcome.message))
-          .finally(() => setPushing(false));
-      }}
-    >
-      {pushing ? 'Pushing…' : 'Push'}
-    </Btn>
+    <>
+      {dialog}
+      <Btn
+        className="px-2"
+        disabled={pushing}
+        title={`Send final scores to ${lms}`}
+        aria-label={`Push final scores to ${lms}`}
+        onClick={() => {
+          setPushing(true);
+          void push()
+            .then((outcome) => outcome && onNotify?.(outcome.message))
+            .finally(() => setPushing(false));
+        }}
+      >
+        {pushing ? 'Pushing…' : 'Push'}
+      </Btn>
+    </>
   );
 };

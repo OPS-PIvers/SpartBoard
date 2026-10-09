@@ -1,4 +1,5 @@
 import React from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   BookOpen,
   Boxes,
@@ -148,6 +149,7 @@ export const AppSettingsView: React.FC = () => {
                 onChange={(e) => void handleLogoUpload(e)}
               />
               <button
+                {...tourAttr('admin.org.upload-logo')}
                 onClick={() => fileInputRef.current?.click()}
                 disabled={uploading}
                 className="px-4 py-2 bg-brand-blue-primary text-white text-sm font-bold rounded-lg shadow-sm hover:bg-brand-blue-dark transition-colors disabled:opacity-50"
@@ -157,6 +159,7 @@ export const AppSettingsView: React.FC = () => {
 
               {appSettings?.logoUrl && (
                 <button
+                  {...tourAttr('admin.org.remove-logo')}
                   onClick={() => void handleRemoveLogo()}
                   disabled={uploading}
                   className="px-4 py-2 bg-white text-red-600 text-sm font-bold border border-red-200 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
@@ -222,6 +225,11 @@ export const AppSettingsView: React.FC = () => {
                     </div>
                     <div className="flex bg-white border border-slate-200 rounded-lg p-0.5 shrink-0 self-start sm:self-auto">
                       <button
+                        {...tourFieldAttr(
+                          'admin.org.mode-submissions',
+                          'admin',
+                          key
+                        )}
                         type="button"
                         onClick={() => setMode(key, 'submissions')}
                         className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
@@ -235,6 +243,11 @@ export const AppSettingsView: React.FC = () => {
                         Submissions
                       </button>
                       <button
+                        {...tourFieldAttr(
+                          'admin.org.mode-view-only',
+                          'admin',
+                          key
+                        )}
                         type="button"
                         onClick={() => setMode(key, 'view-only')}
                         className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1.5 ${
@@ -254,6 +267,7 @@ export const AppSettingsView: React.FC = () => {
             </div>
 
             <button
+              {...tourAttr('admin.org.assignment-modes-save')}
               onClick={() => savePermission('assignment-modes')}
               disabled={isSavingAssignment || !hasUnsaved}
               className={`mt-4 w-full py-3 rounded-xl transition-all flex items-center justify-center gap-2 font-bold text-sm shadow-md disabled:opacity-50 ${

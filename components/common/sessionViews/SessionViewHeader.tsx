@@ -1,4 +1,5 @@
 import React from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { ChevronLeft } from 'lucide-react';
 
 type ViewStatus = 'live' | 'paused' | 'ended' | 'none';
@@ -11,6 +12,8 @@ interface SessionViewHeaderProps {
   subtitle?: string;
   /** Right-aligned action buttons / overflow. */
   actions?: React.ReactNode;
+  anchor?: TourAnchorAttrs;
+  backAnchor?: TourAnchorAttrs;
 }
 
 const STATUS: Record<
@@ -48,10 +51,13 @@ export const SessionViewHeader: React.FC<SessionViewHeaderProps> = ({
   title,
   subtitle,
   actions,
+  anchor,
+  backAnchor,
 }) => {
   const s = status !== 'none' ? STATUS[status] : null;
   return (
     <div
+      {...anchor}
       className="flex items-center justify-between bg-white/60 backdrop-blur-sm border-b border-slate-200/70 shrink-0"
       style={{
         gap: 'min(12px, 2.5cqmin)',
@@ -65,6 +71,7 @@ export const SessionViewHeader: React.FC<SessionViewHeaderProps> = ({
       >
         {onBack && (
           <button
+            {...backAnchor}
             type="button"
             onClick={onBack}
             aria-label="Back"

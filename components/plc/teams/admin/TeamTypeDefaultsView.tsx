@@ -39,6 +39,7 @@ import {
   type PresetDraft,
   type RubricDraftRow,
 } from './teamTypeDefaultsModel';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export interface TeamTypeDefaultsViewProps {
   defaults: TeamTypeDefaults;
@@ -221,6 +222,7 @@ export const TeamTypeDefaultsView: React.FC<TeamTypeDefaultsViewProps> = ({
       <PanelSection title="Hero default">
         <select
           aria-label="Hero default"
+          {...tourAttr('teams.admin-defaults.hero-rule')}
           value={draft.heroRule}
           onChange={(e) => edit({ heroRule: e.target.value as TeamHeroRule })}
           className={`${INPUT} mt-1 py-1.5`}
@@ -248,6 +250,11 @@ export const TeamTypeDefaultsView: React.FC<TeamTypeDefaultsViewProps> = ({
                   value={s.heading}
                   onChange={(e) => setSection(i, { heading: e.target.value })}
                   aria-label="Section heading"
+                  {...tourFieldAttr(
+                    'teams.admin-defaults.section-heading',
+                    'teams-admin-defaults',
+                    String(i)
+                  )}
                   className={`${INPUT} min-w-0 flex-1 py-1.5`}
                 />
                 <select
@@ -258,6 +265,11 @@ export const TeamTypeDefaultsView: React.FC<TeamTypeDefaultsViewProps> = ({
                     })
                   }
                   aria-label={`Block for ${s.heading}`}
+                  {...tourFieldAttr(
+                    'teams.admin-defaults.section-kind',
+                    'teams-admin-defaults',
+                    String(i)
+                  )}
                   className={`${INPUT} py-1.5`}
                 >
                   {MEETING_NOTE_BLOCK_KINDS.map((k) => (
@@ -269,6 +281,11 @@ export const TeamTypeDefaultsView: React.FC<TeamTypeDefaultsViewProps> = ({
                 <IconButton
                   icon={<Trash2 className="h-3.5 w-3.5" />}
                   label="Remove section"
+                  {...tourFieldAttr(
+                    'teams.admin-defaults.remove-section',
+                    'teams-admin-defaults',
+                    String(i)
+                  )}
                   size="sm"
                   variant="danger"
                   onClick={() =>
@@ -282,6 +299,7 @@ export const TeamTypeDefaultsView: React.FC<TeamTypeDefaultsViewProps> = ({
         <TextLink
           icon={Plus}
           className="mt-2"
+          {...tourAttr('teams.admin-defaults.add-section')}
           onClick={() =>
             edit({
               template: [
@@ -317,11 +335,21 @@ export const TeamTypeDefaultsView: React.FC<TeamTypeDefaultsViewProps> = ({
                     })
                   }
                   aria-label={`Category ${i + 1}`}
+                  {...tourFieldAttr(
+                    'teams.admin-defaults.category',
+                    'teams-admin-defaults',
+                    String(i)
+                  )}
                   className={`${INPUT} min-w-0 flex-1 py-1.5`}
                 />
                 <IconButton
                   icon={<Trash2 className="h-3.5 w-3.5" />}
                   label="Remove category"
+                  {...tourFieldAttr(
+                    'teams.admin-defaults.remove-category',
+                    'teams-admin-defaults',
+                    String(i)
+                  )}
                   size="sm"
                   variant="danger"
                   onClick={() =>
@@ -337,6 +365,7 @@ export const TeamTypeDefaultsView: React.FC<TeamTypeDefaultsViewProps> = ({
         <TextLink
           icon={Plus}
           className="mt-2"
+          {...tourAttr('teams.admin-defaults.add-category')}
           onClick={() => edit({ categories: [...draft.categories, ''] })}
         >
           Add category
@@ -349,6 +378,7 @@ export const TeamTypeDefaultsView: React.FC<TeamTypeDefaultsViewProps> = ({
           extra={
             <TextLink
               quiet
+              {...tourAttr('teams.admin-defaults.restore-rubric')}
               onClick={() => editRubric(rubricDraftFrom(undefined))}
             >
               Restore default
@@ -374,11 +404,21 @@ export const TeamTypeDefaultsView: React.FC<TeamTypeDefaultsViewProps> = ({
                       )
                     }
                     aria-label={`Criterion ${i + 1}`}
+                    {...tourFieldAttr(
+                      'teams.admin-defaults.criterion',
+                      'teams-admin-defaults',
+                      String(i)
+                    )}
                     className={`${INPUT} min-w-0 flex-1 py-1.5`}
                   />
                   <IconButton
                     icon={<Trash2 className="h-3.5 w-3.5" />}
                     label="Remove criterion"
+                    {...tourFieldAttr(
+                      'teams.admin-defaults.remove-criterion',
+                      'teams-admin-defaults',
+                      String(i)
+                    )}
                     size="sm"
                     variant="danger"
                     onClick={() => editRubric(rubric.filter((_, j) => j !== i))}
@@ -391,6 +431,7 @@ export const TeamTypeDefaultsView: React.FC<TeamTypeDefaultsViewProps> = ({
             <TextLink
               icon={Plus}
               className="mt-2"
+              {...tourAttr('teams.admin-defaults.add-criterion')}
               onClick={() => editRubric([...rubric, { label: '' }])}
             >
               Add criterion
@@ -403,6 +444,7 @@ export const TeamTypeDefaultsView: React.FC<TeamTypeDefaultsViewProps> = ({
         <Button
           variant="secondary"
           disabled={!dirty || saving}
+          {...tourAttr('teams.admin-defaults.discard')}
           onClick={discard}
         >
           Discard changes
@@ -410,6 +452,7 @@ export const TeamTypeDefaultsView: React.FC<TeamTypeDefaultsViewProps> = ({
         <Button
           disabled={!dirty}
           isLoading={saving}
+          {...tourAttr('teams.admin-defaults.save')}
           onClick={() => void save()}
         >
           Save {TEAM_TYPE_LABELS[type]} defaults

@@ -17,6 +17,7 @@ import {
 import { saveTeamMeetingNoteTemplate } from '@/utils/plcNoteWrites';
 import { logError } from '@/utils/logError';
 import type { TeamMeetingTemplate } from './useTeamNotes';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const MAX_SECTIONS = 20;
 
@@ -89,18 +90,29 @@ export const TeamTemplateEditor: React.FC<{
       footer={
         <div className="flex w-full items-center gap-2">
           {current.source === 'team' && (
-            <TextLink quiet disabled={saving} onClick={() => void run(null)}>
+            <TextLink
+              quiet
+              disabled={saving}
+              {...tourAttr('teams.template.restore')}
+              onClick={() => void run(null)}
+            >
               {t('teams.template.restore', { defaultValue: 'Restore default' })}
             </TextLink>
           )}
           <span className="flex-1" />
-          <Button variant="secondary" size="sm" onClick={onClose}>
+          <Button
+            variant="secondary"
+            size="sm"
+            {...tourAttr('teams.template.cancel')}
+            onClick={onClose}
+          >
             {t('common.cancel', { defaultValue: 'Cancel' })}
           </Button>
           <Button
             size="sm"
             isLoading={saving}
             disabled={saving}
+            {...tourAttr('teams.template.save')}
             onClick={() =>
               void run(
                 serializeMeetingNoteTemplate({
@@ -128,6 +140,11 @@ export const TeamTemplateEditor: React.FC<{
                 value={s.heading}
                 maxLength={200}
                 onChange={(e) => update(i, { heading: e.target.value })}
+                {...tourFieldAttr(
+                  'teams.template.heading',
+                  'teams-template',
+                  String(i)
+                )}
                 aria-label={t('teams.template.heading', {
                   defaultValue: 'Section heading',
                 })}
@@ -141,6 +158,11 @@ export const TeamTemplateEditor: React.FC<{
                 aria-label={t('teams.template.kind.label', {
                   defaultValue: 'Block kind',
                 })}
+                {...tourFieldAttr(
+                  'teams.template.kind',
+                  'teams-template',
+                  String(i)
+                )}
                 className={`${INPUT} py-1.5`}
               >
                 {kinds.map((k) => (
@@ -156,6 +178,11 @@ export const TeamTemplateEditor: React.FC<{
                 })}
                 size="sm"
                 variant="danger"
+                {...tourFieldAttr(
+                  'teams.template.remove',
+                  'teams-template',
+                  String(i)
+                )}
                 onClick={() =>
                   setSections((list) => list.filter((_, j) => j !== i))
                 }
@@ -168,6 +195,7 @@ export const TeamTemplateEditor: React.FC<{
         <TextLink
           icon={Plus}
           className="mt-2"
+          {...tourAttr('teams.template.add')}
           onClick={() =>
             setSections((list) => [
               ...list,

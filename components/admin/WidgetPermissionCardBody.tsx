@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import type { FeaturePermission, GradeLevel, ToolMetadata } from '@/types';
 import { ALL_GRADE_LEVELS } from '@/config/widgetGradeLevels';
 import { ChevronDown, Save, Settings } from 'lucide-react';
@@ -72,6 +73,7 @@ export const WidgetPermissionCardBody: React.FC<
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
           aria-controls={panelId}
+          {...tourFieldAttr('admin.access.expand', 'admin', tool.type)}
           className="flex items-center gap-3 min-w-0 flex-1 text-left"
         >
           <span className={`${tool.color} p-2 rounded-lg text-white shrink-0`}>
@@ -111,16 +113,19 @@ export const WidgetPermissionCardBody: React.FC<
             onChange={(checked) => updatePermission({ enabled: checked })}
             size="sm"
             label={`${tool.label} enabled`}
+            anchor={tourFieldAttr('admin.access.enabled', 'admin', tool.type)}
           />
           <AccessLevelPicker
             value={permission.accessLevel}
             onChange={(accessLevel) => updatePermission({ accessLevel })}
             label={tool.label}
+            anchorKey={tool.type}
           />
           <button
             type="button"
             onClick={onEditConfig}
             aria-label={`Configure ${tool.label}`}
+            {...tourFieldAttr('admin.widgets.configure', 'admin', tool.type)}
             title="Edit widget configuration"
             className={`p-2 rounded-lg transition-colors ${
               isActiveModal
@@ -135,6 +140,7 @@ export const WidgetPermissionCardBody: React.FC<
             onClick={savePermission}
             disabled={isSaving || !hasUnsavedChanges}
             aria-label={`Save ${tool.label}`}
+            {...tourFieldAttr('admin.access.save', 'admin', tool.type)}
             title={hasUnsavedChanges ? 'Save changes' : 'No changes to save'}
             className={`p-2 rounded-lg transition-colors disabled:cursor-not-allowed ${
               hasUnsavedChanges
@@ -163,6 +169,11 @@ export const WidgetPermissionCardBody: React.FC<
                 updatePermission({ displayName: e.target.value || undefined })
               }
               placeholder={tool.label}
+              {...tourFieldAttr(
+                'admin.widgets.display-name',
+                'admin',
+                tool.type
+              )}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
             />
           </label>
@@ -179,6 +190,11 @@ export const WidgetPermissionCardBody: React.FC<
                     type="button"
                     onClick={() => toggleGradeLevel(level)}
                     aria-pressed={isSelected}
+                    {...tourFieldAttr(
+                      'admin.widgets.grade-level',
+                      'admin',
+                      level
+                    )}
                     className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
                       isSelected
                         ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
@@ -193,6 +209,7 @@ export const WidgetPermissionCardBody: React.FC<
                 type="button"
                 onClick={toggleAllGradeLevels}
                 aria-pressed={isAllSelected}
+                {...tourFieldAttr('admin.widgets.grade-level', 'admin', 'all')}
                 className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
                   isAllSelected
                     ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'

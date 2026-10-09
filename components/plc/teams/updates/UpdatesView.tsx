@@ -24,6 +24,7 @@ import {
 import { ReactionButton, UpdateBody } from './UpdateParts';
 import { reactionCount, shortDate } from './updateFormat';
 import { UpdateComposer, type AttachPicker } from './UpdateComposer';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 export interface UpdatesViewProps {
   updates: PlcUpdate[];
@@ -54,7 +55,8 @@ const FILTERS: { value: UpdatesFilter; label: string }[] = [
 const RosterColumn: React.FC<{
   heading: string;
   rows: { uid: string; name: string; ackedAt?: number }[];
-}> = ({ heading, rows }) => {
+  anchorKey: string;
+}> = ({ heading, rows, anchorKey }) => {
   const [all, setAll] = useState(false);
   const shown = all ? rows : rows.slice(0, ROSTER_PREVIEW);
   return (
@@ -71,7 +73,15 @@ const RosterColumn: React.FC<{
         ))}
       </ul>
       {rows.length > ROSTER_PREVIEW && (
-        <TextLink className="mt-1" onClick={() => setAll((v) => !v)}>
+        <TextLink
+          className="mt-1"
+          {...tourFieldAttr(
+            'teams.update.roster-show-all',
+            'teams-updates',
+            anchorKey
+          )}
+          onClick={() => setAll((v) => !v)}
+        >
           {all ? 'Hide' : `Show all ${rows.length}`}
         </TextLink>
       )}
@@ -105,6 +115,7 @@ const OptionsMenu: React.FC<{
         size="sm"
         aria-haspopup="menu"
         aria-expanded={open}
+        {...tourFieldAttr('teams.update.options', 'teams-updates', update.id)}
         onClick={() => setOpen((v) => !v)}
       />
       {open && (
@@ -116,6 +127,7 @@ const OptionsMenu: React.FC<{
             type="button"
             role="menuitem"
             className={MENU_ITEM}
+            {...tourFieldAttr('teams.update.pin', 'teams-updates', update.id)}
             onClick={pick(() => onPin?.(update.id, !update.pinned))}
           >
             {update.pinned ? 'Unpin' : 'Pin'}
@@ -124,6 +136,7 @@ const OptionsMenu: React.FC<{
             type="button"
             role="menuitem"
             className={MENU_ITEM}
+            {...tourFieldAttr('teams.update.edit', 'teams-updates', update.id)}
             onClick={pick(onEdit)}
           >
             Edit
@@ -132,6 +145,11 @@ const OptionsMenu: React.FC<{
             type="button"
             role="menuitem"
             className={`${MENU_ITEM} text-brand-red-primary`}
+            {...tourFieldAttr(
+              'teams.update.delete',
+              'teams-updates',
+              update.id
+            )}
             onClick={pick(() => onDelete?.(update))}
           >
             Delete
@@ -217,6 +235,7 @@ const UpdateArticle: React.FC<
         <ReactionButton
           count={reactionCount(u)}
           reacted={reacted}
+          anchorKey={u.id}
           onToggle={() => onReact?.(u.id, !reacted)}
         />
         {needsMyAck &&
@@ -227,7 +246,15 @@ const UpdateArticle: React.FC<
           ) : (
             <>
               <StatusLabel tone="warn">Acknowledgement required</StatusLabel>
-              <Button size="sm" onClick={() => onAck?.(u.id)}>
+              <Button
+                size="sm"
+                {...tourFieldAttr(
+                  'teams.update.acknowledge',
+                  'teams-updates',
+                  u.id
+                )}
+                onClick={() => onAck?.(u.id)}
+              >
                 Acknowledge
               </Button>
             </>
@@ -240,7 +267,10 @@ const UpdateArticle: React.FC<
                 {roster.acknowledged.length} of {roster.total}
               </span>
             </span>
-            <TextLink onClick={() => setOpen((v) => !v)}>
+            <TextLink
+              {...tourFieldAttr('teams.update.see-who', 'teams-updates', u.id)}
+              onClick={() => setOpen((v) => !v)}
+            >
               {open ? 'Hide' : 'See who'}
             </TextLink>
           </>
@@ -251,10 +281,12 @@ const UpdateArticle: React.FC<
           <RosterColumn
             heading={`Not yet · ${roster.notYet.length}`}
             rows={roster.notYet}
+            anchorKey={`${u.id}:not-yet`}
           />
           <RosterColumn
             heading={`Acknowledged · ${roster.acknowledged.length}`}
             rows={roster.acknowledged}
+            anchorKey={`${u.id}:acknowledged`}
           />
         </div>
       )}

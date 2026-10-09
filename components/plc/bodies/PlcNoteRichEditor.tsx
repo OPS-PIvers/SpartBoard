@@ -17,6 +17,7 @@ import {
 } from '@/utils/contentEditableLists';
 import { installDragSelectEnhancer } from '@/utils/contentEditableDragSelect';
 import { editorDomToMarkdown, markdownToEditorHtml } from './notesRichText';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcNoteRichEditorProps {
   /** Note body as Markdown. */
@@ -283,6 +284,7 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
             const Icon = tool.icon;
             return (
               <button
+                {...tourFieldAttr('plc-notes.rich-tool', 'plc', tool.id)}
                 key={tool.id}
                 type="button"
                 disabled={readOnly}
