@@ -10416,6 +10416,42 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     panel: true,
   },
   {
+    id: 'admin.org.org-status-filter',
+    label: 'Status filter in Organization list',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'admin.org.building-view-mode',
+    label: 'List and cards view switch in Organization buildings',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'admin.org.user-status-filter',
+    label: 'Status filter in Organization users',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'admin.help-center.related-widgets',
+    label: 'Related widgets picker in Help Center item form',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'admin.gradebook-settings.district-buildings',
+    label: 'Buildings picker for a district gradebook configuration',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'admin.gradebook-settings.period-set-buildings',
+    label: 'Buildings picker for a grading period set',
+    scope: 'field',
+    panel: true,
+  },
+  {
     id: 'activity-wall.visibility',
     label: 'Visible/Hidden posts toggle in Activity Wall',
     scope: 'widget',

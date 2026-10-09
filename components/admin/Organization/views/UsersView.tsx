@@ -387,6 +387,7 @@ export const UsersView: React.FC<Props> = ({
           </Select>
         </div>
         <Segmented
+          anchor={tourAttr('admin.org.user-status-filter')}
           value={statusFilter}
           onChange={changeStatusFilter}
           options={[

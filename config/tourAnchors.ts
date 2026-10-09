@@ -8124,6 +8124,33 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'admin.org.org-status-filter': {
+    label: 'Status filter in Organization list',
+    panel: true,
+  },
+  'admin.org.building-view-mode': {
+    label: 'List and cards view switch in Organization buildings',
+    panel: true,
+  },
+  'admin.org.user-status-filter': {
+    label: 'Status filter in Organization users',
+    panel: true,
+  },
+  'admin.help-center.related-widgets': {
+    label: 'Related widgets picker in Help Center item form',
+    panel: true,
+  },
+  'admin.gradebook-settings.district-buildings': {
+    label: 'Buildings picker for a district gradebook configuration',
+    persists: true,
+    panel: true,
+  },
+  'admin.gradebook-settings.period-set-buildings': {
+    label: 'Buildings picker for a grading period set',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
 
   // Activity Wall, Projects and Review start.
   'activity-wall.visibility': {
