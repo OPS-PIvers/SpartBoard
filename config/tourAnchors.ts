@@ -12026,6 +12026,91 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  // Flashcards and Mini Apps shared-prop controls.
+  'flashcards.stepper-class-picker': {
+    label: 'Class picker in the Flashcards assign dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.stepper-class-row': {
+    label: 'Class checkbox in the Flashcards assign dialog class picker',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.stepper-student-menu': {
+    label:
+      'Student picker button for one class in the Flashcards assign dialog',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.stepper-kind-switch': {
+    label:
+      'Student work or Study resource switch in the Flashcards assign dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.period-start-all': {
+    label: 'Start all periods button in Flashcards results',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'flashcards.period-pause-all': {
+    label: 'Pause all periods button in Flashcards results',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'flashcards.results-back': {
+    label: 'Back button in Flashcards results',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.stepper-class-picker': {
+    label: 'Class picker in the Mini App assign dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.stepper-class-row': {
+    label: 'Class checkbox in the Mini App assign dialog class picker',
+    perField: true,
+    panel: true,
+  },
+  'mini-app.stepper-student-menu': {
+    label: 'Student picker button for one class in the Mini App assign dialog',
+    perField: true,
+    panel: true,
+  },
+  'mini-app.stepper-kind-switch': {
+    label:
+      'Student work or Study resource switch in the Mini App assign dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.bulk-clear': {
+    label: 'Clear selection button in the Mini App library bulk bar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.bulk-move': {
+    label: 'Move to folder button in the Mini App library bulk bar',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'mini-app.bulk-delete': {
+    label: 'Delete button in the Mini App library bulk bar',
+    perWidgetType: true,
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'mini-app.editor-save': {
+    label: 'Save App button in the Mini App editor',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

@@ -15660,4 +15660,98 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     scope: 'board',
     panel: true,
   },
+  {
+    id: 'flashcards.stepper-class-picker',
+    label: 'Class picker in the Flashcards assign dialog',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'flashcards.stepper-class-row',
+    label: 'Class checkbox in the Flashcards assign dialog class picker',
+    scope: 'field',
+    panel: true,
+  },
+  {
+    id: 'flashcards.stepper-student-menu',
+    label:
+      'Student picker button for one class in the Flashcards assign dialog',
+    scope: 'field',
+    panel: true,
+  },
+  {
+    id: 'flashcards.stepper-kind-switch',
+    label:
+      'Student work or Study resource switch in the Flashcards assign dialog',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'flashcards.period-start-all',
+    label: 'Start all periods button in Flashcards results',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'flashcards.period-pause-all',
+    label: 'Pause all periods button in Flashcards results',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'flashcards.results-back',
+    label: 'Back button in Flashcards results',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'mini-app.stepper-class-picker',
+    label: 'Class picker in the Mini App assign dialog',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'mini-app.stepper-class-row',
+    label: 'Class checkbox in the Mini App assign dialog class picker',
+    scope: 'field',
+    panel: true,
+  },
+  {
+    id: 'mini-app.stepper-student-menu',
+    label: 'Student picker button for one class in the Mini App assign dialog',
+    scope: 'field',
+    panel: true,
+  },
+  {
+    id: 'mini-app.stepper-kind-switch',
+    label:
+      'Student work or Study resource switch in the Mini App assign dialog',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'mini-app.bulk-clear',
+    label: 'Clear selection button in the Mini App library bulk bar',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'mini-app.bulk-move',
+    label: 'Move to folder button in the Mini App library bulk bar',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'mini-app.bulk-delete',
+    label: 'Delete button in the Mini App library bulk bar',
+    scope: 'widget type',
+    panel: true,
+    destructive: true,
+  },
+  {
+    id: 'mini-app.editor-save',
+    label: 'Save App button in the Mini App editor',
+    scope: 'widget type',
+    panel: true,
+  },
 ];
