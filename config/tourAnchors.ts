@@ -2758,6 +2758,17 @@ export const tourAttr = (
   ...(widgetType ? { 'data-tour-widget-type': widgetType } : {}),
 });
 
+/** Attrs a shared component spreads onto its control; accepts `tourAttr`, `tourTypeAttr` and `tourFieldAttr` output. */
+export type TourAnchorAttrs = Partial<
+  Record<
+    | 'data-tour'
+    | 'data-tour-widget'
+    | 'data-tour-widget-type'
+    | 'data-tour-field',
+    string
+  >
+>;
+
 export const tourTypeAttr = (id: TourAnchorId, widgetType: string) => ({
   'data-tour': id,
   'data-tour-widget-type': widgetType,
