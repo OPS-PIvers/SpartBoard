@@ -34,6 +34,7 @@ import type {
   MiniAppItem,
   StudentOverride,
 } from '@/types';
+import { useSandboxedMiniAppAssignments } from './useTourSandboxed';
 
 const ASSIGNMENTS_COLLECTION = 'miniapp_assignments';
 const SESSIONS_COLLECTION = 'mini_app_sessions';
@@ -347,7 +348,7 @@ export const useMiniAppAssignments = (
     [userId]
   );
 
-  return {
+  return useSandboxedMiniAppAssignments({
     assignments,
     loading,
     error,
@@ -357,5 +358,5 @@ export const useMiniAppAssignments = (
     reactivateAssignment,
     deleteAssignment,
     setTargetSkippedCount,
-  };
+  });
 };

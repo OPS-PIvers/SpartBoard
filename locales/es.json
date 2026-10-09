@@ -1966,7 +1966,8 @@
       "readAloud": "Lectura en voz alta",
       "language": "{{language}}"
     },
-    "language": "Idioma"
+    "language": "Idioma",
+    "noChanges": "Sin cambios"
   },
   "assignTargeting": {
     "expandAffordance": "Editar o añadir adaptaciones",
@@ -2022,7 +2023,15 @@
     "periodBell": "Horario del timbre",
     "periodCustom": "Personalizado",
     "periodBellTimes": "{{open}} – {{close}}",
-    "periodNoBell": "Este período no tiene timbre ese día, así que usa el horario de arriba."
+    "periodNoBell": "Este período no tiene timbre ese día, así que usa el horario de arriba.",
+    "back": "Atrás",
+    "modificationsEyebrow": "Asignar · {{title}}",
+    "modificationsLink": "Adaptaciones: {{value}}",
+    "modificationsNone": "Ninguna",
+    "standingHeading": "Permanentes",
+    "skippedChip": "Omitido",
+    "removeModification": "Quitar adaptación",
+    "addStudent": "Agregar un estudiante"
   },
   "assignmentsHub": {
     "title": "Tareas",
@@ -3616,7 +3625,49 @@
       "startAutopilot": "Empezar con el piloto automático activado",
       "open": "Editar el recorrido",
       "retake": "Volver a tomar la imagen",
-      "retakeHint": "Toma una nueva imagen del control de este paso"
+      "retakeHint": "Toma una nueva imagen del control de este paso",
+      "pause": "Pausar",
+      "resume": "Reanudar",
+      "pauseHint": "Oculta el recorrido y prepara el tablero a mano",
+      "pausedNote": "En pausa. Organiza el tablero y luego reanuda.",
+      "saveStartTitle": "¿Guardar este tablero?",
+      "saveStartBody": "¿Empezar el paso {{n}} desde este tablero cuando alguien salte a él?",
+      "saveStart": "Guardar tablero",
+      "justResume": "Solo reanudar",
+      "startSaved": "Empieza desde un tablero guardado",
+      "clearStart": "Quitar"
+    },
+    "kept_one": "Se guardó {{count}} elemento en tu biblioteca.",
+    "kept_other": "Se guardaron {{count}} elementos en tu biblioteca.",
+    "keepFailed": "No se pudieron guardar algunos elementos.",
+    "keepItemsTitle_one": "¿Conservar lo que hiciste?",
+    "keepItemsTitle_other": "¿Conservar lo que hiciste?",
+    "keepItems_one": "Conservarlo",
+    "keepItems_other": "Conservarlos",
+    "discardItems": "Descartar",
+    "untitledItem": "Sin título",
+    "materials": {
+      "title": "Materiales",
+      "empty": "Ninguno. El recorrido usa lo que haya en el tablero.",
+      "add": "Añadir material",
+      "remove": "Quitar material",
+      "name": "Nombre",
+      "kind": "Tipo",
+      "source": "Origen",
+      "source_sample": "Copia de muestra",
+      "source_teacher": "Del docente",
+      "source_created": "Creado durante el recorrido",
+      "copyFrom": "Copiar de",
+      "previewWith": "Previsualizar con",
+      "choose": "Elegir…",
+      "noneYet": "Aún no hay ninguno en tu biblioteca",
+      "pickBody": "Elige cuáles de tus elementos usa este recorrido. El recorrido hace cambios reales en ellos.",
+      "madeInTour": "Creado en el recorrido",
+      "kind_quiz": "Cuestionario",
+      "kind_video-activity": "Actividad de video",
+      "kind_guided-learning": "Aprendizaje guiado",
+      "kind_mini-app": "Miniapp",
+      "kind_activity-wall": "Muro de actividades"
     }
   },
   "glPlayer": {
@@ -3806,10 +3857,8 @@
   },
   "glData": {
     "setTooLarge": "Este conjunto es demasiado grande para guardarlo. Divídelo o quita diapositivas.",
-    "deleteSetTitle": "¿Eliminar «{{title}}»?",
     "deleteWithOpenAssignments_one": "Los estudiantes de {{count}} tarea abierta lo perderán.",
-    "deleteWithOpenAssignments_other": "Los estudiantes de {{count}} tareas abiertas lo perderán.",
-    "deleteConfirm": "Eliminar"
+    "deleteWithOpenAssignments_other": "Los estudiantes de {{count}} tareas abiertas lo perderán."
   },
   "glAssignments": {
     "showOlder": "Mostrar anteriores"

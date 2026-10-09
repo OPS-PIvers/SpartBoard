@@ -799,3 +799,167 @@ describe('QuizAssignmentSettingsModal — availability and due date', () => {
     expect(screen.getByRole('button', { name: /^Save$/ })).toBeDisabled();
   });
 });
+
+describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
+  const rosters = [
+    makeRoster({ id: 'r1', name: 'Period 1' }),
+    makeRoster({ id: 'r2', name: 'Period 2' }),
+  ];
+  const withStepper = (ui: React.ReactElement) => (
+    <AuthContext.Provider
+      value={
+        {
+          canAccessFeature: (id: string) => id === 'assign-stepper',
+        } as unknown as AuthContextType
+      }
+    >
+      {ui}
+    </AuthContext.Provider>
+  );
+  const opens = combineDateAndTime('2026-06-01', '09:00') ?? 0;
+  const closes = combineDateAndTime('2026-06-02', '15:00') ?? 0;
+  const saved = (overrides: Partial<QuizAssignment> = {}) =>
+    makePlcAssignment({
+      rosterIds: ['r1'],
+      openAt: opens,
+      closeAt: closes,
+      dueAt: closes,
+      dueAtHasTime: true,
+      sessionMode: 'student',
+      ...overrides,
+    });
+  const savePatch = async (onSave: ReturnType<typeof vi.fn>) => {
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    return onSave.mock.calls[0][0] as Record<string, unknown>;
+  };
+
+  it('shows When, the three rule steps and Sharing, with no Classes step or name', () => {
+    render(
+      withStepper(
+        <QuizAssignmentSettingsModal
+          assignment={saved()}
+          rosters={rosters}
+          onSave={vi.fn()}
+          onClose={vi.fn()}
+        />
+      )
+    );
+    const headers = screen
+      .getAllByRole('button', { expanded: false })
+      .concat(screen.getAllByRole('button', { expanded: true }))
+      .map((b) => b.textContent ?? '')
+      .join('|');
+    for (const title of [
+      'When',
+      'Attempts and order',
+      'Quiz integrity',
+      'What students see',
+      'Sharing',
+    ])
+      expect(headers).toContain(title);
+    expect(headers).not.toContain('Classes');
+    expect(screen.queryByTestId('assign-class-picker')).not.toBeInTheDocument();
+    expect(screen.getByText('Shared with Test PLC')).toBeInTheDocument();
+    expect(screen.getByLabelText('Closes')).toHaveValue('2026-06-02');
+  });
+
+  it('saves the same classes and no window fields when untouched', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      withStepper(
+        <QuizAssignmentSettingsModal
+          assignment={saved()}
+          rosters={rosters}
+          onSave={onSave}
+          onClose={vi.fn()}
+        />
+      )
+    );
+    const patch = await savePatch(onSave);
+    expect(patch.rosterIds).toEqual(['r1']);
+    for (const key of ['openAt', 'closeAt', 'dueAt', 'sessionOptions'])
+      expect(patch).not.toHaveProperty(key);
+  });
+
+  it('moves the close and the due date together', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      withStepper(
+        <QuizAssignmentSettingsModal
+          assignment={saved()}
+          rosters={rosters}
+          onSave={onSave}
+          onClose={vi.fn()}
+        />
+      )
+    );
+    fireEvent.change(screen.getByLabelText('Closes'), {
+      target: { value: '2026-06-05' },
+    });
+    const patch = await savePatch(onSave);
+    const next = combineDateAndTime('2026-06-05', '15:00');
+    expect(patch.closeAt).toBe(next);
+    expect(patch.dueAt).toBe(next);
+  });
+
+  it('keeps one Opens for every class when only one open time is stored', () => {
+    render(
+      withStepper(
+        <QuizAssignmentSettingsModal
+          assignment={saved({ rosterIds: ['r1', 'r2'] })}
+          rosters={rosters}
+          onSave={vi.fn()}
+          onClose={vi.fn()}
+        />
+      )
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Different time for each class' })
+    );
+    expect(screen.getAllByLabelText('Opens')).toHaveLength(1);
+    expect(screen.getAllByLabelText('Closes')).toHaveLength(2);
+  });
+
+  it('keeps the full modal for a Review assignment', () => {
+    render(
+      withStepper(
+        <QuizAssignmentSettingsModal
+          assignment={saved({ sessionMode: 'teacher' })}
+          rosters={rosters}
+          onSave={vi.fn()}
+          onClose={vi.fn()}
+        />
+      )
+    );
+    expect(
+      screen.getByTestId('assignment-behavior-summary')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Quiz integrity')).not.toBeInTheDocument();
+  });
+
+  it('shows the Manual state with no dates for a Manual start', () => {
+    render(
+      withStepper(
+        <QuizAssignmentSettingsModal
+          assignment={saved({
+            openAt: undefined,
+            closeAt: undefined,
+            dueAt: undefined,
+            accessMode: 'assessment',
+            periodAccess: {
+              c1: { state: 'closed' },
+            } as unknown as QuizAssignment['periodAccess'],
+          })}
+          rosters={rosters}
+          onSave={vi.fn()}
+          onClose={vi.fn()}
+        />
+      )
+    );
+    expect(
+      screen.getByText('Starts paused. You start and pause each class.')
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText('Closes')).not.toBeInTheDocument();
+  });
+});

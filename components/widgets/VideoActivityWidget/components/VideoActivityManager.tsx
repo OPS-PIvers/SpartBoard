@@ -52,30 +52,30 @@ import {
 import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
 import { EMPTY_ASSIGN_TARGETING_VALUE } from '@/utils/studentTargetRef';
 import { ViewOnlyShareModal } from '@/components/common/library/ViewOnlyShareModal';
+import {
+  VideoAssignStepper,
+  type VideoAssignStepperResult,
+} from '@/components/common/library/assignStepper/VideoAssignStepper';
+import type { AssignClassesValue } from '@/components/common/library/assignStepper/assignClassesValue';
+import { useLastVideoAssignPacing } from '@/hooks/useLastVideoAssignPacing';
 import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArchiveCard';
 import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { useAuth } from '@/context/useAuth';
-import {
-  applyAvailability,
-  type WorkKindSetting,
-} from '@/utils/assignAvailability';
-import { resolveWorkKind } from '@/utils/gradebook/gradebookCore';
+import { applyAvailability } from '@/utils/assignAvailability';
 import { useDialog } from '@/context/useDialog';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { buildMoveToFolderAction } from '@/components/common/library/folderMenuAction';
 import { LibraryDndContext } from '@/components/common/library/LibraryDndContext';
-import { useLibraryView } from '@/components/common/library/useLibraryView';
+import { useFolderLibraryView } from '@/components/common/library/useFolderLibraryView';
+import { latestAssignedAt } from '@/components/common/library/folderView';
 import { useLibrarySelection } from '@/components/common/library/useLibrarySelection';
 import { useSortableReorder } from '@/components/common/library/useSortableReorder';
 import { BulkActionBar } from '@/components/common/library/BulkActionBar';
 import { LibraryPreviewPane } from '@/components/common/library/LibraryPreviewPane';
-import {
-  countItemsByFolder,
-  filterByFolder,
-} from '@/components/common/library/folderFilters';
+import { countItemsByFolder } from '@/components/common/library/folderFilters';
 import { useFolders } from '@/hooks/useFolders';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import type {
@@ -86,9 +86,14 @@ import type {
   LibraryTab,
 } from '@/components/common/library/types';
 import { buildDuplicateAction } from '@/components/common/library/libraryDuplicate';
+import {
+  LIBRARY_ITEM_NOUNS,
+  useLibraryDeleteConfirm,
+} from '@/components/common/library/useLibraryDeleteConfirm';
 import type {
   AssignmentMode,
   ClassRoster,
+  Plc,
   StudentTargetRef,
   VideoActivityAssignment,
   VideoActivityAssignmentStatus,
@@ -114,8 +119,20 @@ import {
   dueInputsToEpoch,
   DEFAULT_DUE_TIME,
 } from '@/utils/localDate';
+import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
+import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */
+
+/** What only the assign stepper sends (docs/plans/ASSIGN_STEPPER.md). */
+export interface VideoActivityAssignExtras {
+  /** Picked classes with per-class student picks (D5b). */
+  classes: AssignClassesValue;
+  /** Manual: every class starts closed until the teacher starts it. */
+  manualStart: boolean;
+  /** Share results with this PLC (D10). */
+  plc: Plc | null;
+}
 
 /** A self-paced assign to open pre-filled, e.g. a live session's make-up (D18). */
 export interface VideoActivityPendingAssign {
@@ -138,6 +155,8 @@ export interface VideoActivityManagerProps {
   onImport: () => void;
   onEdit: (activity: VideoActivityMetadata) => void;
   onDelete: (activity: VideoActivityMetadata) => void | Promise<void>;
+  /** The widget's delete path for the folder delete dialog's "delete everything" choice. */
+  folderDeleteActions?: FolderDeleteActions;
   /**
    * Phase 5 — duplicate kebab item. Owns the actual `duplicateActivity`
    * call. When omitted, the entry is hidden (view-only / test
@@ -181,8 +200,12 @@ export interface VideoActivityManagerProps {
     /** M17 B3 — individual targeting/overrides/window (spec §5 B3). */
     targeting: AssignTargetingValue,
     /** 'teacher' opens a live, board-paced session (one class, no schedule). */
-    sessionMode: VideoActivitySessionMode
+    sessionMode: VideoActivitySessionMode,
+    /** Set only by the assign stepper. */
+    extras?: VideoActivityAssignExtras
   ) => Promise<string>;
+  /** The teacher's PLCs, for the stepper's Sharing step. */
+  plcs?: readonly Plc[];
   /** Rosters to populate the picker. */
   rosters: ClassRoster[];
   /** Per-period access choices in the assign modal; undefined while the flag is off. */
@@ -325,6 +348,8 @@ const LIBRARY_SORT_COMPARATORS = {
 const LIBRARY_INITIAL_SORT = { key: 'updated', dir: 'desc' as LibrarySortDir };
 
 const ACTIVITY_GET_ID = (a: VideoActivityMetadata): string => a.id;
+const NO_PLCS: readonly Plc[] = [];
+const ACTIVITY_NOUN = ['activity', 'activities'] as const;
 
 /* ─── Assignment status → badge mapping ───────────────────────────────────── */
 
@@ -485,6 +510,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onImport,
   onEdit,
   onDelete,
+  folderDeleteActions,
   onDuplicate,
   onShareWithPlc,
   isDuplicating,
@@ -507,6 +533,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onArchiveUnpublishScores,
   rosters,
   periodAccess,
+  plcs = NO_PLCS,
   lastRosterIdsByActivityId,
   lastClassIdsByActivityId,
   lastClassIdByActivityId,
@@ -516,15 +543,16 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onPendingAssignDone,
 }) => {
   const { showConfirm } = useDialog();
+  const confirmDelete = useLibraryDeleteConfirm();
   const { canAccessFeature } = useAuth();
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
   const canAssignLive = canAccessFeature('video-activity-live');
   const availabilityOn = canAccessFeature('assign-availability');
-  const workKindSetting: WorkKindSetting | undefined = canAccessFeature(
-    'study-resources'
-  )
-    ? { default: resolveWorkKind('video-activity', null) }
-    : undefined;
+  const stepperOn = canAccessFeature('assign-stepper');
+  const lastPacing = useLastVideoAssignPacing(
+    userId,
+    stepperOn && canAssignLive
+  );
   const claudeReview = useClaudeReview('video_activities');
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
@@ -549,7 +577,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const [isCreatingViewOnlyShare, setIsCreatingViewOnlyShare] = useState(false);
   const [assignOptions, setAssignOptions] =
     useState<VideoActivitySessionSettings>(defaultSessionSettings);
-  const [assignmentName, setAssignmentName] = useState<string>('');
   const [assignError, setAssignError] = useState<string | null>(null);
   // Due date for the current assign modal (epoch ms or null = no due date).
   const [assignDueAt, setAssignDueAt] = useState<number | null>(null);
@@ -596,7 +623,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   if (assignTarget && assignTarget.id !== prevAssignTargetId) {
     setPrevAssignTargetId(assignTarget.id);
     setAssignOptions(defaultSessionSettings);
-    setAssignmentName(assignTarget.title);
     setAssignDueAt(null);
     setAssignTargeting(
       activePending && activePending.targetStudents.length > 0
@@ -635,7 +661,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
 
   /* ─── Folder navigation (Wave 3-B-3) ──────────────────────────────────── */
   const folderState = useFolders(userId, 'video_activity');
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [folderPickerTarget, setFolderPickerTarget] =
     useState<VideoActivityMetadata | null>(null);
 
@@ -662,35 +687,40 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     }
   }
 
-  // Reset folder selection when the signed-in user changes or the selected
-  // folder no longer exists (adjust-state-during-render pattern).
-  const [prevFolderUserId, setPrevFolderUserId] = useState(userId);
-  if (prevFolderUserId !== userId) {
-    setPrevFolderUserId(userId);
-    setSelectedFolderId(null);
-  }
-  if (
-    !folderState.loading &&
-    selectedFolderId !== null &&
-    !folderState.folders.some((f) => f.id === selectedFolderId)
-  ) {
-    setSelectedFolderId(null);
-  }
-
   const folderItemCounts = useMemo(
     () => countItemsByFolder(activities),
     [activities]
   );
+  const folderView = useFolderViewSidebar({
+    setFolderColor: folderState.setFolderColor,
+    noun: { one: 'video activity', many: 'video activities' },
+    items: activities,
+    ...folderDeleteActions,
+  });
 
-  const folderFilteredActivities = useMemo(
-    () => filterByFolder(activities, selectedFolderId),
-    [activities, selectedFolderId]
+  const lastAssignedAt = useMemo(
+    () => latestAssignedAt(assignments, (a) => a.activityId),
+    [assignments]
+  );
+  const activityRecentAt = useCallback(
+    (a: VideoActivityMetadata) =>
+      Math.max(a.updatedAt ?? a.createdAt ?? 0, lastAssignedAt.get(a.id) ?? 0),
+    [lastAssignedAt]
   );
 
   /* ─── Library (activities) view state ─────────────────────────────────── */
 
-  const libraryView = useLibraryView<VideoActivityMetadata>({
-    items: folderFilteredActivities,
+  const libraryView = useFolderLibraryView<VideoActivityMetadata>({
+    items: activities,
+    folderView: {
+      library: 'video_activity',
+      userId: userId,
+      folders: folderState.folders,
+      foldersLoading: folderState.loading,
+      getId: ACTIVITY_GET_ID,
+      getRecentAt: activityRecentAt,
+      itemNoun: ACTIVITY_NOUN,
+    },
     initialSort: LIBRARY_INITIAL_SORT,
     // Phase 2 redesign: the library is list-only (monitor row idiom).
     initialViewMode: 'list',
@@ -754,12 +784,13 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
 
   const handleBulkDelete = useCallback(async (): Promise<void> => {
     if (selection.count === 0) return;
-    const ok = window.confirm(
-      `Delete ${selection.count} activit${selection.count === 1 ? 'y' : 'ies'}? This cannot be undone.`
-    );
-    if (!ok) return;
     const ids = Array.from(selection.selectedIds);
     const targets = activities.filter((a) => ids.includes(a.id));
+    const ok = await confirmDelete({
+      titles: targets.map((a) => a.title),
+      noun: LIBRARY_ITEM_NOUNS.videoActivity,
+    });
+    if (!ok) return;
     setBulkBusy(true);
     try {
       const results = await Promise.allSettled(
@@ -779,7 +810,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     } finally {
       setBulkBusy(false);
     }
-  }, [selection, activities, onDelete]);
+  }, [selection, activities, onDelete, confirmDelete]);
 
   const handleReorderDrop = useCallback(
     async (nextOrderedIds: string[]): Promise<void> => {
@@ -835,7 +866,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
             enabled: true,
             rosters: rosters.filter((r) => validRosterIds.includes(r.id)),
             bellWindow: periodAccess?.bellWindow,
-            workKind: workKindSetting,
           }).targeting
         : { ...assignTargeting, dueAt: assignDueAt ?? undefined };
       const dueAt = availabilityOn
@@ -854,6 +884,34 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         err instanceof Error ? err.message : 'Failed to create assignment'
       );
       throw err; // let the modal re-enable its button
+    }
+  };
+
+  const handleStepperSubmit = async (
+    result: VideoAssignStepperResult
+  ): Promise<void> => {
+    if (!assignTarget) return;
+    setAssignError(null);
+    const live = result.pacing === 'teacher';
+    try {
+      await onAssign(
+        assignTarget,
+        result.classes.classIds,
+        live ? null : (result.targeting.dueAt ?? null),
+        result.targeting,
+        result.pacing,
+        {
+          classes: result.classes,
+          manualStart: result.manualStart,
+          plc: result.plc,
+        }
+      );
+      if (canAssignLive) lastPacing.save(result.pacing);
+      closeAssign();
+    } catch (err) {
+      setAssignError(
+        err instanceof Error ? err.message : 'Failed to create assignment'
+      );
     }
   };
 
@@ -949,9 +1007,10 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     />
   );
 
-  const useExternalDnd = Boolean(userId) && !selectionMode;
+  const useExternalDnd =
+    Boolean(userId) && (!selectionMode || libraryView.folderView != null);
   const cardDragEnabled =
-    (useExternalDnd || Boolean(onReorderActivities)) && !selectionMode;
+    useExternalDnd || (Boolean(onReorderActivities) && !selectionMode);
 
   const renderLibraryTab = (): React.ReactElement => (
     <div className="flex" style={{ gap: 'min(12px, 3cqmin)' }}>
@@ -1055,14 +1114,10 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
                 icon: Trash2,
                 destructive: true,
                 onClick: async () => {
-                  const ok = await showConfirm(
-                    `Delete "${activity.title}"? This cannot be undone.`,
-                    {
-                      title: 'Delete Video Activity',
-                      variant: 'danger',
-                      confirmLabel: 'Delete',
-                    }
-                  );
+                  const ok = await confirmDelete({
+                    titles: [activity.title],
+                    noun: LIBRARY_ITEM_NOUNS.videoActivity,
+                  });
                   if (ok) await onDelete(activity);
                 },
               },
@@ -1439,13 +1494,15 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         folders={folderState.folders}
         loading={folderState.loading}
         error={folderState.error}
-        selectedFolderId={selectedFolderId}
-        onSelectFolder={setSelectedFolderId}
+        selectedFolderId={libraryView.selectedFolderId}
+        onSelectFolder={libraryView.onSelectFolder}
+        folderView={libraryView.folderView}
         itemCounts={folderItemCounts}
         onCreateFolder={folderState.createFolder}
         onRenameFolder={folderState.renameFolder}
         onMoveFolder={folderState.moveFolder}
         onDeleteFolder={folderState.deleteFolder}
+        {...folderView}
         enableDrop
       />
     ) : undefined;
@@ -1485,6 +1542,8 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     <LibraryShell
       widgetLabel="Video Activity"
       widgetType="video-activity"
+      folderView={libraryView.folderView}
+      folderViewMode={libraryView.state.viewMode}
       tab={tab}
       onTabChange={setTab}
       counts={tabCounts}
@@ -1515,6 +1574,9 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     <>
       {useExternalDnd && tab === 'library' ? (
         <LibraryDndContext
+          folderView={libraryView.folderView}
+          selectedIds={selection.selectedIds}
+          folderActions={folderState}
           itemIds={orderedIds}
           onReorder={handleReorderDrop}
           onDropOnFolder={handleDropOnFolder}
@@ -1539,15 +1601,30 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         />
       )}
 
-      {assignTarget && !isViewOnly && (
+      {assignTarget && !isViewOnly && stepperOn && (
+        <VideoAssignStepper
+          key={`${assignTarget.id}:${activePending?.key ?? ''}`}
+          onClose={closeAssign}
+          title={assignTarget.title}
+          rosters={rosters}
+          periodAccess={periodAccess}
+          plcs={plcs}
+          canAssignLive={canAssignLive}
+          lastPacing={activePending ? 'student' : lastPacing.lastUsed}
+          initialClassIds={pickerValue.rosterIds}
+          initialStudents={activePending?.targetStudents}
+          error={assignError}
+          onSubmit={handleStepperSubmit}
+        />
+      )}
+
+      {assignTarget && !isViewOnly && !stepperOn && (
         <AssignModal<VideoActivitySessionSettings>
           isOpen={true}
           onClose={closeAssign}
           itemTitle={assignTarget.title}
           options={assignOptions}
           onOptionsChange={setAssignOptions}
-          assignmentName={assignmentName}
-          onAssignmentNameChange={setAssignmentName}
           confirmLabel={assignLive ? 'Start live' : 'Assign'}
           onAssign={handleAssignConfirm}
           extraSlot={
@@ -1570,7 +1647,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
               onTargetingChange={setAssignTargeting}
               periodAccess={periodAccess}
               availabilityEnabled={availabilityOn}
-              workKind={workKindSetting}
               assignError={assignError}
               onEditInActivity={() => {
                 closeAssign();
@@ -1624,7 +1700,6 @@ const AssignBehaviorSummaryVA: React.FC<{
   onTargetingChange: (next: AssignTargetingValue) => void;
   periodAccess?: AssignPeriodAccessContext;
   availabilityEnabled: boolean;
-  workKind?: WorkKindSetting;
   assignError: string | null;
   onEditInActivity?: () => void;
 }> = ({
@@ -1640,7 +1715,6 @@ const AssignBehaviorSummaryVA: React.FC<{
   onTargetingChange,
   periodAccess,
   availabilityEnabled,
-  workKind,
   assignError,
   onEditInActivity,
 }) => {
@@ -1716,7 +1790,6 @@ const AssignBehaviorSummaryVA: React.FC<{
           kind="video-activity"
           showDueAt={false}
           availabilityEnabled={availabilityEnabled}
-          workKind={workKind}
         />
 
         {/* Due date */}

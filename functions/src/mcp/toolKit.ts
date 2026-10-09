@@ -37,6 +37,8 @@ export const FOLDER_COLLECTIONS = {
   question_banks: 'question_bank_folders',
   video_activities: 'video_activity_folders',
   mini_apps: 'miniapp_folders',
+  guided_learning: 'guided_learning_folders',
+  projects: 'projects_folders',
 } as const;
 export type FolderContentType = keyof typeof FOLDER_COLLECTIONS;
 export const CONTENT_TYPES = Object.keys(FOLDER_COLLECTIONS) as [
@@ -58,6 +60,97 @@ export async function assertFolder(
       `Folder ${folderId} was not found. Use list_folders to find a folder id.`
     );
   }
+}
+
+export const FOLDER_PAGE_SIZE = 500;
+
+/** Folder colour palette, matching LibraryFolder.color in the client. */
+export const FOLDER_COLORS = [
+  'red',
+  'orange',
+  'amber',
+  'green',
+  'teal',
+  'blue',
+  'pink',
+  'gray',
+] as const;
+
+export interface FolderRow {
+  id: string;
+  name: string;
+  parentId: string | null;
+  order: number;
+  color: string | null;
+}
+
+export function toFolderRow(
+  id: string,
+  data: Record<string, unknown>
+): FolderRow {
+  return {
+    id,
+    name: typeof data.name === 'string' ? data.name : '',
+    parentId: typeof data.parentId === 'string' ? data.parentId : null,
+    order: Number(data.order ?? 0),
+    color: typeof data.color === 'string' && data.color ? data.color : null,
+  };
+}
+
+// Reads every folder page by page, so a large library never misses an existing folder.
+export async function loadAllFolders(
+  db: admin.firestore.Firestore,
+  collectionPath: string
+): Promise<FolderRow[]> {
+  const rows: FolderRow[] = [];
+  let last: admin.firestore.QueryDocumentSnapshot | undefined;
+  for (;;) {
+    let q = db
+      .collection(collectionPath)
+      .orderBy(admin.firestore.FieldPath.documentId())
+      .limit(FOLDER_PAGE_SIZE);
+    if (last) q = q.startAfter(last);
+    const snap = await q.get();
+    for (const d of snap.docs) rows.push(toFolderRow(d.id, d.data()));
+    if (snap.docs.length < FOLDER_PAGE_SIZE) return rows;
+    last = snap.docs[snap.docs.length - 1];
+  }
+}
+
+/** Folder names from the top level down to this folder; a cycle or missing parent stops the walk. */
+export function folderPath(
+  id: string,
+  byId: ReadonlyMap<string, FolderRow>
+): string[] {
+  const names: string[] = [];
+  const seen = new Set<string>();
+  let cur = byId.get(id);
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id);
+    names.unshift(cur.name);
+    cur = cur.parentId ? byId.get(cur.parentId) : undefined;
+  }
+  return names;
+}
+
+/** Walks `names` down from `parentId`, reusing same-named folders (case-insensitive); returns where the walk stopped and the names still to create. */
+export function resolveFolderPath(
+  rows: readonly FolderRow[],
+  parentId: string | null,
+  names: readonly string[]
+): { parentId: string | null; missing: string[] } {
+  let current = parentId;
+  for (let i = 0; i < names.length; i++) {
+    const want = names[i].trim().toLowerCase();
+    const match = rows
+      .filter(
+        (r) => r.parentId === current && r.name.trim().toLowerCase() === want
+      )
+      .sort((a, b) => a.order - b.order)[0];
+    if (!match) return { parentId: current, missing: names.slice(i) };
+    current = match.id;
+  }
+  return { parentId: current, missing: [] };
 }
 
 /** Runs a tool body, turning expected failures into a readable tool error for Claude. */

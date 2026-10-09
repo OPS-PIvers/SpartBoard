@@ -63,31 +63,18 @@ export const useBreathing = (patternId: BreathingPattern) => {
     const newPattern = PATTERNS[patternId];
     patternRef.current = newPattern;
 
-    // Only rebase timing when the timer is actively running and we are in a
-    // real phase (not 'ready').  If we are paused, stateRef.phaseDuration will
-    // be re-derived from the saved progress when toggleActive() resumes, so no
-    // update is needed here.
-    if (stateRef.current.isActive) {
-      const currentPhase = stateRef.current.phase;
-      if (currentPhase !== 'ready') {
-        const newDurationSeconds =
-          newPattern[currentPhase as keyof PatternData];
-        if (newDurationSeconds > 0) {
-          const newPhaseDuration = newDurationSeconds * 1000;
-          const now = performance.now();
-          // Preserve the fraction of the phase already elapsed so the visual
-          // circle does not jump.
-          const elapsedAlready = stateRef.current.progress * newPhaseDuration;
-          stateRef.current.phaseDuration = newPhaseDuration;
-          stateRef.current.startTime = now - elapsedAlready;
-        } else {
-          // New pattern does not have this phase (duration === 0, e.g. hold1/hold2
-          // when switching to a two-phase pattern).  Set phaseDuration to 0 so the
-          // next RAF tick sees elapsed (≥ 0) >= phaseDuration (0) and transitions
-          // immediately, rather than waiting out the stale old duration.
-          stateRef.current.phaseDuration = 0;
-          stateRef.current.startTime = performance.now();
-        }
+    // Rebase the current phase's duration (paused or running); resume derives startTime from it.
+    const currentPhase = stateRef.current.phase;
+    if (currentPhase !== 'ready') {
+      const newPhaseDuration =
+        newPattern[currentPhase as keyof PatternData] * 1000;
+      stateRef.current.phaseDuration = newPhaseDuration;
+      if (stateRef.current.isActive) {
+        // Keep the elapsed fraction so the circle does not jump; a zero-length phase ends on the next tick.
+        stateRef.current.startTime =
+          newPhaseDuration > 0
+            ? performance.now() - stateRef.current.progress * newPhaseDuration
+            : performance.now();
       }
     }
   }, [patternId]);

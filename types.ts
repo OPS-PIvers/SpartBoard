@@ -5196,6 +5196,8 @@ export interface QuizSession
    * (`maxPoints`) is derived from the quiz at push time, not stored here.
    */
   ltiAttachment?: LtiAttachmentLink;
+  /** Set by the server once SpartBoard made a Schoology gradebook column for this assignment (SCHOOLOGY_TOOL_COLUMNS.md D5). */
+  ltiToolColumn?: boolean;
   /** Mirrors `QuizAssignment.openAt`/`closeAt`. Absent = always open. */
   openAt?: number | null;
   closeAt?: number | null;
@@ -7296,6 +7298,8 @@ export interface VideoActivitySession
    * view. Mirrors `QuizSession.ltiAttachment`.
    */
   ltiAttachment?: LtiAttachmentLink;
+  /** Set by the server once SpartBoard made a Schoology gradebook column for this assignment (SCHOOLOGY_TOOL_COLUMNS.md D5). */
+  ltiToolColumn?: boolean;
   /** Mirrors `VideoActivityAssignment.openAt`/`closeAt`. Absent = always open. */
   openAt?: number | null;
   closeAt?: number | null;
@@ -8126,6 +8130,48 @@ export interface GuidedLearningTourBinding {
   unmapped?: string;
   /** Optional picture of the control; never decides whether a step shows or can be edited. */
   thumbnail?: GuidedLearningTourThumbnail;
+  /** The board this step starts from; a jump straight here loads it instead of replaying earlier steps. */
+  start?: TourStepStart;
+}
+
+/** A step's starting board: widget places and the material open in an editor. */
+export interface TourStepStart {
+  layouts: TourWidgetLayout[];
+  open?: TourOpenMaterial;
+}
+
+/** A tour material open in the editor of the widget in `slot`. */
+export interface TourOpenMaterial {
+  materialId: string;
+  slot: number;
+  /** Content of a material the tour made earlier, so a jump here can recreate it. */
+  content?: TourMaterialContent;
+}
+
+export type TourMaterialKind =
+  | 'quiz'
+  | 'video-activity'
+  | 'guided-learning'
+  | 'mini-app'
+  | 'activity-wall';
+
+/** A library item's library entry and full content, as its widget stores them. */
+export interface TourMaterialContent {
+  meta: Record<string, unknown>;
+  data: Record<string, unknown>;
+}
+
+/** sample: a copy kept in the tour; teacher: one of theirs, picked at start; created: made during the tour. */
+export type TourMaterialSource = 'sample' | 'teacher' | 'created';
+
+/** A library item a live tour works on. */
+export interface TourMaterial {
+  id: string;
+  kind: TourMaterialKind;
+  source: TourMaterialSource;
+  label: string;
+  /** sample: the copied item, and the author's item it came from. */
+  sample?: TourMaterialContent & { fromId: string; title: string };
 }
 
 /** A step's picture; `anchor` differing from the binding's anchor marks it stale. */
@@ -8246,6 +8292,8 @@ export interface GuidedLearningSet {
     useTeacherBoard?: true;
     /** A tour-mode set starts with Autopilot on (what `mode: 'guided'` did before tours had a mode). */
     autopilot?: true;
+    /** Library items the tour works on; absent = a tour from before materials, which runs on real items. */
+    materials?: TourMaterial[];
   };
   /** Stamped on every building-set save: true for tour mode or when any step has a live-tour binding. */
   hasLiveTour?: boolean;
@@ -9808,6 +9856,8 @@ export type GlobalFeature =
   | 'tab-away-timer'
   /** Guided Learning live tours in the teacher app and their launch points. */
   | 'gl-live-tours'
+  /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
+  | 'live-tour-editing-v2'
   /** Guided Learning Studio editor in place of the classic editor. */
   | 'gl-studio'
   /** Per-period start/pause and windows on assignments shared by several classes. */
@@ -9912,7 +9962,15 @@ export type GlobalFeature =
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
   /** Embed: a pasted Google Slides link opens on the slide it was copied from. */
-  | 'embed-slide-link';
+  | 'embed-slide-link'
+  /** Widget libraries open on folders with a path bar, Recent view and drag filing (docs/plans/LIBRARY_FOLDERS.md D26). */
+  | 'library-folder-view'
+  /** Assign as an accordion stepper (docs/plans/ASSIGN_STEPPER.md D16). */
+  | 'assign-stepper'
+  /** Team invite boxes suggest staff emails from the org directory as you type. */
+  | 'team-email-suggest'
+  /** Push scores into a SpartBoard-made Schoology gradebook column (docs/plans/SCHOOLOGY_TOOL_COLUMNS.md D11). */
+  | 'schoology-tool-columns';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {
@@ -11141,7 +11199,19 @@ export interface LibraryFolder {
   createdAt: number;
   /** Epoch ms at last rename / move / reorder. Optional on legacy records. */
   updatedAt?: number;
+  /** Teacher-picked folder colour (D11); absent = neutral. */
+  color?: LibraryFolderColor;
 }
+
+export type LibraryFolderColor =
+  | 'red'
+  | 'orange'
+  | 'amber'
+  | 'green'
+  | 'teal'
+  | 'blue'
+  | 'pink'
+  | 'gray';
 
 /**
  * A Board collection (folder) stored at

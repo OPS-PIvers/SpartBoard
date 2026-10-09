@@ -16,7 +16,12 @@ import net from 'net';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import './functionsInit';
 import { assertViewAsAllowed } from './viewAsGuard';
-import { isBlockedIp } from './ssrfGuard';
+import {
+  createPinnedAgent,
+  isBlockedIp,
+  resolveAndValidateHost,
+  type ResolvedAddress,
+} from './ssrfGuard';
 
 // Nutrislice answers 403 to axios's default User-Agent from Cloud Functions IPs.
 const BROWSER_USER_AGENT =
@@ -178,8 +183,20 @@ export const checkUrlCompatibility = onCall(
       );
     }
 
+    // A public hostname can resolve to a private IP, so validate and pin the resolved addresses.
+    let addresses: ResolvedAddress[];
+    try {
+      addresses = await resolveAndValidateHost(literalIp);
+    } catch {
+      throw new HttpsError(
+        'invalid-argument',
+        'URLs pointing to private or reserved IP ranges are not allowed.'
+      );
+    }
+
     try {
       const response = await axios.head(data.url, {
+        httpsAgent: createPinnedAgent(addresses),
         timeout: 10000,
         // SSRF guard: the blocklist check above only validates the initial URL.
         // Without this, axios would follow up to 5 redirects by default, so a

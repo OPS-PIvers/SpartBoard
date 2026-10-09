@@ -44,6 +44,7 @@ import {
   Copy,
   CheckSquare,
   RotateCcw,
+  FolderMinus,
 } from 'lucide-react';
 import type {
   AssignmentMode,
@@ -64,15 +65,18 @@ import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { buildMoveToFolderAction } from '@/components/common/library/folderMenuAction';
 import { LibraryDndContext } from '@/components/common/library/LibraryDndContext';
-import { useLibraryView } from '@/components/common/library/useLibraryView';
+import {
+  useFolderLibraryView,
+  useLibraryFolderViewEnabled,
+} from '@/components/common/library/useFolderLibraryView';
+import { useSourceFolders } from '@/components/common/library/useSourceFolders';
+import { isSourceFolderId } from '@/components/common/library/sourceFolders';
+import { latestAssignedAt } from '@/components/common/library/folderView';
 import { useLibrarySelection } from '@/components/common/library/useLibrarySelection';
 import { useSortableReorder } from '@/components/common/library/useSortableReorder';
 import { BulkActionBar } from '@/components/common/library/BulkActionBar';
 import { LibraryPreviewPane } from '@/components/common/library/LibraryPreviewPane';
-import {
-  countItemsByFolder,
-  filterByFolder,
-} from '@/components/common/library/folderFilters';
+import { countItemsByFolder } from '@/components/common/library/folderFilters';
 import { useFolders } from '@/hooks/useFolders';
 import type {
   LibraryBadge,
@@ -85,6 +89,12 @@ import type {
   AssignmentStatusBadge,
 } from '@/components/common/library/types';
 import { buildDuplicateAction } from '@/components/common/library/libraryDuplicate';
+import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
+import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
+import {
+  LIBRARY_ITEM_NOUNS,
+  useLibraryDeleteConfirm,
+} from '@/components/common/library/useLibraryDeleteConfirm';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
@@ -112,6 +122,8 @@ export interface MiniAppManagerProps {
   /** Status chips for a personal app's card, e.g. the Claude review mark. */
   badgesFor?: (app: MiniAppItem) => LibraryBadge[];
   onDelete: (app: MiniAppItem) => void | Promise<void>;
+  /** The widget's delete path for the folder delete dialog's "delete everything" choice. */
+  folderDeleteActions?: FolderDeleteActions;
   /**
    * Phase 5 — duplicate kebab item. Owns the actual write (the widget
    * already has Firestore access). Optional so test harnesses can omit.
@@ -194,6 +206,23 @@ function getRowId(row: UnifiedRow): string {
   return `${row.kind}:${row.item.id}`;
 }
 
+const APP_NOUN = ['Mini app', 'Mini apps'] as const;
+
+// District apps can't be filed yet, so they sit at the top level.
+function rowFolderId(row: UnifiedRow): string | null {
+  return row.kind === 'personal' ? (row.item.folderId ?? null) : null;
+}
+
+function filterRowsByFolder(
+  rows: UnifiedRow[],
+  selectedFolderId: string | null
+): UnifiedRow[] {
+  if (selectedFolderId === null) return rows;
+  return rows.filter(
+    (row) => row.kind === 'global' || rowFolderId(row) === selectedFolderId
+  );
+}
+
 function getRowTitle(row: UnifiedRow): string {
   return row.item.title;
 }
@@ -242,6 +271,12 @@ const LIBRARY_SORT_COMPARATORS = {
 
 const LIBRARY_FILTER_PREDICATES = {
   source: (row: UnifiedRow, value: string): boolean => row.kind === value,
+};
+
+// In the folder view, district apps sit in "My apps" under their source folder (D21).
+const FOLDER_VIEW_FILTER_PREDICATES = {
+  source: (row: UnifiedRow, value: string): boolean =>
+    value === 'personal' || row.kind === value,
 };
 
 /* ─── View-only row wrapper (per-row hook host for view-count fetch) ──────── */
@@ -316,6 +351,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   onEdit,
   badgesFor,
   onDelete,
+  folderDeleteActions,
   onDuplicate,
   isDuplicating,
   onRun,
@@ -370,28 +406,42 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
 
   /* ── Folder navigation (Wave 3-B-3) ────────────────────────────────── */
   const folderState = useFolders(userId, 'miniapp');
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [folderPickerTarget, setFolderPickerTarget] = useState<{
     id: string;
     title: string;
     folderId: string | null;
+    /** Set for a district app, which is filed by placement instead of moved. */
+    sourceKey?: string;
   } | null>(null);
-
-  // Reset folder selection when the signed-in user changes or the selected
-  // folder no longer exists (adjust-state-during-render pattern). We clear the
-  // selection on switch-to-global-view below, after `isGlobalView` is derived.
-  const [prevFolderUserId, setPrevFolderUserId] = useState(userId);
-  if (prevFolderUserId !== userId) {
-    setPrevFolderUserId(userId);
-    setSelectedFolderId(null);
-  }
-  if (
-    !folderState.loading &&
-    selectedFolderId !== null &&
-    !folderState.folders.some((f) => f.id === selectedFolderId)
-  ) {
-    setSelectedFolderId(null);
-  }
+  const folderViewEnabled = useLibraryFolderViewEnabled();
+  const globalSourceKeys = useMemo(
+    () => globalLibrary.map((app) => `global:${app.id}`),
+    [globalLibrary]
+  );
+  // Global row ids double as their placement source keys.
+  const sourceFolders = useSourceFolders({
+    userId,
+    widget: 'miniapp',
+    enabled: folderViewEnabled,
+    sourceKeys: globalSourceKeys,
+    ownFolders: folderState.folders,
+  });
+  const { folderIdOf, move: moveSource } = sourceFolders;
+  const getFolderIdOfRow = useCallback(
+    (row: UnifiedRow) =>
+      row.kind === 'global' ? folderIdOf(getRowId(row)) : rowFolderId(row),
+    [folderIdOf]
+  );
+  const fileGlobalApp = useCallback(
+    async (sourceKey: string, folderId: string | null): Promise<void> => {
+      try {
+        await moveSource(sourceKey, folderId);
+      } catch (err) {
+        console.error('[MiniAppManager] filing a district app failed:', err);
+      }
+    },
+    [moveSource]
+  );
 
   // Count personal apps per folder id (+ `root` for unfoldered items) for the
   // sidebar badges. Global apps never live in a teacher's folder.
@@ -399,18 +449,18 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     () => countItemsByFolder(personalLibrary),
     [personalLibrary]
   );
-
-  // Filter BEFORE building rows so search/sort only operate on the currently
-  // selected folder's apps.
-  const folderFilteredPersonal = useMemo(
-    () => filterByFolder(personalLibrary, selectedFolderId),
-    [personalLibrary, selectedFolderId]
-  );
+  const folderView = useFolderViewSidebar({
+    setFolderColor: folderState.setFolderColor,
+    noun: { one: 'Mini app', many: 'Mini apps' },
+    items: personalLibrary,
+    placed: sourceFolders.placed,
+    ...folderDeleteActions,
+  });
 
   /* ── Unified rows (sorted by source + ordering) ─────────────────────── */
   const personalRows = useMemo<UnifiedRow[]>(
-    () => folderFilteredPersonal.map((item) => ({ kind: 'personal', item })),
-    [folderFilteredPersonal]
+    () => personalLibrary.map((item) => ({ kind: 'personal', item })),
+    [personalLibrary]
   );
   const globalRows = useMemo<UnifiedRow[]>(
     () => globalLibrary.map((item) => ({ kind: 'global', item })),
@@ -441,13 +491,36 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     [reorderHook.orderedItems, globalRows]
   );
 
-  const view = useLibraryView<UnifiedRow>({
+  const lastAssignedAt = useMemo(
+    () => latestAssignedAt(assignments, (a) => `personal:${a.appId}`),
+    [assignments]
+  );
+  const rowRecentAt = useCallback(
+    (row: UnifiedRow) =>
+      Math.max(row.item.createdAt ?? 0, lastAssignedAt.get(getRowId(row)) ?? 0),
+    [lastAssignedAt]
+  );
+
+  const view = useFolderLibraryView<UnifiedRow>({
     items: allRows,
+    folderView: {
+      library: 'miniapp',
+      userId,
+      folders: sourceFolders.folders,
+      foldersLoading: folderState.loading,
+      getId: getRowId,
+      getFolderId: getFolderIdOfRow,
+      getRecentAt: rowRecentAt,
+      itemNoun: APP_NOUN,
+      legacyFilter: filterRowsByFolder,
+    },
     initialSort: LIBRARY_INITIAL_SORT,
     initialFilterValues: LIBRARY_INITIAL_FILTER_VALUES,
     searchFields: LIBRARY_SEARCH_FIELDS,
     sortComparators: LIBRARY_SORT_COMPARATORS,
-    filterPredicates: LIBRARY_FILTER_PREDICATES,
+    filterPredicates: folderViewEnabled
+      ? FOLDER_VIEW_FILTER_PREDICATES
+      : LIBRARY_FILTER_PREDICATES,
     // Phase 2 redesign: the library is list-only (monitor row idiom).
     initialViewMode: 'list',
   });
@@ -459,8 +532,12 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   // Folder navigation is personal-only; switching to the global source clears
   // any stale personal-folder selection so the library isn't hidden behind a
   // filter that no longer applies.
-  if (isGlobalView && selectedFolderId !== null) {
-    setSelectedFolderId(null);
+  if (
+    isGlobalView &&
+    (view.selectedFolderId !== null ||
+      (view.folderView != null && view.folderView.location.kind !== 'folder'))
+  ) {
+    view.resetToTopLevel();
   }
 
   /* ── Shell actions ────────────────────────────────────────────────────── */
@@ -508,14 +585,25 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   );
   const handleDropOnFolder = useCallback(
     async (itemId: string, folderId: string | null): Promise<void> => {
-      // Row ids are prefixed `personal:` or `global:`. Only personal rows
-      // participate in folders; global cards are `sortable={false}` so drops
-      // from them shouldn't fire, but guard defensively.
-      if (!itemId.startsWith('personal:')) return;
+      // District apps are filed privately (D22); own apps never go into a source folder.
+      if (itemId.startsWith('global:')) {
+        await fileGlobalApp(itemId, folderId);
+        return;
+      }
+      if (!itemId.startsWith('personal:') || isSourceFolderId(folderId)) return;
       await moveAppToFolder(itemId.slice('personal:'.length), folderId);
     },
-    [moveAppToFolder]
+    [moveAppToFolder, fileGlobalApp]
   );
+
+  const confirmDelete = useLibraryDeleteConfirm();
+  const confirmAndDelete = async (app: MiniAppItem): Promise<void> => {
+    const ok = await confirmDelete({
+      titles: [app.title],
+      noun: LIBRARY_ITEM_NOUNS.miniApp,
+    });
+    if (ok) await onDelete(app);
+  };
 
   /* ── Bulk handlers (Step 8) ──────────────────────────────────────────── */
   const handleBulkDelete = useCallback(async (): Promise<void> => {
@@ -523,25 +611,28 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     const personalIds = Array.from(selection.selectedIds).filter((id) =>
       id.startsWith('personal:')
     );
-    if (personalIds.length === 0) return;
-    const ok = window.confirm(
-      `Delete ${personalIds.length} app${personalIds.length === 1 ? '' : 's'}? This cannot be undone.`
-    );
+    const targets = personalIds.flatMap((id) => {
+      const app = personalLibrary.find(
+        (a) => a.id === id.slice('personal:'.length)
+      );
+      return app ? [app] : [];
+    });
+    if (targets.length === 0) return;
+    const ok = await confirmDelete({
+      titles: targets.map((a) => a.title),
+      noun: LIBRARY_ITEM_NOUNS.miniApp,
+    });
     if (!ok) return;
     setBulkBusy(true);
     try {
       const results = await Promise.allSettled(
-        personalIds.map(async (id) => {
-          const rawId = id.slice('personal:'.length);
-          const app = personalLibrary.find((a) => a.id === rawId);
-          if (app) await onDelete(app);
-        })
+        targets.map(async (app) => onDelete(app))
       );
       results.forEach((result, idx) => {
         if (result.status === 'rejected') {
           console.error(
             '[MiniAppManager] bulk delete failed for',
-            personalIds[idx],
+            targets[idx]?.id,
             result.reason
           );
         }
@@ -551,7 +642,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     } finally {
       setBulkBusy(false);
     }
-  }, [selection, personalLibrary, onDelete]);
+  }, [selection, personalLibrary, onDelete, confirmDelete]);
 
   const handleBulkMove = useCallback(
     async (folderId: string | null): Promise<void> => {
@@ -587,16 +678,18 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     tab === 'library' && userId && !isGlobalView ? (
       <FolderSidebar
         widget="miniapp"
-        folders={folderState.folders}
+        folders={sourceFolders.folders}
         loading={folderState.loading}
         error={folderState.error}
-        selectedFolderId={selectedFolderId}
-        onSelectFolder={setSelectedFolderId}
+        selectedFolderId={view.selectedFolderId}
+        onSelectFolder={view.onSelectFolder}
+        folderView={view.folderView}
         itemCounts={folderItemCounts}
         onCreateFolder={folderState.createFolder}
         onRenameFolder={folderState.renameFolder}
         onMoveFolder={folderState.moveFolder}
         onDeleteFolder={folderState.deleteFolder}
+        {...folderView}
         enableDrop
       />
     ) : undefined;
@@ -646,7 +739,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             id: 'delete',
             label: 'Delete',
             icon: Trash2,
-            onClick: () => void onDelete(app),
+            onClick: () => void confirmAndDelete(app),
             destructive: true,
           },
         ]
@@ -690,7 +783,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             id: 'delete',
             label: 'Delete',
             icon: Trash2,
-            onClick: () => void onDelete(app),
+            onClick: () => void confirmAndDelete(app),
             destructive: true,
           },
         ];
@@ -810,6 +903,30 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
           },
         ];
 
+    const sourceKey = getRowId(row);
+    const placedChip = sourceFolders.placedChip(sourceKey);
+    if (folderViewEnabled && !isViewOnly) {
+      secondary.push(
+        buildMoveToFolderAction({
+          onOpenPicker: () =>
+            setFolderPickerTarget({
+              id: app.id,
+              title: app.title,
+              folderId: placedChip ? folderIdOf(sourceKey) : null,
+              sourceKey,
+            }),
+          disabled: !userId,
+        })
+      );
+      if (placedChip) {
+        secondary.push({
+          id: 'remove-from-folder',
+          label: 'Remove from folder',
+          icon: FolderMinus,
+          onClick: () => void fileGlobalApp(sourceKey, null),
+        });
+      }
+    }
     // Same READ_ONLY allowlist as personal cards. Global apps' "Save to
     // my library" is authoring (it writes a copy into the teacher's
     // personal library), so it disappears in read-only mode too.
@@ -875,7 +992,10 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         // editor because there is no editor for global apps from this
         // surface.
         onClick={() => setPreviewRowId(getRowId(row))}
-        sortable={false}
+        badges={
+          placedChip ? [{ label: placedChip, tone: 'neutral' }] : undefined
+        }
+        sortable={folderViewEnabled && !readOnly && !selectionMode}
         viewMode={view.state.viewMode}
         tourIndex={index}
         tourWidgetType="miniApp"
@@ -1153,7 +1273,10 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     // Enable card drag when a teacher is signed in so drag-to-folder works.
     // In the Global view we keep drag disabled — global items are read-only
     // and never move between folders.
-    const enableCardDrag = Boolean(userId) && !isGlobalView && !selectionMode;
+    const enableCardDrag =
+      Boolean(userId) &&
+      !isGlobalView &&
+      (!selectionMode || view.folderView != null);
     // When folder drag is enabled we keep the drag handle active so cards can
     // be dropped on folder tiles — even in filtered/sorted views. The card-to-
     // card reorder commit is gated separately (see the onReorder wiring on
@@ -1182,7 +1305,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             getId={getRowId}
             renderCard={renderCard}
             onReorder={isGlobalView ? undefined : handleLibraryReorderDrop}
-            dragDisabled={isGlobalView || selectionMode}
+            dragDisabled={!enableCardDrag}
             reorderLocked={
               enableCardDrag ? false : !isGlobalView && view.reorderLocked
             }
@@ -1218,13 +1341,16 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   /* ── Shared DndContext wiring (must wrap full shell so FolderSidebar
    *    droppables live in the same context as sortable cards) ───────────── */
   const libraryDndEnabled =
-    tab === 'library' && Boolean(userId) && !isGlobalView && !selectionMode;
+    tab === 'library' &&
+    Boolean(userId) &&
+    !isGlobalView &&
+    (!selectionMode || view.folderView != null);
   const orderedRowIds = libraryDndEnabled
     ? view.visibleItems.map(getRowId)
     : [];
   const renderLibraryDragOverlay = (activeId: string): React.ReactNode => {
     const row = view.visibleItems.find((r) => getRowId(r) === activeId);
-    if (!row || row.kind !== 'personal') return null;
+    if (!row) return null;
     const app = row.item;
     return (
       <LibraryItemCard<MiniAppItem>
@@ -1316,6 +1442,8 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     <LibraryShell
       widgetLabel="Mini App"
       widgetType="miniApp"
+      folderView={isGlobalView ? null : view.folderView}
+      folderViewMode={view.state.viewMode}
       tab={tab}
       onTabChange={onTabChange}
       counts={{
@@ -1339,7 +1467,11 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
       folders={folderState.folders}
       selectedFolderId={folderPickerTarget.folderId}
       onSelect={(folderId) => {
-        void moveAppToFolder(folderPickerTarget.id, folderId);
+        if (folderPickerTarget.sourceKey) {
+          void fileGlobalApp(folderPickerTarget.sourceKey, folderId);
+        } else {
+          void moveAppToFolder(folderPickerTarget.id, folderId);
+        }
       }}
       onClose={() => setFolderPickerTarget(null)}
       title={`Move "${folderPickerTarget.title}" to…`}
@@ -1349,6 +1481,9 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   return libraryDndEnabled ? (
     <>
       <LibraryDndContext
+        folderView={isGlobalView ? null : view.folderView}
+        selectedIds={selection.selectedIds}
+        folderActions={folderState}
         itemIds={orderedRowIds}
         onDropOnFolder={handleDropOnFolder}
         onReorder={handleLibraryReorderDrop}

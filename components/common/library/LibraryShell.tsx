@@ -24,6 +24,8 @@ import { LibraryPreviewSlotContext } from './LibraryPreviewSlotContext';
 import { SegmentedTabs } from '@/components/common/sessionViews/SegmentedTabs';
 import { TOOLS } from '@/config/tools';
 import { LIBRARY_HEADER_ACCENTS } from './libraryAccents';
+import { LibraryFolderViewContext } from './LibraryFolderViewContext';
+import { FolderViewHeader } from './FolderViewHeader';
 
 /**
  * Widget-width breakpoints (px) for auto-collapsing the folder panel. Below
@@ -140,7 +142,11 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
   onFolderPanelModeChange,
   children,
   widgetType,
+  folderView,
+  folderViewMode = 'list',
 }) => {
+  const activeFolderView =
+    tab === 'library' || tab === 'banks' ? (folderView ?? null) : null;
   // When the caller doesn't wire a controlled setting, fall back to internal
   // state so the chevron toggle still works (just won't persist across mounts).
   const [uncontrolledMode, setUncontrolledMode] =
@@ -499,7 +505,16 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
             data-testid="library-scroll"
           >
             <LibraryPreviewSlotContext.Provider value={previewSlot}>
-              {children}
+              <LibraryFolderViewContext.Provider value={activeFolderView}>
+                {activeFolderView && (
+                  <FolderViewHeader
+                    model={activeFolderView}
+                    viewMode={folderViewMode}
+                    includeRows={false}
+                  />
+                )}
+                {children}
+              </LibraryFolderViewContext.Provider>
             </LibraryPreviewSlotContext.Provider>
           </div>
           {/* Preview panes portal here so they sit outside the scroller at full height. */}

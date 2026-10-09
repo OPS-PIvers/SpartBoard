@@ -64,6 +64,8 @@ import {
   useSharedSubscription,
 } from './useSharedSubscription';
 import { noDriveMessage } from '@/utils/viewAsDrive';
+import { useSandboxedGuidedLearning } from './useTourSandboxed';
+import { isTourSandboxActive } from '@/utils/tourSandbox';
 
 const GL_COLLECTION = 'guided_learning';
 // Users whose closed tombstones were already released this page load.
@@ -512,7 +514,9 @@ export const useGuidedLearning = (
         `${BUILDING_GL_COLLECTION}/${fresh.id}`,
         fresh
       );
-      await setDoc(doc(db, BUILDING_GL_COLLECTION, fresh.id), fresh);
+      // A tour's sandbox never writes building sets.
+      if (!isTourSandboxActive())
+        await setDoc(doc(db, BUILDING_GL_COLLECTION, fresh.id), fresh);
       return fresh;
     },
     [isAdmin, userId]
@@ -526,7 +530,7 @@ export const useGuidedLearning = (
     [isAdmin]
   );
 
-  return {
+  return useSandboxedGuidedLearning({
     sets,
     buildingSets,
     loading,
@@ -540,7 +544,7 @@ export const useGuidedLearning = (
     duplicateBuildingSet,
     saveBuildingSet,
     deleteBuildingSet,
-  };
+  });
 };
 
 // Transactional revision check for a building set, resolving to the replaced doc.

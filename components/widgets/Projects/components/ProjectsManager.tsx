@@ -28,7 +28,6 @@ import type {
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
-import { useDialog } from '@/context/useDialog';
 import { useProjectLibrary } from '@/hooks/useProjectLibrary';
 import { useProjectRuns } from '@/hooks/useProjectRuns';
 import { useRubrics } from '@/hooks/useRubrics';
@@ -45,10 +44,11 @@ import {
   buildDuplicateAction,
   buildMoveToFolderAction,
   countItemsByFolder,
-  filterByFolder,
   useLibrarySelection,
-  useLibraryView,
+  useFolderLibraryView,
   useSortableReorder,
+  LIBRARY_ITEM_NOUNS,
+  useLibraryDeleteConfirm,
 } from '@/components/common/library';
 import type {
   LibraryMenuAction,
@@ -63,6 +63,7 @@ import {
   setRunAcceptingUpdates,
   syncRunFromProject,
 } from '@/utils/projectRunWrites';
+import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 
 const formatDate = (ms: number): string =>
   new Date(ms).toLocaleDateString(undefined, {
@@ -118,6 +119,7 @@ const LIBRARY_SORT_COMPARATORS = {
 };
 
 const GET_ID = (p: ProjectDefinition): string => p.id;
+const PROJECT_NOUN = ['project', 'projects'] as const;
 
 /** A run plus its library project; either side can be absent in the archive. */
 interface RunEntry {
@@ -142,7 +144,7 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
   const config = widget.config as ProjectsConfig;
   const { updateWidget, addToast, rosters } = useDashboard();
   const { user } = useAuth();
-  const { showConfirm } = useDialog();
+  const confirmDelete = useLibraryDeleteConfirm();
   const userId = user?.uid;
 
   const {
@@ -169,7 +171,6 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
     update({ managerTab: next as ProjectsConfig['managerTab'] });
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [folderPickerTarget, setFolderPickerTarget] =
     useState<ProjectDefinition | null>(null);
   const [selectionMode, setSelectionMode] = useState(false);
@@ -184,19 +185,6 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
       setSelectionMode(false);
       selection.clear();
     }
-  }
-
-  const [prevUserId, setPrevUserId] = useState(userId);
-  if (prevUserId !== userId) {
-    setPrevUserId(userId);
-    setSelectedFolderId(null);
-  }
-  if (
-    !folderState.loading &&
-    selectedFolderId !== null &&
-    !folderState.folders.some((f) => f.id === selectedFolderId)
-  ) {
-    setSelectedFolderId(null);
   }
 
   const runByProjectId = useMemo(() => {
@@ -244,14 +232,38 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
     () => countItemsByFolder(libraryProjects),
     [libraryProjects]
   );
+  const folderView = useFolderViewSidebar({
+    setFolderColor: folderState.setFolderColor,
+    noun: { one: 'project', many: 'projects' },
+    items: libraryProjects,
+    deleteItems: async (ids) => {
+      for (const id of ids) {
+        await deleteProject(id);
+        if (config.projectId === id) update({ projectId: undefined });
+      }
+    },
+  });
 
-  const foldered = useMemo(
-    () => filterByFolder(libraryProjects, selectedFolderId),
-    [libraryProjects, selectedFolderId]
+  const projectRecentAt = useCallback(
+    (p: ProjectDefinition) =>
+      Math.max(
+        p.updatedAt ?? p.createdAt ?? 0,
+        runByProjectId.get(p.id)?.updatedAt ?? 0
+      ),
+    [runByProjectId]
   );
 
-  const view = useLibraryView<ProjectDefinition>({
-    items: foldered,
+  const view = useFolderLibraryView<ProjectDefinition>({
+    items: libraryProjects,
+    folderView: {
+      library: 'projects',
+      userId,
+      folders: folderState.folders,
+      foldersLoading: folderState.loading,
+      getId: GET_ID,
+      getRecentAt: projectRecentAt,
+      itemNoun: PROJECT_NOUN,
+    },
     initialSort: LIBRARY_INITIAL_SORT,
     initialViewMode: config.libraryViewMode ?? 'list',
     searchFields: LIBRARY_SEARCH_FIELDS,
@@ -296,7 +308,7 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
       id: crypto.randomUUID(),
       title: 'New project',
       steps: [],
-      folderId: selectedFolderId,
+      folderId: view.selectedFolderId,
       createdAt: now,
       updatedAt: now,
     };
@@ -326,12 +338,13 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
 
   const handleDelete = async (project: ProjectDefinition): Promise<void> => {
     const run = runByProjectId.get(project.id);
-    const ok = await showConfirm(
-      run
-        ? `Delete "${project.title}"? Its groups keep their progress but you lose the library copy. This cannot be undone.`
-        : `Delete "${project.title}"? This cannot be undone.`,
-      { title: 'Delete project', variant: 'danger', confirmLabel: 'Delete' }
-    );
+    const ok = await confirmDelete({
+      titles: [project.title],
+      noun: LIBRARY_ITEM_NOUNS.project,
+      detail: run
+        ? 'Its groups keep their progress but you lose the library copy.'
+        : undefined,
+    });
     if (!ok) return;
     try {
       await deleteProject(project.id);
@@ -382,10 +395,10 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
   const handleBulkDelete = async (): Promise<void> => {
     if (selection.count === 0) return;
     const ids = Array.from(selection.selectedIds);
-    const ok = await showConfirm(
-      `Delete ${ids.length} project${ids.length === 1 ? '' : 's'}? This cannot be undone.`,
-      { title: 'Delete projects', variant: 'danger', confirmLabel: 'Delete' }
-    );
+    const ok = await confirmDelete({
+      titles: ids.map((id) => projects.find((p) => p.id === id)?.title ?? ''),
+      noun: LIBRARY_ITEM_NOUNS.project,
+    });
     if (!ok) return;
     setBulkBusy(true);
     try {
@@ -649,13 +662,15 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
         folders={folderState.folders}
         loading={folderState.loading}
         error={folderState.error}
-        selectedFolderId={selectedFolderId}
-        onSelectFolder={setSelectedFolderId}
+        selectedFolderId={view.selectedFolderId}
+        onSelectFolder={view.onSelectFolder}
+        folderView={view.folderView}
         itemCounts={folderItemCounts}
         onCreateFolder={folderState.createFolder}
         onRenameFolder={folderState.renameFolder}
         onMoveFolder={folderState.moveFolder}
         onDeleteFolder={folderState.deleteFolder}
+        {...folderView}
         enableDrop
       />
     ) : undefined;
@@ -684,6 +699,8 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
       folderPanelMode={config.folderPanelMode}
       onFolderPanelModeChange={(folderPanelMode) => update({ folderPanelMode })}
       filterSidebarSlot={folderSidebarSlot}
+      folderView={view.folderView}
+      folderViewMode={view.state.viewMode}
       toolbarSlot={
         tab === 'library' ? (
           <LibraryToolbar
@@ -792,7 +809,9 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
               getId={GET_ID}
               renderCard={renderProjectCard}
               onReorder={handleReorderDrop}
-              dragDisabled={!userId || selectionMode}
+              dragDisabled={
+                !userId || (selectionMode && view.folderView == null)
+              }
               reorderLocked={reorderDragActive ? view.reorderLocked : false}
               reorderLockedReason={
                 reorderDragActive ? view.reorderLockedReason : undefined
@@ -858,6 +877,9 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
     <>
       {userId && tab === 'library' ? (
         <LibraryDndContext
+          folderView={view.folderView}
+          selectedIds={selection.selectedIds}
+          folderActions={folderState}
           itemIds={reorder.orderedItems.map(GET_ID)}
           onReorder={handleReorderDrop}
           onDropOnFolder={handleDropOnFolder}

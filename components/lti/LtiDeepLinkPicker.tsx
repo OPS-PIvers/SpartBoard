@@ -86,6 +86,11 @@ import {
 } from '@/utils/quizBehavior';
 import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
 import { QuizAssignSettingsInline } from '@/components/common/library/QuizAssignSettingsInline';
+import { InlineAssignStepBodies } from '@/components/common/library/assignStepper/InlineAssignStepBodies';
+import {
+  defaultWhenValue,
+  type AssignWhenValue,
+} from '@/components/common/library/assignStepper/assignWhenValue';
 import {
   getVideoActivityBehavior,
   formatVideoActivityBehaviorSummary,
@@ -314,10 +319,19 @@ const LtiDeepLinkFlow: React.FC = () => {
   // D12: with the split on, settings come from the teacher's last-used, editable inline.
   const reviewSplit = canAccessFeature('quiz-review-split');
   const availabilityOn = canAccessFeature('assign-availability');
-  const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
-    user?.uid,
-    reviewSplit
+  // D22: with the stepper on, the When and Quiz rule step bodies replace the inline settings.
+  const stepperOn = canAccessFeature('assign-stepper');
+  const lastUsedRules = reviewSplit || stepperOn;
+  const { lastUsed: lastAssignSettings, save: saveLastAssignSettings } =
+    useLastQuizAssignSettings(user?.uid, lastUsedRules);
+  const [assignWhen, setAssignWhen] = useState<AssignWhenValue>(() =>
+    defaultWhenValue({
+      activity: 'quiz',
+      bellAvailable: false,
+      manualAvailable: false,
+    })
   );
+  const [assignWindowOn, setAssignWindowOn] = useState(false);
   const [editedAssignSettings, setEditedAssignSettings] =
     useState<QuizBehaviorSettings | null>(null);
   const splitAssignSettings = useMemo(
@@ -463,7 +477,7 @@ const LtiDeepLinkFlow: React.FC = () => {
   // teacher can see what students will get before adding it.
   const behaviorSummary = useMemo(() => {
     if (kind === 'quiz') {
-      if (reviewSplit) return null;
+      if (lastUsedRules) return null;
       return selectedQuiz
         ? formatBehaviorSummary(getAssignBehaviorSeed(selectedQuiz))
         : null;
@@ -473,7 +487,7 @@ const LtiDeepLinkFlow: React.FC = () => {
           getVideoActivityBehavior(selectedActivity)
         )
       : null;
-  }, [kind, selectedQuiz, selectedActivity, reviewSplit]);
+  }, [kind, selectedQuiz, selectedActivity, lastUsedRules]);
 
   const canAdd = kind === 'quiz' ? !!selectedQuizId : !!selectedActivityId;
 
@@ -567,14 +581,30 @@ const LtiDeepLinkFlow: React.FC = () => {
     targeting: AssignTargetingValue;
     dueAt: number | null;
   } => {
-    if (!availabilityOn) return { targeting: assignTargeting, dueAt };
-    const { targeting } = applyAvailability(assignTargeting, {
-      enabled: true,
-      rosters: rosters.filter((r) => ltiSelectedRosterIds.includes(r.id)),
-      bellWindow: undefined,
-    });
+    // With Schedule off the When step sets no window, so the Schoology item has no due date.
+    if (stepperOn ? !assignWindowOn : !availabilityOn)
+      return { targeting: assignTargeting, dueAt };
+    const { targeting } = applyAvailability(
+      stepperOn
+        ? { ...assignTargeting, availability: assignWhen.availability }
+        : assignTargeting,
+      {
+        enabled: true,
+        rosters: rosters.filter((r) => ltiSelectedRosterIds.includes(r.id)),
+        bellWindow: undefined,
+      }
+    );
     return { targeting, dueAt: targeting.dueAt ?? null };
-  }, [availabilityOn, assignTargeting, dueAt, rosters, ltiSelectedRosterIds]);
+  }, [
+    availabilityOn,
+    stepperOn,
+    assignWhen,
+    assignWindowOn,
+    assignTargeting,
+    dueAt,
+    rosters,
+    ltiSelectedRosterIds,
+  ]);
 
   // Sign the deep-link response for an already-created assignment/session and
   // POST it back to Schoology. Shared tail of both the quiz and VA paths — the
@@ -678,7 +708,7 @@ const LtiDeepLinkFlow: React.FC = () => {
         );
 
         // Assessment Mode always; options and attempt limit come from the quiz.
-        const { sessionMode, sessionOptions, attemptLimit } = reviewSplit
+        const { sessionMode, sessionOptions, attemptLimit } = lastUsedRules
           ? splitAssignSettings
           : getAssignBehaviorSeed(selectedQuiz);
 
@@ -803,6 +833,7 @@ const LtiDeepLinkFlow: React.FC = () => {
         }
         created = { kind: 'quiz', quizCode, maxPoints, dueAt };
         createdRef.current.set(cacheKey, created);
+        if (stepperOn) saveLastAssignSettings(splitAssignSettings);
       }
 
       await signAndReturn(created, selectedQuiz.title, returnUrl);
@@ -810,7 +841,9 @@ const LtiDeepLinkFlow: React.FC = () => {
     [
       ltiClassContext,
       selectedQuiz,
-      reviewSplit,
+      lastUsedRules,
+      stepperOn,
+      saveLastAssignSettings,
       splitAssignSettings,
       loadQuizData,
       loadBankContentsForQuiz,
@@ -1211,7 +1244,7 @@ const LtiDeepLinkFlow: React.FC = () => {
                   </span>
                 </p>
               )}
-              {kind === 'quiz' && reviewSplit && (
+              {kind === 'quiz' && reviewSplit && !stepperOn && (
                 <QuizAssignSettingsInline
                   value={splitAssignSettings}
                   onChange={setEditedAssignSettings}
@@ -1240,7 +1273,7 @@ const LtiDeepLinkFlow: React.FC = () => {
               {/* Due date — set once here, applied to BOTH the SpartBoard
                   assignment and the Schoology gradebook item (submission end
                   date). Optional; date-only, matching the normal assign flow. */}
-              {!availabilityOn && (
+              {!availabilityOn && !stepperOn && (
                 <div>
                   <label
                     htmlFor={dueDateId}
@@ -1263,7 +1296,22 @@ const LtiDeepLinkFlow: React.FC = () => {
               )}
 
               {/* Schedule (or Availability & Due Date when on) + individual-student targeting. */}
-              <div className="border-t border-slate-200 pt-4">
+              <div className="space-y-3 border-t border-slate-200 pt-4">
+                {stepperOn && (
+                  <InlineAssignStepBodies
+                    activity={kind === 'quiz' ? 'quiz' : 'video'}
+                    when={assignWhen}
+                    onWhenChange={setAssignWhen}
+                    windowOn={assignWindowOn}
+                    onWindowOnChange={setAssignWindowOn}
+                    rosters={rosters.filter((r) =>
+                      ltiSelectedRosterIds.includes(r.id)
+                    )}
+                    behavior={splitAssignSettings}
+                    onBehaviorChange={setEditedAssignSettings}
+                    disabled={busy}
+                  />
+                )}
                 <AssignTargetingSection
                   rosters={rosters}
                   selectedRosterIds={ltiSelectedRosterIds}
@@ -1271,6 +1319,7 @@ const LtiDeepLinkFlow: React.FC = () => {
                   value={assignTargeting}
                   onChange={setAssignTargeting}
                   availabilityEnabled={availabilityOn}
+                  scheduleHidden={stepperOn}
                   kind={kind === 'quiz' ? 'quiz' : 'video-activity'}
                   {...(kind === 'quiz'
                     ? {

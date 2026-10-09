@@ -1,11 +1,8 @@
 import React, { useContext, useState } from 'react';
 import type {
   ClassRoster,
-  FlashcardMasteryThreshold,
-  FlashcardMode,
   FlashcardScoreVisibility,
   FlashcardSet,
-  FlashcardSide,
   FlashcardTestType,
 } from '@/types';
 import { AssignModal } from '@/components/common/library/AssignModal';
@@ -33,6 +30,14 @@ import {
   type FlashcardAssignForm,
   type FlashcardAssignSubmission,
 } from './utils/flashcardAssign';
+import {
+  FLASHCARD_MODE_OPTIONS as MODE_OPTIONS,
+  FLASHCARD_SCORE_VISIBILITY_OPTIONS as SCORE_VISIBILITY_OPTIONS,
+  FLASHCARD_SIDE_OPTIONS as SIDE_OPTIONS,
+  FLASHCARD_TEST_TYPE_OPTIONS as TEST_TYPE_OPTIONS,
+  FLASHCARD_THRESHOLD_OPTIONS as THRESHOLD_OPTIONS,
+} from './utils/flashcardAssignOptions';
+import { FlashcardAssignStepper } from './FlashcardAssignStepper';
 
 export interface FlashcardAssignModalProps {
   isOpen: boolean;
@@ -40,44 +45,11 @@ export interface FlashcardAssignModalProps {
   rosters: ClassRoster[];
   initialRosterIds?: string[];
   onClose: () => void;
-  onAssign: (submission: FlashcardAssignSubmission) => Promise<void>;
+  /** Resolves false when the assign failed. */
+  onAssign: (submission: FlashcardAssignSubmission) => Promise<boolean | void>;
   /** Per-period mode and windows; undefined while the flag is off. */
   periodAccess?: AssignPeriodAccessContext;
 }
-
-const MODE_OPTIONS: Array<{ value: FlashcardMode; label: string }> = [
-  { value: 'flashcards', label: 'Flashcards' },
-  { value: 'write', label: 'Write' },
-  { value: 'test', label: 'Test' },
-];
-
-const SIDE_OPTIONS: Array<{ value: FlashcardSide; label: string }> = [
-  { value: 'term', label: 'Term' },
-  { value: 'definition', label: 'Definition' },
-];
-
-const THRESHOLD_OPTIONS: Array<{
-  value: FlashcardMasteryThreshold;
-  label: string;
-}> = [
-  { value: 2, label: '2' },
-  { value: 3, label: '3' },
-  { value: 4, label: '4' },
-];
-
-const SCORE_VISIBILITY_OPTIONS: Array<{
-  value: FlashcardScoreVisibility;
-  label: string;
-}> = [
-  { value: 'none', label: 'Hide until I publish' },
-  { value: 'score', label: 'Score only' },
-  { value: 'score-and-answers', label: 'Score and correct answers' },
-];
-
-const TEST_TYPE_OPTIONS: Array<{ value: FlashcardTestType; label: string }> = [
-  { value: 'mc', label: 'Multiple choice' },
-  { value: 'fib', label: 'Fill in the blank' },
-];
 
 const LABEL_CLASS =
   'block text-xxs font-bold text-slate-500 uppercase tracking-widest mb-1.5';
@@ -128,7 +100,21 @@ function Segmented<T extends string | number>({
   );
 }
 
-export const FlashcardAssignModal: React.FC<FlashcardAssignModalProps> = ({
+/** The accordion stepper behind `assign-stepper`, otherwise today's dialog (D16). */
+export const FlashcardAssignModal: React.FC<FlashcardAssignModalProps> = (
+  props
+) => {
+  const auth = useContext(AuthContext);
+  return auth?.canAccessFeature('assign-stepper') === true ? (
+    <FlashcardAssignStepper {...props} />
+  ) : (
+    <LegacyFlashcardAssignModal {...props} />
+  );
+};
+
+export const LegacyFlashcardAssignModal: React.FC<
+  FlashcardAssignModalProps
+> = ({
   isOpen,
   set,
   rosters,
@@ -395,8 +381,8 @@ export const FlashcardAssignModal: React.FC<FlashcardAssignModalProps> = ({
       // so the modal renders invisibly behind it. Same fix as
       // SpotifyPremiumDialog.tsx.
       zIndex="z-dialog"
-      onAssign={() =>
-        onAssign(
+      onAssign={async () => {
+        await onAssign(
           buildFlashcardAssignSubmission({
             set,
             form,
@@ -412,8 +398,8 @@ export const FlashcardAssignModal: React.FC<FlashcardAssignModalProps> = ({
             }).targeting,
             bellWindow: periodAccess?.bellWindow,
           })
-        )
-      }
+        );
+      }}
       confirmLabel="Assign"
       confirmDisabled={disabledReason !== undefined}
       confirmDisabledReason={disabledReason}

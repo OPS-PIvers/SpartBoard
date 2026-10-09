@@ -33,6 +33,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { PlcNewQuizAssignmentModal } from '@/components/plc/PlcNewQuizAssignmentModal';
 import type { Plc, ClassRoster, QuizMetadata } from '@/types';
+import { SAMPLE_ROSTERS } from '@/components/common/library/assignStepper/assignStepperTestRosters';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -97,6 +98,7 @@ vi.mock('@/hooks/useBankSources', () => ({
 vi.mock('@/hooks/useQuizAssignments', () => ({
   useQuizAssignments: vi.fn(() => ({
     createAssignment: mockCreateAssignment,
+    setAssignmentTargetSkippedCount: vi.fn(),
   })),
 }));
 
@@ -110,6 +112,7 @@ vi.mock('@/hooks/usePlcQuizzes', () => ({
 }));
 
 let mockReviewSplit = false;
+let mockStepper = false;
 vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(() => ({
     user: {
@@ -118,7 +121,11 @@ vi.mock('@/context/useAuth', () => ({
       email: 'smith@school.edu',
     },
     canAccessFeature: (id: string) =>
-      id === 'quiz-review-split' ? mockReviewSplit : false,
+      id === 'quiz-review-split'
+        ? mockReviewSplit
+        : id === 'assign-stepper'
+          ? mockStepper
+          : false,
   })),
 }));
 
@@ -127,18 +134,45 @@ const mockLastUsed = {
   sessionOptions: { blockCopyPaste: true, speedBonusEnabled: true },
   attemptLimit: 3,
 };
+const mockSaveLastUsed = vi.fn();
 vi.mock('@/hooks/useLastQuizAssignSettings', () => ({
   useLastQuizAssignSettings: (_uid: string, enabled: boolean) => ({
     lastUsed: enabled ? mockLastUsed : null,
     loaded: true,
-    save: vi.fn(),
+    save: mockSaveLastUsed,
   }),
 }));
 
+const mockSetAssignmentTargets = vi.fn();
+vi.mock('@/hooks/useSetAssignmentTargets', () => ({
+  useSetAssignmentTargets: () => ({
+    setAssignmentTargets: mockSetAssignmentTargets,
+  }),
+}));
+
+let mockPeriodAccess: unknown = undefined;
+vi.mock('@/hooks/useTeacherBellPeriods', () => ({
+  useAssignPeriodAccess: () => mockPeriodAccess,
+}));
+
+vi.mock('@/hooks/useQuizHandRaiseMode', () => ({
+  useQuizHandRaiseMode: () => 'teacher-choice',
+}));
+
+let stepperProps: Record<string, unknown> | null = null;
+vi.mock('@/components/widgets/QuizWidget/components/QuizAssignStepper', () => ({
+  QuizAssignStepper: (props: Record<string, unknown>) => {
+    stepperProps = props;
+    return <div data-testid="quiz-assign-stepper" />;
+  },
+}));
+
+let mockRosters: ClassRoster[] = [];
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(() => ({
     addToast: mockAddToast,
-    rosters: [] as ClassRoster[],
+    rosters: mockRosters,
+    updateRoster: vi.fn(),
   })),
 }));
 
@@ -577,5 +611,139 @@ describe('PlcNewQuizAssignmentModal with quiz-review-split on (D12)', () => {
     expect(opts.blockCopyPaste).toBe(true);
     expect(opts.speedBonusEnabled).toBe(false);
     expect(opts.showResultToStudent).toBeUndefined();
+  });
+
+  it('does not save last-used settings without the stepper', async () => {
+    mockSaveLastUsed.mockClear();
+    await renderAndPickQuiz();
+    act(() => {
+      fireEvent.click(
+        screen.getByRole('button', { name: /create assignment/i })
+      );
+    });
+    await waitFor(() => {
+      expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
+    });
+    expect(mockSaveLastUsed).not.toHaveBeenCalled();
+  });
+});
+
+describe('PlcNewQuizAssignmentModal with assign-stepper on (D21)', () => {
+  beforeEach(() => {
+    mockStepper = true;
+    stepperProps = null;
+    mockRosters = SAMPLE_ROSTERS;
+    mockCreateAssignment.mockClear();
+    mockSaveLastUsed.mockClear();
+    mockSetAssignmentTargets.mockReset();
+    mockSetAssignmentTargets.mockResolvedValue({ skipped: [] });
+    mockCreateAssignment.mockResolvedValue({ id: 'assign-new', code: '9999' });
+    mockLoadQuizData.mockResolvedValue({
+      id: 'quiz-1',
+      title: 'Cell Division',
+      questions: [],
+      createdAt: 1000,
+      updatedAt: 2000,
+    });
+  });
+  afterEach(() => {
+    mockStepper = false;
+    mockRosters = [];
+  });
+
+  const props = () => stepperProps as Record<string, (v: unknown) => unknown>;
+
+  it('opens the Quiz stepper with no Sharing step and no Modifications', async () => {
+    await renderAndPickQuiz();
+    expect(screen.getByTestId('quiz-assign-stepper')).toBeInTheDocument();
+    expect(stepperProps?.sharing).toBeUndefined();
+    expect(stepperProps?.modifications).toBeUndefined();
+    expect(stepperProps?.title).toBe('Cell Division');
+    // No bell periods, so Quiz falls back to Scheduled (D6).
+    expect((stepperProps?.when as { mode: string }).mode).toBe('scheduled');
+  });
+
+  it('assigns the picked classes in Assessment Mode with last-used rules and saves them', async () => {
+    await renderAndPickQuiz();
+    act(() => {
+      props().onClassesChange({ classIds: ['c1', 'c2'], studentsByClass: {} });
+    });
+    await act(async () => {
+      await props().onSubmit(undefined);
+    });
+    expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
+    const [, settings, options] = mockCreateAssignment.mock.calls[0] as [
+      unknown,
+      Record<string, unknown>,
+      Record<string, unknown>,
+    ];
+    expect(settings.sessionMode).toBe('student');
+    expect(settings.attemptLimit).toBe(3);
+    expect((settings.plc as { id: string }).id).toBe('plc-42');
+    expect(options.initialStatus).toBe('paused');
+    expect(options).toHaveProperty('openAt');
+    expect(mockSaveLastUsed).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionMode: 'student', attemptLimit: 3 })
+    );
+    // Whole classes need no per-student fan-out.
+    expect(mockSetAssignmentTargets).not.toHaveBeenCalled();
+    // No period gate, so it starts paused and the toast says so.
+    expect(mockAddToast).toHaveBeenCalledWith(
+      '"{{title}}" created (paused) and shared with this PLC.',
+      'success'
+    );
+  });
+
+  it('drops "(paused)" from the toast only when a period gate creates it active', async () => {
+    mockPeriodAccess = {
+      bellOptions: [],
+      bellWindow: () => null,
+      onTagRoster: vi.fn(),
+    };
+    try {
+      await renderAndPickQuiz();
+      act(() => {
+        props().onClassesChange({
+          classIds: ['c1', 'c2'],
+          studentsByClass: {},
+        });
+      });
+      await act(async () => {
+        await props().onSubmit(undefined);
+      });
+      const [, , options] = mockCreateAssignment.mock.calls[0] as [
+        unknown,
+        unknown,
+        Record<string, unknown>,
+      ];
+      expect(options.initialStatus).toBe('active');
+      expect(mockAddToast).toHaveBeenCalledWith(
+        '"{{title}}" created and shared with this PLC.',
+        'success'
+      );
+    } finally {
+      mockPeriodAccess = undefined;
+    }
+  });
+
+  it('fans out picked students through setAssignmentTargets', async () => {
+    await renderAndPickQuiz();
+    act(() => {
+      props().onClassesChange({
+        classIds: ['c2'],
+        studentsByClass: {
+          c2: [{ kind: 'classlink', sourcedId: 'SID-e' }],
+        },
+      });
+    });
+    await act(async () => {
+      await props().onSubmit(undefined);
+    });
+    expect(mockSetAssignmentTargets).toHaveBeenCalledTimes(1);
+    const [call] = mockSetAssignmentTargets.mock.calls[0] as [
+      Record<string, unknown>,
+    ];
+    expect(call.assignmentId).toBe('assign-new');
+    expect(call.kind).toBe('quiz');
   });
 });

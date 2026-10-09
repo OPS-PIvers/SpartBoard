@@ -356,6 +356,7 @@ export function useReviewLaunch({
       }
       handRaiseMode={handRaiseMode}
       readAloudAvailable={canAccessFeature('quiz-read-aloud')}
+      classMenu={canAccessFeature('assign-stepper')}
       onClose={() => setTarget(null)}
       onStart={start}
     />

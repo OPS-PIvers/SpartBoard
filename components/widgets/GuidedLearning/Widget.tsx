@@ -24,7 +24,11 @@ import {
 import { db, functions } from '@/config/firebase';
 import { useDashboard } from '@/context/useDashboard';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
-import { buildPeriodAccess, DEFAULT_PERIOD_PLAN } from '@/utils/periodPlan';
+import { buildPeriodGate, DEFAULT_PERIOD_PLAN } from '@/utils/periodPlan';
+import {
+  buildMixedTargetsPayload,
+  expandMixedTargeting,
+} from '@/utils/assignTargets';
 import { applyAvailability } from '@/utils/assignAvailability';
 import { resolveWorkKind } from '@/utils/gradebook/gradebookCore';
 import { useInSubShare } from '@/hooks/useShareContent';
@@ -44,6 +48,8 @@ import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import {
   AssignModal,
   AssignTargetingSection,
+  LIBRARY_ITEM_NOUNS,
+  useLibraryDeleteConfirm,
   ViewOnlyShareModal,
   type AssignTargetingValue,
 } from '@/components/common/library';
@@ -94,6 +100,17 @@ import {
   withFrozenAnswerKeys,
 } from './utils/resultsScoring';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
+import {
+  isSandboxId,
+  isSandboxed,
+  isTourSandboxActive,
+} from '@/utils/tourSandbox';
+import { useTourMaterialEditor } from '@/components/tours/tourMaterials';
+import type { AssignClassesValue } from '@/components/common/library/assignStepper/assignClassesValue';
+import {
+  GuidedLearningAssignStepper,
+  type GuidedLearningStepperAssign,
+} from './components/GuidedLearningAssignStepper';
 
 // Code-split (Phase 5): heavy GL surfaces load on demand, not with the dashboard.
 const GuidedLearningManager = lazy(() =>
@@ -174,6 +191,7 @@ interface SetAssignmentTargetsCallableInput {
     dueAt?: number | null;
   };
   targetMode?: 'class' | 'students';
+  studentTargetClassIds?: string[];
 }
 interface SetAssignmentTargetsCallableResult {
   written: number;
@@ -201,6 +219,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const { t } = useTranslation();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { showConfirm } = useDialog();
+  const confirmLibraryDelete = useLibraryDeleteConfirm();
   const { user, isAdmin, getAssignmentMode, canAccessFeature, appSettings } =
     useAuth();
   const gradebookOn = canAccessFeature('gradebook');
@@ -209,6 +228,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const workKindSetting = canAccessFeature('study-resources')
     ? { default: resolveWorkKind('guided-learning', null) }
     : undefined;
+  const stepperOn = canAccessFeature('assign-stepper');
   const studioEditor = canAccessFeature('gl-studio');
   const canEditToursOnBoard =
     isAdmin === true && canAccessFeature('gl-live-tours');
@@ -551,6 +571,16 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       setEditingMeta(meta);
     }
   };
+  // A live tour can open one of the teacher's sets in the editor.
+  useTourMaterialEditor(
+    widget.id,
+    'guided-learning',
+    editingSet?.id,
+    (itemId) => {
+      const meta = sets.find((s) => s.id === itemId);
+      if (meta) void handleEdit(meta.id, meta.driveFileId);
+    }
+  );
 
   // The Manager delegates save routing back here: building sets go to
   // Firestore-only via saveBuildingSet, personal sets go through Drive +
@@ -588,7 +618,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     ? async (folderId: string | null) => {
         try {
           // No updatedAt bump: the open editor reads that as an edit elsewhere.
-          if (!user?.uid) return;
+          if (!user?.uid || isSandboxed(editingMeta.id)) return;
           await updateDoc(
             doc(db, 'users', user.uid, GL_PERSONAL_COLLECTION, editingMeta.id),
             { folderId }
@@ -608,21 +638,31 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     assignments
       .filter((a) => a.setId === setId && a.status === 'active')
       .map((a) => a.id);
-  const confirmDeleteWithOpen = async (title: string, count: number) =>
-    count === 0 ||
-    showConfirm(t('glData.deleteWithOpenAssignments', { count }), {
-      title: t('glData.deleteSetTitle', { title }),
-      variant: 'danger',
-      confirmLabel: t('glData.deleteConfirm'),
+  const confirmSetDelete = (titles: string[], openCount: number) =>
+    confirmLibraryDelete({
+      titles,
+      noun: LIBRARY_ITEM_NOUNS.guidedLearning,
+      detail:
+        openCount > 0
+          ? t('glData.deleteWithOpenAssignments', { count: openCount })
+          : undefined,
     });
+
+  const deletePersonalSet = async (
+    setId: string,
+    driveFileId: string,
+    openIds: string[]
+  ) => {
+    prefetchCacheRef.current.invalidate(setId);
+    await deleteSet(setId, driveFileId, openIds);
+  };
 
   const handleDelete = async (setId: string, driveFileId: string) => {
     const openIds = openAssignmentIdsFor(setId);
     const title = sets.find((s) => s.id === setId)?.title ?? '';
-    if (!(await confirmDeleteWithOpen(title, openIds.length))) return;
-    prefetchCacheRef.current.invalidate(setId);
+    if (!(await confirmSetDelete([title], openIds.length))) return;
     try {
-      await deleteSet(setId, driveFileId, openIds);
+      await deletePersonalSet(setId, driveFileId, openIds);
       addToast('Set deleted.', 'success');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Failed to delete';
@@ -630,10 +670,48 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     }
   };
 
+  const handleBulkDeletePersonal = async (
+    targets: { setId: string; driveFileId: string }[]
+  ): Promise<boolean> => {
+    const openIdsBySet = new Map(
+      targets.map(({ setId }) => [setId, openAssignmentIdsFor(setId)])
+    );
+    const openCount = [...openIdsBySet.values()].reduce(
+      (sum, ids) => sum + ids.length,
+      0
+    );
+    const titles = targets.map(
+      ({ setId }) => sets.find((s) => s.id === setId)?.title ?? ''
+    );
+    if (!(await confirmSetDelete(titles, openCount))) return false;
+    const results = await Promise.allSettled(
+      targets.map(({ setId, driveFileId }) =>
+        deletePersonalSet(setId, driveFileId, openIdsBySet.get(setId) ?? [])
+      )
+    );
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    const deleted = targets.length - failed;
+    if (deleted > 0) {
+      addToast(
+        deleted === 1 ? 'Set deleted.' : `Deleted ${deleted} sets.`,
+        'success'
+      );
+    }
+    if (failed > 0) {
+      addToast(
+        failed === 1
+          ? '1 set failed to delete.'
+          : `${failed} sets failed to delete.`,
+        'error'
+      );
+    }
+    return true;
+  };
+
   const handleDeleteBuilding = async (setId: string) => {
     const title = buildingSets.find((s) => s.id === setId)?.title ?? '';
     const openCount = openAssignmentIdsFor(setId).length;
-    if (!(await confirmDeleteWithOpen(title, openCount))) return;
+    if (!(await confirmSetDelete([title], openCount))) return;
     prefetchCacheRef.current.invalidate(setId);
     try {
       await deleteBuildingSet(setId);
@@ -662,36 +740,35 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       originSetId: string,
       rosterIds: string[],
       targeting: AssignTargetingValue = EMPTY_ASSIGN_TARGETING_VALUE,
-      options?: { silent?: boolean }
+      options?: {
+        silent?: boolean;
+        /** The stepper's Classes value: partly picked classes target only their students. */
+        classes?: AssignClassesValue;
+        /** The stepper's Manual: one class also gets a closed gate. */
+        manualStart?: boolean;
+      }
     ): Promise<string | null> => {
       const silent = options?.silent === true;
       // Snapshot the checked classes now; later roster edits never reshape it.
-      const expandedTargeting = expandClassTargeting(targeting, {
-        rosters,
-        selectedRosterIds: rosterIds,
-      });
+      const mixed = options?.classes
+        ? expandMixedTargeting(targeting, options.classes, rosters)
+        : null;
+      const expandedTargeting =
+        mixed?.targeting ??
+        expandClassTargeting(targeting, {
+          rosters,
+          selectedRosterIds: rosterIds,
+        });
       try {
         const selectedRosters = rosters.filter((r) => rosterIds.includes(r.id));
         const derived = deriveSessionTargetsFromRosters(selectedRosters);
-        const periodPlan = targeting.periodPlan ?? DEFAULT_PERIOD_PLAN;
-        const builtPeriodAccess =
-          assignPeriodCtx && selectedRosters.length > 1
-            ? buildPeriodAccess({
-                plan: periodPlan,
-                rosters: selectedRosters,
-                sharedWindow: targeting,
-                bellWindow: (roster) =>
-                  assignPeriodCtx.bellWindow(
-                    roster,
-                    new Date(targeting.openAt ?? Date.now())
-                  ),
-              })
-            : null;
-        // Two rosters on one class id share a gate, so they are one period.
-        const periodGate =
-          builtPeriodAccess && Object.keys(builtPeriodAccess).length > 1
-            ? { accessMode: periodPlan.mode, periodAccess: builtPeriodAccess }
-            : undefined;
+        const periodGate = buildPeriodGate({
+          plan: targeting.periodPlan ?? DEFAULT_PERIOD_PLAN,
+          rosters: selectedRosters,
+          sharedWindow: targeting,
+          bellWindow: assignPeriodCtx?.bellWindow,
+          manualStart: options?.manualStart,
+        });
         const url = await createSession(
           data,
           derived.classIds,
@@ -738,11 +815,10 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
           // depends on this callable (window fields already landed on the
           // session/assignment docs above via createSession/createAssignment),
           // so a Cloud Functions hiccup can't regress today's plain assign.
-          const payload = buildSetAssignmentTargetsPayload(
-            undefined,
-            expandedTargeting
-          );
-          if (payloadRequiresCall(payload)) {
+          const payload = mixed
+            ? buildMixedTargetsPayload(undefined, mixed)
+            : buildSetAssignmentTargetsPayload(undefined, expandedTargeting);
+          if (!isSandboxId(sessionId) && payloadRequiresCall(payload)) {
             try {
               const callable = httpsCallable<
                 SetAssignmentTargetsCallableInput,
@@ -934,6 +1010,20 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     await performAssign(set, source, originSetId, validRosterIds, targeting);
   };
 
+  const handleStepperAssign = async ({
+    classes,
+    targeting,
+    manualStart,
+  }: GuidedLearningStepperAssign): Promise<void> => {
+    if (!assignTarget) return;
+    const { set, source, originSetId } = assignTarget;
+    setAssignTarget(null);
+    await performAssign(set, source, originSetId, classes.classIds, targeting, {
+      classes,
+      manualStart,
+    });
+  };
+
   const handleViewResultsForRecent = async (sessionId: string) => {
     // Ensure the corresponding set is loaded so the results view has an activeSet
     const matchingEntry = Object.entries(recentSessionIds).find(
@@ -1066,7 +1156,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   // metadata doc in a single batch — the Drive blob is untouched.
   const handleReorderPersonal = useCallback(
     async (orderedIds: string[]) => {
-      if (!user?.uid) return;
+      if (!user?.uid || isTourSandboxActive()) return;
       const batch = writeBatch(db);
       orderedIds.forEach((id, index) => {
         batch.update(doc(db, 'users', user.uid, GL_PERSONAL_COLLECTION, id), {
@@ -1380,9 +1470,36 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                   onAssign={(setId, driveFileId, buildingEntry) => {
                     void handleAssign(setId, driveFileId, buildingEntry);
                   }}
+                  folderDeleteActions={{
+                    isBlocked: (id) => openAssignmentIdsFor(id).length > 0,
+                    blockedReason: (n) =>
+                      n === 1
+                        ? '1 set has an open assignment'
+                        : `${n} sets have open assignments`,
+                    deleteItems: async (ids) => {
+                      // The open-assignment check above is only trustworthy once assignments have loaded.
+                      if (assignmentsLoading) {
+                        throw new Error(
+                          "Couldn't check assignments. Try again in a moment."
+                        );
+                      }
+                      const byId = new Map(sets.map((x) => [x.id, x]));
+                      for (const id of ids) {
+                        const meta = byId.get(id);
+                        if (!meta) continue;
+                        prefetchCacheRef.current.invalidate(id);
+                        await deleteSet(
+                          id,
+                          meta.driveFileId,
+                          openAssignmentIdsFor(id)
+                        );
+                      }
+                    },
+                  }}
                   onDeletePersonal={(setId, driveFileId) => {
                     void handleDelete(setId, driveFileId);
                   }}
+                  onBulkDeletePersonal={handleBulkDeletePersonal}
                   onDuplicatePersonal={(setId, _driveFileId) => {
                     // `_driveFileId` is part of the manager's signature
                     // (mirrors onDeletePersonal) but we don't need it —
@@ -1697,7 +1814,20 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         </Suspense>
       )}
 
-      {assignTarget && (
+      {assignTarget && stepperOn && (
+        <GuidedLearningAssignStepper
+          title={assignTarget.set.title || 'Untitled set'}
+          rosters={rosters}
+          initialRosterIds={pickerValue.rosterIds}
+          canCollectWork={assignmentMode === 'submissions'}
+          defaultKind={resolveWorkKind('guided-learning', null)}
+          periodAccess={assignPeriodCtx}
+          onClose={() => setAssignTarget(null)}
+          onAssign={handleStepperAssign}
+        />
+      )}
+
+      {assignTarget && !stepperOn && (
         <AssignModal<AssignClassPickerValue>
           isOpen={!!assignTarget}
           onClose={() => setAssignTarget(null)}

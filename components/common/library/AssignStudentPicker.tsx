@@ -33,6 +33,13 @@ import {
   resolveStudentTargetRef,
   studentTargetRefKey,
 } from '@/utils/studentTargetRef';
+import {
+  isTargetableRow,
+  rosterGroupMembers,
+  studentDisplayName,
+  useRosterStudentRows,
+  type RosterStudentRow,
+} from './assignStepper/useRosterStudentRows';
 
 const MODAL_LABEL_ID = 'assign-student-picker-title';
 
@@ -66,12 +73,6 @@ export interface AssignTranslationContext extends TranslationCoverageContext {
   cap?: { remaining: number; total: number } | null;
   /** Last generation/load failure, shown inline beside the advisory. */
   error?: string | null;
-}
-
-interface RosterStudentRow {
-  studentId: string;
-  name: string;
-  ref: StudentTargetRef | null;
 }
 
 export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
@@ -132,17 +133,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
     [draftSelected]
   );
 
-  const rows: RosterStudentRow[] = useMemo(() => {
-    if (!activeRoster) return [];
-    const query = search.trim().toLowerCase();
-    return activeRoster.students
-      .map((s) => ({
-        studentId: s.id,
-        name: `${s.firstName} ${s.lastName}`.trim(),
-        ref: resolveStudentTargetRef(s, activeRoster),
-      }))
-      .filter((row) => (query ? row.name.toLowerCase().includes(query) : true));
-  }, [activeRoster, search]);
+  const rows = useRosterStudentRows(activeRoster, search);
 
   const applyDefaultOverride = (
     ref: StudentTargetRef,
@@ -202,9 +193,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
     );
   };
 
-  const targetableRows = rows.filter(
-    (r): r is RosterStudentRow & { ref: StudentTargetRef } => r.ref !== null
-  );
+  const targetableRows = rows.filter(isTargetableRow);
   const allTargetableSelected =
     targetableRows.length > 0 &&
     targetableRows.every((r) => selectedKeys.has(studentTargetRefKey(r.ref)));
@@ -234,11 +223,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
     for (const r of rosters) {
       for (const s of r.students) {
         const ref = resolveStudentTargetRef(s, r);
-        if (ref)
-          map.set(
-            studentTargetRefKey(ref),
-            `${s.firstName} ${s.lastName}`.trim()
-          );
+        if (ref) map.set(studentTargetRefKey(ref), studentDisplayName(s));
       }
     }
     return map;
@@ -446,24 +431,11 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
               {roster.groups && roster.groups.length > 0 && (
                 <div className="px-4 pb-2 flex flex-wrap gap-1.5">
                   {roster.groups.map((group) => {
-                    const groupIdSet = new Set(group.studentIds);
-                    const members = roster.students.filter((s) =>
-                      groupIdSet.has(s.id)
-                    );
-                    const targetableMembers = members
-                      .map((s) => ({
-                        studentId: s.id,
-                        ref: resolveStudentTargetRef(s, roster),
-                      }))
-                      .filter(
-                        (
-                          r
-                        ): r is { studentId: string; ref: StudentTargetRef } =>
-                          r.ref !== null
-                      );
-                    const skippedMembers = members.filter(
-                      (s) => resolveStudentTargetRef(s, roster) === null
-                    );
+                    const {
+                      members,
+                      targetable: targetableMembers,
+                      skipped: skippedMembers,
+                    } = rosterGroupMembers(roster, group);
                     const hasSkipped = skippedMembers.length > 0;
                     return (
                       <div key={group.id} className="flex flex-col gap-0.5">
@@ -501,9 +473,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                           <span className="text-xxs text-slate-400 pl-1 max-w-[11rem]">
                             {t('assignStudentPicker.groupSkippedNote', {
                               names: skippedMembers
-                                .map((s) =>
-                                  `${s.firstName} ${s.lastName}`.trim()
-                                )
+                                .map(studentDisplayName)
                                 .join(', '),
                               defaultValue:
                                 'Not added (no ClassLink sign-in): {{names}}',

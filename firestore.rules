@@ -1181,6 +1181,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // lti_tool_columns/{sessionId}/sections/{contextId} (AGS line-item URLs for
+    // SpartBoard-created gradebook columns) and lti_tool_columns_prefs/{teacherUid_contextId}
+    // are server-only. They have no match here on purpose: the default deny at the end
+    // covers them without adding compiled rules size.
+
     // PII-free NRPS membership endpoints, keyed by quiz session -> context. Written and
     // read only by CFs via Admin SDK; a doc holds a roster service URL no client should
     // enumerate, so deny all. `{document=**}` covers the contexts/{contextId} subcollection.
@@ -3373,10 +3378,14 @@ service cloud.firestore {
         allow read: if plcReader(plcId);
         allow create, update: if plcEditor(plcId)
           && incoming().keys().hasOnly([
-               'name', 'parentId', 'order', 'createdAt', 'updatedAt'
+               'name', 'parentId', 'order', 'createdAt', 'updatedAt', 'color'
              ])
           && isStr('name')
           && incoming().name.size() > 0
+          // Folder colour (LIBRARY_FOLDERS D11): one of the picker's ids.
+          && (!('color' in incoming()) || incoming().color in [
+               'red', 'orange', 'amber', 'green', 'teal', 'blue', 'pink', 'gray'
+             ])
           && (
                incoming().parentId == null
                || isStr('parentId')
@@ -6199,6 +6208,21 @@ service cloud.firestore {
     }
     match /users/{userId}/projects_folders/{folderId} {
       allow read, write: if ownsUserTeacher(userId);
+    }
+    // A teacher's private filing of items they don't own (LIBRARY_FOLDERS D22-D23),
+    // keyed by source key ("building:<id>", "global:<id>", "plcbank:<plcId>:<id>").
+    // Filing back to the source folder deletes the doc, so folderId is never null.
+    match /users/{userId}/{placements}/{sourceKey} {
+      allow read, delete: if ownsUserTeacher(userId) && placements in [
+        'guided_learning_placements', 'miniapp_placements', 'question_bank_placements'
+      ];
+      allow create, update: if ownsUserTeacher(userId) && placements in [
+          'guided_learning_placements', 'miniapp_placements', 'question_bank_placements'
+        ]
+        && incoming().keys().hasOnly(['folderId', 'order', 'updatedAt'])
+        && isStr('folderId') && incoming().folderId.size() > 0
+        && optInt(incoming(), 'order')
+        && isInt('updatedAt');
     }
 
     // === Claude connector (docs/plans/CLAUDE_CONNECTOR.md): server-written, owner-readable ===

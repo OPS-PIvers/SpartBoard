@@ -318,6 +318,13 @@ const TeamsAdminDefaultsDevHarness = import.meta.env.DEV
       )
     )
   : null;
+const MemberSuggestDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/plc/teams/dev/MemberSuggestDevHarness').then(
+        (module) => ({ default: module.MemberSuggestDevHarness })
+      )
+    )
+  : null;
 const SpartyDevGallery = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/SpartyDevGallery').then((module) => ({
@@ -380,6 +387,14 @@ const LiveTourViewsDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/LiveTourViewsDevHarness').then((module) => ({
         default: module.LiveTourViewsDevHarness,
+      }))
+    )
+  : null;
+
+const AssignStepperDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/AssignStepperDevHarness').then((module) => ({
+        default: module.AssignStepperDevHarness,
       }))
     )
   : null;
@@ -1003,6 +1018,19 @@ const App: React.FC = () => {
 
   if (
     import.meta.env.DEV &&
+    MemberSuggestDevHarness &&
+    isAuthBypass &&
+    pathname === '/team-email-suggest-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <MemberSuggestDevHarness />
+      </Suspense>
+    );
+  }
+
+  if (
+    import.meta.env.DEV &&
     TeamsAdminDefaultsDevHarness &&
     isAuthBypass &&
     pathname === '/teams-admin-defaults-dev'
@@ -1120,6 +1148,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <LiveTourViewsDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: assign stepper pieces on fixtures, for mockups.
+  if (
+    import.meta.env.DEV &&
+    AssignStepperDevHarness &&
+    pathname === '/assign-stepper-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <AssignStepperDevHarness />
       </Suspense>
     );
   }

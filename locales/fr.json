@@ -1966,7 +1966,8 @@
       "readAloud": "Lecture à voix haute",
       "language": "{{language}}"
     },
-    "language": "Langue"
+    "language": "Langue",
+    "noChanges": "Aucun changement"
   },
   "assignTargeting": {
     "expandAffordance": "Modifier ou ajouter des aménagements",
@@ -2022,7 +2023,15 @@
     "periodBell": "Horaires de la sonnerie",
     "periodCustom": "Personnalisé",
     "periodBellTimes": "{{open}} – {{close}}",
-    "periodNoBell": "Cette période n’a pas de sonnerie ce jour-là, elle utilise donc le créneau ci-dessus."
+    "periodNoBell": "Cette période n’a pas de sonnerie ce jour-là, elle utilise donc le créneau ci-dessus.",
+    "back": "Retour",
+    "modificationsEyebrow": "Attribuer · {{title}}",
+    "modificationsLink": "Aménagements : {{value}}",
+    "modificationsNone": "Aucun",
+    "standingHeading": "Permanents",
+    "skippedChip": "Ignoré",
+    "removeModification": "Retirer l’aménagement",
+    "addStudent": "Ajouter un élève"
   },
   "assignmentsHub": {
     "title": "Devoirs",
@@ -3616,7 +3625,49 @@
       "startAutopilot": "Démarrer avec le pilote automatique activé",
       "open": "Modifier la visite",
       "retake": "Reprendre l'image",
-      "retakeHint": "Prend une nouvelle image de l'élément de cette étape"
+      "retakeHint": "Prend une nouvelle image de l'élément de cette étape",
+      "pause": "Pause",
+      "resume": "Reprendre",
+      "pauseHint": "Masquer la visite et préparer le tableau à la main",
+      "pausedNote": "En pause. Organisez le tableau, puis reprenez.",
+      "saveStartTitle": "Enregistrer ce tableau ?",
+      "saveStartBody": "Commencer l'étape {{n}} depuis ce tableau quand on y saute ?",
+      "saveStart": "Enregistrer le tableau",
+      "justResume": "Reprendre seulement",
+      "startSaved": "Commence depuis un tableau enregistré",
+      "clearStart": "Effacer"
+    },
+    "kept_one": "{{count}} élément enregistré dans votre bibliothèque.",
+    "kept_other": "{{count}} éléments enregistrés dans votre bibliothèque.",
+    "keepFailed": "Certains éléments n'ont pas pu être enregistrés.",
+    "keepItemsTitle_one": "Garder ce que vous avez créé ?",
+    "keepItemsTitle_other": "Garder ce que vous avez créé ?",
+    "keepItems_one": "Le garder",
+    "keepItems_other": "Les garder",
+    "discardItems": "Supprimer",
+    "untitledItem": "Sans titre",
+    "materials": {
+      "title": "Ressources",
+      "empty": "Aucune. La visite utilise ce qui est sur le tableau.",
+      "add": "Ajouter une ressource",
+      "remove": "Retirer la ressource",
+      "name": "Nom",
+      "kind": "Type",
+      "source": "Provenance",
+      "source_sample": "Copie d'exemple",
+      "source_teacher": "De l'enseignant",
+      "source_created": "Créée pendant la visite",
+      "copyFrom": "Copier depuis",
+      "previewWith": "Aperçu avec",
+      "choose": "Choisir…",
+      "noneYet": "Aucune dans votre bibliothèque pour le moment",
+      "pickBody": "Choisissez les éléments que cette visite utilise. La visite les modifie réellement.",
+      "madeInTour": "Créée pendant la visite",
+      "kind_quiz": "Quiz",
+      "kind_video-activity": "Activité vidéo",
+      "kind_guided-learning": "Apprentissage guidé",
+      "kind_mini-app": "Mini-app",
+      "kind_activity-wall": "Mur d'activités"
     }
   },
   "glPlayer": {
@@ -3806,10 +3857,8 @@
   },
   "glData": {
     "setTooLarge": "Cet ensemble est trop volumineux pour être enregistré. Divisez-le ou retirez des diapositives.",
-    "deleteSetTitle": "Supprimer « {{title}} » ?",
     "deleteWithOpenAssignments_one": "Les élèves de {{count}} devoir ouvert le perdront.",
-    "deleteWithOpenAssignments_other": "Les élèves de {{count}} devoirs ouverts le perdront.",
-    "deleteConfirm": "Supprimer"
+    "deleteWithOpenAssignments_other": "Les élèves de {{count}} devoirs ouverts le perdront."
   },
   "glAssignments": {
     "showOlder": "Afficher les plus anciennes"

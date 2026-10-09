@@ -19,17 +19,21 @@ import {
   where,
   writeBatch,
   addDoc,
+  updateDoc,
+  type DocumentReference,
+  deleteField,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { collectDescendantIds } from '@/utils/folderTree';
-import type { LibraryFolder } from '@/types';
+import type { LibraryFolder, LibraryFolderColor } from '@/types';
 import {
   type SharedSource,
   useSharedSubscription,
 } from './useSharedSubscription';
 
 export type DeleteFolderMode = 'move-to-parent' | 'delete-all';
+export type FolderDeleteUndo = () => Promise<void>;
 
 export interface FolderTreeConfig {
   /** Path segments of the folders collection; null disables the hook (empty state, loading=false). */
@@ -54,6 +58,11 @@ export interface UseFoldersResult {
   createFolder: (name: string, parentId: string | null) => Promise<string>;
   /** Rename a folder by id. */
   renameFolder: (folderId: string, nextName: string) => Promise<void>;
+  /** Set or clear (null) a folder's colour. */
+  setFolderColor: (
+    folderId: string,
+    color: LibraryFolderColor | null
+  ) => Promise<void>;
   /**
    * Move a folder to a new parent. Passing `null` moves it to the root.
    * Rejects if `nextParentId` is a descendant of `folderId` (would create
@@ -67,8 +76,12 @@ export interface UseFoldersResult {
    *   - 'delete-all': descendant folders are deleted; items are STILL
    *     reparented to the deleted folder's parent (we never delete items
    *     as a side-effect of folder deletion).
+   * Resolves to an undo for 'move-to-parent' that puts the folder and its contents back.
    */
-  deleteFolder: (folderId: string, mode: DeleteFolderMode) => Promise<void>;
+  deleteFolder: (
+    folderId: string,
+    mode: DeleteFolderMode
+  ) => Promise<FolderDeleteUndo | undefined>;
   /**
    * Reorder sibling folders under the same parent. Pass the full
    * ordered list of ids as they should appear after the move. Issues a
@@ -177,6 +190,17 @@ export function useFolderTree(config: FolderTreeConfig): UseFoldersResult {
     [folderKey]
   );
 
+  const setFolderColor = useCallback(
+    async (folderId: string, color: LibraryFolderColor | null) => {
+      if (!folderKey) throw new Error('Not authenticated');
+      await updateDoc(doc(db, folderKey, folderId), {
+        color: color ?? deleteField(),
+        updatedAt: Date.now(),
+      });
+    },
+    [folderKey]
+  );
+
   // Helper: walk up the parent chain to detect a cycle. Returns true if
   // `candidateAncestorId` is an ancestor of (or equal to) `folderId`.
   const isDescendantOrSelf = useCallback(
@@ -254,7 +278,10 @@ export function useFolderTree(config: FolderTreeConfig): UseFoldersResult {
   );
 
   const deleteFolder = useCallback(
-    async (folderId: string, mode: DeleteFolderMode): Promise<void> => {
+    async (
+      folderId: string,
+      mode: DeleteFolderMode
+    ): Promise<FolderDeleteUndo | undefined> => {
       if (!folderKey) throw new Error('Not authenticated');
       const target = folders.find((f) => f.id === folderId);
       if (!target) throw new Error('Folder not found');
@@ -282,6 +309,7 @@ export function useFolderTree(config: FolderTreeConfig): UseFoldersResult {
           // Phase 1: reparent direct children folders to target's parent.
           phase = 'reparent-children';
           const childFolders = folders.filter((f) => f.parentId === folderId);
+          const rehomedItemRefs: DocumentReference[] = [];
           let phase1Batch = writeBatch(db);
           let phase1Count = 0;
           for (const cf of childFolders) {
@@ -321,6 +349,7 @@ export function useFolderTree(config: FolderTreeConfig): UseFoldersResult {
                 phase2Count = 0;
               }
               phase2Batch.update(d.ref, { folderId: target.parentId });
+              rehomedItemRefs.push(d.ref);
               phase2Count += 1;
             }
             if (phase2Count > 0) {
@@ -336,7 +365,25 @@ export function useFolderTree(config: FolderTreeConfig): UseFoldersResult {
           phase3Batch.delete(doc(db, folderKey, folderId));
           await phase3Batch.commit();
           foldersDeleted = 1;
-          return;
+          const { id: _id, ...folderData } = target;
+          return async () => {
+            const refs = [
+              doc(db, folderKey, folderId),
+              ...childFolders.map((cf) => doc(db, folderKey, cf.id)),
+              ...rehomedItemRefs,
+            ];
+            for (let i = 0; i < refs.length; i += BATCH_LIMIT) {
+              const batch = writeBatch(db);
+              refs.slice(i, i + BATCH_LIMIT).forEach((ref, j) => {
+                if (i + j === 0)
+                  batch.set(ref, { ...folderData, updatedAt: Date.now() });
+                else if (i + j <= childFolders.length)
+                  batch.update(ref, { parentId: folderId });
+                else batch.update(ref, { folderId });
+              });
+              await batch.commit();
+            }
+          };
         }
 
         // mode === 'delete-all'
@@ -398,6 +445,7 @@ export function useFolderTree(config: FolderTreeConfig): UseFoldersResult {
           await deleteBatch.commit();
           foldersDeleted += deleteCount;
         }
+        return undefined;
       } catch (err) {
         logError('useFolderTree.deleteFolder', err, {
           folderId,
@@ -435,6 +483,7 @@ export function useFolderTree(config: FolderTreeConfig): UseFoldersResult {
       error,
       createFolder,
       renameFolder,
+      setFolderColor,
       moveFolder,
       deleteFolder,
       reorderSiblings,
@@ -446,6 +495,7 @@ export function useFolderTree(config: FolderTreeConfig): UseFoldersResult {
       error,
       createFolder,
       renameFolder,
+      setFolderColor,
       moveFolder,
       deleteFolder,
       reorderSiblings,

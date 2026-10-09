@@ -75,6 +75,11 @@ import {
 } from '@/utils/studentTargetRef';
 import type { StudentOverride, StudentTargetRef } from '@/types';
 import { MiniAppEditorModal } from './components/MiniAppEditorModal';
+import { MiniAppAssignStepper } from './components/MiniAppAssignStepper';
+import {
+  planMiniAppStepperAssign,
+  type MiniAppStepperChoices,
+} from './miniAppStepperAssign';
 import { AssignmentsModal } from './components/AssignmentsModal';
 import { MiniAppManager } from './components/MiniAppManager';
 import { SaveAsWidgetModal } from './components/SaveAsWidgetModal';
@@ -92,6 +97,13 @@ import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { withoutClaudeReview } from '@/utils/claudeReview';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
+import {
+  sandboxMiniAppWrite,
+  useMiniAppKeeper,
+  useSandboxedMiniApps,
+} from '@/hooks/useTourSandboxed';
+import { isSandboxId, isTourSandboxActive } from '@/utils/tourSandbox';
+import { useTourMaterialEditor } from '@/components/tours/tourMaterials';
 
 // --- M17 B3: setAssignmentTargetsV1 client caller ---
 // Mirrors `functions/src/studentAssignmentTargets.ts` — kept local (not the
@@ -111,6 +123,7 @@ interface SetAssignmentTargetsParams {
     dueAt?: number | null;
   };
   targetMode?: 'class' | 'students';
+  studentTargetClassIds?: string[];
 }
 interface SetAssignmentTargetsResult {
   written: number;
@@ -149,7 +162,7 @@ interface MiniAppAssignModalProps {
   workKind?: WorkKindSetting;
 }
 
-const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
+export const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
   appTitle,
   assignmentName,
   onNameChange,
@@ -514,6 +527,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     ? { default: resolveWorkKind('mini-app', null) }
     : undefined;
   const assignmentMode: AssignmentMode = getAssignmentMode('miniApp');
+  // View-only shares a link with no classes, so it keeps its own dialog (D20).
+  const stepperOn =
+    canAccessFeature('assign-stepper') && assignmentMode === 'submissions';
   const { showConfirm } = useDialog();
   const claudeReview = useClaudeReview('miniapps');
   const { saveSavedWidget } = useSavedWidgets();
@@ -533,7 +549,16 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   // A substitute's own library and assignment archive have no place on the
   // teacher's board, so neither listener opens in a share.
   const inShare = useInSubShare();
-  const { library, globalLibrary } = useMiniAppSync(addToast, !inShare);
+  const { library: realLibrary, globalLibrary } = useMiniAppSync(
+    addToast,
+    !inShare
+  );
+  // A tour's sandbox adds its own apps and keeps its writes in memory.
+  const library = useSandboxedMiniApps(realLibrary);
+  useMiniAppKeeper(async (app) => {
+    if (!user) return;
+    await setDoc(doc(db, 'users', user.uid, 'miniapps', app.id), app);
+  });
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const [managerTab, setManagerTab] = useState<LibraryTab>('library');
@@ -622,34 +647,42 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     unsubscribeFromAppSessions,
   ]);
 
-  const handleConfirmAssign = async () => {
+  const handleConfirmAssign = async (stepper?: MiniAppStepperChoices) => {
     if (!user || !assigningApp) return;
     setIsCreatingSession(true);
     setAssignError(null);
     try {
+      const stepperPlan = stepper
+        ? planMiniAppStepperAssign(stepper, {
+            rosters,
+            bellWindow: assignPeriodCtx?.bellWindow,
+          })
+        : null;
       // Resolve the picker selection against current rosters — dropped IDs
       // (deleted) or rosters that failed to load students from Drive
       // (`loadError`) are silently filtered so we never produce a session
       // with zero PINs that no student can join.
-      const selectedRosters = resolveSelectedRosters(
-        assignPickerValue,
-        rosters
-      ).filter((r) => !r.loadError);
+      const selectedRosters =
+        stepperPlan?.selectedRosters ??
+        resolveSelectedRosters(assignPickerValue, rosters).filter(
+          (r) => !r.loadError
+        );
       const derived = deriveSessionTargetsFromRosters(selectedRosters);
-      const { targeting: targetingForSave } = applyAvailability(
-        assignTargetingValue,
-        {
-          enabled: availabilityOn && assignmentMode === 'submissions',
-          rosters: selectedRosters,
-          bellWindow: assignPeriodCtx?.bellWindow,
-          workKind: workKindSetting,
-        }
-      );
+      const { targeting: targetingForSave } = stepperPlan
+        ? { targeting: stepperPlan.targeting }
+        : applyAvailability(assignTargetingValue, {
+            enabled: availabilityOn && assignmentMode === 'submissions',
+            rosters: selectedRosters,
+            bellWindow: assignPeriodCtx?.bellWindow,
+            workKind: workKindSetting,
+          });
       // Snapshot the checked classes now; later roster edits never reshape it.
-      const expandedTargeting = expandClassTargeting(targetingForSave, {
-        rosters,
-        selectedRosterIds: assignPickerValue.rosterIds,
-      });
+      const expandedTargeting =
+        stepperPlan?.targeting ??
+        expandClassTargeting(targetingForSave, {
+          rosters,
+          selectedRosterIds: assignPickerValue.rosterIds,
+        });
 
       // NOTE ON GATING ASYMMETRY: `mini_app_sessions` Firestore rules use
       // `passesStudentClassGateList`, which treats an empty `classIds[]` as
@@ -667,8 +700,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // reads its pointer doc at this id, which `setAssignmentTargetsV1` also
       // uses as the pointer key.
       const generatedAssignmentId = crypto.randomUUID();
-      const periodGate =
-        assignmentMode === 'submissions'
+      const periodGate = stepperPlan
+        ? stepperPlan.periodGate
+        : assignmentMode === 'submissions'
           ? buildPeriodGate({
               plan: targetingForSave.periodPlan,
               rosters: selectedRosters,
@@ -729,13 +763,19 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // touches the Cloud Function, keeping the class-wide flow's click
       // count and latency unchanged from today (spec §3a-G).
       // A per-period session's pointers carry no shared window either.
-      const payload = buildSetAssignmentTargetsPayload(
-        undefined,
-        periodGate
-          ? { ...expandedTargeting, openAt: undefined, closeAt: undefined }
-          : expandedTargeting
-      );
-      if (payloadRequiresCall(payload) && assignmentId) {
+      const payload =
+        stepperPlan?.payload ??
+        buildSetAssignmentTargetsPayload(
+          undefined,
+          periodGate
+            ? { ...expandedTargeting, openAt: undefined, closeAt: undefined }
+            : expandedTargeting
+        );
+      if (
+        payloadRequiresCall(payload) &&
+        assignmentId &&
+        !isSandboxId(assignmentId)
+      ) {
         try {
           const setAssignmentTargets = httpsCallable<
             SetAssignmentTargetsParams,
@@ -1063,7 +1103,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
             ? library.reduce((min, a) => Math.min(min, a.order ?? 0), 0) - 1
             : 0,
       };
-      await setDoc(doc(appsRef, id), appData);
+      if (!sandboxMiniAppWrite(appData, realLibrary))
+        await setDoc(doc(appsRef, id), appData);
       // Clear unsaved flag and update title
       updateWidget(widget.id, {
         config: {
@@ -1098,22 +1139,22 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     claudeReview.markReviewed(app);
     setEditingApp(withoutClaudeReview({ ...app }));
   };
+  // A live tour can open one of the teacher's apps in the editor.
+  useTourMaterialEditor(widget.id, 'mini-app', editingApp?.id, (id) => {
+    const app = library.find((a) => a.id === id);
+    if (app) setEditingApp(withoutClaudeReview({ ...app }));
+  });
 
   const handleDelete = async (id: string) => {
     if (!user) return;
-    const confirmed = await showConfirm('Delete this app from your library?', {
-      title: 'Delete App',
-      variant: 'danger',
-      confirmLabel: 'Delete',
-    });
-    if (confirmed) {
-      try {
+    try {
+      const app = library.find((a) => a.id === id);
+      if (!app || !sandboxMiniAppWrite(app, realLibrary, true))
         await deleteDoc(doc(db, 'users', user.uid, 'miniapps', id));
-        addToast('App deleted', 'info');
-      } catch (err) {
-        console.error(err);
-        addToast('Delete failed', 'error');
-      }
+      addToast('App deleted', 'info');
+    } catch (err) {
+      console.error(err);
+      addToast('Delete failed', 'error');
     }
   };
 
@@ -1139,7 +1180,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               : 0,
         };
         const appsRef = collection(db, 'users', user.uid, 'miniapps');
-        await setDoc(doc(appsRef, copy.id), copy);
+        if (!sandboxMiniAppWrite(copy, realLibrary))
+          await setDoc(doc(appsRef, copy.id), copy);
         addToast(`Duplicated as "${copy.title}".`, 'success');
       } catch (err) {
         logError('MiniAppWidget.handleDuplicate', err, {
@@ -1163,14 +1205,15 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       order: existing?.order ?? updated.order ?? 0,
     };
     const docRef = doc(db, 'users', user.uid, 'miniapps', appData.id);
-    await setDoc(docRef, appData);
+    if (!sandboxMiniAppWrite(appData, realLibrary))
+      await setDoc(docRef, appData);
     // The editor autosaves, so only the first write is news.
     if (!existing) addToast('App created!', 'success');
   };
 
   const handleReorder = useCallback(
     async (nextOrderedIds: string[]) => {
-      if (!user) return;
+      if (!user || isTourSandboxActive()) return;
 
       const byId = new Map(library.map((a) => [a.id, a]));
       const orderedIdSet = new Set(nextOrderedIds);
@@ -1219,7 +1262,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         createdAt: Date.now(),
         order: library.length,
       };
-      await setDoc(doc(appsRef, id), appData);
+      if (!sandboxMiniAppWrite(appData, realLibrary))
+        await setDoc(doc(appsRef, id), appData);
       addToast(`"${app.title}" added to your library`, 'success');
     } catch (err) {
       console.error(err);
@@ -1387,6 +1431,53 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   const handleImportSaved = useCallback(() => {
     addToast('Mini-apps imported', 'success');
   }, [addToast]);
+
+  const closeAssign = () => {
+    setAssigningApp(null);
+    setCreatedSessionId(null);
+    setAssignError(null);
+    setAssignPickerValue(makeEmptyPickerValue());
+    setAssignTargetingValue(EMPTY_ASSIGN_TARGETING_VALUE);
+    setSkippedStudentNames([]);
+  };
+
+  // The stepper takes over until the assignment exists; the link view that follows stays as is.
+  const assignDialog =
+    isStudentView || !assigningApp ? null : stepperOn && !createdSessionId ? (
+      <MiniAppAssignStepper
+        appTitle={assigningApp.title}
+        assignmentName={assignmentName}
+        onNameChange={setAssignmentName}
+        rosters={rosters}
+        initialClassIds={assignPickerValue.rosterIds}
+        defaultKind={resolveWorkKind('mini-app', null)}
+        periodAccess={assignPeriodCtx}
+        submitting={isCreatingSession}
+        onSubmit={handleConfirmAssign}
+        onClose={closeAssign}
+      />
+    ) : (
+      <MiniAppAssignModal
+        appTitle={assigningApp.title}
+        assignmentName={assignmentName}
+        onNameChange={setAssignmentName}
+        isCreating={isCreatingSession}
+        createdSessionId={createdSessionId}
+        error={assignError}
+        rosters={rosters}
+        pickerValue={assignPickerValue}
+        onPickerChange={setAssignPickerValue}
+        mode={assignmentMode}
+        targetingValue={assignTargetingValue}
+        onTargetingChange={setAssignTargetingValue}
+        skippedStudentNames={skippedStudentNames}
+        periodAccess={assignPeriodCtx}
+        availabilityEnabled={availabilityOn}
+        workKind={workKindSetting}
+        onConfirm={() => void handleConfirmAssign()}
+        onClose={closeAssign}
+      />
+    );
 
   // --- RENDER: RUNNING MODE ---
   if (activeApp) {
@@ -1734,35 +1825,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               </div>
             )}
             {/* Assign modal */}
-            {!isStudentView && assigningApp && (
-              <MiniAppAssignModal
-                appTitle={assigningApp.title}
-                assignmentName={assignmentName}
-                onNameChange={setAssignmentName}
-                isCreating={isCreatingSession}
-                createdSessionId={createdSessionId}
-                error={assignError}
-                rosters={rosters}
-                pickerValue={assignPickerValue}
-                onPickerChange={setAssignPickerValue}
-                mode={assignmentMode}
-                targetingValue={assignTargetingValue}
-                onTargetingChange={setAssignTargetingValue}
-                skippedStudentNames={skippedStudentNames}
-                periodAccess={assignPeriodCtx}
-                availabilityEnabled={availabilityOn}
-                workKind={workKindSetting}
-                onConfirm={() => void handleConfirmAssign()}
-                onClose={() => {
-                  setAssigningApp(null);
-                  setCreatedSessionId(null);
-                  setAssignError(null);
-                  setAssignPickerValue(makeEmptyPickerValue());
-                  setAssignTargetingValue(EMPTY_ASSIGN_TARGETING_VALUE);
-                  setSkippedStudentNames([]);
-                }}
-              />
-            )}
+            {assignDialog}
             {/* Assignments modal */}
             {!isStudentView && assignmentsForApp && (
               <AssignmentsModal
@@ -1853,7 +1916,19 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               assignmentsLoading={assignmentsLoading}
               onCreate={handleCreate}
               onEdit={handleEdit}
-              onDelete={(app) => void handleDelete(app.id)}
+              onDelete={(app) => handleDelete(app.id)}
+              folderDeleteActions={{
+                deleteItems: async (ids) => {
+                  if (!user) throw new Error('Not signed in');
+                  for (const id of ids) {
+                    const app = library.find((a) => a.id === id);
+                    if (!app || !sandboxMiniAppWrite(app, realLibrary, true))
+                      await deleteDoc(
+                        doc(db, 'users', user.uid, 'miniapps', id)
+                      );
+                  }
+                },
+              }}
               onDuplicate={(app) => void handleDuplicate(app)}
               isDuplicating={duplicateBusy.isBusy}
               onRun={handleRun}
@@ -1876,35 +1951,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               readOnly={isActiveBoardReadOnly}
             />
             {/* Assign modal */}
-            {!isStudentView && assigningApp && (
-              <MiniAppAssignModal
-                appTitle={assigningApp.title}
-                assignmentName={assignmentName}
-                onNameChange={setAssignmentName}
-                isCreating={isCreatingSession}
-                createdSessionId={createdSessionId}
-                error={assignError}
-                rosters={rosters}
-                pickerValue={assignPickerValue}
-                onPickerChange={setAssignPickerValue}
-                mode={assignmentMode}
-                targetingValue={assignTargetingValue}
-                onTargetingChange={setAssignTargetingValue}
-                skippedStudentNames={skippedStudentNames}
-                periodAccess={assignPeriodCtx}
-                availabilityEnabled={availabilityOn}
-                workKind={workKindSetting}
-                onConfirm={() => void handleConfirmAssign()}
-                onClose={() => {
-                  setAssigningApp(null);
-                  setCreatedSessionId(null);
-                  setAssignError(null);
-                  setAssignPickerValue(makeEmptyPickerValue());
-                  setAssignTargetingValue(EMPTY_ASSIGN_TARGETING_VALUE);
-                  setSkippedStudentNames([]);
-                }}
-              />
-            )}
+            {assignDialog}
             {/* Assignments modal (live sessions for a specific app) */}
             {!isStudentView && assignmentsForApp && (
               <AssignmentsModal

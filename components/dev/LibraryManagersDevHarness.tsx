@@ -1,9 +1,16 @@
 // Real library managers on fixture data at /library-managers-dev (dev and auth-bypass builds only), for layout checks.
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
+import {
+  DashboardContext,
+  type DashboardContextValue,
+} from '@/context/DashboardContextValue';
+import { ToastContainer } from '@/components/common/ToastContainer';
+import type { Toast } from '@/types';
 import { DialogProvider } from '@/context/DialogContext';
+import { DialogContainer } from '@/components/common/DialogContainer';
 import { AuthProvider } from '@/context/AuthContext';
-import { useFolders } from '@/hooks/useFolders';
+import type { UseFoldersResult } from '@/hooks/useFolders';
 import { QuizManager } from '@/components/widgets/QuizWidget/components/QuizManager';
 import type { QuizManagerTab } from '@/components/widgets/QuizWidget/components/QuizManager';
 import { VideoActivityManager } from '@/components/widgets/VideoActivityWidget/components/VideoActivityManager';
@@ -18,6 +25,7 @@ import type {
   ClassRoster,
   FlashcardAssignment,
   FlashcardSet,
+  LibraryFolder,
   GuidedLearningAssignment,
   GuidedLearningSetMetadata,
   MiniAppAssignment,
@@ -303,6 +311,7 @@ const GuidedLearningView: React.FC = () => (
     onAssign={noop}
     loadSetForPreview={() => Promise.resolve(null)}
     onDeletePersonal={noop}
+    onBulkDeletePersonal={() => Promise.resolve(false)}
     onDeleteBuilding={noop}
     onCreateNewPersonal={noop}
     onCreateNewBuilding={noop}
@@ -346,12 +355,135 @@ const MiniAppView: React.FC = () => {
   );
 };
 
+const FIXTURE_FOLDERS: LibraryFolder[] = [
+  {
+    id: 'unit-1',
+    name: 'Unit 1: Greetings',
+    parentId: null,
+    order: 0,
+    createdAt: NOW,
+  },
+  {
+    id: 'unit-2',
+    name: 'Unit 2: School life',
+    parentId: null,
+    order: 1,
+    createdAt: NOW,
+  },
+  {
+    id: 'unit-2-wk1',
+    name: 'Week 1',
+    parentId: 'unit-2',
+    order: 0,
+    createdAt: NOW,
+  },
+  {
+    id: 'unit-2-wk2',
+    name: 'Week 2',
+    parentId: 'unit-2',
+    order: 1,
+    createdAt: NOW,
+  },
+  {
+    id: 'unit-2-wk2-quiz',
+    name: 'Quiz prep',
+    parentId: 'unit-2-wk2',
+    order: 0,
+    createdAt: NOW,
+  },
+  {
+    id: 'review',
+    name: 'Review games',
+    parentId: null,
+    order: 2,
+    createdAt: NOW,
+  },
+];
+
+const FIXTURE_FOLDER_IDS = [
+  'unit-1',
+  'unit-1',
+  'unit-1',
+  'unit-2-wk1',
+  'unit-2-wk1',
+  'unit-2-wk2',
+  'unit-2-wk2-quiz',
+  'unit-2-wk2-quiz',
+  'review',
+  null,
+  null,
+  null,
+];
+
+/** In-memory folders so the folder view can be exercised without Firestore. */
+const useFixtureFolders = (
+  onMoveItem: (itemId: string, folderId: string | null) => void
+): UseFoldersResult => {
+  const [folders, setFolders] = useState(FIXTURE_FOLDERS);
+  const createFolder = (name: string, parentId: string | null) => {
+    const id = `folder-${Date.now()}`;
+    setFolders((prev) => [
+      ...prev,
+      { id, name, parentId, order: prev.length, createdAt: Date.now() },
+    ]);
+    return Promise.resolve(id);
+  };
+  return {
+    folders,
+    loading: false,
+    error: null,
+    createFolder,
+    renameFolder: (folderId, nextName) => {
+      setFolders((prev) =>
+        prev.map((f) => (f.id === folderId ? { ...f, name: nextName } : f))
+      );
+      return Promise.resolve();
+    },
+    moveFolder: (folderId, nextParentId) => {
+      setFolders((prev) =>
+        prev.map((f) =>
+          f.id === folderId ? { ...f, parentId: nextParentId } : f
+        )
+      );
+      return Promise.resolve();
+    },
+    deleteFolder: (folderId) => {
+      setFolders((prev) => prev.filter((f) => f.id !== folderId));
+      return Promise.resolve(undefined);
+    },
+    setFolderColor: (folderId, color) => {
+      setFolders((prev) =>
+        prev.map((f) =>
+          f.id === folderId ? { ...f, color: color ?? undefined } : f
+        )
+      );
+      return Promise.resolve();
+    },
+    reorderSiblings: () => Promise.resolve(),
+    moveItem: (itemId, folderId) => {
+      onMoveItem(itemId, folderId);
+      return Promise.resolve();
+    },
+  };
+};
+
 const FlashcardsView: React.FC = () => {
   const [tab, setTab] = useState<LibraryTab>('library');
-  const folders = useFolders(undefined, 'flashcards');
+  const [sets, setSets] = useState(() =>
+    FLASHCARD_SETS.map((set, i) => ({
+      ...set,
+      folderId: FIXTURE_FOLDER_IDS[i] ?? null,
+    }))
+  );
+  const folders = useFixtureFolders((itemId, folderId) =>
+    setSets((prev) =>
+      prev.map((set) => (set.id === itemId ? { ...set, folderId } : set))
+    )
+  );
   return (
     <FlashcardLibrary
-      sets={FLASHCARD_SETS}
+      userId="mock-user-id"
+      sets={sets}
       loading={false}
       error={null}
       folders={folders}
@@ -417,34 +549,68 @@ const readView = (): HarnessView => {
     : 'quiz';
 };
 
+// Just enough dashboard for library toasts (drag Undo) to show in the harness.
+const HarnessToasts: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const value = useMemo(
+    () =>
+      ({
+        toasts,
+        addToast: (
+          message: string,
+          type: Toast['type'] = 'info',
+          action?: Toast['action']
+        ) =>
+          setToasts((prev) => [
+            ...prev,
+            { id: String(prev.length + Date.now()), message, type, action },
+          ]),
+        removeToast: (id: string) =>
+          setToasts((prev) => prev.filter((t) => t.id !== id)),
+      }) as unknown as DashboardContextValue,
+    [toasts]
+  );
+  return (
+    <DashboardContext.Provider value={value}>
+      {children}
+      <ToastContainer />
+    </DashboardContext.Provider>
+  );
+};
+
 export const LibraryManagersDevHarness: React.FC = () => {
   const [view, setView] = useState<HarnessView>(readView);
   const View = VIEW_COMPONENTS[view];
   return (
-    <DialogProvider>
-      <AuthProvider>
-        <div className="flex min-h-screen flex-col items-start gap-4 bg-slate-100 p-6">
-          <select
-            aria-label="Library"
-            value={view}
-            onChange={(e) => setView(e.target.value as HarnessView)}
-            className="rounded border border-slate-300 bg-white px-3 py-2 text-sm"
-          >
-            {LIBRARY_HARNESS_VIEWS.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </select>
-          <div
-            data-testid="library-harness-widget"
-            className="relative overflow-hidden rounded-2xl bg-white shadow-lg"
-            style={{ width: 960, height: 560, containerType: 'size' }}
-          >
-            <View key={view} />
+    <HarnessToasts>
+      <DialogProvider>
+        <AuthProvider>
+          <div className="flex min-h-screen flex-col items-start gap-4 bg-slate-100 p-6">
+            <select
+              aria-label="Library"
+              value={view}
+              onChange={(e) => setView(e.target.value as HarnessView)}
+              className="rounded border border-slate-300 bg-white px-3 py-2 text-sm"
+            >
+              {LIBRARY_HARNESS_VIEWS.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+            </select>
+            <div
+              data-testid="library-harness-widget"
+              className="relative overflow-hidden rounded-2xl bg-white shadow-lg"
+              style={{ width: 960, height: 560, containerType: 'size' }}
+            >
+              <View key={view} />
+            </div>
           </div>
-        </div>
-      </AuthProvider>
-    </DialogProvider>
+          <DialogContainer />
+        </AuthProvider>
+      </DialogProvider>
+    </HarnessToasts>
   );
 };

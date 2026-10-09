@@ -7,7 +7,7 @@
  */
 
 import React, { useContext, useState } from 'react';
-import { ClipboardCheck, Share2 } from 'lucide-react';
+import { ClipboardCheck, Pause, Save, Share2 } from 'lucide-react';
 import type {
   QuizAssignment,
   QuizBehaviorSettings,
@@ -40,6 +40,17 @@ import {
   type AssignClassPickerValue,
 } from '@/components/common/AssignClassPicker.helpers';
 import { formatBehaviorSummary } from '@/utils/quizBehavior';
+import { AssignStepper } from '@/components/common/library/assignStepper/AssignStepper';
+import {
+  getAssignStepTitle,
+  type AssignStepDef,
+} from '@/components/common/library/assignStepper/assignSteps';
+import { AssignWhenStep } from '@/components/common/library/assignStepper/AssignWhenStep';
+import { formatWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';
+import { useQuizRuleGates } from '@/components/common/library/assignStepper/QuizRuleStepGates';
+import { quizRuleStepDefs } from '@/components/common/library/assignStepper/quizRuleStepDefs';
+import { useTranslation } from 'react-i18next';
+import { getAssignmentWidgetKind } from '@/utils/quizWidgetKind';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import {
   DEFAULT_DUE_TIME,
@@ -168,7 +179,12 @@ export const QuizAssignmentSettingsModal: React.FC<
   );
   const canAccessFeature = useContext(AuthContext)?.canAccessFeature;
   const perClassDueOn = canAccessFeature?.('quiz-per-class-due-dates') === true;
-  const availabilityOn = canAccessFeature?.('assign-availability') === true;
+  // D17: the stepper edits the window whether or not `assign-availability` is on.
+  const stepperOn = canAccessFeature?.('assign-stepper') === true;
+  const availabilityOn =
+    stepperOn || canAccessFeature?.('assign-availability') === true;
+  const { t } = useTranslation();
+  const ruleGates = useQuizRuleGates();
   const perPeriod =
     assignment.accessMode === 'assignment' &&
     Object.keys(assignment.periodAccess ?? {}).length > 0;
@@ -308,6 +324,104 @@ export const QuizAssignmentSettingsModal: React.FC<
         console.error('[QuizAssignmentSettingsModal] save failed:', err);
     }
   };
+
+  // The stepper edits Assessment assignments only; Review and live ones keep the full modal.
+  if (stepperOn && getAssignmentWidgetKind(assignment) === 'quiz') {
+    // A Manual start has no dates to edit: the teacher starts and pauses each class.
+    const manualStart =
+      assignment.accessMode === 'assessment' &&
+      Object.keys(assignment.periodAccess ?? {}).length > 0 &&
+      assignment.openAt == null &&
+      assignment.closeAt == null &&
+      assignment.dueAt == null;
+    const whenStep: AssignStepDef = {
+      id: 'when',
+      title: getAssignStepTitle('when', 'quiz', { kind: 'work' }),
+      value: formatWhenValue(
+        { mode: manualStart ? 'manual' : 'scheduled', availability },
+        {
+          variant: 'when',
+          rosterCount: selectedRostersForDue.length,
+          manualAvailable: manualStart,
+          t,
+        }
+      ),
+      body: manualStart ? (
+        <p className="flex items-center gap-2 text-sm font-medium text-slate-700">
+          <Pause className="h-4 w-4 shrink-0 text-brand-blue-primary" />
+          {t('assignWhen.manualState', {
+            defaultValue: 'Starts paused. You start and pause each class.',
+          })}
+        </p>
+      ) : (
+        <AssignWhenStep
+          value={{ mode: 'scheduled', availability }}
+          onChange={(next) => setAvailability(next.availability)}
+          variant="when"
+          rosters={selectedRostersForDue}
+          sharedOpens={!perPeriod}
+          perClass
+        />
+      ),
+    };
+    const sharingStep: AssignStepDef[] =
+      assignment.plc || canShareWithPlc
+        ? [
+            {
+              id: 'sharing',
+              title: getAssignStepTitle('sharing', 'quiz', { kind: 'work' }),
+              value: assignment.plc
+                ? `Shared with ${assignment.plc.name}`
+                : 'Not shared',
+              body: assignment.plc ? (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-bold text-brand-blue-dark truncate">
+                    {`Sharing results with ${assignment.plc.name}`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void onStopSharing?.()}
+                    disabled={!onStopSharing}
+                    className="shrink-0 px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-brand-red-primary hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40"
+                  >
+                    Stop sharing
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onShareResults}
+                  disabled={!onShareResults}
+                  className="px-3 py-1.5 text-xs font-bold text-brand-blue-primary hover:bg-brand-blue-lighter/40 rounded-lg transition-colors disabled:opacity-40"
+                >
+                  Share results with PLC…
+                </button>
+              ),
+            },
+          ]
+        : [];
+    return (
+      <AssignStepper
+        isOpen
+        onClose={onClose}
+        title={assignment.quizTitle}
+        steps={[
+          whenStep,
+          ...quizRuleStepDefs({
+            value: behavior,
+            onChange: setBehavior,
+            gates: ruleGates,
+            handRaiseMode: 'force-off',
+          }),
+          ...sharingStep,
+        ]}
+        submitLabel="Save"
+        submitIcon={Save}
+        onSubmit={handleAssign}
+        disabled={availabilityBackwards}
+      />
+    );
+  }
 
   return (
     <AssignModal<SettingsOptions>

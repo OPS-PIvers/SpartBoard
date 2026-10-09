@@ -85,3 +85,47 @@ export async function suggestLtiClassLinkMatch(
   const { data } = await callable(args);
   return data;
 }
+
+/** One of the caller's classes that shares students with a pasted Schoology course. */
+export interface LtiSectionByUrlSuggestion {
+  rosterId: string;
+  overlap: number;
+}
+
+/** Result of `ltiLinkSectionByUrlV1` called with only a URL. */
+export interface LtiSectionByUrlPreview {
+  contextId: string;
+  contextTitle: string | null;
+  learnerCount: number;
+  /** The caller's classes with any shared students, most first. */
+  suggestions: LtiSectionByUrlSuggestion[];
+  /** The roster this section is already linked to, if the caller linked it before. */
+  linkedRosterId: string | null;
+}
+
+/** Check a pasted Schoology course link and rank the caller's classes against it. */
+export async function previewLtiSectionByUrl(
+  functions: Functions,
+  url: string
+): Promise<LtiSectionByUrlPreview> {
+  const callable = httpsCallable<{ url: string }, LtiSectionByUrlPreview>(
+    functions,
+    'ltiLinkSectionByUrlV1'
+  );
+  const { data } = await callable({ url });
+  return data;
+}
+
+/** Link a pasted Schoology course to one of the caller's ClassLink rosters. */
+export async function linkLtiSectionByUrl(
+  functions: Functions,
+  url: string,
+  rosterId: string
+): Promise<{ ok: boolean; contextId: string; contextTitle: string | null }> {
+  const callable = httpsCallable<
+    { url: string; rosterId: string },
+    { ok: boolean; contextId: string; contextTitle: string | null }
+  >(functions, 'ltiLinkSectionByUrlV1');
+  const { data } = await callable({ url, rosterId });
+  return data;
+}

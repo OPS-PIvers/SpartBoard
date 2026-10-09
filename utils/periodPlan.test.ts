@@ -161,4 +161,33 @@ describe('buildPeriodGate', () => {
       })
     ).toBeUndefined();
   });
+
+  it('gates a single class for a manual start, closed until started', () => {
+    const gate = buildPeriodGate({
+      plan: { mode: 'assignment' },
+      rosters: [sso],
+      sharedWindow: { openAt: 5, closeAt: 9 },
+      bellWindow,
+      manualStart: true,
+    });
+    expect(gate?.accessMode).toBe('assessment');
+    expect(Object.keys(gate?.periodAccess ?? {})).toEqual(['cl-1']);
+    expect(gate?.periodAccess['cl-1']).toMatchObject({
+      state: 'closed',
+      openAt: null,
+      closeAt: null,
+    });
+  });
+
+  it('still needs bell periods for a manual start', () => {
+    expect(
+      buildPeriodGate({
+        plan: undefined,
+        rosters: [sso],
+        sharedWindow: {},
+        bellWindow: undefined,
+        manualStart: true,
+      })
+    ).toBeUndefined();
+  });
 });

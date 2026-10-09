@@ -1966,7 +1966,8 @@
       "readAloud": "Vorlesen",
       "language": "{{language}}"
     },
-    "language": "Sprache"
+    "language": "Sprache",
+    "noChanges": "Keine Änderungen"
   },
   "assignTargeting": {
     "expandAffordance": "Anpassungen bearbeiten oder hinzufügen",
@@ -2022,7 +2023,15 @@
     "periodBell": "Klingelzeiten",
     "periodCustom": "Benutzerdefiniert",
     "periodBellTimes": "{{open}} – {{close}}",
-    "periodNoBell": "Diese Stunde hat an dem Tag keine Klingelzeit, daher gilt das Zeitfenster oben."
+    "periodNoBell": "Diese Stunde hat an dem Tag keine Klingelzeit, daher gilt das Zeitfenster oben.",
+    "back": "Zurück",
+    "modificationsEyebrow": "Zuweisen · {{title}}",
+    "modificationsLink": "Anpassungen: {{value}}",
+    "modificationsNone": "Keine",
+    "standingHeading": "Dauerhaft",
+    "skippedChip": "Übersprungen",
+    "removeModification": "Anpassung entfernen",
+    "addStudent": "Schüler hinzufügen"
   },
   "assignmentsHub": {
     "title": "Aufgaben",
@@ -3616,7 +3625,49 @@
       "startAutopilot": "Mit eingeschaltetem Autopilot starten",
       "open": "Tour bearbeiten",
       "retake": "Bild neu aufnehmen",
-      "retakeHint": "Nimmt ein neues Bild vom Element dieses Schritts auf"
+      "retakeHint": "Nimmt ein neues Bild vom Element dieses Schritts auf",
+      "pause": "Pause",
+      "resume": "Fortsetzen",
+      "pauseHint": "Tour ausblenden und die Tafel von Hand einrichten",
+      "pausedNote": "Pausiert. Richte die Tafel ein und setze dann fort.",
+      "saveStartTitle": "Diese Tafel speichern?",
+      "saveStartBody": "Schritt {{n}} mit dieser Tafel beginnen, wenn jemand dorthin springt?",
+      "saveStart": "Tafel speichern",
+      "justResume": "Nur fortsetzen",
+      "startSaved": "Beginnt mit einer gespeicherten Tafel",
+      "clearStart": "Entfernen"
+    },
+    "kept_one": "{{count}} Element in deiner Bibliothek gespeichert.",
+    "kept_other": "{{count}} Elemente in deiner Bibliothek gespeichert.",
+    "keepFailed": "Einige Elemente konnten nicht gespeichert werden.",
+    "keepItemsTitle_one": "Behalten, was du erstellt hast?",
+    "keepItemsTitle_other": "Behalten, was du erstellt hast?",
+    "keepItems_one": "Behalten",
+    "keepItems_other": "Alle behalten",
+    "discardItems": "Verwerfen",
+    "untitledItem": "Ohne Titel",
+    "materials": {
+      "title": "Materialien",
+      "empty": "Keine. Die Tour nutzt, was auf der Tafel ist.",
+      "add": "Material hinzufügen",
+      "remove": "Material entfernen",
+      "name": "Name",
+      "kind": "Art",
+      "source": "Herkunft",
+      "source_sample": "Beispielkopie",
+      "source_teacher": "Von der Lehrkraft",
+      "source_created": "Während der Tour erstellt",
+      "copyFrom": "Kopieren aus",
+      "previewWith": "Vorschau mit",
+      "choose": "Auswählen…",
+      "noneYet": "Noch keine in deiner Bibliothek",
+      "pickBody": "Wähle, welche deiner Elemente diese Tour nutzt. Die Tour ändert sie wirklich.",
+      "madeInTour": "In der Tour erstellt",
+      "kind_quiz": "Quiz",
+      "kind_video-activity": "Videoaktivität",
+      "kind_guided-learning": "Geführtes Lernen",
+      "kind_mini-app": "Mini-App",
+      "kind_activity-wall": "Aktivitätswand"
     }
   },
   "glPlayer": {
@@ -3806,10 +3857,8 @@
   },
   "glData": {
     "setTooLarge": "Dieses Set ist zu groß zum Speichern. Teile es auf oder entferne Folien.",
-    "deleteSetTitle": "„{{title}}“ löschen?",
     "deleteWithOpenAssignments_one": "Schüler in {{count}} offenen Aufgabe verlieren den Zugriff.",
-    "deleteWithOpenAssignments_other": "Schüler in {{count}} offenen Aufgaben verlieren den Zugriff.",
-    "deleteConfirm": "Löschen"
+    "deleteWithOpenAssignments_other": "Schüler in {{count}} offenen Aufgaben verlieren den Zugriff."
   },
   "glAssignments": {
     "showOlder": "Ältere anzeigen"

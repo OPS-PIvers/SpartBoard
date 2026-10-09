@@ -1,11 +1,12 @@
-import React, { lazy, Suspense, useState } from 'react';
-import { Check, Loader2, Pencil, Plus, Search } from 'lucide-react';
+import React, { lazy, Suspense, useRef, useState } from 'react';
+import { Check, GraduationCap, Loader2, Plus, Search } from 'lucide-react';
+import {
+  Btn,
+  CellPopover,
+} from '@/components/admin/Organization/components/primitives';
 import { useAuth } from '@/context/useAuth';
 import { loadBuildingSet, useGuidedLearning } from '@/hooks/useGuidedLearning';
-import type {
-  GuidedLearningBuildingSetIndex,
-  GuidedLearningSet,
-} from '@/types';
+import type { GuidedLearningSet } from '@/types';
 import { isHelpCenterSet } from '@/components/widgets/GuidedLearning/utils/helpCenterSets';
 import { isLiveTourSet } from '@/components/widgets/GuidedLearning/utils/liveTour';
 import { requestEditTour } from '@/components/tours/editor/tourEditStore';
@@ -30,27 +31,15 @@ interface GuidedLearningPickerProps {
   onError: (message: string) => void;
   /** The editor is open; the form must not close underneath it. */
   onEditingChange: (editing: boolean) => void;
+  /** 'choose' renders the Choose and New buttons; 'chosen' the picked activity. */
+  mode: 'choose' | 'chosen' | 'hidden';
+  onChange: () => void;
 }
+
+const helpCopyId = (personalSetId: string): string => `help-${personalSetId}`;
 
 const matches = (title: string, search: string): boolean =>
   title.toLowerCase().includes(search.toLowerCase().trim());
-
-const SetList: React.FC<{
-  heading: string;
-  empty: string;
-  children: React.ReactNode;
-  isEmpty: boolean;
-}> = ({ heading, empty, children, isEmpty }) => (
-  <section>
-    <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">
-      {heading}
-    </h4>
-    <ul className="border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-48 overflow-y-auto">
-      {isEmpty && <li className="px-3 py-2 text-sm text-slate-500">{empty}</li>}
-      {children}
-    </ul>
-  </section>
-);
 
 export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
   selectedSetId,
@@ -58,6 +47,8 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
   onSelect,
   onError,
   onEditingChange,
+  mode,
+  onChange,
 }) => {
   const { user, canAccessFeature } = useAuth();
   const studioEditor = canAccessFeature('gl-studio');
@@ -66,6 +57,8 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
     useGuidedLearning(user?.uid);
   const [search, setSearch] = useState('');
   const [copyingId, setCopyingId] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLSpanElement>(null);
   const [openingEditor, setOpeningEditor] = useState(false);
   // Held once, so a snapshot after an autosave doesn't hand the editor a new set.
   const [editing, setEditing] = useState<GuidedLearningSet | null>(null);
@@ -131,11 +124,18 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
   ): Promise<void> => {
     setCopyingId(setId);
     try {
+      const copyId = helpCopyId(setId);
+      // One copy per personal set: picking it again reuses that copy, keeping admin edits.
+      const existing = await loadBuildingSet(copyId);
+      if (existing) {
+        onSelect(existing.id, existing.title);
+        return;
+      }
       const loaded = await loadSetData(driveFileId);
       const now = Date.now();
       const copy: GuidedLearningSet = {
         ...loaded,
-        id: crypto.randomUUID(),
+        id: copyId,
         isBuilding: true,
         helpCenter: true,
         authorUid: user?.uid,
@@ -151,119 +151,193 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
     }
   };
 
-  const renderBuilding = (set: GuidedLearningBuildingSetIndex) => (
-    <li key={set.id}>
-      <button
-        type="button"
-        onClick={() => onSelect(set.id, set.title)}
-        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
-      >
-        <span className="truncate">{set.title || 'Untitled activity'}</span>
-        {selectedSetId === set.id && (
-          <Check
-            className="w-4 h-4 text-green-600 shrink-0"
-            aria-label="Selected"
-          />
-        )}
-      </button>
-    </li>
-  );
+  const pick = (setId: string, title: string) => {
+    setMenuOpen(false);
+    setSearch('');
+    onSelect(setId, title);
+  };
+
+  const groups: {
+    heading: string;
+    empty: string;
+    note?: string;
+    rows: { id: string; title: string; onPick: () => void }[];
+  }[] = [
+    {
+      heading: 'Help Center',
+      empty: 'No Help Center activities.',
+      rows: helpCenter.map((set) => ({
+        id: set.id,
+        title: set.title || 'Untitled activity',
+        onPick: () => pick(set.id, set.title),
+      })),
+    },
+    {
+      heading: 'Building library',
+      empty: 'No building activities.',
+      rows: building.map((set) => ({
+        id: set.id,
+        title: set.title || 'Untitled activity',
+        onPick: () => pick(set.id, set.title),
+      })),
+    },
+    {
+      heading: 'My library',
+      empty: 'No personal activities.',
+      note: 'Picking one makes a separate Help Center copy.',
+      rows: personal.map((set) => ({
+        id: set.id,
+        title: set.title || 'Untitled activity',
+        onPick: () => {
+          setMenuOpen(false);
+          setSearch('');
+          void handlePersonalPick(set.id, set.driveFileId);
+        },
+      })),
+    },
+  ];
+
+  const selectedLabel = selected
+    ? selected.title || 'Untitled activity'
+    : buildingLoading
+      ? 'Loading...'
+      : 'This activity was deleted. Pick another one.';
 
   return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-        <p className="min-w-0 truncate text-sm text-slate-700">
-          <span className="font-medium">Activity: </span>
-          {selected
-            ? selected.title || 'Untitled activity'
-            : !selectedSetId
-              ? 'None picked yet'
-              : buildingLoading
-                ? 'Loading...'
-                : 'This activity was deleted. Pick another one.'}
-        </p>
-        <div className="flex shrink-0 items-center gap-2">
+    <>
+      {mode === 'chosen' && selectedSetId ? (
+        <div className="flex min-h-10 w-full items-center gap-3 rounded-lg border border-slate-300 bg-white px-3 py-2">
+          <GraduationCap
+            className="w-4 h-4 shrink-0 text-slate-500"
+            aria-hidden="true"
+          />
+          <span
+            className={`flex-1 break-words text-sm ${selected ? 'text-slate-800' : 'text-slate-500'}`}
+          >
+            {selectedLabel}
+          </span>
           {selected && (
             <button
               type="button"
               disabled={openingEditor}
               onClick={() => void handleEditSelected(selected.id)}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+              className="inline-flex shrink-0 items-center gap-1 text-sm font-semibold text-brand-blue-primary hover:underline disabled:opacity-50"
             >
-              {openingEditor ? (
+              {openingEditor && (
                 <Loader2
                   className="w-3.5 h-3.5 animate-spin"
                   aria-hidden="true"
                 />
-              ) : (
-                <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
               )}
-              Edit activity
+              Open editor
             </button>
           )}
           <button
             type="button"
-            onClick={handleCreate}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 hover:bg-slate-100"
+            onClick={onChange}
+            className="shrink-0 text-sm font-semibold text-slate-600 hover:underline"
           >
-            <Plus className="w-3.5 h-3.5" aria-hidden="true" />
-            New activity
+            Change
           </button>
         </div>
-      </div>
+      ) : mode === 'choose' ? (
+        <>
+          <span ref={menuButtonRef} className="inline-flex">
+            <Btn
+              size="lg"
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              disabled={copyingId !== null}
+              onClick={() => setMenuOpen((open) => !open)}
+              icon={
+                copyingId !== null ? (
+                  <Loader2
+                    className="w-4 h-4 animate-spin"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <GraduationCap className="w-4 h-4" aria-hidden="true" />
+                )
+              }
+            >
+              Choose activity
+            </Btn>
+          </span>
+          <Btn
+            size="lg"
+            onClick={handleCreate}
+            icon={<Plus className="w-4 h-4" aria-hidden="true" />}
+          >
+            New activity
+          </Btn>
+        </>
+      ) : null}
 
-      <div className="relative">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search activities..."
-          aria-label="Search activities"
-          className="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <SetList
-          heading="Help Center"
-          empty="No Help Center activities."
-          isEmpty={helpCenter.length === 0}
-        >
-          {helpCenter.map(renderBuilding)}
-        </SetList>
-        <SetList
-          heading="Building library"
-          empty="No building activities."
-          isEmpty={building.length === 0}
-        >
-          {building.map(renderBuilding)}
-        </SetList>
-        <SetList
-          heading="My library"
-          empty="No personal activities."
-          isEmpty={personal.length === 0}
-        >
-          {personal.map((set) => (
-            <li key={set.id}>
-              <button
-                type="button"
-                disabled={copyingId !== null}
-                onClick={() => handlePersonalPick(set.id, set.driveFileId)}
-                className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
-              >
-                <span className="truncate">{set.title}</span>
-                {copyingId === set.id && (
-                  <Loader2 className="w-4 h-4 animate-spin text-slate-400 shrink-0" />
-                )}
-              </button>
-            </li>
+      <CellPopover
+        open={menuOpen}
+        onClose={() => {
+          setMenuOpen(false);
+          setSearch('');
+        }}
+        anchorRef={menuButtonRef}
+        className="w-[min(36rem,calc(100vw-2rem))] max-h-[min(28rem,70vh)] overflow-y-auto"
+      >
+        <div role="menu" aria-label="Choose activity">
+          <div className="relative p-1">
+            <Search
+              className="w-4 h-4 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2"
+              aria-hidden="true"
+            />
+            <input
+              autoFocus
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search activities..."
+              aria-label="Search activities"
+              className="w-full h-9 pl-9 pr-3 rounded-lg border border-slate-300 text-sm focus:outline-none focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30"
+            />
+          </div>
+          {groups.map((group) => (
+            <section
+              key={group.heading}
+              aria-label={group.heading}
+              className="border-t border-slate-100 first-of-type:border-t-0 py-1"
+            >
+              <h4 className="px-3 pt-2 pb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {group.heading}
+              </h4>
+              {group.note && group.rows.length > 0 && (
+                <p className="px-3 pb-1 text-xs text-slate-500">{group.note}</p>
+              )}
+              {group.rows.length === 0 ? (
+                <p className="px-3 py-1.5 text-sm text-slate-400">
+                  {group.empty}
+                </p>
+              ) : (
+                group.rows.map((row) => (
+                  <button
+                    key={row.id}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={row.id === selectedSetId}
+                    onClick={row.onPick}
+                    className={`flex w-full items-start gap-2 rounded-lg px-3 py-2 text-left text-sm hover:bg-slate-50 focus:bg-slate-50 focus:outline-none ${row.id === selectedSetId ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
+                  >
+                    <span className="flex-1 break-words">{row.title}</span>
+                    {row.id === selectedSetId && (
+                      <Check
+                        className="w-4 h-4 mt-0.5 text-brand-blue-primary shrink-0"
+                        aria-hidden="true"
+                      />
+                    )}
+                  </button>
+                ))
+              )}
+            </section>
           ))}
-        </SetList>
-      </div>
-      <p className="text-xs text-slate-500">
-        Picking one makes a separate Help Center copy.
-      </p>
+        </div>
+      </CellPopover>
 
       {editing && (
         <Suspense fallback={null}>
@@ -286,6 +360,6 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
           )}
         </Suspense>
       )}
-    </div>
+    </>
   );
 };

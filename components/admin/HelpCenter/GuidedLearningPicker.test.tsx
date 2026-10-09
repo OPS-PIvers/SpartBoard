@@ -44,6 +44,7 @@ const set = (
 const fullBuilding = [
   set('b-1', 'Building Lesson'),
   set('h-1', 'Help Guide', { helpCenter: true }),
+  set('help-p-1', 'Older Roster Copy', { helpCenter: true, createdAt: 5 }),
 ];
 
 // The hook hands out index entries; full sets come from loadBuildingSet.
@@ -64,6 +65,7 @@ vi.mock('@/hooks/useGuidedLearning', () => ({
     buildingSets: fullBuilding.map((full) => ({
       id: full.id,
       title: full.title,
+      createdAt: full.createdAt,
       isHelpCenter: full.helpCenter === true,
     })),
     buildingLoading: false,
@@ -112,6 +114,8 @@ const renderPicker = (
       onSelect={onSelect}
       onError={vi.fn()}
       onEditingChange={onEditingChange}
+      mode={props.selectedSetId ? 'chosen' : 'choose'}
+      onChange={vi.fn()}
       {...props}
     />
   );
@@ -129,16 +133,29 @@ describe('GuidedLearningPicker', () => {
   });
 
   it('separates flagged Help Center activities from the building library', () => {
-    renderPicker({ selectedSetId: 'b-1' });
-    const help = screen.getByText('Help Center').closest('section');
-    const library = screen.getByText('Building library').closest('section');
-    expect(within(help as HTMLElement).getByText('Help Guide')).toBeTruthy();
-    expect(
-      within(library as HTMLElement).getByText('Building Lesson')
-    ).toBeTruthy();
+    renderPicker({ selectedSetId: 'b-1', mode: 'choose' });
+    fireEvent.click(screen.getByRole('button', { name: 'Choose activity' }));
+    const help = screen.getByRole('region', { name: 'Help Center' });
+    const library = screen.getByRole('region', { name: 'Building library' });
+    expect(within(help).getByText('Help Guide')).toBeTruthy();
+    expect(within(library).getByText('Building Lesson')).toBeTruthy();
   });
 
-  it('gives the Help Center its own flagged copy of a personal activity', async () => {
+  it('reuses the existing Help Center copy of a personal activity', async () => {
+    const { onSelect } = renderPicker();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose activity' }));
+    fireEvent.click(screen.getByText('My Roster Guide'));
+
+    await waitFor(() => expect(onSelect).toHaveBeenCalled());
+    expect(glState.loadBuildingSet).toHaveBeenCalledWith('help-p-1');
+    expect(glState.loadSetData).not.toHaveBeenCalled();
+    expect(glState.saveBuildingSet).not.toHaveBeenCalled();
+    expect(onSelect).toHaveBeenCalledWith('help-p-1', 'Older Roster Copy');
+  });
+
+  it('makes a Help Center copy of a personal activity picked the first time', async () => {
+    glState.loadBuildingSet.mockResolvedValue(null);
     glState.loadSetData.mockResolvedValue(
       set('p-1', 'My Roster Guide', {
         isBuilding: undefined,
@@ -147,11 +164,12 @@ describe('GuidedLearningPicker', () => {
     );
     const { onSelect } = renderPicker();
 
+    fireEvent.click(screen.getByRole('button', { name: 'Choose activity' }));
     fireEvent.click(screen.getByText('My Roster Guide'));
 
     await waitFor(() => expect(onSelect).toHaveBeenCalled());
     const saved = glState.saveBuildingSet.mock.calls[0][0];
-    expect(saved.id).not.toBe('p-1');
+    expect(saved.id).toBe('help-p-1');
     expect(saved.helpCenter).toBe(true);
     expect(saved.isBuilding).toBe(true);
     expect(saved.authorUid).toBe('admin-1');
@@ -163,7 +181,7 @@ describe('GuidedLearningPicker', () => {
       newTitle: 'Class rosters',
     });
 
-    fireEvent.click(screen.getByText('New activity'));
+    fireEvent.click(screen.getByRole('button', { name: 'New activity' }));
     expect(await screen.findByTestId('studio')).toBeTruthy();
     expect(screen.getByText('Class rosters')).toBeTruthy();
     expect(onEditingChange).toHaveBeenLastCalledWith(true);
@@ -182,7 +200,7 @@ describe('GuidedLearningPicker', () => {
   it('edits a linked building library activity without moving it to Help', async () => {
     renderPicker({ selectedSetId: 'b-1' });
 
-    fireEvent.click(screen.getByText('Edit activity'));
+    fireEvent.click(screen.getByText('Open editor'));
     await screen.findByTestId('studio');
     fireEvent.click(screen.getByText('studio save'));
 
@@ -200,7 +218,7 @@ describe('GuidedLearningPicker', () => {
   it('opens the selected activity for editing', async () => {
     const { onSelect } = renderPicker({ selectedSetId: 'h-1' });
 
-    fireEvent.click(screen.getByText('Edit activity'));
+    fireEvent.click(screen.getByText('Open editor'));
     const studio = await screen.findByTestId('studio');
     expect(within(studio).getByText('Help Guide')).toBeTruthy();
 

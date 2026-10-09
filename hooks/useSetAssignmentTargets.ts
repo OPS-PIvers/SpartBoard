@@ -28,6 +28,8 @@ export interface SetAssignmentTargetsCallInput {
   overridesBySourcedId: Record<string, StudentOverride | null>;
   /** Skipped students; omitted entirely keeps the legacy fan-out. */
   excludedTargets?: StudentTargetRef[];
+  /** Session classes narrowed to picked students (D5b); omitted keeps the stored list. */
+  studentTargetClassIds?: string[];
   window: {
     openAt?: number | null;
     closeAt?: number | null;

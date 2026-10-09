@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Library folders mockup</title>
+<link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" rel="stylesheet">
+<style>
+body{font-family:Lexend,sans-serif;background:#f8fafc;color:#334155;max-width:760px;margin:0 auto;padding:24px 16px}
+h2{font-size:16px;color:#1d2a5d;margin:28px 0 8px}
+.cap{font-size:13px;color:#64748b;margin:4px 0 0}
+.mk{background:#fff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;position:relative}
+.hd{background:#b45309;display:flex;align-items:center;gap:6px;padding:8px 10px}
+.tab{font-size:12px;font-weight:600;color:#fff;padding:4px 10px;border-radius:10px}
+.tab.on{background:#fff;color:#b45309}
+.btn{margin-left:auto;background:#fff;color:#b45309;font-size:12px;font-weight:600;padding:5px 10px;border-radius:10px}
+.bd{display:flex;min-height:220px}
+.sb{width:170px;border-right:1px solid #f3f3f3;padding:10px 8px;font-size:12px}
+.sbh{font-size:11px;font-weight:700;letter-spacing:.12em;color:#1d2a5d;margin:0 0 8px 4px}
+.tr{padding:4px 6px;border-radius:8px;display:flex;gap:6px;align-items:center;color:#475569}
+.tr.on{background:#eaecf5;color:#1d2a5d;font-weight:600}
+.mn{flex:1;padding:10px 12px;min-width:0}
+.pad{padding:12px}
+.bc{font-size:12px;color:#64748b;margin-bottom:8px;display:flex;gap:4px;align-items:center}
+.bc b{color:#1d2a5d;font-weight:600}
+.row{display:flex;align-items:center;gap:10px;border:1px solid #e2e8f0;border-radius:14px;padding:8px 10px;margin-bottom:6px;font-size:12px;background:#fff}
+.th{width:32px;height:24px;border-radius:6px;background:#e2e8f0}
+.t{flex:1;font-weight:600}
+.m{font-size:11px;color:#64748b}
+.fr{background:#fffbeb;border-color:#fde68a}
+.ic{width:32px;height:24px;border-radius:6px;background:#fef3c7;color:#b45309;display:flex;align-items:center;justify-content:center;font-size:16px}
+.lock{background:#f1f5f9;border-color:#e2e8f0}
+.lock .ic{background:#e2e8f0;color:#475569}
+.chip{font-size:11px;font-weight:600;color:#475569;background:#f1f5f9;border-radius:999px;padding:2px 8px}
+.gap{height:3px;background:#2d3f89;border-radius:2px;margin:-2px 0 4px}
+.ghost{position:absolute;right:24px;width:220px;transform:rotate(-2deg);border-color:#4356a0;box-shadow:0 8px 20px rgba(15,23,42,.18)}
+.tgt{border:2px solid #b45309;background:#fffbeb}
+.pill{font-size:11px;font-weight:600;color:#7c2d12;background:#fef3c7;padding:2px 8px;border-radius:999px;display:flex;gap:4px;align-items:center}
+.inp{flex:1;border:2px solid #2d3f89;border-radius:8px;padding:3px 6px;font:600 12px Lexend;color:#1d2a5d}
+.toast{display:inline-flex;gap:12px;align-items:center;background:#1e293b;color:#fff;font-size:12px;padding:8px 12px;border-radius:12px;margin-top:6px}
+.bk{background:rgba(15,23,42,.4);border-radius:16px;min-height:420px;display:flex;align-items:center;justify-content:center;padding:20px}
+.md{background:#fff;border:1px solid #e2e8f0;border-radius:16px;width:440px;max-width:100%;padding:20px}
+.opt{display:flex;gap:10px;align-items:flex-start;border:2px solid #e2e8f0;border-radius:14px;padding:10px 12px;margin-bottom:8px;cursor:pointer;font-size:13px}
+.opt.on{border-color:#2d3f89;background:#eaecf5}
+.opt.dg.on{border-color:#ad2122;background:#fdf2f2}
+.rd{width:16px;height:16px;border-radius:50%;border:2px solid #94a3b8;margin-top:2px;flex-shrink:0;box-sizing:border-box}
+.on .rd{border:5px solid #2d3f89}
+.dg.on .rd{border-color:#ad2122}
+.ot{font-weight:600;color:#1e293b}
+.os{font-size:12px;color:#64748b;margin-top:2px}
+.note{font-size:12px;color:#475569;background:#f8fafc;border-radius:10px;padding:8px 10px;margin:4px 0 6px;display:flex;gap:6px}
+.ft{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
+.b{font:600 13px Lexend;border-radius:12px;padding:8px 14px;border:1px solid #e2e8f0;background:#fff;color:#334155;cursor:pointer}
+.pri{background:#2d3f89;color:#fff;border-color:#2d3f89}
+.dang{background:#ad2122;border-color:#ad2122}
+@media (max-width:560px){.sb{display:none}}
+</style>
+</head>
+<body>
+<h1 style="font-size:20px;color:#1d2a5d">Library folders (docs/plans/LIBRARY_FOLDERS.md)</h1>
+
+<h2>Folder view, option A (D7, D10, D21, D24)</h2>
+<div class="mk"><div class="hd"><span class="tab on">Library</span><span class="tab">Shared</span><span class="tab">Archive</span><span class="btn">+ New set</span></div>
+<div class="bd"><div class="sb"><p class="sbh">FOLDERS</p>
+<div class="tr"><i class="ti ti-home"></i>Library</div>
+<div class="tr" style="padding-left:16px"><i class="ti ti-folder"></i>SpartBoard Guides</div>
+<div class="tr on" style="padding-left:16px"><i class="ti ti-folder-open"></i>Schoology Guides</div>
+<div class="tr" style="padding-left:28px"><i class="ti ti-folder"></i>Grading</div>
+<div class="tr" style="padding-left:28px"><i class="ti ti-folder"></i>Assignments</div>
+<div class="tr" style="padding-left:16px"><i class="ti ti-building"></i>From your building</div>
+<div style="border-top:1px solid #f3f3f3;margin:8px 0"></div>
+<div class="tr"><i class="ti ti-list"></i>All items</div>
+<div class="tr"><i class="ti ti-clock"></i>Recent</div></div>
+<div class="mn"><div class="bc">Library <i class="ti ti-chevron-right"></i> <b>Schoology Guides</b></div>
+<div class="row fr"><span class="ic"><i class="ti ti-folder"></i></span><span class="t">Grading</span><span class="m">4 sets</span></div>
+<div class="row fr"><span class="ic"><i class="ti ti-folder"></i></span><span class="t">Assignments</span><span class="m">1 folder · 2 sets</span></div>
+<div class="row"><span class="th"></span><span class="t">Creating a course page</span><span class="m">6 steps</span></div>
+<div class="row"><span class="th"></span><span class="t">Gradebook setup</span><span class="chip">Building</span><span class="m">5 steps</span></div>
+<div class="row"><span class="th"></span><span class="t">Linking SpartBoard activities</span><span class="m">9 steps</span></div></div></div></div>
+<p class="cap">At the top level, "From your building" shows as a grey, locked folder row pinned above the teacher's folders.</p>
+
+<h2>Drag to reorder vs create a folder (D14, D16)</h2>
+<div class="mk pad"><div class="row"><span class="th"></span><span class="t">Creating a course page</span></div><div class="gap"></div><div class="row"><span class="th"></span><span class="t">Grading with rubrics</span></div><div class="row ghost" style="top:44px"><span class="th"></span><span class="t">Speed grader basics</span></div></div>
+<p class="cap">Near an edge: the blue line reorders.</p>
+<div class="mk pad" style="margin-top:10px"><div class="row"><span class="th"></span><span class="t">Creating a course page</span></div><div class="row tgt"><span class="th"></span><span class="t">Grading with rubrics</span><span class="pill"><i class="ti ti-folder-plus"></i>Create folder</span></div><div class="row ghost" style="top:54px"><span class="th"></span><span class="t">Speed grader basics</span></div></div>
+<p class="cap">Hold over the middle for about 500 ms: the row becomes a target.</p>
+<div class="mk pad" style="margin-top:10px"><div class="row fr"><span class="ic"><i class="ti ti-folder"></i></span><input class="inp" value="New folder" aria-label="Folder name"><span class="m">2 sets</span></div><div class="row"><span class="th"></span><span class="t">Creating a course page</span></div><div class="toast">Created "New folder" with 2 sets <b style="color:#fcd34d">Undo</b></div></div>
+<p class="cap">Drop: the folder is created in place with its name selected.</p>
+
+<h2>Delete folder dialog (D17–D19)</h2>
+<div class="bk"><div class="md" role="dialog" aria-label="Delete folder">
+<div style="display:flex;gap:10px;align-items:center;margin-bottom:4px"><span style="width:34px;height:34px;border-radius:10px;background:#fef3c7;color:#b45309;display:flex;align-items:center;justify-content:center;font-size:18px"><i class="ti ti-folder"></i></span><div><div style="font-size:16px;font-weight:700;color:#1d2a5d">Delete "Schoology Guides"?</div><div style="font-size:12px;color:#64748b">2 folders · 9 sets inside</div></div></div>
+<p style="font-size:13px;color:#475569;margin:10px 0 12px">What should happen to what's inside?</p>
+<div class="opt on" id="o1"><span class="rd"></span><div><div class="ot">Keep everything</div><div class="os">Move the 2 folders and 9 sets to <b>Library</b>. Only the folder goes away.</div></div></div>
+<div class="opt dg" id="o2"><span class="rd"></span><div><div class="ot">Delete the folder and everything in it</div><div class="os">Deletes 2 folders and 7 sets. You can't undo this.</div></div></div>
+<div id="extra" style="display:none"><div class="note"><i class="ti ti-lock" style="color:#b45309"></i><span>2 quizzes have live assignments, so they'll be kept and moved to <b>Library</b>.</span></div></div>
+<div class="note"><i class="ti ti-building"></i><span>3 building sets will go back to <b>From your building</b>.</span></div>
+<div class="ft"><button class="b">Cancel</button><button class="b pri" id="go">Delete folder</button></div>
+</div></div>
+<script>
+const o1=document.getElementById('o1'),o2=document.getElementById('o2'),go=document.getElementById('go'),ex=document.getElementById('extra');
+o1.onclick=()=>{o1.classList.add('on');o2.classList.remove('on');go.className='b pri';go.textContent='Delete folder';ex.style.display='none'};
+o2.onclick=()=>{o2.classList.add('on');o1.classList.remove('on');go.className='b pri dang';go.textContent='Delete 7 sets';ex.style.display='block'};
+</script>
+</body>
+</html>

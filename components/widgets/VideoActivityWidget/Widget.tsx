@@ -45,12 +45,23 @@ import {
 } from '@/utils/videoActivityGrading';
 import { getClassroomAttachments } from '@/utils/classroomAttachments';
 import { runPublishGradePush } from '@/utils/publishGradePush';
+import {
+  offerToolColumnRemoval,
+  sessionHasToolColumn,
+} from '@/utils/schoologyToolColumns';
+import { useDialog } from '@/context/useDialog';
 import { loadFinalScoreOverlay } from '@/hooks/gradebook/useFinalScoreOverlay';
 import { applyFinalScoresToEntries } from '@/utils/gradebook/finalScoreOverlay';
 import { videoActivityLiveRaw } from '@/utils/gradebook/liveRawScores';
 import { useDashboard } from '@/context/useDashboard';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
-import { buildPeriodAccess, DEFAULT_PERIOD_PLAN } from '@/utils/periodPlan';
+import { buildPeriodGate } from '@/utils/periodPlan';
+import {
+  buildMixedTargetsPayload,
+  expandMixedTargeting,
+} from '@/utils/assignTargets';
+import { buildPlcLinkage } from '@/utils/plcLinkage';
+import { writePlcAssignmentIndexEntry } from '@/hooks/usePlcAssignmentIndex';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { SubShareVideoActivityWidget } from './SubShareWidget';
 import { useAuth } from '@/context/useAuth';
@@ -85,6 +96,8 @@ import { ViewAsDriveEmptyState } from '@/components/viewAs/ViewAsDriveEmptyState
 import { useViewAsDriveStatus } from '@/hooks/useViewAsDriveStatus';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
+import { isSandboxId, isSandboxed } from '@/utils/tourSandbox';
+import { useTourMaterialEditor } from '@/components/tours/tourMaterials';
 
 /**
  * Shared clipboard helper — centralizes the feature-detection + toast flow
@@ -119,6 +132,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const { updateWidget, addToast, rosters, updateRoster } = useDashboard();
+  const { showConfirm } = useDialog();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const {
     user,
@@ -252,6 +266,22 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     [loadActivityData, addToast]
   );
 
+  // A live tour can open one of the teacher's activities in the editor.
+  useTourMaterialEditor(
+    widget.id,
+    'video-activity',
+    editingActivity?.id,
+    (itemId) => {
+      const meta = activities.find((a) => a.id === itemId);
+      if (!meta) return;
+      void loadActivity(meta).then((data) => {
+        if (!data) return;
+        setEditingActivity(data);
+        setEditingMeta(meta);
+      });
+    }
+  );
+
   // ─── Reactive cleanup ──────────────────────────────────────────────────
   //
   // Auto-exit the live monitor if the assignment under it goes inactive
@@ -325,6 +355,8 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
       if (!plc) {
         throw new Error('That PLC is no longer available.');
       }
+      // A tour's sandbox shares nothing.
+      if (isSandboxed(activityMeta.id)) return;
       const data = await loadActivityData(activityMeta.driveFileId);
 
       let syncGroupId: string;
@@ -626,12 +658,14 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         defaultSessionSettings={defaultSessionSettings}
         rosters={rosters}
         periodAccess={assignPeriodCtx}
+        plcs={plcs}
         onAssign={async (
           meta,
           rosterIds,
           dueAt,
           targeting: AssignTargetingValue = EMPTY_ASSIGN_TARGETING_VALUE,
-          sessionMode: VideoActivitySessionMode = 'student'
+          sessionMode: VideoActivitySessionMode = 'student',
+          extras
         ) => {
           const isLive = sessionMode === 'teacher';
           // Use loadActivityData directly to avoid setting loadingActivity
@@ -668,29 +702,24 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           );
           const derived = deriveSessionTargetsFromRosters(selectedRosters);
           // Snapshot the checked classes now; later roster edits never reshape it.
-          const expandedTargeting = expandClassTargeting(targeting, {
-            rosters,
-            selectedRosterIds: rosterIds,
+          // The stepper narrows classes to picked students (D5b).
+          const mixed = extras
+            ? expandMixedTargeting(targeting, extras.classes, rosters)
+            : null;
+          const expandedTargeting =
+            mixed?.targeting ??
+            expandClassTargeting(targeting, {
+              rosters,
+              selectedRosterIds: rosterIds,
+            });
+          const periodGate = buildPeriodGate({
+            plan: targeting.periodPlan,
+            rosters: selectedRosters,
+            sharedWindow: targeting,
+            bellWindow: assignPeriodCtx?.bellWindow,
+            manualStart: extras?.manualStart,
           });
-          const periodPlan = targeting.periodPlan ?? DEFAULT_PERIOD_PLAN;
-          const builtPeriodAccess =
-            assignPeriodCtx && selectedRosters.length > 1
-              ? buildPeriodAccess({
-                  plan: periodPlan,
-                  rosters: selectedRosters,
-                  sharedWindow: targeting,
-                  bellWindow: (roster) =>
-                    assignPeriodCtx.bellWindow(
-                      roster,
-                      new Date(targeting.openAt ?? Date.now())
-                    ),
-                })
-              : null;
-          // Two rosters on one class id share a gate, so they are one period.
-          const periodGate =
-            builtPeriodAccess && Object.keys(builtPeriodAccess).length > 1
-              ? { accessMode: periodPlan.mode, periodAccess: builtPeriodAccess }
-              : undefined;
+          const plcLinkage = buildPlcLinkage(extras?.plc ?? undefined);
           const sessionId = await createSession(
             data,
             user.uid,
@@ -706,6 +735,8 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             periodGate,
             sessionMode
           );
+          // A tour's sandbox hands back a made-up session with no docs behind it.
+          const sandboxed = isSandboxId(sessionId);
 
           // M17 §5 B3 — write the new window fields onto the session doc
           // (`setAssignmentTargetsV1` only owns the pointer-doc windows /
@@ -722,10 +753,11 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           const sessionOpenAt = periodGate ? null : targeting.openAt;
           const sessionCloseAt = periodGate ? null : targeting.closeAt;
           if (
-            sessionOpenAt != null ||
-            sessionCloseAt != null ||
-            sessionDueAt != null ||
-            targeting.workKind
+            !sandboxed &&
+            (sessionOpenAt != null ||
+              sessionCloseAt != null ||
+              sessionDueAt != null ||
+              targeting.workKind)
           ) {
             await updateDoc(doc(db, 'video_activity_sessions', sessionId), {
               ...(sessionOpenAt != null ? { openAt: sessionOpenAt } : {}),
@@ -774,21 +806,41 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
               ? { closeAt: expandedTargeting.closeAt }
               : {}),
             ...(periodGate ?? {}),
+            ...(plcLinkage ? { plc: plcLinkage } : {}),
           };
-          await setDoc(
-            doc(db, 'users', user.uid, 'video_activity_assignments', sessionId),
-            assignmentDoc
-          );
+          if (!sandboxed)
+            await setDoc(
+              doc(
+                db,
+                'users',
+                user.uid,
+                'video_activity_assignments',
+                sessionId
+              ),
+              assignmentDoc
+            );
 
           // Call the CF strictly when the teacher chose per-student targeting
           // (§3a-G) — a class-wide assignment, even with a Schedule window,
           // never depends on this callable, so a Cloud Functions hiccup can't
           // regress today's plain assign.
-          const targetsPayload = buildSetAssignmentTargetsPayload(
-            undefined,
-            expandedTargeting
-          );
-          if (payloadRequiresCall(targetsPayload)) {
+          const targetsPayload = mixed
+            ? buildMixedTargetsPayload(undefined, mixed)
+            : buildSetAssignmentTargetsPayload(undefined, expandedTargeting);
+          if (!sandboxed && plcLinkage) {
+            void writePlcAssignmentIndexEntry(plcLinkage.id, {
+              id: sessionId,
+              kind: 'video-activity',
+              ownerUid: user.uid,
+              ownerName: user.displayName ?? '',
+              ownerEmail: (user.email ?? '').toLowerCase(),
+              title: data.title,
+              sheetUrl: '',
+              status: 'active',
+              createdAt: nowTs,
+            });
+          }
+          if (!sandboxed && payloadRequiresCall(targetsPayload)) {
             const runSetAssignmentTargets = async (): Promise<void> => {
               const setAssignmentTargets = httpsCallable(
                 functions,
@@ -903,6 +955,15 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         lastRosterIdsByActivityId={config.lastRosterIdsByActivityId}
         lastClassIdsByActivityId={config.lastClassIdsByActivityId}
         lastClassIdByActivityId={config.lastClassIdByActivityId}
+        folderDeleteActions={{
+          deleteItems: async (ids) => {
+            const byId = new Map(activities.map((a) => [a.id, a]));
+            for (const id of ids) {
+              const meta = byId.get(id);
+              if (meta) await deleteActivity(meta.id, meta.driveFileId);
+            }
+          },
+        }}
         onDelete={async (meta) => {
           try {
             await deleteActivity(meta.id, meta.driveFileId);
@@ -988,8 +1049,19 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         }}
         onArchiveDelete={async (assignment) => {
           try {
+            const hadColumn =
+              canAccessFeature('schoology-tool-columns') &&
+              (await sessionHasToolColumn('va', assignment.id));
             await deleteAssignment(assignment.id);
             addToast('Assignment deleted.', 'success');
+            if (hadColumn) {
+              await offerToolColumnRemoval({
+                functions,
+                sessionId: assignment.id,
+                showConfirm,
+                addToast,
+              });
+            }
           } catch (err) {
             addToast(
               err instanceof Error ? err.message : 'Delete failed',
@@ -1250,6 +1322,9 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
                 kind: 'va',
                 sessionId: target.id,
                 classroomFinalAttachments,
+                schoologyToolColumns: canAccessFeature(
+                  'schoology-tool-columns'
+                ),
                 classroomToken,
                 schoologyMaxPoints: videoActivityMaxPoints(data.questions),
                 buildClassroomGrades: (responses) => {

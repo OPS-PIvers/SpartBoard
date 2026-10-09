@@ -15,6 +15,10 @@ import {
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
 import {
+  expandMixedTargeting,
+  type AssignClassesValue,
+} from '@/utils/assignTargets';
+import {
   buildPeriodGate,
   type EpochWindow,
   type PeriodRoster,
@@ -135,6 +139,8 @@ export interface FlashcardAssignSubmission {
   input: CreateFlashcardAssignmentInput;
   rosterIds: string[];
   expandedTargeting: AssignTargetingValue;
+  /** Stepper only: session classes narrowed to their picked students (D5b). */
+  studentTargetClassIds?: string[];
 }
 
 /** Drops rosters that were deleted or failed to load since they were picked. */
@@ -156,6 +162,10 @@ export const buildFlashcardAssignSubmission = (args: {
   targeting: AssignTargetingValue;
   /** The per-period context's bell lookup; undefined while the flag is off. */
   bellWindow?: (roster: PeriodRoster, date: Date) => EpochWindow | null;
+  /** Stepper only: per-class student picks, expanded as mixed targets. */
+  classes?: AssignClassesValue;
+  /** Stepper Manual: every class starts paused, one class included. */
+  manualStart?: boolean;
 }): FlashcardAssignSubmission => {
   const rosterIds = visibleRosterIds(args.rosterIds, args.rosters);
   const selectedRosters = args.rosters.filter((roster) =>
@@ -166,11 +176,21 @@ export const buildFlashcardAssignSubmission = (args: {
     rosters: selectedRosters,
     sharedWindow: args.targeting,
     bellWindow: args.bellWindow,
+    manualStart: args.manualStart,
   });
-  const expanded = expandClassTargeting(args.targeting, {
-    rosters: args.rosters,
-    selectedRosterIds: rosterIds,
-  });
+  const mixed = args.classes
+    ? expandMixedTargeting(
+        args.targeting,
+        { ...args.classes, classIds: rosterIds },
+        args.rosters
+      )
+    : undefined;
+  const expanded =
+    mixed?.targeting ??
+    expandClassTargeting(args.targeting, {
+      rosters: args.rosters,
+      selectedRosterIds: rosterIds,
+    });
   // A per-period session and its pointers carry no shared window.
   const expandedTargeting = periodGate
     ? { ...expanded, openAt: undefined, closeAt: undefined }
@@ -179,6 +199,7 @@ export const buildFlashcardAssignSubmission = (args: {
   return {
     rosterIds,
     expandedTargeting,
+    ...(mixed ? { studentTargetClassIds: mixed.studentTargetClassIds } : {}),
     input: {
       set: args.set,
       ...buildFlashcardAssignKindFields(args.form, args.set.cards.length),

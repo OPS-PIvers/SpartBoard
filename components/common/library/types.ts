@@ -21,6 +21,7 @@ import type React from 'react';
 import type { LucideIcon } from 'lucide-react';
 import type { ClassRoster, WidgetType } from '@/types';
 import type { UploadedDocument } from '@/utils/quizDocumentImport/uploadIntake';
+import type { LibraryFolderViewModel } from './LibraryFolderViewContext';
 
 /* ─── Shared enums / tokens ───────────────────────────────────────────────── */
 
@@ -243,6 +244,10 @@ export interface LibraryShellProps {
   children: React.ReactNode;
   /** Tints the header in this widget's colour and puts its dock icon on the Library tab. */
   widgetType?: WidgetType;
+  /** Folder view model from `useFolderLibraryView`; null keeps today's filter view. */
+  folderView?: LibraryFolderViewModel | null;
+  /** Layout for folder rows; match the item grid's view mode. */
+  folderViewMode?: LibraryViewMode;
 }
 
 /* ─── LibraryToolbar (search / sort / filter / view-mode) ─────────────────── */

@@ -52,8 +52,9 @@ import type { AssignTargetingValue } from '@/utils/studentTargetRef';
 // Heavy hook stubs
 // ---------------------------------------------------------------------------
 
+let mockPlcs: { id: string; name: string }[] = [];
 vi.mock('@/hooks/usePlcs', () => ({
-  usePlcs: () => ({ plcs: [] }),
+  usePlcs: () => ({ plcs: mockPlcs }),
 }));
 
 vi.mock('@/hooks/usePlcQuizzes', () => ({
@@ -78,13 +79,14 @@ vi.mock('@/hooks/useSessionViewCount', () => ({
 }));
 
 let mockReviewSplit = false;
+const mockFeatures = new Set<string>();
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'teacher-1', displayName: 'Test Teacher' },
     canSeeShareTracking: vi.fn(() => false),
     canAccessQuizMediaResponse: vi.fn(() => false),
     canAccessFeature: vi.fn((id: string) =>
-      id === 'quiz-review-split' ? mockReviewSplit : false
+      id === 'quiz-review-split' ? mockReviewSplit : mockFeatures.has(id)
     ),
   }),
 }));
@@ -1052,5 +1054,175 @@ describe('QuizManager assign with quiz-review-split on (D11)', () => {
     expect(behavior.attemptLimit).toBe(5);
     expect(behavior.sessionOptions.blockCopyPaste).toBe(true);
     expect(behavior.sessionOptions.streakBonusEnabled).toBe(false);
+  });
+});
+
+describe('QuizManager assign — never a study resource (D3)', () => {
+  beforeEach(() => {
+    mockFeatures.add('assign-availability').add('study-resources');
+  });
+  afterEach(() => {
+    mockFeatures.clear();
+  });
+
+  it('offers no Study Resource choice and assigns without a work kind', async () => {
+    const onAssign = vi.fn();
+    renderManager(makeQuizMeta(), onAssign);
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
+    const dialog = await screen.findByRole('dialog', {
+      name: /chapter 5 review/i,
+    });
+    expect(
+      within(dialog).queryByRole('radio', { name: /study resource/i })
+    ).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
+    expect(
+      (onAssign.mock.calls[0][5] as AssignTargetingValue).workKind
+    ).toBeUndefined();
+  });
+});
+
+describe('QuizManager assign on the stepper (assign-stepper)', () => {
+  beforeEach(() => {
+    mockFeatures.add('assign-stepper');
+  });
+  afterEach(() => {
+    mockFeatures.clear();
+    mockPlcs = [];
+  });
+
+  const openStepper = async (
+    onAssign = vi.fn(),
+    extra: Partial<React.ComponentProps<typeof QuizManager>> = {}
+  ) => {
+    render(
+      <QuizManager
+        quizzes={[makeQuizMeta()]}
+        loading={false}
+        error={null}
+        onNew={vi.fn()}
+        onImport={vi.fn()}
+        onEdit={vi.fn()}
+        onPreview={vi.fn()}
+        onAssign={onAssign}
+        onResults={vi.fn()}
+        onDelete={vi.fn()}
+        onShare={vi.fn()}
+        rosters={ROSTERS}
+        config={BASE_CONFIG}
+        managerTab="library"
+        {...extra}
+      />
+    );
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /SpartBoard Only/i })
+    );
+    return screen.findByRole('dialog', { name: /chapter 5 review/i });
+  };
+
+  const stepTitles = (dialog: HTMLElement) =>
+    within(dialog)
+      .getAllByRole('button', { expanded: true })
+      .concat(within(dialog).getAllByRole('button', { expanded: false }))
+      .map((b) => b.textContent ?? '');
+
+  it('shows the Quiz steps and prefills last-used rules without the review split', async () => {
+    const onAssign = vi.fn();
+    const dialog = await openStepper(onAssign);
+    const titles = stepTitles(dialog).join('|');
+    for (const title of [
+      'Classes',
+      'When',
+      'Attempts and order',
+      'Quiz integrity',
+      'What students see',
+    ])
+      expect(titles).toContain(title);
+    expect(titles).not.toContain('Sharing');
+    expect(
+      within(dialog).getByText('5 attempts, Shuffled answers')
+    ).toBeInTheDocument();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
+    const call = onAssign.mock.calls[0];
+    const behavior = call[1] as QuizBehaviorSettings;
+    expect(behavior.sessionMode).toBe('student');
+    expect(behavior.attemptLimit).toBe(5);
+    // No bell periods: Scheduled, so a due date is set and Manual is off.
+    expect(call[4]).toEqual(expect.any(Number));
+    expect(call[9]).toEqual({
+      classes: { classIds: [], studentsByClass: {} },
+      manualStart: false,
+    });
+  });
+
+  it('defaults to Manual when bell periods exist: no due date, closed classes', async () => {
+    const onAssign = vi.fn();
+    const dialog = await openStepper(onAssign, {
+      periodAccess: {
+        bellOptions: [],
+        bellWindow: () => null,
+        onTagRoster: vi.fn(),
+      } as unknown as React.ComponentProps<typeof QuizManager>['periodAccess'],
+    });
+    expect(
+      within(dialog).getByText('Manual. You start and pause each class.')
+    ).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
+    const call = onAssign.mock.calls[0];
+    expect(call[4]).toBeNull();
+    const targeting = call[5] as AssignTargetingValue;
+    expect(targeting.periodPlan).toEqual({ mode: 'assessment' });
+    expect(targeting.dueAt).toBeUndefined();
+    expect(call[9]).toMatchObject({ manualStart: true });
+  });
+
+  it('passes the picked classes through to onAssign', async () => {
+    const onAssign = vi.fn();
+    const dialog = await openStepper(onAssign);
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /no classes/i })
+    );
+    fireEvent.click(
+      within(dialog).getByRole('checkbox', { name: /period 2/i })
+    );
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
+    expect(onAssign.mock.calls[0][3]).toEqual(['r2']);
+    expect(onAssign.mock.calls[0][9]).toMatchObject({
+      classes: { classIds: ['r2'], studentsByClass: {} },
+    });
+  });
+
+  it('blocks Assign while sharing is on with several PLCs and none picked', async () => {
+    mockPlcs = [
+      { id: 'plc-a', name: 'Grade 8 Science PLC' },
+      { id: 'plc-b', name: 'Orono MS Science' },
+    ];
+    const onAssign = vi.fn();
+    const dialog = await openStepper(onAssign);
+    fireEvent.click(within(dialog).getByRole('button', { name: /sharing/i }));
+    fireEvent.click(
+      within(dialog).getByRole('switch', { name: /share results with a plc/i })
+    );
+    const assign = within(dialog).getByRole('button', { name: /^assign$/i });
+    expect(assign).toBeDisabled();
+    fireEvent.change(within(dialog).getByLabelText('PLC'), {
+      target: { value: 'plc-b' },
+    });
+    expect(assign).toBeEnabled();
+    fireEvent.click(assign);
+    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
+    expect(onAssign.mock.calls[0][2]).toMatchObject({
+      plcMode: true,
+      plcId: 'plc-b',
+    });
   });
 });

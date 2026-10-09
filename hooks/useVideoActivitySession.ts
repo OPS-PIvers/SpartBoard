@@ -89,6 +89,7 @@ import {
   VideoActivityCheckResult,
   TabExit,
 } from '@/types';
+import { useSandboxedVideoActivitySession } from './useTourSandboxed';
 
 const SESSIONS_COLLECTION = 'video_activity_sessions';
 const RESPONSES_SUBCOLLECTION = 'responses';
@@ -616,7 +617,7 @@ export const useVideoActivitySessionTeacher =
       };
     }, []);
 
-    return {
+    return useSandboxedVideoActivitySession({
       createSession,
       sessions,
       sessionsLoading,
@@ -631,7 +632,7 @@ export const useVideoActivitySessionTeacher =
       unlockStudentAttempt,
       loading,
       error,
-    };
+    });
   };
 
 // ---------------------------------------------------------------------------

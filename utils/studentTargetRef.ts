@@ -262,6 +262,8 @@ export interface SetAssignmentTargetsPayload {
   excludedTargets?: StudentTargetRef[];
   /** Subset of `remove` that is only an un-skip, never a de-targeting. */
   unskipped?: StudentTargetRef[];
+  /** Session classes narrowed to picked students (D5b); omitted keeps the stored list. */
+  studentTargetClassIds?: string[];
   window: {
     openAt?: number | null;
     closeAt?: number | null;
@@ -400,6 +402,7 @@ export function payloadRequiresCall(
     payload.remove.length > 0 ||
     Object.keys(payload.overridesBySourcedId).length > 0 ||
     (payload.excludedTargets?.length ?? 0) > 0 ||
+    payload.studentTargetClassIds !== undefined ||
     // A window edit must still reach the pointer docs of accommodated or
     // skipped students, which the class channel no longer drives.
     (hasExistingPointers && windowChanged)

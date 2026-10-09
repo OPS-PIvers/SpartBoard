@@ -28,7 +28,8 @@ import {
 } from '@/components/tours/tourButtons';
 import { inputLight } from '@/components/common/lightChrome';
 import { isHelpCenterSet } from '@/components/widgets/GuidedLearning/utils/helpCenterSets';
-import { getTourEdit } from './tourEditStore';
+import { getTourEdit, useTourEditTarget } from './tourEditStore';
+import { TourMaterialsSection } from './TourMaterialsSection';
 import type { TourEditorSession } from './useTourEditorSession';
 import { TourHelpVisibility } from './TourHelpVisibility';
 
@@ -60,11 +61,13 @@ export const TourEditorSettings: React.FC<{ session: TourEditorSession }> = ({
 }) => {
   const { set } = session;
   const setup = set.tourSetup;
+  const v2 = !!useTourEditTarget()?.v2;
   const patchSetup = (patch: Partial<NonNullable<typeof setup>>) => {
     const next = { ...setup, widgets: setup?.widgets ?? [], ...patch };
     // Firestore rejects undefined, so a cleared flag is removed, not set to undefined.
     if (!next.useTeacherBoard) delete next.useTeacherBoard;
     if (!next.autopilot) delete next.autopilot;
+    if (!next.materials) delete next.materials;
     session.updateSet({ tourSetup: next });
   };
   return (
@@ -75,6 +78,16 @@ export const TourEditorSettings: React.FC<{ session: TourEditorSession }> = ({
         layoutCount={setup?.layouts?.length ?? 0}
         onChange={(widgets) => patchSetup({ widgets })}
       />
+      {v2 && (
+        <TourMaterialsSection
+          materials={setup?.materials ?? []}
+          onChange={(materials) =>
+            patchSetup(
+              materials.length > 0 ? { materials } : { materials: undefined }
+            )
+          }
+        />
+      )}
       <StartOptions set={set} onChange={patchSetup} />
     </div>
   );

@@ -113,7 +113,8 @@ import {
   FolderPickerPopover,
   LibraryDndContext,
   buildMoveToFolderAction,
-  useLibraryView,
+  useFolderLibraryView,
+  latestAssignedAt,
   useLibrarySelection,
   useSortableReorder,
   BulkActionBar,
@@ -134,10 +135,20 @@ import {
   type AssignmentStatusBadge,
   type LibraryBadgeTone,
   type LibrarySelectionApi,
+  LIBRARY_ITEM_NOUNS,
+  useLibraryDeleteConfirm,
 } from '@/components/common/library';
 import { earliestDueAt } from '@/utils/perClassDueDates';
-import { applyAvailability } from '@/utils/assignAvailability';
-import { resolveWorkKind } from '@/utils/gradebook/gradebookCore';
+import {
+  applyAvailability,
+  applyWhen,
+  manualStartAvailable,
+} from '@/utils/assignAvailability';
+import { QuizAssignStepper } from './QuizAssignStepper';
+import { sharingNeedsPlc } from '@/components/common/library/assignStepper/SharingStep.format';
+import { defaultWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';
+import type { AssignWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';
+import type { AssignClassesValue } from '@/utils/assignTargets';
 import { useRubrics } from '@/hooks/useRubrics';
 import {
   AssignDestinationModal,
@@ -145,10 +156,7 @@ import {
 } from './AssignDestinationModal';
 import { SchoologyAssignInstructions } from './SchoologyAssignInstructions';
 import { PersonalLearningTargetsModal } from './PersonalLearningTargetsModal';
-import {
-  countItemsByFolder,
-  filterByFolder,
-} from '@/components/common/library/folderFilters';
+import { countItemsByFolder } from '@/components/common/library/folderFilters';
 import { useFolders } from '@/hooks/useFolders';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -171,6 +179,8 @@ import {
   dueInputsToEpoch,
   DEFAULT_DUE_TIME,
 } from '@/utils/localDate';
+import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
+import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
 
 export interface PlcOptions {
   plcMode: boolean;
@@ -191,6 +201,13 @@ export interface PlcOptions {
  * `assignBehavior` state (seeded from the quiz, editable per-assignment);
  * this shape only carries the targeting / PLC state that varies per-assign.
  */
+/** What the assign stepper adds to an assign (D5a, D5b, D6). */
+export interface QuizStepperAssign {
+  classes: AssignClassesValue;
+  /** Manual: every picked class gets a closed per-period gate, one class included. */
+  manualStart: boolean;
+}
+
 interface QuizAssignOptions {
   plcMode: boolean;
   /** Kept for the assignment record (sheet export's Teacher column); no input. */
@@ -339,7 +356,9 @@ interface QuizManagerProps {
      */
     preloadedQuizData?: QuizData | null,
     /** Per-class due dates by roster id; `dueAt` is then the earliest. */
-    dueAtByRosterId?: Record<string, number>
+    dueAtByRosterId?: Record<string, number>,
+    /** Set only by the assign stepper: per-class student picks and Manual start. */
+    stepper?: QuizStepperAssign
   ) => void;
   /**
    * Loads full quiz content (questions) for the assign modal's B2 override
@@ -397,6 +416,9 @@ interface QuizManagerProps {
    * the user cancelled (selection will be preserved so they can retry).
    */
   onBulkDelete?: (quizzes: QuizMetadata[]) => Promise<boolean>;
+  /** The widget's delete path for the folder delete dialog's "delete everything" choice. */
+  folderDeleteActions?: FolderDeleteActions;
+  bankFolderDeleteActions?: FolderDeleteActions;
   onShare: (quiz: QuizMetadata) => void;
   /**
    * Phase 2 — "Share with PLC". Invoked when the teacher picks the new
@@ -594,6 +616,7 @@ const LIBRARY_SEARCH_FIELDS = (q: QuizMetadata): string =>
 const LIBRARY_INITIAL_SORT = { key: 'updated', dir: 'desc' as const };
 
 const QUIZ_GET_ID = (q: QuizMetadata): string => q.id;
+const QUIZ_NOUN = ['quiz', 'quizzes'] as const;
 
 // Exported so tests exercise the real comparator rather than a re-declared
 // lambda. Constant export on a component file is intentional here.
@@ -664,6 +687,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onDuplicate,
   isDuplicating,
   onBulkDelete,
+  folderDeleteActions,
+  bankFolderDeleteActions,
   onShare,
   onShareWithPlc,
   onBulkShareWithPlc,
@@ -719,20 +744,20 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const { canAccessFeature } = useAuth();
   // D8/D9: with the split on, Quiz assigns are assessment only.
   const assessmentOnly = !isReview && canAccessFeature('quiz-review-split');
-  const assignWorkKindSetting =
-    !isReview && canAccessFeature('study-resources')
-      ? { default: resolveWorkKind('quiz', null) }
-      : undefined;
+  // Plan D16/D12: the stepper replaces the assign dialog and always prefills last-used rules.
+  const stepperOn = !isReview && canAccessFeature('assign-stepper');
+  const schoologyToolColumns = canAccessFeature('schoology-tool-columns');
+  const prefillLastUsed = assessmentOnly || stepperOn;
   const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
     userId,
-    assessmentOnly
+    prefillLastUsed
   );
   const seedBehavior = useCallback(
     (quiz: QuizMetadata) =>
-      assessmentOnly
+      prefillLastUsed
         ? getQuizAssignPrefill(lastAssignSettings)
         : getAssignBehaviorSeed(quiz),
-    [assessmentOnly, lastAssignSettings]
+    [prefillLastUsed, lastAssignSettings]
   );
   const isViewOnly = !isReview && assignmentMode === 'view-only';
   const primaryActionLabel = isReview
@@ -747,6 +772,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
+  const confirmDelete = useLibraryDeleteConfirm();
   const claudeReview = useClaudeReview('quizzes');
 
   // ─── Assign modal state (2-stage: mode → settings) ────────────────────────
@@ -830,6 +856,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           setViewOnlyShareTarget(quiz);
           setViewOnlyShareLink(null);
           setViewOnlyShareError(null);
+        } else if (schoologyToolColumns && !canAssignToClassroom) {
+          // SpartBoard is the only destination left, so skip the chooser.
+          setAssignDestination('spartboard');
+          setAssignBehavior(seedBehavior(quiz));
+          setAssignTarget(quiz);
         } else {
           // Open the destination chooser first; it routes to the SpartBoard assign
           // modal, the Google Classroom flow, or the Schoology how-to.
@@ -837,7 +868,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         }
       });
     },
-    [isViewOnly, claudeReview, isReview, onStartReview]
+    [
+      isViewOnly,
+      claudeReview,
+      isReview,
+      onStartReview,
+      schoologyToolColumns,
+      canAssignToClassroom,
+      seedBehavior,
+    ]
   );
 
   // Route a chooser pick to the right flow. SpartBoard/Classroom both continue
@@ -913,6 +952,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // fields (question subset / MC-option hider / rubric swap). `QuizMetadata`
   // doesn't carry questions — loaded on demand via `onLoadQuizData`.
   const [assignQuizData, setAssignQuizData] = useState<QuizData | null>(null);
+  // Stepper only: per-class student picks (D5a) and the When choice (D6).
+  const [assignStudentsByClass, setAssignStudentsByClass] = useState<
+    AssignClassesValue['studentsByClass']
+  >({});
+  const [assignWhen, setAssignWhen] = useState<AssignWhenValue | null>(null);
   // Tracks the quiz id whose full content has been loaded/in-flight for the
   // current assign modal (F1 fix) — see `handleExpandIndividualTargeting`.
   const loadedAssignQuizDataForRef = useRef<string | null>(null);
@@ -945,6 +989,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       setAssignDueByRoster(null);
       setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
       setAssignQuizData(null);
+      setAssignStudentsByClass({});
+      setAssignWhen(
+        defaultWhenValue({
+          activity: 'quiz',
+          bellAvailable: !!periodAccess,
+          manualAvailable: manualStartAvailable(periodAccess?.bellWindow),
+        })
+      );
       loadedAssignQuizDataForRef.current = null;
       setAssignOptions(
         buildDefaultAssignOptions(
@@ -996,7 +1048,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 
   // ─── Folder navigation (Wave 3-B-3) ───────────────────────────────────────
   const folderState = useFolders(userId, 'quiz');
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   // Quiz whose "Move to folder…" picker is open (null = picker closed).
   const [folderPickerTarget, setFolderPickerTarget] =
     useState<QuizMetadata | null>(null);
@@ -1022,40 +1073,41 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     }
   }
 
-  // Reset folder selection when the signed-in user changes or the selected
-  // folder no longer exists (e.g. after delete, sign-out, or account switch).
-  // Done in render via React's "adjust state during render" pattern so the
-  // stale selection never participates in filtering.
-  const [prevFolderUserId, setPrevFolderUserId] = useState(userId);
-  if (prevFolderUserId !== userId) {
-    setPrevFolderUserId(userId);
-    setSelectedFolderId(null);
-  }
-  if (
-    !folderState.loading &&
-    selectedFolderId !== null &&
-    !folderState.folders.some((f) => f.id === selectedFolderId)
-  ) {
-    setSelectedFolderId(null);
-  }
-
   // Count quizzes per folder id (+ `root` for unfoldered items) for sidebar
   // badges.
   const folderItemCounts = useMemo(
     () => countItemsByFolder(quizzes),
     [quizzes]
   );
+  const folderView = useFolderViewSidebar({
+    setFolderColor: folderState.setFolderColor,
+    noun: { one: 'quiz', many: 'quizzes' },
+    items: quizzes,
+    ...folderDeleteActions,
+  });
 
-  // Filter BEFORE useLibraryView so search/sort only operate on the
-  // currently-selected folder's quizzes.
-  const folderFilteredQuizzes = useMemo(
-    () => filterByFolder(quizzes, selectedFolderId),
-    [quizzes, selectedFolderId]
+  const lastAssignedAt = useMemo(
+    () => latestAssignedAt(assignments, (a) => a.quizId),
+    [assignments]
+  );
+  const quizRecentAt = useCallback(
+    (q: QuizMetadata) =>
+      Math.max(q.updatedAt ?? q.createdAt ?? 0, lastAssignedAt.get(q.id) ?? 0),
+    [lastAssignedAt]
   );
 
   // ─── Library tab toolbar state ────────────────────────────────────────────
-  const libraryView = useLibraryView<QuizMetadata>({
-    items: folderFilteredQuizzes,
+  const libraryView = useFolderLibraryView<QuizMetadata>({
+    items: quizzes,
+    folderView: {
+      library: 'quiz',
+      userId,
+      folders: folderState.folders,
+      foldersLoading: folderState.loading,
+      getId: QUIZ_GET_ID,
+      getRecentAt: quizRecentAt,
+      itemNoun: QUIZ_NOUN,
+    },
     initialSort: LIBRARY_INITIAL_SORT,
     // Phase 2 redesign: the library is list-only (monitor row idiom).
     initialViewMode: 'list',
@@ -1248,14 +1300,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       icon: Trash2,
       destructive: true,
       onClick: async () => {
-        const ok = await showConfirm(
-          `Delete "${quiz.title}"? This cannot be undone.`,
-          {
-            title: 'Delete Quiz',
-            variant: 'danger',
-            confirmLabel: 'Delete',
-          }
-        );
+        const ok = await confirmDelete({
+          titles: [quiz.title],
+          noun: LIBRARY_ITEM_NOUNS.quiz,
+        });
         if (ok) await onDelete(quiz);
       },
     });
@@ -1813,6 +1861,27 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const assignPeriodAccess =
     assignBehavior?.sessionMode === 'student' ? periodAccess : undefined;
 
+  const assignQuizContext = {
+    questions: toOverrideEditorQuestions(assignQuizData),
+    rubrics: assignRubrics,
+    ...(translationAllowed
+      ? {
+          translation: {
+            index: assignTarget?.translations,
+            hasBankSlots: (assignQuizData?.bankSlots?.length ?? 0) > 0,
+            sourceLanguage: assignTarget?.language,
+            generating: Object.values(assignTranslations.loading).some(Boolean),
+            cap: assignTranslations.cap,
+            error: assignTranslations.error,
+            onGenerate: (locales: string[]) => {
+              for (const locale of locales)
+                void assignTranslations.generate(locale);
+            },
+          },
+        }
+      : {}),
+  };
+
   // ─── Assign confirm handler ───────────────────────────────────────────────
   const handleAssignConfirm = (): void => {
     if (!assignTarget) return;
@@ -1874,7 +1943,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       enabled: availabilityOn,
       rosters: rosters.filter((r) => validRosterIds.includes(r.id)),
       bellWindow: assignPeriodAccess?.bellWindow,
-      workKind: assignWorkKindSetting,
     });
     const perClassDue = availabilityOn
       ? applied.dueAtByRosterId
@@ -1904,6 +1972,79 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     setTargetingTimingWarning(null);
     setAssignQuizData(null);
     setAssignDestination('spartboard');
+  };
+
+  const resetAssign = (): void => {
+    setAssignTarget(null);
+    setAssignDueAt(null);
+    setAssignDueByRoster(null);
+    setAssignBehavior(null);
+    setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
+    setTargetingPacingError(null);
+    setTargetingTimingWarning(null);
+    setAssignQuizData(null);
+    setAssignStudentsByClass({});
+    setAssignWhen(null);
+    setAssignDestination('spartboard');
+  };
+
+  // Stepper confirm: always Assessment Mode; Manual starts every class paused (D6).
+  const handleStepperAssign = (): void => {
+    if (!assignTarget || !assignWhen) return;
+    if (plcs.length > 0 && sharingNeedsPlc(assignOptions, plcs)) return;
+    const behavior: QuizBehaviorSettings = {
+      ...(assignBehavior ?? seedBehavior(assignTarget)),
+      sessionMode: 'student',
+    };
+    const validRosters = rosters.filter(
+      (r) => !r.loadError && assignOptions.picker.rosterIds.includes(r.id)
+    );
+    const validRosterIds = validRosters.map((r) => r.id);
+    const effectivePeriodNames = resolveEffectivePeriodNames(
+      { rosterIds: validRosterIds },
+      rosters
+    );
+    const plcOptions: PlcOptions = {
+      plcMode: assignOptions.plcMode,
+      teacherName: assignOptions.teacherName || undefined,
+      periodName: effectivePeriodNames[0] || undefined,
+      periodNames:
+        effectivePeriodNames.length > 0 ? effectivePeriodNames : undefined,
+      plcId: assignEffectivePlcId || undefined,
+      ...(assignOptions.plcMode && assignPoolGroup
+        ? { plcPoolSyncGroupId: assignPoolGroup.syncGroupId }
+        : {}),
+    };
+    const bellWindow = periodAccess?.bellWindow;
+    const applied = applyWhen(
+      { ...assignTargeting, availability: assignWhen.availability },
+      { mode: assignWhen.mode, rosters: validRosters, bellWindow }
+    );
+    const perClassDue = applied.dueAtByRosterId;
+    const studentsByClass = Object.fromEntries(
+      Object.entries(assignStudentsByClass).filter(([id]) =>
+        validRosterIds.includes(id)
+      )
+    );
+    onAssign(
+      assignTarget,
+      behavior,
+      plcOptions,
+      validRosterIds,
+      perClassDue
+        ? earliestDueAt(perClassDue)
+        : (applied.targeting.dueAt ?? null),
+      applied.targeting,
+      assignDestination,
+      assignQuizData,
+      perClassDue,
+      {
+        classes: { classIds: validRosterIds, studentsByClass },
+        manualStart:
+          assignWhen.mode === 'manual' && manualStartAvailable(bellWindow),
+      }
+    );
+    resetAssign();
   };
 
   // ─── Drop-to-folder handler ───────────────────────────────────────────────
@@ -1970,14 +2111,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         // Widget-level handler owns confirmation + summary toasts.
         didAttempt = await onBulkDelete(targets);
       } else {
-        const ok = await showConfirm(
-          `Delete ${targets.length} quiz${targets.length === 1 ? '' : 'zes'}? This cannot be undone.`,
-          {
-            title: 'Delete Quizzes',
-            variant: 'danger',
-            confirmLabel: 'Delete',
-          }
-        );
+        const ok = await confirmDelete({
+          titles: targets.map((q) => q.title),
+          noun: LIBRARY_ITEM_NOUNS.quiz,
+        });
         if (ok) {
           const results = await Promise.allSettled(
             targets.map(async (quiz) => onDelete(quiz))
@@ -2001,7 +2138,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     } finally {
       setBulkBusy(false);
     }
-  }, [selection, quizzes, onDelete, onBulkDelete, showConfirm]);
+  }, [selection, quizzes, onDelete, onBulkDelete, confirmDelete]);
 
   // Selected metas in selection order (Set preserves insertion order) —
   // merge assembles the new quiz's questions in this order.
@@ -2100,13 +2237,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         folders={folderState.folders}
         loading={folderState.loading}
         error={folderState.error}
-        selectedFolderId={selectedFolderId}
-        onSelectFolder={setSelectedFolderId}
+        selectedFolderId={libraryView.selectedFolderId}
+        onSelectFolder={libraryView.onSelectFolder}
         itemCounts={folderItemCounts}
+        folderView={libraryView.folderView}
         onCreateFolder={folderState.createFolder}
         onRenameFolder={folderState.renameFolder}
         onMoveFolder={folderState.moveFolder}
         onDeleteFolder={folderState.deleteFolder}
+        {...folderView}
         enableDrop
       />
     ) : undefined;
@@ -2241,6 +2380,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         onEditBank={onEditBank}
         onDuplicateBank={onDuplicateBank ?? noop}
         onDeleteBank={onDeleteBank ?? noop}
+        folderDeleteActions={bankFolderDeleteActions}
         onReorderBanks={onReorderBanks}
         onShareBankWithPlc={onShareBankWithPlc}
         onUnshareBankFromPlc={onUnshareBankFromPlc}
@@ -2325,6 +2465,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       primaryAction={primaryAction}
       toolbarSlot={toolbar}
       filterSidebarSlot={folderSidebarSlot}
+      folderView={libraryView.folderView}
+      folderViewMode={libraryView.state.viewMode}
     >
       {managerTab === 'library' && (
         <LibraryTabContent
@@ -2341,7 +2483,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           totalCount={quizzes.length}
           reorderLocked={libraryView.reorderLocked}
           reorderLockedReason={libraryView.reorderLockedReason}
-          enableCardDrag={Boolean(userId) && !selectionMode}
+          enableCardDrag={
+            Boolean(userId) &&
+            (!selectionMode || libraryView.folderView != null)
+          }
           viewMode={libraryView.state.viewMode}
           selection={selection}
           selectionMode={selectionMode}
@@ -2410,6 +2555,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     <>
       {userId && managerTab === 'library' ? (
         <LibraryDndContext
+          folderView={libraryView.folderView}
+          selectedIds={selection.selectedIds}
+          folderActions={folderState}
           itemIds={orderedIds}
           onReorder={onReorderQuizzes ? handleReorderDrop : undefined}
           onDropOnFolder={handleDropOnFolder}
@@ -2434,7 +2582,56 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         />
       )}
 
-      {assignTarget && !isViewOnly && (
+      {assignTarget &&
+        !isViewOnly &&
+        stepperOn &&
+        assignBehavior &&
+        assignWhen && (
+          <QuizAssignStepper
+            title={assignTarget.title}
+            rosters={rosters}
+            classes={{
+              classIds: assignOptions.picker.rosterIds,
+              studentsByClass: assignStudentsByClass,
+            }}
+            onClassesChange={(next) => {
+              setAssignOptions({
+                ...assignOptions,
+                picker: { ...assignOptions.picker, rosterIds: next.classIds },
+              });
+              setAssignStudentsByClass(next.studentsByClass);
+            }}
+            when={assignWhen}
+            onWhenChange={setAssignWhen}
+            behavior={assignBehavior}
+            onBehaviorChange={setAssignBehavior}
+            modifications={{
+              targeting: assignTargeting,
+              onTargetingChange: setAssignTargeting,
+              quizContext: assignQuizContext,
+            }}
+            sharing={{
+              value: assignOptions,
+              onChange: ({ plcMode, plcId }) =>
+                setAssignOptions({ ...assignOptions, plcMode, plcId }),
+              plcs,
+            }}
+            periodAccess={periodAccess}
+            hasManualGrading={quizNeedsManualGrading(
+              assignQuizData?.questions ?? []
+            )}
+            handRaiseMode={handRaiseMode}
+            submitLabel={
+              assignDestination === 'classroom'
+                ? 'Continue to Google Classroom'
+                : 'Assign'
+            }
+            onClose={resetAssign}
+            onSubmit={handleStepperAssign}
+          />
+        )}
+
+      {assignTarget && !isViewOnly && !stepperOn && (
         <AssignModal<QuizAssignOptions>
           isOpen={!!assignTarget}
           onClose={() => {
@@ -2511,7 +2708,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                 selectedRosterIds={assignOptions.picker.rosterIds}
                 periodAccess={assignPeriodAccess}
                 availabilityEnabled={canAccessFeature('assign-availability')}
-                workKind={assignWorkKindSetting}
                 value={assignTargeting}
                 onChange={(next) => {
                   setTargetingPacingError(null);
@@ -2519,29 +2715,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
                   setAssignTargeting(next);
                 }}
                 kind="quiz"
-                quizContext={{
-                  questions: toOverrideEditorQuestions(assignQuizData),
-                  rubrics: assignRubrics,
-                  ...(translationAllowed
-                    ? {
-                        translation: {
-                          index: assignTarget?.translations,
-                          hasBankSlots:
-                            (assignQuizData?.bankSlots?.length ?? 0) > 0,
-                          sourceLanguage: assignTarget?.language,
-                          generating: Object.values(
-                            assignTranslations.loading
-                          ).some(Boolean),
-                          cap: assignTranslations.cap,
-                          error: assignTranslations.error,
-                          onGenerate: (locales: string[]) => {
-                            for (const locale of locales)
-                              void assignTranslations.generate(locale);
-                          },
-                        },
-                      }
-                    : {}),
-                }}
+                quizContext={assignQuizContext}
                 onExpand={handleExpandIndividualTargeting}
                 scheduleLabel="Availability & Due Date"
                 scheduleExtra={
@@ -2611,6 +2785,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         <AssignDestinationModal
           quizTitle={chooserTarget.title}
           showClassroom={canAssignToClassroom}
+          showSchoology={!schoologyToolColumns}
           onPick={handlePickDestination}
           onClose={() => setChooserTarget(null)}
         />

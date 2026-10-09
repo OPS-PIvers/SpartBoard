@@ -134,3 +134,21 @@ export type {
   ImportAdapter,
   ImportWizardProps,
 } from './types';
+export {
+  useLibraryDeleteConfirm,
+  libraryDeleteConfirmCopy,
+  LIBRARY_ITEM_NOUNS,
+} from './useLibraryDeleteConfirm';
+export type {
+  LibraryDeleteConfirmRequest,
+  LibraryItemNoun,
+} from './useLibraryDeleteConfirm';
+
+export { useFolderLibraryView } from './useFolderLibraryView';
+export type {
+  FolderViewOptions,
+  UseFolderLibraryViewResult,
+} from './useFolderLibraryView';
+export { latestAssignedAt } from './folderView';
+export type { LibraryLocation, ItemNoun } from './folderView';
+export type { LibraryFolderViewModel } from './LibraryFolderViewContext';

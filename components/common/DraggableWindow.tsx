@@ -28,7 +28,7 @@ import {
   Pin,
   Link,
   Unlink,
-  MoreVertical,
+  MoreHorizontal,
   Video,
 } from 'lucide-react';
 
@@ -76,6 +76,7 @@ import { PenColorSwatches } from '@/components/common/PenColorSwatches';
 import { WIDGET_PALETTE } from '@/config/colors';
 import { Z_INDEX } from '@/config/zIndex';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { useTourRunning } from '@/components/tours/tourState';
 import { getWidgetMinSize, hasExplicitMinSize } from '@/config/widgetEnvelopes';
 
 // Widgets that cannot be snapshotted due to CORS/Technical limitations
@@ -169,6 +170,10 @@ interface KeyboardActionDetail {
   key: string;
   shiftKey: boolean;
 }
+
+/** How close to the top edge the pointer brings down the maximized controls. */
+const MAX_BAR_REVEAL_PX = 56;
+const MAX_BAR_HIDE_MS = 800;
 
 export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   widget,
@@ -655,10 +660,42 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   // Close the maximized FAB menu when the widget leaves the maximized state.
   // Adjust state while rendering (see CLAUDE.md) rather than via an effect.
   const [prevIsMaximized, setPrevIsMaximized] = useState(isMaximized);
+  // The maximized controls hide off the top edge until the pointer comes near it.
+  const [maxBarShown, setMaxBarShown] = useState(false);
+  // A running live tour keeps the bar out so its anchors stay clickable.
+  const tourRunning = useTourRunning();
+  const maxBarVisible = maxBarShown || tourRunning;
   if (isMaximized !== prevIsMaximized) {
     setPrevIsMaximized(isMaximized);
-    if (!isMaximized) setShowMaxMenu(false);
+    if (!isMaximized) {
+      setShowMaxMenu(false);
+      setMaxBarShown(false);
+    }
   }
+  useEffect(() => {
+    if (!isMaximized) return;
+    let hideTimer = 0;
+    const onPointer = (e: PointerEvent) => {
+      const inBar = maxMenuRef.current?.contains(e.target as Node) ?? false;
+      if (e.clientY <= MAX_BAR_REVEAL_PX || inBar) {
+        window.clearTimeout(hideTimer);
+        hideTimer = 0;
+        setMaxBarShown(true);
+      } else if (!hideTimer) {
+        hideTimer = window.setTimeout(() => {
+          hideTimer = 0;
+          setMaxBarShown(false);
+        }, MAX_BAR_HIDE_MS);
+      }
+    };
+    window.addEventListener('pointermove', onPointer);
+    window.addEventListener('pointerdown', onPointer);
+    return () => {
+      window.clearTimeout(hideTimer);
+      window.removeEventListener('pointermove', onPointer);
+      window.removeEventListener('pointerdown', onPointer);
+    };
+  }, [isMaximized]);
   // View-only guests treat every widget as locked. The DashboardContext
   // mutation guards already block writes — this just surfaces the locked
   // state to all the existing UI affordances (drag, resize, gear, close).
@@ -2884,18 +2921,28 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           document.body
         )}
 
-      {/* Maximized FAB cluster: restore (primary) + a kebab exposing the
-          actions still useful full-screen (settings, screenshot, annotate,
-          screen record). Replaces the suppressed pill toolbar. */}
+      {/* Maximized top bar: restore + a kebab with the actions still useful
+          full-screen. It slides down near the top edge so content stays full-bleed. */}
+      {isMaximized && !maxBarVisible && !showMaxMenu && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-1.5 z-widget-control mx-auto h-1 w-10 rounded-full bg-slate-400/60"
+        />
+      )}
       {isMaximized && (
         <div
           ref={maxMenuRef}
-          className="absolute bottom-6 right-6 z-widget-control pointer-events-auto flex flex-col items-end gap-3"
+          data-max-bar=""
+          className={`absolute inset-x-0 top-0 z-widget-control mx-auto flex w-fit flex-col items-center gap-2 pt-3 transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none focus-within:pointer-events-auto focus-within:translate-y-0 focus-within:opacity-100 ${
+            maxBarVisible || showMaxMenu
+              ? 'pointer-events-auto translate-y-0 opacity-100'
+              : 'pointer-events-none -translate-y-full opacity-0'
+          }`}
         >
           {showMaxMenu && (
             <div
               data-settings-exclude
-              className="flex flex-col gap-1.5 p-1.5 bg-white/90 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200"
+              className="order-last flex flex-row gap-1.5 p-1.5 bg-white/90 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-2xl animate-in fade-in slide-in-from-top-2 duration-200"
               onClick={(e) => e.stopPropagation()}
               onPointerDown={(e) => e.stopPropagation()}
             >
@@ -2983,7 +3030,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           )}
           <div className="flex items-center gap-3">
             <IconButton
-              icon={<MoreVertical className="w-6 h-6" />}
+              icon={<MoreHorizontal className="w-6 h-6" />}
               label={t('widgetWindow.moreActions')}
               {...tourAttr('widget.more-actions', widget.id, widget.type)}
               onClick={(e) => {
@@ -2997,7 +3044,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
               size="xl"
               variant="brand-ghost"
               active={showMaxMenu}
-              className="shadow-2xl !bg-white/90 hover:!bg-white backdrop-blur-md border border-slate-200 animate-in zoom-in-50 duration-300"
+              className="shadow-2xl !bg-white/90 hover:!bg-white backdrop-blur-md border border-slate-200"
             />
             <IconButton
               icon={<Minimize2 className="w-6 h-6" />}
@@ -3009,7 +3056,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
               }}
               size="xl"
               variant="brand-ghost"
-              className="shadow-2xl !bg-white/90 hover:!bg-white backdrop-blur-md border border-slate-200 animate-in zoom-in-50 duration-300"
+              className="shadow-2xl !bg-white/90 hover:!bg-white backdrop-blur-md border border-slate-200"
             />
           </div>
         </div>

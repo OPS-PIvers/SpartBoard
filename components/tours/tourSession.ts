@@ -159,6 +159,11 @@ export function tourLayoutOverridesAt(
     if (id) out.set(id, overrideOf(layout));
   }
   for (let i = 0; i <= index && i < steps.length; i++) {
+    // A step's starting board puts every widget it lists in place.
+    for (const layout of steps[i].tour?.start?.layouts ?? []) {
+      const id = slots[layout.slot];
+      if (id) out.set(id, overrideOf(layout));
+    }
     for (const kf of steps[i].tour?.layoutKeyframes ?? []) {
       const id = slots[kf.slot];
       if (!id) continue;
@@ -251,6 +256,18 @@ export const autopilotGate = (
   }
   if (fallbackOnly || binding.teacherMustClick === true) return 'teacher';
   return risky ? 'confirm' : 'perform';
+};
+
+/** A sandboxed editor replay clicks through, but a real write never runs without the author. */
+export const replayGate = (
+  binding: Pick<GuidedLearningTourBinding, 'anchor' | 'teacherMustClick'>,
+  policy: TourAutopilotPolicy
+): 'perform' | 'confirm' | 'teacher' => {
+  const risky =
+    isDestructiveAnchor(binding.anchor) || isPersistsAnchor(binding.anchor);
+  if (!risky) return 'perform';
+  const gate = autopilotGate(binding, policy);
+  return gate === 'perform' ? 'confirm' : gate;
 };
 
 /** Whether autopilot must leave this step's click to the teacher. */

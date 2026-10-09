@@ -77,7 +77,9 @@ const PERIOD_ROSTER = {
   classlinkClassId: 'cl-3',
   students: [],
 };
-const extraRosters: (typeof PERIOD_ROSTER)[] = [];
+const extraRosters: Record<string, unknown>[] = [];
+const flags = new Set<string>();
+const plcList: { current: unknown[] } = { current: [] };
 const periodCtx: { current: unknown } = { current: undefined };
 vi.mock('@/hooks/useTeacherBellPeriods', () => ({
   useAssignPeriodAccess: () => periodCtx.current,
@@ -118,7 +120,7 @@ vi.mock('@/context/useAuth', () => ({
     },
     googleAccessToken: 'token',
     isAdmin: false,
-    canAccessFeature: () => false,
+    canAccessFeature: (id: string) => flags.has(id),
     featurePermissions: [],
     getAssignmentMode: () => 'graded',
   }),
@@ -195,7 +197,7 @@ vi.mock('@/hooks/useFolders', () => ({
 }));
 
 vi.mock('@/hooks/usePlcs', () => ({
-  usePlcs: () => ({ plcs: [] }),
+  usePlcs: () => ({ plcs: plcList.current }),
 }));
 
 // Stub AssignClassPicker so roster selection is driven by checkboxes, same as
@@ -210,7 +212,9 @@ vi.mock('@/components/common/AssignClassPicker', () => ({
       type="button"
       data-testid="assign-class-picker"
       onClick={() =>
-        onChange({ rosterIds: [...extraRosters.map((r) => r.id), 'r1'] })
+        onChange({
+          rosterIds: [...extraRosters.map((r) => r.id as string), 'r1'],
+        })
       }
     >
       pick class
@@ -255,6 +259,8 @@ function enableIndividualTargeting(dialog: HTMLElement) {
 beforeEach(() => {
   vi.clearAllMocks();
   extraRosters.length = 0;
+  flags.clear();
+  plcList.current = [];
   periodCtx.current = undefined;
   mockSetDoc.mockResolvedValue(undefined);
   mockUpdateDoc.mockResolvedValue(undefined);
@@ -445,5 +451,113 @@ describe('VideoActivityWidget onAssign — per-period access', () => {
 
     await waitFor(() => expect(createSession).toHaveBeenCalledOnce());
     expect(createSession.mock.calls[0][11]).toBeUndefined();
+  });
+});
+
+describe('VideoActivityWidget onAssign — assign stepper', () => {
+  const PERIOD_4 = {
+    id: 'r4',
+    name: 'Period 4',
+    source: 'manual',
+    classlinkClassId: 'cl-4',
+    students: [
+      {
+        id: 's9',
+        firstName: 'Bo',
+        lastName: 'Berg',
+        pin: '09',
+        classLinkSourcedId: 'SID-9',
+      },
+      {
+        id: 's10',
+        firstName: 'Cy',
+        lastName: 'Cole',
+        pin: '10',
+        classLinkSourcedId: 'SID-10',
+      },
+    ],
+  };
+
+  async function openStepper() {
+    flags.add('assign-stepper');
+    render(<VideoActivityWidget widget={makeWidget()} />);
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    return screen.findByRole('dialog');
+  }
+
+  function pickClass(dialog: HTMLElement, name: string) {
+    fireEvent.click(within(dialog).getByRole('button', { name: /No classes/ }));
+    fireEvent.click(within(dialog).getByLabelText(new RegExp(name)));
+  }
+
+  it('Manual on one class writes a closed assessment gate', async () => {
+    periodCtx.current = {
+      bellOptions: [],
+      bellWindow: () => null,
+      onTagRoster: vi.fn(),
+    };
+    const dialog = await openStepper();
+    pickClass(dialog, 'Period 1');
+    fireEvent.click(within(dialog).getByRole('button', { name: /^2When/ }));
+    fireEvent.click(within(dialog).getByRole('radio', { name: 'Manual' }));
+    confirmAssign(dialog);
+
+    await waitFor(() => expect(createSession).toHaveBeenCalledOnce());
+    const periodGate = createSession.mock.calls[0][11] as {
+      accessMode: string;
+      periodAccess: Record<string, { state: string }>;
+    };
+    expect(periodGate.accessMode).toBe('assessment');
+    expect(periodGate.periodAccess['roster:r1'].state).toBe('closed');
+    expect(createSession.mock.calls[0][10]).not.toHaveProperty('dueAt');
+  });
+
+  it('narrows a class to picked students through setAssignmentTargetsV1', async () => {
+    extraRosters.push(PERIOD_4);
+    mockCallable.mockResolvedValue({ data: { skipped: [] } });
+    const dialog = await openStepper();
+    pickClass(dialog, 'Period 4');
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: /All students/ })
+    );
+    fireEvent.click(within(dialog).getByLabelText(/Bo Berg/));
+    confirmAssign(dialog);
+
+    await waitFor(() => expect(mockCallable).toHaveBeenCalledOnce());
+    expect(mockCallable).toHaveBeenCalledWith(
+      expect.objectContaining({
+        targetMode: 'class',
+        studentTargetClassIds: ['cl-4'],
+        add: [{ kind: 'classlink', sourcedId: 'SID-9' }],
+      })
+    );
+  });
+
+  it('shares with the PLC on the assignment doc and the PLC index', async () => {
+    plcList.current = [
+      { id: 'plc-a', name: 'Science PLC', memberEmails: ['t@example.com'] },
+    ];
+    const dialog = await openStepper();
+    pickClass(dialog, 'Period 1');
+    fireEvent.click(within(dialog).getByRole('button', { name: /^3Sharing/ }));
+    fireEvent.click(
+      within(dialog).getByRole('switch', { name: /Share results/ })
+    );
+    confirmAssign(dialog);
+
+    const docs = () =>
+      mockSetDoc.mock.calls.map((c) => c[1]) as Record<string, unknown>[];
+    await waitFor(() =>
+      expect(docs().some((d) => d.kind === 'video-activity')).toBe(true)
+    );
+    expect(docs().find((d) => 'plc' in d)?.plc).toMatchObject({
+      id: 'plc-a',
+      name: 'Science PLC',
+    });
+    expect(docs().find((d) => d.kind === 'video-activity')).toMatchObject({
+      id: 'session-1',
+      ownerUid: 'teacher-1',
+      status: 'active',
+    });
   });
 });

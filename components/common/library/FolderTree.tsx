@@ -21,11 +21,14 @@ import {
   MoreHorizontal,
 } from 'lucide-react';
 import { useDroppable } from '@dnd-kit/core';
-import type { LibraryFolder } from '@/types';
+import type { LibraryFolder, LibraryFolderColor } from '@/types';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { folderDroppableId, type FolderDropData } from './folderDropTargets';
 import { useFolderPanelMode } from './LibraryFolderPanelContext';
+import { folderColorSwatch } from './folderColors';
+import { FolderColorPicker } from './FolderColorPicker';
+import { isSourceFolderId } from './sourceFolders';
 
 export interface FolderTreeProps {
   /** Flat folder list — the tree shape is derived from `parentId`. */
@@ -62,6 +65,8 @@ export interface FolderTreeProps {
   onCreateChild: (parentId: string) => void;
   /** Move a folder up to the root (null parent). */
   onMoveToRoot: (folderId: string) => void;
+  /** Set or clear a folder's colour; omit to hide the colour row in the menu. */
+  onSetColor?: (folderId: string, color: LibraryFolderColor | null) => void;
 
   /**
    * When true, each folder row becomes a `useDroppable` target. Must be
@@ -154,6 +159,7 @@ interface FolderRowProps {
   onRequestDelete: (folder: LibraryFolder) => void;
   onCreateChild: (parentId: string) => void;
   onMoveToRoot: (folderId: string) => void;
+  onSetColor?: (folderId: string, color: LibraryFolderColor | null) => void;
 }
 
 /**
@@ -179,9 +185,13 @@ const FolderRow: React.FC<FolderRowProps> = ({
   onRequestDelete,
   onCreateChild,
   onMoveToRoot,
+  onSetColor,
 }) => {
   const panelMode = useFolderPanelMode();
   const isRail = panelMode === 'rail';
+  const iconTint = folderColorSwatch(folder.color)?.icon;
+  // Source folders can't be renamed, recoloured, nested into or deleted (D21).
+  const locked = isSourceFolderId(folder.id);
   const dropData = useMemo<FolderDropData>(
     () => ({ type: 'folder', folderId: folder.id }),
     [folder.id]
@@ -245,6 +255,7 @@ const FolderRow: React.FC<FolderRowProps> = ({
           }}
         >
           <Folder
+            className={iconTint}
             style={{
               width: 'min(16px, 4.5cqmin)',
               height: 'min(16px, 4.5cqmin)',
@@ -301,7 +312,9 @@ const FolderRow: React.FC<FolderRowProps> = ({
           a <button>, which is invalid HTML. */}
       {isRenaming ? (
         <span className="flex-1 min-w-0 flex items-center gap-1 py-1">
-          <span className="shrink-0 text-brand-blue-primary/80">
+          <span
+            className={`shrink-0 ${iconTint ?? 'text-brand-blue-primary/80'}`}
+          >
             {isExpanded && hasChildren ? (
               <FolderOpen size={14} />
             ) : (
@@ -325,7 +338,7 @@ const FolderRow: React.FC<FolderRowProps> = ({
             } else if (e.key === 'ArrowLeft' && hasChildren && isExpanded) {
               e.preventDefault();
               onToggleExpanded(folder.id);
-            } else if (e.key === 'F2') {
+            } else if (e.key === 'F2' && !locked) {
               e.preventDefault();
               onStartRename(folder.id);
             }
@@ -334,14 +347,16 @@ const FolderRow: React.FC<FolderRowProps> = ({
           aria-label={`${folder.name}, ${count} items`}
           aria-pressed={isSelected}
         >
-          <span className="shrink-0 text-brand-blue-primary/80">
+          <span
+            className={`shrink-0 ${iconTint ?? 'text-brand-blue-primary/80'}`}
+          >
             {isExpanded && hasChildren ? (
               <FolderOpen size={14} />
             ) : (
               <Folder size={14} />
             )}
           </span>
-          <span className="flex-1 min-w-0 truncate">{folder.name}</span>
+          <span className="flex-1 min-w-0 break-words">{folder.name}</span>
         </button>
       )}
 
@@ -367,9 +382,11 @@ const FolderRow: React.FC<FolderRowProps> = ({
                   ? 'bg-brand-blue-primary/20 text-brand-blue-dark'
                   : 'bg-slate-200 text-slate-600'
               } ${
-                isMenuOpen
-                  ? 'opacity-0'
-                  : 'group-hover:opacity-0 group-focus-within:opacity-0'
+                locked
+                  ? ''
+                  : isMenuOpen
+                    ? 'opacity-0'
+                    : 'group-hover:opacity-0 group-focus-within:opacity-0'
               }`}
               style={{
                 paddingInline: 'min(6px, 1.5cqmin)',
@@ -379,30 +396,32 @@ const FolderRow: React.FC<FolderRowProps> = ({
               {count}
             </span>
           )}
-          <button
-            ref={kebabRef}
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenMenu(isMenuOpen ? null : folder.id);
-            }}
-            aria-label={`Actions for ${folder.name}`}
-            aria-haspopup="menu"
-            aria-expanded={isMenuOpen}
-            className={`absolute inset-0 flex items-center justify-center rounded-md text-slate-400 hover:text-brand-blue-dark hover:bg-white/60 transition-opacity ${
-              isMenuOpen
-                ? 'opacity-100'
-                : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
-            }`}
-            tabIndex={-1}
-          >
-            <MoreHorizontal size={14} />
-          </button>
+          {!locked && (
+            <button
+              ref={kebabRef}
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenMenu(isMenuOpen ? null : folder.id);
+              }}
+              aria-label={`Actions for ${folder.name}`}
+              aria-haspopup="menu"
+              aria-expanded={isMenuOpen}
+              className={`absolute inset-0 flex items-center justify-center rounded-md text-slate-400 hover:text-brand-blue-dark hover:bg-white/60 transition-opacity ${
+                isMenuOpen
+                  ? 'opacity-100'
+                  : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+              }`}
+              tabIndex={-1}
+            >
+              <MoreHorizontal size={14} />
+            </button>
+          )}
         </span>
       )}
 
       {/* Overflow menu popover. */}
-      {isMenuOpen && (
+      {isMenuOpen && !locked && (
         <div
           ref={menuRef}
           role="menu"
@@ -444,6 +463,17 @@ const FolderRow: React.FC<FolderRowProps> = ({
               Move to root
             </button>
           )}
+          {onSetColor && (
+            <div className="border-y border-slate-100 my-1">
+              <FolderColorPicker
+                value={folder.color}
+                onChange={(color) => {
+                  onOpenMenu(null);
+                  onSetColor(folder.id, color);
+                }}
+              />
+            </div>
+          )}
           <button
             type="button"
             role="menuitem"
@@ -479,6 +509,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
   onRequestDelete,
   onCreateChild,
   onMoveToRoot,
+  onSetColor,
   enableDrop = false,
 }) => {
   // Group children by parentId once per render. Sorted input is expected
@@ -528,6 +559,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
               onRequestDelete={onRequestDelete}
               onCreateChild={onCreateChild}
               onMoveToRoot={onMoveToRoot}
+              onSetColor={onSetColor}
             />
             {/* Recurse into children when expanded. */}
             {isExpanded && hasChildren && (
@@ -549,6 +581,7 @@ export const FolderTree: React.FC<FolderTreeProps> = ({
                 onRequestDelete={onRequestDelete}
                 onCreateChild={onCreateChild}
                 onMoveToRoot={onMoveToRoot}
+                onSetColor={onSetColor}
                 enableDrop={enableDrop}
               />
             )}

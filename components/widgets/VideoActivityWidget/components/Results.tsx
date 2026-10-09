@@ -110,6 +110,9 @@ import {
   VA_SESSIONS_COLLECTION,
 } from '@/utils/studentResultsPublish';
 import { useViewAsOutward } from '@/hooks/useViewAsOutward';
+import { useSchoologyToolColumnPush } from '@/hooks/useSchoologyToolColumnPush';
+import { readLmsLink, schoologyLinkedTargets } from '@/utils/gradebook/lmsPush';
+import { buildToolColumnGrades } from '@/utils/schoologyToolColumns';
 import { ViewAsStudentButton } from '@/components/viewAs/ViewAsStudentButton';
 
 const KEY_LOADING_TOAST =
@@ -571,7 +574,50 @@ export const Results: React.FC<ResultsProps> = ({
   // gating conditions/handlers as before — only the placement changes.
   const showClassroomPush =
     classroomAttachments.length > 0 && canAccessFeature('google-classroom');
-  const showSchoologyPush = !!ltiAttachment;
+  const toolColumnsOn = canAccessFeature('schoology-tool-columns');
+  const schoologyTargets = useMemo(
+    () => (toolColumnsOn ? schoologyLinkedTargets(rosters) : null),
+    [toolColumnsOn, rosters]
+  );
+  const lmsLink = readLmsLink(session, schoologyTargets);
+  // SpartBoard makes the Schoology column itself (SCHOOLOGY_TOOL_COLUMNS.md D9).
+  const toolColumnMode =
+    lmsLink?.lms === 'schoology' && lmsLink.mode === 'tool-column';
+  const toolColumnPush = useSchoologyToolColumnPush({
+    sessionId: session.id,
+    kind: 'va',
+    title: session.assignmentName || session.activityTitle,
+    buildPayload: async () => {
+      if (keyLoading || keyFailed) {
+        addToast(keyFailed ? KEY_FAILED_TOAST : KEY_LOADING_TOAST, 'info');
+        return null;
+      }
+      const maxPoints = videoActivityMaxPoints(questions);
+      const scored = withFinalScores(
+        buildVideoActivityGradeEntries(responses, scoredQuestions, maxPoints),
+        maxPoints
+      );
+      return {
+        maxPoints,
+        grades: await buildToolColumnGrades({
+          kind: 'va',
+          ownerUid: user?.uid,
+          sessionId: session.id,
+          assignmentId: session.id,
+          scored,
+          rosterUids: classLinkNames.keys(),
+          refKeyByUid: targetRefKeyByStudentUid,
+          submittedUids: new Set(
+            responses
+              .filter((r) => r.completedAt !== null && !!r.studentUid)
+              .map((r) => r.studentUid)
+          ),
+        }),
+      };
+    },
+    onDone: (message, ok) => addToast(message, ok ? 'success' : 'error'),
+  });
+  const showSchoologyPush = !!ltiAttachment || toolColumnMode;
 
   // Overflow-menu items. The Sheet/Export family (Export, Open Sheet) lives
   // here, decluttered out of the visible header per the approved design. Each
@@ -634,14 +680,21 @@ export const Results: React.FC<ResultsProps> = ({
             {/* Push grades to Schoology — only when this assignment was launched
                 from a Schoology resource link (server sets `ltiAttachment` on the
                 first student launch). */}
+            {toolColumnPush.dialog}
             {showSchoologyPush && (
               <ActionButton
                 variant="primary"
                 label="Push to Schoology"
                 icon={Send}
-                loading={pushingSchoology}
-                onClick={() => void handlePushSchoologyGrades()}
-                disabled={pushingSchoology || completed === 0}
+                loading={pushingSchoology || toolColumnPush.busy}
+                onClick={() =>
+                  void (ltiAttachment
+                    ? handlePushSchoologyGrades()
+                    : toolColumnPush.start())
+                }
+                disabled={
+                  pushingSchoology || toolColumnPush.busy || completed === 0
+                }
               />
             )}
             {showMakeUp && (

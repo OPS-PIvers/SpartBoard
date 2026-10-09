@@ -50,6 +50,7 @@ import {
   Footprints,
   LifeBuoy,
   Library,
+  FolderMinus,
 } from 'lucide-react';
 import type {
   AssignmentMode,
@@ -73,7 +74,13 @@ import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { buildMoveToFolderAction } from '@/components/common/library/folderMenuAction';
 import { LibraryDndContext } from '@/components/common/library/LibraryDndContext';
-import { useLibraryView } from '@/components/common/library/useLibraryView';
+import {
+  useFolderLibraryView,
+  useLibraryFolderViewEnabled,
+} from '@/components/common/library/useFolderLibraryView';
+import { useSourceFolders } from '@/components/common/library/useSourceFolders';
+import { isSourceFolderId } from '@/components/common/library/sourceFolders';
+import { latestAssignedAt } from '@/components/common/library/folderView';
 import { useLibrarySelection } from '@/components/common/library/useLibrarySelection';
 import { useSortableReorder } from '@/components/common/library/useSortableReorder';
 import { BulkActionBar } from '@/components/common/library/BulkActionBar';
@@ -105,6 +112,8 @@ import {
   isTourRunnable,
   watchTours,
 } from '@/components/tours/publishedTours';
+import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
+import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
 
 // Lazy so the preview player chunk loads only when a teacher hits Play preview.
 const LazyGuidedLearningPlayer = lazy(() =>
@@ -194,6 +203,10 @@ export interface GuidedLearningManagerProps {
     setId: string,
     driveFileId: string
   ) => void | Promise<void>;
+  /** Confirms once and deletes every target; false when cancelled. */
+  onBulkDeletePersonal: (
+    targets: { setId: string; driveFileId: string }[]
+  ) => Promise<boolean>;
   /**
    * Phase 5 — duplicate a personal set. Owns the actual `duplicateSet`
    * call; the manager only surfaces the affordance. Optional so the
@@ -222,6 +235,8 @@ export interface GuidedLearningManagerProps {
   /** Busy-state probe for the building-set Duplicate kebab. */
   isDuplicatingBuilding?: (setId: string) => boolean;
   onDeleteBuilding: (setId: string) => void | Promise<void>;
+  /** The widget's delete path for the folder delete dialog's "delete everything" choice. */
+  folderDeleteActions?: FolderDeleteActions;
   /** Admin-only: copies a personal live tour into the building library, where tours run. */
   onCopyTourToBuilding?: (
     setId: string,
@@ -358,6 +373,7 @@ const LIBRARY_FILTER_PREDICATES = {
 };
 
 const LIBRARY_GET_ID = (e: LibraryEntry): string => e.id;
+const SET_NOUN = ['set', 'sets'] as const;
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
 
@@ -452,11 +468,13 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onPrefetchSet,
   loadSetForPreview,
   onDeletePersonal,
+  onBulkDeletePersonal,
   onDuplicatePersonal,
   isDuplicatingPersonal,
   onDuplicateBuilding,
   isDuplicatingBuilding,
   onDeleteBuilding,
+  folderDeleteActions,
   onCopyTourToBuilding,
   isCopyingTourToBuilding,
   onSetBuildingHelpCenter,
@@ -530,9 +548,6 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
 
   // ─── Folder navigation (Wave 3-B-3) ─────────────────────────────────────
   const folderState = useFolders(userId, 'guided_learning');
-  const [selectedFolderId, setSelectedFolderId] = React.useState<string | null>(
-    null
-  );
   // When set, a `FolderPickerPopover` dialog is shown for this personal entry.
   // Only 'personal' sets participate in folders (building sets have no
   // folderId). Carry the rawId + display title so the dialog can label itself
@@ -541,22 +556,31 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     rawId: string;
     title: string;
     folderId: string | null;
+    /** Set for a building set, which is filed by placement instead of moved. */
+    sourceKey?: string;
   } | null>(null);
-
-  // Reset folder selection when the signed-in user changes or the selected
-  // folder no longer exists (adjust-state-during-render pattern).
-  const [prevFolderUserId, setPrevFolderUserId] = React.useState(userId);
-  if (prevFolderUserId !== userId) {
-    setPrevFolderUserId(userId);
-    setSelectedFolderId(null);
-  }
-  if (
-    !folderState.loading &&
-    selectedFolderId !== null &&
-    !folderState.folders.some((f) => f.id === selectedFolderId)
-  ) {
-    setSelectedFolderId(null);
-  }
+  const folderViewEnabled = useLibraryFolderViewEnabled();
+  const buildingSourceKeys = useMemo(
+    () =>
+      buildingSets
+        .filter((set) => !isHelpCenterSet(set))
+        .map((set) => `building:${set.id}`),
+    [buildingSets]
+  );
+  // Building set entry ids double as their placement source keys.
+  const sourceFolders = useSourceFolders({
+    userId,
+    widget: 'guided_learning',
+    enabled: folderViewEnabled,
+    sourceKeys: buildingSourceKeys,
+    ownFolders: folderState.folders,
+  });
+  const { folderIdOf } = sourceFolders;
+  const entryFolderId = useCallback(
+    (e: LibraryEntry) =>
+      e.source === 'building' ? folderIdOf(e.id) : (e.folderId ?? null),
+    [folderIdOf]
+  );
 
   // Building sets have no folderId; fold them into the root bucket so "All items" counts them.
   const libraryBuildingCount = buildingSets.filter(
@@ -570,14 +594,26 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     }
     return counts;
   }, [sets, libraryBuildingCount]);
+  const folderView = useFolderViewSidebar({
+    setFolderColor: folderState.setFolderColor,
+    noun: { one: 'set', many: 'sets' },
+    items: sets,
+    placed: sourceFolders.placed,
+    ...folderDeleteActions,
+  });
 
   const allEntries = useMemo(
-    () =>
-      filterSourcedEntriesByFolder(
-        buildLibraryEntries(sets, buildingSets),
-        selectedFolderId
-      ),
-    [sets, buildingSets, selectedFolderId]
+    () => buildLibraryEntries(sets, buildingSets),
+    [sets, buildingSets]
+  );
+  const lastAssignedAt = useMemo(
+    () => latestAssignedAt(assignments, (a) => `personal:${a.setId}`),
+    [assignments]
+  );
+  const entryRecentAt = useCallback(
+    (e: LibraryEntry) =>
+      Math.max(e.updatedAt ?? e.createdAt ?? 0, lastAssignedAt.get(e.id) ?? 0),
+    [lastAssignedAt]
   );
 
   // ─── Toolbar state (search/sort/filter) via useLibraryView ────────────────
@@ -601,8 +637,19 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         (e) => e.hasLiveTour && (isAdmin || !isHelpCenterSet(e))
       ));
 
-  const view = useLibraryView<LibraryEntry>({
+  const view = useFolderLibraryView<LibraryEntry>({
     items: allEntries,
+    folderView: {
+      library: 'guided_learning',
+      userId,
+      folders: sourceFolders.folders,
+      foldersLoading: folderState.loading,
+      getId: LIBRARY_GET_ID,
+      getFolderId: entryFolderId,
+      getRecentAt: entryRecentAt,
+      itemNoun: SET_NOUN,
+      legacyFilter: filterSourcedEntriesByFolder,
+    },
     initialSort: LIBRARY_INITIAL_SORT,
     // Phase 2 redesign: the library is list-only (monitor row idiom).
     initialViewMode: 'list',
@@ -686,54 +733,56 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     },
     [userId, moveItem, onError]
   );
+  const { move: moveSource } = sourceFolders;
+  const fileBuildingSet = useCallback(
+    async (sourceKey: string, folderId: string | null): Promise<void> => {
+      try {
+        await moveSource(sourceKey, folderId);
+      } catch {
+        onError?.('That set could not be moved.');
+      }
+    },
+    [moveSource, onError]
+  );
   const handleDropOnFolder = useCallback(
     async (itemId: string, folderId: string | null): Promise<void> => {
-      // GL entry ids are prefixed "personal:" or "building:". Only personal
-      // entries participate in folders; building cards are `sortable={false}`
-      // so drops from them shouldn't fire, but we guard defensively.
-      if (!itemId.startsWith('personal:')) return;
+      // Building sets are filed privately (D22); own sets never go into a source folder.
+      if (itemId.startsWith('building:')) {
+        await fileBuildingSet(itemId, folderId);
+        return;
+      }
+      if (!itemId.startsWith('personal:') || isSourceFolderId(folderId)) return;
       await moveSetToFolder(itemId.slice('personal:'.length), folderId);
     },
-    [moveSetToFolder]
+    [moveSetToFolder, fileBuildingSet]
   );
 
   // ─── Bulk handlers (Step 8) ─────────────────────────────────────────────
   const handleBulkDelete = useCallback(async (): Promise<void> => {
     if (selection.count === 0) return;
-    const personalIds = Array.from(selection.selectedIds).filter((id) =>
-      id.startsWith('personal:')
-    );
-    if (personalIds.length === 0) return;
-    const ok = window.confirm(
-      `Delete ${personalIds.length} set${personalIds.length === 1 ? '' : 's'}? This cannot be undone.`
-    );
-    if (!ok) return;
+    const targets = Array.from(selection.selectedIds).flatMap((id) => {
+      if (!id.startsWith('personal:')) return [];
+      const entry = allEntries.find((e) => e.id === id);
+      return entry?.driveFileId
+        ? [
+            {
+              setId: id.slice('personal:'.length),
+              driveFileId: entry.driveFileId,
+            },
+          ]
+        : [];
+    });
+    if (targets.length === 0) return;
     setBulkBusy(true);
     try {
-      const results = await Promise.allSettled(
-        personalIds.map(async (id) => {
-          const rawId = id.slice('personal:'.length);
-          const entry = allEntries.find((e) => e.id === id);
-          if (entry?.driveFileId) {
-            await onDeletePersonal(rawId, entry.driveFileId);
-          }
-        })
-      );
-      results.forEach((result, idx) => {
-        if (result.status === 'rejected') {
-          console.error(
-            '[GuidedLearningManager] bulk delete failed for',
-            personalIds[idx],
-            result.reason
-          );
-        }
-      });
-      selection.clear();
-      setSelectionMode(false);
+      if (await onBulkDeletePersonal(targets)) {
+        selection.clear();
+        setSelectionMode(false);
+      }
     } finally {
       setBulkBusy(false);
     }
-  }, [selection, allEntries, onDeletePersonal]);
+  }, [selection, allEntries, onBulkDeletePersonal]);
 
   const handleBulkMove = useCallback(
     async (folderId: string | null): Promise<void> => {
@@ -768,7 +817,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   // item; drops on another card reorder (only honored when manual reorder is
   // active — see `handleReorderDrop` below).
   const enableCardDrag =
-    (Boolean(userId) || reorderDragActive) && !selectionMode;
+    (Boolean(userId) || reorderDragActive) &&
+    (!selectionMode || view.folderView != null);
 
   const handleReorderDrop = useCallback(
     (orderedIds: string[]) => {
@@ -876,8 +926,12 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     }
 
     const isBuildingEntry = entry.source === 'building';
+    const placedChip = isBuildingEntry
+      ? sourceFolders.placedChip(entry.id)
+      : null;
     const canEdit = isBuildingEntry ? isAdmin : true;
-    const canDelete = isBuildingEntry ? isAdmin : true;
+    // A filed building set offers "Remove from folder" in place of Delete (D24).
+    const canDelete = isBuildingEntry ? isAdmin && !placedChip : true;
 
     // Play is no longer a kebab item — it's surfaced as a visible
     // `secondaryPrimaryAction` on the card next to Assign/Share. See the
@@ -995,20 +1049,33 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
           disabled: !userId,
         })
       );
-    } else if (entry.source === 'building' && isAdmin && onDuplicateBuilding) {
-      // Admin-only Duplicate for building sets. Mirrors the personal
-      // entry's Duplicate; building sets have no folder concept so the
-      // Move-to-folder action is skipped.
-      secondary.push(
-        buildDuplicateAction(
-          { id: rawId, title: entry.title },
-          () => void onDuplicateBuilding(rawId),
-          {
-            disabled: isDuplicatingBuilding?.(rawId),
-            disabledReason: 'Duplicating…',
-          }
-        )
-      );
+    } else if (entry.source === 'building') {
+      if (isAdmin && onDuplicateBuilding) {
+        secondary.push(
+          buildDuplicateAction(
+            { id: rawId, title: entry.title },
+            () => void onDuplicateBuilding(rawId),
+            {
+              disabled: isDuplicatingBuilding?.(rawId),
+              disabledReason: 'Duplicating…',
+            }
+          )
+        );
+      }
+      if (folderViewEnabled && !entry.helpCenter) {
+        secondary.push(
+          buildMoveToFolderAction({
+            onOpenPicker: () =>
+              setFolderPickerTarget({
+                rawId,
+                title: entry.title,
+                folderId: placedChip ? folderIdOf(entry.id) : null,
+                sourceKey: entry.id,
+              }),
+            disabled: !userId,
+          })
+        );
+      }
     }
 
     if (isBuildingEntry && isAdmin && onSetBuildingHelpCenter) {
@@ -1018,6 +1085,15 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         label: toHelp ? 'Move to Help Center' : 'Move to library',
         icon: toHelp ? LifeBuoy : Library,
         onClick: () => void onSetBuildingHelpCenter(rawId, toHelp),
+      });
+    }
+
+    if (placedChip) {
+      secondary.push({
+        id: 'remove-from-folder',
+        label: 'Remove from folder',
+        icon: FolderMinus,
+        onClick: () => void fileBuildingSet(entry.id, null),
       });
     }
 
@@ -1106,7 +1182,11 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
               }
             : undefined
         }
-        sortable={isPersonal && enableCardDrag && !selectionMode}
+        sortable={
+          (isPersonal || (folderViewEnabled && !entry.helpCenter)) &&
+          enableCardDrag &&
+          !selectionMode
+        }
         viewMode={view.state.viewMode}
         meta={entry}
         selectionMode={selectable}
@@ -1521,16 +1601,18 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     tab === 'library' && userId ? (
       <FolderSidebar
         widget="guided_learning"
-        folders={folderState.folders}
+        folders={sourceFolders.folders}
         loading={folderState.loading}
         error={folderState.error}
-        selectedFolderId={selectedFolderId}
-        onSelectFolder={setSelectedFolderId}
+        selectedFolderId={view.selectedFolderId}
+        onSelectFolder={view.onSelectFolder}
+        folderView={view.folderView}
         itemCounts={folderItemCounts}
         onCreateFolder={folderState.createFolder}
         onRenameFolder={folderState.renameFolder}
         onMoveFolder={folderState.moveFolder}
         onDeleteFolder={folderState.deleteFolder}
+        {...folderView}
         enableDrop
       />
     ) : undefined;
@@ -1589,6 +1671,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     <LibraryShell
       widgetLabel="Guided Learning"
       widgetType="guided-learning"
+      folderView={view.folderView}
+      folderViewMode={view.state.viewMode}
       tab={tab}
       onTabChange={setTab}
       counts={{
@@ -1686,7 +1770,11 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       folders={folderState.folders}
       selectedFolderId={folderPickerTarget.folderId}
       onSelect={(folderId) => {
-        void moveSetToFolder(folderPickerTarget.rawId, folderId);
+        if (folderPickerTarget.sourceKey) {
+          void fileBuildingSet(folderPickerTarget.sourceKey, folderId);
+        } else {
+          void moveSetToFolder(folderPickerTarget.rawId, folderId);
+        }
       }}
       onClose={() => setFolderPickerTarget(null)}
       title={`Move "${folderPickerTarget.title}" to…`}
@@ -1696,6 +1784,9 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   return userId && tab === 'library' ? (
     <>
       <LibraryDndContext
+        folderView={view.folderView}
+        selectedIds={selection.selectedIds}
+        folderActions={folderState}
         itemIds={orderedIds}
         onDropOnFolder={handleDropOnFolder}
         onReorder={handleReorderDrop}

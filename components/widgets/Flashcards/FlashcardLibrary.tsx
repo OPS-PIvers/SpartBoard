@@ -26,17 +26,22 @@ import {
   FolderPickerPopover,
   FolderSidebar,
   LibraryGrid,
+  LibraryDndContext,
   LibraryItemCard,
   LibraryShell,
   LibraryToolbar,
   buildMoveToFolderAction,
   countItemsByFolder,
-  filterByFolder,
-  useLibraryView,
+  latestAssignedAt,
+  useFolderLibraryView,
 } from '@/components/common/library';
 import type { LibraryBadge, LibraryTab } from '@/components/common/library';
+import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
+import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
 
 interface FlashcardLibraryProps {
+  /** Signed-in teacher, for the folder view's last-folder preference. */
+  userId?: string;
   sets: FlashcardSet[];
   loading: boolean;
   error: string | null;
@@ -52,6 +57,8 @@ interface FlashcardLibraryProps {
   onShare: (set: FlashcardSet) => void;
   onAssign: (set: FlashcardSet) => void;
   onDelete: (set: FlashcardSet) => void;
+  /** The widget's delete path for the folder delete dialog's "delete everything" choice. */
+  folderDeleteActions?: FolderDeleteActions;
   /** Status chips for a set's card, e.g. the Claude review mark. */
   badgesFor?: (set: FlashcardSet) => LibraryBadge[];
   onAssignmentResults: (assignment: FlashcardAssignment) => void;
@@ -102,7 +109,11 @@ const updatedComparator = (
   return direction === 'asc' ? result : -result;
 };
 
+const SET_NOUN = ['set', 'sets'] as const;
+const getSetId = (set: FlashcardSet): string => set.id;
+
 export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
+  userId,
   sets,
   loading,
   error,
@@ -118,6 +129,7 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   onShare,
   onAssign,
   onDelete,
+  folderDeleteActions,
   badgesFor,
   onAssignmentResults,
   onAssignmentPublishScores,
@@ -131,15 +143,19 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
   onAssignmentShareWithPlc,
   onAssignmentStopSharingWithPlc,
 }) => {
-  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [folderTarget, setFolderTarget] = useState<FlashcardSet | null>(null);
-
-  const folderFilteredSets = useMemo(
-    () => filterByFolder(sets, selectedFolderId),
-    [selectedFolderId, sets]
+  const lastAssigned = useMemo(
+    () => latestAssignedAt(assignments, (a) => a.setId),
+    [assignments]
   );
-  const view = useLibraryView({
-    items: folderFilteredSets,
+  const recentAt = useCallback(
+    (set: FlashcardSet) =>
+      Math.max(set.updatedAt, lastAssigned.get(set.id) ?? 0),
+    [lastAssigned]
+  );
+
+  const view = useFolderLibraryView({
+    items: sets,
     initialSort: { key: 'updated', dir: 'desc' },
     initialViewMode: 'list',
     searchFields: (set) => [
@@ -150,6 +166,15 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
     sortComparators: {
       updated: updatedComparator,
       title: titleComparator,
+    },
+    folderView: {
+      library: 'flashcards',
+      userId,
+      folders: folders.folders,
+      foldersLoading: folders.loading,
+      getId: getSetId,
+      getRecentAt: recentAt,
+      itemNoun: SET_NOUN,
     },
   });
   const { moveItem } = folders;
@@ -164,6 +189,12 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
     [moveItem, onError]
   );
   const folderCounts = useMemo(() => countItemsByFolder(sets), [sets]);
+  const folderView = useFolderViewSidebar({
+    setFolderColor: folders.setFolderColor,
+    noun: { one: 'flashcard set', many: 'flashcard sets' },
+    items: sets,
+    ...folderDeleteActions,
+  });
   const activeAssignments = useMemo(
     () => assignments.filter((a) => a.status === 'active'),
     [assignments]
@@ -299,189 +330,215 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
     <FolderSidebar
       widget="flashcards"
       folders={folders.folders}
-      selectedFolderId={selectedFolderId}
-      onSelectFolder={setSelectedFolderId}
+      selectedFolderId={view.selectedFolderId}
+      onSelectFolder={view.onSelectFolder}
       itemCounts={folderCounts}
+      folderView={view.folderView}
       onCreateFolder={folders.createFolder}
       onRenameFolder={folders.renameFolder}
       onMoveFolder={folders.moveFolder}
       onDeleteFolder={folders.deleteFolder}
+      {...folderView}
       loading={folders.loading}
       error={folders.error}
     />
   );
 
-  return (
-    <>
-      <LibraryShell
-        widgetLabel="Flashcards"
-        widgetType="flashcards"
-        tab={tab}
-        onTabChange={onTabChange}
-        visibleTabs={['library', 'active', 'archive']}
-        counts={{
-          library: sets.length,
-          active: activeAssignments.length,
-          archive: endedAssignments.length,
-        }}
-        primaryAction={{ label: 'New set', icon: Plus, onClick: onNew }}
-        secondaryActions={[
-          { label: 'Import', icon: FileUp, onClick: onImport },
-        ]}
-        toolbarSlot={
-          tab !== 'library' ? undefined : (
-            <LibraryToolbar
-              {...view.toolbarProps}
-              searchPlaceholder="Search flashcard sets…"
-              widgetType="flashcards"
-              sortOptions={[
-                { key: 'updated', label: 'Last updated', defaultDir: 'desc' },
-                { key: 'title', label: 'Title', defaultDir: 'asc' },
-              ]}
-              rightSlot={
-                <span
-                  className="font-bold text-slate-400"
-                  style={{ fontSize: 'min(11px, 3.5cqmin)' }}
-                >
-                  {view.visibleItems.length} of {sets.length}
-                </span>
+  // Folder view on: sets drag into folders and the path bar; there is no manual order to keep.
+  const dragOn = view.folderView != null;
+  const renderSetCard = (
+    set: FlashcardSet,
+    index: number,
+    isOverlay = false
+  ) => (
+    <LibraryItemCard<FlashcardSet>
+      key={set.id}
+      isDragOverlay={isOverlay}
+      id={set.id}
+      title={set.title || 'Untitled set'}
+      tourIndex={index}
+      tourWidgetType="flashcards"
+      badges={badgesFor?.(set)}
+      subtitle={`${set.cards.length} card${set.cards.length === 1 ? '' : 's'} · Updated ${new Date(set.updatedAt).toLocaleDateString()}`}
+      thumbnail={
+        <div className="flex h-full w-full items-center justify-center bg-rose-50 text-rose-600">
+          <Layers
+            style={{
+              width: 'min(38px, 10cqmin)',
+              height: 'min(38px, 10cqmin)',
+            }}
+          />
+        </div>
+      }
+      primaryAction={{
+        label: 'Assign',
+        icon: Link2,
+        onClick: () => onAssign(set),
+      }}
+      secondaryActions={[
+        {
+          id: 'edit',
+          label: 'Edit',
+          icon: Pencil,
+          onClick: () => onEdit(set),
+        },
+        {
+          id: 'present',
+          label: 'Present',
+          icon: MonitorPlay,
+          onClick: () => onPresent(set),
+        },
+        {
+          id: 'share',
+          label: set.publicShareId ? 'Manage public link' : 'Share link',
+          icon: Share2,
+          onClick: () => onShare(set),
+        },
+        ...(onShareWithPlc
+          ? [
+              {
+                id: 'share-with-plc',
+                label: 'Share with PLC',
+                icon: Users2,
+                onClick: () => onShareWithPlc(set),
+              },
+            ]
+          : []),
+        buildMoveToFolderAction({
+          onOpenPicker: () => setFolderTarget(set),
+        }),
+        {
+          id: 'delete',
+          label: 'Delete',
+          icon: Trash2,
+          destructive: true,
+          onClick: () => onDelete(set),
+        },
+      ]}
+      onClick={() => onEdit(set)}
+      viewMode={view.state.viewMode}
+      sortable={dragOn}
+      meta={set}
+    />
+  );
+
+  const shell = (
+    <LibraryShell
+      widgetLabel="Flashcards"
+      widgetType="flashcards"
+      tab={tab}
+      onTabChange={onTabChange}
+      visibleTabs={['library', 'active', 'archive']}
+      counts={{
+        library: sets.length,
+        active: activeAssignments.length,
+        archive: endedAssignments.length,
+      }}
+      primaryAction={{ label: 'New set', icon: Plus, onClick: onNew }}
+      secondaryActions={[{ label: 'Import', icon: FileUp, onClick: onImport }]}
+      toolbarSlot={
+        tab !== 'library' ? undefined : (
+          <LibraryToolbar
+            {...view.toolbarProps}
+            searchPlaceholder="Search flashcard sets…"
+            widgetType="flashcards"
+            sortOptions={[
+              { key: 'updated', label: 'Last updated', defaultDir: 'desc' },
+              { key: 'title', label: 'Title', defaultDir: 'asc' },
+            ]}
+            rightSlot={
+              <span
+                className="font-bold text-slate-400"
+                style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+              >
+                {view.visibleItems.length} of {sets.length}
+              </span>
+            }
+          />
+        )
+      }
+      filterSidebarSlot={tab === 'library' ? folderSidebar : undefined}
+      folderView={view.folderView}
+      folderViewMode={view.state.viewMode}
+    >
+      {tab !== 'library' ? (
+        assignmentsContent
+      ) : loading ? (
+        <div
+          className="flex h-full flex-col items-center justify-center text-rose-600"
+          style={{ gap: 'min(10px, 2.5cqmin)' }}
+        >
+          <Loader2
+            className="animate-spin"
+            style={{
+              width: 'min(30px, 8cqmin)',
+              height: 'min(30px, 8cqmin)',
+            }}
+          />
+          <span className="font-bold" style={{ fontSize: 'min(13px, 4cqmin)' }}>
+            Loading flashcards…
+          </span>
+        </div>
+      ) : error ? (
+        <div
+          className="rounded-2xl border border-rose-200 bg-rose-50 font-bold text-rose-700"
+          style={{
+            padding: 'min(14px, 3.5cqmin)',
+            fontSize: 'min(12px, 3.8cqmin)',
+          }}
+        >
+          {error}
+        </div>
+      ) : (
+        <LibraryGrid
+          items={view.visibleItems}
+          getId={(set) => set.id}
+          dragDisabled={!dragOn}
+          reorderLocked={dragOn}
+          reorderLockedReason="Drag into a folder"
+          useExternalDndContext={dragOn}
+          layout={view.state.viewMode}
+          emptyState={
+            <ScaledEmptyState
+              icon={BookOpen}
+              iconClassName="text-rose-300"
+              iconSize="min(52px, 14cqmin)"
+              titleClassName="text-slate-800"
+              subtitleClassName="max-w-md mx-auto text-slate-500"
+              title={
+                sets.length === 0 ? 'Build your first set' : 'No matching sets'
+              }
+              subtitle={
+                sets.length === 0
+                  ? 'Create a set from scratch, paste a Quizlet export, or import a CSV or Google Sheet.'
+                  : 'Try a different search or folder.'
               }
             />
-          )
-        }
-        filterSidebarSlot={tab === 'library' ? folderSidebar : undefined}
-      >
-        {tab !== 'library' ? (
-          assignmentsContent
-        ) : loading ? (
-          <div
-            className="flex h-full flex-col items-center justify-center text-rose-600"
-            style={{ gap: 'min(10px, 2.5cqmin)' }}
-          >
-            <Loader2
-              className="animate-spin"
-              style={{
-                width: 'min(30px, 8cqmin)',
-                height: 'min(30px, 8cqmin)',
-              }}
-            />
-            <span
-              className="font-bold"
-              style={{ fontSize: 'min(13px, 4cqmin)' }}
-            >
-              Loading flashcards…
-            </span>
-          </div>
-        ) : error ? (
-          <div
-            className="rounded-2xl border border-rose-200 bg-rose-50 font-bold text-rose-700"
-            style={{
-              padding: 'min(14px, 3.5cqmin)',
-              fontSize: 'min(12px, 3.8cqmin)',
-            }}
-          >
-            {error}
-          </div>
-        ) : (
-          <LibraryGrid
-            items={view.visibleItems}
-            getId={(set) => set.id}
-            dragDisabled
-            layout={view.state.viewMode}
-            emptyState={
-              <ScaledEmptyState
-                icon={BookOpen}
-                iconClassName="text-rose-300"
-                iconSize="min(52px, 14cqmin)"
-                titleClassName="text-slate-800"
-                subtitleClassName="max-w-md mx-auto text-slate-500"
-                title={
-                  sets.length === 0
-                    ? 'Build your first set'
-                    : 'No matching sets'
-                }
-                subtitle={
-                  sets.length === 0
-                    ? 'Create a set from scratch, paste a Quizlet export, or import a CSV or Google Sheet.'
-                    : 'Try a different search or folder.'
-                }
-              />
-            }
-            renderCard={(set, index) => (
-              <LibraryItemCard<FlashcardSet>
-                key={set.id}
-                id={set.id}
-                title={set.title || 'Untitled set'}
-                tourIndex={index}
-                tourWidgetType="flashcards"
-                badges={badgesFor?.(set)}
-                subtitle={`${set.cards.length} card${set.cards.length === 1 ? '' : 's'} · Updated ${new Date(set.updatedAt).toLocaleDateString()}`}
-                thumbnail={
-                  <div className="flex h-full w-full items-center justify-center bg-rose-50 text-rose-600">
-                    <Layers
-                      style={{
-                        width: 'min(38px, 10cqmin)',
-                        height: 'min(38px, 10cqmin)',
-                      }}
-                    />
-                  </div>
-                }
-                primaryAction={{
-                  label: 'Assign',
-                  icon: Link2,
-                  onClick: () => onAssign(set),
-                }}
-                secondaryActions={[
-                  {
-                    id: 'edit',
-                    label: 'Edit',
-                    icon: Pencil,
-                    onClick: () => onEdit(set),
-                  },
-                  {
-                    id: 'present',
-                    label: 'Present',
-                    icon: MonitorPlay,
-                    onClick: () => onPresent(set),
-                  },
-                  {
-                    id: 'share',
-                    label: set.publicShareId
-                      ? 'Manage public link'
-                      : 'Share link',
-                    icon: Share2,
-                    onClick: () => onShare(set),
-                  },
-                  ...(onShareWithPlc
-                    ? [
-                        {
-                          id: 'share-with-plc',
-                          label: 'Share with PLC',
-                          icon: Users2,
-                          onClick: () => onShareWithPlc(set),
-                        },
-                      ]
-                    : []),
-                  buildMoveToFolderAction({
-                    onOpenPicker: () => setFolderTarget(set),
-                  }),
-                  {
-                    id: 'delete',
-                    label: 'Delete',
-                    icon: Trash2,
-                    destructive: true,
-                    onClick: () => onDelete(set),
-                  },
-                ]}
-                onClick={() => onEdit(set)}
-                viewMode={view.state.viewMode}
-                sortable={false}
-                meta={set}
-              />
-            )}
-          />
-        )}
-      </LibraryShell>
+          }
+          renderCard={(set, index) => renderSetCard(set, index)}
+        />
+      )}
+    </LibraryShell>
+  );
+
+  return (
+    <>
+      {dragOn ? (
+        <LibraryDndContext
+          itemIds={view.visibleItems.map((set) => set.id)}
+          onDropOnFolder={handleDropOnFolder}
+          renderOverlay={(id) => {
+            const set = sets.find((s) => s.id === id);
+            return set ? renderSetCard(set, 0, true) : null;
+          }}
+          folderView={view.folderView}
+          folderActions={folders}
+        >
+          {shell}
+        </LibraryDndContext>
+      ) : (
+        shell
+      )}
 
       {folderTarget && (
         <FolderPickerPopover

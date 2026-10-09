@@ -1482,6 +1482,196 @@ describe('handleSetAssignmentTargets — excludedTargets', () => {
   });
 });
 
+describe('handleSetAssignmentTargets — mixed class and student targets', () => {
+  const CLASS_B = 'class-b';
+  const SOURCED_C = 'sid-c';
+  const sessionPath = `quiz_sessions/${ASSIGNMENT_ID}`;
+  const mixedCtx = (): TargetAuthorizationContext => ({
+    ...ctx(),
+    classIdBySourcedId: new Map([
+      [SOURCED_A, CLASS_A],
+      [SOURCED_B, CLASS_A],
+      [SOURCED_C, CLASS_B],
+    ]),
+  });
+  const runMixed = (input: SetAssignmentTargetsInput) =>
+    handleSetAssignmentTargets(
+      makeDb(state) as never,
+      TEACHER_UID,
+      HMAC,
+      input,
+      () => Promise.resolve(mixedCtx())
+    );
+  const session = () => state.docs.get(sessionPath) as Record<string, unknown>;
+  const assignment = () =>
+    state.docs.get(assignmentPath()) as Record<string, unknown>;
+
+  beforeEach(() => {
+    state.docs.set(sessionPath, {
+      teacherUid: TEACHER_UID,
+      status: 'active',
+      classIds: [CLASS_A, CLASS_B],
+      classId: CLASS_A,
+    });
+  });
+
+  it('narrows the partial class while the whole class stays on the class channel', async () => {
+    const result = await runMixed(
+      baseInput({
+        targetMode: 'class',
+        add: [{ kind: 'classlink', sourcedId: SOURCED_C }],
+        studentTargetClassIds: [CLASS_B],
+      })
+    );
+    expect(result.written).toBe(1);
+    expect(session().individualTargeting).toBe(false);
+    expect(session().studentTargetClassIds).toEqual([CLASS_B]);
+    expect(pointerFor(SOURCED_C).classId).toBe(CLASS_B);
+    expect(assignment().targetMode).toBe('class');
+    expect(assignment().studentTargetClassIds).toEqual([CLASS_B]);
+    expect(assignment().targetStudents).toEqual([
+      { kind: 'classlink', sourcedId: SOURCED_C },
+    ]);
+  });
+
+  it('writes the narrowing before any pointer lands', async () => {
+    await runMixed(
+      baseInput({
+        targetMode: 'class',
+        add: [{ kind: 'classlink', sourcedId: SOURCED_C }],
+        studentTargetClassIds: [CLASS_B],
+      })
+    );
+    const narrowAt = state.writes.findIndex(
+      (w) => w.path === sessionPath && 'studentTargetClassIds' in (w.data ?? {})
+    );
+    const pointerAt = state.writes.findIndex((w) =>
+      w.path.startsWith('student_assignments/')
+    );
+    expect(narrowAt).toBeGreaterThanOrEqual(0);
+    expect(narrowAt).toBeLessThan(pointerAt);
+  });
+
+  it('refuses class ids the session does not target, before any write', async () => {
+    await expect(
+      runMixed(
+        baseInput({
+          targetMode: 'class',
+          add: [{ kind: 'classlink', sourcedId: SOURCED_C }],
+          studentTargetClassIds: [CLASS_B, 'class-elsewhere'],
+        })
+      )
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+    expect(state.writes).toEqual([]);
+    expect('studentTargetClassIds' in session()).toBe(false);
+  });
+
+  it('reveals a class going back to whole only after its pointers are deleted', async () => {
+    await runMixed(
+      baseInput({
+        targetMode: 'class',
+        add: [{ kind: 'classlink', sourcedId: SOURCED_C }],
+        studentTargetClassIds: [CLASS_B],
+      })
+    );
+    state.writes = [];
+    await runMixed(
+      baseInput({
+        targetMode: 'class',
+        add: [],
+        remove: [{ kind: 'classlink', sourcedId: SOURCED_C }],
+        window: {},
+        studentTargetClassIds: [],
+      })
+    );
+    expect(session().studentTargetClassIds).toBeUndefined();
+    expect(assignment().studentTargetClassIds).toEqual([]);
+    const deleteAt = state.writes.findIndex((w) => w.op === 'delete');
+    const revealAt = state.writes.findIndex(
+      (w) => w.path === sessionPath && 'studentTargetClassIds' in (w.data ?? {})
+    );
+    expect(deleteAt).toBeGreaterThanOrEqual(0);
+    expect(revealAt).toBeGreaterThan(deleteAt);
+  });
+
+  it('keeps a stored narrowing when an old-shape call omits the field', async () => {
+    await runMixed(
+      baseInput({
+        targetMode: 'class',
+        add: [{ kind: 'classlink', sourcedId: SOURCED_C }],
+        studentTargetClassIds: [CLASS_B],
+      })
+    );
+    state.writes = [];
+    await runMixed(
+      baseInput({ targetMode: 'class', add: [], window: { dueAt: 5000 } })
+    );
+    expect(session().studentTargetClassIds).toEqual([CLASS_B]);
+    expect(assignment().studentTargetClassIds).toEqual([CLASS_B]);
+    expect(
+      state.writes.some((w) => 'studentTargetClassIds' in (w.data ?? {}))
+    ).toBe(false);
+  });
+
+  it('never writes the field for an old-shape class call', async () => {
+    await runMixed(baseInput({ targetMode: 'class' }));
+    expect('studentTargetClassIds' in session()).toBe(false);
+    expect('studentTargetClassIds' in assignment()).toBe(false);
+  });
+});
+
+describe('parseSetAssignmentTargetsInput — studentTargetClassIds', () => {
+  const raw = (extra: Record<string, unknown>) => ({
+    assignmentId: 'a',
+    sessionId: 'a',
+    kind: 'quiz',
+    ...extra,
+  });
+
+  it('leaves the key out when the caller omits it', () => {
+    expect(
+      'studentTargetClassIds' in parseSetAssignmentTargetsInput(raw({})).input
+    ).toBe(false);
+  });
+
+  it('dedupes and drops non-string ids', () => {
+    expect(
+      parseSetAssignmentTargetsInput(
+        raw({
+          targetMode: 'class',
+          studentTargetClassIds: ['c1', 'c1', 7, '', 'c2'],
+        })
+      ).input.studentTargetClassIds
+    ).toEqual(['c1', 'c2']);
+  });
+
+  it('accepts an empty list as a clear in any mode', () => {
+    expect(
+      parseSetAssignmentTargetsInput(raw({ studentTargetClassIds: [] })).input
+        .studentTargetClassIds
+    ).toEqual([]);
+  });
+
+  it('rejects a narrowing without targetMode class', () => {
+    expect(() =>
+      parseSetAssignmentTargetsInput(raw({ studentTargetClassIds: ['c1'] }))
+    ).toThrow();
+    expect(() =>
+      parseSetAssignmentTargetsInput(
+        raw({ targetMode: 'students', studentTargetClassIds: ['c1'] })
+      )
+    ).toThrow();
+  });
+
+  it('rejects a non-array value', () => {
+    expect(() =>
+      parseSetAssignmentTargetsInput(
+        raw({ targetMode: 'class', studentTargetClassIds: 'c1' })
+      )
+    ).toThrow();
+  });
+});
+
 describe('parseSetAssignmentTargetsInput', () => {
   it('rejects an unknown kind', () => {
     expect(() =>

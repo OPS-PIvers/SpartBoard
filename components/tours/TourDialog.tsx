@@ -14,6 +14,8 @@ interface Props {
   children: React.ReactNode;
   /** Sparty beside the text, when the caller has checked `useShowSparty`. */
   sparty?: SpartyPose;
+  /** Fields between the text and the buttons. */
+  content?: React.ReactNode;
 }
 
 /** A modal tour prompt that traps Tab and hands focus back when it closes. */
@@ -22,6 +24,7 @@ export const TourDialog: React.FC<Props> = ({
   body,
   children,
   sparty,
+  content,
 }) => {
   const ref = useRef<HTMLDivElement>(null);
 
@@ -88,6 +91,7 @@ export const TourDialog: React.FC<Props> = ({
             )}
           </div>
         </div>
+        {content && <div className="mt-4 flex flex-col gap-3">{content}</div>}
         <div className="mt-4 flex justify-end gap-2">{children}</div>
       </div>
     </div>

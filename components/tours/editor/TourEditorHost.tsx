@@ -50,6 +50,7 @@ export const TourEditorHost: React.FC = () => {
           selected: Math.max(at, 0),
           replay: 0,
           readAloud: false,
+          v2: canAccessFeature('live-tour-editing-v2'),
         });
       })
       .catch((err: unknown) => {

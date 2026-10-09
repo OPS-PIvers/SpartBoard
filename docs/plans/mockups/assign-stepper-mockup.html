@@ -1,0 +1,3095 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Assign stepper mockup</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+*, ::before, ::after {
+  --tw-border-spacing-x: 0;
+  --tw-border-spacing-y: 0;
+  --tw-translate-x: 0;
+  --tw-translate-y: 0;
+  --tw-rotate: 0;
+  --tw-skew-x: 0;
+  --tw-skew-y: 0;
+  --tw-scale-x: 1;
+  --tw-scale-y: 1;
+  --tw-pan-x:  ;
+  --tw-pan-y:  ;
+  --tw-pinch-zoom:  ;
+  --tw-scroll-snap-strictness: proximity;
+  --tw-gradient-from-position:  ;
+  --tw-gradient-via-position:  ;
+  --tw-gradient-to-position:  ;
+  --tw-ordinal:  ;
+  --tw-slashed-zero:  ;
+  --tw-numeric-figure:  ;
+  --tw-numeric-spacing:  ;
+  --tw-numeric-fraction:  ;
+  --tw-ring-inset:  ;
+  --tw-ring-offset-width: 0px;
+  --tw-ring-offset-color: #fff;
+  --tw-ring-color: rgb(59 130 246 / 0.5);
+  --tw-ring-offset-shadow: 0 0 #0000;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-shadow: 0 0 #0000;
+  --tw-shadow-colored: 0 0 #0000;
+  --tw-blur:  ;
+  --tw-brightness:  ;
+  --tw-contrast:  ;
+  --tw-grayscale:  ;
+  --tw-hue-rotate:  ;
+  --tw-invert:  ;
+  --tw-saturate:  ;
+  --tw-sepia:  ;
+  --tw-drop-shadow:  ;
+  --tw-backdrop-blur:  ;
+  --tw-backdrop-brightness:  ;
+  --tw-backdrop-contrast:  ;
+  --tw-backdrop-grayscale:  ;
+  --tw-backdrop-hue-rotate:  ;
+  --tw-backdrop-invert:  ;
+  --tw-backdrop-opacity:  ;
+  --tw-backdrop-saturate:  ;
+  --tw-backdrop-sepia:  ;
+  --tw-contain-size:  ;
+  --tw-contain-layout:  ;
+  --tw-contain-paint:  ;
+  --tw-contain-style:  ;
+}
+
+::backdrop {
+  --tw-border-spacing-x: 0;
+  --tw-border-spacing-y: 0;
+  --tw-translate-x: 0;
+  --tw-translate-y: 0;
+  --tw-rotate: 0;
+  --tw-skew-x: 0;
+  --tw-skew-y: 0;
+  --tw-scale-x: 1;
+  --tw-scale-y: 1;
+  --tw-pan-x:  ;
+  --tw-pan-y:  ;
+  --tw-pinch-zoom:  ;
+  --tw-scroll-snap-strictness: proximity;
+  --tw-gradient-from-position:  ;
+  --tw-gradient-via-position:  ;
+  --tw-gradient-to-position:  ;
+  --tw-ordinal:  ;
+  --tw-slashed-zero:  ;
+  --tw-numeric-figure:  ;
+  --tw-numeric-spacing:  ;
+  --tw-numeric-fraction:  ;
+  --tw-ring-inset:  ;
+  --tw-ring-offset-width: 0px;
+  --tw-ring-offset-color: #fff;
+  --tw-ring-color: rgb(59 130 246 / 0.5);
+  --tw-ring-offset-shadow: 0 0 #0000;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-shadow: 0 0 #0000;
+  --tw-shadow-colored: 0 0 #0000;
+  --tw-blur:  ;
+  --tw-brightness:  ;
+  --tw-contrast:  ;
+  --tw-grayscale:  ;
+  --tw-hue-rotate:  ;
+  --tw-invert:  ;
+  --tw-saturate:  ;
+  --tw-sepia:  ;
+  --tw-drop-shadow:  ;
+  --tw-backdrop-blur:  ;
+  --tw-backdrop-brightness:  ;
+  --tw-backdrop-contrast:  ;
+  --tw-backdrop-grayscale:  ;
+  --tw-backdrop-hue-rotate:  ;
+  --tw-backdrop-invert:  ;
+  --tw-backdrop-opacity:  ;
+  --tw-backdrop-saturate:  ;
+  --tw-backdrop-sepia:  ;
+  --tw-contain-size:  ;
+  --tw-contain-layout:  ;
+  --tw-contain-paint:  ;
+  --tw-contain-style:  ;
+}
+
+/*
+! tailwindcss v3.4.19 | MIT License | https://tailwindcss.com
+*/
+
+/*
+1. Prevent padding and border from affecting element width. (https://github.com/mozdevs/cssremedy/issues/4)
+2. Allow adding a border to an element by just adding a border-width. (https://github.com/tailwindcss/tailwindcss/pull/116)
+*/
+
+*,
+::before,
+::after {
+  box-sizing: border-box;
+  /* 1 */
+  border-width: 0;
+  /* 2 */
+  border-style: solid;
+  /* 2 */
+  border-color: #e5e7eb;
+  /* 2 */
+}
+
+::before,
+::after {
+  --tw-content: '';
+}
+
+/*
+1. Use a consistent sensible line-height in all browsers.
+2. Prevent adjustments of font size after orientation changes in iOS.
+3. Use a more readable tab size.
+4. Use the user's configured `sans` font-family by default.
+5. Use the user's configured `sans` font-feature-settings by default.
+6. Use the user's configured `sans` font-variation-settings by default.
+7. Disable tap highlights on iOS
+*/
+
+html,
+:host {
+  line-height: 1.5;
+  /* 1 */
+  -webkit-text-size-adjust: 100%;
+  /* 2 */
+  -moz-tab-size: 4;
+  /* 3 */
+  -o-tab-size: 4;
+     tab-size: 4;
+  /* 3 */
+  font-family: "Lexend", sans-serif;
+  /* 4 */
+  font-feature-settings: normal;
+  /* 5 */
+  font-variation-settings: normal;
+  /* 6 */
+  -webkit-tap-highlight-color: transparent;
+  /* 7 */
+}
+
+/*
+1. Remove the margin in all browsers.
+2. Inherit line-height from `html` so users can set them as a class directly on the `html` element.
+*/
+
+body {
+  margin: 0;
+  /* 1 */
+  line-height: inherit;
+  /* 2 */
+}
+
+/*
+1. Add the correct height in Firefox.
+2. Correct the inheritance of border color in Firefox. (https://bugzilla.mozilla.org/show_bug.cgi?id=190655)
+3. Ensure horizontal rules are visible by default.
+*/
+
+hr {
+  height: 0;
+  /* 1 */
+  color: inherit;
+  /* 2 */
+  border-top-width: 1px;
+  /* 3 */
+}
+
+/*
+Add the correct text decoration in Chrome, Edge, and Safari.
+*/
+
+abbr:where([title]) {
+  -webkit-text-decoration: underline dotted;
+          text-decoration: underline dotted;
+}
+
+/*
+Remove the default font size and weight for headings.
+*/
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+/*
+Reset links to optimize for opt-in styling instead of opt-out.
+*/
+
+a {
+  color: inherit;
+  text-decoration: inherit;
+}
+
+/*
+Add the correct font weight in Edge and Safari.
+*/
+
+b,
+strong {
+  font-weight: bolder;
+}
+
+/*
+1. Use the user's configured `mono` font-family by default.
+2. Use the user's configured `mono` font-feature-settings by default.
+3. Use the user's configured `mono` font-variation-settings by default.
+4. Correct the odd `em` font sizing in all browsers.
+*/
+
+code,
+kbd,
+samp,
+pre {
+  font-family: "Roboto Mono", monospace;
+  /* 1 */
+  font-feature-settings: normal;
+  /* 2 */
+  font-variation-settings: normal;
+  /* 3 */
+  font-size: 1em;
+  /* 4 */
+}
+
+/*
+Add the correct font size in all browsers.
+*/
+
+small {
+  font-size: 80%;
+}
+
+/*
+Prevent `sub` and `sup` elements from affecting the line height in all browsers.
+*/
+
+sub,
+sup {
+  font-size: 75%;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+
+sub {
+  bottom: -0.25em;
+}
+
+sup {
+  top: -0.5em;
+}
+
+/*
+1. Remove text indentation from table contents in Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=999088, https://bugs.webkit.org/show_bug.cgi?id=201297)
+2. Correct table border color inheritance in all Chrome and Safari. (https://bugs.chromium.org/p/chromium/issues/detail?id=935729, https://bugs.webkit.org/show_bug.cgi?id=195016)
+3. Remove gaps between table borders by default.
+*/
+
+table {
+  text-indent: 0;
+  /* 1 */
+  border-color: inherit;
+  /* 2 */
+  border-collapse: collapse;
+  /* 3 */
+}
+
+/*
+1. Change the font styles in all browsers.
+2. Remove the margin in Firefox and Safari.
+3. Remove default padding in all browsers.
+*/
+
+button,
+input,
+optgroup,
+select,
+textarea {
+  font-family: inherit;
+  /* 1 */
+  font-feature-settings: inherit;
+  /* 1 */
+  font-variation-settings: inherit;
+  /* 1 */
+  font-size: 100%;
+  /* 1 */
+  font-weight: inherit;
+  /* 1 */
+  line-height: inherit;
+  /* 1 */
+  letter-spacing: inherit;
+  /* 1 */
+  color: inherit;
+  /* 1 */
+  margin: 0;
+  /* 2 */
+  padding: 0;
+  /* 3 */
+}
+
+/*
+Remove the inheritance of text transform in Edge and Firefox.
+*/
+
+button,
+select {
+  text-transform: none;
+}
+
+/*
+1. Correct the inability to style clickable types in iOS and Safari.
+2. Remove default button styles.
+*/
+
+button,
+input:where([type='button']),
+input:where([type='reset']),
+input:where([type='submit']) {
+  -webkit-appearance: button;
+  /* 1 */
+  background-color: transparent;
+  /* 2 */
+  background-image: none;
+  /* 2 */
+}
+
+/*
+Use the modern Firefox focus style for all focusable elements.
+*/
+
+:-moz-focusring {
+  outline: auto;
+}
+
+/*
+Remove the additional `:invalid` styles in Firefox. (https://github.com/mozilla/gecko-dev/blob/2f9eacd9d3d995c937b4251a5557d95d494c9be1/layout/style/res/forms.css#L728-L737)
+*/
+
+:-moz-ui-invalid {
+  box-shadow: none;
+}
+
+/*
+Add the correct vertical alignment in Chrome and Firefox.
+*/
+
+progress {
+  vertical-align: baseline;
+}
+
+/*
+Correct the cursor style of increment and decrement buttons in Safari.
+*/
+
+::-webkit-inner-spin-button,
+::-webkit-outer-spin-button {
+  height: auto;
+}
+
+/*
+1. Correct the odd appearance in Chrome and Safari.
+2. Correct the outline style in Safari.
+*/
+
+[type='search'] {
+  -webkit-appearance: textfield;
+  /* 1 */
+  outline-offset: -2px;
+  /* 2 */
+}
+
+/*
+Remove the inner padding in Chrome and Safari on macOS.
+*/
+
+::-webkit-search-decoration {
+  -webkit-appearance: none;
+}
+
+/*
+1. Correct the inability to style clickable types in iOS and Safari.
+2. Change font properties to `inherit` in Safari.
+*/
+
+::-webkit-file-upload-button {
+  -webkit-appearance: button;
+  /* 1 */
+  font: inherit;
+  /* 2 */
+}
+
+/*
+Add the correct display in Chrome and Safari.
+*/
+
+summary {
+  display: list-item;
+}
+
+/*
+Removes the default spacing and border for appropriate elements.
+*/
+
+blockquote,
+dl,
+dd,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+hr,
+figure,
+p,
+pre {
+  margin: 0;
+}
+
+fieldset {
+  margin: 0;
+  padding: 0;
+}
+
+legend {
+  padding: 0;
+}
+
+ol,
+ul,
+menu {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+Reset default styling for dialogs.
+*/
+
+dialog {
+  padding: 0;
+}
+
+/*
+Prevent resizing textareas horizontally by default.
+*/
+
+textarea {
+  resize: vertical;
+}
+
+/*
+1. Reset the default placeholder opacity in Firefox. (https://github.com/tailwindlabs/tailwindcss/issues/3300)
+2. Set the default placeholder color to the user's configured gray 400 color.
+*/
+
+input::-moz-placeholder, textarea::-moz-placeholder {
+  opacity: 1;
+  /* 1 */
+  color: #9ca3af;
+  /* 2 */
+}
+
+input::placeholder,
+textarea::placeholder {
+  opacity: 1;
+  /* 1 */
+  color: #9ca3af;
+  /* 2 */
+}
+
+/*
+Set the default cursor for buttons.
+*/
+
+button,
+[role="button"] {
+  cursor: pointer;
+}
+
+/*
+Make sure disabled buttons don't get the pointer cursor.
+*/
+
+:disabled {
+  cursor: default;
+}
+
+/*
+1. Make replaced elements `display: block` by default. (https://github.com/mozdevs/cssremedy/issues/14)
+2. Add `vertical-align: middle` to align replaced elements more sensibly by default. (https://github.com/jensimmons/cssremedy/issues/14#issuecomment-634934210)
+   This can trigger a poorly considered lint error in some tools but is included by design.
+*/
+
+img,
+svg,
+video,
+canvas,
+audio,
+iframe,
+embed,
+object {
+  display: block;
+  /* 1 */
+  vertical-align: middle;
+  /* 2 */
+}
+
+/*
+Constrain images and videos to the parent width and preserve their intrinsic aspect ratio. (https://github.com/mozdevs/cssremedy/issues/14)
+*/
+
+img,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Make elements with the HTML hidden attribute stay hidden by default */
+
+[hidden]:where(:not([hidden="until-found"])) {
+  display: none;
+}
+
+.pointer-events-none {
+  pointer-events: none;
+}
+
+.absolute {
+  position: absolute;
+}
+
+.relative {
+  position: relative;
+}
+
+.inset-0 {
+  inset: 0px;
+}
+
+.bottom-6 {
+  bottom: 1.5rem;
+}
+
+.left-0 {
+  left: 0px;
+}
+
+.left-1 {
+  left: 0.25rem;
+}
+
+.left-1\/2 {
+  left: 50%;
+}
+
+.right-0 {
+  right: 0px;
+}
+
+.right-2 {
+  right: 0.5rem;
+}
+
+.top-1 {
+  top: 0.25rem;
+}
+
+.top-full {
+  top: 100%;
+}
+
+.z-10 {
+  z-index: 10;
+}
+
+.m-1 {
+  margin: 0.25rem;
+}
+
+.mx-auto {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.-ml-28 {
+  margin-left: -7rem;
+}
+
+.mb-1 {
+  margin-bottom: 0.25rem;
+}
+
+.mb-4 {
+  margin-bottom: 1rem;
+}
+
+.mb-6 {
+  margin-bottom: 1.5rem;
+}
+
+.ml-1 {
+  margin-left: 0.25rem;
+}
+
+.ml-auto {
+  margin-left: auto;
+}
+
+.mt-0\.5 {
+  margin-top: 0.125rem;
+}
+
+.mt-1 {
+  margin-top: 0.25rem;
+}
+
+.mt-2 {
+  margin-top: 0.5rem;
+}
+
+.mt-3 {
+  margin-top: 0.75rem;
+}
+
+.mt-4 {
+  margin-top: 1rem;
+}
+
+.block {
+  display: block;
+}
+
+.inline-block {
+  display: inline-block;
+}
+
+.flex {
+  display: flex;
+}
+
+.inline-flex {
+  display: inline-flex;
+}
+
+.grid {
+  display: grid;
+}
+
+.h-1\.5 {
+  height: 0.375rem;
+}
+
+.h-16 {
+  height: 4rem;
+}
+
+.h-2 {
+  height: 0.5rem;
+}
+
+.h-3 {
+  height: 0.75rem;
+}
+
+.h-3\.5 {
+  height: 0.875rem;
+}
+
+.h-4 {
+  height: 1rem;
+}
+
+.h-5 {
+  height: 1.25rem;
+}
+
+.h-6 {
+  height: 1.5rem;
+}
+
+.h-7 {
+  height: 1.75rem;
+}
+
+.h-8 {
+  height: 2rem;
+}
+
+.h-9 {
+  height: 2.25rem;
+}
+
+.h-\[min\(34rem\2c 100\%\)\] {
+  height: min(34rem, 100%);
+}
+
+.h-\[min\(42rem\2c 100\%\)\] {
+  height: min(42rem, 100%);
+}
+
+.h-\[min\(46rem\2c 100\%\)\] {
+  height: min(46rem, 100%);
+}
+
+.h-screen {
+  height: 100vh;
+}
+
+.max-h-48 {
+  max-height: 12rem;
+}
+
+.max-h-full {
+  max-height: 100%;
+}
+
+.min-h-0 {
+  min-height: 0px;
+}
+
+.min-h-\[2rem\] {
+  min-height: 2rem;
+}
+
+.w-1\.5 {
+  width: 0.375rem;
+}
+
+.w-10 {
+  width: 2.5rem;
+}
+
+.w-14 {
+  width: 3.5rem;
+}
+
+.w-16 {
+  width: 4rem;
+}
+
+.w-2 {
+  width: 0.5rem;
+}
+
+.w-20 {
+  width: 5rem;
+}
+
+.w-24 {
+  width: 6rem;
+}
+
+.w-28 {
+  width: 7rem;
+}
+
+.w-3 {
+  width: 0.75rem;
+}
+
+.w-3\.5 {
+  width: 0.875rem;
+}
+
+.w-36 {
+  width: 9rem;
+}
+
+.w-4 {
+  width: 1rem;
+}
+
+.w-40 {
+  width: 10rem;
+}
+
+.w-44 {
+  width: 11rem;
+}
+
+.w-48 {
+  width: 12rem;
+}
+
+.w-5 {
+  width: 1.25rem;
+}
+
+.w-56 {
+  width: 14rem;
+}
+
+.w-6 {
+  width: 1.5rem;
+}
+
+.w-72 {
+  width: 18rem;
+}
+
+.w-\[8\.25rem\] {
+  width: 8.25rem;
+}
+
+.w-full {
+  width: 100%;
+}
+
+.min-w-0 {
+  min-width: 0px;
+}
+
+.max-w-5xl {
+  max-width: 64rem;
+}
+
+.max-w-lg {
+  max-width: 32rem;
+}
+
+.max-w-xl {
+  max-width: 36rem;
+}
+
+.flex-1 {
+  flex: 1 1 0%;
+}
+
+.flex-shrink-0 {
+  flex-shrink: 0;
+}
+
+.shrink-0 {
+  flex-shrink: 0;
+}
+
+.-translate-x-1\/2 {
+  --tw-translate-x: -50%;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
+.translate-x-0 {
+  --tw-translate-x: 0px;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
+.translate-x-5 {
+  --tw-translate-x: 1.25rem;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
+.rotate-90 {
+  --tw-rotate: 90deg;
+  transform: translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y));
+}
+
+.cursor-default {
+  cursor: default;
+}
+
+.cursor-not-allowed {
+  cursor: not-allowed;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.select-none {
+  -webkit-user-select: none;
+     -moz-user-select: none;
+          user-select: none;
+}
+
+.appearance-none {
+  -webkit-appearance: none;
+     -moz-appearance: none;
+          appearance: none;
+}
+
+.grid-cols-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.grid-cols-4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
+.items-start {
+  align-items: flex-start;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.items-stretch {
+  align-items: stretch;
+}
+
+.justify-end {
+  justify-content: flex-end;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.gap-1 {
+  gap: 0.25rem;
+}
+
+.gap-1\.5 {
+  gap: 0.375rem;
+}
+
+.gap-2 {
+  gap: 0.5rem;
+}
+
+.gap-3 {
+  gap: 0.75rem;
+}
+
+.gap-4 {
+  gap: 1rem;
+}
+
+.gap-x-10 {
+  -moz-column-gap: 2.5rem;
+       column-gap: 2.5rem;
+}
+
+.gap-x-6 {
+  -moz-column-gap: 1.5rem;
+       column-gap: 1.5rem;
+}
+
+.gap-y-2 {
+  row-gap: 0.5rem;
+}
+
+.space-y-1\.5 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(0.375rem * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(0.375rem * var(--tw-space-y-reverse));
+}
+
+.space-y-2 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(0.5rem * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(0.5rem * var(--tw-space-y-reverse));
+}
+
+.space-y-3 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(0.75rem * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(0.75rem * var(--tw-space-y-reverse));
+}
+
+.space-y-4 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(1rem * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(1rem * var(--tw-space-y-reverse));
+}
+
+.space-y-5 > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-y-reverse: 0;
+  margin-top: calc(1.25rem * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(1.25rem * var(--tw-space-y-reverse));
+}
+
+.overflow-hidden {
+  overflow: hidden;
+}
+
+.overflow-y-auto {
+  overflow-y: auto;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.whitespace-nowrap {
+  white-space: nowrap;
+}
+
+.rounded {
+  border-radius: 0.25rem;
+}
+
+.rounded-2xl {
+  border-radius: 1rem;
+}
+
+.rounded-full {
+  border-radius: 9999px;
+}
+
+.rounded-lg {
+  border-radius: 0.5rem;
+}
+
+.rounded-md {
+  border-radius: 0.375rem;
+}
+
+.rounded-xl {
+  border-radius: 0.75rem;
+}
+
+.border {
+  border-width: 1px;
+}
+
+.border-2 {
+  border-width: 2px;
+}
+
+.border-b {
+  border-bottom-width: 1px;
+}
+
+.border-l-2 {
+  border-left-width: 2px;
+}
+
+.border-r {
+  border-right-width: 1px;
+}
+
+.border-t {
+  border-top-width: 1px;
+}
+
+.border-amber-200 {
+  --tw-border-opacity: 1;
+  border-color: rgb(253 230 138 / var(--tw-border-opacity, 1));
+}
+
+.border-amber-300 {
+  --tw-border-opacity: 1;
+  border-color: rgb(252 211 77 / var(--tw-border-opacity, 1));
+}
+
+.border-brand-blue-primary {
+  --tw-border-opacity: 1;
+  border-color: rgb(45 63 137 / var(--tw-border-opacity, 1));
+}
+
+.border-brand-blue-primary\/30 {
+  border-color: rgb(45 63 137 / 0.3);
+}
+
+.border-brand-blue-primary\/40 {
+  border-color: rgb(45 63 137 / 0.4);
+}
+
+.border-brand-blue-primary\/50 {
+  border-color: rgb(45 63 137 / 0.5);
+}
+
+.border-slate-100 {
+  --tw-border-opacity: 1;
+  border-color: rgb(241 245 249 / var(--tw-border-opacity, 1));
+}
+
+.border-slate-200 {
+  --tw-border-opacity: 1;
+  border-color: rgb(226 232 240 / var(--tw-border-opacity, 1));
+}
+
+.border-slate-300 {
+  --tw-border-opacity: 1;
+  border-color: rgb(203 213 225 / var(--tw-border-opacity, 1));
+}
+
+.bg-\[\#1e3a5f\] {
+  --tw-bg-opacity: 1;
+  background-color: rgb(30 58 95 / var(--tw-bg-opacity, 1));
+}
+
+.bg-\[\#2d5016\] {
+  --tw-bg-opacity: 1;
+  background-color: rgb(45 80 22 / var(--tw-bg-opacity, 1));
+}
+
+.bg-\[\#f8fafc\] {
+  --tw-bg-opacity: 1;
+  background-color: rgb(248 250 252 / var(--tw-bg-opacity, 1));
+}
+
+.bg-\[\#fffef5\] {
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 254 245 / var(--tw-bg-opacity, 1));
+}
+
+.bg-amber-300\/60 {
+  background-color: rgb(252 211 77 / 0.6);
+}
+
+.bg-amber-50 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 251 235 / var(--tw-bg-opacity, 1));
+}
+
+.bg-amber-500 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(245 158 11 / var(--tw-bg-opacity, 1));
+}
+
+.bg-amber-900 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(120 53 15 / var(--tw-bg-opacity, 1));
+}
+
+.bg-blue-500 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(59 130 246 / var(--tw-bg-opacity, 1));
+}
+
+.bg-brand-blue-dark {
+  --tw-bg-opacity: 1;
+  background-color: rgb(29 42 93 / var(--tw-bg-opacity, 1));
+}
+
+.bg-brand-blue-lighter {
+  --tw-bg-opacity: 1;
+  background-color: rgb(234 236 245 / var(--tw-bg-opacity, 1));
+}
+
+.bg-brand-blue-lighter\/30 {
+  background-color: rgb(234 236 245 / 0.3);
+}
+
+.bg-brand-blue-lighter\/40 {
+  background-color: rgb(234 236 245 / 0.4);
+}
+
+.bg-brand-blue-primary {
+  --tw-bg-opacity: 1;
+  background-color: rgb(45 63 137 / var(--tw-bg-opacity, 1));
+}
+
+.bg-brand-gray-darkest {
+  --tw-bg-opacity: 1;
+  background-color: rgb(26 26 26 / var(--tw-bg-opacity, 1));
+}
+
+.bg-brand-gray-lightest {
+  --tw-bg-opacity: 1;
+  background-color: rgb(243 243 243 / var(--tw-bg-opacity, 1));
+}
+
+.bg-brand-red-dark {
+  --tw-bg-opacity: 1;
+  background-color: rgb(122 23 24 / var(--tw-bg-opacity, 1));
+}
+
+.bg-cyan-500 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(6 182 212 / var(--tw-bg-opacity, 1));
+}
+
+.bg-emerald-300\/60 {
+  background-color: rgb(110 231 183 / 0.6);
+}
+
+.bg-emerald-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(5 150 105 / var(--tw-bg-opacity, 1));
+}
+
+.bg-emerald-950 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(2 44 34 / var(--tw-bg-opacity, 1));
+}
+
+.bg-gray-800 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(31 41 55 / var(--tw-bg-opacity, 1));
+}
+
+.bg-green-500 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(34 197 94 / var(--tw-bg-opacity, 1));
+}
+
+.bg-indigo-500 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(99 102 241 / var(--tw-bg-opacity, 1));
+}
+
+.bg-indigo-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(79 70 229 / var(--tw-bg-opacity, 1));
+}
+
+.bg-lime-900 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(54 83 20 / var(--tw-bg-opacity, 1));
+}
+
+.bg-orange-500 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(249 115 22 / var(--tw-bg-opacity, 1));
+}
+
+.bg-orange-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(234 88 12 / var(--tw-bg-opacity, 1));
+}
+
+.bg-pink-300\/60 {
+  background-color: rgb(249 168 212 / 0.6);
+}
+
+.bg-pink-500 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(236 72 153 / var(--tw-bg-opacity, 1));
+}
+
+.bg-pink-900 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(131 24 67 / var(--tw-bg-opacity, 1));
+}
+
+.bg-purple-500 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(168 85 247 / var(--tw-bg-opacity, 1));
+}
+
+.bg-purple-950 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(59 7 100 / var(--tw-bg-opacity, 1));
+}
+
+.bg-red-500 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(239 68 68 / var(--tw-bg-opacity, 1));
+}
+
+.bg-rose-500 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(244 63 94 / var(--tw-bg-opacity, 1));
+}
+
+.bg-sky-300\/60 {
+  background-color: rgb(125 211 252 / 0.6);
+}
+
+.bg-sky-400 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(56 189 248 / var(--tw-bg-opacity, 1));
+}
+
+.bg-sky-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(2 132 199 / var(--tw-bg-opacity, 1));
+}
+
+.bg-sky-900 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(12 74 110 / var(--tw-bg-opacity, 1));
+}
+
+.bg-slate-100 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(241 245 249 / var(--tw-bg-opacity, 1));
+}
+
+.bg-slate-200 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(226 232 240 / var(--tw-bg-opacity, 1));
+}
+
+.bg-slate-300 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(203 213 225 / var(--tw-bg-opacity, 1));
+}
+
+.bg-slate-400 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(148 163 184 / var(--tw-bg-opacity, 1));
+}
+
+.bg-slate-50 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(248 250 252 / var(--tw-bg-opacity, 1));
+}
+
+.bg-slate-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(71 85 105 / var(--tw-bg-opacity, 1));
+}
+
+.bg-slate-700 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(51 65 85 / var(--tw-bg-opacity, 1));
+}
+
+.bg-slate-900 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(15 23 42 / var(--tw-bg-opacity, 1));
+}
+
+.bg-slate-900\/50 {
+  background-color: rgb(15 23 42 / 0.5);
+}
+
+.bg-stone-800 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(41 37 36 / var(--tw-bg-opacity, 1));
+}
+
+.bg-teal-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(13 148 136 / var(--tw-bg-opacity, 1));
+}
+
+.bg-transparent {
+  background-color: transparent;
+}
+
+.bg-violet-200\/50 {
+  background-color: rgb(221 214 254 / 0.5);
+}
+
+.bg-violet-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(124 58 237 / var(--tw-bg-opacity, 1));
+}
+
+.bg-white {
+  --tw-bg-opacity: 1;
+  background-color: rgb(255 255 255 / var(--tw-bg-opacity, 1));
+}
+
+.bg-white\/10 {
+  background-color: rgb(255 255 255 / 0.1);
+}
+
+.bg-yellow-400 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(250 204 21 / var(--tw-bg-opacity, 1));
+}
+
+.bg-yellow-600 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(202 138 4 / var(--tw-bg-opacity, 1));
+}
+
+.bg-\[radial-gradient\(\#94a3b8_2px\2c transparent_2px\)\] {
+  background-image: radial-gradient(#94a3b8 2px,transparent 2px);
+}
+
+.bg-\[radial-gradient\(\#e5e7eb_1px\2c transparent_1px\)\] {
+  background-image: radial-gradient(#e5e7eb 1px,transparent 1px);
+}
+
+.bg-\[repeating-linear-gradient\(0deg\2c \#475569\2c \#475569_1px\2c transparent_1px\2c transparent_20px\)\2c repeating-linear-gradient\(90deg\2c \#475569\2c \#475569_1px\2c transparent_1px\2c transparent_20px\)\] {
+  background-image: repeating-linear-gradient(0deg,#475569,#475569 1px,transparent 1px,transparent 20px),repeating-linear-gradient(90deg,#475569,#475569 1px,transparent 1px,transparent 20px);
+}
+
+.bg-\[repeating-linear-gradient\(0deg\2c \#93c5fd_0_1px\2c transparent_1px_28px\)\2c linear-gradient\(90deg\2c \#fca5a5_0_1px\2c transparent_1px_100\%\)\] {
+  background-image: repeating-linear-gradient(0deg,#93c5fd 0 1px,transparent 1px 28px),linear-gradient(90deg,#fca5a5 0 1px,transparent 1px 100%);
+}
+
+.bg-\[repeating-linear-gradient\(0deg\2c \#cbd5e1\2c \#cbd5e1_1px\2c transparent_1px\2c transparent_24px\)\2c repeating-linear-gradient\(90deg\2c \#cbd5e1\2c \#cbd5e1_1px\2c transparent_1px\2c transparent_24px\)\] {
+  background-image: repeating-linear-gradient(0deg,#cbd5e1,#cbd5e1 1px,transparent 1px,transparent 24px),repeating-linear-gradient(90deg,#cbd5e1,#cbd5e1 1px,transparent 1px,transparent 24px);
+}
+
+.bg-\[repeating-linear-gradient\(0deg\2c \#e2e8f0\2c \#e2e8f0_1px\2c transparent_1px\2c transparent_40px\)\2c repeating-linear-gradient\(90deg\2c \#e2e8f0\2c \#e2e8f0_1px\2c transparent_1px\2c transparent_40px\)\] {
+  background-image: repeating-linear-gradient(0deg,#e2e8f0,#e2e8f0 1px,transparent 1px,transparent 40px),repeating-linear-gradient(90deg,#e2e8f0,#e2e8f0 1px,transparent 1px,transparent 40px);
+}
+
+.bg-\[repeating-linear-gradient\(0deg\2c \#e5e7eb\2c \#e5e7eb_1px\2c transparent_1px\2c transparent_24px\)\] {
+  background-image: repeating-linear-gradient(0deg,#e5e7eb,#e5e7eb 1px,transparent 1px,transparent 24px);
+}
+
+.bg-\[repeating-linear-gradient\(0deg\2c rgba\(255\2c 255\2c 255\2c 0\.05\)\2c rgba\(255\2c 255\2c 255\2c 0\.05\)_1px\2c transparent_1px\2c transparent_20px\)\2c repeating-linear-gradient\(90deg\2c rgba\(255\2c 255\2c 255\2c 0\.05\)\2c rgba\(255\2c 255\2c 255\2c 0\.05\)_1px\2c transparent_1px\2c transparent_20px\)\] {
+  background-image: repeating-linear-gradient(0deg,rgba(255,255,255,0.05),rgba(255,255,255,0.05) 1px,transparent 1px,transparent 20px),repeating-linear-gradient(90deg,rgba(255,255,255,0.05),rgba(255,255,255,0.05) 1px,transparent 1px,transparent 20px);
+}
+
+.bg-\[repeating-linear-gradient\(0deg\2c rgba\(96\2c 165\2c 250\2c 0\.3\)\2c rgba\(96\2c 165\2c 250\2c 0\.3\)_1px\2c transparent_1px\2c transparent_20px\)\2c repeating-linear-gradient\(90deg\2c rgba\(96\2c 165\2c 250\2c 0\.3\)\2c rgba\(96\2c 165\2c 250\2c 0\.3\)_1px\2c transparent_1px\2c transparent_20px\)\] {
+  background-image: repeating-linear-gradient(0deg,rgba(96,165,250,0.3),rgba(96,165,250,0.3) 1px,transparent 1px,transparent 20px),repeating-linear-gradient(90deg,rgba(96,165,250,0.3),rgba(96,165,250,0.3) 1px,transparent 1px,transparent 20px);
+}
+
+.bg-\[repeating-linear-gradient\(45deg\2c \#e2e8f0\2c \#e2e8f0_1px\2c transparent_1px\2c transparent_12px\)\] {
+  background-image: repeating-linear-gradient(45deg,#e2e8f0,#e2e8f0 1px,transparent 1px,transparent 12px);
+}
+
+.bg-gradient-to-br {
+  background-image: linear-gradient(to bottom right, var(--tw-gradient-stops));
+}
+
+.from-amber-700 {
+  --tw-gradient-from: #b45309 var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(180 83 9 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.from-blue-600 {
+  --tw-gradient-from: #2563eb var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(37 99 235 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.from-brand-blue-primary {
+  --tw-gradient-from: #2d3f89 var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(45 63 137 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.from-emerald-400 {
+  --tw-gradient-from: #34d399 var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(52 211 153 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.from-emerald-950 {
+  --tw-gradient-from: #022c22 var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(2 44 34 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.from-green-300 {
+  --tw-gradient-from: #86efac var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(134 239 172 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.from-green-800 {
+  --tw-gradient-from: #166534 var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(22 101 52 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.from-indigo-950 {
+  --tw-gradient-from: #1e1b4b var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(30 27 75 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.from-pink-400 {
+  --tw-gradient-from: #f472b6 var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(244 114 182 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.from-purple-500 {
+  --tw-gradient-from: #a855f7 var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(168 85 247 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.from-rose-400 {
+  --tw-gradient-from: #fb7185 var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(251 113 133 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.from-slate-900 {
+  --tw-gradient-from: #0f172a var(--tw-gradient-from-position);
+  --tw-gradient-to: rgb(15 23 42 / 0) var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to);
+}
+
+.via-blue-900 {
+  --tw-gradient-to: rgb(30 58 138 / 0)  var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), #1e3a8a var(--tw-gradient-via-position), var(--tw-gradient-to);
+}
+
+.via-cyan-500 {
+  --tw-gradient-to: rgb(6 182 212 / 0)  var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), #06b6d4 var(--tw-gradient-via-position), var(--tw-gradient-to);
+}
+
+.via-emerald-600 {
+  --tw-gradient-to: rgb(5 150 105 / 0)  var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), #059669 var(--tw-gradient-via-position), var(--tw-gradient-to);
+}
+
+.via-fuchsia-400 {
+  --tw-gradient-to: rgb(232 121 249 / 0)  var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), #e879f9 var(--tw-gradient-via-position), var(--tw-gradient-to);
+}
+
+.via-green-900 {
+  --tw-gradient-to: rgb(20 83 45 / 0)  var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), #14532d var(--tw-gradient-via-position), var(--tw-gradient-to);
+}
+
+.via-orange-600 {
+  --tw-gradient-to: rgb(234 88 12 / 0)  var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), #ea580c var(--tw-gradient-via-position), var(--tw-gradient-to);
+}
+
+.via-violet-400 {
+  --tw-gradient-to: rgb(167 139 250 / 0)  var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), #a78bfa var(--tw-gradient-via-position), var(--tw-gradient-to);
+}
+
+.via-yellow-200 {
+  --tw-gradient-to: rgb(254 240 138 / 0)  var(--tw-gradient-to-position);
+  --tw-gradient-stops: var(--tw-gradient-from), #fef08a var(--tw-gradient-via-position), var(--tw-gradient-to);
+}
+
+.to-brand-blue-dark {
+  --tw-gradient-to: #1d2a5d var(--tw-gradient-to-position);
+}
+
+.to-cyan-500 {
+  --tw-gradient-to: #06b6d4 var(--tw-gradient-to-position);
+}
+
+.to-indigo-300 {
+  --tw-gradient-to: #a5b4fc var(--tw-gradient-to-position);
+}
+
+.to-lime-500 {
+  --tw-gradient-to: #84cc16 var(--tw-gradient-to-position);
+}
+
+.to-orange-400 {
+  --tw-gradient-to: #fb923c var(--tw-gradient-to-position);
+}
+
+.to-pink-300 {
+  --tw-gradient-to: #f9a8d4 var(--tw-gradient-to-position);
+}
+
+.to-purple-500 {
+  --tw-gradient-to: #a855f7 var(--tw-gradient-to-position);
+}
+
+.to-slate-700 {
+  --tw-gradient-to: #334155 var(--tw-gradient-to-position);
+}
+
+.to-slate-800 {
+  --tw-gradient-to: #1e293b var(--tw-gradient-to-position);
+}
+
+.to-teal-400 {
+  --tw-gradient-to: #2dd4bf var(--tw-gradient-to-position);
+}
+
+.to-violet-900 {
+  --tw-gradient-to: #4c1d95 var(--tw-gradient-to-position);
+}
+
+.to-yellow-500 {
+  --tw-gradient-to: #eab308 var(--tw-gradient-to-position);
+}
+
+.p-0\.5 {
+  padding: 0.125rem;
+}
+
+.p-1 {
+  padding: 0.25rem;
+}
+
+.p-1\.5 {
+  padding: 0.375rem;
+}
+
+.p-3 {
+  padding: 0.75rem;
+}
+
+.p-4 {
+  padding: 1rem;
+}
+
+.p-8 {
+  padding: 2rem;
+}
+
+.\!px-4 {
+  padding-left: 1rem !important;
+  padding-right: 1rem !important;
+}
+
+.\!py-1\.5 {
+  padding-top: 0.375rem !important;
+  padding-bottom: 0.375rem !important;
+}
+
+.px-1 {
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
+
+.px-1\.5 {
+  padding-left: 0.375rem;
+  padding-right: 0.375rem;
+}
+
+.px-2 {
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.px-2\.5 {
+  padding-left: 0.625rem;
+  padding-right: 0.625rem;
+}
+
+.px-3 {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+.px-4 {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.px-5 {
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+
+.px-6 {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+.py-0\.5 {
+  padding-top: 0.125rem;
+  padding-bottom: 0.125rem;
+}
+
+.py-1 {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.py-1\.5 {
+  padding-top: 0.375rem;
+  padding-bottom: 0.375rem;
+}
+
+.py-2 {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.py-2\.5 {
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+}
+
+.py-3 {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.py-4 {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+}
+
+.py-5 {
+  padding-top: 1.25rem;
+  padding-bottom: 1.25rem;
+}
+
+.pb-0\.5 {
+  padding-bottom: 0.125rem;
+}
+
+.pb-3 {
+  padding-bottom: 0.75rem;
+}
+
+.pb-4 {
+  padding-bottom: 1rem;
+}
+
+.pl-10 {
+  padding-left: 2.5rem;
+}
+
+.pl-2\.5 {
+  padding-left: 0.625rem;
+}
+
+.pl-3 {
+  padding-left: 0.75rem;
+}
+
+.pl-4 {
+  padding-left: 1rem;
+}
+
+.pl-6 {
+  padding-left: 1.5rem;
+}
+
+.pl-\[3\.25rem\] {
+  padding-left: 3.25rem;
+}
+
+.pr-1\.5 {
+  padding-right: 0.375rem;
+}
+
+.pr-2 {
+  padding-right: 0.5rem;
+}
+
+.pr-4 {
+  padding-right: 1rem;
+}
+
+.pt-0\.5 {
+  padding-top: 0.125rem;
+}
+
+.pt-1 {
+  padding-top: 0.25rem;
+}
+
+.pt-1\.5 {
+  padding-top: 0.375rem;
+}
+
+.pt-2 {
+  padding-top: 0.5rem;
+}
+
+.pt-3 {
+  padding-top: 0.75rem;
+}
+
+.pt-4 {
+  padding-top: 1rem;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.font-comic {
+  font-family: "Comic Neue", cursive;
+}
+
+.font-cursive {
+  font-family: "Dancing Script", cursive;
+}
+
+.font-fun {
+  font-family: "Fredoka", sans-serif;
+}
+
+.font-handwritten {
+  font-family: "Patrick Hand", cursive;
+}
+
+.font-marker {
+  font-family: "Permanent Marker", cursive;
+}
+
+.font-mono {
+  font-family: "Roboto Mono", monospace;
+}
+
+.font-retro {
+  font-family: "VT323", monospace;
+}
+
+.font-rounded {
+  font-family: "Varela Round", sans-serif;
+}
+
+.font-sans {
+  font-family: "Lexend", sans-serif;
+}
+
+.font-serif {
+  font-family: "Merriweather", serif;
+}
+
+.font-slab {
+  font-family: "Roboto Slab", serif;
+}
+
+.text-base {
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+.text-lg {
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+}
+
+.text-sm {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.text-xs {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.text-xxs {
+  font-size: 10px;
+  line-height: 14px;
+}
+
+.text-xxxs {
+  font-size: 8px;
+  line-height: 10px;
+}
+
+.font-black {
+  font-weight: 900;
+}
+
+.font-bold {
+  font-weight: 700;
+}
+
+.font-medium {
+  font-weight: 500;
+}
+
+.font-semibold {
+  font-weight: 600;
+}
+
+.uppercase {
+  text-transform: uppercase;
+}
+
+.leading-none {
+  line-height: 1;
+}
+
+.tracking-widest {
+  letter-spacing: 0.1em;
+}
+
+.text-amber-800 {
+  --tw-text-opacity: 1;
+  color: rgb(146 64 14 / var(--tw-text-opacity, 1));
+}
+
+.text-brand-blue-dark {
+  --tw-text-opacity: 1;
+  color: rgb(29 42 93 / var(--tw-text-opacity, 1));
+}
+
+.text-brand-blue-primary {
+  --tw-text-opacity: 1;
+  color: rgb(45 63 137 / var(--tw-text-opacity, 1));
+}
+
+.text-brand-blue-primary\/60 {
+  color: rgb(45 63 137 / 0.6);
+}
+
+.text-brand-red-primary {
+  --tw-text-opacity: 1;
+  color: rgb(173 33 34 / var(--tw-text-opacity, 1));
+}
+
+.text-slate-300 {
+  --tw-text-opacity: 1;
+  color: rgb(203 213 225 / var(--tw-text-opacity, 1));
+}
+
+.text-slate-400 {
+  --tw-text-opacity: 1;
+  color: rgb(148 163 184 / var(--tw-text-opacity, 1));
+}
+
+.text-slate-500 {
+  --tw-text-opacity: 1;
+  color: rgb(100 116 139 / var(--tw-text-opacity, 1));
+}
+
+.text-slate-600 {
+  --tw-text-opacity: 1;
+  color: rgb(71 85 105 / var(--tw-text-opacity, 1));
+}
+
+.text-slate-700 {
+  --tw-text-opacity: 1;
+  color: rgb(51 65 85 / var(--tw-text-opacity, 1));
+}
+
+.text-slate-800 {
+  --tw-text-opacity: 1;
+  color: rgb(30 41 59 / var(--tw-text-opacity, 1));
+}
+
+.text-slate-900 {
+  --tw-text-opacity: 1;
+  color: rgb(15 23 42 / var(--tw-text-opacity, 1));
+}
+
+.text-white {
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity, 1));
+}
+
+.text-white\/50 {
+  color: rgb(255 255 255 / 0.5);
+}
+
+.text-white\/70 {
+  color: rgb(255 255 255 / 0.7);
+}
+
+.text-white\/80 {
+  color: rgb(255 255 255 / 0.8);
+}
+
+.accent-brand-blue-primary {
+  accent-color: #2d3f89;
+}
+
+.opacity-0 {
+  opacity: 0;
+}
+
+.opacity-100 {
+  opacity: 1;
+}
+
+.opacity-50 {
+  opacity: 0.5;
+}
+
+.shadow {
+  --tw-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --tw-shadow-colored: 0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+.shadow-2xl {
+  --tw-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  --tw-shadow-colored: 0 25px 50px -12px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+.shadow-sm {
+  --tw-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --tw-shadow-colored: 0 1px 2px 0 var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+.shadow-xl {
+  --tw-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --tw-shadow-colored: 0 20px 25px -5px var(--tw-shadow-color), 0 8px 10px -6px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+.outline-violet-400 {
+  outline-color: #a78bfa;
+}
+
+.filter {
+  filter: var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow);
+}
+
+.backdrop-blur-sm {
+  --tw-backdrop-blur: blur(4px);
+  backdrop-filter: var(--tw-backdrop-blur) var(--tw-backdrop-brightness) var(--tw-backdrop-contrast) var(--tw-backdrop-grayscale) var(--tw-backdrop-hue-rotate) var(--tw-backdrop-invert) var(--tw-backdrop-opacity) var(--tw-backdrop-saturate) var(--tw-backdrop-sepia);
+}
+
+.transition-colors {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.transition-opacity {
+  transition-property: opacity;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.transition-transform {
+  transition-property: transform;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+.duration-200 {
+  transition-duration: 200ms;
+}
+
+.ease-in-out {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes enter {
+  from {
+    opacity: var(--tw-enter-opacity, 1);
+    transform: translate3d(var(--tw-enter-translate-x, 0), var(--tw-enter-translate-y, 0), 0) scale3d(var(--tw-enter-scale, 1), var(--tw-enter-scale, 1), var(--tw-enter-scale, 1)) rotate(var(--tw-enter-rotate, 0));
+  }
+}
+
+@keyframes exit {
+  to {
+    opacity: var(--tw-exit-opacity, 1);
+    transform: translate3d(var(--tw-exit-translate-x, 0), var(--tw-exit-translate-y, 0), 0) scale3d(var(--tw-exit-scale, 1), var(--tw-exit-scale, 1), var(--tw-exit-scale, 1)) rotate(var(--tw-exit-rotate, 0));
+  }
+}
+
+.duration-200 {
+  animation-duration: 200ms;
+}
+
+.ease-in-out {
+  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.paused {
+  animation-play-state: paused;
+}
+
+.\[background-position\:0_40px\2c 32px_0\] {
+  background-position: 0 40px,32px 0;
+}
+
+.\[background-size\:100\%_28px\2c 100\%_100\%\] {
+  background-size: 100% 28px,100% 100%;
+}
+
+.\[background-size\:16px_16px\] {
+  background-size: 16px 16px;
+}
+
+.\[background-size\:24px_24px\] {
+  background-size: 24px 24px;
+}
+
+.\[height\:100dvh\] {
+  height: 100dvh;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,0,0,0.2);
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  color: #1e293b;
+  background-color: #f8fafc;
+}
+
+.focus-within\:border-brand-blue-primary:focus-within {
+  --tw-border-opacity: 1;
+  border-color: rgb(45 63 137 / var(--tw-border-opacity, 1));
+}
+
+.hover\:border-brand-blue-primary\/50:hover {
+  border-color: rgb(45 63 137 / 0.5);
+}
+
+.hover\:border-slate-300:hover {
+  --tw-border-opacity: 1;
+  border-color: rgb(203 213 225 / var(--tw-border-opacity, 1));
+}
+
+.hover\:border-slate-400:hover {
+  --tw-border-opacity: 1;
+  border-color: rgb(148 163 184 / var(--tw-border-opacity, 1));
+}
+
+.hover\:bg-amber-100:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(254 243 199 / var(--tw-bg-opacity, 1));
+}
+
+.hover\:bg-brand-blue-dark:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(29 42 93 / var(--tw-bg-opacity, 1));
+}
+
+.hover\:bg-brand-blue-lighter\/40:hover {
+  background-color: rgb(234 236 245 / 0.4);
+}
+
+.hover\:bg-slate-100:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(241 245 249 / var(--tw-bg-opacity, 1));
+}
+
+.hover\:bg-slate-50:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(248 250 252 / var(--tw-bg-opacity, 1));
+}
+
+.hover\:text-slate-700:hover {
+  --tw-text-opacity: 1;
+  color: rgb(51 65 85 / var(--tw-text-opacity, 1));
+}
+
+.hover\:text-slate-800:hover {
+  --tw-text-opacity: 1;
+  color: rgb(30 41 59 / var(--tw-text-opacity, 1));
+}
+
+.hover\:text-slate-900:hover {
+  --tw-text-opacity: 1;
+  color: rgb(15 23 42 / var(--tw-text-opacity, 1));
+}
+
+.hover\:text-white:hover {
+  --tw-text-opacity: 1;
+  color: rgb(255 255 255 / var(--tw-text-opacity, 1));
+}
+
+.hover\:underline:hover {
+  text-decoration-line: underline;
+}
+
+.focus\:border-brand-blue-primary:focus {
+  --tw-border-opacity: 1;
+  border-color: rgb(45 63 137 / var(--tw-border-opacity, 1));
+}
+
+.focus\:outline-none:focus {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+.focus\:ring-2:focus {
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+
+.focus\:ring-brand-blue-primary:focus {
+  --tw-ring-opacity: 1;
+  --tw-ring-color: rgb(45 63 137 / var(--tw-ring-opacity, 1));
+}
+
+.focus\:ring-offset-2:focus {
+  --tw-ring-offset-width: 2px;
+}
+
+.disabled\:cursor-not-allowed:disabled {
+  cursor: not-allowed;
+}
+
+.disabled\:opacity-50:disabled {
+  opacity: 0.5;
+}
+
+.\[\&\>button\]\:h-6>button {
+  height: 1.5rem;
+}
+
+.\[\&\>button\]\:flex-1>button {
+  flex: 1 1 0%;
+}
+
+</style>
+  </head>
+  <body class="font-sans overflow-hidden">
+    <div class="h-screen [height:100dvh] flex flex-col">
+      <header
+        id="toolbar"
+        class="shrink-0 flex flex-wrap items-center gap-x-6 gap-y-2 bg-slate-900 px-4 py-2 text-white"
+      ></header>
+      <main id="stage" class="relative flex-1 min-h-0 bg-slate-100"></main>
+    </div>
+  <script>
+window.ICONS = {"users":[["path",{"d":"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"}],["path",{"d":"M16 3.128a4 4 0 0 1 0 7.744"}],["path",{"d":"M22 21v-2a4 4 0 0 0-3-3.87"}],["circle",{"cx":"9","cy":"7","r":"4"}]],"clipboard-check":[["rect",{"width":"8","height":"4","x":"8","y":"2","rx":"1","ry":"1"}],["path",{"d":"M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"}],["path",{"d":"m9 14 2 2 4-4"}]],"calendar-clock":[["path",{"d":"M16 14v2.2l1.6 1"}],["path",{"d":"M16 2v4"}],["path",{"d":"M21 7.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h3.5"}],["path",{"d":"M3 10h5"}],["path",{"d":"M8 2v4"}],["circle",{"cx":"16","cy":"16","r":"6"}]],"share-2":[["circle",{"cx":"18","cy":"5","r":"3"}],["circle",{"cx":"6","cy":"12","r":"3"}],["circle",{"cx":"18","cy":"19","r":"3"}],["line",{"x1":"8.59","x2":"15.42","y1":"13.51","y2":"17.49"}],["line",{"x1":"15.41","x2":"8.59","y1":"6.51","y2":"10.49"}]],"chevron-right":[["path",{"d":"m9 18 6-6-6-6"}]],"chevron-down":[["path",{"d":"m6 9 6 6 6-6"}]],"rocket":[["path",{"d":"M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"}],["path",{"d":"m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"}],["path",{"d":"M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"}],["path",{"d":"M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"}]],"check":[["path",{"d":"M20 6 9 17l-5-5"}]],"x":[["path",{"d":"M18 6 6 18"}],["path",{"d":"m6 6 12 12"}]],"pencil":[["path",{"d":"M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"}],["path",{"d":"m15 5 4 4"}]],"clock":[["path",{"d":"M12 6v6l4 2"}],["circle",{"cx":"12","cy":"12","r":"10"}]],"arrow-left":[["path",{"d":"m12 19-7-7 7-7"}],["path",{"d":"M19 12H5"}]],"arrow-right":[["path",{"d":"M5 12h14"}],["path",{"d":"m12 5 7 7-7 7"}]],"plus":[["path",{"d":"M5 12h14"}],["path",{"d":"M12 5v14"}]],"play":[["path",{"d":"M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"}]],"pause":[["rect",{"x":"14","y":"3","width":"5","height":"18","rx":"1"}],["rect",{"x":"5","y":"3","width":"5","height":"18","rx":"1"}]],"languages":[["path",{"d":"m5 8 6 6"}],["path",{"d":"m4 14 6-6 2-3"}],["path",{"d":"M2 5h12"}],["path",{"d":"M7 2h1"}],["path",{"d":"m22 22-5-10-5 10"}],["path",{"d":"M14 18h6"}]],"volume-2":[["path",{"d":"M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z"}],["path",{"d":"M16 9a5 5 0 0 1 0 6"}],["path",{"d":"M19.364 18.364a9 9 0 0 0 0-12.728"}]],"shuffle":[["path",{"d":"m18 14 4 4-4 4"}],["path",{"d":"m18 2 4 4-4 4"}],["path",{"d":"M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-8.6a4 4 0 0 1 3.3-1.7H22"}],["path",{"d":"M2 6h1.972a4 4 0 0 1 3.6 2.2"}],["path",{"d":"M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45"}]],"shield-check":[["path",{"d":"M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"}],["path",{"d":"m9 12 2 2 4-4"}]],"eye":[["path",{"d":"M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"}],["circle",{"cx":"12","cy":"12","r":"3"}]],"hand":[["path",{"d":"M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"}],["path",{"d":"M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"}],["path",{"d":"M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"}],["path",{"d":"M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"}]],"book-open":[["path",{"d":"M12 7v14"}],["path",{"d":"M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"}]],"calendar":[["path",{"d":"M8 2v4"}],["path",{"d":"M16 2v4"}],["rect",{"width":"18","height":"18","x":"3","y":"4","rx":"2"}],["path",{"d":"M3 10h18"}]],"sliders-horizontal":[["path",{"d":"M10 5H3"}],["path",{"d":"M12 19H3"}],["path",{"d":"M14 3v4"}],["path",{"d":"M16 17v4"}],["path",{"d":"M21 12h-9"}],["path",{"d":"M21 19h-5"}],["path",{"d":"M21 5h-7"}],["path",{"d":"M8 10v4"}],["path",{"d":"M8 12H3"}]],"graduation-cap":[["path",{"d":"M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"}],["path",{"d":"M22 10v6"}],["path",{"d":"M6 12.5V16a6 3 0 0 0 12 0v-3.5"}]],"pen-line":[["path",{"d":"M13 21h8"}],["path",{"d":"M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"}]],"timer":[["line",{"x1":"10","x2":"14","y1":"2","y2":"2"}],["line",{"x1":"12","x2":"15","y1":"14","y2":"11"}],["circle",{"cx":"12","cy":"14","r":"8"}]],"bookmark":[["path",{"d":"M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z"}]],"arrow-down-to-line":[["path",{"d":"M12 17V3"}],["path",{"d":"m6 11 6 6 6-6"}],["path",{"d":"M19 21H5"}]],"rotate-ccw":[["path",{"d":"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"}],["path",{"d":"M3 3v5h5"}]],"user":[["path",{"d":"M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"}],["circle",{"cx":"12","cy":"7","r":"4"}]],"video":[["path",{"d":"m16 13 5.223 3.482a.5.5 0 0 0 .777-.416V7.87a.5.5 0 0 0-.752-.432L16 10.5"}],["rect",{"x":"2","y":"6","width":"14","height":"12","rx":"2"}]],"layers":[["path",{"d":"M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"}],["path",{"d":"M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"}],["path",{"d":"M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"}]],"wand-sparkles":[["path",{"d":"m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72"}],["path",{"d":"m14 7 3 3"}],["path",{"d":"M5 6v4"}],["path",{"d":"M19 14v4"}],["path",{"d":"M10 2v2"}],["path",{"d":"M7 8H3"}],["path",{"d":"M21 16h-4"}],["path",{"d":"M11 3H9"}]],"list-checks":[["path",{"d":"M13 5h8"}],["path",{"d":"M13 12h8"}],["path",{"d":"M13 19h8"}],["path",{"d":"m3 17 2 2 4-4"}],["path",{"d":"m3 7 2 2 4-4"}]],"file-pen":[["path",{"d":"M12.659 22H18a2 2 0 0 0 2-2V8a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 14 2H6a2 2 0 0 0-2 2v9.34"}],["path",{"d":"M14 2v5a1 1 0 0 0 1 1h5"}],["path",{"d":"M10.378 12.622a1 1 0 0 1 3 3.003L8.36 20.637a2 2 0 0 1-.854.506l-2.867.837a.5.5 0 0 1-.62-.62l.836-2.869a2 2 0 0 1 .506-.853z"}]],"library-big":[["rect",{"width":"8","height":"18","x":"3","y":"3","rx":"1"}],["path",{"d":"M7 3v18"}],["path",{"d":"M20.4 18.9c.2.5-.1 1.1-.6 1.3l-1.9.7c-.5.2-1.1-.1-1.3-.6L11.1 5.1c-.2-.5.1-1.1.6-1.3l1.9-.7c.5-.2 1.1.1 1.3.6Z"}]],"search":[["path",{"d":"m21 21-4.34-4.34"}],["circle",{"cx":"11","cy":"11","r":"8"}]],"folder":[["path",{"d":"M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"}]]};
+
+</script>
+<script>
+/* Assign modal prototypes. Classes mirror the real AssignModal, Toggle, CollapsibleSection and availability controls. */
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const ic = (n, c = 'w-4 h-4') =>
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${c}" aria-hidden="true">${(
+      window.ICONS[n] || []
+    )
+      .map(
+        ([t, a]) =>
+          `<${t} ${Object.entries(a)
+            .map(([k, v]) => `${k}="${v}"`)
+            .join(' ')}/>`
+      )
+      .join('')}</svg>`;
+
+  /* ---------- data ---------- */
+  const TODAY = '2026-10-08';
+  const DEFAULT_RULES = {
+    attempts: 1, timeOn: false, minutes: 30,
+    focus: false, tabAuto: false, warnings: 3, away: false, blockCopy: false,
+    shuffleQ: false, shuffleA: false,
+    showScore: false, showRW: false, reveal: false, groupLT: false, raiseHand: false,
+  };
+  const LAST_USED = { ...DEFAULT_RULES, focus: true, tabAuto: true, shuffleA: true };
+  const DEFAULT_FLASH = { collect: true, mode: 'check', strict: false, questions: '10', mastery: '80', scoreVis: 'after' };
+
+  const PRESETS = [
+    { id: 'p-unit', label: 'Unit test (strict)', rules: { ...DEFAULT_RULES, focus: true, tabAuto: true, warnings: 2, blockCopy: true, shuffleQ: true, shuffleA: true } },
+    { id: 'p-read', label: 'Reading check', rules: { ...DEFAULT_RULES, attempts: 2, shuffleA: true, showScore: true, showRW: true } },
+    { id: 'p-retake', label: 'Retake', rules: { ...DEFAULT_RULES, attempts: 3, focus: true, tabAuto: true, shuffleQ: true, shuffleA: true, showScore: true } },
+  ];
+  const BUILTIN = {
+    quiz: [
+      { id: 'test', label: 'Test', icon: 'graduation-cap', rules: { ...DEFAULT_RULES, focus: true, tabAuto: true, blockCopy: true, shuffleQ: true, shuffleA: true } },
+      { id: 'practice', label: 'Practice', icon: 'pen-line', rules: { ...DEFAULT_RULES, attempts: 0, showScore: true, showRW: true, reveal: true } },
+      { id: 'exit', label: 'Exit ticket', icon: 'timer', rules: { ...DEFAULT_RULES, timeOn: true, minutes: 5, shuffleA: true, showScore: true } },
+      { id: 'study', label: 'Study resource', icon: 'book-open', when: 'study' },
+    ],
+    va: [
+      { id: 'work', label: 'For credit', icon: 'graduation-cap', when: 'scheduled', pacing: 'student' },
+      { id: 'live', label: 'Live lesson', icon: 'play', when: 'manual', pacing: 'teacher' },
+      { id: 'study', label: 'Study resource', icon: 'book-open', when: 'study' },
+    ],
+    gl: [
+      { id: 'work', label: 'For credit', icon: 'graduation-cap', when: 'scheduled' },
+      { id: 'study', label: 'Study resource', icon: 'book-open', when: 'study' },
+    ],
+    flash: [
+      { id: 'check', label: 'Check', icon: 'list-checks', when: 'scheduled', flash: { ...DEFAULT_FLASH, collect: true, mode: 'check' } },
+      { id: 'study', label: 'Study', icon: 'book-open', when: 'study', flash: { ...DEFAULT_FLASH, collect: false, mode: 'study' } },
+    ],
+  };
+  const ACT = {
+    quiz: { label: 'Quiz', short: 'Quiz', title: 'Sample Quiz', name: true, rules: true, plc: true },
+    va: { label: 'Video Activity', short: 'Video', title: 'Cell Division Video', name: true, rules: false, plc: true, pacing: true },
+    gl: { label: 'Guided Learning', short: 'Guided Learning', title: 'Parts of a Cell', name: false, rules: false, plc: false },
+    flash: { label: 'Flashcards', short: 'Flashcards', title: 'Unit 3 Vocabulary', name: false, rules: true, plc: false },
+  };
+  const PROTOS = [
+    { id: 1, label: 'Stepped flow', short: '1 Stepped' },
+    { id: 2, label: 'Class grid', short: '2 Class grid' },
+    { id: 3, label: 'Purpose first', short: '3 Purpose first' },
+    { id: 4, label: 'One page', short: '4 One page' },
+  ];
+  const ROSTER = [
+    { id: 's03', name: 'Avery T.' }, { id: 's08', name: 'Jordan M.' },
+    { id: 's14', name: 'Priya K.' }, { id: 's19', name: 'Mateo R.' },
+  ];
+  const LANGS = { en: 'English', es: 'Español', ru: 'Русский', so: 'Soomaali' };
+
+  const freshWin = () => ({ o: { day: TODAY, time: 'bell' }, c: { day: TODAY, time: 'bell' } });
+  const clone = (o) => JSON.parse(JSON.stringify(o));
+
+  const S = {
+    proto: 1, activity: 'quiz', mem: 'A', open: true, step: 1, view: 'main', toast: '',
+    classes: [
+      { id: 'c1', name: 'Sample - Mock Period 1 (TEST)', n: 28, on: true },
+      { id: 'c2', name: 'Sample 2', n: 24, on: true },
+      { id: 'c3', name: 'Sample 3', n: 26, on: true },
+    ],
+    when: 'scheduled', each: false, allowAfter: false,
+    win: { all: freshWin(), c1: freshWin(), c2: freshWin(), c3: freshWin() },
+    due: { all: '', c1: '', c2: '', c3: '' },
+    name: 'Sample Quiz', plc: { on: false, which: 'Grade 8 Science PLC' },
+    rules: clone(LAST_USED), flash: clone(DEFAULT_FLASH), pacing: 'student',
+    purpose: 'last', adjust: false, userPresets: [], presetId: '',
+    mods: [{ id: 's25', cls: 'c1', name: 'sstudent25', readAloud: true, lang: 'ru', skip: false, open: false }],
+    ruReady: false, generating: false, spy: 'who',
+  };
+
+  /* ---------- state helpers ---------- */
+  const getPath = (o, p) => p.split('.').reduce((a, k) => (a == null ? a : a[k]), o);
+  const setPath = (o, p, v) => {
+    const ks = p.split('.');
+    const last = ks.pop();
+    ks.reduce((a, k) => a[k], o)[last] = v;
+  };
+  const sel = () => S.classes.filter((c) => c.on);
+  const act = () => ACT[S.activity];
+  const winFor = (cid) => (S.each ? S.win[cid] : S.win.all);
+  const spreadAll = () => S.classes.forEach((c) => { S.win[c.id] = clone(S.win.all); S.due[c.id] = S.due.all; });
+  const syncWin = () => {
+    if (!S.each) spreadAll();
+    else {
+      const differs = S.classes.some((c) => JSON.stringify(S.win[c.id]) !== JSON.stringify(S.win.all));
+      if (!differs) S.each = false;
+    }
+  };
+  const rulesDiffer = (k) => JSON.stringify(S.rules[k]) !== JSON.stringify(DEFAULT_RULES[k]);
+
+  function resetForMem() {
+    S.rules = clone(S.mem === 'A' ? LAST_USED : DEFAULT_RULES);
+    if (S.activity === 'quiz') S.purpose = S.mem === 'A' ? 'last' : 'none';
+    S.presetId = '';
+    S.flash = clone(DEFAULT_FLASH);
+  }
+  function applyPurpose(id) {
+    const list = BUILTIN[S.activity];
+    const all = [...list, ...S.userPresetsFor()];
+    S.purpose = id;
+    if (id === 'last') { S.rules = clone(LAST_USED); if (S.when === 'study') S.when = 'scheduled'; return; }
+    const p = all.find((x) => x.id === id);
+    if (!p) return;
+    if (p.rules) S.rules = clone(p.rules);
+    if (p.when) S.when = p.when;
+    else if (S.when === 'study' && p.id !== 'study') S.when = 'scheduled';
+    if (p.pacing) S.pacing = p.pacing;
+    if (p.flash) S.flash = clone(p.flash);
+  }
+  S.userPresetsFor = () =>
+    S.activity === 'quiz' && S.mem === 'B'
+      ? [...PRESETS.map((p) => ({ ...p, icon: 'bookmark', hint: 'Saved preset' })), ...S.userPresets]
+      : [];
+
+  /* ---------- text helpers ---------- */
+  const fmtDay = (d) => {
+    if (!d) return '';
+    const [y, m, dd] = d.split('-').map(Number);
+    return new Date(y, m - 1, dd).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+  const fmtTime = (t, side) => (t === 'bell' ? (side === 'o' ? 'start of class' : 'end of class') : t);
+  const rulesSummary = (r) => {
+    const p = [];
+    p.push(r.attempts === 0 ? 'Unlimited attempts' : `${r.attempts} attempt${r.attempts > 1 ? 's' : ''}`);
+    if (r.timeOn) p.push(`${r.minutes} min`);
+    if (r.focus) p.push('Focus mode');
+    if (r.blockCopy) p.push('No copy and paste');
+    if (r.shuffleQ && r.shuffleA) p.push('Shuffled');
+    else if (r.shuffleQ) p.push('Shuffled questions');
+    else if (r.shuffleA) p.push('Shuffled answers');
+    if (r.showScore) p.push('Score shown');
+    return p.join(', ');
+  };
+  const whenSummary = () => {
+    if (S.when === 'manual') return 'Manual. You start and pause each class.';
+    const w = S.win.all;
+    const label = S.when === 'study' ? 'Available' : 'Open';
+    if (S.each) return `${label} on different dates for each class`;
+    return `${label} ${fmtDay(w.o.day)}, ${fmtTime(w.o.time, 'o')} to ${fmtDay(w.c.day)}, ${fmtTime(w.c.time, 'c')}`;
+  };
+  const modsSummary = () => {
+    if (!S.mods.length) return 'None';
+    const skipped = S.mods.filter((m) => m.skip).length;
+    const changed = S.mods.length - skipped;
+    return [changed && `${changed} modified`, skipped && `${skipped} skipped`].filter(Boolean).join(', ');
+  };
+
+  /* ---------- small components ---------- */
+  const dot = (changed) =>
+    changed ? '<span title="Changed from default" class="inline-block w-1.5 h-1.5 rounded-full bg-brand-blue-primary shrink-0"></span>' : '';
+  const sectionHead = (t, extra = '') =>
+    `<div class="flex items-center justify-between gap-2 pt-1"><div class="text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest">${t}</div>${extra}</div>`;
+  const label = (t, changed) =>
+    `<span class="flex items-center gap-1.5 min-w-0"><span class="text-sm font-bold text-brand-blue-dark">${t}</span>${dot(changed)}</span>`;
+  const subLabel = (t, changed) =>
+    `<span class="flex items-center gap-1.5 min-w-0"><span class="text-sm font-medium text-slate-700">${t}</span>${dot(changed)}</span>`;
+  const toggle = (path, on, aria, disabled = false) =>
+    `<button type="button" role="switch" aria-checked="${on}" aria-label="${aria}" ${disabled ? 'disabled' : ''} data-act="toggle" data-path="${path}" class="w-10 h-5 rounded-full relative transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-blue-primary ${on ? 'bg-brand-blue-primary' : 'bg-slate-300'} ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'} flex-shrink-0"><span class="absolute inset-0 flex items-center justify-between px-1.5 pointer-events-none select-none"><span class="text-xxxs font-black leading-none text-white transition-opacity duration-200 ${on ? 'opacity-100' : 'opacity-0'}">ON</span><span class="text-xxxs font-black leading-none text-slate-900 transition-opacity duration-200 ${!on ? 'opacity-100' : 'opacity-0'}">OFF</span></span><span class="absolute top-1 left-1 bg-white rounded-full shadow transition-transform duration-200 ease-in-out w-3 h-3 ${on ? 'translate-x-5' : 'translate-x-0'}"></span></button>`;
+  const row = (lbl, ctrl, cls = '') => `<div class="flex items-center justify-between gap-3 min-h-[2rem] ${cls}">${lbl}${ctrl}</div>`;
+  const toggleRow = (text, path, aria, { sub = false, disabled = false } = {}) => {
+    const on = getPath(S, path);
+    const key = path.replace('rules.', '');
+    const changed = path.startsWith('rules.') && rulesDiffer(key);
+    return row(sub ? subLabel(text, changed) : label(text, changed), toggle(path, on, aria || text, disabled));
+  };
+  const seg = (path, options, value, extra = '') =>
+    `<div role="radiogroup" class="inline-flex p-1 bg-slate-100 rounded-lg ${extra}">${options
+      .map(
+        (o) =>
+          `<button type="button" role="radio" aria-checked="${value === o.v}" data-act="set" data-path="${path}" data-val="${o.v}" data-type="${typeof o.v === 'number' ? 'number' : typeof o.v === 'boolean' ? 'bool' : 'str'}" class="h-8 px-3 rounded-md text-xs font-semibold whitespace-nowrap ${value === o.v ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}">${o.t}</button>`
+      )
+      .join('')}</div>`;
+  const group = (path, options, value) =>
+    `<div class="inline-flex rounded-lg border border-slate-200 bg-white overflow-hidden">${options
+      .map(
+        (o) =>
+          `<button type="button" data-act="set" data-path="${path}" data-val="${o.v}" data-type="number" aria-pressed="${value === o.v}" class="px-3 py-1.5 text-xs font-bold ${value === o.v ? 'bg-brand-blue-primary text-white' : 'text-slate-700 hover:bg-slate-50'}">${o.t}</button>`
+      )
+      .join('')}</div>`;
+  const select = (path, options, value, cls = 'w-44') =>
+    `<select data-bind="${path}" class="h-8 ${cls} px-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary">${options
+      .map((o) => `<option value="${o.v}" ${String(value) === String(o.v) ? 'selected' : ''}>${o.t}</option>`)
+      .join('')}</select>`;
+  const numInput = (path, value, { min = 1, max = 300, w = 'w-16' } = {}) =>
+    `<input type="number" min="${min}" max="${max}" value="${value}" data-bind="${path}" data-type="number" class="${w} px-2 py-1 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary" />`;
+  const textInput = (path, value, ph = '') =>
+    `<input type="text" value="${value}" placeholder="${ph}" data-bind="${path}" class="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary" />`;
+  const fieldLabel = (t) => `<label class="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1">${t}</label>`;
+  const btnText = (t, a, extra = '') =>
+    `<button type="button" data-act="${a}" class="text-xs font-bold text-brand-blue-primary hover:bg-brand-blue-lighter/40 rounded-lg px-2 py-1 ${extra}">${t}</button>`;
+  const caret = (open) => `<span class="inline-flex transition-transform ${open ? 'rotate-90' : ''}">${ic('chevron-right', 'w-4 h-4 text-slate-400')}</span>`;
+
+  /* ---------- when (availability) ---------- */
+  const dateTime = (base, side, { fill = false } = {}) => {
+    const pt = getPath(S, base);
+    const bell = side === 'o' ? 'Start of class' : 'End of class';
+    const bind = (suffix) => `data-bind="${base}.${suffix}" ${fill ? 'data-fill="1"' : ''}`;
+    const timeCell =
+      pt.time === 'bell'
+        ? `${ic('clock', 'h-3.5 w-3.5 shrink-0 text-slate-500')}<select aria-label="Time" ${bind('time')} data-type="time" data-side="${side}" class="min-w-0 flex-1 appearance-none bg-transparent pr-4 focus:outline-none"><option value="bell">${bell}</option><option value="set">Set a time</option></select><span class="pointer-events-none absolute right-2">${ic('chevron-down', 'h-3.5 w-3.5 text-slate-400')}</span>`
+        : `<input type="time" aria-label="Time" value="${pt.time}" ${bind('time')} class="min-w-0 flex-1 bg-transparent focus:outline-none" /><button type="button" title="${bell}" aria-label="${bell}" data-act="bell" data-path="${base}.time" ${fill ? 'data-fill="1"' : ''} class="rounded p-0.5 text-slate-400 hover:text-slate-700">${ic('x', 'h-3.5 w-3.5')}</button>`;
+    return `<div class="flex h-8 items-stretch rounded-lg border border-slate-300 bg-white text-slate-800 focus-within:border-brand-blue-primary text-sm"><span class="flex items-center border-r border-slate-200 pl-2.5 pr-1.5"><input type="date" aria-label="Date" value="${pt.day}" ${bind('day')} class="w-[8.25rem] bg-transparent focus:outline-none" /></span><span class="relative flex w-40 items-center gap-1.5 pl-2.5 pr-2">${timeCell}</span></div>`;
+  };
+  const labeled = (lbl, ctrl, w = 'w-14') =>
+    `<div class="flex items-center gap-2"><span class="${w} shrink-0 text-sm font-semibold text-slate-700">${lbl}</span>${ctrl}</div>`;
+  const dueInput = (path) =>
+    `<div class="flex h-8 items-stretch rounded-lg border border-slate-300 bg-white text-sm focus-within:border-brand-blue-primary"><span class="flex items-center pl-2.5 pr-1.5"><input type="date" aria-label="Due date" value="${getPath(S, path)}" data-bind="${path}" class="w-[8.25rem] bg-transparent focus:outline-none" /></span></div>`;
+
+  const whenMode = () =>
+    seg('when', [{ v: 'scheduled', t: 'Scheduled' }, { v: 'manual', t: 'Manual' }, { v: 'study', t: 'Study resource' }], S.when, 'w-full [&>button]:flex-1');
+  const eachSwitch = () =>
+    sel().length > 1 && S.when !== 'manual'
+      ? seg('each', [{ v: false, t: 'All classes' }, { v: true, t: 'Each class' }], S.each, '[&>button]:h-6')
+      : sel().length > 1
+        ? seg('each', [{ v: false, t: 'All classes' }, { v: true, t: 'Each class' }], S.each, '[&>button]:h-6')
+        : '';
+  // data-type for boolean segs
+  const whenFields = ({ showAfter = true } = {}) => {
+    const targets = S.each && sel().length > 1 ? sel().map((c) => ({ key: c.id, name: c.name })) : [{ key: 'all', name: '' }];
+    const closeLbl = S.when === 'study' ? 'Available until' : 'Closes';
+    const wl = S.when === 'study' ? 'w-28' : 'w-14';
+    if (S.when === 'manual') {
+      const dueRows = targets
+        .map(
+          (t) =>
+            `<div class="space-y-1.5">${t.name ? `<div class="text-xs font-bold text-slate-500">${t.name}</div>` : ''}${labeled('Due', dueInput(`due.${t.key}`), 'w-14')}</div>`
+        )
+        .join('');
+      return `<div class="space-y-3"><div class="flex items-center gap-2 text-sm text-slate-700">${ic('pause', 'w-4 h-4 text-brand-blue-primary')}<span class="font-medium">Starts paused. You start and pause each class.</span></div><div class="space-y-3">${dueRows}</div></div>`;
+    }
+    const blocks = targets
+      .map(
+        (t) =>
+          `<div class="space-y-2">${t.name ? `<div class="text-xs font-bold text-slate-500">${t.name}</div>` : ''}${labeled(S.when === 'study' ? 'Opens' : 'Opens', dateTime(`win.${t.key}.o`, 'o'), wl)}${labeled(closeLbl, dateTime(`win.${t.key}.c`, 'c'), wl)}</div>`
+      )
+      .join('');
+    const after =
+      showAfter && S.when === 'scheduled'
+        ? row(label('Allow submissions after close'), toggle('allowAfter', S.allowAfter, 'Allow submissions after close'), 'pt-1')
+        : '';
+    return `<div class="space-y-3">${blocks}${after}</div>`;
+  };
+  const whenBlock = (opts = {}) =>
+    `<div class="space-y-3">${whenMode()}${eachSwitch() ? `<div>${eachSwitch()}</div>` : ''}${whenFields(opts)}</div>`;
+
+  /* ---------- classes ---------- */
+  const classList = () =>
+    `<div><div class="rounded-xl border border-slate-200 bg-white p-3 space-y-2">${S.classes
+      .map(
+        (c) =>
+          `<label class="flex items-center gap-2 text-sm text-slate-800 cursor-pointer"><input type="checkbox" ${c.on ? 'checked' : ''} data-act="cls" data-id="${c.id}" class="w-4 h-4 rounded accent-brand-blue-primary" /><span class="min-w-0 truncate">${c.name}</span><span class="ml-auto text-xs text-slate-400">${c.n}</span></label>`
+      )
+      .join('')}</div><div class="flex items-center justify-between pt-1.5"><span class="text-xs text-slate-500">${sel().length} of ${S.classes.length} selected</span><button type="button" data-act="${sel().length ? 'clsClear' : 'clsAll'}" class="text-xs font-bold text-brand-blue-primary hover:underline">${sel().length ? 'Clear' : 'Select all'}</button></div></div>`;
+
+  /* ---------- mods ---------- */
+  const modsRow = () =>
+    `<button type="button" data-act="mods" class="group flex w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left hover:border-brand-blue-primary/50">${`<span class="flex items-center gap-2 min-w-0">${ic('sliders-horizontal', 'w-4 h-4 text-brand-blue-primary')}<span class="text-sm font-bold text-brand-blue-dark">Modifications</span></span>`}<span class="flex items-center gap-2 min-w-0"><span class="text-xs text-slate-500 truncate">${modsSummary()}</span>${ic('chevron-right', 'w-4 h-4 text-slate-400')}</span></button>`;
+
+  const modsView = () => {
+    const needRu = S.mods.some((m) => m.lang === 'ru') && !S.ruReady;
+    const ruName = S.mods.find((m) => m.lang === 'ru');
+    const banner = needRu
+      ? `<div class="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800"><span>${ruName.name} needs Русский. That translation isn't ready. They'll see English.</span><button type="button" data-act="generate" class="shrink-0 rounded-md border border-amber-300 bg-white px-2.5 py-1 font-bold text-amber-800 hover:bg-amber-100">${S.generating ? 'Generating' : 'Generate'}</button></div>`
+      : '';
+    const rows = S.mods
+      .map((m, i) => {
+        const chips = [m.readAloud && 'Read aloud', m.lang !== 'en' && LANGS[m.lang], m.skip && 'Skipped'].filter(Boolean);
+        return `<div class="rounded-xl border border-slate-200 bg-white"><button type="button" data-act="modOpen" data-i="${i}" class="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left"><span class="min-w-0"><span class="block text-sm font-bold text-slate-800">${m.name}</span><span class="mt-1 flex flex-wrap gap-1.5">${chips.map((c) => `<span class="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">${c}</span>`).join('') || '<span class="text-xs text-slate-400">No changes</span>'}</span></span>${ic(m.open ? 'chevron-down' : 'chevron-right', 'w-4 h-4 text-slate-400 shrink-0')}</button>${
+          m.open
+            ? `<div class="space-y-2 border-t border-slate-100 px-3 py-3">${row(subLabel('Read aloud'), toggle(`mods.${i}.readAloud`, m.readAloud, 'Read aloud'))}${row(subLabel('Language'), select(`mods.${i}.lang`, Object.entries(LANGS).map(([v, t]) => ({ v, t })), m.lang, 'w-36'))}${row(subLabel('Skip this student'), toggle(`mods.${i}.skip`, m.skip, 'Skip this student'))}${`<div class="pt-1"><button type="button" data-act="modRemove" data-i="${i}" class="text-xs font-bold text-brand-red-primary hover:underline">Remove modification</button></div>`}</div>`
+            : ''
+        }</div>`;
+      })
+      .join('');
+    const addable = ROSTER.filter((r) => !S.mods.some((m) => m.id === r.id));
+    return `<div class="space-y-4 px-6 py-5">${banner}<p class="text-sm text-slate-600">40 students have no school sign-in and can't be changed individually.</p>${sectionHead('Standing')}<div class="space-y-2">${rows}</div><div class="flex items-center gap-2">${select('addMod', [{ v: '', t: 'Add a student' }, ...addable.map((r) => ({ v: r.id, t: r.name }))], '', 'w-48')}</div></div>`;
+  };
+
+  /* ---------- plc / name ---------- */
+  const plcRow = () =>
+    `<div class="space-y-2">${row(`<span class="flex items-center gap-2 min-w-0">${ic('share-2', 'w-4 h-4 text-brand-blue-primary')}<span class="text-sm font-bold text-brand-blue-dark">Share results with a PLC</span></span>`, toggle('plc.on', S.plc.on, 'Share results with a PLC'))}${
+      S.plc.on ? `<div class="pl-6">${select('plc.which', [{ v: 'Grade 8 Science PLC', t: 'Grade 8 Science PLC' }, { v: 'Orono MS Science', t: 'Orono MS Science' }], S.plc.which, 'w-56')}</div>` : ''
+    }</div>`;
+  const nameField = () => (act().name ? `<div>${fieldLabel('Assignment name')}${textInput('name', S.name)}</div>` : '');
+  const pacingField = () =>
+    act().pacing
+      ? `<div class="flex items-center justify-between gap-3">${label('Pacing')}${seg('pacing', [{ v: 'student', t: 'Self-paced' }, { v: 'teacher', t: 'Teacher-paced (live)' }], S.pacing)}</div>`
+      : '';
+
+  /* ---------- rules ---------- */
+  const memBar = () => {
+    if (!act().rules || S.activity !== 'quiz') return '';
+    if (S.mem === 'A') {
+      const same = JSON.stringify(S.rules) === JSON.stringify(LAST_USED);
+      return `<div class="flex items-center justify-between gap-2 rounded-lg bg-slate-50 border border-slate-100 px-3 py-2"><span class="flex items-center gap-2 text-xs font-semibold text-slate-700">${ic('rotate-ccw', 'w-3.5 h-3.5 text-brand-blue-primary')}${same ? 'Same as last time' : 'Changed from last time'}</span><span class="flex items-center">${same ? '' : btnText('Use last time', 'useLast')}${btnText('Use defaults', 'useDefaults')}</span></div>`;
+    }
+    const opts = [{ v: '', t: 'Presets' }, ...S.userPresetsFor().map((p) => ({ v: p.id, t: p.label }))];
+    return `<div class="flex items-center justify-between gap-2 rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">${select('presetPick', opts, S.presetId, 'w-44')}${btnText('Save as preset', 'savePreset')}</div>`;
+  };
+
+  const quizGroups = () => {
+    const r = S.rules;
+    const attempts = row(
+      label('Attempts allowed', rulesDiffer('attempts')),
+      group('rules.attempts', [{ v: 1, t: '1' }, { v: 2, t: '2' }, { v: 3, t: '3' }, { v: 0, t: 'Unlimited' }], r.attempts)
+    );
+    const time = row(
+      label('Time limit', rulesDiffer('timeOn')),
+      `<span class="flex items-center gap-2">${r.timeOn ? `${numInput('rules.minutes', r.minutes)}<span class="text-xs text-slate-500">min</span>` : ''}${toggle('rules.timeOn', r.timeOn, 'Time limit')}</span>`
+    );
+    const focus = toggleRow('Focus mode', 'rules.focus');
+    const focusSub = r.focus
+      ? `<div class="pl-3 ml-1 border-l-2 border-slate-100 space-y-1.5">${toggleRow('Auto-submit after repeated tab switches', 'rules.tabAuto', '', { sub: true })}${
+          r.tabAuto ? row(subLabel('Warnings before auto-submit', rulesDiffer('warnings')), numInput('rules.warnings', r.warnings, { min: 1, max: 10, w: 'w-14' })) : ''
+        }${toggleRow('Auto-submit if away too long', 'rules.away', '', { sub: true })}</div>`
+      : '';
+    const copy = toggleRow('Block copy and paste', 'rules.blockCopy');
+    const fb = [
+      toggleRow('Show score on submit', 'rules.showScore'),
+      toggleRow('Show right and wrong to students', 'rules.showRW'),
+      toggleRow('Reveal correct answer to students', 'rules.reveal', '', { disabled: !r.showRW }),
+      toggleRow('Group results by learning target', 'rules.groupLT'),
+      toggleRow('Allow students to raise a hand', 'rules.raiseHand'),
+    ].join('');
+    return [
+      { id: 'attempts', title: 'Attempts and time', html: `<div class="space-y-1.5">${attempts}${time}</div>` },
+      { id: 'integrity', title: 'Quiz integrity', html: `<div class="space-y-1.5">${focus}${focusSub}${copy}</div>` },
+      { id: 'random', title: 'Randomization', html: `<div class="space-y-1.5">${toggleRow('Shuffle questions', 'rules.shuffleQ')}${toggleRow('Shuffle answer options', 'rules.shuffleA')}</div>` },
+      { id: 'feedback', title: 'Answer feedback', html: `<div class="space-y-1.5">${fb}</div>` },
+    ];
+  };
+  const flashGroups = () => {
+    const f = S.flash;
+    const on = f.collect;
+    const body = on
+      ? `${row(label('Mode'), seg('flash.mode', [{ v: 'check', t: 'Check' }, { v: 'study', t: 'Study' }], f.mode))}${toggleRow('Strict mode', 'flash.strict')}${row(label('Questions'), select('flash.questions', [{ v: '5', t: '5' }, { v: '10', t: '10' }, { v: '15', t: '15' }, { v: 'all', t: 'All' }], f.questions, 'w-24'))}${row(label('Mastery threshold'), select('flash.mastery', [{ v: '70', t: '70%' }, { v: '80', t: '80%' }, { v: '90', t: '90%' }, { v: '100', t: '100%' }], f.mastery, 'w-24'))}${row(label('Score visibility'), select('flash.scoreVis', [{ v: 'after', t: 'Students see after submit' }, { v: 'hold', t: 'Hidden until I share' }], f.scoreVis, 'w-56'))}`
+      : '';
+    return [{ id: 'submission', title: 'Submission', html: `<div class="space-y-1.5">${toggleRow('Collect a submission', 'flash.collect')}${body}</div>` }];
+  };
+  const ruleGroups = () => {
+    if (S.activity === 'quiz') return quizGroups();
+    if (S.activity === 'flash') return flashGroups();
+    return [];
+  };
+  const rulesColumns = (cols = 2) => {
+    const g = ruleGroups();
+    if (cols === 1 || g.length < 3)
+      return `<div class="space-y-5">${g.map((x) => `<div class="space-y-2">${sectionHead(x.title)}${x.html}</div>`).join('')}</div>`;
+    const left = g.filter((_, i) => i < 2), right = g.filter((_, i) => i >= 2);
+    const col = (arr) => `<div class="space-y-5">${arr.map((x) => `<div class="space-y-2">${sectionHead(x.title)}${x.html}</div>`).join('')}</div>`;
+    return `<div class="grid grid-cols-2 gap-x-10">${col(left)}${col(right)}</div>`;
+  };
+
+  /* ---------- shell ---------- */
+  const eyebrow = (t) => `<div class="text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest">${t}</div>`;
+  const primaryBtn = (t, a, extra = '') =>
+    `<button type="button" data-act="${a}" class="inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed ${extra}">${t}</button>`;
+  const ghostBtn = (t, a, extra = '') =>
+    `<button type="button" data-act="${a}" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors ${extra}">${t}</button>`;
+  const outlineBtn = (t, a) =>
+    `<button type="button" data-act="${a}" class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-brand-blue-primary border border-brand-blue-primary/30 hover:bg-brand-blue-lighter/40 rounded-xl transition-colors">${t}</button>`;
+  const assignBtn = () => primaryBtn(`${ic('rocket', 'w-4 h-4')}Assign`, 'assign');
+  const cancelLink = `<button type="button" data-act="cancel" class="text-sm font-bold text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-lg">Cancel</button>`;
+
+  const shell = ({ width, title, sub = '', body, footer, bodyCls = 'px-6 py-5', h = '' }) => {
+    if (S.view === 'mods') {
+      return `<div class="bg-white rounded-2xl shadow-2xl w-full ${width} max-h-full ${h} flex flex-col overflow-hidden" role="dialog"><div class="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-200 shrink-0"><div class="flex items-center gap-3 min-w-0"><button type="button" data-act="modsBack" aria-label="Back" class="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100">${ic('arrow-left', 'w-5 h-5')}</button><div class="min-w-0">${eyebrow('Assign · ' + act().title)}<div class="font-black text-lg text-slate-800 truncate">Modifications</div></div></div><button type="button" data-act="clearMods" class="text-sm font-bold text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-lg">Clear all modifications</button></div><div class="flex-1 overflow-y-auto custom-scrollbar" data-scroll="mods">${modsView()}</div><div class="shrink-0 border-t border-slate-200 bg-white px-6 py-3 flex items-center justify-end">${primaryBtn('Done', 'modsBack')}</div></div>`;
+    }
+    return `<div class="bg-white rounded-2xl shadow-2xl w-full ${width} max-h-full ${h} flex flex-col overflow-hidden" role="dialog" aria-label="Assign ${act().title}"><div class="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-200 shrink-0"><div class="min-w-0">${eyebrow('Assign')}<div class="font-black text-lg text-slate-800 truncate">${act().title}</div></div>${cancelLink}</div>${sub}<div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar ${bodyCls}" data-scroll="body">${body}</div><div class="shrink-0 border-t border-slate-200 bg-white px-6 py-3 flex items-center justify-between gap-2">${footer}</div></div>`;
+  };
+
+  window.__proto = { TODAY, S, ic, $, getPath, setPath, sel, act, winFor, spreadAll, syncWin, resetForMem, applyPurpose, rulesSummary, whenSummary, modsSummary, PROTOS, ACT, BUILTIN, PRESETS, LAST_USED, DEFAULT_RULES, DEFAULT_FLASH, ROSTER, LANGS, clone, UI: { dot, sectionHead, label, subLabel, toggle, row, toggleRow, seg, group, select, numInput, textInput, fieldLabel, btnText, caret, dateTime, labeled, dueInput, whenMode, eachSwitch, whenFields, whenBlock, classList, modsRow, modsView, plcRow, nameField, pacingField, memBar, ruleGroups, rulesColumns, eyebrow, primaryBtn, ghostBtn, outlineBtn, assignBtn, cancelLink, shell, quizGroups, flashGroups } };
+})();
+
+</script>
+<script>
+/* Three stepper variants for the Assign flow. Shares state and controls with ../assign-modal/app.js. */
+(() => {
+  const P = window.__proto;
+  const { S, ic, $, getPath, setPath, sel, act, spreadAll, rulesSummary, whenSummary, modsSummary, ACT, LAST_USED, clone, ROSTER, TODAY } = P;
+  const U = P.UI;
+
+  const T = { glSubmit: false, v: 'C', step: 1, menu: null, toast: '', open: true, whenChoice: 'today', strict: 'last', moreFb: false };
+  const VARIANTS = [
+    { id: 'A', label: 'A Small steps' },
+    { id: 'B', label: 'B Questions' },
+    { id: 'C', label: 'C Accordion' },
+  ];
+
+  /* ---------- compact controls ---------- */
+  const NAMES = ['Avery T.', 'Jordan M.', 'Priya K.', 'Mateo R.', 'Sofia L.', 'Elijah W.', 'Hana S.', 'Noah B.', 'Zara P.', 'Liam C.', 'Maya G.', 'Owen D.'];
+  const STUDENTS = {};
+  const GROUPS = {};
+  ['c1', 'c2', 'c3'].forEach((cid, ci) => {
+    STUDENTS[cid] = NAMES.map((n, i) => ({ id: `${cid}-s${i}`, name: i === 0 && cid === 'c1' ? 'sstudent25' : n, sso: !(i === 10 || i === 11) }));
+    GROUPS[cid] = [
+      { id: `${cid}-g1`, name: 'Reading group A', ids: [1, 4, 7].map((i) => `${cid}-s${(i + ci) % 10}`) },
+      { id: `${cid}-g2`, name: 'Needs reteach', ids: [2, 5].map((i) => `${cid}-s${(i + ci) % 10}`) },
+    ];
+  });
+  S.pick = {};
+  const pickedIn = (cid) => S.pick[cid] || null;
+  const studentsText = (cid) => {
+    const p = pickedIn(cid);
+    return p ? `${p.length} student${p.length === 1 ? '' : 's'}` : 'All students';
+  };
+  const studentMenu = (cid) => {
+    const p = pickedIn(cid);
+    const has = (id) => (p ? p.includes(id) : false);
+    const groups = GROUPS[cid]
+      .map((g) => {
+        const on = p && g.ids.every((id) => p.includes(id));
+        return `<button type="button" data-act="pickGroup" data-cid="${cid}" data-gid="${g.id}" class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-slate-50">${ic('users', 'w-4 h-4 text-brand-blue-primary')}<span class="min-w-0 flex-1 truncate font-semibold text-slate-800">${g.name}</span><span class="text-xs ${on ? 'font-bold text-brand-blue-primary' : 'text-slate-400'}">${on ? 'Added' : `${g.ids.length}`}</span></button>`;
+      })
+      .join('');
+    const rows = STUDENTS[cid]
+      .map(
+        (st) =>
+          `<label data-name="${st.name.toLowerCase()}" ${st.sso ? '' : 'title="Individual assignment needs a school sign-in"'} class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm ${st.sso ? 'cursor-pointer text-slate-800 hover:bg-slate-50' : 'cursor-not-allowed text-slate-400'}"><input type="checkbox" ${st.sso ? `data-act="pickStudent" data-cid="${cid}" data-sid="${st.id}"` : 'disabled'} ${has(st.id) ? 'checked' : ''} class="h-4 w-4 rounded accent-brand-blue-primary" /><span class="min-w-0 flex-1 truncate">${st.name}</span>${st.sso ? '' : '<span class="text-xs">No sign-in</span>'}</label>`
+      )
+      .join('');
+    return `<div class="absolute left-0 right-0 top-full z-10 mt-1 rounded-xl border border-slate-200 bg-white p-1 shadow-xl"><div class="flex h-8 items-center gap-2 rounded-lg border border-slate-200 px-2 m-1">${ic('search', 'w-3.5 h-3.5 text-slate-400')}<input type="text" data-filter="${cid}" placeholder="Search students" class="min-w-0 flex-1 bg-transparent text-sm focus:outline-none" /></div><div class="px-2 pt-1.5 pb-0.5 text-xxs font-bold uppercase tracking-widest text-slate-400">Groups</div>${groups}<div class="px-2 pt-2 pb-0.5 text-xxs font-bold uppercase tracking-widest text-slate-400">Students</div><div class="max-h-48 overflow-y-auto" data-list="${cid}">${rows}</div><div class="mt-1 flex justify-between border-t border-slate-100 px-2 pb-0.5 pt-1.5"><button type="button" data-act="pickAll" data-cid="${cid}" class="text-xs font-bold text-brand-blue-primary hover:underline">All students</button><button type="button" data-act="pickNone" data-cid="${cid}" class="text-xs font-bold text-slate-500 hover:underline">Clear</button></div></div>`;
+  };
+  const studentRows = () =>
+    sel().length && !live()
+      ? `<div class="space-y-1.5">${sel()
+          .map(
+            (c) =>
+              `<div class="flex items-center justify-between gap-3"><span class="min-w-0 truncate text-sm text-slate-700">${c.name}</span><div class="relative w-44 shrink-0" data-menu-root><button type="button" data-act="menu" data-id="students-${c.id}" aria-haspopup="listbox" aria-expanded="${T.menu === 'students-' + c.id}" class="flex h-8 w-full items-center gap-2 rounded-lg border px-2.5 text-sm ${pickedIn(c.id) ? 'border-brand-blue-primary/50 bg-brand-blue-lighter/40 font-semibold text-brand-blue-dark' : 'border-slate-300 bg-white text-slate-700'} hover:border-slate-400">${ic('user', 'w-3.5 h-3.5 shrink-0 text-slate-500')}<span class="min-w-0 flex-1 truncate text-left">${studentsText(c.id)}</span>${ic('chevron-down', 'w-3.5 h-3.5 shrink-0 text-slate-400')}</button>${T.menu === 'students-' + c.id ? `<div class="relative w-72 -ml-28">${studentMenu(c.id)}</div>` : ''}</div></div>`
+          )
+          .join('')}</div>`
+      : '';
+  const classText = () => {
+    const s = sel();
+    if (!s.length) return 'No classes (link only)';
+    const partial = s.filter((c) => pickedIn(c.id));
+    if (partial.length) return s.map((c) => (pickedIn(c.id) ? `${c.name} (${studentsText(c.id)})` : c.name)).join(', ');
+    if (s.length === S.classes.length) return `All ${s.length} classes`;
+    return s.map((c) => c.name).join(', ');
+  };
+  const classPicker = () =>
+    `<div class="relative" data-menu-root><button type="button" data-act="menu" data-id="classes" aria-haspopup="listbox" aria-expanded="${T.menu === 'classes'}" class="flex h-9 w-full items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 hover:border-slate-400 focus:outline-none focus:border-brand-blue-primary">${ic('users', 'w-4 h-4 shrink-0 text-slate-500')}<span class="min-w-0 flex-1 truncate text-left">${classText()}</span>${ic('chevron-down', 'w-4 h-4 shrink-0 text-slate-400')}</button>${
+      T.menu === 'classes'
+        ? `<div class="absolute left-0 right-0 top-full z-10 mt-1 rounded-xl border border-slate-200 bg-white p-1 shadow-xl">${S.classes
+            .map(
+              (c) =>
+                `<label class="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-slate-800 hover:bg-slate-50"><input type="${live() ? 'radio' : 'checkbox'}" name="cls-pick" data-act="cls" data-id="${c.id}" ${c.on ? 'checked' : ''} class="h-4 w-4 rounded accent-brand-blue-primary" /><span class="min-w-0 flex-1 truncate">${c.name}</span><span class="text-xs text-slate-400">${c.n}</span></label>`
+            )
+            .join('')}${live() ? '' : `<div class="mt-1 flex justify-between border-t border-slate-100 px-2 pb-0.5 pt-1.5"><button type="button" data-act="clsAll" class="text-xs font-bold text-brand-blue-primary hover:underline">Select all</button><button type="button" data-act="clsClear" class="text-xs font-bold text-slate-500 hover:underline">Clear</button></div>`}</div>`
+        : ''
+    }</div>`;
+  const modsLink = () =>
+    `<button type="button" data-act="mods" class="inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-xs font-bold text-brand-blue-primary hover:bg-brand-blue-lighter/40">${ic('sliders-horizontal', 'w-3.5 h-3.5')}Modifications: ${modsSummary().toLowerCase()}</button>`;
+  const pacing = () =>
+    act().pacing ? U.seg('pacing', [{ v: 'student', t: 'Self-paced' }, { v: 'teacher', t: 'Teacher-paced (live)' }], S.pacing, 'w-full [&>button]:flex-1') : '';
+
+  const dateRows = () => {
+    const wl = S.when === 'study' ? 'w-28' : 'w-14';
+    const close = S.when === 'study' ? 'Available until' : 'Closes';
+    const rows = (k) => `${U.labeled('Opens', U.dateTime(`win.${k}.o`, 'o'), wl)}${U.labeled(close, U.dateTime(`win.${k}.c`, 'c'), wl)}`;
+    if (S.each && sel().length > 1)
+      return sel().map((c) => `<div class="space-y-2"><div class="text-xs font-bold text-slate-500">${c.name}</div>${rows(c.id)}</div>`).join('');
+    return `<div class="space-y-2">${rows('all')}</div>`;
+  };
+  const perClassLink = () =>
+    sel().length > 1
+      ? `<button type="button" data-act="set" data-path="each" data-val="${!S.each}" data-type="bool" class="text-xs font-bold text-brand-blue-primary hover:underline">${S.each ? 'Same time for all classes' : 'Different time for each class'}</button>`
+      : '';
+  const manualFields = () =>
+    `<p class="flex items-center gap-2 text-sm font-medium text-slate-700">${ic('pause', 'w-4 h-4 text-brand-blue-primary')}Starts paused. You start and pause each class.</p>`;
+  const afterClose = () =>
+    S.when === 'scheduled' ? U.row(U.subLabel('Allow submissions after close'), U.toggle('allowAfter', S.allowAfter, 'Allow submissions after close')) : '';
+  const canStudy = () => S.activity !== 'quiz' && S.activity !== 'va';
+  const live = () => S.activity === 'va' && S.pacing === 'teacher';
+  const compactWhen = () =>
+    `<div class="space-y-3">${U.seg('when', [{ v: 'manual', t: 'Manual' }, { v: 'scheduled', t: 'Scheduled' }, ...(canStudy() ? [{ v: 'study', t: 'Study resource' }] : [])], S.when, 'w-full [&>button]:flex-1')}${
+      S.when === 'manual' ? manualFields() : `${dateRows()}${perClassLink()}${afterClose()}`
+    }</div>`;
+
+  /* ---------- rule fragments ---------- */
+  const rows = (...h) => `<div class="space-y-1.5">${h.join('')}</div>`;
+  const attemptsRow = () =>
+    U.row(U.label('Attempts allowed'), U.group('rules.attempts', [{ v: 1, t: '1' }, { v: 2, t: '2' }, { v: 3, t: '3' }, { v: 0, t: 'Unlimited' }], S.rules.attempts));
+  const timeRow = () =>
+    U.row(U.label('Time limit'), `<span class="flex items-center gap-2">${S.rules.timeOn ? `${U.numInput('rules.minutes', S.rules.minutes)}<span class="text-xs text-slate-500">min</span>` : ''}${U.toggle('rules.timeOn', S.rules.timeOn, 'Time limit')}</span>`);
+  const focusRows = () => {
+    const r = S.rules;
+    const sub = r.focus
+      ? `<div class="ml-1 space-y-1.5 border-l-2 border-slate-100 pl-3">${U.toggleRow('Auto-submit after repeated tab switches', 'rules.tabAuto', '', { sub: true })}${r.tabAuto ? U.row(U.subLabel('Warnings before auto-submit'), U.numInput('rules.warnings', r.warnings, { min: 1, max: 10, w: 'w-14' })) : ''}${U.row(U.subLabel('Auto-submit if away too long'), `<span class="flex items-center gap-2">${r.away ? `${U.numInput('rules.awaySec', r.awaySec ?? 30, { min: 5, max: 300 })}<span class="text-xs text-slate-500">sec</span>` : ''}${U.toggle('rules.away', r.away, 'Auto-submit if away too long')}</span>`)}</div>`
+      : '';
+    return `${U.toggleRow('Focus mode', 'rules.focus')}${sub}${U.toggleRow('Block copy and paste', 'rules.blockCopy')}`;
+  };
+  const shuffleRows = () => `${U.toggleRow('Shuffle questions', 'rules.shuffleQ')}${U.toggleRow('Shuffle answer options', 'rules.shuffleA')}`;
+  const feedbackRows = () =>
+    [
+      U.toggleRow('Show score on submit', 'rules.showScore'),
+      U.toggleRow('Show right and wrong to students', 'rules.showRW'),
+      U.toggleRow('Reveal correct answer to students', 'rules.reveal', '', { disabled: !S.rules.showRW }),
+      U.toggleRow('Group results by learning target', 'rules.groupLT'),
+      U.toggleRow('Allow students to raise a hand', 'rules.raiseHand'),
+    ].join('');
+  const FC_DEFAULT = { mode: 'flashcards', showFirst: 'term', strict: false, mc: true, fib: true, count: 'all', mastery: 3, scoreVis: 'none' };
+  const FC_MODES = { flashcards: 'Flashcards', write: 'Write', test: 'Test' };
+  const FC_SCORE = [{ v: 'none', t: 'Hide until I publish' }, { v: 'score', t: 'Score only' }, { v: 'score-and-answers', t: 'Score and correct answers' }];
+  const flashRows = () => {
+    const f = S.fc;
+    const strict = f.mode !== 'flashcards' ? U.toggleRow('Strict mode', 'fc.strict') : '';
+    const test = f.mode === 'test'
+      ? `${U.row(U.label('Question types'), '<span></span>')}<div class="ml-1 space-y-1.5 border-l-2 border-slate-100 pl-3">${U.toggleRow('Multiple choice', 'fc.mc', '', { sub: true })}${U.toggleRow('Fill in the blank', 'fc.fib', '', { sub: true })}</div>${U.row(U.label('Questions'), U.select('fc.count', [{ v: '5', t: '5' }, { v: '10', t: '10' }, { v: '15', t: '15' }, { v: 'all', t: 'All (24)' }], f.count, 'w-28'))}`
+      : '';
+    const mastery = f.mode === 'flashcards'
+      ? `<div title="Correct answers in a row before a card counts as mastered">${U.row(U.label('Correct in a row to master'), U.numInput('fc.mastery', f.mastery, { min: 2, max: 4, w: 'w-16' }))}</div>`
+      : '';
+    return `<div class="space-y-3">${U.row(U.label('Mode'), U.seg('fc.mode', Object.entries(FC_MODES).map(([v, t]) => ({ v, t })), f.mode))}${U.row(U.label('Show first'), U.seg('fc.showFirst', [{ v: 'term', t: 'Term' }, { v: 'definition', t: 'Definition' }], f.showFirst))}${strict}${test}${mastery}${U.row(U.label('Score visibility'), U.select('fc.scoreVis', FC_SCORE, f.scoreVis, 'w-56'))}</div>`;
+  };
+  const fcText = () => `${FC_MODES[S.fc.mode]}, ${FC_SCORE.find((o) => o.v === S.fc.scoreVis).t.toLowerCase()}`;
+
+  const fbLevel = () => {
+    const r = S.rules;
+    if (r.showScore && r.showRW && r.reveal) return 'all';
+    if (r.showScore && r.showRW) return 'rw';
+    if (r.showScore) return 'score';
+    if (!r.showRW && !r.reveal) return 'none';
+    return 'custom';
+  };
+  const FB = {
+    none: { t: 'Nothing until I release results', set: { showScore: false, showRW: false, reveal: false } },
+    score: { t: 'Their score', set: { showScore: true, showRW: false, reveal: false } },
+    rw: { t: 'Their score and which answers were right', set: { showScore: true, showRW: true, reveal: false } },
+    all: { t: 'Score, right and wrong, and the correct answers', set: { showScore: true, showRW: true, reveal: true } },
+  };
+  const fbText = () => (FB[fbLevel()] || { t: 'Custom' }).t;
+  const STRICT = {
+    last: { t: 'Same as last time', d: () => rulesSummary(LAST_USED) },
+    locked: { t: 'Locked down', d: () => '1 attempt, focus mode, no copy and paste, shuffled', set: { attempts: 1, timeOn: false, focus: true, tabAuto: true, blockCopy: true, shuffleQ: true, shuffleA: true } },
+    relaxed: { t: 'Relaxed', d: () => 'Unlimited attempts, no focus mode', set: { attempts: 0, timeOn: false, focus: false, tabAuto: false, away: false, blockCopy: false, shuffleQ: false, shuffleA: false } },
+    custom: { t: 'Custom', d: () => 'Pick each setting' },
+  };
+  const isQuizRules = () => S.activity === 'quiz' && S.when !== 'study';
+
+  /* ---------- step lists ---------- */
+  const reviewLine = (k, v, step) =>
+    `<div class="flex items-start gap-4 border-b border-slate-100 py-2.5"><div class="w-28 shrink-0 pt-0.5 text-xxs font-bold uppercase tracking-widest text-slate-400">${k}</div><div class="min-w-0 flex-1 text-sm font-medium text-slate-800">${v}</div>${step ? `<button type="button" data-act="goto" data-n="${step}" class="text-xs font-bold text-brand-blue-primary hover:underline">Edit</button>` : ''}</div>`;
+
+  function stepsA() {
+    const s = [
+      { id: 'classes', q: 'Which classes?', body: () => `<div class="space-y-3">${pacing()}${classPicker()}${modsLink()}</div>` },
+      { id: 'when', q: 'When is it open?', body: compactWhen },
+    ];
+    if (isQuizRules()) {
+      s.push({ id: 'attempts', q: 'Attempts and order', body: () => rows(attemptsRow(), timeRow(), shuffleRows()) });
+      s.push({ id: 'integrity', q: 'Quiz integrity', body: () => rows(focusRows()) });
+      s.push({ id: 'feedback', q: 'What do students see?', body: () => rows(feedbackRows()) });
+    }
+    if (S.activity === 'flash' && S.when !== 'study') s.push({ id: 'check', q: 'How students are checked', body: () => rows(flashRows()) });
+    s.push({ id: 'review', q: 'Ready to assign', body: () => reviewBody(s) });
+    return s;
+  }
+  function reviewBody(s) {
+    const idx = (id) => s.findIndex((x) => x.id === id) + 1 || 0;
+    const lines = [
+      reviewLine('Classes', classText(), idx('classes') || idx('who')),
+      reviewLine('When', whenSummary(), idx('when')),
+      isQuizRules() ? reviewLine('Rules', rulesSummary(S.rules), idx('attempts') || idx('strict')) : '',
+      isQuizRules() ? reviewLine('Students see', fbText(), idx('feedback')) : '',
+      S.activity === 'flash' && S.when !== 'study' ? reviewLine('Check', fcText(), idx('check')) : '',
+      reviewLine('Modifications', modsSummary(), 0),
+    ].join('');
+    return `<div class="space-y-4"><div>${lines}</div>${act().plc ? U.plcRow() : ''}</div>`;
+  }
+
+  const radio = (group, id, title, desc, extra = '') => {
+    const on = T[group] === id;
+    return `<div class="rounded-xl border transition-colors ${on ? 'border-brand-blue-primary bg-brand-blue-lighter/30' : 'border-slate-200 hover:border-slate-300'}"><button type="button" role="radio" aria-checked="${on}" data-act="choose" data-group="${group}" data-id="${id}" class="flex w-full items-start gap-3 p-3 text-left"><span class="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${on ? 'border-brand-blue-primary' : 'border-slate-300'}">${on ? '<span class="h-2 w-2 rounded-full bg-brand-blue-primary"></span>' : ''}</span><span class="min-w-0"><span class="block text-sm font-bold text-slate-800">${title}</span>${desc ? `<span class="mt-0.5 block text-xs text-slate-500">${desc}</span>` : ''}</span></button>${on && extra ? `<div class="space-y-3 px-3 pb-3 pl-10">${extra}</div>` : ''}</div>`;
+  };
+  function stepsB() {
+    const s = [
+      { id: 'who', short: 'Who', q: 'Who is it for?', body: () => `<div class="space-y-3">${pacing()}${classPicker()}${modsLink()}</div>` },
+      {
+        id: 'when', short: 'When', q: 'When can students open it?',
+        body: () =>
+          `<div role="radiogroup" class="space-y-2">${radio('whenChoice', 'today', 'Today, during class', 'Opens at the start of class and closes at the end.')}${radio('whenChoice', 'schedule', 'On a schedule', '', `${dateRows()}${perClassLink()}${afterClose()}`)}${radio('whenChoice', 'manual', 'When I start it', 'Starts paused. You start and pause each class.')}${canStudy() ? radio('whenChoice', 'study', 'Any time, as a study resource', 'Nothing is submitted.', dateRows()) : ''}</div>`,
+      },
+    ];
+    if (isQuizRules()) {
+      s.push({
+        id: 'strict', short: 'Rules', q: 'How strict?',
+        body: () =>
+          `<div role="radiogroup" class="space-y-2">${['last', 'locked', 'relaxed'].map((k) => radio('strict', k, STRICT[k].t, STRICT[k].d())).join('')}${radio('strict', 'custom', 'Custom', 'Pick each setting', rows(attemptsRow(), timeRow(), shuffleRows(), focusRows()))}</div>`,
+      });
+      s.push({
+        id: 'feedback', short: 'Results', q: 'What do students see when they finish?',
+        body: () =>
+          `<div role="radiogroup" class="space-y-2">${Object.entries(FB).map(([k, f]) => radio('fb', k, f.t, '')).join('')}</div><div class="pt-3"><button type="button" data-act="moreFb" aria-expanded="${T.moreFb}" class="flex items-center gap-1 text-xs font-bold text-brand-blue-primary">${U.caret(T.moreFb)}More options</button>${T.moreFb ? `<div class="space-y-1.5 pt-2">${U.toggleRow('Group results by learning target', 'rules.groupLT')}${U.toggleRow('Allow students to raise a hand', 'rules.raiseHand')}</div>` : ''}</div>`,
+      });
+    }
+    if (S.activity === 'flash' && S.when !== 'study') s.push({ id: 'check', short: 'Check', q: 'How are students checked?', body: () => rows(flashRows()) });
+    s.push({ id: 'review', short: 'Review', q: 'Check and assign', body: () => reviewBody(s) });
+    return s;
+  }
+
+  const whenC = () => {
+    if (live()) return `<p class="flex items-center gap-2 text-sm font-medium text-slate-700">${ic('pause', 'w-4 h-4 text-brand-blue-primary')}Starts paused. You start it from the board.</p>`;
+    if (S.when === 'study') return `<div class="space-y-3">${dateRows()}${perClassLink()}</div>`;
+    return `<div class="space-y-3">${U.seg('when', [{ v: 'manual', t: 'Manual' }, { v: 'scheduled', t: 'Scheduled' }], S.when, 'w-full [&>button]:flex-1')}${S.when === 'manual' ? manualFields() : `${dateRows()}${perClassLink()}${afterClose()}`}</div>`;
+  };
+  const kindSwitch = () =>
+    `<div role="radiogroup" aria-label="Student work" class="grid grid-cols-2 rounded-lg bg-slate-100 p-1">${[['work', 'Students submit work', 'pen-line'], ['study', 'Study resource', 'book-open']]
+      .map(([k, t, i]) => {
+        const on = (S.when === 'study') === (k === 'study');
+        return `<button type="button" role="radio" aria-checked="${on}" data-act="kind" data-val="${k}" class="flex h-9 items-center justify-center gap-2 rounded-md text-sm font-semibold ${on ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}">${ic(i, 'w-4 h-4')}${t}</button>`;
+      })
+      .join('')}</div>`;
+  const pacingSwitch = () =>
+    `<div role="radiogroup" aria-label="Pacing" class="grid grid-cols-2 rounded-lg bg-slate-100 p-1">${[['student', 'Self-paced', 'user'], ['teacher', 'Teacher-paced (live)', 'play']]
+      .map(([k, t, i]) => {
+        const on = S.pacing === k;
+        return `<button type="button" role="radio" aria-checked="${on}" data-act="set" data-path="pacing" data-val="${k}" class="flex h-9 items-center justify-center gap-2 rounded-md text-sm font-semibold ${on ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}">${ic(i, 'w-4 h-4')}${t}</button>`;
+      })
+      .join('')}</div>`;
+  const glLocked = () => S.activity === 'gl' && !T.glSubmit;
+  const topSwitch = () => (act().pacing ? pacingSwitch() : canStudy() && !glLocked() ? kindSwitch() : '');
+  function stepsC() {
+    const study = S.when === 'study';
+    const s = [
+      { id: 'classes', t: live() ? 'Class' : 'Classes', v: classText, body: () => `<div class="space-y-3">${classPicker()}${studentRows()}${modsLink()}</div>` },
+      { id: 'when', t: study ? 'Available' : 'When', v: () => (live() ? 'You start it from the board' : whenSummary()), body: whenC },
+    ];
+    if (S.activity === 'quiz' && !study) {
+      s.push({ id: 'rules', t: 'Attempts and order', v: () => rulesSummary({ ...S.rules, focus: false, blockCopy: false }), body: () => rows(attemptsRow(), timeRow(), shuffleRows()) });
+      s.push({ id: 'integrity', t: 'Quiz integrity', v: () => [S.rules.focus && 'Focus mode', S.rules.blockCopy && 'No copy and paste'].filter(Boolean).join(', ') || 'Off', body: () => rows(focusRows()) });
+      s.push({ id: 'feedback', t: 'What students see', v: fbText, body: () => rows(feedbackRows()) });
+    }
+    if (S.activity === 'flash' && !study) s.push({ id: 'check', t: 'How students are checked', v: fcText, body: flashRows });
+    if (act().plc && !study) s.push({ id: 'share', t: 'Sharing', v: () => (S.plc.on ? `Shared with ${S.plc.which}` : 'Not shared'), body: () => U.plcRow() });
+    return s;
+  }
+
+  /* ---------- layouts ---------- */
+  const footerNav = (n) => {
+    const left = T.step > 1 ? U.ghostBtn(`${ic('arrow-left', 'w-4 h-4')}Back`, 'back') : '<span></span>';
+    const right =
+      T.step === n
+        ? U.assignBtn()
+        : `<span class="flex items-center gap-2">${U.outlineBtn(`${ic('rocket', 'w-4 h-4')}Assign now`, 'assign')}${U.primaryBtn(`Next${ic('arrow-right', 'w-4 h-4')}`, 'next')}</span>`;
+    return left + right;
+  };
+  const clamp = (n) => { if (T.step > n) T.step = n; };
+
+  function layoutA() {
+    const s = stepsA(); clamp(s.length);
+    const cur = s[T.step - 1];
+    const bar = `<div class="shrink-0 px-6 pt-4"><div class="flex items-center justify-between text-xs font-semibold text-slate-500"><span>Step ${T.step} of ${s.length}</span></div><div class="mt-2 flex gap-1">${s.map((x, i) => `<button type="button" data-act="goto" data-n="${i + 1}" aria-label="${x.q}" ${i + 1 > T.step ? 'disabled' : ''} class="h-1.5 flex-1 rounded-full ${i + 1 <= T.step ? 'bg-brand-blue-primary' : 'bg-slate-200'}"></button>`).join('')}</div></div>`;
+    const body = `<h3 class="mb-4 text-base font-bold text-slate-800">${cur.q}</h3>${cur.body()}`;
+    return U.shell({ width: 'max-w-lg', h: 'h-[min(34rem,100%)]', sub: bar, body, footer: footerNav(s.length) });
+  }
+  function layoutB() {
+    const s = stepsB(); clamp(s.length);
+    const cur = s[T.step - 1];
+    const crumbs = `<ol class="flex shrink-0 items-center gap-1.5 border-b border-slate-100 px-6 py-2.5">${s.map((x, i) => {
+      const n = i + 1, curr = n === T.step, done = n < T.step;
+      return `<li class="flex items-center gap-1.5"><button type="button" data-act="goto" data-n="${n}" ${n > T.step ? 'disabled' : ''} class="flex items-center gap-1 text-xs font-bold ${curr ? 'text-brand-blue-primary' : done ? 'text-slate-600 hover:text-slate-800' : 'text-slate-400'}">${done ? ic('check', 'w-3.5 h-3.5 text-brand-blue-primary') : ''}${x.short}</button>${n < s.length ? ic('chevron-right', 'w-3.5 h-3.5 text-slate-300') : ''}</li>`;
+    }).join('')}</ol>`;
+    const body = `<h3 class="mb-4 text-lg font-bold text-slate-800">${cur.q}</h3>${cur.body()}`;
+    return U.shell({ width: 'max-w-xl', h: 'h-[min(42rem,100%)]', sub: crumbs, body, footer: footerNav(s.length) });
+  }
+  function layoutC() {
+    const s = stepsC(); clamp(s.length);
+    const body = `${topSwitch() ? `${topSwitch()}<div class="mt-4"></div>` : ''}<div class="space-y-1.5">${s.map((x, i) => {
+      const n = i + 1, open = n === T.step && !x.off;
+      const head = `<button type="button" data-act="goto" data-n="${n}" aria-expanded="${open}" ${x.off ? 'disabled' : ''} class="flex w-full items-center gap-3 px-4 py-2.5 text-left ${x.off ? 'cursor-default opacity-50' : ''}"><span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${open ? 'border-2 border-brand-blue-primary bg-white text-brand-blue-primary' : 'bg-slate-100 text-slate-500'}">${n}</span><span class="text-sm font-bold ${open ? 'text-brand-blue-dark' : 'text-slate-700'}">${x.t}</span>${open ? '' : `<span class="ml-auto min-w-0 truncate pl-4 text-xs text-slate-500">${x.v()}</span>`}</button>`;
+      const inner = open ? `<div class="space-y-4 px-4 pb-4 pl-[3.25rem]">${x.body()}${s.slice(n).some((y) => !y.off) ? `<div class="flex justify-end">${U.primaryBtn(`Continue${ic('arrow-right', 'w-4 h-4')}`, 'next', '!px-4 !py-1.5')}</div>` : ''}</div>` : '';
+      return `<div class="rounded-xl border ${open ? 'border-brand-blue-primary/40 bg-white shadow-sm' : 'border-slate-200 bg-white'}">${head}${inner}</div>`;
+    }).join('')}</div>`;
+    return U.shell({ width: 'max-w-xl', h: 'h-[min(46rem,100%)]', body, footer: `<span></span>${live() ? U.primaryBtn(`${ic('play', 'w-4 h-4')}Start live`, 'assign') : U.assignBtn()}` });
+  }
+
+  /* ---------- host ---------- */
+  const darkSeg = (a, opts, value) =>
+    `<div class="inline-flex rounded-lg bg-white/10 p-1">${opts.map((o) => `<button type="button" data-act="${a}" data-val="${o.v}" aria-pressed="${value === o.v}" class="h-7 rounded-md px-3 text-xs font-semibold ${value === o.v ? 'bg-white text-slate-900 shadow-sm' : 'text-white/80 hover:text-white'}">${o.t}</button>`).join('')}</div>`;
+  const toolbar = () =>
+    `<div class="text-sm font-bold">Assign stepper variants</div><div class="flex items-center gap-2"><span class="text-xxs font-bold uppercase tracking-widest text-white/50">Stepper</span>${darkSeg('variant', VARIANTS.map((v) => ({ v: v.id, t: v.label })), T.v)}</div><div class="flex items-center gap-2"><span class="text-xxs font-bold uppercase tracking-widest text-white/50">Activity</span>${darkSeg('activity', Object.entries(ACT).map(([v, a]) => ({ v, t: a.short })), S.activity)}</div><div class="flex items-center gap-2"><span class="text-xxs font-bold uppercase tracking-widest text-white/50">Admin: GL submissions</span>${darkSeg('glSubmit', [{ v: 'off', t: 'Off' }, { v: 'on', t: 'On' }], T.glSubmit ? 'on' : 'off')}</div>`;
+  const backdrop = () => {
+    const names = ['Cell Division Video', 'Sample Quiz', 'Unit 3 Vocabulary', 'Parts of a Cell', 'Photosynthesis Quiz', 'Ecosystems Review', 'Lab Safety', 'Periodic Table'];
+    return `<div class="absolute inset-0 overflow-hidden p-8"><div class="mx-auto max-w-5xl"><div class="mb-6 flex items-center gap-3"><div class="h-8 w-40 rounded-lg bg-slate-200"></div><div class="h-8 w-24 rounded-lg bg-slate-200"></div></div><div class="grid grid-cols-4 gap-4">${names.map((n) => `<div class="rounded-2xl border border-slate-200 bg-white p-4"><div class="h-16 rounded-lg bg-brand-blue-lighter"></div><div class="mt-3 truncate text-sm font-bold text-slate-800">${n}</div><div class="mt-1 h-2 w-20 rounded bg-slate-100"></div><button type="button" data-act="reopen" class="mt-3 inline-flex items-center gap-1 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-bold text-white">Assign</button></div>`).join('')}</div></div></div>`;
+  };
+
+  function render() {
+    const keep = {};
+    document.querySelectorAll('[data-scroll]').forEach((el) => (keep[el.dataset.scroll] = el.scrollTop));
+    $('#toolbar').innerHTML = toolbar();
+    const modal = T.open ? { A: layoutA, B: layoutB, C: layoutC }[T.v]() : '';
+    $('#stage').innerHTML = `${backdrop()}${T.open ? `<div class="absolute inset-0 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">${modal}</div>` : ''}${T.toast ? `<div class="absolute bottom-6 left-1/2 -translate-x-1/2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white shadow-2xl">${T.toast}</div>` : ''}`;
+    document.querySelectorAll('[data-scroll]').forEach((el) => { if (keep[el.dataset.scroll] != null) el.scrollTop = keep[el.dataset.scroll]; });
+    if (T.v === 'C' && T.scrollOpen) { T.scrollOpen = false; document.querySelector('[data-scroll=body] [aria-expanded=true]')?.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+  }
+
+  /* ---------- events ---------- */
+  const syncChoices = () => {
+    T.fb = fbLevel();
+    T.whenChoice = S.when === 'manual' ? 'manual' : S.when === 'study' ? 'study' : T.whenChoice === 'schedule' ? 'schedule' : 'today';
+  };
+  const after = (path) => {
+    if (path === 'pacing') {
+      if (S.pacing === 'teacher') { S.when = 'manual'; const first = sel()[0] || S.classes[0]; S.classes.forEach((c) => (c.on = c === first)); }
+      else S.when = 'scheduled';
+    }
+    if (path === 'each' && S.each) spreadAll();
+    if (path.startsWith('rules.') && !path.startsWith('rules.show') && path !== 'rules.reveal' && path !== 'rules.groupLT' && path !== 'rules.raiseHand') T.strict = 'custom';
+    syncChoices();
+  };
+  const choose = (g, id) => {
+    T[g] = id;
+    if (g === 'whenChoice') {
+      if (id === 'today') { S.when = 'scheduled'; S.each = false; S.win.all = { o: { day: TODAY, time: 'bell' }, c: { day: TODAY, time: 'bell' } }; }
+      if (id === 'schedule') S.when = 'scheduled';
+      if (id === 'manual') S.when = 'manual';
+      if (id === 'study') S.when = 'study';
+    }
+    if (g === 'strict') {
+      if (id === 'last') S.rules = { ...S.rules, ...pick(LAST_USED) };
+      else if (STRICT[id].set) S.rules = { ...S.rules, ...STRICT[id].set };
+    }
+    if (g === 'fb') S.rules = { ...S.rules, ...FB[id].set };
+  };
+  const pick = (r) => { const { showScore, showRW, reveal, groupLT, raiseHand, ...rest } = r; return rest; };
+  const actions = {
+    kind: (d) => { if (d.val === 'study') { if (S.when !== 'study') T.lastWhen = S.when; S.when = 'study'; } else S.when = T.lastWhen || 'scheduled'; T.step = Math.min(T.step, 2); syncChoices(); },
+    variant: (d) => { T.v = d.val; T.step = 1; S.view = 'main'; T.menu = null; },
+    activity: (d) => { S.activity = d.val; S.name = ACT[d.val].title; T.step = 1; S.view = 'main'; S.when = d.val === 'quiz' ? 'manual' : 'scheduled'; S.flash = clone(P.DEFAULT_FLASH); S.fc = { ...FC_DEFAULT }; S.pacing = 'student'; T.whenChoice = 'today'; S.classes.forEach((c) => (c.on = true)); if (d.val === 'gl' && !T.glSubmit) S.when = 'study'; },
+    glSubmit: (d) => { T.glSubmit = d.val === 'on'; if (S.activity === 'gl') { S.when = T.glSubmit ? 'scheduled' : 'study'; T.step = 1; } },
+    menu: (d) => { T.menu = T.menu === d.id ? null : d.id; },
+    pickStudent: (d) => {
+      const cur = new Set(pickedIn(d.cid) || []);
+      if (cur.has(d.sid)) cur.delete(d.sid); else cur.add(d.sid);
+      S.pick[d.cid] = cur.size ? [...cur] : null;
+    },
+    pickGroup: (d) => {
+      const g = GROUPS[d.cid].find((x) => x.id === d.gid);
+      const cur = new Set(pickedIn(d.cid) || []);
+      const all = g.ids.every((id) => cur.has(id));
+      g.ids.forEach((id) => (all ? cur.delete(id) : cur.add(id)));
+      S.pick[d.cid] = cur.size ? [...cur] : null;
+    },
+    pickAll: (d) => { S.pick[d.cid] = null; T.menu = null; },
+    pickNone: (d) => { S.pick[d.cid] = null; },
+    cls: (d) => { const c = S.classes.find((x) => x.id === d.id); if (live()) { S.classes.forEach((x) => (x.on = x === c)); T.menu = null; } else c.on = !c.on; },
+    clsAll: () => S.classes.forEach((c) => (c.on = true)),
+    clsClear: () => S.classes.forEach((c) => (c.on = false)),
+    toggle: (d) => { setPath(S, d.path, !getPath(S, d.path)); after(d.path); },
+    set: (d) => { const v = d.type === 'number' ? Number(d.val) : d.type === 'bool' ? d.val === 'true' : d.val; setPath(S, d.path, v); after(d.path); },
+    bell: (d) => setPath(S, d.path, 'bell'),
+    choose: (d) => choose(d.group, d.id),
+    moreFb: () => { T.moreFb = !T.moreFb; },
+    goto: (d) => { T.step = Number(d.n); T.menu = null; T.scrollOpen = true; },
+    next: () => { T.step += 1; if (T.v === 'C') { const st = stepsC(); while (st[T.step - 1] && st[T.step - 1].off) T.step += 1; } T.menu = null; T.scrollOpen = true; },
+    back: () => { T.step = Math.max(1, T.step - 1); T.menu = null; },
+    mods: () => { S.view = 'mods'; T.menu = null; },
+    modsBack: () => { S.view = 'main'; },
+    modOpen: (d) => { S.mods[Number(d.i)].open = !S.mods[Number(d.i)].open; },
+    modRemove: (d) => { S.mods.splice(Number(d.i), 1); },
+    clearMods: () => { S.mods = []; },
+    generate: () => { S.generating = true; setTimeout(() => { S.ruReady = true; S.generating = false; render(); }, 900); },
+    assign: () => { T.open = false; T.toast = sel().length ? `Assigned to ${sel().length} class${sel().length > 1 ? 'es' : ''}` : 'Link created'; },
+    cancel: () => { T.open = false; T.toast = ''; },
+    reopen: () => { T.open = true; T.toast = ''; T.step = 1; S.view = 'main'; },
+  };
+  document.body.addEventListener('click', (e) => {
+    const t = e.target.closest('[data-act]');
+    if (!t) {
+      if (T.menu && !e.target.closest('[data-menu-root]')) { T.menu = null; render(); }
+      return;
+    }
+    if (T.menu && !t.closest('[data-menu-root]')) T.menu = null;
+    const fn = actions[t.dataset.act];
+    if (!fn) return;
+    fn(t.dataset, t);
+    render();
+  });
+  document.body.addEventListener('input', (e) => {
+    const f = e.target.dataset && e.target.dataset.filter;
+    if (!f) return;
+    const q = e.target.value.trim().toLowerCase();
+    document.querySelectorAll(`[data-list="${f}"] [data-name]`).forEach((row) => { row.style.display = row.dataset.name.includes(q) ? '' : 'none'; });
+  });
+  document.body.addEventListener('change', (e) => {
+    if (e.target.dataset && e.target.dataset.filter) return;
+    const t = e.target.closest('[data-bind]');
+    if (!t) return;
+    const path = t.dataset.bind;
+    let v = t.value;
+    if (t.dataset.type === 'number') v = Number(v);
+    if (t.dataset.type === 'time' && v === 'set') v = t.dataset.side === 'o' ? '08:00' : '15:00';
+    if (path === 'addMod') {
+      const r = ROSTER.find((x) => x.id === v);
+      if (r) S.mods.push({ id: r.id, cls: (sel()[0] || S.classes[0]).id, name: r.name, readAloud: false, lang: 'en', skip: false, open: true });
+    } else {
+      setPath(S, path, v);
+      if (path.startsWith('win.all.') && T.whenChoice === 'today') T.whenChoice = 'schedule';
+      after(path);
+    }
+    render();
+  });
+
+  S.mem = 'A';
+  S.when = 'manual';
+  S.fc = { ...FC_DEFAULT };
+  P.resetForMem();
+  syncChoices();
+  render();
+})();
+
+</script>
+</body>
+</html>

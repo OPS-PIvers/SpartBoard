@@ -110,6 +110,23 @@ describe('useTourEditorSession', () => {
     expect(getTourEdit()).toMatchObject({ selected: 2, replay: 1 });
   });
 
+  it('v2 replays only when a step before the selection changes', () => {
+    setTourEdit({
+      set: makeSet(),
+      selected: 1,
+      replay: 0,
+      readAloud: false,
+      v2: true,
+    });
+    const { result } = renderHook(() => useTourEditorSession());
+    act(() => {
+      result.current?.insertStepAfter('b');
+    });
+    expect(getTourEdit()).toMatchObject({ selected: 2, replay: 0 });
+    act(() => result.current?.moveStep('a', 3));
+    expect(getTourEdit()?.replay).toBe(1);
+  });
+
   it('selects a neighbour when the selected step is deleted', () => {
     const { result } = open(2);
     act(() => result.current?.deleteStep('c'));

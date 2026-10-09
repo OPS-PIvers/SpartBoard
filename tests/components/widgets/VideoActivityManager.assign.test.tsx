@@ -25,7 +25,7 @@
  */
 
 import React from 'react';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   render,
   screen,
@@ -79,6 +79,15 @@ vi.mock('@/hooks/useClaudeReview', () => ({
   }),
 }));
 const liveFlag = { enabled: false };
+const stepperFlag = { enabled: false };
+const lastPacing = {
+  lastUsed: null as 'student' | 'teacher' | null,
+  save: vi.fn(),
+};
+vi.mock('@/hooks/useLastVideoAssignPacing', () => ({
+  useLastVideoAssignPacing: () => ({ ...lastPacing, loaded: true }),
+}));
+const availabilityFlag = { enabled: false };
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'teacher-1', displayName: 'Test Teacher' },
@@ -87,7 +96,11 @@ vi.mock('@/context/useAuth', () => ({
     canAccessFeature: (id: string) =>
       id === 'video-activity-live'
         ? liveFlag.enabled
-        : id !== 'assign-availability',
+        : id === 'assign-stepper'
+          ? stepperFlag.enabled
+          : id === 'assign-availability'
+            ? availabilityFlag.enabled
+            : true,
   }),
 }));
 
@@ -647,6 +660,37 @@ describe('VideoActivityManager assign modal — live pacing', () => {
   });
 });
 
+describe('VideoActivityManager assign — never a study resource (D3)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    availabilityFlag.enabled = true;
+  });
+  afterEach(() => {
+    availabilityFlag.enabled = false;
+  });
+
+  it('offers no Study Resource choice and assigns without a work kind', async () => {
+    const onAssign = vi.fn().mockResolvedValue('s-1');
+    renderManager(makeVaMeta(), onAssign);
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    const dialog = await screen.findByRole('dialog', {
+      name: /cell division/i,
+    });
+    fireEvent.click(within(dialog).getByTestId('roster-r1'));
+    expect(
+      within(dialog).queryByRole('radio', { name: /study resource/i })
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole('textbox', { name: /assignment name/i })
+    ).not.toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
+    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
+    expect(
+      (onAssign.mock.calls[0][3] as AssignTargetingValue).workKind
+    ).toBeUndefined();
+  });
+});
+
 describe('VideoActivityManager assign modal — make-up prefill', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -746,5 +790,54 @@ describe('VideoActivityManager — delete in progress assignment', () => {
 
     await waitFor(() => expect(onArchiveDelete).toHaveBeenCalledTimes(1));
     expect(screen.queryByText('Confirm delete')).not.toBeInTheDocument();
+  });
+});
+
+describe('VideoActivityManager assign — stepper (assign-stepper)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    stepperFlag.enabled = true;
+    liveFlag.enabled = true;
+    lastPacing.lastUsed = null;
+  });
+  afterEach(() => {
+    stepperFlag.enabled = false;
+    liveFlag.enabled = false;
+  });
+
+  it('opens the stepper instead of the old dialog', async () => {
+    renderManager(makeVaMeta());
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      within(dialog).getByRole('radiogroup', { name: 'Pacing' })
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('assign-class-picker')).toBeNull();
+  });
+
+  it('opens on the last-used pacing and saves the pacing on assign', async () => {
+    lastPacing.lastUsed = 'teacher';
+    const onAssign = vi.fn().mockResolvedValue('session-1');
+    renderManager(makeVaMeta(), onAssign);
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /Start live/ }));
+    await waitFor(() => expect(onAssign).toHaveBeenCalled());
+    const [, rosterIds, dueAt, , mode, extras] = onAssign.mock.calls[0];
+    expect(rosterIds).toEqual([]);
+    expect(dueAt).toBeNull();
+    expect(mode).toBe('teacher');
+    expect(extras).toMatchObject({ manualStart: false, plc: null });
+    expect(lastPacing.save).toHaveBeenCalledWith('teacher');
+  });
+
+  it('keeps the dialog open and shows the error when assigning fails', async () => {
+    const onAssign = vi.fn().mockRejectedValue(new Error('No questions yet'));
+    renderManager(makeVaMeta(), onAssign);
+    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /^Assign$/ }));
+    expect(await screen.findByText('No questions yet')).toBeInTheDocument();
+    expect(lastPacing.save).not.toHaveBeenCalled();
   });
 });

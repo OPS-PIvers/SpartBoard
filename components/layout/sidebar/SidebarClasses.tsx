@@ -155,6 +155,10 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
   const unlinkedSchoologyCount = seenSchoologySections.filter(
     (s) => !rosters.some((r) => r.ltiContextId === s.contextId)
   ).length;
+  // With tool columns on, a course link can be pasted, so the CTA needs no seen section.
+  const schoologyPasteLink =
+    canAccessFeature('schoology-tool-columns') &&
+    rosters.some((r) => !!r.classlinkClassId || !!r.testClassId);
 
   // ── "Link to Google Classroom" modal state ──────────────────────────────
   // The roster currently being linked (null = modal closed).
@@ -503,7 +507,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
             {/* Link-to-Schoology CTA — only when sections have been seen but not
                 yet linked (Schoology has no course-list API, so this surfaces the
                 passive seen-section inventory). */}
-            {unlinkedSchoologyCount > 0 && (
+            {(unlinkedSchoologyCount > 0 || schoologyPasteLink) && (
               <button
                 onClick={() => setShowLinkSchoology(true)}
                 {...tourAttr('classes.link-schoology')}
@@ -511,11 +515,15 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
               >
                 <GraduationCap className="w-4 h-4" />
                 <span className="text-xxs font-bold uppercase tracking-wider">
-                  {t('sidebar.classes.linkSchoology', {
-                    defaultValue: 'Link {{count}} Schoology section',
-                    defaultValue_other: 'Link {{count}} Schoology sections',
-                    count: unlinkedSchoologyCount,
-                  })}
+                  {unlinkedSchoologyCount > 0
+                    ? t('sidebar.classes.linkSchoology', {
+                        defaultValue: 'Link {{count}} Schoology section',
+                        defaultValue_other: 'Link {{count}} Schoology sections',
+                        count: unlinkedSchoologyCount,
+                      })
+                    : t('sidebar.classes.linkSchoologyCourse', {
+                        defaultValue: 'Link a Schoology course',
+                      })}
                 </span>
               </button>
             )}
@@ -789,6 +797,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
         seenSections={seenSchoologySections}
         addToast={addToast}
         updateRoster={updateRoster}
+        pasteLinkEnabled={schoologyPasteLink}
       />
 
       {linkingRoster && (

@@ -29,6 +29,7 @@ import {
   buildSetAssignmentTargetsPayload,
   payloadRequiresCall,
 } from '@/utils/studentTargetRef';
+import { buildMixedTargetsPayload } from '@/utils/assignTargets';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import { FlashcardAssignModal } from './FlashcardAssignModal';
 import { useFlashcardPlcSharing } from './useFlashcardPlcSharing';
@@ -41,6 +42,10 @@ import { useGooglePicker } from '@/hooks/useGooglePicker';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { ImportWizard } from '@/components/common/library/importer';
+import {
+  LIBRARY_ITEM_NOUNS,
+  useLibraryDeleteConfirm,
+} from '@/components/common/library/useLibraryDeleteConfirm';
 import { FlashcardEditor } from './FlashcardEditor';
 import {
   clearPastedFlashcards,
@@ -91,6 +96,7 @@ interface SetAssignmentTargetsCallableInput {
     dueAt?: number | null;
   };
   targetMode?: 'class' | 'students';
+  studentTargetClassIds?: string[];
 }
 interface SetAssignmentTargetsCallableResult {
   written: number;
@@ -113,6 +119,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   const { addToast, updateWidget, rosters, updateRoster } = useDashboard();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { showConfirm } = useDialog();
+  const confirmDelete = useLibraryDeleteConfirm();
   const { openPicker } = useGooglePicker();
   // A substitute can read neither the teacher's sets nor their assignments, so
   // in a share the presented set comes from the bundle and no listener opens.
@@ -271,14 +278,10 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   };
 
   const handleDelete = async (set: FlashcardSet): Promise<void> => {
-    const confirmed = await showConfirm(
-      `Delete “${set.title}”? This cannot be undone.`,
-      {
-        title: 'Delete flashcard set',
-        variant: 'danger',
-        confirmLabel: 'Delete',
-      }
-    );
+    const confirmed = await confirmDelete({
+      titles: [set.title],
+      noun: LIBRARY_ITEM_NOUNS.flashcards,
+    });
     if (!confirmed) return;
     try {
       await flashcardSets.deleteSet(set.id);
@@ -312,14 +315,17 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     input,
     rosterIds,
     expandedTargeting,
-  }: FlashcardAssignSubmission): Promise<void> => {
+    studentTargetClassIds,
+  }: FlashcardAssignSubmission): Promise<boolean> => {
     const { set } = input;
     try {
       const sessionId = await createAssignment(input);
-      const payload = buildSetAssignmentTargetsPayload(
-        undefined,
-        expandedTargeting
-      );
+      const payload = studentTargetClassIds
+        ? buildMixedTargetsPayload(undefined, {
+            targeting: expandedTargeting,
+            studentTargetClassIds,
+          })
+        : buildSetAssignmentTargetsPayload(undefined, expandedTargeting);
       if (payloadRequiresCall(payload)) {
         try {
           const callable = httpsCallable<
@@ -379,6 +385,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       } catch {
         addToast(`“${set.title}” assigned.`, 'success');
       }
+      return true;
     } catch (error) {
       addToast(
         error instanceof Error
@@ -386,6 +393,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
           : 'Flashcard set could not be assigned.',
         'error'
       );
+      return false;
     }
   };
 
@@ -604,6 +612,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
               />
             ) : (
               <FlashcardLibrary
+                userId={inShare ? undefined : user?.uid}
                 sets={flashcardSets.sets}
                 loading={flashcardSets.loading}
                 error={flashcardSets.error}
@@ -621,6 +630,11 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
                 onShare={setSharingSet}
                 onAssign={handleAssign}
                 onDelete={(set) => void handleDelete(set)}
+                folderDeleteActions={{
+                  deleteItems: async (ids) => {
+                    for (const id of ids) await flashcardSets.deleteSet(id);
+                  },
+                }}
                 assignments={assignments}
                 assignmentsLoading={assignmentsLoading}
                 tab={config.libraryTab ?? 'library'}

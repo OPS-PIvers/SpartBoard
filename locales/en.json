@@ -3085,7 +3085,8 @@
       "readAloud": "Read aloud",
       "language": "{{language}}"
     },
-    "language": "Language"
+    "language": "Language",
+    "noChanges": "No changes"
   },
   "assignTargeting": {
     "expandAffordance": "Edit or add modifications",
@@ -3141,7 +3142,15 @@
     "periodBell": "Bell times",
     "periodCustom": "Custom",
     "periodBellTimes": "{{open}} – {{close}}",
-    "periodNoBell": "This period has no bell that day, so it uses the window above."
+    "periodNoBell": "This period has no bell that day, so it uses the window above.",
+    "back": "Back",
+    "modificationsEyebrow": "Assign · {{title}}",
+    "modificationsLink": "Modifications: {{value}}",
+    "modificationsNone": "None",
+    "standingHeading": "Standing",
+    "skippedChip": "Skipped",
+    "removeModification": "Remove modification",
+    "addStudent": "Add a student"
   },
   "assignmentsHub": {
     "title": "Assignments",
@@ -4666,7 +4675,49 @@
       "startAutopilot": "Start with Autopilot on",
       "open": "Edit tour",
       "retake": "Retake picture",
-      "retakeHint": "Takes a new picture of this step's control"
+      "retakeHint": "Takes a new picture of this step's control",
+      "pause": "Pause",
+      "resume": "Resume",
+      "pauseHint": "Hide the tour and set up the board by hand",
+      "pausedNote": "Paused. Arrange the board, then resume.",
+      "saveStartTitle": "Save this board?",
+      "saveStartBody": "Start step {{n}} from this board when someone jumps to it?",
+      "saveStart": "Save board",
+      "justResume": "Just resume",
+      "startSaved": "Starts from a saved board",
+      "clearStart": "Clear"
+    },
+    "kept_one": "Saved {{count}} item to your library.",
+    "kept_other": "Saved {{count}} items to your library.",
+    "keepFailed": "Some items could not be saved.",
+    "keepItemsTitle_one": "Keep what you made?",
+    "keepItemsTitle_other": "Keep what you made?",
+    "keepItems_one": "Keep it",
+    "keepItems_other": "Keep them",
+    "discardItems": "Discard",
+    "untitledItem": "Untitled",
+    "materials": {
+      "title": "Materials",
+      "empty": "None. The tour uses whatever is on the board.",
+      "add": "Add material",
+      "remove": "Remove material",
+      "name": "Name",
+      "kind": "Type",
+      "source": "Comes from",
+      "source_sample": "Sample copy",
+      "source_teacher": "Teacher's own",
+      "source_created": "Made during the tour",
+      "copyFrom": "Copy from",
+      "previewWith": "Preview with",
+      "choose": "Choose…",
+      "noneYet": "None in your library yet",
+      "pickBody": "Pick which of your items this tour uses. The tour makes real changes to them.",
+      "madeInTour": "Made in the tour",
+      "kind_quiz": "Quiz",
+      "kind_video-activity": "Video activity",
+      "kind_guided-learning": "Guided learning",
+      "kind_mini-app": "Mini app",
+      "kind_activity-wall": "Activity wall"
     }
   },
   "glPlayer": {
@@ -4856,10 +4907,8 @@
   },
   "glData": {
     "setTooLarge": "This set is too large to save. Split it or remove slides.",
-    "deleteSetTitle": "Delete \"{{title}}\"?",
     "deleteWithOpenAssignments_one": "Students in {{count}} open assignment will lose it.",
-    "deleteWithOpenAssignments_other": "Students in {{count}} open assignments will lose it.",
-    "deleteConfirm": "Delete"
+    "deleteWithOpenAssignments_other": "Students in {{count}} open assignments will lose it."
   },
   "glAssignments": {
     "showOlder": "Show older"

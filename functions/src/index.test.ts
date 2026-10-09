@@ -470,6 +470,11 @@ vi.mock('firebase-functions/params', () => ({
 
 // Mock axios
 vi.mock('axios');
+vi.mock('dns', () => {
+  const lookup = () =>
+    Promise.resolve([{ address: '93.184.216.34', family: 4 }]);
+  return { default: { promises: { lookup } }, promises: { lookup } };
+});
 
 // Stub GoogleGenAI so tests don't make live Vertex AI calls under network/CPU contention.
 vi.mock('@google/genai', async (importOriginal) => {
@@ -3615,6 +3620,11 @@ describe('index barrel — deployed export set', () => {
     'ltiResolveNamesForAssignmentV1',
     'linkLtiCourseV1',
     'ltiSuggestClassLinkMatchV1',
+    'ltiLinkSectionByUrlV1',
+    'ltiToolColumnCategoriesV1',
+    'ltiCreateToolColumnCategoriesV1',
+    'ltiPushToolColumnV1',
+    'ltiDeleteToolColumnsV1',
     // Claude connector
     'mcpServer',
     'mcpOAuth',
