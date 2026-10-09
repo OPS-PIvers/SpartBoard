@@ -84,6 +84,7 @@ import {
 import { usePlcAssessments } from '@/hooks/usePlcAssessments';
 import { usePlcAggregate } from '@/hooks/usePlcAggregate';
 import { usePlcLearningTargets } from '@/hooks/useLearningTargets';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface NotesBodyProps {
   plc: Plc;
@@ -1036,6 +1037,7 @@ const NotesBodyInner: React.FC<
         {canEdit && !unified && (
           <div className="flex items-center gap-1">
             <button
+              {...tourFieldAttr('plc-notes.new-note', 'plc', 'meeting')}
               type="button"
               onClick={() => void handleCreate('meeting')}
               className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xxs font-bold uppercase tracking-wider rounded-md transition-colors"
@@ -1049,6 +1051,7 @@ const NotesBodyInner: React.FC<
               })}
             </button>
             <button
+              {...tourFieldAttr('plc-notes.new-note', 'plc', 'freeform')}
               type="button"
               onClick={() => void handleCreate('freeform')}
               className="inline-flex items-center gap-1 px-2 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xxs font-bold uppercase tracking-wider rounded-md transition-colors"
@@ -1061,6 +1064,7 @@ const NotesBodyInner: React.FC<
         {canEdit && unified && (
           <div ref={newMenuRef} className="relative">
             <button
+              {...tourAttr('plc-notes.new-menu')}
               type="button"
               onClick={() => setNewMenuOpen((v) => !v)}
               aria-haspopup="menu"
@@ -1105,6 +1109,7 @@ const NotesBodyInner: React.FC<
                   ] as const
                 ).map(({ id, icon: Icon, label, run }) => (
                   <button
+                    {...tourFieldAttr('plc-notes.new-menu-item', 'plc', id)}
                     key={id}
                     type="button"
                     role="menuitem"
@@ -1142,6 +1147,7 @@ const NotesBodyInner: React.FC<
                 return (
                   <li key={`doc-${doc.id}`}>
                     <button
+                      {...tourFieldAttr('plc-notes.doc-select', 'plc', doc.id)}
                       type="button"
                       onClick={() => handleSelectDoc(doc.id)}
                       className={`w-full text-left px-3 py-2.5 border-b border-slate-100 transition-colors ${
@@ -1176,6 +1182,7 @@ const NotesBodyInner: React.FC<
               return (
                 <li key={note.id}>
                   <button
+                    {...tourFieldAttr('plc-notes.note-select', 'plc', note.id)}
                     type="button"
                     onClick={() => handleSelect(note.id)}
                     className={`w-full text-left px-3 py-2.5 border-b border-slate-100 transition-colors ${
@@ -1232,6 +1239,7 @@ const NotesBodyInner: React.FC<
 
   const noteOpenInDocs = selectedNote && canEdit && unified && (
     <button
+      {...tourAttr('plc-notes.open-in-docs')}
       type="button"
       disabled={noteGoogleDoc.creatingNoteId === selectedNote.id}
       onClick={() => void handleOpenInDocs(selectedNote)}
@@ -1272,6 +1280,7 @@ const NotesBodyInner: React.FC<
               {selectedDoc.title}
             </h3>
             <a
+              {...tourAttr('plc-notes.doc-link')}
               href={ensureProtocol(selectedDoc.url)}
               target="_blank"
               rel="noopener noreferrer"
@@ -1285,6 +1294,7 @@ const NotesBodyInner: React.FC<
             {sidePanels && <span className="flex-1" />}
             {canEdit && (
               <button
+                {...tourAttr('plc-notes.doc-delete')}
                 type="button"
                 onClick={() => void handleDeleteDoc(selectedDoc)}
                 className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
@@ -1326,6 +1336,7 @@ const NotesBodyInner: React.FC<
               </span>
             )}
             <input
+              {...tourAttr('plc-notes.title')}
               type="text"
               ref={titleFieldRef}
               value={editorTitle}
@@ -1355,6 +1366,7 @@ const NotesBodyInner: React.FC<
             {(!richEditor || !canEdit) && recordControl}
             {!richEditor && (
               <button
+                {...tourAttr('plc-notes.body-mode')}
                 type="button"
                 onClick={() =>
                   setBodyMode((m) => (m === 'edit' ? 'preview' : 'edit'))
@@ -1389,6 +1401,7 @@ const NotesBodyInner: React.FC<
             {!sidePanels && noteOpenInDocs}
             {canEdit && (
               <button
+                {...tourAttr('plc-notes.note-delete')}
                 type="button"
                 onClick={() => void handleDelete(selectedNote)}
                 className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
@@ -1416,6 +1429,7 @@ const NotesBodyInner: React.FC<
               />
             ) : bodyMode === 'edit' ? (
               <textarea
+                {...tourAttr('plc-notes.body')}
                 ref={bodyFieldRef}
                 value={editorBody}
                 readOnly={editorReadOnly}
@@ -1492,6 +1506,11 @@ const NotesBodyInner: React.FC<
           {canEdit ? (
             <div className="mt-3 flex items-center gap-2">
               <button
+                {...tourFieldAttr(
+                  'plc-notes.new-note',
+                  'plc',
+                  'freeform-empty'
+                )}
                 type="button"
                 onClick={() => void handleCreate('freeform')}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xxs font-bold uppercase tracking-wider rounded-lg transition-colors"
@@ -1502,6 +1521,7 @@ const NotesBodyInner: React.FC<
                 })}
               </button>
               <button
+                {...tourFieldAttr('plc-notes.new-note', 'plc', 'meeting-empty')}
                 type="button"
                 onClick={() => void handleCreate('meeting')}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xxs font-bold uppercase tracking-wider rounded-lg transition-colors"
