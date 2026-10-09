@@ -668,7 +668,10 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
         <AssignAvailabilitySection
           value={
             value.availability ??
-            defaultAvailability(openedAt, !!periodAccess, workKind)
+            defaultAvailability(openedAt, !!periodAccess, workKind, {
+              rosters: rosters.filter((r) => effectiveRosterIds.includes(r.id)),
+              bellWindow: periodAccess?.bellWindow,
+            })
           }
           onChange={(availability) => patch({ availability })}
           rosters={rosters.filter((r) => effectiveRosterIds.includes(r.id))}

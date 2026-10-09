@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pause } from 'lucide-react';
 import type { ClassRoster } from '@/types';
@@ -6,6 +6,7 @@ import { Toggle } from '@/components/common/Toggle';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import {
   closesBeforeOpens,
+  closesInPast,
   specForRoster,
   type AssignAvailability,
   type AssignWhenMode,
@@ -48,6 +49,7 @@ export const AssignWhenStep: React.FC<{
   perClass = !!periodAccess,
 }) => {
   const { t } = useTranslation();
+  const [openedAt] = useState(() => Date.now());
 
   if (variant === 'live')
     return (
@@ -152,6 +154,12 @@ export const AssignWhenStep: React.FC<{
                     [roster],
                     bellWindow
                   )}
+                  closed={closesInPast(
+                    specForRoster(availability, roster.id),
+                    [roster],
+                    bellWindow,
+                    openedAt
+                  )}
                   onChange={(spec) =>
                     setAvailability({
                       ...availability,
@@ -171,6 +179,12 @@ export const AssignWhenStep: React.FC<{
                 availability.all,
                 rosters,
                 bellWindow
+              )}
+              closed={closesInPast(
+                availability.all,
+                rosters,
+                bellWindow,
+                openedAt
               )}
               onChange={(all) => setAvailability({ ...availability, all })}
               resource={available}
