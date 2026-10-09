@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { ChevronDown, Loader2, Pause, Play } from 'lucide-react';
 import type { PeriodAccess } from '@/types';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useServerNow } from '@/hooks/useServerNow';
 import { Z_INDEX } from '@/config/zIndex';
@@ -37,6 +38,14 @@ export interface PeriodBarProps {
   onPause: (key: string) => Promise<void>;
   onExtend: (key: string, by: number | null) => Promise<void>;
   extendMs: number;
+  /** Live-tour anchors for the bar's controls. */
+  anchors?: {
+    select?: TourAnchorAttrs;
+    start?: TourAnchorAttrs;
+    pause?: TourAnchorAttrs;
+    moreTime?: TourAnchorAttrs;
+    extend?: TourAnchorAttrs;
+  };
 }
 
 function useEntries(periodAccess: Record<string, PeriodAccess>) {
@@ -67,8 +76,8 @@ type Row = ReturnType<typeof useEntries>[number];
 
 /** Class picker; each option carries its class's state, so the picked one reads at a glance. */
 const PeriodPicker: React.FC<
-  Pick<PeriodBarProps, 'selected' | 'onSelect'> & { rows: Row[] }
-> = ({ rows, selected, onSelect }) => {
+  Pick<PeriodBarProps, 'selected' | 'onSelect' | 'anchors'> & { rows: Row[] }
+> = ({ rows, selected, onSelect, anchors }) => {
   const current = rows.find((r) => r.key === selected);
   const liveCount = rows.filter((r) => r.state === 'open').length;
   const text = { fontSize: 'min(16px, 5.5cqmin)' };
@@ -79,6 +88,7 @@ const PeriodPicker: React.FC<
       style={{ gap: 'min(10px, 2.5cqmin)' }}
     >
       <select
+        {...anchors?.select}
         aria-label="Class"
         value={selected}
         onChange={(e) => onSelect(e.target.value)}
@@ -107,7 +117,7 @@ const PeriodPicker: React.FC<
 /** Start or Pause for the picked class, plus More time while it has a close time. */
 const PeriodAction: React.FC<
   Omit<PeriodBarProps, 'onSelect' | 'periodAccess'> & { rows: Row[] }
-> = ({ rows, selected, onStart, onPause, onExtend, extendMs }) => {
+> = ({ rows, selected, onStart, onPause, onExtend, extendMs, anchors }) => {
   const [busy, setBusy] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -127,9 +137,11 @@ const PeriodAction: React.FC<
     label: string,
     icon: React.ReactNode,
     onClick: () => void,
-    primary: boolean
+    primary: boolean,
+    anchor?: TourAnchorAttrs
   ) => (
     <button
+      {...anchor}
       key={label}
       onClick={onClick}
       disabled={busy}
@@ -160,6 +172,7 @@ const PeriodAction: React.FC<
     >
       {live && current.access.closeAt != null && (
         <button
+          {...anchors?.moreTime}
           onClick={() => setMenuOpen((v) => !v)}
           aria-label={`More time for ${current.access.label}`}
           aria-expanded={menuOpen}
@@ -179,13 +192,15 @@ const PeriodAction: React.FC<
             'Pause',
             <Pause style={iconStyle} />,
             () => void run(() => onPause(current.key)),
-            false
+            false,
+            anchors?.pause
           )
         : button(
             'Start',
             <Play style={iconStyle} />,
             () => void run(() => onStart(current.key)),
-            true
+            true,
+            anchors?.start
           )}
       {menuOpen && (
         <div
@@ -201,6 +216,7 @@ const PeriodAction: React.FC<
             { label: 'Until I pause', by: null },
           ].map((item) => (
             <button
+              {...anchors?.extend}
               key={item.label}
               onClick={() => {
                 setMenuOpen(false);
