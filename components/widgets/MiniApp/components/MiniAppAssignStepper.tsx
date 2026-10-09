@@ -34,7 +34,6 @@ import {
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
 import type { MiniAppStepperChoices } from '../miniAppStepperAssign';
-import { tourTypeAttr } from '@/config/tourAnchors';
 
 export interface MiniAppAssignStepperProps {
   appTitle: string;
