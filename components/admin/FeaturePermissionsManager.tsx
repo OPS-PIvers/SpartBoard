@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useRef,
 } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { collection, doc, setDoc, getDocs, getDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import {
@@ -426,6 +427,7 @@ export const FeaturePermissionsManager: React.FC = () => {
         <button
           key={val}
           onClick={() => setFilterEnabled(val)}
+          {...tourFieldAttr('admin.features.filter-enabled', 'admin', val)}
           className={btnClass(filterEnabled === val)}
         >
           {val === 'all' ? 'All' : val === 'on' ? 'On' : 'Off'}
@@ -441,6 +443,7 @@ export const FeaturePermissionsManager: React.FC = () => {
         <button
           key={val}
           onClick={() => setFilterAvailability(val)}
+          {...tourFieldAttr('admin.features.filter-availability', 'admin', val)}
           className={btnClass(filterAvailability === val)}
         >
           {val === 'all' ? 'All' : val.charAt(0).toUpperCase() + val.slice(1)}
@@ -454,6 +457,7 @@ export const FeaturePermissionsManager: React.FC = () => {
       <span className="text-xs text-slate-500 font-medium">Building:</span>
       <button
         onClick={() => setFilterBuilding('all')}
+        {...tourFieldAttr('admin.features.filter-building', 'admin', 'all')}
         className={btnClass(filterBuilding === 'all')}
       >
         All
@@ -462,6 +466,7 @@ export const FeaturePermissionsManager: React.FC = () => {
         <button
           key={b.id}
           onClick={() => setFilterBuilding(b.id)}
+          {...tourFieldAttr('admin.features.filter-building', 'admin', b.id)}
           className={btnClass(filterBuilding === b.id)}
           title={b.name}
         >
@@ -502,6 +507,7 @@ export const FeaturePermissionsManager: React.FC = () => {
             className="flex items-center gap-1.5 text-slate-500 md:hidden"
             aria-expanded={showFilters}
             aria-controls="feature-perm-mobile-filters"
+            {...tourAttr('admin.features.filter-toggle')}
           >
             <Filter className="w-4 h-4" />
             <span className="text-xs font-bold uppercase tracking-wide">

@@ -8,2607 +8,2748 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
   requires?: string;
 }> = [
   {
-    id: 'dock.open-tools',
-    label: 'Open Tools button in the collapsed dock',
-    scope: 'board',
+    "id": "dock.open-tools",
+    "label": "Open Tools button in the collapsed dock",
+    "scope": "board"
   },
   {
-    id: 'dock.item',
-    label: 'Widget button in the dock',
-    scope: 'widget type',
-    panel: true,
-    requires: 'dock-expanded',
+    "id": "dock.item",
+    "label": "Widget button in the dock",
+    "scope": "widget type",
+    "panel": true,
+    "requires": "dock-expanded"
   },
   {
-    id: 'dock.more-widgets',
-    label: 'More button that opens the widget library',
-    scope: 'board',
-    panel: true,
-    requires: 'dock-expanded',
+    "id": "dock.more-widgets",
+    "label": "More button that opens the widget library",
+    "scope": "board",
+    "panel": true,
+    "requires": "dock-expanded"
   },
   {
-    id: 'library.root',
-    label: 'Widget library window',
-    scope: 'board',
-    panel: true,
+    "id": "library.root",
+    "label": "Widget library window",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'library.search',
-    label: 'Widget library search box',
-    scope: 'board',
-    panel: true,
+    "id": "library.search",
+    "label": "Widget library search box",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'library.item',
-    label: 'Widget tile in the widget library',
-    scope: 'widget type',
-    panel: true,
-    requires: 'in-view',
+    "id": "library.item",
+    "label": "Widget tile in the widget library",
+    "scope": "widget type",
+    "panel": true,
+    "requires": "in-view"
   },
   {
-    id: 'library.edit',
-    label: 'Edit button in the widget library',
-    scope: 'board',
-    panel: true,
+    "id": "library.edit",
+    "label": "Edit button in the widget library",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'library.close',
-    label: 'Close button in the widget library',
-    scope: 'board',
-    panel: true,
+    "id": "library.close",
+    "label": "Close button in the widget library",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'widget.window',
-    label: 'Widget window',
-    scope: 'widget',
-    requires: 'widget-restored',
+    "id": "widget.window",
+    "label": "Widget window",
+    "scope": "widget",
+    "requires": "widget-restored"
   },
   {
-    id: 'widget.toolbar',
-    label: 'Widget toolbar',
-    scope: 'widget',
-    requires: 'widget-selected',
+    "id": "widget.toolbar",
+    "label": "Widget toolbar",
+    "scope": "widget",
+    "requires": "widget-selected"
   },
   {
-    id: 'widget.title',
-    label: 'Widget title in the toolbar',
-    scope: 'widget',
-    requires: 'widget-selected',
+    "id": "widget.title",
+    "label": "Widget title in the toolbar",
+    "scope": "widget",
+    "requires": "widget-selected"
   },
   {
-    id: 'widget.settings-opener',
-    label: 'Widget settings button',
-    scope: 'widget',
-    requires: 'widget-selected',
+    "id": "widget.settings-opener",
+    "label": "Widget settings button",
+    "scope": "widget",
+    "requires": "widget-selected"
   },
   {
-    id: 'widget.pin',
-    label: 'Pin widget button',
-    scope: 'widget',
-    requires: 'widget-selected',
+    "id": "widget.pin",
+    "label": "Pin widget button",
+    "scope": "widget",
+    "requires": "widget-selected"
   },
   {
-    id: 'widget.annotate',
-    label: 'Annotate widget button',
-    scope: 'widget',
-    requires: 'widget-selected',
+    "id": "widget.annotate",
+    "label": "Annotate widget button",
+    "scope": "widget",
+    "requires": "widget-selected"
   },
   {
-    id: 'widget.duplicate',
-    label: 'Duplicate widget button',
-    scope: 'widget',
-    requires: 'widget-selected',
+    "id": "widget.duplicate",
+    "label": "Duplicate widget button",
+    "scope": "widget",
+    "requires": "widget-selected"
   },
   {
-    id: 'widget.snap-layout',
-    label: 'Snap layout button',
-    scope: 'widget',
-    requires: 'widget-selected',
+    "id": "widget.snap-layout",
+    "label": "Snap layout button",
+    "scope": "widget",
+    "requires": "widget-selected"
   },
   {
-    id: 'widget.close',
-    label: 'Close widget button',
-    scope: 'widget',
-    destructive: true,
-    requires: 'widget-selected',
+    "id": "widget.close",
+    "label": "Close widget button",
+    "scope": "widget",
+    "destructive": true,
+    "requires": "widget-selected"
   },
   {
-    id: 'widget.more-actions',
-    label: 'More actions button on a maximized widget',
-    scope: 'widget',
+    "id": "widget.more-actions",
+    "label": "More actions button on a maximized widget",
+    "scope": "widget"
   },
   {
-    id: 'widget.restore',
-    label: 'Restore button on a maximized widget',
-    scope: 'widget',
+    "id": "widget.restore",
+    "label": "Restore button on a maximized widget",
+    "scope": "widget"
   },
   {
-    id: 'settings.root',
-    label: 'Widget settings panel',
-    scope: 'widget',
-    panel: true,
-    requires: 'settings-open',
+    "id": "settings.root",
+    "label": "Widget settings panel",
+    "scope": "widget",
+    "panel": true,
+    "requires": "settings-open"
   },
   {
-    id: 'settings.help',
-    label: 'Widget help button in settings',
-    scope: 'widget',
-    panel: true,
-    requires: 'settings-open',
+    "id": "settings.help",
+    "label": "Widget help button in settings",
+    "scope": "widget",
+    "panel": true,
+    "requires": "settings-open"
   },
   {
-    id: 'settings.close',
-    label: 'Close settings button',
-    scope: 'widget',
-    panel: true,
-    requires: 'settings-open',
+    "id": "settings.close",
+    "label": "Close settings button",
+    "scope": "widget",
+    "panel": true,
+    "requires": "settings-open"
   },
   {
-    id: 'settings.tab-settings',
-    label: 'Settings tab',
-    scope: 'widget',
-    panel: true,
-    requires: 'settings-open',
+    "id": "settings.tab-settings",
+    "label": "Settings tab",
+    "scope": "widget",
+    "panel": true,
+    "requires": "settings-open"
   },
   {
-    id: 'settings.tab-style',
-    label: 'Style tab',
-    scope: 'widget',
-    panel: true,
-    requires: 'settings-open',
+    "id": "settings.tab-style",
+    "label": "Style tab",
+    "scope": "widget",
+    "panel": true,
+    "requires": "settings-open"
   },
   {
-    id: 'settings.search',
-    label: 'Find a setting box',
-    scope: 'widget',
-    panel: true,
-    requires: 'settings-open',
+    "id": "settings.search",
+    "label": "Find a setting box",
+    "scope": "widget",
+    "panel": true,
+    "requires": "settings-open"
   },
   {
-    id: 'settings.field',
-    label: 'A single settings field row, by widget type and field key',
-    scope: 'field',
-    panel: true,
-    requires: 'settings-open',
+    "id": "settings.field",
+    "label": "A single settings field row, by widget type and field key",
+    "scope": "field",
+    "panel": true,
+    "requires": "settings-open"
   },
   {
-    id: 'settings.toggle',
-    label:
-      'The on/off switch of a settings field, by widget type and field key',
-    scope: 'field',
-    panel: true,
-    requires: 'settings-open',
+    "id": "settings.toggle",
+    "label": "The on/off switch of a settings field, by widget type and field key",
+    "scope": "field",
+    "panel": true,
+    "requires": "settings-open"
   },
   {
-    id: 'settings.group',
-    label: 'A settings section heading, by widget type and group id',
-    scope: 'field',
-    panel: true,
-    requires: 'settings-open',
+    "id": "settings.group",
+    "label": "A settings section heading, by widget type and group id",
+    "scope": "field",
+    "panel": true,
+    "requires": "settings-open"
   },
   {
-    id: 'sidebar.open-menu',
-    label: 'Menu button in the top bar',
-    scope: 'board',
+    "id": "sidebar.open-menu",
+    "label": "Menu button in the top bar",
+    "scope": "board"
   },
   {
-    id: 'sidebar.admin-settings',
-    label: 'Admin settings button in the top bar',
-    scope: 'board',
+    "id": "sidebar.admin-settings",
+    "label": "Admin settings button in the top bar",
+    "scope": "board"
   },
   {
-    id: 'sidebar.fullscreen',
-    label: 'Fullscreen button in the top bar',
-    scope: 'board',
+    "id": "sidebar.fullscreen",
+    "label": "Fullscreen button in the top bar",
+    "scope": "board"
   },
   {
-    id: 'sidebar.annotate',
-    label: 'Annotate screen button in the top bar',
-    scope: 'board',
+    "id": "sidebar.annotate",
+    "label": "Annotate screen button in the top bar",
+    "scope": "board"
   },
   {
-    id: 'sidebar.clear-board',
-    label: 'Clear board button in the top bar',
-    scope: 'board',
-    destructive: true,
+    "id": "sidebar.clear-board",
+    "label": "Clear board button in the top bar",
+    "scope": "board",
+    "destructive": true
   },
   {
-    id: 'sidebar.close-menu',
-    label: 'Close menu button',
-    scope: 'board',
-    panel: true,
+    "id": "sidebar.close-menu",
+    "label": "Close menu button",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'sidebar.boards',
-    label: 'Boards item in the menu',
-    scope: 'board',
-    panel: true,
+    "id": "sidebar.boards",
+    "label": "Boards item in the menu",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'sidebar.backgrounds',
-    label: 'Backgrounds item in the menu',
-    scope: 'board',
-    panel: true,
+    "id": "sidebar.backgrounds",
+    "label": "Backgrounds item in the menu",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'sidebar.assignments',
-    label: 'Assignments item in the menu',
-    scope: 'board',
-    panel: true,
+    "id": "sidebar.assignments",
+    "label": "Assignments item in the menu",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'sidebar.classes',
-    label: 'My Classes item in the menu',
-    scope: 'board',
-    panel: true,
+    "id": "sidebar.classes",
+    "label": "My Classes item in the menu",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'sidebar.profile-settings',
-    label: 'Profile & Settings item in the menu',
-    scope: 'board',
-    panel: true,
+    "id": "sidebar.profile-settings",
+    "label": "Profile & Settings item in the menu",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'sidebar.quick-access',
-    label: 'Quick Access item in the menu',
-    scope: 'board',
-    panel: true,
+    "id": "sidebar.quick-access",
+    "label": "Quick Access item in the menu",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'sidebar.whats-new',
-    label: "What's New item in the menu",
-    scope: 'board',
-    panel: true,
+    "id": "sidebar.whats-new",
+    "label": "What's New item in the menu",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'sidebar.plcs',
-    label: 'My Teams item in the menu',
-    scope: 'board',
-    panel: true,
+    "id": "sidebar.plcs",
+    "label": "My Teams item in the menu",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'board-nav.select-board',
-    label: 'Board name button that opens boards',
-    scope: 'board',
+    "id": "board-nav.select-board",
+    "label": "Board name button that opens boards",
+    "scope": "board"
   },
   {
-    id: 'board-nav.previous',
-    label: 'Previous board button',
-    scope: 'board',
+    "id": "board-nav.previous",
+    "label": "Previous board button",
+    "scope": "board"
   },
   {
-    id: 'board-nav.next',
-    label: 'Next board button',
-    scope: 'board',
+    "id": "board-nav.next",
+    "label": "Next board button",
+    "scope": "board"
   },
   {
-    id: 'board-nav.select-collection',
-    label: 'Collection picker button',
-    scope: 'board',
+    "id": "board-nav.select-collection",
+    "label": "Collection picker button",
+    "scope": "board"
   },
   {
-    id: 'board-nav.new-board',
-    label: 'New Board item in the boards menu',
-    scope: 'board',
-    panel: true,
-    destructive: true,
+    "id": "board-nav.new-board",
+    "label": "New Board item in the boards menu",
+    "scope": "board",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'board-nav.manage-boards',
-    label: 'Manage all boards item',
-    scope: 'board',
-    panel: true,
+    "id": "board-nav.manage-boards",
+    "label": "Manage all boards item",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'board.whole',
-    label: 'The whole board, for opening and closing steps',
-    scope: 'board',
+    "id": "board.whole",
+    "label": "The whole board, for opening and closing steps",
+    "scope": "board"
   },
   {
-    id: 'board-actions.zoom',
-    label: 'Zoom level button',
-    scope: 'board',
+    "id": "board-actions.zoom",
+    "label": "Zoom level button",
+    "scope": "board"
   },
   {
-    id: 'board-actions.zoom-reset',
-    label: 'Reset zoom button',
-    scope: 'board',
+    "id": "board-actions.zoom-reset",
+    "label": "Reset zoom button",
+    "scope": "board"
   },
   {
-    id: 'board-actions.help',
-    label: 'Help button',
-    scope: 'board',
+    "id": "board-actions.help",
+    "label": "Help button",
+    "scope": "board"
   },
   {
-    id: 'boards.share-board',
-    label: 'Share button on a board card',
-    scope: 'board',
-    panel: true,
+    "id": "boards.share-board",
+    "label": "Share button on a board card",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'boards.sub-share-copy-link',
-    label: 'Copy link button on an active sub share',
-    scope: 'board',
-    panel: true,
+    "id": "boards.sub-share-copy-link",
+    "label": "Copy link button on an active sub share",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'share-link.share-with-sub',
-    label: 'Share with a sub option in the share dialog',
-    scope: 'board',
-    panel: true,
+    "id": "share-link.share-with-sub",
+    "label": "Share with a sub option in the share dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'sub-share.building',
-    label: 'Building picker in the sub share dialog',
-    scope: 'board',
-    panel: true,
+    "id": "sub-share.building",
+    "label": "Building picker in the sub share dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'sub-share.email-input',
-    label: 'Sub email box in the sub share dialog',
-    scope: 'board',
-    panel: true,
+    "id": "sub-share.email-input",
+    "label": "Sub email box in the sub share dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'sub-share.add-email',
-    label: 'Add sub button in the sub share dialog',
-    scope: 'board',
-    panel: true,
+    "id": "sub-share.add-email",
+    "label": "Add sub button in the sub share dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'sub-share.save',
-    label: 'Share button that creates or updates the sub share',
-    scope: 'board',
-    panel: true,
-    destructive: true,
+    "id": "sub-share.save",
+    "label": "Share button that creates or updates the sub share",
+    "scope": "board",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'sub-share.done',
-    label: 'Done button after the sub share is saved',
-    scope: 'board',
-    panel: true,
+    "id": "sub-share.done",
+    "label": "Done button after the sub share is saved",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'projects.board-grid',
-    label: 'Projects step grid',
-    scope: 'widget',
-    requires: 'widget-restored',
+    "id": "projects.board-grid",
+    "label": "Projects step grid",
+    "scope": "widget",
+    "requires": "widget-restored"
   },
   {
-    id: 'projects.class-picker',
-    label: 'Projects class picker',
-    scope: 'widget',
-    requires: 'widget-restored',
+    "id": "projects.class-picker",
+    "label": "Projects class picker",
+    "scope": "widget",
+    "requires": "widget-restored"
   },
   {
-    id: 'projects.status-popover',
-    label: 'Projects step status menu',
-    scope: 'widget',
-    panel: true,
+    "id": "projects.status-popover",
+    "label": "Projects step status menu",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'profile.close',
-    label: 'Close button in Profile & Settings',
-    scope: 'board',
-    panel: true,
+    "id": "profile.close",
+    "label": "Close button in Profile & Settings",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'profile.mobile-back',
-    label: 'Back button in Profile & Settings on phones',
-    scope: 'board',
-    panel: true,
+    "id": "profile.mobile-back",
+    "label": "Back button in Profile & Settings on phones",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'profile.tab-profile',
-    label: 'Profile tab in Profile & Settings',
-    scope: 'board',
-    panel: true,
+    "id": "profile.tab-profile",
+    "label": "Profile tab in Profile & Settings",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'profile.tab-appearance',
-    label: 'Appearance tab in Profile & Settings',
-    scope: 'board',
-    panel: true,
+    "id": "profile.tab-appearance",
+    "label": "Appearance tab in Profile & Settings",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'profile.tab-dock',
-    label: 'Dock tab in Profile & Settings',
-    scope: 'board',
-    panel: true,
+    "id": "profile.tab-dock",
+    "label": "Dock tab in Profile & Settings",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'profile.tab-behavior',
-    label: 'Behavior tab in Profile & Settings',
-    scope: 'board',
-    panel: true,
+    "id": "profile.tab-behavior",
+    "label": "Behavior tab in Profile & Settings",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'profile.tab-widget-defaults',
-    label: 'Widget defaults tab in Profile & Settings',
-    scope: 'board',
-    panel: true,
+    "id": "profile.tab-widget-defaults",
+    "label": "Widget defaults tab in Profile & Settings",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'profile.tab-language',
-    label: 'Language tab in Profile & Settings',
-    scope: 'board',
-    panel: true,
+    "id": "profile.tab-language",
+    "label": "Language tab in Profile & Settings",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'profile.tab-connected-apps',
-    label: 'Connected apps tab in Profile & Settings',
-    scope: 'board',
-    panel: true,
+    "id": "profile.tab-connected-apps",
+    "label": "Connected apps tab in Profile & Settings",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'profile.buildings',
-    label: 'Building choices in the Profile tab',
-    scope: 'board',
-    panel: true,
+    "id": "profile.buildings",
+    "label": "Building choices in the Profile tab",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'profile.reset-grades',
-    label: 'Reset grades to building default',
-    scope: 'board',
-    panel: true,
+    "id": "profile.reset-grades",
+    "label": "Reset grades to building default",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'profile.grades',
-    label: 'Grade choices in the Profile tab',
-    scope: 'board',
-    panel: true,
+    "id": "profile.grades",
+    "label": "Grade choices in the Profile tab",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'profile.subjects',
-    label: 'Content area choices in the Profile tab',
-    scope: 'board',
-    panel: true,
+    "id": "profile.subjects",
+    "label": "Content area choices in the Profile tab",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'appearance.font-toggle',
-    label: 'Change font button',
-    scope: 'board',
-    panel: true,
+    "id": "appearance.font-toggle",
+    "label": "Change font button",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'appearance.font-selector',
-    label: 'Font picker',
-    scope: 'board',
-    panel: true,
+    "id": "appearance.font-selector",
+    "label": "Font picker",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'appearance.font-list',
-    label: 'Font choices in the font picker',
-    scope: 'board',
-    panel: true,
+    "id": "appearance.font-list",
+    "label": "Font choices in the font picker",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'appearance.transparency-slider',
-    label: 'Window transparency slider',
-    scope: 'board',
-    panel: true,
+    "id": "appearance.transparency-slider",
+    "label": "Window transparency slider",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'appearance.corners',
-    label: 'Window corner style choices',
-    scope: 'board',
-    panel: true,
+    "id": "appearance.corners",
+    "label": "Window corner style choices",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'appearance.primary-color',
-    label: 'Primary color picker',
-    scope: 'board',
-    panel: true,
+    "id": "appearance.primary-color",
+    "label": "Primary color picker",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'appearance.accent-color',
-    label: 'Accent color picker',
-    scope: 'board',
-    panel: true,
+    "id": "appearance.accent-color",
+    "label": "Accent color picker",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'appearance.title-color',
-    label: 'Window title color picker',
-    scope: 'board',
-    panel: true,
+    "id": "appearance.title-color",
+    "label": "Window title color picker",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'appearance.reset-all-colors',
-    label: 'Reset all colors to default',
-    scope: 'board',
-    panel: true,
-    destructive: true,
+    "id": "appearance.reset-all-colors",
+    "label": "Reset all colors to default",
+    "scope": "board",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'dock.position',
-    label: 'Dock position choices',
-    scope: 'board',
-    panel: true,
+    "id": "dock.position",
+    "label": "Dock position choices",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'dock.transparency-slider',
-    label: 'Dock transparency slider',
-    scope: 'board',
-    panel: true,
+    "id": "dock.transparency-slider",
+    "label": "Dock transparency slider",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'dock.corners',
-    label: 'Dock corner style choices',
-    scope: 'board',
-    panel: true,
+    "id": "dock.corners",
+    "label": "Dock corner style choices",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'dock.text-color',
-    label: 'Dock text color picker',
-    scope: 'board',
-    panel: true,
+    "id": "dock.text-color",
+    "label": "Dock text color picker",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'dock.text-shadow-toggle',
-    label: 'Dock text shadow button',
-    scope: 'board',
-    panel: true,
+    "id": "dock.text-shadow-toggle",
+    "label": "Dock text shadow button",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'behavior.close-warning-toggle',
-    label: 'Disable close warning switch',
-    scope: 'board',
-    panel: true,
+    "id": "behavior.close-warning-toggle",
+    "label": "Disable close warning switch",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'behavior.remote-control-toggle',
-    label: 'Remote control switch',
-    scope: 'board',
-    panel: true,
+    "id": "behavior.remote-control-toggle",
+    "label": "Remote control switch",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'language.options',
-    label: 'Language choices',
-    scope: 'board',
-    panel: true,
+    "id": "language.options",
+    "label": "Language choices",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'widget-defaults.clear-type',
-    label: "Clear a widget's saved defaults",
-    scope: 'widget type',
-    panel: true,
-    destructive: true,
+    "id": "widget-defaults.clear-type",
+    "label": "Clear a widget's saved defaults",
+    "scope": "widget type",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'widget-defaults.remove-key',
-    label: 'Remove one saved widget default',
-    scope: 'field',
-    panel: true,
-    destructive: true,
+    "id": "widget-defaults.remove-key",
+    "label": "Remove one saved widget default",
+    "scope": "field",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'classes.new-class',
-    label: 'New Class button in My Classes',
-    scope: 'board',
-    panel: true,
+    "id": "classes.new-class",
+    "label": "New Class button in My Classes",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'classes.import-classlink',
-    label: 'ClassLink import button in My Classes',
-    scope: 'board',
-    panel: true,
+    "id": "classes.import-classlink",
+    "label": "ClassLink import button in My Classes",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'classes.link-schoology',
-    label: 'Link Schoology sections button in My Classes',
-    scope: 'board',
-    panel: true,
+    "id": "classes.link-schoology",
+    "label": "Link Schoology sections button in My Classes",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'classes.roster-list',
-    label: 'Roster list in My Classes',
-    scope: 'board',
-    panel: true,
+    "id": "classes.roster-list",
+    "label": "Roster list in My Classes",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'classes.classroom-unlink',
-    label: 'Unlink button in the Link to Google Classroom modal',
-    scope: 'board',
-    panel: true,
-    destructive: true,
+    "id": "classes.classroom-unlink",
+    "label": "Unlink button in the Link to Google Classroom modal",
+    "scope": "board",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'classes.classroom-cancel',
-    label: 'Cancel button in the Link to Google Classroom modal',
-    scope: 'board',
-    panel: true,
+    "id": "classes.classroom-cancel",
+    "label": "Cancel button in the Link to Google Classroom modal",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'classes.classroom-confirm',
-    label: 'Link Class confirm button in the Link to Google Classroom modal',
-    scope: 'board',
-    panel: true,
+    "id": "classes.classroom-confirm",
+    "label": "Link Class confirm button in the Link to Google Classroom modal",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'classes.classroom-retry',
-    label: 'Try again button in the Link to Google Classroom modal',
-    scope: 'board',
-    panel: true,
+    "id": "classes.classroom-retry",
+    "label": "Try again button in the Link to Google Classroom modal",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'plcs.new-plc',
-    label: 'New PLC button in My PLCs',
-    scope: 'board',
-    panel: true,
+    "id": "plcs.new-plc",
+    "label": "New PLC button in My PLCs",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'plcs.invites',
-    label: 'Invites button in My PLCs',
-    scope: 'board',
-    panel: true,
+    "id": "plcs.invites",
+    "label": "Invites button in My PLCs",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'plcs.plc-list',
-    label: 'PLC list in My PLCs',
-    scope: 'board',
-    panel: true,
+    "id": "plcs.plc-list",
+    "label": "PLC list in My PLCs",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'plc-edit.name',
-    label: 'PLC name input in the PLC edit modal',
-    scope: 'board',
-    panel: true,
+    "id": "plc-edit.name",
+    "label": "PLC name input in the PLC edit modal",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'plc-edit.invite-email',
-    label: 'Invite email input in the PLC edit modal',
-    scope: 'board',
-    panel: true,
+    "id": "plc-edit.invite-email",
+    "label": "Invite email input in the PLC edit modal",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'plc-edit.send-invite',
-    label: 'Invite button in the PLC edit modal',
-    scope: 'board',
-    panel: true,
+    "id": "plc-edit.send-invite",
+    "label": "Invite button in the PLC edit modal",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'plc-edit.cancel',
-    label: 'Cancel button in the PLC edit modal',
-    scope: 'board',
-    panel: true,
+    "id": "plc-edit.cancel",
+    "label": "Cancel button in the PLC edit modal",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'plc-edit.save',
-    label: 'Save/Create button in the PLC edit modal',
-    scope: 'board',
-    panel: true,
+    "id": "plc-edit.save",
+    "label": "Save/Create button in the PLC edit modal",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'connected-apps.google-tasks-sync',
-    label: 'Google Tasks sync switch in Connected apps',
-    scope: 'board',
-    panel: true,
+    "id": "connected-apps.google-tasks-sync",
+    "label": "Google Tasks sync switch in Connected apps",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'plc-notes.action-text',
-    label: 'New action item text box in PLC notes',
-    scope: 'board',
-    panel: true,
+    "id": "plc-notes.action-text",
+    "label": "New action item text box in PLC notes",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'plc-notes.add-action',
-    label: 'Add action item button in PLC notes',
-    scope: 'board',
-    panel: true,
+    "id": "plc-notes.add-action",
+    "label": "Add action item button in PLC notes",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'plc-notes.show-actions',
-    label: 'Show action items button in PLC notes',
-    scope: 'board',
-    panel: true,
+    "id": "plc-notes.show-actions",
+    "label": "Show action items button in PLC notes",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'plc-invites.list',
-    label: 'Pending invites list in the PLC invites modal',
-    scope: 'board',
-    panel: true,
+    "id": "plc-invites.list",
+    "label": "Pending invites list in the PLC invites modal",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'breathing.start-pause',
-    label: 'Start or pause button in Breathing',
-    scope: 'widget',
+    "id": "breathing.start-pause",
+    "label": "Start or pause button in Breathing",
+    "scope": "widget"
   },
   {
-    id: 'breathing.reset',
-    label: 'Reset button in Breathing',
-    scope: 'widget',
-    destructive: true,
+    "id": "breathing.reset",
+    "label": "Reset button in Breathing",
+    "scope": "widget",
+    "destructive": true
   },
   {
-    id: 'activity-wall.toggle-open',
-    label: 'Open/Closed toggle in Activity Wall',
-    scope: 'widget',
+    "id": "activity-wall.toggle-open",
+    "label": "Open/Closed toggle in Activity Wall",
+    "scope": "widget"
   },
   {
-    id: 'activity-wall.moderate',
-    label: 'Moderate posts button in Activity Wall',
-    scope: 'widget',
+    "id": "activity-wall.moderate",
+    "label": "Moderate posts button in Activity Wall",
+    "scope": "widget"
   },
   {
-    id: 'activity-wall.share',
-    label: 'Share button in Activity Wall',
-    scope: 'widget',
+    "id": "activity-wall.share",
+    "label": "Share button in Activity Wall",
+    "scope": "widget"
   },
   {
-    id: 'activity-wall.library',
-    label: 'Open wall library button in Activity Wall',
-    scope: 'widget',
+    "id": "activity-wall.library",
+    "label": "Open wall library button in Activity Wall",
+    "scope": "widget"
   },
   {
-    id: 'time-tool.start-pause',
-    label: 'Start or pause button in Timer/Stopwatch',
-    scope: 'widget',
+    "id": "time-tool.start-pause",
+    "label": "Start or pause button in Timer/Stopwatch",
+    "scope": "widget"
   },
   {
-    id: 'time-tool.reset',
-    label: 'Reset button in Timer/Stopwatch',
-    scope: 'widget',
-    destructive: true,
+    "id": "time-tool.reset",
+    "label": "Reset button in Timer/Stopwatch",
+    "scope": "widget",
+    "destructive": true
   },
   {
-    id: 'dice.roll',
-    label: 'Roll Dice button',
-    scope: 'widget',
+    "id": "dice.roll",
+    "label": "Roll Dice button",
+    "scope": "widget"
   },
   {
-    id: 'random.pick',
-    label: 'Randomize/Pick button in Random Picker',
-    scope: 'widget',
+    "id": "random.pick",
+    "label": "Randomize/Pick button in Random Picker",
+    "scope": "widget"
   },
   {
-    id: 'random.mode',
-    label: 'Mode button in Random Picker (Pick One, Shuffle, Groups, Jigsaw)',
-    scope: 'widget',
+    "id": "random.mode",
+    "label": "Mode button in Random Picker (Pick One, Shuffle, Groups, Jigsaw)",
+    "scope": "widget"
   },
   {
-    id: 'random.group-size',
-    label: 'Group size stepper (minus and plus) in Random Picker Groups mode',
-    scope: 'widget',
+    "id": "random.group-size",
+    "label": "Group size stepper (minus and plus) in Random Picker Groups mode",
+    "scope": "widget"
   },
   {
-    id: 'random.class-context',
-    label: 'Active class button in the Randomizer header',
-    scope: 'widget',
+    "id": "random.class-context",
+    "label": "Active class button in the Randomizer header",
+    "scope": "widget"
   },
   {
-    id: 'random.mark-absent',
-    label: 'Mark absent students item in the Randomizer class menu',
-    scope: 'board',
-    panel: true,
+    "id": "random.mark-absent",
+    "label": "Mark absent students item in the Randomizer class menu",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'random.reset',
-    label: 'Reset student pool button in Random Picker',
-    scope: 'widget',
-    destructive: true,
+    "id": "random.reset",
+    "label": "Reset student pool button in Random Picker",
+    "scope": "widget",
+    "destructive": true
   },
   {
-    id: 'random.group-color',
-    label: 'Color button on a Randomizer group header, by group number',
-    scope: 'field',
+    "id": "random.group-color",
+    "label": "Color button on a Randomizer group header, by group number",
+    "scope": "field"
   },
   {
-    id: 'random.group-color-swatch',
-    label:
-      'Swatch in the Randomizer group color picker, by color (e.g. indigo-500)',
-    scope: 'field',
-    panel: true,
+    "id": "random.group-color-swatch",
+    "label": "Swatch in the Randomizer group color picker, by color (e.g. indigo-500)",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'schedule.start-timer',
-    label:
-      'Start timer button on a Schedule row, by row (active = the Now row)',
-    scope: 'field',
+    "id": "schedule.start-timer",
+    "label": "Start timer button on a Schedule row, by row (active = the Now row)",
+    "scope": "field"
   },
   {
-    id: 'poll.next-question',
-    label: 'Next question button in Poll',
-    scope: 'widget',
+    "id": "poll.next-question",
+    "label": "Next question button in Poll",
+    "scope": "widget"
   },
   {
-    id: 'poll.reset',
-    label: 'Reset Poll button',
-    scope: 'widget',
-    destructive: true,
+    "id": "poll.reset",
+    "label": "Reset Poll button",
+    "scope": "widget",
+    "destructive": true
   },
   {
-    id: 'stations.shuffle',
-    label: 'Shuffle button in Stations',
-    scope: 'widget',
+    "id": "stations.shuffle",
+    "label": "Shuffle button in Stations",
+    "scope": "widget"
   },
   {
-    id: 'stations.rotate',
-    label: 'Rotate button in Stations',
-    scope: 'widget',
+    "id": "stations.rotate",
+    "label": "Rotate button in Stations",
+    "scope": "widget"
   },
   {
-    id: 'stations.reset-all',
-    label: 'Reset all button in Stations',
-    scope: 'widget',
-    destructive: true,
+    "id": "stations.reset-all",
+    "label": "Reset all button in Stations",
+    "scope": "widget",
+    "destructive": true
   },
   {
-    id: 'checklist.reset-checks',
-    label: 'Reset checked items button in Checklist',
-    scope: 'widget',
-    destructive: true,
+    "id": "checklist.reset-checks",
+    "label": "Reset checked items button in Checklist",
+    "scope": "widget",
+    "destructive": true
   },
   {
-    id: 'arts-letters-agenda.reset-checks',
-    label: 'Reset checks button in Arts & Letters Agenda',
-    scope: 'widget',
-    destructive: true,
+    "id": "arts-letters-agenda.reset-checks",
+    "label": "Reset checks button in Arts & Letters Agenda",
+    "scope": "widget",
+    "destructive": true
   },
   {
-    id: 'checklist.remove-completed',
-    label: 'Remove completed items button in Checklist',
-    scope: 'widget',
-    destructive: true,
+    "id": "checklist.remove-completed",
+    "label": "Remove completed items button in Checklist",
+    "scope": "widget",
+    "destructive": true
   },
   {
-    id: 'quiz.start',
-    label: 'Start quiz session button in Quiz',
-    scope: 'widget',
+    "id": "quiz.start",
+    "label": "Start quiz session button in Quiz",
+    "scope": "widget"
   },
   {
-    id: 'quiz.next-question',
-    label: 'Next/Finish question button in Quiz',
-    scope: 'widget',
+    "id": "quiz.next-question",
+    "label": "Next/Finish question button in Quiz",
+    "scope": "widget"
   },
   {
-    id: 'quiz.pause-resume',
-    label: 'Pause or resume button in the Quiz monitor',
-    scope: 'widget',
+    "id": "quiz.pause-resume",
+    "label": "Pause or resume button in the Quiz monitor",
+    "scope": "widget"
   },
   {
-    id: 'quiz.end-quiz',
-    label: 'Close all button in the Quiz monitor',
-    scope: 'widget',
-    destructive: true,
+    "id": "quiz.end-quiz",
+    "label": "Close all button in the Quiz monitor",
+    "scope": "widget",
+    "destructive": true
   },
   {
-    id: 'quiz.more-actions',
-    label: 'More actions button in the Quiz monitor',
-    scope: 'widget',
+    "id": "quiz.more-actions",
+    "label": "More actions button in the Quiz monitor",
+    "scope": "widget"
   },
   {
-    id: 'quiz.reveal-answer',
-    label: 'Reveal/hide answer to class item in the Quiz monitor menu',
-    scope: 'widget',
-    panel: true,
+    "id": "quiz.reveal-answer",
+    "label": "Reveal/hide answer to class item in the Quiz monitor menu",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'quiz.personal-targets',
-    label: 'My learning targets button in the Quiz library',
-    scope: 'widget',
+    "id": "quiz.personal-targets",
+    "label": "My learning targets button in the Quiz library",
+    "scope": "widget"
   },
   {
-    id: 'quiz.select-mode',
-    label: 'Select mode toggle in the Quiz library',
-    scope: 'widget',
+    "id": "quiz.select-mode",
+    "label": "Select mode toggle in the Quiz library",
+    "scope": "widget"
   },
   {
-    id: 'assign-destination.spartboard',
-    label: 'SpartBoard Only option in the Assign quiz dialog',
-    scope: 'board',
-    panel: true,
+    "id": "assign-destination.spartboard",
+    "label": "SpartBoard Only option in the Assign quiz dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'assign-destination.classroom',
-    label: 'Google Classroom option in the Assign quiz dialog',
-    scope: 'board',
-    panel: true,
+    "id": "assign-destination.classroom",
+    "label": "Google Classroom option in the Assign quiz dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'assign-destination.schoology',
-    label: 'Schoology option in the Assign quiz dialog',
-    scope: 'board',
-    panel: true,
+    "id": "assign-destination.schoology",
+    "label": "Schoology option in the Assign quiz dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'assign-step.classes',
-    label: 'Classes step header in the Assign dialog',
-    scope: 'board',
-    panel: true,
+    "id": "assign-step.classes",
+    "label": "Classes step header in the Assign dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'assign-step.when',
-    label: 'When step header in the Assign dialog',
-    scope: 'board',
-    panel: true,
+    "id": "assign-step.when",
+    "label": "When step header in the Assign dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'assign-step.attempts',
-    label: 'Attempts step header in the Assign dialog',
-    scope: 'board',
-    panel: true,
+    "id": "assign-step.attempts",
+    "label": "Attempts step header in the Assign dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'assign-step.integrity',
-    label: 'Integrity step header in the Assign dialog',
-    scope: 'board',
-    panel: true,
+    "id": "assign-step.integrity",
+    "label": "Integrity step header in the Assign dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'assign-step.feedback',
-    label: 'Feedback step header in the Assign dialog',
-    scope: 'board',
-    panel: true,
+    "id": "assign-step.feedback",
+    "label": "Feedback step header in the Assign dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'assign-step.check',
-    label: 'Check step header in the Assign dialog',
-    scope: 'board',
-    panel: true,
+    "id": "assign-step.check",
+    "label": "Check step header in the Assign dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'assign-step.sharing',
-    label: 'Sharing step header in the Assign dialog',
-    scope: 'board',
-    panel: true,
+    "id": "assign-step.sharing",
+    "label": "Sharing step header in the Assign dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'assign-step.continue',
-    label: 'Continue button on the open step in the Assign dialog',
-    scope: 'board',
-    panel: true,
+    "id": "assign-step.continue",
+    "label": "Continue button on the open step in the Assign dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'assign-stepper.cancel',
-    label: 'Cancel button in the Assign dialog',
-    scope: 'board',
-    panel: true,
+    "id": "assign-stepper.cancel",
+    "label": "Cancel button in the Assign dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'assign-stepper.submit',
-    label: 'Assign button at the bottom of the Assign dialog',
-    scope: 'board',
-    panel: true,
+    "id": "assign-stepper.submit",
+    "label": "Assign button at the bottom of the Assign dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'review-start.mode-paced',
-    label: 'Teacher-paced card in the Start review dialog',
-    scope: 'board',
-    panel: true,
+    "id": "review-start.mode-paced",
+    "label": "Teacher-paced card in the Start review dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'review-start.mode-game',
-    label: 'Self-paced game card in the Start review dialog',
-    scope: 'board',
-    panel: true,
+    "id": "review-start.mode-game",
+    "label": "Self-paced game card in the Start review dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'review-start.game-length',
-    label: 'Game length row in the Start review dialog',
-    scope: 'board',
-    panel: true,
+    "id": "review-start.game-length",
+    "label": "Game length row in the Start review dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'review-start.auto-advance',
-    label: 'Advance automatically toggle in the Start review dialog',
-    scope: 'board',
-    panel: true,
+    "id": "review-start.auto-advance",
+    "label": "Advance automatically toggle in the Start review dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'review-start.rank-limit',
-    label: 'Leaderboard on board picker in the Start review dialog',
-    scope: 'board',
-    panel: true,
+    "id": "review-start.rank-limit",
+    "label": "Leaderboard on board picker in the Start review dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'review-start.confirm',
-    label: 'Start button in the Start review dialog',
-    scope: 'board',
-    panel: true,
+    "id": "review-start.confirm",
+    "label": "Start button in the Start review dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'review-game.board',
-    label: 'Game board in the Review monitor',
-    scope: 'widget',
+    "id": "review-game.board",
+    "label": "Game board in the Review monitor",
+    "scope": "widget"
   },
   {
-    id: 'review-game.start',
-    label: 'Start game button in the Review monitor',
-    scope: 'widget',
+    "id": "review-game.start",
+    "label": "Start game button in the Review monitor",
+    "scope": "widget"
   },
   {
-    id: 'review-game.pause',
-    label: 'Pause or resume game button in the Review monitor',
-    scope: 'widget',
+    "id": "review-game.pause",
+    "label": "Pause or resume game button in the Review monitor",
+    "scope": "widget"
   },
   {
-    id: 'review-game.add-minute',
-    label: 'Add a minute button in the Review monitor',
-    scope: 'widget',
+    "id": "review-game.add-minute",
+    "label": "Add a minute button in the Review monitor",
+    "scope": "widget"
   },
   {
-    id: 'review-game.names',
-    label: 'Names on or off button in the Review monitor',
-    scope: 'widget',
+    "id": "review-game.names",
+    "label": "Names on or off button in the Review monitor",
+    "scope": "widget"
   },
   {
-    id: 'editor.title',
-    label: 'Title box in an editor dialog',
-    scope: 'widget type',
-    panel: true,
+    "id": "editor.title",
+    "label": "Title box in an editor dialog",
+    "scope": "widget type",
+    "panel": true
   },
   {
-    id: 'editor.close',
-    label: 'Close or Cancel button in an editor dialog footer',
-    scope: 'widget type',
-    panel: true,
+    "id": "editor.close",
+    "label": "Close or Cancel button in an editor dialog footer",
+    "scope": "widget type",
+    "panel": true
   },
   {
-    id: 'quiz-editor.add-question',
-    label: 'Add question button in the Quiz editor',
-    scope: 'widget type',
-    panel: true,
+    "id": "quiz-editor.add-question",
+    "label": "Add question button in the Quiz editor",
+    "scope": "widget type",
+    "panel": true
   },
   {
-    id: 'quiz-editor.add-menu',
-    label: 'More ways to add arrow in the Quiz editor',
-    scope: 'widget type',
-    panel: true,
+    "id": "quiz-editor.add-menu",
+    "label": "More ways to add arrow in the Quiz editor",
+    "scope": "widget type",
+    "panel": true
   },
   {
-    id: 'quiz-editor.prompt',
-    label: 'Question prompt box in the Quiz editor',
-    scope: 'widget type',
-    panel: true,
+    "id": "quiz-editor.prompt",
+    "label": "Question prompt box in the Quiz editor",
+    "scope": "widget type",
+    "panel": true
   },
   {
-    id: 'quiz-editor.type',
-    label: 'Question type list in the Quiz editor',
-    scope: 'widget type',
-    panel: true,
+    "id": "quiz-editor.type",
+    "label": "Question type list in the Quiz editor",
+    "scope": "widget type",
+    "panel": true
   },
   {
-    id: 'quiz-editor.option',
-    label: 'Answer option box in the Quiz editor, by letter',
-    scope: 'field',
-    panel: true,
+    "id": "quiz-editor.option",
+    "label": "Answer option box in the Quiz editor, by letter",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'quiz-editor.correct',
-    label: 'Mark-correct button beside an answer option, by letter',
-    scope: 'field',
-    panel: true,
+    "id": "quiz-editor.correct",
+    "label": "Mark-correct button beside an answer option, by letter",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'quiz-settings.widget-label',
-    label: 'Widget label input in Quiz settings',
-    scope: 'widget',
-    panel: true,
+    "id": "quiz-settings.widget-label",
+    "label": "Widget label input in Quiz settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'quiz-settings.assignment-archive',
-    label: 'Assignment archive button in Quiz settings',
-    scope: 'widget',
-    panel: true,
+    "id": "quiz-settings.assignment-archive",
+    "label": "Assignment archive button in Quiz settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'quiz-settings.manager-view',
-    label: 'Manager view button in Quiz settings',
-    scope: 'widget',
-    panel: true,
+    "id": "quiz-settings.manager-view",
+    "label": "Manager view button in Quiz settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.blooms.category',
-    label: 'Category checkboxes in Blooms Taxonomy settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.blooms.category",
+    "label": "Category checkboxes in Blooms Taxonomy settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.calendar.building-sync',
-    label: 'Building sync toggle in Calendar settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.calendar.building-sync",
+    "label": "Building sync toggle in Calendar settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.calendar.instructions',
-    label: 'Instructions help button in Calendar settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.calendar.instructions",
+    "label": "Instructions help button in Calendar settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.calendar.connect-google',
-    label: 'Connect Google button in Calendar settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.calendar.connect-google",
+    "label": "Connect Google button in Calendar settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.calendar.add-calendar',
-    label: 'Add calendar button in Calendar settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.calendar.add-calendar",
+    "label": "Add calendar button in Calendar settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.checklist.paste',
-    label: 'Add pasted tasks button in Checklist settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.checklist.paste",
+    "label": "Add pasted tasks button in Checklist settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.checklist.import-routine',
-    label: 'Import routine button in Checklist settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.checklist.import-routine",
+    "label": "Import routine button in Checklist settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.checklist.import-text',
-    label: 'Import text button in Checklist settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.checklist.import-text",
+    "label": "Import text button in Checklist settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.concept-web.clear-all',
-    label: 'Clear all button in Concept Web settings',
-    scope: 'widget',
-    panel: true,
-    destructive: true,
+    "id": "widget-settings.concept-web.clear-all",
+    "label": "Clear all button in Concept Web settings",
+    "scope": "widget",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'widget-settings.custom-widget.save-settings',
-    label: 'Save settings button in Custom Widget settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.custom-widget.save-settings",
+    "label": "Save settings button in Custom Widget settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.expectations.sound-sync',
-    label: 'Sync with Sound widget toggle in Expectations settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.expectations.sound-sync",
+    "label": "Sync with Sound widget toggle in Expectations settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.graphic-organizer.template',
-    label: 'Template selector in Graphic Organizer settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.graphic-organizer.template",
+    "label": "Template selector in Graphic Organizer settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.guided-learning.library',
-    label: 'Go to library button in Guided Learning settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.guided-learning.library",
+    "label": "Go to library button in Guided Learning settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.hotspot-image.upload',
-    label: 'Upload/replace image button in Hotspot Image settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.hotspot-image.upload",
+    "label": "Upload/replace image button in Hotspot Image settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.hotspot-image.save-library',
-    label: 'Save to library button in Hotspot Image settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.hotspot-image.save-library",
+    "label": "Save to library button in Hotspot Image settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.instructional-routines.switch-routine',
-    label: 'Switch routine button in Instructional Routines settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.instructional-routines.switch-routine",
+    "label": "Switch routine button in Instructional Routines settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.materials.title',
-    label: 'Title input in Materials settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.materials.title",
+    "label": "Title input in Materials settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.materials.add-material',
-    label: 'Add material button in Materials settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.materials.add-material",
+    "label": "Add material button in Materials settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.materials.toggle-all',
-    label: 'Select/deselect all button in Materials settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.materials.toggle-all",
+    "label": "Select/deselect all button in Materials settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.materials.show-hidden',
-    label: 'Show hidden materials button in Materials settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.materials.show-hidden",
+    "label": "Show hidden materials button in Materials settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.music.sync-time-tool',
-    label: 'Sync with Time Tool toggle in Music settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.music.sync-time-tool",
+    "label": "Sync with Time Tool toggle in Music settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'scoreboard.add-point',
-    label: 'Add a point for a team in Scoreboard',
-    scope: 'field',
+    "id": "scoreboard.add-point",
+    "label": "Add a point for a team in Scoreboard",
+    "scope": "field"
   },
   {
-    id: 'scoreboard.remove-point',
-    label: 'Remove a point for a team in Scoreboard',
-    scope: 'field',
+    "id": "scoreboard.remove-point",
+    "label": "Remove a point for a team in Scoreboard",
+    "scope": "field"
   },
   {
-    id: 'widget-settings.pdf.switch-document',
-    label: 'Switch document button in PDF settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.pdf.switch-document",
+    "label": "Switch document button in PDF settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.projects.library',
-    label: 'Go to library button in Projects settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.projects.library",
+    "label": "Go to library button in Projects settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.qr.url',
-    label: 'Destination URL input in QR settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.qr.url",
+    "label": "Destination URL input in QR settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.qr.sync-text',
-    label: 'Sync with Text widget toggle in QR settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.qr.sync-text",
+    "label": "Sync with Text widget toggle in QR settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.recess-gear.linked-weather',
-    label: 'Linked Weather widget select in Recess Gear settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.recess-gear.linked-weather",
+    "label": "Linked Weather widget select in Recess Gear settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.poll.import-roster',
-    label: 'Import from roster button in Poll settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.poll.import-roster",
+    "label": "Import from roster button in Poll settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.poll.ai-draft',
-    label: 'AI draft section in Poll settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.poll.ai-draft",
+    "label": "AI draft section in Poll settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.poll.delete-question',
-    label: 'Delete question button in Poll settings',
-    scope: 'widget',
-    panel: true,
-    destructive: true,
+    "id": "widget-settings.poll.delete-question",
+    "label": "Delete question button in Poll settings",
+    "scope": "widget",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'widget-settings.poll.add-question',
-    label: 'Add question button in Poll settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.poll.add-question",
+    "label": "Add question button in Poll settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.poll.select-question',
-    label: 'Question chip list in Poll settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.poll.select-question",
+    "label": "Question chip list in Poll settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.poll.question-text',
-    label: 'Question text input in Poll settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.poll.question-text",
+    "label": "Question text input in Poll settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.poll.add-option',
-    label: 'Add option button in Poll settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.poll.add-option",
+    "label": "Add option button in Poll settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.poll.reset',
-    label: 'Reset poll button in Poll settings',
-    scope: 'widget',
-    panel: true,
-    destructive: true,
+    "id": "widget-settings.poll.reset",
+    "label": "Reset poll button in Poll settings",
+    "scope": "widget",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'widget-settings.poll.export-csv',
-    label: 'Export CSV button in Poll settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.poll.export-csv",
+    "label": "Export CSV button in Poll settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.poll.copy-link',
-    label: 'Copy link button in Poll settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.poll.copy-link",
+    "label": "Copy link button in Poll settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.poll.stop-voting',
-    label: 'Stop voting button in Poll settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.poll.stop-voting",
+    "label": "Stop voting button in Poll settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.poll.start-voting',
-    label: 'Start voting button in Poll settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.poll.start-voting",
+    "label": "Start voting button in Poll settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.poll.resume',
-    label: 'Resume voting button in Poll settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.poll.resume",
+    "label": "Resume voting button in Poll settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.poll.start-fresh',
-    label: 'Start fresh button in Poll settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.poll.start-fresh",
+    "label": "Start fresh button in Poll settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.reveal-grid.save-drive',
-    label: 'Save to Drive button in Reveal Grid settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.reveal-grid.save-drive",
+    "label": "Save to Drive button in Reveal Grid settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.reveal-grid.share',
-    label: 'Share URL button in Reveal Grid settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.reveal-grid.share",
+    "label": "Share URL button in Reveal Grid settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.reveal-grid.load-set',
-    label: 'Load existing set select in Reveal Grid settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.reveal-grid.load-set",
+    "label": "Load existing set select in Reveal Grid settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.reveal-grid.paste',
-    label: 'Paste from sheet button in Reveal Grid settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.reveal-grid.paste",
+    "label": "Paste from sheet button in Reveal Grid settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.reveal-grid.upload-csv',
-    label: 'Upload CSV button in Reveal Grid settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.reveal-grid.upload-csv",
+    "label": "Upload CSV button in Reveal Grid settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.reveal-grid.generator',
-    label: 'Generator button in Reveal Grid settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.reveal-grid.generator",
+    "label": "Generator button in Reveal Grid settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.reveal-grid.add-pasted',
-    label: 'Add pasted cards button in Reveal Grid settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.reveal-grid.add-pasted",
+    "label": "Add pasted cards button in Reveal Grid settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.reveal-grid.add-card',
-    label: 'Add card button in Reveal Grid settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.reveal-grid.add-card",
+    "label": "Add card button in Reveal Grid settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.schedule.import-calendar',
-    label: "Import today's events button in Schedule settings",
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.schedule.import-calendar",
+    "label": "Import today's events button in Schedule settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.schedule.add-schedule',
-    label: 'Add schedule button in Schedule settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.schedule.add-schedule",
+    "label": "Add schedule button in Schedule settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.schedule.select-schedule',
-    label: 'Schedule tab list in Schedule settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.schedule.select-schedule",
+    "label": "Schedule tab list in Schedule settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.schedule.schedule-name',
-    label: 'Schedule name input in Schedule settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.schedule.schedule-name",
+    "label": "Schedule name input in Schedule settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.schedule.new-schedule',
-    label: 'New schedule button in Schedule settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.schedule.new-schedule",
+    "label": "New schedule button in Schedule settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.schedule.delete-schedule',
-    label: 'Delete schedule button in Schedule settings',
-    scope: 'widget',
-    panel: true,
-    destructive: true,
+    "id": "widget-settings.schedule.delete-schedule",
+    "label": "Delete schedule button in Schedule settings",
+    "scope": "widget",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'widget-settings.schedule.select-day',
-    label: 'Day picker in Schedule settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.schedule.select-day",
+    "label": "Day picker in Schedule settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.schedule.sort-events',
-    label: 'Sort events button in Schedule settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.schedule.sort-events",
+    "label": "Sort events button in Schedule settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.schedule.add-event',
-    label: 'Add event button in Schedule settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.schedule.add-event",
+    "label": "Add event button in Schedule settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.schedule.add-event-today',
-    label: 'Add today-only event button in Schedule settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.schedule.add-event-today",
+    "label": "Add today-only event button in Schedule settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.schedule.building-schedules',
-    label: 'Building schedules toggle in Schedule settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.schedule.building-schedules",
+    "label": "Building schedules toggle in Schedule settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.scoreboard.layout',
-    label: 'Layout choice in Scoreboard settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.scoreboard.layout",
+    "label": "Layout choice in Scoreboard settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.scoreboard.import-random-groups',
-    label: 'Import random groups button in Scoreboard settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.scoreboard.import-random-groups",
+    "label": "Import random groups button in Scoreboard settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.scoreboard.use-group-names',
-    label: 'Use group names checkbox in Scoreboard settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.scoreboard.use-group-names",
+    "label": "Use group names checkbox in Scoreboard settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.scoreboard.import-class-groups',
-    label: 'Import class groups button in Scoreboard settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.scoreboard.import-class-groups",
+    "label": "Import class groups button in Scoreboard settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.scoreboard.resync-members',
-    label: 'Resync members button in Scoreboard settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.scoreboard.resync-members",
+    "label": "Resync members button in Scoreboard settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.scoreboard.add-team',
-    label: 'Add team button in Scoreboard settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.scoreboard.add-team",
+    "label": "Add team button in Scoreboard settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.scoreboard.reset-scores',
-    label: 'Reset all scores button in Scoreboard settings',
-    scope: 'widget',
-    panel: true,
-    destructive: true,
+    "id": "widget-settings.scoreboard.reset-scores",
+    "label": "Reset all scores button in Scoreboard settings",
+    "scope": "widget",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'widget-settings.seating-chart.clear-assignments',
-    label: 'Clear assignments button in Seating Chart settings',
-    scope: 'widget',
-    panel: true,
-    destructive: true,
+    "id": "widget-settings.seating-chart.clear-assignments",
+    "label": "Clear assignments button in Seating Chart settings",
+    "scope": "widget",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'widget-settings.seating-chart.clear-furniture',
-    label: 'Clear furniture button in Seating Chart settings',
-    scope: 'widget',
-    panel: true,
-    destructive: true,
+    "id": "widget-settings.seating-chart.clear-furniture",
+    "label": "Clear furniture button in Seating Chart settings",
+    "scope": "widget",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'widget-settings.specialist-schedule.cancel-edit',
-    label: 'Cancel edit button in Specialist Schedule settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.specialist-schedule.cancel-edit",
+    "label": "Cancel edit button in Specialist Schedule settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.specialist-schedule.activity-input',
-    label: 'Activity text input in Specialist Schedule settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.specialist-schedule.activity-input",
+    "label": "Activity text input in Specialist Schedule settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.specialist-schedule.start-time',
-    label: 'Start time input in Specialist Schedule settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.specialist-schedule.start-time",
+    "label": "Start time input in Specialist Schedule settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.specialist-schedule.end-time',
-    label: 'End time input in Specialist Schedule settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.specialist-schedule.end-time",
+    "label": "End time input in Specialist Schedule settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.specialist-schedule.save-item',
-    label: 'Save item button in Specialist Schedule settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.specialist-schedule.save-item",
+    "label": "Save item button in Specialist Schedule settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.specialist-schedule.add-item',
-    label: 'Add item button in Specialist Schedule settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.specialist-schedule.add-item",
+    "label": "Add item button in Specialist Schedule settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.starter-pack.pack-name',
-    label: 'Pack name input in Starter Pack settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.starter-pack.pack-name",
+    "label": "Pack name input in Starter Pack settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.starter-pack.save-personal',
-    label: 'Save personal pack button in Starter Pack settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.starter-pack.save-personal",
+    "label": "Save personal pack button in Starter Pack settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.starter-pack.save-global',
-    label: 'Save global pack button in Starter Pack settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.starter-pack.save-global",
+    "label": "Save global pack button in Starter Pack settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.stations.add-station',
-    label: 'Add station button in Stations settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.stations.add-station",
+    "label": "Add station button in Stations settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.stations.import-class-groups',
-    label: 'Import class groups button in Stations settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.stations.import-class-groups",
+    "label": "Import class groups button in Stations settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.syntax-framer.content',
-    label: 'Content textarea in Syntax Framer settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.syntax-framer.content",
+    "label": "Content textarea in Syntax Framer settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.time-tool.mode',
-    label: 'Timer/stopwatch mode picker in Time Tool settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.time-tool.mode",
+    "label": "Timer/stopwatch mode picker in Time Tool settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.time-tool.voice-level',
-    label: 'Voice level picker in Time Tool settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.time-tool.voice-level",
+    "label": "Voice level picker in Time Tool settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.time-tool.traffic-color',
-    label: 'Traffic color picker in Time Tool settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.time-tool.traffic-color",
+    "label": "Traffic color picker in Time Tool settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.weather.show-feels-like',
-    label: 'Show feels-like toggle in Weather settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.weather.show-feels-like",
+    "label": "Show feels-like toggle in Weather settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.weather.sync-station',
-    label: 'Sync station button in Weather settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.weather.sync-station",
+    "label": "Sync station button in Weather settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.weather.sync-city',
-    label: 'Sync city button in Weather settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.weather.sync-city",
+    "label": "Sync city button in Weather settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.random.group-count',
-    label: 'Group count slider in Random Picker settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.random.group-count",
+    "label": "Group count slider in Random Picker settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.random.import-class',
-    label: 'Import class button in Random Picker settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.random.import-class",
+    "label": "Import class button in Random Picker settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.random.clear-names',
-    label: 'Clear names button in Random Picker settings',
-    scope: 'widget',
-    panel: true,
-    destructive: true,
+    "id": "widget-settings.random.clear-names",
+    "label": "Clear names button in Random Picker settings",
+    "scope": "widget",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'widget-settings.random.send-stations',
-    label: 'Send to Stations button in Random Picker settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.random.send-stations",
+    "label": "Send to Stations button in Random Picker settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget-settings.random.send-projects',
-    label: 'Send to Projects button in Random Picker settings',
-    scope: 'widget',
-    panel: true,
+    "id": "widget-settings.random.send-projects",
+    "label": "Send to Projects button in Random Picker settings",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'annotate.pen-color',
-    label: 'Pen color preset swatch in the pen color picker',
-    scope: 'field',
-    panel: true,
+    "id": "annotate.pen-color",
+    "label": "Pen color preset swatch in the pen color picker",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'roster-editor.name',
-    label: 'Class name input in the roster editor',
-    scope: 'board',
-    panel: true,
+    "id": "roster-editor.name",
+    "label": "Class name input in the roster editor",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'roster-editor.add-student',
-    label: 'Add Student button in the roster editor',
-    scope: 'board',
-    panel: true,
+    "id": "roster-editor.add-student",
+    "label": "Add Student button in the roster editor",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'roster-editor.save',
-    label: 'Save button in the roster editor',
-    scope: 'board',
-    panel: true,
+    "id": "roster-editor.save",
+    "label": "Save button in the roster editor",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'roster-editor.row',
-    label: 'A student row in the roster editor',
-    scope: 'field',
-    panel: true,
+    "id": "roster-editor.row",
+    "label": "A student row in the roster editor",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'roster-editor.remove-student',
-    label: 'Remove student button on a roster editor row',
-    scope: 'field',
-    panel: true,
-    destructive: true,
+    "id": "roster-editor.remove-student",
+    "label": "Remove student button on a roster editor row",
+    "scope": "field",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'classlink-import.class-row',
-    label: 'A ClassLink class row in the ClassLink import dialog',
-    scope: 'field',
-    panel: true,
+    "id": "classlink-import.class-row",
+    "label": "A ClassLink class row in the ClassLink import dialog",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'classlink-import.import',
-    label: 'Import/Merge button on a ClassLink class row',
-    scope: 'field',
-    panel: true,
+    "id": "classlink-import.import",
+    "label": "Import/Merge button on a ClassLink class row",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'schoology-link.section-row',
-    label: 'A Schoology section row in the Link Schoology dialog',
-    scope: 'field',
-    panel: true,
+    "id": "schoology-link.section-row",
+    "label": "A Schoology section row in the Link Schoology dialog",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'schoology-link.link',
-    label: 'Link button on a Schoology section row',
-    scope: 'field',
-    panel: true,
+    "id": "schoology-link.link",
+    "label": "Link button on a Schoology section row",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'schoology-link.cancel',
-    label: 'Done/close button in the Link Schoology dialog',
-    scope: 'board',
-    panel: true,
+    "id": "schoology-link.cancel",
+    "label": "Done/close button in the Link Schoology dialog",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'widget-settings.poll.delete-option',
-    label: 'Delete an option in Poll settings',
-    scope: 'field',
-    panel: true,
-    destructive: true,
+    "id": "widget-settings.poll.delete-option",
+    "label": "Delete an option in Poll settings",
+    "scope": "field",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'widget-settings.reveal-grid.toggle-card',
-    label: 'Expand/collapse a card row in Reveal Grid settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.reveal-grid.toggle-card",
+    "label": "Expand/collapse a card row in Reveal Grid settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.reveal-grid.delete-card',
-    label: 'Delete a card in Reveal Grid settings',
-    scope: 'field',
-    panel: true,
-    destructive: true,
+    "id": "widget-settings.reveal-grid.delete-card",
+    "label": "Delete a card in Reveal Grid settings",
+    "scope": "field",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'widget-settings.reveal-grid.front',
-    label: 'Front content input for a card in Reveal Grid settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.reveal-grid.front",
+    "label": "Front content input for a card in Reveal Grid settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.reveal-grid.back',
-    label: 'Back content input for a card in Reveal Grid settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.reveal-grid.back",
+    "label": "Back content input for a card in Reveal Grid settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.schedule.copy-building-schedule',
-    label: 'Copy a building schedule to my schedules in Schedule settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.schedule.copy-building-schedule",
+    "label": "Copy a building schedule to my schedules in Schedule settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.schedule.delete-event',
-    label: 'Delete an event row in Schedule settings',
-    scope: 'field',
-    panel: true,
-    destructive: true,
+    "id": "widget-settings.schedule.delete-event",
+    "label": "Delete an event row in Schedule settings",
+    "scope": "field",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'widget-settings.scoreboard.team-name',
-    label: 'Team name input in Scoreboard settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.scoreboard.team-name",
+    "label": "Team name input in Scoreboard settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.scoreboard.delete-team',
-    label: 'Delete a team in Scoreboard settings',
-    scope: 'field',
-    panel: true,
-    destructive: true,
+    "id": "widget-settings.scoreboard.delete-team",
+    "label": "Delete a team in Scoreboard settings",
+    "scope": "field",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'widget-settings.specialist-schedule.select-activity',
-    label: 'Preset activity chip in Specialist Schedule settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.specialist-schedule.select-activity",
+    "label": "Preset activity chip in Specialist Schedule settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.specialist-schedule.select-cycle-day',
-    label: 'Cycle day picker button in Specialist Schedule settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.specialist-schedule.select-cycle-day",
+    "label": "Cycle day picker button in Specialist Schedule settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.specialist-schedule.edit-item',
-    label: 'Edit an item row in Specialist Schedule settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.specialist-schedule.edit-item",
+    "label": "Edit an item row in Specialist Schedule settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.specialist-schedule.delete-item',
-    label: 'Delete an item row in Specialist Schedule settings',
-    scope: 'field',
-    panel: true,
-    destructive: true,
+    "id": "widget-settings.specialist-schedule.delete-item",
+    "label": "Delete an item row in Specialist Schedule settings",
+    "scope": "field",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'widget-settings.stations.move-up',
-    label: 'Move a station up in Stations settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.stations.move-up",
+    "label": "Move a station up in Stations settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.stations.move-down',
-    label: 'Move a station down in Stations settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.stations.move-down",
+    "label": "Move a station down in Stations settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.stations.edit-station',
-    label: 'Expand/collapse a station editor in Stations settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.stations.edit-station",
+    "label": "Expand/collapse a station editor in Stations settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.stations.delete-station',
-    label: 'Delete a station in Stations settings',
-    scope: 'field',
-    panel: true,
-    destructive: true,
+    "id": "widget-settings.stations.delete-station",
+    "label": "Delete a station in Stations settings",
+    "scope": "field",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'widget-settings.stations.load-preset',
-    label: 'Load a saved station preset in Stations settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.stations.load-preset",
+    "label": "Load a saved station preset in Stations settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.stations.toggle-lock-group',
-    label: 'Keep a class group together checkbox in Stations settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.stations.toggle-lock-group",
+    "label": "Keep a class group together checkbox in Stations settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.soundboard.toggle-sound',
-    label: 'Toggle a sound on or off in Soundboard settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.soundboard.toggle-sound",
+    "label": "Toggle a sound on or off in Soundboard settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'activity-wall-editor.layout-picker',
-    label: 'Layout picker in the Activity Wall editor',
-    scope: 'widget',
-    panel: true,
+    "id": "activity-wall-editor.layout-picker",
+    "label": "Layout picker in the Activity Wall editor",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'activity-wall-editor.submission-types',
-    label: 'Submission types group in the Activity Wall editor',
-    scope: 'widget',
-    panel: true,
+    "id": "activity-wall-editor.submission-types",
+    "label": "Submission types group in the Activity Wall editor",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'activity-wall-editor.appearance',
-    label: 'Appearance picker in the Activity Wall editor',
-    scope: 'widget',
-    panel: true,
+    "id": "activity-wall-editor.appearance",
+    "label": "Appearance picker in the Activity Wall editor",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'activity-wall-editor.moderation',
-    label: 'Require moderation toggle in the Activity Wall editor',
-    scope: 'widget',
-    panel: true,
+    "id": "activity-wall-editor.moderation",
+    "label": "Require moderation toggle in the Activity Wall editor",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'activity-wall-editor.guests',
-    label: 'Allow guests toggle in the Activity Wall editor',
-    scope: 'widget',
-    panel: true,
+    "id": "activity-wall-editor.guests",
+    "label": "Allow guests toggle in the Activity Wall editor",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'activity-wall-editor.show-names',
-    label: 'Show names toggle in the Activity Wall editor',
-    scope: 'widget',
-    panel: true,
+    "id": "activity-wall-editor.show-names",
+    "label": "Show names toggle in the Activity Wall editor",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'activity-wall-editor.student-view',
-    label: 'Students can see posts toggle in the Activity Wall editor',
-    scope: 'widget',
-    panel: true,
+    "id": "activity-wall-editor.student-view",
+    "label": "Students can see posts toggle in the Activity Wall editor",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'activity-wall-editor.likes',
-    label: 'Allow likes toggle in the Activity Wall editor',
-    scope: 'widget',
-    panel: true,
+    "id": "activity-wall-editor.likes",
+    "label": "Allow likes toggle in the Activity Wall editor",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'activity-wall-editor.comments',
-    label: 'Allow comments toggle in the Activity Wall editor',
-    scope: 'widget',
-    panel: true,
+    "id": "activity-wall-editor.comments",
+    "label": "Allow comments toggle in the Activity Wall editor",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'activity-wall-editor.replies',
-    label: 'Allow comment replies toggle in the Activity Wall editor',
-    scope: 'widget',
-    panel: true,
+    "id": "activity-wall-editor.replies",
+    "label": "Allow comment replies toggle in the Activity Wall editor",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'activity-wall-editor.max-posts',
-    label: 'Max posts per student group in the Activity Wall editor',
-    scope: 'widget',
-    panel: true,
+    "id": "activity-wall-editor.max-posts",
+    "label": "Max posts per student group in the Activity Wall editor",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'activity-wall-editor.allow-edit',
-    label: 'Students may edit their posts toggle in the Activity Wall editor',
-    scope: 'widget',
-    panel: true,
+    "id": "activity-wall-editor.allow-edit",
+    "label": "Students may edit their posts toggle in the Activity Wall editor",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'activity-wall-editor.allow-delete',
-    label: 'Students may delete their posts toggle in the Activity Wall editor',
-    scope: 'widget',
-    panel: true,
+    "id": "activity-wall-editor.allow-delete",
+    "label": "Students may delete their posts toggle in the Activity Wall editor",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'activity-wall-editor.save',
-    label: 'Save wall button in the Activity Wall editor',
-    scope: 'widget',
-    panel: true,
+    "id": "activity-wall-editor.save",
+    "label": "Save wall button in the Activity Wall editor",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'activity-wall-editor.cancel',
-    label: 'Cancel button in the Activity Wall editor',
-    scope: 'widget',
-    panel: true,
+    "id": "activity-wall-editor.cancel",
+    "label": "Cancel button in the Activity Wall editor",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'library-shell.new',
-    label: 'Primary create/import button in a library shell header',
-    scope: 'widget type',
+    "id": "library-shell.new",
+    "label": "Primary create/import button in a library shell header",
+    "scope": "widget type"
   },
   {
-    id: 'library-shell.secondary-action',
-    label: 'Secondary header action button in a library shell',
-    scope: 'field',
+    "id": "library-shell.secondary-action",
+    "label": "Secondary header action button in a library shell",
+    "scope": "field"
   },
   {
-    id: 'library-shell.search',
-    label: 'Search box in a library toolbar',
-    scope: 'widget type',
+    "id": "library-shell.search",
+    "label": "Search box in a library toolbar",
+    "scope": "widget type"
   },
   {
-    id: 'library-shell.sort',
-    label: 'Sort dropdown trigger in a library toolbar',
-    scope: 'widget type',
+    "id": "library-shell.sort",
+    "label": "Sort dropdown trigger in a library toolbar",
+    "scope": "widget type"
   },
   {
-    id: 'library-shell.filter',
-    label: 'Filter dropdown in a library toolbar',
-    scope: 'field',
+    "id": "library-shell.filter",
+    "label": "Filter dropdown in a library toolbar",
+    "scope": "field"
   },
   {
-    id: 'library-shell.card-open',
-    label: 'Library item card body (open)',
-    scope: 'field',
+    "id": "library-shell.card-open",
+    "label": "Library item card body (open)",
+    "scope": "field"
   },
   {
-    id: 'library-shell.card-primary-action',
-    label: 'Primary action button on a library item card',
-    scope: 'field',
+    "id": "library-shell.card-primary-action",
+    "label": "Primary action button on a library item card",
+    "scope": "field"
   },
   {
-    id: 'library-shell.card-secondary-action',
-    label: 'Secondary primary action button on a library item card',
-    scope: 'field',
+    "id": "library-shell.card-secondary-action",
+    "label": "Secondary primary action button on a library item card",
+    "scope": "field"
   },
   {
-    id: 'library-shell.card-icon-action',
-    label: 'Icon-only quick action button on a library item card',
-    scope: 'field',
+    "id": "library-shell.card-icon-action",
+    "label": "Icon-only quick action button on a library item card",
+    "scope": "field"
   },
   {
-    id: 'library-shell.card-menu',
-    label: 'Kebab menu button on a library item card',
-    scope: 'field',
+    "id": "library-shell.card-menu",
+    "label": "Kebab menu button on a library item card",
+    "scope": "field"
   },
   {
-    id: 'library-shell.card-menu-item',
-    label: 'Item inside a library item card kebab menu',
-    scope: 'field',
-    panel: true,
+    "id": "library-shell.card-menu-item",
+    "label": "Item inside a library item card kebab menu",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'library-shell.archive-primary-action',
-    label: 'Primary action button on an assignment archive row',
-    scope: 'field',
+    "id": "library-shell.archive-primary-action",
+    "label": "Primary action button on an assignment archive row",
+    "scope": "field"
   },
   {
-    id: 'library-shell.archive-menu',
-    label: 'Kebab menu button on an assignment archive row',
-    scope: 'field',
+    "id": "library-shell.archive-menu",
+    "label": "Kebab menu button on an assignment archive row",
+    "scope": "field"
   },
   {
-    id: 'library-shell.archive-menu-item',
-    label: 'Item inside an assignment archive row kebab menu',
-    scope: 'field',
-    panel: true,
+    "id": "library-shell.archive-menu-item",
+    "label": "Item inside an assignment archive row kebab menu",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.calendar.remove-calendar',
-    label: 'Remove a personal calendar in Calendar settings',
-    scope: 'field',
-    panel: true,
-    destructive: true,
+    "id": "widget-settings.calendar.remove-calendar",
+    "label": "Remove a personal calendar in Calendar settings",
+    "scope": "field",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'widget-settings.hotspot-image.load-library-item',
-    label: 'Load a saved hotspot set from the library',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.hotspot-image.load-library-item",
+    "label": "Load a saved hotspot set from the library",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.hotspot-image.delete-library-item',
-    label: 'Delete a saved hotspot set from the library',
-    scope: 'field',
-    panel: true,
-    destructive: true,
+    "id": "widget-settings.hotspot-image.delete-library-item",
+    "label": "Delete a saved hotspot set from the library",
+    "scope": "field",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'widget-settings.hotspot-image.delete-hotspot',
-    label: 'Delete a hotspot pin in Hotspot Image settings',
-    scope: 'field',
-    panel: true,
-    destructive: true,
+    "id": "widget-settings.hotspot-image.delete-hotspot",
+    "label": "Delete a hotspot pin in Hotspot Image settings",
+    "scope": "field",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'widget-settings.hotspot-image.pin-title',
-    label: 'Pin title input for a hotspot in Hotspot Image settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.hotspot-image.pin-title",
+    "label": "Pin title input for a hotspot in Hotspot Image settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.hotspot-image.detail-text',
-    label: 'Detail text input for a hotspot in Hotspot Image settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.hotspot-image.detail-text",
+    "label": "Detail text input for a hotspot in Hotspot Image settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.hotspot-image.icon',
-    label: 'Icon radio group for a hotspot in Hotspot Image settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.hotspot-image.icon",
+    "label": "Icon radio group for a hotspot in Hotspot Image settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.materials.title-font',
-    label: 'Title font option in Materials settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.materials.title-font",
+    "label": "Title font option in Materials settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.materials.select-item',
-    label: 'Select a material in Materials settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.materials.select-item",
+    "label": "Select a material in Materials settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.materials.edit-item',
-    label: 'Edit a teacher-created material in Materials settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.materials.edit-item",
+    "label": "Edit a teacher-created material in Materials settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.materials.hide-item',
-    label: 'Hide a material in Materials settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.materials.hide-item",
+    "label": "Hide a material in Materials settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.materials.unhide-item',
-    label: 'Show a hidden material again in Materials settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.materials.unhide-item",
+    "label": "Show a hidden material again in Materials settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.music.source',
-    label: 'Source option (curated or Spotify) in Music settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.music.source",
+    "label": "Source option (curated or Spotify) in Music settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.music.station',
-    label: 'Station choice in Music settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.music.station",
+    "label": "Station choice in Music settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.custom-widget.definition-input',
-    label: 'One admin-defined setting input in Custom Widget settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.custom-widget.definition-input",
+    "label": "One admin-defined setting input in Custom Widget settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget-settings.random.locked-group',
-    label: 'Locked-group checkbox in Random Picker settings',
-    scope: 'field',
-    panel: true,
+    "id": "widget-settings.random.locked-group",
+    "label": "Locked-group checkbox in Random Picker settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'classes.set-active',
-    label: 'Set active class star in My Classes',
-    scope: 'field',
-    panel: true,
+    "id": "classes.set-active",
+    "label": "Set active class star in My Classes",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'classes.edit-roster',
-    label: 'Edit class button in My Classes',
-    scope: 'field',
-    panel: true,
+    "id": "classes.edit-roster",
+    "label": "Edit class button in My Classes",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'classes.sync-classlink',
-    label: 'Sync with ClassLink button in My Classes',
-    scope: 'field',
-    panel: true,
+    "id": "classes.sync-classlink",
+    "label": "Sync with ClassLink button in My Classes",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'classes.link-classroom',
-    label: 'Link to Google Classroom button in My Classes',
-    scope: 'field',
-    panel: true,
+    "id": "classes.link-classroom",
+    "label": "Link to Google Classroom button in My Classes",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'classes.delete-roster',
-    label: 'Delete class button in My Classes',
-    scope: 'field',
-    panel: true,
-    destructive: true,
+    "id": "classes.delete-roster",
+    "label": "Delete class button in My Classes",
+    "scope": "field",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'classes.classroom-course-row',
-    label: 'Course row in the Link to Google Classroom modal',
-    scope: 'field',
-    panel: true,
+    "id": "classes.classroom-course-row",
+    "label": "Course row in the Link to Google Classroom modal",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'plcs.open-plc',
-    label: 'Open a PLC card in My PLCs',
-    scope: 'field',
-    panel: true,
+    "id": "plcs.open-plc",
+    "label": "Open a PLC card in My PLCs",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'plcs.actions-menu',
-    label: 'PLC actions kebab in My PLCs',
-    scope: 'field',
-    panel: true,
+    "id": "plcs.actions-menu",
+    "label": "PLC actions kebab in My PLCs",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'plcs.edit-plc',
-    label: 'Edit/View PLC action in the PLC actions menu',
-    scope: 'field',
-    panel: true,
+    "id": "plcs.edit-plc",
+    "label": "Edit/View PLC action in the PLC actions menu",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'plcs.delete-plc',
-    label: 'Delete PLC action in the PLC actions menu',
-    scope: 'field',
-    panel: true,
-    destructive: true,
+    "id": "plcs.delete-plc",
+    "label": "Delete PLC action in the PLC actions menu",
+    "scope": "field",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'plcs.leave-plc',
-    label: 'Leave PLC action in the PLC actions menu',
-    scope: 'field',
-    panel: true,
-    destructive: true,
+    "id": "plcs.leave-plc",
+    "label": "Leave PLC action in the PLC actions menu",
+    "scope": "field",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'plc-edit.remove-member',
-    label: 'Remove member button in the PLC edit modal',
-    scope: 'field',
-    panel: true,
-    destructive: true,
+    "id": "plc-edit.remove-member",
+    "label": "Remove member button in the PLC edit modal",
+    "scope": "field",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'plc-edit.revoke-invite',
-    label: 'Revoke invite button in the PLC edit modal',
-    scope: 'field',
-    panel: true,
-    destructive: true,
+    "id": "plc-edit.revoke-invite",
+    "label": "Revoke invite button in the PLC edit modal",
+    "scope": "field",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'plc-invites.accept',
-    label: 'Accept button in the PLC invites modal',
-    scope: 'field',
-    panel: true,
+    "id": "plc-invites.accept",
+    "label": "Accept button in the PLC invites modal",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'plc-invites.decline',
-    label: 'Decline button in the PLC invites modal',
-    scope: 'field',
-    panel: true,
-    destructive: true,
+    "id": "plc-invites.decline",
+    "label": "Decline button in the PLC invites modal",
+    "scope": "field",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'widget.close-confirm.cancel',
-    label: 'Cancel button in the close-widget confirm',
-    scope: 'widget',
-    panel: true,
+    "id": "widget.close-confirm.cancel",
+    "label": "Cancel button in the close-widget confirm",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget.close-confirm.confirm',
-    label: 'Close button in the close-widget confirm',
-    scope: 'widget',
-    panel: true,
-    destructive: true,
+    "id": "widget.close-confirm.confirm",
+    "label": "Close button in the close-widget confirm",
+    "scope": "widget",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'widget.annotate-toolbar.eraser',
-    label: 'Eraser button in the widget annotate toolbar',
-    scope: 'widget',
-    panel: true,
+    "id": "widget.annotate-toolbar.eraser",
+    "label": "Eraser button in the widget annotate toolbar",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget.annotate-toolbar.undo',
-    label: 'Undo button in the widget annotate toolbar',
-    scope: 'widget',
-    panel: true,
+    "id": "widget.annotate-toolbar.undo",
+    "label": "Undo button in the widget annotate toolbar",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget.annotate-toolbar.clear-all',
-    label: 'Clear all button in the widget annotate toolbar',
-    scope: 'widget',
-    panel: true,
-    destructive: true,
+    "id": "widget.annotate-toolbar.clear-all",
+    "label": "Clear all button in the widget annotate toolbar",
+    "scope": "widget",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'widget.annotate-toolbar.done',
-    label: 'Done button in the widget annotate toolbar',
-    scope: 'widget',
-    panel: true,
+    "id": "widget.annotate-toolbar.done",
+    "label": "Done button in the widget annotate toolbar",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget.max-menu.screenshot',
-    label: 'Screenshot button in the maximized widget menu',
-    scope: 'widget',
-    panel: true,
+    "id": "widget.max-menu.screenshot",
+    "label": "Screenshot button in the maximized widget menu",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget.max-menu.annotate',
-    label: 'Annotate button in the maximized widget menu',
-    scope: 'widget',
-    panel: true,
+    "id": "widget.max-menu.annotate",
+    "label": "Annotate button in the maximized widget menu",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget.max-menu.record',
-    label: 'Record screen button in the maximized widget menu',
-    scope: 'widget',
-    panel: true,
+    "id": "widget.max-menu.record",
+    "label": "Record screen button in the maximized widget menu",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget.title-input',
-    label: 'Widget title rename input',
-    scope: 'widget',
+    "id": "widget.title-input",
+    "label": "Widget title rename input",
+    "scope": "widget"
   },
   {
-    id: 'widget.screenshot',
-    label: 'Screenshot button in the widget toolbar',
-    scope: 'widget',
+    "id": "widget.screenshot",
+    "label": "Screenshot button in the widget toolbar",
+    "scope": "widget"
   },
   {
-    id: 'widget.ungroup',
-    label: 'Ungroup button in the widget toolbar',
-    scope: 'widget',
+    "id": "widget.ungroup",
+    "label": "Ungroup button in the widget toolbar",
+    "scope": "widget"
   },
   {
-    id: 'widget.group-with',
-    label: 'Group with button in the widget toolbar',
-    scope: 'widget',
+    "id": "widget.group-with",
+    "label": "Group with button in the widget toolbar",
+    "scope": "widget"
   },
   {
-    id: 'widget.snap-layout.option',
-    label: 'Snap zone option in the widget snap layout popover',
-    scope: 'field',
-    panel: true,
+    "id": "widget.snap-layout.option",
+    "label": "Snap zone option in the widget snap layout popover",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'widget.snap-layout.custom-grid',
-    label: 'Custom-size drag grid in the widget snap layout popover',
-    scope: 'widget',
-    panel: true,
+    "id": "widget.snap-layout.custom-grid",
+    "label": "Custom-size drag grid in the widget snap layout popover",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'widget.maximize',
-    label: 'Maximize/restore button in the widget toolbar',
-    scope: 'widget',
+    "id": "widget.maximize",
+    "label": "Maximize/restore button in the widget toolbar",
+    "scope": "widget"
   },
   {
-    id: 'widget.minimize',
-    label: 'Minimize button in the widget toolbar',
-    scope: 'widget',
+    "id": "widget.minimize",
+    "label": "Minimize button in the widget toolbar",
+    "scope": "widget"
   },
   {
-    id: 'modal.close',
-    label: 'Close button in a dialog header',
-    scope: 'board',
-    panel: true,
+    "id": "modal.close",
+    "label": "Close button in a dialog header",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'library-shell.tab',
-    label: 'Tab in a library shell header',
-    scope: 'field',
-    panel: true,
+    "id": "library-shell.tab",
+    "label": "Tab in a library shell header",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'library-shell.new-menu-item',
-    label: 'Item in the library shell primary button menu',
-    scope: 'field',
-    panel: true,
+    "id": "library-shell.new-menu-item",
+    "label": "Item in the library shell primary button menu",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'settings.help-menu.show-live',
-    label: 'Show me live in the widget help menu',
-    scope: 'widget',
-    panel: true,
+    "id": "settings.help-menu.show-live",
+    "label": "Show me live in the widget help menu",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'settings.help-menu.open-guides',
-    label: 'Open guides in the widget help menu',
-    scope: 'widget',
-    panel: true,
+    "id": "settings.help-menu.open-guides",
+    "label": "Open guides in the widget help menu",
+    "scope": "widget",
+    "panel": true
   },
   {
-    id: 'help-center.search',
-    label: 'Search box in the Help Center',
-    scope: 'board',
-    panel: true,
+    "id": "help-center.search",
+    "label": "Search box in the Help Center",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'help-center.close',
-    label: 'Close button in the Help Center',
-    scope: 'board',
-    panel: true,
+    "id": "help-center.close",
+    "label": "Close button in the Help Center",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'help-center.tab',
-    label: 'Shortcuts/Guides tab in the Help Center',
-    scope: 'field',
-    panel: true,
+    "id": "help-center.tab",
+    "label": "Shortcuts/Guides tab in the Help Center",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'help-center.tab-select',
-    label: 'Mobile tab select in the Help Center',
-    scope: 'board',
-    panel: true,
+    "id": "help-center.tab-select",
+    "label": "Mobile tab select in the Help Center",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'help-center.guides.category',
-    label: 'Category button in the Guides tab',
-    scope: 'field',
-    panel: true,
+    "id": "help-center.guides.category",
+    "label": "Category button in the Guides tab",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'help-center.guides.category-select',
-    label: 'Category select (mobile) in the Guides tab',
-    scope: 'board',
-    panel: true,
+    "id": "help-center.guides.category-select",
+    "label": "Category select (mobile) in the Guides tab",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'help-center.guides.kind-filter',
-    label: 'Kind filter chip in the Guides tab',
-    scope: 'field',
-    panel: true,
+    "id": "help-center.guides.kind-filter",
+    "label": "Kind filter chip in the Guides tab",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'help-center.guides.clear-widget-filter',
-    label: 'Clear widget filter button in the Guides tab',
-    scope: 'board',
-    panel: true,
+    "id": "help-center.guides.clear-widget-filter",
+    "label": "Clear widget filter button in the Guides tab",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'help-center.guides.item',
-    label: 'Guide card in the Guides tab',
-    scope: 'field',
-    panel: true,
+    "id": "help-center.guides.item",
+    "label": "Guide card in the Guides tab",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'help-center.shortcuts.gestures',
-    label: 'Touchscreen gestures heading in the Shortcuts tab',
-    scope: 'board',
-    panel: true,
+    "id": "help-center.shortcuts.gestures",
+    "label": "Touchscreen gestures heading in the Shortcuts tab",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'help-center.viewer.show-live',
-    label: 'Show me live button in the resource viewer',
-    scope: 'board',
-    panel: true,
+    "id": "help-center.viewer.show-live",
+    "label": "Show me live button in the resource viewer",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'help-center.viewer.back',
-    label: 'Back button in the resource viewer',
-    scope: 'board',
-    panel: true,
+    "id": "help-center.viewer.back",
+    "label": "Back button in the resource viewer",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'help-center.viewer.fullscreen',
-    label: 'Fullscreen toggle button in the resource viewer',
-    scope: 'board',
-    panel: true,
+    "id": "help-center.viewer.fullscreen",
+    "label": "Fullscreen toggle button in the resource viewer",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.settings.tab',
-    label: 'Section tab in Admin Settings',
-    scope: 'field',
-    panel: true,
+    "id": "admin.settings.tab",
+    "label": "Section tab in Admin Settings",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'admin.settings.mobile-back',
-    label: 'Back to menu button in Admin Settings (phone)',
-    scope: 'board',
-    panel: true,
+    "id": "admin.settings.mobile-back",
+    "label": "Back to menu button in Admin Settings (phone)",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.settings.close',
-    label: 'Close button in Admin Settings',
-    scope: 'board',
-    panel: true,
+    "id": "admin.settings.close",
+    "label": "Close button in Admin Settings",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.help-center.add-item',
-    label: 'Add item button in Help Center admin',
-    scope: 'board',
-    panel: true,
+    "id": "admin.help-center.add-item",
+    "label": "Add item button in Help Center admin",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.help-center.sort-by-opens',
-    label: 'Sort by opens button in Help Center admin',
-    scope: 'board',
-    panel: true,
+    "id": "admin.help-center.sort-by-opens",
+    "label": "Sort by opens button in Help Center admin",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.help-center.item-toggle',
-    label: 'Visible switch on a Help Center admin item',
-    scope: 'field',
-    panel: true,
+    "id": "admin.help-center.item-toggle",
+    "label": "Visible switch on a Help Center admin item",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'admin.help-center.item-edit',
-    label: 'Edit button on a Help Center admin item',
-    scope: 'field',
-    panel: true,
+    "id": "admin.help-center.item-edit",
+    "label": "Edit button on a Help Center admin item",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'admin.help-center.item-delete',
-    label: 'Delete button on a Help Center admin item',
-    scope: 'field',
-    panel: true,
-    destructive: true,
+    "id": "admin.help-center.item-delete",
+    "label": "Delete button on a Help Center admin item",
+    "scope": "field",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'admin.help-center.category-toggle',
-    label: 'Category collapse button in Help Center admin',
-    scope: 'field',
-    panel: true,
+    "id": "admin.help-center.category-toggle",
+    "label": "Category collapse button in Help Center admin",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'admin.help-center.category-name',
-    label: 'New category name box in Help Center admin',
-    scope: 'board',
-    panel: true,
+    "id": "admin.help-center.category-name",
+    "label": "New category name box in Help Center admin",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.help-center.category-add',
-    label: 'Add category button in Help Center admin',
-    scope: 'board',
-    panel: true,
+    "id": "admin.help-center.category-add",
+    "label": "Add category button in Help Center admin",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.help-center.category-delete',
-    label: 'Delete button on a Help Center admin category',
-    scope: 'field',
-    panel: true,
-    destructive: true,
+    "id": "admin.help-center.category-delete",
+    "label": "Delete button on a Help Center admin category",
+    "scope": "field",
+    "panel": true,
+    "destructive": true
   },
   {
-    id: 'admin.help-center.tour-health-toggle',
-    label: 'Tour health section button in Help Center admin',
-    scope: 'board',
-    panel: true,
+    "id": "admin.help-center.tour-health-toggle",
+    "label": "Tour health section button in Help Center admin",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.help-center.record-tour',
-    label: 'Record tour button in Help Center admin',
-    scope: 'board',
-    panel: true,
+    "id": "admin.help-center.record-tour",
+    "label": "Record tour button in Help Center admin",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.help-center.check-live',
-    label: 'Check live button in Help Center admin',
-    scope: 'board',
-    panel: true,
+    "id": "admin.help-center.check-live",
+    "label": "Check live button in Help Center admin",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.help-center.edit-step',
-    label: 'Edit step button in the tour health table',
-    scope: 'field',
-    panel: true,
+    "id": "admin.help-center.edit-step",
+    "label": "Edit step button in the tour health table",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'admin.help-center.unmapped-copy',
-    label: 'Copy all button for unmapped anchors',
-    scope: 'board',
-    panel: true,
+    "id": "admin.help-center.unmapped-copy",
+    "label": "Copy all button for unmapped anchors",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.help-center.unmapped-rebind',
-    label: 'Rebind button for an unmapped anchor',
-    scope: 'board',
-    panel: true,
+    "id": "admin.help-center.unmapped-rebind",
+    "label": "Rebind button for an unmapped anchor",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.help-center.keep-all-in-help',
-    label: 'Keep all in Help button for linked library sets',
-    scope: 'board',
-    panel: true,
+    "id": "admin.help-center.keep-all-in-help",
+    "label": "Keep all in Help button for linked library sets",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.help-center.keep-in-help',
-    label: 'Keep in Help button for a linked library set',
-    scope: 'field',
-    panel: true,
+    "id": "admin.help-center.keep-in-help",
+    "label": "Keep in Help button for a linked library set",
+    "scope": "field",
+    "panel": true
   },
   {
-    id: 'admin.help-center.form-visible',
-    label: 'Visible to teachers switch in the Help item form',
-    scope: 'board',
-    panel: true,
+    "id": "admin.help-center.form-visible",
+    "label": "Visible to teachers switch in the Help item form",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.help-center.form-title',
-    label: 'Title box in the Help item form',
-    scope: 'board',
-    panel: true,
+    "id": "admin.help-center.form-title",
+    "label": "Title box in the Help item form",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.help-center.form-category',
-    label: 'Category select in the Help item form',
-    scope: 'board',
-    panel: true,
+    "id": "admin.help-center.form-category",
+    "label": "Category select in the Help item form",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.help-center.form-description',
-    label: 'Description box in the Help item form',
-    scope: 'board',
-    panel: true,
+    "id": "admin.help-center.form-description",
+    "label": "Description box in the Help item form",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.help-center.form-cancel',
-    label: 'Cancel button in the Help item form',
-    scope: 'board',
-    panel: true,
+    "id": "admin.help-center.form-cancel",
+    "label": "Cancel button in the Help item form",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.help-center.form-save',
-    label: 'Save button in the Help item form',
-    scope: 'board',
-    panel: true,
+    "id": "admin.help-center.form-save",
+    "label": "Save button in the Help item form",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.help-center.gl-open-editor',
-    label: 'Open editor button for the chosen activity',
-    scope: 'board',
-    panel: true,
+    "id": "admin.help-center.gl-open-editor",
+    "label": "Open editor button for the chosen activity",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.help-center.gl-change',
-    label: 'Change button for the chosen activity',
-    scope: 'board',
-    panel: true,
+    "id": "admin.help-center.gl-change",
+    "label": "Change button for the chosen activity",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.help-center.gl-choose',
-    label: 'Choose activity button in the Help item form',
-    scope: 'board',
-    panel: true,
+    "id": "admin.help-center.gl-choose",
+    "label": "Choose activity button in the Help item form",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.help-center.gl-new',
-    label: 'New activity button in the Help item form',
-    scope: 'board',
-    panel: true,
+    "id": "admin.help-center.gl-new",
+    "label": "New activity button in the Help item form",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.help-center.gl-search',
-    label: 'Search box in the activity menu',
-    scope: 'board',
-    panel: true,
+    "id": "admin.help-center.gl-search",
+    "label": "Search box in the activity menu",
+    "scope": "board",
+    "panel": true
   },
   {
-    id: 'admin.help-center.gl-option',
-    label: 'Activity row in the activity menu',
-    scope: 'field',
-    panel: true,
+    "id": "admin.help-center.gl-option",
+    "label": "Activity row in the activity menu",
+    "scope": "field",
+    "panel": true
   },
+  {
+    "id": "admin.features.filter-enabled",
+    "label": "Enabled filter button in Features",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.features.filter-availability",
+    "label": "Availability filter button in Features",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.features.filter-building",
+    "label": "Building filter button in Features",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.features.filter-toggle",
+    "label": "Filters button in Features (phone)",
+    "scope": "board",
+    "panel": true
+  },
+  {
+    "id": "admin.features.daily-limit-toggle",
+    "label": "Daily limit switch on a feature row",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.features.daily-limit-number",
+    "label": "Uses per day box on a feature row",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.features.model-tier",
+    "label": "Model select on a feature row",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.access.expand",
+    "label": "Row expand button in Features, Widgets and Previews",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.access.enabled",
+    "label": "Enabled switch on an access row",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.access.level",
+    "label": "Who can use it picker on an access row",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.access.save",
+    "label": "Save button on an access row",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.access.min-tier",
+    "label": "Minimum tier select on an access row",
+    "scope": "board",
+    "panel": true
+  },
+  {
+    "id": "admin.access.search",
+    "label": "Search box on an Access tab",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.access.search-elsewhere",
+    "label": "Found on another tab button in Access search",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.gemini.model",
+    "label": "Gemini model select",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.gemini.save",
+    "label": "Save Gemini models button",
+    "scope": "board",
+    "panel": true
+  },
+  {
+    "id": "admin.previews.district-switch",
+    "label": "District switch on a Previews row",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.previews.graduate",
+    "label": "Graduate button on a Previews row",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.widgets.configure",
+    "label": "Configure button on a widget access row",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.widgets.display-name",
+    "label": "Display name box on a widget access row",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.widgets.grade-level",
+    "label": "Grade level button on a widget access row",
+    "scope": "field",
+    "panel": true
+  },
+  {
+    "id": "admin.beta.email",
+    "label": "Add beta user email box",
+    "scope": "board",
+    "panel": true
+  },
+  {
+    "id": "admin.beta.add",
+    "label": "Add beta user button",
+    "scope": "board",
+    "panel": true
+  },
+  {
+    "id": "admin.beta.remove",
+    "label": "Remove beta user button",
+    "scope": "field",
+    "panel": true
+  }
 ];
