@@ -226,4 +226,71 @@ describe('QuizStudentApp — question timer runs out', () => {
     );
     expect(mockCompleteQuiz).not.toHaveBeenCalled();
   }, 10000);
+
+  it('does not turn the quiz in while an earlier recording slot is still open', async () => {
+    const recordingQ: QuizPublicQuestion = {
+      id: 'q0',
+      type: 'free-response',
+      text: 'Say it out loud',
+      timeLimit: 0,
+      recording: {
+        prepSeconds: 30,
+        limitSeconds: 60,
+        prepExpiry: 'armed',
+        takeLimit: null,
+      },
+    };
+    const questions = [recordingQ, mcQuestion('q1', 'Pick one')];
+    hookState.session = {
+      ...buildSession(recordingQ),
+      totalQuestions: questions.length,
+      publicQuestions: questions,
+      mediaResponseEnabled: true,
+    };
+    hookState.myResponse = {
+      ...buildResponse(''),
+      answers: [],
+      recordingNoticeAckedAt: 1700000000000,
+    };
+    render(<QuizStudentApp />);
+    fireEvent.click(await screen.findByRole('button', { name: /^Next$/ }));
+    await screen.findByText(/Pick one/i);
+    fireEvent.click(screen.getByRole('button', { name: /Beta/ }));
+
+    expect(
+      await screen.findByText(
+        /One question still needs a recording/i,
+        {},
+        { timeout: 4000 }
+      )
+    ).toBeInTheDocument();
+    expect(mockSubmitAnswer).toHaveBeenCalledWith('q1', 'Beta', 0, undefined);
+    expect(mockCompleteQuiz).not.toHaveBeenCalled();
+  }, 10000);
+
+  it('shows a retry banner instead of failing silently when the timed-out save rejects', async () => {
+    mockSubmitAnswer.mockImplementation(
+      (_q: string, _a: string, _b?: number, opts?: { isDraft?: boolean }) =>
+        opts?.isDraft ? Promise.resolve() : Promise.reject(new Error('offline'))
+    );
+    const consoleSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    startQuiz([mcQuestion('q1', 'Pick one')]);
+    render(<QuizStudentApp />);
+    await screen.findByText(/Pick one/i);
+    fireEvent.click(screen.getByRole('button', { name: /Beta/ }));
+
+    expect(
+      await screen.findByText(
+        /Couldn't save your answer/i,
+        {},
+        { timeout: 4000 }
+      )
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Retry Submit/i })).toBeEnabled();
+    expect(screen.queryByText('Quiz complete!')).not.toBeInTheDocument();
+    expect(mockCompleteQuiz).not.toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  }, 10000);
 });
