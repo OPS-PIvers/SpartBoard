@@ -114,6 +114,7 @@ import {
 } from '@/components/tours/publishedTours';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
+import { tourAttr } from '@/config/tourAnchors';
 
 // Lazy so the preview player chunk loads only when a teacher hits Play preview.
 const LazyGuidedLearningPlayer = lazy(() =>
@@ -1560,6 +1561,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       mode === 'archive' && hasOlderAssignments && onShowOlderAssignments ? (
         <button
           type="button"
+          {...tourAttr('gl-manager.show-older')}
           onClick={onShowOlderAssignments}
           className="self-center rounded-lg px-3 py-1.5 font-semibold text-brand-blue-primary hover:bg-slate-100"
           style={{ fontSize: 'min(12px, 4cqmin)' }}
@@ -1717,6 +1719,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
                 {userId && (
                   <button
                     type="button"
+                    {...tourAttr('gl-manager.select-mode')}
                     onClick={() => {
                       if (selectionMode) {
                         selection.clear();
@@ -1929,6 +1932,7 @@ const GuidedLearningPreviewPane: React.FC<{
               >
                 <button
                   type="button"
+                  {...tourAttr('gl-manager.preview-play')}
                   onClick={handlePlayPreview}
                   className="rounded-full border border-white/20 bg-slate-900/70 font-medium text-slate-100 shadow-lg backdrop-blur-sm transition-colors hover:bg-slate-900/85"
                   style={{
@@ -1963,6 +1967,7 @@ const GuidedLearningPreviewPane: React.FC<{
             {loadSet && (
               <button
                 type="button"
+                {...tourAttr('gl-manager.preview-play')}
                 onClick={handlePlayPreview}
                 disabled={previewState === 'loading'}
                 className="absolute inset-0 flex items-center justify-center rounded-lg bg-slate-900/0 transition-colors hover:bg-slate-900/30 focus-visible:bg-slate-900/30"

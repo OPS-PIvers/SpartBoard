@@ -5,6 +5,7 @@ import {
   primaryBtn,
   secondaryBtn,
 } from '@/components/common/lightChrome';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface Props {
   stepNumber: number;
@@ -52,6 +53,7 @@ export const ResumePrompt: React.FC<Props> = ({
         >
           <button
             type="button"
+            {...tourAttr('gl-player.resume-start-over')}
             onClick={onStartOver}
             className={`${secondaryBtn} border border-slate-200`}
             style={{
@@ -64,6 +66,7 @@ export const ResumePrompt: React.FC<Props> = ({
           <button
             ref={resumeRef}
             type="button"
+            {...tourAttr('gl-player.resume')}
             onClick={onResume}
             className={`${primaryBtn} font-bold`}
             style={{

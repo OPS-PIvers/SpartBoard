@@ -1,5 +1,6 @@
 import React from 'react';
 
+import { tourAttr } from '@/config/tourAnchors';
 import { TextConfig } from '@/types';
 
 export const TextConfigEditor: React.FC<{
@@ -12,6 +13,7 @@ export const TextConfigEditor: React.FC<{
         Message Content
       </label>
       <textarea
+        {...tourAttr('admin.announcements.text-content')}
         value={config.content ?? ''}
         onChange={(e) => onChange({ ...config, content: e.target.value })}
         className="w-full h-28 px-3 py-2 text-sm border border-slate-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
@@ -25,6 +27,7 @@ export const TextConfigEditor: React.FC<{
         </label>
         <div className="flex items-center gap-2">
           <input
+            {...tourAttr('admin.announcements.text-bg-color')}
             type="color"
             value={config.bgColor ?? '#ffeb3b'}
             onChange={(e) => onChange({ ...config, bgColor: e.target.value })}
@@ -40,6 +43,7 @@ export const TextConfigEditor: React.FC<{
           Font Size
         </label>
         <input
+          {...tourAttr('admin.announcements.text-font-size')}
           type="number"
           min={10}
           max={72}
