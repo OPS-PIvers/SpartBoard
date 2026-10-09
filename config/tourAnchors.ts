@@ -12630,6 +12630,85 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  // Guided Learning shared-prop controls.
+  'gl-editor.pulse': {
+    label: 'Pulse setting chip in the classic editor',
+    panel: true,
+  },
+  'gl-editor.transition': {
+    label: 'Transition setting chip in the classic editor',
+    panel: true,
+  },
+  'gl-editor.setting-option': {
+    label: 'Option in a classic editor setting chip menu',
+    perField: true,
+    panel: true,
+  },
+  'gl-capture.menu': {
+    label: 'Capture screen menu button',
+    panel: true,
+  },
+  'gl-capture.menu-item': {
+    label: 'Option in the capture screen menu',
+    perField: true,
+    panel: true,
+  },
+  'studio.more-actions': {
+    label: 'More actions menu button in the Studio top bar',
+    panel: true,
+  },
+  'studio.slide-actions': {
+    label: 'Slide actions menu button in the Studio filmstrip',
+    panel: true,
+  },
+  'studio.timeline-step-actions': {
+    label: 'Step actions menu button in the Studio timeline',
+    panel: true,
+  },
+  'studio.menu-item': {
+    label: 'Option in a Studio actions menu',
+    perField: true,
+    panel: true,
+  },
+  'studio.panel-option': {
+    label: 'Choice button in the Studio properties panel',
+    perField: true,
+    panel: true,
+  },
+  'gl-assign.kind-switch': {
+    label: 'Student work or study resource switch in Guided Learning assign',
+    persists: true,
+    panel: true,
+  },
+  'gl-manager.folder-new': {
+    label: 'New folder button in the Guided Learning library',
+    panel: true,
+  },
+  'gl-manager.folder-root': {
+    label: 'Library root folder in the Guided Learning library',
+    panel: true,
+  },
+  'gl-manager.folder-name': {
+    label: 'New folder name box in the Guided Learning library',
+    panel: true,
+  },
+  'gl-manager.preview-close': {
+    label: 'Close button in the Guided Learning preview',
+    panel: true,
+  },
+  'gl-manager.preview-open-editor': {
+    label: 'Open editor button in the Guided Learning preview',
+    panel: true,
+  },
+  'gl-folder-picker.root': {
+    label: 'No folder row in the folder picker',
+    panel: true,
+  },
+  'gl-folder-picker.folder': {
+    label: 'Folder row in the folder picker',
+    perField: true,
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

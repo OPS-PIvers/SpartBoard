@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import type { LibraryPrimaryAction } from './types';
 import { LibraryPreviewSlotContext } from './LibraryPreviewSlotContext';
 
@@ -28,6 +29,7 @@ interface LibraryPreviewPaneProps {
    * widths — see `style.width` below.
    */
   widthPx?: number;
+  closeAnchor?: TourAnchorAttrs;
 }
 
 /**
@@ -57,6 +59,7 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
   secondaryActions,
   children,
   widthPx = 360,
+  closeAnchor,
 }) => {
   const previewSlot = useContext(LibraryPreviewSlotContext);
   // Esc-to-close. Scoped to the document via capture-phase so the pane
@@ -153,6 +156,7 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
         {/* WCAG 2.5.5: 44×44 minimum touch target. `min-w/min-h` ensures the
             hit area meets the threshold even when the icon itself is small. */}
         <button
+          {...closeAnchor}
           ref={closeButtonRef}
           type="button"
           onClick={onClose}
@@ -186,6 +190,7 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
             const Icon = action.icon;
             return (
               <button
+                {...action.anchor}
                 key={`secondary-${i}`}
                 type="button"
                 onClick={action.onClick}
@@ -214,6 +219,7 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
           })}
           {primaryAction && (
             <button
+              {...primaryAction.anchor}
               type="button"
               onClick={primaryAction.onClick}
               disabled={primaryAction.disabled}

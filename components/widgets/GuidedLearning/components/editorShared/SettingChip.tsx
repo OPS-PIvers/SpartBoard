@@ -26,6 +26,7 @@ interface SettingChipProps<T extends string> {
   options: SettingChipOption<T>[];
   onChange: (next: T) => void;
   anchor?: TourAnchorAttrs;
+  optionAnchor?: (value: T) => TourAnchorAttrs;
 }
 
 /**
@@ -43,6 +44,7 @@ export function SettingChip<T extends string>({
   options,
   onChange,
   anchor,
+  optionAnchor,
 }: SettingChipProps<T>) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -114,6 +116,7 @@ export function SettingChip<T extends string>({
               const isCurrent = opt.value === value;
               return (
                 <button
+                  {...optionAnchor?.(opt.value)}
                   key={opt.value}
                   role="menuitem"
                   type="button"

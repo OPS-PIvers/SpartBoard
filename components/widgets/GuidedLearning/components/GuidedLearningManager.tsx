@@ -114,7 +114,7 @@ import {
 } from '@/components/tours/publishedTours';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 // Lazy so the preview player chunk loads only when a teacher hits Play preview.
 const LazyGuidedLearningPlayer = lazy(() =>
@@ -1616,6 +1616,11 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         onDeleteFolder={folderState.deleteFolder}
         {...folderView}
         enableDrop
+        anchors={{
+          newFolder: tourAttr('gl-manager.folder-new'),
+          root: tourAttr('gl-manager.folder-root'),
+          newFolderInput: tourAttr('gl-manager.folder-name'),
+        }}
       />
     ) : undefined;
 
@@ -1781,6 +1786,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       }}
       onClose={() => setFolderPickerTarget(null)}
       title={`Move "${folderPickerTarget.title}" to…`}
+      rootAnchor={tourAttr('gl-folder-picker.root')}
+      rowAnchor={(id) =>
+        tourFieldAttr('gl-folder-picker.folder', 'guided-learning', id)
+      }
     />
   ) : null;
 
@@ -1878,6 +1887,7 @@ const GuidedLearningPreviewPane: React.FC<{
     <LibraryPreviewPane
       isOpen={true}
       onClose={onClose}
+      closeAnchor={tourAttr('gl-manager.preview-close')}
       title={entry.title}
       subtitle={
         <>
@@ -1891,6 +1901,7 @@ const GuidedLearningPreviewPane: React.FC<{
           ? {
               label: 'Open editor',
               icon: Pencil,
+              anchor: tourAttr('gl-manager.preview-open-editor'),
               onClick: () => onEdit(entry),
             }
           : undefined
