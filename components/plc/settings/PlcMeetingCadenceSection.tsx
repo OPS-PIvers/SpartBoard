@@ -9,6 +9,7 @@ import { usePlcs } from '@/hooks/usePlcs';
 import { isPlcLeadOrCoLead } from '@/utils/plc';
 import { zonedDateKey } from '@/utils/plcHomeTime';
 import { describeMeetingCadence, weekdayName } from '@/utils/plcMeetingCadence';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface Draft {
   frequency: PlcMeetingFrequency;
@@ -123,6 +124,7 @@ const CadenceEditor: React.FC<{ plc: Plc }> = ({ plc }) => {
             defaultValue: 'Repeats',
           })}
           <select
+            {...tourAttr('plc-settings.cadence-frequency')}
             className={inputClass}
             value={draft.frequency}
             onChange={(e) =>
@@ -152,6 +154,7 @@ const CadenceEditor: React.FC<{ plc: Plc }> = ({ plc }) => {
               defaultValue: 'Week of the month',
             })}
             <select
+              {...tourAttr('plc-settings.cadence-nth')}
               className={inputClass}
               value={draft.nth}
               onChange={(e) => set('nth', Number(e.target.value))}
@@ -169,6 +172,7 @@ const CadenceEditor: React.FC<{ plc: Plc }> = ({ plc }) => {
         <label className={labelClass}>
           {t('plcDashboard.meetingCadence.day', { defaultValue: 'Day' })}
           <select
+            {...tourAttr('plc-settings.cadence-weekday')}
             className={inputClass}
             value={draft.weekday}
             onChange={(e) => set('weekday', Number(e.target.value))}
@@ -183,6 +187,7 @@ const CadenceEditor: React.FC<{ plc: Plc }> = ({ plc }) => {
         <label className={labelClass}>
           {t('plcDashboard.meetingCadence.time', { defaultValue: 'Time' })}
           <input
+            {...tourAttr('plc-settings.cadence-time')}
             type="time"
             className={inputClass}
             value={draft.time}
@@ -195,6 +200,7 @@ const CadenceEditor: React.FC<{ plc: Plc }> = ({ plc }) => {
             defaultValue: 'Starting on',
           })}
           <input
+            {...tourAttr('plc-settings.cadence-anchor-date')}
             type="date"
             className={inputClass}
             value={draft.anchorDate}
@@ -208,6 +214,7 @@ const CadenceEditor: React.FC<{ plc: Plc }> = ({ plc }) => {
           defaultValue: 'Default agenda (optional)',
         })}
         <textarea
+          {...tourAttr('plc-settings.cadence-agenda')}
           className={`${inputClass} min-h-[72px]`}
           value={draft.defaultAgenda}
           maxLength={2000}
@@ -219,6 +226,7 @@ const CadenceEditor: React.FC<{ plc: Plc }> = ({ plc }) => {
       </label>
       <div className="flex flex-wrap items-center gap-2">
         <button
+          {...tourAttr('plc-settings.cadence-save')}
           type="submit"
           disabled={busy || !valid}
           className="rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-blue-dark disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50 focus-visible:ring-offset-2"
@@ -229,6 +237,7 @@ const CadenceEditor: React.FC<{ plc: Plc }> = ({ plc }) => {
         </button>
         {cadence && (
           <button
+            {...tourAttr('plc-settings.cadence-clear')}
             type="button"
             disabled={busy}
             onClick={() => void save(null)}

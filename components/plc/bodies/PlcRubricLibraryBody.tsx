@@ -36,6 +36,7 @@ import { getPlcMemberEmail } from '@/utils/plc';
 import { logError } from '@/utils/logError';
 import { PlcSharePickerModal } from '@/components/plc/PlcSharePickerModal';
 import { PlcViewerReadOnlyBadge } from '@/components/plc/viewer/PlcViewerReadOnlyBadge';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcRubricLibraryBodyProps {
   plc: Plc;
@@ -273,6 +274,7 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
 
   const shareCta = canEdit ? (
     <button
+      {...tourAttr('plc-rubrics.share')}
       type="button"
       onClick={() => setSharePickerOpen(true)}
       className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-lg text-xxs font-bold uppercase tracking-wider transition-colors"
@@ -386,6 +388,7 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
                 </div>
                 <div className="shrink-0 flex items-center gap-1.5">
                   <button
+                    {...tourFieldAttr('plc-rubrics.import', 'plc', entry.id)}
                     type="button"
                     onClick={() => void handleImport(entry.id)}
                     disabled={isBusy}
@@ -398,6 +401,7 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
                   </button>
                   {canEdit && (
                     <button
+                      {...tourFieldAttr('plc-rubrics.unshare', 'plc', entry.id)}
                       type="button"
                       onClick={() => void handleUnshare(entry.id, entry.title)}
                       disabled={isBusy}

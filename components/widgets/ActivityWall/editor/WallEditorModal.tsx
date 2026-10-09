@@ -24,7 +24,7 @@ import { SubmissionTypesToggles } from './SubmissionTypesToggles';
 import { ModerationAndAccess } from './ModerationAndAccess';
 import { LimitsAndEditing } from './LimitsAndEditing';
 import { EngagementSettings } from './EngagementSettings';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 interface WallEditorModalProps {
   open: boolean;
@@ -345,6 +345,11 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
                 if (entry) setShowLayoutWarning(true);
                 setStep(1);
               }}
+              {...tourAttr(
+                'activity-wall-editor.change-layout',
+                widgetId,
+                widgetType
+              )}
               className="text-sm font-semibold text-brand-blue-primary hover:underline"
             >
               Change layout
@@ -360,6 +365,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
             </label>
             <input
               id={titleId}
+              {...tourTypeAttr('editor.title', 'activity-wall')}
               className={inputClass}
               value={draft.title}
               onChange={(event) => patch({ title: event.target.value })}
@@ -375,6 +381,7 @@ export const WallEditorModal: React.FC<WallEditorModalProps> = ({
             </label>
             <textarea
               id={promptId}
+              {...tourAttr('activity-wall-editor.prompt', widgetId, widgetType)}
               rows={3}
               className={inputClass}
               value={draft.prompt}

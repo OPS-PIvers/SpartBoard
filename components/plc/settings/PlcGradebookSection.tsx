@@ -25,6 +25,7 @@ import {
   defaultSettingsBody,
   gradebookClassOptions,
 } from '@/utils/gradebook/settingsConfig';
+import { tourAttr } from '@/config/tourAnchors';
 
 /** Members link their own classes to the PLC set (D16 "Use in my gradebook"). */
 const UseInMyGradebook: React.FC<{
@@ -153,7 +154,11 @@ export const PlcGradebookSectionView: React.FC<
         <h3 className="text-sm font-bold text-slate-800">Gradebook</h3>
         <span className="flex-1" />
         {canEdit && !loading && body && (
-          <Btn size="sm" onClick={() => setConfirmRemove(true)}>
+          <Btn
+            {...tourAttr('plc-settings.gradebook-stop-sharing')}
+            size="sm"
+            onClick={() => setConfirmRemove(true)}
+          >
             Stop sharing
           </Btn>
         )}
@@ -165,10 +170,19 @@ export const PlcGradebookSectionView: React.FC<
             Members&apos; classes on these settings go back to the default
             settings.
           </span>
-          <Btn variant="danger" size="sm" onClick={stopSharing}>
+          <Btn
+            {...tourAttr('plc-settings.gradebook-stop-confirm')}
+            variant="danger"
+            size="sm"
+            onClick={stopSharing}
+          >
             Stop sharing
           </Btn>
-          <Btn size="sm" onClick={() => setConfirmRemove(false)}>
+          <Btn
+            {...tourAttr('plc-settings.gradebook-stop-cancel')}
+            size="sm"
+            onClick={() => setConfirmRemove(false)}
+          >
             Cancel
           </Btn>
         </div>
@@ -179,7 +193,12 @@ export const PlcGradebookSectionView: React.FC<
       ) : !body ? (
         canEdit ? (
           <div>
-            <Btn variant="primary" size="sm" onClick={create}>
+            <Btn
+              {...tourAttr('plc-settings.gradebook-share')}
+              variant="primary"
+              size="sm"
+              onClick={create}
+            >
               Share gradebook settings
             </Btn>
           </div>
