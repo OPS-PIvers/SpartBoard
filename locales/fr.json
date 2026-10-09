@@ -3943,5 +3943,10 @@
     "addStep": "Ajouter une étape",
     "listTitle": "Choisissez une commande",
     "recordFromHere": "Enregistrer à partir d'ici"
+  },
+  "widgetWhatsNew": {
+    "label": "Nouveautés",
+    "dismiss": "Ignorer",
+    "gotIt": "Compris"
   }
 }

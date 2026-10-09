@@ -4,6 +4,7 @@ import React from 'react';
 import { TextLink } from '@/components/plc/redesignMockup/ui';
 import type { TeamCardProps } from '@/components/plc/teams/types';
 import { quickLinkIcon, useQuickLinks, type QuickLink } from './quickLinks';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export const QuickLinksView: React.FC<{
   links: QuickLink[];
@@ -16,13 +17,18 @@ export const QuickLinksView: React.FC<{
         key={l.id}
         icon={quickLinkIcon(l.title)}
         className="text-sm"
+        {...tourFieldAttr('teams.building.quick-link', 'teams-building', l.id)}
         onClick={() => window.open(l.url, '_blank', 'noopener,noreferrer')}
       >
         {l.title}
       </TextLink>
     ))}
     {isLead && (
-      <TextLink quiet onClick={onEdit}>
+      <TextLink
+        quiet
+        onClick={onEdit}
+        {...tourAttr('teams.building.edit-links')}
+      >
         Edit links
       </TextLink>
     )}

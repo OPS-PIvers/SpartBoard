@@ -2271,6 +2271,726 @@ export const TOUR_ANCHORS = {
     panel: true,
     destructive: true,
   },
+  // Teams pages: Notes & Docs, Updates, shell, building, mentoring, data, department and admin defaults.
+  'teams.actions.add': {
+    label: 'Add action item box in a note',
+  },
+  'teams.actions.check': {
+    label: 'Complete circle for a note action item',
+    perField: true,
+    persists: true,
+  },
+  'teams.actions.due-date': {
+    label: 'Due date button for a note action item',
+    perField: true,
+  },
+  'teams.actions.owner': {
+    label: 'Owner select for a note action item',
+    perField: true,
+  },
+  'teams.actions.remove': {
+    label: 'Remove button for a note action item',
+    perField: true,
+    destructive: true,
+  },
+  'teams.actions.text': {
+    label: 'Text box for a note action item',
+    perField: true,
+  },
+  'teams.add-doc.cancel': {
+    label: 'Cancel button in the Add a doc dialog',
+    panel: true,
+  },
+  'teams.add-doc.link': {
+    label: 'Link box in the Add a doc dialog',
+    panel: true,
+  },
+  'teams.add-doc.save': {
+    label: 'Save button in the Add a doc dialog',
+    panel: true,
+    persists: true,
+  },
+  'teams.add-doc.title': {
+    label: 'Title box in the Add a doc dialog',
+    panel: true,
+  },
+  'teams.admin-defaults.add-category': {
+    label: 'Add category button in the team type defaults',
+  },
+  'teams.admin-defaults.add-criterion': {
+    label: 'Add criterion button in the goal coach rubric defaults',
+  },
+  'teams.admin-defaults.add-section': {
+    label: 'Add section button in the team type defaults template',
+  },
+  'teams.admin-defaults.category': {
+    label: 'Category name box in the team type defaults',
+    perField: true,
+  },
+  'teams.admin-defaults.criterion': {
+    label: 'Criterion box in the goal coach rubric defaults',
+    perField: true,
+  },
+  'teams.admin-defaults.discard': {
+    label: 'Discard changes button in the team type defaults',
+    destructive: true,
+  },
+  'teams.admin-defaults.hero-rule': {
+    label: 'Hero default select in the team type defaults',
+  },
+  'teams.admin-defaults.remove-category': {
+    label: 'Remove category button in the team type defaults',
+    perField: true,
+    destructive: true,
+  },
+  'teams.admin-defaults.remove-criterion': {
+    label: 'Remove criterion button in the goal coach rubric defaults',
+    perField: true,
+    destructive: true,
+  },
+  'teams.admin-defaults.remove-section': {
+    label: 'Remove section button in the team type defaults template',
+    perField: true,
+    destructive: true,
+  },
+  'teams.admin-defaults.restore-rubric': {
+    label: 'Restore default button in the goal coach rubric defaults',
+    destructive: true,
+  },
+  'teams.admin-defaults.save': {
+    label: 'Save defaults button in the team type defaults',
+    persists: true,
+  },
+  'teams.admin-defaults.section-heading': {
+    label: 'Section heading box in the team type defaults template',
+    perField: true,
+  },
+  'teams.admin-defaults.section-kind': {
+    label: 'Block type select in the team type defaults template',
+    perField: true,
+  },
+  'teams.building.all-resources': {
+    label: 'All resources button in the team Resources card',
+  },
+  'teams.building.edit-links': {
+    label: 'Edit links button in the team landing page',
+  },
+  'teams.building.open-calendar': {
+    label: 'Google Calendar button in the team calendar',
+  },
+  'teams.building.quick-link': {
+    label: 'Quick link in the team landing page',
+    perField: true,
+  },
+  'teams.building.resource': {
+    label: 'Resource link in the team Resources card',
+    perField: true,
+  },
+  'teams.calendar-settings.remove': {
+    label: 'Remove button in the team calendar settings',
+    destructive: true,
+  },
+  'teams.calendar-settings.save': {
+    label: 'Save button in the team calendar settings',
+    persists: true,
+  },
+  'teams.calendar-settings.url': {
+    label: 'Google Calendar link box in the team settings',
+  },
+  'teams.check-in.body': {
+    label: 'Note text box in the check-in dialog',
+    panel: true,
+  },
+  'teams.check-in.cancel': {
+    label: 'Cancel button in the check-in dialog',
+    panel: true,
+  },
+  'teams.check-in.save': {
+    label: 'Save button in the check-in dialog',
+    panel: true,
+    persists: true,
+  },
+  'teams.check-in.title': {
+    label: 'Title box in the check-in dialog',
+    panel: true,
+  },
+  'teams.data.all-assessments': {
+    label: 'All assessments button in the team data recent assessments',
+  },
+  'teams.data.manage-targets': {
+    label: 'Manage targets button in the team data mastery card',
+  },
+  'teams.data.open-next-note': {
+    label: 'Open note button in the team data meeting strip',
+  },
+  'teams.data.open-results': {
+    label: 'Open results button in the team data hero',
+  },
+  'teams.data.recent-assessment': {
+    label: 'Assessment title button in the team data recent assessments',
+    perField: true,
+  },
+  'teams.data.show-all-questions': {
+    label: 'Show all questions button in the team data item analysis',
+  },
+  'teams.data.tag-questions': {
+    label: 'Tag questions button in the team data overview',
+  },
+  'teams.data.view-open-items': {
+    label: 'View button for open items in the team data meeting strip',
+  },
+  'teams.department.agenda-add': {
+    label: 'Add button for agenda items in the department hub',
+    persists: true,
+  },
+  'teams.department.agenda-text': {
+    label: 'Agenda item box in the department hub',
+  },
+  'teams.department.all-notes': {
+    label: 'Notes & Docs button in the department hub',
+  },
+  'teams.department.all-resources': {
+    label: 'Resources button in the department hub',
+  },
+  'teams.department.decision-open': {
+    label: 'Open decision row in the department hub',
+    perField: true,
+  },
+  'teams.department.doc-open': {
+    label: 'Recent doc row in the department hub',
+    perField: true,
+  },
+  'teams.department.item-check': {
+    label: 'Complete circle for an open item in the department hub',
+    perField: true,
+    persists: true,
+  },
+  'teams.department.item-open': {
+    label: 'Open item button in the department hub',
+    perField: true,
+  },
+  'teams.department.material-copy': {
+    label: 'Copy to my library button in the department hub',
+    perField: true,
+    persists: true,
+  },
+  'teams.department.material-open': {
+    label: 'Shared material row in the department hub',
+    perField: true,
+  },
+  'teams.department.new-meeting-note': {
+    label: 'New meeting note button in the department hub',
+  },
+  'teams.department.open-hero-doc': {
+    label: 'Open in Docs link in the department hub',
+  },
+  'teams.department.open-meeting-note': {
+    label: 'Open note button in the department hub meeting',
+  },
+  'teams.doc-embed.close': {
+    label: 'Close button in the working doc dialog',
+    panel: true,
+  },
+  'teams.doc-embed.open-docs': {
+    label: 'Open in Docs link in the working doc dialog',
+    panel: true,
+  },
+  'teams.drawer.close': {
+    label: "Close button in the team What's new drawer",
+    panel: true,
+  },
+  'teams.drawer.mark-all-seen': {
+    label: "Mark all seen button in the team What's new drawer",
+    panel: true,
+    persists: true,
+  },
+  'teams.goal.add': {
+    label: 'Add goal item in the goal options menu',
+    panel: true,
+  },
+  'teams.goal.check': {
+    label: 'Check this goal button in the team goal card',
+  },
+  'teams.goal.edit': {
+    label: 'Edit item in the goal options menu',
+    panel: true,
+  },
+  'teams.goal.options': {
+    label: 'Goal options button in the team goal card',
+  },
+  'teams.hero.change': {
+    label: 'Change button in a team hero',
+  },
+  'teams.hero.keep-pinned': {
+    label: 'Keep pinned button under a pinned team hero',
+  },
+  'teams.hero.open-note': {
+    label: 'Open note button in the team note hero',
+  },
+  'teams.hero.show-latest': {
+    label: 'Show latest button under a pinned team hero',
+    persists: true,
+  },
+  'teams.layout.cancel': {
+    label: 'Cancel button in the team layout editor',
+    panel: true,
+  },
+  'teams.layout.close': {
+    label: 'Close button in the team layout editor',
+    panel: true,
+  },
+  'teams.layout.follow-latest': {
+    label: 'Follow latest button in the team layout editor',
+    panel: true,
+  },
+  'teams.layout.landing-select': {
+    label: 'Landing page select in the team layout editor',
+    panel: true,
+  },
+  'teams.layout.pinned-item-select': {
+    label: 'Pinned item select in the team layout editor',
+    panel: true,
+  },
+  'teams.layout.reset-cancel': {
+    label: 'Cancel button in the team layout reset confirm',
+    panel: true,
+  },
+  'teams.layout.reset-confirm': {
+    label: 'Reset button in the team layout reset confirm',
+    panel: true,
+    destructive: true,
+  },
+  'teams.layout.reset-to-default': {
+    label: 'Reset to district default button in the team layout editor',
+    panel: true,
+  },
+  'teams.layout.save': {
+    label: 'Save button in the team layout editor',
+    panel: true,
+    persists: true,
+  },
+  'teams.meeting.join': {
+    label: 'Join button in the live meeting banner',
+  },
+  'teams.members.manage': {
+    label: 'Manage button in the team members popover',
+    panel: true,
+  },
+  'teams.mentoring.open-tracker': {
+    label: 'Open tracker button in the mentoring program',
+  },
+  'teams.mentoring.open-workspace': {
+    label: 'Open in workspace button in the mentoring program',
+  },
+  'teams.mentoring.post-task': {
+    label: 'Post a task button in the mentoring program',
+  },
+  'teams.menu.edit-layout': {
+    label: 'Edit layout item in the team menu',
+    panel: true,
+  },
+  'teams.menu.members': {
+    label: 'Members item in the team menu',
+    panel: true,
+  },
+  'teams.menu.settings': {
+    label: 'Settings item in the team menu',
+    panel: true,
+  },
+  'teams.my-items.check': {
+    label: 'Complete circle for an item in the team My items drawer',
+    perField: true,
+    panel: true,
+    persists: true,
+  },
+  'teams.note-block.assessment-picker': {
+    label: 'Assessment select in a note data block',
+    perField: true,
+  },
+  'teams.note-block.clear-revisit': {
+    label: 'Clear revisit date button in a note decision block',
+    perField: true,
+    destructive: true,
+  },
+  'teams.note-block.decision-status': {
+    label: 'Mark decided button in a note decision block',
+    perField: true,
+  },
+  'teams.note-block.decision-text': {
+    label: 'Decision text box in a note decision block',
+    perField: true,
+  },
+  'teams.note-block.link-picker': {
+    label: 'Link select in a note decision block',
+    perField: true,
+  },
+  'teams.note-block.open-data': {
+    label: 'Open in Data overview button in a note data block',
+    perField: true,
+  },
+  'teams.note-block.open-link': {
+    label: 'Linked item button in a note decision block',
+    perField: true,
+  },
+  'teams.note-block.remove-agenda': {
+    label: 'Remove agenda item button in a note',
+    perField: true,
+    destructive: true,
+  },
+  'teams.note-block.remove-data': {
+    label: 'Remove block button in a note data block',
+    perField: true,
+    destructive: true,
+  },
+  'teams.note-block.remove-decision': {
+    label: 'Remove block button in a note decision block',
+    perField: true,
+    destructive: true,
+  },
+  'teams.note-block.revisit-date': {
+    label: 'Revisit date button in a note decision block',
+    perField: true,
+  },
+  'teams.notes.add-block': {
+    label: 'Add block button in the open note',
+  },
+  'teams.notes.add-block-item': {
+    label: 'Menu item in the Add block menu',
+    perField: true,
+    panel: true,
+  },
+  'teams.notes.delete-note': {
+    label: 'Delete note item in the note options menu',
+    panel: true,
+    destructive: true,
+  },
+  'teams.notes.doc-open': {
+    label: 'Open in Docs link in the Google Doc view',
+  },
+  'teams.notes.doc-remove': {
+    label: 'Remove doc button in the Google Doc view',
+    destructive: true,
+  },
+  'teams.notes.list-entry': {
+    label: 'Note or doc entry in the Notes & Docs list',
+    perField: true,
+  },
+  'teams.notes.new-meeting-note': {
+    label: 'New meeting note button in the Notes & Docs list',
+    persists: true,
+  },
+  'teams.notes.new-menu': {
+    label: 'Other new items button in the Notes & Docs list',
+  },
+  'teams.notes.new-menu-item': {
+    label: 'Menu item in the Other new items menu',
+    perField: true,
+    panel: true,
+    persists: true,
+  },
+  'teams.notes.open-in-docs': {
+    label: 'Open in Docs item in the note options menu',
+    panel: true,
+    persists: true,
+  },
+  'teams.notes.options': {
+    label: 'Note options button in the open note',
+  },
+  'teams.notes.section-body': {
+    label: 'Section text box in the open note',
+    perField: true,
+  },
+  'teams.notes.title': {
+    label: 'Note title box in the open note',
+  },
+  'teams.pairing.add': {
+    label: 'Add pair button in the mentoring pairings settings',
+    persists: true,
+  },
+  'teams.pairing.member-role': {
+    label: 'Role select for a member in the mentoring pairings settings',
+    perField: true,
+    persists: true,
+  },
+  'teams.pairing.mentee-select': {
+    label: 'Mentee select in the mentoring pairings settings',
+  },
+  'teams.pairing.mentor-select': {
+    label: 'Mentor select in the mentoring pairings settings',
+  },
+  'teams.pairing.remove': {
+    label: 'Remove button for a pair in the mentoring pairings settings',
+    perField: true,
+    destructive: true,
+  },
+  'teams.post-task.cancel': {
+    label: 'Cancel button in the Post a task dialog',
+    panel: true,
+  },
+  'teams.post-task.choose-template': {
+    label: 'Choose from Drive button in the Post a task dialog',
+    panel: true,
+  },
+  'teams.post-task.due-date': {
+    label: 'Due date box in the Post a task dialog',
+    panel: true,
+  },
+  'teams.post-task.instructions': {
+    label: 'Instructions box in the Post a task dialog',
+    panel: true,
+  },
+  'teams.post-task.post': {
+    label: 'Post button in the Post a task dialog',
+    panel: true,
+    persists: true,
+  },
+  'teams.post-task.remove-template': {
+    label: 'Remove template button in the Post a task dialog',
+    panel: true,
+    destructive: true,
+  },
+  'teams.post-task.submitter': {
+    label: 'Submits select in the Post a task dialog',
+    panel: true,
+  },
+  'teams.post-task.title': {
+    label: 'Title box in the Post a task dialog',
+    panel: true,
+  },
+  'teams.shell.close': {
+    label: 'Close button in the team header',
+  },
+  'teams.shell.my-items': {
+    label: 'My items button in the team header',
+  },
+  'teams.shell.search': {
+    label: 'Search button in the team header',
+  },
+  'teams.shell.team-menu': {
+    label: 'Team menu button in the team header',
+  },
+  'teams.shell.whats-new': {
+    label: "What's new button in the team header",
+  },
+  'teams.targets.add': {
+    label: 'Add button in the Manage targets dialog',
+    panel: true,
+  },
+  'teams.targets.add-target': {
+    label: 'Add target button in the Manage targets dialog',
+    panel: true,
+  },
+  'teams.targets.archive': {
+    label: 'Remove target button in the Manage targets dialog',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'teams.targets.cancel': {
+    label: 'Cancel button in the Manage targets dialog',
+    panel: true,
+  },
+  'teams.targets.code': {
+    label: 'Code box in the Manage targets dialog',
+    panel: true,
+  },
+  'teams.targets.cutoff': {
+    label: 'Cutoff percent box in the Manage targets dialog',
+    perField: true,
+    panel: true,
+  },
+  'teams.targets.label': {
+    label: 'Target box in the Manage targets dialog',
+    panel: true,
+  },
+  'teams.targets.save': {
+    label: 'Save button in the Manage targets dialog',
+    panel: true,
+    persists: true,
+  },
+  'teams.targets.show-all': {
+    label: 'Show all button in the Manage targets dialog',
+    panel: true,
+  },
+  'teams.template.add': {
+    label: 'Add section button in the meeting-note template editor',
+    panel: true,
+  },
+  'teams.template.cancel': {
+    label: 'Cancel button in the meeting-note template editor',
+    panel: true,
+  },
+  'teams.template.heading': {
+    label: 'Section heading box in the meeting-note template editor',
+    perField: true,
+    panel: true,
+  },
+  'teams.template.kind': {
+    label: 'Block type select in the meeting-note template editor',
+    perField: true,
+    panel: true,
+  },
+  'teams.template.remove': {
+    label: 'Remove section button in the meeting-note template editor',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'teams.template.restore': {
+    label: 'Restore default button in the meeting-note template editor',
+    panel: true,
+    destructive: true,
+  },
+  'teams.template.save': {
+    label: 'Save button in the meeting-note template editor',
+    panel: true,
+    persists: true,
+  },
+  'teams.tracker.open-submission': {
+    label: 'Open submission button in the mentoring task tracker',
+    perField: true,
+  },
+  'teams.tracker.open-workspace': {
+    label: 'Open workspace button in the mentoring task tracker',
+    perField: true,
+  },
+  'teams.tracker.task': {
+    label: 'Task select in the mentoring task tracker',
+  },
+  'teams.update-composer.add-link': {
+    label: 'Add a link button in the update composer',
+  },
+  'teams.update-composer.attach': {
+    label: 'Attach a file button in the update composer',
+  },
+  'teams.update-composer.cancel': {
+    label: 'Cancel button in the update composer',
+  },
+  'teams.update-composer.link-input': {
+    label: 'Link box in the update composer',
+  },
+  'teams.update-composer.remove-attachment': {
+    label: 'Remove attachment button in the update composer',
+    destructive: true,
+  },
+  'teams.update-composer.require-ack': {
+    label: 'Require acknowledgement toggle in the update composer',
+  },
+  'teams.update-composer.submit': {
+    label: 'Post button in the update composer',
+    persists: true,
+  },
+  'teams.update-composer.text': {
+    label: 'Update text box in the update composer',
+  },
+  'teams.update-composer.weekly-email': {
+    label: 'Include in weekly email toggle in the update composer',
+  },
+  'teams.update.acknowledge': {
+    label: 'Acknowledge button on a team update',
+    perField: true,
+    persists: true,
+  },
+  'teams.update.delete': {
+    label: 'Delete item in the update options menu',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'teams.update.edit': {
+    label: 'Edit item in the update options menu',
+    perField: true,
+    panel: true,
+  },
+  'teams.update.open-attachment': {
+    label: 'Attachment link in a team update',
+    perField: true,
+  },
+  'teams.update.open-link': {
+    label: 'Link in a team update',
+    perField: true,
+  },
+  'teams.update.options': {
+    label: 'Update options button on a team update',
+    perField: true,
+  },
+  'teams.update.pin': {
+    label: 'Pin item in the update options menu',
+    perField: true,
+    panel: true,
+    persists: true,
+  },
+  'teams.update.react': {
+    label: 'Reaction button on a team update',
+    perField: true,
+    persists: true,
+  },
+  'teams.update.roster-show-all': {
+    label: 'Show all button in an update acknowledgement list',
+    perField: true,
+  },
+  'teams.update.see-who': {
+    label: 'See who button on a team update',
+    perField: true,
+  },
+  'teams.updates.all-updates': {
+    label: 'All updates button in the Latest updates card',
+  },
+  'teams.updates.latest-item': {
+    label: 'Update title button in the Latest updates card',
+    perField: true,
+  },
+  'teams.workspace.action-check': {
+    label: 'Complete circle for an action item in a mentoring workspace',
+    perField: true,
+    persists: true,
+  },
+  'teams.workspace.action-due': {
+    label: 'Due date box for an action item in a mentoring workspace',
+  },
+  'teams.workspace.action-owner': {
+    label: 'Owner select for an action item in a mentoring workspace',
+  },
+  'teams.workspace.action-submit': {
+    label: 'Add button for a new action item in a mentoring workspace',
+    persists: true,
+  },
+  'teams.workspace.action-text': {
+    label: 'Action item box in a mentoring workspace',
+  },
+  'teams.workspace.add-action-item': {
+    label: 'Add button for action items in a mentoring workspace',
+  },
+  'teams.workspace.add-doc': {
+    label: 'Add a doc button in a mentoring workspace',
+  },
+  'teams.workspace.back': {
+    label: 'Workspaces back button in a mentoring workspace',
+  },
+  'teams.workspace.new-check-in': {
+    label: 'New check-in button in a mentoring workspace',
+  },
+  'teams.workspace.open-check-in': {
+    label: 'Check-in row in a mentoring workspace',
+    perField: true,
+  },
+  'teams.workspace.open-doc': {
+    label: 'Working doc row in a mentoring workspace',
+    perField: true,
+  },
+  'teams.workspace.open-task-doc': {
+    label: 'Open doc button for a task in a mentoring workspace',
+    perField: true,
+  },
+  'teams.workspace.submit-task': {
+    label: 'Submit button for a task in a mentoring workspace',
+    perField: true,
+    persists: true,
+  },
+  'teams.workspace.view-submission': {
+    label: 'View button for a task in a mentoring workspace',
+    perField: true,
+  },
   'widget.close-confirm.cancel': {
     label: 'Cancel button in the close-widget confirm',
     perWidget: true,
@@ -2421,6 +3141,153 @@ export const TOUR_ANCHORS = {
   },
   'help-center.viewer.fullscreen': {
     label: 'Fullscreen toggle button in the resource viewer',
+    panel: true,
+  },
+  // Admin Settings (thread: tour anchors admin settings)
+  'admin.settings.tab': {
+    label: 'Section tab in Admin Settings',
+    perField: true,
+    panel: true,
+  },
+  'admin.settings.mobile-back': {
+    label: 'Back to menu button in Admin Settings (phone)',
+    panel: true,
+  },
+  'admin.settings.close': {
+    label: 'Close button in Admin Settings',
+    panel: true,
+  },
+  'admin.help-center.add-item': {
+    label: 'Add item button in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.sort-by-opens': {
+    label: 'Sort by opens button in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.item-toggle': {
+    label: 'Visible switch on a Help Center admin item',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.item-edit': {
+    label: 'Edit button on a Help Center admin item',
+    perField: true,
+    panel: true,
+  },
+  'admin.help-center.item-delete': {
+    label: 'Delete button on a Help Center admin item',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.help-center.category-toggle': {
+    label: 'Category collapse button in Help Center admin',
+    perField: true,
+    panel: true,
+  },
+  'admin.help-center.category-name': {
+    label: 'New category name box in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.category-add': {
+    label: 'Add category button in Help Center admin',
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.category-delete': {
+    label: 'Delete button on a Help Center admin category',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.help-center.tour-health-toggle': {
+    label: 'Tour health section button in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.record-tour': {
+    label: 'Record tour button in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.check-live': {
+    label: 'Check live button in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.edit-step': {
+    label: 'Edit step button in the tour health table',
+    perField: true,
+    panel: true,
+  },
+  'admin.help-center.unmapped-copy': {
+    label: 'Copy all button for unmapped anchors',
+    panel: true,
+  },
+  'admin.help-center.unmapped-rebind': {
+    label: 'Rebind button for an unmapped anchor',
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.keep-all-in-help': {
+    label: 'Keep all in Help button for linked library sets',
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.keep-in-help': {
+    label: 'Keep in Help button for a linked library set',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.form-visible': {
+    label: 'Visible to teachers switch in the Help item form',
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.form-title': {
+    label: 'Title box in the Help item form',
+    panel: true,
+  },
+  'admin.help-center.form-category': {
+    label: 'Category select in the Help item form',
+    panel: true,
+  },
+  'admin.help-center.form-description': {
+    label: 'Description box in the Help item form',
+    panel: true,
+  },
+  'admin.help-center.form-cancel': {
+    label: 'Cancel button in the Help item form',
+    panel: true,
+  },
+  'admin.help-center.form-save': {
+    label: 'Save button in the Help item form',
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.gl-open-editor': {
+    label: 'Open editor button for the chosen activity',
+    panel: true,
+  },
+  'admin.help-center.gl-change': {
+    label: 'Change button for the chosen activity',
+    panel: true,
+  },
+  'admin.help-center.gl-choose': {
+    label: 'Choose activity button in the Help item form',
+    panel: true,
+  },
+  'admin.help-center.gl-new': {
+    label: 'New activity button in the Help item form',
+    panel: true,
+  },
+  'admin.help-center.gl-search': {
+    label: 'Search box in the activity menu',
+    panel: true,
+  },
+  'admin.help-center.gl-option': {
+    label: 'Activity row in the activity menu',
+    perField: true,
     panel: true,
   },
 } as const satisfies Record<string, TourAnchorDef>;
