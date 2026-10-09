@@ -15,6 +15,7 @@ import type { Plc } from '@/types';
 import { getPlcMembers } from '@/utils/plc';
 import type { PlcSectionId } from '@/components/plc/sections';
 import { useAuth } from '@/context/useAuth';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface MembersHeaderClusterProps {
   plc: Plc;
@@ -57,6 +58,7 @@ export const MembersHeaderCluster: React.FC<MembersHeaderClusterProps> = ({
 
   return (
     <button
+      {...tourAttr('plc-home.members-manage')}
       type="button"
       onClick={() => onNavigate('members')}
       aria-label={t('plcDashboard.home.members.manageAriaLabel', {

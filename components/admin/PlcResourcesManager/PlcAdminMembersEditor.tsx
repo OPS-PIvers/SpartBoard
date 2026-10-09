@@ -4,6 +4,7 @@ import { UserPlus, UserMinus } from 'lucide-react';
 import { useOrgMembers } from '@/hooks/useOrgMembers';
 import { getPlcMembers } from '@/utils/plc';
 import type { Plc, PlcMember, PlcRole } from '@/types';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export type AdminMemberRole = Exclude<PlcRole, 'lead'>;
 
@@ -109,6 +110,7 @@ export const PlcAdminMembersEditor: React.FC<PlcAdminMembersEditorProps> = ({
                 {t('admin.plc.recovery.roleLabel', { defaultValue: 'Role' })}
               </label>
               <select
+                {...tourFieldAttr('admin-plc.member-role', 'plc', m.uid)}
                 id={`role-${plc.id}-${m.uid}`}
                 value={m.role}
                 disabled={busy}
@@ -127,6 +129,7 @@ export const PlcAdminMembersEditor: React.FC<PlcAdminMembersEditorProps> = ({
                 ))}
               </select>
               <button
+                {...tourFieldAttr('admin-plc.member-remove', 'plc', m.uid)}
                 type="button"
                 onClick={() => onRemoveMember(m)}
                 disabled={busy}
@@ -151,6 +154,7 @@ export const PlcAdminMembersEditor: React.FC<PlcAdminMembersEditorProps> = ({
           })}
         </label>
         <select
+          {...tourAttr('admin-plc.member-add-person')}
           id={`add-member-${plc.id}`}
           value={selectedEmail}
           onChange={(e) => setSelectedEmail(e.target.value)}
@@ -176,6 +180,7 @@ export const PlcAdminMembersEditor: React.FC<PlcAdminMembersEditorProps> = ({
           {t('admin.plc.recovery.roleLabel', { defaultValue: 'Role' })}
         </label>
         <select
+          {...tourAttr('admin-plc.member-add-role')}
           id={`add-role-${plc.id}`}
           value={selectedRole}
           onChange={(e) => setSelectedRole(e.target.value as AdminMemberRole)}
@@ -189,6 +194,7 @@ export const PlcAdminMembersEditor: React.FC<PlcAdminMembersEditorProps> = ({
           ))}
         </select>
         <button
+          {...tourAttr('admin-plc.member-add')}
           type="button"
           onClick={handleAdd}
           disabled={busy || !selectedEmail}
