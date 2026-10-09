@@ -1,5 +1,6 @@
 // "View as student" on a student row, shown only inside a teacher's View as tab (docs/plans/ADMIN_VIEW_AS.md D15).
 import React, { useContext, useState } from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { Loader2, ScanEye } from 'lucide-react';
 import { useViewAs } from '@/context/useViewAs';
 import { DialogContext } from '@/context/DialogContextValue';
@@ -13,6 +14,7 @@ interface ViewAsStudentButtonProps {
   studentKey: string | null | undefined;
   /** `dark` for rows on a dark surface. */
   tone?: 'light' | 'dark';
+  anchor?: TourAnchorAttrs;
 }
 
 export const ViewAsStudentButton: React.FC<ViewAsStudentButtonProps> = ({
@@ -20,6 +22,7 @@ export const ViewAsStudentButton: React.FC<ViewAsStudentButtonProps> = ({
   sessionId,
   studentKey,
   tone = 'light',
+  anchor,
 }) => {
   const viewAs = useViewAs();
   const dialog = useContext(DialogContext);
@@ -42,6 +45,7 @@ export const ViewAsStudentButton: React.FC<ViewAsStudentButtonProps> = ({
 
   return (
     <button
+      {...anchor}
       type="button"
       onClick={open}
       disabled={busy}

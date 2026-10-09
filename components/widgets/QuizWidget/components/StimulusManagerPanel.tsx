@@ -9,6 +9,7 @@
  * attach (never auto-shared silently).
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
 import {
   ChevronDown,
@@ -332,7 +333,8 @@ const FileSourceButtons: React.FC<{
   intake: StimulusIntake;
   onAdded?: (s: QuizStimulus) => void;
   compact?: boolean;
-}> = ({ intake, onAdded, compact = false }) => {
+  anchors?: { file?: TourAnchorAttrs; drive?: TourAnchorAttrs };
+}> = ({ intake, onAdded, compact = false, anchors }) => {
   const inputRef = useRef<HTMLInputElement | null>(null);
   return (
     <>
@@ -351,6 +353,7 @@ const FileSourceButtons: React.FC<{
         }}
       />
       <button
+        {...anchors?.file}
         type="button"
         onClick={() => inputRef.current?.click()}
         disabled={intake.busy}
@@ -360,6 +363,7 @@ const FileSourceButtons: React.FC<{
         Choose file
       </button>
       <button
+        {...anchors?.drive}
         type="button"
         onClick={() =>
           void intake.addFromDrive().then((added) => {
@@ -379,7 +383,8 @@ const FileSourceButtons: React.FC<{
 const UrlAddRow: React.FC<{
   onAdd: (url: string) => Promise<unknown>;
   busy: boolean;
-}> = ({ onAdd, busy }) => {
+  anchors?: { input?: TourAnchorAttrs; add?: TourAnchorAttrs };
+}> = ({ onAdd, busy, anchors }) => {
   const [url, setUrl] = useState('');
   const submit = async () => {
     if (!url.trim()) return;
@@ -389,6 +394,7 @@ const UrlAddRow: React.FC<{
   return (
     <div className="flex gap-2">
       <input
+        {...anchors?.input}
         type="url"
         value={url}
         onChange={(e) => setUrl(e.target.value)}
@@ -403,6 +409,7 @@ const UrlAddRow: React.FC<{
         disabled={busy}
       />
       <button
+        {...anchors?.add}
         type="button"
         onClick={() => void submit()}
         disabled={busy || !url.trim()}

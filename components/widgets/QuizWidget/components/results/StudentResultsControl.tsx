@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import type { TourAnchorAttrs, TourAnchorId } from '@/config/tourAnchors';
 import {
   Eye,
   EyeOff,
@@ -78,6 +79,10 @@ export interface StudentResultsControlProps {
   triggerClassName?: string;
   /** Offers Unlock in the menu when the student is locked out of their results. */
   onUnlock?: () => Promise<void>;
+  /** Live-tour anchors for the kebab trigger and its items (menu layout). */
+  triggerAnchor?: TourAnchorAttrs;
+  tourId?: TourAnchorId;
+  tourScope?: string;
 }
 
 /** Show, hide, or return one student's results to the class setting. */
@@ -92,6 +97,9 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
   layout = 'menu',
   triggerClassName = 'rounded-md text-brand-gray-primary hover:bg-brand-gray-lightest hover:text-brand-blue-dark',
   onUnlock,
+  triggerAnchor,
+  tourId,
+  tourScope,
 }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [busy, setBusy] = useState<'hide' | 'clear' | 'unlock' | null>(null);
@@ -195,6 +203,9 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
           ariaLabel={`Results options for ${displayName}`}
           triggerIcon={MoreVertical}
           triggerClassName={triggerClassName}
+          triggerAnchor={triggerAnchor}
+          tourId={tourId}
+          tourScope={tourScope}
         />
         {dialog}
       </>
