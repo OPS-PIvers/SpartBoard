@@ -44,6 +44,7 @@ import type { FolderDeleteActions } from '@/components/common/library/FolderSide
 import { useLibraryFolderViewEnabled } from '@/components/common/library/useFolderLibraryView';
 import { useSourceFolders } from '@/components/common/library/useSourceFolders';
 import { isSourceFolderId } from '@/components/common/library/sourceFolders';
+import { visibleTeammateBanks } from './teammateBankRows';
 import { placementSourceKey } from '@/hooks/useLibraryPlacements';
 
 export interface QuizBanksTabProps {
@@ -574,15 +575,12 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
 
   // Legacy view lists teammates' banks below the library; the folder view files them as rows.
   const showSharedBanks = !libraryView.folderView;
-  const fvLocation = libraryView.folderView?.location;
-  const sharedRows =
-    libraryView.folderView &&
-    !libraryView.folderView.searchActive &&
-    fvLocation?.kind === 'folder'
-      ? teammateBanks
-          .filter((t) => folderIdOf(t.key) === fvLocation.folderId)
-          .map(({ source, key }) => renderSharedRow(source, key))
-      : [];
+  const sharedRows = visibleTeammateBanks(
+    teammateBanks.map((t) => ({ ...t, title: t.source.title })),
+    libraryView.folderView,
+    libraryView.state.search,
+    folderIdOf
+  ).map(({ source, key }) => renderSharedRow(source, key));
 
   const body = loading ? (
     <div className="flex flex-col items-center justify-center h-full text-brand-blue-primary gap-3 py-10">
