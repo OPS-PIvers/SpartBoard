@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-10-02_
+_Last audited: 2026-10-09_
 _Last action: 2026-09-23 — MEDIUM `FeaturePermissionsManager.tsx` grid/list card-body duplication resolved: extracted a shared `WidgetPermissionCardBody` component (`variant: 'grid' | 'list'`) consumed by both view modes, shrinking the file from 1,078 to 738 lines. Moved to Completed._
+
+_2026-10-09: Friday weekly audit (C1), light pass. Largest files: `context/DashboardContext.tsx` 7647 lines (existing HIGH/MEDIUM items), `QuizStudentApp.tsx` 6003, `QuizResults.tsx` 4341, `QuizWidget/Widget.tsx` 4146, `useQuizSession.ts` 3815, `useQuizAssignments.ts` 3640, `DraggableWindow.tsx` 3619. No imports with 3+ levels of `../` in components/context/hooks/utils. Existing Open items not re-diffed. 0 new issues._
 
 ---
 

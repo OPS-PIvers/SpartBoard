@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-10-05_
+_Last audited: 2026-10-09_
 _Last action: 2026-05-01_
 
 ---
@@ -49,6 +49,12 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+### LOW `hooks/usePlcUpdates.ts` has 7 useState/useRef calls
+- **Detected:** 2026-10-09
+- **File:** hooks/usePlcUpdates.ts
+- **Detail:** Crosses the 6+ useState/useRef threshold and is not tracked by any earlier item.
+- **Fix:** Consolidate related state into a reducer or split subscriptions into sub-hooks, as with the other tracked PLC hooks.
 
 ### MEDIUM `GuidedLearning/utils/generatedStep.ts:46` casts AI-draft content into a typed field with no structural validation
 

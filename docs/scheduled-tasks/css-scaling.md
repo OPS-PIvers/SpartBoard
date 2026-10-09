@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-08_
+_Last audited: 2026-10-09_
 _Last action: 2026-09-24 — MEDIUM `QuizStimulusView.tsx` zero-`cqmin` blocker resolved: added an optional `cqScaled?: boolean` prop (default `false`) threaded through every subcomponent in the file, applying `min(Xpx, Ycqmin)` inline styles only when set, so the two CQ-container consumers (`CurrentQuestionCard.tsx`, `QuizPreview.tsx`) now scale while the two non-CQ consumers (`QuizStudentApp.tsx`, `FreeResponseGrader.tsx`) keep today's fixed styling untouched — the same `cqScaled` pattern proven on `AssignTargetingSection.tsx`. 1250/1250 relevant tests pass. Item moved to Completed. PR opened against dev-paul._
 
 ---
@@ -33,6 +33,8 @@ The CLAUDE.md scaling rules recommend `cqmin` for consistency. **However**, `cqm
 _2026-09-13 action notes (Sunday): Reading list = three dailies (widget-registry, css-scaling, typescript-eslint) plus two Sunday weeklies (admin-settings-alignment, legacy-cleanup) — all five already carried today's Sunday audit entries. Nothing In Progress anywhere across all five. No HIGH open items in any journal. Among MEDIUMs, daily journals outrank weekly: widget-registry (order 1) carries only LOW items, so css-scaling (order 2) is the first journal in the reading list with an open, actionable MEDIUM. Of css-scaling's open MEDIUMs, the `BloomsTaxonomy` pyramid ceiling item (filed by today's own audit pass, above) is first in document order. File-recency check passed: `git log --oneline -10 -- components/widgets/BloomsTaxonomy/Pyramid.tsx` shows the only commit ever touching this file is an old dev-paul merge, well outside the last 5 branch commits. Resolution recorded above; moved to Completed._
 
 _2026-09-17 action notes (Thursday): Reading list = three dailies only (widget-registry, css-scaling, typescript-eslint) — no weekly journal carries a Thursday cadence, confirmed by grepping every `docs/scheduled-tasks/*.md` header for `cadence: weekly — Thursday` (0 matches). Nothing In Progress in any of the three. widget-registry's Open section carries only 3 LOW items; typescript-eslint has no structured `### [SEVERITY]` items at all (narrative-log-only journal). css-scaling (order 2 of 3) is therefore the first journal with an open MEDIUM, and per document order its first open MEDIUM was `AssignTargetingSection.tsx` (ahead of the second, `QuizStimulusView.tsx`). File-recency check passed: `git log --oneline -10 -- components/common/library/AssignTargetingSection.tsx` shows the last touching commit (`a81498e`) predates all 5 of the branch's most recent commits (today's five docs-only audit commits). Resolution recorded above; moved to Completed._
+
+_2026-10-09: Friday daily audit. Scanned `Widget.tsx` files for `max-w/h-[Npx]` caps and fixed-pixel `w/h/min-w-[Npx]` classes: no `max-*-[Npx]` hits; the only 2 fixed-px hits are `fixed` floating popovers in `DrawingWidget/Widget.tsx` (lines 1293, 1378), not content-area sizing, so not flagged. Existing Open items not re-diffed. 0 new issues._
 
 ---
 
