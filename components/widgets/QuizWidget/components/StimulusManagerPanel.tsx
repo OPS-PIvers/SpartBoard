@@ -8,6 +8,7 @@
  * students can load them — the teacher is prompted to confirm on every
  * attach (never auto-shared silently).
  */
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
@@ -357,6 +358,7 @@ const FileSourceButtons: React.FC<{
         type="button"
         onClick={() => inputRef.current?.click()}
         disabled={intake.busy}
+        {...(compact ? {} : tourTypeAttr('quiz-stimuli.choose-file', 'quiz'))}
         className={fileButtonClass}
       >
         <Monitor className="h-3.5 w-3.5" aria-hidden />
@@ -371,6 +373,7 @@ const FileSourceButtons: React.FC<{
           })
         }
         disabled={intake.busy}
+        {...(compact ? {} : tourTypeAttr('quiz-stimuli.choose-drive', 'quiz'))}
         className={fileButtonClass}
       >
         <CloudDownload className="h-3.5 w-3.5" aria-hidden />
@@ -383,8 +386,9 @@ const FileSourceButtons: React.FC<{
 const UrlAddRow: React.FC<{
   onAdd: (url: string) => Promise<unknown>;
   busy: boolean;
+  anchored?: boolean;
   anchors?: { input?: TourAnchorAttrs; add?: TourAnchorAttrs };
-}> = ({ onAdd, busy, anchors }) => {
+}> = ({ onAdd, busy, anchored = false, anchors }) => {
   const [url, setUrl] = useState('');
   const submit = async () => {
     if (!url.trim()) return;
@@ -405,6 +409,7 @@ const UrlAddRow: React.FC<{
           }
         }}
         placeholder="Paste a link"
+        {...(anchored ? tourTypeAttr('quiz-stimuli.url-input', 'quiz') : {})}
         className={inputClass}
         disabled={busy}
       />
@@ -413,6 +418,7 @@ const UrlAddRow: React.FC<{
         type="button"
         onClick={() => void submit()}
         disabled={busy || !url.trim()}
+        {...(anchored ? tourTypeAttr('quiz-stimuli.url-add', 'quiz') : {})}
         className="shrink-0 flex items-center gap-1 px-3 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white rounded-lg text-xs font-bold transition-colors"
       >
         {busy ? (
@@ -471,6 +477,7 @@ export const StimulusManagerPanel: React.FC<{
           <button
             type="button"
             onClick={() => intake.addPassage()}
+            {...tourTypeAttr('quiz-stimuli.add-passage', 'quiz')}
             disabled={intake.busy}
             className="shrink-0 flex items-center gap-2 px-3 py-2 bg-white border-2 border-slate-300 hover:border-brand-blue-primary/50 disabled:opacity-40 rounded-lg text-sm font-bold text-slate-700"
           >
@@ -478,7 +485,7 @@ export const StimulusManagerPanel: React.FC<{
             Add a passage
           </button>
           <div className="flex-1 min-w-0">
-            <UrlAddRow onAdd={intake.addFromUrl} busy={intake.busy} />
+            <UrlAddRow onAdd={intake.addFromUrl} busy={intake.busy} anchored />
           </div>
         </div>
       </div>
@@ -489,9 +496,10 @@ export const StimulusManagerPanel: React.FC<{
         </div>
       ) : (
         <div className="space-y-2">
-          {stimuli.map((s) => (
+          {stimuli.map((s, index) => (
             <StimulusCard
               key={s.id}
+              index={index + 1}
               stimulus={s}
               state={state}
               readAloudAvailable={readAloudAvailable}
@@ -565,6 +573,7 @@ const ReadAloudTextRow: React.FC<{
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
+        {...tourTypeAttr('quiz-stimuli.read-aloud-toggle', 'quiz')}
         className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs font-bold text-slate-600 hover:bg-slate-50"
       >
         {open ? (
@@ -594,6 +603,7 @@ const ReadAloudTextRow: React.FC<{
             value={text}
             rows={5}
             disabled={busy}
+            {...tourTypeAttr('quiz-stimuli.read-aloud-text', 'quiz')}
             onChange={(e) => {
               const next = e.target.value;
               if (next.trim()) {
@@ -615,6 +625,7 @@ const ReadAloudTextRow: React.FC<{
             <button
               type="button"
               onClick={() => void extract()}
+              {...tourTypeAttr('quiz-stimuli.read-aloud-extract', 'quiz')}
               disabled={busy}
               className="inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-2.5 py-1.5 text-xs font-bold text-white hover:bg-brand-blue-dark disabled:opacity-60"
             >
@@ -628,6 +639,7 @@ const ReadAloudTextRow: React.FC<{
             <button
               type="button"
               onClick={clear}
+              {...tourTypeAttr('quiz-stimuli.read-aloud-clear', 'quiz')}
               disabled={busy || !text}
               className="rounded-lg border border-slate-300 px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
             >
@@ -661,9 +673,10 @@ const ReadAloudTextRow: React.FC<{
 
 const StimulusCard: React.FC<{
   stimulus: QuizStimulus;
+  index: number;
   state: QuizEditorController;
   readAloudAvailable: boolean;
-}> = ({ stimulus: s, state, readAloudAvailable }) => {
+}> = ({ stimulus: s, index, state, readAloudAvailable }) => {
   const {
     questions,
     bankSlots,
@@ -690,6 +703,7 @@ const StimulusCard: React.FC<{
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
           aria-label={open ? 'Collapse stimulus' : 'Expand stimulus'}
+          {...tourFieldAttr('quiz-stimuli.card-expand', 'quiz', String(index))}
           className="text-slate-400 hover:text-slate-600 p-0.5"
         >
           {open ? (
@@ -708,6 +722,7 @@ const StimulusCard: React.FC<{
           value={s.label}
           onChange={(e) => updateStimulus(s.id, { label: e.target.value })}
           placeholder="Label (only you see this)"
+          {...tourFieldAttr('quiz-stimuli.card-label', 'quiz', String(index))}
           className="flex-1 min-w-0 bg-transparent border-0 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none"
         />
         <span className="shrink-0 text-xxs text-slate-400 tabular-nums">
@@ -728,6 +743,7 @@ const StimulusCard: React.FC<{
           type="button"
           onClick={() => deleteStimulus(s.id)}
           aria-label="Delete stimulus"
+          {...tourFieldAttr('quiz-stimuli.card-delete', 'quiz', String(index))}
           className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded p-1 transition-colors"
         >
           <Trash2 className="w-3.5 h-3.5" />
@@ -742,6 +758,11 @@ const StimulusCard: React.FC<{
               </label>
               <textarea
                 id={`passage-${s.id}`}
+                {...tourFieldAttr(
+                  'quiz-stimuli.passage-text',
+                  'quiz',
+                  String(index)
+                )}
                 value={s.text ?? ''}
                 onChange={(e) => updateStimulus(s.id, { text: e.target.value })}
                 rows={6}
@@ -784,6 +805,11 @@ const StimulusCard: React.FC<{
                   });
                 }}
                 placeholder="Unlimited"
+                {...tourFieldAttr(
+                  'quiz-stimuli.play-limit',
+                  'quiz',
+                  String(index)
+                )}
                 className={`${inputClass} max-w-[140px]`}
               />
             </div>
@@ -798,6 +824,11 @@ const StimulusCard: React.FC<{
                   <input
                     type="checkbox"
                     checked={allAttached}
+                    {...tourFieldAttr(
+                      'quiz-stimuli.attach-all-questions',
+                      'quiz',
+                      String(index)
+                    )}
                     onChange={(e) =>
                       setStimulusOnAllQuestions(s.id, e.target.checked)
                     }
@@ -818,6 +849,11 @@ const StimulusCard: React.FC<{
                         type="checkbox"
                         checked={q.stimulusIds?.includes(s.id) ?? false}
                         onChange={() => toggleStimulusOnQuestion(s.id, q.id)}
+                        {...tourFieldAttr(
+                          'quiz-stimuli.attach-question',
+                          'quiz',
+                          `${index}-${i + 1}`
+                        )}
                         className="w-3.5 h-3.5 accent-brand-blue-primary"
                       />
                       <span className="font-mono font-bold text-slate-400 w-6 shrink-0">
@@ -833,13 +869,18 @@ const StimulusCard: React.FC<{
                     </label>
                   </li>
                 ))}
-                {bankSlots.map((slot) => (
+                {bankSlots.map((slot, slotIndex) => (
                   <li key={slot.id}>
                     <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none rounded px-1.5 py-1 hover:bg-slate-50">
                       <input
                         type="checkbox"
                         checked={slot.stimulusIds?.includes(s.id) ?? false}
                         onChange={() => toggleStimulusOnSlot(s.id, slot.id)}
+                        {...tourFieldAttr(
+                          'quiz-stimuli.attach-bank-slot',
+                          'quiz',
+                          `${index}-${slotIndex + 1}`
+                        )}
                         className="w-3.5 h-3.5 accent-brand-blue-primary"
                       />
                       <Shuffle
@@ -910,6 +951,7 @@ const AttachStimulusSection: React.FC<{
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
+        {...tourTypeAttr('quiz-stimuli.attach-toggle', 'quiz')}
         className="w-full flex items-center gap-2 px-3 py-2 text-left"
       >
         {open ? (
@@ -933,7 +975,7 @@ const AttachStimulusSection: React.FC<{
             </p>
           ) : (
             <ul className="space-y-1">
-              {stimuli.map((s) => {
+              {stimuli.map((s, stimulusIndex) => {
                 const usedOn = [
                   ...questionsUsingStimulus(questions, s.id).map(
                     (i) => `Q${i + 1}`
@@ -949,6 +991,11 @@ const AttachStimulusSection: React.FC<{
                         type="checkbox"
                         checked={attachedIds?.includes(s.id) ?? false}
                         onChange={() => onToggle(s.id)}
+                        {...tourFieldAttr(
+                          'quiz-stimuli.attach-stimulus',
+                          'quiz',
+                          String(stimulusIndex + 1)
+                        )}
                         className="w-3.5 h-3.5 accent-brand-blue-primary"
                       />
                       <span

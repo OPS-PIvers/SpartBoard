@@ -451,7 +451,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                   </p>
                 </div>
                 <button
-                  {...tourAttr('plcs.new-plc-empty')}
+                  {...tourAttr('plcs.empty-create')}
                   onClick={() => setIsCreating(true)}
                   className="mt-2 px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xxs font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors"
                 >

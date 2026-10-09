@@ -145,10 +145,19 @@ describe('tour anchor registry', () => {
       'publish-scores.level',
       'publish-scores.written-mode',
       'publish-scores.cancel',
+      'quiz-import.cartridge-share-pictures',
+      'quiz-import.paper-assignment',
+      'quiz-banks.shared-preview',
+      'quiz-results.student-delete-cancel',
+      'quiz-rubric.share-link',
+      'quiz-rubric.share-copy',
     ]);
     // Destination options and step headers only move through the Assign dialog.
     const opensOnly = (id: string) =>
-      OPENS_ONLY.has(id) || /^assign-(destination|step)\./.test(id);
+      OPENS_ONLY.has(id) ||
+      /^(assign-(destination|step)\.|plc-(assign|share)\.|admin-plc\.recovery-reassign)/.test(
+        id
+      );
     const unflagged = Object.entries(TOUR_ANCHORS)
       .filter(([id]) => /assign|share|publish|delete/.test(id))
       .filter(([id, def]) => {
