@@ -102,7 +102,7 @@ import {
   useMiniAppKeeper,
   useSandboxedMiniApps,
 } from '@/hooks/useTourSandboxed';
-import { isTourSandboxActive } from '@/utils/tourSandbox';
+import { isSandboxId, isTourSandboxActive } from '@/utils/tourSandbox';
 import { useTourMaterialEditor } from '@/components/tours/tourMaterials';
 
 // --- M17 B3: setAssignmentTargetsV1 client caller ---
@@ -771,7 +771,11 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
             ? { ...expandedTargeting, openAt: undefined, closeAt: undefined }
             : expandedTargeting
         );
-      if (payloadRequiresCall(payload) && assignmentId) {
+      if (
+        payloadRequiresCall(payload) &&
+        assignmentId &&
+        !isSandboxId(assignmentId)
+      ) {
         try {
           const setAssignmentTargets = httpsCallable<
             SetAssignmentTargetsParams,
