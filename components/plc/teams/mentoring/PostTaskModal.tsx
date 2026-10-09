@@ -99,6 +99,7 @@ export const PostTaskModal: React.FC<{
       onClose={onClose}
       title="Post a task"
       maxWidth="max-w-lg"
+      closeTourId="teams.post-task.close"
       footer={
         <div className="flex items-center justify-end gap-2">
           {failed && (

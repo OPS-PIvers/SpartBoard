@@ -124,6 +124,7 @@ export const TaskTrackerView: React.FC<TaskTrackerViewProps> = ({
           {counts && (
             <MenuSelect
               label="Filter pairs"
+              anchor={tourAttr('teams.tracker.filter')}
               value={filter}
               onChange={(v) => onFilter(v as TrackerFilter)}
               options={[

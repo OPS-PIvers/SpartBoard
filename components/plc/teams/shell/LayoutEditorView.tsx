@@ -33,7 +33,7 @@ import {
   moveRow,
   type LayoutDraft,
 } from './layoutDraft';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export interface HeroPinGroup {
   label: string;
@@ -210,6 +210,23 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
               index={i}
               count={draft.pages.length}
               lockedOn={isLanding}
+              anchors={{
+                up: tourFieldAttr(
+                  'teams.layout.move-up',
+                  'teams-layout',
+                  `page-${p.id}`
+                ),
+                down: tourFieldAttr(
+                  'teams.layout.move-down',
+                  'teams-layout',
+                  `page-${p.id}`
+                ),
+                toggle: tourFieldAttr(
+                  'teams.layout.toggle',
+                  'teams-layout',
+                  `page-${p.id}`
+                ),
+              }}
               switchLabel={t('teams.layout.show', {
                 label,
                 defaultValue: 'Show {{label}}',
@@ -266,6 +283,7 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
         </h4>
         <SegmentedControl
           role="radiogroup"
+          anchor={tourAttr('teams.layout.hero-mode')}
           ariaLabel={t('teams.layout.firstThing', {
             defaultValue: 'First thing the team sees',
           })}
@@ -344,6 +362,23 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
                 index={i}
                 count={draft.cards.length}
                 disabled={blocked}
+                anchors={{
+                  up: tourFieldAttr(
+                    'teams.layout.move-up',
+                    'teams-layout',
+                    `card-${c.key}`
+                  ),
+                  down: tourFieldAttr(
+                    'teams.layout.move-down',
+                    'teams-layout',
+                    `card-${c.key}`
+                  ),
+                  toggle: tourFieldAttr(
+                    'teams.layout.toggle',
+                    'teams-layout',
+                    `card-${c.key}`
+                  ),
+                }}
                 switchLabel={t('teams.layout.show', {
                   label,
                   defaultValue: 'Show {{label}}',

@@ -91,6 +91,7 @@ export const AddDocModal: React.FC<{
       onClose={onClose}
       title="Add a doc"
       maxWidth="max-w-md"
+      closeTourId="teams.add-doc.close"
       footer={
         <div className="flex items-center justify-end gap-2">
           {failed && (
@@ -180,6 +181,7 @@ export const CheckInModal: React.FC<{
       onClose={onClose}
       title={initialTitle}
       maxWidth="max-w-2xl"
+      closeTourId="teams.check-in.close"
       footer={
         canEdit ? (
           <div className="flex items-center justify-end gap-2">

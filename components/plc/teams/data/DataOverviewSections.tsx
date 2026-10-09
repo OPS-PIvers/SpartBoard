@@ -243,6 +243,7 @@ export const AssessmentHeroView: React.FC<AssessmentHeroViewProps> = ({
                   defaultValue: 'Sort questions',
                 })}
                 value={sort}
+                anchor={tourAttr('teams.data.sort-questions')}
                 onChange={(v) => setSort(v as 'low' | 'order')}
                 options={[
                   {
@@ -260,7 +261,11 @@ export const AssessmentHeroView: React.FC<AssessmentHeroViewProps> = ({
                 ]}
               />
               <ChartLegend items={itemLegend(t)} />
-              <TableToggle table={table} onToggle={toggleTable} />
+              <TableToggle
+ table={table}
+ onToggle={toggleTable}
+ anchor={tourFieldAttr('teams.data.table-toggle','teams-data','items')}
+ />
             </>
           )}
         </SectionHead>
@@ -342,7 +347,11 @@ export const DistributionView: React.FC<{ featured: FeaturedAssessment }> = ({
         meta={featured.shortTitle}
       >
         {dist.status === 'ready' && (
-          <TableToggle table={table} onToggle={toggleTable} />
+          <TableToggle
+ table={table}
+ onToggle={toggleTable}
+ anchor={tourFieldAttr('teams.data.table-toggle','teams-data','distribution')}
+ />
         )}
       </SectionHead>
       {dist.status !== 'ready' ? (
@@ -413,7 +422,11 @@ export const TrendView: React.FC<{
         })}
       >
         {trend.length > 0 && (
-          <TableToggle table={table} onToggle={toggleTable} />
+          <TableToggle
+ table={table}
+ onToggle={toggleTable}
+ anchor={tourFieldAttr('teams.data.table-toggle','teams-data','trend')}
+ />
         )}
       </SectionHead>
       {trend.length === 0 ? (
@@ -463,7 +476,11 @@ export const ParticipationView: React.FC<{
         })}
       >
         {rows.length > 0 && (
-          <TableToggle table={table} onToggle={toggleTable} />
+          <TableToggle
+ table={table}
+ onToggle={toggleTable}
+ anchor={tourFieldAttr('teams.data.table-toggle','teams-data','participation')}
+ />
         )}
       </SectionHead>
       {rows.length === 0 ? (
@@ -575,7 +592,11 @@ export const MasteryView: React.FC<MasteryViewProps> = ({
             })}
           </TextLink>
         )}
-        <TableToggle table={table} onToggle={toggleTable} />
+        <TableToggle
+ table={table}
+ onToggle={toggleTable}
+ anchor={tourFieldAttr('teams.data.table-toggle','teams-data','mastery')}
+ />
       </SectionHead>
       {table ? (
         <DataTable

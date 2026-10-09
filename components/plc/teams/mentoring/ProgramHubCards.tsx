@@ -15,6 +15,7 @@ import type {
   MentoringTaskSummary,
 } from '@/utils/mentoring';
 import { ensureProtocol } from '@/utils/urlHelpers';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { SUBMITTER_LABEL, pairStatusLabel, shortDate } from './mentoringFormat';
 
 const STATUS_BG = {
@@ -129,6 +130,11 @@ export const ResourcesListView: React.FC<{
             href={ensureProtocol(r.url)}
             target="_blank"
             rel="noopener noreferrer"
+            {...tourFieldAttr(
+              'teams.mentoring.resource',
+              'teams-mentoring',
+              r.id
+            )}
             className="rounded text-xs font-semibold text-brand-blue-primary transition-colors hover:text-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
           >
             {r.title}

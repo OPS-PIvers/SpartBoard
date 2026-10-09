@@ -128,6 +128,7 @@ export const ManageTargetsModal: React.FC<ManageTargetsModalProps> = ({
         defaultValue: 'Learning targets',
       })}
       maxWidth="max-w-3xl"
+      closeTourId="teams.targets.close"
       footer={
         <div className="flex items-center justify-end gap-2">
           {error && (
@@ -300,6 +301,7 @@ export const ManageTargetsModal: React.FC<ManageTargetsModalProps> = ({
                 defaultValue: 'Assessment',
               })}
               value={setId}
+              anchor={tourAttr('teams.targets.assessment')}
               onChange={(v) => {
                 setSetId(v);
                 setShowAll(false);
