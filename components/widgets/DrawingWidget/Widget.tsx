@@ -1293,7 +1293,8 @@ export const DrawingWidget: React.FC<{
                   className="fixed z-[2147483600] min-w-[200px] bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden"
                   style={{
                     bottom: `${exportMenuAnchor.bottom}px`,
-                    right: `${exportMenuAnchor.right}px`,
+                    // Kept on screen for a toolbar near the left edge.
+                    right: `${Math.max(8, Math.min(exportMenuAnchor.right, window.innerWidth - 208))}px`,
                   }}
                 >
                   <button
