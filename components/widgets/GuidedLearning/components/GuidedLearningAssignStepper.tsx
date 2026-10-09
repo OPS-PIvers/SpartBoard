@@ -33,6 +33,7 @@ import {
   EMPTY_ASSIGN_TARGETING_VALUE,
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
+import { tourAttr } from '@/config/tourAnchors';
 
 export interface GuidedLearningStepperAssign {
   classes: AssignClassesValue;
@@ -169,6 +170,7 @@ export const GuidedLearningAssignStepper: React.FC<{
             onChange={setKind}
             options={KIND_SWITCH_OPTIONS}
             ariaLabel="Student work"
+            anchor={tourAttr('assign-top.kind')}
           />
         ) : undefined
       }

@@ -208,6 +208,7 @@ export const AssignPeriodAccessSection: React.FC<{
         <SegmentedControl<AccessMode>
           role="radiogroup"
           ariaLabel={t('assignTargeting.periodModeLabel', 'How periods open')}
+          anchor={tourAttr('assign-periods.mode')}
           value={plan.mode}
           onChange={(mode) => onChange({ ...plan, mode })}
           options={[
