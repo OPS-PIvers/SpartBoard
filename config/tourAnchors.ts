@@ -6322,14 +6322,22 @@ export const TOUR_ANCHORS = {
   },
   'activity-wall-editor.section-label': {
     label: 'Column or row name box in the Activity Wall editor',
+    perField: true,
     panel: true,
   },
-  'activity-wall-editor.section-move': {
-    label: 'Move column or row button in the Activity Wall editor',
+  'activity-wall-editor.section-move-up': {
+    label: 'Move column or row up button in the Activity Wall editor',
+    perField: true,
+    panel: true,
+  },
+  'activity-wall-editor.section-move-down': {
+    label: 'Move column or row down button in the Activity Wall editor',
+    perField: true,
     panel: true,
   },
   'activity-wall-editor.section-remove': {
     label: 'Remove column or row button in the Activity Wall editor',
+    perField: true,
     destructive: true,
     panel: true,
   },
@@ -7264,6 +7272,36 @@ export const TOUR_ANCHORS = {
   },
   'video-activity.plc-sheet-url': {
     label: 'PLC sheet URL box in the PLC video activity assign dialog',
+    persists: true,
+    panel: true,
+  },
+  // Activity Wall, Projects and Review shared-prop controls.
+  'activity-wall-editor.section': {
+    label: 'Collapsible section header in the Activity Wall editor',
+    perField: true,
+    panel: true,
+  },
+  'review-start.cancel': {
+    label: 'Cancel button in the Start review dialog',
+    panel: true,
+  },
+  'projects.bulk-move': {
+    label: 'Move to folder button in the Projects bulk action bar',
+    persists: true,
+    panel: true,
+  },
+  'projects.bulk-delete': {
+    label: 'Delete button in the Projects bulk action bar',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'projects.bulk-clear': {
+    label: 'Clear selection button in the Projects bulk action bar',
+    panel: true,
+  },
+  'projects-editor.save': {
+    label: 'Save project button in the Project editor',
     persists: true,
     panel: true,
   },
