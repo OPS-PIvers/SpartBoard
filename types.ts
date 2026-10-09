@@ -9974,7 +9974,9 @@ export type GlobalFeature =
   /** Team invite boxes suggest staff emails from the org directory as you type. */
   | 'team-email-suggest'
   /** Push scores into a SpartBoard-made Schoology gradebook column (docs/plans/SCHOOLOGY_TOOL_COLUMNS.md D11). */
-  | 'schoology-tool-columns';
+  | 'schoology-tool-columns'
+  /** A what's-new button under a widget whose changelog entry carries a note for that widget type. */
+  | 'widget-whats-new';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

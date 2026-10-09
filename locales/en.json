@@ -4993,5 +4993,10 @@
     "addStep": "Add step",
     "listTitle": "Choose a control",
     "recordFromHere": "Record from here"
+  },
+  "widgetWhatsNew": {
+    "label": "What's new",
+    "dismiss": "Dismiss",
+    "gotIt": "Got it"
   }
 }
