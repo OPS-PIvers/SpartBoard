@@ -7267,6 +7267,73 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  // Video Activity shared-prop controls.
+  'editor.save': {
+    label: 'Save button in an editor dialog footer',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'video-activity.assign-pacing': {
+    label: 'Pacing choice in the video activity assign dialog',
+    persists: true,
+    panel: true,
+  },
+  'video-activity.live-end': {
+    label: 'End button in a live video activity',
+    destructive: true,
+    persists: true,
+  },
+  'video-activity.live-show-results': {
+    label: 'Show or Hide results button on a live video question',
+    persists: true,
+  },
+  'video-activity.live-reveal-answer': {
+    label: 'Reveal answer button on a live video question',
+    persists: true,
+  },
+  'video-activity.live-resume': {
+    label: 'Resume button on a live video question',
+    persists: true,
+  },
+  'video-activity.monitor-start-all': {
+    label: 'Start all button in the video activity monitor',
+    persists: true,
+  },
+  'video-activity.monitor-pause-all': {
+    label: 'Pause all button in the video activity monitor',
+    persists: true,
+  },
+  'video-activity.monitor-pause-toggle': {
+    label: 'Pause or Resume button in the video activity monitor',
+    persists: true,
+  },
+  'video-activity.monitor-end': {
+    label: 'End button in the video activity monitor',
+    destructive: true,
+    persists: true,
+  },
+  'video-activity.results-back': {
+    label: 'Back button in video activity results',
+  },
+  'video-activity.results-push-classroom': {
+    label: 'Push Grades button in video activity results',
+    persists: true,
+  },
+  'video-activity.results-push-schoology': {
+    label: 'Push to Schoology button in video activity results',
+    persists: true,
+  },
+  'video-activity.results-assign-makeup': {
+    label: 'Assign make-up button in video activity results',
+    persists: true,
+  },
+  'video-activity.plc-auto-sheet': {
+    label:
+      'Auto-generated sheet switch in the PLC video activity assign dialog',
+    persists: true,
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

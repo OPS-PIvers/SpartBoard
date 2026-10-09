@@ -9183,4 +9183,85 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     scope: 'board',
     panel: true,
   },
+  {
+    id: 'editor.save',
+    label: 'Save button in an editor dialog footer',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'video-activity.assign-pacing',
+    label: 'Pacing choice in the video activity assign dialog',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'video-activity.live-end',
+    label: 'End button in a live video activity',
+    scope: 'board',
+    destructive: true,
+  },
+  {
+    id: 'video-activity.live-show-results',
+    label: 'Show or Hide results button on a live video question',
+    scope: 'board',
+  },
+  {
+    id: 'video-activity.live-reveal-answer',
+    label: 'Reveal answer button on a live video question',
+    scope: 'board',
+  },
+  {
+    id: 'video-activity.live-resume',
+    label: 'Resume button on a live video question',
+    scope: 'board',
+  },
+  {
+    id: 'video-activity.monitor-start-all',
+    label: 'Start all button in the video activity monitor',
+    scope: 'board',
+  },
+  {
+    id: 'video-activity.monitor-pause-all',
+    label: 'Pause all button in the video activity monitor',
+    scope: 'board',
+  },
+  {
+    id: 'video-activity.monitor-pause-toggle',
+    label: 'Pause or Resume button in the video activity monitor',
+    scope: 'board',
+  },
+  {
+    id: 'video-activity.monitor-end',
+    label: 'End button in the video activity monitor',
+    scope: 'board',
+    destructive: true,
+  },
+  {
+    id: 'video-activity.results-back',
+    label: 'Back button in video activity results',
+    scope: 'board',
+  },
+  {
+    id: 'video-activity.results-push-classroom',
+    label: 'Push Grades button in video activity results',
+    scope: 'board',
+  },
+  {
+    id: 'video-activity.results-push-schoology',
+    label: 'Push to Schoology button in video activity results',
+    scope: 'board',
+  },
+  {
+    id: 'video-activity.results-assign-makeup',
+    label: 'Assign make-up button in video activity results',
+    scope: 'board',
+  },
+  {
+    id: 'video-activity.plc-auto-sheet',
+    label:
+      'Auto-generated sheet switch in the PLC video activity assign dialog',
+    scope: 'board',
+    panel: true,
+  },
 ];
