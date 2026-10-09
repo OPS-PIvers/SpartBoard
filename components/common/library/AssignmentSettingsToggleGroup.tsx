@@ -14,6 +14,7 @@
  */
 
 import React from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { Lock } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
 import { CollapsibleSection } from './CollapsibleSection';
@@ -118,6 +119,7 @@ export interface ToggleRowProps {
    * Switch Detection) use the default bold-dark label.
    */
   compact?: boolean;
+  anchor?: TourAnchorAttrs;
 }
 
 export const ToggleRow: React.FC<ToggleRowProps> = ({
@@ -127,6 +129,7 @@ export const ToggleRow: React.FC<ToggleRowProps> = ({
   hint,
   disabled,
   compact = false,
+  anchor,
 }) => (
   <div className={disabled ? 'opacity-40' : ''}>
     <div className="flex items-center justify-between">
@@ -158,6 +161,7 @@ export const ToggleRow: React.FC<ToggleRowProps> = ({
         showLabels
         label={label}
         disabled={disabled}
+        anchor={anchor}
       />
     </div>
     {hint && <p className="text-xxs text-slate-500 mt-0.5">{hint}</p>}

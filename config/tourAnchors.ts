@@ -3290,6 +3290,125 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'admin.features.filter-enabled': {
+    label: 'Enabled filter button in Features',
+    perField: true,
+    panel: true,
+  },
+  'admin.features.filter-availability': {
+    label: 'Availability filter button in Features',
+    perField: true,
+    panel: true,
+  },
+  'admin.features.filter-building': {
+    label: 'Building filter button in Features',
+    perField: true,
+    panel: true,
+  },
+  'admin.features.filter-toggle': {
+    label: 'Filters button in Features (phone)',
+    panel: true,
+  },
+  'admin.features.daily-limit-toggle': {
+    label: 'Daily limit switch on a feature row',
+    perField: true,
+    panel: true,
+  },
+  'admin.features.daily-limit-number': {
+    label: 'Uses per day box on a feature row',
+    perField: true,
+    panel: true,
+  },
+  'admin.features.model-tier': {
+    label: 'Model select on a feature row',
+    perField: true,
+    panel: true,
+  },
+  'admin.access.expand': {
+    label: 'Row expand button in Features, Widgets and Previews',
+    perField: true,
+    panel: true,
+  },
+  'admin.access.enabled': {
+    label: 'Enabled switch on an access row',
+    perField: true,
+    panel: true,
+  },
+  'admin.access.level': {
+    label: 'Who can use it picker on an access row',
+    perField: true,
+    panel: true,
+  },
+  'admin.access.save': {
+    label: 'Save button on an access row',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.access.min-tier': {
+    label: 'Minimum tier select on an access row',
+    panel: true,
+  },
+  'admin.access.search': {
+    label: 'Search box on an Access tab',
+    perField: true,
+    panel: true,
+  },
+  'admin.access.search-elsewhere': {
+    label: 'Found on another tab button in Access search',
+    perField: true,
+    panel: true,
+  },
+  'admin.gemini.model': {
+    label: 'Gemini model select',
+    perField: true,
+    panel: true,
+  },
+  'admin.gemini.save': {
+    label: 'Save Gemini models button',
+    persists: true,
+    panel: true,
+  },
+  'admin.previews.district-switch': {
+    label: 'District switch on a Previews row',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.previews.graduate': {
+    label: 'Graduate button on a Previews row',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.widgets.configure': {
+    label: 'Configure button on a widget access row',
+    perField: true,
+    panel: true,
+  },
+  'admin.widgets.display-name': {
+    label: 'Display name box on a widget access row',
+    perField: true,
+    panel: true,
+  },
+  'admin.widgets.grade-level': {
+    label: 'Grade level button on a widget access row',
+    perField: true,
+    panel: true,
+  },
+  'admin.beta.email': {
+    label: 'Add beta user email box',
+    panel: true,
+  },
+  'admin.beta.add': {
+    label: 'Add beta user button',
+    panel: true,
+  },
+  'admin.beta.remove': {
+    label: 'Remove beta user button',
+    perField: true,
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;
@@ -3310,6 +3429,17 @@ export const tourAttr = (
   ...(widgetId ? { 'data-tour-widget': widgetId } : {}),
   ...(widgetType ? { 'data-tour-widget-type': widgetType } : {}),
 });
+
+/** Attrs a shared component spreads onto its control; accepts `tourAttr`, `tourTypeAttr` and `tourFieldAttr` output. */
+export type TourAnchorAttrs = Partial<
+  Record<
+    | 'data-tour'
+    | 'data-tour-widget'
+    | 'data-tour-widget-type'
+    | 'data-tour-field',
+    string
+  >
+>;
 
 export const tourTypeAttr = (id: TourAnchorId, widgetType: string) => ({
   'data-tour': id,

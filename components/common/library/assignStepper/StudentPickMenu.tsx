@@ -1,4 +1,5 @@
 import React, { useId, useState } from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { ChevronDown, Search, User, Users } from 'lucide-react';
 import type { ClassRoster, StudentTargetRef } from '@/types';
 import { studentTargetRefKey } from '@/utils/studentTargetRef';
@@ -21,6 +22,8 @@ export interface StudentPickMenuProps {
   rosters: ClassRoster[];
   value: AssignClassesValue;
   onChange: (next: AssignClassesValue) => void;
+  /** Live-tour anchor for one class's student menu button, keyed by class id. */
+  rowAnchor?: (classId: string) => TourAnchorAttrs;
 }
 
 /** Under the class picker, one "All students" menu per picked class (D5a). */
@@ -28,6 +31,7 @@ export const StudentPickMenu: React.FC<StudentPickMenuProps> = ({
   rosters,
   value,
   onChange,
+  rowAnchor,
 }) => {
   const picked = rosters.filter((r) => value.classIds.includes(r.id));
   if (picked.length === 0) return null;
@@ -37,6 +41,7 @@ export const StudentPickMenu: React.FC<StudentPickMenuProps> = ({
         <ClassStudentRow
           key={roster.id}
           roster={roster}
+          anchor={rowAnchor?.(roster.id)}
           refs={value.studentsByClass[roster.id] ?? null}
           onChange={(refs) =>
             onChange(withClassStudents(value, roster.id, refs))
@@ -51,7 +56,8 @@ const ClassStudentRow: React.FC<{
   roster: ClassRoster;
   refs: StudentTargetRef[] | null;
   onChange: (refs: StudentTargetRef[] | null) => void;
-}> = ({ roster, refs, onChange }) => {
+  anchor?: TourAnchorAttrs;
+}> = ({ roster, refs, onChange, anchor }) => {
   const { open, setOpen, rootRef, onKeyDown } = usePickMenu();
   const menuId = useId();
   const narrowed = !!refs && refs.length > 0;
@@ -67,6 +73,7 @@ const ClassStudentRow: React.FC<{
         onKeyDown={onKeyDown}
       >
         <button
+          {...anchor}
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-haspopup="dialog"
