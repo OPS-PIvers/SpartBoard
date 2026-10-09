@@ -17,6 +17,7 @@ import { usePlcs } from '@/hooks/usePlcs';
 import { usePlcInvitations } from '@/hooks/usePlcInvitations';
 import { getPlcMembers, getPlcRole, isPlcLeadOrCoLead } from '@/utils/plc';
 import { logError } from '@/utils/logError';
+import { StaffEmailInput } from '@/components/common/StaffEmailInput';
 
 interface MembersBodyProps {
   plc: Plc;
@@ -77,8 +78,11 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
   compact = false,
 }) => {
   const { t } = useTranslation();
-  const { user, canAccessFeature } = useAuth();
+  const { user, canAccessFeature, orgId } = useAuth();
   const groupWording = canAccessFeature('my-groups');
+  const suggestOrgId = canAccessFeature('team-email-suggest')
+    ? (plc.orgId ?? orgId)
+    : null;
   const { showConfirm } = useDialog();
   const { removeMember, setMemberRole, transferLead, leavePlc } = usePlcs({
     enabled: !compact,
@@ -136,6 +140,15 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
       (inv) => inv.plcId === plc.id && inv.status === 'pending'
     );
   }, [sentInvites, plc.id, compact]);
+
+  const suggestExclude = useMemo(
+    () =>
+      new Set([
+        ...memberEmailsLower,
+        ...pendingInvitesForThisPlc.map((inv) => inv.inviteeEmailLower),
+      ]),
+    [memberEmailsLower, pendingInvitesForThisPlc]
+  );
 
   const roleLabel = (role: PlcRole): string => {
     switch (role) {
@@ -574,35 +587,37 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
             </h3>
           </header>
           <div className="flex gap-2">
-            <div className="flex-1 relative">
-              <Mail
-                aria-hidden="true"
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
-              />
-              <input
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    void handleSendInvite();
-                  }
-                }}
-                placeholder={t('plcDashboard.members.invitePlaceholder', {
-                  defaultValue: 'teacher@school.edu',
-                })}
-                aria-label={t('plcDashboard.members.inviteHeading', {
-                  defaultValue: 'Invite a teacher',
-                })}
-                aria-invalid={inviteError != null}
-                aria-describedby="plc-invite-feedback"
-                className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 rounded-lg text-sm text-slate-700 transition-colors"
-                disabled={inviteSubmitting}
-              />
-            </div>
+            <StaffEmailInput
+              wrapperClassName="flex-1 relative"
+              leading={
+                <Mail
+                  aria-hidden="true"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
+                />
+              }
+              orgId={suggestOrgId}
+              exclude={suggestExclude}
+              inputMode="email"
+              autoComplete="email"
+              value={inviteEmail}
+              onValueChange={setInviteEmail}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  void handleSendInvite();
+                }
+              }}
+              placeholder={t('plcDashboard.members.invitePlaceholder', {
+                defaultValue: 'teacher@school.edu',
+              })}
+              aria-label={t('plcDashboard.members.inviteHeading', {
+                defaultValue: 'Invite a teacher',
+              })}
+              aria-invalid={inviteError != null}
+              aria-describedby="plc-invite-feedback"
+              className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 rounded-lg text-sm text-slate-700 transition-colors"
+              disabled={inviteSubmitting}
+            />
             <button
               type="button"
               onClick={() => void handleSendInvite()}
