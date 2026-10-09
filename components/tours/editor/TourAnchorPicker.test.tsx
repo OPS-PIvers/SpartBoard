@@ -62,6 +62,23 @@ describe('TourAnchorPicker', () => {
     expect(onPick).not.toHaveBeenCalled();
   });
 
+  it('picks nothing behind a dialog', () => {
+    const { onPick } = setup();
+    const dialog = document.createElement('div');
+    dialog.setAttribute('role', 'dialog');
+    dialog.setAttribute('aria-modal', 'true');
+    const text = document.createElement('p');
+    dialog.appendChild(text);
+    document.body.appendChild(dialog);
+    document.elementsFromPoint = () => [
+      text,
+      dialog,
+      screen.getByText('Tools'),
+    ];
+    fireEvent.click(text);
+    expect(onPick).not.toHaveBeenCalled();
+  });
+
   it('outlines a registered anchor on hover and names it', () => {
     setup();
     fireEvent.pointerMove(screen.getByText('Tools'));

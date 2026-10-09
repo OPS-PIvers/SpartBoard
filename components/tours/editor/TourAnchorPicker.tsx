@@ -42,6 +42,7 @@ const SWALLOW = [
 const PAD = 3;
 
 const SEE_THROUGH = '[data-tour-overlay]';
+const LAYER = '[role="dialog"], [aria-modal="true"]';
 
 // The tour's dim layer sits over the board, so look through it at what is underneath.
 const pickAt = (e: MouseEvent, slots: TourSlots | undefined) => {
@@ -54,10 +55,14 @@ const pickAt = (e: MouseEvent, slots: TourSlots | undefined) => {
       e.target instanceof Element ? e.target : null,
       slots
     );
+  let layer: Element | null | undefined;
   for (const el of stack) {
     // The dim and ring are see-through; real editor UI blocks.
     if (el.closest(SEE_THROUGH)) continue;
     if (el.closest('[data-tour-ignore]')) return null;
+    // A dialog on top hides what is behind it.
+    layer ??= el.closest(LAYER);
+    if (layer && !layer.contains(el)) return null;
     const found = resolvePickTarget(el, slots);
     if (found) return found;
   }
