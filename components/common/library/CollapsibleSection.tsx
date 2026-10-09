@@ -43,7 +43,6 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls={regionId}
-        {...anchor}
         className="group flex w-full items-center justify-between gap-2 rounded-md py-1 transition-colors"
       >
         <span className="flex items-center gap-2 min-w-0">
