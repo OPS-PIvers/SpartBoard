@@ -31,6 +31,7 @@ import {
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import { useSubjects } from '@/hooks/useSubjects';
 import { ALL_GRADES } from '@/utils/gradeMatch';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface LearningTargetsManagerProps {
   list: LearningTargetList | null;
@@ -74,6 +75,7 @@ const StandardsPicker: React.FC<{
     <div className="flex flex-wrap items-center gap-1.5">
       {selected.map((id) => (
         <button
+          {...tourFieldAttr('plc-settings.target-chip-remove', 'plc', id)}
           key={id}
           type="button"
           onClick={() => onChange(selected.filter((s) => s !== id))}
@@ -85,6 +87,7 @@ const StandardsPicker: React.FC<{
         </button>
       ))}
       <button
+        {...tourAttr('plc-settings.target-picker-open')}
         type="button"
         onClick={() => setOpen(true)}
         className={SECONDARY_BTN}
@@ -385,6 +388,11 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
                   {canEdit && (
                     <td className="px-3 py-2 text-right">
                       <button
+                        {...tourFieldAttr(
+                          'plc-settings.target-restore',
+                          'plc',
+                          target.id
+                        )}
                         type="button"
                         onClick={() => handleArchive(target.id, false)}
                         disabled={saving}
@@ -410,6 +418,7 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
       {archived.length > 0 && (
         <div>
           <button
+            {...tourAttr('plc-settings.target-archived-toggle')}
             type="button"
             onClick={() => setArchivedOpen((o) => !o)}
             aria-expanded={archivedOpen}
@@ -437,6 +446,11 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
                   <span className="flex-1 line-through">{target.label}</span>
                   {canEdit && (
                     <button
+                      {...tourFieldAttr(
+                        'plc-settings.target-archive',
+                        'plc',
+                        target.id
+                      )}
                       type="button"
                       onClick={() => handleArchive(target.id, true)}
                       disabled={saving}
@@ -465,6 +479,7 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2">
             <button
+              {...tourAttr('plc-settings.target-add-panel')}
               type="button"
               onClick={() => togglePanel('add')}
               disabled={atCap}
@@ -475,6 +490,7 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
               {t('learningTargets.addTarget', { defaultValue: 'Add target' })}
             </button>
             <button
+              {...tourAttr('plc-settings.target-paste-panel')}
               type="button"
               onClick={() => togglePanel('paste')}
               disabled={atCap}
@@ -485,6 +501,7 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
               {t('learningTargets.pasteList', { defaultValue: 'Paste list' })}
             </button>
             <button
+              {...tourAttr('plc-settings.target-csv-panel')}
               type="button"
               onClick={() => togglePanel('csv')}
               disabled={atCap}
@@ -503,6 +520,7 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
             >
               <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,3fr)] gap-2">
                 <input
+                  {...tourAttr('plc-settings.target-code')}
                   value={draftCode}
                   onChange={(e) => setDraftCode(e.target.value)}
                   placeholder={t('learningTargets.codePlaceholder', {
@@ -514,6 +532,7 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
                   })}
                 />
                 <input
+                  {...tourAttr('plc-settings.target-label')}
                   value={draftLabel}
                   onChange={(e) => setDraftLabel(e.target.value)}
                   placeholder={t('learningTargets.labelPlaceholder', {
@@ -545,6 +564,11 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
                     const selected = draftGrades.includes(grade);
                     return (
                       <button
+                        {...tourFieldAttr(
+                          'plc-settings.target-grade',
+                          'plc',
+                          grade
+                        )}
                         key={grade}
                         type="button"
                         aria-pressed={selected}
@@ -567,6 +591,7 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
                   })}
                 </div>
                 <select
+                  {...tourAttr('plc-settings.target-subject')}
                   value={draftSubject}
                   onChange={(e) => setDraftSubject(e.target.value)}
                   aria-label={t('learningTargets.columns.subject', {
@@ -594,6 +619,7 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
               </p>
               <div className="flex justify-end">
                 <button
+                  {...tourAttr('plc-settings.target-add-save')}
                   type="submit"
                   disabled={saving || !draftLabel.trim()}
                   className={PRIMARY_BTN}
@@ -613,6 +639,7 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
                 })}
               </p>
               <textarea
+                {...tourAttr('plc-settings.target-paste-text')}
                 value={pasteText}
                 onChange={(e) => setPasteText(e.target.value)}
                 rows={5}
@@ -629,6 +656,7 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
                   })}
                 </span>
                 <button
+                  {...tourAttr('plc-settings.target-paste-import')}
                   type="button"
                   onClick={() => void handlePaste()}
                   disabled={
@@ -645,6 +673,7 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
           {panel === 'csv' && (
             <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
               <button
+                {...tourAttr('plc-settings.target-csv-template')}
                 type="button"
                 onClick={() =>
                   downloadTextFile(
@@ -660,6 +689,7 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
                 })}
               </button>
               <input
+                {...tourAttr('plc-settings.target-csv-file')}
                 ref={fileRef}
                 type="file"
                 accept=".csv,text/csv"
@@ -779,6 +809,7 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
                       {csvName}
                     </span>
                     <button
+                      {...tourAttr('plc-settings.target-csv-import')}
                       type="button"
                       onClick={() => void handleCsvImport()}
                       disabled={saving || csvPreview.rows.length === 0}
@@ -815,6 +846,11 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
                 defaultValue: 'Proficient',
               })}
               <input
+                {...tourFieldAttr(
+                  'plc-settings.cutoff-input',
+                  'plc',
+                  'proficient'
+                )}
                 type="number"
                 min={0}
                 max={100}
@@ -835,6 +871,11 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
                 defaultValue: 'Approaching',
               })}
               <input
+                {...tourFieldAttr(
+                  'plc-settings.cutoff-input',
+                  'plc',
+                  'approaching'
+                )}
                 type="number"
                 min={0}
                 max={100}
@@ -852,6 +893,7 @@ export const LearningTargetsManager: React.FC<LearningTargetsManagerProps> = ({
             </label>
             {canEdit && (
               <button
+                {...tourAttr('plc-settings.cutoff-save')}
                 type="button"
                 onClick={() => void handleSaveCutoffs()}
                 disabled={saving || !cutoffsDirty}
