@@ -1870,6 +1870,504 @@ export const TOUR_ANCHORS = {
     label: 'Fullscreen toggle button in the resource viewer',
     panel: true,
   },
+
+  // Gradebook: toolbar, grid, popovers, settings, analysis and student views.
+  'gradebook.tabs': {
+    label: 'Grades and Data analysis tabs in the gradebook header',
+  },
+  'gradebook.close': { label: 'Close button in the gradebook header' },
+  'gradebook.class-select': {
+    label: 'Class dropdown in the gradebook toolbar',
+  },
+  'gradebook.period-select': {
+    label: 'Grading period dropdown in the gradebook toolbar',
+  },
+  'gradebook.view-menu': { label: 'View button in the gradebook toolbar' },
+  'gradebook.filter-menu': { label: 'Filter button in the gradebook toolbar' },
+  'gradebook.privacy': {
+    label: 'Privacy blur button in the gradebook toolbar',
+  },
+  'gradebook.export': { label: 'Export button in the gradebook toolbar' },
+  'gradebook.help': {
+    label: 'Help and shortcuts button in the gradebook toolbar',
+  },
+  'gradebook.settings': { label: 'Settings button in the gradebook toolbar' },
+  'gradebook.view.names': {
+    label: 'Names dropdown in the gradebook View menu',
+    panel: true,
+  },
+  'gradebook.view.sort': {
+    label: 'Sort rows dropdown in the gradebook View menu',
+    panel: true,
+  },
+  'gradebook.filter.category': {
+    label: 'Category dropdown in the gradebook Filter menu',
+    panel: true,
+  },
+  'gradebook.filter.activity-type': {
+    label: 'Activity type dropdown in the gradebook Filter menu',
+    panel: true,
+  },
+  'gradebook.filter.show-hidden': {
+    label: 'Show all hidden columns button in the gradebook Filter menu',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.grid.sort-student': {
+    label: 'Student column header that sorts the gradebook by name',
+  },
+  'gradebook.grid.sort-overall': {
+    label: 'Overall column header that sorts the gradebook by overall grade',
+  },
+  'gradebook.grid.column-header': {
+    label: 'Assignment column header in the gradebook',
+    perField: true,
+  },
+  'gradebook.grid.student-name': {
+    label: 'Student name button in the gradebook',
+    perField: true,
+  },
+  'gradebook.grid.cell': {
+    label: 'Score cell in the gradebook',
+    perField: true,
+  },
+  'gradebook.cell.revert': {
+    label: 'Revert button for a calculated score in the cell popover',
+    destructive: true,
+    panel: true,
+  },
+  'gradebook.cell.flag': {
+    label: 'Flag menu button in the cell popover',
+    panel: true,
+  },
+  'gradebook.cell.needs-grading': {
+    label: 'Needs grading link in the cell popover',
+    panel: true,
+  },
+  'gradebook.cell.score': {
+    label: 'Score box in the cell popover',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.cell.fill-below': {
+    label: 'Fill empty cells below button in the cell popover',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.cell.comment': {
+    label: 'Comment box in the cell popover',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.cell.history': {
+    label: 'History link in the cell popover',
+    panel: true,
+  },
+  'gradebook.cell.publish': {
+    label: 'Publish or Unpublish for student link in the cell popover',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.column.sort': {
+    label: 'Sort by this column button in the column popover',
+    panel: true,
+  },
+  'gradebook.column.edit': {
+    label: 'Edit assignment button in the column popover',
+    panel: true,
+  },
+  'gradebook.column.hide': {
+    label: 'Hide column button in the column popover',
+    panel: true,
+  },
+  'gradebook.column.delete': {
+    label: 'Delete assignment button in the column popover',
+    destructive: true,
+    panel: true,
+  },
+  'gradebook.column.delete-confirm': {
+    label: 'Confirm delete button in the column popover',
+    destructive: true,
+    panel: true,
+  },
+  'gradebook.column.confirm-cancel': {
+    label: 'Cancel button on the delete confirmation in the column popover',
+    panel: true,
+  },
+  'gradebook.column.results': {
+    label: 'Results or Submissions button in the column popover',
+    panel: true,
+  },
+  'gradebook.column.analyze': {
+    label: 'Analyze button in the column popover',
+    panel: true,
+  },
+  'gradebook.column.publish': {
+    label: 'Publish or Unpublish scores button in the column popover',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.column.push-lms': {
+    label: 'Push scores button in the column popover',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.column.category': {
+    label: 'Category dropdown in the column popover',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.column.total-points': {
+    label: 'Total points box in the column popover',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.column.retakes': {
+    label: 'Retakes dropdown in the column popover',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.column.mark-all': {
+    label: 'Mark all empty cells dropdown in the column popover',
+    panel: true,
+  },
+  'gradebook.column.mark-apply': {
+    label: 'Apply button for marking all empty cells in the column popover',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.column.standards': {
+    label: 'Standards dropdown in the column popover',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.column.standards-search': {
+    label: 'Search box in the column standards menu',
+    panel: true,
+  },
+  'gradebook.column.standard-option': {
+    label: 'Standard option in the column standards menu',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'gradebook.export.csv': {
+    label: 'Download CSV item in the gradebook Export menu',
+    panel: true,
+  },
+  'gradebook.export.open-sheet': {
+    label: 'Open sheet link in the gradebook Export menu',
+    panel: true,
+  },
+  'gradebook.export.sheet': {
+    label: 'New Google Sheet item in the gradebook Export menu',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.undo-toast.undo': {
+    label: 'Undo button in the gradebook settings toast',
+    persists: true,
+  },
+  'gradebook.settings.done': {
+    label: 'Done button in the gradebook settings window',
+    panel: true,
+  },
+  'gradebook.settings.config': {
+    label: 'Configuration dropdown in the gradebook settings window',
+    panel: true,
+  },
+  'gradebook.settings.rename': {
+    label: 'Rename configuration button in the gradebook settings window',
+    panel: true,
+  },
+  'gradebook.settings.rename-input': {
+    label: 'Configuration name box in the gradebook settings window',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.duplicate': {
+    label: 'Duplicate configuration button in the gradebook settings window',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.delete': {
+    label: 'Delete configuration button in the gradebook settings window',
+    destructive: true,
+    panel: true,
+  },
+  'gradebook.settings.delete-confirm': {
+    label: 'Confirm delete button in the gradebook settings window',
+    destructive: true,
+    panel: true,
+  },
+  'gradebook.settings.confirm-cancel': {
+    label:
+      'Cancel button on the delete confirmation in the gradebook settings window',
+    panel: true,
+  },
+  'gradebook.settings.new': {
+    label: 'New configuration button in the gradebook settings window',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.applies-to': {
+    label: 'Applies to button in the gradebook settings window',
+    panel: true,
+  },
+  'gradebook.settings.applies-option': {
+    label: 'Class option in the gradebook settings Applies to menu',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.open-plc': {
+    label: 'Open in PLC link in the gradebook settings window',
+    panel: true,
+  },
+  'gradebook.settings.value-info': {
+    label: 'About value button in the gradebook settings window',
+    panel: true,
+  },
+  'gradebook.settings.flag-color': {
+    label: 'Flag color button in the gradebook settings window',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.flag-name': {
+    label: 'Flag name box in the gradebook settings window',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.flag-key': {
+    label: 'Flag key box in the gradebook settings window',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.flag-mode': {
+    label: 'Flag value type dropdown in the gradebook settings window',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.flag-remove-when-scored': {
+    label: 'Remove when scored checkbox in the gradebook settings window',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.flag-visibility': {
+    label: 'Flag visibility button in the gradebook settings window',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.flag-remove': {
+    label: 'Remove flag button in the gradebook settings window',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'gradebook.settings.flag-add': {
+    label: 'Add flag button in the gradebook settings window',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.categories-toggle': {
+    label: 'Weighted categories switch in the gradebook settings window',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.category-restore': {
+    label:
+      'Restore defaults button for categories in the gradebook settings window',
+    destructive: true,
+    panel: true,
+  },
+  'gradebook.settings.category-name': {
+    label: 'Category name box in the gradebook settings window',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.category-remove': {
+    label: 'Remove category button in the gradebook settings window',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'gradebook.settings.category-add': {
+    label: 'Add category button in the gradebook settings window',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.scale': {
+    label: 'Scale dropdown in the gradebook settings window',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.scale-color': {
+    label: 'Level color button in the gradebook settings window',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.scale-color-option': {
+    label: 'Color option in the gradebook settings level color picker',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.scale-name': {
+    label: 'Level name box in the gradebook settings window',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.scale-remove': {
+    label: 'Remove level button in the gradebook settings window',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'gradebook.settings.scale-add': {
+    label: 'Add level button in the gradebook settings window',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.combine-evidence': {
+    label: 'Combine evidence dropdown in the gradebook settings window',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.analysis.filters': {
+    label: 'Filters button on the Data analysis tab',
+  },
+  'gradebook.analysis.clear-filters': {
+    label: 'Clear button for filters on the Data analysis tab',
+    destructive: true,
+  },
+  'gradebook.analysis.compare': {
+    label: 'Compare classes switch on the Data analysis tab',
+  },
+  'gradebook.analysis.compare-class': {
+    label: 'Class to compare dropdown on the Data analysis tab',
+  },
+  'gradebook.analysis.compare-link': {
+    label: 'Compare with class link on the Data analysis tab',
+  },
+  'gradebook.analysis.filter-category': {
+    label: 'Category dropdown in the Data analysis filters',
+    panel: true,
+  },
+  'gradebook.analysis.filter-activity-type': {
+    label: 'Activity type dropdown in the Data analysis filters',
+    panel: true,
+  },
+  'gradebook.analysis.filter-target': {
+    label: 'Learning target dropdown in the Data analysis filters',
+    panel: true,
+  },
+  'gradebook.analysis.filter-group': {
+    label: 'Roster group dropdown in the Data analysis filters',
+    panel: true,
+  },
+  'gradebook.analysis.filter-flag': {
+    label: 'Flag dropdown in the Data analysis filters',
+    panel: true,
+  },
+  'gradebook.analysis.filter-accommodations': {
+    label: 'Accommodations dropdown in the Data analysis filters',
+    panel: true,
+  },
+  'gradebook.analysis.explore-metric': {
+    label: 'Metric dropdown in the Explore card',
+  },
+  'gradebook.analysis.explore-group-by': {
+    label: 'Group by dropdown in the Explore card',
+  },
+  'gradebook.analysis.insight': {
+    label: 'Needs attention item on the Data analysis tab',
+    perField: true,
+  },
+  'gradebook.analysis.bar-row': {
+    label: 'Bar chart row label in the gradebook analysis cards',
+    perField: true,
+  },
+  'gradebook.analysis.heatmap-column': {
+    label: 'Learning target column button in the standards heatmap',
+    perField: true,
+  },
+  'gradebook.analysis.heatmap-row': {
+    label: 'Student row button in the standards heatmap',
+    perField: true,
+  },
+  'gradebook.analyze.close': {
+    label: 'Close button in the assignment analysis window',
+    panel: true,
+  },
+  'gradebook.analyze.student': {
+    label: 'Not submitted student button in the assignment analysis window',
+    perField: true,
+    panel: true,
+  },
+  'gradebook.student.back': {
+    label: 'Back to Grades button in the student gradebook view',
+  },
+  'gradebook.student.prev': {
+    label: 'Previous student button in the student gradebook view',
+  },
+  'gradebook.student.next': {
+    label: 'Next student button in the student gradebook view',
+  },
+  'gradebook.student.customize': {
+    label: 'Customize cards button in the student gradebook view',
+  },
+  'gradebook.student.card-move': {
+    label: 'Move card button in the student gradebook view',
+    perField: true,
+    persists: true,
+  },
+  'gradebook.student.card-hide': {
+    label: 'Hide or show card button in the student gradebook view',
+    perField: true,
+    persists: true,
+  },
+  'gradebook.student.what-if': {
+    label: 'What if score box in the student gradebook view',
+  },
+  'gradebook.student.evidence': {
+    label:
+      'Evidence button for a learning target in the student gradebook view',
+    perField: true,
+  },
+  'gradebook.student.edit-cell': {
+    label: 'Edit button for an assignment in the student gradebook view',
+    perField: true,
+  },
+  'gradebook.student.preview': {
+    label: 'Preview as student button in the student gradebook view',
+  },
+  'gradebook.student.preview-exit': {
+    label: 'Back to gradebook button in the student preview',
+  },
+  'gradebook.student-view.tab': {
+    label: 'Scores and Learning targets tabs on the student Grades page',
+  },
+  'gradebook.student-view.target-row': {
+    label: 'Learning target row on the student Grades page',
+    perField: true,
+  },
+  'gradebook.student-view.grade-row': {
+    label: 'Graded assignment row on the student Grades page',
+    perField: true,
+  },
+  'gradebook.student-view.done-row': {
+    label: 'Done assignment row on the student home page',
+    perField: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

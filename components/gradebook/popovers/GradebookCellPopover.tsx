@@ -11,6 +11,7 @@ import {
 } from '@/hooks/gradebook/useGradebookMarkWrites';
 import { useMarkHistory } from '@/hooks/gradebook/useMarkHistory';
 import { logError } from '@/utils/logError';
+import { tourAttr } from '@/config/tourAnchors';
 import { GradebookPopoverShell } from './GradebookPopoverShell';
 import { FlagChip, FlagMenuList, LinkBtn, Toggle } from './popoverParts';
 import {
@@ -174,6 +175,7 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
             : fmtPct((final.rawPoints / max) * 100)}
         </s>{' '}
         <LinkBtn
+          {...tourAttr('gradebook.cell.revert')}
           onClick={() => {
             setScore(fmtPoints(final.rawPoints));
             setSavedScore(fmtPoints(final.rawPoints));
@@ -209,6 +211,7 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
       type="button"
       aria-haspopup="menu"
       aria-expanded={flagMenuOpen}
+      {...tourAttr('gradebook.cell.flag')}
       onClick={(e) => {
         const target = e.currentTarget;
         setFlagAnchor((a) => (a ? null : target));
@@ -259,6 +262,7 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
               {' · '}
               <LinkBtn
                 warn
+                {...tourAttr('gradebook.cell.needs-grading')}
                 onClick={() => onOpenGrader(column.sessionId, student.uid)}
               >
                 Needs grading
@@ -287,6 +291,7 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
                     min={0}
                     step="any"
                     aria-label="Score"
+                    {...tourAttr('gradebook.cell.score')}
                     autoFocus={prefill !== undefined}
                     value={score}
                     onChange={(e) => setScore(e.target.value)}
@@ -302,6 +307,7 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
                     type="button"
                     disabled={below.length === 0 || !scoreValid}
                     aria-label="Fill empty cells below"
+                    {...tourAttr('gradebook.cell.fill-below')}
                     title={
                       below.length
                         ? `Use this score for the ${below.length} empty ${below.length === 1 ? 'cell' : 'cells'} below`
@@ -363,6 +369,7 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
               rows={2}
               maxLength={5000}
               placeholder="Add a comment"
+              {...tourAttr('gradebook.cell.comment')}
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
               className="resize-y rounded-lg border border-slate-300 px-2.5 py-2 text-[13px] text-slate-800 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-none focus:ring-[3px] focus:ring-brand-blue-primary/30"
@@ -374,6 +381,7 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
       <div className="flex items-center gap-2 border-t border-slate-100 pt-3">
         <LinkBtn
           aria-expanded={showHistory}
+          {...tourAttr('gradebook.cell.history')}
           onClick={() => setShowHistory((v) => !v)}
         >
           History
@@ -384,6 +392,7 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
         <span className="flex-1" />
         {!completion && !notAssigned && published !== null && (
           <LinkBtn
+            {...tourAttr('gradebook.cell.publish')}
             onClick={() => {
               const next = published ? 'unpublished' : 'published';
               writes
