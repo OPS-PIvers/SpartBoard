@@ -20,6 +20,7 @@
  *                   `kind === 'video-activity'`. Read-only history.
  */
 
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import React, { useCallback, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -143,6 +144,11 @@ export const PlcVideoActivitiesTabsBody: React.FC<
             const isActive = activeSubTab === tab.id;
             return (
               <button
+                {...tourFieldAttr(
+                  'video-activity.plc-subtab',
+                  'video-activity',
+                  tab.id
+                )}
                 key={tab.id}
                 role="tab"
                 id={tabButtonId(tab.id)}
@@ -165,6 +171,7 @@ export const PlcVideoActivitiesTabsBody: React.FC<
         {activeSubTab === 'library' && canEdit && (
           <div className="flex items-center gap-2">
             <button
+              {...tourAttr('video-activity.plc-new')}
               type="button"
               onClick={
                 videoCtaDisabledReason !== undefined

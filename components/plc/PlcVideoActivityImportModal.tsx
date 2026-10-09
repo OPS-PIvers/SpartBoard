@@ -1,5 +1,6 @@
 // Sync-or-copy picker for adding a PLC item to your own library.
 
+import { tourAttr } from '@/config/tourAnchors';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Cloud, X } from 'lucide-react';
@@ -56,6 +57,7 @@ export const PlcVideoActivityImportModal: React.FC<
             </div>
           </div>
           <button
+            {...tourAttr('modal.close')}
             type="button"
             onClick={onClose}
             aria-label={t('plcDashboard.videoActivityImportModal.close', {
