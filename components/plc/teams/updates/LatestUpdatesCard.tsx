@@ -15,6 +15,7 @@ import { LATEST_UPDATES_COUNT } from '@/utils/teamUpdates';
 import { shortDate } from './updateFormat';
 import { useTeamUpdatesData } from './useTeamUpdatesData';
 import type { TeamCardProps } from '@/components/plc/teams/types';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export const LatestUpdatesView: React.FC<{
   updates: PlcUpdate[];
@@ -25,7 +26,9 @@ export const LatestUpdatesView: React.FC<{
 }> = ({ updates, isLead, myUid, myAcks, onAll }) => (
   <>
     <SectionHead title="Latest updates">
-      <TextLink onClick={onAll}>All updates</TextLink>
+      <TextLink onClick={onAll} {...tourAttr('teams.updates.all-updates')}>
+        All updates
+      </TextLink>
     </SectionHead>
     {updates.length === 0 ? (
       <p className={`${META} py-2.5`}>No updates yet.</p>
@@ -38,6 +41,11 @@ export const LatestUpdatesView: React.FC<{
             title={
               <button
                 type="button"
+                {...tourFieldAttr(
+                  'teams.updates.latest-item',
+                  'teams-updates',
+                  u.id
+                )}
                 onClick={onAll}
                 className="max-w-full truncate rounded text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
               >

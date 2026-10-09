@@ -11,6 +11,7 @@ import React, {
   useCallback,
   useMemo,
 } from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { TabExitsPopover } from '@/components/common/TabExitsPopover';
 import {
   ArrowLeft,
@@ -2821,8 +2822,10 @@ const SMALL_ICON = {
 const SelectStudentsButton: React.FC<{
   students: DrilldownStudent[];
   onSelect: (keys: string[]) => void;
-}> = ({ students, onSelect }) => (
+  anchor?: TourAnchorAttrs;
+}> = ({ students, onSelect, anchor }) => (
   <button
+    {...anchor}
     type="button"
     onClick={() => onSelect(students.map((s) => s.responseKey))}
     className="inline-flex items-center font-sans font-semibold text-brand-blue-primary hover:text-brand-blue-dark hover:underline rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary"

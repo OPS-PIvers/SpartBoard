@@ -25,6 +25,7 @@ import {
   StatusLabel,
   TextLink,
 } from '@/components/plc/redesignMockup/ui';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export const GearMenuView: React.FC<{
   isLead: boolean;
@@ -44,6 +45,7 @@ export const GearMenuView: React.FC<{
         type="button"
         role="menuitem"
         className={MENU_ITEM}
+        {...tourAttr('teams.menu.members')}
         onClick={onMembers}
       >
         <Users2 className="h-3.5 w-3.5" aria-hidden="true" />
@@ -53,6 +55,7 @@ export const GearMenuView: React.FC<{
         type="button"
         role="menuitem"
         className={MENU_ITEM}
+        {...tourAttr('teams.menu.settings')}
         onClick={onSettings}
       >
         <Settings className="h-3.5 w-3.5" aria-hidden="true" />
@@ -63,6 +66,7 @@ export const GearMenuView: React.FC<{
           type="button"
           role="menuitem"
           className={MENU_ITEM}
+          {...tourAttr('teams.menu.edit-layout')}
           onClick={onLayout}
         >
           <LayoutTemplate className="h-3.5 w-3.5" aria-hidden="true" />
@@ -104,7 +108,7 @@ export const MembersPopoverView: React.FC<{
         </span>
         <span className="flex-1" />
         {isLead && (
-          <TextLink onClick={onManage}>
+          <TextLink onClick={onManage} {...tourAttr('teams.members.manage')}>
             {t('teams.members.manage', { defaultValue: 'Manage' })}
           </TextLink>
         )}
@@ -157,6 +161,7 @@ const MyItemRow: React.FC<{
         aria-checked={item.done}
         aria-label={item.title}
         disabled={item.done}
+        {...tourFieldAttr('teams.my-items.check', 'teams-shell', item.id)}
         onClick={onToggle}
         className={`shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 ${
           item.done
@@ -254,6 +259,7 @@ export const TeamDrawerView: React.FC<{
           type="button"
           onClick={onClose}
           aria-label={t('plcDashboard.close', { defaultValue: 'Close' })}
+          {...tourAttr('teams.drawer.close')}
           className="rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100"
         >
           <X className="h-5 w-5" aria-hidden="true" />
@@ -266,7 +272,11 @@ export const TeamDrawerView: React.FC<{
               <h3 className={EYEBROW}>{sinceLabel}</h3>
               <span className="flex-1" />
               {since.length > 0 && onMarkAllSeen && (
-                <TextLink quiet onClick={onMarkAllSeen}>
+                <TextLink
+                  quiet
+                  onClick={onMarkAllSeen}
+                  {...tourAttr('teams.drawer.mark-all-seen')}
+                >
                   {t('teams.drawer.markAllSeen', {
                     defaultValue: 'Mark all seen',
                   })}
@@ -354,7 +364,7 @@ export const MeetingBannerView: React.FC<{
       </span>
       <span className="truncate text-xs">{meta}</span>
       <span className="flex-1" />
-      <Button size="sm" onClick={onJoin}>
+      <Button size="sm" onClick={onJoin} {...tourAttr('teams.meeting.join')}>
         {t('teams.meeting.join', { defaultValue: 'Join' })}
       </Button>
     </div>

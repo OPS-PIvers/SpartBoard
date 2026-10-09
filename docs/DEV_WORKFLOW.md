@@ -57,6 +57,10 @@ When you're ready to ship a release:
 
 The next build will pick up the new version automatically, the "Update Available" toast will offer a "What's New" link, and the sidebar's "What's New" entry will show a red "New" badge until users open it.
 
+### Widget notes
+
+When an entry changes how a widget looks, add `"widgetNotes": [{ "widget": "<widgetType>", "text": "..." }]`. Teachers who have that widget open see a What's new button under it for 30 days from the entry's `date`, until they dismiss it. Keep `text` to one or two sentences under the rules below. If the entry has a `tourSetId` with a live tour, the note gets a Show me button. Behind the `widget-whats-new` flag.
+
 ### How to write a release note
 
 **Both `overview` and `details` are shown to every signed-in user.** `details` is behind a "Read full
