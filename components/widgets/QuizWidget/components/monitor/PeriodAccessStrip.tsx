@@ -4,6 +4,7 @@ import type { PeriodAccess } from '@/types';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useServerNow } from '@/hooks/useServerNow';
 import { Z_INDEX } from '@/config/zIndex';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import {
   effectivePeriodState,
   type EffectivePeriodState,
@@ -80,6 +81,7 @@ const Chip: React.FC<{
       <button
         onClick={onToggle}
         disabled={busy}
+        {...tourFieldAttr('quiz-monitor.period-chip', 'quiz', periodKey)}
         aria-label={`${action} ${access.label}, now ${status}`}
         className="inline-flex items-center rounded-full disabled:opacity-60"
         style={{
@@ -115,6 +117,7 @@ const Chip: React.FC<{
           onClick={() => setMenuOpen((v) => !v)}
           aria-label={`Time left for ${access.label}`}
           aria-expanded={menuOpen}
+          {...tourFieldAttr('quiz-monitor.period-time-left', 'quiz', periodKey)}
           className="inline-flex items-center border-l border-white/30 tabular-nums"
           style={{
             gap: 'min(2px, 0.5cqmin)',
@@ -151,6 +154,11 @@ const Chip: React.FC<{
                 setMenuOpen(false);
                 onExtend(item.by);
               }}
+              {...tourFieldAttr(
+                'quiz-monitor.period-extend-option',
+                'quiz',
+                item.label
+              )}
               className="block w-full text-left hover:bg-brand-blue-lighter transition-colors"
               style={{
                 fontSize: 'min(12px, 4cqmin)',

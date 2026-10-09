@@ -1,6 +1,6 @@
 import React from 'react';
 import type { ActivityWallLibraryEntry } from '@/types';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { ToggleRow } from './ToggleRow';
 
 type AllowedTypes = NonNullable<ActivityWallLibraryEntry['allowedTypes']>;
@@ -38,6 +38,11 @@ export const SubmissionTypesToggles: React.FC<SubmissionTypesTogglesProps> = ({
         hint={row.hint}
         checked={value[row.key]}
         onChange={(next) => onChange({ ...value, [row.key]: next })}
+        anchor={tourFieldAttr(
+          'activity-wall-editor.submission-type',
+          widgetType,
+          row.key
+        )}
       />
     ))}
   </div>

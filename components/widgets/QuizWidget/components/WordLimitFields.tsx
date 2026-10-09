@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import type { QuizQuestion } from '@/types';
+import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { Toggle } from '@/components/common/Toggle';
 import { isInvalidWordRange, wordLimitBounds } from '@/utils/wordLimit';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
@@ -70,6 +71,7 @@ export const WordLimitFields: React.FC<Props> = ({ question, onChange }) => {
             max={MAX_WORD_BOUND}
             value={minRaw}
             aria-label="Minimum words"
+            {...tourTypeAttr('quiz-editor.word-min', 'quiz')}
             placeholder="None"
             onChange={(e) => {
               setMinRaw(e.target.value);
@@ -86,6 +88,7 @@ export const WordLimitFields: React.FC<Props> = ({ question, onChange }) => {
             max={MAX_WORD_BOUND}
             value={maxRaw}
             aria-label="Maximum words"
+            {...tourTypeAttr('quiz-editor.word-max', 'quiz')}
             placeholder="None"
             onChange={(e) => {
               setMaxRaw(e.target.value);
@@ -117,6 +120,7 @@ export const WordLimitFields: React.FC<Props> = ({ question, onChange }) => {
             size="sm"
             showLabels={false}
             label="Enforce limit"
+            anchor={tourAttr('quiz-editor.word-enforce', undefined, 'quiz')}
           />
           <p className="text-sm font-bold text-slate-700" aria-hidden>
             Enforce limit
