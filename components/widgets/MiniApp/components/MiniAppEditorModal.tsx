@@ -170,6 +170,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
   return (
     <EditorModalShell
       tourScope="miniApp"
+      saveAnchor={tourTypeAttr('mini-app.editor-save', 'miniApp')}
       isOpen={isOpen}
       title={title}
       onTitleChange={setTitle}

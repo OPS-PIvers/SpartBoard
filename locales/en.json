@@ -4992,6 +4992,9 @@
     "pick": "Pick",
     "addStep": "Add step",
     "listTitle": "Choose a control",
+    "onScreen": "On screen",
+    "elsewhere": "Everywhere else",
+    "showMore": "Show {{count}} more",
     "recordFromHere": "Record from here"
   },
   "widgetWhatsNew": {

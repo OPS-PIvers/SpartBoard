@@ -8,7 +8,11 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useBackdropDismiss } from '@/hooks/useBackdropDismiss';
-import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import {
+  tourAttr,
+  tourFieldAttr,
+  type TourAnchorAttrs,
+} from '@/config/tourAnchors';
 
 // Capture-phase + stopImmediatePropagation to pre-empt AdminSettings' bubble-phase document listener; mirrors captureEscape in components/common/Modal.tsx.
 // Constraint: first-mounted wins, so nesting two of these would dismiss the outer one — no call site does today.
@@ -654,11 +658,13 @@ export const PopoverOption: React.FC<{
    * for menu-context usages, which keep plain button semantics.
    */
   ariaPressed?: boolean;
-}> = ({ onClick, selected, icon, label, description, ariaPressed }) => (
+  anchor?: TourAnchorAttrs;
+}> = ({ onClick, selected, icon, label, description, ariaPressed, anchor }) => (
   <button
     type="button"
     onClick={onClick}
     aria-pressed={ariaPressed}
+    {...anchor}
     className="w-full text-left px-3 py-2 flex items-start gap-2.5 rounded-lg hover:bg-slate-50 focus:bg-slate-50 focus:outline-none"
   >
     {icon && <span className="mt-0.5">{icon}</span>}

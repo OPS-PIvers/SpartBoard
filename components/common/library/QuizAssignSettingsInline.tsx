@@ -3,6 +3,7 @@ import type { QuizBehaviorSettings } from '@/types';
 import { formatBehaviorSummary } from '@/utils/quizBehavior';
 import { useQuizHandRaiseMode } from '@/hooks/useQuizHandRaiseMode';
 import { QuizBehaviorSettingsPanel } from './QuizBehaviorSettingsPanel';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface QuizAssignSettingsInlineProps {
   value: QuizBehaviorSettings;
@@ -32,6 +33,7 @@ export const QuizAssignSettingsInline: React.FC<
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
           aria-controls={regionId}
+          {...tourAttr('assign-settings.disclosure')}
           className="shrink-0 font-semibold text-brand-blue-primary hover:underline"
         >
           {open ? 'Done' : 'Edit'}

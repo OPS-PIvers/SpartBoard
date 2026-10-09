@@ -1303,6 +1303,11 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
                 onMove={handleBulkMove}
                 onDelete={handleBulkDelete}
                 busy={bulkBusy}
+                anchors={{
+                  clear: tourTypeAttr('mini-app.bulk-clear', 'miniApp'),
+                  move: tourTypeAttr('mini-app.bulk-move', 'miniApp'),
+                  delete: tourTypeAttr('mini-app.bulk-delete', 'miniApp'),
+                }}
               />
             </div>
           )}

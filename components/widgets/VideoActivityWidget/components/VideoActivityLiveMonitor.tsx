@@ -596,12 +596,14 @@ export const VideoActivityLiveMonitor: React.FC<
                 <ActionButton
                   variant="secondary"
                   label="Start all"
+                  anchor={tourAttr('video-activity.monitor-start-all')}
                   icon={Play}
                   onClick={() => void runPeriod(periodActions.startAll)}
                 />
                 <ActionButton
                   variant="secondary"
                   label="Pause all"
+                  anchor={tourAttr('video-activity.monitor-pause-all')}
                   icon={Pause}
                   onClick={() => void runPeriod(periodActions.pauseAll)}
                 />
@@ -611,6 +613,7 @@ export const VideoActivityLiveMonitor: React.FC<
               <ActionButton
                 variant="secondary"
                 label={isLive ? 'Pause' : 'Resume'}
+                anchor={tourAttr('video-activity.monitor-pause-toggle')}
                 icon={isLive ? Pause : Play}
                 onClick={() => void handleTogglePause()}
                 disabled={toggling}
@@ -620,6 +623,7 @@ export const VideoActivityLiveMonitor: React.FC<
             <ActionButton
               variant="danger"
               label="End"
+              anchor={tourAttr('video-activity.monitor-end')}
               icon={Square}
               onClick={() => void handleEnd()}
               disabled={ending || outward.locked}

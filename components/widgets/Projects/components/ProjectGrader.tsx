@@ -220,6 +220,7 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
         maxWidth="max-w-xl"
         className="h-auto"
         saveErrorMessage={false}
+        tourScope="projects"
       >
         <div className="flex flex-col items-center gap-3 py-10 text-center">
           <ClipboardList className="h-10 w-10 text-slate-300" aria-hidden />
@@ -296,6 +297,7 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
       maxWidth="max-w-5xl"
       bodyClassName="!p-0 !overflow-hidden"
       saveErrorMessage={false}
+      tourScope="projects"
     >
       <div className="grid h-full min-h-0 grid-cols-[minmax(160px,1fr)_2.6fr]">
         <nav

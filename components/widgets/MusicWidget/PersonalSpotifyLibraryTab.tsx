@@ -2,6 +2,7 @@ import React from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useSpotifyLibrary } from '@/hooks/useSpotifyLibrary';
 import { SpotifyResultRow } from './SpotifyResultRow';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 export interface SpotifyPlayablePick {
   type: 'track' | 'playlist' | 'album';
@@ -88,6 +89,7 @@ export const PersonalSpotifyLibraryTab: React.FC<Props> = ({
         <button
           type="button"
           onClick={onReconnect}
+          {...tourTypeAttr('music.spotify-reconnect', 'music')}
           className="rounded-md bg-amber-500 text-amber-950 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
           style={{
             fontSize: 'min(15px, 4.5cqmin)',
@@ -146,6 +148,7 @@ export const PersonalSpotifyLibraryTab: React.FC<Props> = ({
         <button
           type="button"
           onClick={refresh}
+          {...tourTypeAttr('music.spotify-refresh', 'music')}
           aria-label="Refresh library"
           className="text-slate-500 hover:text-slate-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70 rounded"
           style={{ padding: 'min(6px, 1.5cqmin)' }}

@@ -22,6 +22,7 @@ import { usePresetSubEmails } from '@/hooks/usePresetSubEmails';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { BUILDINGS, canonicalBuildingId } from '@/config/buildings';
 import { logError } from '@/utils/logError';
+import { tourAttr } from '@/config/tourAnchors';
 import {
   collectShareRosterIds,
   effectiveActiveRosterId,
@@ -303,6 +304,7 @@ export const ShareCollectionLinkCreatorModal: FC<
               <button
                 type="button"
                 onClick={onShareWithSub}
+                {...tourAttr('share-collection.share-with-sub')}
                 className="w-full flex items-start gap-2 p-3 rounded-lg border border-slate-200 text-left hover:bg-slate-50"
               >
                 <UserCheck className="w-3.5 h-3.5 mt-0.5 text-slate-800" />
@@ -331,6 +333,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                     type="radio"
                     name="mode"
                     checked={mode === 'copy'}
+                    {...tourAttr('share-collection.mode-copy')}
                     onChange={() => setMode('copy')}
                     className="mt-1"
                   />
@@ -351,6 +354,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                     type="radio"
                     name="mode"
                     checked={mode === 'substitute'}
+                    {...tourAttr('share-collection.mode-substitute')}
                     onChange={() => setMode('substitute')}
                     className="mt-1"
                   />
@@ -385,6 +389,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                       key={p.ms}
                       type="button"
                       onClick={() => setTtlMs(p.ms)}
+                      {...tourAttr('share-collection.ttl')}
                       className={`text-xxs font-bold py-1.5 rounded-md transition-colors ${
                         ttlMs === p.ms
                           ? 'bg-brand-blue-primary text-white'
@@ -403,6 +408,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                 </label>
                 <select
                   id={buildingSelectId}
+                  {...tourAttr('share-collection.building')}
                   value={buildingId}
                   onChange={(e) => setBuildingId(e.target.value)}
                   className="w-full px-2 py-1 text-sm border border-slate-300 rounded bg-white"
@@ -454,6 +460,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                           // permanently inert (the onClick guard below
                           // silently no-ops on it with no error feedback).
                           disabled={added || !isValidOronoEmail(email)}
+                          {...tourAttr('share-collection.preset-email')}
                           onClick={() =>
                             // Mirror the typed-input path: validate against
                             // the Orono domain and de-dupe before adding
@@ -503,6 +510,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                               prev.filter((e) => e !== email)
                             )
                           }
+                          {...tourAttr('share-collection.remove-email')}
                           aria-label={t(
                             'shareLinkCreatorModal.substitute.removeEmail',
                             { defaultValue: 'Remove email' }
@@ -519,6 +527,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                 <div className="flex gap-1">
                   <input
                     type="email"
+                    {...tourAttr('share-collection.email-input')}
                     aria-label={t('shareCollection.subEmail', {
                       defaultValue: 'Sub email',
                     })}
@@ -539,6 +548,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                   <button
                     type="button"
                     onClick={handleAddSubEmail}
+                    {...tourAttr('share-collection.add-email')}
                     className="shrink-0 inline-flex items-center gap-1 rounded-md bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-700"
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -557,6 +567,7 @@ export const ShareCollectionLinkCreatorModal: FC<
               <button
                 type="button"
                 onClick={onClose}
+                {...tourAttr('share-collection.cancel')}
                 className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded"
               >
                 {t('common.cancel', { defaultValue: 'Cancel' })}
@@ -565,6 +576,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                 type="button"
                 onClick={() => void handleCreate()}
                 disabled={busy}
+                {...tourAttr('share-collection.create')}
                 className="px-3 py-1.5 text-sm font-bold bg-brand-blue-primary text-white rounded hover:bg-brand-blue-dark disabled:opacity-50"
               >
                 {busy
@@ -627,6 +639,7 @@ export const ShareCollectionLinkCreatorModal: FC<
               <input
                 type="text"
                 readOnly
+                {...tourAttr('share-collection.url')}
                 value={shareUrl}
                 aria-label={t('shareCollection.urlLabel', {
                   defaultValue: 'Share collection URL',
@@ -650,6 +663,7 @@ export const ShareCollectionLinkCreatorModal: FC<
                     }
                   })();
                 }}
+                {...tourAttr('share-collection.copy-link')}
                 className="px-2 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 rounded hover:bg-slate-200"
               >
                 {t('shareCollection.copy', { defaultValue: 'Copy' })}
@@ -659,6 +673,7 @@ export const ShareCollectionLinkCreatorModal: FC<
               <button
                 type="button"
                 onClick={onClose}
+                {...tourAttr('share-collection.done')}
                 className="px-3 py-1.5 text-sm font-bold bg-brand-blue-primary text-white rounded hover:bg-brand-blue-dark"
               >
                 {t('common.done', { defaultValue: 'Done' })}

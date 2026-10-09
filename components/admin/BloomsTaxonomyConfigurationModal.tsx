@@ -33,6 +33,7 @@ import {
 import { DEFAULT_BLOOMS_CONTENT } from '@/components/widgets/BloomsTaxonomy/defaultContent';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { useDashboard } from '@/context/useDashboard';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 const normalizeConfig = (raw: unknown): BloomsTaxonomyGlobalConfig => {
   const config = raw as BloomsTaxonomyGlobalConfig | undefined;
@@ -232,12 +233,14 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
       </p>
       <div className="flex gap-3">
         <button
+          {...tourTypeAttr('admin.widget-config.close', 'blooms-taxonomy')}
           onClick={onClose}
           className="px-6 py-2.5 rounded-2xl text-sm font-black text-slate-500 hover:bg-white transition-all border border-transparent hover:border-slate-200"
         >
           Cancel
         </button>
         <button
+          {...tourTypeAttr('admin.widget-config.save', 'blooms-taxonomy')}
           onClick={handleSave}
           disabled={saving}
           className="px-8 py-2.5 bg-indigo-600 text-white rounded-2xl text-sm font-black shadow-lg shadow-indigo-500/20 hover:bg-indigo-700 transition-all flex items-center gap-2 disabled:opacity-50"
@@ -299,6 +302,11 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
                       >
                         <input
                           type="checkbox"
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'blooms-taxonomy',
+                            `available-${cat}`
+                          )}
                           checked={availableCategories.includes(cat)}
                           onChange={() => toggleAvailable(cat)}
                           className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-500"
@@ -323,6 +331,11 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
                     >
                       <input
                         type="checkbox"
+                        {...tourFieldAttr(
+                          'admin.widget-config.field',
+                          'blooms-taxonomy',
+                          `defaultEnabled-${cat}`
+                        )}
                         checked={defaultEnabled.includes(cat)}
                         onChange={() => toggleDefaultEnabled(cat)}
                         className="rounded border-slate-300 text-indigo-500 focus:ring-indigo-500"
@@ -347,6 +360,11 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
                   {BLOOMS_LEVELS.map((level) => (
                     <button
                       key={level}
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'blooms-taxonomy',
+                        `level-${level}`
+                      )}
                       onClick={() => setSelectedLevel(level)}
                       className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
                       style={
@@ -385,6 +403,11 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
                               {CATEGORY_LABELS[cat]}
                             </h5>
                             <button
+                              {...tourFieldAttr(
+                                'admin.widget-config.field',
+                                'blooms-taxonomy',
+                                `add-${cat}`
+                              )}
                               onClick={() => addItem(selectedLevel, cat)}
                               className="p-1 text-indigo-500 hover:bg-indigo-50 rounded transition-colors"
                               title="Add item"
@@ -396,6 +419,11 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
                             <div key={idx} className="flex items-center gap-1">
                               <input
                                 type="text"
+                                {...tourFieldAttr(
+                                  'admin.widget-config.field',
+                                  'blooms-taxonomy',
+                                  `item-${cat}-${idx}`
+                                )}
                                 value={item}
                                 onChange={(e) =>
                                   updateItem(
@@ -408,6 +436,11 @@ export const BloomsTaxonomyConfigurationModal: React.FC<
                                 className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 text-slate-700 focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 outline-none"
                               />
                               <button
+                                {...tourFieldAttr(
+                                  'admin.widget-config.field',
+                                  'blooms-taxonomy',
+                                  `remove-${cat}-${idx}`
+                                )}
                                 onClick={() =>
                                   removeItem(selectedLevel, cat, idx)
                                 }

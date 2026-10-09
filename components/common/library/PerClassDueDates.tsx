@@ -5,6 +5,7 @@ import {
   dueInputsToEpoch,
   splitDueAtToInputs,
 } from '@/utils/localDate';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 const MODES = [
   { perClass: false, label: 'One date' },
@@ -29,6 +30,11 @@ export const DueDateModeSwitch: React.FC<{
           type="button"
           aria-pressed={active}
           onClick={() => onChange(m.perClass)}
+          {...tourFieldAttr(
+            'assign-per-class.mode',
+            'assign',
+            m.perClass ? 'each' : 'one'
+          )}
           className={
             'px-2.5 py-1 text-xxs font-bold transition ' +
             (active
@@ -71,6 +77,11 @@ export const PerClassDueDateRows: React.FC<{
               onChange={(e) =>
                 set(e.target.value, inputs.time || DEFAULT_DUE_TIME)
               }
+              {...tourFieldAttr(
+                'assign-per-class.date',
+                'assign',
+                `${r.id}:date`
+              )}
               className={`flex-1 ${inputClass}`}
             />
             <input
@@ -81,6 +92,11 @@ export const PerClassDueDateRows: React.FC<{
               onChange={(e) =>
                 set(inputs.date, e.target.value || DEFAULT_DUE_TIME)
               }
+              {...tourFieldAttr(
+                'assign-per-class.date',
+                'assign',
+                `${r.id}:time`
+              )}
               className={`w-32 ${inputClass}`}
             />
           </div>

@@ -24,6 +24,7 @@ import { Loader2, Rocket } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import type { AssignModalProps, AssignModeOption } from './types';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const MODAL_LABEL_ID = 'assign-modal-title';
 
@@ -98,6 +99,7 @@ export function AssignModal<TOptions>({
         type="button"
         onClick={onClose}
         disabled={submitting}
+        {...tourAttr('assign-modal.cancel-header')}
         className="text-sm font-bold text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         aria-label="Close"
       >
@@ -112,7 +114,7 @@ export function AssignModal<TOptions>({
         type="button"
         onClick={onClose}
         disabled={submitting}
-        {...cancelTourAttrs}
+        {...(cancelTourAttrs ?? tourAttr('assign-modal.cancel'))}
         className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Cancel
@@ -121,7 +123,7 @@ export function AssignModal<TOptions>({
         type="button"
         onClick={() => void handleAssign()}
         disabled={confirmButtonDisabled}
-        {...confirmTourAttrs}
+        {...(confirmTourAttrs ?? tourAttr('assign-modal.confirm'))}
         title={
           outward.lockedTitle ??
           (confirmDisabled && confirmDisabledReason
@@ -170,6 +172,7 @@ export function AssignModal<TOptions>({
             type="text"
             value={assignmentName ?? ''}
             onChange={(e) => onAssignmentNameChange?.(e.target.value)}
+            {...tourAttr('assign-modal.name')}
             placeholder="e.g. Period 2"
             className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
           />
@@ -219,7 +222,8 @@ const ModeCard: React.FC<ModeCardProps> = ({ mode, selected, onSelect }) => {
       onClick={onSelect}
       disabled={mode.disabled}
       aria-pressed={selected}
-      {...mode.tourAttrs}
+      {...(mode.tourAttrs ??
+        tourFieldAttr('assign-modal.mode', 'assign', mode.id))}
       className={`w-full text-left p-3 rounded-xl border-2 transition-all flex items-start gap-3 group ${
         selected
           ? 'border-brand-blue-primary bg-brand-blue-lighter/30'

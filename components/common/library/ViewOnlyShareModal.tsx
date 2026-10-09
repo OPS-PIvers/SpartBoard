@@ -36,6 +36,7 @@ import {
   X,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { tourAttr } from '@/config/tourAnchors';
 
 export interface ViewOnlyShareModalProps {
   /** The thing being shared (quiz title, set title, activity title). */
@@ -116,6 +117,7 @@ export const ViewOnlyShareModal: React.FC<ViewOnlyShareModalProps> = ({
       <button
         type="button"
         onClick={onClose}
+        {...tourAttr('view-only-share.close')}
         className="text-white/60 hover:text-white transition-colors"
         aria-label="Close"
       >
@@ -152,6 +154,7 @@ export const ViewOnlyShareModal: React.FC<ViewOnlyShareModalProps> = ({
             <button
               type="button"
               onClick={() => void handleCopy()}
+              {...tourAttr('view-only-share.copy')}
               className="w-full flex items-center justify-center gap-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm py-3 text-sm"
             >
               {copied ? (
@@ -177,6 +180,7 @@ export const ViewOnlyShareModal: React.FC<ViewOnlyShareModalProps> = ({
             )}
             <a
               href={createdLink}
+              {...tourAttr('view-only-share.open')}
               target="_blank"
               rel="noopener noreferrer"
               className="w-full flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl transition-colors py-3 text-sm"
@@ -209,6 +213,7 @@ export const ViewOnlyShareModal: React.FC<ViewOnlyShareModalProps> = ({
             type="button"
             onClick={onConfirm}
             disabled={isCreating}
+            {...tourAttr('view-only-share.confirm')}
             className="w-full flex items-center justify-center gap-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm py-3 text-sm disabled:opacity-60"
           >
             {isCreating ? (

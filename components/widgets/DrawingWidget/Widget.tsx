@@ -1,3 +1,4 @@
+import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import React, {
   useCallback,
   useEffect,
@@ -1187,6 +1188,7 @@ export const DrawingWidget: React.FC<{
               aria-pressed={isActive}
               aria-expanded={hasPopover ? toolPopover === tool : undefined}
               data-tool={tool}
+              {...tourFieldAttr('drawing.tool', 'drawing', tool)}
               onClick={(e) => handleToolClick(tool, e)}
               className={`flex-1 h-7 rounded-md flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 ${
                 isActive
@@ -1212,6 +1214,7 @@ export const DrawingWidget: React.FC<{
         <div className="flex items-center gap-0.5 flex-shrink-0">
           <button
             type="button"
+            {...tourAttr('drawing.undo', widget.id, widget.type)}
             onClick={undo}
             disabled={!commandStack.canUndo}
             title="Undo"
@@ -1222,6 +1225,7 @@ export const DrawingWidget: React.FC<{
           </button>
           <button
             type="button"
+            {...tourAttr('drawing.redo', widget.id, widget.type)}
             onClick={redo}
             disabled={!commandStack.canRedo}
             title="Redo"
@@ -1232,6 +1236,7 @@ export const DrawingWidget: React.FC<{
           </button>
           <button
             type="button"
+            {...tourAttr('drawing.clear', widget.id, widget.type)}
             onClick={clear}
             disabled={objects.length === 0}
             title="Clear All"
@@ -1247,6 +1252,7 @@ export const DrawingWidget: React.FC<{
         <div className="flex items-center gap-0.5 flex-shrink-0">
           <button
             type="button"
+            {...tourAttr('drawing.insert-image', widget.id, widget.type)}
             onClick={openImagePicker}
             disabled={isUploadingImage}
             title="Insert image"
@@ -1263,6 +1269,7 @@ export const DrawingWidget: React.FC<{
           <div ref={exportMenuRef} className="relative">
             <button
               type="button"
+              {...tourAttr('drawing.export', widget.id, widget.type)}
               onClick={() =>
                 isExportMenuOpen ? closeExportMenu() : openExportMenu()
               }
@@ -1299,6 +1306,7 @@ export const DrawingWidget: React.FC<{
                 >
                   <button
                     type="button"
+                    {...tourTypeAttr('drawing.export-png-page', 'drawing')}
                     onClick={() => void handleExportCurrentPng()}
                     disabled={isExporting}
                     className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -1307,6 +1315,7 @@ export const DrawingWidget: React.FC<{
                   </button>
                   <button
                     type="button"
+                    {...tourTypeAttr('drawing.export-png-all', 'drawing')}
                     onClick={() => void handleExportAllPng()}
                     disabled={isExporting || pages.length <= 1}
                     className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -1315,6 +1324,7 @@ export const DrawingWidget: React.FC<{
                   </button>
                   <button
                     type="button"
+                    {...tourTypeAttr('drawing.export-pdf', 'drawing')}
                     onClick={() => void handleExportPdf()}
                     disabled={isExporting}
                     className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 border-t border-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
@@ -1330,6 +1340,7 @@ export const DrawingWidget: React.FC<{
             canAccessFeature('drawing-ai') && (
               <button
                 type="button"
+                {...tourAttr('drawing.extract-text', widget.id, widget.type)}
                 onClick={() => void handleSendToText()}
                 disabled={isExtracting}
                 title="Extract Text (AI)"
@@ -1412,6 +1423,7 @@ export const DrawingWidget: React.FC<{
                       key={mode}
                       type="button"
                       aria-pressed={isActive}
+                      {...tourFieldAttr('drawing.eraser-mode', 'drawing', mode)}
                       onClick={() => setEraserMode(mode)}
                       className={`flex-1 h-8 rounded-md flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 ${
                         isActive
@@ -1434,6 +1446,7 @@ export const DrawingWidget: React.FC<{
                 variant="whiteboard"
                 value={color}
                 onSelect={setColor}
+                anchor={tourAttr('drawing.pen-colors', widget.id, widget.type)}
                 className="flex items-center justify-between mb-3"
               />
             )}
@@ -1461,6 +1474,7 @@ export const DrawingWidget: React.FC<{
                   max={80}
                   step={1}
                   value={width}
+                  {...tourTypeAttr('drawing.stroke-width', 'drawing')}
                   onChange={(e) => setWidth(parseInt(e.target.value, 10))}
                   aria-label="Stroke width"
                   className="flex-1 h-1.5 rounded-full bg-slate-700 appearance-none cursor-pointer accent-brand-blue-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"

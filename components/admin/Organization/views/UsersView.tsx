@@ -387,6 +387,7 @@ export const UsersView: React.FC<Props> = ({
           </Select>
         </div>
         <Segmented
+          anchor={tourAttr('admin.org.user-status-filter')}
           value={statusFilter}
           onChange={changeStatusFilter}
           options={[
@@ -679,6 +680,11 @@ const BulkRoleModal: React.FC<{
           {roles.map((r) => (
             <PopoverOption
               key={r.id}
+              anchor={tourFieldAttr(
+                'admin.org.bulk-role-option',
+                'admin',
+                r.id
+              )}
               onClick={() => setRole(r.id)}
               selected={role === r.id}
               ariaPressed={role === r.id}
@@ -939,6 +945,11 @@ const UserRow: React.FC<{
           {roles.map((r) => (
             <PopoverOption
               key={r.id}
+              anchor={tourFieldAttr(
+                'admin.org.user-role-option',
+                'admin',
+                r.id
+              )}
               onClick={() => {
                 onUpdate({ role: r.id });
                 setRolePopoverOpen(false);
@@ -1069,6 +1080,7 @@ const UserRow: React.FC<{
           {(['active', 'invited', 'inactive'] as UserStatus[]).map((s) => (
             <PopoverOption
               key={s}
+              anchor={tourFieldAttr('admin.org.user-status-option', 'admin', s)}
               onClick={() => {
                 onUpdate({ status: s });
                 setStatusPopoverOpen(false);

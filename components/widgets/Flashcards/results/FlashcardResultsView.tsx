@@ -248,12 +248,14 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
       <ActionButton
         variant="secondary"
         label="Start all"
+        anchor={tourTypeAttr('flashcards.period-start-all', 'flashcards')}
         icon={Play}
         onClick={() => void runPeriod(periodActions.startAll)}
       />
       <ActionButton
         variant="secondary"
         label="Pause all"
+        anchor={tourTypeAttr('flashcards.period-pause-all', 'flashcards')}
         icon={Pause}
         onClick={() => void runPeriod(periodActions.pauseAll)}
       />
@@ -267,6 +269,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
     <div className="flex h-full flex-col bg-slate-50">
       <SessionViewHeader
         onBack={onBack}
+        backAnchor={tourTypeAttr('flashcards.results-back', 'flashcards')}
         status={assignment.status === 'ended' ? 'ended' : 'none'}
         title={assignment.setTitle || 'Untitled set'}
         subtitle={

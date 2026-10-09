@@ -31,6 +31,7 @@ import {
   skippedInScope,
   type ModificationsScope,
 } from './ModificationsView.helpers';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export interface ModificationsQuizContext {
   questions: OverrideEditorQuestion[];
@@ -116,6 +117,7 @@ const StudentModificationRow: React.FC<{
               name: row.name,
             })}
             onChange={(e) => onSkipChange(e.target.checked)}
+            {...tourFieldAttr('assign-mods.skip-student', 'assign', row.key)}
           />
           {t('assignTargeting.skipStudent', 'Skip this student')}
         </label>
@@ -326,6 +328,11 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
                   onClick={() =>
                     quizContext.translation?.onGenerate?.([entry.locale])
                   }
+                  {...tourFieldAttr(
+                    'assign-mods.generate-translation',
+                    'assign',
+                    entry.locale
+                  )}
                   className={
                     roomy
                       ? 'shrink-0 rounded-md border border-amber-300 bg-white px-2.5 py-1 font-bold text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400'
@@ -433,6 +440,11 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
                         size="sm"
                         checked={excludedKeys.has(row.key)}
                         onChange={(checked) => setSkipped(row.ref, checked)}
+                        anchor={tourFieldAttr(
+                          'assign-mods.skip-student',
+                          'assign',
+                          row.key
+                        )}
                         label={t(
                           'assignTargeting.skipStudentNamed',
                           'Skip {{name}}',
@@ -444,6 +456,11 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
                       <button
                         type="button"
                         onClick={() => removeModification(row)}
+                        {...tourFieldAttr(
+                          'assign-mods.remove',
+                          'assign',
+                          row.key
+                        )}
                         className="text-xs font-bold text-brand-red-primary hover:underline"
                       >
                         {t(
@@ -461,6 +478,7 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
             <select
               value=""
               onChange={(e) => addStudent(e.target.value)}
+              {...tourAttr('assign-mods.add-student')}
               aria-label={t('assignTargeting.addStudent', 'Add a student')}
               className="h-9 w-48 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-none"
             >
@@ -559,6 +577,7 @@ export const ModificationsList: React.FC<ModificationsListProps> = ({
             <button
               type="button"
               onClick={() => setShowAll(!showAll)}
+              {...tourAttr('assign-mods.show-all')}
               className={
                 cqScaled
                   ? 'font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors'
@@ -605,6 +624,7 @@ export const ModificationsView: React.FC<ModificationsViewProps> = ({
           <button
             type="button"
             onClick={onBack}
+            {...tourAttr('assign-mods.back')}
             aria-label={t('assignTargeting.back', 'Back')}
             className="rounded-lg p-1.5 text-slate-500 transition-colors hover:bg-slate-100"
           >
@@ -624,6 +644,7 @@ export const ModificationsView: React.FC<ModificationsViewProps> = ({
         <button
           type="button"
           onClick={() => onChange(clearedModifications(value))}
+          {...tourAttr('assign-mods.clear')}
           className="shrink-0 rounded-lg px-3 py-1.5 text-sm font-bold text-slate-500 transition-colors hover:text-slate-700"
         >
           {t('assignTargeting.clearModifications', 'Clear all modifications')}
@@ -636,6 +657,7 @@ export const ModificationsView: React.FC<ModificationsViewProps> = ({
         <button
           type="button"
           onClick={onBack}
+          {...tourAttr('assign-mods.done')}
           className="inline-flex items-center gap-1.5 rounded-xl bg-brand-blue-primary px-5 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-brand-blue-dark"
         >
           {t('assignTargeting.collapse', 'Done')}
@@ -673,6 +695,7 @@ export const ModificationsLink: React.FC<ModificationsLinkProps> = ({
     <button
       type="button"
       onClick={onOpen}
+      {...tourAttr('assign-mods.open')}
       className="inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-xs font-bold text-brand-blue-primary transition-colors hover:bg-brand-blue-lighter/40"
     >
       <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />

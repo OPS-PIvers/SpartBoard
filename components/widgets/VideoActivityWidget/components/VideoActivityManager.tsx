@@ -1763,6 +1763,7 @@ const AssignBehaviorSummaryVA: React.FC<{
           <SegmentedControl<VideoActivitySessionMode>
             role="radiogroup"
             ariaLabel="Pacing"
+            anchor={tourAttr('video-activity.assign-pacing')}
             value={pace}
             onChange={onPaceChange}
             options={[

@@ -92,6 +92,7 @@ export const AllOrganizationsView: React.FC<Props> = ({
           />
         </div>
         <Segmented
+          anchor={tourAttr('admin.org.org-status-filter')}
           value={status}
           onChange={setStatus}
           options={[

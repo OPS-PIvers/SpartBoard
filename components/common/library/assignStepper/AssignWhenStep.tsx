@@ -18,6 +18,7 @@ import {
   TagPrompt,
   type AssignPeriodAccessContext,
 } from '../AssignPeriodAccessSection';
+import { tourAttr } from '@/config/tourAnchors';
 
 const StateLine: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <p className="flex items-center gap-2 text-sm font-medium text-slate-700">
@@ -89,7 +90,10 @@ export const AssignWhenStep: React.FC<{
   return (
     <div className="space-y-3">
       {manualAvailable && (
-        <div className="[&>div]:flex [&>div]:w-full [&>div>button]:flex-1">
+        <div
+          className="[&>div]:flex [&>div]:w-full [&>div>button]:flex-1"
+          {...tourAttr('assign-when.mode')}
+        >
           <SegmentedControl<AssignWhenMode>
             role="radiogroup"
             ariaLabel={t('assignWhen.title', { defaultValue: 'When' })}
@@ -222,6 +226,7 @@ export const AssignWhenStep: React.FC<{
                 )
               }
               className="text-xs font-bold text-brand-blue-primary hover:underline"
+              {...tourAttr('assign-when.scope')}
             >
               {eachClass
                 ? t('assignWhen.sameTime', {
@@ -245,6 +250,7 @@ export const AssignWhenStep: React.FC<{
                   setAvailability({ ...availability, allowLate })
                 }
                 label={allowLateLabel}
+                anchor={tourAttr('assign-when.allow-late')}
               />
             </div>
           )}

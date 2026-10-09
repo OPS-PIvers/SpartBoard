@@ -40,6 +40,7 @@ import {
   useRosterStudentRows,
   type RosterStudentRow,
 } from './assignStepper/useRosterStudentRows';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const MODAL_LABEL_ID = 'assign-student-picker-title';
 
@@ -283,6 +284,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
       <button
         type="button"
         onClick={onClose}
+        {...tourAttr('assign-students-legacy.close')}
         className="text-slate-400 hover:text-slate-600 p-1 rounded-full transition-colors"
         aria-label={t('common.close', { defaultValue: 'Close' })}
       >
@@ -303,6 +305,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
         <button
           type="button"
           onClick={onClose}
+          {...tourAttr('assign-students-legacy.cancel')}
           className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
         >
           {t('common.cancel', { defaultValue: 'Cancel' })}
@@ -311,6 +314,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
           type="button"
           onClick={handleConfirm}
           disabled={draftSelected.length === 0}
+          {...tourAttr('assign-students-legacy.confirm')}
           className="px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {t('assignStudentPicker.confirm', { defaultValue: 'Add students' })}
@@ -359,6 +363,11 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                         : undefined
                   }
                   onClick={() => translation.onGenerate?.([entry.locale])}
+                  {...tourFieldAttr(
+                    'assign-students-legacy.generate-translation',
+                    'assign',
+                    entry.locale
+                  )}
                   className="shrink-0 rounded-md border border-amber-500/50 px-2 py-0.5 font-bold text-amber-700 hover:bg-amber-500/10 disabled:cursor-not-allowed disabled:text-slate-400 disabled:border-slate-200"
                 >
                   {t('quizTranslation.assign.generate')}
@@ -393,6 +402,11 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                 <button
                   type="button"
                   onClick={() => removeSelected(key)}
+                  {...tourFieldAttr(
+                    'assign-students-legacy.remove-selected',
+                    'assign',
+                    key
+                  )}
                   className="hover:bg-brand-blue-primary/20 rounded-full p-0.5 transition-colors"
                   aria-label={t('assignStudentPicker.removeStudent', {
                     name: displayName,
@@ -414,6 +428,11 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
               <button
                 type="button"
                 onClick={() => setActiveRosterId(roster.id)}
+                {...tourFieldAttr(
+                  'assign-students-legacy.roster',
+                  'assign',
+                  roster.id
+                )}
                 className={`w-full text-left px-4 py-2 text-sm font-bold transition-colors ${
                   roster.id === activeRosterId
                     ? 'bg-brand-blue-lighter/30 text-brand-blue-dark'
@@ -463,6 +482,11 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                                 : [...prev, group.id]
                             );
                           }}
+                          {...tourFieldAttr(
+                            'assign-students-legacy.group',
+                            'assign',
+                            group.id
+                          )}
                           className="px-2 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 text-xxs font-bold text-slate-600 transition-colors"
                         >
                           {group.name}
@@ -504,6 +528,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                {...tourAttr('assign-students-legacy.search')}
                 placeholder={t('assignStudentPicker.searchPlaceholder', {
                   defaultValue: 'Search students…',
                 })}
@@ -516,6 +541,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                   type="checkbox"
                   checked={allTargetableSelected}
                   onChange={toggleSelectAll}
+                  {...tourAttr('assign-students-legacy.select-all')}
                   className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary"
                 />
                 {t('assignStudentPicker.selectAll', {
@@ -546,6 +572,11 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                       checked={checked}
                       disabled={disabled}
                       onChange={() => toggleStudent(row)}
+                      {...tourFieldAttr(
+                        'assign-students-legacy.student',
+                        'assign',
+                        row.studentId
+                      )}
                       className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary disabled:opacity-50"
                     />
                     <span className="text-sm text-slate-800">{row.name}</span>
@@ -582,6 +613,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                       <button
                         type="button"
                         onClick={switchToAnotherRoster}
+                        {...tourAttr('assign-students-legacy.switch-roster')}
                         className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors"
                       >
                         {anotherRosterId
@@ -604,6 +636,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                       <button
                         type="button"
                         onClick={() => setSearch('')}
+                        {...tourAttr('assign-students-legacy.clear-search')}
                         className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors"
                       >
                         {t('assignStudentPicker.clearSearch', {
@@ -624,6 +657,7 @@ export const AssignStudentPicker: React.FC<AssignStudentPickerProps> = ({
                       <button
                         type="button"
                         onClick={switchToAnotherRoster}
+                        {...tourAttr('assign-students-legacy.switch-roster')}
                         className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-lg transition-colors"
                       >
                         {anotherRosterId
