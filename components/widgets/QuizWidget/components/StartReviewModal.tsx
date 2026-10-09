@@ -222,7 +222,10 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
             </p>
           )}
           {classMenu ? (
-            <div className="space-y-1.5">
+            <div
+              className="space-y-1.5"
+              {...tourAttr('review-start.class-picker')}
+            >
               <span className="text-sm font-bold text-brand-blue-dark">
                 {t('reviewStart.classes', 'Classes')}
               </span>
@@ -283,60 +286,74 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
               // A game has no submit, so tab exits are only reported.
               !isGame &&
               (opts.tabWarningsEnabled ?? true) && (
-                <TabWarningThresholdRow
-                  value={opts.tabWarningThreshold}
-                  onChange={(next) => setOpts({ tabWarningThreshold: next })}
-                />
+                <div {...tourAttr('review-start.tab-warning')}>
+                  <TabWarningThresholdRow
+                    value={opts.tabWarningThreshold}
+                    onChange={(next) => setOpts({ tabWarningThreshold: next })}
+                  />
+                </div>
               )
             }
             trailingSlot={
               <>
                 {handRaiseMode === 'teacher-choice' && (
-                  <ToggleRow
-                    label={t(
-                      'quizHandRaise.label',
-                      'Allow students to raise a hand'
-                    )}
-                    checked={opts.handRaiseEnabled ?? false}
-                    onChange={(v) => setOpts({ handRaiseEnabled: v })}
-                  />
+                  <div {...tourAttr('review-start.hand-raise')}>
+                    <ToggleRow
+                      label={t(
+                        'quizHandRaise.label',
+                        'Allow students to raise a hand'
+                      )}
+                      checked={opts.handRaiseEnabled ?? false}
+                      onChange={(v) => setOpts({ handRaiseEnabled: v })}
+                    />
+                  </div>
                 )}
                 {readAloudAvailable && (
-                  <ToggleRow
-                    label={t('quizReadAloud.label', 'Read aloud')}
-                    checked={opts.readAloudAll ?? false}
-                    onChange={(v) => setOpts({ readAloudAll: v })}
-                  />
+                  <div {...tourAttr('review-start.read-aloud')}>
+                    <ToggleRow
+                      label={t('quizReadAloud.label', 'Read aloud')}
+                      checked={opts.readAloudAll ?? false}
+                      onChange={(v) => setOpts({ readAloudAll: v })}
+                    />
+                  </div>
                 )}
                 <CollapsibleSection label="Gamification">
-                  <ToggleRow
-                    compact
-                    label="Speed Bonus Points"
-                    checked={opts.speedBonusEnabled ?? false}
-                    onChange={(v) => setOpts({ speedBonusEnabled: v })}
-                  />
-                  <ToggleRow
-                    compact
-                    label="Streak Bonuses"
-                    checked={opts.streakBonusEnabled ?? false}
-                    onChange={(v) => setOpts({ streakBonusEnabled: v })}
-                  />
-                  {!isGame && (
+                  <div {...tourAttr('review-start.speed-bonus')}>
                     <ToggleRow
                       compact
-                      label="Podium Between Questions"
-                      checked={opts.showPodiumBetweenQuestions ?? false}
-                      onChange={(v) =>
-                        setOpts({ showPodiumBetweenQuestions: v })
-                      }
+                      label="Speed Bonus Points"
+                      checked={opts.speedBonusEnabled ?? false}
+                      onChange={(v) => setOpts({ speedBonusEnabled: v })}
                     />
+                  </div>
+                  <div {...tourAttr('review-start.streak-bonus')}>
+                    <ToggleRow
+                      compact
+                      label="Streak Bonuses"
+                      checked={opts.streakBonusEnabled ?? false}
+                      onChange={(v) => setOpts({ streakBonusEnabled: v })}
+                    />
+                  </div>
+                  {!isGame && (
+                    <div {...tourAttr('review-start.podium')}>
+                      <ToggleRow
+                        compact
+                        label="Podium Between Questions"
+                        checked={opts.showPodiumBetweenQuestions ?? false}
+                        onChange={(v) =>
+                          setOpts({ showPodiumBetweenQuestions: v })
+                        }
+                      />
+                    </div>
                   )}
-                  <ToggleRow
-                    compact
-                    label="Sound Effects"
-                    checked={opts.soundEffectsEnabled ?? false}
-                    onChange={(v) => setOpts({ soundEffectsEnabled: v })}
-                  />
+                  <div {...tourAttr('review-start.sound-effects')}>
+                    <ToggleRow
+                      compact
+                      label="Sound Effects"
+                      checked={opts.soundEffectsEnabled ?? false}
+                      onChange={(v) => setOpts({ soundEffectsEnabled: v })}
+                    />
+                  </div>
                 </CollapsibleSection>
               </>
             }

@@ -101,6 +101,12 @@ describe('tour anchor registry', () => {
       'quiz-settings.assignment-archive',
       'activity-wall-editor.allow-delete',
       'assign-stepper.cancel',
+      'quiz-import.cartridge-share-pictures',
+      'quiz-import.paper-assignment',
+      'quiz-banks.shared-preview',
+      'quiz-results.student-delete-cancel',
+      'quiz-rubric.share-link',
+      'quiz-rubric.share-copy',
     ]);
     // Destination options and step headers only move through the Assign dialog.
     const opensOnly = (id: string) =>

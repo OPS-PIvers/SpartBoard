@@ -74,7 +74,7 @@ import { hasPeriodAccess } from '@/utils/periodAccess';
 import { QuestionResults, QuestionDetail } from './QuestionResults';
 import { JoinCodeScreen } from './JoinCodeScreen';
 import { QuizSettingsScreen } from './QuizSettingsScreen';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 
 export interface QuizLiveMonitorProps {
@@ -577,6 +577,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   const menuItems: {
     label: string;
     icon: React.ElementType;
+    tour?: ReturnType<typeof tourAttr>;
     onClick: () => void;
   }[] = assessmentOnly
     ? []
@@ -584,6 +585,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
         {
           label: presenting ? 'Close presentation' : 'Present to class',
           icon: MonitorPlay,
+          tour: tourAttr('quiz-monitor.menu-present', widgetId, tourType),
           onClick: () => setPresenting((v) => !v),
         },
         ...(canReveal
@@ -610,6 +612,11 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               {
                 label: soundMuted ? 'Unmute sounds' : 'Mute sounds',
                 icon: soundMuted ? VolumeX : Volume2,
+                tour: tourAttr(
+                  'quiz-monitor.menu-mute-sounds',
+                  widgetId,
+                  tourType
+                ),
                 onClick: () => setSoundMuted((v) => !v),
               },
             ]
@@ -654,6 +661,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                   )
             }
             aria-label="Back"
+            {...tourAttr('quiz-monitor.back', widgetId, tourType)}
             className="rounded-md hover:bg-white/15 transition-colors"
             style={{ padding: 'min(4px, 1cqmin)' }}
           >
@@ -724,6 +732,11 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                         )
                       }
                       aria-pressed={on}
+                      {...tourFieldAttr(
+                        'quiz-monitor.period-filter',
+                        'quiz',
+                        p
+                      )}
                       className={`rounded-full border font-sans transition-colors ${
                         on
                           ? 'bg-brand-blue-lighter border-brand-blue-primary text-brand-blue-dark'
@@ -979,17 +992,28 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
               <FooterNavButton
                 icon={Hash}
                 label="Join code"
+                tour={tourAttr(
+                  'quiz-monitor.menu-show-join-code',
+                  widgetId,
+                  tourType
+                )}
                 onClick={() => setScreen({ name: 'code' })}
               />
             )}
             <FooterNavButton
               icon={BarChart3}
               label="Question results"
+              tour={tourAttr(
+                'quiz-monitor.menu-question-results',
+                widgetId,
+                tourType
+              )}
               onClick={() => setScreen({ name: 'questions' })}
             />
             <FooterNavButton
               icon={Settings}
               label="Quiz settings"
+              tour={tourAttr('quiz-monitor.menu-settings', widgetId, tourType)}
               onClick={() => setScreen({ name: 'settings' })}
             />
           </div>
@@ -1029,7 +1053,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                         {...(item.label === 'Reveal answer to class' ||
                         item.label === 'Hide revealed answer'
                           ? tourAttr('quiz.reveal-answer', widgetId, tourType)
-                          : {})}
+                          : item.tour)}
                         className="flex items-center w-full text-left font-sans text-brand-gray-dark hover:bg-brand-blue-lighter transition-colors"
                         style={{
                           gap: 'min(8px, 2cqmin)',
@@ -1125,11 +1149,13 @@ const footerIcon = {
 const FooterNavButton: React.FC<{
   icon: React.ElementType;
   label: string;
+  tour: ReturnType<typeof tourAttr>;
   onClick: () => void;
-}> = ({ icon: Icon, label, onClick }) => (
+}> = ({ icon: Icon, label, tour, onClick }) => (
   <button
     type="button"
     onClick={onClick}
+    {...tour}
     className={`${footerButton} bg-white border border-brand-gray-lighter text-brand-gray-dark hover:border-brand-blue-light`}
     style={footerButtonStyle}
   >
