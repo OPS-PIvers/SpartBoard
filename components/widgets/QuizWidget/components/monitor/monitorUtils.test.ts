@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { QuizQuestion, QuizResponse } from '@/types';
 import {
-  shortPeriodLabels,
+  joinCodesAllowedForBuildings,
   STUCK_THRESHOLD_MS,
   compareStudents,
   isStuck,
@@ -191,21 +191,21 @@ describe('buildDistribution', () => {
   });
 });
 
-describe('shortPeriodLabels', () => {
-  it('drops the words every class name shares', () => {
+describe('joinCodesAllowedForBuildings', () => {
+  it('allows join codes with no permission record or no building list', () => {
+    expect(joinCodesAllowedForBuildings(undefined, [])).toBe(true);
     expect(
-      shortPeriodLabels([
-        '(S1) Wooley, L SPANISH II A(5) (18618)',
-        '(S1) Wooley, L SPANISH II A(6) (18690)',
-      ])
-    ).toEqual(['A(5) (18618)', 'A(6) (18690)']);
+      joinCodesAllowedForBuildings({ enabled: true, buildings: [] }, ['x'])
+    ).toBe(true);
   });
 
-  it('keeps full names when nothing is shared or there is one class', () => {
-    expect(shortPeriodLabels(['Period 1', 'Block 2'])).toEqual([
-      'Period 1',
-      'Block 2',
-    ]);
-    expect(shortPeriodLabels(['Spanish II A(5)'])).toEqual(['Spanish II A(5)']);
+  it('blocks join codes when turned off or the teacher has no listed building', () => {
+    expect(joinCodesAllowedForBuildings({ enabled: false }, [])).toBe(false);
+    expect(
+      joinCodesAllowedForBuildings({ enabled: true, buildings: ['a'] }, ['b'])
+    ).toBe(false);
+    expect(
+      joinCodesAllowedForBuildings({ enabled: true, buildings: ['a'] }, ['a'])
+    ).toBe(true);
   });
 });

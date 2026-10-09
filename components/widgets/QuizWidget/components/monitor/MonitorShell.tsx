@@ -9,7 +9,6 @@ import React, {
 import {
   ArrowLeft,
   BarChart3,
-  Copy,
   Eye,
   EyeOff,
   Hash,
@@ -19,7 +18,6 @@ import {
   Pause,
   Play,
   Plus,
-  Projector,
   Settings,
   Square,
   Trophy,
@@ -70,6 +68,7 @@ import { StatusBuckets, BucketKey } from './StatusBuckets';
 import { RosterList } from './RosterList';
 import { PeriodAccessStrip } from './PeriodAccessStrip';
 import { PeriodBar } from './PeriodBar';
+import { joinCodesAllowedForBuildings } from './monitorUtils';
 import { EXTEND_MS, usePeriodAccess } from '@/hooks/usePeriodAccess';
 import { hasPeriodAccess } from '@/utils/periodAccess';
 import { QuestionResults, QuestionDetail } from './QuestionResults';
@@ -185,7 +184,13 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   const authContext = useContext(AuthContext);
   const showJoinCode =
     !!session.code &&
-    authContext?.canAccessFeature?.('anonymous-join') !== false;
+    authContext?.canAccessFeature?.('anonymous-join') !== false &&
+    joinCodesAllowedForBuildings(
+      authContext?.globalPermissions?.find(
+        (p) => p.featureId === 'anonymous-join'
+      ),
+      authContext?.selectedBuildings ?? []
+    );
   const data = useMonitorData(
     session,
     responses,
@@ -267,18 +272,9 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
           : '',
       onSelect: (key: string) =>
         data.setSelectedPeriods(key ? [periodNameFor(key)] : []),
-      onStart: (keys: string[]) =>
-        startPeriods(() =>
-          keys.length === 1
-            ? periodActions.startPeriod(keys[0])
-            : periodActions.startAll()
-        ),
-      onPause: (keys: string[]) =>
-        runPeriod(() =>
-          keys.length === 1
-            ? periodActions.pausePeriod(keys[0])
-            : periodActions.pauseAll()
-        ),
+      onStart: (key: string) =>
+        startPeriods(() => periodActions.startPeriod(key)),
+      onPause: (key: string) => runPeriod(() => periodActions.pausePeriod(key)),
       onExtend: (key: string, by: number | null) =>
         runPeriod(() => periodActions.extendPeriod(key, by)),
       extendMs: EXTEND_MS,
@@ -415,11 +411,13 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
   const handleEnd = async () => {
     if (outward.locked) return;
     const ok = await showConfirm(
-      'End this assignment? The student link stops working, but all responses are preserved in the archive.',
+      isGame
+        ? 'End this game? The student link stops working, but all responses are preserved in the archive.'
+        : 'Close this assignment for every class? Students lose access, and all responses are kept in the archive.',
       {
-        title: 'End Assignment',
+        title: isGame ? 'End game' : 'Close for all classes',
         variant: 'warning',
-        confirmLabel: 'End',
+        confirmLabel: isGame ? 'End' : 'Close all',
       }
     );
     if (!ok) return;
@@ -434,7 +432,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       await onEnd();
     } catch (err) {
       logError('QuizLiveMonitor.end', err);
-      addToast('Could not end the assignment. Try again.', 'error');
+      addToast('Could not close the assignment. Try again.', 'error');
     } finally {
       setEnding(false);
     }
@@ -519,14 +517,6 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     [session.id, addToast]
   );
 
-  const copyJoinLink = () => {
-    if (!showJoinCode) return;
-    void navigator.clipboard.writeText(
-      `${window.location.origin}/quiz?code=${session.code}`
-    );
-    addToast('Join link copied.', 'success');
-  };
-
   const currentQ = data.currentQ;
   const revealed = currentQ
     ? session.revealedAnswers?.[currentQ.id]
@@ -583,83 +573,48 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     session.sessionMode !== 'student' &&
     !!currentQ;
 
+  // Live-game extras only; Quiz assessments have none, so their footer has no menu.
   const menuItems: {
     label: string;
     icon: React.ElementType;
     onClick: () => void;
-    divider?: boolean;
-  }[] = [
-    {
-      label: presenting ? 'Close presentation' : 'Present to class',
-      icon: MonitorPlay,
-      onClick: () => setPresenting((v) => !v),
-    },
-    {
-      label: 'Question results',
-      icon: BarChart3,
-      onClick: () => setScreen({ name: 'questions' }),
-    },
-    ...(showJoinCode
-      ? [
-          {
-            label: 'Show join code',
-            icon: Hash,
-            onClick: () => setScreen({ name: 'code' }),
-            divider: true,
-          },
-          { label: 'Copy join link', icon: Copy, onClick: copyJoinLink },
-        ]
-      : []),
-    ...(canReveal
-      ? [
-          revealed
-            ? {
-                label: 'Hide revealed answer',
-                icon: EyeOff,
-                onClick: () => void onHideAnswer?.(currentQ.id),
-                divider: true,
-              }
-            : {
-                label: 'Reveal answer to class',
-                icon: Eye,
-                onClick: () =>
-                  void onRevealAnswer?.(currentQ.id, currentQ.correctAnswer),
-                divider: true,
+  }[] = assessmentOnly
+    ? []
+    : [
+        {
+          label: presenting ? 'Close presentation' : 'Present to class',
+          icon: MonitorPlay,
+          onClick: () => setPresenting((v) => !v),
+        },
+        ...(canReveal
+          ? [
+              revealed
+                ? {
+                    label: 'Hide revealed answer',
+                    icon: EyeOff,
+                    onClick: () => void onHideAnswer?.(currentQ.id),
+                  }
+                : {
+                    label: 'Reveal answer to class',
+                    icon: Eye,
+                    onClick: () =>
+                      void onRevealAnswer?.(
+                        currentQ.id,
+                        currentQ.correctAnswer
+                      ),
+                  },
+            ]
+          : []),
+        ...(soundsOn
+          ? [
+              {
+                label: soundMuted ? 'Unmute sounds' : 'Mute sounds',
+                icon: soundMuted ? VolumeX : Volume2,
+                onClick: () => setSoundMuted((v) => !v),
               },
-        ]
-      : []),
-    ...(soundsOn
-      ? [
-          {
-            label: soundMuted ? 'Unmute sounds' : 'Mute sounds',
-            icon: soundMuted ? VolumeX : Volume2,
-            onClick: () => setSoundMuted((v) => !v),
-            divider: !canReveal && !showJoinCode,
-          },
-        ]
-      : []),
-    ...(perPeriod && session.status !== 'ended'
-      ? [
-          {
-            label: 'Start all periods',
-            icon: Play,
-            onClick: () => void startPeriods(periodActions.startAll),
-            divider: true,
-          },
-          {
-            label: 'Pause all periods',
-            icon: Pause,
-            onClick: () => void runPeriod(periodActions.pauseAll),
-          },
-        ]
-      : []),
-    {
-      label: 'Quiz settings',
-      icon: Settings,
-      onClick: () => setScreen({ name: 'settings' }),
-      divider: true,
-    },
-  ];
+            ]
+          : []),
+      ];
 
   const statusPill =
     session.status === 'paused'
@@ -716,32 +671,6 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
         >
           {headerTitle}
         </p>
-        <button
-          onClick={() => onUpdateConfig({ monitorBoardView: !boardView })}
-          aria-pressed={boardView}
-          aria-label={
-            boardView
-              ? 'Board view on. Hiding who raised a hand or is idle.'
-              : 'Teacher view. Showing who raised a hand or is idle.'
-          }
-          title={
-            boardView ? 'Board view: counts only' : 'Teacher view: names shown'
-          }
-          className={`shrink-0 rounded-md transition-colors ${
-            boardView
-              ? 'bg-white text-brand-blue-primary'
-              : 'text-white/80 hover:bg-white/15'
-          }`}
-          style={{ padding: 'min(4px, 1cqmin)' }}
-        >
-          <Projector
-            aria-hidden
-            style={{
-              width: 'min(16px, 5cqmin)',
-              height: 'min(16px, 5cqmin)',
-            }}
-          />
-        </button>
         <span
           className={`shrink-0 rounded-full font-sans font-semibold uppercase tracking-wider ${statusPill.cls}`}
           style={{
@@ -1040,69 +969,90 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 }}
               />
             )}
-            {isGame ? 'End game' : 'End'}
+            {isGame ? 'End game' : 'Close all'}
           </button>
-          <div ref={menuRef} className="relative ml-auto">
-            <button
-              onClick={() => setMenuOpen((v) => !v)}
-              aria-label="More actions"
-              aria-expanded={menuOpen}
-              {...tourAttr('quiz.more-actions', widgetId, tourType)}
-              className="rounded-md border border-brand-gray-lighter text-brand-gray-dark hover:border-brand-blue-light transition-colors"
-              style={{ padding: 'min(8px, 2cqmin)' }}
-            >
-              <MoreHorizontal
-                style={{
-                  width: 'min(16px, 5cqmin)',
-                  height: 'min(16px, 5cqmin)',
-                }}
+          <div
+            className="flex flex-wrap items-center ml-auto"
+            style={{ gap: 'min(8px, 2cqmin)' }}
+          >
+            {showJoinCode && (
+              <FooterNavButton
+                icon={Hash}
+                label="Join code"
+                onClick={() => setScreen({ name: 'code' })}
               />
-            </button>
-            {menuOpen && (
-              <div
-                className="absolute right-0 bottom-full bg-white border border-brand-gray-lighter rounded-lg shadow-lg overflow-hidden"
-                style={{
-                  zIndex: Z_INDEX.dropdown,
-                  marginBottom: 'min(6px, 1.5cqmin)',
-                  minWidth: 'min(200px, 70cqw)',
-                }}
-              >
-                {menuItems.map((item) => (
-                  <React.Fragment key={item.label}>
-                    {item.divider && (
-                      <div className="border-t border-brand-gray-lightest" />
-                    )}
-                    <button
-                      onClick={() => {
-                        setMenuOpen(false);
-                        item.onClick();
-                      }}
-                      {...(item.label === 'Reveal answer to class' ||
-                      item.label === 'Hide revealed answer'
-                        ? tourAttr('quiz.reveal-answer', widgetId, tourType)
-                        : {})}
-                      className="flex items-center w-full text-left font-sans text-brand-gray-dark hover:bg-brand-blue-lighter transition-colors"
-                      style={{
-                        gap: 'min(8px, 2cqmin)',
-                        fontSize: 'min(12px, 4cqmin)',
-                        padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-                      }}
-                    >
-                      <item.icon
-                        className="text-brand-blue-primary"
-                        aria-hidden
-                        style={{
-                          width: 'min(14px, 4.5cqmin)',
-                          height: 'min(14px, 4.5cqmin)',
-                        }}
-                      />
-                      {item.label}
-                    </button>
-                  </React.Fragment>
-                ))}
-              </div>
             )}
+            <FooterNavButton
+              icon={BarChart3}
+              label="Question results"
+              onClick={() => setScreen({ name: 'questions' })}
+            />
+            <FooterNavButton
+              icon={Settings}
+              label="Quiz settings"
+              onClick={() => setScreen({ name: 'settings' })}
+            />
           </div>
+          {menuItems.length > 0 && (
+            <div ref={menuRef} className="relative">
+              <button
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-label="More actions"
+                aria-expanded={menuOpen}
+                {...tourAttr('quiz.more-actions', widgetId, tourType)}
+                className="rounded-md border border-brand-gray-lighter text-brand-gray-dark hover:border-brand-blue-light transition-colors"
+                style={{ padding: 'min(8px, 2cqmin)' }}
+              >
+                <MoreHorizontal
+                  style={{
+                    width: 'min(16px, 5cqmin)',
+                    height: 'min(16px, 5cqmin)',
+                  }}
+                />
+              </button>
+              {menuOpen && (
+                <div
+                  className="absolute right-0 bottom-full bg-white border border-brand-gray-lighter rounded-lg shadow-lg overflow-hidden"
+                  style={{
+                    zIndex: Z_INDEX.dropdown,
+                    marginBottom: 'min(6px, 1.5cqmin)',
+                    minWidth: 'min(200px, 70cqw)',
+                  }}
+                >
+                  {menuItems.map((item) => (
+                    <React.Fragment key={item.label}>
+                      <button
+                        onClick={() => {
+                          setMenuOpen(false);
+                          item.onClick();
+                        }}
+                        {...(item.label === 'Reveal answer to class' ||
+                        item.label === 'Hide revealed answer'
+                          ? tourAttr('quiz.reveal-answer', widgetId, tourType)
+                          : {})}
+                        className="flex items-center w-full text-left font-sans text-brand-gray-dark hover:bg-brand-blue-lighter transition-colors"
+                        style={{
+                          gap: 'min(8px, 2cqmin)',
+                          fontSize: 'min(12px, 4cqmin)',
+                          padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                        }}
+                      >
+                        <item.icon
+                          className="text-brand-blue-primary"
+                          aria-hidden
+                          style={{
+                            width: 'min(14px, 4.5cqmin)',
+                            height: 'min(14px, 4.5cqmin)',
+                          }}
+                        />
+                        {item.label}
+                      </button>
+                    </React.Fragment>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -1171,6 +1121,22 @@ const footerIcon = {
   width: 'min(14px, 4.5cqmin)',
   height: 'min(14px, 4.5cqmin)',
 };
+
+const FooterNavButton: React.FC<{
+  icon: React.ElementType;
+  label: string;
+  onClick: () => void;
+}> = ({ icon: Icon, label, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`${footerButton} bg-white border border-brand-gray-lighter text-brand-gray-dark hover:border-brand-blue-light`}
+    style={footerButtonStyle}
+  >
+    <Icon className="text-brand-blue-primary" style={footerIcon} aria-hidden />
+    {label}
+  </button>
+);
 
 /** Review game footer (plan D26): Start or Pause, +1 min and the names toggle. */
 const GameControls: React.FC<{
