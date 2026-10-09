@@ -11,7 +11,6 @@
  * cleanly without setState-in-effect.
  */
 
-import { tourAttr } from '@/config/tourAnchors';
 import React, { useEffect, useMemo, useState } from 'react';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { GraduationCap, Mail, Plus, Save, Trash2 } from 'lucide-react';
@@ -70,7 +69,6 @@ export const PresetSubEmailsManager: React.FC = () => {
           Building
         </label>
         <select
-          {...tourAttr('admin.sub-presets.building')}
           id="preset-sub-building"
           value={selectedBuildingId}
           onChange={(e) => setSelectedBuildingId(e.target.value)}
@@ -269,7 +267,6 @@ const BuildingPresetEditor: React.FC<{ buildingId: string }> = ({
               <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               <span className="truncate flex-1">{email}</span>
               <button
-                {...tourAttr('admin.sub-presets.remove-email')}
                 type="button"
                 onClick={() => removeEmail(email)}
                 aria-label="Remove preset"
@@ -284,7 +281,6 @@ const BuildingPresetEditor: React.FC<{ buildingId: string }> = ({
 
       <div className="flex gap-2">
         <input
-          {...tourAttr('admin.sub-presets.email')}
           type="email"
           value={emailInput}
           onChange={(e) => {
@@ -301,7 +297,6 @@ const BuildingPresetEditor: React.FC<{ buildingId: string }> = ({
           className="flex-1 rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
         />
         <button
-          {...tourAttr('admin.sub-presets.add-email')}
           type="button"
           onClick={addEmail}
           className="shrink-0 inline-flex items-center gap-1 rounded-md bg-slate-100 hover:bg-slate-200 px-3 py-1.5 text-sm font-bold text-slate-700 transition-colors cursor-pointer"
@@ -322,7 +317,6 @@ const BuildingPresetEditor: React.FC<{ buildingId: string }> = ({
               : ''}
         </div>
         <button
-          {...tourAttr('admin.sub-presets.save')}
           type="button"
           onClick={() => void save()}
           disabled={saving || !dirty}

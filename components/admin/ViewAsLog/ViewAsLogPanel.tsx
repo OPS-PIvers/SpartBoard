@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react';
-import { tourAttr } from '@/config/tourAnchors';
 import { History, Undo2, ChevronDown, ChevronRight } from 'lucide-react';
 import { logError } from '@/utils/logError';
 import type { ViewAsAuditAction } from '@/types/viewAs';
@@ -131,7 +130,6 @@ const LogRow: React.FC<{
           {ACTION_LABELS[entry.action] ?? entry.action}
         </span>
         <button
-          {...tourAttr('admin.view-as-log.filter-teacher')}
           type="button"
           onClick={() => onFilterTarget(entry.targetEmail)}
           className="min-w-0 truncate text-slate-800 hover:text-brand-blue-primary hover:underline"
@@ -140,7 +138,6 @@ const LogRow: React.FC<{
           {entry.targetEmail}
         </button>
         <button
-          {...tourAttr('admin.view-as-log.filter-admin')}
           type="button"
           onClick={() => onFilterAdmin(entry.email)}
           className="min-w-0 truncate text-xs text-slate-500 hover:text-brand-blue-primary hover:underline"
@@ -166,7 +163,6 @@ const LogRow: React.FC<{
           )}
           {canRevert && revert.kind !== 'conflict' && (
             <button
-              {...tourAttr('admin.view-as-log.revert')}
               type="button"
               disabled={revert.kind === 'busy'}
               onClick={() => void run(false)}
@@ -178,7 +174,6 @@ const LogRow: React.FC<{
           )}
           {hasChange && (
             <button
-              {...tourAttr('admin.view-as-log.toggle-changes')}
               type="button"
               onClick={() => setOpen((o) => !o)}
               aria-expanded={open}
@@ -217,7 +212,6 @@ const LogRow: React.FC<{
               />
               <div className="flex justify-end gap-2">
                 <button
-                  {...tourAttr('admin.view-as-log.keep-current')}
                   type="button"
                   onClick={() => setRevert({ kind: 'idle' })}
                   className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
@@ -225,7 +219,6 @@ const LogRow: React.FC<{
                   Keep current
                 </button>
                 <button
-                  {...tourAttr('admin.view-as-log.revert-anyway')}
                   type="button"
                   onClick={() => void run(true)}
                   className="rounded-md bg-brand-blue-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-blue-dark"
@@ -260,7 +253,6 @@ const FilterSelect: React.FC<{
       {label}
     </label>
     <select
-      {...tourAttr('admin.view-as-log.filter')}
       id={id}
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -358,7 +350,6 @@ export const ViewAsLogPanel: React.FC = () => {
 
       {hasMore && !error && (
         <button
-          {...tourAttr('admin.view-as-log.load-more')}
           type="button"
           onClick={() => setPages((p) => p + 1)}
           className="self-start rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
