@@ -24,6 +24,7 @@ import {
   type QuizHandRaiseMode,
 } from '@/utils/quizHandRaise';
 import { TabAwayLimitRow, TabWarningThresholdRow } from './TabWarningRows';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import { AssignmentSettingsToggleGroup } from './AssignmentSettingsToggleGroup';
 import { CollapsibleSection } from './CollapsibleSection';
 import { ToggleRow } from './AssignmentSettingsToggleGroup';
@@ -156,6 +157,18 @@ export const QuizBehaviorSettingsPanel: React.FC<
       {/* Toggle group: integrity / feedback / randomization + gamification */}
       <AssignmentSettingsToggleGroup
         modeLocked={modeLocked}
+        anchors={{
+          focusMode: tourTypeAttr('quiz-settings.focus-mode', 'quiz'),
+          copyPaste: tourTypeAttr('quiz-settings.block-copy-paste', 'quiz'),
+          shuffleQuestions: tourTypeAttr(
+            'quiz-settings.shuffle-questions',
+            'quiz'
+          ),
+          shuffleAnswerOptions: tourTypeAttr(
+            'quiz-settings.shuffle-answers',
+            'quiz'
+          ),
+        }}
         showCopyPasteToggle
         showLearningTargetsToggle
         hideCorrectOnBoard={assessmentOnly}

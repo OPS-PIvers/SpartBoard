@@ -1,3 +1,4 @@
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import React from 'react';
 import { Plus, Trash2, MessageSquare } from 'lucide-react';
 import { TalkingToolGlobalConfig, TalkingToolCategory } from '@/types';
@@ -124,6 +125,7 @@ export const TalkingToolConfigurationPanel: React.FC<
         </h4>
         <button
           onClick={addCategory}
+          {...tourTypeAttr('admin.widget-config.add', 'talking-tool')}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary text-white rounded-lg text-xxs font-black uppercase tracking-wider hover:bg-brand-blue-dark transition-all shadow-sm"
         >
           <Plus className="w-3.5 h-3.5" /> Add Category
@@ -145,6 +147,11 @@ export const TalkingToolConfigurationPanel: React.FC<
               />
               <input
                 type="text"
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'talking-tool',
+                  `label-${cat.id}`
+                )}
                 value={cat.label}
                 onChange={(e) =>
                   updateCategory(cat.id, { label: e.target.value })
@@ -154,6 +161,11 @@ export const TalkingToolConfigurationPanel: React.FC<
               />
               <input
                 type="color"
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'talking-tool',
+                  `color-${cat.id}`
+                )}
                 value={cat.color}
                 onChange={(e) =>
                   updateCategory(cat.id, { color: e.target.value })
@@ -162,6 +174,11 @@ export const TalkingToolConfigurationPanel: React.FC<
               />
               <button
                 onClick={() => removeCategory(cat.id)}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'talking-tool',
+                  `remove-${cat.id}`
+                )}
                 className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
                 title="Remove Category"
                 aria-label="Remove category"
@@ -186,6 +203,11 @@ export const TalkingToolConfigurationPanel: React.FC<
                 <div key={stem.id} className="flex items-center gap-2 group">
                   <input
                     type="text"
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'talking-tool',
+                      `stem-${stem.id}`
+                    )}
                     value={stem.text}
                     onChange={(e) =>
                       updateStem(cat.id, stem.id, e.target.value)
@@ -195,6 +217,11 @@ export const TalkingToolConfigurationPanel: React.FC<
                   />
                   <button
                     onClick={() => removeStem(cat.id, stem.id)}
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'talking-tool',
+                      `remove-stem-${stem.id}`
+                    )}
                     className="p-1.5 text-slate-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all"
                     aria-label="Remove stem"
                     title="Remove stem"
@@ -205,6 +232,11 @@ export const TalkingToolConfigurationPanel: React.FC<
               ))}
               <button
                 onClick={() => addStem(cat.id)}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'talking-tool',
+                  `add-stem-${cat.id}`
+                )}
                 className="w-full py-2 mt-2 border-2 border-dashed border-slate-100 rounded-xl text-slate-400 hover:border-brand-blue-light hover:text-brand-blue-primary transition-all flex items-center justify-center gap-2 text-xxs font-bold uppercase"
               >
                 <Plus className="w-3.5 h-3.5" /> Add Stem
@@ -253,13 +285,21 @@ export const TalkingToolConfigurationPanel: React.FC<
             >
               Default Surface Colour
             </label>
-            <HexColorField
-              id={`talking-tool-color-${selectedBuildingId}`}
-              value={currentBuildingConfig.cardColor}
-              onChange={(cardColor) => updateBuildingDefaults({ cardColor })}
-              fallback="#ffffff"
-              ariaLabel="Pick default Talking Tool surface colour"
-            />
+            <div
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'talking-tool',
+                'cardColor'
+              )}
+            >
+              <HexColorField
+                id={`talking-tool-color-${selectedBuildingId}`}
+                value={currentBuildingConfig.cardColor}
+                onChange={(cardColor) => updateBuildingDefaults({ cardColor })}
+                fallback="#ffffff"
+                ariaLabel="Pick default Talking Tool surface colour"
+              />
+            </div>
           </div>
           <div>
             <label
@@ -272,6 +312,11 @@ export const TalkingToolConfigurationPanel: React.FC<
             <input
               id={`talking-tool-opacity-${selectedBuildingId}`}
               type="range"
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'talking-tool',
+                'cardOpacity'
+              )}
               min="0"
               max="1"
               step="0.05"

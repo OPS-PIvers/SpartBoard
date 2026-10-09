@@ -632,4 +632,31 @@ describe('useNutrislice', () => {
       );
     });
   });
+  it('re-fetches when the day rolls over while the widget stays mounted', async () => {
+    vi.useRealTimers();
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] });
+    vi.setSystemTime(new Date(2023, 9, 27, 23, 30));
+    const mockProxy = mockStoredMenu(mockMenuData);
+
+    render(
+      <TestComponent
+        initialConfig={{
+          ...mockConfig,
+          lastSyncDate: new Date().toISOString(),
+          cachedMenu: {
+            hotLunch: { name: 'Old Lunch' },
+            hotLunchSides: [],
+            bentoBox: { name: 'Old Bento' },
+            date: new Date().toISOString(),
+          },
+        }}
+      />
+    );
+    await vi.advanceTimersByTimeAsync(100);
+    expect(mockProxy).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(60 * 60 * 1000);
+
+    expect(mockProxy).toHaveBeenCalledTimes(1);
+  });
 });

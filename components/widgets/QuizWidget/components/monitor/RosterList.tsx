@@ -345,6 +345,7 @@ export const RosterList: React.FC<RosterListProps> = ({
           {bucket === 'done' && (
             <ToggleChip
               label="Scores"
+              anchor={tourTypeAttr('quiz-monitor.roster-scores', 'quiz')}
               on={config.monitorShowScores ?? false}
               onToggle={() =>
                 onUpdateConfig({
@@ -356,6 +357,7 @@ export const RosterList: React.FC<RosterListProps> = ({
           {tabWarningsAllowed && (
             <ToggleChip
               label="Tab warnings"
+              anchor={tourTypeAttr('quiz-monitor.roster-tab-warnings', 'quiz')}
               on={config.monitorShowTabWarnings ?? false}
               onToggle={() =>
                 onUpdateConfig({
@@ -369,6 +371,7 @@ export const RosterList: React.FC<RosterListProps> = ({
           {bucket === 'done' && (
             <ToggleChip
               label="Proficiency colors"
+              anchor={tourTypeAttr('quiz-monitor.roster-proficiency', 'quiz')}
               on={config.monitorShowProficiency ?? false}
               onToggle={() =>
                 onUpdateConfig({

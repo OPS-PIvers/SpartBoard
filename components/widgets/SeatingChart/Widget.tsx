@@ -893,6 +893,7 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
   return (
     <div className="h-full flex flex-col">
       <SeatingChartToolbar
+        widgetId={widget.id}
         mode={mode}
         setMode={setMode}
         pickRandom={pickRandom}
@@ -984,6 +985,7 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
             return (
               <FurnitureItemRenderer
                 key={item.id}
+                widgetId={widget.id}
                 item={item}
                 mode={mode}
                 isSelected={isSelected}

@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { GuidedLearningStep } from '@/types';
 import { SOFT_WORD_LIMIT, countWords } from './inlineText';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface InlineCalloutEditorProps {
   step: GuidedLearningStep;
@@ -75,6 +76,7 @@ export const InlineCalloutEditor: React.FC<InlineCalloutEditorProps> = ({
     >
       <input
         data-gl-inline="label"
+        {...tourAttr('studio.callout-label')}
         aria-label={t('glStudio.inlineLabel')}
         placeholder={t('glStudio.inlineLabelPlaceholder')}
         value={step.label ?? ''}
@@ -85,6 +87,7 @@ export const InlineCalloutEditor: React.FC<InlineCalloutEditorProps> = ({
       <textarea
         ref={textRef}
         data-gl-inline="text"
+        {...tourAttr('studio.callout-text')}
         aria-label={t('glStudio.inlineText')}
         placeholder={t('glStudio.inlineTextPlaceholder')}
         value={text}

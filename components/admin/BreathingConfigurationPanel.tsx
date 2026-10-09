@@ -15,6 +15,7 @@ import { WIDGET_PALETTE } from '@/config/colors';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { Card } from '@/components/common/Card';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 interface BreathingConfigurationPanelProps {
   config: BreathingGlobalConfig;
@@ -116,6 +117,11 @@ export const BreathingConfigurationPanel: React.FC<
               return (
                 <button
                   key={opt.value}
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'breathing',
+                    `pattern-${opt.value}`
+                  )}
                   role="radio"
                   aria-checked={checked}
                   tabIndex={checked ? 0 : -1}
@@ -160,6 +166,11 @@ export const BreathingConfigurationPanel: React.FC<
               return (
                 <button
                   key={opt.value}
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'breathing',
+                    `visual-${opt.value}`
+                  )}
                   role="radio"
                   aria-checked={checked}
                   tabIndex={checked ? 0 : -1}
@@ -193,6 +204,7 @@ export const BreathingConfigurationPanel: React.FC<
               </span>
             ) : (
               <button
+                {...tourTypeAttr('admin.widget-config.remove', 'breathing')}
                 onClick={() => handleUpdateBuilding({ color: undefined })}
                 className="text-xxs text-slate-400 hover:text-red-500 font-bold transition-colors"
               >
@@ -216,6 +228,11 @@ export const BreathingConfigurationPanel: React.FC<
               return (
                 <button
                   key={color}
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'breathing',
+                    `color-${color}`
+                  )}
                   role="radio"
                   aria-checked={checked}
                   tabIndex={tabbable ? 0 : -1}

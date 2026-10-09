@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { DrawableObject, DrawingPage } from '@/types';
 import { getBoundingBox } from './hitTest';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 interface PageStripProps {
   pages: DrawingPage[];
@@ -170,6 +171,7 @@ export const PageStrip: React.FC<PageStripProps> = ({
       <div className="flex items-center gap-0.5 flex-shrink-0">
         <button
           type="button"
+          {...tourTypeAttr('drawing.page-prev', 'drawing')}
           onClick={() => onSelectPage(currentPage - 1)}
           disabled={isFirst}
           title="Previous page"
@@ -181,6 +183,7 @@ export const PageStrip: React.FC<PageStripProps> = ({
         <button
           ref={triggerRef}
           type="button"
+          {...tourTypeAttr('drawing.page-manage', 'drawing')}
           onClick={(e) => {
             if (isOpen) {
               close();
@@ -200,6 +203,7 @@ export const PageStrip: React.FC<PageStripProps> = ({
         </button>
         <button
           type="button"
+          {...tourTypeAttr('drawing.page-next', 'drawing')}
           onClick={() => onSelectPage(currentPage + 1)}
           disabled={isLast}
           title="Next page"
@@ -257,6 +261,11 @@ export const PageStrip: React.FC<PageStripProps> = ({
                           onSelectPage(index);
                           close();
                         }}
+                        {...tourFieldAttr(
+                          'drawing.page-item',
+                          'drawing',
+                          String(index + 1)
+                        )}
                         aria-label={`Page ${index + 1}`}
                         aria-current={isActive ? 'page' : undefined}
                         disabled={isEditing}
@@ -307,6 +316,11 @@ export const PageStrip: React.FC<PageStripProps> = ({
                           e.stopPropagation();
                           setEditingRowIndex(isEditing ? -1 : index);
                         }}
+                        {...tourFieldAttr(
+                          'drawing.page-rename',
+                          'drawing',
+                          String(index + 1)
+                        )}
                         title={`Rename page ${index + 1}`}
                         aria-label={`Rename page ${index + 1}`}
                         className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity p-1 rounded text-slate-300 hover:bg-white/10 hover:text-white"
@@ -315,6 +329,11 @@ export const PageStrip: React.FC<PageStripProps> = ({
                       </button>
                       <button
                         type="button"
+                        {...tourFieldAttr(
+                          'drawing.page-remove',
+                          'drawing',
+                          String(index + 1)
+                        )}
                         onClick={() => onDeletePage(index)}
                         disabled={pages.length <= 1}
                         title={`Delete page ${index + 1}`}
@@ -329,6 +348,7 @@ export const PageStrip: React.FC<PageStripProps> = ({
               </ul>
               <button
                 type="button"
+                {...tourTypeAttr('drawing.page-menu-add', 'drawing')}
                 onClick={() => onAddPage()}
                 aria-label="Add page"
                 className="border-t border-white/10 px-3 py-2 text-sm text-slate-200 hover:bg-white/5 flex items-center gap-2 transition-colors focus-visible:outline-none focus-visible:bg-white/5"
@@ -348,6 +368,7 @@ export const PageStrip: React.FC<PageStripProps> = ({
     <div className="flex items-center gap-1 flex-shrink-0">
       <button
         type="button"
+        {...tourTypeAttr('drawing.add-page', 'drawing')}
         onClick={onAddPage}
         title="Add page"
         aria-label="Add page"
@@ -438,6 +459,7 @@ const InlineTitle: React.FC<{
     return (
       <button
         type="button"
+        {...tourTypeAttr('drawing.page-title', 'drawing')}
         onClick={() => setIsEditing(true)}
         title="Rename page"
         aria-label={`Rename "${value}"`}

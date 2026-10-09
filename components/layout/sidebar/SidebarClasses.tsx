@@ -548,6 +548,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                   </p>
                 </div>
                 <button
+                  {...tourAttr('classes.new-class-empty')}
                   onClick={() => setEditingRosterId('new')}
                   className="mt-2 px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xxs font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors"
                 >

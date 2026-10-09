@@ -95,6 +95,7 @@ import type { LibraryTab } from '@/components/common/library/types';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import { withoutClaudeReview } from '@/utils/claudeReview';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import {
@@ -238,6 +239,7 @@ export const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
           </div>
           <button
             onClick={onClose}
+            {...tourTypeAttr('mini-app.dialog-close', 'miniApp')}
             className="text-white/60 hover:text-white transition-colors"
           >
             <X
@@ -290,6 +292,7 @@ export const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
               <div className="grid" style={{ gap: 'min(8px, 2cqmin)' }}>
                 <button
                   onClick={() => void handleCopy()}
+                  {...tourTypeAttr('mini-app.copy-link', 'miniApp')}
                   className="w-full flex items-center justify-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm"
                   style={{
                     gap: 'min(8px, 2cqmin)',
@@ -397,6 +400,7 @@ export const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                     </label>
                     <input
                       id="miniapp-assignment-name"
+                      {...tourTypeAttr('mini-app.session-name', 'miniApp')}
                       type="text"
                       value={assignmentName}
                       onChange={(e) => onNameChange(e.target.value)}
@@ -465,6 +469,7 @@ export const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                   outward.locked ||
                   (!isViewOnly && assignmentName.trim().length === 0)
                 }
+                {...tourTypeAttr('mini-app.assign-confirm', 'miniApp')}
                 title={outward.lockedTitle}
                 className="w-full flex items-center justify-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm disabled:opacity-60"
                 style={{
@@ -1617,6 +1622,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                                 className="bg-indigo-600 hover:bg-indigo-500 text-white flex items-center font-black uppercase tracking-widest transition-colors rounded-lg shadow-sm"
                                 style={buttonBaseStyle}
                                 title="Assign (copy student link)"
+                                {...tourTypeAttr(
+                                  'mini-app.toolbar-student-link',
+                                  'miniApp'
+                                )}
                               >
                                 <Link2 style={iconStyle} />
                                 <span style={labelStyle}>Assign</span>
@@ -1626,6 +1635,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                                 className="bg-white hover:bg-slate-50 text-slate-700 flex items-center font-black uppercase tracking-widest transition-colors rounded-lg shadow-sm border border-slate-200/60"
                                 style={buttonBaseStyle}
                                 title="View assignments"
+                                {...tourTypeAttr(
+                                  'mini-app.toolbar-sessions',
+                                  'miniApp'
+                                )}
                               >
                                 <BarChart3 style={iconStyle} />
                                 <span style={labelStyle}>Assignments</span>
@@ -1675,6 +1688,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                               className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-indigo-500 font-black transition-colors"
                               style={buttonBaseStyle}
                               title="Save to library"
+                              {...tourTypeAttr(
+                                'mini-app.toolbar-save',
+                                'miniApp'
+                              )}
                             >
                               <Save style={iconStyle} />
                               <span style={labelStyle}>Save</span>
@@ -1688,6 +1705,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                             className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                             style={buttonBaseStyle}
                             title="Share via QR — drops a QR-code widget that students can scan"
+                            {...tourTypeAttr('mini-app.toolbar-qr', 'miniApp')}
                           >
                             {isCreatingQrShare ? (
                               <Loader2
@@ -1708,6 +1726,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                               className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors"
                               style={buttonBaseStyle}
                               title="Save as widget — pin this mini app to your dock"
+                              {...tourTypeAttr(
+                                'mini-app.toolbar-save-as-widget',
+                                'miniApp'
+                              )}
                             >
                               <Bookmark style={iconStyle} />
                               <span style={labelStyle}>Save as Widget</span>
@@ -1721,6 +1743,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                             className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors"
                             style={buttonBaseStyle}
                             title="Back to library"
+                            {...tourTypeAttr(
+                              'mini-app.toolbar-library',
+                              'miniApp'
+                            )}
                           >
                             <LayoutGrid style={iconStyle} />
                             <span style={labelStyle}>Library</span>
@@ -1775,6 +1801,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                       className="rounded-lg hover:bg-slate-100 text-slate-400"
                       style={{ padding: 'min(4px, 1cqmin)' }}
                       aria-label="Cancel save"
+                      {...tourTypeAttr('mini-app.save-cancel', 'miniApp')}
                     >
                       <X
                         style={{
@@ -1790,6 +1817,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                     onChange={(e) => setPendingSaveTitle(e.target.value)}
                     placeholder="App title…"
                     autoFocus
+                    {...tourTypeAttr('mini-app.save-title', 'miniApp')}
                     className="w-full bg-slate-100 rounded-xl font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     style={{
                       paddingLeft: 'min(12px, 3cqmin)',
@@ -1805,6 +1833,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                   />
                   <button
                     onClick={() => void handleSavePasted()}
+                    {...tourTypeAttr('mini-app.save-app', 'miniApp')}
                     className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center active:scale-95"
                     style={{
                       paddingTop: 'min(10px, 2.5cqmin)',

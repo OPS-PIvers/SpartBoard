@@ -1,3 +1,4 @@
+import { tourFieldAttr } from '@/config/tourAnchors';
 import React, { useId } from 'react';
 import {
   GradeLevel,
@@ -95,6 +96,11 @@ export const MathToolsConfigurationPanel: React.FC<
         <div className="flex items-center gap-2">
           <input
             id={dpiCalibrationId}
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'mathTools',
+              'dpiCalibration'
+            )}
             type="number"
             min={60}
             max={300}
@@ -122,6 +128,11 @@ export const MathToolsConfigurationPanel: React.FC<
                 onChange(newConfig as unknown as Record<string, unknown>);
               }}
               className="text-xxs text-slate-500 underline hover:text-slate-700"
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'mathTools',
+                'dpiReset'
+              )}
             >
               Reset to 96
             </button>
@@ -173,6 +184,11 @@ export const MathToolsConfigurationPanel: React.FC<
                   >
                     <button
                       onClick={() => toggleGradeForTool(meta.type, grade)}
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'mathTools',
+                        `grade-${meta.type}-${grade}`
+                      )}
                       className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${
                         enabledGrades.includes(grade)
                           ? 'bg-purple-600 border-purple-600 text-white'
@@ -207,6 +223,11 @@ export const MathToolsConfigurationPanel: React.FC<
                   {isCustomized ? (
                     <button
                       onClick={() => resetToDefault(meta.type)}
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'mathTools',
+                        `reset-${meta.type}`
+                      )}
                       className="text-xxs text-slate-400 hover:text-purple-600 underline transition-colors"
                       title="Reset to default grade levels"
                     >
@@ -235,6 +256,11 @@ export const MathToolsConfigurationPanel: React.FC<
               } as unknown as Record<string, unknown>);
             }}
             className="text-xxs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded-lg font-black uppercase tracking-wider transition-colors"
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'mathTools',
+              'enableAll'
+            )}
           >
             Enable All for All Grades
           </button>
@@ -246,6 +272,11 @@ export const MathToolsConfigurationPanel: React.FC<
               } as unknown as Record<string, unknown>);
             }}
             className="text-xxs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded-lg font-black uppercase tracking-wider transition-colors"
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'mathTools',
+              'resetAll'
+            )}
           >
             Reset All to Defaults
           </button>

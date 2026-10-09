@@ -35,6 +35,7 @@ import { useDialog } from '@/context/useDialog';
 import { StudioMenu } from './StudioMenu';
 import { modShortcutLabel } from './useStudioShortcuts';
 import { useFileDrop } from './useFileDrop';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface SlideItem {
   id: string;
@@ -87,6 +88,7 @@ const SlideThumbBody = React.memo(function SlideThumbBody({
             | React.PointerEventHandler<HTMLButtonElement>
             | undefined
         }
+        {...tourAttr('studio.slide-thumb')}
         onClick={() => onSelect(slide.index)}
         aria-current={current}
         aria-label={t('glStudio.slideSummary', {
@@ -130,6 +132,7 @@ const SlideThumbBody = React.memo(function SlideThumbBody({
       </button>
       <button
         type="button"
+        {...tourAttr('studio.slide-delete')}
         onClick={() => onDelete(slide.index)}
         aria-label={t('glStudio.deleteSlideN', { n })}
         title={t('glStudio.deleteSlideN', { n })}
@@ -377,6 +380,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
           aria-expanded={false}
           aria-label={t('glStudio.showSlides')}
           title={t('glStudio.showSlides')}
+          {...tourAttr('studio.slides-show')}
           data-testid="gl-studio-filmstrip-toggle"
           className="rounded-lg p-2 text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
         >
@@ -427,6 +431,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
             aria-expanded
             aria-label={t('glStudio.hideSlides')}
             title={t('glStudio.hideSlides')}
+            {...tourAttr('studio.slides-hide')}
             data-testid="gl-studio-filmstrip-toggle"
             className="shrink-0 rounded-md p-1 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
           >
@@ -479,6 +484,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
         />
         <button
           type="button"
+          {...tourAttr('studio.upload-slide')}
           onClick={() => fileInputRef.current?.click()}
           className="flex items-center justify-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-sm font-bold text-white transition-colors hover:bg-brand-blue-dark"
         >
@@ -490,6 +496,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
         </div>
         <button
           type="button"
+          {...tourAttr('studio.paste-slide')}
           onClick={() => void uploadFromClipboard()}
           title={t('glStudio.pasteHint')}
           className="flex items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-bold text-slate-700 transition-colors hover:border-slate-400"

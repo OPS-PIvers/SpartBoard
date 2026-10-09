@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { X } from 'lucide-react';
 import type { PctPoint, StageGeometry } from '../../types/stage';
 import type { RedactMode, RedactRect } from '../../utils/redactImage';
+import { tourAttr } from '@/config/tourAnchors';
 
 /** Smallest blur area, in image-%, so a stray click draws nothing. */
 const MIN_RECT_PCT = 1;
@@ -86,6 +87,7 @@ export const BlurTool: React.FC<BlurToolProps> = ({
             aria-label={t('glStudio.blurRemove', { n: i + 1 })}
             title={t('glStudio.blurRemove', { n: i + 1 })}
             onPointerDown={(e) => e.stopPropagation()}
+            {...tourAttr('studio.blur-remove')}
             onClick={() => onChange(rects.filter((_, j) => j !== i))}
             className="absolute -right-3 -top-3 flex h-6 w-6 items-center justify-center rounded-full bg-white text-slate-700 shadow ring-1 ring-slate-300 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
           >

@@ -10,6 +10,7 @@ import type { GuidedLearningEditorController } from '../useGuidedLearningEditorS
 import { stepsInIdOrder } from './timelineOrder';
 import { StudioMenu } from './StudioMenu';
 import { modShortcutLabel } from './useStudioShortcuts';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface StepChip {
   id: string;
@@ -121,6 +122,7 @@ const TimelineBody = React.memo(function TimelineBody({
                   {s.runStart && (
                     <button
                       type="button"
+                      {...tourAttr('studio.timeline-slide')}
                       onClick={() => setCurrentImageIndex(s.slide)}
                       aria-current={onSlide}
                       aria-label={t('glStudio.goToSlideN', { n: s.slide + 1 })}
@@ -159,6 +161,7 @@ const TimelineBody = React.memo(function TimelineBody({
                         | React.PointerEventHandler<HTMLButtonElement>
                         | undefined
                     }
+                    {...tourAttr('studio.timeline-step')}
                     onClick={() => {
                       setSelectedStepId(s.id);
                       setCurrentImageIndex(s.slide);
@@ -225,6 +228,7 @@ const TimelineBody = React.memo(function TimelineBody({
       />
       <button
         type="button"
+        {...tourAttr('studio.add-step')}
         onClick={() => {
           setSelectedStepId(null);
           setAddingStep(!addingStep);

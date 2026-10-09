@@ -18,6 +18,7 @@ import {
 import { Toggle } from '@/components/common/Toggle';
 import { GLOBAL_FONT_FAMILY_OPTIONS } from '@/config/fonts';
 import { WIDGET_PALETTE } from '@/config/colors';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 /**
  * Hex color text input with debounced commit. Keeps user keystrokes in
@@ -33,7 +34,8 @@ const HexColorTextInput: React.FC<{
   onCommit: (next: string | undefined) => void;
   placeholder: string;
   className: string;
-}> = ({ value, onCommit, placeholder, className }) => {
+  fieldKey: string;
+}> = ({ value, onCommit, placeholder, className, fieldKey }) => {
   const [draft, setDraft] = useState(value ?? '');
   // Resync when the committed value changes externally (e.g. the color
   // picker writes a new value, or the admin switches buildings). Uses
@@ -46,6 +48,7 @@ const HexColorTextInput: React.FC<{
   }
   return (
     <input
+      {...tourFieldAttr('admin.widget-config.field', 'numberLine', fieldKey)}
       type="text"
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
@@ -92,7 +95,8 @@ const MarkerColorSwatch: React.FC<{
   color: string;
   onCommit: (color: string) => void;
   ariaLabel: string;
-}> = ({ color, onCommit, ariaLabel }) => {
+  fieldKey: string;
+}> = ({ color, onCommit, ariaLabel, fieldKey }) => {
   const [draft, setDraft] = useState(color);
   const [prevColor, setPrevColor] = useState(color);
   if (prevColor !== color) {
@@ -101,6 +105,7 @@ const MarkerColorSwatch: React.FC<{
   }
   return (
     <input
+      {...tourFieldAttr('admin.widget-config.field', 'numberLine', fieldKey)}
       type="color"
       value={draft}
       onChange={(e) => setDraft(e.target.value)}
@@ -231,6 +236,11 @@ export const NumberLineConfigurationPanel: React.FC<
               Default Minimum Value
             </label>
             <input
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'numberLine',
+                'min'
+              )}
               type="number"
               value={currentBuildingConfig.min}
               onChange={(e) =>
@@ -244,6 +254,11 @@ export const NumberLineConfigurationPanel: React.FC<
               Default Maximum Value
             </label>
             <input
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'numberLine',
+                'max'
+              )}
               type="number"
               value={currentBuildingConfig.max}
               onChange={(e) =>
@@ -259,6 +274,11 @@ export const NumberLineConfigurationPanel: React.FC<
             Default Step Interval
           </label>
           <input
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'numberLine',
+              'step'
+            )}
             type="number"
             step="0.1"
             min="0.1"
@@ -275,6 +295,11 @@ export const NumberLineConfigurationPanel: React.FC<
             Default Display Mode
           </label>
           <select
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'numberLine',
+              'displayMode'
+            )}
             value={currentBuildingConfig.displayMode}
             onChange={(e) =>
               handleUpdateBuilding({
@@ -294,6 +319,11 @@ export const NumberLineConfigurationPanel: React.FC<
             Show Arrows on Ends
           </span>
           <Toggle
+            anchor={tourFieldAttr(
+              'admin.widget-config.field',
+              'numberLine',
+              'showArrows'
+            )}
             checked={currentBuildingConfig.showArrows}
             onChange={(checked) =>
               handleUpdateBuilding({ showArrows: checked })
@@ -323,6 +353,11 @@ export const NumberLineConfigurationPanel: React.FC<
               </label>
               <input
                 id={markerValueId}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'numberLine',
+                  'newMarkerValue'
+                )}
                 type="number"
                 value={newMarkerValue}
                 onChange={(e) => setNewMarkerValue(e.target.valueAsNumber)}
@@ -338,6 +373,11 @@ export const NumberLineConfigurationPanel: React.FC<
               </label>
               <input
                 id={markerLabelId}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'numberLine',
+                  'newMarkerLabel'
+                )}
                 type="text"
                 value={newMarkerLabel}
                 onChange={(e) => setNewMarkerLabel(e.target.value)}
@@ -347,6 +387,11 @@ export const NumberLineConfigurationPanel: React.FC<
             </div>
             <button
               type="button"
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'numberLine',
+                'addMarker'
+              )}
               onClick={handleAddMarker}
               disabled={!Number.isFinite(newMarkerValue)}
               aria-label="Add default marker"
@@ -378,6 +423,7 @@ export const NumberLineConfigurationPanel: React.FC<
                     })
                   }
                   ariaLabel={`Marker ${marker.value} color`}
+                  fieldKey={`markerColor-${marker.id}`}
                 />
                 <div className="flex-1 font-mono font-bold text-slate-700">
                   {marker.value}
@@ -387,6 +433,11 @@ export const NumberLineConfigurationPanel: React.FC<
                 </div>
                 <button
                   type="button"
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'numberLine',
+                    `removeMarker-${marker.id}`
+                  )}
                   onClick={() =>
                     handleUpdateBuilding({
                       markers: markers.filter((m) => m.id !== marker.id),
@@ -423,6 +474,11 @@ export const NumberLineConfigurationPanel: React.FC<
               </label>
               <input
                 id={jumpStartId}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'numberLine',
+                  'newJumpStart'
+                )}
                 type="number"
                 value={newJumpStart}
                 onChange={(e) => setNewJumpStart(e.target.valueAsNumber)}
@@ -438,6 +494,11 @@ export const NumberLineConfigurationPanel: React.FC<
               </label>
               <input
                 id={jumpEndId}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'numberLine',
+                  'newJumpEnd'
+                )}
                 type="number"
                 value={newJumpEnd}
                 onChange={(e) => setNewJumpEnd(e.target.valueAsNumber)}
@@ -453,6 +514,11 @@ export const NumberLineConfigurationPanel: React.FC<
               </label>
               <input
                 id={jumpLabelId}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'numberLine',
+                  'newJumpLabel'
+                )}
                 type="text"
                 value={newJumpLabel}
                 onChange={(e) => setNewJumpLabel(e.target.value)}
@@ -462,6 +528,11 @@ export const NumberLineConfigurationPanel: React.FC<
             </div>
             <button
               type="button"
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'numberLine',
+                'addJump'
+              )}
               onClick={handleAddJump}
               disabled={
                 !Number.isFinite(newJumpStart) ||
@@ -497,6 +568,11 @@ export const NumberLineConfigurationPanel: React.FC<
                 </div>
                 <button
                   type="button"
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'numberLine',
+                    `removeJump-${jump.id}`
+                  )}
                   onClick={() =>
                     handleUpdateBuilding({
                       jumps: jumps.filter((j) => j.id !== jump.id),
@@ -523,6 +599,11 @@ export const NumberLineConfigurationPanel: React.FC<
               Default Font Family
             </label>
             <select
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'numberLine',
+                'fontFamily'
+              )}
               value={currentBuildingConfig.fontFamily ?? 'global'}
               onChange={(e) => {
                 const selected = e.target.value;
@@ -549,6 +630,11 @@ export const NumberLineConfigurationPanel: React.FC<
             </label>
             <div className="flex items-center gap-3">
               <input
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'numberLine',
+                  'fontColor'
+                )}
                 type="color"
                 value={
                   isValidHex(currentBuildingConfig.fontColor)
@@ -564,12 +650,18 @@ export const NumberLineConfigurationPanel: React.FC<
               <HexColorTextInput
                 value={currentBuildingConfig.fontColor}
                 onCommit={(next) => handleUpdateBuilding({ fontColor: next })}
+                fieldKey="fontColorText"
                 placeholder="#334155"
                 className="flex-1 px-2 py-1.5 text-xs font-mono border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"
               />
               {currentBuildingConfig.fontColor && (
                 <button
                   type="button"
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'numberLine',
+                    'clearFontColor'
+                  )}
                   onClick={() => handleUpdateBuilding({ fontColor: undefined })}
                   className="text-xs text-slate-500 hover:text-red-500 font-semibold transition-colors"
                 >
@@ -585,6 +677,11 @@ export const NumberLineConfigurationPanel: React.FC<
             </label>
             <div className="flex items-center gap-3">
               <input
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'numberLine',
+                  'cardColor'
+                )}
                 type="color"
                 value={
                   isValidHex(currentBuildingConfig.cardColor)
@@ -600,12 +697,18 @@ export const NumberLineConfigurationPanel: React.FC<
               <HexColorTextInput
                 value={currentBuildingConfig.cardColor}
                 onCommit={(next) => handleUpdateBuilding({ cardColor: next })}
+                fieldKey="cardColorText"
                 placeholder="#ffffff"
                 className="flex-1 px-2 py-1.5 text-xs font-mono border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"
               />
               {currentBuildingConfig.cardColor && (
                 <button
                   type="button"
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'numberLine',
+                    'clearCardColor'
+                  )}
                   onClick={() => handleUpdateBuilding({ cardColor: undefined })}
                   className="text-xs text-slate-500 hover:text-red-500 font-semibold transition-colors"
                 >
@@ -621,6 +724,11 @@ export const NumberLineConfigurationPanel: React.FC<
               {Math.round((currentBuildingConfig.cardOpacity ?? 1) * 100)}%)
             </label>
             <input
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'numberLine',
+                'cardOpacity'
+              )}
               type="range"
               min="0"
               max="1"

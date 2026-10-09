@@ -4,6 +4,7 @@ import {
   describeLanguageTag,
   isFlashcardLanguagePreset,
 } from './utils/flashcardLanguages';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 const OTHER = '__other__';
 
@@ -19,12 +20,14 @@ interface FlashcardLanguageFieldProps {
   label: string;
   value: string;
   onChange: (tag: string) => void;
+  tourField?: string;
 }
 
 export const FlashcardLanguageField: React.FC<FlashcardLanguageFieldProps> = ({
   label,
   value,
   onChange,
+  tourField,
 }) => {
   const [otherOpen, setOtherOpen] = useState(
     () => value.trim() !== '' && !isFlashcardLanguagePreset(value)
@@ -55,6 +58,9 @@ export const FlashcardLanguageField: React.FC<FlashcardLanguageFieldProps> = ({
         }}
         className={FIELD_CLASS}
         style={FIELD_STYLE}
+        {...(tourField
+          ? tourFieldAttr('flashcards.language-select', 'flashcards', tourField)
+          : {})}
       >
         {FLASHCARD_LANGUAGES.map((language) => (
           <option key={language.tag} value={language.tag}>
@@ -70,6 +76,13 @@ export const FlashcardLanguageField: React.FC<FlashcardLanguageFieldProps> = ({
             value={value}
             onChange={(event) => onChange(event.target.value)}
             spellCheck={false}
+            {...(tourField
+              ? tourFieldAttr(
+                  'flashcards.language-code',
+                  'flashcards',
+                  tourField
+                )
+              : {})}
             className={FIELD_CLASS}
             style={FIELD_STYLE}
             placeholder="Language code, like vi or so"

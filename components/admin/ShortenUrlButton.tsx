@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import { Link2, Loader2, Check } from 'lucide-react';
 
 import { useAuth } from '@/context/useAuth';
@@ -86,6 +87,7 @@ export const ShortenUrlButton: React.FC<ShortenUrlButtonProps> = ({
   return (
     <div className={className}>
       <button
+        {...tourAttr('admin.links.shorten-url')}
         type="button"
         onClick={() => void handleClick()}
         disabled={disabled}

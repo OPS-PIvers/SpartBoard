@@ -7,6 +7,7 @@ interface StubQueryOpts {
   where: Array<{ field: string; op: string; value: unknown }>;
   orderBy?: { field: string; dir: 'asc' | 'desc' };
   limit?: number;
+  after?: string;
 }
 
 export interface StubDocSnap {
@@ -21,6 +22,7 @@ export interface StubQuery {
   where: (field: string, op: string, value: unknown) => StubQuery;
   orderBy: (field: string, dir?: 'asc' | 'desc') => StubQuery;
   limit: (n: number) => StubQuery;
+  startAfter: (snap: { ref: { path: string } }) => StubQuery;
   get: () => Promise<{ docs: StubDocSnap[]; size: number; empty: boolean }>;
 }
 
@@ -123,10 +125,15 @@ export function makeStubFirestore(seed: Record<string, StubData> = {}) {
         .sort((a, b) => {
           const av = a.data[ob.field] as number;
           const bv = b.data[ob.field] as number;
-          return ob.dir === 'desc' ? bv - av : av - bv;
+          const byField = ob.dir === 'desc' ? bv - av : av - bv;
+          return byField || (a.path < b.path ? -1 : 1);
         });
     } else {
       rows.sort((a, b) => (a.path < b.path ? -1 : 1));
+    }
+    if (opts.after !== undefined) {
+      const at = rows.findIndex((r) => r.path === opts.after);
+      rows = at === -1 ? [] : rows.slice(at + 1);
     }
     if (opts.limit !== undefined) rows = rows.slice(0, opts.limit);
     return rows.map((r) => snapFor(r.path));
@@ -145,6 +152,8 @@ export function makeStubFirestore(seed: Record<string, StubData> = {}) {
     orderBy: (field, dir = 'asc') =>
       makeQuery(label, candidates, { ...opts, orderBy: { field, dir } }),
     limit: (n) => makeQuery(label, candidates, { ...opts, limit: n }),
+    startAfter: (snap) =>
+      makeQuery(label, candidates, { ...opts, after: snap.ref.path }),
     get: async () => {
       await hooks.beforeQuery?.(label);
       const docs = runQuery(candidates, opts);

@@ -14,6 +14,7 @@
  * this UI). Mirrors `QuizBehaviorSettingsPanel` in structure.
  */
 
+import { tourFieldAttr } from '@/config/tourAnchors';
 import React, { useContext } from 'react';
 import type {
   VideoActivityBehaviorSettings,
@@ -120,6 +121,11 @@ export const VideoActivityBehaviorSettingsPanel: React.FC<
                     const selected = currentVisibility === opt.value;
                     return (
                       <button
+                        {...tourFieldAttr(
+                          'video-activity.settings-score-visibility',
+                          'video-activity',
+                          opt.value
+                        )}
                         key={opt.value}
                         type="button"
                         aria-pressed={selected}

@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   Shield,
   Plus,
@@ -130,6 +131,7 @@ export const RolesView: React.FC<Props> = ({
         actions={
           <>
             <Btn
+              {...tourAttr('admin.org.reset-roles')}
               variant="secondary"
               icon={<RotateCcw size={14} />}
               onClick={() => setConfirmReset(true)}
@@ -137,6 +139,7 @@ export const RolesView: React.FC<Props> = ({
               Reset to defaults
             </Btn>
             <Btn
+              {...tourAttr('admin.org.new-role')}
               variant="primary"
               icon={<Plus size={14} />}
               onClick={() => setCreating(true)}
@@ -157,6 +160,7 @@ export const RolesView: React.FC<Props> = ({
         <aside className="space-y-2">
           {working.map((role) => (
             <button
+              {...tourFieldAttr('admin.org.role-card', 'admin', role.id)}
               key={role.id}
               type="button"
               onClick={() => setActiveRoleId(role.id)}
@@ -182,6 +186,11 @@ export const RolesView: React.FC<Props> = ({
                   </p>
                   {role.system && (
                     <button
+                      {...tourFieldAttr(
+                        'admin.org.clone-role',
+                        'admin',
+                        role.id
+                      )}
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -255,6 +264,7 @@ export const RolesView: React.FC<Props> = ({
               </div>
               <div className="flex items-center gap-2">
                 <Btn
+                  {...tourAttr('admin.org.roles-discard')}
                   variant="ghost"
                   onClick={() => {
                     setWorking(roles);
@@ -263,7 +273,11 @@ export const RolesView: React.FC<Props> = ({
                 >
                   Discard
                 </Btn>
-                <Btn variant="primary" onClick={() => onSave(working)}>
+                <Btn
+                  {...tourAttr('admin.org.roles-save')}
+                  variant="primary"
+                  onClick={() => onSave(working)}
+                >
                   Save changes
                 </Btn>
               </div>
@@ -397,6 +411,7 @@ const MatrixCell: React.FC<{
   const next = CYCLE_NEXT[value];
   return (
     <button
+      {...tourAttr('admin.org.role-access-cell')}
       type="button"
       aria-label={`Access: ${ACCESS_META[value].label}. Click to set ${ACCESS_META[next].label}.`}
       title={`${ACCESS_META[value].label} — click to set ${ACCESS_META[next].label}`}
@@ -424,10 +439,15 @@ const CreateRoleModal: React.FC<{
       icon={<Shield size={18} />}
       footer={
         <>
-          <Btn variant="ghost" onClick={onClose}>
+          <Btn
+            {...tourAttr('admin.org.new-role-cancel')}
+            variant="ghost"
+            onClick={onClose}
+          >
             Cancel
           </Btn>
           <Btn
+            {...tourAttr('admin.org.new-role-create')}
             variant="primary"
             disabled={!name}
             onClick={() => onCreate({ name, blurb })}
@@ -440,6 +460,7 @@ const CreateRoleModal: React.FC<{
       <div className="space-y-4">
         <Field label="Role name" required>
           <Input
+            {...tourAttr('admin.org.new-role-name')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Curriculum coach"
@@ -448,6 +469,7 @@ const CreateRoleModal: React.FC<{
         </Field>
         <Field label="Description" hint="One short sentence.">
           <Textarea
+            {...tourAttr('admin.org.new-role-description')}
             rows={3}
             value={blurb}
             onChange={(e) => setBlurb(e.target.value)}

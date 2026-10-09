@@ -23,6 +23,7 @@
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, EyeOff, Gauge, Loader2, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { tourAttr } from '@/config/tourAnchors';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import {
   PUBLISH_LEVEL_OPTIONS,
@@ -38,7 +39,6 @@ import {
   type WrittenReturnMode,
 } from '@/types';
 import { DEFAULT_WRITTEN_RETURN_MODE } from '@/utils/paperWritten';
-import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 /** Quiz-only: how handwritten paper answers return to students (D37). */
 export interface PublishWrittenReturnConfig {
@@ -214,7 +214,7 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
                 tabIndex={isActive ? 0 : -1}
                 onClick={() => setSelected(opt.id)}
                 disabled={submitting}
-                {...tourFieldAttr('publish-scores.level', 'assign', opt.id)}
+                {...tourAttr('publish-scores.level')}
                 className={`w-full text-left rounded-xl border px-4 py-3 transition-all focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 disabled:opacity-50 ${
                   isActive
                     ? 'border-brand-blue-primary bg-brand-blue-lighter/30 shadow-sm'
@@ -269,11 +269,7 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
                     tabIndex={isActive ? 0 : -1}
                     onClick={() => setWrittenMode(opt.id)}
                     disabled={submitting}
-                    {...tourFieldAttr(
-                      'publish-scores.written-mode',
-                      'assign',
-                      opt.id
-                    )}
+                    {...tourAttr('publish-scores.written-mode')}
                     className={`rounded-lg border px-2 py-1.5 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 disabled:opacity-50 ${
                       isActive
                         ? 'border-brand-blue-primary bg-brand-blue-lighter/30 text-slate-900'
