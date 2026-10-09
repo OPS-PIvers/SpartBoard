@@ -1744,6 +1744,41 @@ export const TOUR_ANCHORS = {
     perWidget: true,
   },
   'modal.close': { label: 'Close button in a dialog header', panel: true },
+  'stepper.continue': {
+    label: 'Continue button of the open step in the assign dialog',
+    panel: true,
+  },
+  'stepper.submit': {
+    label: 'Assign button in the assign dialog footer',
+    persists: true,
+    panel: true,
+  },
+  'stepper.when-mode': {
+    label: 'Manual or Scheduled option in the assign dialog When step',
+    perField: true,
+    panel: true,
+  },
+  'stepper.classes': {
+    label: 'Class picker button in the assign dialog',
+    panel: true,
+  },
+  'stepper.time-limit': {
+    label: 'Time limit switch in the assign dialog quiz step',
+    panel: true,
+  },
+  'stepper.plc-toggle': {
+    label: 'Share results with a PLC switch in the assign dialog',
+    panel: true,
+  },
+  'stepper.plc-select': {
+    label: 'PLC dropdown in the assign dialog',
+    panel: true,
+  },
+  'stepper.destination': {
+    label: 'Option in the Choose where to assign dialog, by option id',
+    perField: true,
+    panel: true,
+  },
   'library-shell.tab': {
     label: 'Tab in a library shell header',
     perField: true,

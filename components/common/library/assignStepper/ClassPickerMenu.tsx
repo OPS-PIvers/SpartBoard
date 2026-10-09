@@ -6,6 +6,7 @@ import {
   withClassIds,
   type AssignClassesValue,
 } from './assignClassesValue';
+import { tourAttr } from '@/config/tourAnchors';
 import { usePickMenu } from './usePickMenu';
 
 export interface ClassPickerMenuProps {
@@ -59,6 +60,7 @@ export const ClassPickerMenu: React.FC<ClassPickerMenuProps> = ({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
+        {...tourAttr('stepper.classes')}
         className="flex h-9 w-full items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 hover:border-slate-400 focus:outline-none focus:border-brand-blue-primary disabled:cursor-not-allowed disabled:opacity-50"
       >
         <Users className="w-4 h-4 shrink-0 text-slate-500" aria-hidden />

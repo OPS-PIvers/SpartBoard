@@ -17,6 +17,7 @@
 import React from 'react';
 import { GraduationCap, MonitorPlay, School, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 export type AssignDestination = 'spartboard' | 'classroom' | 'schoology';
 
@@ -115,6 +116,7 @@ export const AssignDestinationModal: React.FC<AssignDestinationModalProps> = ({
                 key={opt.id}
                 type="button"
                 onClick={() => onPick(opt.id)}
+                {...tourFieldAttr('stepper.destination', 'stepper', opt.id)}
                 className="w-full text-left rounded-xl border border-slate-200 bg-white px-4 py-3 transition-all hover:border-brand-blue-primary hover:bg-brand-blue-lighter/20 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
               >
                 <div className="flex items-start gap-3">

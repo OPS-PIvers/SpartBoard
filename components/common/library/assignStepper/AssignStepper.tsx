@@ -2,6 +2,7 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { Loader2, Rocket } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { tourAttr } from '@/config/tourAnchors';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import { AssignStep } from './AssignStep';
 import type { AssignStepDef } from './assignSteps';
@@ -137,6 +138,7 @@ export const AssignStepper: React.FC<AssignStepperProps> = ({
         type="button"
         onClick={() => void handleSubmit()}
         disabled={blocked}
+        {...tourAttr('stepper.submit')}
         title={outward.lockedTitle ?? (disabled ? disabledReason : undefined)}
         className="inline-flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
       >

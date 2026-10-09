@@ -1,4 +1,5 @@
 import React from 'react';
+import type { tourFieldAttr } from '@/config/tourAnchors';
 import { handleRadioGroupKeyDown } from './radioGroupKeyNav';
 
 /**
@@ -26,6 +27,8 @@ export const SegmentedControl: <T extends string>(props: {
     label: string;
     badge?: React.ReactNode;
     icon?: React.ElementType;
+    /** Live-tour anchor attrs from `tourFieldAttr`. */
+    anchor?: ReturnType<typeof tourFieldAttr>;
   }[];
   ariaLabel?: string;
   role?: 'tablist' | 'radiogroup';
@@ -62,6 +65,7 @@ export const SegmentedControl: <T extends string>(props: {
             aria-selected={itemRole === 'tab' ? selected : undefined}
             aria-checked={itemRole === 'radio' ? selected : undefined}
             onClick={() => onChange(opt.value)}
+            {...opt.anchor}
             className={`${fullWidth ? 'flex items-center justify-center gap-2 h-9 px-3 text-sm' : `${opt.badge || Icon ? 'inline-flex items-center gap-1.5 ' : ''}h-8 px-3 text-xs`} rounded-md font-semibold transition-all ${
               selected
                 ? 'bg-white text-slate-900 shadow-sm'

@@ -9,6 +9,7 @@ import {
 } from '@/utils/quizTimeLimit';
 import { AttemptLimitRow } from '../AssignmentSettingsToggleGroup';
 import { useQuizRuleGates } from './QuizRuleStepGates';
+import { tourAttr } from '@/config/tourAnchors';
 import { patchQuizSessionOptions } from './QuizRuleStepValues';
 import { StepNumberField, StepToggleRow } from './QuizStepRows';
 
@@ -40,6 +41,7 @@ export const QuizAttemptsStep: React.FC<QuizRuleStepProps> = ({
       {timeLimitOn && (
         <StepToggleRow
           label={timeLabel}
+          anchor={tourAttr('stepper.time-limit')}
           checked={minutes != null}
           onChange={(on) =>
             onChange(

@@ -4,6 +4,7 @@ import { Pause } from 'lucide-react';
 import type { ClassRoster } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import {
   closesBeforeOpens,
   closesInPast,
@@ -99,12 +100,18 @@ export const AssignWhenStep: React.FC<{
               {
                 value: 'manual',
                 label: t('assignWhen.manual', { defaultValue: 'Manual' }),
+                anchor: tourFieldAttr('stepper.when-mode', 'stepper', 'manual'),
               },
               {
                 value: 'scheduled',
                 label: t('assignWhen.scheduled', {
                   defaultValue: 'Scheduled',
                 }),
+                anchor: tourFieldAttr(
+                  'stepper.when-mode',
+                  'stepper',
+                  'scheduled'
+                ),
               },
             ]}
           />

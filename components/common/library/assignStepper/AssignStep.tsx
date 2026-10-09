@@ -1,6 +1,7 @@
 // One accordion row of the assign stepper: numbered header, closed value, open body with Continue (D1, D14).
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
+import { tourAttr } from '@/config/tourAnchors';
 
 export interface AssignStepProps {
   number: number;
@@ -58,6 +59,7 @@ export const AssignStep = React.forwardRef<HTMLDivElement, AssignStepProps>(
                 <button
                   type="button"
                   onClick={onContinue}
+                  {...tourAttr('stepper.continue')}
                   className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm"
                 >
                   Continue

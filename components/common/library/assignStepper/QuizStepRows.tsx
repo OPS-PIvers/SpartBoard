@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Toggle } from '@/components/common/Toggle';
+import type { tourAttr } from '@/config/tourAnchors';
 
 export const StepRowLabel: React.FC<{ text: string; sub?: boolean }> = ({
   text,
@@ -40,7 +41,8 @@ export const StepToggleRow: React.FC<{
   hint?: string;
   /** Rendered left of the toggle (a number field while the setting is on). */
   field?: React.ReactNode;
-}> = ({ label, checked, onChange, sub, disabled, hint, field }) => (
+  anchor?: ReturnType<typeof tourAttr>;
+}> = ({ label, checked, onChange, sub, disabled, hint, field, anchor }) => (
   <StepRow label={label} sub={sub} hint={hint}>
     <span className="flex shrink-0 items-center gap-2">
       {field}
@@ -51,6 +53,7 @@ export const StepToggleRow: React.FC<{
         showLabels
         label={label}
         disabled={disabled}
+        anchor={anchor}
       />
     </span>
   </StepRow>

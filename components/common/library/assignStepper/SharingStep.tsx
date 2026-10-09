@@ -1,6 +1,7 @@
 import React, { useId } from 'react';
 import { Share2 } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
+import { tourAttr } from '@/config/tourAnchors';
 import {
   resolveSharingPlc,
   type SharingStepContext,
@@ -43,6 +44,7 @@ export const SharingStep: React.FC<SharingStepProps> = ({
           onChange={(plcMode) => onChange({ ...value, plcMode })}
           size="sm"
           label={label}
+          anchor={tourAttr('stepper.plc-toggle')}
         />
       </div>
       {value.plcMode && plcs.length > 1 && (
@@ -52,6 +54,7 @@ export const SharingStep: React.FC<SharingStepProps> = ({
           </label>
           <select
             id={selectId}
+            {...tourAttr('stepper.plc-select')}
             value={effectivePlcId}
             onChange={(e) => onChange({ ...value, plcId: e.target.value })}
             className="h-8 w-56 px-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary"
