@@ -33,6 +33,7 @@ import { QUIZ_STUDENT_MODE_LABEL } from '@/utils/quizBehavior';
 import { QuizTimeLimitRow } from './QuizTimeLimitRow';
 import { useQuizRuleGates } from './assignStepper/QuizRuleStepGates';
 import { patchQuizSessionOptions } from './assignStepper/QuizRuleStepValues';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 /**
  * Which options the panel shows:
@@ -113,6 +114,11 @@ export const QuizBehaviorSettingsPanel: React.FC<
                   onClick={() => handleModeChange(mode.id)}
                   disabled={mode.disabled}
                   aria-pressed={selected}
+                  {...tourFieldAttr(
+                    'assign-quiz-behavior.mode',
+                    'assign',
+                    mode.id
+                  )}
                   className={`w-full text-left p-3 rounded-xl border-2 transition-all flex items-start gap-3 group ${
                     selected
                       ? 'border-brand-blue-primary bg-brand-blue-lighter/30'
@@ -244,7 +250,10 @@ export const QuizBehaviorSettingsPanel: React.FC<
               />
             )}
             {!assessmentOnly && (
-              <CollapsibleSection label="Gamification">
+              <CollapsibleSection
+                label="Gamification"
+                anchor={tourAttr('assign-quiz-behavior.gamification')}
+              >
                 <ToggleRow
                   compact
                   label="Speed Bonus Points"

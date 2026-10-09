@@ -38,6 +38,7 @@ import {
   FLASHCARD_THRESHOLD_OPTIONS as THRESHOLD_OPTIONS,
 } from './utils/flashcardAssignOptions';
 import { FlashcardAssignStepper } from './FlashcardAssignStepper';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export interface FlashcardAssignModalProps {
   isOpen: boolean;
@@ -78,6 +79,11 @@ function Segmented<T extends string | number>({
           return (
             <label
               key={String(option.value)}
+              {...tourFieldAttr(
+                'flashcards-assign.segmented',
+                'assign',
+                `${name}:${String(option.value)}`
+              )}
               className={`flex-1 cursor-pointer rounded-lg px-3 py-1.5 text-center text-sm font-bold transition-colors focus-within:ring-2 focus-within:ring-brand-blue-primary ${
                 selected
                   ? 'bg-white text-brand-blue-primary shadow-sm'
@@ -182,6 +188,7 @@ export const LegacyFlashcardAssignModal: React.FC<
           <Toggle
             size="sm"
             label="Collect a submission"
+            anchor={tourAttr('flashcards-assign.collect')}
             checked={form.collectSubmission}
             onChange={(checked) => update({ collectSubmission: checked })}
           />
@@ -221,6 +228,7 @@ export const LegacyFlashcardAssignModal: React.FC<
               <Toggle
                 size="sm"
                 label="Strict mode"
+                anchor={tourAttr('flashcards-assign.strict')}
                 checked={form.strict}
                 onChange={(strict) => update({ strict })}
               />
@@ -247,6 +255,11 @@ export const LegacyFlashcardAssignModal: React.FC<
                           type="checkbox"
                           className="h-4 w-4 rounded border-slate-300 accent-brand-blue-primary"
                           disabled={disabled}
+                          {...tourFieldAttr(
+                            'flashcards-assign.test-type',
+                            'assign',
+                            option.value
+                          )}
                           checked={
                             !disabled && form.testTypes.includes(option.value)
                           }
@@ -282,6 +295,7 @@ export const LegacyFlashcardAssignModal: React.FC<
                 </label>
                 <select
                   id="flashcard-assign-test-count"
+                  {...tourAttr('flashcards-assign.questions')}
                   value={String(testCount)}
                   onChange={(event) =>
                     update({
@@ -327,6 +341,7 @@ export const LegacyFlashcardAssignModal: React.FC<
             </label>
             <select
               id="flashcard-assign-score-visibility"
+              {...tourAttr('flashcards-assign.score-visibility')}
               value={form.scoreVisibility}
               onChange={(event) =>
                 update({

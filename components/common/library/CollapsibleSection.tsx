@@ -1,5 +1,6 @@
 import React, { useId, useState } from 'react';
 import { ChevronRight, type LucideIcon } from 'lucide-react';
+import type { tourAttr } from '@/config/tourAnchors';
 
 interface CollapsibleSectionProps {
   label: string;
@@ -8,6 +9,8 @@ interface CollapsibleSectionProps {
   /** Optional inline text shown next to the label in BOTH states (e.g. a collapsed-state summary). */
   summary?: React.ReactNode;
   children: React.ReactNode;
+  /** Live-tour anchor attrs from `tourAttr`. */
+  anchor?: ReturnType<typeof tourAttr>;
 }
 
 /**
@@ -29,6 +32,7 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
   defaultOpen = false,
   summary,
   children,
+  anchor,
 }) => {
   const [open, setOpen] = useState(defaultOpen);
   const regionId = useId();
@@ -39,6 +43,7 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-controls={regionId}
+        {...anchor}
         className="group flex w-full items-center justify-between gap-2 rounded-md py-1 transition-colors"
       >
         <span className="flex items-center gap-2 min-w-0">

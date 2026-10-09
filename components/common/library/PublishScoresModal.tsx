@@ -38,6 +38,7 @@ import {
   type WrittenReturnMode,
 } from '@/types';
 import { DEFAULT_WRITTEN_RETURN_MODE } from '@/utils/paperWritten';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 /** Quiz-only: how handwritten paper answers return to students (D37). */
 export interface PublishWrittenReturnConfig {
@@ -172,6 +173,7 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
             onClick={onClose}
             disabled={submitting}
             aria-label="Close"
+            {...tourAttr('publish-scores.close')}
             className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors disabled:opacity-50"
           >
             <X className="w-5 h-5" />
@@ -212,6 +214,7 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
                 tabIndex={isActive ? 0 : -1}
                 onClick={() => setSelected(opt.id)}
                 disabled={submitting}
+                {...tourFieldAttr('publish-scores.level', 'assign', opt.id)}
                 className={`w-full text-left rounded-xl border px-4 py-3 transition-all focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 disabled:opacity-50 ${
                   isActive
                     ? 'border-brand-blue-primary bg-brand-blue-lighter/30 shadow-sm'
@@ -266,6 +269,11 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
                     tabIndex={isActive ? 0 : -1}
                     onClick={() => setWrittenMode(opt.id)}
                     disabled={submitting}
+                    {...tourFieldAttr(
+                      'publish-scores.written-mode',
+                      'assign',
+                      opt.id
+                    )}
                     className={`rounded-lg border px-2 py-1.5 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 disabled:opacity-50 ${
                       isActive
                         ? 'border-brand-blue-primary bg-brand-blue-lighter/30 text-slate-900'
@@ -305,6 +313,7 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
               type="button"
               onClick={() => void handleConfirm('none')}
               disabled={submitting}
+              {...tourAttr('publish-scores.unpublish')}
               className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
               <EyeOff className="w-4 h-4" />
@@ -318,6 +327,7 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
               type="button"
               onClick={onClose}
               disabled={submitting}
+              {...tourAttr('publish-scores.cancel')}
               className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
               Cancel
@@ -326,6 +336,7 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
               type="button"
               onClick={() => void handleConfirm(selected)}
               disabled={submitting}
+              {...tourAttr('publish-scores.confirm')}
               className="inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-brand-blue-dark transition-colors disabled:opacity-60"
             >
               {submitting && <Loader2 className="w-4 h-4 animate-spin" />}

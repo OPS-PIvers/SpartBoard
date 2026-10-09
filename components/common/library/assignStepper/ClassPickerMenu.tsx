@@ -7,6 +7,7 @@ import {
   type AssignClassesValue,
 } from './assignClassesValue';
 import { usePickMenu } from './usePickMenu';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export interface ClassPickerMenuProps {
   rosters: ClassRoster[];
@@ -59,6 +60,7 @@ export const ClassPickerMenu: React.FC<ClassPickerMenuProps> = ({
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
+        {...tourAttr('assign-classes.trigger')}
         className="flex h-9 w-full items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 hover:border-slate-400 focus:outline-none focus:border-brand-blue-primary disabled:cursor-not-allowed disabled:opacity-50"
       >
         <Users className="w-4 h-4 shrink-0 text-slate-500" aria-hidden />
@@ -97,6 +99,11 @@ export const ClassPickerMenu: React.FC<ClassPickerMenuProps> = ({
                       checked={value.classIds.includes(r.id)}
                       disabled={unavailable}
                       onChange={() => toggle(r.id)}
+                      {...tourFieldAttr(
+                        'assign-classes.option',
+                        'assign',
+                        r.id
+                      )}
                       className="h-4 w-4 rounded accent-brand-blue-primary"
                     />
                     <span className="min-w-0 flex-1 truncate">{r.name}</span>
@@ -113,6 +120,7 @@ export const ClassPickerMenu: React.FC<ClassPickerMenuProps> = ({
               <button
                 type="button"
                 onClick={selectAll}
+                {...tourAttr('assign-classes.select-all')}
                 className="text-xs font-bold text-brand-blue-primary hover:underline"
               >
                 Select all
@@ -120,6 +128,7 @@ export const ClassPickerMenu: React.FC<ClassPickerMenuProps> = ({
               <button
                 type="button"
                 onClick={() => onChange(withClassIds(value, []))}
+                {...tourAttr('assign-classes.clear')}
                 className="text-xs font-bold text-slate-500 hover:underline"
               >
                 Clear

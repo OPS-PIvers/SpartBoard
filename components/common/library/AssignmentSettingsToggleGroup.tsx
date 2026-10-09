@@ -18,6 +18,7 @@ import { Lock } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
 import { CollapsibleSection } from './CollapsibleSection';
 import type { BaseSessionOptions } from '@/types';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 /* ─── AttemptLimitRow ─────────────────────────────────────────────────────── */
 
@@ -74,6 +75,11 @@ export const AttemptLimitRow: React.FC<AttemptLimitRowProps> = ({
               type="button"
               aria-pressed={active}
               onClick={() => onChange(opt.value)}
+              {...tourFieldAttr(
+                'assign-settings.attempts',
+                'assign',
+                opt.label
+              )}
               className={
                 'px-3 py-1.5 text-xs font-bold transition ' +
                 (active
@@ -303,7 +309,14 @@ export const AssignmentSettingsToggleGroup: React.FC<
       )}
 
       {showSection('randomization') && (
-        <CollapsibleSection label="Question Randomization">
+        <CollapsibleSection
+          label="Question Randomization"
+          anchor={tourFieldAttr(
+            'assign-settings.section',
+            'assign',
+            'randomization'
+          )}
+        >
           {!hideShuffleQuestions && (
             <ToggleRow
               compact
@@ -326,7 +339,14 @@ export const AssignmentSettingsToggleGroup: React.FC<
       )}
 
       {showSection('feedback') && (
-        <CollapsibleSection label="Answer Feedback">
+        <CollapsibleSection
+          label="Answer Feedback"
+          anchor={tourFieldAttr(
+            'assign-settings.section',
+            'assign',
+            'feedback'
+          )}
+        >
           {feedbackLeadingSlot}
           <ToggleRow
             compact

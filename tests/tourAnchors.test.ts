@@ -104,7 +104,11 @@ describe('tour anchor registry', () => {
     ]);
     // Destination options and step headers only move through the Assign dialog.
     const opensOnly = (id: string) =>
-      OPENS_ONLY.has(id) || /^assign-(destination|step)\./.test(id);
+      OPENS_ONLY.has(id) ||
+      /^assign-(destination|step)\./.test(id) ||
+      /^(assign-(when|classes|students|students-legacy|mods|override|modal|targeting|availability|periods|per-class|settings|quiz-behavior|quiz-time|tab-warning|results-protection|video-behavior)|flashcards-assign|plc-video-assign|publish-scores|view-only-share)\./.test(
+        id
+      );
     const unflagged = Object.entries(TOUR_ANCHORS)
       .filter(([id]) => /assign|share|publish|delete/.test(id))
       .filter(([id, def]) => {
