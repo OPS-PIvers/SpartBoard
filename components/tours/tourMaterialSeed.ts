@@ -47,6 +47,16 @@ export const withItemId = (
   data: { ...content.data, id },
 });
 
+// The author's Drive, account and sync ids stay out of the sample snapshot all staff can read.
+const AUTHOR_KEYS = ['driveFileId', 'driveFileIds', 'authorUid', 'sync'];
+
+/** A deep copy of a sample's library entry or content, without the author's identifiers. */
+export const authorFreeSnapshot = (value: object): Record<string, unknown> => {
+  const copy = JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
+  for (const key of AUTHOR_KEYS) delete copy[key];
+  return copy;
+};
+
 /** Puts the tour's materials in the sandbox: samples as fresh copies, teachers' picks as real items. */
 export function seedTourMaterials(
   materials: readonly TourMaterial[],

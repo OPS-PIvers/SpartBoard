@@ -2,6 +2,7 @@ import React, { lazy, Suspense, useId } from 'react';
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import type { ActivityWallLayout, ActivityWallSection } from '@/types';
 import { DEFAULT_MAP_CENTER, type WallStructure } from './constants';
+import { tourAttr } from '@/config/tourAnchors';
 
 const MapPinPicker = lazy(
   () => import('@/components/activityWall/submission/MapPinPicker')
@@ -68,6 +69,7 @@ const LabelledList: React.FC<LabelledListProps> = ({
             </label>
             <input
               id={`${fieldPrefix}-${item.id}`}
+              {...tourAttr('activity-wall-editor.section-label')}
               className={inputClass}
               value={item.label}
               placeholder={`${itemNoun} ${index + 1}`}
@@ -86,6 +88,7 @@ const LabelledList: React.FC<LabelledListProps> = ({
               className={iconButtonClass}
               aria-label={`Move ${itemNoun.toLowerCase()} ${index + 1} up`}
               disabled={index === 0}
+              {...tourAttr('activity-wall-editor.section-move')}
               onClick={() => move(index, -1)}
             >
               <ArrowUp className="h-4 w-4" />
@@ -95,6 +98,7 @@ const LabelledList: React.FC<LabelledListProps> = ({
               className={iconButtonClass}
               aria-label={`Move ${itemNoun.toLowerCase()} ${index + 1} down`}
               disabled={index === items.length - 1}
+              {...tourAttr('activity-wall-editor.section-move')}
               onClick={() => move(index, 1)}
             >
               <ArrowDown className="h-4 w-4" />
@@ -103,6 +107,7 @@ const LabelledList: React.FC<LabelledListProps> = ({
               type="button"
               className={iconButtonClass}
               aria-label={`Remove ${itemNoun.toLowerCase()} ${index + 1}`}
+              {...tourAttr('activity-wall-editor.section-remove')}
               onClick={() =>
                 onChange(items.filter((entry) => entry.id !== item.id))
               }
@@ -115,6 +120,7 @@ const LabelledList: React.FC<LabelledListProps> = ({
       <button
         type="button"
         onClick={() => onChange([...items, newSection()])}
+        {...tourAttr('activity-wall-editor.section-add')}
         className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-brand-blue-primary transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
       >
         <Plus className="h-4 w-4" />
@@ -181,13 +187,17 @@ export const SectionsEditor: React.FC<SectionsEditorProps> = ({
             <div className="h-64 animate-pulse rounded-xl bg-slate-200" />
           }
         >
-          <MapPinPicker
-            center={center}
-            pin={{ lat: center.lat, lng: center.lng }}
-            onPick={(pin) =>
-              onChange({ mapCenter: { ...center, lat: pin.lat, lng: pin.lng } })
-            }
-          />
+          <div {...tourAttr('activity-wall-editor.map-start')}>
+            <MapPinPicker
+              center={center}
+              pin={{ lat: center.lat, lng: center.lng }}
+              onPick={(pin) =>
+                onChange({
+                  mapCenter: { ...center, lat: pin.lat, lng: pin.lng },
+                })
+              }
+            />
+          </div>
         </Suspense>
         <div>
           <label
@@ -198,6 +208,7 @@ export const SectionsEditor: React.FC<SectionsEditorProps> = ({
           </label>
           <input
             id={zoomId}
+            {...tourAttr('activity-wall-editor.map-zoom')}
             type="range"
             min={1}
             max={18}

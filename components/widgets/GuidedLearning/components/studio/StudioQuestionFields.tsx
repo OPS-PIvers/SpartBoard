@@ -15,6 +15,7 @@ import {
 } from './panelControls';
 import { useAuth } from '@/context/useAuth';
 import { TargetsField } from '@/components/quiz/targets/TargetsField';
+import { tourAttr } from '@/config/tourAnchors';
 
 type StepChange = (next: GuidedLearningStep, field?: string | false) => void;
 
@@ -68,6 +69,7 @@ export const StudioQuestionFields: React.FC<{
           value={q.text}
           onChange={(e) => update({ text: e.target.value }, 'question-text')}
           rows={2}
+          {...tourAttr('studio.question-text')}
           placeholder={t('glStudio.questionTextPlaceholder')}
           className={`${inputClass} resize-none`}
         />
@@ -118,6 +120,7 @@ const ChoicesEditor: React.FC<{
               checked={correct}
               disabled={choice === ''}
               onChange={() => update({ correctAnswer: choice }, false)}
+              {...tourAttr('studio.question-correct')}
               aria-label={t('glStudio.markCorrect', { n })}
               className="h-4 w-4 shrink-0 accent-emerald-700"
             />
@@ -125,6 +128,7 @@ const ChoicesEditor: React.FC<{
               type="text"
               value={choice}
               aria-label={t('glStudio.choiceN', { n })}
+              {...tourAttr('studio.question-choice')}
               placeholder={t('glStudio.choiceN', { n })}
               onChange={(e) => {
                 const next = choices.map((c, i) =>
@@ -156,6 +160,7 @@ const ChoicesEditor: React.FC<{
                     false
                   )
                 }
+                {...tourAttr('studio.question-choice-remove')}
                 aria-label={t('glStudio.removeChoice', { n })}
                 className={removeButtonClass}
               >
@@ -168,6 +173,7 @@ const ChoicesEditor: React.FC<{
       {choices.length < MAX_CHOICES && (
         <button
           type="button"
+          {...tourAttr('studio.question-choice-add')}
           onClick={() => update({ choices: [...choices, ''] }, false)}
           className={quietButtonClass}
         >
@@ -217,6 +223,7 @@ const PairsEditor: React.FC<{
               value={pair.left}
               onChange={(e) => setPair(idx, 'left', e.target.value)}
               aria-label={t('glStudio.termN', { n })}
+              {...tourAttr('studio.question-match-left')}
               placeholder={t('glStudio.term')}
               className={rowInputClass}
             />
@@ -228,6 +235,7 @@ const PairsEditor: React.FC<{
               value={pair.right}
               onChange={(e) => setPair(idx, 'right', e.target.value)}
               aria-label={t('glStudio.matchN', { n })}
+              {...tourAttr('studio.question-match-right')}
               placeholder={t('glStudio.match')}
               className={rowInputClass}
             />
@@ -240,6 +248,7 @@ const PairsEditor: React.FC<{
                     false
                   )
                 }
+                {...tourAttr('studio.question-match-remove')}
                 aria-label={t('glStudio.removePair', { n })}
                 className={removeButtonClass}
               >
@@ -252,6 +261,7 @@ const PairsEditor: React.FC<{
       {pairs.length < MAX_PAIRS && (
         <button
           type="button"
+          {...tourAttr('studio.question-match-add')}
           onClick={() =>
             update(
               { matchingPairs: [...pairs, { left: '', right: '' }] },
@@ -303,6 +313,7 @@ const SortingEditor: React.FC<{
                 )
               }
               aria-label={t('glStudio.itemN', { n })}
+              {...tourAttr('studio.question-sort-item')}
               placeholder={t('glStudio.itemN', { n })}
               className={rowInputClass}
             />
@@ -315,6 +326,7 @@ const SortingEditor: React.FC<{
                     false
                   )
                 }
+                {...tourAttr('studio.question-sort-remove')}
                 aria-label={t('glStudio.removeItem', { n })}
                 className={removeButtonClass}
               >
@@ -327,6 +339,7 @@ const SortingEditor: React.FC<{
       {items.length < MAX_ITEMS && (
         <button
           type="button"
+          {...tourAttr('studio.question-sort-add')}
           onClick={() => update({ sortingItems: [...items, ''] }, false)}
           className={quietButtonClass}
         >

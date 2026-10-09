@@ -9,6 +9,7 @@ import { BuildingSelector } from './BuildingSelector';
 import { QRGlobalConfig, BuildingQRDefaults } from '@/types';
 import { QrCode, Link, Palette } from 'lucide-react';
 import { Card } from '@/components/common/Card';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface QRConfigurationPanelProps {
   config: QRGlobalConfig;
@@ -67,6 +68,7 @@ export const QRConfigurationPanel: React.FC<QRConfigurationPanelProps> = ({
             <Link className="w-3.5 h-3.5 text-slate-400" /> Default URL
           </label>
           <input
+            {...tourFieldAttr('admin.widget-config.field', 'qr', 'defaultUrl')}
             type="text"
             value={currentBuildingConfig.defaultUrl ?? ''}
             onChange={(e) =>
@@ -99,6 +101,11 @@ export const QRConfigurationPanel: React.FC<QRConfigurationPanelProps> = ({
               </label>
               <div className="flex items-center gap-2">
                 <input
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'qr',
+                    'qrColor'
+                  )}
                   type="color"
                   value={currentBuildingConfig.qrColor ?? '#000000'}
                   onChange={(e) =>
@@ -108,6 +115,11 @@ export const QRConfigurationPanel: React.FC<QRConfigurationPanelProps> = ({
                   title="Pick color"
                 />
                 <input
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'qr',
+                    'qrColorText'
+                  )}
                   type="text"
                   value={currentBuildingConfig.qrColor ?? ''}
                   onChange={(e) =>
@@ -120,6 +132,11 @@ export const QRConfigurationPanel: React.FC<QRConfigurationPanelProps> = ({
                 />
                 {currentBuildingConfig.qrColor && (
                   <button
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'qr',
+                      'clearQrColor'
+                    )}
                     onClick={() => handleUpdateBuilding({ qrColor: undefined })}
                     className="text-xxs text-slate-400 hover:text-red-500 font-bold transition-colors"
                   >
@@ -136,6 +153,11 @@ export const QRConfigurationPanel: React.FC<QRConfigurationPanelProps> = ({
               </label>
               <div className="flex items-center gap-2">
                 <input
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'qr',
+                    'qrBgColor'
+                  )}
                   type="color"
                   value={currentBuildingConfig.qrBgColor ?? '#ffffff'}
                   onChange={(e) =>
@@ -145,6 +167,11 @@ export const QRConfigurationPanel: React.FC<QRConfigurationPanelProps> = ({
                   title="Pick background color"
                 />
                 <input
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'qr',
+                    'qrBgColorText'
+                  )}
                   type="text"
                   value={currentBuildingConfig.qrBgColor ?? ''}
                   onChange={(e) =>
@@ -157,6 +184,11 @@ export const QRConfigurationPanel: React.FC<QRConfigurationPanelProps> = ({
                 />
                 {currentBuildingConfig.qrBgColor && (
                   <button
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'qr',
+                      'clearQrBgColor'
+                    )}
                     onClick={() =>
                       handleUpdateBuilding({ qrBgColor: undefined })
                     }

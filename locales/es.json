@@ -3932,6 +3932,7 @@
   },
   "tourPicker": {
     "prompt": "Haz clic en un control para este paso",
+    "altHint": "Mantén Alt para abrir primero un menú",
     "chooseFromList": "Elegir de la lista",
     "cancel": "Cancelar",
     "search": "Buscar controles",
@@ -3942,5 +3943,10 @@
     "addStep": "Añadir paso",
     "listTitle": "Elige un control",
     "recordFromHere": "Grabar desde aquí"
+  },
+  "widgetWhatsNew": {
+    "label": "Novedades",
+    "dismiss": "Descartar",
+    "gotIt": "Entendido"
   }
 }

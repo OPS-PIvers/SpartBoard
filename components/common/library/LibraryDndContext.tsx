@@ -55,7 +55,7 @@ import {
 } from './LibraryDragContext';
 import type { LibraryFolderViewModel } from './LibraryFolderViewContext';
 import { NEW_FOLDER_NAME } from './folderView';
-import { acceptsItem, ownParentId } from './sourceFolders';
+import { acceptsItem, isSourceFolderId, ownParentId } from './sourceFolders';
 import { LIBRARY_ROOT_LABEL } from './FolderViewHeader';
 import {
   folderAwareCollisionDetection,
@@ -211,10 +211,12 @@ export const LibraryDndContext: React.FC<LibraryDndContextProps> = ({
         return;
       }
       // A source folder takes back only its own shared items (D21).
-      const moving = ids.filter(
-        (id) =>
-          folderView.folderIdOf(id) !== folderId && acceptsItem(folderId, id)
-      );
+      // An unfiled shared item already counts as being at the Library root.
+      const moving = ids.filter((id) => {
+        const current = folderView.folderIdOf(id);
+        if (folderId == null && isSourceFolderId(current)) return false;
+        return current !== folderId && acceptsItem(folderId, id);
+      });
       if (moving.length === 0) return;
       const previous = new Map(
         moving.map((id) => [id, folderView.folderIdOf(id)])

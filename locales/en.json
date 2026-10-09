@@ -4982,6 +4982,7 @@
   },
   "tourPicker": {
     "prompt": "Click a control for this step",
+    "altHint": "Hold Alt to open a menu first",
     "chooseFromList": "Choose from list",
     "cancel": "Cancel",
     "search": "Search controls",
@@ -4992,5 +4993,10 @@
     "addStep": "Add step",
     "listTitle": "Choose a control",
     "recordFromHere": "Record from here"
+  },
+  "widgetWhatsNew": {
+    "label": "What's new",
+    "dismiss": "Dismiss",
+    "gotIt": "Got it"
   }
 }

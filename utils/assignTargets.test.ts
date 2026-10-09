@@ -135,6 +135,38 @@ describe('expandMixedTargeting', () => {
     expect(targeting.targetStudents).toHaveLength(1);
   });
 
+  it('narrows a roster by both its ClassLink and test class ids', () => {
+    const { studentTargetClassIds } = expandMixedTargeting(
+      EMPTY_ASSIGN_TARGETING_VALUE,
+      classes(['both'], { both: [ref('SID-1')] }),
+      [
+        roster('both', { classlinkClassId: 'cl-1', testClassId: 'demo' }, [
+          student('s1', 'SID-1'),
+        ]),
+      ]
+    );
+    expect(studentTargetClassIds).toEqual(['cl-1', 'demo']);
+  });
+
+  it('never narrows a class id that a whole roster also maps to', () => {
+    const rosters = [
+      ...ROSTERS,
+      roster('r1-copy', { classlinkClassId: 'cl-1' }, [student('s1', 'SID-1')]),
+    ];
+    const { studentTargetClassIds, targeting } = expandMixedTargeting(
+      EMPTY_ASSIGN_TARGETING_VALUE,
+      classes(['r1', 'r1-copy', 'r2'], {
+        'r1-copy': [ref('SID-1')],
+        r2: [ref('SID-4')],
+      }),
+      rosters
+    );
+    expect(studentTargetClassIds).toEqual(['cl-2']);
+    expect(targeting.targetStudents).toEqual(
+      expect.arrayContaining([ref('SID-1'), ref('SID-4')])
+    );
+  });
+
   it('never narrows a hand-built class, which no sign-in claim matches', () => {
     const { studentTargetClassIds } = expandMixedTargeting(
       EMPTY_ASSIGN_TARGETING_VALUE,

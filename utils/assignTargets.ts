@@ -33,12 +33,11 @@ export function partialRosterIds(value: AssignClassesValue): string[] {
   );
 }
 
-/** The class id students' sign-in claims carry for a roster, or null for a hand-built one. */
-function sessionClassIdFor(roster: ClassRoster): string | null {
-  const classlink = roster.classlinkClassId?.trim() ?? '';
-  if (classlink) return classlink;
-  const testClass = roster.testClassId?.trim() ?? '';
-  return testClass || null;
+/** Every session class id a roster contributes (ClassLink and test), none for a hand-built one. */
+function sessionClassIdsFor(roster: ClassRoster): string[] {
+  return [roster.classlinkClassId, roster.testClassId]
+    .map((id) => id?.trim() ?? '')
+    .filter((id) => id.length > 0);
 }
 
 /** Whole classes expand as today; partial classes target only their picked students. */
@@ -90,12 +89,17 @@ export function expandMixedTargeting(
     }
   }
 
+  // A class id a whole roster also maps to stays whole, or that roster's students would lose it.
+  const wholeIds = new Set(whole);
+  const wholeClassIds = new Set(
+    rosters.filter((r) => wholeIds.has(r.id)).flatMap(sessionClassIdsFor)
+  );
   const studentTargetClassIds = [
     ...new Set(
       rosters
         .filter((roster) => partial.has(roster.id))
-        .map(sessionClassIdFor)
-        .filter((id): id is string => id !== null)
+        .flatMap(sessionClassIdsFor)
+        .filter((id) => !wholeClassIds.has(id))
     ),
   ];
 

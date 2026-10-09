@@ -513,6 +513,23 @@ describe('LunchCountWidget — missing lunch time or grade', () => {
     expect(screen.getByText('Submit Lunch Report')).toBeInTheDocument();
   });
 
+  it('keeps Save disabled until the teacher touches the time wheel', () => {
+    render(<LunchCountWidget widget={allAssigned({ gradeLevel: '1' })} />);
+    fireEvent.click(screen.getByRole('button', { name: /Submit Report/i }));
+
+    const save = screen.getByRole('button', { name: /Save and continue/i });
+    expect(save).toBeDisabled();
+    fireEvent.pointerDown(screen.getByRole('spinbutton', { name: 'Hour' }));
+    expect(save).toBeEnabled();
+    fireEvent.click(save);
+    expect(mockDashboardContext.updateWidget).toHaveBeenCalledWith('lunch-1', {
+      config: expect.objectContaining({
+        lunchTimeHour: '11',
+        lunchTimeMinute: '00',
+      }) as LunchCountConfig,
+    });
+  });
+
   it('will not continue without a grade', () => {
     render(<LunchCountWidget widget={allAssigned({ lunchTimeHour: '12' })} />);
     fireEvent.click(screen.getByRole('button', { name: /Submit Report/i }));
@@ -560,6 +577,7 @@ describe('LunchCountWidget — missing lunch time or grade', () => {
       screen.getByText('Set your school, lunch time and grade')
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('radio', { name: 'Intermediate' }));
+    fireEvent.pointerDown(screen.getByRole('spinbutton', { name: 'Hour' }));
     expect(
       screen
         .getAllByRole('radio')

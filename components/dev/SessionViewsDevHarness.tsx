@@ -67,6 +67,7 @@ import {
   type StateKey,
 } from './sessionViewsStateOptions';
 import {
+  NOW,
   makeQuizSession,
   makeQuizResponses,
   makeTimedQuizSession,
@@ -191,9 +192,32 @@ const SessionView: React.FC<{
         : timed
           ? makeTimedQuizResponses()
           : makeQuizResponses();
+    const perPeriod = state === 'per-period';
+    const period = (label: string, state: 'open' | 'paused' | 'closed') => ({
+      label,
+      state,
+      openAt: null,
+      closeAt: state === 'open' ? NOW + 25 * 60_000 : null,
+      bellPeriodId: null,
+      verified: true,
+    });
+    const session = timed
+      ? makeTimedQuizSession(status)
+      : perPeriod
+        ? {
+            ...makeQuizSession(status),
+            sessionMode: 'student' as const,
+            periodAccess: {
+              'cl-1': period('Period 1', 'paused'),
+              'cl-3': period('Period 3', 'open'),
+              'cl-5': period('Period 5', 'closed'),
+            },
+          }
+        : makeQuizSession(status);
     return (
       <QuizMonitorDev
-        session={timed ? makeTimedQuizSession(status) : makeQuizSession(status)}
+        session={session}
+        assessmentOnly={perPeriod}
         responses={responses}
         quizData={makeQuizData()}
         rosters={[]}

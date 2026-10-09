@@ -10,7 +10,7 @@ import {
   rowsFromQuestion,
 } from '@/utils/quizChoiceRows';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
-import { tourFieldAttr } from '@/config/tourAnchors';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { inputClass, labelClass } from './quizEditorFieldStyles';
 
 type ChoiceUpdates = Partial<
@@ -187,6 +187,11 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
                     onClick={() => commit(rows.filter((_, i) => i !== idx))}
                     className="px-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                     aria-label={`Remove option ${letter}`}
+                    {...tourFieldAttr(
+                      'quiz-editor.option-remove',
+                      'quiz',
+                      letter.toLowerCase()
+                    )}
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -198,6 +203,7 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
             <button
               type="button"
               onClick={() => commit([...rows, { text: '', correct: false }])}
+              {...tourTypeAttr('quiz-editor.option-add', 'quiz')}
               className="flex items-center justify-center gap-1.5 py-2 border-2 border-dashed border-slate-300 hover:border-brand-blue-primary/40 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-brand-blue-primary font-bold transition-all text-xs"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -226,6 +232,7 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
               checked={multi}
               disabled={multi && !canTurnOffMulti}
               onChange={(e) => setMulti(e.target.checked)}
+              {...tourTypeAttr('quiz-editor.multi-correct', 'quiz')}
               className="w-4 h-4 accent-brand-blue-primary"
             />
             <span className="font-bold text-xs text-slate-700 whitespace-nowrap">
@@ -243,6 +250,7 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
                 onChange={(e) =>
                   onChange({ allowPartialCredit: e.target.checked })
                 }
+                {...tourTypeAttr('quiz-editor.choice-partial-credit', 'quiz')}
                 className="w-4 h-4 accent-brand-blue-primary"
               />
               <span className="font-bold text-xs text-slate-700 whitespace-nowrap">

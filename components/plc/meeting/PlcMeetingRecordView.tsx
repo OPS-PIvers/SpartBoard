@@ -43,6 +43,7 @@ import { buildPlcPath, spaNavigate } from '@/utils/plcPath';
 import { useAuth } from '@/context/useAuth';
 import { weakestQuestions } from '@/components/plc/sharedData/sharedDataSelectors';
 import { MeetingExportButtons } from './PlcMeetingMode';
+import { tourAttr } from '@/config/tourAnchors';
 
 function scoreToneClass(percent: number): string {
   if (percent >= 80) return 'text-emerald-600';
@@ -138,6 +139,7 @@ export const PlcMeetingRecordView: React.FC<PlcMeetingRecordViewProps> = ({
         </p>
         {showBackToLive && (
           <button
+            {...tourAttr('plc-meeting.go-live')}
             type="button"
             onClick={goLive}
             className="mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-blue-primary hover:text-brand-blue-dark px-3 py-2 rounded-lg hover:bg-brand-blue-primary/5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
@@ -164,6 +166,7 @@ export const PlcMeetingRecordView: React.FC<PlcMeetingRecordViewProps> = ({
           <div className="min-w-0">
             {showBackToLive && (
               <button
+                {...tourAttr('plc-meeting.go-live')}
                 type="button"
                 onClick={goLive}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-800 mb-2 px-2 py-1 -ml-2 rounded-lg hover:bg-slate-100 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"

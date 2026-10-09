@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import type * as admin from 'firebase-admin';
 import {
   FOLDER_COLLECTIONS,
+  FOLDER_PAGE_SIZE,
   folderPath,
+  loadAllFolders,
   resolveFolderPath,
   toFolderRow,
   type FolderRow,
@@ -86,5 +89,36 @@ describe('resolveFolderPath', () => {
       parentId: 'u3',
       missing: [],
     });
+  });
+});
+
+describe('loadAllFolders', () => {
+  it('pages past the first page so no folder is missed', async () => {
+    const docs = Array.from({ length: FOLDER_PAGE_SIZE + 3 }, (_, i) => ({
+      id: `f${String(i).padStart(4, '0')}`,
+      data: () => ({ name: `Folder ${i}` }),
+    }));
+    let reads = 0;
+    const query = (start: number) => ({
+      orderBy: () => query(start),
+      limit: () => query(start),
+      startAfter: (last: { id: string }) =>
+        query(docs.findIndex((d) => d.id === last.id) + 1),
+      get: () => {
+        reads += 1;
+        return Promise.resolve({
+          docs: docs.slice(start, start + FOLDER_PAGE_SIZE),
+        });
+      },
+    });
+    const db = { collection: () => query(0) };
+
+    const rows = await loadAllFolders(
+      db as unknown as admin.firestore.Firestore,
+      'users/u/quiz_folders'
+    );
+    expect(rows).toHaveLength(FOLDER_PAGE_SIZE + 3);
+    expect(rows.at(-1)?.name).toBe(`Folder ${FOLDER_PAGE_SIZE + 2}`);
+    expect(reads).toBe(2);
   });
 });

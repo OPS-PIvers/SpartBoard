@@ -60,7 +60,7 @@ import { useDialog } from '@/context/useDialog';
 import { useLongPress } from '@/hooks/useLongPress';
 import { useToolVisibility } from '@/context/useToolVisibility';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
-import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import {
   formatGradeRange,
   getWidgetGradeLevels,
@@ -236,6 +236,7 @@ const SortableLibraryTool = React.memo(
               onToggleHidden(tool.type);
             }}
             onPointerDown={(e) => e.stopPropagation()}
+            {...tourTypeAttr('library.item-hide', tool.type)}
             className={`absolute top-1 left-1 p-1 rounded-md shadow-sm transition-all ${
               isHidden
                 ? 'bg-white text-brand-blue-primary hover:bg-brand-blue-primary hover:text-white'
@@ -594,6 +595,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
               {isEditMode && onAddFolder && (
                 <button
                   onClick={onAddFolder}
+                  {...tourAttr('library.add-folder')}
                   className="px-3 py-1.5 bg-brand-blue-primary/10 hover:bg-brand-blue-primary/20 text-brand-blue-primary text-xxs font-black uppercase tracking-widest rounded-full transition-all flex items-center gap-1.5"
                 >
                   <FolderPlus className="w-3.5 h-3.5" />
@@ -603,6 +605,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
               {isEditMode && onExitEditMode && (
                 <button
                   onClick={onExitEditMode}
+                  {...tourAttr('library.done-editing')}
                   className="px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-primary/90 text-white text-xxs font-black uppercase tracking-widest rounded-full transition-all flex items-center gap-1.5 shadow-sm"
                 >
                   <Check className="w-3.5 h-3.5" />
@@ -640,6 +643,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                   setCategoryFilter(e.target.value as WidgetCategory | 'all')
                 }
                 aria-label="Filter by category"
+                {...tourAttr('library.filter-category')}
                 className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-white/80 border border-white/60 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
               >
                 <option value="all">All Categories</option>
@@ -655,6 +659,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                   setGradeFilter(e.target.value as GradeLevel | 'all')
                 }
                 aria-label="Filter by grade level"
+                {...tourAttr('library.filter-grade')}
                 className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-white/80 border border-white/60 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
               >
                 {GRADE_OPTIONS.map((g) => (
@@ -667,6 +672,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                 value={sortMode}
                 onChange={(e) => setSortMode(e.target.value as LibrarySort)}
                 aria-label="Sort widgets"
+                {...tourAttr('library.sort')}
                 className="flex-1 sm:flex-none px-3 py-2 rounded-xl bg-white/80 border border-white/60 text-xs font-bold text-slate-600 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
               >
                 <option value="az">A–Z</option>
@@ -698,6 +704,11 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                               e.stopPropagation();
                               onDeleteSavedWidget(sw.id);
                             }}
+                            {...tourFieldAttr(
+                              'library.saved-delete',
+                              'saved',
+                              sw.id
+                            )}
                             className="absolute top-1 left-1 p-1 rounded-md text-slate-400 hover:text-brand-red-primary hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
                             aria-label="Delete saved widget"
                             title="Delete saved widget"
@@ -712,6 +723,11 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                               e.stopPropagation();
                               onToggleSavedWidgetPin(sw.id, !sw.pinnedToDock);
                             }}
+                            {...tourFieldAttr(
+                              'library.saved-pin',
+                              'saved',
+                              sw.id
+                            )}
                             className={`absolute top-1 right-1 p-1 rounded-md transition-all ${
                               sw.pinnedToDock
                                 ? 'text-brand-blue-primary opacity-100'
@@ -740,6 +756,11 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                             onAddSavedWidget?.(sw.id);
                             onClose();
                           }}
+                          {...tourFieldAttr(
+                            'library.saved-item',
+                            'saved',
+                            sw.id
+                          )}
                           className="flex flex-col items-center gap-2 w-full focus:outline-none"
                         >
                           <div
@@ -775,6 +796,11 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                           onAddCustomWidget?.(w.id);
                           onClose();
                         }}
+                        {...tourFieldAttr(
+                          'library.custom-item',
+                          'custom',
+                          w.id
+                        )}
                         className="flex flex-col items-center gap-2 p-3 rounded-xl bg-white/60 border border-white/40 hover:bg-white hover:shadow-md transition-all text-center group"
                       >
                         <div
@@ -836,6 +862,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
               <div>
                 <button
                   onClick={() => setShowHiddenSection((prev) => !prev)}
+                  {...tourAttr('library.show-hidden')}
                   className="flex items-center gap-2 mb-3 text-slate-400 hover:text-slate-600 transition-colors"
                   aria-expanded={showHiddenSection}
                 >
@@ -883,6 +910,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                 ) : (
                   <button
                     onClick={() => setShowOtherGradesSection((prev) => !prev)}
+                    {...tourAttr('library.show-other-grades')}
                     className="flex items-center gap-2 mb-3 text-slate-400 hover:text-slate-600 transition-colors"
                     aria-expanded={showOtherGradesSection}
                   >
@@ -937,6 +965,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
 
             <button
               onClick={handleResetDock}
+              {...tourAttr('library.reset-dock')}
               className="w-full max-w-xs mx-auto py-2 px-4 bg-white/50 border border-slate-200 text-slate-500 rounded-xl font-bold text-xs flex items-center justify-center gap-2 hover:bg-white hover:text-brand-red-primary hover:border-brand-red-light transition-all shadow-sm"
             >
               <RotateCcw className="w-3.5 h-3.5" />

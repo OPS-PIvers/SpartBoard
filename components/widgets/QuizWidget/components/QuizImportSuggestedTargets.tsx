@@ -11,6 +11,7 @@ import {
 } from '@/hooks/useLearningTargets';
 import { canEditPlcContent } from '@/utils/plc';
 import { logError } from '@/utils/logError';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import {
   createDestinations,
   createSuggestedTargets,
@@ -177,6 +178,7 @@ const useSuggestedTargetsSlots = (
           {pending.length > 0 && (
             <button
               type="button"
+              {...tourTypeAttr('quiz-import.targets-add-all', 'quiz')}
               onClick={() => void addAll()}
               disabled={disabled}
               className="rounded-lg bg-brand-blue-primary px-2.5 py-1 text-xs font-bold text-white hover:bg-brand-blue-dark disabled:opacity-50"
@@ -191,6 +193,7 @@ const useSuggestedTargetsSlots = (
           <label className="flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
             New targets go in
             <select
+              {...tourTypeAttr('quiz-import.targets-destination', 'quiz')}
               value={destIndex}
               onChange={(e) => setDestIndex(Number(e.target.value))}
               className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-xs text-slate-700 focus:border-brand-blue-primary focus:outline-none"
@@ -243,6 +246,7 @@ const useSuggestedTargetsSlots = (
         </span>
         <button
           type="button"
+          {...tourFieldAttr('quiz-import.targets-add-one', 'quiz', question.id)}
           onClick={() => void onClick()}
           disabled={!tag && disabled}
           aria-label={`${tag ? 'Add target' : 'Create target'} ${describe(s)} to question ${number}`}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import { Modal } from '@/components/common/Modal';
 import { Toggle } from '@/components/common/Toggle';
 import { Link2 } from 'lucide-react';
@@ -144,17 +145,23 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
               checked={draft.visible}
               onChange={(visible) => patch({ visible })}
               label="Visible to teachers"
+              anchor={tourAttr('admin.help-center.form-visible')}
               size="sm"
             />
             <span className="text-sm text-slate-700">Visible to teachers</span>
           </div>
           <div className="flex items-center gap-2">
-            <Btn variant="ghost" onClick={onClose}>
+            <Btn
+              variant="ghost"
+              onClick={onClose}
+              {...tourAttr('admin.help-center.form-cancel')}
+            >
               Cancel
             </Btn>
             <Btn
               variant="primary"
               onClick={handleSave}
+              {...tourAttr('admin.help-center.form-save')}
               disabled={!canSave || saving}
             >
               {saving ? 'Saving...' : 'Save'}
@@ -271,6 +278,7 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
           <Field label="Title" htmlFor="help-item-title">
             <Input
               id="help-item-title"
+              {...tourAttr('admin.help-center.form-title')}
               type="text"
               value={draft.title}
               onChange={(e) => patch({ title: e.target.value })}
@@ -286,6 +294,7 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
               )}
               <Select
                 id="help-item-category"
+                {...tourAttr('admin.help-center.form-category')}
                 value={draft.categoryId}
                 onChange={(e) => patch({ categoryId: e.target.value })}
                 disabled={categories.length === 0}
@@ -299,6 +308,7 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
             </Field>
             <Field label="Related widgets">
               <ChecklistSelect
+                anchor={tourAttr('admin.help-center.related-widgets')}
                 label="Related widgets"
                 options={widgetOptions}
                 selected={draft.widgetTypes}
@@ -312,6 +322,7 @@ export const HelpItemForm: React.FC<HelpItemFormProps> = ({
           <Field label="Description" htmlFor="help-item-description">
             <Textarea
               id="help-item-description"
+              {...tourAttr('admin.help-center.form-description')}
               value={draft.description}
               onChange={(e) => patch({ description: e.target.value })}
               rows={2}

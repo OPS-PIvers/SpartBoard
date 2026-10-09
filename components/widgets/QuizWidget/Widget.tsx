@@ -115,6 +115,10 @@ import { quizMaxPoints } from '@/utils/quizMaxPoints';
 import { sessionSectionsFor } from '@/utils/quizSections';
 import { runPublishGradePush } from '@/utils/publishGradePush';
 import {
+  offerToolColumnRemoval,
+  sessionHasToolColumn,
+} from '@/utils/schoologyToolColumns';
+import {
   RESULTS_PROTECTION_DEFAULTS,
   type QuizAssignment,
   type QuizResponse,
@@ -191,7 +195,7 @@ import { DEFAULT_TAB_AWAY_LIMIT_SECONDS } from '@/utils/tabAwayLimit';
 import { revealValueFor } from '@/utils/quizFibAlternates';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
-import { isSandboxed } from '@/utils/tourSandbox';
+import { isSandboxed, isTourSandboxActive } from '@/utils/tourSandbox';
 import { useTourMaterialEditor } from '@/components/tours/tourMaterials';
 
 const QuizStudentView = lazy(() =>
@@ -431,7 +435,6 @@ const TeacherQuizWidget: React.FC<{
   } = useQuiz(user?.uid);
   const {
     sources: bankSources,
-    loading: bankSourcesLoading,
     loadBankContent,
     loadBankContentsForQuiz,
   } = useBankSources(user?.uid);
@@ -1491,7 +1494,7 @@ const TeacherQuizWidget: React.FC<{
   // early returns below so the hook runs on every render (rules-of-hooks).
   const handleReorderQuizzes = useCallback(
     async (orderedIds: string[]) => {
-      if (!user?.uid) return;
+      if (!user?.uid || isTourSandboxActive()) return;
       const batch = writeBatch(db);
       orderedIds.forEach((id, index) => {
         batch.update(doc(db, 'users', user.uid, QUIZZES_COLLECTION, id), {
@@ -2902,7 +2905,6 @@ const TeacherQuizWidget: React.FC<{
         banks={banks}
         banksLoading={banksLoading}
         sharedBankSources={sharedBankSources}
-        sharedBanksLoading={bankSourcesLoading}
         onImportBank={() => setBankImportOpen(true)}
         onNewBank={() => {
           const now = Date.now();
@@ -3218,8 +3220,19 @@ const TeacherQuizWidget: React.FC<{
         }}
         onArchiveDelete={async (a) => {
           try {
+            const hadColumn =
+              canAccessFeature('schoology-tool-columns') &&
+              (await sessionHasToolColumn('quiz', a.id));
             await deleteAssignment(a.id);
             addToast('Assignment deleted.', 'success');
+            if (hadColumn) {
+              await offerToolColumnRemoval({
+                functions,
+                sessionId: a.id,
+                showConfirm,
+                addToast,
+              });
+            }
           } catch (err) {
             addToast(
               err instanceof Error ? err.message : 'Failed to delete',
@@ -3646,6 +3659,9 @@ const TeacherQuizWidget: React.FC<{
                 kind: 'quiz',
                 sessionId: target.id,
                 classroomFinalAttachments,
+                schoologyToolColumns: canAccessFeature(
+                  'schoology-tool-columns'
+                ),
                 classroomToken,
                 schoologyMaxPoints: quizMaxPoints(
                   data.questions,

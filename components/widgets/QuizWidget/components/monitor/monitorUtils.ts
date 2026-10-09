@@ -1,7 +1,8 @@
 // Pure helpers for the quiz live monitor. Kept free of React/Firestore so the
 // stuck heuristic, sort/filter, and banding logic are unit-testable.
 
-import { QuizResponse } from '@/types';
+import { GlobalFeaturePermission, QuizResponse } from '@/types';
+import { canonicalizeBuildingIds } from '@/config/buildings';
 
 /** In-progress students with no answer write for this long count as stuck. */
 export const STUCK_THRESHOLD_MS = 120_000;
@@ -105,18 +106,16 @@ export function matchesFilter(
   }
 }
 
-/** Drops the leading words every label shares, so "(S1) Wooley, L SPANISH II A(5)" reads "A(5)". */
-export const shortPeriodLabels = (labels: readonly string[]): string[] => {
-  if (labels.length < 2) return [...labels];
-  const words = labels.map((l) => l.split(/\s+/).filter(Boolean));
-  const shortest = Math.min(...words.map((w) => w.length));
-  let shared = 0;
-  while (
-    shared < shortest - 1 &&
-    words.every((w) => w[shared] === words[0][shared])
-  )
-    shared += 1;
-  return words.map((w, i) =>
-    shared > 0 ? w.slice(shared).join(' ') : labels[i]
-  );
+/** False when a building-restricted join-code permission leaves out every building the teacher picked, admins included. */
+export const joinCodesAllowedForBuildings = (
+  permission:
+    | Pick<GlobalFeaturePermission, 'enabled' | 'buildings'>
+    | undefined,
+  selectedBuildings: readonly string[]
+): boolean => {
+  if (!permission) return true;
+  if (!permission.enabled) return false;
+  if (!permission.buildings || permission.buildings.length === 0) return true;
+  const allowed = new Set(canonicalizeBuildingIds(permission.buildings));
+  return selectedBuildings.some((b) => allowed.has(b));
 };

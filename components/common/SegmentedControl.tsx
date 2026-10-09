@@ -1,4 +1,5 @@
 import React from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { handleRadioGroupKeyDown } from './radioGroupKeyNav';
 
 /**
@@ -26,11 +27,13 @@ export const SegmentedControl: <T extends string>(props: {
     label: string;
     badge?: React.ReactNode;
     icon?: React.ElementType;
+    anchor?: TourAnchorAttrs;
   }[];
   ariaLabel?: string;
   role?: 'tablist' | 'radiogroup';
   /** Stretches to the container with equal-width, taller options. */
   fullWidth?: boolean;
+  anchor?: TourAnchorAttrs;
 }) => React.ReactElement = ({
   value,
   onChange,
@@ -38,6 +41,7 @@ export const SegmentedControl: <T extends string>(props: {
   ariaLabel,
   role = 'tablist',
   fullWidth = false,
+  anchor,
 }) => {
   const itemRole = role === 'radiogroup' ? 'radio' : 'tab';
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) =>
@@ -45,6 +49,7 @@ export const SegmentedControl: <T extends string>(props: {
 
   return (
     <div
+      {...anchor}
       role={role}
       aria-label={ariaLabel}
       onKeyDown={onKeyDown}
@@ -55,6 +60,7 @@ export const SegmentedControl: <T extends string>(props: {
         const Icon = opt.icon;
         return (
           <button
+            {...opt.anchor}
             key={opt.value}
             type="button"
             role={itemRole}

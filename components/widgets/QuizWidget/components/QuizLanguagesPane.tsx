@@ -3,6 +3,7 @@
  * question, mark reviewed. Only reviewed + hash-fresh questions ever publish.
  */
 
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { isMultiBlank, joinBlanks, splitBlanks } from '@/utils/quizFibBlanks';
 import React, { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -133,6 +134,11 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
                   type="button"
                   aria-pressed={active}
                   onClick={() => selectLocale(language.code)}
+                  {...tourFieldAttr(
+                    'quiz-library.language-locale',
+                    'quiz',
+                    language.code
+                  )}
                   className={`rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${
                     active
                       ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
@@ -160,6 +166,7 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
                 type="button"
                 disabled={!!disabledReason || busy}
                 onClick={() => void api.generate(selectedLocale)}
+                {...tourTypeAttr('quiz-library.language-generate', 'quiz')}
                 className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:bg-slate-300"
               >
                 {busy && (
@@ -175,6 +182,10 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
                   type="button"
                   disabled={!!disabledReason || busy}
                   onClick={() => void api.generate(selectedLocale, stale)}
+                  {...tourTypeAttr(
+                    'quiz-library.language-regenerate-stale',
+                    'quiz'
+                  )}
                   className="rounded-lg border border-amber-400 px-3 py-2 text-xs font-bold text-amber-700 transition-colors hover:bg-amber-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400"
                 >
                   {t('quizTranslation.editor.regenerate', {
@@ -187,6 +198,7 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
                   type="button"
                   disabled={busy}
                   onClick={() => void api.save(selectedLocale)}
+                  {...tourTypeAttr('quiz-library.language-save', 'quiz')}
                   className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 transition-colors hover:border-slate-300 disabled:text-slate-400"
                 >
                   {t('quizTranslation.editor.save')}
@@ -234,6 +246,11 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
                     <button
                       type="button"
                       onClick={() => onSelectQuestion(question.id)}
+                      {...tourFieldAttr(
+                        'quiz-library.language-question',
+                        'quiz',
+                        String(index + 1)
+                      )}
                       className="min-w-0 flex-1 text-left"
                     >
                       <span className="line-clamp-2 text-xs text-slate-700">
@@ -245,6 +262,11 @@ export const QuizLanguagesContextPane: React.FC<QuizLanguagesPaneProps> = ({
                         type="checkbox"
                         checked={reviewed && !blocker}
                         disabled={!!blocker}
+                        {...tourFieldAttr(
+                          'quiz-library.language-reviewed',
+                          'quiz',
+                          String(index + 1)
+                        )}
                         onChange={(e) =>
                           api.setReviewed(
                             selectedLocale,
@@ -356,6 +378,7 @@ export const QuizLanguagesDetailPane: React.FC<QuizLanguagesPaneProps> = ({
         value={translated}
         onChange={(e) => onChange(e.target.value)}
         rows={2}
+        {...tourFieldAttr('quiz-library.language-translated-text', 'quiz', key)}
         className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-800 focus:border-brand-blue-primary focus:outline-none"
       />
     </div>

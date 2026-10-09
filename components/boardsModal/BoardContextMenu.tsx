@@ -1,3 +1,4 @@
+import { tourAttr } from '@/config/tourAnchors';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCardMenu } from './useCardMenu';
@@ -163,6 +164,7 @@ export const BoardContextMenu: React.FC<BoardContextMenuProps> = ({
                 : 'text-slate-700 hover:bg-slate-100 focus-visible:bg-slate-100'
             }`}
             role="menuitem"
+            {...(item.danger ? tourAttr('boards-modal.board-delete') : {})}
           >
             <Icon className="w-4 h-4" />
             {item.label}

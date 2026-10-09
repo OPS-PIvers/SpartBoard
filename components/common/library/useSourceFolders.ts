@@ -1,5 +1,5 @@
 // Source folders and private filing for items the teacher doesn't own (LIBRARY_FOLDERS D21-D24).
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { LibraryFolder } from '@/types';
 import {
   placementSourceOf,
@@ -23,8 +23,6 @@ export interface SourceFoldersOptions {
   /** Source keys of every item the teacher can see but doesn't own. */
   sourceKeys: readonly string[];
   ownFolders: LibraryFolder[];
-  /** True once own folders and every source list have loaded; gates the cleanup. */
-  ready: boolean;
 }
 
 export interface PlacedItem {
@@ -51,10 +49,9 @@ export function useSourceFolders({
   enabled,
   sourceKeys,
   ownFolders,
-  ready,
 }: SourceFoldersOptions): SourceFolders {
   const placements = useLibraryPlacements(userId, enabled ? widget : null);
-  const { byKey, place, unplace, pruneMissing } = placements;
+  const { byKey, place, unplace } = placements;
 
   const ownIds = useMemo(
     () => new Set(ownFolders.map((f) => f.id)),
@@ -117,13 +114,7 @@ export function useSourceFolders({
     return out;
   }, [sourceKeys, filedFolderOf]);
 
-  // Placements whose source item is gone are cleaned up lazily (D23).
-  const canPrune =
-    enabled && ready && !placements.loading && sourceKeys.length > 0;
-  useEffect(() => {
-    if (canPrune) pruneMissing(new Set(sourceKeys));
-  }, [canPrune, pruneMissing, sourceKeys]);
-
+  // No cleanup of orphaned placements: a partial source list would delete live filings.
   return useMemo(
     () => ({ folders, folderIdOf, placedChip, move, placed }),
     [folders, folderIdOf, placedChip, move, placed]

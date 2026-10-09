@@ -137,6 +137,9 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
           variant="when"
           rosters={picked}
           periodAccess={periodAccess}
+          // Per-class due dates save without bells; only a period gate saves per-class opens.
+          perClass
+          sharedOpens={!periodAccess}
         />
       ),
     },

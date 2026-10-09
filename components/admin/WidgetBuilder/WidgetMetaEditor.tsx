@@ -1,4 +1,5 @@
 import { slugify } from '@/utils/slug';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import React from 'react';
 import {
   WidgetMeta,
@@ -72,6 +73,7 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
             Widget Name <span className="text-red-400">*</span>
           </label>
           <input
+            {...tourAttr('admin.widget-builder.meta-title')}
             type="text"
             value={meta.title}
             onChange={(e) => handleTitleChange(e.target.value)}
@@ -85,6 +87,7 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
             Slug (auto-generated, must be unique)
           </label>
           <input
+            {...tourAttr('admin.widget-builder.meta-slug')}
             type="text"
             value={meta.slug}
             onChange={(e) => update({ slug: slugify(e.target.value) })}
@@ -96,6 +99,7 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
         <div className="space-y-1 mb-3">
           <label className="block text-xs text-slate-400">Description</label>
           <textarea
+            {...tourAttr('admin.widget-builder.meta-description')}
             value={meta.description}
             onChange={(e) => update({ description: e.target.value })}
             placeholder="Short description of what this widget does..."
@@ -116,6 +120,11 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
             const active = option.key === meta.icon;
             return (
               <button
+                {...tourFieldAttr(
+                  'admin.widget-builder.meta-icon',
+                  'admin',
+                  option.key
+                )}
                 key={option.key}
                 onClick={() => update({ icon: option.key })}
                 className={`flex flex-col items-center gap-1 rounded-lg border px-2 py-2 text-xs transition-colors ${
@@ -140,6 +149,11 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
         <div className="flex flex-wrap gap-1.5">
           {WIDGET_COLOR_PRESETS.map((preset) => (
             <button
+              {...tourFieldAttr(
+                'admin.widget-builder.meta-color',
+                'admin',
+                preset.value
+              )}
               key={preset.value}
               onClick={() => update({ color: preset.value })}
               title={preset.label}
@@ -161,6 +175,7 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
           <div className="flex-1 space-y-1">
             <label className="block text-xs text-slate-500">Width</label>
             <input
+              {...tourAttr('admin.widget-builder.meta-width')}
               type="number"
               value={meta.defaultWidth}
               min={200}
@@ -177,6 +192,7 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
           <div className="flex-1 space-y-1">
             <label className="block text-xs text-slate-500">Height</label>
             <input
+              {...tourAttr('admin.widget-builder.meta-height')}
               type="number"
               value={meta.defaultHeight}
               min={150}
@@ -200,6 +216,11 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
         <div className="flex gap-2">
           {(['public', 'beta', 'admin'] as const).map((level) => (
             <button
+              {...tourFieldAttr(
+                'admin.widget-builder.meta-access-level',
+                'admin',
+                level
+              )}
               key={level}
               onClick={() => update({ accessLevel: level })}
               className={`flex-1 py-1.5 text-xs font-medium rounded border transition-colors capitalize ${
@@ -218,6 +239,7 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
               Beta User Emails
             </label>
             <textarea
+              {...tourAttr('admin.widget-builder.meta-beta-users')}
               value={meta.betaUsers.join('\n')}
               onChange={(e) =>
                 update({
@@ -249,6 +271,11 @@ export const WidgetMetaEditor: React.FC<WidgetMetaEditorProps> = ({
               className="flex items-center gap-2 cursor-pointer hover:bg-slate-700 px-2 py-1 rounded"
             >
               <input
+                {...tourFieldAttr(
+                  'admin.widget-builder.meta-building',
+                  'admin',
+                  building.id
+                )}
                 type="checkbox"
                 checked={canonicalBuildings.includes(building.id)}
                 onChange={() => toggleBuilding(building.id)}

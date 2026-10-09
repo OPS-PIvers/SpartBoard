@@ -7,6 +7,7 @@ import { useDialog } from '@/context/useDialog';
 import { useCanEditPlcContent } from '@/context/usePlcContext';
 import { usePlcLinks } from '@/hooks/usePlcLinks';
 import { logError } from '@/utils/logError';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcGroupLinksProps {
   plc: Plc;
@@ -105,6 +106,7 @@ export const PlcGroupLinks: React.FC<PlcGroupLinksProps> = ({ plc }) => {
         </div>
         {canEdit && !adding && (
           <button
+            {...tourAttr('plc-resources.add-link')}
             type="button"
             onClick={() => setAdding(true)}
             className="flex items-center gap-1.5 text-sm font-semibold text-brand-blue-primary hover:text-brand-blue-dark px-3 py-1.5 rounded-lg hover:bg-brand-blue-primary/10 transition-colors"
@@ -118,6 +120,7 @@ export const PlcGroupLinks: React.FC<PlcGroupLinksProps> = ({ plc }) => {
       {adding && (
         <div className="mb-3 flex flex-col gap-2 bg-slate-50 border border-slate-200 rounded-xl p-3">
           <input
+            {...tourFieldAttr('plc-resources.link-field', 'plc', 'title')}
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
@@ -132,6 +135,7 @@ export const PlcGroupLinks: React.FC<PlcGroupLinksProps> = ({ plc }) => {
             autoFocus
           />
           <input
+            {...tourFieldAttr('plc-resources.link-field', 'plc', 'url')}
             type="url"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
@@ -145,6 +149,7 @@ export const PlcGroupLinks: React.FC<PlcGroupLinksProps> = ({ plc }) => {
             className={inputClass}
           />
           <input
+            {...tourFieldAttr('plc-resources.link-field', 'plc', 'note')}
             type="text"
             value={note}
             onChange={(e) => setNote(e.target.value)}
@@ -159,6 +164,7 @@ export const PlcGroupLinks: React.FC<PlcGroupLinksProps> = ({ plc }) => {
           />
           <div className="flex justify-end gap-2">
             <button
+              {...tourAttr('plc-resources.link-cancel')}
               type="button"
               onClick={resetForm}
               className="px-3 py-1.5 text-sm font-semibold text-slate-600 rounded-lg hover:bg-slate-200 transition-colors"
@@ -166,6 +172,7 @@ export const PlcGroupLinks: React.FC<PlcGroupLinksProps> = ({ plc }) => {
               {t('common.cancel', { defaultValue: 'Cancel' })}
             </button>
             <button
+              {...tourAttr('plc-resources.link-save')}
               type="button"
               onClick={() => void handleSave()}
               disabled={
@@ -218,6 +225,7 @@ export const PlcGroupLinks: React.FC<PlcGroupLinksProps> = ({ plc }) => {
                   )}
                 </div>
                 <a
+                  {...tourFieldAttr('plc-resources.link-open', 'plc', link.id)}
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -232,6 +240,11 @@ export const PlcGroupLinks: React.FC<PlcGroupLinksProps> = ({ plc }) => {
                 </a>
                 {canEdit && (
                   <button
+                    {...tourFieldAttr(
+                      'plc-resources.link-remove',
+                      'plc',
+                      link.id
+                    )}
                     type="button"
                     onClick={() => void handleRemove(link)}
                     className="shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"

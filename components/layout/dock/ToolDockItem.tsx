@@ -185,6 +185,7 @@ export const ToolDockItem = React.memo(
                     className="w-full flex items-center justify-between px-2 py-2 hover:bg-white/50 rounded-lg group transition-colors"
                   >
                     <button
+                      {...tourTypeAttr('dock.minimized-restore', tool.type)}
                       onClick={() => {
                         onRestore(widget.id);
                         if (minimizedWidgets.length <= 1) setShowPopover(false);
@@ -197,6 +198,7 @@ export const ToolDockItem = React.memo(
                       <RefreshCcw className="w-3 h-3 text-brand-blue-primary opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
                     </button>
                     <button
+                      {...tourTypeAttr('dock.minimized-close', tool.type)}
                       onClick={() => {
                         onDelete(widget.id);
                         if (minimizedWidgets.length <= 1) setShowPopover(false);
@@ -212,6 +214,7 @@ export const ToolDockItem = React.memo(
               </div>
               <div className="p-1 border-t border-white/30 grid grid-cols-2 gap-1">
                 <button
+                  {...tourTypeAttr('dock.minimized-create', tool.type)}
                   onClick={() => {
                     onAdd();
                     setShowPopover(false);
@@ -222,6 +225,7 @@ export const ToolDockItem = React.memo(
                   <span>Create</span>
                 </button>
                 <button
+                  {...tourTypeAttr('dock.minimized-clear', tool.type)}
                   onClick={() => {
                     onDeleteAll();
                     setShowPopover(false);
@@ -242,6 +246,7 @@ export const ToolDockItem = React.memo(
           {/* Remove Button (Visible in Edit Mode) */}
           {isEditMode && (
             <button
+              {...tourTypeAttr('dock.item-remove', tool.type)}
               onClick={(e) => {
                 e.stopPropagation();
                 onRemoveFromDock();

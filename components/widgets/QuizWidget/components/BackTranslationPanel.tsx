@@ -5,6 +5,7 @@
  * and clearly labelled as such.
  */
 
+import { tourTypeAttr } from '@/config/tourAnchors';
 import React, { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AlertCircle, Languages, Loader2 } from 'lucide-react';
@@ -107,6 +108,7 @@ export const BackTranslationPanel: React.FC<BackTranslationPanelProps> = ({
         <button
           type="button"
           onClick={() => void translate()}
+          {...tourTypeAttr('quiz-library.back-translate', 'quiz')}
           disabled={busy}
           className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-2.5 py-1 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
         >
