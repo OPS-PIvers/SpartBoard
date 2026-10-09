@@ -18,6 +18,7 @@ import React from 'react';
 import { Cloud, Copy, Eye, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { useDashboard } from '@/context/useDashboard';
+import { tourAttr, type TourAnchorId } from '@/config/tourAnchors';
 import type { SharedBoardImportMode } from '@/context/DashboardContextValue';
 
 interface ModeOptionProps {
@@ -28,6 +29,7 @@ interface ModeOptionProps {
   disabled?: boolean;
   disabledReason?: string;
   onPick: (mode: SharedBoardImportMode) => void;
+  tourId?: TourAnchorId;
 }
 
 const ModeOption: React.FC<ModeOptionProps> = ({
@@ -38,12 +40,14 @@ const ModeOption: React.FC<ModeOptionProps> = ({
   disabled,
   disabledReason,
   onPick,
+  tourId,
 }) => {
   return (
     <button
       type="button"
       onClick={() => !disabled && onPick(mode)}
       disabled={disabled}
+      {...(tourId ? tourAttr(tourId) : {})}
       className={`w-full text-left rounded-xl border bg-white px-4 py-4 transition-all focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 ${
         disabled
           ? 'border-slate-200 opacity-50 cursor-not-allowed'
@@ -147,6 +151,7 @@ export const ImportShareModePicker: React.FC = () => {
               type="button"
               onClick={cancelPendingShareImport}
               aria-label="Close"
+              {...tourAttr('share-import.close')}
               className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
@@ -174,6 +179,7 @@ export const ImportShareModePicker: React.FC = () => {
             <button
               type="button"
               onClick={cancelPendingShareImport}
+              {...tourAttr('share-import.cancel')}
               className="rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm px-4 py-2 transition-colors cursor-pointer"
             >
               Cancel
@@ -181,6 +187,7 @@ export const ImportShareModePicker: React.FC = () => {
             <button
               type="button"
               onClick={() => handlePick(intendedMode)}
+              {...tourAttr('share-import.confirm')}
               className="rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold text-sm px-4 py-2 transition-colors cursor-pointer"
             >
               {copy.primary}
@@ -221,6 +228,7 @@ export const ImportShareModePicker: React.FC = () => {
             type="button"
             onClick={cancelPendingShareImport}
             aria-label="Close"
+            {...tourAttr('share-import.close')}
             className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -240,6 +248,7 @@ export const ImportShareModePicker: React.FC = () => {
           disabled={driveBacked}
           disabledReason={liveDisabledReason}
           onPick={handlePick}
+          tourId="share-import.mode-synced"
         />
         <ModeOption
           mode="view-only"
@@ -249,6 +258,7 @@ export const ImportShareModePicker: React.FC = () => {
           disabled={driveBacked}
           disabledReason={liveDisabledReason}
           onPick={handlePick}
+          tourId="share-import.mode-view-only"
         />
         <ModeOption
           mode="copy"
@@ -256,6 +266,7 @@ export const ImportShareModePicker: React.FC = () => {
           body={MODE_COPY.copy.body}
           Icon={Copy}
           onPick={handlePick}
+          tourId="share-import.mode-copy"
         />
       </div>
     </Modal>

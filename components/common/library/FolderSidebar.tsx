@@ -30,6 +30,7 @@ import type {
 import type { FolderDeleteUndo } from '@/hooks/useFolderTree';
 import { collectDescendantIds } from '@/utils/folderTree';
 import { FolderTree } from './FolderTree';
+import { tourAttr, type TourAnchorId } from '@/config/tourAnchors';
 import { folderDroppableId, type FolderDropData } from './folderDropTargets';
 import { useFolderPanelMode } from './LibraryFolderPanelContext';
 import {
@@ -401,6 +402,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
               className="p-1 rounded-lg hover:bg-white text-brand-blue-primary transition-colors"
               title="New folder"
               aria-label="New folder"
+              {...tourAttr('library-shell.new-folder')}
             >
               <FolderPlus
                 style={{
@@ -427,6 +429,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         }
         count={folderView ? undefined : totalItemCount}
         onClick={() => selectFolder(null)}
+        tourId="library-shell.folder-root"
       />
 
       {/* Inline new-folder at root */}
@@ -532,6 +535,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
             selected={isAt({ kind: 'all' })}
             count={totalItemCount}
             onClick={() => folderView.navigate({ kind: 'all' })}
+            tourId="library-shell.folder-view-all"
           />
           <SidebarNavButton
             isRail={isRail}
@@ -539,6 +543,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
             label="Recent"
             selected={isAt({ kind: 'recent' })}
             onClick={() => folderView.navigate({ kind: 'recent' })}
+            tourId="library-shell.folder-view-recent"
           />
         </>
       )}
@@ -593,6 +598,7 @@ const SidebarNavButton: React.FC<{
   isOver?: boolean;
   dropRef?: (node: HTMLElement | null) => void;
   onClick: () => void;
+  tourId?: TourAnchorId;
 }> = ({
   icon: Icon,
   label,
@@ -602,6 +608,7 @@ const SidebarNavButton: React.FC<{
   isOver,
   dropRef,
   onClick,
+  tourId,
 }) => (
   <button
     ref={dropRef}
@@ -610,6 +617,7 @@ const SidebarNavButton: React.FC<{
     title={isRail ? label : undefined}
     aria-label={isRail ? label : undefined}
     aria-current={selected ? 'location' : undefined}
+    {...(tourId ? tourAttr(tourId) : {})}
     className={`flex items-center rounded-lg font-semibold text-left transition-colors ${
       isRail ? 'justify-center' : ''
     } ${
@@ -695,6 +703,7 @@ const NewFolderInput: React.FC<{
         }
       }}
       placeholder="New folder name"
+      {...tourAttr('library-shell.new-folder-input')}
       className="w-full px-2 py-1.5 text-sm rounded-lg border border-brand-blue-primary/40 bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
     />
   );
@@ -735,6 +744,7 @@ const DeleteFolderModal: React.FC<{
           <button
             type="button"
             onClick={onCancel}
+            {...tourAttr('library-shell.folder-dialog-close')}
             className="text-slate-400 hover:text-slate-600 p-1"
             aria-label="Close"
           >
@@ -747,6 +757,7 @@ const DeleteFolderModal: React.FC<{
           <button
             type="button"
             onClick={() => onConfirm('move-to-parent')}
+            {...tourAttr('library-shell.folder-dialog-move-contents')}
             className="w-full text-left px-3 py-2.5 rounded-xl bg-brand-blue-lighter/40 hover:bg-brand-blue-lighter text-brand-blue-dark font-semibold transition-colors"
           >
             Move contents to parent folder
@@ -757,6 +768,7 @@ const DeleteFolderModal: React.FC<{
           <button
             type="button"
             onClick={() => onConfirm('delete-all')}
+            {...tourAttr('library-shell.folder-dialog-delete-all')}
             className="w-full text-left px-3 py-2.5 rounded-xl text-brand-red-dark hover:bg-brand-red-lighter/60 font-semibold transition-colors"
           >
             Delete folder and subfolders
@@ -770,6 +782,7 @@ const DeleteFolderModal: React.FC<{
           <button
             type="button"
             onClick={onCancel}
+            {...tourAttr('library-shell.folder-dialog-cancel')}
             className="text-sm font-semibold text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-lg transition-colors"
           >
             Cancel

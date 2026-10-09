@@ -51,6 +51,7 @@ import { PageJumpMenu } from './PageJumpMenu';
 import { LinkTargetPicker } from './LinkTargetPicker';
 import { ReorderPageControl } from './ReorderPageControl';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 interface PageEditorOverlayProps {
   title: string;
@@ -295,6 +296,7 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
             {sections && sections.length > 1 && (
               <select
                 aria-label="Jump to lesson"
+                {...tourTypeAttr('smart-notebook.lesson-jump', 'smartNotebook')}
                 value={currentSectionIndex >= 0 ? currentSectionIndex : 0}
                 onChange={(e) =>
                   onPageChange(sections[Number(e.target.value)].startIndex)
@@ -325,6 +327,7 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
             {onAddPage && (
               <button
                 onClick={onAddPage}
+                {...tourTypeAttr('smart-notebook.add-page', 'smartNotebook')}
                 disabled={pageOpBusy}
                 className={toolBtnClass}
                 style={toolBtnStyle}
@@ -336,6 +339,10 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
             {onToggleHiddenPage && (
               <button
                 onClick={onToggleHiddenPage}
+                {...tourTypeAttr(
+                  'smart-notebook.toggle-hidden-page',
+                  'smartNotebook'
+                )}
                 disabled={pageOpBusy}
                 className={toolBtnClass}
                 style={toolBtnStyle}
@@ -361,6 +368,7 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
             {onDeletePage && (
               <button
                 onClick={onDeletePage}
+                {...tourTypeAttr('smart-notebook.remove-page', 'smartNotebook')}
                 disabled={pageOpBusy}
                 className={toolBtnClass}
                 style={toolBtnStyle}
@@ -371,6 +379,7 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
             )}
             <button
               onClick={onPresent}
+              {...tourTypeAttr('smart-notebook.present', 'smartNotebook')}
               className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-sm flex items-center transition-all active:scale-95"
               style={{
                 padding: 'min(8px, 2cqmin) min(12px, 2.5cqmin)',
@@ -393,6 +402,10 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
             </button>
             <button
               onClick={onClose}
+              {...tourTypeAttr(
+                'smart-notebook.close-notebook',
+                'smartNotebook'
+              )}
               className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-lg transition-all border border-slate-700 active:scale-95"
               style={{ padding: 'min(8px, 2cqmin)' }}
               title="Close notebook"
@@ -573,6 +586,7 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
             <button
               disabled={currentPage === 0}
               onClick={() => onPageChange(Math.max(0, currentPage - 1))}
+              {...tourTypeAttr('smart-notebook.page-prev', 'smartNotebook')}
               className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl disabled:opacity-30 disabled:grayscale transition-all shadow-sm active:scale-90"
               style={{ padding: 'min(10px, 2.5cqmin)' }}
               title="Previous page"
@@ -592,6 +606,7 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
               <button
                 ref={jumpTriggerRef}
                 onClick={() => setJumpMenuOpen((o) => !o)}
+                {...tourTypeAttr('smart-notebook.page-jump', 'smartNotebook')}
                 className="flex items-center rounded-lg hover:bg-slate-100 transition-colors"
                 style={{
                   gap: 'min(4px, 1cqmin)',
@@ -652,6 +667,7 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
               onClick={() =>
                 onPageChange(Math.min(totalPages - 1, currentPage + 1))
               }
+              {...tourTypeAttr('smart-notebook.page-next', 'smartNotebook')}
               className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl disabled:opacity-30 disabled:grayscale transition-all shadow-sm active:scale-90"
               style={{ padding: 'min(10px, 2.5cqmin)' }}
               title="Next page"
@@ -792,6 +808,7 @@ const Toolbar: React.FC<{
       key={keyId}
       type="button"
       onClick={() => handleToolClick(keyId)}
+      {...tourFieldAttr('smart-notebook.tool', 'smartNotebook', keyId)}
       aria-pressed={isActive}
       aria-haspopup={hasPopover ? 'dialog' : undefined}
       aria-expanded={hasPopover ? popover === keyId : undefined}
@@ -901,6 +918,11 @@ const Toolbar: React.FC<{
               key={dir}
               type="button"
               onClick={() => onReorder(dir)}
+              {...tourFieldAttr(
+                'smart-notebook.layer-order',
+                'smartNotebook',
+                dir
+              )}
               disabled={!hasSelection}
               title={label}
               aria-label={label}
@@ -919,6 +941,7 @@ const Toolbar: React.FC<{
         <button
           type="button"
           onClick={onOpenBackgroundPicker}
+          {...tourTypeAttr('smart-notebook.background', 'smartNotebook')}
           title="Page background"
           aria-label="Page background"
           className="flex items-center rounded-md text-slate-300 hover:bg-white/10 transition-colors"
@@ -968,6 +991,11 @@ const Toolbar: React.FC<{
                   <button
                     key={subTool}
                     type="button"
+                    {...tourFieldAttr(
+                      'smart-notebook.shape',
+                      'smartNotebook',
+                      subTool
+                    )}
                     onClick={() => {
                       onToolChange(subTool);
                       // Keep popover open so teachers can also tweak the
@@ -1004,6 +1032,10 @@ const Toolbar: React.FC<{
                     key={c}
                     type="button"
                     onClick={() => onColorChange(c)}
+                    {...tourTypeAttr(
+                      'smart-notebook.pen-color',
+                      'smartNotebook'
+                    )}
                     title={`Color ${c}`}
                     aria-label={`Color ${c}`}
                     aria-pressed={isActive}
@@ -1039,6 +1071,10 @@ const Toolbar: React.FC<{
                   type="color"
                   value={penColor}
                   onChange={(e) => onColorChange(e.target.value)}
+                  {...tourTypeAttr(
+                    'smart-notebook.pen-color-custom',
+                    'smartNotebook'
+                  )}
                   className="sr-only"
                   aria-label="Custom color"
                 />
@@ -1107,6 +1143,7 @@ const Toolbar: React.FC<{
                   step={1}
                   value={value}
                   onChange={(e) => setValue(parseInt(e.target.value, 10))}
+                  {...tourTypeAttr('smart-notebook.pen-size', 'smartNotebook')}
                   aria-label={label}
                   className="flex-1 h-1.5 rounded-full bg-slate-700 appearance-none cursor-pointer accent-brand-blue-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
                 />
@@ -1188,6 +1225,11 @@ const BackgroundPicker: React.FC<{
     <button
       type="button"
       onClick={() => setMode(target)}
+      {...tourFieldAttr(
+        'smart-notebook.background-mode',
+        'smartNotebook',
+        target
+      )}
       aria-pressed={mode === target}
       className={`rounded-lg font-bold uppercase tracking-tight transition-colors ${
         mode === target
@@ -1242,6 +1284,10 @@ const BackgroundPicker: React.FC<{
           </div>
           <button
             onClick={onClose}
+            {...tourTypeAttr(
+              'smart-notebook.background-close',
+              'smartNotebook'
+            )}
             className="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
             style={{ padding: 'min(6px, 1.5cqmin)' }}
             aria-label="Close"
@@ -1292,6 +1338,10 @@ const BackgroundPicker: React.FC<{
                     key={c}
                     type="button"
                     onClick={() => setColor(c)}
+                    {...tourTypeAttr(
+                      'smart-notebook.background-color',
+                      'smartNotebook'
+                    )}
                     aria-label={`Color ${c}`}
                     aria-pressed={color === c}
                     className={`rounded-full transition-transform ${
@@ -1311,6 +1361,10 @@ const BackgroundPicker: React.FC<{
                   aria-label="Custom color"
                   value={color}
                   onChange={(e) => setColor(e.target.value)}
+                  {...tourTypeAttr(
+                    'smart-notebook.background-color-custom',
+                    'smartNotebook'
+                  )}
                   className="rounded-md border border-slate-300 cursor-pointer"
                   style={{
                     width: 'min(34px, 7cqmin)',
@@ -1346,6 +1400,11 @@ const BackgroundPicker: React.FC<{
                     key={key}
                     type="button"
                     onClick={() => setPattern(key)}
+                    {...tourFieldAttr(
+                      'smart-notebook.background-pattern',
+                      'smartNotebook',
+                      key
+                    )}
                     aria-pressed={pattern === key}
                     className={`rounded-xl border-2 overflow-hidden transition-all ${
                       pattern === key
@@ -1390,6 +1449,10 @@ const BackgroundPicker: React.FC<{
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
+                {...tourTypeAttr(
+                  'smart-notebook.background-image',
+                  'smartNotebook'
+                )}
                 className="flex items-center bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl transition-colors"
                 style={{
                   padding: 'min(10px, 2.5cqmin) min(20px, 4cqmin)',
@@ -1435,6 +1498,10 @@ const BackgroundPicker: React.FC<{
         >
           <button
             onClick={onClose}
+            {...tourTypeAttr(
+              'smart-notebook.background-cancel',
+              'smartNotebook'
+            )}
             className="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors font-bold uppercase tracking-tight"
             style={{
               padding: 'min(8px, 2cqmin) min(16px, 3cqmin)',
@@ -1445,6 +1512,10 @@ const BackgroundPicker: React.FC<{
           </button>
           <button
             onClick={apply}
+            {...tourTypeAttr(
+              'smart-notebook.background-apply',
+              'smartNotebook'
+            )}
             disabled={mode === 'image' && !imageDataUrl}
             className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-bold uppercase tracking-tight disabled:opacity-40 disabled:cursor-not-allowed"
             style={{

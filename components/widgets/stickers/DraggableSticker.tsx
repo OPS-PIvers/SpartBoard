@@ -12,6 +12,7 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 import { useDialog } from '@/context/useDialog';
 import { FloatingPanel } from '@/components/common/FloatingPanel';
 import { useTranslation } from 'react-i18next';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface DraggableStickerProps {
   widget: WidgetData;
@@ -425,6 +426,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
                 <div
                   className="sticker-control absolute -top-8 left-1/2 -translate-x-1/2 cursor-grab active:cursor-grabbing"
                   onPointerDown={handleRotateStart}
+                  {...tourAttr('sticker.rotate-handle', widget.id, widget.type)}
                 >
                   <div className="p-1.5 bg-white shadow rounded-full text-blue-600 border border-blue-100">
                     <RotateCw size={14} />
@@ -436,6 +438,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
                 <div
                   className="sticker-control absolute bottom-0 right-0 w-6 h-6 cursor-nwse-resize flex items-end justify-end p-0.5"
                   onPointerDown={handleResizeStart}
+                  {...tourAttr('sticker.resize-handle', widget.id, widget.type)}
                 >
                   <div className="w-3 h-3 border-r-2 border-b-2 border-blue-500 bg-white rounded-br-[2px]" />
                 </div>
@@ -451,6 +454,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
               <div className="relative">
                 <button
                   onClick={() => setShowMenu(!showMenu)}
+                  {...tourAttr('sticker.options', widget.id, widget.type)}
                   className="p-1.5 bg-white hover:bg-slate-50 text-slate-700 shadow-md border border-slate-100 rounded-full transition-colors"
                   title="Sticker Options"
                 >
@@ -478,6 +482,11 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
                         if (!isLocked) moveWidgetLayer(widget.id, 'up');
                         setShowMenu(false);
                       }}
+                      {...tourAttr(
+                        'sticker.bring-forward',
+                        widget.id,
+                        widget.type
+                      )}
                       aria-disabled={isLocked || undefined}
                       tabIndex={isLocked ? -1 : undefined}
                       className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
@@ -494,6 +503,11 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
                         if (!isLocked) moveWidgetLayer(widget.id, 'down');
                         setShowMenu(false);
                       }}
+                      {...tourAttr(
+                        'sticker.send-backward',
+                        widget.id,
+                        widget.type
+                      )}
                       aria-disabled={isLocked || undefined}
                       tabIndex={isLocked ? -1 : undefined}
                       className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${
@@ -513,6 +527,7 @@ export const DraggableSticker: React.FC<DraggableStickerProps> = ({
                         if (!isLocked) removeWidget(widget.id);
                         setShowMenu(false);
                       }}
+                      {...tourAttr('sticker.remove', widget.id, widget.type)}
                       aria-disabled={isLocked || undefined}
                       tabIndex={isLocked ? -1 : undefined}
                       className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 ${

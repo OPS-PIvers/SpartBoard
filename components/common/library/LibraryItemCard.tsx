@@ -43,7 +43,7 @@ import { useLibraryFolderView } from './LibraryFolderViewContext';
 import { useLibraryDrag } from './LibraryDragContext';
 import { itemMergeDroppableId } from './folderDropTargets';
 import { useCloseOnHostResize } from '../useCloseOnHostResize';
-import { tourFieldAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import type {
   LibraryBadge,
   LibraryBadgeTone,
@@ -379,6 +379,7 @@ const BadgeChip: React.FC<{ badge: LibraryBadge }> = ({ badge }) => {
         }
         title={accessibleLabel}
         aria-label={accessibleLabel}
+        {...tourAttr('library-shell.card-badge')}
         className={`${baseClasses} ${interactiveClasses}`}
         style={baseStyle}
       >
@@ -556,6 +557,13 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
           role="checkbox"
           aria-checked={!!selected}
           aria-label={selected ? `Deselect ${title}` : `Select ${title}`}
+          {...(tourRowKey
+            ? tourFieldAttr(
+                'library-shell.select-item',
+                tourWidgetTypeResolved,
+                tourRowKey
+              )
+            : {})}
           className={`flex shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
             selected
               ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
