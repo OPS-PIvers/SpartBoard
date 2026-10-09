@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { ChevronDown, Globe, Save, Shield, Users } from 'lucide-react';
 import type {
   AccessLevel,
@@ -98,8 +99,12 @@ export const AccessLevelPicker: React.FC<{
   value: AccessLevel;
   onChange: (level: AccessLevel) => void;
   label: string;
-}> = ({ value, onChange, label }) => (
+  anchorKey?: string;
+}> = ({ value, onChange, label, anchorKey }) => (
   <div
+    {...(anchorKey
+      ? tourFieldAttr('admin.access.level', 'admin', anchorKey)
+      : {})}
     role="radiogroup"
     aria-label={`${label} access`}
     className="flex gap-1"
@@ -156,6 +161,11 @@ export const DailyLimitEditor: React.FC<{
         }
         size="xs"
         label={`${label} daily limit`}
+        anchor={tourFieldAttr(
+          'admin.features.daily-limit-toggle',
+          'admin',
+          featureId
+        )}
       />
       <input
         type="number"
@@ -163,6 +173,11 @@ export const DailyLimitEditor: React.FC<{
         max={DAILY_LIMIT_MAX}
         disabled={!enabled}
         aria-label={`${label} uses per day`}
+        {...tourFieldAttr(
+          'admin.features.daily-limit-number',
+          'admin',
+          featureId
+        )}
         value={draft ?? stored}
         onChange={(e) => {
           const raw = e.target.value;
@@ -208,6 +223,7 @@ export const ModelTierEditor: React.FC<{
       </label>
       <select
         id={`${featureId}-model-tier`}
+        {...tourFieldAttr('admin.features.model-tier', 'admin', featureId)}
         value={tier}
         onChange={(e) =>
           onUpdate({
@@ -272,6 +288,7 @@ export const AccessFeatureRow: React.FC<AccessFeatureRowProps> = ({
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
           aria-controls={panelId}
+          {...tourFieldAttr('admin.access.expand', 'admin', featureId)}
           className="flex items-center gap-3 min-w-0 flex-1 text-left"
         >
           <span className="bg-brand-blue-lighter p-2 rounded-lg text-brand-blue-primary shrink-0">
@@ -301,17 +318,20 @@ export const AccessFeatureRow: React.FC<AccessFeatureRowProps> = ({
             onChange={(checked) => onUpdate({ enabled: checked })}
             size="sm"
             label={`${def.label} enabled`}
+            anchor={tourFieldAttr('admin.access.enabled', 'admin', featureId)}
           />
           <AccessLevelPicker
             value={permission.accessLevel}
             onChange={(accessLevel) => onUpdate({ accessLevel })}
             label={def.label}
+            anchorKey={featureId}
           />
           <button
             type="button"
             onClick={onSave}
             disabled={isSaving || !hasUnsaved}
             aria-label={`Save ${def.label}`}
+            {...tourFieldAttr('admin.access.save', 'admin', featureId)}
             title={hasUnsaved ? 'Save changes' : 'No changes to save'}
             className={`p-2 rounded-lg transition-colors disabled:cursor-not-allowed ${
               hasUnsaved

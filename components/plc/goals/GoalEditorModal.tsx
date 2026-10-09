@@ -20,6 +20,7 @@ import {
   type PlcGoalDraft,
   type PlcGoalProgress,
 } from '@/hooks/usePlcGoals';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const ALL = 'all';
 
@@ -162,6 +163,7 @@ export const GoalEditorModal: React.FC<GoalEditorModalProps> = ({
     <div className="flex w-full items-center gap-2">
       {onDelete && (
         <button
+          {...tourAttr('plc-goals.delete')}
           type="button"
           onClick={() => void remove()}
           disabled={busy}
@@ -173,6 +175,7 @@ export const GoalEditorModal: React.FC<GoalEditorModalProps> = ({
       )}
       <div className="flex-1" />
       <button
+        {...tourAttr('plc-goals.cancel')}
         type="button"
         onClick={onClose}
         className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100"
@@ -180,6 +183,7 @@ export const GoalEditorModal: React.FC<GoalEditorModalProps> = ({
         {t('common.cancel', { defaultValue: 'Cancel' })}
       </button>
       <button
+        {...tourAttr('plc-goals.save')}
         type="button"
         onClick={() => void save()}
         disabled={busy || !title.trim() || tooLong || !progressValid}
@@ -242,6 +246,7 @@ export const GoalEditorModal: React.FC<GoalEditorModalProps> = ({
               {t('plcGoals.by', { defaultValue: 'By' })}
             </label>
             <input
+              {...tourFieldAttr('plc-goals.field', 'plc', 'due')}
               id="goal-due"
               type="date"
               value={dueDate}
@@ -254,6 +259,7 @@ export const GoalEditorModal: React.FC<GoalEditorModalProps> = ({
               {t('plcGoals.students', { defaultValue: 'Students' })}
             </label>
             <input
+              {...tourFieldAttr('plc-goals.field', 'plc', 'students')}
               id="goal-students"
               value={students}
               maxLength={200}
@@ -270,6 +276,7 @@ export const GoalEditorModal: React.FC<GoalEditorModalProps> = ({
             {t('plcGoals.will', { defaultValue: 'Will' })}
           </label>
           <input
+            {...tourFieldAttr('plc-goals.field', 'plc', 'outcome')}
             id="goal-outcome"
             value={outcome}
             maxLength={300}
@@ -289,6 +296,7 @@ export const GoalEditorModal: React.FC<GoalEditorModalProps> = ({
                 {progressLabels[key]}
               </label>
               <input
+                {...tourFieldAttr('plc-goals.field', 'plc', key)}
                 id={`goal-${key}`}
                 type="number"
                 inputMode="numeric"
@@ -309,6 +317,7 @@ export const GoalEditorModal: React.FC<GoalEditorModalProps> = ({
             {t('plcGoals.measuredBy', { defaultValue: 'Measured by' })}
           </label>
           <input
+            {...tourFieldAttr('plc-goals.field', 'plc', 'measure')}
             id="goal-measure"
             value={measure}
             maxLength={200}
@@ -336,6 +345,7 @@ export const GoalEditorModal: React.FC<GoalEditorModalProps> = ({
                     </span>
                   ) : (
                     <input
+                      {...tourFieldAttr('plc-goals.practice-text', 'plc', p.id)}
                       aria-label={t('plcGoals.practiceText', {
                         n: i + 1,
                         defaultValue: 'Practice {{n}}',
@@ -355,6 +365,7 @@ export const GoalEditorModal: React.FC<GoalEditorModalProps> = ({
                     />
                   )}
                   <button
+                    {...tourFieldAttr('plc-goals.practice-remove', 'plc', p.id)}
                     type="button"
                     onClick={() =>
                       setPractices((list) => list.filter((x) => x.id !== p.id))
@@ -373,6 +384,7 @@ export const GoalEditorModal: React.FC<GoalEditorModalProps> = ({
           {practices.length < PLC_GOAL_MAX_PRACTICES && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <button
+                {...tourAttr('plc-goals.practice-add')}
                 type="button"
                 onClick={() =>
                   setPractices((list) => [...list, blankPractice()])
@@ -386,6 +398,7 @@ export const GoalEditorModal: React.FC<GoalEditorModalProps> = ({
                 <>
                   <span className="flex-1" />
                   <select
+                    {...tourAttr('plc-goals.routine-select')}
                     aria-label={t('plcGoals.addRoutine', {
                       defaultValue: 'Add a routine',
                     })}
@@ -405,6 +418,7 @@ export const GoalEditorModal: React.FC<GoalEditorModalProps> = ({
                     ))}
                   </select>
                   <select
+                    {...tourAttr('plc-goals.routine-grades')}
                     aria-label={t('plcGoals.routineGrades', {
                       defaultValue: 'Routine grades',
                     })}

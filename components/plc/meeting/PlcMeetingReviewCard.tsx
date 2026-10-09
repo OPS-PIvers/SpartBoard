@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { PlcCommentsThread } from '@/components/plc/comments/PlcCommentsThread';
 import type { AssessmentDataCard } from '@/components/plc/sharedData/sharedDataSelectors';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 /** Calm, glanceable score tone — shared with the Shared Data palette. */
 function scoreToneClass(percent: number): string {
@@ -159,6 +160,11 @@ export const PlcMeetingReviewCard: React.FC<PlcMeetingReviewCardProps> = ({
               })}
             </h4>
             <button
+              {...tourFieldAttr(
+                'plc-meeting.discuss',
+                'plc',
+                card.assessmentId
+              )}
               type="button"
               onClick={() => onDiscuss(card.assessmentId)}
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-blue-primary hover:text-brand-blue-dark px-2.5 py-1.5 rounded-lg hover:bg-brand-blue-primary/5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
@@ -197,6 +203,11 @@ export const PlcMeetingReviewCard: React.FC<PlcMeetingReviewCardProps> = ({
                       {q.correctPercent}%
                     </span>
                     <button
+                      {...tourFieldAttr(
+                        'plc-meeting.discuss-question',
+                        'plc',
+                        q.questionId
+                      )}
                       type="button"
                       onClick={() => onDiscuss(card.assessmentId, q.questionId)}
                       className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-xl text-brand-blue-primary hover:bg-brand-blue-primary/10 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"

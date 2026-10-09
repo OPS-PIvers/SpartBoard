@@ -18,6 +18,7 @@ import { usePlcDocs } from '@/hooks/usePlcDocs';
 import { useDashboard } from '@/context/useDashboard';
 import { logError } from '@/utils/logError';
 import { useAuth } from '@/context/useAuth';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface PlcAddDocModalProps {
   plc: Plc;
@@ -121,6 +122,7 @@ export const PlcAddDocModal: React.FC<PlcAddDocModalProps> = ({
             </div>
           </div>
           <button
+            {...tourAttr('plc-docs.add-close')}
             type="button"
             onClick={onClose}
             className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
@@ -142,6 +144,7 @@ export const PlcAddDocModal: React.FC<PlcAddDocModalProps> = ({
               })}
             </label>
             <input
+              {...tourAttr('plc-docs.add-title')}
               id={titleId}
               type="text"
               autoFocus
@@ -171,6 +174,7 @@ export const PlcAddDocModal: React.FC<PlcAddDocModalProps> = ({
                   })}
             </label>
             <input
+              {...tourAttr('plc-docs.add-url')}
               id={urlId}
               type="url"
               value={url}
@@ -196,6 +200,7 @@ export const PlcAddDocModal: React.FC<PlcAddDocModalProps> = ({
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 border-t border-slate-100 px-6 py-4">
           <button
+            {...tourAttr('plc-docs.add-cancel')}
             type="button"
             onClick={onClose}
             className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
@@ -203,6 +208,7 @@ export const PlcAddDocModal: React.FC<PlcAddDocModalProps> = ({
             {t('common.cancel', { defaultValue: 'Cancel' })}
           </button>
           <button
+            {...tourAttr('plc-docs.add-submit')}
             type="button"
             onClick={() => void handleSubmit()}
             disabled={submitting || !canSubmit}
