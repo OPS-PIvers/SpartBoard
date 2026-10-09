@@ -2737,6 +2737,33 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'admin.widget-config.field': {
+    label: 'Setting in a widget admin configuration panel',
+    perField: true,
+    panel: true,
+  },
+  'admin.widget-config.save': {
+    label: 'Save button in a widget admin configuration panel',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.widget-config.close': {
+    label: 'Close button in a widget admin configuration panel',
+    perWidgetType: true,
+    panel: true,
+  },
+  'admin.widget-config.add': {
+    label: 'Add button in a widget admin configuration panel',
+    perWidgetType: true,
+    panel: true,
+  },
+  'admin.widget-config.remove': {
+    label: 'Remove button in a widget admin configuration panel',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

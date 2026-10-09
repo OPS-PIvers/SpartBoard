@@ -3606,4 +3606,35 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     scope: 'field',
     panel: true,
   },
+  {
+    id: 'admin.widget-config.field',
+    label: 'Setting in a widget admin configuration panel',
+    scope: 'field',
+    panel: true,
+  },
+  {
+    id: 'admin.widget-config.save',
+    label: 'Save button in a widget admin configuration panel',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'admin.widget-config.close',
+    label: 'Close button in a widget admin configuration panel',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'admin.widget-config.add',
+    label: 'Add button in a widget admin configuration panel',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'admin.widget-config.remove',
+    label: 'Remove button in a widget admin configuration panel',
+    scope: 'widget type',
+    panel: true,
+    destructive: true,
+  },
 ];
