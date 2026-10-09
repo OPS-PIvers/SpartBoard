@@ -2760,6 +2760,82 @@ export const TOUR_ANCHORS = {
     label: 'Pause message input in the Quiz presentation controls',
     perWidgetType: true,
   },
+  'quiz-monitor.roster-scores': {
+    label: 'Scores toggle chip in the Quiz monitor roster',
+    perWidgetType: true,
+  },
+  'quiz-monitor.roster-tab-warnings': {
+    label: 'Tab warnings toggle chip in the Quiz monitor roster',
+    perWidgetType: true,
+  },
+  'quiz-monitor.roster-proficiency': {
+    label: 'Proficiency colors toggle chip in the Quiz monitor roster',
+    perWidgetType: true,
+  },
+  'quiz-monitor.settings-board-view': {
+    label: 'Board view switch in the Quiz monitor settings',
+    perWidgetType: true,
+  },
+  'quiz-monitor.settings-tab-warnings': {
+    label: 'Tab warnings switch in the Quiz monitor settings',
+    perWidgetType: true,
+  },
+  'quiz-monitor.settings-podium': {
+    label: 'Podium between questions switch in the Quiz monitor settings',
+    perWidgetType: true,
+  },
+  'quiz-monitor.settings-answer-reveal': {
+    label: 'Answer reveal on board switch in the Quiz monitor settings',
+    perWidgetType: true,
+  },
+  'quiz-monitor.settings-scoreboard-sync': {
+    label: 'Sync to scoreboard widget switch in the Quiz monitor settings',
+    perWidgetType: true,
+  },
+  'quiz-monitor.period-start': {
+    label: 'Start button for the picked class in the Quiz monitor',
+    perWidgetType: true,
+    persists: true,
+  },
+  'quiz-monitor.period-pause': {
+    label: 'Pause button for the picked class in the Quiz monitor',
+    perWidgetType: true,
+    persists: true,
+  },
+  'quiz-monitor.period-extend': {
+    label: 'Extend time option in the Quiz monitor More time menu',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'review-start.gamification': {
+    label: 'Gamification section header in the Start review dialog',
+    panel: true,
+  },
+  'quiz-library.bulk-merge': {
+    label: 'Merge button in the Quiz library bulk action bar',
+    perWidgetType: true,
+    persists: true,
+  },
+  'quiz-library.bulk-share-plc': {
+    label: 'Share with PLC button in the Quiz library bulk action bar',
+    perWidgetType: true,
+    persists: true,
+  },
+  'quiz-print.import-ai-toggle': {
+    label: 'AI reader toggle in the Quiz print import dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.paper-text-ai-toggle': {
+    label: 'AI reader toggle in the Quiz paper question text dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-results.student-view-as': {
+    label: 'View as student button on a student row in the Quiz results',
+    perField: true,
+  },
   'quiz-settings.widget-label': {
     label: 'Widget label input in Quiz settings',
     perWidget: true,
@@ -6069,6 +6145,520 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'admin.org.add-building': {
+    label: 'Add building button in Organization buildings',
+    panel: true,
+  },
+  'admin.org.add-domain': {
+    label: 'Add domain button in Organization sign-in domains',
+    panel: true,
+  },
+  'admin.org.add-domain-cancel': {
+    label: 'Cancel button in Organization add domain dialog',
+    panel: true,
+  },
+  'admin.org.add-domain-method': {
+    label: 'Auth method dropdown in Organization add domain dialog',
+    panel: true,
+  },
+  'admin.org.add-domain-name': {
+    label: 'Domain field in Organization add domain dialog',
+    panel: true,
+  },
+  'admin.org.add-domain-saml-url': {
+    label: 'IdP metadata URL field in Organization add domain dialog',
+    panel: true,
+  },
+  'admin.org.add-domain-submit': {
+    label: 'Send verification button in Organization add domain dialog',
+    persists: true,
+    panel: true,
+  },
+  'admin.org.all-organizations': {
+    label: 'Back to all organizations button in Organization sidebar',
+    panel: true,
+  },
+  'admin.org.archive-org': {
+    label: 'Archive organization button in Organization overview',
+    destructive: true,
+    panel: true,
+  },
+  'admin.org.mode-submissions': {
+    label:
+      'Submissions mode button for an assignment type in Organization app settings',
+    perField: true,
+    panel: true,
+  },
+  'admin.org.mode-view-only': {
+    label:
+      'View only mode button for an assignment type in Organization app settings',
+    perField: true,
+    panel: true,
+  },
+  'admin.org.assignment-modes-save': {
+    label: 'Save button for assignment modes in Organization app settings',
+    persists: true,
+    panel: true,
+  },
+  'admin.org.building-address': {
+    label: 'Address field in Organization building dialog',
+    panel: true,
+  },
+  'admin.org.building-cancel': {
+    label: 'Cancel button in Organization building dialog',
+    panel: true,
+  },
+  'admin.org.building-grades': {
+    label: 'Grades served field in Organization building dialog',
+    panel: true,
+  },
+  'admin.org.building-name': {
+    label: 'Building name field in Organization building dialog',
+    panel: true,
+  },
+  'admin.org.building-save': {
+    label: 'Save button in Organization building dialog',
+    persists: true,
+    panel: true,
+  },
+  'admin.org.building-type': {
+    label: 'Building type dropdown in Organization building dialog',
+    panel: true,
+  },
+  'admin.org.bulk-building-cancel': {
+    label: 'Cancel button in Organization move to building dialog',
+    panel: true,
+  },
+  'admin.org.bulk-building-continue': {
+    label: 'Continue button in Organization move to building dialog',
+    panel: true,
+  },
+  'admin.org.bulk-building-option': {
+    label: 'Building checkbox in Organization move to building dialog',
+    perField: true,
+    panel: true,
+  },
+  'admin.org.bulk-change-role': {
+    label: 'Change role bulk action in Organization users',
+    panel: true,
+  },
+  'admin.org.bulk-clear': {
+    label: 'Clear selection button in Organization users',
+    panel: true,
+  },
+  'admin.org.bulk-deactivate': {
+    label: 'Deactivate bulk action in Organization users',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.org.bulk-import': {
+    label: 'Bulk import button in Organization users',
+    panel: true,
+  },
+  'admin.org.bulk-move-building': {
+    label: 'Move to building bulk action in Organization users',
+    panel: true,
+  },
+  'admin.org.bulk-remove': {
+    label: 'Remove from org bulk action in Organization users',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.org.bulk-resend-invite': {
+    label: 'Resend invite bulk action in Organization users',
+    persists: true,
+    panel: true,
+  },
+  'admin.org.bulk-role-apply': {
+    label: 'Apply button in Organization change role dialog',
+    persists: true,
+    panel: true,
+  },
+  'admin.org.bulk-role-cancel': {
+    label: 'Cancel button in Organization change role dialog',
+    panel: true,
+  },
+  'admin.org.clone-role': {
+    label: 'Clone to customize button on a role card in Organization roles',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.org.confirm-cancel': {
+    label: 'Cancel button in Organization confirm dialogs',
+    panel: true,
+  },
+  'admin.org.confirm-ok': {
+    label: 'Confirm button in Organization confirm dialogs',
+    persists: true,
+    panel: true,
+  },
+  'admin.org.confirm-typing': {
+    label: 'Type-to-confirm input in Organization confirm dialogs',
+    panel: true,
+  },
+  'admin.org.edit-user-building': {
+    label: 'Building checkbox in Organization edit user dialog',
+    perField: true,
+    panel: true,
+  },
+  'admin.org.edit-user-cancel': {
+    label: 'Cancel button in Organization edit user dialog',
+    panel: true,
+  },
+  'admin.org.edit-user-name': {
+    label: 'Name field in Organization edit user dialog',
+    panel: true,
+  },
+  'admin.org.edit-user-role': {
+    label: 'Role dropdown in Organization edit user dialog',
+    panel: true,
+  },
+  'admin.org.edit-user-save': {
+    label: 'Save changes button in Organization edit user dialog',
+    persists: true,
+    panel: true,
+  },
+  'admin.org.export-orgs': {
+    label: 'Export list button in Organization organizations list',
+    panel: true,
+  },
+  'admin.org.import-cancel': {
+    label: 'Cancel button in Organization bulk import dialog',
+    panel: true,
+  },
+  'admin.org.import-choose-file': {
+    label: 'Choose CSV file button in Organization bulk import dialog',
+    panel: true,
+  },
+  'admin.org.import-clear': {
+    label: 'Clear button in Organization bulk import dialog',
+    panel: true,
+  },
+  'admin.org.import-csv': {
+    label: 'CSV text field in Organization bulk import dialog',
+    panel: true,
+  },
+  'admin.org.import-send': {
+    label: 'Send invites button in Organization bulk import dialog',
+    persists: true,
+    panel: true,
+  },
+  'admin.org.invite-building': {
+    label: 'Building checkbox in Organization invite users dialog',
+    perField: true,
+    panel: true,
+  },
+  'admin.org.invite-cancel': {
+    label: 'Cancel button in Organization invite users dialog',
+    panel: true,
+  },
+  'admin.org.invite-emails': {
+    label: 'Emails field in Organization invite users dialog',
+    panel: true,
+  },
+  'admin.org.invite-message': {
+    label: 'Custom message field in Organization invite users dialog',
+    panel: true,
+  },
+  'admin.org.invite-role': {
+    label: 'Role dropdown in Organization invite users dialog',
+    panel: true,
+  },
+  'admin.org.invite-send': {
+    label: 'Send invites button in Organization invite users dialog',
+    persists: true,
+    panel: true,
+  },
+  'admin.org.invite-users': {
+    label: 'Invite users button in Organization users',
+    panel: true,
+  },
+  'admin.org.media-after-date': {
+    label: 'After date field in Organization media review',
+    panel: true,
+  },
+  'admin.org.media-before-date': {
+    label: 'Before date field in Organization media review',
+    panel: true,
+  },
+  'admin.org.media-clear-filters': {
+    label: 'Clear filters button in Organization media review',
+    panel: true,
+  },
+  'admin.org.media-remove-cancel': {
+    label: 'Cancel button in Organization media delete dialog',
+    panel: true,
+  },
+  'admin.org.media-delete-confirm': {
+    label: 'Delete button in Organization media delete dialog',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.org.media-delete-selected': {
+    label: 'Delete selected button in Organization media review',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.org.media-remove-typing': {
+    label: 'Type-to-confirm field in Organization media delete dialog',
+    panel: true,
+  },
+  'admin.org.media-dismiss-results': {
+    label: 'Dismiss results button in Organization media review',
+    panel: true,
+  },
+  'admin.org.media-refresh': {
+    label: 'Refresh button in Organization media review',
+    panel: true,
+  },
+  'admin.org.media-retry': {
+    label: 'Retry button in Organization media review',
+    panel: true,
+  },
+  'admin.org.media-select-all': {
+    label: 'Select all checkbox in Organization media review',
+    panel: true,
+  },
+  'admin.org.media-select-row': {
+    label: 'Row checkbox in Organization media review',
+    panel: true,
+  },
+  'admin.org.media-teacher-filter': {
+    label: 'Teacher filter dropdown in Organization media review',
+    panel: true,
+  },
+  'admin.org.modal-close': {
+    label: 'Close button in Organization dialogs',
+    panel: true,
+  },
+  'admin.org.new-org': {
+    label: 'New organization button in Organization organizations list',
+    panel: true,
+  },
+  'admin.org.new-org-admin-email': {
+    label: 'Primary admin email field in Organization new organization dialog',
+    panel: true,
+  },
+  'admin.org.new-org-cancel': {
+    label: 'Cancel button in Organization new organization dialog',
+    panel: true,
+  },
+  'admin.org.new-org-create': {
+    label: 'Create button in Organization new organization dialog',
+    persists: true,
+    panel: true,
+  },
+  'admin.org.new-org-name': {
+    label: 'Name field in Organization new organization dialog',
+    panel: true,
+  },
+  'admin.org.new-org-plan': {
+    label: 'Plan dropdown in Organization new organization dialog',
+    panel: true,
+  },
+  'admin.org.new-org-short-code': {
+    label: 'Short code field in Organization new organization dialog',
+    panel: true,
+  },
+  'admin.org.new-role': {
+    label: 'New role button in Organization roles',
+    panel: true,
+  },
+  'admin.org.new-role-cancel': {
+    label: 'Cancel button in Organization new role dialog',
+    panel: true,
+  },
+  'admin.org.new-role-create': {
+    label: 'Create role button in Organization new role dialog',
+    persists: true,
+    panel: true,
+  },
+  'admin.org.new-role-description': {
+    label: 'Description field in Organization new role dialog',
+    panel: true,
+  },
+  'admin.org.new-role-name': {
+    label: 'Role name field in Organization new role dialog',
+    panel: true,
+  },
+  'admin.org.new-test-class': {
+    label: 'New test class button in Organization test classes',
+    panel: true,
+  },
+  'admin.org.org-search': {
+    label: 'Search field in Organization organizations list',
+    panel: true,
+  },
+  'admin.org.overview-ai-toggle': {
+    label: 'AI features switch in Organization overview',
+    persists: true,
+    panel: true,
+  },
+  'admin.org.overview-name': {
+    label: 'Organization name field in Organization overview',
+    panel: true,
+  },
+  'admin.org.overview-primary-admin': {
+    label: 'Primary admin field in Organization overview',
+    panel: true,
+  },
+  'admin.org.overview-short-code': {
+    label: 'Short code field in Organization overview',
+    panel: true,
+  },
+  'admin.org.overview-short-name': {
+    label: 'Short name field in Organization overview',
+    panel: true,
+  },
+  'admin.org.overview-state': {
+    label: 'State field in Organization overview',
+    panel: true,
+  },
+  'admin.org.remove-logo': {
+    label: 'Remove logo button in Organization app settings',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.org.reset-link-copy': {
+    label: 'Copy button in Organization password-reset link dialog',
+    panel: true,
+  },
+  'admin.org.reset-link-done': {
+    label: 'Done button in Organization password-reset link dialog',
+    panel: true,
+  },
+  'admin.org.reset-link-url': {
+    label: 'Password-reset link field in Organization dialog',
+    panel: true,
+  },
+  'admin.org.reset-roles': {
+    label: 'Reset to defaults button in Organization roles',
+    destructive: true,
+    panel: true,
+  },
+  'admin.org.role-access-cell': {
+    label: 'Access level cell in the Organization roles matrix',
+    persists: true,
+    panel: true,
+  },
+  'admin.org.role-card': {
+    label: 'Role card in Organization roles',
+    perField: true,
+    panel: true,
+  },
+  'admin.org.roles-discard': {
+    label: 'Discard button for unsaved role changes in Organization roles',
+    destructive: true,
+    panel: true,
+  },
+  'admin.org.roles-save': {
+    label: 'Save changes button in Organization roles',
+    persists: true,
+    panel: true,
+  },
+  'admin.org.row-menu': {
+    label: 'Row actions menu button in Organization lists',
+    panel: true,
+  },
+  'admin.org.row-menu-item': {
+    label: 'Row actions menu item in Organization lists',
+    perField: true,
+    panel: true,
+  },
+  'admin.org.section': {
+    label: 'Section button in Organization sidebar',
+    perField: true,
+    panel: true,
+  },
+  'admin.org.section-select': {
+    label: 'Section dropdown in Organization on small screens',
+    panel: true,
+  },
+  'admin.org.test-class-cancel': {
+    label: 'Cancel button in Organization test class dialog',
+    panel: true,
+  },
+  'admin.org.test-class-emails': {
+    label: 'Member emails field in Organization test class dialog',
+    panel: true,
+  },
+  'admin.org.test-class-id': {
+    label: 'Class ID field in Organization test class dialog',
+    panel: true,
+  },
+  'admin.org.test-class-save': {
+    label: 'Create or save button in Organization test class dialog',
+    persists: true,
+    panel: true,
+  },
+  'admin.org.test-class-subject': {
+    label: 'Subject field in Organization test class dialog',
+    panel: true,
+  },
+  'admin.org.test-class-title': {
+    label: 'Title field in Organization test class dialog',
+    panel: true,
+  },
+  'admin.org.upload-logo': {
+    label: 'Upload logo button in Organization app settings',
+    persists: true,
+    panel: true,
+  },
+  'admin.org.user-building-filter': {
+    label: 'Building filter dropdown in Organization users',
+    panel: true,
+  },
+  'admin.org.user-building-option': {
+    label: 'Building option in Organization users buildings menu',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.org.user-building-search': {
+    label: 'Building search field in Organization users buildings menu',
+    panel: true,
+  },
+  'admin.org.user-buildings-cell': {
+    label: 'Buildings cell button in Organization users',
+    persists: true,
+    panel: true,
+  },
+  'admin.org.user-role-cell': {
+    label: 'Role cell button in Organization users',
+    persists: true,
+    panel: true,
+  },
+  'admin.org.user-role-filter': {
+    label: 'Role filter dropdown in Organization users',
+    panel: true,
+  },
+  'admin.org.user-search': {
+    label: 'Search field in Organization users',
+    panel: true,
+  },
+  'admin.org.user-select': {
+    label: 'Row checkbox in Organization users',
+    panel: true,
+  },
+  'admin.org.user-select-all': {
+    label: 'Select all checkbox in Organization users',
+    panel: true,
+  },
+  'admin.org.user-sort': {
+    label: 'Sort dropdown in Organization users',
+    panel: true,
+  },
+  'admin.org.user-status-cell': {
+    label: 'Status cell button in Organization users',
+    persists: true,
+    panel: true,
+  },
 
   // Activity Wall, Projects and Review start.
   'activity-wall.visibility': {
@@ -6940,517 +7530,254 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
-  'admin.org.add-building': {
-    label: 'Add building button in Organization buildings',
-    panel: true,
+
+  // Video Activity editor, live monitor, results and student app.
+  'video-activity.creator-back': {
+    label: 'Back arrow in the video activity creator',
   },
-  'admin.org.add-domain': {
-    label: 'Add domain button in Organization sign-in domains',
-    panel: true,
+  'video-activity.creator-title': {
+    label: 'Activity title box in the video activity creator',
   },
-  'admin.org.add-domain-cancel': {
-    label: 'Cancel button in Organization add domain dialog',
-    panel: true,
-  },
-  'admin.org.add-domain-method': {
-    label: 'Auth method dropdown in Organization add domain dialog',
-    panel: true,
-  },
-  'admin.org.add-domain-name': {
-    label: 'Domain field in Organization add domain dialog',
-    panel: true,
-  },
-  'admin.org.add-domain-saml-url': {
-    label: 'IdP metadata URL field in Organization add domain dialog',
-    panel: true,
-  },
-  'admin.org.add-domain-submit': {
-    label: 'Send verification button in Organization add domain dialog',
-    persists: true,
-    panel: true,
-  },
-  'admin.org.all-organizations': {
-    label: 'Back to all organizations button in Organization sidebar',
-    panel: true,
-  },
-  'admin.org.archive-org': {
-    label: 'Archive organization button in Organization overview',
-    destructive: true,
-    panel: true,
-  },
-  'admin.org.mode-submissions': {
-    label:
-      'Submissions mode button for an assignment type in Organization app settings',
+  'video-activity.creator-discover-tab': {
+    label: 'Paste URL, Search and Recommend tabs in the creator',
     perField: true,
-    panel: true,
   },
-  'admin.org.mode-view-only': {
-    label:
-      'View only mode button for an assignment type in Organization app settings',
-    perField: true,
-    panel: true,
+  'video-activity.creator-url': {
+    label: 'YouTube URL box in the creator',
   },
-  'admin.org.assignment-modes-save': {
-    label: 'Save button for assignment modes in Organization app settings',
+  'video-activity.creator-next': {
+    label: 'Next Step button in the creator',
+  },
+  'video-activity.creator-source-ai': {
+    label: 'Draft with AI choice in the creator',
+  },
+  'video-activity.creator-source-import': {
+    label: 'Import choice in the creator',
+  },
+  'video-activity.creator-source-manual': {
+    label: 'Create manually choice in the creator',
     persists: true,
-    panel: true,
   },
-  'admin.org.building-address': {
-    label: 'Address field in Organization building dialog',
-    panel: true,
+  'video-activity.creator-ai-count': {
+    label: 'Question count slider in the creator AI step',
   },
-  'admin.org.building-cancel': {
-    label: 'Cancel button in Organization building dialog',
-    panel: true,
-  },
-  'admin.org.building-grades': {
-    label: 'Grades served field in Organization building dialog',
-    panel: true,
-  },
-  'admin.org.building-name': {
-    label: 'Building name field in Organization building dialog',
-    panel: true,
-  },
-  'admin.org.building-save': {
-    label: 'Save button in Organization building dialog',
+  'video-activity.creator-ai-generate': {
+    label: 'Generate button in the creator AI step',
     persists: true,
-    panel: true,
   },
-  'admin.org.building-type': {
-    label: 'Building type dropdown in Organization building dialog',
-    panel: true,
+  'video-activity.creator-search-query': {
+    label: 'Video search box in the creator',
   },
-  'admin.org.bulk-building-cancel': {
-    label: 'Cancel button in Organization move to building dialog',
-    panel: true,
+  'video-activity.creator-search-submit': {
+    label: 'Search button in the creator',
   },
-  'admin.org.bulk-building-continue': {
-    label: 'Continue button in Organization move to building dialog',
-    panel: true,
-  },
-  'admin.org.bulk-building-option': {
-    label: 'Building checkbox in Organization move to building dialog',
+  'video-activity.creator-result': {
+    label: 'Video search result in the creator',
     perField: true,
-    panel: true,
   },
-  'admin.org.bulk-change-role': {
-    label: 'Change role bulk action in Organization users',
-    panel: true,
+  'video-activity.creator-recommend-topic': {
+    label: 'Topic box in the creator Recommend tab',
   },
-  'admin.org.bulk-clear': {
-    label: 'Clear selection button in Organization users',
-    panel: true,
+  'video-activity.creator-recommend-submit': {
+    label: 'Recommend button in the creator',
   },
-  'admin.org.bulk-deactivate': {
-    label: 'Deactivate bulk action in Organization users',
+  'video-activity.creator-recommend-accept': {
+    label: 'Use this video button in the creator',
+  },
+  'video-activity.editor-youtube-url': {
+    label: 'YouTube URL box in the video activity editor',
+    persists: true,
+  },
+  'video-activity.editor-question-pill': {
+    label: 'Question button in the editor question list',
+    perField: true,
+  },
+  'video-activity.editor-question-delete': {
+    label: 'Delete button on a question in the editor question list',
+    perField: true,
     destructive: true,
     persists: true,
-    panel: true,
   },
-  'admin.org.bulk-import': {
-    label: 'Bulk import button in Organization users',
-    panel: true,
-  },
-  'admin.org.bulk-move-building': {
-    label: 'Move to building bulk action in Organization users',
-    panel: true,
-  },
-  'admin.org.bulk-remove': {
-    label: 'Remove from org bulk action in Organization users',
-    destructive: true,
+  'video-activity.editor-question-text': {
+    label: 'Question prompt box in the video activity editor',
     persists: true,
-    panel: true,
   },
-  'admin.org.bulk-resend-invite': {
-    label: 'Resend invite bulk action in Organization users',
+  'video-activity.editor-question-type': {
+    label: 'Question type button in the video activity editor',
+    perField: true,
     persists: true,
-    panel: true,
   },
-  'admin.org.bulk-role-apply': {
-    label: 'Apply button in Organization change role dialog',
+  'video-activity.editor-question-timestamp': {
+    label: 'Question timestamp box in the video activity editor',
     persists: true,
+  },
+  'video-activity.editor-question-time-limit': {
+    label: 'Question time limit box in the video activity editor',
+    persists: true,
+  },
+  'video-activity.editor-question-points': {
+    label: 'Question points box in the video activity editor',
+    persists: true,
+  },
+  'video-activity.ai-count-decrement': {
+    label: 'Fewer questions button for a type in the AI drafter',
+    perField: true,
+  },
+  'video-activity.ai-count-increment': {
+    label: 'More questions button for a type in the AI drafter',
+    perField: true,
+  },
+  'video-activity.editor-correct-answer': {
+    label: 'Correct answer box for a multiple choice question',
+    persists: true,
+  },
+  'video-activity.editor-incorrect-answer': {
+    label: 'Incorrect answer box for a multiple choice question',
+    perField: true,
+    persists: true,
+  },
+  'video-activity.editor-fib-answer': {
+    label: 'Canonical answer box for a fill in the blank question',
+    persists: true,
+  },
+  'video-activity.editor-fib-variants': {
+    label: 'Acceptable variants box for a fill in the blank question',
+    persists: true,
+  },
+  'video-activity.editor-option-correct': {
+    label: 'Correct toggle on a multi-answer option',
+    perField: true,
+    persists: true,
+  },
+  'video-activity.editor-option-text': {
+    label: 'Text box on a multi-answer option',
+    perField: true,
+    persists: true,
+  },
+  'video-activity.editor-partial-credit': {
+    label: 'Allow partial credit checkbox in the video activity editor',
+    persists: true,
+  },
+  'video-activity.editor-draft-ai': {
+    label: 'Draft with AI button in the video activity editor footer',
+  },
+  'video-activity.editor-tab': {
+    label: 'Questions and Settings tabs in the video activity editor',
+    perField: true,
+  },
+  'video-activity.live-start': {
+    label: 'Start button in the live video activity waiting room',
+    persists: true,
+  },
+  'video-activity.live-who-open': {
+    label: 'Answered count button on a live video question',
+  },
+  'video-activity.live-who-close': {
+    label: 'Close button in the who has not answered popover',
     panel: true,
   },
-  'admin.org.bulk-role-cancel': {
-    label: 'Cancel button in Organization change role dialog',
-    panel: true,
+  'video-activity.live-play-toggle': {
+    label: 'Play and pause button in the live video controls',
   },
-  'admin.org.clone-role': {
-    label: 'Clone to customize button on a role card in Organization roles',
+  'video-activity.live-scrub': {
+    label: 'Video position slider in the live video controls',
+  },
+  'video-activity.live-list-toggle': {
+    label: 'Question list toggle in the live video controls',
+  },
+  'video-activity.live-jump-question': {
+    label: 'Jump to question button in the live question list',
+    perField: true,
+  },
+  'video-activity.monitor-unlock': {
+    label: 'Unlock badge on a student row in the live monitor',
+    perField: true,
+    persists: true,
+  },
+  'video-activity.monitor-let-in': {
+    label: 'Let in now button on a student row in the live monitor',
+    perField: true,
+    persists: true,
+  },
+  'video-activity.monitor-tab-warnings': {
+    label: 'Tab warnings toggle in the live monitor',
+  },
+  'video-activity.results-tab': {
+    label: 'Overview, Questions and Students tabs in video activity results',
+    perField: true,
+  },
+  'video-activity.results-more-item': {
+    label: 'Item in the video activity results more menu',
     perField: true,
     persists: true,
     panel: true,
   },
-  'admin.org.confirm-cancel': {
-    label: 'Cancel button in Organization confirm dialogs',
-    panel: true,
+  'video-activity.timeline-track': {
+    label: 'Video timeline track in the editor',
   },
-  'admin.org.confirm-ok': {
-    label: 'Confirm button in Organization confirm dialogs',
+  'video-activity.timeline-marker': {
+    label: 'Question marker on the editor video timeline',
+    perField: true,
+    persists: true,
+  },
+  'video-activity.timeline-add': {
+    label: 'Add question at playhead button under the editor timeline',
+    persists: true,
+  },
+  'video-activity.empty-create': {
+    label: 'Create Activity button in the empty video activity library',
+  },
+  'video-activity.selection-toggle': {
+    label: 'Select toggle in the video activity library',
+  },
+  'video-activity.assign-due-date': {
+    label: 'Due date box in the video activity assign dialog',
     persists: true,
     panel: true,
   },
-  'admin.org.confirm-typing': {
-    label: 'Type-to-confirm input in Organization confirm dialogs',
+  'video-activity.behavior-open-editor': {
+    label: 'Edit in activity link in the video activity assign dialog',
     panel: true,
   },
-  'admin.org.edit-user-building': {
-    label: 'Building checkbox in Organization edit user dialog',
+  'video-activity.settings-score-visibility': {
+    label: 'Score visibility option in video activity behavior settings',
+    perField: true,
+    persists: true,
+  },
+  'video-activity.admin-tab': {
+    label: 'List and Settings tabs in the video activity admin modal',
     perField: true,
     panel: true,
   },
-  'admin.org.edit-user-cancel': {
-    label: 'Cancel button in Organization edit user dialog',
-    panel: true,
-  },
-  'admin.org.edit-user-name': {
-    label: 'Name field in Organization edit user dialog',
-    panel: true,
-  },
-  'admin.org.edit-user-role': {
-    label: 'Role dropdown in Organization edit user dialog',
-    panel: true,
-  },
-  'admin.org.edit-user-save': {
-    label: 'Save changes button in Organization edit user dialog',
+  'video-activity.admin-building-all': {
+    label: 'All buildings chip on an admin video activity',
     persists: true,
     panel: true,
   },
-  'admin.org.export-orgs': {
-    label: 'Export list button in Organization organizations list',
-    panel: true,
-  },
-  'admin.org.import-cancel': {
-    label: 'Cancel button in Organization bulk import dialog',
-    panel: true,
-  },
-  'admin.org.import-choose-file': {
-    label: 'Choose CSV file button in Organization bulk import dialog',
-    panel: true,
-  },
-  'admin.org.import-clear': {
-    label: 'Clear button in Organization bulk import dialog',
-    panel: true,
-  },
-  'admin.org.import-csv': {
-    label: 'CSV text field in Organization bulk import dialog',
-    panel: true,
-  },
-  'admin.org.import-send': {
-    label: 'Send invites button in Organization bulk import dialog',
-    persists: true,
-    panel: true,
-  },
-  'admin.org.invite-building': {
-    label: 'Building checkbox in Organization invite users dialog',
+  'video-activity.admin-building': {
+    label: 'Building chip on an admin video activity',
     perField: true,
-    panel: true,
-  },
-  'admin.org.invite-cancel': {
-    label: 'Cancel button in Organization invite users dialog',
-    panel: true,
-  },
-  'admin.org.invite-emails': {
-    label: 'Emails field in Organization invite users dialog',
-    panel: true,
-  },
-  'admin.org.invite-message': {
-    label: 'Custom message field in Organization invite users dialog',
-    panel: true,
-  },
-  'admin.org.invite-role': {
-    label: 'Role dropdown in Organization invite users dialog',
-    panel: true,
-  },
-  'admin.org.invite-send': {
-    label: 'Send invites button in Organization invite users dialog',
     persists: true,
     panel: true,
   },
-  'admin.org.invite-users': {
-    label: 'Invite users button in Organization users',
-    panel: true,
-  },
-  'admin.org.media-after-date': {
-    label: 'After date field in Organization media review',
-    panel: true,
-  },
-  'admin.org.media-before-date': {
-    label: 'Before date field in Organization media review',
-    panel: true,
-  },
-  'admin.org.media-clear-filters': {
-    label: 'Clear filters button in Organization media review',
-    panel: true,
-  },
-  'admin.org.media-remove-cancel': {
-    label: 'Cancel button in Organization media delete dialog',
-    panel: true,
-  },
-  'admin.org.media-delete-confirm': {
-    label: 'Delete button in Organization media delete dialog',
+  'video-activity.admin-delete': {
+    label: 'Delete button on an admin video activity',
     destructive: true,
     persists: true,
     panel: true,
   },
-  'admin.org.media-delete-selected': {
-    label: 'Delete selected button in Organization media review',
-    destructive: true,
+  'video-activity.plc-assign-due-date': {
+    label: 'Due date box in the PLC video activity assign dialog',
     persists: true,
     panel: true,
   },
-  'admin.org.media-remove-typing': {
-    label: 'Type-to-confirm field in Organization media delete dialog',
-    panel: true,
-  },
-  'admin.org.media-dismiss-results': {
-    label: 'Dismiss results button in Organization media review',
-    panel: true,
-  },
-  'admin.org.media-refresh': {
-    label: 'Refresh button in Organization media review',
-    panel: true,
-  },
-  'admin.org.media-retry': {
-    label: 'Retry button in Organization media review',
-    panel: true,
-  },
-  'admin.org.media-select-all': {
-    label: 'Select all checkbox in Organization media review',
-    panel: true,
-  },
-  'admin.org.media-select-row': {
-    label: 'Row checkbox in Organization media review',
-    panel: true,
-  },
-  'admin.org.media-teacher-filter': {
-    label: 'Teacher filter dropdown in Organization media review',
-    panel: true,
-  },
-  'admin.org.modal-close': {
-    label: 'Close button in Organization dialogs',
-    panel: true,
-  },
-  'admin.org.new-org': {
-    label: 'New organization button in Organization organizations list',
-    panel: true,
-  },
-  'admin.org.new-org-admin-email': {
-    label: 'Primary admin email field in Organization new organization dialog',
-    panel: true,
-  },
-  'admin.org.new-org-cancel': {
-    label: 'Cancel button in Organization new organization dialog',
-    panel: true,
-  },
-  'admin.org.new-org-create': {
-    label: 'Create button in Organization new organization dialog',
+  'video-activity.plc-teacher-name': {
+    label: 'Teacher name box in the PLC video activity assign dialog',
     persists: true,
     panel: true,
   },
-  'admin.org.new-org-name': {
-    label: 'Name field in Organization new organization dialog',
-    panel: true,
-  },
-  'admin.org.new-org-plan': {
-    label: 'Plan dropdown in Organization new organization dialog',
-    panel: true,
-  },
-  'admin.org.new-org-short-code': {
-    label: 'Short code field in Organization new organization dialog',
-    panel: true,
-  },
-  'admin.org.new-role': {
-    label: 'New role button in Organization roles',
-    panel: true,
-  },
-  'admin.org.new-role-cancel': {
-    label: 'Cancel button in Organization new role dialog',
-    panel: true,
-  },
-  'admin.org.new-role-create': {
-    label: 'Create role button in Organization new role dialog',
-    persists: true,
-    panel: true,
-  },
-  'admin.org.new-role-description': {
-    label: 'Description field in Organization new role dialog',
-    panel: true,
-  },
-  'admin.org.new-role-name': {
-    label: 'Role name field in Organization new role dialog',
-    panel: true,
-  },
-  'admin.org.new-test-class': {
-    label: 'New test class button in Organization test classes',
-    panel: true,
-  },
-  'admin.org.org-search': {
-    label: 'Search field in Organization organizations list',
-    panel: true,
-  },
-  'admin.org.overview-ai-toggle': {
-    label: 'AI features switch in Organization overview',
-    persists: true,
-    panel: true,
-  },
-  'admin.org.overview-name': {
-    label: 'Organization name field in Organization overview',
-    panel: true,
-  },
-  'admin.org.overview-primary-admin': {
-    label: 'Primary admin field in Organization overview',
-    panel: true,
-  },
-  'admin.org.overview-short-code': {
-    label: 'Short code field in Organization overview',
-    panel: true,
-  },
-  'admin.org.overview-short-name': {
-    label: 'Short name field in Organization overview',
-    panel: true,
-  },
-  'admin.org.overview-state': {
-    label: 'State field in Organization overview',
-    panel: true,
-  },
-  'admin.org.remove-logo': {
-    label: 'Remove logo button in Organization app settings',
-    destructive: true,
-    persists: true,
-    panel: true,
-  },
-  'admin.org.reset-link-copy': {
-    label: 'Copy button in Organization password-reset link dialog',
-    panel: true,
-  },
-  'admin.org.reset-link-done': {
-    label: 'Done button in Organization password-reset link dialog',
-    panel: true,
-  },
-  'admin.org.reset-link-url': {
-    label: 'Password-reset link field in Organization dialog',
-    panel: true,
-  },
-  'admin.org.reset-roles': {
-    label: 'Reset to defaults button in Organization roles',
-    destructive: true,
-    panel: true,
-  },
-  'admin.org.role-access-cell': {
-    label: 'Access level cell in the Organization roles matrix',
-    persists: true,
-    panel: true,
-  },
-  'admin.org.role-card': {
-    label: 'Role card in Organization roles',
-    perField: true,
-    panel: true,
-  },
-  'admin.org.roles-discard': {
-    label: 'Discard button for unsaved role changes in Organization roles',
-    destructive: true,
-    panel: true,
-  },
-  'admin.org.roles-save': {
-    label: 'Save changes button in Organization roles',
-    persists: true,
-    panel: true,
-  },
-  'admin.org.row-menu': {
-    label: 'Row actions menu button in Organization lists',
-    panel: true,
-  },
-  'admin.org.row-menu-item': {
-    label: 'Row actions menu item in Organization lists',
-    perField: true,
-    panel: true,
-  },
-  'admin.org.section': {
-    label: 'Section button in Organization sidebar',
-    perField: true,
-    panel: true,
-  },
-  'admin.org.section-select': {
-    label: 'Section dropdown in Organization on small screens',
-    panel: true,
-  },
-  'admin.org.test-class-cancel': {
-    label: 'Cancel button in Organization test class dialog',
-    panel: true,
-  },
-  'admin.org.test-class-emails': {
-    label: 'Member emails field in Organization test class dialog',
-    panel: true,
-  },
-  'admin.org.test-class-id': {
-    label: 'Class ID field in Organization test class dialog',
-    panel: true,
-  },
-  'admin.org.test-class-save': {
-    label: 'Create or save button in Organization test class dialog',
-    persists: true,
-    panel: true,
-  },
-  'admin.org.test-class-subject': {
-    label: 'Subject field in Organization test class dialog',
-    panel: true,
-  },
-  'admin.org.test-class-title': {
-    label: 'Title field in Organization test class dialog',
-    panel: true,
-  },
-  'admin.org.upload-logo': {
-    label: 'Upload logo button in Organization app settings',
-    persists: true,
-    panel: true,
-  },
-  'admin.org.user-building-filter': {
-    label: 'Building filter dropdown in Organization users',
-    panel: true,
-  },
-  'admin.org.user-building-option': {
-    label: 'Building option in Organization users buildings menu',
-    perField: true,
-    persists: true,
-    panel: true,
-  },
-  'admin.org.user-building-search': {
-    label: 'Building search field in Organization users buildings menu',
-    panel: true,
-  },
-  'admin.org.user-buildings-cell': {
-    label: 'Buildings cell button in Organization users',
-    persists: true,
-    panel: true,
-  },
-  'admin.org.user-role-cell': {
-    label: 'Role cell button in Organization users',
-    persists: true,
-    panel: true,
-  },
-  'admin.org.user-role-filter': {
-    label: 'Role filter dropdown in Organization users',
-    panel: true,
-  },
-  'admin.org.user-search': {
-    label: 'Search field in Organization users',
-    panel: true,
-  },
-  'admin.org.user-select': {
-    label: 'Row checkbox in Organization users',
-    panel: true,
-  },
-  'admin.org.user-select-all': {
-    label: 'Select all checkbox in Organization users',
-    panel: true,
-  },
-  'admin.org.user-sort': {
-    label: 'Sort dropdown in Organization users',
-    panel: true,
-  },
-  'admin.org.user-status-cell': {
-    label: 'Status cell button in Organization users',
+  'video-activity.plc-sheet-url': {
+    label: 'PLC sheet URL box in the PLC video activity assign dialog',
     persists: true,
     panel: true,
   },

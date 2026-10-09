@@ -311,7 +311,13 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
         submitLabel="Import"
         onSubmit={(selection) => void readSelection(selection)}
       >
-        {canUseAi && <AiReaderToggle checked={useAi} onChange={setUseAi} />}
+        {canUseAi && (
+          <AiReaderToggle
+            checked={useAi}
+            onChange={setUseAi}
+            anchor={tourTypeAttr('quiz-import.paper-text-ai-toggle', 'quiz')}
+          />
+        )}
       </TestAndKeyUploader>
     </div>
   );
