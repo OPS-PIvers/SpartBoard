@@ -3,6 +3,7 @@
 import React from 'react';
 import { GripVertical, Heading, Trash2 } from 'lucide-react';
 import type { QuizSection } from '@/types';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 interface SectionRowProps {
   section: QuizSection;
@@ -39,6 +40,7 @@ export const SectionRow: React.FC<SectionRowProps> = ({
             | undefined
         }
         aria-label="Drag to reorder"
+        {...tourTypeAttr('quiz-editor.section-drag', 'quiz')}
         className="mt-1 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing touch-none p-0.5"
       >
         <GripVertical className="w-4 h-4" />
@@ -54,6 +56,7 @@ export const SectionRow: React.FC<SectionRowProps> = ({
           onChange={(e) => onUpdate(section.id, { title: e.target.value })}
           aria-label="Section title"
           placeholder="Section title"
+          {...tourTypeAttr('quiz-editor.section-title', 'quiz')}
           className="w-full rounded-md border border-slate-200 bg-white px-2 py-1 text-sm font-bold text-slate-800 focus:border-brand-blue-primary focus:outline-none"
         />
         <textarea
@@ -65,6 +68,7 @@ export const SectionRow: React.FC<SectionRowProps> = ({
           }
           aria-label="Section directions"
           placeholder="Directions (optional)"
+          {...tourTypeAttr('quiz-editor.section-directions', 'quiz')}
           rows={2}
           className="w-full resize-y rounded-md border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 focus:border-brand-blue-primary focus:outline-none"
         />
@@ -79,6 +83,7 @@ export const SectionRow: React.FC<SectionRowProps> = ({
               })
             }
             disabled={questionCount < 2}
+            {...tourTypeAttr('quiz-editor.section-choose-count', 'quiz')}
             className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-xs text-slate-700 focus:border-brand-blue-primary focus:outline-none disabled:opacity-60"
           >
             <option value="all">all</option>
@@ -96,6 +101,7 @@ export const SectionRow: React.FC<SectionRowProps> = ({
         onClick={() => onRemove(section.id)}
         aria-label="Remove section"
         title="Remove section"
+        {...tourTypeAttr('quiz-editor.section-remove', 'quiz')}
         className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded p-1 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
       >
         <Trash2 className="w-3.5 h-3.5" />

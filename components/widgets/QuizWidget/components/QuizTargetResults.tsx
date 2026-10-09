@@ -7,6 +7,7 @@ import {
   Download,
 } from 'lucide-react';
 import type { QuizResponse } from '@/types';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import {
   buildTargetGridCsv,
@@ -80,6 +81,11 @@ const MasteryRow: React.FC<{ row: TargetStat }> = ({ row }) => {
         onClick={() => setExpanded((value) => !value)}
         aria-expanded={expanded}
         aria-label={`${expanded ? 'Collapse' : 'Expand'} ${displayTarget(row)}`}
+        {...tourFieldAttr(
+          'quiz-results.target-row-toggle',
+          'quiz',
+          row.target.id
+        )}
       >
         {expanded ? (
           <ChevronDown
@@ -302,6 +308,7 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
           <button
             type="button"
             onClick={exportCsv}
+            {...tourTypeAttr('quiz-results.targets-export-csv', 'quiz')}
             disabled={rows.length === 0 || columns.length === 0}
             className="inline-flex items-center rounded-md border border-brand-gray-lighter bg-white font-bold text-brand-blue-primary transition-colors hover:border-brand-blue-light disabled:opacity-40"
             style={{
@@ -337,6 +344,10 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
                   <button
                     type="button"
                     onClick={() => changeSort('student')}
+                    {...tourTypeAttr(
+                      'quiz-results.targets-sort-student',
+                      'quiz'
+                    )}
                     className="inline-flex items-center font-bold"
                     style={{ gap: 'min(4px, 1cqmin)' }}
                   >
@@ -363,6 +374,11 @@ export const QuizTargetResults: React.FC<QuizTargetResultsProps> = ({
                     <button
                       type="button"
                       onClick={() => changeSort(column.target.id)}
+                      {...tourFieldAttr(
+                        'quiz-results.targets-sort-target',
+                        'quiz',
+                        column.target.id
+                      )}
                       className="mx-auto block truncate font-bold"
                       style={{ maxWidth: 'min(128px, 32cqmin)' }}
                     >
