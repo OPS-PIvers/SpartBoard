@@ -105,34 +105,35 @@ describe('PeriodBar', () => {
     c: period({ label: '5th Hour C', state: 'paused' }),
   };
 
-  it('counts live classes and starts or pauses them all', async () => {
-    const h = renderBar(classes, '');
+  it('counts live classes and offers no start-all or pause-all', () => {
+    renderBar(classes, '');
     expect(screen.getByText('1 of 3 live')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Start all' }));
-    await waitFor(() =>
-      expect(h.onStart).toHaveBeenCalledWith(['a', 'b', 'c'])
-    );
-    fireEvent.click(screen.getByRole('button', { name: 'Pause all' }));
-    await waitFor(() =>
-      expect(h.onPause).toHaveBeenCalledWith(['a', 'b', 'c'])
-    );
+    expect(screen.queryByRole('button', { name: /all/ })).toBeNull();
   });
 
-  it('lists the other classes with their state and switches to one', () => {
+  it('names each class state in the picker and switches classes', () => {
     const h = renderBar(classes, 'a');
-    expect(screen.getByText(/^Live until/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /B\s+Closed/ }));
-    expect(h.onSelect).toHaveBeenCalledWith('b');
+    expect(screen.getByRole('combobox', { name: 'Class' })).toHaveValue('a');
+    expect(
+      screen.getByRole('option', { name: '5th Hour B · Closed' })
+    ).toBeInTheDocument();
     fireEvent.change(screen.getByRole('combobox', { name: 'Class' }), {
-      target: { value: '' },
+      target: { value: 'b' },
     });
-    expect(h.onSelect).toHaveBeenCalledWith('');
+    expect(h.onSelect).toHaveBeenCalledWith('b');
+  });
+
+  it('offers More time only while the class has a close time', () => {
+    renderBar({ a: period({ label: 'P1', state: 'open' }) }, 'a');
+    expect(
+      screen.queryByRole('button', { name: 'More time for P1' })
+    ).toBeNull();
   });
 
   it('pauses or adds time to the picked live class', async () => {
     const h = renderBar(classes, 'a');
     fireEvent.click(screen.getByRole('button', { name: 'Pause' }));
-    await waitFor(() => expect(h.onPause).toHaveBeenCalledWith(['a']));
+    await waitFor(() => expect(h.onPause).toHaveBeenCalledWith('a'));
     fireEvent.click(
       screen.getByRole('button', { name: 'More time for 5th Hour A' })
     );
@@ -143,6 +144,6 @@ describe('PeriodBar', () => {
   it('starts the picked class when it is not live', async () => {
     const h = renderBar(classes, 'c');
     fireEvent.click(screen.getByRole('button', { name: 'Start' }));
-    await waitFor(() => expect(h.onStart).toHaveBeenCalledWith(['c']));
+    await waitFor(() => expect(h.onStart).toHaveBeenCalledWith('c'));
   });
 });

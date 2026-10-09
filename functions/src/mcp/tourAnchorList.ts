@@ -867,7 +867,7 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
   },
   {
     id: 'quiz.end-quiz',
-    label: 'End assignment button in the Quiz monitor',
+    label: 'Close all button in the Quiz monitor',
     scope: 'widget',
     destructive: true,
   },

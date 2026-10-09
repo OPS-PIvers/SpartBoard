@@ -590,7 +590,7 @@ export const TOUR_ANCHORS = {
     perWidget: true,
   },
   'quiz.end-quiz': {
-    label: 'End assignment button in the Quiz monitor',
+    label: 'Close all button in the Quiz monitor',
     perWidget: true,
     destructive: true,
   },
