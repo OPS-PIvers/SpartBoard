@@ -6105,6 +6105,465 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'admin.announcements.activation-type': {
+    label: 'Activation type option in the announcement form',
+    perField: true,
+    panel: true,
+  },
+  'admin.announcements.auto-deactivate': {
+    label: 'Auto-deactivate switch in the announcement form',
+    persists: true,
+    panel: true,
+  },
+  'admin.announcements.delete': {
+    label: 'Delete button on an announcement row',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.announcements.remove-cancel': {
+    label: 'Cancel delete button on an announcement row',
+    perField: true,
+    panel: true,
+  },
+  'admin.announcements.delete-confirm': {
+    label: 'Confirm delete button on an announcement row',
+    perField: true,
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.announcements.dismissal-duration': {
+    label: 'Dismissal duration field in the announcement form',
+    panel: true,
+  },
+  'admin.announcements.dismissal-time': {
+    label: 'Dismissal time field in the announcement form',
+    panel: true,
+  },
+  'admin.announcements.dismissal-type': {
+    label: 'Dismissal type option in the announcement form',
+    perField: true,
+    panel: true,
+  },
+  'admin.announcements.dismissal-unit': {
+    label: 'Dismissal duration unit select in the announcement form',
+    panel: true,
+  },
+  'admin.announcements.duplicate': {
+    label: 'Duplicate button on an announcement row',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.announcements.edit': {
+    label: 'Edit button on an announcement row',
+    perField: true,
+    panel: true,
+  },
+  'admin.announcements.embed-autoplay': {
+    label: 'Auto-play video switch in the announcement embed editor',
+    persists: true,
+    panel: true,
+  },
+  'admin.announcements.embed-copy-url': {
+    label: 'Copy embed URL button in the announcement embed editor',
+    panel: true,
+  },
+  'admin.announcements.embed-html': {
+    label: 'Custom embed code field in the announcement embed editor',
+    panel: true,
+  },
+  'admin.announcements.embed-live-url': {
+    label: 'YouTube Live URL field in the announcement embed editor',
+    panel: true,
+  },
+  'admin.announcements.embed-record-again': {
+    label: 'Record again button in the announcement embed editor',
+    panel: true,
+  },
+  'admin.announcements.embed-start-minutes': {
+    label: 'Start-at minutes field in the announcement embed editor',
+    panel: true,
+  },
+  'admin.announcements.embed-start-recording': {
+    label: 'Start screen recording button in the announcement embed editor',
+    persists: true,
+    panel: true,
+  },
+  'admin.announcements.embed-start-seconds': {
+    label: 'Start-at seconds field in the announcement embed editor',
+    panel: true,
+  },
+  'admin.announcements.embed-stop-recording': {
+    label: 'Stop and upload recording button in the announcement embed editor',
+    panel: true,
+  },
+  'admin.announcements.embed-tab': {
+    label: 'Embed source tab in the announcement embed editor',
+    perField: true,
+    panel: true,
+  },
+  'admin.announcements.embed-url': {
+    label: 'Embed URL field in the announcement embed editor',
+    panel: true,
+  },
+  'admin.announcements.embed-video-upload': {
+    label: 'Video upload input in the announcement embed editor',
+    persists: true,
+    panel: true,
+  },
+  'admin.announcements.end-date': {
+    label: 'End date field in the announcement form',
+    panel: true,
+  },
+  'admin.announcements.end-time': {
+    label: 'End time field in the announcement form',
+    panel: true,
+  },
+  'admin.announcements.form-cancel': {
+    label: 'Cancel button on the announcement form',
+    panel: true,
+  },
+  'admin.announcements.form-close': {
+    label: 'Close button on the announcement form',
+    panel: true,
+  },
+  'admin.announcements.form-save': {
+    label: 'Save or create button on the announcement form',
+    persists: true,
+    panel: true,
+  },
+  'admin.announcements.height': {
+    label: 'Height field in the announcement form',
+    panel: true,
+  },
+  'admin.announcements.interaction-mode': {
+    label: 'Interaction mode select in the announcement expectations editor',
+    panel: true,
+  },
+  'admin.announcements.json-config': {
+    label: 'Widget config JSON field in the announcement form',
+    panel: true,
+  },
+  'admin.announcements.json-reset': {
+    label: 'Reset to defaults button in the announcement JSON config editor',
+    panel: true,
+  },
+  'admin.announcements.maximize': {
+    label: 'Maximize switch in the announcement form',
+    persists: true,
+    panel: true,
+  },
+  'admin.announcements.name': {
+    label: 'Announcement name field',
+    panel: true,
+  },
+  'admin.announcements.new': {
+    label: 'New announcement button in Announcements',
+    panel: true,
+  },
+  'admin.announcements.poll-export-csv': {
+    label: 'Export CSV button on the poll results panel',
+    panel: true,
+  },
+  'admin.announcements.poll-results': {
+    label: 'View poll results button on an announcement row',
+    perField: true,
+    panel: true,
+  },
+  'admin.announcements.poll-results-close': {
+    label: 'Close button on the poll results panel',
+    panel: true,
+  },
+  'admin.announcements.qr-url': {
+    label: 'QR code URL field in the announcement form',
+    panel: true,
+  },
+  'admin.announcements.section-toggle': {
+    label: 'Collapsible section header in the announcement form',
+    perField: true,
+    panel: true,
+  },
+  'admin.announcements.start-date': {
+    label: 'Start date field in the announcement form',
+    panel: true,
+  },
+  'admin.announcements.start-time': {
+    label: 'Start time field in the announcement form',
+    panel: true,
+  },
+  'admin.announcements.target-add': {
+    label: 'Add target user button in the announcement form',
+    panel: true,
+  },
+  'admin.announcements.target-building': {
+    label: 'Target building switch in the announcement form',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.announcements.target-email': {
+    label: 'Target user email field in the announcement form',
+    panel: true,
+  },
+  'admin.announcements.target-remove': {
+    label: 'Remove target user button in the announcement form',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.announcements.text-bg-color': {
+    label: 'Background color picker in the text announcement editor',
+    panel: true,
+  },
+  'admin.announcements.text-content': {
+    label: 'Message content field in the text announcement editor',
+    panel: true,
+  },
+  'admin.announcements.text-font-size': {
+    label: 'Font size field in the text announcement editor',
+    panel: true,
+  },
+  'admin.announcements.toggle-active': {
+    label: 'Activate or deactivate button on an announcement row',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.announcements.voice-level': {
+    label: 'Voice level button in the announcement expectations editor',
+    perField: true,
+    panel: true,
+  },
+  'admin.announcements.widget-type': {
+    label: 'Widget type select in the announcement form',
+    panel: true,
+  },
+  'admin.announcements.width': {
+    label: 'Width field in the announcement form',
+    panel: true,
+  },
+  'admin.announcements.work-mode': {
+    label: 'Work mode select in the announcement expectations editor',
+    panel: true,
+  },
+  'admin.backgrounds.access-level': {
+    label: 'Access level button on a background',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.backgrounds.active-toggle': {
+    label: 'Active switch on a background',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.backgrounds.beta-user-add': {
+    label: 'Add beta user button on a background',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.backgrounds.beta-user-input': {
+    label: 'Beta user email field on a background',
+    perField: true,
+    panel: true,
+  },
+  'admin.backgrounds.beta-user-remove': {
+    label: 'Remove beta user button on a background',
+    perField: true,
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.backgrounds.building-toggle': {
+    label: 'Building assignment button on a background',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.backgrounds.category-cancel': {
+    label: 'Cancel category button on a background',
+    perField: true,
+    panel: true,
+  },
+  'admin.backgrounds.category-edit': {
+    label: 'Edit category button on a background',
+    perField: true,
+    panel: true,
+  },
+  'admin.backgrounds.category-input': {
+    label: 'Category field on a background',
+    perField: true,
+    panel: true,
+  },
+  'admin.backgrounds.category-name-input': {
+    label: 'New category name field in Backgrounds',
+    panel: true,
+  },
+  'admin.backgrounds.category-note': {
+    label: 'Note category button in Backgrounds',
+    persists: true,
+    panel: true,
+  },
+  'admin.backgrounds.category-save': {
+    label: 'Save category button on a background',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.backgrounds.delete-preset': {
+    label: 'Delete button on a background',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.backgrounds.drive-picker-close': {
+    label: 'Close button in the Google Drive picker',
+    panel: true,
+  },
+  'admin.backgrounds.drive-picker-file': {
+    label: 'Image option in the Google Drive picker',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.backgrounds.featured-toggle': {
+    label: 'Featured star button on a background',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.backgrounds.filter-active': {
+    label: 'Active filter button in Backgrounds',
+    perField: true,
+    panel: true,
+  },
+  'admin.backgrounds.filter-availability': {
+    label: 'Availability filter button in Backgrounds',
+    perField: true,
+    panel: true,
+  },
+  'admin.backgrounds.filter-building': {
+    label: 'Building filter button in Backgrounds',
+    perField: true,
+    panel: true,
+  },
+  'admin.backgrounds.filter-category': {
+    label: 'Category filter button in Backgrounds',
+    perField: true,
+    panel: true,
+  },
+  'admin.backgrounds.filters-toggle': {
+    label: 'Mobile filters toggle in Backgrounds',
+    panel: true,
+  },
+  'admin.backgrounds.google-drive': {
+    label: 'Google Drive button in Backgrounds',
+    panel: true,
+  },
+  'admin.backgrounds.manage-categories': {
+    label: 'Manage categories button in Backgrounds',
+    panel: true,
+  },
+  'admin.backgrounds.media-type': {
+    label: 'Media type button in Backgrounds',
+    perField: true,
+    panel: true,
+  },
+  'admin.backgrounds.rename-cancel': {
+    label: 'Cancel rename button on a background',
+    perField: true,
+    panel: true,
+  },
+  'admin.backgrounds.rename-edit': {
+    label: 'Rename button on a background',
+    perField: true,
+    panel: true,
+  },
+  'admin.backgrounds.rename-input': {
+    label: 'Rename field on a background',
+    perField: true,
+    panel: true,
+  },
+  'admin.backgrounds.rename-save': {
+    label: 'Save name button on a background',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.backgrounds.restore-defaults': {
+    label: 'Restore defaults button in Backgrounds',
+    persists: true,
+    panel: true,
+  },
+  'admin.backgrounds.stock-load-more': {
+    label: 'Load more button in the stock photo picker',
+    panel: true,
+  },
+  'admin.backgrounds.stock-photo': {
+    label: 'Stock photo result in the stock photo picker',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.backgrounds.stock-photos': {
+    label: 'Stock photos button in Backgrounds',
+    panel: true,
+  },
+  'admin.backgrounds.stock-search': {
+    label: 'Stock photo search field in Backgrounds',
+    panel: true,
+  },
+  'admin.backgrounds.tag-input': {
+    label: 'Tag field on a background',
+    perField: true,
+    panel: true,
+  },
+  'admin.backgrounds.tag-remove': {
+    label: 'Remove tag button on a background',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.backgrounds.tag-suggestion': {
+    label: 'Suggested tag button on a background',
+    perField: true,
+    panel: true,
+  },
+  'admin.backgrounds.upload': {
+    label: 'Upload new button in Backgrounds',
+    persists: true,
+    panel: true,
+  },
+  'admin.backgrounds.upload-input': {
+    label: 'File upload input in Backgrounds',
+    persists: true,
+    panel: true,
+  },
+  'admin.backgrounds.view-grid': {
+    label: 'Grid view button in Backgrounds',
+    panel: true,
+  },
+  'admin.backgrounds.view-list': {
+    label: 'List view button in Backgrounds',
+    panel: true,
+  },
+  'admin.backgrounds.youtube-add': {
+    label: 'Add video button in Backgrounds',
+    persists: true,
+    panel: true,
+  },
+  'admin.backgrounds.youtube-label': {
+    label: 'YouTube video label field in Backgrounds',
+    panel: true,
+  },
+  'admin.backgrounds.youtube-url': {
+    label: 'YouTube URL field in Backgrounds',
+    panel: true,
+  },
   'admin.previews.district-switch': {
     label: 'District switch on a Previews row',
     perField: true,
