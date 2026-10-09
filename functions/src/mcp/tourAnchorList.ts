@@ -3439,6 +3439,95 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     scope: 'widget type',
   },
   {
+    id: 'quiz-monitor.roster-scores',
+    label: 'Scores toggle chip in the Quiz monitor roster',
+    scope: 'widget type',
+  },
+  {
+    id: 'quiz-monitor.roster-tab-warnings',
+    label: 'Tab warnings toggle chip in the Quiz monitor roster',
+    scope: 'widget type',
+  },
+  {
+    id: 'quiz-monitor.roster-proficiency',
+    label: 'Proficiency colors toggle chip in the Quiz monitor roster',
+    scope: 'widget type',
+  },
+  {
+    id: 'quiz-monitor.settings-board-view',
+    label: 'Board view switch in the Quiz monitor settings',
+    scope: 'widget type',
+  },
+  {
+    id: 'quiz-monitor.settings-tab-warnings',
+    label: 'Tab warnings switch in the Quiz monitor settings',
+    scope: 'widget type',
+  },
+  {
+    id: 'quiz-monitor.settings-podium',
+    label: 'Podium between questions switch in the Quiz monitor settings',
+    scope: 'widget type',
+  },
+  {
+    id: 'quiz-monitor.settings-answer-reveal',
+    label: 'Answer reveal on board switch in the Quiz monitor settings',
+    scope: 'widget type',
+  },
+  {
+    id: 'quiz-monitor.settings-scoreboard-sync',
+    label: 'Sync to scoreboard widget switch in the Quiz monitor settings',
+    scope: 'widget type',
+  },
+  {
+    id: 'quiz-monitor.period-start',
+    label: 'Start button for the picked class in the Quiz monitor',
+    scope: 'widget type',
+  },
+  {
+    id: 'quiz-monitor.period-pause',
+    label: 'Pause button for the picked class in the Quiz monitor',
+    scope: 'widget type',
+  },
+  {
+    id: 'quiz-monitor.period-extend',
+    label: 'Extend time option in the Quiz monitor More time menu',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'review-start.gamification',
+    label: 'Gamification section header in the Start review dialog',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'quiz-library.bulk-merge',
+    label: 'Merge button in the Quiz library bulk action bar',
+    scope: 'widget type',
+  },
+  {
+    id: 'quiz-library.bulk-share-plc',
+    label: 'Share with PLC button in the Quiz library bulk action bar',
+    scope: 'widget type',
+  },
+  {
+    id: 'quiz-print.import-ai-toggle',
+    label: 'AI reader toggle in the Quiz print import dialog',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'quiz-import.paper-text-ai-toggle',
+    label: 'AI reader toggle in the Quiz paper question text dialog',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'quiz-results.student-view-as',
+    label: 'View as student button on a student row in the Quiz results',
+    scope: 'field',
+  },
+  {
     id: 'quiz-settings.widget-label',
     label: 'Widget label input in Quiz settings',
     scope: 'widget',
