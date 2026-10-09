@@ -1,5 +1,6 @@
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import React, { useState, useEffect, useCallback } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   collection,
   onSnapshot,
@@ -180,6 +181,7 @@ export const VideoActivityConfigurationModal: React.FC<
             </div>
           </div>
           <button
+            {...tourAttr('modal.close')}
             onClick={onClose}
             {...tourTypeAttr('admin.widget-config.close', 'video-activity')}
             className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors"
@@ -201,6 +203,11 @@ export const VideoActivityConfigurationModal: React.FC<
         {/* View Tabs */}
         <div className="flex px-6 border-b border-slate-100 bg-slate-50 shrink-0">
           <button
+            {...tourFieldAttr(
+              'video-activity.admin-tab',
+              'video-activity',
+              'list'
+            )}
             onClick={() => setView('list')}
             {...tourFieldAttr(
               'admin.widget-config.field',
@@ -217,6 +224,11 @@ export const VideoActivityConfigurationModal: React.FC<
             Global Library
           </button>
           <button
+            {...tourFieldAttr(
+              'video-activity.admin-tab',
+              'video-activity',
+              'settings'
+            )}
             onClick={() => setView('settings')}
             {...tourFieldAttr(
               'admin.widget-config.field',
@@ -302,6 +314,9 @@ export const VideoActivityConfigurationModal: React.FC<
                             </label>
                             <div className="flex flex-wrap gap-1.5">
                               <button
+                                {...tourAttr(
+                                  'video-activity.admin-building-all'
+                                )}
                                 onClick={() => toggleAllBuildings(activity)}
                                 {...tourFieldAttr(
                                   'admin.widget-config.field',
@@ -324,6 +339,11 @@ export const VideoActivityConfigurationModal: React.FC<
                                   );
                                 return BUILDINGS.map((building) => (
                                   <button
+                                    {...tourFieldAttr(
+                                      'video-activity.admin-building',
+                                      'video-activity',
+                                      building.id
+                                    )}
                                     key={building.id}
                                     {...tourFieldAttr(
                                       'admin.widget-config.field',
@@ -349,6 +369,7 @@ export const VideoActivityConfigurationModal: React.FC<
 
                         <div className="flex flex-col items-end gap-2 shrink-0">
                           <button
+                            {...tourAttr('video-activity.admin-delete')}
                             onClick={() => handleDelete(activity.id)}
                             {...tourFieldAttr(
                               'admin.widget-config.field',

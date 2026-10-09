@@ -11,6 +11,7 @@ import {
   type FlashcardResultRecord,
   type FlashcardStudyRow,
 } from '@/utils/flashcardResults';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import { ResultsSection, SectionEmpty } from './resultsShared';
 import { relativeTime } from './resultsFormat';
 
@@ -240,6 +241,7 @@ export const FlashcardStudyResults: React.FC<FlashcardStudyResultsProps> = ({
               <button
                 type="button"
                 onClick={letInOpen}
+                {...tourTypeAttr('flashcards.let-in', 'flashcards')}
                 className="self-start rounded-xl border border-brand-blue-primary/30 font-bold text-brand-blue-primary hover:bg-brand-blue-lighter/40"
                 style={{
                   fontSize: 'min(12px, 3.4cqmin)',
@@ -252,6 +254,7 @@ export const FlashcardStudyResults: React.FC<FlashcardStudyResultsProps> = ({
             <button
               type="button"
               onClick={() => onResetStudent(openRow.studentUid)}
+              {...tourTypeAttr('flashcards.reset-student', 'flashcards')}
               className="self-start rounded-xl border border-red-200 font-bold text-red-600 hover:bg-red-50"
               style={{
                 fontSize: 'min(12px, 3.4cqmin)',

@@ -19,6 +19,7 @@ import type {
 } from '@/types';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { AttemptLimitRow } from '@/components/common/library/AssignmentSettingsToggleGroup';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
 import {
   DEFAULT_RECORDING_CONFIG,
@@ -163,6 +164,7 @@ export const SpokenResponseSettings: React.FC<ResponseFormatSectionProps> = ({
                 });
               }}
               className={`${inputClass} pr-12`}
+              {...tourTypeAttr('quiz-editor.recording-prep', 'quiz')}
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xxs uppercase tracking-wider">
               {tk('secondsUnit')}
@@ -201,6 +203,7 @@ export const SpokenResponseSettings: React.FC<ResponseFormatSectionProps> = ({
               className={`${inputClass} pr-12 ${
                 clamped ? 'bg-slate-100 text-slate-600' : ''
               }`}
+              {...tourTypeAttr('quiz-editor.recording-limit', 'quiz')}
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xxs uppercase tracking-wider">
               {tk('secondsUnit')}
@@ -217,6 +220,7 @@ export const SpokenResponseSettings: React.FC<ResponseFormatSectionProps> = ({
               <button
                 type="button"
                 onClick={() => patch({ limitSeconds: ceiling.seconds })}
+                {...tourTypeAttr('quiz-editor.recording-limit-clamp', 'quiz')}
                 className="underline font-bold text-brand-blue-primary"
               >
                 {tk('limitClampedAction', { seconds: ceiling.seconds })}
@@ -246,6 +250,11 @@ export const SpokenResponseSettings: React.FC<ResponseFormatSectionProps> = ({
                 type="button"
                 aria-pressed={active}
                 onClick={() => patch({ prepExpiry: value })}
+                {...tourFieldAttr(
+                  'quiz-editor.recording-expiry',
+                  'quiz',
+                  value
+                )}
                 className={
                   'text-left px-2.5 py-1.5 rounded-lg border text-xs transition ' +
                   (active

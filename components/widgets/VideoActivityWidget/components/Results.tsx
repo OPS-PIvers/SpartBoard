@@ -705,7 +705,13 @@ export const Results: React.FC<ResultsProps> = ({
                 onClick={handleAssignMakeUp}
               />
             )}
-            {overflowItems.length > 0 && <OverflowMenu items={overflowItems} />}
+            {overflowItems.length > 0 && (
+              <OverflowMenu
+                items={overflowItems}
+                tourId="video-activity.results-more-item"
+                tourScope="video-activity"
+              />
+            )}
           </>
         }
       />
@@ -748,6 +754,8 @@ export const Results: React.FC<ResultsProps> = ({
         style={{ padding: 'min(8px, 2cqmin) min(16px, 4cqmin)' }}
       >
         <SegmentedTabs
+          tourId="video-activity.results-tab"
+          tourScope="video-activity"
           ariaLabel="Video activity results sections"
           panelIdPrefix={tabPanelId}
           value={activeTab}

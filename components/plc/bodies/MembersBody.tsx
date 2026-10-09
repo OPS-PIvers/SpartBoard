@@ -18,6 +18,7 @@ import { usePlcInvitations } from '@/hooks/usePlcInvitations';
 import { getPlcMembers, getPlcRole, isPlcLeadOrCoLead } from '@/utils/plc';
 import { logError } from '@/utils/logError';
 import { StaffEmailInput } from '@/components/common/StaffEmailInput';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface MembersBodyProps {
   plc: Plc;
@@ -513,6 +514,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
                       })}
                     </label>
                     <select
+                      {...tourFieldAttr('plc-members.role', 'plc', m.uid)}
                       id={`plc-role-${m.uid}`}
                       value={m.role === 'lead' ? 'member' : m.role}
                       disabled={rowBusy}
@@ -528,6 +530,11 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
                       ))}
                     </select>
                     <button
+                      {...tourFieldAttr(
+                        'plc-members.transfer-lead',
+                        'plc',
+                        m.uid
+                      )}
                       type="button"
                       onClick={() => void handleTransferLead(m)}
                       disabled={rowBusy}
@@ -543,6 +550,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
                       <Crown aria-hidden="true" className="w-4 h-4" />
                     </button>
                     <button
+                      {...tourFieldAttr('plc-members.remove', 'plc', m.uid)}
                       type="button"
                       onClick={() => void handleRemoveMember(m)}
                       disabled={rowBusy}
@@ -619,6 +627,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
               disabled={inviteSubmitting}
             />
             <button
+              {...tourAttr('plc-members.send-invite')}
               type="button"
               onClick={() => void handleSendInvite()}
               disabled={inviteSubmitting || !inviteEmail.trim()}
@@ -690,6 +699,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
                   </div>
                 </div>
                 <button
+                  {...tourFieldAttr('plc-members.revoke-invite', 'plc', inv.id)}
                   type="button"
                   onClick={() => void handleRevokeInvite(inv)}
                   className="inline-flex items-center gap-1 px-2 py-1 text-xxs font-bold uppercase tracking-wider text-slate-600 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
@@ -727,6 +737,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
       {myRole != null && myRole !== 'lead' && (
         <section className="pt-2 border-t border-slate-100">
           <button
+            {...tourAttr('plc-members.leave')}
             type="button"
             onClick={() => void handleLeave()}
             className="inline-flex items-center gap-1.5 px-3 py-2 text-xxs font-bold uppercase tracking-wider text-red-600 hover:bg-red-50 rounded-lg transition-colors"

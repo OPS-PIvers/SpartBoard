@@ -19,6 +19,7 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { getPlcMembers } from '@/utils/plc';
 import { Plc, PlcMember } from '@/types';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 /**
  * Admin recovery surface (Decision 3.4, §3.4 / §6): lets an in-org SITE ADMIN
@@ -329,6 +330,11 @@ export const PlcRecoveryPanel: React.FC = () => {
                   </div>
                   <div className="flex gap-1 shrink-0">
                     <button
+                      {...tourFieldAttr(
+                        'admin-plc.recovery-members',
+                        'plc',
+                        plc.id
+                      )}
                       type="button"
                       onClick={() =>
                         setMembersEditingId(isEditingMembers ? null : plc.id)
@@ -343,6 +349,11 @@ export const PlcRecoveryPanel: React.FC = () => {
                       })}
                     </button>
                     <button
+                      {...tourFieldAttr(
+                        'admin-plc.recovery-reassign',
+                        'plc',
+                        plc.id
+                      )}
                       type="button"
                       onClick={() =>
                         isReassigning ? closeReassign() : openReassign(plc)
@@ -356,6 +367,11 @@ export const PlcRecoveryPanel: React.FC = () => {
                       })}
                     </button>
                     <button
+                      {...tourFieldAttr(
+                        'admin-plc.recovery-dissolve',
+                        'plc',
+                        plc.id
+                      )}
                       type="button"
                       onClick={() => handleDissolve(plc)}
                       disabled={isBusy}
@@ -409,6 +425,7 @@ export const PlcRecoveryPanel: React.FC = () => {
                           })}
                         </label>
                         <select
+                          {...tourAttr('admin-plc.recovery-new-lead')}
                           id={`new-lead-${plc.id}`}
                           value={selectedLead}
                           onChange={(e) => setSelectedLead(e.target.value)}
@@ -422,6 +439,7 @@ export const PlcRecoveryPanel: React.FC = () => {
                           ))}
                         </select>
                         <button
+                          {...tourAttr('admin-plc.recovery-reassign-confirm')}
                           type="button"
                           onClick={() => handleReassign(plc)}
                           disabled={isBusy || !selectedLead}
@@ -433,6 +451,7 @@ export const PlcRecoveryPanel: React.FC = () => {
                           })}
                         </button>
                         <button
+                          {...tourAttr('admin-plc.recovery-reassign-cancel')}
                           type="button"
                           onClick={closeReassign}
                           disabled={isBusy}

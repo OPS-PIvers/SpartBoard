@@ -20,6 +20,7 @@ import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
 import { ActionButton } from '@/components/common/sessionViews/ActionButton';
 import { usePeriodRunner } from '@/hooks/usePeriodRunner';
 import { PeriodAccessStrip } from '@/components/widgets/QuizWidget/components/monitor/PeriodAccessStrip';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { FlashcardStudyResults } from './FlashcardStudyResults';
 import { useSyncPlcFlashcardResult } from './useSyncPlcFlashcardResult';
 import { FlashcardCheckReview } from './FlashcardCheckReview';
@@ -214,6 +215,7 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
         onClick={() =>
           published ? void handleUnpublish() : setPublishOpen(true)
         }
+        {...tourTypeAttr('flashcards.publish-scores', 'flashcards')}
         className="flex items-center rounded-xl bg-brand-blue-primary font-bold text-white hover:brightness-110"
         style={{
           gap: 'min(6px, 1.4cqmin)',
@@ -312,11 +314,16 @@ export const FlashcardResultsView: React.FC<FlashcardResultsViewProps> = ({
             padding: 'min(8px, 1.8cqmin) min(16px, 3.5cqmin)',
           }}
         >
-          {[null, ...presentClassIds].map((id) => (
+          {[null, ...presentClassIds].map((id, filterIndex) => (
             <button
               key={id ?? 'all'}
               type="button"
               aria-pressed={classFilter === id}
+              {...tourFieldAttr(
+                'flashcards.results-class-filter',
+                'flashcards',
+                filterIndex === 0 ? 'all' : `class-${filterIndex}`
+              )}
               onClick={() => setClassFilter(id)}
               className={`rounded-full border font-bold ${
                 classFilter === id

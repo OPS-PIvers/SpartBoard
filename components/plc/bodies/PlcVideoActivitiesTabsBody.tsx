@@ -37,6 +37,7 @@ import { PlcVideoActivitiesBody } from './PlcVideoActivitiesBody';
 import { PlcAssignmentsInProgressSubTab } from '@/components/plc/tabs/PlcAssignmentsInProgressSubTab';
 import { PlcAssignmentsCompletedSubTab } from '@/components/plc/tabs/PlcAssignmentsCompletedSubTab';
 import { PlcNewVideoActivityAssignmentModal } from '../PlcNewVideoActivityAssignmentModal';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 type SubTabId = 'library' | 'inProgress' | 'completed';
 
@@ -143,6 +144,7 @@ export const PlcVideoActivitiesTabsBody: React.FC<
             const isActive = activeSubTab === tab.id;
             return (
               <button
+                {...tourFieldAttr('plc-video.tab', 'plc', tab.id)}
                 key={tab.id}
                 role="tab"
                 id={tabButtonId(tab.id)}
@@ -165,6 +167,7 @@ export const PlcVideoActivitiesTabsBody: React.FC<
         {activeSubTab === 'library' && canEdit && (
           <div className="flex items-center gap-2">
             <button
+              {...tourAttr('plc-video.cta')}
               type="button"
               onClick={
                 videoCtaDisabledReason !== undefined

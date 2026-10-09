@@ -1,6 +1,7 @@
 import React from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { QuizSession, QuizConfig } from '@/types';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 interface QuizSettingsScreenProps {
   session: QuizSession;
@@ -82,6 +83,7 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
   <div className="flex flex-col" style={{ gap: 'min(8px, 2cqmin)' }}>
     <SettingRow
       label="Board view"
+      anchor={tourTypeAttr('quiz-monitor.settings-board-view', 'quiz')}
       description="Hides student names."
       on={config.monitorBoardView ?? true}
       onToggle={() =>
@@ -92,6 +94,7 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
     />
     <SettingRow
       label="Tab warnings"
+      anchor={tourTypeAttr('quiz-monitor.settings-tab-warnings', 'quiz')}
       on={session.tabWarningsEnabled !== false}
       onToggle={() =>
         onUpdateSession({
@@ -103,6 +106,7 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
       <>
         <SettingRow
           label="Podium between questions"
+          anchor={tourTypeAttr('quiz-monitor.settings-podium', 'quiz')}
           on={session.showPodiumBetweenQuestions ?? false}
           onToggle={() =>
             onUpdateSession({
@@ -114,6 +118,7 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
         />
         <SettingRow
           label="Answer reveal on board"
+          anchor={tourTypeAttr('quiz-monitor.settings-answer-reveal', 'quiz')}
           on={session.showCorrectOnBoard ?? false}
           onToggle={() =>
             onUpdateSession({
@@ -127,6 +132,7 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
       <>
         <SettingRow
           label="Sync to scoreboard widget"
+          anchor={tourTypeAttr('quiz-monitor.settings-scoreboard-sync', 'quiz')}
           on={config.liveScoreboardEnabled ?? false}
           onToggle={() =>
             onUpdateConfig(
@@ -158,6 +164,10 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
                 })
               }
               aria-label="Scoreboard display"
+              {...tourTypeAttr(
+                'quiz-monitor.settings-scoreboard-display',
+                'quiz'
+              )}
               className="rounded-md border border-brand-gray-lighter bg-white text-brand-gray-dark font-sans"
               style={{
                 fontSize: 'min(11px, 3.8cqmin)',
@@ -179,6 +189,10 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
                 })
               }
               aria-label="Scoreboard scoring"
+              {...tourTypeAttr(
+                'quiz-monitor.settings-scoreboard-scoring',
+                'quiz'
+              )}
               className="rounded-md border border-brand-gray-lighter bg-white text-brand-gray-dark font-sans"
               style={{
                 fontSize: 'min(11px, 3.8cqmin)',
