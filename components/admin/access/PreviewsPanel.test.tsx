@@ -78,7 +78,7 @@ describe('PreviewsPanel', () => {
     expect(row).toHaveTextContent('Off everywhere');
   });
 
-  it('marks a public retire-after-launch flag as ready to retire', async () => {
+  it('links a public retire-after-launch flag to a prefilled cleanup issue', async () => {
     savedPermissions = [
       {
         featureId: 'quiz-grader-v2',
@@ -89,9 +89,17 @@ describe('PreviewsPanel', () => {
       },
     ];
     await renderPanel();
-    expect(screen.getByTestId('access-row-quiz-grader-v2')).toHaveTextContent(
-      'Ready to retire'
+    const link = screen.getByTestId('retire-quiz-grader-v2');
+    const url = new URL(link.getAttribute('href') ?? '');
+    expect(url.pathname).toBe('/OPS-PIvers/SpartBoard/issues/new');
+    expect(url.searchParams.get('labels')).toBe('retire-flag');
+    expect(url.searchParams.get('title')).toBe(
+      'Retire flag: Tidier free-response grader'
     );
+    expect(url.searchParams.get('body')).toContain(
+      "canAccessFeature('quiz-grader-v2')"
+    );
+    expect(screen.queryByTestId('graduate-quiz-grader-v2')).toBeNull();
   });
 
   it('graduates a public keep flag in place and moves it off the tab', async () => {
