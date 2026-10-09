@@ -17,19 +17,23 @@ import {
   type ActivityPoint,
   type ActivityRange,
   type ActivityUser,
+  type ChartWeek,
   type CohortRow,
   type MonthCount,
-  type WeekPoint,
   activityStats,
   filterRange,
   formatDay,
   formatMonth,
+  joinWeeks,
   recencyBuckets,
   toWeekly,
 } from './overviewMetrics';
 
 const NAVY = '#2d3f89';
 const SKY = '#0ea5e9';
+const AMBER_DARK = '#b45309';
+const AMBER = '#f59e0b';
+const STUDENT_DASH = '6 4';
 const MUTED = '#94a3b8';
 const GRID = '#e2e8f0';
 const AXIS = '#64748b';
@@ -51,13 +55,14 @@ const Panel: React.FC<
   </div>
 );
 
-const LegendLine: React.FC<{ color: string; label: string }> = ({
-  color,
-  label,
-}) => (
+const LegendLine: React.FC<{
+  color: string;
+  label: string;
+  dashed?: boolean;
+}> = ({ color, label, dashed }) => (
   <span className="inline-flex items-center gap-1.5">
     <span
-      className="inline-block w-4 border-t-[3px]"
+      className={`inline-block w-4 border-t-[3px] ${dashed ? 'border-dashed' : ''}`}
       style={{ borderColor: color }}
     />
     {label}
@@ -88,7 +93,7 @@ const ActivityTooltip = ({
   payload,
 }: {
   active?: boolean;
-  payload?: Array<{ payload?: WeekPoint }>;
+  payload?: Array<{ payload?: ChartWeek }>;
 }) => {
   const point = payload?.[0]?.payload;
   if (!active || !point) return null;
@@ -98,22 +103,38 @@ const ActivityTooltip = ({
         Week of {formatDay(point.week)}
         {point.estimated ? ' · Estimated' : ''}
       </p>
-      <p className="font-semibold">
-        Monthly active: {NUMBER.format(point.mau)}
-      </p>
-      <p className="font-semibold">
-        Avg daily active: {NUMBER.format(point.dau)}
-      </p>
+      {(
+        [
+          ['Staff monthly active', point.mau],
+          ['Staff avg daily active', point.dau],
+          ['Student monthly active', point.studentMau],
+          ['Student avg daily active', point.studentDau],
+        ] as const
+      ).map(([label, value]) =>
+        value === undefined ? null : (
+          <p key={label} className="font-semibold">
+            {label}: {NUMBER.format(value)}
+          </p>
+        )
+      )}
     </div>
   );
 };
 
-export const ActiveUsersPanel: React.FC<{ days: ActivityPoint[] }> = ({
-  days,
-}) => {
+export const ActiveUsersPanel: React.FC<{
+  days: ActivityPoint[];
+  studentDays?: ActivityPoint[];
+}> = ({ days, studentDays }) => {
   const [range, setRange] = useState<ActivityRange>('all');
-  const ranged = useMemo(() => filterRange(days, range), [days, range]);
-  const weeks = useMemo(() => toWeekly(ranged), [ranged]);
+  const weeks = useMemo(
+    () =>
+      joinWeeks(
+        toWeekly(filterRange(days, range)),
+        toWeekly(filterRange(studentDays ?? [], range))
+      ),
+    [days, studentDays, range]
+  );
+  const hasStudents = (studentDays?.length ?? 0) > 0;
   const stats = useMemo(() => activityStats(days), [days]);
   const estimatedWeeks = weeks.filter((w) => w.estimated);
   const hasEstimated = estimatedWeeks.length > 0;
@@ -123,8 +144,22 @@ export const ActiveUsersPanel: React.FC<{ days: ActivityPoint[] }> = ({
       title="Active Users"
       actions={
         <div className="flex flex-wrap items-center gap-5 text-xs text-slate-600">
-          <LegendLine color={NAVY} label="Monthly active" />
-          <LegendLine color={SKY} label="Avg daily active" />
+          <LegendLine color={NAVY} label="Staff monthly active" />
+          <LegendLine color={SKY} label="Staff avg daily active" />
+          {hasStudents && (
+            <>
+              <LegendLine
+                color={AMBER_DARK}
+                label="Student monthly active"
+                dashed
+              />
+              <LegendLine
+                color={AMBER}
+                label="Student avg daily active"
+                dashed
+              />
+            </>
+          )}
           {hasEstimated && <LegendSwatch color={GRID} label="Estimated" />}
           <div className="flex gap-0.5 font-semibold" role="group">
             {RANGES.map((r) => (
@@ -151,7 +186,7 @@ export const ActiveUsersPanel: React.FC<{ days: ActivityPoint[] }> = ({
           <p className="text-xl font-extrabold text-slate-900">
             {stats.stickiness !== null ? `${stats.stickiness}%` : '—'}
           </p>
-          DAU / MAU
+          Staff DAU / MAU
         </div>
         <div className="text-xs text-slate-500">
           <p className="text-xl font-extrabold text-slate-900">
@@ -159,13 +194,15 @@ export const ActiveUsersPanel: React.FC<{ days: ActivityPoint[] }> = ({
               ? `${stats.mauChange >= 0 ? '+' : ''}${NUMBER.format(stats.mauChange)}`
               : '—'}
           </p>
-          MAU vs 30 days ago
+          Staff MAU vs 30 days ago
         </div>
         <div className="text-xs text-slate-500">
           <p className="text-xl font-extrabold text-slate-900">
             {stats.peak ? NUMBER.format(stats.peak.dau) : '—'}
           </p>
-          {stats.peak ? `Peak DAU · ${formatDay(stats.peak.date)}` : 'Peak DAU'}
+          {stats.peak
+            ? `Staff peak DAU · ${formatDay(stats.peak.date)}`
+            : 'Staff peak DAU'}
         </div>
       </div>
       <ResponsiveContainer width="100%" height={300}>
@@ -197,7 +234,7 @@ export const ActiveUsersPanel: React.FC<{ days: ActivityPoint[] }> = ({
           <Line
             type="monotone"
             dataKey="mau"
-            name="Monthly active"
+            name="Staff monthly active"
             stroke={NAVY}
             strokeWidth={2.4}
             dot={false}
@@ -206,12 +243,36 @@ export const ActiveUsersPanel: React.FC<{ days: ActivityPoint[] }> = ({
           <Line
             type="monotone"
             dataKey="dau"
-            name="Avg daily active"
+            name="Staff avg daily active"
             stroke={SKY}
             strokeWidth={2}
             dot={false}
             isAnimationActive={false}
           />
+          {hasStudents && (
+            <Line
+              type="monotone"
+              dataKey="studentMau"
+              name="Student monthly active"
+              stroke={AMBER_DARK}
+              strokeWidth={2.4}
+              strokeDasharray={STUDENT_DASH}
+              dot={false}
+              isAnimationActive={false}
+            />
+          )}
+          {hasStudents && (
+            <Line
+              type="monotone"
+              dataKey="studentDau"
+              name="Student avg daily active"
+              stroke={AMBER}
+              strokeWidth={2}
+              strokeDasharray={STUDENT_DASH}
+              dot={false}
+              isAnimationActive={false}
+            />
+          )}
         </LineChart>
       </ResponsiveContainer>
     </Panel>

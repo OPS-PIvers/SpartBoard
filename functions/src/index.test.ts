@@ -45,6 +45,10 @@ const mockFirestoreState = {
   organizations: [] as { id: string; status: string }[],
   // `organizations/{orgId}/analytics_days/{date}` docs keyed by full path.
   activityDays: new Map<string, Record<string, unknown>>(),
+  // `student_sections` docs for the active-student counts and history.
+  studentSections: [] as { id: string; orgId: string; updatedAt: number }[],
+  // Quiz `responses` docs: [sessionsCollection, studentUid, joinedAt].
+  studentResponses: [] as [string, string, number][],
 };
 
 const toDocSnapshot = (doc: MockDocInput) => ({
@@ -276,7 +280,29 @@ const mockFirestore = {
       };
     }
 
-    if (name.endsWith('/analytics_days')) {
+    if (name === 'student_sections') {
+      return {
+        where: (_f: string, _op: string, orgId: string) => ({
+          select: () => ({
+            get: () =>
+              Promise.resolve({
+                docs: mockFirestoreState.studentSections
+                  .filter((d) => d.orgId === orgId)
+                  .map((d) => ({
+                    id: d.id,
+                    get: (field: string) =>
+                      field === 'updatedAt' ? d.updatedAt : undefined,
+                  })),
+              }),
+          }),
+        }),
+      };
+    }
+
+    if (
+      name.endsWith('/analytics_days') ||
+      name.endsWith('/analytics_student_days')
+    ) {
       return {
         doc: (id: string) => ({ id, path: `${name}/${id}` }),
         get: vi.fn(() =>
@@ -327,6 +353,28 @@ const mockFirestore = {
       return {
         select: vi.fn(() => ({
           stream: vi.fn(() => toAsyncStream(mockFirestoreState.dashboards)),
+        })),
+      };
+    }
+
+    if (name === 'responses') {
+      const docs = mockFirestoreState.studentResponses.map(
+        ([sessions, uid, at]) => ({
+          ref: { parent: { parent: { parent: { id: sessions } } } },
+          get: (field: string) =>
+            field === 'studentUid' ? uid : field === 'joinedAt' ? at : null,
+        })
+      );
+      return {
+        select: vi.fn(() => ({
+          stream: vi.fn(() => ({
+            async *[Symbol.asyncIterator]() {
+              for (const doc of docs) {
+                await Promise.resolve();
+                yield doc;
+              }
+            },
+          })),
         })),
       };
     }
@@ -2195,6 +2243,57 @@ describe('recomputeAdminAnalytics (scheduled)', () => {
     mockFirestoreState.docs = new Map();
     mockFirestoreState.organizations = [];
     mockFirestoreState.activityDays = new Map();
+    mockFirestoreState.studentSections = [];
+    mockFirestoreState.studentResponses = [];
+  });
+
+  it('records student days and estimates past ones from assignment opens', async () => {
+    const day = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    mockFirestoreState.organizations = [{ id: 'orono', status: 'active' }];
+    mockFirestoreState.users = [
+      {
+        id: 'uid-1',
+        data: { email: 'a@orono.k12.mn.us', lastLogin: now },
+      },
+    ];
+    mockFirestoreState.studentSections = [
+      { id: 'stu-1', orgId: 'orono', updatedAt: now - 60 * 1000 },
+      { id: 'stu-2', orgId: 'orono', updatedAt: now - 5 * day },
+      { id: 'stu-other', orgId: 'elsewhere', updatedAt: now },
+    ];
+    mockFirestoreState.studentResponses = [
+      ['quiz_sessions', 'stu-1', Date.UTC(2026, 0, 15, 17)],
+      ['quiz_sessions', 'stu-other', Date.UTC(2026, 0, 16, 17)],
+      ['plc_sessions', 'stu-2', Date.UTC(2026, 0, 17, 17)],
+    ];
+    const run = recomputeAdminAnalytics as unknown as () => Promise<void>;
+    await run();
+
+    const studentDays = [...mockFirestoreState.activityDays.entries()].filter(
+      ([path]) => path.includes('/analytics_student_days/')
+    );
+    const measured = studentDays.filter(([, d]) => d.estimated === false);
+    expect(measured).toHaveLength(1);
+    expect(measured[0][1].activeUids).toEqual(['stu-1']);
+    const estimatedDates = studentDays
+      .filter(([, d]) => d.estimated === true)
+      .map(([path]) => path.split('/').pop());
+    expect(estimatedDates).toContain('2026-01-15');
+    expect(estimatedDates).not.toContain('2026-01-16');
+    expect(estimatedDates).not.toContain('2026-01-17');
+
+    const snapshot = mockFirestoreState.docs.get(
+      'organizations/orono/analytics/snapshot'
+    ) as { payload: { history?: { studentDays?: unknown[] } } };
+    expect(snapshot.payload.history?.studentDays?.at(-1)).toEqual(
+      expect.objectContaining({ dau: 1, mau: 2, estimated: false })
+    );
+    expect(
+      mockFirestoreState.docs.get(
+        'organizations/orono/analytics/student_history_estimate'
+      )
+    ).toBeDefined();
   });
 
   it('records the measured day and attaches the history series', async () => {

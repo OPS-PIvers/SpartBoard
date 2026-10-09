@@ -16,6 +16,7 @@
 
 import * as admin from 'firebase-admin';
 import {
+  type ActivityPoint,
   type AnalyticsHistory,
   type DayActivityDoc,
   buildActivitySeries,
@@ -26,6 +27,7 @@ import {
   readActivityDays,
   writeActivityDays,
 } from './adminAnalyticsHistory';
+import { OPEN_SOURCES } from './adminActiveStudents';
 
 export interface AdminAnalyticsPayload {
   users: {
@@ -698,17 +700,19 @@ export async function computeAnalyticsForOrg(
 
   // studentLoginV1 stamps student_sections/{uid}.updatedAt on every SSO sign-in.
   let students: { monthly: number; daily: number } | undefined;
+  let studentSignIns: [string, number][] | undefined;
   try {
     const studentSnap = await db
       .collection('student_sections')
       .where('orgId', '==', orgId)
       .select('updatedAt')
       .get();
+    studentSignIns = studentSnap.docs.map((d) => {
+      const at: unknown = d.get('updatedAt');
+      return [d.id, typeof at === 'number' ? at : 0];
+    });
     students = countActiveStudents(
-      studentSnap.docs.map((d) => {
-        const at: unknown = d.get('updatedAt');
-        return typeof at === 'number' ? at : 0;
-      }),
+      studentSignIns.map(([, ms]) => ms),
       now
     );
   } catch (err) {
@@ -740,6 +744,22 @@ export async function computeAnalyticsForOrg(
         orgId,
         error: err instanceof Error ? err.message : String(err),
       });
+    }
+    if (history && studentSignIns && studentSignIns.length > 0) {
+      try {
+        history.studentDays = await recordAndBuildStudentHistory({
+          orgId,
+          now,
+          signIns: studentSignIns,
+          estimate: historyOptions.estimate,
+        });
+      } catch (err) {
+        console.error('[getAdminAnalytics] student history failed', {
+          ...logContext,
+          orgId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
   }
 
@@ -843,6 +863,84 @@ async function recordAndBuildHistory(input: {
     newUsersByMonth: buildNewUsersByMonth([...signupByUid.values()], now),
     cohorts: buildCohorts(signupByUid, days, now),
   };
+}
+
+async function recordAndBuildStudentHistory(input: {
+  orgId: string;
+  now: number;
+  signIns: [string, number][];
+  estimate: boolean;
+}): Promise<ActivityPoint[]> {
+  const { orgId, now, signIns } = input;
+  const db = admin.firestore();
+  const today = measuredDateKey(now);
+  const existing = await readActivityDays(orgId, 'students');
+  const toWrite: DayActivityDoc[] = [
+    {
+      date: today,
+      activeUids: signIns
+        .filter(([, ms]) => ms > 0 && now - ms <= 24 * 60 * 60 * 1000)
+        .map(([uid]) => uid)
+        .sort(),
+      estimated: false,
+    },
+  ];
+
+  const markerRef = db.doc(
+    `organizations/${orgId}/analytics/student_history_estimate`
+  );
+  const estimateOwed =
+    input.estimate &&
+    !(await markerRef
+      .get()
+      .then((snap) => snap.exists === true)
+      .catch(() => true));
+  if (estimateOwed) {
+    const firstMeasured = existing
+      .filter((d) => !d.estimated)
+      .map((d) => d.date)
+      .reduce((min, d) => (d < min ? d : min), today);
+    const events: [string, number][] = [...signIns];
+    events.push(
+      ...(await readStudentOpenEvents(new Set(signIns.map(([uid]) => uid))))
+    );
+    toWrite.push(...estimateActivityDays(events, firstMeasured));
+  }
+
+  await writeActivityDays(orgId, toWrite, 'students');
+  if (estimateOwed) {
+    await markerRef.set({ estimatedAt: now, days: toWrite.length - 1 });
+  }
+  const byDate = new Map(existing.map((d) => [d.date, d]));
+  for (const d of toWrite) byDate.set(d.date, d);
+  return buildActivitySeries([...byDate.values()]);
+}
+
+// Assignment opens and submissions by this org's SSO students, for the one-time student estimate.
+async function readStudentOpenEvents(
+  studentUids: Set<string>
+): Promise<[string, number][]> {
+  const db = admin.firestore();
+  const events: [string, number][] = [];
+  for (const group of new Set(OPEN_SOURCES.map((s) => s.group))) {
+    const sources = OPEN_SOURCES.filter((s) => s.group === group);
+    const fields = [
+      ...new Set(sources.flatMap((s) => [s.studentField, s.timeField])),
+    ];
+    const stream = db
+      .collectionGroup(group)
+      .select(...fields)
+      .stream() as unknown as AsyncIterable<admin.firestore.QueryDocumentSnapshot>;
+    for await (const doc of stream) {
+      const sessions = doc.ref.parent.parent?.parent.id;
+      const src = sources.find((s) => s.sessions === sessions);
+      if (!src) continue;
+      const uid: unknown = doc.get(src.studentField);
+      if (typeof uid !== 'string' || !studentUids.has(uid)) continue;
+      events.push([uid, toMs(doc.get(src.timeField))]);
+    }
+  }
+  return events;
 }
 
 async function readLibraryEvents(
