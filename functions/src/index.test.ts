@@ -3620,6 +3620,7 @@ describe('index barrel — deployed export set', () => {
     'ltiResolveNamesForAssignmentV1',
     'linkLtiCourseV1',
     'ltiSuggestClassLinkMatchV1',
+    'ltiLinkSectionByUrlV1',
     // Claude connector
     'mcpServer',
     'mcpOAuth',

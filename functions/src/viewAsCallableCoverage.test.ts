@@ -49,6 +49,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   leaveSyncedVideoActivityGroup: 'write',
   linkClassroomCourse: 'write',
   linkLtiCourseV1: 'write',
+  ltiLinkSectionByUrlV1: 'write',
   ltiExchange: 'write',
   migratePlcs: 'write',
   pinLoginV1: 'write',

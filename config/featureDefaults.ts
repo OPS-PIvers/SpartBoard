@@ -1309,6 +1309,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // SpartBoard creates the Schoology gradebook column (SCHOOLOGY_TOOL_COLUMNS.md D11).
+  'schoology-tool-columns': {
+    label: 'Schoology gradebook columns',
+    icon: GraduationCap,
+    description:
+      'Push scores to Schoology without adding the assignment there; SpartBoard makes the gradebook column.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    group: 'assigning',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */

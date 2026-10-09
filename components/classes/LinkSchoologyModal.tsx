@@ -24,6 +24,7 @@ import {
 } from '@/utils/ltiCourseLinks';
 import type { SchoologySeenSection } from '@/hooks/useSchoologySeenSections';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { SchoologyPasteLink } from './SchoologyPasteLink';
 
 interface LinkSchoologyModalProps {
   isOpen: boolean;
@@ -34,6 +35,8 @@ interface LinkSchoologyModalProps {
   seenSections: SchoologySeenSection[];
   addToast: (message: string, type: 'success' | 'error' | 'info') => void;
   updateRoster: (id: string, updates: Partial<ClassRoster>) => Promise<void>;
+  /** Show "Paste a Schoology course link" (schoology-tool-columns flag). */
+  pasteLinkEnabled?: boolean;
 }
 
 type RowState = 'idle' | 'linking' | 'linked' | 'error';
@@ -45,6 +48,7 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
   seenSections,
   addToast,
   updateRoster,
+  pasteLinkEnabled = false,
 }) => {
   // ClassLink rosters and admin test classes (mock ClassLink) can be paired.
   const candidateRosters = useMemo(
@@ -249,22 +253,31 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
       ariaLabel="Link to Schoology"
     >
       <div className="py-4 space-y-3">
+        {pasteLinkEnabled && matchCandidates.length > 0 && (
+          <SchoologyPasteLink
+            rosters={matchCandidates}
+            addToast={addToast}
+            updateRoster={updateRoster}
+          />
+        )}
         {candidateRosters.length === 0 ? (
           <p className="text-sm text-slate-500 py-6 text-center">
             Import your classes from ClassLink first — Schoology sections link
             to a ClassLink class.
           </p>
         ) : unlinkedSections.length === 0 ? (
-          <div className="py-8 text-center space-y-2">
-            <Check size={28} className="mx-auto text-emerald-500" />
-            <p className="text-sm font-semibold text-slate-700">
-              All your Schoology sections are linked.
-            </p>
-            <p className="text-xs text-slate-400">
-              Open SpartBoard in a Schoology course once and it’ll appear here
-              to link.
-            </p>
-          </div>
+          pasteLinkEnabled ? null : (
+            <div className="py-8 text-center space-y-2">
+              <Check size={28} className="mx-auto text-emerald-500" />
+              <p className="text-sm font-semibold text-slate-700">
+                All your Schoology sections are linked.
+              </p>
+              <p className="text-xs text-slate-400">
+                Open SpartBoard in a Schoology course once and it’ll appear here
+                to link.
+              </p>
+            </div>
+          )
         ) : (
           unlinkedSections.map((section, i) => {
             const state = rowState[section.contextId] ?? 'idle';
