@@ -27,6 +27,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   listQuizMediaForOrgAdmin: 'read',
   ltiResolveNamesForAssignmentV1: 'read',
   ltiSuggestClassLinkMatchV1: 'read',
+  ltiToolColumnCategoriesV1: 'read',
   resolveOrgForUser: 'read',
   // Writes: need an unlocked View as session.
   applyPaperNewerScanV1: 'write',
@@ -79,6 +80,9 @@ const CALLABLE_MODES: Record<string, Mode> = {
   controlSubAssignmentV1: 'outward',
   createClassroomAttachment: 'outward',
   createOrganizationInvites: 'outward',
+  ltiCreateToolColumnCategoriesV1: 'outward',
+  ltiDeleteToolColumnsV1: 'outward',
+  ltiPushToolColumnV1: 'outward',
   createTeammatePaperBatchV1: 'outward',
   deleteOrganizationUser: 'outward',
   draftGuidedLearningStepTextV1: 'outward',

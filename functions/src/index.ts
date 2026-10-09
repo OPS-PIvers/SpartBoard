@@ -346,6 +346,12 @@ export {
   ltiSuggestClassLinkMatchV1,
 } from './lti/courseLinkEndpoints';
 export { ltiLinkSectionByUrlV1 } from './lti/linkSectionByUrl';
+export {
+  ltiToolColumnCategoriesV1,
+  ltiCreateToolColumnCategoriesV1,
+  ltiPushToolColumnV1,
+  ltiDeleteToolColumnsV1,
+} from './lti/toolColumnEndpoints';
 
 // Claude connector (remote MCP server) — see docs/plans/CLAUDE_CONNECTOR.md.
 export { mcpServer } from './mcp/mcpEndpoint';
