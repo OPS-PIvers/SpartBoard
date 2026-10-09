@@ -2542,6 +2542,8 @@ export const ActiveQuiz: React.FC<{
         },
         (err: unknown) => {
           console.error('[QuizStudentApp] auto-submit failed:', err);
+          // Mid-quiz, stay submitted so NEXT QUESTION still moves on.
+          if (!finishesQuiz) return;
           setSubmitted(false);
           setSaveError("Couldn't save your answer. Tap to try again.");
         }
