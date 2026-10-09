@@ -2471,6 +2471,14 @@ export const ActiveQuiz: React.FC<{
     }
   }, [timeLeft, submitted, session.soundEffectsEnabled]);
 
+  // Same last-question rule as handleSubmit, read by the timeout effect below.
+  const timeoutFinishesQuizRef = useRef(false);
+  timeoutFinishesQuizRef.current =
+    currentIndex >= effectiveTotalQuestions - 1 &&
+    myResponse?.status !== 'completed';
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
   // Side-effect: submit the answer when auto-submit is triggered.
   useEffect(() => {
     if (!autoSubmitTriggeredFor) return;
@@ -2505,6 +2513,7 @@ export const ActiveQuiz: React.FC<{
       isFreeResponseType(question.type) &&
       wordLimitStatus(answerWords, question).blocked &&
       answerWords < (question.minWords ?? 0);
+    const finishesQuiz = timeoutFinishesQuizRef.current;
     void onAnswerRef
       .current(
         autoSubmitTriggeredFor,
@@ -2512,6 +2521,7 @@ export const ActiveQuiz: React.FC<{
         0, // Speed bonus is 0 when timer expires
         timedOutUnderMinimum ? { timedOutUnderMinimum: true } : undefined
       )
+      .then(() => (finishesQuiz ? onCompleteRef.current() : undefined))
       .catch((err: unknown) => {
         console.error('[QuizStudentApp] auto-submit failed:', err);
       });
