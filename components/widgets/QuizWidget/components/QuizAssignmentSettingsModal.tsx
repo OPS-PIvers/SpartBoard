@@ -50,6 +50,7 @@ import { formatWhenValue } from '@/components/common/library/assignStepper/assig
 import { useQuizRuleGates } from '@/components/common/library/assignStepper/QuizRuleStepGates';
 import { quizRuleStepDefs } from '@/components/common/library/assignStepper/quizRuleStepDefs';
 import { useTranslation } from 'react-i18next';
+import { getAssignmentWidgetKind } from '@/utils/quizWidgetKind';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import {
   DEFAULT_DUE_TIME,
@@ -324,7 +325,8 @@ export const QuizAssignmentSettingsModal: React.FC<
     }
   };
 
-  if (stepperOn) {
+  // The stepper edits Assessment assignments only; Review and live ones keep the full modal.
+  if (stepperOn && getAssignmentWidgetKind(assignment) === 'quiz') {
     // A Manual start has no dates to edit: the teacher starts and pauses each class.
     const manualStart =
       assignment.accessMode === 'assessment' &&
