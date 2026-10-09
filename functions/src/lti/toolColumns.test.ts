@@ -276,6 +276,33 @@ describe('pushSection: creating the column', () => {
     expect(out.status).toBe('needs-category');
   });
 
+  it('fails instead of creating a hidden column when the category list fails', async () => {
+    deps.rest = makeRest({
+      listGradingCategories: vi.fn(async () => {
+        throw new Error('401');
+      }),
+    });
+    await expect(pushSection(deps, input())).rejects.toThrow('401');
+    expect(deps.createLineItem).not.toHaveBeenCalled();
+    expect(store.claims.has(CTX)).toBe(false);
+  });
+
+  it('flags the new column when setting its category fails', async () => {
+    deps.rest = makeRest({
+      setColumnCategory: vi.fn(async () => {
+        throw new Error('500');
+      }),
+    });
+    const out = await pushSection(deps, input());
+    expect(out.status).toBe('pushed');
+    expect(out.needsCategory).toBe(true);
+    expect(store.records.get(CTX)?.categoryId).toBeNull();
+  });
+
+  it('holds the create lease longer than four 15 s calls', () => {
+    expect(CREATE_LEASE_MS).toBeGreaterThan(4 * 15_000);
+  });
+
   it('creates without a category when REST is not configured', async () => {
     deps.rest = null;
     const out = await pushSection(deps, input({ categoryId: null }));
@@ -377,6 +404,17 @@ describe('pushSection: an existing column', () => {
     );
     expect(out.needsCategory).toBe(false);
     expect(store.records.get(CTX)?.categoryId).toBe('111');
+  });
+
+  it('keeps flagging an uncategorized column while the category read fails', async () => {
+    const failing = vi.fn(async (): Promise<string | null> => {
+      throw new Error('down');
+    });
+    deps.rest = makeRest({ getColumnCategory: failing });
+    store.records.get(CTX)!.categoryId = null;
+    expect((await pushSection(deps, input())).needsCategory).toBe(true);
+    store.records.get(CTX)!.categoryId = '222';
+    expect((await pushSection(deps, input())).needsCategory).toBe(false);
   });
 
   it('reports a column in no category when none is picked', async () => {
