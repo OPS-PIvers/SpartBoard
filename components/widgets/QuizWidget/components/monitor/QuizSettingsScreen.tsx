@@ -83,6 +83,7 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
   <div className="flex flex-col" style={{ gap: 'min(8px, 2cqmin)' }}>
     <SettingRow
       label="Board view"
+      anchor={tourTypeAttr('quiz-monitor.settings-board-view', 'quiz')}
       description="Hides student names."
       on={config.monitorBoardView ?? true}
       onToggle={() =>
@@ -93,6 +94,7 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
     />
     <SettingRow
       label="Tab warnings"
+      anchor={tourTypeAttr('quiz-monitor.settings-tab-warnings', 'quiz')}
       on={session.tabWarningsEnabled !== false}
       onToggle={() =>
         onUpdateSession({
@@ -104,6 +106,7 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
       <>
         <SettingRow
           label="Podium between questions"
+          anchor={tourTypeAttr('quiz-monitor.settings-podium', 'quiz')}
           on={session.showPodiumBetweenQuestions ?? false}
           onToggle={() =>
             onUpdateSession({
@@ -115,6 +118,7 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
         />
         <SettingRow
           label="Answer reveal on board"
+          anchor={tourTypeAttr('quiz-monitor.settings-answer-reveal', 'quiz')}
           on={session.showCorrectOnBoard ?? false}
           onToggle={() =>
             onUpdateSession({
@@ -128,6 +132,7 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
       <>
         <SettingRow
           label="Sync to scoreboard widget"
+          anchor={tourTypeAttr('quiz-monitor.settings-scoreboard-sync', 'quiz')}
           on={config.liveScoreboardEnabled ?? false}
           onToggle={() =>
             onUpdateConfig(

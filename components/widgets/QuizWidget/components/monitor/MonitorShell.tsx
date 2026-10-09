@@ -74,7 +74,7 @@ import { hasPeriodAccess } from '@/utils/periodAccess';
 import { QuestionResults, QuestionDetail } from './QuestionResults';
 import { JoinCodeScreen } from './JoinCodeScreen';
 import { QuizSettingsScreen } from './QuizSettingsScreen';
-import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 
 export interface QuizLiveMonitorProps {
@@ -776,7 +776,27 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 doneCount={data.counts.done}
                 onAdvance={onAdvance}
                 widgetId={widgetId}
-                periodControls={periodBar && <PeriodBar {...periodBar} />}
+                periodControls={
+                  periodBar && (
+                    <PeriodBar
+                      {...periodBar}
+                      anchors={{
+                        start: tourTypeAttr(
+                          'quiz-monitor.period-start',
+                          'quiz'
+                        ),
+                        pause: tourTypeAttr(
+                          'quiz-monitor.period-pause',
+                          'quiz'
+                        ),
+                        extend: tourTypeAttr(
+                          'quiz-monitor.period-extend',
+                          'quiz'
+                        ),
+                      }}
+                    />
+                  )
+                }
               />
             )}
             {!(isGame && boardView) && (
