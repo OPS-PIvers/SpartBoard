@@ -15476,4 +15476,34 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     scope: 'widget',
     panel: true,
   },
+  {
+    id: 'random.class-group',
+    label: 'Group row under a class in the Randomizer class menu',
+    scope: 'field',
+    panel: true,
+  },
+  {
+    id: 'seating.class-group',
+    label: 'Group row under a class in the Seating Chart class menu',
+    scope: 'field',
+    panel: true,
+  },
+  {
+    id: 'absent-students.clear-all',
+    label: 'Clear all button in the absent students dialog',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'absent-students.close',
+    label: 'Close button in the absent students dialog',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'absent-students.student',
+    label: 'Student button in the absent students dialog',
+    scope: 'field',
+    panel: true,
+  },
 ];
