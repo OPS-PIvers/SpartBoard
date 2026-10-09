@@ -22,5 +22,9 @@ export function initialClassesValue(
     const row = byKey.get(studentTargetRefKey(ref));
     if (row) (studentsByClass[row.rosterId] ??= []).push(row.ref);
   }
-  return { classIds: ids, studentsByClass };
+  // Keep only classes with a matched pick; an empty pick list would mean the whole class.
+  return {
+    classIds: ids.filter((id) => id in studentsByClass),
+    studentsByClass,
+  };
 }

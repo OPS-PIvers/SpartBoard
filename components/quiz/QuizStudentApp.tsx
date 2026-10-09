@@ -2478,6 +2478,8 @@ export const ActiveQuiz: React.FC<{
     myResponse?.status !== 'completed';
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
+  // Synced below once openRecordingQuestions is computed.
+  const openRecordingCountRef = useRef(0);
 
   // Side-effect: submit the answer when auto-submit is triggered.
   useEffect(() => {
@@ -2521,10 +2523,29 @@ export const ActiveQuiz: React.FC<{
         0, // Speed bonus is 0 when timer expires
         timedOutUnderMinimum ? { timedOutUnderMinimum: true } : undefined
       )
-      .then(() => (finishesQuiz ? onCompleteRef.current() : undefined))
-      .catch((err: unknown) => {
-        console.error('[QuizStudentApp] auto-submit failed:', err);
-      });
+      .then(
+        async () => {
+          if (!finishesQuiz) return;
+          // Same gate as handleSubmitAndAdvance: an open recording slot blocks completion.
+          if (openRecordingCountRef.current > 0) {
+            setSubmitted(false);
+            setSubmitBlocked(true);
+            return;
+          }
+          try {
+            await onCompleteRef.current();
+          } catch (err) {
+            console.error('[QuizStudentApp] onComplete failed:', err);
+            setSubmitted(false);
+            setSaveError("Couldn't submit your quiz. Tap to try again.");
+          }
+        },
+        (err: unknown) => {
+          console.error('[QuizStudentApp] auto-submit failed:', err);
+          setSubmitted(false);
+          setSaveError("Couldn't save your answer. Tap to try again.");
+        }
+      );
   }, [autoSubmitTriggeredFor]);
 
   // Per-question draft autosave driven by the live answer cache. The
@@ -2967,6 +2988,7 @@ export const ActiveQuiz: React.FC<{
   const openRecordingQuestions = recordingQuestionEntries
     .filter(({ q }) => openRecordingIds.has(q.id))
     .map(({ q, index }) => ({ id: q.id, index, text: q.text }));
+  openRecordingCountRef.current = openRecordingQuestions.length;
 
   const jumpToOpenRecording = (index: number) => {
     setSubmitBlocked(false);

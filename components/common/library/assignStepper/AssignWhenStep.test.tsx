@@ -219,6 +219,28 @@ describe('AssignWhenStep', () => {
     ).toBeNull();
   });
 
+  it('has no per-class link without bell periods, since no period gate can save it', () => {
+    render(<Harness rosters={[roster(1), roster(2)]} noBells />);
+    expect(
+      screen.queryByRole('button', { name: 'Different time for each class' })
+    ).toBeNull();
+  });
+
+  it('keeps the per-class link without bell periods when the host opts in', () => {
+    render(
+      <AssignWhenStep
+        value={BELL}
+        onChange={vi.fn()}
+        variant="when"
+        rosters={[roster(1), roster(2)]}
+        perClass
+      />
+    );
+    expect(
+      screen.getByRole('button', { name: 'Different time for each class' })
+    ).toBeTruthy();
+  });
+
   it('toggles late work', () => {
     const onValue = vi.fn<(v: AssignWhenValue) => void>();
     render(<Harness onValue={onValue} />);

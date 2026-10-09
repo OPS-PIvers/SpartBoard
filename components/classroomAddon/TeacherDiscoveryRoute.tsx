@@ -195,7 +195,9 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   // D22: with the stepper on, the When and Quiz rule step bodies replace the inline settings.
   const stepperOn = canAccessFeature('assign-stepper');
   const lastUsedRules = reviewSplit || stepperOn;
-  const windowOn = availabilityOn || stepperOn;
+  const [assignWhenEdited, setAssignWhenEdited] = useState(false);
+  // Classroom owns the due date: the When step only sets a window once the teacher edits it.
+  const windowOn = stepperOn ? assignWhenEdited : availabilityOn;
   const { lastUsed: lastAssignSettings, save: saveLastAssignSettings } =
     useLastQuizAssignSettings(user?.uid, lastUsedRules);
   const [assignWhen, setAssignWhen] = useState<AssignWhenValue>(() =>
@@ -1291,7 +1293,10 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                   <InlineAssignStepBodies
                     activity={kind === 'quiz' ? 'quiz' : 'video'}
                     when={assignWhen}
-                    onWhenChange={setAssignWhen}
+                    onWhenChange={(next) => {
+                      setAssignWhen(next);
+                      setAssignWhenEdited(true);
+                    }}
                     rosters={rosters.filter((r) =>
                       addonSelectedRosterIds.includes(r.id)
                     )}

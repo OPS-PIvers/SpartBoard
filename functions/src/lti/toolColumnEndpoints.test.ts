@@ -31,6 +31,7 @@ interface FakeDoc {
     data(): Record<string, unknown> | undefined;
   }>;
   set(data: Record<string, unknown>, opts?: { merge?: boolean }): Promise<void>;
+  update(data: Record<string, unknown>): Promise<void>;
   delete(): Promise<void>;
   collection(name: string): FakeCollection;
 }
@@ -61,6 +62,11 @@ function docRef(path: string): FakeDoc {
         path,
         opts?.merge ? { ...(docs.get(path) ?? {}), ...data } : { ...data }
       );
+    },
+    update: async (data) => {
+      const cur = docs.get(path);
+      if (!cur) throw new Error('5 NOT_FOUND');
+      docs.set(path, { ...cur, ...data });
     },
     delete: async () => {
       docs.delete(path);
@@ -120,11 +126,12 @@ vi.mock('./config', async (orig) => ({
     .mockResolvedValue({ clientId: 'client-1', tokenUrl: 'https://lms/token' }),
 }));
 
-const { grantedMock, pushSectionMock, restMock, deleteLineItemMock } =
+const { grantedMock, pushSectionMock, restMock, deleteLineItemMock, nrpsMock } =
   vi.hoisted(() => ({
     grantedMock: vi.fn(),
     pushSectionMock: vi.fn(),
     deleteLineItemMock: vi.fn(),
+    nrpsMock: vi.fn(),
     restMock: {
       listGradingCategories: vi.fn(),
       createGradingCategories: vi.fn(),
@@ -136,6 +143,7 @@ vi.mock('./ags', () => ({
   getAgsAccessToken: vi.fn().mockResolvedValue('tok'),
   postScore: vi.fn(),
 }));
+vi.mock('./nrps', () => ({ fetchNrpsMembers: nrpsMock }));
 vi.mock('./toolColumns', async (orig) => ({
   ...(await orig<typeof import('./toolColumns')>()),
   pushSection: pushSectionMock,
@@ -168,6 +176,17 @@ const createCategories = ltiCreateToolColumnCategoriesV1 as unknown as Fn;
 const del = ltiDeleteToolColumnsV1 as unknown as Fn;
 
 const T = { uid: 'teacher-1', token: { email: 't@school.edu' } };
+const INSTRUCTOR_MEMBER = {
+  userId: '7::x',
+  givenName: '',
+  familyName: '',
+  email: 't@school.edu',
+  roles: ['http://purl.imsglobal.org/vocab/lis/v2/membership#Instructor'],
+  status: 'Active',
+};
+// Only section 111's roster lists the caller as a teacher.
+const teachesOnly111 = async (url: string) =>
+  url === schoologySectionUrls('111').membershipUrl ? [INSTRUCTOR_MEMBER] : [];
 const ITEM = `${schoologySectionUrls('111').lineitemsUrl}/555`;
 
 beforeEach(() => {
@@ -204,6 +223,7 @@ beforeEach(() => {
   restMock.createGradingCategories.mockReset();
   restMock.getColumnCategory.mockReset().mockResolvedValue('7');
   deleteLineItemMock.mockReset().mockResolvedValue('deleted');
+  nrpsMock.mockReset().mockResolvedValue([INSTRUCTOR_MEMBER]);
 
   docs.set('quiz_sessions/S1', {
     teacherUid: 'teacher-1',
@@ -310,6 +330,56 @@ describe('ltiPushToolColumnV1', () => {
     );
   });
 
+  it('refuses sections the caller no longer teaches, sharing one NRPS read', async () => {
+    nrpsMock.mockImplementation(teachesOnly111);
+    pushSectionMock.mockImplementationOnce(
+      async (
+        deps: { nrpsMembers: (u: string, t: string) => Promise<unknown> },
+        input: { section: { contextId: string; title: string } }
+      ) => {
+        await deps.nrpsMembers(
+          schoologySectionUrls('111').membershipUrl,
+          'tok'
+        );
+        return {
+          contextId: input.section.contextId,
+          title: input.section.title,
+          status: 'pushed',
+          columnCreated: true,
+          needsCategory: false,
+          results: [
+            { pseudonymUid: 'u1', ok: true },
+            { pseudonymUid: 'u2', ok: true },
+          ],
+        };
+      }
+    );
+    const res = await push({ auth: T, data: pushData });
+    expect(pushSectionMock).toHaveBeenCalledTimes(1);
+    expect((res.sections as { status: string }[]).map((s) => s.status)).toEqual(
+      ['pushed', 'failed']
+    );
+    expect(nrpsMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not recreate a session deleted during the push', async () => {
+    pushSectionMock.mockImplementation(
+      async (_deps, input: { section: { contextId: string } }) => {
+        docs.delete('quiz_sessions/S1');
+        return {
+          contextId: input.section.contextId,
+          title: null,
+          status: 'pushed',
+          columnCreated: true,
+          needsCategory: false,
+          results: [],
+        };
+      }
+    );
+    await push({ auth: T, data: pushData });
+    expect(docs.has('quiz_sessions/S1')).toBe(false);
+  });
+
   it('validates the request', async () => {
     for (const data of [
       { ...pushData, maxPoints: 0 },
@@ -360,6 +430,21 @@ describe('ltiToolColumnCategoriesV1', () => {
     ]);
   });
 
+  it('treats a column deleted in Schoology as no column', async () => {
+    docs.set('lti_tool_columns/S1/sections/111', {
+      lineitemUrl: ITEM,
+      columnId: '555',
+      status: 'ready',
+    });
+    restMock.getColumnCategory.mockResolvedValue(null);
+    const res = await categories({ auth: T, data: { sessionId: 'S1' } });
+    expect((res.sections as Record<string, unknown>[])[0]).toMatchObject({
+      contextId: '111',
+      hasColumn: false,
+      needsCategory: true,
+    });
+  });
+
   it('uses the admin’s recommended categories when set', async () => {
     docs.set('admin_settings/schoology_categories', {
       categories: [{ title: 'Summative', weight: 100 }],
@@ -403,6 +488,15 @@ describe('ltiCreateToolColumnCategoriesV1', () => {
       body.categories
     );
     expect(res.weightingOff).toBe(true);
+  });
+
+  it('refuses a section the caller does not teach', async () => {
+    restMock.listGradingCategories.mockResolvedValue([]);
+    nrpsMock.mockImplementation(teachesOnly111);
+    await expect(
+      createCategories({ auth: T, data: body })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(restMock.createGradingCategories).not.toHaveBeenCalled();
   });
 
   it('refuses a course that already has categories', async () => {
@@ -449,6 +543,19 @@ describe('ltiDeleteToolColumnsV1', () => {
     expect(
       [...docs.keys()].some((k) => k.startsWith('lti_tool_columns/'))
     ).toBe(false);
+  });
+
+  it('leaves a column in a section the caller no longer teaches', async () => {
+    docs.set('lti_tool_columns/S1/sections/222', {
+      lineitemUrl: `${schoologySectionUrls('222').lineitemsUrl}/9`,
+    });
+    nrpsMock.mockImplementation(teachesOnly111);
+    const res = await del({ auth: T, data: { sessionId: 'S1' } });
+    expect(deleteLineItemMock).toHaveBeenCalledTimes(1);
+    expect(deleteLineItemMock).toHaveBeenCalledWith(ITEM, 'tok');
+    expect(res).toEqual({ deleted: 1, notFound: 0, failed: 1 });
+    expect(docs.has('lti_tool_columns/S1/sections/222')).toBe(true);
+    expect(docs.has('lti_tool_columns/S1')).toBe(true);
   });
 
   it('refuses another teacher', async () => {

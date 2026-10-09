@@ -25,7 +25,7 @@ import {
 } from './config';
 import { ALLOWED_ORIGINS } from '../classlinkShared';
 import { getAgsAccessToken, postScore } from './ags';
-import { fetchNrpsMembers } from './nrps';
+import { fetchNrpsMembers, type NrpsMember } from './nrps';
 import { ltiStudentUid } from './identity';
 import {
   LTI_IDENTITY_BRIDGE_COLLECTION,
@@ -43,6 +43,7 @@ import {
   isSchoologySectionId,
   isSchoologyServiceUrl,
   listLineItems,
+  schoologySectionUrls,
   updateLineItemMaximum,
 } from './lineItems';
 import * as rest from '../schoology/restClient';
@@ -60,7 +61,10 @@ import {
   type ToolColumnDeps,
   type ToolColumnRecord,
 } from './toolColumns';
-import { SCHOOLOGY_TOOL_COLUMNS_FEATURE } from './linkSectionByUrl';
+import {
+  SCHOOLOGY_TOOL_COLUMNS_FEATURE,
+  isActiveInstructor,
+} from './linkSectionByUrl';
 import { isGlobalFeatureGranted } from '../quizMediaArchive';
 import { assertViewAsAllowed } from '../viewAsGuard';
 
@@ -87,6 +91,9 @@ export const DEFAULT_RECOMMENDED_CATEGORIES: CategoryProposal[] = [
 const MAX_GRADES = 1000;
 const MAX_POINTS = 100_000;
 const SESSION_ID_RE = /^[A-Za-z0-9_-]{1,128}$/;
+const NOT_INSTRUCTOR_MESSAGE =
+  'Your Schoology account isn’t listed as a teacher of this course. Ask an admin to link it.';
+const NOT_INSTRUCTOR_REASON = 'not a teacher of the Schoology section';
 const CALL_OPTS = {
   region: 'us-central1' as const,
   invoker: 'public' as const,
@@ -228,6 +235,17 @@ async function requireTargets(
   return targets;
 }
 
+/** Whether `email` is an active Instructor of the section right now, per NRPS. */
+async function callerTeachesSection(
+  nrpsMembers: (url: string, token: string) => Promise<NrpsMember[]>,
+  token: string,
+  contextId: string,
+  email: string
+): Promise<boolean> {
+  const { membershipUrl } = schoologySectionUrls(contextId);
+  return isActiveInstructor(await nrpsMembers(membershipUrl, token), email);
+}
+
 /** Firestore-backed column records for one session (server-only collections). */
 export function firestoreColumnStore(
   db: admin.firestore.Firestore,
@@ -352,6 +370,8 @@ async function buildDeps(
   const hmac = STUDENT_PSEUDONYM_HMAC_SECRET.value();
   if (!hmac) throw new HttpsError('internal', 'Server not configured.');
   let tokenPromise: Promise<string> | null = null;
+  // The instructor check and pushSection's matching share one NRPS read per section.
+  const nrpsCache = new Map<string, Promise<NrpsMember[]>>();
   return {
     now: () => Date.now(),
     token: () => {
@@ -373,7 +393,15 @@ async function buildDeps(
     createLineItem,
     updateLineItemMaximum,
     postScore,
-    nrpsMembers: fetchNrpsMembers,
+    nrpsMembers: (url, token) => {
+      let members = nrpsCache.get(url);
+      if (!members) {
+        members = fetchNrpsMembers(url, token);
+        nrpsCache.set(url, members);
+        void members.catch(() => nrpsCache.delete(url));
+      }
+      return members;
+    },
     subUid: (sub) => ltiStudentUid(sub, hmac),
     bridgeUids: async (subUids) => {
       const out = new Map<string, string>();
@@ -444,6 +472,7 @@ export const ltiToolColumnCategoriesV1 = onCall(
         const record = await store.get(t.contextId);
         let categories: rest.GradingCategory[] | null = null;
         let columnCategoryId: string | null = null;
+        let columnGone = false;
         if (ops) {
           try {
             categories = await ops.listGradingCategories(t.contextId);
@@ -452,6 +481,8 @@ export const ltiToolColumnCategoriesV1 = onCall(
                 t.contextId,
                 record.columnId
               );
+              // Not in the gradebook any more: the teacher deleted it in Schoology.
+              columnGone = columnCategoryId === null;
             }
           } catch (err) {
             console.warn('[ltiToolColumnCategories] REST read failed:', err);
@@ -459,12 +490,14 @@ export const ltiToolColumnCategoriesV1 = onCall(
           }
         }
         const pref = await store.getPref(t.contextId);
+        const hasColumn = !!record && !columnGone;
         return {
           contextId: t.contextId,
           title: t.title,
-          hasColumn: !!record,
+          hasColumn,
           // A new column needs a pick; an existing one only when it sits in no category.
-          needsCategory: !!categories && (!record || columnCategoryId === '0'),
+          needsCategory:
+            !!categories && (!hasColumn || columnCategoryId === '0'),
           // null: categories couldn't be read, so the push goes ahead without one.
           categories,
           defaultCategoryId:
@@ -483,7 +516,11 @@ export const ltiToolColumnCategoriesV1 = onCall(
 export const ltiCreateToolColumnCategoriesV1 = onCall(
   {
     ...CALL_OPTS,
-    secrets: [SCHOOLOGY_API_CONSUMER_KEY, SCHOOLOGY_API_CONSUMER_SECRET],
+    secrets: [
+      LTI_TOOL_PRIVATE_KEY,
+      SCHOOLOGY_API_CONSUMER_KEY,
+      SCHOOLOGY_API_CONSUMER_SECRET,
+    ],
   },
   async (request) => {
     assertViewAsAllowed(request, { outward: true });
@@ -514,7 +551,28 @@ export const ltiCreateToolColumnCategoriesV1 = onCall(
         'Schoology categories can’t be created right now.'
       );
     }
+    const cfg = await getLtiPlatformConfig(db);
+    let token: string;
     try {
+      token = await getAgsAccessToken({
+        clientId: cfg.clientId,
+        tokenUrl: cfg.tokenUrl,
+        privatePem: LTI_TOOL_PRIVATE_KEY.value(),
+        scopes: [NRPS_SCOPE],
+      });
+    } catch (err) {
+      console.error('[ltiCreateToolColumnCategories] token mint failed:', err);
+      throw new HttpsError(
+        'internal',
+        'Could not authorize the Schoology gradebook service.'
+      );
+    }
+    try {
+      if (
+        !(await callerTeachesSection(fetchNrpsMembers, token, contextId, email))
+      ) {
+        throw new HttpsError('permission-denied', NOT_INSTRUCTOR_MESSAGE);
+      }
       const existing = await ops.listGradingCategories(contextId);
       if (existing.length > 0) {
         throw new HttpsError(
@@ -613,6 +671,29 @@ export const ltiPushToolColumnV1 = onCall(
     const outcomes = [];
     for (const section of targets) {
       try {
+        // A course link alone isn't authority to write grades; the caller must teach the section now.
+        if (
+          !(await callerTeachesSection(
+            (url, token) => deps.nrpsMembers(url, token),
+            await deps.token(),
+            section.contextId,
+            email
+          ))
+        ) {
+          outcomes.push({
+            contextId: section.contextId,
+            title: section.title,
+            status: 'failed' as const,
+            columnCreated: false,
+            needsCategory: false,
+            results: grades.map((g) => ({
+              pseudonymUid: g.pseudonymUid,
+              ok: false,
+              reason: NOT_INSTRUCTOR_REASON,
+            })),
+          });
+          continue;
+        }
         outcomes.push(
           await pushSection(deps, {
             section,
@@ -649,7 +730,7 @@ export const ltiPushToolColumnV1 = onCall(
       await db
         .collection(sessionCollection(session.kind))
         .doc(session.sessionId)
-        .set({ ltiToolColumn: true }, { merge: true })
+        .update({ ltiToolColumn: true })
         .catch((err: unknown) =>
           console.warn('[ltiPushToolColumn] session flag write failed:', err)
         );
@@ -683,7 +764,7 @@ export const ltiDeleteToolColumnsV1 = onCall(
   { ...CALL_OPTS, secrets: [LTI_TOOL_PRIVATE_KEY] },
   async (request) => {
     assertViewAsAllowed(request, { outward: true });
-    const { uid } = requireTeacher(request);
+    const { uid, email } = requireTeacher(request);
     const data = (request.data ?? {}) as { sessionId?: unknown };
     const sessionId = typeof data.sessionId === 'string' ? data.sessionId : '';
     if (!SESSION_ID_RE.test(sessionId)) {
@@ -708,7 +789,7 @@ export const ltiDeleteToolColumnsV1 = onCall(
         clientId: cfg.clientId,
         tokenUrl: cfg.tokenUrl,
         privatePem: LTI_TOOL_PRIVATE_KEY.value(),
-        scopes: [AGS_SCOPE_LINEITEM],
+        scopes: [AGS_SCOPE_LINEITEM, NRPS_SCOPE],
       });
     } catch (err) {
       console.error('[ltiDeleteToolColumns] AGS token mint failed:', err);
@@ -723,6 +804,13 @@ export const ltiDeleteToolColumnsV1 = onCall(
     for (const doc of sections.docs) {
       const url = doc.data().lineitemUrl as unknown;
       try {
+        // Leave the column and its record when the caller no longer teaches the section.
+        if (
+          !(await callerTeachesSection(fetchNrpsMembers, token, doc.id, email))
+        ) {
+          failed += 1;
+          continue;
+        }
         if (typeof url === 'string' && isSchoologyServiceUrl(url)) {
           const r = await deleteLineItem(url, token);
           if (r === 'deleted') deleted += 1;

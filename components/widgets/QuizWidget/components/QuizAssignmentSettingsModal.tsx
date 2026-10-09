@@ -358,6 +358,7 @@ export const QuizAssignmentSettingsModal: React.FC<
           variant="when"
           rosters={selectedRostersForDue}
           sharedOpens={!perPeriod}
+          perClass
         />
       ),
     };

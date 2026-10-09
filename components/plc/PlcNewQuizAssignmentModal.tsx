@@ -501,21 +501,22 @@ export const PlcNewQuizAssignmentModal: React.FC<
           }
         }
 
-        // The stepper gates by period or dates, so it is not always paused.
-        const createdKey = stepperPlan ? 'StepperCreated' : 'Created';
+        // Only a period gate creates it active; otherwise it starts paused.
+        const gated = !!stepperPlan?.periodGate;
+        const createdKey = gated ? 'StepperCreated' : 'Created';
         addToast(
           groupWording
             ? t(`plcDashboard.newAssignment.quiz.group${createdKey}`, {
                 title: pickedQuiz.title,
-                defaultValue: stepperPlan
+                defaultValue: gated
                   ? '"{{title}}" created and shared with this group.'
                   : '"{{title}}" created (paused) and shared with this group.',
               })
             : t(
-                `plcDashboard.newAssignment.quiz.${stepperPlan ? 'stepperCreated' : 'created'}`,
+                `plcDashboard.newAssignment.quiz.${gated ? 'stepperCreated' : 'created'}`,
                 {
                   title: pickedQuiz.title,
-                  defaultValue: stepperPlan
+                  defaultValue: gated
                     ? '"{{title}}" created and shared with this PLC.'
                     : '"{{title}}" created (paused) and shared with this PLC.',
                 }

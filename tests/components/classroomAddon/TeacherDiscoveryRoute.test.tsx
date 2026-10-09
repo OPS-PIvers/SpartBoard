@@ -281,7 +281,7 @@ describe('ClassroomAddonTeacherSpike attach flow — availability', () => {
     }
   });
 
-  it('assign stepper on: the When and Quiz rule bodies drive the window and rules', async () => {
+  it('assign stepper on: the Quiz rule bodies drive the rules and an untouched When sets no window', async () => {
     stepperOn = true;
     saveLast.mockClear();
     try {
@@ -307,15 +307,17 @@ describe('ClassroomAddonTeacherSpike attach flow — availability', () => {
       };
       const options = call[2] as Record<string, unknown>;
       expect(settings.sessionOptions.shuffleQuestions).toBe(true);
-      expect(typeof options.openAt).toBe('number');
-      expect(settings.dueAt).toBe(options.closeAt);
+      // An untouched When sets no window, so nothing closes tonight.
+      expect(options.openAt).toBeNull();
+      expect(options.closeAt).toBeNull();
+      expect(settings.dueAt).toBeUndefined();
       expect(saveLast).toHaveBeenCalledOnce();
     } finally {
       stepperOn = false;
     }
   });
 
-  it('assign stepper on: video activities get the When body and no Quiz rule bodies', async () => {
+  it('assign stepper on: video activities get the When body, and an edited When sets the due date', async () => {
     stepperOn = true;
     try {
       render(<ClassroomAddonTeacherSpike />);
@@ -328,6 +330,9 @@ describe('ClassroomAddonTeacherSpike attach flow — availability', () => {
       expect(
         screen.queryByRole('region', { name: 'Quiz integrity' })
       ).toBeNull();
+      fireEvent.click(
+        screen.getByRole('switch', { name: 'Allow submissions after close' })
+      );
       fireEvent.click(
         screen.getByRole('button', { name: /attach video activity/i })
       );

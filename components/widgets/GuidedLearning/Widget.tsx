@@ -100,7 +100,11 @@ import {
   withFrozenAnswerKeys,
 } from './utils/resultsScoring';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
-import { isSandboxId, isSandboxed } from '@/utils/tourSandbox';
+import {
+  isSandboxId,
+  isSandboxed,
+  isTourSandboxActive,
+} from '@/utils/tourSandbox';
 import { useTourMaterialEditor } from '@/components/tours/tourMaterials';
 import type { AssignClassesValue } from '@/components/common/library/assignStepper/assignClassesValue';
 import {
@@ -1152,7 +1156,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   // metadata doc in a single batch — the Drive blob is untouched.
   const handleReorderPersonal = useCallback(
     async (orderedIds: string[]) => {
-      if (!user?.uid) return;
+      if (!user?.uid || isTourSandboxActive()) return;
       const batch = writeBatch(db);
       orderedIds.forEach((id, index) => {
         batch.update(doc(db, 'users', user.uid, GL_PERSONAL_COLLECTION, id), {

@@ -73,6 +73,7 @@ import {
   missingSetupWidgets,
   planTourSetup,
   autopilotGate,
+  replayGate,
   DEFAULT_TOUR_AUTOPILOT_POLICY,
   resolveTourAutopilotPolicy,
   tourLayoutOverridesAt,
@@ -1418,11 +1419,11 @@ export const LiveTourRunner: React.FC = () => {
       setAuto(null);
       return;
     }
-    // A sandboxed editor replay clicks every step on the way to the selection.
+    // A sandboxed editor replay clicks every step on the way, stopping before real writes.
     const clickAll = !!tour.edit && !!tour.sandboxed && jumping;
     const gate = canPerform(binding)
       ? clickAll
-        ? 'perform'
+        ? replayGate(binding, tour.policy)
         : autopilotGate(binding, tour.policy)
       : 'teacher';
     if (gate === 'teacher' || (gate === 'confirm' && !consented)) {

@@ -36,7 +36,17 @@ export const AssignWhenStep: React.FC<{
   periodAccess?: AssignPeriodAccessContext;
   /** Each class keeps one Opens for all classes, where only one open time can be saved. */
   sharedOpens?: boolean;
-}> = ({ value, onChange, variant, rosters, periodAccess, sharedOpens }) => {
+  /** Offers a window per class; defaults to on only with bell periods, since only a period gate saves one. */
+  perClass?: boolean;
+}> = ({
+  value,
+  onChange,
+  variant,
+  rosters,
+  periodAccess,
+  sharedOpens,
+  perClass = !!periodAccess,
+}) => {
   const { t } = useTranslation();
 
   if (variant === 'live')
@@ -53,7 +63,7 @@ export const AssignWhenStep: React.FC<{
   const manual = manualAvailable && value.mode === 'manual';
   const { availability } = value;
   const bellAvailable = !!periodAccess && rosters.length > 0;
-  const scoped = rosters.length > 1;
+  const scoped = perClass && rosters.length > 1;
   const eachClass = scoped && !!availability.byRoster;
   const bellWindow = periodAccess?.bellWindow;
   const setAvailability = (next: AssignAvailability) =>

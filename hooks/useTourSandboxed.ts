@@ -147,6 +147,35 @@ const setMetaOf = (
   };
 };
 
+/** Assignments made during this tour on a teacher's picked material; their writes are real. */
+const realTourAssignments = new Set<string>();
+const keepReal = <R>(id: string | undefined, result: R): R => {
+  if (id) realTourAssignments.add(id);
+  return result;
+};
+
+type AnyFn = (...args: unknown[]) => unknown;
+
+/** Calls on an assignment run only when its material is one the teacher picked for the tour. */
+const guardAssignmentCalls = <T extends object>(
+  api: T,
+  materialOf: (assignmentId: string) => string | undefined,
+  keys: readonly (keyof T & string)[],
+  fallbacks: Partial<Record<keyof T, unknown>> = {}
+): Partial<T> =>
+  Object.fromEntries(
+    keys.map((key) => {
+      const fn = api[key] as unknown as AnyFn;
+      const guarded = (...args: unknown[]) => {
+        const id = typeof args[0] === 'string' ? args[0] : '';
+        const real =
+          realTourAssignments.has(id) || !isSandboxed(materialOf(id));
+        return real ? fn(...args) : Promise.resolve(fallbacks[key]);
+      };
+      return [key, guarded];
+    })
+  ) as unknown as Partial<T>;
+
 const fakeGlAssignment = (
   input: { sessionId: string; setId: string; setTitle: string },
   teacherUid: string | undefined
@@ -200,6 +229,7 @@ export function useSandboxedQuiz(api: UseQuizResult): UseQuizResult {
         ? Promise.resolve(`${origin()}/share/${sandboxId()}`)
         : api.shareQuiz(meta, load),
     createQuizTemplate: () => Promise.resolve(`${origin()}/sandbox-sheet`),
+    importSharedQuiz: () => Promise.resolve(),
     attachSyncLinkage: (id, linkage) =>
       isSandboxed(id) ? Promise.resolve() : api.attachSyncLinkage(id, linkage),
     pullSyncedQuiz: (meta) =>
@@ -374,11 +404,50 @@ export function useSandboxedQuizAssignments(
 ): UseQuizAssignmentsResult {
   const { active } = useTourSandbox();
   if (!active) return api;
+  const materialOf = (id: string) =>
+    api.assignments.find((a) => a.id === id)?.quizId;
   return sandboxApi(api, {
-    createAssignment: (quiz, settings, options) =>
-      isSandboxed(quiz.id)
-        ? Promise.resolve({ id: sandboxId(), code: fakeJoinCode() })
-        : api.createAssignment(quiz, settings, options),
+    ...guardAssignmentCalls(
+      api,
+      materialOf,
+      [
+        'pauseAssignment',
+        'resumeAssignment',
+        'deactivateAssignment',
+        'reopenAssignment',
+        'deleteAssignment',
+        'updateAssignmentSettings',
+        'setAssignmentRosters',
+        'setAssignmentExportUrl',
+        'setAssignmentTargetSkippedCount',
+        'setAssignmentExportedResponseIds',
+        'shareAssignment',
+        'syncAssignmentToLatest',
+        'publishAssignmentScores',
+        'unpublishAssignmentScores',
+        'publishResultsForStudents',
+        'hideResultsForStudents',
+        'clearResultsOverride',
+        'shareAssignmentWithPlc',
+        'stopSharingAssignmentWithPlc',
+      ],
+      {
+        shareAssignment: `${origin()}/share/${sandboxId()}`,
+        syncAssignmentToLatest: {
+          updated: false,
+          version: 0,
+          taggedResponseCount: 0,
+        },
+        publishAssignmentScores: { responsesUpdated: 0, paperResponses: 0 },
+        publishResultsForStudents: { responsesUpdated: 0, skipped: 0 },
+      }
+    ),
+    createAssignment: async (quiz, settings, options) => {
+      if (isSandboxed(quiz.id))
+        return { id: sandboxId(), code: fakeJoinCode() };
+      const made = await api.createAssignment(quiz, settings, options);
+      return keepReal(made.id, made);
+    },
   });
 }
 
@@ -399,7 +468,35 @@ export function useSandboxedVideoActivityAssignments(
   api: UseVideoActivityAssignmentsResult
 ): UseVideoActivityAssignmentsResult {
   const { active } = useTourSandbox();
-  return active ? sandboxApi(api, {}) : api;
+  if (!active) return api;
+  const materialOf = (id: string) =>
+    api.assignments.find((a) => a.id === id)?.activityId;
+  return sandboxApi(api, {
+    ...guardAssignmentCalls(
+      api,
+      materialOf,
+      [
+        'pauseAssignment',
+        'resumeAssignment',
+        'deactivateAssignment',
+        'reactivateAssignment',
+        'deleteAssignment',
+        'updateAssignmentSettings',
+        'shareAssignment',
+        'publishAssignmentScores',
+        'unpublishAssignmentScores',
+      ],
+      {
+        shareAssignment: `${origin()}/share/${sandboxId()}`,
+        publishAssignmentScores: { responsesUpdated: 0, scoredQuestions: [] },
+      }
+    ),
+    createAssignment: async (activity, ...rest) => {
+      if (isSandboxed(activity.id)) return { id: sandboxId() };
+      const made = await api.createAssignment(activity, ...rest);
+      return keepReal(made.id, made);
+    },
+  });
 }
 
 export function useSandboxedGuidedLearningSession(
@@ -421,11 +518,26 @@ export function useSandboxedGuidedLearningAssignments(
 ): UseGuidedLearningAssignmentsResult {
   const { active } = useTourSandbox();
   if (!active) return api;
+  const materialOf = (id: string) =>
+    api.assignments.find((a) => a.id === id)?.setId;
   return sandboxApi(api, {
-    createAssignment: (input) =>
-      isSandboxed(input.setId)
-        ? Promise.resolve(fakeGlAssignment(input, teacherUid))
-        : api.createAssignment(input),
+    ...guardAssignmentCalls(
+      api,
+      materialOf,
+      [
+        'archiveAssignment',
+        'unarchiveAssignment',
+        'deleteAssignment',
+        'publishAssignmentScores',
+        'unpublishAssignmentScores',
+      ],
+      { publishAssignmentScores: { responsesUpdated: 0 } }
+    ),
+    createAssignment: async (input) => {
+      if (isSandboxed(input.setId)) return fakeGlAssignment(input, teacherUid);
+      const made = await api.createAssignment(input);
+      return keepReal(made.id, made);
+    },
   });
 }
 
@@ -447,10 +559,20 @@ export function useSandboxedMiniAppAssignments(
 ): UseMiniAppAssignmentsResult {
   const { active } = useTourSandbox();
   if (!active) return api;
+  const materialOf = (id: string) =>
+    api.assignments.find((a) => a.id === id)?.appId;
   return sandboxApi(api, {
-    createAssignment: (input) =>
-      isSandboxed(input.app.id)
-        ? Promise.resolve(sandboxId())
-        : api.createAssignment(input),
+    ...guardAssignmentCalls(api, materialOf, [
+      'renameAssignment',
+      'endAssignment',
+      'reactivateAssignment',
+      'deleteAssignment',
+      'setTargetSkippedCount',
+    ]),
+    createAssignment: async (input) => {
+      if (isSandboxed(input.app.id)) return sandboxId();
+      const made = await api.createAssignment(input);
+      return keepReal(made, made);
+    },
   });
 }

@@ -22,8 +22,8 @@ import {
   type GradingCategory,
 } from '../schoology/restClient';
 
-/** How long a create claim blocks a second create before it counts as abandoned. */
-export const CREATE_LEASE_MS = 60_000;
+/** How long a create claim blocks a second create; covers four 15 s calls plus redirects. */
+export const CREATE_LEASE_MS = 180_000;
 const SCORE_CONCURRENCY = 8;
 export const MISSING_COMMENT = 'Missing';
 
@@ -215,7 +215,12 @@ async function mapLimit<T, R>(
 }
 
 type ColumnResult =
-  | { kind: 'ready'; record: ToolColumnRecord; created: boolean }
+  | {
+      kind: 'ready';
+      record: ToolColumnRecord;
+      created: boolean;
+      uncategorized?: boolean;
+    }
   | { kind: 'skip'; status: SectionStatus; reason: string };
 
 /** Find or create the section's column, keeping its total equal to `maxPoints`. */
@@ -241,31 +246,21 @@ async function ensureColumn(
     return { kind: 'skip', status: 'no-column', reason: SKIP.NO_COLUMN };
   }
 
-  // With REST reachable a new column needs a real category, or Schoology hides it.
+  // With REST configured a new column needs a real category, or Schoology hides it; a REST failure throws.
   let categoryId: string | null = null;
   if (deps.rest) {
-    let categories: GradingCategory[] | null = null;
-    try {
-      categories = await deps.rest.listGradingCategories(contextId);
-    } catch (err) {
-      console.warn(
-        '[toolColumns] category list failed; creating without:',
-        err
-      );
+    const categories = await deps.rest.listGradingCategories(contextId);
+    if (
+      !input.categoryId ||
+      !categories.some((c) => c.id === input.categoryId)
+    ) {
+      return {
+        kind: 'skip',
+        status: 'needs-category',
+        reason: SKIP.NO_CATEGORY,
+      };
     }
-    if (categories) {
-      if (
-        !input.categoryId ||
-        !categories.some((c) => c.id === input.categoryId)
-      ) {
-        return {
-          kind: 'skip',
-          status: 'needs-category',
-          reason: SKIP.NO_CATEGORY,
-        };
-      }
-      categoryId = input.categoryId;
-    }
+    categoryId = input.categoryId;
   }
 
   const claim = await deps.store.claimCreate(contextId, deps.now());
@@ -310,7 +305,12 @@ async function ensureColumn(
     };
     await deps.store.save(contextId, record);
     if (categoryId) await deps.store.setPref(contextId, categoryId);
-    return { kind: 'ready', record, created: !found };
+    return {
+      kind: 'ready',
+      record,
+      created: !found,
+      uncategorized: !!deps.rest && !savedCategory,
+    };
   } catch (err) {
     await deps.store.releaseClaim(contextId).catch(() => undefined);
     throw err;
@@ -330,7 +330,8 @@ async function checkCategory(
     current = await deps.rest.getColumnCategory(contextId, record.columnId);
   } catch (err) {
     console.warn('[toolColumns] column category read failed:', err);
-    return false;
+    // A column never given a category stays flagged until a read proves otherwise.
+    return record.categoryId === null;
   }
   if (current !== '0') return false;
   if (!pickedCategoryId) return true;
@@ -428,12 +429,9 @@ export async function pushSection(
     };
   }
   const { record } = column;
-  const needsCategory = await checkCategory(
-    deps,
-    section.contextId,
-    record,
-    input.categoryId
-  );
+  const needsCategory =
+    column.uncategorized === true ||
+    (await checkCategory(deps, section.contextId, record, input.categoryId));
   const members = await matchMembers(deps, section, token);
 
   const results: PushResult[] = input.grades.map((g) => ({

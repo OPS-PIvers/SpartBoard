@@ -138,8 +138,17 @@ describe('initialClassesValue', () => {
         { kind: 'classlink', sourcedId: 'SID-zzz' },
       ]
     );
-    expect(rows.classIds).toEqual(['c1', 'c2']);
+    expect(rows.classIds).toEqual(['c1']);
     expect(Object.keys(rows.studentsByClass)).toEqual(['c1']);
     expect(rows.studentsByClass.c1).toHaveLength(1);
+  });
+
+  it('never widens to a whole class when no pre-picked student matches', () => {
+    const rows = initialClassesValue(
+      SAMPLE_ROSTERS,
+      ['c1', 'c2'],
+      [{ kind: 'classlink', sourcedId: 'SID-zzz' }]
+    );
+    expect(rows).toEqual({ classIds: [], studentsByClass: {} });
   });
 });

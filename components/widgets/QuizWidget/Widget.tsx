@@ -195,7 +195,7 @@ import { DEFAULT_TAB_AWAY_LIMIT_SECONDS } from '@/utils/tabAwayLimit';
 import { revealValueFor } from '@/utils/quizFibAlternates';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
-import { isSandboxed } from '@/utils/tourSandbox';
+import { isSandboxed, isTourSandboxActive } from '@/utils/tourSandbox';
 import { useTourMaterialEditor } from '@/components/tours/tourMaterials';
 
 const QuizStudentView = lazy(() =>
@@ -1495,7 +1495,7 @@ const TeacherQuizWidget: React.FC<{
   // early returns below so the hook runs on every render (rules-of-hooks).
   const handleReorderQuizzes = useCallback(
     async (orderedIds: string[]) => {
-      if (!user?.uid) return;
+      if (!user?.uid || isTourSandboxActive()) return;
       const batch = writeBatch(db);
       orderedIds.forEach((id, index) => {
         batch.update(doc(db, 'users', user.uid, QUIZZES_COLLECTION, id), {
