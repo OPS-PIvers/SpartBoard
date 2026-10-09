@@ -43,7 +43,7 @@ import {
   PULSE_OPTIONS,
   TRANSITION_OPTIONS,
 } from './editorShared/setOptions';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 // ─── Context pane ────────────────────────────────────────────────────────────
 
@@ -377,6 +377,14 @@ export const GuidedLearningEditorContextPane = React.memo(
               value={hotspotPulse}
               options={PULSE_OPTIONS}
               onChange={setHotspotPulse}
+              anchor={tourAttr('gl-editor.pulse')}
+              optionAnchor={(v) =>
+                tourFieldAttr(
+                  'gl-editor.setting-option',
+                  'guided-learning',
+                  `pulse-${v}`
+                )
+              }
             />
             <SettingChip
               label="Transition"
@@ -384,6 +392,14 @@ export const GuidedLearningEditorContextPane = React.memo(
               value={imageTransition}
               options={TRANSITION_OPTIONS}
               onChange={setImageTransition}
+              anchor={tourAttr('gl-editor.transition')}
+              optionAnchor={(v) =>
+                tourFieldAttr(
+                  'gl-editor.setting-option',
+                  'guided-learning',
+                  `transition-${v}`
+                )
+              }
             />
             <WelcomeChip
               enabled={welcomeEnabled}
@@ -617,7 +633,13 @@ export const GuidedLearningEditorContextPane = React.memo(
               <Upload className="w-4 h-4" />
               Add media
             </button>
-            <CaptureMenuButton onPick={setCaptureMode} />
+            <CaptureMenuButton
+              onPick={setCaptureMode}
+              anchor={tourAttr('gl-capture.menu')}
+              itemAnchor={(m) =>
+                tourFieldAttr('gl-capture.menu-item', 'guided-learning', m)
+              }
+            />
             <button
               {...tourAttr('gl-editor.paste')}
               onClick={() => void uploadFromClipboard()}

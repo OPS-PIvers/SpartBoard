@@ -35,7 +35,7 @@ import { useDialog } from '@/context/useDialog';
 import { StudioMenu } from './StudioMenu';
 import { modShortcutLabel } from './useStudioShortcuts';
 import { useFileDrop } from './useFileDrop';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface SlideItem {
   id: string;
@@ -144,6 +144,10 @@ const SlideThumbBody = React.memo(function SlideThumbBody({
         <StudioMenu
           label={t('glStudio.slideActionsN', { n })}
           testId={`gl-studio-slide-menu-${slide.index}`}
+          anchor={tourAttr('studio.slide-actions')}
+          itemAnchor={(id) =>
+            tourFieldAttr('studio.menu-item', 'guided-learning', id)
+          }
           triggerClassName="rounded-md bg-white/90 p-1 text-slate-600 shadow-sm hover:text-slate-900"
           items={[
             {
@@ -492,7 +496,13 @@ const FilmstripBody = React.memo(function FilmstripBody({
           {t('glStudio.addMedia')}
         </button>
         <div className="flex [&_button]:w-full [&_button]:justify-center [&>*]:flex-1">
-          <CaptureMenuButton onPick={setCaptureMode} />
+          <CaptureMenuButton
+            onPick={setCaptureMode}
+            anchor={tourAttr('gl-capture.menu')}
+            itemAnchor={(m) =>
+              tourFieldAttr('gl-capture.menu-item', 'guided-learning', m)
+            }
+          />
         </div>
         <button
           type="button"

@@ -29,7 +29,7 @@ import {
 import { useGuidedLearningEditorState } from './useGuidedLearningEditorState';
 import { GuidedLearningAIGenerator } from './GuidedLearningAIGenerator';
 import type { GuidedLearningSaveGuard } from '../utils/saveConflict';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface GuidedLearningEditorModalProps {
   isOpen: boolean;
@@ -266,6 +266,10 @@ export const GuidedLearningEditorModal: React.FC<
           onSelect={(next) => onFolderChange?.(next)}
           onClose={() => setFolderPickerOpen(false)}
           title="Select folder"
+          rootAnchor={tourAttr('gl-folder-picker.root')}
+          rowAnchor={(id) =>
+            tourFieldAttr('gl-folder-picker.folder', 'guided-learning', id)
+          }
         />
       )}
     </>
