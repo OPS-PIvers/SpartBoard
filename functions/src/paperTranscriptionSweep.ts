@@ -40,6 +40,8 @@ export const MAX_AUTO_ATTEMPTS = 3;
 /** Over-quota jobs are retried once a new quota day starts, for about a week. */
 export const OVER_QUOTA_RETRY_WINDOW_MS = 8 * DAY;
 export const JOB_QUERY_LIMIT = 200;
+/** Runaway guard on one pass, not an expected volume. */
+export const MAX_JOBS_PER_PASS = 5000;
 
 /** Crops of a scan nothing imported are removed after this. */
 export const UNIMPORTED_CROP_MS = 7 * DAY;
@@ -87,12 +89,22 @@ async function jobsWhere(
   before: number,
   after?: number
 ) {
-  let q = db
+  const base = db
     .collectionGroup(PAPER_TRANSCRIPTION_JOBS)
     .where('status', '==', status)
     .where(field, '<', before);
-  if (after !== undefined) q = q.where(field, '>', after);
-  return (await q.limit(JOB_QUERY_LIMIT).get()).docs;
+  const bounded = after === undefined ? base : base.where(field, '>', after);
+  const docs: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+  // Skipped jobs never leave the window, so walk past them rather than re-reading the same first page.
+  while (docs.length < MAX_JOBS_PER_PASS) {
+    const ordered = bounded.orderBy(field).limit(JOB_QUERY_LIMIT);
+    const page = (
+      await (docs.length ? ordered.startAfter(docs[docs.length - 1]) : ordered).get()
+    ).docs;
+    docs.push(...page);
+    if (page.length < JOB_QUERY_LIMIT) break;
+  }
+  return docs;
 }
 
 export async function runPaperJobSweep(
