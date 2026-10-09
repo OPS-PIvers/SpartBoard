@@ -4,6 +4,7 @@ import type { PeriodAccess } from '@/types';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useServerNow } from '@/hooks/useServerNow';
 import { Z_INDEX } from '@/config/zIndex';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import {
   effectivePeriodState,
   type EffectivePeriodState,
@@ -80,6 +81,7 @@ const PeriodPicker: React.FC<
     >
       <select
         aria-label="Class"
+        {...tourTypeAttr('quiz-monitor.period-class-picker', 'quiz')}
         value={selected}
         onChange={(e) => onSelect(e.target.value)}
         className="min-w-0 max-w-full rounded-md border border-brand-gray-lighter bg-white font-sans font-bold text-brand-blue-dark"
@@ -163,6 +165,7 @@ const PeriodAction: React.FC<
           onClick={() => setMenuOpen((v) => !v)}
           aria-label={`More time for ${current.access.label}`}
           aria-expanded={menuOpen}
+          {...tourTypeAttr('quiz-monitor.period-more-time', 'quiz')}
           className="inline-flex items-center rounded-md border border-brand-blue-primary/40 bg-white font-sans font-semibold text-brand-blue-dark hover:bg-brand-blue-lighter"
           style={{
             gap: 'min(4px, 1cqmin)',

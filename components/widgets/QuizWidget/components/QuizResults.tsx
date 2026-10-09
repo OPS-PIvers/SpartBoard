@@ -196,6 +196,7 @@ import { useSchoologyToolColumnPush } from '@/hooks/useSchoologyToolColumnPush';
 import { readLmsLink, schoologyLinkedTargets } from '@/utils/gradebook/lmsPush';
 import { buildToolColumnGrades } from '@/utils/schoologyToolColumns';
 import { ViewAsStudentButton } from '@/components/viewAs/ViewAsStudentButton';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 /**
  * Export-error banner state. Generic errors render as a plain message; a
@@ -1969,6 +1970,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
             effectiveScreen === 'home' ? onBack() : setScreen('home')
           }
           aria-label="Back"
+          {...tourTypeAttr('quiz-results.back', 'quiz')}
           className="rounded-md hover:bg-white/15 transition-colors"
           style={{ padding: 'min(4px, 1cqmin)' }}
         >
@@ -1991,6 +1993,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
             onClick={() => openPrint(null)}
             disabled={namesLoading}
             aria-label="Print results"
+            {...tourTypeAttr('quiz-results.print', 'quiz')}
             title={namesLoading ? NAMES_LOADING_TITLE : 'Print results'}
             className="shrink-0 rounded-md hover:bg-white/15 transition-colors disabled:opacity-50 disabled:hover:bg-transparent"
             style={{ padding: 'min(4px, 1cqmin)' }}
@@ -2009,6 +2012,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           onClick={toggleHideNames}
           aria-pressed={hideNames}
           aria-label="Hide student names"
+          {...tourTypeAttr('quiz-results.hide-names', 'quiz')}
           title={hideNames ? 'Show student names' : 'Hide student names'}
           className="shrink-0 rounded-md hover:bg-white/15 transition-colors"
           style={{ padding: 'min(4px, 1cqmin)' }}
@@ -2069,6 +2073,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                 <button
                   type="button"
                   onClick={() => void handleSchemaMismatchRecovery()}
+                  {...tourTypeAttr('quiz-results.sheet-recovery', 'quiz')}
                   disabled={exporting || namesLoading}
                   className="bg-brand-red-primary hover:bg-brand-red-dark disabled:bg-brand-gray-lighter text-white font-bold rounded-lg px-3 py-1.5 transition active:scale-95"
                 >
@@ -2140,6 +2145,11 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                       <button
                         key={p}
                         onClick={() => setPeriodFilter(p)}
+                        {...tourFieldAttr(
+                          'quiz-results.period-filter',
+                          'quiz',
+                          p
+                        )}
                         aria-pressed={on}
                         className={`rounded-full border font-sans transition-colors ${
                           on
@@ -2217,6 +2227,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                   label={questionsLabel}
                   detail={`${quiz.questions.length} question${quiz.questions.length === 1 ? '' : 's'}`}
                   onClick={() => setScreen('questions')}
+                  anchor={tourTypeAttr('quiz-results.drill-questions', 'quiz')}
                 />
                 {hasTargetResults && (
                   <DrillRow
@@ -2228,12 +2239,14 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                         : 's'
                     }`}
                     onClick={() => setScreen('targets')}
+                    anchor={tourTypeAttr('quiz-results.drill-targets', 'quiz')}
                   />
                 )}
                 <DrillRow
                   label="Students"
                   detail={`${filteredResponses.length} student${filteredResponses.length === 1 ? '' : 's'}`}
                   onClick={() => setScreen('students')}
+                  anchor={tourTypeAttr('quiz-results.drill-students', 'quiz')}
                 />
               </div>
 
@@ -2318,6 +2331,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           {hasWrittenQuestions && !isReview && (
             <button
               onClick={() => openGrader()}
+              {...tourTypeAttr('quiz-grading.open', 'quiz')}
               className="inline-flex items-center bg-white border border-brand-gray-lighter hover:border-brand-blue-light text-brand-blue-primary font-sans font-semibold rounded-md transition-colors"
               style={{
                 gap: 'min(6px, 1.5cqmin)',
@@ -2339,6 +2353,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
           {showClassroomPush && (
             <button
               onClick={() => void handlePushGrades()}
+              {...tourTypeAttr('quiz-results.push-grades', 'quiz')}
               disabled={pushingGrades}
               className="inline-flex items-center bg-brand-blue-primary hover:bg-brand-blue-light text-white font-sans font-semibold rounded-md transition-colors disabled:opacity-60"
               style={{
@@ -2374,6 +2389,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                   ? handlePushSchoologyGrades()
                   : toolColumnPush.start())
               }
+              {...tourTypeAttr('quiz-results.push-schoology', 'quiz')}
               disabled={
                 ltiAttachment
                   ? pushingSchoologyGrades || schoologyGrades.length === 0
@@ -2415,6 +2431,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                 onClick={handleScoreboardClick}
                 disabled={namesLoading}
                 aria-label="Send to Scoreboard"
+                {...tourTypeAttr('quiz-results.scoreboard', 'quiz')}
                 title={
                   namesLoading ? NAMES_LOADING_TITLE : 'Send to Scoreboard'
                 }
@@ -2428,6 +2445,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
               <button
                 type="button"
                 onClick={sheetRefresh.run}
+                {...tourTypeAttr('quiz-results.sheet-refresh', 'quiz')}
                 disabled={sheetRefresh.busy || namesLoading}
                 aria-label={sheetRefresh.label}
                 title={namesLoading ? NAMES_LOADING_TITLE : sheetRefresh.label}
@@ -2468,6 +2486,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                   namesLoading
                 }
                 title={namesLoading ? NAMES_LOADING_TITLE : outward.lockedTitle}
+                {...tourTypeAttr('quiz-results.export-sheets', 'quiz')}
                 className={footerButtonClass}
                 style={footerButtonStyle}
               >
@@ -2511,6 +2530,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                 >
                   <button
                     onClick={() => handleSendToScoreboard('name')}
+                    {...tourTypeAttr('quiz-results.scoreboard-names', 'quiz')}
                     className="flex items-center w-full bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95"
                     style={{
                       gap: 'min(8px, 2cqmin)',
@@ -2528,6 +2548,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                   </button>
                   <button
                     onClick={() => handleSendToScoreboard('pin')}
+                    {...tourTypeAttr('quiz-results.scoreboard-pins', 'quiz')}
                     className="flex items-center w-full bg-slate-100 hover:bg-slate-200 text-brand-blue-dark font-bold rounded-xl transition-all active:scale-95"
                     style={{
                       gap: 'min(8px, 2cqmin)',
@@ -2648,9 +2669,11 @@ const DrillRow: React.FC<{
   label: string;
   detail: string;
   onClick: () => void;
-}> = ({ label, detail, onClick }) => (
+  anchor?: Record<string, string>;
+}> = ({ label, detail, onClick, anchor }) => (
   <button
     onClick={onClick}
+    {...anchor}
     className="flex items-center justify-between bg-white border border-brand-gray-lighter rounded-lg hover:border-brand-blue-light transition-colors text-left"
     style={{
       padding: 'min(10px, 2.5cqmin) min(12px, 3cqmin)',
@@ -2825,6 +2848,7 @@ const SelectStudentsButton: React.FC<{
   <button
     type="button"
     onClick={() => onSelect(students.map((s) => s.responseKey))}
+    {...tourTypeAttr('quiz-results.select-students', 'quiz')}
     className="inline-flex items-center font-sans font-semibold text-brand-blue-primary hover:text-brand-blue-dark hover:underline rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
     style={{
       ...SMALL_TEXT,
@@ -2924,6 +2948,7 @@ const DistributionRow: React.FC<{
           type="button"
           onClick={onToggle}
           aria-expanded={isOpen}
+          {...tourFieldAttr('quiz-results.outcome-row', 'quiz', label)}
           className="block w-full text-left rounded hover:bg-brand-gray-lightest/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
         >
           {line}
@@ -3257,6 +3282,7 @@ const QuestionsScreen: React.FC<{
                 key={value}
                 type="button"
                 onClick={() => setSortBy(value)}
+                {...tourFieldAttr('quiz-results.question-sort', 'quiz', value)}
                 aria-pressed={on}
                 className={`rounded-full border font-sans transition-colors ${
                   on
@@ -3305,6 +3331,11 @@ const QuestionsScreen: React.FC<{
               onClick={() => toggleExpanded(q.id)}
               aria-expanded={isOpen}
               aria-controls={isOpen ? panelId : undefined}
+              {...tourFieldAttr(
+                'quiz-results.question-toggle',
+                'quiz',
+                String(i)
+              )}
               className="block w-full text-left rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
             >
               <span
@@ -3641,6 +3672,7 @@ const StudentDrilldownPanel: React.FC<{
               type="checkbox"
               checked={includeAnswers}
               onChange={(e) => setIncludeAnswers(e.target.checked)}
+              {...tourTypeAttr('quiz-results.student-print-answers', 'quiz')}
               className="accent-brand-blue-primary"
               style={SMALL_ICON}
             />
@@ -3650,6 +3682,7 @@ const StudentDrilldownPanel: React.FC<{
         <button
           type="button"
           onClick={handlePrint}
+          {...tourTypeAttr('quiz-results.student-print', 'quiz')}
           className="inline-flex items-center rounded-md border border-brand-gray-lighter bg-white font-sans font-semibold text-brand-blue-primary hover:border-brand-blue-light transition-colors"
           style={{
             ...SMALL_TEXT,
@@ -3675,11 +3708,13 @@ function SegmentedToggle<T extends string>({
   value,
   options,
   onChange,
+  anchor,
 }: {
   label: string;
   value: T;
   options: ReadonlyArray<readonly [T, string]>;
   onChange: (value: T) => void;
+  anchor?: (value: T) => Record<string, string>;
 }) {
   return (
     <div
@@ -3695,6 +3730,7 @@ function SegmentedToggle<T extends string>({
             type="button"
             onClick={() => onChange(v)}
             aria-pressed={on}
+            {...anchor?.(v)}
             className={`font-sans font-semibold transition-colors ${i > 0 ? 'border-l border-brand-gray-lighter' : ''} ${
               on
                 ? 'bg-brand-blue-lighter text-brand-blue-dark'
@@ -3878,6 +3914,7 @@ const StudentsScreen: React.FC<{
                     ? selection.clearSelection()
                     : selection.addToSelection(allKeys)
                 }
+                {...tourTypeAttr('quiz-results.students-select-all', 'quiz')}
                 className="accent-brand-blue-primary"
                 style={checkboxStyle}
               />
@@ -3896,6 +3933,9 @@ const StudentsScreen: React.FC<{
                 ['lastName', 'Last name'],
               ]}
               onChange={(sort) => onViewChange({ ...view, sort })}
+              anchor={(v) =>
+                tourFieldAttr('quiz-results.students-sort', 'quiz', v)
+              }
             />
             {!gamified && (
               <SegmentedToggle
@@ -3906,6 +3946,13 @@ const StudentsScreen: React.FC<{
                   ['points', 'Points'],
                 ]}
                 onChange={(display) => onViewChange({ ...view, display })}
+                anchor={(v) =>
+                  tourFieldAttr(
+                    'quiz-results.students-score-display',
+                    'quiz',
+                    v
+                  )
+                }
               />
             )}
           </div>
@@ -3932,7 +3979,7 @@ const StudentsScreen: React.FC<{
           if (view.sort === 'lastName') return byName || scoreB - scoreA;
           return scoreB - scoreA || byName;
         })
-        .map((r) => {
+        .map((r, studentIndex) => {
           const score = resultsDisplayScore(r, questions, session, fibGrading);
           const earned = isGame
             ? score
@@ -4045,6 +4092,10 @@ const StudentsScreen: React.FC<{
                         });
                     }}
                     disabled={isDeleting}
+                    {...tourTypeAttr(
+                      'quiz-results.student-delete-confirm',
+                      'quiz'
+                    )}
                     className="bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-sans font-semibold rounded-md px-3 py-1 shrink-0"
                     style={{ fontSize: 'min(11px, 3cqmin)' }}
                   >
@@ -4052,6 +4103,10 @@ const StudentsScreen: React.FC<{
                   </button>
                   <button
                     onClick={() => setConfirmDeleteKey(null)}
+                    {...tourTypeAttr(
+                      'quiz-results.student-delete-cancel',
+                      'quiz'
+                    )}
                     className="bg-white border border-brand-gray-lighter text-brand-gray-dark font-sans font-semibold rounded-md px-3 py-1 shrink-0"
                     style={{ fontSize: 'min(11px, 3cqmin)' }}
                   >
@@ -4085,6 +4140,11 @@ const StudentsScreen: React.FC<{
                       aria-label={`Select ${displayName}`}
                       checked={selection.selectedResponseKeys.has(rowKey)}
                       onChange={() => selection.toggle(rowKey)}
+                      {...tourFieldAttr(
+                        'quiz-results.student-select',
+                        'quiz',
+                        String(studentIndex)
+                      )}
                       onClick={stop}
                       className="shrink-0 accent-brand-blue-primary"
                       style={checkboxStyle}
@@ -4099,6 +4159,11 @@ const StudentsScreen: React.FC<{
                     }}
                     aria-expanded={isExpanded}
                     aria-controls={isExpanded ? panelId : undefined}
+                    {...tourFieldAttr(
+                      'quiz-results.student-toggle',
+                      'quiz',
+                      String(studentIndex)
+                    )}
                     className="flex items-center min-w-0 text-left rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
                     style={{ gap: 'min(4px, 1cqmin)' }}
                   >
@@ -4282,6 +4347,11 @@ const StudentsScreen: React.FC<{
                           )
                         }
                         disabled={isUnlocking}
+                        {...tourFieldAttr(
+                          'quiz-results.student-unlock',
+                          'quiz',
+                          String(studentIndex)
+                        )}
                         title="Decrement warnings by 1 and reopen the results view for this student"
                         aria-label={`Unlock results for ${displayName}`}
                         className="shrink-0 bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-slate-900 font-sans font-semibold rounded-md px-3 py-1.5 transition-colors flex items-center gap-1"
@@ -4330,6 +4400,11 @@ const StudentsScreen: React.FC<{
                     {canDelete && (
                       <button
                         onClick={() => setConfirmDeleteKey(rowKey)}
+                        {...tourFieldAttr(
+                          'quiz-results.student-delete',
+                          'quiz',
+                          String(studentIndex)
+                        )}
                         disabled={isDeleting}
                         title="Delete this submission"
                         aria-label={`Delete ${displayName}'s submission`}

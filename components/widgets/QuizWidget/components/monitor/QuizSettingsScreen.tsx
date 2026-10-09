@@ -1,5 +1,6 @@
 import React from 'react';
 import { QuizSession, QuizConfig } from '@/types';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 interface QuizSettingsScreenProps {
   session: QuizSession;
@@ -155,6 +156,10 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
                 })
               }
               aria-label="Scoreboard display"
+              {...tourTypeAttr(
+                'quiz-monitor.settings-scoreboard-display',
+                'quiz'
+              )}
               className="rounded-md border border-brand-gray-lighter bg-white text-brand-gray-dark font-sans"
               style={{
                 fontSize: 'min(11px, 3.8cqmin)',
@@ -176,6 +181,10 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
                 })
               }
               aria-label="Scoreboard scoring"
+              {...tourTypeAttr(
+                'quiz-monitor.settings-scoreboard-scoring',
+                'quiz'
+              )}
               className="rounded-md border border-brand-gray-lighter bg-white text-brand-gray-dark font-sans"
               style={{
                 fontSize: 'min(11px, 3.8cqmin)',
