@@ -4613,3 +4613,27 @@ rather than "no data") is also still open.
     - #3966: the log cites `components/common/lightChrome.ts` as using `var(--spart-primary,#2d3f89)`, but it only uses static `brand-blue-*` Tailwind classes. The real precedent is `GuidedLearning/utils/calloutStyle.ts:227`. Every other file and line reference checked out on `dev-paul` @ `5b543ff2`.
 - Notes:
   - `gh` is unavailable, so GitHub access went through MCP.
+
+## 2026-10-09
+
+- PRs reviewed:
+  - #4009 Paper transcription sweep: page through the backlog so later teachers' over-quota jobs are retried
+  - #4008 useBackgrounds: don't show the previous user's beta backgrounds to the next user
+  - #4007 LunchCount: re-sync the menu after midnight on a board left open
+  - #4006 Unifier run 111: aligned, doc-only log
+  - #4005 Embed check: report an unresolvable host as unreachable, not as a private IP
+  - #3973 Routine bug fixes (release, `dev-paul` → `main`)
+- Comments processed: 4 inline threads on #3973, all already answered by the author. 0 fixed, 0 newly explained. The other PRs had only "no issues" bot summaries.
+- Fixes pushed: none
+- Reviews posted: 6
+- Merge readiness:
+  - Ready: #4009, #4008, #4007, #4006.
+  - Ready with minor notes:
+    - #4005: the string matching against the `ssrfGuard.ts` error messages fails safe but is brittle. Exporting the messages as constants or a typed error would make it sturdier.
+    - #3973:
+      - The unflagged maximized-widget controls may be impossible to reveal over iframe content. Not reproduced; check in a browser.
+      - The Mini App placement prune uses the building-filtered `globalLibrary` and can delete a teacher's filing. This is behind `library-folder-view`.
+      - #4005 has not landed on `dev-paul` yet.
+- Notes:
+  - `gh` is unavailable, so GitHub access went through MCP.
+  - No fix was pushed to `dev-paul`. It requires a PR, and the new #3973 findings weren't reviewer comments.
