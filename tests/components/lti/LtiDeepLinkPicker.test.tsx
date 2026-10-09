@@ -219,14 +219,51 @@ describe('LtiDeepLinkPicker — assign stepper step bodies', () => {
       const options = call[2] as Record<string, unknown>;
       expect(settings.sessionMode).toBe('student');
       expect(settings.sessionOptions.shuffleQuestions).toBe(true);
-      expect(typeof options.closeAt).toBe('number');
-      expect(settings.dueAt).toBe(options.closeAt);
-      expect(signCallable.mock.calls.at(-1)?.[0].dueAt).toBe(options.closeAt);
+      // An untouched When sets no window, so nothing closes tonight.
+      expect(options.openAt).toBeNull();
+      expect(options.closeAt).toBeNull();
+      expect(settings.dueAt).toBeUndefined();
+      expect(signCallable.mock.calls.at(-1)?.[0].dueAt).toBeUndefined();
       expect(saveLast).toHaveBeenCalledWith(
         expect.objectContaining({
           sessionOptions: expect.objectContaining({ shuffleQuestions: true }),
         })
       );
+    } finally {
+      stepperOn = false;
+    }
+  });
+});
+
+describe('LtiDeepLinkPicker — edited When', () => {
+  beforeEach(() => {
+    signCallable.mockClear();
+    createAssignment.mockClear();
+    vi.spyOn(HTMLFormElement.prototype, 'submit').mockImplementation(
+      () => undefined
+    );
+    window.history.pushState({}, '', '/lti/deep-link?lc=code-1');
+  });
+
+  it('flag on: an edited When sets the window and the line item due date', async () => {
+    stepperOn = true;
+    try {
+      render(<LtiDeepLinkPicker />);
+      fireEvent.click(await screen.findByRole('button', { name: 'Quiz' }));
+      fireEvent.click(await screen.findByRole('option', { name: 'My Quiz' }));
+      fireEvent.click(
+        screen.getByRole('switch', { name: 'Allow submissions after close' })
+      );
+      fireEvent.click(
+        screen.getByRole('button', { name: /add quiz to schoology/i })
+      );
+      await waitFor(() => expect(signCallable).toHaveBeenCalled());
+      const call = createAssignment.mock.calls.at(-1) as unknown[];
+      const settings = call[1] as { dueAt?: number };
+      const options = call[2] as Record<string, unknown>;
+      expect(typeof options.openAt).toBe('number');
+      expect(typeof settings.dueAt).toBe('number');
+      expect(signCallable.mock.calls.at(-1)?.[0].dueAt).toBe(settings.dueAt);
     } finally {
       stepperOn = false;
     }
