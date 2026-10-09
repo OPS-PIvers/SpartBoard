@@ -27,6 +27,7 @@ import { useCanEditPlcContent } from '@/context/usePlcContext';
 import { convertToEmbedUrl, ensureProtocol } from '@/utils/urlHelpers';
 import { PlcDocPicker, type PlcDocPickerHandle } from './PlcDocPicker';
 import { PlcViewerReadOnlyBadge } from '@/components/plc/viewer/PlcViewerReadOnlyBadge';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface PlcDocsBodyProps {
   plc: Plc;
@@ -253,6 +254,7 @@ export const PlcDocsBody: React.FC<PlcDocsBodyProps> = ({
                 affordance instead (Decision 3.2). */}
             {canEdit ? (
               <button
+                {...tourAttr('plc-docs.add-doc')}
                 className="flex items-center gap-2 bg-brand-blue-primary text-white rounded-xl px-5 py-2.5 text-sm font-semibold hover:bg-brand-blue-dark transition-colors shadow-sm"
                 onClick={() => {
                   pickerRef.current?.focusAddInput();
@@ -286,6 +288,7 @@ export const PlcDocsBody: React.FC<PlcDocsBodyProps> = ({
                   })}
                 </span>
                 <a
+                  {...tourAttr('plc-docs.open-doc')}
                   href={ensureProtocol(selectedDoc.url)}
                   target="_blank"
                   rel="noopener noreferrer"

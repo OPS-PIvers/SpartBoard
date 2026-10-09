@@ -44,6 +44,7 @@ import {
   buildCommonAssessmentBanner,
   type CommonAssessmentBannerPhase,
 } from './commonAssessmentBannerSelectors';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface CommonAssessmentBannerProps {
   plc: Plc;
@@ -159,6 +160,7 @@ export const CommonAssessmentBanner: React.FC<CommonAssessmentBannerProps> = ({
           </div>
         </div>
         <button
+          {...tourFieldAttr('plc-home.card-link', 'plc', 'banner-assessments')}
           type="button"
           onClick={() => onNavigate('assessments')}
           className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50"
@@ -256,6 +258,7 @@ export const CommonAssessmentBanner: React.FC<CommonAssessmentBannerProps> = ({
       </div>
 
       <button
+        {...tourFieldAttr('plc-home.card-link', 'plc', 'banner-meeting')}
         type="button"
         onClick={() => onNavigate('meeting')}
         className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-brand-blue-primary px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-colors hover:bg-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50 focus-visible:ring-offset-2"
