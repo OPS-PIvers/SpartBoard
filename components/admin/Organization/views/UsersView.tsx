@@ -1,4 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   Users,
   Plus,
@@ -302,6 +303,7 @@ export const UsersView: React.FC<Props> = ({
           canManageUsers ? (
             <>
               <Btn
+                {...tourAttr('admin.org.bulk-import')}
                 variant="secondary"
                 icon={<Upload size={14} />}
                 onClick={() => setShowImport(true)}
@@ -309,6 +311,7 @@ export const UsersView: React.FC<Props> = ({
                 Bulk import
               </Btn>
               <Btn
+                {...tourAttr('admin.org.invite-users')}
                 variant="primary"
                 icon={<Plus size={14} />}
                 onClick={() => setShowInvite(true)}
@@ -346,6 +349,7 @@ export const UsersView: React.FC<Props> = ({
             className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
           />
           <Input
+            {...tourAttr('admin.org.user-search')}
             value={search}
             onChange={(e) => changeSearch(e.target.value)}
             placeholder="Search by name or email"
@@ -354,6 +358,7 @@ export const UsersView: React.FC<Props> = ({
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <Select
+            {...tourAttr('admin.org.user-role-filter')}
             value={roleFilter}
             onChange={(e) => changeRoleFilter(e.target.value)}
             className="flex-1 sm:w-40"
@@ -367,6 +372,7 @@ export const UsersView: React.FC<Props> = ({
             ))}
           </Select>
           <Select
+            {...tourAttr('admin.org.user-building-filter')}
             value={buildingFilter}
             onChange={(e) => changeBuildingFilter(e.target.value)}
             className="flex-1 sm:w-48"
@@ -393,6 +399,7 @@ export const UsersView: React.FC<Props> = ({
         />
         <div className="sm:ml-auto">
           <Select
+            {...tourAttr('admin.org.user-sort')}
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
             className="w-full sm:w-48"
@@ -420,6 +427,7 @@ export const UsersView: React.FC<Props> = ({
                 );
                 return (
                   <button
+                    {...tourAttr('admin.org.bulk-resend-invite')}
                     type="button"
                     disabled={invitedSelected.length === 0}
                     onClick={() => {
@@ -433,6 +441,7 @@ export const UsersView: React.FC<Props> = ({
                 );
               })()}
               <button
+                {...tourAttr('admin.org.bulk-change-role')}
                 type="button"
                 onClick={() => setShowBulkRole(true)}
                 className="text-xs font-semibold hover:text-white/80"
@@ -440,6 +449,7 @@ export const UsersView: React.FC<Props> = ({
                 Change role
               </button>
               <button
+                {...tourAttr('admin.org.bulk-move-building')}
                 type="button"
                 onClick={() => setShowBulkBuilding(true)}
                 className="text-xs font-semibold hover:text-white/80"
@@ -449,6 +459,7 @@ export const UsersView: React.FC<Props> = ({
             </>
           )}
           <button
+            {...tourAttr('admin.org.bulk-deactivate')}
             type="button"
             onClick={() => {
               onBulkUpdate(Array.from(selected), { status: 'inactive' });
@@ -460,6 +471,7 @@ export const UsersView: React.FC<Props> = ({
           </button>
           {canManageUsers && (
             <button
+              {...tourAttr('admin.org.bulk-remove')}
               type="button"
               onClick={() => {
                 onRemove(Array.from(selected));
@@ -471,6 +483,7 @@ export const UsersView: React.FC<Props> = ({
             </button>
           )}
           <button
+            {...tourAttr('admin.org.bulk-clear')}
             type="button"
             onClick={() => setSelected(new Set())}
             className="ml-auto h-7 w-7 rounded-md flex items-center justify-center hover:bg-white/10"
@@ -487,6 +500,7 @@ export const UsersView: React.FC<Props> = ({
             <div className="grid grid-cols-[32px_2.2fr_1.3fr_1.5fr_1fr_1fr_auto] items-center gap-4 px-5 py-3 border-b border-slate-200 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
               <div>
                 <Checkbox
+                  {...tourAttr('admin.org.user-select-all')}
                   aria-label="Select all"
                   checked={allChecked}
                   onChange={() => {
@@ -634,10 +648,15 @@ const BulkRoleModal: React.FC<{
       icon={<UserCog size={18} />}
       footer={
         <>
-          <Btn variant="ghost" onClick={onClose}>
+          <Btn
+            {...tourAttr('admin.org.bulk-role-cancel')}
+            variant="ghost"
+            onClick={onClose}
+          >
             Cancel
           </Btn>
           <Btn
+            {...tourAttr('admin.org.bulk-role-apply')}
             variant="primary"
             disabled={!role}
             onClick={() => role && onApply(role)}
@@ -726,10 +745,15 @@ const BulkBuildingModal: React.FC<{
         icon={<Building2 size={18} />}
         footer={
           <>
-            <Btn variant="ghost" onClick={onClose}>
+            <Btn
+              {...tourAttr('admin.org.bulk-building-cancel')}
+              variant="ghost"
+              onClick={onClose}
+            >
               Cancel
             </Btn>
             <Btn
+              {...tourAttr('admin.org.bulk-building-continue')}
               variant="primary"
               disabled={picked.length === 0}
               onClick={() => setConfirming(true)}
@@ -764,6 +788,11 @@ const BulkBuildingModal: React.FC<{
                   className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer"
                 >
                   <Checkbox
+                    {...tourFieldAttr(
+                      'admin.org.bulk-building-option',
+                      'admin',
+                      b.id
+                    )}
                     id={inputId}
                     checked={checked}
                     onChange={(e) =>
@@ -864,6 +893,7 @@ const UserRow: React.FC<{
     >
       <div>
         <Checkbox
+          {...tourAttr('admin.org.user-select')}
           checked={selected}
           onChange={onToggle}
           aria-label={`Select ${user.name}`}
@@ -885,6 +915,7 @@ const UserRow: React.FC<{
       {/* Role cell */}
       <div className="relative">
         <button
+          {...tourAttr('admin.org.user-role-cell')}
           ref={roleTriggerRef}
           type="button"
           disabled={!canEditRole}
@@ -935,6 +966,7 @@ const UserRow: React.FC<{
       {/* Buildings cell */}
       <div className="relative">
         <button
+          {...tourAttr('admin.org.user-buildings-cell')}
           ref={buildingTriggerRef}
           type="button"
           disabled={!canEditBuildings}
@@ -967,6 +999,7 @@ const UserRow: React.FC<{
         >
           <div className="p-2">
             <Input
+              {...tourAttr('admin.org.user-building-search')}
               placeholder="Search buildings"
               value={bSearch}
               onChange={(e) => setBSearch(e.target.value)}
@@ -983,6 +1016,11 @@ const UserRow: React.FC<{
                 const checked = user.buildingIds.includes(b.id);
                 return (
                   <button
+                    {...tourFieldAttr(
+                      'admin.org.user-building-option',
+                      'admin',
+                      b.id
+                    )}
                     key={b.id}
                     type="button"
                     onClick={() => {
@@ -1014,6 +1052,7 @@ const UserRow: React.FC<{
       {/* Status cell — building admins CAN toggle this for in-scope members. */}
       <div className="relative">
         <button
+          {...tourAttr('admin.org.user-status-cell')}
           ref={statusTriggerRef}
           type="button"
           disabled={!canEditStatus}
@@ -1157,10 +1196,15 @@ const InviteModal: React.FC<{
       size="lg"
       footer={
         <>
-          <Btn variant="ghost" onClick={onClose}>
+          <Btn
+            {...tourAttr('admin.org.invite-cancel')}
+            variant="ghost"
+            onClick={onClose}
+          >
             Cancel
           </Btn>
           <Btn
+            {...tourAttr('admin.org.invite-send')}
             variant="primary"
             disabled={parsed.valid.length === 0}
             onClick={() => onInvite(parsed.valid, role, bids, message)}
@@ -1178,6 +1222,7 @@ const InviteModal: React.FC<{
           hint="Paste one per line, comma- or space-separated."
         >
           <Textarea
+            {...tourAttr('admin.org.invite-emails')}
             value={raw}
             onChange={(e) => setRaw(e.target.value)}
             rows={4}
@@ -1207,7 +1252,11 @@ const InviteModal: React.FC<{
         )}
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Role">
-            <Select value={role} onChange={(e) => setRole(e.target.value)}>
+            <Select
+              {...tourAttr('admin.org.invite-role')}
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+            >
               {roles.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.name}
@@ -1240,6 +1289,11 @@ const InviteModal: React.FC<{
                     className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer"
                   >
                     <Checkbox
+                      {...tourFieldAttr(
+                        'admin.org.invite-building',
+                        'admin',
+                        b.id
+                      )}
                       id={inputId}
                       checked={checked}
                       onChange={(e) => {
@@ -1263,6 +1317,7 @@ const InviteModal: React.FC<{
           hint="Optional. Shown in the invite email."
         >
           <Textarea
+            {...tourAttr('admin.org.invite-message')}
             rows={3}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
@@ -1332,6 +1387,7 @@ const BulkImportModal: React.FC<{
       footer={
         <>
           <Btn
+            {...tourAttr('admin.org.import-cancel')}
             variant="ghost"
             onClick={() => {
               reset();
@@ -1341,6 +1397,7 @@ const BulkImportModal: React.FC<{
             Cancel
           </Btn>
           <Btn
+            {...tourAttr('admin.org.import-send')}
             variant="primary"
             disabled={validCount === 0}
             onClick={() => {
@@ -1372,6 +1429,7 @@ const BulkImportModal: React.FC<{
         />
         <div className="flex gap-2">
           <Btn
+            {...tourAttr('admin.org.import-choose-file')}
             variant="secondary"
             onClick={() => fileInputRef.current?.click()}
           >
@@ -1379,7 +1437,11 @@ const BulkImportModal: React.FC<{
             Choose CSV file
           </Btn>
           {csvText && (
-            <Btn variant="ghost" onClick={reset}>
+            <Btn
+              {...tourAttr('admin.org.import-clear')}
+              variant="ghost"
+              onClick={reset}
+            >
               Clear
             </Btn>
           )}
@@ -1390,6 +1452,7 @@ const BulkImportModal: React.FC<{
           hint="Header row required. Columns in any order."
         >
           <Textarea
+            {...tourAttr('admin.org.import-csv')}
             rows={6}
             value={csvText}
             onChange={(e) => setCsvText(e.target.value)}
@@ -1509,10 +1572,18 @@ const EditUserModal: React.FC<{
       size="lg"
       footer={
         <>
-          <Btn variant="ghost" onClick={onClose}>
+          <Btn
+            {...tourAttr('admin.org.edit-user-cancel')}
+            variant="ghost"
+            onClick={onClose}
+          >
             Cancel
           </Btn>
-          <Btn variant="primary" onClick={() => onSave(buildPatch())}>
+          <Btn
+            {...tourAttr('admin.org.edit-user-save')}
+            variant="primary"
+            onClick={() => onSave(buildPatch())}
+          >
             Save changes
           </Btn>
         </>
@@ -1523,11 +1594,19 @@ const EditUserModal: React.FC<{
           <Input value={existing.email} disabled readOnly />
         </Field>
         <Field label="Name">
-          <Input value={name} onChange={(e) => setName(e.target.value)} />
+          <Input
+            {...tourAttr('admin.org.edit-user-name')}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
         </Field>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Role">
-            <Select value={role} onChange={(e) => setRole(e.target.value)}>
+            <Select
+              {...tourAttr('admin.org.edit-user-role')}
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+            >
               {roles.map((r) => (
                 <option key={r.id} value={r.id}>
                   {r.name}
@@ -1556,6 +1635,11 @@ const EditUserModal: React.FC<{
                     className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 cursor-pointer"
                   >
                     <Checkbox
+                      {...tourFieldAttr(
+                        'admin.org.edit-user-building',
+                        'admin',
+                        b.id
+                      )}
                       id={inputId}
                       checked={checked}
                       onChange={(e) => {
