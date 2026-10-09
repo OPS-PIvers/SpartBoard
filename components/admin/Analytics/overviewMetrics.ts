@@ -114,6 +114,29 @@ export function joinWeeks(
   return [...out.values()].sort((a, b) => a.week.localeCompare(b.week));
 }
 
+/** Per-day sum of two series; a day is estimated when either side is. */
+export function combineDays(
+  a: ActivityPoint[],
+  b: ActivityPoint[]
+): ActivityPoint[] {
+  const out = new Map<string, ActivityPoint>();
+  for (const d of [...a, ...b]) {
+    const prev = out.get(d.date);
+    out.set(
+      d.date,
+      prev
+        ? {
+            date: d.date,
+            dau: prev.dau + d.dau,
+            mau: prev.mau + d.mau,
+            estimated: prev.estimated || d.estimated,
+          }
+        : { ...d }
+    );
+  }
+  return [...out.values()].sort((x, y) => x.date.localeCompare(y.date));
+}
+
 export interface ActivityStats {
   stickiness: number | null;
   mauChange: number | null;

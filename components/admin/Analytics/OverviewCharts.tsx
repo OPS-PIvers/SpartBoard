@@ -21,6 +21,7 @@ import {
   type CohortRow,
   type MonthCount,
   activityStats,
+  combineDays,
   filterRange,
   formatDay,
   formatMonth,
@@ -286,9 +287,35 @@ const heatColor = (t: number) => {
   return `rgb(${c.join(',')})`;
 };
 
-export const DailyHeatmapPanel: React.FC<{ days: ActivityPoint[] }> = ({
-  days,
-}) => {
+type HeatmapGroup = 'all' | 'staff' | 'students';
+
+const HEATMAP_GROUPS: { id: HeatmapGroup; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'staff', label: 'Staff' },
+  { id: 'students', label: 'Students' },
+];
+
+export const DailyHeatmapPanel: React.FC<{
+  days: ActivityPoint[];
+  studentDays?: ActivityPoint[];
+}> = ({ days: staffDays, studentDays }) => {
+  const hasStudents = (studentDays?.length ?? 0) > 0;
+  const [group, setGroup] = useState<HeatmapGroup>('all');
+  // Every view spans the combined dates so the grid keeps its size and columns when toggling.
+  const days = useMemo(() => {
+    if (!hasStudents) return staffDays;
+    const all = combineDays(staffDays, studentDays ?? []);
+    if (group === 'all') return all;
+    const pick = new Map(
+      (group === 'staff' ? staffDays : (studentDays ?? [])).map((d) => [
+        d.date,
+        d,
+      ])
+    );
+    return all.map(
+      (d) => pick.get(d.date) ?? { ...d, dau: 0, mau: 0, estimated: false }
+    );
+  }, [hasStudents, group, staffDays, studentDays]);
   const cells = useMemo(() => {
     const recent = days.slice(-371);
     if (recent.length === 0) return [];
@@ -321,16 +348,37 @@ export const DailyHeatmapPanel: React.FC<{ days: ActivityPoint[] }> = ({
     <Panel
       title="Daily Active Users by Day"
       actions={
-        <div className="flex items-center gap-1 text-xs text-slate-500">
-          0
-          {[0, 0.25, 0.5, 0.75, 1].map((t) => (
-            <span
-              key={t}
-              className="inline-block w-3 h-3 rounded-sm"
-              style={{ background: t === 0 ? ESTIMATED_FILL : heatColor(t) }}
-            />
-          ))}
-          {NUMBER.format(max)}
+        <div className="flex flex-wrap items-center gap-5 text-xs text-slate-500">
+          {hasStudents && (
+            <div className="flex gap-0.5 font-semibold" role="group">
+              {HEATMAP_GROUPS.map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  aria-pressed={group === g.id}
+                  onClick={() => setGroup(g.id)}
+                  className={`px-2.5 py-1 rounded-md transition-colors ${
+                    group === g.id
+                      ? 'bg-slate-200 text-slate-900'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  {g.label}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center gap-1">
+            0
+            {[0, 0.25, 0.5, 0.75, 1].map((t) => (
+              <span
+                key={t}
+                className="inline-block w-3 h-3 rounded-sm"
+                style={{ background: t === 0 ? ESTIMATED_FILL : heatColor(t) }}
+              />
+            ))}
+            {NUMBER.format(max)}
+          </div>
         </div>
       }
     >

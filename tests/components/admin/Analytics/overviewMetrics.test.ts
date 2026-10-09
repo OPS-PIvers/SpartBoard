@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   activityStats,
+  combineDays,
   filterRange,
   joinWeeks,
   lastActiveOf,
@@ -68,6 +69,17 @@ describe('overviewMetrics', () => {
         studentMau: 60,
         estimated: true,
       },
+    ]);
+  });
+
+  it('adds staff and student days, keeping days only one side has', () => {
+    const staff = series('2026-09-14', [2, 3]);
+    const students = series('2026-09-15', [10, 20], 50);
+    students[0].estimated = true;
+    expect(combineDays(staff, students)).toEqual([
+      { date: '2026-09-14', dau: 2, mau: 10, estimated: false },
+      { date: '2026-09-15', dau: 13, mau: 61, estimated: true },
+      { date: '2026-09-16', dau: 20, mau: 51, estimated: false },
     ]);
   });
 
