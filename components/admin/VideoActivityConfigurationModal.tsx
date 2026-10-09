@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   collection,
   onSnapshot,
@@ -179,6 +180,7 @@ export const VideoActivityConfigurationModal: React.FC<
             </div>
           </div>
           <button
+            {...tourAttr('modal.close')}
             onClick={onClose}
             className="p-2 text-slate-400 hover:bg-slate-100 rounded-full transition-colors"
           >
@@ -199,6 +201,11 @@ export const VideoActivityConfigurationModal: React.FC<
         {/* View Tabs */}
         <div className="flex px-6 border-b border-slate-100 bg-slate-50 shrink-0">
           <button
+            {...tourFieldAttr(
+              'video-activity.admin-tab',
+              'video-activity',
+              'list'
+            )}
             onClick={() => setView('list')}
             className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-colors ${
               view === 'list'
@@ -210,6 +217,11 @@ export const VideoActivityConfigurationModal: React.FC<
             Global Library
           </button>
           <button
+            {...tourFieldAttr(
+              'video-activity.admin-tab',
+              'video-activity',
+              'settings'
+            )}
             onClick={() => setView('settings')}
             className={`flex items-center gap-2 px-4 py-3 text-sm font-bold border-b-2 transition-colors ${
               view === 'settings'
@@ -290,6 +302,9 @@ export const VideoActivityConfigurationModal: React.FC<
                             </label>
                             <div className="flex flex-wrap gap-1.5">
                               <button
+                                {...tourAttr(
+                                  'video-activity.admin-building-all'
+                                )}
                                 onClick={() => toggleAllBuildings(activity)}
                                 className={`px-2.5 py-1 rounded-md text-xs font-bold border transition-all ${
                                   (activity.buildings ?? []).length === 0
@@ -307,6 +322,11 @@ export const VideoActivityConfigurationModal: React.FC<
                                   );
                                 return BUILDINGS.map((building) => (
                                   <button
+                                    {...tourFieldAttr(
+                                      'video-activity.admin-building',
+                                      'video-activity',
+                                      building.id
+                                    )}
                                     key={building.id}
                                     onClick={() =>
                                       toggleBuilding(activity, building.id)
@@ -327,6 +347,7 @@ export const VideoActivityConfigurationModal: React.FC<
 
                         <div className="flex flex-col items-end gap-2 shrink-0">
                           <button
+                            {...tourAttr('video-activity.admin-delete')}
                             onClick={() => handleDelete(activity.id)}
                             disabled={savingId === activity.id}
                             className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"

@@ -7016,6 +7016,257 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+
+  // Video Activity editor, live monitor, results and student app.
+  'video-activity.creator-back': {
+    label: 'Back arrow in the video activity creator',
+  },
+  'video-activity.creator-title': {
+    label: 'Activity title box in the video activity creator',
+  },
+  'video-activity.creator-discover-tab': {
+    label: 'Paste URL, Search and Recommend tabs in the creator',
+    perField: true,
+  },
+  'video-activity.creator-url': {
+    label: 'YouTube URL box in the creator',
+  },
+  'video-activity.creator-next': {
+    label: 'Next Step button in the creator',
+  },
+  'video-activity.creator-source-ai': {
+    label: 'Draft with AI choice in the creator',
+  },
+  'video-activity.creator-source-import': {
+    label: 'Import choice in the creator',
+  },
+  'video-activity.creator-source-manual': {
+    label: 'Create manually choice in the creator',
+    persists: true,
+  },
+  'video-activity.creator-ai-count': {
+    label: 'Question count slider in the creator AI step',
+  },
+  'video-activity.creator-ai-generate': {
+    label: 'Generate button in the creator AI step',
+    persists: true,
+  },
+  'video-activity.creator-search-query': {
+    label: 'Video search box in the creator',
+  },
+  'video-activity.creator-search-submit': {
+    label: 'Search button in the creator',
+  },
+  'video-activity.creator-result': {
+    label: 'Video search result in the creator',
+    perField: true,
+  },
+  'video-activity.creator-recommend-topic': {
+    label: 'Topic box in the creator Recommend tab',
+  },
+  'video-activity.creator-recommend-submit': {
+    label: 'Recommend button in the creator',
+  },
+  'video-activity.creator-recommend-accept': {
+    label: 'Use this video button in the creator',
+  },
+  'video-activity.editor-youtube-url': {
+    label: 'YouTube URL box in the video activity editor',
+    persists: true,
+  },
+  'video-activity.editor-question-pill': {
+    label: 'Question button in the editor question list',
+    perField: true,
+  },
+  'video-activity.editor-question-delete': {
+    label: 'Delete button on a question in the editor question list',
+    perField: true,
+    destructive: true,
+    persists: true,
+  },
+  'video-activity.editor-question-text': {
+    label: 'Question prompt box in the video activity editor',
+    persists: true,
+  },
+  'video-activity.editor-question-type': {
+    label: 'Question type button in the video activity editor',
+    perField: true,
+    persists: true,
+  },
+  'video-activity.editor-question-timestamp': {
+    label: 'Question timestamp box in the video activity editor',
+    persists: true,
+  },
+  'video-activity.editor-question-time-limit': {
+    label: 'Question time limit box in the video activity editor',
+    persists: true,
+  },
+  'video-activity.editor-question-points': {
+    label: 'Question points box in the video activity editor',
+    persists: true,
+  },
+  'video-activity.ai-count-decrement': {
+    label: 'Fewer questions button for a type in the AI drafter',
+    perField: true,
+  },
+  'video-activity.ai-count-increment': {
+    label: 'More questions button for a type in the AI drafter',
+    perField: true,
+  },
+  'video-activity.editor-correct-answer': {
+    label: 'Correct answer box for a multiple choice question',
+    persists: true,
+  },
+  'video-activity.editor-incorrect-answer': {
+    label: 'Incorrect answer box for a multiple choice question',
+    perField: true,
+    persists: true,
+  },
+  'video-activity.editor-fib-answer': {
+    label: 'Canonical answer box for a fill in the blank question',
+    persists: true,
+  },
+  'video-activity.editor-fib-variants': {
+    label: 'Acceptable variants box for a fill in the blank question',
+    persists: true,
+  },
+  'video-activity.editor-option-correct': {
+    label: 'Correct toggle on a multi-answer option',
+    perField: true,
+    persists: true,
+  },
+  'video-activity.editor-option-text': {
+    label: 'Text box on a multi-answer option',
+    perField: true,
+    persists: true,
+  },
+  'video-activity.editor-partial-credit': {
+    label: 'Allow partial credit checkbox in the video activity editor',
+    persists: true,
+  },
+  'video-activity.editor-draft-ai': {
+    label: 'Draft with AI button in the video activity editor footer',
+  },
+  'video-activity.editor-tab': {
+    label: 'Questions and Settings tabs in the video activity editor',
+    perField: true,
+  },
+  'video-activity.live-start': {
+    label: 'Start button in the live video activity waiting room',
+    persists: true,
+  },
+  'video-activity.live-who-open': {
+    label: 'Answered count button on a live video question',
+  },
+  'video-activity.live-who-close': {
+    label: 'Close button in the who has not answered popover',
+    panel: true,
+  },
+  'video-activity.live-play-toggle': {
+    label: 'Play and pause button in the live video controls',
+  },
+  'video-activity.live-scrub': {
+    label: 'Video position slider in the live video controls',
+  },
+  'video-activity.live-list-toggle': {
+    label: 'Question list toggle in the live video controls',
+  },
+  'video-activity.live-jump-question': {
+    label: 'Jump to question button in the live question list',
+    perField: true,
+  },
+  'video-activity.monitor-unlock': {
+    label: 'Unlock badge on a student row in the live monitor',
+    perField: true,
+    persists: true,
+  },
+  'video-activity.monitor-let-in': {
+    label: 'Let in now button on a student row in the live monitor',
+    perField: true,
+    persists: true,
+  },
+  'video-activity.monitor-tab-warnings': {
+    label: 'Tab warnings toggle in the live monitor',
+  },
+  'video-activity.results-tab': {
+    label: 'Overview, Questions and Students tabs in video activity results',
+    perField: true,
+  },
+  'video-activity.results-more-item': {
+    label: 'Item in the video activity results more menu',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'video-activity.timeline-track': {
+    label: 'Video timeline track in the editor',
+  },
+  'video-activity.timeline-marker': {
+    label: 'Question marker on the editor video timeline',
+    perField: true,
+    persists: true,
+  },
+  'video-activity.timeline-add': {
+    label: 'Add question at playhead button under the editor timeline',
+    persists: true,
+  },
+  'video-activity.empty-create': {
+    label: 'Create Activity button in the empty video activity library',
+  },
+  'video-activity.selection-toggle': {
+    label: 'Select toggle in the video activity library',
+  },
+  'video-activity.assign-due-date': {
+    label: 'Due date box in the video activity assign dialog',
+    persists: true,
+    panel: true,
+  },
+  'video-activity.behavior-open-editor': {
+    label: 'Edit in activity link in the video activity assign dialog',
+    panel: true,
+  },
+  'video-activity.settings-score-visibility': {
+    label: 'Score visibility option in video activity behavior settings',
+    perField: true,
+    persists: true,
+  },
+  'video-activity.admin-tab': {
+    label: 'List and Settings tabs in the video activity admin modal',
+    perField: true,
+    panel: true,
+  },
+  'video-activity.admin-building-all': {
+    label: 'All buildings chip on an admin video activity',
+    persists: true,
+    panel: true,
+  },
+  'video-activity.admin-building': {
+    label: 'Building chip on an admin video activity',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'video-activity.admin-delete': {
+    label: 'Delete button on an admin video activity',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'video-activity.plc-assign-due-date': {
+    label: 'Due date box in the PLC video activity assign dialog',
+    persists: true,
+    panel: true,
+  },
+  'video-activity.plc-teacher-name': {
+    label: 'Teacher name box in the PLC video activity assign dialog',
+    persists: true,
+    panel: true,
+  },
+  'video-activity.plc-sheet-url': {
+    label: 'PLC sheet URL box in the PLC video activity assign dialog',
+    persists: true,
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;
