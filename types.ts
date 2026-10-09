@@ -5196,6 +5196,8 @@ export interface QuizSession
    * (`maxPoints`) is derived from the quiz at push time, not stored here.
    */
   ltiAttachment?: LtiAttachmentLink;
+  /** Set by the server once SpartBoard made a Schoology gradebook column for this assignment (SCHOOLOGY_TOOL_COLUMNS.md D5). */
+  ltiToolColumn?: boolean;
   /** Mirrors `QuizAssignment.openAt`/`closeAt`. Absent = always open. */
   openAt?: number | null;
   closeAt?: number | null;
@@ -7296,6 +7298,8 @@ export interface VideoActivitySession
    * view. Mirrors `QuizSession.ltiAttachment`.
    */
   ltiAttachment?: LtiAttachmentLink;
+  /** Set by the server once SpartBoard made a Schoology gradebook column for this assignment (SCHOOLOGY_TOOL_COLUMNS.md D5). */
+  ltiToolColumn?: boolean;
   /** Mirrors `VideoActivityAssignment.openAt`/`closeAt`. Absent = always open. */
   openAt?: number | null;
   closeAt?: number | null;

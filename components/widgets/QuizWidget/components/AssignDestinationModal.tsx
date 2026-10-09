@@ -24,6 +24,8 @@ interface AssignDestinationModalProps {
   quizTitle: string;
   /** Show the Google Classroom option (admin-gated by the host). */
   showClassroom: boolean;
+  /** Hidden once scores reach Schoology through SpartBoard-made columns (SCHOOLOGY_TOOL_COLUMNS.md D10). */
+  showSchoology?: boolean;
   onPick: (destination: AssignDestination) => void;
   onClose: () => void;
 }
@@ -38,6 +40,7 @@ interface DestinationOption {
 export const AssignDestinationModal: React.FC<AssignDestinationModalProps> = ({
   quizTitle,
   showClassroom,
+  showSchoology = true,
   onPick,
   onClose,
 }) => {
@@ -58,12 +61,16 @@ export const AssignDestinationModal: React.FC<AssignDestinationModalProps> = ({
           },
         ]
       : []),
-    {
-      id: 'schoology',
-      title: 'Schoology',
-      body: 'Add it from inside Schoology.',
-      Icon: School,
-    },
+    ...(showSchoology
+      ? [
+          {
+            id: 'schoology' as const,
+            title: 'Schoology',
+            body: 'Add it from inside Schoology.',
+            Icon: School,
+          },
+        ]
+      : []),
   ];
 
   return (

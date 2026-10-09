@@ -42,6 +42,7 @@ import { TeamTypeDefaultsPanel } from '@/components/plc/teams/admin/TeamTypeDefa
 import { HelpCenterManager } from './HelpCenter/HelpCenterManager';
 import { StandardsPanel } from './StandardsPanel';
 import { SubjectsPanel } from './SubjectsPanel';
+import { SchoologyCategoriesPanel } from './SchoologyCategoriesPanel';
 import { AccessSearchProvider } from './access/AccessSearchProvider';
 import { GradebookAdminPanel } from './Gradebook/GradebookAdminPanel';
 import { ViewAsLogPanel } from './ViewAsLog/ViewAsLogPanel';
@@ -139,6 +140,13 @@ const TAB_GROUPS = [
         icon: ClipboardList,
         component: GradebookAdminPanel,
         feature: 'gradebook',
+      },
+      {
+        id: 'schoology-categories',
+        label: 'Schoology categories',
+        icon: GraduationCap,
+        component: SchoologyCategoriesPanel,
+        feature: 'schoology-tool-columns',
       },
       {
         id: 'sub-presets',

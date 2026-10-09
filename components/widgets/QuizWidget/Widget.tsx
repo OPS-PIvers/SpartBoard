@@ -115,6 +115,10 @@ import { quizMaxPoints } from '@/utils/quizMaxPoints';
 import { sessionSectionsFor } from '@/utils/quizSections';
 import { runPublishGradePush } from '@/utils/publishGradePush';
 import {
+  offerToolColumnRemoval,
+  sessionHasToolColumn,
+} from '@/utils/schoologyToolColumns';
+import {
   RESULTS_PROTECTION_DEFAULTS,
   type QuizAssignment,
   type QuizResponse,
@@ -3218,8 +3222,19 @@ const TeacherQuizWidget: React.FC<{
         }}
         onArchiveDelete={async (a) => {
           try {
+            const hadColumn =
+              canAccessFeature('schoology-tool-columns') &&
+              (await sessionHasToolColumn('quiz', a.id));
             await deleteAssignment(a.id);
             addToast('Assignment deleted.', 'success');
+            if (hadColumn) {
+              await offerToolColumnRemoval({
+                functions,
+                sessionId: a.id,
+                showConfirm,
+                addToast,
+              });
+            }
           } catch (err) {
             addToast(
               err instanceof Error ? err.message : 'Failed to delete',
@@ -3646,6 +3661,9 @@ const TeacherQuizWidget: React.FC<{
                 kind: 'quiz',
                 sessionId: target.id,
                 classroomFinalAttachments,
+                schoologyToolColumns: canAccessFeature(
+                  'schoology-tool-columns'
+                ),
                 classroomToken,
                 schoologyMaxPoints: quizMaxPoints(
                   data.questions,

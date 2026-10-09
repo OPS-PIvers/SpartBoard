@@ -42,6 +42,10 @@ import {
   type LtiPushGradesData,
   type LtiPushGradesRequest,
 } from '@/utils/ltiGradePush';
+import {
+  formatToolColumnPushToast,
+  pushToolColumn,
+} from '@/utils/schoologyToolColumns';
 
 /** Copy shown when an assignment is Classroom-linked but no token was minted. */
 export const CLASSROOM_PUSH_SKIPPED_NO_TOKEN =
@@ -88,6 +92,8 @@ export interface RunPublishGradePushOptions<R> {
   buildClassroomGrades: (responses: R[]) => ClassroomGradeEntry[];
   /** Build the Schoology payload (scaled to schoologyMaxPoints). */
   buildSchoologyGrades: (responses: R[]) => LtiGradeEntry[];
+  /** `schoology-tool-columns` is on: update a column SpartBoard already made (never creates one). */
+  schoologyToolColumns?: boolean;
 }
 
 /** The Firestore session collection a runner kind targets. */
@@ -109,6 +115,7 @@ export async function runPublishGradePush<R>({
   schoologyMaxPoints,
   buildClassroomGrades,
   buildSchoologyGrades,
+  schoologyToolColumns = false,
 }: RunPublishGradePushOptions<R>): Promise<void> {
   // The attachments are pre-filtered to partner-first + flag-on, with a valid
   // grade scale (defensive re-check below). A student-initiated attachment is
@@ -129,18 +136,23 @@ export async function runPublishGradePush<R>({
   // here. One cheap getDoc on an infrequent action; failures fall back to "not
   // linked" (the Schoology push is then skipped).
   let ltiLinked = false;
+  let toolColumn = false;
   try {
     const sessSnap = await getDoc(
       doc(db, sessionCollectionForKind(kind), sessionId)
     );
-    ltiLinked = !!(sessSnap.data() as { ltiAttachment?: unknown } | undefined)
-      ?.ltiAttachment;
+    const sess = sessSnap.data() as
+      | { ltiAttachment?: unknown; ltiToolColumn?: unknown }
+      | undefined;
+    ltiLinked = !!sess?.ltiAttachment;
+    toolColumn =
+      !ltiLinked && schoologyToolColumns && sess?.ltiToolColumn === true;
   } catch (err) {
     logError('publishGradePush.readSession', err, { sessionId, kind });
   }
 
   // Nothing to push → done.
-  if (!needGcPush && !ltiLinked) return;
+  if (!needGcPush && !ltiLinked && !toolColumn) return;
 
   // Fetch the assignment's responses ONCE; both pushes scale from the same set.
   let responses: R[] = [];
@@ -258,6 +270,27 @@ export async function runPublishGradePush<R>({
       }
     } catch (err) {
       logError('publishGradePush.schoology', err, { sessionId });
+      addToast(ltiPushErrorMessage(err), 'error');
+    }
+  }
+
+  // Schoology tool column (SCHOOLOGY_TOOL_COLUMNS.md D6): scores only; Missing is an explicit push.
+  if (toolColumn) {
+    try {
+      const grades = buildSchoologyGrades(responses);
+      if (grades.length > 0) {
+        const data = await pushToolColumn(functions, {
+          sessionId,
+          kind,
+          maxPoints: schoologyMaxPoints,
+          grades,
+          create: false,
+        });
+        const { message, failed } = formatToolColumnPushToast(data);
+        addToast(message, failed > 0 ? 'error' : 'success');
+      }
+    } catch (err) {
+      logError('publishGradePush.schoologyToolColumn', err, { sessionId });
       addToast(ltiPushErrorMessage(err), 'error');
     }
   }
