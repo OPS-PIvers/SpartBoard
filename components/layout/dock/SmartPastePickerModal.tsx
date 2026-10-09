@@ -3,6 +3,7 @@ import { AlignLeft, CheckSquare, X } from 'lucide-react';
 import { GlassCard } from '@/components/common/GlassCard';
 import { Modal } from '@/components/common/Modal';
 import { GlobalStyle } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface SmartPastePickerModalProps {
   text: string;
@@ -39,6 +40,7 @@ export const SmartPastePickerModal: React.FC<SmartPastePickerModalProps> = ({
           </div>
           <button
             onClick={onClose}
+            {...tourAttr('dock.smart-paste-close')}
             className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
             aria-label="Close"
           >
@@ -60,6 +62,7 @@ export const SmartPastePickerModal: React.FC<SmartPastePickerModalProps> = ({
         <div className="px-6 pb-6 grid grid-cols-2 gap-3">
           <button
             onClick={() => onSelect('text')}
+            {...tourAttr('dock.smart-paste-text')}
             className="group flex flex-col items-center gap-3 p-5 bg-amber-50 hover:bg-amber-100 border-2 border-amber-200 hover:border-amber-400 rounded-2xl transition-all active:scale-95 text-left"
           >
             <div className="w-11 h-11 rounded-xl bg-amber-400 flex items-center justify-center shadow-md shadow-amber-300/40 group-hover:scale-110 transition-transform">
@@ -74,6 +77,7 @@ export const SmartPastePickerModal: React.FC<SmartPastePickerModalProps> = ({
 
           <button
             onClick={() => onSelect('checklist')}
+            {...tourAttr('dock.smart-paste-checklist')}
             className="group flex flex-col items-center gap-3 p-5 bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-200 hover:border-emerald-400 rounded-2xl transition-all active:scale-95 text-left"
           >
             <div className="w-11 h-11 rounded-xl bg-emerald-500 flex items-center justify-center shadow-md shadow-emerald-400/40 group-hover:scale-110 transition-transform">

@@ -5,6 +5,7 @@ import {
   canonicalBuildingId,
   canonicalizeBuildingKeyedRecord,
 } from '@/config/buildings';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { BuildingSelector } from './BuildingSelector';
 import { TimeToolGlobalConfig, BuildingTimeToolDefaults } from '@/types';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
@@ -163,6 +164,11 @@ export const TimeToolConfigurationPanel: React.FC<
             <div className="flex items-center gap-1">
               <input
                 type="number"
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'time-tool',
+                  'durationMinutes'
+                )}
                 min="0"
                 max="999"
                 value={durationMinutes}
@@ -181,6 +187,11 @@ export const TimeToolConfigurationPanel: React.FC<
             <div className="flex items-center gap-1">
               <input
                 type="number"
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'time-tool',
+                  'durationSeconds'
+                )}
                 min="0"
                 max="59"
                 value={durationRemainingSeconds}
@@ -219,6 +230,11 @@ export const TimeToolConfigurationPanel: React.FC<
             {MODES.map(({ value, label }) => (
               <button
                 key={value}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'time-tool',
+                  `mode-${value}`
+                )}
                 role="radio"
                 aria-checked={(currentBuildingConfig.mode ?? 'timer') === value}
                 tabIndex={
@@ -253,6 +269,11 @@ export const TimeToolConfigurationPanel: React.FC<
             {VISUAL_TYPES.map(({ value, label }) => (
               <button
                 key={value}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'time-tool',
+                  `visualType-${value}`
+                )}
                 role="radio"
                 aria-checked={
                   (currentBuildingConfig.visualType ?? 'digital') === value
@@ -291,6 +312,11 @@ export const TimeToolConfigurationPanel: React.FC<
             {CLOCK_STYLES.map(({ value, label }) => (
               <button
                 key={value}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'time-tool',
+                  `clockStyle-${value}`
+                )}
                 role="radio"
                 aria-checked={
                   (currentBuildingConfig.clockStyle ?? 'modern') === value
@@ -333,6 +359,11 @@ export const TimeToolConfigurationPanel: React.FC<
             {SOUNDS.map((sound) => (
               <button
                 key={sound}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'time-tool',
+                  `selectedSound-${sound}`
+                )}
                 role="radio"
                 aria-checked={
                   (currentBuildingConfig.selectedSound ?? 'Gong') === sound
@@ -376,6 +407,11 @@ export const TimeToolConfigurationPanel: React.FC<
                 return (
                   <button
                     key={color}
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'time-tool',
+                      `themeColor-${color}`
+                    )}
                     role="radio"
                     aria-checked={checked}
                     tabIndex={tabbable ? 0 : -1}
@@ -393,6 +429,11 @@ export const TimeToolConfigurationPanel: React.FC<
             </div>
             {currentBuildingConfig.themeColor && (
               <button
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'time-tool',
+                  'clearThemeColor'
+                )}
                 onClick={() => handleUpdateBuilding({ themeColor: undefined })}
                 className="mt-1.5 text-xxs text-slate-400 hover:text-red-500 font-bold transition-colors"
               >
@@ -401,6 +442,7 @@ export const TimeToolConfigurationPanel: React.FC<
             )}
           </div>
           <button
+            {...tourFieldAttr('admin.widget-config.field', 'time-tool', 'glow')}
             onClick={() =>
               handleUpdateBuilding({ glow: !currentBuildingConfig.glow })
             }
@@ -421,6 +463,11 @@ export const TimeToolConfigurationPanel: React.FC<
           </SettingsLabel>
           <select
             id={defaultFontSelectId}
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'time-tool',
+              'fontFamily'
+            )}
             value={currentBuildingConfig.fontFamily ?? 'global'}
             onChange={(e) =>
               handleUpdateBuilding({
@@ -465,6 +512,11 @@ export const TimeToolConfigurationPanel: React.FC<
               return (
                 <button
                   key={String(value)}
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'time-tool',
+                    `timerEndTrafficColor-${String(value)}`
+                  )}
                   role="radio"
                   aria-checked={checked}
                   tabIndex={checked ? 0 : -1}
@@ -501,6 +553,11 @@ export const TimeToolConfigurationPanel: React.FC<
         <div className="flex items-center">
           <input
             type="checkbox"
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'time-tool',
+              'timerEndTriggerRandom'
+            )}
             aria-labelledby="time-tool-trigger-random-label"
             checked={currentBuildingConfig.timerEndTriggerRandom ?? false}
             onChange={(e) =>
@@ -522,6 +579,11 @@ export const TimeToolConfigurationPanel: React.FC<
         <div className="flex items-center">
           <input
             type="checkbox"
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'time-tool',
+              'timerEndTriggerNextUp'
+            )}
             aria-labelledby="time-tool-trigger-nextup-label"
             checked={currentBuildingConfig.timerEndTriggerNextUp ?? false}
             onChange={(e) =>
@@ -543,6 +605,11 @@ export const TimeToolConfigurationPanel: React.FC<
         <div className="flex items-center">
           <input
             type="checkbox"
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'time-tool',
+              'timerEndTriggerStationsRotate'
+            )}
             aria-labelledby="time-tool-trigger-stations-label"
             checked={
               currentBuildingConfig.timerEndTriggerStationsRotate ?? false

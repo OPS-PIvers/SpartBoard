@@ -812,6 +812,11 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
                   onMove={handleBulkMove}
                   onDelete={handleBulkDelete}
                   busy={bulkBusy}
+                  anchors={{
+                    move: tourAttr('projects.bulk-move'),
+                    delete: tourAttr('projects.bulk-delete'),
+                    clear: tourAttr('projects.bulk-clear'),
+                  }}
                 />
               </div>
             )}

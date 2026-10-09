@@ -1,3 +1,4 @@
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { Card } from '@/components/common/Card';
 import React from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
@@ -89,6 +90,11 @@ export const ExpectationsConfigurationPanel: React.FC<
               checked={categoryEnabled}
               onChange={onToggleCategory}
               size="sm"
+              anchor={tourFieldAttr(
+                'admin.widget-config.field',
+                'expectations',
+                `category-${title}`
+              )}
             />
           </div>
         </div>
@@ -122,6 +128,11 @@ export const ExpectationsConfigurationPanel: React.FC<
                     })
                   }
                   size="sm"
+                  anchor={tourFieldAttr(
+                    'admin.widget-config.field',
+                    'expectations',
+                    `enable-${title}-${opt.id}`
+                  )}
                 />
                 {Icon && (
                   <div className="w-8 h-8 rounded bg-slate-100 flex items-center justify-center shrink-0">
@@ -146,6 +157,11 @@ export const ExpectationsConfigurationPanel: React.FC<
                         })
                       }
                       placeholder={opt.label}
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'expectations',
+                        `label-${title}-${opt.id}`
+                      )}
                       className="w-full px-2 py-1 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none"
                       disabled={!override.enabled}
                     />
@@ -168,6 +184,11 @@ export const ExpectationsConfigurationPanel: React.FC<
                           })
                         }
                         placeholder={opt.sub}
+                        {...tourFieldAttr(
+                          'admin.widget-config.field',
+                          'expectations',
+                          `sub-${title}-${opt.id}`
+                        )}
                         className="w-full px-2 py-1 text-xs border border-slate-300 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none"
                         disabled={!override.enabled}
                       />

@@ -133,6 +133,7 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
         'Every question needs a teacher grade.'
       )}
       confirmTourAttrs={tourAttr('review-start.confirm')}
+      cancelTourAttrs={tourAttr('review-start.cancel')}
       onAssign={() => onStart(settings, picker.rosterIds)}
       extraSlot={
         <div data-testid="start-review-options" className="space-y-3">

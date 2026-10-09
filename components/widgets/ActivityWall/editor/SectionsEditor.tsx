@@ -2,7 +2,7 @@ import React, { lazy, Suspense, useId } from 'react';
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 import type { ActivityWallLayout, ActivityWallSection } from '@/types';
 import { DEFAULT_MAP_CENTER, type WallStructure } from './constants';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const MapPinPicker = lazy(
   () => import('@/components/activityWall/submission/MapPinPicker')
@@ -69,7 +69,11 @@ const LabelledList: React.FC<LabelledListProps> = ({
             </label>
             <input
               id={`${fieldPrefix}-${item.id}`}
-              {...tourAttr('activity-wall-editor.section-label')}
+              {...tourFieldAttr(
+                'activity-wall-editor.section-label',
+                'activity-wall',
+                item.id
+              )}
               className={inputClass}
               value={item.label}
               placeholder={`${itemNoun} ${index + 1}`}
@@ -88,7 +92,11 @@ const LabelledList: React.FC<LabelledListProps> = ({
               className={iconButtonClass}
               aria-label={`Move ${itemNoun.toLowerCase()} ${index + 1} up`}
               disabled={index === 0}
-              {...tourAttr('activity-wall-editor.section-move')}
+              {...tourFieldAttr(
+                'activity-wall-editor.section-move-up',
+                'activity-wall',
+                item.id
+              )}
               onClick={() => move(index, -1)}
             >
               <ArrowUp className="h-4 w-4" />
@@ -98,7 +106,11 @@ const LabelledList: React.FC<LabelledListProps> = ({
               className={iconButtonClass}
               aria-label={`Move ${itemNoun.toLowerCase()} ${index + 1} down`}
               disabled={index === items.length - 1}
-              {...tourAttr('activity-wall-editor.section-move')}
+              {...tourFieldAttr(
+                'activity-wall-editor.section-move-down',
+                'activity-wall',
+                item.id
+              )}
               onClick={() => move(index, 1)}
             >
               <ArrowDown className="h-4 w-4" />
@@ -107,7 +119,11 @@ const LabelledList: React.FC<LabelledListProps> = ({
               type="button"
               className={iconButtonClass}
               aria-label={`Remove ${itemNoun.toLowerCase()} ${index + 1}`}
-              {...tourAttr('activity-wall-editor.section-remove')}
+              {...tourFieldAttr(
+                'activity-wall-editor.section-remove',
+                'activity-wall',
+                item.id
+              )}
               onClick={() =>
                 onChange(items.filter((entry) => entry.id !== item.id))
               }

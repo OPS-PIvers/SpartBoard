@@ -29,6 +29,7 @@ vi.mock('firebase-functions/v2/https', () => ({
 
 import {
   AWAITING_DRIVE_HOLD_MS,
+  JOB_QUERY_LIMIT,
   buildExpiryWarningEmail,
   parseCropPath,
   runPaperCropSweep,
@@ -188,6 +189,34 @@ describe('runPaperJobSweep', () => {
     expect(await run(fresh)).toMatchObject({ overQuota: 1, requeued: 1 });
     expect(fresh.has(`${JOBS}/scan1_3_1_1`)).toBe(true);
     expect(fresh.has(`${JOBS}/scan1_3_2_1`)).toBe(false);
+  });
+});
+
+describe('runPaperJobSweep backlog', () => {
+  it('reaches an over-quota job queued behind a spent-quota backlog larger than one page', async () => {
+    const seed: Record<string, StubData> = {};
+    for (let i = 0; i < JOB_QUERY_LIMIT + 5; i++) {
+      seed[`users/spent/paper_transcription_jobs/scan1_3_${i}_0`] = job({
+        page: i,
+        status: 'over-quota',
+        updatedAt: NOW - 2 * DAY,
+      });
+    }
+    seed['ai_usage/spent_paper-handwritten-responses_2026-09-25'] = {
+      count: 300,
+    };
+    seed[`${JOBS}/scan1_3_1_0`] = job({
+      status: 'over-quota',
+      updatedAt: NOW - DAY,
+    });
+    const s = base(seed);
+    const summary = await runPaperJobSweep({
+      db: s.db as unknown as Firestore,
+      now: () => NOW,
+      isAdmin: () => Promise.resolve(false),
+    });
+    expect(summary.requeued).toBe(1);
+    expect(s.has(`${JOBS}/scan1_3_1_1`)).toBe(true);
   });
 });
 

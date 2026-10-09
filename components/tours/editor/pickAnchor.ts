@@ -50,7 +50,7 @@ export function resolvePickTarget(
 }
 
 /** The nearest registered anchor at or above `target`; unregistered tags and the whole board are skipped. */
-function registeredAnchorAt(
+export function registeredAnchorAt(
   target: Element,
   slots: TourSlots
 ): PickTarget | null {

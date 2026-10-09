@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 110_
-_Last run: 2026-10-08_
+_Run count: 111_
+_Last run: 2026-10-09_
 _Base branch: dev-paul_
 
 ---
@@ -572,6 +572,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date | Branch | Dimension | Action | PR |
 | ---------- | ------------------------------------------------- | --------------------- | --- | --- |
+| 2026-10-09 | `claude/kind-johnson-x74hs4` | D1/D2/D3/D4/D5 | Aligned (run 111) — light probe of ~200 source files changed since run 110 (dev-paul `c92f9d03`: assign stepper slices 13-15, library folders/DnD, `SegmentedControl`/`radioGroupKeyNav`). D2: no `#2d3f89`/`#ad2122` added. D4: new `components/common/library/assignStepper/**` files import parent-dir peers via `'../'` (`AssignPeriodAccessSection`, `AssignTargetingSection`, `OverrideEditorRow`, etc.) — single-level within-feature, D4-E2 gray zone, not changed. D5: only `import type { Toast }` from `@/types`, no `<Toast>` component. D3: `FolderColorPicker.tsx` `role="group"` wraps `menuitemradio` swatches inside a menu (already radio semantics, not the aria-pressed pattern); `HelpItemForm.tsx` group was removed. D1: no new widget empty states. No code shipped; full `validate` not run (CLAUDE.md forbids it; sandbox is Node 22 vs required 24). Doc-only PR. | — |
 | 2026-10-08 | `nightly/unifier-log-2026-10-08` | D1/D2/D3/D4/D5 | Aligned (run 110) — light probe of ~300 source files changed across 83 commits since run 109 (dev-paul `5b543ff2`: PLC Teams redesign, admin analytics, tours editor, `lightChrome`). D2: one new arbitrary-shadow hit logged LOW in D2 backlog; `lightChrome.ts` is NOT aligned (static `brand-blue-*` classes, hardcoded in `tailwind.config.js`), the theme-tracking precedent is `GuidedLearning/utils/calloutStyle.ts:227`. D4: new single-level peer imports in `plc/teams/**` logged as needs-human-decision. D5: no `<Toast>` imports. D1: new 'No … yet' strings are text lines/`ScaledEmptyState` titles inside PLC panels, not widget front-face. D3: no `role="group"` pickers or hand-rolled label classes added. No code shipped; full `validate` not run (CLAUDE.md forbids it; sandbox is Node 22 vs required 24). Doc-only PR. | — |
 | 2026-10-07 | `claude/kind-johnson-bw8sse` | D1/D2/D4/D5 | Aligned (run 109) — light probe of the 85 source files changed since run 108 (dev-paul `22e81b8c`: GL Blur tool, PLC Data overview selectors, My Groups plan). D2: no `#2d3f89`/`#ad2122` added. D4: only `GuidedLearningStage.tsx` → `'../utils/redactImage'` (intra-GuidedLearning sibling, D4-E3 gray zone). D5: no `<Toast>` imports. D1/D3: no new empty states or `role="group"` pickers. No code shipped; full `validate` not run (CLAUDE.md forbids it). Doc-only PR. | — |
 | 2026-10-06 | `claude/kind-johnson-5clo31` | D1/D2/D4/D5 | Aligned (run 108) — light probe of the ~128 source files changed since run 107 (dev-paul `a97392c4`: Calendar/Checklist/Countdown/Schedule widgets, Gradebook admin cards, live tours, assignments hub). D2: only hits are `Calendar/constants.ts` `DEFAULT_HEADER_COLOR` and a `Brand red` swatch in `Calendar/settings.schema.ts` (user-configurable defaults/swatches, same class as the existing Countdown/NextUp exceptions). D4: only `GuidedLearningStudio.tsx` → `'../../utils/liveTour'` (intra-GuidedLearning sibling, D4-E3 gray zone). D5: no new `<Toast>` imports. D1: 4 front-face widget diffs are edits to existing content, no new hand-rolled empty states. No code shipped; full `validate` not run (CLAUDE.md forbids it). Doc-only PR. | — |

@@ -313,6 +313,7 @@ export const VideoActivityLivePlayer: React.FC<
     <ActionButton
       variant="danger"
       label="End"
+      anchor={tourAttr('video-activity.live-end')}
       icon={Square}
       onClick={() => void handleEnd()}
       disabled={ending || outward.locked}
@@ -535,6 +536,7 @@ export const VideoActivityLivePlayer: React.FC<
                   <ActionButton
                     variant="secondary"
                     label={live.resultsShown ? 'Hide results' : 'Show results'}
+                    anchor={tourAttr('video-activity.live-show-results')}
                     icon={BarChart3}
                     active={live.resultsShown}
                     onClick={() =>
@@ -547,6 +549,7 @@ export const VideoActivityLivePlayer: React.FC<
                     <ActionButton
                       variant="secondary"
                       label="Reveal answer"
+                      anchor={tourAttr('video-activity.live-reveal-answer')}
                       icon={Eye}
                       onClick={() =>
                         void controls
@@ -558,6 +561,7 @@ export const VideoActivityLivePlayer: React.FC<
                   <ActionButton
                     variant="primary"
                     label="Resume"
+                    anchor={tourAttr('video-activity.live-resume')}
                     icon={Play}
                     onClick={handleResume}
                   />

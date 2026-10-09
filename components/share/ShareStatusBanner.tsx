@@ -25,6 +25,7 @@ import { Cloud, Eye, Radio, Unlink, X } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { Z_INDEX } from '@/config/zIndex';
+import { tourAttr } from '@/config/tourAnchors';
 
 export const ShareStatusBanner: React.FC = () => {
   const { activeDashboard, stopSharingDashboard } = useDashboard();
@@ -136,6 +137,7 @@ export const ShareStatusBanner: React.FC = () => {
         onClick={() => setOpen((v) => !v)}
         aria-label={accessibleLabel}
         aria-expanded={open}
+        {...tourAttr('share-status.chip')}
         title={accessibleLabel}
         className={`group relative w-9 h-9 rounded-full bg-white/85 backdrop-blur-md ring-2 shadow-md transition-all hover:scale-105 hover:bg-white focus:outline-none focus:ring-offset-2 cursor-pointer ${ringClass}`}
       >
@@ -176,6 +178,7 @@ export const ShareStatusBanner: React.FC = () => {
               type="button"
               onClick={() => setOpen(false)}
               aria-label="Close"
+              {...tourAttr('share-status.close')}
               className="shrink-0 rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
@@ -185,6 +188,7 @@ export const ShareStatusBanner: React.FC = () => {
             <button
               type="button"
               onClick={() => void onStop()}
+              {...tourAttr('share-status.stop')}
               className={`w-full inline-flex items-center justify-center gap-1 rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${
                 actionVariant === 'warning'
                   ? 'bg-brand-red-primary hover:bg-brand-red-dark text-white'

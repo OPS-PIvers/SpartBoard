@@ -6125,6 +6125,33 @@ export const TOUR_ANCHORS = {
     label: 'Minimum tier select on an access row',
     panel: true,
   },
+  'admin.widget-config.field': {
+    label: 'Setting in a widget admin configuration panel',
+    perField: true,
+    panel: true,
+  },
+  'admin.widget-config.save': {
+    label: 'Save button in a widget admin configuration panel',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.widget-config.close': {
+    label: 'Close button in a widget admin configuration panel',
+    perWidgetType: true,
+    panel: true,
+  },
+  'admin.widget-config.add': {
+    label: 'Add button in a widget admin configuration panel',
+    perWidgetType: true,
+    panel: true,
+  },
+  'admin.widget-config.remove': {
+    label: 'Remove button in a widget admin configuration panel',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
   'admin.access.search': {
     label: 'Search box on an Access tab',
     perField: true,
@@ -8097,6 +8124,60 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'admin.org.bulk-role-option': {
+    label: 'Role option in the Organization bulk role picker',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.org.user-role-option': {
+    label: 'Role option in an Organization user role picker',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.org.user-status-option': {
+    label: 'Status option in an Organization user status picker',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.widget-config.building-selector': {
+    label: 'Building tabs in a widget configuration panel',
+    panel: true,
+  },
+  'admin.widget-config.building-tab': {
+    label: 'Building tab in a widget configuration panel',
+    perField: true,
+    panel: true,
+  },
+  'admin.org.org-status-filter': {
+    label: 'Status filter in Organization list',
+    panel: true,
+  },
+  'admin.org.building-view-mode': {
+    label: 'List and cards view switch in Organization buildings',
+    panel: true,
+  },
+  'admin.org.user-status-filter': {
+    label: 'Status filter in Organization users',
+    panel: true,
+  },
+  'admin.help-center.related-widgets': {
+    label: 'Related widgets picker in Help Center item form',
+    panel: true,
+  },
+  'admin.gradebook-settings.district-buildings': {
+    label: 'Buildings picker for a district gradebook configuration',
+    persists: true,
+    panel: true,
+  },
+  'admin.gradebook-settings.period-set-buildings': {
+    label: 'Buildings picker for a grading period set',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
 
   // Activity Wall, Projects and Review start.
   'activity-wall.visibility': {
@@ -8274,14 +8355,22 @@ export const TOUR_ANCHORS = {
   },
   'activity-wall-editor.section-label': {
     label: 'Column or row name box in the Activity Wall editor',
+    perField: true,
     panel: true,
   },
-  'activity-wall-editor.section-move': {
-    label: 'Move column or row button in the Activity Wall editor',
+  'activity-wall-editor.section-move-up': {
+    label: 'Move column or row up button in the Activity Wall editor',
+    perField: true,
+    panel: true,
+  },
+  'activity-wall-editor.section-move-down': {
+    label: 'Move column or row down button in the Activity Wall editor',
+    perField: true,
     panel: true,
   },
   'activity-wall-editor.section-remove': {
     label: 'Remove column or row button in the Activity Wall editor',
+    perField: true,
     destructive: true,
     panel: true,
   },
@@ -9833,6 +9922,2193 @@ export const TOUR_ANCHORS = {
   },
   'studio.add-step': {
     label: 'Add step button in the Studio timeline',
+    panel: true,
+  },
+  // Dashboard shell and classroom-tool anchors.
+  'dock.live-session': { label: 'Live session button in the dock' },
+  'dock.live-popover-close': {
+    label: 'Close button in the live session popover',
+    panel: true,
+  },
+  'dock.restore-custom': {
+    label: 'Minimized custom widget button in the dock',
+  },
+  'dock.quick-access-1': { label: 'First quick access button in the dock' },
+  'dock.quick-access-2': { label: 'Second quick access button in the dock' },
+  'dock.saved-item': {
+    label: 'Saved widget button in the dock',
+    perField: true,
+  },
+  'dock.saved-remove': {
+    label: 'Remove from dock button on a saved widget',
+    perField: true,
+    panel: true,
+  },
+  'dock.saved-delete': {
+    label: 'Delete button on a saved widget in the dock',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'dock.folder-open': {
+    label: 'Folder button in the dock',
+    perField: true,
+  },
+  'dock.folder-delete': {
+    label: 'Delete folder button on a dock folder',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'dock.folder-rename': {
+    label: 'Rename button in a dock folder',
+    perField: true,
+    panel: true,
+  },
+  'dock.folder-item': {
+    label: 'Widget button inside a dock folder',
+    perWidgetType: true,
+    panel: true,
+  },
+  'dock.folder-widget-remove': {
+    label: 'Remove button on a widget inside a dock folder',
+    perWidgetType: true,
+    panel: true,
+  },
+  'dock.minimized-restore': {
+    label: 'Restore row in the minimized widgets popover',
+    perWidgetType: true,
+    panel: true,
+  },
+  'dock.minimized-close': {
+    label: 'Close widget button in the minimized widgets popover',
+    perWidgetType: true,
+    panel: true,
+    destructive: true,
+  },
+  'dock.minimized-create': {
+    label: 'Create button in the minimized widgets popover',
+    perWidgetType: true,
+    panel: true,
+  },
+  'dock.minimized-clear': {
+    label: 'Clear button in the minimized widgets popover',
+    perWidgetType: true,
+    panel: true,
+    destructive: true,
+  },
+  'dock.item-remove': {
+    label: 'Remove from dock button in dock edit mode',
+    perWidgetType: true,
+    panel: true,
+  },
+  'dock.magic-layout-input': {
+    label: 'Description box in the Magic Layout dialog',
+    panel: true,
+  },
+  'dock.magic-layout-suggestion': {
+    label: 'Suggestion chip in the Magic Layout dialog',
+    perField: true,
+    panel: true,
+  },
+  'dock.magic-layout-cancel': {
+    label: 'Cancel button in the Magic Layout dialog',
+    panel: true,
+  },
+  'dock.magic-layout-apply': {
+    label: 'Draft with AI button in the Magic Layout dialog',
+    panel: true,
+    persists: true,
+  },
+  'dock.rename-folder-input': {
+    label: 'Name box in the rename folder dialog',
+    panel: true,
+  },
+  'dock.rename-folder-cancel': {
+    label: 'Cancel button in the rename folder dialog',
+    panel: true,
+  },
+  'dock.rename-folder-save': {
+    label: 'Save button in the rename folder dialog',
+    panel: true,
+    persists: true,
+  },
+  'dock.smart-paste-close': {
+    label: 'Close button in the paste text dialog',
+    panel: true,
+  },
+  'dock.smart-paste-text': {
+    label: 'Text Widget choice in the paste text dialog',
+    panel: true,
+    persists: true,
+  },
+  'dock.smart-paste-checklist': {
+    label: 'Checklist choice in the paste text dialog',
+    panel: true,
+    persists: true,
+  },
+  'dock.image-paste-close': {
+    label: 'Close button in the paste image dialog',
+    panel: true,
+  },
+  'dock.image-paste-sticker': {
+    label: 'Sticker choice in the paste image dialog',
+    panel: true,
+    persists: true,
+  },
+  'dock.image-paste-full': {
+    label: 'Full Image choice in the paste image dialog',
+    panel: true,
+    persists: true,
+  },
+  'dock.url-picker-back': {
+    label: 'Back button in the paste link dialog',
+    panel: true,
+  },
+  'dock.url-picker-close': {
+    label: 'Close button in the paste link dialog',
+    panel: true,
+  },
+  'dock.url-picker-links': {
+    label: 'Links Widget choice in the paste link dialog',
+    panel: true,
+  },
+  'dock.url-picker-qr': {
+    label: 'QR Code choice in the paste link dialog',
+    panel: true,
+    persists: true,
+  },
+  'dock.url-picker-title': {
+    label: 'Title box in the paste link dialog',
+    panel: true,
+  },
+  'dock.url-picker-icon': {
+    label: 'Icon button in the paste link dialog',
+    perField: true,
+    panel: true,
+  },
+  'dock.url-picker-confirm': {
+    label: 'Add Link button in the paste link dialog',
+    panel: true,
+    persists: true,
+  },
+  'library.add-folder': {
+    label: 'Add Folder button in the widget library',
+    panel: true,
+  },
+  'library.done-editing': {
+    label: 'Done button in the widget library',
+    panel: true,
+  },
+  'library.filter-category': {
+    label: 'Category filter in the widget library',
+    panel: true,
+  },
+  'library.filter-grade': {
+    label: 'Grade level filter in the widget library',
+    panel: true,
+  },
+  'library.sort': { label: 'Sort menu in the widget library', panel: true },
+  'library.item-hide': {
+    label: 'Hide or unhide button on a widget tile in the library',
+    perWidgetType: true,
+    panel: true,
+  },
+  'library.saved-pin': {
+    label: 'Pin to dock button on a saved widget in the library',
+    perField: true,
+    panel: true,
+    persists: true,
+  },
+  'library.saved-delete': {
+    label: 'Delete button on a saved widget in the library',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'library.saved-item': {
+    label: 'Saved widget tile in the widget library',
+    perField: true,
+    panel: true,
+  },
+  'library.custom-item': {
+    label: 'Custom widget tile in the widget library',
+    perField: true,
+    panel: true,
+  },
+  'library.show-hidden': {
+    label: 'Hidden widgets section toggle in the widget library',
+    panel: true,
+  },
+  'library.show-other-grades': {
+    label: 'Other grade levels section toggle in the widget library',
+    panel: true,
+  },
+  'library.reset-dock': {
+    label: 'Reset Dock to Defaults button in the widget library',
+    panel: true,
+    destructive: true,
+    persists: true,
+  },
+  'sidebar.quick-link': { label: 'Shorten URL button in the top bar' },
+  'sidebar.back': { label: 'Back button in the menu', panel: true },
+  'sidebar.gradebook': { label: 'Gradebook item in the menu', panel: true },
+  'sidebar.google-drive': {
+    label: 'Google Drive item in the menu',
+    panel: true,
+  },
+  'sidebar.sign-out': {
+    label: 'Sign out button in the menu',
+    panel: true,
+    persists: true,
+  },
+  'sidebar.board-item': {
+    label: 'Board button in the menu boards list',
+    perField: true,
+    panel: true,
+  },
+  'sidebar.manage-boards': {
+    label: 'Manage all boards button in the menu',
+    panel: true,
+  },
+  'sidebar.drive-refresh': {
+    label: 'Refresh Google Drive button in the menu',
+    panel: true,
+  },
+  'sidebar.drive-disconnect': {
+    label: 'Disconnect Google Drive button in the menu',
+    panel: true,
+    persists: true,
+  },
+  'sidebar.drive-connect': {
+    label: 'Connect Google Drive button in the menu',
+    panel: true,
+    persists: true,
+  },
+  'classes.new-class-empty': {
+    label: 'Create New Class button in the empty My Classes list',
+    panel: true,
+  },
+  'classes.roster-menu-item': {
+    label: 'Class row in the dock class menu',
+    perField: true,
+    panel: true,
+  },
+  'classes.open-full-editor': {
+    label: 'Open Full Editor button in the dock class menu',
+    panel: true,
+  },
+  'board-nav.breadcrumb': { label: 'Collection breadcrumb button' },
+  'board-nav.board-item': {
+    label: 'Board row in the boards menu',
+    perField: true,
+    panel: true,
+  },
+  'board-nav.rename-board': {
+    label: 'Rename button on a board row',
+    perField: true,
+    panel: true,
+  },
+  'board-nav.move-board': {
+    label: 'Move to collection button on a board row',
+    perField: true,
+    panel: true,
+  },
+  'board-nav.name-input': {
+    label: 'Name box in the boards and collections menus',
+    panel: true,
+  },
+  'board-nav.collection-row': {
+    label: 'Collection row in the collection menu',
+    perField: true,
+    panel: true,
+  },
+  'board-nav.collection-edit': {
+    label: 'Rename button on a collection row',
+    perField: true,
+    panel: true,
+  },
+  'board-nav.collection-root': {
+    label: 'No Collection item in the collection menu',
+    panel: true,
+  },
+  'board-nav.new-collection': {
+    label: 'New Collection item in the collection menu',
+    panel: true,
+  },
+  'board-nav.move-back': {
+    label: 'Back button in the move board menu',
+    panel: true,
+  },
+  'board-nav.move-to-root': {
+    label: 'No Collection choice in the move board menu',
+    panel: true,
+    persists: true,
+  },
+  'board-nav.move-target': {
+    label: 'Collection choice in the move board menu',
+    perField: true,
+    panel: true,
+    persists: true,
+  },
+  'board-nav.move-new-collection': {
+    label: 'New Collection item in the move board menu',
+    panel: true,
+  },
+  'remote-control.enable': {
+    label: 'Enable Remote switch in the remote control menu',
+    panel: true,
+    persists: true,
+  },
+  'remote-control.copy-link': {
+    label: 'Copy Remote Link button in the remote control menu',
+    panel: true,
+  },
+  'remote-control.open-view': {
+    label: 'Open Remote View button in the remote control menu',
+    panel: true,
+  },
+  'boards-modal.close': {
+    label: 'Close button in the Manage Boards dialog',
+    panel: true,
+  },
+  'boards-modal.search': {
+    label: 'Search box in the Manage Boards dialog',
+    panel: true,
+  },
+  'boards-modal.create-from-template': {
+    label: 'Create from template button in the Manage Boards dialog',
+    panel: true,
+  },
+  'boards-modal.new-collection': {
+    label: 'New Collection button in the Manage Boards dialog',
+    panel: true,
+  },
+  'boards-modal.new-board': {
+    label: 'New Board button in the Manage Boards dialog',
+    panel: true,
+  },
+  'boards-modal.clear-selection': {
+    label: 'Clear selection button in the Manage Boards bulk bar',
+    panel: true,
+  },
+  'boards-modal.bulk-pin': {
+    label: 'Pin selected boards button in the Manage Boards bulk bar',
+    panel: true,
+    persists: true,
+  },
+  'boards-modal.bulk-unpin': {
+    label: 'Unpin selected boards button in the Manage Boards bulk bar',
+    panel: true,
+    persists: true,
+  },
+  'boards-modal.bulk-move': {
+    label: 'Move selected boards button in the Manage Boards bulk bar',
+    panel: true,
+  },
+  'boards-modal.bulk-delete': {
+    label: 'Delete selected boards button in the Manage Boards bulk bar',
+    panel: true,
+    destructive: true,
+  },
+  'boards-modal.board-open': {
+    label: 'Board card in the Manage Boards dialog',
+    panel: true,
+  },
+  'boards-modal.board-select': {
+    label: 'Select checkbox on a board card',
+    panel: true,
+  },
+  'boards-modal.board-edit': {
+    label: 'Edit button on a board card',
+    panel: true,
+  },
+  'boards-modal.board-duplicate': {
+    label: 'Duplicate button on a board card',
+    panel: true,
+    persists: true,
+  },
+  'boards-modal.board-pin': {
+    label: 'Pin button on a board card',
+    panel: true,
+    persists: true,
+  },
+  'boards-modal.board-delete': {
+    label: 'Delete item in the board card menu',
+    panel: true,
+    destructive: true,
+  },
+  'boards-modal.collection-open': {
+    label: 'Collection card in the Manage Boards dialog',
+    panel: true,
+  },
+  'boards-modal.collection-select': {
+    label: 'Select checkbox on a collection card',
+    panel: true,
+  },
+  'boards-modal.collection-edit': {
+    label: 'Edit button on a collection card',
+    panel: true,
+  },
+  'boards-modal.collection-share': {
+    label: 'Share button on a collection card',
+    panel: true,
+  },
+  'boards-modal.collection-duplicate': {
+    label: 'Duplicate button on a collection card',
+    panel: true,
+    persists: true,
+  },
+  'boards-modal.collection-delete': {
+    label: 'Delete item in the collection card menu',
+    panel: true,
+    destructive: true,
+  },
+  'boards-modal.pinned-open': {
+    label: 'Pinned board row in the Manage Boards sidebar',
+    panel: true,
+  },
+  'boards-modal.pinned-unpin': {
+    label: 'Unpin button on a pinned board row',
+    panel: true,
+    persists: true,
+  },
+  'boards-modal.tree-all-boards': {
+    label: 'All Boards row in the collection tree',
+    panel: true,
+  },
+  'boards-modal.tree-collection': {
+    label: 'Collection row in the collection tree',
+    panel: true,
+  },
+  'boards-modal.tree-expand': {
+    label: 'Expand arrow on a collection tree row',
+    panel: true,
+  },
+  'boards-modal.template-pick': {
+    label: 'Template name in the create from template dialog',
+    panel: true,
+  },
+  'boards-modal.move-close': {
+    label: 'Close button in the move to collection dialog',
+    panel: true,
+  },
+  'boards-modal.move-to-root': {
+    label: 'Root option in the move to collection dialog',
+    panel: true,
+  },
+  'boards-modal.move-target': {
+    label: 'Collection option in the move to collection dialog',
+    panel: true,
+  },
+  'boards-modal.color-close': {
+    label: 'Close button in the collection color dialog',
+    panel: true,
+  },
+  'boards-modal.color-swatch': {
+    label: 'Color swatch in the collection color dialog',
+    panel: true,
+  },
+  'boards-modal.color-custom': {
+    label: 'Custom color picker in the collection color dialog',
+    panel: true,
+  },
+  'boards-modal.color-apply-custom': {
+    label: 'Apply custom color button in the collection color dialog',
+    panel: true,
+  },
+  'boards-modal.color-done': {
+    label: 'Done button in the collection color dialog',
+    panel: true,
+  },
+  'board-actions.zoom-slider': {
+    label: 'Zoom level slider in the board actions menu',
+    panel: true,
+  },
+  'board-actions.zoom-preset': {
+    label: 'Zoom preset button in the board actions menu',
+    panel: true,
+  },
+  'board-actions.zoom-panel-reset': {
+    label: 'Reset to 100% button in the zoom menu',
+    panel: true,
+  },
+  'dashboard.group-cancel': {
+    label: 'Cancel button on the widget group bar',
+    panel: true,
+  },
+  'dashboard.group-widgets': {
+    label: 'Group button on the widget group bar',
+    panel: true,
+  },
+  'dashboard.bg-sound-toggle': {
+    label: 'Background video sound toggle',
+  },
+  'settings.clear-filter': {
+    label: 'Clear search button in widget settings',
+    perWidget: true,
+    panel: true,
+    requires: 'settings-open',
+  },
+  'settings.style-defaults-save': {
+    perWidget: true,
+    label: 'Save as my default button on the Style tab',
+    panel: true,
+    persists: true,
+    requires: 'settings-open',
+  },
+  'settings.style-defaults-reset': {
+    perWidget: true,
+    label: 'Reset to my default button on the Style tab',
+    panel: true,
+    persists: true,
+    requires: 'settings-open',
+  },
+  'settings.partner-add': {
+    perField: true,
+    label: 'Add partner widget button in widget settings',
+    panel: true,
+    requires: 'settings-open',
+  },
+  'share-link.mode-synced': {
+    label: 'Synced option in the share dialog',
+    panel: true,
+  },
+  'share-link.mode-view-only': {
+    label: 'View-Only option in the share dialog',
+    panel: true,
+  },
+  'share-link.mode-copy': {
+    label: 'Make a copy option in the share dialog',
+    panel: true,
+  },
+  'share-link.mode-substitute': {
+    label: 'Substitute option in the share dialog',
+    panel: true,
+  },
+  'share-link.close': {
+    label: 'Close button in the share dialog',
+    panel: true,
+  },
+  'share-link.url': {
+    label: 'Share link box in the share dialog',
+    panel: true,
+  },
+  'share-link.copy': {
+    label: 'Copy button for the share link',
+    panel: true,
+  },
+  'share-link.done': {
+    label: 'Done button in the share dialog',
+    panel: true,
+  },
+  'share-link.sub-expires': {
+    label: 'Expiry date box for a sub share in the share dialog',
+    panel: true,
+  },
+  'share-link.sub-building': {
+    label: 'Building picker for a sub share in the share dialog',
+    panel: true,
+  },
+  'share-link.sub-preset-email': {
+    label: 'Saved sub email button in the share dialog',
+    panel: true,
+  },
+  'share-link.sub-remove-email': {
+    label: 'Remove sub email button in the share dialog',
+    panel: true,
+  },
+  'share-link.sub-email-input': {
+    label: 'Sub email box in the share dialog',
+    panel: true,
+  },
+  'share-link.add-sub-email': {
+    label: 'Add sub email button in the share dialog',
+    panel: true,
+  },
+  'share-link.plc-scope': {
+    label: 'Also share with a PLC picker in the share dialog',
+    panel: true,
+  },
+  'share-link.create': {
+    label: 'Create link button in the share dialog',
+    panel: true,
+    persists: true,
+  },
+  'sub-share.expires': {
+    label: 'Expiry date box in the sub share dialog',
+    panel: true,
+  },
+  'sub-share.email-chip': {
+    label: 'Saved sub email button in the sub share dialog',
+    panel: true,
+  },
+  'sub-share.remove-email': {
+    label: 'Remove sub email button in the sub share dialog',
+    panel: true,
+  },
+  'sub-share.cancel': {
+    label: 'Cancel button in the sub share dialog',
+    panel: true,
+  },
+  'sub-share.url': {
+    label: 'Sub share link box',
+    panel: true,
+  },
+  'sub-share.copy-link': {
+    label: 'Copy button for the sub share link',
+    panel: true,
+  },
+  'share-collection.share-with-sub': {
+    label: 'Share with a sub option in the collection share dialog',
+    panel: true,
+  },
+  'share-collection.mode-copy': {
+    label: 'Copy mode in the collection share dialog',
+    panel: true,
+  },
+  'share-collection.mode-substitute': {
+    label: 'Substitute mode in the collection share dialog',
+    panel: true,
+  },
+  'share-collection.ttl': {
+    label: 'Expires in button in the collection share dialog',
+    panel: true,
+  },
+  'share-collection.building': {
+    label: 'Building picker in the collection share dialog',
+    panel: true,
+  },
+  'share-collection.preset-email': {
+    label: 'Saved sub email button in the collection share dialog',
+    panel: true,
+  },
+  'share-collection.remove-email': {
+    label: 'Remove sub email button in the collection share dialog',
+    panel: true,
+  },
+  'share-collection.email-input': {
+    label: 'Sub email box in the collection share dialog',
+    panel: true,
+  },
+  'share-collection.add-email': {
+    label: 'Add sub email button in the collection share dialog',
+    panel: true,
+  },
+  'share-collection.cancel': {
+    label: 'Cancel button in the collection share dialog',
+    panel: true,
+  },
+  'share-collection.create': {
+    label: 'Create link button in the collection share dialog',
+    panel: true,
+    persists: true,
+  },
+  'share-collection.url': {
+    label: 'Collection share link box',
+    panel: true,
+  },
+  'share-collection.copy-link': {
+    label: 'Copy button for the collection share link',
+    panel: true,
+  },
+  'share-collection.done': {
+    label: 'Done button in the collection share dialog',
+    panel: true,
+  },
+  'share-import.close': {
+    label: 'Close button in the import shared board dialog',
+    panel: true,
+  },
+  'share-import.cancel': {
+    label: 'Cancel button in the import shared board dialog',
+    panel: true,
+  },
+  'share-import.confirm': {
+    label: 'Import button in the import shared board dialog',
+    panel: true,
+    persists: true,
+  },
+  'share-import.mode-synced': {
+    label: 'Synced option in the import shared board dialog',
+    panel: true,
+    persists: true,
+  },
+  'share-import.mode-view-only': {
+    label: 'View-Only option in the import shared board dialog',
+    panel: true,
+    persists: true,
+  },
+  'share-import.mode-copy': {
+    label: 'Make a copy option in the import shared board dialog',
+    panel: true,
+    persists: true,
+  },
+  'import-shared-collection.cancel': {
+    label: 'Cancel button in the import shared collection dialog',
+    panel: true,
+  },
+  'import-shared-collection.import': {
+    label: 'Import Collection button in the import shared collection dialog',
+    panel: true,
+    persists: true,
+  },
+  'share-status.chip': {
+    label: 'Share status chip at the top right of the board',
+  },
+  'share-status.close': {
+    label: 'Close button in the share status popover',
+    panel: true,
+  },
+  'share-status.stop': {
+    label: 'Stop sharing or leave button in the share status popover',
+    panel: true,
+    persists: true,
+    destructive: true,
+  },
+  'library-shell.folder-panel-toggle': {
+    label: 'Folder panel toggle in a library shell',
+    perWidgetType: true,
+  },
+  'library-shell.show-folders': {
+    label: 'Show folders button in a library shell',
+    perWidgetType: true,
+  },
+  'library-shell.sort-direction': {
+    label: 'Sort direction button in a library toolbar',
+    perWidgetType: true,
+  },
+  'library-shell.sort-option': {
+    label: 'Option in a library sort dropdown',
+    perField: true,
+    panel: true,
+  },
+  'library-shell.select-item': {
+    label: 'Select checkbox on a library item card',
+    perField: true,
+    panel: true,
+  },
+  'library-shell.card-badge': {
+    label: 'Status badge button on a library item card',
+  },
+  'library-shell.new-folder': {
+    label: 'New folder button in the library folder panel',
+    panel: true,
+  },
+  'library-shell.new-folder-input': {
+    label: 'New folder name box in the library folder panel',
+    panel: true,
+  },
+  'library-shell.folder-root': {
+    label: 'All items or Library row in the library folder panel',
+    panel: true,
+  },
+  'library-shell.folder-view-all': {
+    label: 'All items row in the library folder panel',
+    panel: true,
+  },
+  'library-shell.folder-view-recent': {
+    label: 'Recent row in the library folder panel',
+    panel: true,
+  },
+  'library-shell.folder-tree-item': {
+    label: 'Folder row in the library folder panel',
+    panel: true,
+  },
+  'library-shell.folder-tree-expand': {
+    label: 'Expand arrow on a library folder row',
+    panel: true,
+  },
+  'library-shell.folder-rename-input': {
+    label: 'Rename box on a library folder row',
+    panel: true,
+  },
+  'library-shell.folder-menu': {
+    label: 'Actions button on a library folder row',
+    panel: true,
+  },
+  'library-shell.folder-menu-rename': {
+    label: 'Rename item in the library folder menu',
+    panel: true,
+  },
+  'library-shell.folder-menu-new-subfolder': {
+    label: 'New subfolder item in the library folder menu',
+    panel: true,
+  },
+  'library-shell.folder-menu-move-to-root': {
+    label: 'Move to root item in the library folder menu',
+    panel: true,
+  },
+  'library-shell.folder-menu-delete': {
+    label: 'Delete item in the library folder menu',
+    panel: true,
+    destructive: true,
+  },
+  'library-shell.folder-dialog-close': {
+    label: 'Close button in the delete folder dialog',
+    panel: true,
+  },
+  'library-shell.folder-dialog-move-contents': {
+    label: 'Move contents to parent button in the delete folder dialog',
+    panel: true,
+    persists: true,
+  },
+  'library-shell.folder-dialog-delete-all': {
+    label: 'Delete folder and subfolders button in the delete folder dialog',
+    panel: true,
+    destructive: true,
+  },
+  'library-shell.folder-dialog-cancel': {
+    label: 'Cancel button in the delete folder dialog',
+    panel: true,
+  },
+  'library-shell.folder-crumb': {
+    label: 'Folder path link above the library list',
+  },
+  'library-shell.folder-row': {
+    label: 'Folder row in the library list',
+  },
+  'library-shell.folder-name': {
+    label: 'Folder name box while renaming a folder row',
+  },
+  'library-shell.folder-search-scope': {
+    label: 'Search scope toggle above the library list',
+  },
+  'library-shell.bulk-action': {
+    label: 'Action button in the library bulk action bar',
+    panel: true,
+    persists: true,
+    destructive: true,
+  },
+  'library-shell.bulk-move': {
+    label: 'Move button in the library bulk action bar',
+    panel: true,
+  },
+  'library-shell.bulk-delete': {
+    label: 'Delete button in the library bulk action bar',
+    panel: true,
+    destructive: true,
+  },
+  'library-shell.bulk-clear': {
+    label: 'Clear selection button in the library bulk action bar',
+    panel: true,
+  },
+  'publish-scores.close': {
+    label: 'Close button in the publish scores dialog',
+    panel: true,
+  },
+  'publish-scores.level': {
+    label: 'Score visibility option in the publish scores dialog',
+    panel: true,
+  },
+  'publish-scores.written-mode': {
+    label: 'Written answers option in the publish scores dialog',
+    panel: true,
+  },
+  'publish-scores.unpublish': {
+    label: 'Unpublish button in the publish scores dialog',
+    panel: true,
+    persists: true,
+  },
+  'publish-scores.cancel': {
+    label: 'Cancel button in the publish scores dialog',
+    panel: true,
+  },
+  'publish-scores.confirm': {
+    label: 'Publish or Update button in the publish scores dialog',
+    panel: true,
+    persists: true,
+  },
+  'override-row.toggle': {
+    label: 'Student row header in the override editor',
+    panel: true,
+  },
+  'override-row.copy-source': {
+    label: 'Copy overrides from picker in the override editor',
+    panel: true,
+  },
+  'override-row.copy': {
+    label: 'Copy button in the override editor',
+    panel: true,
+  },
+  'override-row.read-aloud': {
+    label: 'Read aloud checkbox in the override editor',
+    panel: true,
+  },
+  'override-row.language': {
+    label: 'Language picker in the override editor',
+    panel: true,
+  },
+  'override-row.tab-warning': {
+    label: 'Tab-warning threshold box in the override editor',
+    panel: true,
+  },
+  'override-row.tab-warning-off': {
+    label: 'Tab-warning off checkbox in the override editor',
+    panel: true,
+  },
+  'override-row.tab-away': {
+    label: 'Time allowed away box in the override editor',
+    panel: true,
+  },
+  'override-row.tab-away-off': {
+    label: 'No auto-submit checkbox in the override editor',
+    panel: true,
+  },
+  'override-row.window-open': {
+    label: 'Window opens box in the override editor',
+    panel: true,
+  },
+  'override-row.window-close': {
+    label: 'Window closes box in the override editor',
+    panel: true,
+  },
+  'override-row.question': {
+    label: 'Question subset checkbox in the override editor',
+    panel: true,
+  },
+  'override-row.hidden-option': {
+    label: 'Hide answer option checkbox in the override editor',
+    panel: true,
+  },
+  'override-row.rubric': {
+    label: 'Rubric swap picker in the override editor',
+    panel: true,
+  },
+  'time-tool.field-minutes': {
+    label: 'Minutes field in the Timer keypad',
+    perWidget: true,
+  },
+  'time-tool.field-seconds': {
+    label: 'Seconds field in the Timer keypad',
+    perWidget: true,
+  },
+  'time-tool.preset': {
+    label: 'Preset duration button in the Timer keypad',
+    perField: true,
+  },
+  'time-tool.keypad-digit': {
+    label: 'Digit button in the Timer keypad',
+    perField: true,
+  },
+  'time-tool.keypad-backspace': {
+    label: 'Backspace button in the Timer keypad',
+    perWidget: true,
+  },
+  'time-tool.keypad-zero': {
+    label: 'Zero button in the Timer keypad',
+    perWidget: true,
+  },
+  'time-tool.confirm': {
+    label: 'Confirm time button in the Timer keypad',
+    perWidget: true,
+  },
+  'time-tool.cancel-edit': {
+    label: 'Cancel button in the Timer keypad',
+    perWidget: true,
+  },
+  'time-tool.edit-time': {
+    label: 'Time display that opens the Timer keypad',
+    perWidget: true,
+  },
+  'time-tool.subtract-time': {
+    label: 'Subtract time button in Timer',
+    perWidget: true,
+  },
+  'time-tool.add-time': {
+    label: 'Add time button in Timer',
+    perWidget: true,
+  },
+  'traffic-light.light': {
+    label: 'Light button in Traffic Light',
+    perField: true,
+  },
+  'next-up.reset-queue': {
+    label: 'Reset queue button in Next Up',
+    perWidget: true,
+    destructive: true,
+  },
+  'next-up.next-student': {
+    label: 'Next student button in Next Up',
+    perWidget: true,
+  },
+  'need-do-put-then.toggle-need': {
+    label: 'Need panel toggle in Need Do Put Then',
+    perWidget: true,
+  },
+  'need-do-put-then.toggle-then': {
+    label: 'Then panel toggle in Need Do Put Then',
+    perWidget: true,
+  },
+  'need-do-put-then.toggle-put': {
+    label: 'Put panel toggle in Need Do Put Then',
+    perWidget: true,
+  },
+  'webcam.retry-camera': {
+    label: 'Retry camera button in Webcam',
+    perWidget: true,
+  },
+  'webcam.take-photo': {
+    label: 'Take photo button in Webcam',
+    perWidget: true,
+  },
+  'webcam.extract-text': {
+    label: 'Extract text button in Webcam',
+    perWidget: true,
+  },
+  'webcam.mirror': {
+    label: 'Mirror button in Webcam',
+    perWidget: true,
+  },
+  'webcam.switch-camera': {
+    label: 'Switch camera button in Webcam',
+    perWidget: true,
+  },
+  'webcam.exit-remote': {
+    label: 'Exit remote mode button in Webcam',
+    perWidget: true,
+  },
+  'webcam.open-gallery': {
+    label: 'View gallery button in Webcam',
+    perWidget: true,
+  },
+  'webcam.text-close': {
+    label: 'Close extracted text button in Webcam',
+    perWidget: true,
+    panel: true,
+  },
+  'webcam.send-to-notes': {
+    label: 'Send extracted text to Notes button in Webcam',
+    perWidget: true,
+    panel: true,
+    persists: true,
+  },
+  'webcam.copy-text': {
+    label: 'Copy extracted text button in Webcam',
+    perWidget: true,
+    panel: true,
+  },
+  'webcam.clear-gallery': {
+    label: 'Clear all photos button in the Webcam gallery',
+    perWidget: true,
+    panel: true,
+    destructive: true,
+  },
+  'webcam.gallery-close': {
+    label: 'Close gallery button in Webcam',
+    perWidget: true,
+    panel: true,
+  },
+  'classes-widget.manage': {
+    label: 'Manage classes button in Classes',
+    perWidget: true,
+  },
+  'classes-widget.clear-active': {
+    label: 'Clear active class star button in Classes',
+    perWidget: true,
+  },
+  'classes-widget.roster-row': {
+    label: 'Class to switch to in Classes',
+    perField: true,
+  },
+  'url.open-link': {
+    label: 'Link button in Links',
+    perField: true,
+  },
+  'url.shape': {
+    label: 'Link shape button in the link picker',
+    perField: true,
+    panel: true,
+  },
+  'url.background-tab': {
+    label: 'Color or image tab in the link picker',
+    perField: true,
+    panel: true,
+  },
+  'url.color': {
+    label: 'Background color swatch in the link picker',
+    perField: true,
+    panel: true,
+  },
+  'url.upload-image': {
+    label: 'Upload image button in the link picker',
+    perField: true,
+    panel: true,
+  },
+  'url.remove-image': {
+    label: 'Remove image button in the link picker',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'first5.open-link': {
+    label: 'Open in new tab button in First 5',
+    perWidget: true,
+  },
+  'talking-tool.category': {
+    label: 'Category tab in Talking Tool',
+    perField: true,
+  },
+  'work-symbols.symbol': {
+    label: 'Symbol button in Work Symbols',
+    perField: true,
+  },
+  'number-line.add-marker': {
+    label: 'Tick mark that adds a marker in Number Line',
+    perField: true,
+  },
+  'lunch-count.open-report': {
+    label: 'Submit report button in Lunch Count',
+    perWidget: true,
+  },
+  'lunch-count.refresh-menu': {
+    label: 'Refresh menu button in Lunch Count',
+    perWidget: true,
+  },
+  'lunch-count.reset-assignments': {
+    label: 'Reset assignments button in Lunch Count',
+    perWidget: true,
+    destructive: true,
+  },
+  'lunch-count.photo-close': {
+    label: 'Close photo button in Lunch Count',
+    perWidget: true,
+    panel: true,
+  },
+  'lunch-count.report-close': {
+    label: 'Close button in the Lunch Count report dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'lunch-count.report-cancel': {
+    label: 'Cancel button in the Lunch Count report dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'lunch-count.report-confirm': {
+    label: 'Confirm and send button in the Lunch Count report dialog',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'embed.zoom-out': {
+    label: 'Zoom out button in Embed',
+    perWidget: true,
+    panel: true,
+  },
+  'embed.zoom-level': {
+    label: 'Zoom level button in Embed',
+    perWidget: true,
+    panel: true,
+  },
+  'embed.zoom-in': {
+    label: 'Zoom in button in Embed',
+    perWidget: true,
+    panel: true,
+  },
+  'embed.zoom-reset': {
+    label: 'Reset zoom button in Embed',
+    perWidget: true,
+    panel: true,
+  },
+  'embed.generate-mini-app': {
+    label: 'Generate Mini App button in Embed',
+    perWidget: true,
+    panel: true,
+    persists: true,
+  },
+  'embed.reload': {
+    label: 'Reload button in Embed',
+    perWidget: true,
+    panel: true,
+  },
+  'embed.open-link': {
+    label: 'Open in new tab button in Embed',
+    perWidget: true,
+    panel: true,
+  },
+  'embed.open-blocked': {
+    label: 'Open in new tab button on the blocked Embed page',
+    perWidget: true,
+  },
+  'widget-settings.lunch-count.school-site': {
+    label: 'School site select in Lunch Count settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.lunch-count.time-hour': {
+    label: 'Lunch time hour input in Lunch Count settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.lunch-count.time-minute': {
+    label: 'Lunch time minute input in Lunch Count settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.embed.mode-url': {
+    label: 'Website mode toggle in Embed settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.embed.mode-code': {
+    label: 'Code mode toggle in Embed settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.embed.url': {
+    label: 'Website address input in Embed settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.embed.html': {
+    label: 'Code box in Embed settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.embed.verify': {
+    label: 'Verify button in Embed settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.text.template': {
+    label: 'Template button in Text settings',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.next-up.new-queue': {
+    label: 'New queue button in Next Up settings',
+    perWidget: true,
+    panel: true,
+    persists: true,
+  },
+  'widget-settings.next-up.load-existing': {
+    label: 'Load existing queue select in Next Up settings',
+    perWidget: true,
+    panel: true,
+    persists: true,
+  },
+  'widget-settings.next-up.copy-link': {
+    label: 'Copy student link button in Next Up settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.next-up.import-class': {
+    label: 'Import active class button in Next Up settings',
+    perWidget: true,
+    panel: true,
+    persists: true,
+  },
+  'widget-settings.next-up.end-and-save': {
+    label: 'End and save button in Next Up settings',
+    perWidget: true,
+    panel: true,
+    persists: true,
+  },
+  'widget-settings.next-up.discard': {
+    label: 'Discard queue button in Next Up settings',
+    perWidget: true,
+    panel: true,
+    persists: true,
+    destructive: true,
+  },
+  'widget-settings.next-up.theme-color': {
+    label: 'Theme color swatch in Next Up settings',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.need-do-put-then.restore-defaults': {
+    label: 'Restore defaults button in Need Do Put Then settings',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'widget-settings.need-do-put-then.add-item': {
+    label: 'Add item button in Need Do Put Then settings',
+    perField: true,
+    panel: true,
+  },
+  'random.group-size-down': {
+    label:
+      'Minus button on a group-count stepper in Random Picker, by stepper (size, home, expert)',
+    perField: true,
+  },
+  'random.group-size-up': {
+    label:
+      'Plus button on a group-count stepper in Random Picker, by stepper (size, home, expert)',
+    perField: true,
+  },
+  'random.group-size-mode': {
+    label:
+      'Label button that switches the Groups stepper between number of groups and students per group',
+    perField: true,
+  },
+  'random.jigsaw-view': {
+    label:
+      'Expert or Home view button in the Random Picker Jigsaw footer, by view',
+    perField: true,
+  },
+  'random.rotate': {
+    label: 'Rotate groups button in Random Picker',
+    perWidget: true,
+  },
+  'random.send-to-scoreboard': {
+    label:
+      'Send groups to Scoreboard button in Random Picker (replaces the Scoreboard teams)',
+    perWidget: true,
+    destructive: true,
+  },
+  'random.show-absent': {
+    label:
+      'Mark absent students button on the Random Picker everyone-absent screen',
+    perWidget: true,
+  },
+  'random.group-rename': {
+    label: 'Rename pencil on a Randomizer group header, by group number',
+    perField: true,
+  },
+  'random.chip-lock': {
+    label: 'Lock button on a student chip in Random Picker',
+    perWidgetType: true,
+  },
+  'random.chip-done': {
+    label: 'Done check button on a student chip in Random Picker Shuffle mode',
+    perWidgetType: true,
+  },
+  'random.class-option': {
+    label: 'Class choice in the Randomizer class menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'catalyst.set': {
+    label: 'Set button in Catalyst',
+    perWidget: true,
+  },
+  'catalyst.back': {
+    label: 'Back to sets button in Catalyst',
+    perWidget: true,
+  },
+  'catalyst.routine': {
+    label: 'Routine button in Catalyst',
+    perWidget: true,
+  },
+  'catalyst.picker-set': {
+    label: 'Set tile in the Catalyst dock picker',
+    perWidgetType: true,
+    panel: true,
+  },
+  'catalyst.picker-routine': {
+    label: 'Routine icon in the Catalyst dock picker',
+    perWidgetType: true,
+    panel: true,
+  },
+  'drawing.tool': {
+    label:
+      'Tool button in the Drawing toolbar, by tool (select, pen, highlighter, eraser, text, shape)',
+    perField: true,
+  },
+  'drawing.undo': {
+    label: 'Undo button in Drawing',
+    perWidget: true,
+  },
+  'drawing.redo': {
+    label: 'Redo button in Drawing',
+    perWidget: true,
+  },
+  'drawing.clear': {
+    label: 'Clear All button in Drawing',
+    perWidget: true,
+    destructive: true,
+  },
+  'drawing.insert-image': {
+    label: 'Insert image button in Drawing',
+    perWidget: true,
+    persists: true,
+  },
+  'drawing.export': {
+    label: 'Export button in Drawing',
+    perWidget: true,
+  },
+  'drawing.export-png-page': {
+    label: 'Export PNG (this page) item in the Drawing export menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'drawing.export-png-all': {
+    label: 'Export PNG (all pages) item in the Drawing export menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'drawing.export-pdf': {
+    label: 'Export PDF item in the Drawing export menu',
+    perWidgetType: true,
+    panel: true,
+    persists: true,
+  },
+  'drawing.extract-text': {
+    label: 'Extract Text (AI) button in Drawing',
+    perWidget: true,
+    persists: true,
+  },
+  'drawing.eraser-mode': {
+    label:
+      'Eraser mode button in the Drawing tool options, by mode (stroke, object, lasso)',
+    perField: true,
+    panel: true,
+  },
+  'drawing.stroke-width': {
+    label: 'Stroke width slider in the Drawing tool options',
+    perWidgetType: true,
+    panel: true,
+  },
+  'drawing.page-prev': {
+    label: 'Previous page button in Drawing',
+    perWidgetType: true,
+  },
+  'drawing.page-next': {
+    label: 'Next page button in Drawing',
+    perWidgetType: true,
+  },
+  'drawing.page-manage': {
+    label: 'Manage pages button in Drawing',
+    perWidgetType: true,
+  },
+  'drawing.page-title': {
+    label: 'Page title button that renames the current Drawing page',
+    perWidgetType: true,
+  },
+  'drawing.add-page': {
+    label: 'Add page button in Drawing (single-page view)',
+    perWidgetType: true,
+  },
+  'drawing.page-menu-add': {
+    label: 'Add page button in the Drawing pages menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'drawing.page-item': {
+    label: 'Page row in the Drawing pages menu, by page number',
+    perField: true,
+    panel: true,
+  },
+  'drawing.page-rename': {
+    label:
+      'Rename pencil on a page row in the Drawing pages menu, by page number',
+    perField: true,
+    panel: true,
+  },
+  'drawing.page-remove': {
+    label:
+      'Remove page button on a page row in the Drawing pages menu, by page number',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'seating.mode': {
+    label: 'Mode button in Seating Chart (Interact, Assign, Setup)',
+    perField: true,
+  },
+  'seating.pick-random': {
+    label: 'Pick Random button in Seating Chart',
+    perWidget: true,
+  },
+  'seating.rotate-selected-left': {
+    label: 'Rotate all selected furniture left button in Seating Chart',
+    perWidget: true,
+  },
+  'seating.rotate-selected-right': {
+    label: 'Rotate all selected furniture right button in Seating Chart',
+    perWidget: true,
+  },
+  'seating.remove-selected': {
+    label: 'Remove all selected furniture button in Seating Chart',
+    perWidget: true,
+    destructive: true,
+  },
+  'seating.template': {
+    label: 'Layout template button in Seating Chart Setup, by template',
+    perField: true,
+  },
+  'seating.template-columns': {
+    label: 'Number of columns input in Seating Chart Setup',
+    perWidget: true,
+  },
+  'seating.apply-layout': {
+    label:
+      'Apply Layout button in Seating Chart Setup (replaces the furniture)',
+    perWidget: true,
+    destructive: true,
+  },
+  'seating.add-furniture': {
+    label: 'Add furniture button in Seating Chart Setup, by furniture type',
+    perField: true,
+  },
+  'seating.reset-canvas': {
+    label: 'Reset Canvas button in Seating Chart Setup',
+    perWidget: true,
+    destructive: true,
+  },
+  'seating.add-all-random': {
+    label: 'Add All Random button in Seating Chart Assign mode',
+    perWidget: true,
+  },
+  'seating.unseated-student': {
+    label: 'Unseated student card in Seating Chart Assign mode',
+    perWidget: true,
+  },
+  'seating.rotate-item-left': {
+    label: 'Rotate left button on the selected Seating Chart furniture',
+    perWidget: true,
+  },
+  'seating.rotate-item-right': {
+    label: 'Rotate right button on the selected Seating Chart furniture',
+    perWidget: true,
+  },
+  'seating.duplicate-item': {
+    label: 'Duplicate button on the selected Seating Chart furniture',
+    perWidget: true,
+  },
+  'seating.remove-item': {
+    label: 'Remove button on the selected Seating Chart furniture',
+    perWidget: true,
+    destructive: true,
+  },
+  'seating.unseat-student': {
+    label:
+      'Remove-from-seat button on an assigned student in Seating Chart Assign mode',
+    perWidget: true,
+  },
+  'music.play-pause': {
+    label: 'Play or pause button on the Music widget',
+    perWidget: true,
+  },
+  'music.spotify-shuffle': {
+    label: 'Shuffle button in the Music Spotify player',
+    perWidgetType: true,
+  },
+  'music.spotify-previous': {
+    label: 'Previous button in the Music Spotify player',
+    perWidgetType: true,
+  },
+  'music.spotify-play-pause': {
+    label: 'Play or pause button in the Music Spotify player',
+    perWidgetType: true,
+  },
+  'music.spotify-next': {
+    label: 'Next button in the Music Spotify player',
+    perWidgetType: true,
+  },
+  'music.spotify-repeat': {
+    label: 'Repeat button in the Music Spotify player',
+    perWidgetType: true,
+  },
+  'music.spotify-tab': {
+    label: 'Library or Now Playing pill in the Music Spotify player, by view',
+    perField: true,
+  },
+  'music.spotify-search-open': {
+    label: 'Search pill in the Music Spotify player',
+    perWidgetType: true,
+  },
+  'music.spotify-search': {
+    label: 'Search Spotify input in Music',
+    perWidgetType: true,
+  },
+  'music.spotify-search-close': {
+    label: 'Close search button in the Music Spotify player',
+    perWidgetType: true,
+  },
+  'music.spotify-result': {
+    label: 'Track, album or playlist row in the Music Spotify player',
+    perWidgetType: true,
+  },
+  'music.spotify-refresh': {
+    label: 'Refresh library button in the Music Spotify player',
+    perWidgetType: true,
+  },
+  'music.spotify-open-library': {
+    label: 'Open library button on the empty Music Spotify player',
+    perWidgetType: true,
+  },
+  'music.spotify-reconnect': {
+    label: 'Reconnect Spotify button in the Music Spotify player',
+    perWidgetType: true,
+    persists: true,
+  },
+  'widget-settings.music.spotify-connect': {
+    label: 'Connect Spotify button in Music settings',
+    perWidget: true,
+    panel: true,
+    persists: true,
+  },
+  'widget-settings.music.spotify-disconnect': {
+    label: 'Disconnect Spotify button in Music settings',
+    perWidget: true,
+    panel: true,
+    persists: true,
+  },
+  'widget-settings.music.spotify-retry': {
+    label:
+      'Try again button after a Spotify connection error in Music settings',
+    perWidget: true,
+    panel: true,
+    persists: true,
+  },
+  'math-tools.grade-filter': {
+    label: 'Grade filter dropdown in Math Tools',
+    perWidget: true,
+  },
+  'math-tools.tab': {
+    label: 'Section tab in Math Tools, by section',
+    perField: true,
+  },
+  'math-tools.tool': {
+    label: 'Tool button in Math Tools, by tool',
+    perField: true,
+  },
+  'math-tools.piece': {
+    label: 'Piece button in Math Tools, by tool and piece',
+    perField: true,
+  },
+  'math-tool.rotate': {
+    label: 'Rotation grip on a Math Tool',
+    perWidgetType: true,
+  },
+  'smart-notebook.view-mode': {
+    label: 'Cards or List view button in the Smart Notebook library, by mode',
+    perField: true,
+  },
+  'smart-notebook.import': {
+    label: 'Import button in the Smart Notebook library',
+    perWidgetType: true,
+    persists: true,
+  },
+  'smart-notebook.open': {
+    label: 'Notebook card in the Smart Notebook library',
+    perWidgetType: true,
+  },
+  'smart-notebook.rename-notebook': {
+    label: 'Rename notebook button in the Smart Notebook library',
+    perWidgetType: true,
+  },
+  'smart-notebook.share-notebook': {
+    label: 'Share notebook button in Smart Notebook',
+    perWidgetType: true,
+    persists: true,
+  },
+  'smart-notebook.delete-notebook': {
+    label: 'Delete notebook button in the Smart Notebook library',
+    perWidgetType: true,
+    destructive: true,
+  },
+  'smart-notebook.lesson-jump': {
+    label: 'Jump to lesson dropdown in Smart Notebook',
+    perWidgetType: true,
+  },
+  'smart-notebook.add-page': {
+    label: 'Add blank page button in Smart Notebook',
+    perWidgetType: true,
+  },
+  'smart-notebook.toggle-hidden-page': {
+    label: 'Hide or show page when presenting button in Smart Notebook',
+    perWidgetType: true,
+  },
+  'smart-notebook.remove-page': {
+    label: 'Remove page button in Smart Notebook',
+    perWidgetType: true,
+    destructive: true,
+  },
+  'smart-notebook.edit-page': {
+    label: 'Edit page button in the Smart Notebook viewer',
+    perWidgetType: true,
+  },
+  'smart-notebook.toggle-assets': {
+    label: 'Toggle assets button in the Smart Notebook viewer',
+    perWidgetType: true,
+  },
+  'smart-notebook.present': {
+    label: 'Present button in the Smart Notebook editor',
+    perWidgetType: true,
+  },
+  'smart-notebook.close-notebook': {
+    label: 'Close notebook button in Smart Notebook',
+    perWidgetType: true,
+  },
+  'smart-notebook.page-prev': {
+    label: 'Previous page button in Smart Notebook',
+    perWidgetType: true,
+  },
+  'smart-notebook.page-next': {
+    label: 'Next page button in Smart Notebook',
+    perWidgetType: true,
+  },
+  'smart-notebook.page-jump': {
+    label: 'Jump to page button in Smart Notebook',
+    perWidgetType: true,
+  },
+  'smart-notebook.page-thumb': {
+    label: 'Page thumbnail in the Smart Notebook jump menu, by page number',
+    perField: true,
+    panel: true,
+  },
+  'smart-notebook.zoom-in': {
+    label: 'Zoom in button in Smart Notebook',
+    perWidgetType: true,
+  },
+  'smart-notebook.zoom-out': {
+    label: 'Zoom out button in Smart Notebook',
+    perWidgetType: true,
+  },
+  'smart-notebook.zoom-reset': {
+    label: 'Reset zoom button in Smart Notebook',
+    perWidgetType: true,
+  },
+  'smart-notebook.move-page-earlier': {
+    label: 'Move page earlier button in Smart Notebook',
+    perWidgetType: true,
+  },
+  'smart-notebook.move-page-later': {
+    label: 'Move page later button in Smart Notebook',
+    perWidgetType: true,
+  },
+  'smart-notebook.link-hotspot': {
+    label: 'Page link hotspot in Smart Notebook present mode',
+    perWidgetType: true,
+  },
+  'smart-notebook.remove-asset': {
+    label: 'Remove placed asset button in Smart Notebook',
+    perWidgetType: true,
+    destructive: true,
+  },
+  'smart-notebook.tool': {
+    label: 'Tool button in the Smart Notebook editor toolbar, by tool',
+    perField: true,
+  },
+  'smart-notebook.shape': {
+    label: 'Shape button in the Smart Notebook shapes options, by shape',
+    perField: true,
+    panel: true,
+  },
+  'smart-notebook.layer-order': {
+    label:
+      'Layer order button in the Smart Notebook editor, by direction (front, forward, backward, back)',
+    perField: true,
+  },
+  'smart-notebook.background': {
+    label: 'Page background button in the Smart Notebook editor',
+    perWidgetType: true,
+  },
+  'smart-notebook.pen-color': {
+    label: 'Color swatch in the Smart Notebook tool options',
+    perWidgetType: true,
+    panel: true,
+  },
+  'smart-notebook.pen-color-custom': {
+    label: 'Custom color picker in the Smart Notebook tool options',
+    perWidgetType: true,
+    panel: true,
+  },
+  'smart-notebook.pen-size': {
+    label: 'Size slider in the Smart Notebook tool options',
+    perWidgetType: true,
+    panel: true,
+  },
+  'smart-notebook.background-mode': {
+    label:
+      'Color, Pattern or Image tab in the Smart Notebook page background dialog, by tab',
+    perField: true,
+    panel: true,
+  },
+  'smart-notebook.background-color': {
+    label: 'Base color swatch in the Smart Notebook page background dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'smart-notebook.background-color-custom': {
+    label: 'Custom color picker in the Smart Notebook page background dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'smart-notebook.background-pattern': {
+    label:
+      'Pattern button in the Smart Notebook page background dialog, by pattern',
+    perField: true,
+    panel: true,
+  },
+  'smart-notebook.background-image': {
+    label: 'Choose image button in the Smart Notebook page background dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'smart-notebook.background-apply': {
+    label: 'Apply button in the Smart Notebook page background dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'smart-notebook.background-cancel': {
+    label: 'Cancel button in the Smart Notebook page background dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'smart-notebook.background-close': {
+    label: 'Close button in the Smart Notebook page background dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'smart-notebook.link-page': {
+    label: 'Page choice in the Smart Notebook link picker, by page number',
+    perField: true,
+    panel: true,
+  },
+  'smart-notebook.link-go': {
+    label: 'Go to linked page button in the Smart Notebook link picker',
+    perWidgetType: true,
+    panel: true,
+  },
+  'smart-notebook.link-remove': {
+    label: 'Remove link button in the Smart Notebook link picker',
+    perWidgetType: true,
+    panel: true,
+  },
+  'smart-notebook.link-close': {
+    label: 'Close button in the Smart Notebook link picker',
+    perWidgetType: true,
+    panel: true,
+  },
+  'stickers.sticker': {
+    label: 'Sticker tile in the Sticker Book',
+    perWidgetType: true,
+  },
+  'stickers.favorite': {
+    label: 'Favorite heart on a sticker in the Sticker Book',
+    perWidgetType: true,
+  },
+  'stickers.remove-custom': {
+    label: 'Remove button on a custom sticker in the Sticker Book',
+    perWidgetType: true,
+    destructive: true,
+  },
+  'stickers.clear-all': {
+    label: 'Clear all stickers button in the Sticker Book',
+    perWidget: true,
+    destructive: true,
+  },
+  'stickers.upload': {
+    label: 'Upload button in the Sticker Book',
+    perWidget: true,
+    persists: true,
+  },
+  'stickers.upload-zone': {
+    label: 'Upload drop zone in the Sticker Book',
+    perWidget: true,
+    persists: true,
+  },
+  'stickers.filter': {
+    label:
+      'Filter button in the Sticker Book, by filter (all, favorites, mine)',
+    perField: true,
+  },
+  'sticker.options': {
+    label: 'Options menu button on a sticker',
+    perWidget: true,
+  },
+  'sticker.bring-forward': {
+    label: 'Bring Forward item in the sticker options menu',
+    perWidget: true,
+    panel: true,
+  },
+  'sticker.send-backward': {
+    label: 'Send Backward item in the sticker options menu',
+    perWidget: true,
+    panel: true,
+  },
+  'sticker.remove': {
+    label: 'Delete item in the sticker options menu',
+    perWidget: true,
+    panel: true,
+    destructive: true,
+  },
+  'sticker.rotate-handle': {
+    label: 'Rotate handle on a selected sticker',
+    perWidget: true,
+  },
+  'sticker.resize-handle': {
+    label: 'Resize handle on a selected sticker',
+    perWidget: true,
+  },
+  'schedule.toggle-item': {
+    label:
+      'Row button that marks a Schedule row done, by row (active = the Now row)',
+    perField: true,
+  },
+  'widget-settings.schedule.event-name': {
+    label: 'Event name input in Schedule settings, by event row',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.schedule.event-start-time': {
+    label: 'Event start time input in Schedule settings, by event row',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.schedule.event-end-time': {
+    label: 'Event end time input in Schedule settings, by event row',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.schedule.event-timer-minutes': {
+    label:
+      'Timer minutes input for an event in Schedule settings, by event row',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.schedule.event-timer-seconds': {
+    label:
+      'Timer seconds input for an event in Schedule settings, by event row',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.schedule.event-mode': {
+    label:
+      'Clock or timer mode toggle for an event in Schedule settings, by event row',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.schedule.event-auto-launch': {
+    label:
+      'Auto-launch widget toggle for an event in Schedule settings, by event row',
+    perField: true,
+    panel: true,
+  },
+  'widget-settings.schedule.event-auto-launch-widget': {
+    label:
+      'Widget choice in an event auto-launch list in Schedule settings, by event row and widget',
+    perField: true,
+    panel: true,
+  },
+  'override-row.extended-time': {
+    label: 'Extended time options in a student override',
+    panel: true,
+  },
+  'seating.class-chip': {
+    label: 'Class picker chip in the Seating Chart toolbar',
+    perWidget: true,
+  },
+  'lunch-count.class-chip': {
+    label: 'Class picker chip in Lunch Count',
+    perWidget: true,
+  },
+  'drawing.pen-colors': {
+    label: 'Pen color row in the Drawing tool options',
+    perWidget: true,
+    panel: true,
+  },
+  'random.class-group': {
+    label: 'Group row under a class in the Randomizer class menu',
+    perField: true,
+    panel: true,
+  },
+  'seating.class-group': {
+    label: 'Group row under a class in the Seating Chart class menu',
+    perField: true,
+    panel: true,
+  },
+  'absent-students.clear-all': {
+    label: 'Clear all button in the absent students dialog',
+    panel: true,
+  },
+  'absent-students.close': {
+    label: 'Close button in the absent students dialog',
+    panel: true,
+  },
+  'absent-students.student': {
+    label: 'Student button in the absent students dialog',
+    perField: true,
+    panel: true,
+  },
+  // Video Activity shared-prop controls.
+  'editor.save': {
+    label: 'Save button in an editor dialog footer',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'video-activity.assign-pacing': {
+    label: 'Pacing choice in the video activity assign dialog',
+    persists: true,
+    panel: true,
+  },
+  'video-activity.live-end': {
+    label: 'End button in a live video activity',
+    destructive: true,
+    persists: true,
+  },
+  'video-activity.live-show-results': {
+    label: 'Show or Hide results button on a live video question',
+    persists: true,
+  },
+  'video-activity.live-reveal-answer': {
+    label: 'Reveal answer button on a live video question',
+    persists: true,
+  },
+  'video-activity.live-resume': {
+    label: 'Resume button on a live video question',
+    persists: true,
+  },
+  'video-activity.monitor-start-all': {
+    label: 'Start all button in the video activity monitor',
+    persists: true,
+  },
+  'video-activity.monitor-pause-all': {
+    label: 'Pause all button in the video activity monitor',
+    persists: true,
+  },
+  'video-activity.monitor-pause-toggle': {
+    label: 'Pause or Resume button in the video activity monitor',
+    persists: true,
+  },
+  'video-activity.monitor-end': {
+    label: 'End button in the video activity monitor',
+    destructive: true,
+    persists: true,
+  },
+  'video-activity.results-back': {
+    label: 'Back button in video activity results',
+  },
+  'video-activity.results-push-classroom': {
+    label: 'Push Grades button in video activity results',
+    persists: true,
+  },
+  'video-activity.results-push-schoology': {
+    label: 'Push to Schoology button in video activity results',
+    persists: true,
+  },
+  'video-activity.results-assign-makeup': {
+    label: 'Assign make-up button in video activity results',
+    persists: true,
+  },
+  'video-activity.plc-auto-sheet': {
+    label:
+      'Auto-generated sheet switch in the PLC video activity assign dialog',
+    persists: true,
+    panel: true,
+  },
+  // Activity Wall, Projects and Review shared-prop controls.
+  'activity-wall-editor.section': {
+    label: 'Collapsible section header in the Activity Wall editor',
+    perField: true,
+    panel: true,
+  },
+  'review-start.cancel': {
+    label: 'Cancel button in the Start review dialog',
+    panel: true,
+  },
+  'projects.bulk-move': {
+    label: 'Move to folder button in the Projects bulk action bar',
+    persists: true,
+    panel: true,
+  },
+  'projects.bulk-delete': {
+    label: 'Delete button in the Projects bulk action bar',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'projects.bulk-clear': {
+    label: 'Clear selection button in the Projects bulk action bar',
+    panel: true,
+  },
+  'projects-editor.save': {
+    label: 'Save project button in the Project editor',
+    persists: true,
+    panel: true,
+  },
+  // Flashcards and Mini Apps shared-prop controls.
+  'flashcards.stepper-class-picker': {
+    label: 'Class picker in the Flashcards assign dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.stepper-class-row': {
+    label: 'Class checkbox in the Flashcards assign dialog class picker',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.stepper-student-menu': {
+    label:
+      'Student picker button for one class in the Flashcards assign dialog',
+    perField: true,
+    panel: true,
+  },
+  'flashcards.stepper-kind-switch': {
+    label:
+      'Student work or Study resource switch in the Flashcards assign dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'flashcards.period-start-all': {
+    label: 'Start all periods button in Flashcards results',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'flashcards.period-pause-all': {
+    label: 'Pause all periods button in Flashcards results',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'flashcards.results-back': {
+    label: 'Back button in Flashcards results',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.stepper-class-picker': {
+    label: 'Class picker in the Mini App assign dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.stepper-class-row': {
+    label: 'Class checkbox in the Mini App assign dialog class picker',
+    perField: true,
+    panel: true,
+  },
+  'mini-app.stepper-student-menu': {
+    label: 'Student picker button for one class in the Mini App assign dialog',
+    perField: true,
+    panel: true,
+  },
+  'mini-app.stepper-kind-switch': {
+    label:
+      'Student work or Study resource switch in the Mini App assign dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.bulk-clear': {
+    label: 'Clear selection button in the Mini App library bulk bar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.bulk-move': {
+    label: 'Move to folder button in the Mini App library bulk bar',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'mini-app.bulk-delete': {
+    label: 'Delete button in the Mini App library bulk bar',
+    perWidgetType: true,
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'mini-app.editor-save': {
+    label: 'Save App button in the Mini App editor',
+    perWidgetType: true,
+    persists: true,
     panel: true,
   },
   // Guided Learning shared-prop controls.

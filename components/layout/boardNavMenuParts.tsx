@@ -1,14 +1,17 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FC } from 'react';
 import { GripVertical, type LucideIcon } from 'lucide-react';
 import type { SortableListDragHandleProps } from '@/components/common/SortableList';
+import type { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export const RowActionButton: FC<{
   icon: LucideIcon;
   label: string;
   onClick: () => void;
-}> = ({ icon: Icon, label, onClick }) => (
+  anchor?: ReturnType<typeof tourFieldAttr>;
+}> = ({ icon: Icon, label, onClick, anchor }) => (
   <button
     type="button"
+    {...anchor}
     tabIndex={-1}
     aria-label={label}
     title={label}
@@ -49,6 +52,7 @@ interface InlineNameInputProps {
   commitOnBlur: boolean;
   onCommit: (name: string) => void;
   onCancel: () => void;
+  anchor?: ReturnType<typeof tourAttr>;
 }
 
 export const InlineNameInput: FC<InlineNameInputProps> = ({
@@ -58,6 +62,7 @@ export const InlineNameInput: FC<InlineNameInputProps> = ({
   commitOnBlur,
   onCommit,
   onCancel,
+  anchor,
 }) => {
   const [value, setValue] = useState(initialValue);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -93,6 +98,7 @@ export const InlineNameInput: FC<InlineNameInputProps> = ({
     <div data-menu-row className="flex items-center px-2 py-1">
       <input
         ref={inputRef}
+        {...anchor}
         type="text"
         value={value}
         placeholder={placeholder}

@@ -1,3 +1,4 @@
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import React, { useState } from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
@@ -115,6 +116,7 @@ export const UrlConfigurationPanel: React.FC<UrlConfigurationPanelProps> = ({
             </label>
             <input
               type="text"
+              {...tourFieldAttr('admin.widget-config.field', 'url', 'newUrl')}
               value={newUrl}
               onChange={(e) => setNewUrl(e.target.value)}
               onKeyDown={(e) => {
@@ -133,6 +135,7 @@ export const UrlConfigurationPanel: React.FC<UrlConfigurationPanelProps> = ({
             </label>
             <input
               type="text"
+              {...tourFieldAttr('admin.widget-config.field', 'url', 'newTitle')}
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
               className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
@@ -150,6 +153,11 @@ export const UrlConfigurationPanel: React.FC<UrlConfigurationPanelProps> = ({
                   key={c}
                   type="button"
                   onClick={() => setNewColor(c)}
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'url',
+                    `color-${c}`
+                  )}
                   className={`w-8 h-8 rounded-full border-2 transition-all ${
                     newColor === c
                       ? 'border-slate-800 scale-110 shadow-sm'
@@ -164,6 +172,7 @@ export const UrlConfigurationPanel: React.FC<UrlConfigurationPanelProps> = ({
           <button
             type="button"
             onClick={addUrl}
+            {...tourTypeAttr('admin.widget-config.add', 'url')}
             disabled={!newUrl.trim()}
             className="w-full mt-2 flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded-xl font-bold transition-colors"
           >
@@ -200,6 +209,11 @@ export const UrlConfigurationPanel: React.FC<UrlConfigurationPanelProps> = ({
                   <button
                     type="button"
                     onClick={() => removeUrl(u.id)}
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'url',
+                      `remove-${u.id}`
+                    )}
                     className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                     title="Remove Link"
                   >

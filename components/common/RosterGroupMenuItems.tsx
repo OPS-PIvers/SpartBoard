@@ -1,6 +1,7 @@
 import React from 'react';
 import { Filter } from 'lucide-react';
 import type { ClassRoster } from '@/types';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import {
   countRosterGroupMembers,
   groupMakerGroups,
@@ -11,6 +12,7 @@ interface RosterGroupMenuItemsProps {
   /** The group currently selected on this roster, if it is the active one. */
   selectedGroupId: string | null;
   onSelect: (groupId: string) => void;
+  anchor?: (groupId: string) => TourAnchorAttrs;
 }
 
 /**
@@ -25,6 +27,7 @@ export const RosterGroupMenuItems: React.FC<RosterGroupMenuItemsProps> = ({
   roster,
   selectedGroupId,
   onSelect,
+  anchor,
 }) => (
   <>
     {groupMakerGroups(roster).map((g) => {
@@ -36,6 +39,7 @@ export const RosterGroupMenuItems: React.FC<RosterGroupMenuItemsProps> = ({
           type="button"
           role="menuitemradio"
           aria-checked={isSelected}
+          {...anchor?.(g.id)}
           onClick={() => onSelect(g.id)}
           className={`w-full flex items-center justify-between pl-7 pr-3 py-1.5 text-left transition-colors ${
             isSelected

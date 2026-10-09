@@ -54,6 +54,16 @@ describe('checkUrlCompatibility DNS SSRF guard', () => {
     expect(axiosHead).not.toHaveBeenCalled();
   });
 
+  it('reports an unresolvable host as unreachable, not as a private IP', async () => {
+    dnsLookup.mockRejectedValue(
+      Object.assign(new Error('getaddrinfo ENOTFOUND'), { code: 'ENOTFOUND' })
+    );
+    await expect(
+      call({ auth: { uid: 'u' }, data: { url: 'https://typo.example/' } })
+    ).resolves.toMatchObject({ isEmbeddable: false, uncertain: true });
+    expect(axiosHead).not.toHaveBeenCalled();
+  });
+
   it('pins the probe to the validated addresses', async () => {
     await call({ auth: { uid: 'u' }, data: { url: 'https://example.com/' } });
     expect(axiosHead).toHaveBeenCalledWith(

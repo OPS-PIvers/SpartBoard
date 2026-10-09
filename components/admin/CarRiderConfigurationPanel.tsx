@@ -1,5 +1,6 @@
 import React from 'react';
 import { CarRiderProGlobalConfig } from '@/types';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface CarRiderConfigurationPanelProps {
   config: CarRiderProGlobalConfig;
@@ -20,6 +21,11 @@ export const CarRiderConfigurationPanel: React.FC<
         </label>
         <input
           id="car-rider-pro-url"
+          {...tourFieldAttr(
+            'admin.widget-config.field',
+            'car-rider-pro',
+            'url'
+          )}
           type="url"
           value={config.url ?? ''}
           onChange={(e) => onChange({ ...config, url: e.target.value })}
