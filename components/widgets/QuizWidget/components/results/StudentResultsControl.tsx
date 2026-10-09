@@ -19,6 +19,7 @@ import type {
 } from '@/types';
 import { resultsOverrideState } from '@/utils/quizResultsVisibility';
 import { logError } from '@/utils/logError';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { ShowResultsDialog } from './ShowResultsDialog';
 import type { StudentResultsActions } from './studentResultsSelection';
 
@@ -202,6 +203,11 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
           items={items}
           ariaLabel={`Results options for ${displayName}`}
           triggerIcon={MoreVertical}
+          triggerProps={tourFieldAttr(
+            'quiz-results.student-results-menu',
+            'quiz',
+            key
+          )}
           triggerClassName={triggerClassName}
           triggerAnchor={triggerAnchor}
           tourId={tourId}
@@ -260,6 +266,7 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
           type="button"
           onClick={() => setDialogOpen(true)}
           disabled={busy !== null}
+          {...tourFieldAttr('quiz-results.student-show', 'quiz', key)}
           className={buttonCls}
           style={buttonStyle}
         >
@@ -272,6 +279,7 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
           type="button"
           onClick={() => void run('hide')}
           disabled={busy !== null}
+          {...tourFieldAttr('quiz-results.student-hide', 'quiz', key)}
           className={buttonCls}
           style={buttonStyle}
         >
@@ -289,6 +297,7 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
           onClick={() => void run('clear')}
           disabled={busy !== null}
           title={FOLLOW_CLASS_TIP}
+          {...tourFieldAttr('quiz-results.student-follow-class', 'quiz', key)}
           className={buttonCls}
           style={buttonStyle}
         >

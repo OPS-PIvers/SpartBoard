@@ -17,6 +17,7 @@ import { STATE_STYLES } from '../../stepVisuals';
 import { StateMark } from '../../StateMark';
 import { cellKey, groupColorOf, stepsWithWork } from '../../boardHelpers';
 import { GroupDetails } from './GroupDetails';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 export type BoardGroup = SubShareProjectGroupView &
   Partial<Pick<ProjectGroup, 'memberUids' | 'workLinks'>>;
@@ -120,6 +121,7 @@ export const GroupRow: React.FC<GroupRowProps> = ({
               <button
                 type="button"
                 onClick={onOpenGroup}
+                {...tourTypeAttr('projects.group-student-view', 'projects')}
                 title="Student view"
                 aria-haspopup="dialog"
                 className="flex min-w-0 rounded-md text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
@@ -129,6 +131,7 @@ export const GroupRow: React.FC<GroupRowProps> = ({
               <button
                 type="button"
                 onClick={onToggleExpand}
+                {...tourTypeAttr('projects.group-expand', 'projects')}
                 aria-expanded={expanded}
                 aria-label={`${expanded ? 'Hide' : 'Show'} members and work for ${group.name}`}
                 className="shrink-0 rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
@@ -148,6 +151,7 @@ export const GroupRow: React.FC<GroupRowProps> = ({
             <button
               type="button"
               onClick={onToggleExpand}
+              {...tourTypeAttr('projects.group-expand', 'projects')}
               aria-expanded={expanded}
               title={expanded ? 'Hide details' : 'Show members and work'}
               className="flex min-w-0 items-center rounded-md text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
@@ -193,6 +197,7 @@ export const GroupRow: React.FC<GroupRowProps> = ({
                       key={step.id}
                       type="button"
                       data-project-cell={key}
+                      {...tourTypeAttr('projects.step-cell', 'projects')}
                       onClick={(e) =>
                         onOpenCell(group.id, step.id, e.currentTarget)
                       }
@@ -257,6 +262,7 @@ export const GroupRow: React.FC<GroupRowProps> = ({
                   <button
                     type="button"
                     data-project-cell={key}
+                    {...tourTypeAttr('projects.step-cell', 'projects')}
                     onClick={(e) =>
                       onOpenCell(group.id, step.id, e.currentTarget)
                     }

@@ -754,6 +754,2012 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz-editor.add-answer-key': {
+    label: 'Add answer key in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.bank-notice-dismiss': {
+    label: 'Dismiss bank notice (×) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.bulk-tag': {
+    label: 'Tag (bulk, selected questions) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.bulk-save-bank': {
+    label: 'Save to bank… (bulk) in the Quiz editor',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-editor.bulk-delete': {
+    label: 'Delete (bulk) in the Quiz editor',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-editor.bulk-clear': {
+    label: 'Clear (selection) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.draft-ai': {
+    label: 'Draft with AI (list header) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.add-blank': {
+    label: 'Add-menu item: Blank question in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.add-section': {
+    label: 'Add-menu item: Section in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.add-from-bank': {
+    label: 'Add-menu item: From question bank… in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.question-row': {
+    label: 'Question row (click to select; clickable div) in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.question-drag': {
+    label: 'Drag handle, question row in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.question-select': {
+    label: 'Select question checkbox in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.question-duplicate': {
+    label: 'Duplicate question in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.question-delete': {
+    label: 'Delete question in the Quiz editor',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-editor.prompt-blank': {
+    label: 'Blank (insert ___ in FIB prompt) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.targets-edit': {
+    label: 'Learning targets Add/Edit in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.time-limit': {
+    label: 'Time limit input in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.points': {
+    label: 'Points input in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.printed-number': {
+    label: 'Printed number input in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.partial-credit': {
+    label: 'Partial credit checkbox (matching, ordering) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.placeholder': {
+    label: 'Placeholder input (FRQ) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.rubric-edit': {
+    label: 'Rubric: Edit in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.rubric-detach': {
+    label: 'Rubric: Detach in the Quiz editor',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-editor.rubric-attach': {
+    label: 'Attach rubric in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.fib-answer': {
+    label: 'Correct answer input (FIB / short answer) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.distractor': {
+    label: 'Distractor input, per index in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.distractor-remove': {
+    label: 'Remove distractor (×) in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.distractor-add': {
+    label: 'Add choice in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.ai-prompt': {
+    label: 'AI describe-your-quiz textarea in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.ai-count-dec': {
+    label: 'AI question count – in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.ai-count-inc': {
+    label: 'AI question count + in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.footer-draft-ai': {
+    label: 'Draft with AI (modal footer) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.bank-targets-add': {
+    label: 'Bank targets: Add in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.tab-questions': {
+    label: 'Questions editor tab in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.tab-stimuli': {
+    label: 'Stimuli editor tab in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.tab-settings': {
+    label: 'Settings editor tab in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.tab-languages': {
+    label: 'Languages editor tab in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.option-remove': {
+    label: 'Remove option (×) in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.option-add': {
+    label: 'Add option in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.multi-correct': {
+    label: 'Multiple correct answers checkbox in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.choice-partial-credit': {
+    label: 'Partial credit checkbox (multi-answer) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.fib-blank': {
+    label: 'Blank N answer input in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.fib-alternate': {
+    label: 'Also-accept input in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.fib-alternate-remove': {
+    label: 'Remove also-accept (×) in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.fib-alternate-add': {
+    label: 'Add also-accept in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.multi-answer-item': {
+    label: 'Answer item input (shared, per index) in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.multi-answer-remove': {
+    label: 'Remove answer item in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.multi-answer-add': {
+    label: 'Add answer item in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.match-drag': {
+    label: 'Drag to reorder (matching pair) in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.match-term': {
+    label: 'Matching term input in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.match-definition': {
+    label: 'Matching definition input in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.match-remove': {
+    label: 'Remove pair in the Quiz editor',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-editor.match-add': {
+    label: 'Add pair in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.match-distractor': {
+    label: 'Distractor input in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.match-distractor-remove': {
+    label: 'Remove distractor in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.match-distractor-add': {
+    label: 'Add distractor in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.order-drag': {
+    label: 'Drag to reorder (ordering item) in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.order-item': {
+    label: 'Ordering item input in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.order-up': {
+    label: 'Move item up in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.order-down': {
+    label: 'Move item down in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.order-remove': {
+    label: 'Remove ordering item in the Quiz editor',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-editor.order-add': {
+    label: 'Add ordering item in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.recording-prep': {
+    label: 'Prep seconds input (spoken response) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.recording-limit': {
+    label: 'Time limit seconds input (spoken response) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.recording-limit-clamp': {
+    label: 'Clamp-to-ceiling link (shown when clamped) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.recording-expiry': {
+    label: 'Prep expiry option buttons (per option) in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.word-min': {
+    label: 'Minimum words input in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.word-max': {
+    label: 'Maximum words input in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.word-enforce': {
+    label: 'Enforce limit toggle in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.section-drag': {
+    label: 'Drag handle, section in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.section-title': {
+    label: 'Section title input in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.section-directions': {
+    label: 'Section directions textarea in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.section-choose-count': {
+    label: '"Students answer … of these N" select in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.section-remove': {
+    label: 'Remove section in the Quiz editor',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-banks.picker-source': {
+    label:
+      'Bank source row (My banks or Shared with me) in Quiz banks, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-banks.picker-mode': {
+    label: 'Mode tabs - Pick questions or Random draw in Quiz banks, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-banks.picker-back': {
+    label: 'Back to banks in Quiz banks',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-banks.picker-close': {
+    label: 'Close in Quiz banks',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-banks.picker-search': {
+    label: 'Search banks input in Quiz banks',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-banks.picker-question-search': {
+    label: 'Search questions input in Quiz banks',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-banks.picker-select-all': {
+    label: 'Select all or Clear questions in Quiz banks',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-banks.picker-question-check': {
+    label: 'Question checkbox in Quiz banks, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-banks.picker-count': {
+    label: 'Questions per attempt input in Quiz banks',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-banks.picker-points': {
+    label: 'Points each input in Quiz banks',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-banks.picker-cancel': {
+    label: 'Cancel in Quiz banks',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-banks.picker-submit': {
+    label: 'Add questions or Add random draw in Quiz banks',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-banks.slot-select': {
+    label:
+      'Slot row click (selects slot; clickable div) in Quiz banks, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-banks.slot-drag': {
+    label: 'Drag handle in Quiz banks, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-banks.slot-remove-icon': {
+    label: 'Remove bank slot in Quiz banks, by item',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-banks.slot-count': {
+    label: 'Questions per attempt input in Quiz banks',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-banks.slot-points': {
+    label: 'Points input in Quiz banks',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-banks.slot-remove': {
+    label: 'Remove slot in Quiz banks',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-banks.target-filter-tag': {
+    label: 'Target filter tag chips in Quiz banks, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-banks.target-filter-clear': {
+    label: 'Clear target filter in Quiz banks',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.cartridge-close': {
+    label: 'Close in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.cartridge-folder-name': {
+    label: 'Folder name input in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.cartridge-select-all': {
+    label: 'Select all in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.cartridge-select-none': {
+    label: 'Select none in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.cartridge-row-check': {
+    label: 'Bank row checkbox in Quiz import, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.cartridge-row-expand': {
+    label: 'Show or hide questions in a bank in Quiz import, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.cartridge-share-pictures': {
+    label: 'Share pictures checkbox in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.cartridge-cancel': {
+    label: 'Cancel or Done in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.cartridge-import': {
+    label: 'Import N in Quiz import',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-import.cartridge-retry': {
+    label: 'Retry failed in Quiz import',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-import.paper-close': {
+    label: 'Close in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.paper-batch': {
+    label: 'Batch select in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.paper-assignment': {
+    label: 'Assignment select (new administration or existing) in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.paper-resume': {
+    label: 'Resume review in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.paper-discard': {
+    label: 'Discard it in Quiz import',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-import.paper-upload': {
+    label: 'Upload scan in Quiz import',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-import.paper-drive': {
+    label: 'Pick scan from Drive in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.paper-key-select': {
+    label: 'Answer key select in Quiz import, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.paper-key-confirm': {
+    label: 'Key confirmed checkbox in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.paper-tag-all': {
+    label: 'Tag all questions in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.paper-tag-question': {
+    label: 'Tag or Edit in Quiz import, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.paper-seat-student': {
+    label: 'Student-for-seat select in Quiz import, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.paper-answer-letter': {
+    label: 'Answer letter buttons in Quiz import, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.paper-answer-blank': {
+    label: 'Blank answer in Quiz import, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.paper-retry-upload': {
+    label: 'Retry failed uploads in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.paper-replace-seat': {
+    label: 'Replace seat checkbox in Quiz import, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.paper-replace-submit': {
+    label: 'Replace selected in Quiz import',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-import.paper-back': {
+    label: 'Back in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.paper-import': {
+    label: 'Import N sheets in Quiz import',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-import.paper-done': {
+    label: 'Done in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.paper-text-close': {
+    label: 'Close in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.paper-text-upload': {
+    label: 'Upload file dropzone in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.paper-text-drive': {
+    label: 'Pick from Drive in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.paper-text-apply': {
+    label: 'Apply-question checkbox in Quiz import, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.paper-text-draft': {
+    label: 'Question text textarea in Quiz import, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.paper-text-back': {
+    label: 'Back (key-fill step) in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.paper-text-save-key': {
+    label: 'Save key fill in Quiz import',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-import.paper-text-back-review': {
+    label: 'Back (review step) in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.paper-text-apply-submit': {
+    label: 'Apply to N questions in Quiz import',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-import.paper-text-cancel': {
+    label: 'Cancel in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-banks.select-mode': {
+    label: 'Select or Cancel selection-mode toggle in Quiz banks',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-banks.empty-new-bank': {
+    label: 'New bank empty-state button in Quiz banks',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-banks.shared-preview': {
+    label: 'Preview on a shared bank row in Quiz banks, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.review-only-flagged': {
+    label: 'Show only flagged rows in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.review-include': {
+    label: 'Include question checkbox in Quiz import, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.review-question-text': {
+    label: 'Question text textarea in Quiz import, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.review-choice-correct': {
+    label: 'Correct-choice checkbox in Quiz import, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.review-answer-radio': {
+    label: 'Correct-answer radio in Quiz import, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.review-remove-picture': {
+    label: 'Remove linked picture in Quiz import, by item',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-import.review-link-picture': {
+    label: 'Link picture select in Quiz import, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.key-standards-add-all': {
+    label: 'Add N standards (all key standards) in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.key-standard-add': {
+    label: 'Add standard in Quiz import, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.targets-add-all': {
+    label: 'Add all suggested targets in Quiz import',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-import.targets-destination': {
+    label: 'New targets go in destination select in Quiz import',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-import.targets-add-one': {
+    label: 'Add or Create target in Quiz import, by item',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-banks.save-close': {
+    label: 'Close in Quiz banks',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-banks.save-target': {
+    label: 'Target bank select in Quiz banks',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-banks.save-title': {
+    label: 'New bank title input in Quiz banks',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-banks.save-cancel': {
+    label: 'Cancel in Quiz banks',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-banks.save-submit': {
+    label: 'Save to bank in Quiz banks',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-library.back-translate': {
+    label: 'Back-translate in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.empty-import': {
+    label: 'Empty-state Import (No quizzes yet) in the Quiz widget',
+    perWidgetType: true,
+  },
+  'quiz-library.language-generate': {
+    label: 'Generate translations in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.language-locale': {
+    label: 'Locale chip in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-library.language-question': {
+    label: 'Question selector in translation list in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-library.language-read-aloud-select': {
+    label: 'Read-aloud language select in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.language-regenerate-stale': {
+    label: 'Regenerate stale in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.language-reviewed': {
+    label: 'Reviewed checkbox in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-library.language-save': {
+    label: 'Save translations in the Quiz widget',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-library.language-tag-input': {
+    label: 'Other language tag input in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.language-translated-text': {
+    label: 'Translated text textarea in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-library.preview-back': {
+    label: 'Back arrow (header) in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.preview-blank-input': {
+    label: 'Fill-in-the-blank input in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-library.preview-check-answer': {
+    label: 'Check Answer (multi-answer) in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.preview-dot': {
+    label: 'Question dot navigation, per question in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-library.preview-go-back': {
+    label: 'Go Back (empty state) in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.preview-mc-option': {
+    label: 'Multiple-choice option in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-library.preview-multi-option': {
+    label: 'Multi-answer option (checkbox role) in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-library.preview-next': {
+    label: 'NEXT in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.preview-prev': {
+    label: 'PREV in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.preview-reset': {
+    label: 'Reset question in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.preview-reveal-fib': {
+    label: 'Reveal Correct Answer (fill-in) in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.preview-reveal-sequence': {
+    label: 'Reveal Sequence in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.cancel': {
+    label: 'Print sheets Cancel in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.close': {
+    label: 'Print sheets close (×) in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.import-remove': {
+    label: 'Remove imported test document in the Quiz widget',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-print.include-key-sheet': {
+    label: 'Include answer key sheet toggle in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.include-question-text': {
+    label: 'Include question text toggle in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.pdf-page-add': {
+    label: 'PDF page Add page in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.pdf-page-cancel': {
+    label: 'PDF page picker Cancel in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.pdf-page-number': {
+    label: 'PDF page number input in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.print': {
+    label: 'Print response sheets in the Quiz widget',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-print.print-test-paper': {
+    label: 'Print test paper in the Quiz widget',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-print.results-cancel': {
+    label: 'Print results Cancel in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.results-close': {
+    label: 'Print results close (×) in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.results-key-mode': {
+    label: 'Show the key radios in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.results-layout': {
+    label: 'Layout radios in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.results-more-options': {
+    label: 'More print options disclosure in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.results-option-toggle': {
+    label: 'Option toggles from TOGGLES map in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.results-preset': {
+    label: 'Preset chips (radio group) in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.results-print': {
+    label: 'Print results Print in the Quiz widget',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-print.results-report-choice': {
+    label: 'Report choice cards (radio group) in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.results-select-all': {
+    label: 'Select all / Select none in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.results-student-select': {
+    label: 'Per-student checkbox in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.results-written-mode': {
+    label: 'Written answers mode radios in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.roster-expand': {
+    label: 'Roster expand/collapse in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.roster-select': {
+    label: 'Roster select-all checkbox in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.share-and-print': {
+    label: 'Share and print in the Quiz widget',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-print.share-print-only': {
+    label: 'Print without sharing in the Quiz widget',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-print.sheet-stimuli-drive': {
+    label: 'Drive image (icon) in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.sheet-stimuli-from-quiz': {
+    label: 'From this quiz picker toggle in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.sheet-stimuli-quiz-image': {
+    label: 'Quiz image choice in picker in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.sheet-stimuli-template': {
+    label: 'Template picker toggle in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.sheet-stimuli-template-choice': {
+    label: 'Template choice in picker in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.sheet-stimuli-toggle': {
+    label: 'Section disclosure in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.sheet-stimuli-upload': {
+    label: 'Upload image (icon) in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.sheet-stimulus-caption': {
+    label: 'Caption input in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.sheet-stimulus-move-down': {
+    label: 'Move stimulus down in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.sheet-stimulus-move-up': {
+    label: 'Move stimulus up in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.sheet-stimulus-number': {
+    label: 'Template number field (Lowest/Highest) in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.sheet-stimulus-pages': {
+    label: 'Pages select in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.sheet-stimulus-quadrants': {
+    label: 'Quadrants select in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.sheet-stimulus-remove': {
+    label: 'Remove stimulus in the Quiz widget',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-print.sheet-stimulus-template-field': {
+    label: 'Template field checkbox-or-number input in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.sheets-done': {
+    label: 'Printed batch Done in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.spare-count': {
+    label: 'Spare sheets count input in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.stub-choice-count': {
+    label: 'Stub Choices per question select in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.stub-question-count': {
+    label: 'Stub Questions count input in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.stub-title': {
+    label: 'Stub paper Title input in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.student-select': {
+    label: 'Per-student checkbox in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.written-add': {
+    label: 'Written answers Add in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.written-box-size': {
+    label: 'Written box size select in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.written-number': {
+    label: 'Written answers question-number input in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.written-points': {
+    label: 'Written points input in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-print.written-remove': {
+    label: 'Remove written question (×) in the Quiz widget',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-stimuli.add-passage': {
+    label: 'Add a passage in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-stimuli.attach-all-questions': {
+    label: 'All questions attach checkbox in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-stimuli.attach-bank-slot': {
+    label: 'Per-bank-slot attach checkbox in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-stimuli.attach-question': {
+    label: 'Per-question attach checkbox in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-stimuli.attach-stimulus': {
+    label: 'Per-stimulus attach checkbox in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-stimuli.attach-toggle': {
+    label: 'Attach section Stimuli disclosure in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-stimuli.card-delete': {
+    label: 'Delete stimulus in the Quiz widget',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-stimuli.card-expand': {
+    label: 'Stimulus card expand/collapse in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-stimuli.card-label': {
+    label: 'Stimulus label input in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-stimuli.choose-drive': {
+    label: 'Choose from Drive in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-stimuli.choose-file': {
+    label: 'Choose file in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-stimuli.passage-text': {
+    label: 'Passage textarea in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-stimuli.play-limit': {
+    label: 'Play limit input in the Quiz widget',
+    perField: true,
+    panel: true,
+  },
+  'quiz-stimuli.read-aloud-clear': {
+    label: 'Read-aloud Clear in the Quiz widget',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-stimuli.read-aloud-extract': {
+    label: 'Extract text in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-stimuli.read-aloud-text': {
+    label: 'Read-aloud text textarea in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-stimuli.read-aloud-toggle': {
+    label: 'Read-aloud text disclosure in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-stimuli.url-add': {
+    label: 'URL Add in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-stimuli.url-input': {
+    label: 'Paste a link input in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-results.back': {
+    label: 'Back button in Quiz results',
+    perWidgetType: true,
+  },
+  'quiz-results.print': {
+    label: 'Print results button in Quiz results',
+    perWidgetType: true,
+  },
+  'quiz-results.hide-names': {
+    label: 'Hide student names toggle in Quiz results',
+    perWidgetType: true,
+  },
+  'quiz-results.sheet-recovery': {
+    label: 'Export to my own sheet button in Quiz results',
+    perWidgetType: true,
+    persists: true,
+  },
+  'quiz-results.period-filter': {
+    label: 'Period filter chip in Quiz results, by period',
+    perField: true,
+  },
+  'quiz-results.drill-questions': {
+    label: 'Questions drill row in Quiz results',
+    perWidgetType: true,
+  },
+  'quiz-results.drill-targets': {
+    label: 'Targets drill row in Quiz results',
+    perWidgetType: true,
+  },
+  'quiz-results.drill-students': {
+    label: 'Students drill row in Quiz results',
+    perWidgetType: true,
+  },
+  'quiz-grading.open': {
+    label: 'Grade button in Quiz results',
+    perWidgetType: true,
+  },
+  'quiz-results.push-grades': {
+    label: 'Push Grades in Quiz results',
+    perWidgetType: true,
+    persists: true,
+  },
+  'quiz-results.push-schoology': {
+    label: 'Push to Schoology in Quiz results',
+    perWidgetType: true,
+    persists: true,
+  },
+  'quiz-results.scoreboard': {
+    label: 'Send to Scoreboard in Quiz results',
+    perWidgetType: true,
+  },
+  'quiz-results.sheet-refresh': {
+    label: 'Refresh linked sheet in Quiz results',
+    perWidgetType: true,
+    persists: true,
+  },
+  'quiz-results.export-sheets': {
+    label: 'Export to Sheets in Quiz results',
+    perWidgetType: true,
+    persists: true,
+  },
+  'quiz-results.scoreboard-names': {
+    label: 'Student Names option in the Scoreboard prompt in Quiz results',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-results.scoreboard-pins': {
+    label: 'PINs Only option in the Scoreboard prompt in Quiz results',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-results.select-students': {
+    label: 'Select these students button in Quiz results',
+    perWidgetType: true,
+  },
+  'quiz-results.outcome-row': {
+    label: 'Distribution row toggle in Quiz results, by position',
+    perField: true,
+  },
+  'quiz-results.question-sort': {
+    label: 'Question sort chip in Quiz results, by option',
+    perField: true,
+  },
+  'quiz-results.question-toggle': {
+    label: 'Question row expand toggle in Quiz results, by position',
+    perField: true,
+  },
+  'quiz-results.student-print-answers': {
+    label:
+      'Include correct answers checkbox in a student report in Quiz results',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-results.student-print': {
+    label: 'Print report button in a student report in Quiz results',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-results.students-select-all': {
+    label: 'Select all students checkbox in Quiz results',
+    perWidgetType: true,
+  },
+  'quiz-results.students-sort': {
+    label: 'Sort students option in Quiz results, by option',
+    perField: true,
+  },
+  'quiz-results.students-score-display': {
+    label: 'Show scores as option in Quiz results, by option',
+    perField: true,
+  },
+  'quiz-results.student-delete-confirm': {
+    label: 'Yes button in the delete submission confirm in Quiz results',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-results.student-delete-cancel': {
+    label: 'Cancel button in the delete submission confirm in Quiz results',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-results.student-select': {
+    label: 'Select student row checkbox in Quiz results, by position',
+    perField: true,
+  },
+  'quiz-results.student-toggle': {
+    label: 'Student row expand button in Quiz results, by row',
+    perField: true,
+  },
+  'quiz-results.student-unlock': {
+    label: 'Unlock results in Quiz results, by position',
+    perField: true,
+    persists: true,
+  },
+  'quiz-results.student-delete': {
+    label: 'Delete this submission in Quiz results, by position',
+    perField: true,
+    destructive: true,
+  },
+  'quiz-results.student-results-menu': {
+    label: 'Results options menu button in Quiz results, by student',
+    perField: true,
+    persists: true,
+  },
+  'quiz-results.student-show': {
+    label: 'Show results button for a student in Quiz results, by student',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-results.student-hide': {
+    label: 'Hide button for a student in Quiz results, by student',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-results.student-follow-class': {
+    label: 'Follow class button for a student in Quiz results, by student',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-results.bulk-show': {
+    label: 'Show results… in Quiz results',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-results.bulk-hide': {
+    label: 'Hide results in Quiz results',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-results.bulk-follow-class': {
+    label: 'Follow class in Quiz results',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-results.bulk-copy-names': {
+    label: 'Copy names in Quiz results',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-results.bulk-print': {
+    label: 'Print selected in Quiz results',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-results.bulk-reopen': {
+    label: 'Reopen in Quiz results',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-results.bulk-clear': {
+    label: 'Clear selection in Quiz results',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-results.show-results-level': {
+    label: 'What they see option in the Show results dialog, by level',
+    perField: true,
+    panel: true,
+  },
+  'quiz-results.show-results-expiry': {
+    label: 'Stop showing option in the Show results dialog, by option',
+    perField: true,
+    panel: true,
+  },
+  'quiz-results.show-results-cancel': {
+    label: 'Cancel button in the Show results dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-results.show-results-confirm': {
+    label: 'Show results button in the Show results dialog',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.answer-grade': {
+    label:
+      'Grade button beside a question in a student report in Quiz results, by question',
+    perField: true,
+  },
+  'quiz-results.drilldown-open-student': {
+    label: 'Student name button in Quiz results, by student',
+    perField: true,
+  },
+  'quiz-results.target-row-toggle': {
+    label: 'Target mastery row expand in Quiz results, by target',
+    perField: true,
+  },
+  'quiz-results.targets-export-csv': {
+    label: 'Export CSV in Quiz results',
+    perWidgetType: true,
+  },
+  'quiz-results.targets-sort-student': {
+    label: 'Sort by Student in Quiz results',
+    perWidgetType: true,
+  },
+  'quiz-results.targets-sort-target': {
+    label: 'Sort by target column in Quiz results, by column',
+    perField: true,
+  },
+  'quiz-grading.annotate-text': {
+    label: 'Annotatable response text in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.annotate-color': {
+    label: 'Highlight colour swatch in the Quiz grader, by colour',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.annotate-delete': {
+    label: 'Delete annotation in the Quiz grader',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-grading.annotate-close': {
+    label: 'Close annotation editor in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.annotate-comment': {
+    label: 'Margin comment textarea in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.audio-retry': {
+    label: 'Retry load in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.audio-play': {
+    label: 'Play / pause in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.audio-skip-silence': {
+    label: 'Skip to speech in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.audio-scrubber': {
+    label: 'Recording scrubber in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.audio-add-comment': {
+    label: 'Add comment at playhead in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.audio-note-seek': {
+    label: 'Seek to timestamp in the Quiz grader, by comment',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.audio-note-remove': {
+    label: 'Remove comment in the Quiz grader, by comment',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-grading.audio-note-comment': {
+    label: 'Comment textarea in the Quiz grader, by comment',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.empty-close': {
+    label: 'Close button in the empty Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.retry-save': {
+    label: 'Retry failed saves in the Quiz grader',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.mode-toggle': {
+    label: 'Question / Student mode toggle in the Quiz grader, by position',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.auto-advance': {
+    label: 'Auto-advance switch in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.advance-prev': {
+    label: 'Previous response in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.advance-next': {
+    label: 'Next response in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rail-expand': {
+    label: 'Expand student list in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.rail-collapse': {
+    label: 'Collapse student list in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.student-prev': {
+    label: 'Previous student in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.student-next': {
+    label: 'Next student in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.student-select': {
+    label: 'Student row in queue in the Quiz grader, by student',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.question-prev': {
+    label: 'Previous question in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.question-next': {
+    label: 'Next question in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.slot-tab': {
+    label: 'Media slot tab in the Quiz grader, by slot',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.unavailable-choice': {
+    label: 'Unavailable recording choice in the Quiz grader, by choice',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.points': {
+    label: 'Points input in the Quiz grader',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.comment': {
+    label: 'Teacher comment box in the Quiz grader',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-grading.take-pin': {
+    label: 'Take pin button in the Quiz grader, by take',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.undo-excuse': {
+    label: 'Undo excuse in the Quiz grader',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-grading.highlight-select': {
+    label: 'Highlight list item in the Quiz grader, by position',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-jump-tagged': {
+    label: 'Tagged-count jump in the Quiz grader, by criterion',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-note-toggle': {
+    label: 'Add / hide note toggle in the Quiz grader, by criterion',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-level': {
+    label: 'Rubric level radio in the Quiz grader, by level',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.rubric-note': {
+    label: 'Criterion note textarea in the Quiz grader, by position',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.strand-chip': {
+    label: 'Strand tag chip in the Quiz grader, by criterion',
+    perField: true,
+    panel: true,
+  },
+  'quiz-grading.strand-chip-orphan': {
+    label: 'Orphaned strand chip in the Quiz grader, by criterion',
+    perField: true,
+    panel: true,
+  },
+  'quiz-rubric.builder-resize': {
+    label: 'Resize handle on the Quiz rubric builder',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-rubric.builder-close': {
+    label: 'Close button on the Quiz rubric builder',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-rubric.builder-library': {
+    label: 'Library select on the Quiz rubric builder',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-rubric.builder-import-code': {
+    label: 'Share code or link input on the Quiz rubric builder',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-rubric.builder-import': {
+    label: 'Import shared rubric on the Quiz rubric builder',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-rubric.builder-title': {
+    label: 'Rubric title input on the Quiz rubric builder',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-rubric.criterion-name': {
+    label: 'Criterion name input on the Quiz rubric builder, by criterion',
+    perField: true,
+    panel: true,
+  },
+  'quiz-rubric.criterion-up': {
+    label: 'Move criterion up on the Quiz rubric builder, by position',
+    perField: true,
+    panel: true,
+  },
+  'quiz-rubric.criterion-down': {
+    label: 'Move criterion down on the Quiz rubric builder, by position',
+    perField: true,
+    panel: true,
+  },
+  'quiz-rubric.criterion-remove': {
+    label: 'Remove criterion on the Quiz rubric builder, by position',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-rubric.level-label': {
+    label: 'Level label textarea on the Quiz rubric builder, by level',
+    perField: true,
+    panel: true,
+  },
+  'quiz-rubric.level-points': {
+    label: 'Level points input on the Quiz rubric builder, by level',
+    perField: true,
+    panel: true,
+  },
+  'quiz-rubric.level-description': {
+    label: 'Level description textarea on the Quiz rubric builder, by level',
+    perField: true,
+    panel: true,
+  },
+  'quiz-rubric.level-remove': {
+    label: 'Remove level on the Quiz rubric builder, by level',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-rubric.level-add': {
+    label: 'Add level on the Quiz rubric builder, by criterion',
+    perField: true,
+    panel: true,
+  },
+  'quiz-rubric.criterion-add': {
+    label: 'Add criterion on the Quiz rubric builder',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-rubric.csv-import': {
+    label: 'Import CSV on the Quiz rubric builder',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-rubric.csv-export': {
+    label: 'Export CSV on the Quiz rubric builder',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-rubric.share': {
+    label: 'Share rubric on the Quiz rubric builder',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-rubric.share-link': {
+    label: 'Rubric share link field on the Quiz rubric builder',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-rubric.share-copy': {
+    label: 'Copy rubric share link on the Quiz rubric builder',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-rubric.save-library': {
+    label: 'Save to library on the Quiz rubric builder',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-rubric.attach': {
+    label: 'Attach rubric to question on the Quiz rubric builder',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-rubric.detach': {
+    label: 'Detach rubric on the Quiz rubric builder',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-rubric.csv-help-close': {
+    label: 'Close button on the CSV import help in the Quiz rubric builder',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-rubric.csv-template': {
+    label: 'Download template CSV on the Quiz rubric builder',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-rubric.csv-drop': {
+    label: 'CSV drop zone on the Quiz rubric builder',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-monitor.back': {
+    label: 'Back button in the Quiz monitor',
+    perWidget: true,
+  },
+  'quiz-monitor.period-filter': {
+    label: 'Class filter chip in the Quiz monitor',
+    perField: true,
+  },
+  'quiz-monitor.menu-present': {
+    label: 'Present to class item in the Quiz monitor menu',
+    perWidget: true,
+    panel: true,
+  },
+  'quiz-monitor.menu-mute-sounds': {
+    label: 'Mute or unmute sounds item in the Quiz monitor menu',
+    perWidget: true,
+    panel: true,
+  },
+  'quiz-monitor.menu-show-join-code': {
+    label: 'Join code button in the Quiz monitor',
+    perWidget: true,
+  },
+  'quiz-monitor.menu-question-results': {
+    label: 'Question results button in the Quiz monitor',
+    perWidget: true,
+  },
+  'quiz-monitor.menu-settings': {
+    label: 'Quiz settings button in the Quiz monitor',
+    perWidget: true,
+  },
+  'quiz-monitor.roster-row-actions': {
+    label: 'Student actions button in the Quiz monitor roster',
+    perField: true,
+  },
+  'quiz-monitor.student-let-in': {
+    label: 'Let in now item in the Quiz monitor student menu',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-monitor.student-unlock-attempt': {
+    label: 'Unlock attempt item in the Quiz monitor student menu',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-monitor.student-unlock-results': {
+    label: 'Unlock results item in the Quiz monitor student menu',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-monitor.student-remove': {
+    label: 'Remove student item in the Quiz monitor student menu',
+    perWidgetType: true,
+    destructive: true,
+    panel: true,
+  },
+  'quiz-monitor.roster-sort': {
+    label: 'Sort students select in the Quiz monitor roster',
+    perWidgetType: true,
+  },
+  'quiz-monitor.roster-filter': {
+    label: 'Filter students select in the Quiz monitor roster',
+    perWidgetType: true,
+  },
+  'quiz-monitor.clear-hand': {
+    label: 'Clear raised hand button in the Quiz monitor roster',
+    perField: true,
+  },
+  'quiz-monitor.period-class-picker': {
+    label: 'Class picker select in the Quiz monitor',
+    perWidgetType: true,
+  },
+  'quiz-monitor.period-more-time': {
+    label: 'More time button in the Quiz monitor',
+    perWidgetType: true,
+  },
+  'quiz-monitor.period-chip': {
+    label: 'Class start or pause chip in the Quiz monitor',
+    perField: true,
+    persists: true,
+  },
+  'quiz-monitor.period-time-left': {
+    label: 'Class time-left button in the Quiz monitor',
+    perField: true,
+  },
+  'quiz-monitor.period-extend-option': {
+    label: 'Extend time option in the Quiz monitor class menu',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-monitor.settings-scoreboard-display': {
+    label: 'Scoreboard display select in the Quiz monitor settings',
+    perWidgetType: true,
+  },
+  'quiz-monitor.settings-scoreboard-scoring': {
+    label: 'Scoreboard scoring select in the Quiz monitor settings',
+    perWidgetType: true,
+  },
+  'quiz-monitor.status-bucket': {
+    label: 'Student status bucket button in the Quiz monitor',
+    perField: true,
+  },
+  'quiz-monitor.question-result': {
+    label: 'Question result row in the Quiz monitor',
+    perField: true,
+  },
+  'quiz-monitor.copy-join-link': {
+    label: 'Copy join link button in the Quiz monitor',
+    perWidgetType: true,
+  },
+  'quiz-monitor.open-join-link': {
+    label: 'Preview join link in the Quiz monitor',
+    perWidgetType: true,
+  },
+  'quiz-present.names': {
+    label: 'Names toggle in the Quiz presentation controls',
+    perWidgetType: true,
+  },
+  'quiz-present.play-media': {
+    label: 'Play media button in the Quiz presentation controls',
+    perWidgetType: true,
+  },
+  'quiz-present.pause-media': {
+    label: 'Pause media button in the Quiz presentation controls',
+    perWidgetType: true,
+  },
+  'quiz-present.close': {
+    label: 'Close presentation button in the Quiz presentation controls',
+    perWidgetType: true,
+  },
+  'quiz-present.pause-message': {
+    label: 'Pause message input in the Quiz presentation controls',
+    perWidgetType: true,
+  },
   'quiz-settings.widget-label': {
     label: 'Widget label input in Quiz settings',
     perWidget: true,
@@ -4061,6 +6067,504 @@ export const TOUR_ANCHORS = {
   'admin.beta.remove': {
     label: 'Remove beta user button',
     perField: true,
+    panel: true,
+  },
+
+  // Activity Wall, Projects and Review start.
+  'activity-wall.visibility': {
+    label: 'Visible/Hidden posts toggle in Activity Wall',
+    perWidget: true,
+    persists: true,
+  },
+  'activity-wall.more-actions': {
+    label: 'More wall actions button in Activity Wall',
+    perWidget: true,
+  },
+  'activity-wall.copy-link': {
+    label: 'Copy student link action in Activity Wall',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall.add-qr': {
+    label: 'Add join QR to board action in Activity Wall',
+    perWidget: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall.open-student-view': {
+    label: 'Open student view action in Activity Wall',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall.image-size': {
+    label: 'Image size action in Activity Wall',
+    perWidget: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall.connect-drive': {
+    label: 'Connect Google Drive button in Activity Wall',
+    perWidget: true,
+    persists: true,
+  },
+  'activity-wall.empty-open-library': {
+    label: 'Open library button in the empty Activity Wall',
+    perWidget: true,
+  },
+  'activity-wall.review-posts': {
+    label: 'Review posts button in the empty Activity Wall',
+    perWidget: true,
+  },
+  'activity-wall-moderation.edit-title': {
+    label: 'Post title box in Moderate posts',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-moderation.edit-text': {
+    label: 'Post text box in Moderate posts',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-moderation.edit-save': {
+    label: 'Save post edit button in Moderate posts',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall-moderation.edit-start': {
+    label: 'Edit post button in Moderate posts',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-moderation.approve': {
+    label: 'Approve post button in Moderate posts',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall-moderation.reject': {
+    label: 'Reject post button in Moderate posts',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall-moderation.pin': {
+    label: 'Pin or unpin post button in Moderate posts',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall-moderation.delete': {
+    label: 'Delete post button in Moderate posts',
+    perWidgetType: true,
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall-link.url': {
+    label: 'Link box in the Activity Wall share dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-link.copy': {
+    label: 'Copy link button in the Activity Wall share dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-link.add-qr': {
+    label: 'Add join QR to board button in the Activity Wall share dialog',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall-link.close': {
+    label: 'Close button in the Activity Wall share dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-link.expiration-toggle': {
+    label: 'Set link expiration checkbox in the Activity Wall share dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-link.expiration-date': {
+    label: 'Expiration date box in the Activity Wall share dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-link.create-gallery': {
+    label: 'Create gallery link button in the Activity Wall share dialog',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall-link.done': {
+    label: 'Done button in the Activity Wall share dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-link.tab': {
+    label:
+      'Student link or Public gallery tab in the Activity Wall share dialog',
+    perField: true,
+    panel: true,
+  },
+  'activity-wall-library.empty-new': {
+    label: 'New wall button in the empty wall library',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-editor.change-layout': {
+    label: 'Change layout button in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.prompt': {
+    label: 'Prompt box in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.submission-type': {
+    label: 'Submission type toggle in the Activity Wall editor',
+    perField: true,
+    panel: true,
+  },
+  'activity-wall-editor.max-posts-custom': {
+    label: 'Custom max posts button in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.max-posts-custom-input': {
+    label: 'Custom max posts box in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.target-classes': {
+    label: 'Target classes list in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.section-label': {
+    label: 'Column or row name box in the Activity Wall editor',
+    panel: true,
+  },
+  'activity-wall-editor.section-move': {
+    label: 'Move column or row button in the Activity Wall editor',
+    panel: true,
+  },
+  'activity-wall-editor.section-remove': {
+    label: 'Remove column or row button in the Activity Wall editor',
+    destructive: true,
+    panel: true,
+  },
+  'activity-wall-editor.section-add': {
+    label: 'Add column or row button in the Activity Wall editor',
+    panel: true,
+  },
+  'activity-wall-editor.map-start': {
+    label: 'Map start view picker in the Activity Wall editor',
+    panel: true,
+  },
+  'activity-wall-editor.map-zoom': {
+    label: 'Map zoom slider in the Activity Wall editor',
+    panel: true,
+  },
+  'projects.back-to-library': {
+    label: 'Library back button on the Projects board',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.manage-groups': {
+    label: 'Manage groups button on the Projects board',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.review-waiting': {
+    label: 'Waiting for review button on the Projects board',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.layout-bars': {
+    label: 'Bars layout button on the Projects board',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.layout-grid': {
+    label: 'Grid layout button on the Projects board',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.actions-menu': {
+    label: 'Project actions menu button on the Projects board',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.actions-menu-item': {
+    label: 'Item in the Project actions menu',
+    perField: true,
+    panel: true,
+  },
+  'projects.selection-mode': {
+    label: 'Select button in the Projects library',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.discard-import': {
+    label: 'Discard button on the Group Maker import banner',
+    perWidget: true,
+    requires: 'widget-restored',
+    destructive: true,
+    persists: true,
+  },
+  'projects.status-option': {
+    label: 'Step status choice in the Projects status menu',
+    perWidget: true,
+    panel: true,
+  },
+  'projects.group-student-view': {
+    label: 'Group student view button on the Projects board',
+    perWidgetType: true,
+    requires: 'widget-restored',
+  },
+  'projects.group-expand': {
+    label: 'Expand group button on the Projects board',
+    perWidgetType: true,
+    requires: 'widget-restored',
+  },
+  'projects.step-cell': {
+    label: 'Step status cell on the Projects board',
+    perWidgetType: true,
+    requires: 'widget-restored',
+  },
+  'projects-editor.description': {
+    label: 'Description box in the project editor',
+    panel: true,
+  },
+  'projects-editor.due': {
+    label: 'Due date box in the project editor',
+    panel: true,
+  },
+  'projects-editor.rubric': {
+    label: 'Rubric picker in the project editor',
+    panel: true,
+  },
+  'projects-editor.rubric-edit': {
+    label: 'New or Edit rubric button in the project editor',
+    panel: true,
+  },
+  'projects-editor.paste-steps': {
+    label: 'Paste steps button in the project editor',
+    panel: true,
+  },
+  'projects-editor.add-step': {
+    label: 'Add step button in the project editor',
+    panel: true,
+  },
+  'projects-editor.bulk-text': {
+    label: 'One step per line box in the project editor',
+    panel: true,
+  },
+  'projects-editor.bulk-apply': {
+    label: 'Use these steps button in the project editor',
+    panel: true,
+  },
+  'projects-editor.bulk-cancel': {
+    label: 'Cancel pasted steps button in the project editor',
+    panel: true,
+  },
+  'projects-editor.step-reorder': {
+    label: 'Step drag handle in the project editor',
+    panel: true,
+  },
+  'projects-editor.step-select': {
+    label: 'Step row in the project editor',
+    panel: true,
+  },
+  'projects-editor.step-delete': {
+    label: 'Delete step button in the project editor',
+    destructive: true,
+    panel: true,
+  },
+  'projects-editor.step-title': {
+    label: 'Step title box in the project editor',
+    panel: true,
+  },
+  'projects-editor.step-description': {
+    label: 'Step description box in the project editor',
+    panel: true,
+  },
+  'projects-editor.step-due': {
+    label: 'Step due date box in the project editor',
+    panel: true,
+  },
+  'projects-editor.step-approval': {
+    label: 'Needs your approval toggle in the project editor',
+    panel: true,
+  },
+  'projects.groups-class': {
+    label: 'Class picker in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.group-color': {
+    label: 'Group color button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.member-select': {
+    label: 'Student chip in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.member-remove': {
+    label: 'Take student out of group button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.add-group': {
+    label: 'Add group button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.spread-students': {
+    label: 'Spread ungrouped students button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.group-name': {
+    label: 'Group name box in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.group-delete': {
+    label: 'Delete group button in the Manage groups dialog',
+    destructive: true,
+    panel: true,
+  },
+  'projects.group-keep': {
+    label: 'Keep group button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.group-delete-confirm': {
+    label: 'Confirm delete group button in the Manage groups dialog',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'projects.group-move-here': {
+    label: 'Move here button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.take-out': {
+    label:
+      'Take selected student out of group button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.groups-undo': {
+    label: 'Undo changes button in the Manage groups dialog',
+    destructive: true,
+    panel: true,
+  },
+  'projects.groups-close': {
+    label: 'Cancel or Close button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.groups-save': {
+    label: 'Save changes button in the Manage groups dialog',
+    persists: true,
+    panel: true,
+  },
+  'projects.setup-cancel': {
+    label: 'Cancel button in the Set up groups dialog',
+    panel: true,
+  },
+  'projects.setup-commit': {
+    label: 'Add groups button in the Set up groups dialog',
+    persists: true,
+    panel: true,
+  },
+  'projects.setup-class': {
+    label: 'Class picker in the Set up groups dialog',
+    panel: true,
+  },
+  'projects.setup-carry-names': {
+    label: 'Use Group Maker names checkbox in the Set up groups dialog',
+    panel: true,
+  },
+  'projects.setup-count': {
+    label: 'How many groups box in the Set up groups dialog',
+    panel: true,
+  },
+  'projects.grade-prev': {
+    label: 'Previous group button in the project grader',
+    panel: true,
+  },
+  'projects.grade-skip': {
+    label: 'Skip button in the project grader',
+    panel: true,
+  },
+  'projects.grade-save': {
+    label: 'Save grade button in the project grader',
+    persists: true,
+    panel: true,
+  },
+  'projects.grade-save-next': {
+    label: 'Save and next button in the project grader',
+    persists: true,
+    panel: true,
+  },
+  'projects.grade-queue-item': {
+    label: 'Group in the project grader queue',
+    panel: true,
+  },
+  'projects.grade-feedback': {
+    label: 'Comment to the group box in the project grader',
+    panel: true,
+  },
+  'projects.grade-override': {
+    label: 'Individual points box in the project grader',
+    panel: true,
+  },
+  'projects.grade-override-note': {
+    label: 'Individual score note box in the project grader',
+    panel: true,
+  },
+  'projects.grade-visible': {
+    label: 'Let this group see their score toggle in the project grader',
+    persists: true,
+    panel: true,
+  },
+  'projects.view-rubric': {
+    label: 'How this is scored button in the group view',
+    panel: true,
+  },
+  'projects.view-close': {
+    label: 'Close button in the group view',
+    panel: true,
+  },
+  'review-start.class-picker': {
+    label: 'Class picker in the Start review dialog',
+    panel: true,
+  },
+  'review-start.hand-raise': {
+    label: 'Raise a hand toggle in the Start review dialog',
+    panel: true,
+  },
+  'review-start.read-aloud': {
+    label: 'Read aloud toggle in the Start review dialog',
+    panel: true,
+  },
+  'review-start.speed-bonus': {
+    label: 'Speed Bonus Points toggle in the Start review dialog',
+    panel: true,
+  },
+  'review-start.streak-bonus': {
+    label: 'Streak Bonuses toggle in the Start review dialog',
+    panel: true,
+  },
+  'review-start.podium': {
+    label: 'Podium Between Questions toggle in the Start review dialog',
+    panel: true,
+  },
+  'review-start.sound-effects': {
+    label: 'Sound Effects toggle in the Start review dialog',
+    panel: true,
+  },
+  'review-start.tab-warning': {
+    label: 'Tab warning threshold row in the Start review dialog',
     panel: true,
   },
 

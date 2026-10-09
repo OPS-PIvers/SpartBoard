@@ -14,6 +14,7 @@ import {
 } from '@/utils/quizStudentDrilldown';
 import { MARK_LABEL } from '@/utils/quizStudentReportPrint';
 import { formatExportPoints } from '@/utils/assignmentExportShared';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 const SMALL_TEXT = { fontSize: 'min(11px, 3.8cqmin)' } as const;
 const BODY_TEXT = { fontSize: 'min(12px, 4cqmin)' } as const;
@@ -116,6 +117,11 @@ export const StudentAnswerLine: React.FC<{
             type="button"
             onClick={onOpenGrader}
             aria-label={`Grade Q${line.number}: ${line.text}`}
+            {...tourFieldAttr(
+              'quiz-grading.answer-grade',
+              'quiz',
+              String(line.number)
+            )}
             className="inline-flex items-center shrink-0 rounded font-sans font-semibold text-brand-blue-primary hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary"
             style={{ ...SMALL_TEXT, gap: 'min(3px, 0.8cqmin)' }}
           >
