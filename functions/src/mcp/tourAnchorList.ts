@@ -3763,6 +3763,12 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     panel: true,
   },
   {
+    id: 'admin.analytics.user-building-filter',
+    label: 'Building filter dropdown in the Analytics user list',
+    scope: 'board',
+    panel: true,
+  },
+  {
     id: 'admin.analytics.domain-filter',
     label: 'Domain filter dropdown in Analytics',
     scope: 'board',

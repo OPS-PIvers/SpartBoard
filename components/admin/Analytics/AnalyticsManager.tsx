@@ -1282,7 +1282,7 @@ const KpiUserModal: React.FC<{
             />
           </div>
           <select
-            {...tourAttr('admin.analytics.building-filter')}
+            {...tourAttr('admin.analytics.user-building-filter')}
             value={buildingFilter}
             onChange={(e) => setBuildingFilter(e.target.value)}
             className="px-3 py-2 text-sm border border-slate-200 rounded-lg bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"

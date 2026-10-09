@@ -2864,6 +2864,10 @@ export const TOUR_ANCHORS = {
     label: 'Building filter dropdown in Analytics',
     panel: true,
   },
+  'admin.analytics.user-building-filter': {
+    label: 'Building filter dropdown in the Analytics user list',
+    panel: true,
+  },
   'admin.analytics.domain-filter': {
     label: 'Domain filter dropdown in Analytics',
     panel: true,
