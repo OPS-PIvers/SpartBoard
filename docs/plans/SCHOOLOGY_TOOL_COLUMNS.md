@@ -1,6 +1,6 @@
 # Schoology tool-created columns: push scores for assignments made only in SpartBoard
 
-Drafted 2026-10-09, revised the same day after a code review, prod data checks and live AGS tests with Paul. Not yet built.
+Drafted 2026-10-09, revised the same day after a code review, prod data checks and live AGS tests with Paul. Phases 1–4 built the same day behind `schoology-tool-columns`; the prod pilot (phase 5) is next.
 
 ## Goal
 
@@ -87,6 +87,19 @@ All of this ran against the live Schoology LTI service with the prod tool key, f
 4. **Client** (D9–D10): `readLmsLink` modes, all four surfaces, toast and skip reasons, first-push confirmation with category menus, delete-column prompt, assign tile hidden. Tests for `readLmsLink`, bucketing and toast copy.
 5. **Pilot (prod only).** LTI only runs on `spartboard.web.app` and ClassLink is a placeholder on dev, so dev can verify only unit tests and UI. Paul links one real section by URL, pushes once, checks the gradebook, re-pushes after a total change, then widens.
 6. **Later, separate:** for Schoology-attached sessions, score never-launched students through the same NRPS matching, posting to the column Schoology made (`GET lineitems?resource_link_id=`).
+
+## Build notes (2026-10-09)
+
+Where the build differs from the decisions above:
+
+- **Missing is sent only by an explicit push** (Results, VA Results, Gradebook). Publish = Push sends scores to an existing column and never marks Missing or recreates a deleted column.
+- **Results find no-submission students** from the targeted class rosters, minus completed responses, Gradebook-excused students, and, for a per-student assignment, anyone not in `targetStudents`. Any lookup failure sends scores only.
+- **A hand-entered Schoology grade is never replaced by Missing** (`reason: 'graded in Schoology'`), alongside the teacher-flag rule. A score SpartBoard wrote can be.
+- **Categories are created by their own callable**, `ltiCreateToolColumnCategoriesV1`, from the push dialog, and refused if the course gained categories meanwhile.
+- **Link by URL takes ClassLink rosters only**; admin test classes can't overlap-match.
+- **`ltiDeleteToolColumnsV1` is not flag-gated**; it checks the column record's `teacherUid`, so it works after the session is gone.
+- **No class-picker hint** (D10): the copy rules rule out a permanent helper line.
+- **Before this reaches `dev-paul`**, `SCHOOLOGY_API_CONSUMER_KEY` and `SCHOOLOGY_API_CONSUMER_SECRET` must exist in Secret Manager in both projects (dev: placeholder values, which switch REST off and fall back to the Missing comment). Grant the functions service account access by hand.
 
 ## Open questions
 
