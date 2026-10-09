@@ -8,6 +8,7 @@ import type { Plc } from '@/types';
 import { logError } from '@/utils/logError';
 import { isPlcLeadOrCoLead } from '@/utils/plc';
 import { normalizeCalendarEmbedInput } from '@/utils/teamUpdates';
+import { tourAttr } from '@/config/tourAnchors';
 
 const inputClass =
   'mt-1 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-800 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30';
@@ -49,6 +50,7 @@ const CalendarForm: React.FC<{ plc: Plc }> = ({ plc }) => {
           onChange={(e) => setValue(e.target.value)}
           placeholder="https://calendar.google.com/calendar/embed?src=…"
           aria-invalid={invalid}
+          {...tourAttr('teams.calendar-settings.url')}
           title="Google Calendar > Settings > Integrate calendar > Embed code"
         />
       </label>
@@ -60,6 +62,7 @@ const CalendarForm: React.FC<{ plc: Plc }> = ({ plc }) => {
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="submit"
+          {...tourAttr('teams.calendar-settings.save')}
           disabled={busy || !normalized || normalized === plc.calendarEmbedUrl}
           className="rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-blue-dark disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50 focus-visible:ring-offset-2"
         >
@@ -69,6 +72,7 @@ const CalendarForm: React.FC<{ plc: Plc }> = ({ plc }) => {
           <button
             type="button"
             disabled={busy}
+            {...tourAttr('teams.calendar-settings.remove')}
             onClick={() => void save(null)}
             className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50 focus-visible:ring-offset-2"
           >
