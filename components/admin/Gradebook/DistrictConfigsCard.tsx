@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import { Copy, Pencil, Trash2 } from 'lucide-react';
 import { Btn } from '@/components/admin/Organization/components/primitives';
 import { Toggle } from '@/components/common/Toggle';
@@ -102,6 +103,7 @@ export const DistrictConfigsCard: React.FC<DistrictConfigsCardProps> = ({
 
   const newButton = (
     <Btn
+      {...tourAttr('admin.gradebook-settings.new-configuration')}
       size="sm"
       onClick={() =>
         create(
@@ -149,6 +151,7 @@ export const DistrictConfigsCard: React.FC<DistrictConfigsCardProps> = ({
           </label>
           {renaming ? (
             <input
+              {...tourAttr('admin.gradebook-settings.configuration-name')}
               id="gb-admin-cfg"
               autoFocus
               defaultValue={shown.body.name}
@@ -176,6 +179,7 @@ export const DistrictConfigsCard: React.FC<DistrictConfigsCardProps> = ({
             />
           ) : (
             <select
+              {...tourAttr('admin.gradebook-settings.configuration-select')}
               id="gb-admin-cfg"
               value={shown.id}
               className={`${FIELD} flex-1 min-w-0 max-w-[320px]`}
@@ -193,6 +197,7 @@ export const DistrictConfigsCard: React.FC<DistrictConfigsCardProps> = ({
           )}
           <span className="flex gap-0.5">
             <button
+              {...tourAttr('admin.gradebook-settings.rename-configuration')}
               type="button"
               className={ICON_BTN}
               title="Rename"
@@ -202,6 +207,7 @@ export const DistrictConfigsCard: React.FC<DistrictConfigsCardProps> = ({
               <Pencil size={15} aria-hidden />
             </button>
             <button
+              {...tourAttr('admin.gradebook-settings.duplicate-configuration')}
               type="button"
               className={ICON_BTN}
               title="Duplicate"
@@ -219,6 +225,7 @@ export const DistrictConfigsCard: React.FC<DistrictConfigsCardProps> = ({
               <Copy size={15} aria-hidden />
             </button>
             <button
+              {...tourAttr('admin.gradebook-settings.delete-configuration')}
               type="button"
               className={`${ICON_BTN} hover:text-brand-red-primary`}
               title="Delete"
@@ -237,10 +244,23 @@ export const DistrictConfigsCard: React.FC<DistrictConfigsCardProps> = ({
               Delete <b>{shown.body.name}</b>? Classes on it go back to the
               default settings.
             </span>
-            <Btn variant="danger" size="sm" onClick={() => remove(shown)}>
+            <Btn
+              {...tourAttr(
+                'admin.gradebook-settings.confirm-delete-configuration'
+              )}
+              variant="danger"
+              size="sm"
+              onClick={() => remove(shown)}
+            >
               Delete
             </Btn>
-            <Btn size="sm" onClick={() => setConfirmDelete(false)}>
+            <Btn
+              {...tourAttr(
+                'admin.gradebook-settings.cancel-remove-configuration'
+              )}
+              size="sm"
+              onClick={() => setConfirmDelete(false)}
+            >
               Cancel
             </Btn>
           </div>
@@ -277,6 +297,7 @@ export const DistrictConfigsCard: React.FC<DistrictConfigsCardProps> = ({
             Default for new classes
           </span>
           <Toggle
+            anchor={tourAttr('admin.gradebook-settings.default-configuration')}
             checked={shown.isDefault}
             onChange={(isDefault) =>
               saveWithDefault(

@@ -195,6 +195,7 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
                 type="button"
                 onClick={action.onClick}
                 disabled={action.disabled}
+                {...action.anchor}
                 title={action.disabled ? action.disabledReason : action.label}
                 className="inline-flex items-center bg-white border border-slate-200 hover:border-brand-blue-primary text-slate-700 hover:text-brand-blue-primary font-bold uppercase tracking-wider rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 style={{
@@ -222,6 +223,7 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
               type="button"
               onClick={primaryAction.onClick}
               disabled={primaryAction.disabled}
+              {...primaryAction.anchor}
               title={
                 primaryAction.disabled
                   ? primaryAction.disabledReason

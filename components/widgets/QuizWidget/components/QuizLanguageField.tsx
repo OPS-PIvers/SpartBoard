@@ -77,7 +77,10 @@ export const QuizLanguageField: React.FC<{
         </label>
       )}
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <ReadAloudPreviewButton language={value || DEFAULT_QUIZ_LANGUAGE} />
+        <ReadAloudPreviewButton
+          language={value || DEFAULT_QUIZ_LANGUAGE}
+          anchor={tourTypeAttr('quiz-library.language-preview-voice', 'quiz')}
+        />
       </div>
     </div>
   );

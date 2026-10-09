@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import { School, Plus } from 'lucide-react';
 import type {
   BuildingRecord,
@@ -81,6 +82,7 @@ export const BuildingsView: React.FC<Props> = ({
             />
             {canCreate && (
               <Btn
+                {...tourAttr('admin.org.add-building')}
                 variant="primary"
                 icon={<Plus size={14} />}
                 onClick={() => setShowAdd(true)}
@@ -100,6 +102,7 @@ export const BuildingsView: React.FC<Props> = ({
           cta={
             canCreate && (
               <Btn
+                {...tourAttr('admin.org.add-building')}
                 variant="primary"
                 icon={<Plus size={14} />}
                 onClick={() => setShowAdd(true)}
@@ -291,10 +294,15 @@ const BuildingModalInner: React.FC<BuildingModalProps> = ({
       icon={<School size={18} />}
       footer={
         <>
-          <Btn variant="ghost" onClick={onClose}>
+          <Btn
+            {...tourAttr('admin.org.building-cancel')}
+            variant="ghost"
+            onClick={onClose}
+          >
             Cancel
           </Btn>
           <Btn
+            {...tourAttr('admin.org.building-save')}
             variant="primary"
             disabled={!name}
             onClick={() =>
@@ -314,6 +322,7 @@ const BuildingModalInner: React.FC<BuildingModalProps> = ({
       <div className="space-y-4">
         <Field label="Building name" required>
           <Input
+            {...tourAttr('admin.org.building-name')}
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Orono Middle School"
@@ -323,6 +332,7 @@ const BuildingModalInner: React.FC<BuildingModalProps> = ({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Type">
             <Select
+              {...tourAttr('admin.org.building-type')}
               value={type}
               onChange={(e) => setType(e.target.value as BuildingType)}
             >
@@ -337,6 +347,7 @@ const BuildingModalInner: React.FC<BuildingModalProps> = ({
             hint="Drives grade-level widget filtering"
           >
             <Input
+              {...tourAttr('admin.org.building-grades')}
               value={grades}
               onChange={(e) => setGrades(e.target.value)}
               placeholder={gradeLabelFromType(type)}
@@ -345,6 +356,7 @@ const BuildingModalInner: React.FC<BuildingModalProps> = ({
         </div>
         <Field label="Address">
           <Input
+            {...tourAttr('admin.org.building-address')}
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             placeholder="685 Old Crystal Bay Rd N"

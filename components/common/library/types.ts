@@ -18,6 +18,7 @@
  */
 
 import type React from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import type { LucideIcon } from 'lucide-react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import type { ClassRoster, WidgetType } from '@/types';
@@ -99,6 +100,7 @@ export interface LibraryPrimaryAction {
   onClick: () => void;
   disabled?: boolean;
   disabledReason?: string;
+  anchor?: TourAnchorAttrs;
   /**
    * Optional count rendered as a small rose-coloured badge over the top-right
    * corner of the button. Hidden when undefined or `<= 0`. Used to surface
