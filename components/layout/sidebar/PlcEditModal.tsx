@@ -16,6 +16,7 @@ import {
 import { groupTypeLabel } from '@/components/plc/groupTypes';
 import { getPlcMembers, getPlcRole } from '@/utils/plc';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { StaffEmailInput } from '@/components/common/StaffEmailInput';
 
 interface PlcEditModalProps {
   isOpen: boolean;
@@ -41,7 +42,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
   onCreate,
 }) => {
   const { t } = useTranslation();
-  const { user, canAccessFeature } = useAuth();
+  const { user, canAccessFeature, orgId } = useAuth();
   const groups = canAccessFeature('my-groups');
   const { showConfirm, showAlert } = useDialog();
   const { renamePlc, removeMember } = usePlcs();
@@ -69,6 +70,13 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
         (inv) => inv.plcId === plc.id && inv.status === 'pending'
       )
     : [];
+
+  const suggestOrgId =
+    plc && canAccessFeature('team-email-suggest') ? (plc.orgId ?? orgId) : null;
+  const suggestExclude = new Set([
+    ...memberList.map((m) => m.email).filter(Boolean),
+    ...outstanding.map((inv) => inv.inviteeEmailLower),
+  ]);
 
   const handleSave = async () => {
     const trimmed = name.trim();
@@ -336,14 +344,16 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
               })}
             </label>
             <form onSubmit={handleSendInvite} className="flex gap-2">
-              <input
-                type="email"
-                className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary"
+              <StaffEmailInput
+                wrapperClassName="flex-1 relative"
+                orgId={suggestOrgId}
+                exclude={suggestExclude}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary"
                 placeholder={t('sidebar.plcs.invitePlaceholder', {
                   defaultValue: 'colleague@school.edu',
                 })}
                 value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
+                onValueChange={setInviteEmail}
                 disabled={busy}
                 {...tourAttr('plc-edit.invite-email')}
               />

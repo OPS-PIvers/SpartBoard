@@ -69,6 +69,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'embed-slide-link',
   'library-folder-view',
   'assign-stepper',
+  'team-email-suggest',
 ];
 
 /** Plan D7: admins pass a default-off flag (preview, or admin-default like `guided-learning-ai`) that has no saved doc yet. */
