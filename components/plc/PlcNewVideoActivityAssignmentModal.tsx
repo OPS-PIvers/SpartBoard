@@ -31,7 +31,6 @@
  * by this flow.
  */
 
-import { tourAttr } from '@/config/tourAnchors';
 import React, { useCallback, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { doc, writeBatch } from 'firebase/firestore';

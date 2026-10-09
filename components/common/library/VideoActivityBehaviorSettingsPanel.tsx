@@ -14,7 +14,6 @@
  * this UI). Mirrors `QuizBehaviorSettingsPanel` in structure.
  */
 
-import { tourFieldAttr } from '@/config/tourAnchors';
 import React, { useContext } from 'react';
 import type {
   VideoActivityBehaviorSettings,
