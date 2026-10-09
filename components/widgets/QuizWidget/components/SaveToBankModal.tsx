@@ -7,6 +7,7 @@ import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { inputClass, labelClass } from './quizEditorFieldStyles';
 import { referencedStimuli } from './bankSlotHelpers';
 import type { QuizEditorBankApi } from './QuizEditorModal';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 export interface SaveToBankModalProps {
   bankApi: QuizEditorBankApi;
@@ -86,6 +87,7 @@ export const SaveToBankModal: React.FC<SaveToBankModalProps> = ({
           </h4>
           <button
             type="button"
+            {...tourTypeAttr('quiz-banks.save-close', 'quiz')}
             onClick={onClose}
             aria-label="Close"
             className="p-1 rounded text-slate-500 hover:bg-slate-100"
@@ -105,6 +107,7 @@ export const SaveToBankModal: React.FC<SaveToBankModalProps> = ({
               </label>
               <select
                 id="save-to-bank-target"
+                {...tourTypeAttr('quiz-banks.save-target', 'quiz')}
                 value={choice}
                 onChange={(e) => setChoice(e.target.value)}
                 className={`${inputClass} appearance-none`}
@@ -125,6 +128,7 @@ export const SaveToBankModal: React.FC<SaveToBankModalProps> = ({
               </label>
               <input
                 id="save-to-bank-title"
+                {...tourTypeAttr('quiz-banks.save-title', 'quiz')}
                 autoFocus
                 type="text"
                 value={newTitle}
@@ -144,6 +148,7 @@ export const SaveToBankModal: React.FC<SaveToBankModalProps> = ({
         <div className="flex items-center justify-end gap-2 px-4 py-3 border-t border-slate-200">
           <button
             type="button"
+            {...tourTypeAttr('quiz-banks.save-cancel', 'quiz')}
             onClick={onClose}
             className="px-3 py-1.5 text-sm font-semibold rounded-lg text-slate-700 hover:bg-slate-100"
           >
@@ -151,6 +156,7 @@ export const SaveToBankModal: React.FC<SaveToBankModalProps> = ({
           </button>
           <button
             type="button"
+            {...tourTypeAttr('quiz-banks.save-submit', 'quiz')}
             onClick={() => void submit()}
             disabled={!canSave}
             className="px-3 py-1.5 text-sm font-semibold rounded-lg bg-brand-blue-primary text-white hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed"

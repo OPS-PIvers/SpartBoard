@@ -54,6 +54,7 @@ import {
   teacherPoolSize,
 } from './assessmentListSelectors';
 import { AssessmentStatusBadge } from './PlcAssessmentList';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcAssessmentDetailProps {
   plc: Plc;
@@ -91,6 +92,7 @@ const QuestionRow: React.FC<{ question: PerQuestion; index: number }> = ({
       className="bg-white border border-slate-200 rounded-xl"
     >
       <button
+        {...tourFieldAttr('plc-assessments.detail-expand', 'plc', 'summary')}
         type="button"
         onClick={canExpand ? () => setOpen((v) => !v) : undefined}
         aria-expanded={canExpand ? open : undefined}
@@ -207,6 +209,7 @@ const TargetAggregateRow: React.FC<{
   return (
     <li className="overflow-hidden rounded-xl border border-slate-200 bg-white">
       <button
+        {...tourFieldAttr('plc-assessments.detail-expand', 'plc', 'section')}
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
@@ -379,6 +382,7 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
   const goBack = () => spaNavigate(buildPlcPath(plc.id, 'assessments'));
   const backButton = (
     <button
+      {...tourAttr('plc-assessments.detail-back')}
       type="button"
       onClick={goBack}
       className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-brand-blue-primary hover:text-brand-blue-dark transition-colors"
@@ -671,6 +675,11 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
                 const on = questionSort === value;
                 return (
                   <button
+                    {...tourFieldAttr(
+                      'plc-assessments.detail-sort',
+                      'plc',
+                      value
+                    )}
                     key={value}
                     type="button"
                     onClick={() => setQuestionSort(value)}

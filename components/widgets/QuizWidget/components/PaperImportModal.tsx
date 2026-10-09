@@ -22,6 +22,7 @@ import {
   X,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
 import type {
@@ -843,6 +844,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       </div>
       <button
         type="button"
+        {...tourTypeAttr('quiz-import.paper-close', 'quiz')}
         onClick={onClose}
         aria-label="Close"
         className="shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
@@ -868,6 +870,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
           <label className="block">
             <span className={labelClass}>Printed batch</span>
             <select
+              {...tourTypeAttr('quiz-import.paper-batch', 'quiz')}
               value={batchId}
               onChange={(e) => setBatchId(e.target.value)}
               className={fieldClass}
@@ -890,6 +893,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
           <label className="block">
             <span className={labelClass}>Administration</span>
             <select
+              {...tourTypeAttr('quiz-import.paper-assignment', 'quiz')}
               value={assignmentId}
               onChange={(e) => setAssignmentId(e.target.value)}
               className={fieldClass}
@@ -922,6 +926,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
               <div className="mt-2 flex gap-2">
                 <button
                   type="button"
+                  {...tourTypeAttr('quiz-import.paper-resume', 'quiz')}
                   onClick={() => void handleResume()}
                   className="rounded-lg bg-brand-blue-primary px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-blue-dark"
                 >
@@ -929,6 +934,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
                 </button>
                 <button
                   type="button"
+                  {...tourTypeAttr('quiz-import.paper-discard', 'quiz')}
                   onClick={() => void discardPending()}
                   className="rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-100"
                 >
@@ -951,6 +957,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
           />
           <button
             type="button"
+            {...tourTypeAttr('quiz-import.paper-upload', 'quiz')}
             onClick={() => fileRef.current?.click()}
             disabled={!batch}
             className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 px-4 py-6 text-sm font-semibold text-slate-600 transition-colors hover:border-brand-blue-primary hover:text-brand-blue-primary disabled:opacity-50"
@@ -961,6 +968,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
           {onPickFromDrive && (
             <button
               type="button"
+              {...tourTypeAttr('quiz-import.paper-drive', 'quiz')}
               onClick={() => void pickFromDrive()}
               disabled={!batch || picking}
               className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:border-brand-blue-primary hover:text-brand-blue-primary disabled:opacity-50"
@@ -1004,6 +1012,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
             <li key={id} className="flex items-center gap-2 text-sm">
               <span className="w-6 text-right text-slate-500">{i + 1}.</span>
               <select
+                {...tourFieldAttr('quiz-import.paper-key-select', 'quiz', id)}
                 aria-label={`Key for question ${i + 1}`}
                 value={key[id] ?? ''}
                 onChange={(e) => {
@@ -1026,6 +1035,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         <label className="mt-3 flex items-center gap-2 text-sm font-semibold text-slate-800">
           <input
             type="checkbox"
+            {...tourTypeAttr('quiz-import.paper-key-confirm', 'quiz')}
             checked={keyConfirmed}
             disabled={keyIncomplete}
             onChange={(e) => setKeyConfirmed(e.target.checked)}
@@ -1045,6 +1055,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         <p className="text-sm font-bold text-slate-900">Learning targets</p>
         <button
           type="button"
+          {...tourTypeAttr('quiz-import.paper-tag-all', 'quiz')}
           onClick={() => setPicker({ all: true })}
           className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50"
         >
@@ -1071,6 +1082,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
             </span>
             <button
               type="button"
+              {...tourFieldAttr('quiz-import.paper-tag-question', 'quiz', id)}
               aria-label={`Tag question ${i + 1}`}
               onClick={() => setPicker({ questionId: id })}
               className="shrink-0 rounded px-2 py-0.5 text-xs font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter/40"
@@ -1114,6 +1126,11 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
           <label className="mt-2 block">
             <span className={labelClass}>Whose sheet is this?</span>
             <select
+              {...tourFieldAttr(
+                'quiz-import.paper-seat-student',
+                'quiz',
+                String(sheet.seat)
+              )}
               aria-label={`Student for seat ${sheet.seat}`}
               value={
                 spareAssignments[sheet.seat]
@@ -1190,6 +1207,11 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
                         <button
                           key={letter}
                           type="button"
+                          {...tourFieldAttr(
+                            'quiz-import.paper-answer-letter',
+                            'quiz',
+                            `${sheet.seat}-${a.question}-${letter}`
+                          )}
                           aria-label={`Question ${a.question + 1}: ${letter}`}
                           onClick={() => setAnswer(sheet.seat, a.question, c)}
                           className="h-7 w-7 rounded-full border border-slate-300 text-xs font-bold text-slate-700 hover:bg-brand-blue-lighter/40"
@@ -1200,6 +1222,11 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
                     )}
                     <button
                       type="button"
+                      {...tourFieldAttr(
+                        'quiz-import.paper-answer-blank',
+                        'quiz',
+                        `${sheet.seat}-${a.question}`
+                      )}
                       aria-label={`Question ${a.question + 1}: blank`}
                       onClick={() => setAnswer(sheet.seat, a.question, null)}
                       className="h-7 rounded-full border border-slate-300 px-2 text-xs font-semibold text-slate-600 hover:bg-slate-100"
@@ -1268,6 +1295,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
             {plural(failed, 'crop')} failed to upload.
             <button
               type="button"
+              {...tourTypeAttr('quiz-import.paper-retry-upload', 'quiz')}
               onClick={() => uploaderRef.current?.retryFailed()}
               className="rounded px-2 py-0.5 font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter/40"
             >
@@ -1463,6 +1491,11 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
                   <li key={c.seat} className="flex items-center gap-2 text-sm">
                     <input
                       type="checkbox"
+                      {...tourFieldAttr(
+                        'quiz-import.paper-replace-seat',
+                        'quiz',
+                        String(c.seat)
+                      )}
                       aria-label={`Replace seat ${c.seat}`}
                       checked={replaceSeats.has(c.seat)}
                       onChange={(e) =>
@@ -1492,6 +1525,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
             </ul>
             <button
               type="button"
+              {...tourTypeAttr('quiz-import.paper-replace-submit', 'quiz')}
               onClick={() => void handleReplace()}
               disabled={replaceSeats.size === 0}
               className="mt-3 rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
@@ -1517,6 +1551,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       <div className="flex justify-end gap-2">
         <button
           type="button"
+          {...tourTypeAttr('quiz-import.paper-back', 'quiz')}
           onClick={() => setStep('setup')}
           className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
         >
@@ -1524,6 +1559,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
         </button>
         <button
           type="button"
+          {...tourTypeAttr('quiz-import.paper-import', 'quiz')}
           onClick={() => void handleImport()}
           disabled={!canImport || summary?.ready === 0 || uploadBlocked}
           className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
@@ -1535,6 +1571,7 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
       <div className="flex justify-end">
         <button
           type="button"
+          {...tourTypeAttr('quiz-import.paper-done', 'quiz')}
           onClick={onClose}
           className="rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white hover:bg-brand-blue-dark"
         >

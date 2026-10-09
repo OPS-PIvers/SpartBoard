@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Check, ChevronDown, Mic, Pause, Square } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { formatRecordingClock, recordingTimeLeftMs } from './recordingTime';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export interface RecordControlLive {
   paused: boolean;
@@ -120,6 +121,7 @@ export const RecordControl: React.FC<RecordControlProps> = ({
         <LiveBadge live={self} />
         {self.paused ? (
           <button
+            {...tourAttr('plc-recording.resume')}
             type="button"
             className={BUTTON}
             disabled={busy}
@@ -132,6 +134,7 @@ export const RecordControl: React.FC<RecordControlProps> = ({
           </button>
         ) : (
           <button
+            {...tourAttr('plc-recording.pause')}
             type="button"
             className={BUTTON}
             disabled={busy}
@@ -144,6 +147,7 @@ export const RecordControl: React.FC<RecordControlProps> = ({
           </button>
         )}
         <button
+          {...tourAttr('plc-recording.stop')}
           type="button"
           className={BUTTON}
           disabled={busy}
@@ -176,6 +180,7 @@ export const RecordControl: React.FC<RecordControlProps> = ({
           {other && <span aria-hidden className="w-px h-4 bg-slate-200 mx-1" />}
           <div ref={menuRef} className="relative flex items-center">
             <button
+              {...tourAttr('plc-recording.start')}
               type="button"
               className={`${BUTTON} pl-2`}
               disabled={!supported || !!other || busy}
@@ -190,6 +195,7 @@ export const RecordControl: React.FC<RecordControlProps> = ({
             </button>
             {supported && !other && devices.length > 1 && (
               <button
+                {...tourAttr('plc-recording.mic-menu')}
                 type="button"
                 className="p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                 aria-label={t('plcDashboard.notes.recording.microphone', {
@@ -216,6 +222,11 @@ export const RecordControl: React.FC<RecordControlProps> = ({
                   const selected = device.deviceId === deviceId;
                   return (
                     <button
+                      {...tourFieldAttr(
+                        'plc-recording.mic-device',
+                        'plc',
+                        device.deviceId
+                      )}
                       key={device.deviceId}
                       type="button"
                       role="menuitemradio"

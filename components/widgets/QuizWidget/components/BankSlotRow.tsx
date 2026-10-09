@@ -10,6 +10,7 @@ import { findSlotSource, slotEligibleFromSource } from './bankSlotHelpers';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
 import { BankTargetFilter } from './BankTargetFilter';
 import type { QuizEditorBankApi } from './QuizEditorModal';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 interface BankSlotRowProps {
   slot: QuizBankSlot;
@@ -42,6 +43,7 @@ export const BankSlotRow = React.memo(function BankSlotRow({
 }: BankSlotRowProps) {
   return (
     <div
+      {...tourFieldAttr('quiz-banks.slot-select', 'quiz', slot.id)}
       onClick={() => onSelect(slot.id)}
       className={`group flex items-center gap-2 px-2.5 py-2 rounded-lg border bg-white cursor-pointer transition-all ${
         isSelected
@@ -51,6 +53,7 @@ export const BankSlotRow = React.memo(function BankSlotRow({
     >
       <button
         type="button"
+        {...tourFieldAttr('quiz-banks.slot-drag', 'quiz', slot.id)}
         {...dragHandleAttributes}
         onPointerDown={
           dragHandleListeners?.onPointerDown as
@@ -81,6 +84,7 @@ export const BankSlotRow = React.memo(function BankSlotRow({
       </span>
       <button
         type="button"
+        {...tourFieldAttr('quiz-banks.slot-remove-icon', 'quiz', slot.id)}
         onClick={(e) => {
           e.stopPropagation();
           onRemove(slot.id);
@@ -199,6 +203,7 @@ export const BankSlotDetail: React.FC<BankSlotDetailProps> = ({
             </label>
             <input
               id="bank-slot-count"
+              {...tourTypeAttr('quiz-banks.slot-count', 'quiz')}
               type="number"
               min={1}
               max={eligible ?? undefined}
@@ -226,6 +231,7 @@ export const BankSlotDetail: React.FC<BankSlotDetailProps> = ({
             </label>
             <input
               id="bank-slot-points"
+              {...tourTypeAttr('quiz-banks.slot-points', 'quiz')}
               type="number"
               min={1}
               max={100}
@@ -270,6 +276,7 @@ export const BankSlotDetail: React.FC<BankSlotDetailProps> = ({
 
         <button
           type="button"
+          {...tourTypeAttr('quiz-banks.slot-remove', 'quiz')}
           onClick={() => onRemove(slot.id)}
           className="flex items-center gap-1.5 px-3 py-2 border border-rose-200 rounded-lg text-xs font-bold text-rose-700 hover:bg-rose-50"
         >

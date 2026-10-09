@@ -59,6 +59,7 @@ import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { ProjectEditorModal } from './ProjectEditorModal';
 import { projectClassIdFor } from '../projectSteps';
 import { db } from '@/config/firebase';
+import { tourAttr } from '@/config/tourAnchors';
 import {
   setRunAcceptingUpdates,
   syncRunFromProject,
@@ -712,6 +713,11 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
               userId ? (
                 <button
                   type="button"
+                  {...tourAttr(
+                    'projects.selection-mode',
+                    widget.id,
+                    'projects'
+                  )}
                   onClick={() => {
                     if (selectionMode) {
                       selection.clear();
@@ -782,6 +788,11 @@ export const ProjectsManager: React.FC<ProjectsManagerProps> = ({
                 <button
                   type="button"
                   onClick={() => update({ pendingImport: null })}
+                  {...tourAttr(
+                    'projects.discard-import',
+                    widget.id,
+                    'projects'
+                  )}
                   className="rounded-lg px-2 py-1 font-semibold text-slate-600 hover:bg-white/70"
                   style={{ fontSize: 'min(12px, 4.5cqmin)' }}
                 >

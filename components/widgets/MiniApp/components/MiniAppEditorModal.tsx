@@ -16,6 +16,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
 import { AIGeneratorOverlay } from '@/components/common/AIGeneratorOverlay';
 import { generateMiniAppCode, buildPromptWithFileContext } from '@/utils/ai';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 interface MiniAppEditorModalProps {
   isOpen: boolean;
@@ -203,6 +204,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
             onClick={() => setShowPromptInput(true)}
             className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
             title="Generate with AI"
+            {...tourTypeAttr('mini-app.draft-with-ai', 'miniApp')}
           >
             <Sparkles className="w-4 h-4" />
             Draft with AI
@@ -225,6 +227,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
               onClick={importFromNotes}
               className="text-xxs font-black uppercase text-indigo-500 hover:text-indigo-600 flex items-center gap-1 transition-colors"
               title="Import prompt from a Notes widget on your dashboard"
+              {...tourTypeAttr('mini-app.import-from-notes', 'miniApp')}
             >
               <FileText className="w-3 h-3" /> Import from Notes
             </button>
@@ -241,6 +244,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
             className="w-full h-32 p-4 bg-white border-2 border-indigo-100 rounded-2xl text-sm text-indigo-900 placeholder-indigo-300 focus:outline-none focus:border-indigo-500 resize-none shadow-inner"
             autoFocus
             aria-label="Describe your mini-app"
+            {...tourTypeAttr('mini-app.ai-prompt', 'miniApp')}
           />
           {canAccessFeature('ai-file-context') && (
             <DriveFileAttachment
@@ -262,6 +266,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
             onChange={(e) => setHtml(e.target.value)}
             className="flex-1 w-full p-4 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none leading-relaxed custom-scrollbar shadow-inner"
             spellCheck={false}
+            {...tourTypeAttr('mini-app.html-code', 'miniApp')}
             placeholder="Paste your HTML, CSS, and JS here..."
           />
         </div>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { MonitorData } from './useMonitorData';
 
 export type BucketKey = 'notStarted' | 'inProgress' | 'done';
@@ -36,6 +37,7 @@ export const StatusBuckets: React.FC<StatusBucketsProps> = ({
         <button
           key={key}
           onClick={() => onToggle(key)}
+          {...tourFieldAttr('quiz-monitor.status-bucket', 'quiz', key)}
           aria-expanded={selected}
           className={`flex flex-col items-center rounded-xl border transition-colors ${
             selected
