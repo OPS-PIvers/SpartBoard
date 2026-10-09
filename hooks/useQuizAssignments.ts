@@ -159,6 +159,8 @@ import {
   type SyncedQuizContentFields,
 } from '@/utils/syncedQuizContent';
 import { useSandboxedQuizAssignments } from './useTourSandboxed';
+import { useSetAssignmentTargets } from './useSetAssignmentTargets';
+import { hasStudentPointers } from '@/utils/studentTargetRef';
 
 /** Import-mode picker result for shared-assignment paste flows. */
 export type SharedAssignmentImportMode = 'sync' | 'copy';
@@ -1161,6 +1163,7 @@ export const useQuizAssignments = (
   useEffect(() => {
     assignmentsRef.current = assignments;
   }, [assignments]);
+  const { setAssignmentTargets } = useSetAssignmentTargets();
 
   // The fail-closed media gate lives here because `/quiz` mounts no
   // AuthProvider: the teacher decides at assign time, and the decision travels
@@ -2138,8 +2141,34 @@ export const useQuizAssignments = (
       await viewAsDirectSave(assignmentRef, Object.keys(assignmentPatch), () =>
         batch.commit()
       );
+      // Accommodated and skipped students read the window off their own pointer doc.
+      const pointerWindow: {
+        openAt?: number | null;
+        closeAt?: number | null;
+        dueAt?: number | null;
+      } = {};
+      if ('openAt' in patch) pointerWindow.openAt = patch.openAt ?? null;
+      if ('closeAt' in patch) pointerWindow.closeAt = patch.closeAt ?? null;
+      if ('dueAt' in patch) pointerWindow.dueAt = patch.dueAt ?? null;
+      const stored = assignmentsRef.current.find((a) => a.id === assignmentId);
+      if (
+        Object.keys(pointerWindow).length > 0 &&
+        stored &&
+        hasStudentPointers(stored)
+      ) {
+        await setAssignmentTargets({
+          assignmentId,
+          kind: 'quiz',
+          sessionId: assignmentId,
+          targetMode: stored.targetMode,
+          add: [],
+          remove: [],
+          overridesBySourcedId: {},
+          window: pointerWindow,
+        });
+      }
     },
-    [userId, timeLimitOn, scoreOnSubmitOn]
+    [userId, timeLimitOn, scoreOnSubmitOn, setAssignmentTargets]
   );
 
   const setAssignmentRosters = useCallback<
