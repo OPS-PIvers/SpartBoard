@@ -305,7 +305,7 @@ export const GradingPeriodSetsCard: React.FC<GradingPeriodSetsCardProps> = ({
                                 {...tourFieldAttr(
                                   'admin.gradebook-settings.period-date',
                                   'admin',
-                                  k
+                                  `${p.id}-${k}`
                                 )}
                                 type="date"
                                 value={p[k]}
