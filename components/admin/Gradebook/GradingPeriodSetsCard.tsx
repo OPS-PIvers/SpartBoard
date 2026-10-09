@@ -217,6 +217,11 @@ export const GradingPeriodSetsCard: React.FC<GradingPeriodSetsCardProps> = ({
                   </button>
                 </div>
                 <ChecklistSelect
+                  anchor={tourFieldAttr(
+                    'admin.gradebook-settings.period-set-buildings',
+                    'admin',
+                    set.id
+                  )}
                   label={`Buildings using ${set.name}`}
                   emptyText="No buildings"
                   className="w-full"
