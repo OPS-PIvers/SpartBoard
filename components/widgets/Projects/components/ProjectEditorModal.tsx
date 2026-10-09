@@ -30,6 +30,7 @@ import { Toggle } from '@/components/common/Toggle';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
 import { RubricBuilderPanel } from '@/components/widgets/QuizWidget/components/RubricBuilderPanel';
 import { MAX_STEPS, parseStepLines } from '../projectSteps';
+import { tourAttr } from '@/config/tourAnchors';
 
 /** ms epoch <-> `<input type="datetime-local">` value (local time, no seconds). */
 const msToLocalInputValue = (ms: number | undefined): string => {
@@ -214,6 +215,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
           </label>
           <textarea
             id="project-editor-description"
+            {...tourAttr('projects-editor.description')}
             rows={2}
             value={draft.description ?? ''}
             onChange={(e) => patch({ description: e.target.value })}
@@ -229,6 +231,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
             </label>
             <input
               id="project-editor-due"
+              {...tourAttr('projects-editor.due')}
               type="datetime-local"
               value={msToLocalInputValue(draft.dueAt)}
               onChange={(e) =>
@@ -245,6 +248,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
             <div className="flex gap-2">
               <select
                 id="project-editor-rubric"
+                {...tourAttr('projects-editor.rubric')}
                 value={draft.rubric?.id ?? ''}
                 onChange={(e) =>
                   setRubric(rubrics.find((r) => r.id === e.target.value))
@@ -263,6 +267,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
               <button
                 type="button"
                 onClick={() => setRubricBuilderOpen(true)}
+                {...tourAttr('projects-editor.rubric-edit')}
                 className="shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-100"
               >
                 {draft.rubric ? 'Edit' : 'New'}
@@ -282,6 +287,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
             type="button"
             onClick={() => setBulkOpen((open) => !open)}
             aria-expanded={bulkOpen}
+            {...tourAttr('projects-editor.paste-steps')}
             className="rounded-lg px-2 py-1 text-xs font-bold text-slate-600 transition hover:bg-slate-100"
           >
             Paste steps
@@ -289,6 +295,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
           <button
             type="button"
             onClick={addStep}
+            {...tourAttr('projects-editor.add-step')}
             disabled={atStepCeiling}
             title={
               atStepCeiling
@@ -310,6 +317,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
           </label>
           <textarea
             id="project-editor-bulk"
+            {...tourAttr('projects-editor.bulk-text')}
             rows={6}
             value={bulkText}
             onChange={(e) => setBulkText(e.target.value)}
@@ -326,6 +334,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
             <button
               type="button"
               onClick={applyBulk}
+              {...tourAttr('projects-editor.bulk-apply')}
               disabled={bulkText.trim().length === 0}
               className="rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-bold text-white disabled:opacity-40"
             >
@@ -337,6 +346,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
                 setBulkOpen(false);
                 setBulkText('');
               }}
+              {...tourAttr('projects-editor.bulk-cancel')}
               className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100"
             >
               Cancel
@@ -373,6 +383,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
                       | undefined
                   }
                   aria-label={`Reorder ${step.title || `step ${index + 1}`}`}
+                  {...tourAttr('projects-editor.step-reorder')}
                   className="cursor-grab touch-none px-1.5 text-slate-300 hover:text-slate-500 active:cursor-grabbing"
                 >
                   <GripVertical className="h-4 w-4" aria-hidden />
@@ -380,6 +391,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setSelectedStepId(step.id)}
+                  {...tourAttr('projects-editor.step-select')}
                   aria-current={step.id === selectedStepId ? 'true' : undefined}
                   aria-label={`Edit ${step.title || `step ${index + 1}`}`}
                   className="flex min-w-0 flex-1 items-center gap-2 py-2 pr-2 text-left"
@@ -404,6 +416,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
                 <button
                   type="button"
                   onClick={() => deleteStep(step.id)}
+                  {...tourAttr('projects-editor.step-delete')}
                   aria-label={`Delete ${step.title || `step ${index + 1}`}`}
                   className="px-2 text-slate-300 opacity-0 transition hover:text-brand-red-primary group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100"
                 >
@@ -440,6 +453,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
         </label>
         <input
           id="project-step-title"
+          {...tourAttr('projects-editor.step-title')}
           type="text"
           value={selectedStep.title}
           onChange={(e) =>
@@ -456,6 +470,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
         </label>
         <textarea
           id="project-step-description"
+          {...tourAttr('projects-editor.step-description')}
           rows={4}
           value={selectedStep.description ?? ''}
           onChange={(e) =>
@@ -472,6 +487,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
         </label>
         <input
           id="project-step-due"
+          {...tourAttr('projects-editor.step-due')}
           type="datetime-local"
           value={msToLocalInputValue(selectedStep.dueAt)}
           onChange={(e) =>
@@ -502,6 +518,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
             patchStep(selectedStep.id, { requiresApproval: next })
           }
           label={`${selectedStep.title || 'This step'} needs approval`}
+          anchor={tourAttr('projects-editor.step-approval')}
         />
       </label>
     </div>

@@ -1870,6 +1870,503 @@ export const TOUR_ANCHORS = {
     label: 'Fullscreen toggle button in the resource viewer',
     panel: true,
   },
+  // Activity Wall, Projects and Review start.
+  'activity-wall.visibility': {
+    label: 'Visible/Hidden posts toggle in Activity Wall',
+    perWidget: true,
+    persists: true,
+  },
+  'activity-wall.more-actions': {
+    label: 'More wall actions button in Activity Wall',
+    perWidget: true,
+  },
+  'activity-wall.copy-link': {
+    label: 'Copy student link action in Activity Wall',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall.add-qr': {
+    label: 'Add join QR to board action in Activity Wall',
+    perWidget: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall.open-student-view': {
+    label: 'Open student view action in Activity Wall',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall.image-size': {
+    label: 'Image size action in Activity Wall',
+    perWidget: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall.connect-drive': {
+    label: 'Connect Google Drive button in Activity Wall',
+    perWidget: true,
+    persists: true,
+  },
+  'activity-wall.empty-open-library': {
+    label: 'Open library button in the empty Activity Wall',
+    perWidget: true,
+  },
+  'activity-wall.review-posts': {
+    label: 'Review posts button in the empty Activity Wall',
+    perWidget: true,
+  },
+  'activity-wall-moderation.edit-title': {
+    label: 'Post title box in Moderate posts',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-moderation.edit-text': {
+    label: 'Post text box in Moderate posts',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-moderation.edit-save': {
+    label: 'Save post edit button in Moderate posts',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall-moderation.edit-start': {
+    label: 'Edit post button in Moderate posts',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-moderation.approve': {
+    label: 'Approve post button in Moderate posts',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall-moderation.reject': {
+    label: 'Reject post button in Moderate posts',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall-moderation.pin': {
+    label: 'Pin or unpin post button in Moderate posts',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall-moderation.delete': {
+    label: 'Delete post button in Moderate posts',
+    perWidgetType: true,
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall-link.url': {
+    label: 'Link box in the Activity Wall share dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-link.copy': {
+    label: 'Copy link button in the Activity Wall share dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-link.add-qr': {
+    label: 'Add join QR to board button in the Activity Wall share dialog',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall-link.close': {
+    label: 'Close button in the Activity Wall share dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-link.expiration-toggle': {
+    label: 'Set link expiration checkbox in the Activity Wall share dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-link.expiration-date': {
+    label: 'Expiration date box in the Activity Wall share dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-link.create-gallery': {
+    label: 'Create gallery link button in the Activity Wall share dialog',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'activity-wall-link.done': {
+    label: 'Done button in the Activity Wall share dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-link.tab': {
+    label:
+      'Student link or Public gallery tab in the Activity Wall share dialog',
+    perField: true,
+    panel: true,
+  },
+  'activity-wall-library.empty-new': {
+    label: 'New wall button in the empty wall library',
+    perWidgetType: true,
+    panel: true,
+  },
+  'activity-wall-editor.change-layout': {
+    label: 'Change layout button in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.prompt': {
+    label: 'Prompt box in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.submission-type': {
+    label: 'Submission type toggle in the Activity Wall editor',
+    perField: true,
+    panel: true,
+  },
+  'activity-wall-editor.max-posts-custom': {
+    label: 'Custom max posts button in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.max-posts-custom-input': {
+    label: 'Custom max posts box in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.target-classes': {
+    label: 'Target classes list in the Activity Wall editor',
+    perWidget: true,
+    panel: true,
+  },
+  'activity-wall-editor.section-label': {
+    label: 'Column or row name box in the Activity Wall editor',
+    panel: true,
+  },
+  'activity-wall-editor.section-move': {
+    label: 'Move column or row button in the Activity Wall editor',
+    panel: true,
+  },
+  'activity-wall-editor.section-remove': {
+    label: 'Remove column or row button in the Activity Wall editor',
+    destructive: true,
+    panel: true,
+  },
+  'activity-wall-editor.section-add': {
+    label: 'Add column or row button in the Activity Wall editor',
+    panel: true,
+  },
+  'activity-wall-editor.map-start': {
+    label: 'Map start view picker in the Activity Wall editor',
+    panel: true,
+  },
+  'activity-wall-editor.map-zoom': {
+    label: 'Map zoom slider in the Activity Wall editor',
+    panel: true,
+  },
+  'projects.back-to-library': {
+    label: 'Library back button on the Projects board',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.manage-groups': {
+    label: 'Manage groups button on the Projects board',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.review-waiting': {
+    label: 'Waiting for review button on the Projects board',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.layout-bars': {
+    label: 'Bars layout button on the Projects board',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.layout-grid': {
+    label: 'Grid layout button on the Projects board',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.actions-menu': {
+    label: 'Project actions menu button on the Projects board',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.actions-menu-item': {
+    label: 'Item in the Project actions menu',
+    perField: true,
+    panel: true,
+  },
+  'projects.selection-mode': {
+    label: 'Select button in the Projects library',
+    perWidget: true,
+    requires: 'widget-restored',
+  },
+  'projects.discard-import': {
+    label: 'Discard button on the Group Maker import banner',
+    perWidget: true,
+    requires: 'widget-restored',
+    destructive: true,
+    persists: true,
+  },
+  'projects.status-option': {
+    label: 'Step status choice in the Projects status menu',
+    perWidget: true,
+    panel: true,
+  },
+  'projects.group-student-view': {
+    label: 'Group student view button on the Projects board',
+    perWidgetType: true,
+    requires: 'widget-restored',
+  },
+  'projects.group-expand': {
+    label: 'Expand group button on the Projects board',
+    perWidgetType: true,
+    requires: 'widget-restored',
+  },
+  'projects.step-cell': {
+    label: 'Step status cell on the Projects board',
+    perWidgetType: true,
+    requires: 'widget-restored',
+  },
+  'projects-editor.description': {
+    label: 'Description box in the project editor',
+    panel: true,
+  },
+  'projects-editor.due': {
+    label: 'Due date box in the project editor',
+    panel: true,
+  },
+  'projects-editor.rubric': {
+    label: 'Rubric picker in the project editor',
+    panel: true,
+  },
+  'projects-editor.rubric-edit': {
+    label: 'New or Edit rubric button in the project editor',
+    panel: true,
+  },
+  'projects-editor.paste-steps': {
+    label: 'Paste steps button in the project editor',
+    panel: true,
+  },
+  'projects-editor.add-step': {
+    label: 'Add step button in the project editor',
+    panel: true,
+  },
+  'projects-editor.bulk-text': {
+    label: 'One step per line box in the project editor',
+    panel: true,
+  },
+  'projects-editor.bulk-apply': {
+    label: 'Use these steps button in the project editor',
+    panel: true,
+  },
+  'projects-editor.bulk-cancel': {
+    label: 'Cancel pasted steps button in the project editor',
+    panel: true,
+  },
+  'projects-editor.step-reorder': {
+    label: 'Step drag handle in the project editor',
+    panel: true,
+  },
+  'projects-editor.step-select': {
+    label: 'Step row in the project editor',
+    panel: true,
+  },
+  'projects-editor.step-delete': {
+    label: 'Delete step button in the project editor',
+    destructive: true,
+    panel: true,
+  },
+  'projects-editor.step-title': {
+    label: 'Step title box in the project editor',
+    panel: true,
+  },
+  'projects-editor.step-description': {
+    label: 'Step description box in the project editor',
+    panel: true,
+  },
+  'projects-editor.step-due': {
+    label: 'Step due date box in the project editor',
+    panel: true,
+  },
+  'projects-editor.step-approval': {
+    label: 'Needs your approval toggle in the project editor',
+    panel: true,
+  },
+  'projects.groups-class': {
+    label: 'Class picker in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.group-color': {
+    label: 'Group color button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.member-select': {
+    label: 'Student chip in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.member-remove': {
+    label: 'Take student out of group button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.add-group': {
+    label: 'Add group button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.spread-students': {
+    label: 'Spread ungrouped students button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.group-name': {
+    label: 'Group name box in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.group-delete': {
+    label: 'Delete group button in the Manage groups dialog',
+    destructive: true,
+    panel: true,
+  },
+  'projects.group-keep': {
+    label: 'Keep group button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.group-delete-confirm': {
+    label: 'Confirm delete group button in the Manage groups dialog',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'projects.group-move-here': {
+    label: 'Move here button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.take-out': {
+    label:
+      'Take selected student out of group button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.groups-undo': {
+    label: 'Undo changes button in the Manage groups dialog',
+    destructive: true,
+    panel: true,
+  },
+  'projects.groups-close': {
+    label: 'Cancel or Close button in the Manage groups dialog',
+    panel: true,
+  },
+  'projects.groups-save': {
+    label: 'Save changes button in the Manage groups dialog',
+    persists: true,
+    panel: true,
+  },
+  'projects.setup-cancel': {
+    label: 'Cancel button in the Set up groups dialog',
+    panel: true,
+  },
+  'projects.setup-commit': {
+    label: 'Add groups button in the Set up groups dialog',
+    persists: true,
+    panel: true,
+  },
+  'projects.setup-class': {
+    label: 'Class picker in the Set up groups dialog',
+    panel: true,
+  },
+  'projects.setup-carry-names': {
+    label: 'Use Group Maker names checkbox in the Set up groups dialog',
+    panel: true,
+  },
+  'projects.setup-count': {
+    label: 'How many groups box in the Set up groups dialog',
+    panel: true,
+  },
+  'projects.grade-prev': {
+    label: 'Previous group button in the project grader',
+    panel: true,
+  },
+  'projects.grade-skip': {
+    label: 'Skip button in the project grader',
+    panel: true,
+  },
+  'projects.grade-save': {
+    label: 'Save grade button in the project grader',
+    persists: true,
+    panel: true,
+  },
+  'projects.grade-save-next': {
+    label: 'Save and next button in the project grader',
+    persists: true,
+    panel: true,
+  },
+  'projects.grade-queue-item': {
+    label: 'Group in the project grader queue',
+    panel: true,
+  },
+  'projects.grade-feedback': {
+    label: 'Comment to the group box in the project grader',
+    panel: true,
+  },
+  'projects.grade-override': {
+    label: 'Individual points box in the project grader',
+    panel: true,
+  },
+  'projects.grade-override-note': {
+    label: 'Individual score note box in the project grader',
+    panel: true,
+  },
+  'projects.grade-visible': {
+    label: 'Let this group see their score toggle in the project grader',
+    persists: true,
+    panel: true,
+  },
+  'projects.view-rubric': {
+    label: 'How this is scored button in the group view',
+    panel: true,
+  },
+  'projects.view-close': {
+    label: 'Close button in the group view',
+    panel: true,
+  },
+  'review-start.class-picker': {
+    label: 'Class picker in the Start review dialog',
+    panel: true,
+  },
+  'review-start.hand-raise': {
+    label: 'Raise a hand toggle in the Start review dialog',
+    panel: true,
+  },
+  'review-start.read-aloud': {
+    label: 'Read aloud toggle in the Start review dialog',
+    panel: true,
+  },
+  'review-start.speed-bonus': {
+    label: 'Speed Bonus Points toggle in the Start review dialog',
+    panel: true,
+  },
+  'review-start.streak-bonus': {
+    label: 'Streak Bonuses toggle in the Start review dialog',
+    panel: true,
+  },
+  'review-start.podium': {
+    label: 'Podium Between Questions toggle in the Start review dialog',
+    panel: true,
+  },
+  'review-start.sound-effects': {
+    label: 'Sound Effects toggle in the Start review dialog',
+    panel: true,
+  },
+  'review-start.tab-warning': {
+    label: 'Tab warning threshold row in the Start review dialog',
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

@@ -18,6 +18,7 @@ import { ProjectGroupWork } from '@/components/student/project/ProjectGroupWork'
 import { ProjectRubricSheet } from '@/components/student/project/ProjectRubricSheet';
 import { ProjectScoreCard } from '@/components/student/project/ProjectScoreCard';
 import { stepStateOf } from '../../projectSteps';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 interface GroupViewModalProps {
   run: ProjectRun;
@@ -92,6 +93,7 @@ export const GroupViewModal: React.FC<GroupViewModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setRubricOpen(true)}
+                  {...tourTypeAttr('projects.view-rubric', 'projects')}
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
                 >
                   <ScrollText className="h-4 w-4" strokeWidth={2.25} />
@@ -102,6 +104,7 @@ export const GroupViewModal: React.FC<GroupViewModalProps> = ({
                 type="button"
                 onClick={onClose}
                 aria-label="Close"
+                {...tourTypeAttr('projects.view-close', 'projects')}
                 className="rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100"
               >
                 <X size={20} />

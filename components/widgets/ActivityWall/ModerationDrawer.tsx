@@ -15,6 +15,7 @@ import { Modal } from '@/components/common/Modal';
 import { ViewAsStudentButton } from '@/components/viewAs/ViewAsStudentButton';
 import { useMediaUrl } from '@/components/activityWall/render/useMediaUrl';
 import type { ActivityWallSubmission } from '@/types';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 interface SubmissionEdit {
   content?: string;
@@ -189,6 +190,10 @@ const SubmissionRow: React.FC<RowProps> = ({
               onChange={(event) => setTitleDraft(event.target.value)}
               placeholder="Title"
               aria-label={`Title for ${who}'s post: ${label}`}
+              {...tourTypeAttr(
+                'activity-wall-moderation.edit-title',
+                'activity-wall'
+              )}
               className={inputClass}
             />
             {isText ? (
@@ -196,6 +201,10 @@ const SubmissionRow: React.FC<RowProps> = ({
                 value={contentDraft}
                 onChange={(event) => setContentDraft(event.target.value)}
                 aria-label={`Text of ${who}'s post: ${label}`}
+                {...tourTypeAttr(
+                  'activity-wall-moderation.edit-text',
+                  'activity-wall'
+                )}
                 className={inputClass}
               />
             ) : (
@@ -205,6 +214,10 @@ const SubmissionRow: React.FC<RowProps> = ({
               type="button"
               className="rounded-lg bg-brand-blue-primary px-2 py-1 text-xs font-bold text-white transition-colors hover:bg-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
               onClick={save}
+              {...tourTypeAttr(
+                'activity-wall-moderation.edit-save',
+                'activity-wall'
+              )}
             >
               Save
             </button>
@@ -213,6 +226,10 @@ const SubmissionRow: React.FC<RowProps> = ({
           <button
             type="button"
             onClick={startEditing}
+            {...tourTypeAttr(
+              'activity-wall-moderation.edit-start',
+              'activity-wall'
+            )}
             className="block w-full rounded-lg text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
             aria-label={`Edit ${who}'s post: ${label}`}
           >
@@ -282,6 +299,10 @@ export const ModerationDrawer: React.FC<ModerationDrawerProps> = ({
                     <button
                       type="button"
                       onClick={() => onApprove(submission.id)}
+                      {...tourTypeAttr(
+                        'activity-wall-moderation.approve',
+                        'activity-wall'
+                      )}
                       aria-label={`Approve ${submission.participantLabel ?? 'Anonymous'}'s post: ${excerpt(submission)}`}
                       className={`${iconButtonClass} bg-emerald-50 text-emerald-700 hover:bg-emerald-100`}
                     >
@@ -290,6 +311,10 @@ export const ModerationDrawer: React.FC<ModerationDrawerProps> = ({
                     <button
                       type="button"
                       onClick={() => onReject(submission.id)}
+                      {...tourTypeAttr(
+                        'activity-wall-moderation.reject',
+                        'activity-wall'
+                      )}
                       aria-label={`Reject ${submission.participantLabel ?? 'Anonymous'}'s post: ${excerpt(submission)}`}
                       className={`${iconButtonClass} bg-rose-50 text-rose-700 hover:bg-rose-100`}
                     >
@@ -322,6 +347,10 @@ export const ModerationDrawer: React.FC<ModerationDrawerProps> = ({
                     <button
                       type="button"
                       onClick={() => onPin(submission.id, !submission.pinned)}
+                      {...tourTypeAttr(
+                        'activity-wall-moderation.pin',
+                        'activity-wall'
+                      )}
                       aria-label={`${submission.pinned ? 'Unpin' : 'Pin'} ${submission.participantLabel ?? 'Anonymous'}'s post: ${excerpt(submission)}`}
                       className={`${iconButtonClass} ${
                         submission.pinned
@@ -338,6 +367,10 @@ export const ModerationDrawer: React.FC<ModerationDrawerProps> = ({
                     <button
                       type="button"
                       onClick={() => onDelete(submission.id)}
+                      {...tourTypeAttr(
+                        'activity-wall-moderation.delete',
+                        'activity-wall'
+                      )}
                       aria-label={`Delete ${submission.participantLabel ?? 'Anonymous'}'s post: ${excerpt(submission)}`}
                       className={`${iconButtonClass} bg-rose-50 text-rose-700 hover:bg-rose-100`}
                     >
