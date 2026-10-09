@@ -1870,6 +1870,153 @@ export const TOUR_ANCHORS = {
     label: 'Fullscreen toggle button in the resource viewer',
     panel: true,
   },
+  // Admin Settings (thread: tour anchors admin settings)
+  'admin.settings.tab': {
+    label: 'Section tab in Admin Settings',
+    perField: true,
+    panel: true,
+  },
+  'admin.settings.mobile-back': {
+    label: 'Back to menu button in Admin Settings (phone)',
+    panel: true,
+  },
+  'admin.settings.close': {
+    label: 'Close button in Admin Settings',
+    panel: true,
+  },
+  'admin.help-center.add-item': {
+    label: 'Add item button in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.sort-by-opens': {
+    label: 'Sort by opens button in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.item-toggle': {
+    label: 'Visible switch on a Help Center admin item',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.item-edit': {
+    label: 'Edit button on a Help Center admin item',
+    perField: true,
+    panel: true,
+  },
+  'admin.help-center.item-delete': {
+    label: 'Delete button on a Help Center admin item',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.help-center.category-toggle': {
+    label: 'Category collapse button in Help Center admin',
+    perField: true,
+    panel: true,
+  },
+  'admin.help-center.category-name': {
+    label: 'New category name box in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.category-add': {
+    label: 'Add category button in Help Center admin',
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.category-delete': {
+    label: 'Delete button on a Help Center admin category',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'admin.help-center.tour-health-toggle': {
+    label: 'Tour health section button in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.record-tour': {
+    label: 'Record tour button in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.check-live': {
+    label: 'Check live button in Help Center admin',
+    panel: true,
+  },
+  'admin.help-center.edit-step': {
+    label: 'Edit step button in the tour health table',
+    perField: true,
+    panel: true,
+  },
+  'admin.help-center.unmapped-copy': {
+    label: 'Copy all button for unmapped anchors',
+    panel: true,
+  },
+  'admin.help-center.unmapped-rebind': {
+    label: 'Rebind button for an unmapped anchor',
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.keep-all-in-help': {
+    label: 'Keep all in Help button for linked library sets',
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.keep-in-help': {
+    label: 'Keep in Help button for a linked library set',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.form-visible': {
+    label: 'Visible to teachers switch in the Help item form',
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.form-title': {
+    label: 'Title box in the Help item form',
+    panel: true,
+  },
+  'admin.help-center.form-category': {
+    label: 'Category select in the Help item form',
+    panel: true,
+  },
+  'admin.help-center.form-description': {
+    label: 'Description box in the Help item form',
+    panel: true,
+  },
+  'admin.help-center.form-cancel': {
+    label: 'Cancel button in the Help item form',
+    panel: true,
+  },
+  'admin.help-center.form-save': {
+    label: 'Save button in the Help item form',
+    persists: true,
+    panel: true,
+  },
+  'admin.help-center.gl-open-editor': {
+    label: 'Open editor button for the chosen activity',
+    panel: true,
+  },
+  'admin.help-center.gl-change': {
+    label: 'Change button for the chosen activity',
+    panel: true,
+  },
+  'admin.help-center.gl-choose': {
+    label: 'Choose activity button in the Help item form',
+    panel: true,
+  },
+  'admin.help-center.gl-new': {
+    label: 'New activity button in the Help item form',
+    panel: true,
+  },
+  'admin.help-center.gl-search': {
+    label: 'Search box in the activity menu',
+    panel: true,
+  },
+  'admin.help-center.gl-option': {
+    label: 'Activity row in the activity menu',
+    perField: true,
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;
