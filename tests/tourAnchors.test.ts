@@ -100,12 +100,16 @@ describe('tour anchor registry', () => {
       'sub-share.done',
       'quiz-settings.assignment-archive',
       'activity-wall-editor.allow-delete',
+      'assign-stepper.cancel',
     ]);
+    // Destination options and step headers only move through the Assign dialog.
+    const opensOnly = (id: string) =>
+      OPENS_ONLY.has(id) || /^assign-(destination|step)\./.test(id);
     const unflagged = Object.entries(TOUR_ANCHORS)
       .filter(([id]) => /assign|share|publish|delete/.test(id))
       .filter(([id, def]) => {
         const d = def as TourAnchorDef;
-        return !d.persists && !d.destructive && !OPENS_ONLY.has(id);
+        return !d.persists && !d.destructive && !opensOnly(id);
       })
       .map(([id]) => id);
     expect(

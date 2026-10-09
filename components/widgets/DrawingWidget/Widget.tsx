@@ -1293,7 +1293,8 @@ export const DrawingWidget: React.FC<{
                   className="fixed z-[2147483600] min-w-[200px] bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden"
                   style={{
                     bottom: `${exportMenuAnchor.bottom}px`,
-                    right: `${exportMenuAnchor.right}px`,
+                    // Kept on screen for a toolbar near the left edge.
+                    right: `${Math.max(8, Math.min(exportMenuAnchor.right, window.innerWidth - 208))}px`,
                   }}
                 >
                   <button
@@ -1378,7 +1379,10 @@ export const DrawingWidget: React.FC<{
             className="fixed z-[2147483600] w-[260px] rounded-xl bg-slate-900/95 backdrop-blur-md shadow-xl border border-white/10 p-3"
             style={{
               bottom: `${toolPopoverAnchor.bottom}px`,
-              left: `${toolPopoverAnchor.left}px`,
+              // Kept on screen for a widget at the right edge.
+              left: `${Math.max(8, Math.min(toolPopoverAnchor.left, window.innerWidth - 268))}px`,
+              maxHeight: `calc(100vh - ${toolPopoverAnchor.bottom + 8}px)`,
+              overflowY: 'auto',
             }}
           >
             {/* Eraser mode selector — surfaced only when the eraser popover

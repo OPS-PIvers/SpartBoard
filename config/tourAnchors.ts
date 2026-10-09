@@ -612,6 +612,59 @@ export const TOUR_ANCHORS = {
     label: 'Select mode toggle in the Quiz library',
     perWidget: true,
   },
+  'assign-destination.spartboard': {
+    label: 'SpartBoard Only option in the Assign quiz dialog',
+    panel: true,
+  },
+  'assign-destination.classroom': {
+    label: 'Google Classroom option in the Assign quiz dialog',
+    panel: true,
+  },
+  'assign-destination.schoology': {
+    label: 'Schoology option in the Assign quiz dialog',
+    panel: true,
+  },
+  'assign-step.classes': {
+    label: 'Classes step header in the Assign dialog',
+    panel: true,
+  },
+  'assign-step.when': {
+    label: 'When step header in the Assign dialog',
+    panel: true,
+  },
+  'assign-step.attempts': {
+    label: 'Attempts step header in the Assign dialog',
+    panel: true,
+  },
+  'assign-step.integrity': {
+    label: 'Integrity step header in the Assign dialog',
+    panel: true,
+  },
+  'assign-step.feedback': {
+    label: 'Feedback step header in the Assign dialog',
+    panel: true,
+  },
+  'assign-step.check': {
+    label: 'Check step header in the Assign dialog',
+    panel: true,
+  },
+  'assign-step.sharing': {
+    label: 'Sharing step header in the Assign dialog',
+    panel: true,
+  },
+  'assign-step.continue': {
+    label: 'Continue button on the open step in the Assign dialog',
+    panel: true,
+  },
+  'assign-stepper.cancel': {
+    label: 'Cancel button in the Assign dialog',
+    panel: true,
+  },
+  'assign-stepper.submit': {
+    label: 'Assign button at the bottom of the Assign dialog',
+    persists: true,
+    panel: true,
+  },
   'review-start.mode-paced': {
     label: 'Teacher-paced card in the Start review dialog',
     panel: true,

@@ -25,7 +25,7 @@ export const tourStepStatus = (
 ): TourStepStatus => {
   const anchor = step.tour?.anchor;
   if (!step.tour || anchor === WHOLE_BOARD_ANCHOR) return 'board';
-  if (!anchor) return 'unbound';
+  if (!anchor) return step.tour.fallback?.name ? 'ok' : 'unbound';
   if (!isTourAnchorId(parseTourAnchorRef(anchor).id)) return 'unregistered';
   return missing.includes(step.id) ? 'missing' : 'ok';
 };
@@ -33,11 +33,13 @@ export const tourStepStatus = (
 export const isRedStatus = (status: TourStepStatus): boolean =>
   status === 'missing' || status === 'unregistered';
 
-/** The registry label for a step's control, with its widget for per-widget anchors. */
+/** The registry label for a step's control, with its widget for per-widget anchors, or an untagged control's quoted name. */
 export const tourControlLabel = (
-  binding: Pick<GuidedLearningTourBinding, 'anchor'> | undefined
+  binding: Pick<GuidedLearningTourBinding, 'anchor' | 'fallback'> | undefined
 ): string | null => {
-  if (!binding?.anchor) return null;
+  // An untagged control is found by its name.
+  if (!binding?.anchor)
+    return binding?.fallback?.name ? `"${binding.fallback.name}"` : null;
   const { id, widgetType } = parseTourAnchorRef(binding.anchor);
   if (!isTourAnchorId(id)) return null;
   const label = TOUR_ANCHORS[id].label;
