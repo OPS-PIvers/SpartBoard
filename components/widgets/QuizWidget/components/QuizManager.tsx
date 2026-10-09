@@ -856,8 +856,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           setViewOnlyShareTarget(quiz);
           setViewOnlyShareLink(null);
           setViewOnlyShareError(null);
-        } else if (schoologyToolColumns && !canAssignToClassroom) {
-          // SpartBoard is the only destination left, so skip the chooser.
+        } else if (
+          stepperOn ||
+          (schoologyToolColumns && !canAssignToClassroom)
+        ) {
+          // Stepper (Classroom posts from the assignment's menu) or no other destination: skip the chooser.
           setAssignDestination('spartboard');
           setAssignBehavior(seedBehavior(quiz));
           setAssignTarget(quiz);
@@ -873,6 +876,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       claudeReview,
       isReview,
       onStartReview,
+      stepperOn,
       schoologyToolColumns,
       canAssignToClassroom,
       seedBehavior,
