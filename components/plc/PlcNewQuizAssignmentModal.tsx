@@ -434,7 +434,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
           }
         );
 
-        if (prefillLastUsed) {
+        if (stepperOn) {
           saveLastAssignSettings({
             sessionMode: behavior.sessionMode,
             sessionOptions,
@@ -591,7 +591,6 @@ export const PlcNewQuizAssignmentModal: React.FC<
       stepperWhen,
       stepperClasses,
       periodAccess,
-      prefillLastUsed,
       saveLastAssignSettings,
       setAssignmentTargets,
       setAssignmentTargetSkippedCount,
