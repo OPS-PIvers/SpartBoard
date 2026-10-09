@@ -33,6 +33,7 @@ import {
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
 import type { MiniAppStepperChoices } from '../miniAppStepperAssign';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 export interface MiniAppAssignStepperProps {
   appTitle: string;
@@ -145,6 +146,7 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
         </label>
         <input
           id="miniapp-assignment-name"
+          {...tourTypeAttr('mini-app.session-name', 'miniApp')}
           type="text"
           value={assignmentName}
           onChange={(e) => onNameChange(e.target.value)}
