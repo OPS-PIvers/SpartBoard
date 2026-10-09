@@ -25,7 +25,7 @@ import React, {
 } from 'react';
 import { useQuizTranslations } from '@/hooks/useQuizTranslations';
 import { useTranslation } from 'react-i18next';
-import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import {
   Plus,
   PencilLine,
@@ -2253,6 +2253,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         onDeleteFolder={folderState.deleteFolder}
         {...folderView}
         enableDrop
+        anchors={{
+          newFolder: tourTypeAttr('quiz-library.folder-new', 'quiz'),
+          root: tourTypeAttr('quiz-library.folder-root', 'quiz'),
+          newFolderInput: tourTypeAttr('quiz-library.folder-name', 'quiz'),
+        }}
       />
     ) : undefined;
 
@@ -2585,6 +2590,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           }}
           onClose={() => setFolderPickerTarget(null)}
           title={`Move "${folderPickerTarget.title}" to…`}
+          rootAnchor={tourTypeAttr('quiz-library.folder-picker-root', 'quiz')}
+          rowAnchor={(id) =>
+            tourFieldAttr('quiz-library.folder-picker-folder', 'quiz', id)
+          }
         />
       )}
 
@@ -3044,6 +3053,7 @@ const LibraryTabContent: React.FC<{
         <LibraryPreviewPane
           isOpen={true}
           onClose={() => onPreviewQuiz(null)}
+          closeAnchor={tourTypeAttr('quiz-library.preview-close', 'quiz')}
           title={previewQuiz.title}
           subtitle={
             <>

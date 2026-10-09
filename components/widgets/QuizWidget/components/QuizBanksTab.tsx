@@ -509,6 +509,11 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
       onDeleteFolder={folderState.deleteFolder}
       {...folderView}
       enableDrop
+      anchors={{
+        newFolder: tourTypeAttr('quiz-banks.folder-new', 'quiz'),
+        root: tourTypeAttr('quiz-banks.folder-root', 'quiz'),
+        newFolderInput: tourTypeAttr('quiz-banks.folder-name', 'quiz'),
+      }}
     />
   ) : undefined;
 
@@ -719,6 +724,10 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
           }}
           onClose={() => setSharedPickerTarget(null)}
           title={`Move "${sharedPickerTarget.title}" to…`}
+          rootAnchor={tourTypeAttr('quiz-banks.folder-picker-root', 'quiz')}
+          rowAnchor={(id) =>
+            tourFieldAttr('quiz-banks.folder-picker-folder', 'quiz', id)
+          }
         />
       )}
       {folderPickerTarget && (
@@ -731,6 +740,10 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
           }}
           onClose={() => setFolderPickerTarget(null)}
           title={`Move "${folderPickerTarget.title}" to…`}
+          rootAnchor={tourTypeAttr('quiz-banks.folder-picker-root', 'quiz')}
+          rowAnchor={(id) =>
+            tourFieldAttr('quiz-banks.folder-picker-folder', 'quiz', id)
+          }
         />
       )}
     </>

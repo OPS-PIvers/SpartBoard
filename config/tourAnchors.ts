@@ -9914,6 +9914,157 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  // Folder and preview controls for the other library widgets.
+  'flashcards.folder-new': {
+    label: 'New folder button in the Flashcards library',
+    panel: true,
+  },
+  'flashcards.folder-root': {
+    label: 'Library root folder in the Flashcards library',
+    panel: true,
+  },
+  'flashcards.folder-name': {
+    label: 'New folder name box in the Flashcards library',
+    panel: true,
+  },
+  'flashcards.folder-picker-root': {
+    label: 'No folder row in the folder picker',
+    panel: true,
+  },
+  'flashcards.folder-picker-folder': {
+    label: 'Folder row in the folder picker',
+    perField: true,
+    panel: true,
+  },
+  'mini-app.folder-new': {
+    label: 'New folder button in the Mini App library',
+    panel: true,
+  },
+  'mini-app.folder-root': {
+    label: 'Library root folder in the Mini App library',
+    panel: true,
+  },
+  'mini-app.folder-name': {
+    label: 'New folder name box in the Mini App library',
+    panel: true,
+  },
+  'mini-app.folder-picker-root': {
+    label: 'No folder row in the folder picker',
+    panel: true,
+  },
+  'mini-app.folder-picker-folder': {
+    label: 'Folder row in the folder picker',
+    perField: true,
+    panel: true,
+  },
+  'quiz-library.folder-new': {
+    label: 'New folder button in the Quiz library',
+    panel: true,
+  },
+  'quiz-library.folder-root': {
+    label: 'Library root folder in the Quiz library',
+    panel: true,
+  },
+  'quiz-library.folder-name': {
+    label: 'New folder name box in the Quiz library',
+    panel: true,
+  },
+  'quiz-library.folder-picker-root': {
+    label: 'No folder row in the folder picker',
+    panel: true,
+  },
+  'quiz-library.folder-picker-folder': {
+    label: 'Folder row in the folder picker',
+    perField: true,
+    panel: true,
+  },
+  'quiz-banks.folder-new': {
+    label: 'New folder button in the Question banks library',
+    panel: true,
+  },
+  'quiz-banks.folder-root': {
+    label: 'Library root folder in the Question banks library',
+    panel: true,
+  },
+  'quiz-banks.folder-name': {
+    label: 'New folder name box in the Question banks library',
+    panel: true,
+  },
+  'quiz-banks.folder-picker-root': {
+    label: 'No folder row in the folder picker',
+    panel: true,
+  },
+  'quiz-banks.folder-picker-folder': {
+    label: 'Folder row in the folder picker',
+    perField: true,
+    panel: true,
+  },
+  'video-activity.folder-new': {
+    label: 'New folder button in the Video Activity library',
+    panel: true,
+  },
+  'video-activity.folder-root': {
+    label: 'Library root folder in the Video Activity library',
+    panel: true,
+  },
+  'video-activity.folder-name': {
+    label: 'New folder name box in the Video Activity library',
+    panel: true,
+  },
+  'video-activity.folder-picker-root': {
+    label: 'No folder row in the folder picker',
+    panel: true,
+  },
+  'video-activity.folder-picker-folder': {
+    label: 'Folder row in the folder picker',
+    perField: true,
+    panel: true,
+  },
+  'mini-app.preview-close': {
+    label: 'Close button in the Mini App preview',
+    panel: true,
+  },
+  'mini-app.preview-open-editor': {
+    label: 'Open editor button in the Mini App preview',
+    panel: true,
+  },
+  'mini-app.preview-save-library': {
+    label: 'Save to my library button in the Mini App preview',
+    persists: true,
+    panel: true,
+  },
+  'quiz-library.preview-close': {
+    label: 'Close button in the Quiz preview',
+    panel: true,
+  },
+  'video-activity.preview-close': {
+    label: 'Close button in the Video Activity preview',
+    panel: true,
+  },
+  'video-activity.preview-open-editor': {
+    label: 'Open editor button in the Video Activity preview',
+    panel: true,
+  },
+  'flashcards.score-row': {
+    label: 'Student row in the Flashcards Check scores',
+    perField: true,
+    panel: true,
+  },
+  'video-activity.monitor-row': {
+    label: 'Student row in the Video Activity live monitor',
+    perField: true,
+    panel: true,
+  },
+  'video-activity.results-question-row': {
+    label: 'Question row in the Video Activity results',
+    perField: true,
+    panel: true,
+  },
+  'video-activity.results-student-row': {
+    label: 'Student row in the Video Activity results',
+    perField: true,
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;

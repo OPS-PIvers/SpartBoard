@@ -60,6 +60,7 @@ import {
   type LtiPushGradesData,
 } from '@/utils/ltiGradePush';
 import { functions } from '@/config/firebase';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { httpsCallable } from 'firebase/functions';
 import {
   useAssignmentPseudonymsMulti,
@@ -860,6 +861,11 @@ export const Results: React.FC<ResultsProps> = ({
                 return (
                   <SessionRow
                     key={q.id}
+                    anchor={tourFieldAttr(
+                      'video-activity.results-question-row',
+                      'video-activity',
+                      q.id
+                    )}
                     trailing={
                       skipped ? (
                         <SessionBadge tone="neutral" label="Not asked" />
@@ -978,6 +984,11 @@ export const Results: React.FC<ResultsProps> = ({
                   return (
                     <SessionRow
                       key={r._responseKey ?? r.studentUid ?? r.pin}
+                      anchor={tourFieldAttr(
+                        'video-activity.results-student-row',
+                        'video-activity',
+                        r.studentUid
+                      )}
                       trailing={
                         <>
                           <div

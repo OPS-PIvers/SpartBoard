@@ -95,7 +95,7 @@ import {
   LIBRARY_ITEM_NOUNS,
   useLibraryDeleteConfirm,
 } from '@/components/common/library/useLibraryDeleteConfirm';
-import { tourTypeAttr } from '@/config/tourAnchors';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
@@ -692,6 +692,11 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         onDeleteFolder={folderState.deleteFolder}
         {...folderView}
         enableDrop
+        anchors={{
+          newFolder: tourTypeAttr('mini-app.folder-new', 'miniApp'),
+          root: tourTypeAttr('mini-app.folder-root', 'miniApp'),
+          newFolderInput: tourTypeAttr('mini-app.folder-name', 'miniApp'),
+        }}
       />
     ) : undefined;
 
@@ -1477,6 +1482,10 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
       }}
       onClose={() => setFolderPickerTarget(null)}
       title={`Move "${folderPickerTarget.title}" to…`}
+      rootAnchor={tourTypeAttr('mini-app.folder-picker-root', 'miniApp')}
+      rowAnchor={(id) =>
+        tourFieldAttr('mini-app.folder-picker-folder', 'miniApp', id)
+      }
     />
   ) : null;
 
@@ -1547,6 +1556,7 @@ const MiniAppPreviewPane: React.FC<{
     <LibraryPreviewPane
       isOpen={true}
       onClose={onClose}
+      closeAnchor={tourTypeAttr('mini-app.preview-close', 'miniApp')}
       title={app.title}
       subtitle={
         <span className="font-mono">
@@ -1558,6 +1568,7 @@ const MiniAppPreviewPane: React.FC<{
           ? {
               label: 'Open editor',
               icon: Pencil,
+              anchor: tourTypeAttr('mini-app.preview-open-editor', 'miniApp'),
               onClick: () => {
                 const a = app;
                 onClose();
@@ -1568,6 +1579,10 @@ const MiniAppPreviewPane: React.FC<{
             ? {
                 label: saving ? 'Saving…' : 'Save to my library',
                 icon: Pencil,
+                anchor: tourTypeAttr(
+                  'mini-app.preview-save-library',
+                  'miniApp'
+                ),
                 disabled: saving,
                 onClick: () => {
                   const a = app as GlobalMiniAppItem;
