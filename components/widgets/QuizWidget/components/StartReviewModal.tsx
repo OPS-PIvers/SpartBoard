@@ -317,7 +317,10 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
                     />
                   </div>
                 )}
-                <CollapsibleSection label="Gamification">
+                <CollapsibleSection
+                  label="Gamification"
+                  anchor={tourAttr('review-start.gamification')}
+                >
                   <div {...tourAttr('review-start.speed-bonus')}>
                     <ToggleRow
                       compact

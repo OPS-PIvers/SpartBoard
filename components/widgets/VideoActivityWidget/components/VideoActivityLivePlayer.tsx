@@ -3,6 +3,7 @@
  * teacher-paced (live) session (docs/plans/shipped/VA_TEACHER_PACED.md §5.2).
  */
 
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import React, { useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2,
@@ -399,6 +400,7 @@ export const VideoActivityLivePlayer: React.FC<
             joined
           </div>
           <button
+            {...tourAttr('video-activity.live-start')}
             type="button"
             onClick={handleStart}
             className="inline-flex items-center justify-center rounded-xl bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2"
@@ -500,6 +502,7 @@ export const VideoActivityLivePlayer: React.FC<
                 >
                   <div className="relative">
                     <button
+                      {...tourAttr('video-activity.live-who-open')}
                       type="button"
                       onClick={() => setWhoOpen((v) => !v)}
                       aria-expanded={whoOpen}
@@ -568,6 +571,7 @@ export const VideoActivityLivePlayer: React.FC<
             style={{ gap: 'min(10px, 2cqmin)' }}
           >
             <button
+              {...tourAttr('video-activity.live-play-toggle')}
               type="button"
               onClick={() => setPlaying((p) => !p)}
               disabled={openQuestion !== null}
@@ -604,6 +608,7 @@ export const VideoActivityLivePlayer: React.FC<
               {statusLabel}
             </span>
             <input
+              {...tourAttr('video-activity.live-scrub')}
               type="range"
               min={0}
               max={Math.max(1, Math.ceil(duration))}
@@ -624,6 +629,7 @@ export const VideoActivityLivePlayer: React.FC<
               {formatClock(sliderValue)} / {formatClock(clock.duration)}
             </span>
             <button
+              {...tourAttr('video-activity.live-list-toggle')}
               type="button"
               onClick={() => setListOpen((v) => !v)}
               aria-pressed={listOpen}
@@ -678,6 +684,11 @@ export const VideoActivityLivePlayer: React.FC<
                 return (
                   <li key={q.id}>
                     <button
+                      {...tourFieldAttr(
+                        'video-activity.live-jump-question',
+                        'video-activity',
+                        q.id
+                      )}
                       type="button"
                       onClick={() => void jumpTo(q)}
                       disabled={state === 'open'}
@@ -861,6 +872,7 @@ const WhoHasntAnsweredPopover: React.FC<{
         Who hasn&apos;t answered?
       </span>
       <button
+        {...tourAttr('video-activity.live-who-close')}
         type="button"
         onClick={onClose}
         aria-label="Close"

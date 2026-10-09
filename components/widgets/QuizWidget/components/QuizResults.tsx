@@ -4397,6 +4397,11 @@ const StudentsScreen: React.FC<{
                         kind="quiz"
                         sessionId={session.id}
                         studentKey={rowKey}
+                        anchor={tourFieldAttr(
+                          'quiz-results.student-view-as',
+                          'quiz',
+                          rowKey
+                        )}
                       />
                     )}
 
