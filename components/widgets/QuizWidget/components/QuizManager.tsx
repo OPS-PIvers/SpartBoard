@@ -3057,6 +3057,7 @@ const LibraryTabContent: React.FC<{
           primaryAction={{
             label: 'Open editor',
             icon: Edit2,
+            anchor: tourTypeAttr('quiz-library.preview-open-editor', 'quiz'),
             onClick: () => {
               const q = previewQuiz;
               onPreviewQuiz(null);
@@ -3067,6 +3068,10 @@ const LibraryTabContent: React.FC<{
             {
               label: 'Check answers',
               icon: Eye,
+              anchor: tourTypeAttr(
+                'quiz-library.preview-check-answers',
+                'quiz'
+              ),
               onClick: () => {
                 const q = previewQuiz;
                 onPreviewQuiz(null);

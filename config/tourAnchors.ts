@@ -2836,6 +2836,46 @@ export const TOUR_ANCHORS = {
     label: 'View as student button on a student row in the Quiz results',
     perField: true,
   },
+  'quiz-library.preview-open-editor': {
+    label: 'Open editor button in the Quiz library preview pane',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.preview-check-answers': {
+    label: 'Check answers button in the Quiz library preview pane',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.language-preview-voice': {
+    label: 'Preview voice button in the Quiz language settings',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-print.import-questions': {
+    label: 'Import questions uploader in the Quiz print dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-settings.focus-mode': {
+    label: 'Focus mode toggle in the Quiz assignment settings',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-settings.block-copy-paste': {
+    label: 'Block copy and paste toggle in the Quiz assignment settings',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-settings.shuffle-questions': {
+    label: 'Shuffle questions toggle in the Quiz assignment settings',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-settings.shuffle-answers': {
+    label: 'Shuffle answer options toggle in the Quiz assignment settings',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-settings.widget-label': {
     label: 'Widget label input in Quiz settings',
     perWidget: true,

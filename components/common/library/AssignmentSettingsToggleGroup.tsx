@@ -234,6 +234,12 @@ export interface AssignmentSettingsToggleGroupProps {
    * and `ToggleRow` to match the visual style.
    */
   trailingSlot?: React.ReactNode;
+  anchors?: {
+    focusMode?: TourAnchorAttrs;
+    copyPaste?: TourAnchorAttrs;
+    shuffleQuestions?: TourAnchorAttrs;
+    shuffleAnswerOptions?: TourAnchorAttrs;
+  };
 }
 
 export const AssignmentSettingsToggleGroup: React.FC<
@@ -256,6 +262,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
   showLearningTargetsToggle = false,
   feedbackLeadingSlot,
   afterTabWarningsSlot,
+  anchors,
 }) => {
   const update = <K extends keyof BaseSessionOptions>(
     key: K,
@@ -294,6 +301,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
             label="Focus mode"
             checked={options.tabWarningsEnabled ?? true}
             onChange={(v) => update('tabWarningsEnabled', v)}
+            anchor={anchors?.focusMode}
           />
           {afterTabWarningsSlot}
           {showCopyPasteToggle && (
@@ -301,6 +309,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
               label="Block Copy & Paste"
               checked={options.blockCopyPaste ?? false}
               onChange={(v) => update('blockCopyPaste', v)}
+              anchor={anchors?.copyPaste}
             />
           )}
         </>
@@ -314,6 +323,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
               label="Shuffle Questions"
               checked={options.shuffleQuestions ?? false}
               onChange={(v) => update('shuffleQuestions', v)}
+              anchor={anchors?.shuffleQuestions}
               disabled={!shuffleQuestionsAvailable}
               hint={
                 shuffleQuestionsAvailable ? undefined : shuffleQuestionsHint
@@ -325,6 +335,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
             label="Shuffle Answer Options"
             checked={options.shuffleAnswerOptions ?? true}
             onChange={(v) => update('shuffleAnswerOptions', v)}
+            anchor={anchors?.shuffleAnswerOptions}
           />
         </CollapsibleSection>
       )}
