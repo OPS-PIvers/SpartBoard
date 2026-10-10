@@ -227,5 +227,5 @@ Vendored from [emilkowalski/skills](https://github.com/emilkowalski/skills) at `
 - No motion library is installed. Use CSS transitions and the `tailwindcss-animate` utilities; ask Paul before adding Motion.
 - Keyframes and animation names live in `tailwind.config.js`. Extend them there instead of adding a parallel set. Its reduced-motion plugin already turns off looping animations.
 - The personality is "calm" (`components/CLAUDE.md`): most widget controls sit in the "tens of times a day" tier, and nothing bounces or pulses unless it signals urgency, like a timer alarm.
-- Hover motion must also work on the 50" classroom touch panel. Follow "Touch panels" in `components/CLAUDE.md`.
+- Tailwind `hover:` is already gated to `(hover: hover) and (pointer: fine)`, so hover motion needs no extra media query. Anything it reveals also needs `touch:` for the 50" classroom touch panel (see "Touch panels" in `components/CLAUDE.md`).
 - `pick-ui-library`, `improve-animations`, `find-animation-opportunities` and `animate-expo` are not installed here. Reuse SpartBoard's existing components where the text above points to them.

@@ -14,8 +14,8 @@ Teachers run the board on 50" classroom touchscreens as well as laptops, so ever
 
 - `DraggableWindow` already handles touch: Pointer Events with pointer capture, `touchAction: 'none'` on drag and resize surfaces, a second finger freezing a drag in place, native scrolling inside scrollable panels, no context menu, and `select-none` on the widget. `html` and `body` have `overscroll-behavior: none`. Don't re-add these per widget.
 - A 600ms one-finger long-press on a widget takes a screenshot and a two-finger long-press toggles annotation, so don't build a widget gesture on long-press.
-- There is no hover on touch. A control hidden behind `opacity-0 group-hover:opacity-100` is invisible on the panel (the dock's minimized-widget close button is one). Give it a visible resting state, as `StudentChip`'s `opacity-60 hover:opacity-100` does.
-- Tailwind's `hoverOnlyWhenSupported` is off, so a `hover:` style sticks after a tap until something else is touched. Don't put meaning in a hover-only change, and gate hover motion with `[@media(hover:hover)]:`.
+- `hover:` and `group-hover:` only apply on devices that can hover (Tailwind `hoverOnlyWhenSupported`), so they never fire on the panel. Don't put meaning in a hover-only change.
+- A control revealed on hover (`opacity-0 group-hover:opacity-100`) also takes `touch:opacity-100`; the `touch:` variant targets `(hover: none), (pointer: coarse)`. `tests/config/touchHover.test.ts` fails on a board control without it; hints and tooltips go on its `HOVER_ONLY` list instead.
 - Tap targets are at least 44px. `touch-target-expand` (`index.css`) enlarges a small icon button's hit area without changing its look.
 - There is no global `-webkit-tap-highlight-color` reset. A custom tap target with its own pressed state adds `[-webkit-tap-highlight-color:transparent]`.
 - Detect a touch-first device with `matchMedia('(pointer: coarse)')` (as `utils/contentEditableDragSelect.ts` does); for a control used by mouse and finger alike, branch on the event's `pointerType`.

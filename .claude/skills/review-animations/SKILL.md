@@ -125,4 +125,4 @@ Vendored from [emilkowalski/skills](https://github.com/emilkowalski/skills) at `
 
 - SpartBoard is a dashboard used live in class, so it stays crisp: flag bounce, pulse and looping motion unless it signals urgency (a timer alarm).
 - No motion library is installed; motion is CSS transitions, `tailwindcss-animate` and the keyframes in `tailwind.config.js`. A fix extends those tokens rather than adding new ones.
-- Treat ungated hover motion as a touch-panel finding too, per "Touch panels" in `components/CLAUDE.md`.
+- Tailwind `hover:` is already hover-gated here; flag raw CSS `:hover` motion without the gate, and hover-revealed controls without `touch:opacity-100` (see "Touch panels" in `components/CLAUDE.md`).
