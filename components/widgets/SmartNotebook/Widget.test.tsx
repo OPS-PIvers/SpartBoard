@@ -414,7 +414,7 @@ describe('SmartNotebookWidget', () => {
     // Actually, finding by class or icon might be better, but let's try to find the button in the card
     const deleteButtons = screen
       .getAllByRole('button')
-      .filter((btn) => btn.querySelector('svg.lucide-trash2'));
+      .filter((btn) => btn.querySelector('svg.lucide-trash-2'));
     // Filter to ensure we get the actual button, not the parent div role="button"
     const actualDeleteBtn = deleteButtons.find(
       (btn) => btn.tagName === 'BUTTON'
@@ -488,7 +488,7 @@ describe('SmartNotebookWidget', () => {
             value={subShareContextValue({
               shareId: 'share-1',
               version: 0,
-              load: load as never,
+              load: load,
               loadKey: noSubShareKey,
             })}
           >

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SignJWT, generateKeyPair, type KeyLike } from 'jose';
+import { SignJWT, generateKeyPair } from 'jose';
 import { verifyLaunchJwt, deriveRole, launchRedirectTarget } from './jwt';
 import {
   LTI,
@@ -46,7 +46,7 @@ interface SignOpts {
 }
 
 async function sign(
-  privateKey: KeyLike,
+  privateKey: CryptoKey,
   claims: Record<string, unknown>,
   opts: SignOpts = {}
 ): Promise<string> {

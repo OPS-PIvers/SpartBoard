@@ -88,12 +88,10 @@ describe('submitPost helpers', () => {
     mockUpdateDoc.mockResolvedValue(undefined);
     mockDeleteDoc.mockResolvedValue(undefined);
     mockDeleteObject.mockResolvedValue(undefined);
-    vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation(
-      (arr: ArrayBufferView) => {
-        new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength).fill(0);
-        return arr;
-      }
-    );
+    vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation((arr) => {
+      new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength).fill(0);
+      return arr;
+    });
   });
 
   it('availableTypes always includes text and follows allowedTypes', () => {
