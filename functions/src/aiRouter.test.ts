@@ -251,7 +251,40 @@ describe('generateAi', () => {
       model: 'gemini-3.8-flash',
       fellBack: true,
     });
-    expect(logSets[0].data).toMatchObject({ fallbacks: { inc: 1 } });
+    expect(logSets[0]).toMatchObject({
+      id: expect.stringMatching(/__mini-app__claude-opus-5-5$/) as unknown,
+      data: { provider: 'claude', errors: { inc: 1 } },
+    });
+    expect(logSets[1]).toMatchObject({
+      id: expect.stringMatching(/__mini-app__gemini-3_8-flash$/) as unknown,
+      data: { fallbacks: { inc: 1 }, errors: { inc: 0 } },
+    });
+  });
+
+  it('falls back when Claude times out, within the requested timeout', async () => {
+    secretValue.current = 'sk-ant-test';
+    claudeStreamMock.mockReturnValue({
+      finalMessage: () =>
+        Promise.reject(
+          Object.assign(new Error('Request timed out.'), {
+            name: 'APIConnectionTimeoutError',
+          })
+        ),
+    });
+    generateContentMock.mockResolvedValue(geminiOk());
+    const result = await generateAi(
+      fakeDb({ integrationModels: { 'guided-learning': 'claude-sonnet-5-5' } }),
+      {
+        integration: 'guided-learning',
+        parts: [{ text: 'hi' }],
+        claudeTimeoutMs: 1234,
+      }
+    );
+    expect(result).toMatchObject({ provider: 'gemini', fellBack: true });
+    const { default: Anthropic } = await import('@anthropic-ai/sdk');
+    expect(vi.mocked(Anthropic).mock.calls.at(-1)?.[0]).toMatchObject({
+      timeout: 1234,
+    });
   });
 
   it('falls back when Claude stops early or refuses', async () => {
@@ -294,7 +327,7 @@ describe('generateAi', () => {
     generateContentMock.mockRejectedValue(new Error('503'));
     await expect(
       generateAi(fakeDb(), { integration: 'poll', parts: [{ text: 'hi' }] })
-    ).rejects.toThrow('503');
+    ).rejects.toThrow('gemini-3.5-flash-lite: 503');
     expect(logSets[0].data).toMatchObject({ errors: { inc: 1 } });
   });
 });

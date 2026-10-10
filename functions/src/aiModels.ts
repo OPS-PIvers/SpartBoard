@@ -5,7 +5,7 @@ export type AiTier = 'advanced' | 'standard';
 /** Kinds of input an AI integration sends; Claude reads text, images and PDFs only. */
 export type AiInputKind = 'text' | 'image' | 'pdf' | 'docx' | 'audio' | 'video';
 
-// Keep in sync with CLAUDE_MODELS in config/aiModels.ts (aiModelsParity test).
+// Keep in sync with CLAUDE_MODELS in config/aiModels.ts (tests/config/aiIntegrationsParity.test.ts).
 export const CLAUDE_MODEL_IDS = [
   'claude-opus-5-5',
   'claude-sonnet-5-5',

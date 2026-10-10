@@ -310,6 +310,15 @@ export async function generateAi(
           `[aiRouter] ${req.integration} on ${model} failed; retrying on ${geminiFallback}`,
           error
         );
+        await logAiCall(db, {
+          integration: req.integration,
+          model,
+          provider: 'claude',
+          inputTokens: 0,
+          outputTokens: 0,
+          fellBack: false,
+          failed: true,
+        });
       }
     }
     fellBack = true;
@@ -335,6 +344,9 @@ export async function generateAi(
       fellBack,
       failed: true,
     });
+    // Name the model in the message (callers surface it) without changing the error's type.
+    if (error instanceof Error)
+      error.message = `${geminiModel}: ${error.message}`;
     throw error;
   }
 }

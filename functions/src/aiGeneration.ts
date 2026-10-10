@@ -2205,7 +2205,8 @@ interface GuidedLearningImageInput {
 export const generateGuidedLearning = onCall(
   {
     memory: '512MiB',
-    timeoutSeconds: 120,
+    // Room for a 60 s Claude attempt and a full Gemini retry.
+    timeoutSeconds: 180,
     cors: ALLOWED_ORIGINS,
     secrets: [ANTHROPIC_API_KEY],
   },
@@ -2422,7 +2423,8 @@ Writing:
 export const draftGuidedLearningStepTextV1 = onCall(
   {
     memory: '512MiB',
-    timeoutSeconds: 120,
+    // Room for a 60 s Claude attempt and a full Gemini retry.
+    timeoutSeconds: 180,
     cors: ALLOWED_ORIGINS,
     secrets: [ANTHROPIC_API_KEY],
   },

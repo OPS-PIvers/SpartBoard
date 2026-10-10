@@ -4,6 +4,8 @@ import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { KNOWN_GEMINI_MODELS } from '@/config/geminiModels';
 import {
   AI_MODEL_OPTIONS,
+  DEFAULT_ADVANCED_MODEL,
+  DEFAULT_STANDARD_MODEL,
   aiModelLabel,
   modelReadsInputs,
   providerOf,
@@ -17,10 +19,6 @@ import {
   useAiUsageLog,
   type AiIntegrationUsage,
 } from './useAiUsageLog';
-
-// Keep in sync with DEFAULT_ADVANCED_MODEL / DEFAULT_STANDARD_MODEL in functions/src/aiModelConfig.ts.
-const DEFAULT_ADVANCED_MODEL = 'gemini-3.8-flash';
-const DEFAULT_STANDARD_MODEL = 'gemini-3.5-flash-lite';
 
 const GEMINI_IDS: string[] = KNOWN_GEMINI_MODELS.map((m) => m.value);
 

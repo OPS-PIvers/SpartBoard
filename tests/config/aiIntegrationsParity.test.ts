@@ -2,7 +2,11 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { AI_INTEGRATIONS } from '@/config/aiIntegrations';
-import { CLAUDE_MODELS } from '@/config/aiModels';
+import {
+  CLAUDE_MODELS,
+  DEFAULT_ADVANCED_MODEL,
+  DEFAULT_STANDARD_MODEL,
+} from '@/config/aiModels';
 
 const serverSource = (file: string): string =>
   readFileSync(resolve(__dirname, '../../functions/src', file), 'utf8');
@@ -59,5 +63,15 @@ describe('Claude model list', () => {
       (m) => m[1]
     );
     expect(CLAUDE_MODELS.map((m) => m.id).sort()).toEqual(server.sort());
+  });
+});
+
+describe('tier default models', () => {
+  it('match the server defaults', () => {
+    const source = serverSource('aiModelConfig.ts');
+    const read = (name: string) =>
+      new RegExp(`${name} = '([^']+)'`).exec(source)?.[1];
+    expect(DEFAULT_ADVANCED_MODEL).toBe(read('DEFAULT_ADVANCED_MODEL'));
+    expect(DEFAULT_STANDARD_MODEL).toBe(read('DEFAULT_STANDARD_MODEL'));
   });
 });

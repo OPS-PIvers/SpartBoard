@@ -1,6 +1,10 @@
 import { KNOWN_GEMINI_MODELS } from '@/config/geminiModels';
 
 export type AiProvider = 'gemini' | 'claude';
+
+// Must match functions/src/aiModelConfig.ts (tests/config/aiIntegrationsParity.test.ts).
+export const DEFAULT_ADVANCED_MODEL = 'gemini-3.8-flash';
+export const DEFAULT_STANDARD_MODEL = 'gemini-3.5-flash-lite';
 export type AiInputKind = 'text' | 'image' | 'pdf' | 'docx' | 'audio' | 'video';
 
 export interface AiModelOption {
