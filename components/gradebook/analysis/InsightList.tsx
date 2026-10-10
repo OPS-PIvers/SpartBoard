@@ -1,5 +1,6 @@
 import React from 'react';
 import { Private } from '@/components/gradebook/Private';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import type { GradebookInsight } from '@/utils/gradebook/gradebookInsights';
 
 const TONE_DOT: Record<GradebookInsight['tone'], string> = {
@@ -24,6 +25,7 @@ export const InsightList: React.FC<{
         <button
           key={i.id}
           type="button"
+          {...tourFieldAttr('gradebook.analysis.insight', 'gradebook', i.id)}
           onClick={() => onSelect(i)}
           className="flex w-full items-start gap-2.5 rounded-xl bg-slate-50 px-3 py-2.5 text-left text-[13px] text-slate-700 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/30"
         >

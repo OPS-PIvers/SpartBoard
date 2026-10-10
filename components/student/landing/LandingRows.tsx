@@ -13,6 +13,7 @@ import {
   getWindowState,
 } from '@/utils/assignmentWindow';
 import { formatDueLabel } from '@/utils/studentTurnIn';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { nextScheduledOpen, studentCanEnter } from '@/utils/periodAccess';
 import type { DoneItem, LandingRow } from '@/utils/studentLanding';
 import {
@@ -426,6 +427,11 @@ export const DoneRow: React.FC<DoneRowProps> = ({
     return (
       <button
         type="button"
+        {...tourFieldAttr(
+          'gradebook.student-view.done-row',
+          'gradebook',
+          item.key
+        )}
         onClick={() =>
           void showAlert(missingMessage(item, teachers), {
             title: item.title,
@@ -442,6 +448,11 @@ export const DoneRow: React.FC<DoneRowProps> = ({
     return (
       <button
         type="button"
+        {...tourFieldAttr(
+          'gradebook.student-view.done-row',
+          'gradebook',
+          item.key
+        )}
         onClick={() => onLockedClick(a)}
         className={ROW_CLASS}
       >
@@ -453,6 +464,11 @@ export const DoneRow: React.FC<DoneRowProps> = ({
     return (
       <button
         type="button"
+        {...tourFieldAttr(
+          'gradebook.student-view.done-row',
+          'gradebook',
+          item.key
+        )}
         onClick={() => onOpenGradeOnly(item)}
         className={ROW_CLASS}
       >
@@ -461,7 +477,15 @@ export const DoneRow: React.FC<DoneRowProps> = ({
     );
   }
   return (
-    <a href={a.openHref} className={ROW_CLASS}>
+    <a
+      href={a.openHref}
+      {...tourFieldAttr(
+        'gradebook.student-view.done-row',
+        'gradebook',
+        item.key
+      )}
+      className={ROW_CLASS}
+    >
       {body}
     </a>
   );

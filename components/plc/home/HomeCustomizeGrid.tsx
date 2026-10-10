@@ -53,6 +53,7 @@ const SortableTileCard: React.FC<{
       }`}
     >
       <button
+        {...tourFieldAttr('plc-home.drag-tile', 'plc', tile.id)}
         type="button"
         {...attributes}
         {...listeners}
