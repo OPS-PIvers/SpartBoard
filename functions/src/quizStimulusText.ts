@@ -339,6 +339,8 @@ async function geminiOcr(bytes: Buffer, mimeType: string): Promise<string> {
   const { generateAi } = await import('./aiRouter');
   const result = await generateAi(admin.firestore(), {
     integration: 'quiz-stimulus-ocr',
+    // Leaves the Gemini retry room inside OCR_DEADLINE_MS.
+    claudeTimeoutMs: 25_000,
     parts: [
       { text: OCR_PROMPT },
       { inlineData: { mimeType, data: bytes.toString('base64') } },

@@ -599,6 +599,8 @@ async function geminiExtract(
   // A .docx goes to Gemini even when Claude is chosen; Claude reads PDFs only.
   const result = await generateAi(admin.firestore(), {
     integration: 'quiz-document-import',
+    // Leaves a long PDF's Gemini retry room inside the 120 s function timeout.
+    claudeTimeoutMs: 45_000,
     parts: [
       { text: buildExtractPrompt(multiAnswer) },
       { inlineData: { mimeType, data: bytes.toString('base64') } },
