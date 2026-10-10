@@ -12712,6 +12712,70 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  // Gradebook: toggles, option menus and numeric fields added in round two.
+  'gradebook.view.scores-format': {
+    label: 'Percent and Points switch in the gradebook View menu',
+    panel: true,
+  },
+  'gradebook.view.proficiency-colors': {
+    label: 'Proficiency colors switch in the gradebook View menu',
+    panel: true,
+  },
+  'gradebook.filter.needs-grading': {
+    label:
+      'Only columns with ungraded work switch in the gradebook Filter menu',
+    panel: true,
+  },
+  'gradebook.cell.share-comment': {
+    label: 'Share with student switch in the gradebook cell window',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.cell.flag-option': {
+    label: 'Flag option in the gradebook cell flags menu',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'gradebook.column.counts-overall': {
+    label: 'Counts toward overall switch in the gradebook column window',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.flag-value': {
+    label: 'Flag value box in the gradebook settings window',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.auto-flags': {
+    label:
+      'Automatic Late and Missing flags switch in the gradebook settings window',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.category-weight': {
+    label: 'Category weight box in the gradebook settings window',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.student-scores': {
+    label: 'Published scores switch in the gradebook settings window',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.student-standards': {
+    label: 'Standards mastery switch in the gradebook settings window',
+    persists: true,
+    panel: true,
+  },
+  'gradebook.settings.scale-cutoff': {
+    label: 'Level cutoff box in the gradebook settings window',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
   // Gradebook: toolbar, grid, popovers, settings, analysis and student views.
   'gradebook.tabs': {
     label: 'Grades and Data analysis tabs in the gradebook header',

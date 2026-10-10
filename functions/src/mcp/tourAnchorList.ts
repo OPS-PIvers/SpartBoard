@@ -16572,6 +16572,80 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     panel: true,
   },
   {
+    id: 'gradebook.view.scores-format',
+    label: 'Percent and Points switch in the gradebook View menu',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'gradebook.view.proficiency-colors',
+    label: 'Proficiency colors switch in the gradebook View menu',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'gradebook.filter.needs-grading',
+    label:
+      'Only columns with ungraded work switch in the gradebook Filter menu',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'gradebook.cell.share-comment',
+    label: 'Share with student switch in the gradebook cell window',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'gradebook.cell.flag-option',
+    label: 'Flag option in the gradebook cell flags menu',
+    scope: 'field',
+    panel: true,
+  },
+  {
+    id: 'gradebook.column.counts-overall',
+    label: 'Counts toward overall switch in the gradebook column window',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'gradebook.settings.flag-value',
+    label: 'Flag value box in the gradebook settings window',
+    scope: 'field',
+    panel: true,
+  },
+  {
+    id: 'gradebook.settings.auto-flags',
+    label:
+      'Automatic Late and Missing flags switch in the gradebook settings window',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'gradebook.settings.category-weight',
+    label: 'Category weight box in the gradebook settings window',
+    scope: 'field',
+    panel: true,
+  },
+  {
+    id: 'gradebook.settings.student-scores',
+    label: 'Published scores switch in the gradebook settings window',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'gradebook.settings.student-standards',
+    label: 'Standards mastery switch in the gradebook settings window',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'gradebook.settings.scale-cutoff',
+    label: 'Level cutoff box in the gradebook settings window',
+    scope: 'field',
+    panel: true,
+  },
+  {
     id: 'gradebook.tabs',
     label: 'Grades and Data analysis tabs in the gradebook header',
     scope: 'board',

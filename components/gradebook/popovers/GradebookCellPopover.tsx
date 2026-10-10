@@ -11,7 +11,7 @@ import {
 } from '@/hooks/gradebook/useGradebookMarkWrites';
 import { useMarkHistory } from '@/hooks/gradebook/useMarkHistory';
 import { logError } from '@/utils/logError';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { GradebookPopoverShell } from './GradebookPopoverShell';
 import { FlagChip, FlagMenuList, LinkBtn, Toggle } from './popoverParts';
 import {
@@ -360,7 +360,12 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
               >
                 Comment
               </label>
-              <Toggle small checked={shared} onChange={setShared}>
+              <Toggle
+                small
+                checked={shared}
+                onChange={setShared}
+                anchor={tourAttr('gradebook.cell.share-comment')}
+              >
                 Share with student
               </Toggle>
             </div>
@@ -433,6 +438,13 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
           <FlagMenuList
             flags={flagDefs}
             active={final.flags}
+            itemAnchor={(flagId) =>
+              tourFieldAttr(
+                'gradebook.cell.flag-option',
+                'gradebook-cell',
+                flagId
+              )
+            }
             onToggle={(flagId) =>
               writes.toggleFlag(column, cell, flagId).catch(fail)
             }

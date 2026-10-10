@@ -258,6 +258,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
               <SegmentedControl
                 role="radiogroup"
                 ariaLabel="Scores"
+                anchor={tourAttr('gradebook.view.scores-format')}
                 value={view.cellFormat}
                 onChange={(v) => setView({ cellFormat: v })}
                 options={[
@@ -269,6 +270,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
                 checked={view.tint}
                 onChange={(on) => setView({ tint: on })}
                 label="Proficiency colors"
+                anchor={tourAttr('gradebook.view.proficiency-colors')}
               />
             </div>
           </div>
@@ -388,6 +390,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
             checked={filters.needsGrading}
             onChange={(on) => setFilters({ needsGrading: on })}
             label="Only columns with ungraded work"
+            anchor={tourAttr('gradebook.filter.needs-grading')}
           />
           {hiddenColumns.length > 0 && (
             <div>
