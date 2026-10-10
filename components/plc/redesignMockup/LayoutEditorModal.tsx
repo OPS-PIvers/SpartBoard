@@ -19,6 +19,7 @@ import { Modal } from '@/components/common/Modal';
 import { Button } from '@/components/common/Button';
 import { IconButton } from '@/components/common/IconButton';
 import { Toggle } from '@/components/common/Toggle';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { ASSESSMENTS, LEARNING_TARGETS } from './fixtures';
 import { EYEBROW, INPUT, META, TextLink } from './ui';
@@ -77,6 +78,11 @@ export const OrderRow: React.FC<{
   onMove: (d: number) => void;
   onToggle: (on: boolean) => void;
   switchLabel?: string;
+  anchors?: {
+    up?: TourAnchorAttrs;
+    down?: TourAnchorAttrs;
+    toggle?: TourAnchorAttrs;
+  };
 }> = ({
   label,
   icon: Icon,
@@ -89,6 +95,7 @@ export const OrderRow: React.FC<{
   onMove,
   onToggle,
   switchLabel,
+  anchors,
 }) => (
   <li className="flex items-center gap-3 py-2">
     {Icon && (
@@ -106,6 +113,7 @@ export const OrderRow: React.FC<{
       size="sm"
       disabled={index === 0}
       onClick={() => onMove(-1)}
+      {...anchors?.up}
     />
     <IconButton
       icon={<ArrowDown className="h-3.5 w-3.5" />}
@@ -113,6 +121,7 @@ export const OrderRow: React.FC<{
       size="sm"
       disabled={index === count - 1}
       onClick={() => onMove(1)}
+      {...anchors?.down}
     />
     <span title={lockedOn ? 'The landing page is always on' : undefined}>
       <Toggle
@@ -121,6 +130,7 @@ export const OrderRow: React.FC<{
         disabled={lockedOn || disabled}
         onChange={onToggle}
         label={switchLabel ?? `Show ${label}`}
+        anchor={anchors?.toggle}
       />
     </span>
   </li>

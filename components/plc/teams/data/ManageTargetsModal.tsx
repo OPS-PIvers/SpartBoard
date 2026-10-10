@@ -128,6 +128,7 @@ export const ManageTargetsModal: React.FC<ManageTargetsModalProps> = ({
         defaultValue: 'Learning targets',
       })}
       maxWidth="max-w-3xl"
+      closeTourId="teams.targets.close"
       footer={
         <div className="flex items-center justify-end gap-2">
           {error && (
@@ -280,7 +281,11 @@ export const ManageTargetsModal: React.FC<ManageTargetsModalProps> = ({
               step={1}
               value={value}
               onChange={(e) => onChange(e.target.value)}
-              {...tourFieldAttr('teams.targets.cutoff', 'teams-data', String(i))}
+              {...tourFieldAttr(
+                'teams.targets.cutoff',
+                'teams-data',
+                String(i)
+              )}
               className={`${INPUT} w-20 py-1.5 tabular-nums`}
             />
             %
@@ -300,6 +305,7 @@ export const ManageTargetsModal: React.FC<ManageTargetsModalProps> = ({
                 defaultValue: 'Assessment',
               })}
               value={setId}
+              anchor={tourAttr('teams.targets.assessment')}
               onChange={(v) => {
                 setSetId(v);
                 setShowAll(false);

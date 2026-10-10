@@ -5519,6 +5519,90 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   // Teams pages: Notes & Docs, Updates, shell, building, mentoring, data, department and admin defaults.
+  // Teams: shared-component controls (ordering rows, filters, chart toggles, dialog close buttons)
+  'teams.add-doc.close': {
+    label: 'Close button in the Add a doc dialog header',
+    panel: true,
+  },
+  'teams.admin-defaults.move-down': {
+    label: 'Move down button in the team type defaults',
+    perField: true,
+  },
+  'teams.admin-defaults.move-up': {
+    label: 'Move up button in the team type defaults',
+    perField: true,
+  },
+  'teams.admin-defaults.team-type': {
+    label: 'Team type switch in the team type defaults',
+  },
+  'teams.admin-defaults.toggle': {
+    label: 'On by default switch in the team type defaults',
+    perField: true,
+  },
+  'teams.check-in.close': {
+    label: 'Close button in the check-in dialog header',
+    panel: true,
+  },
+  'teams.data.sort-questions': {
+    label: 'Sort questions menu in the item analysis',
+  },
+  'teams.data.table-toggle': {
+    label: 'Table or Chart button beside a data chart',
+    perField: true,
+  },
+  'teams.drawer.tab': {
+    label: "Tab button in the team What's new and My items drawer",
+    perField: true,
+    panel: true,
+  },
+  'teams.layout.hero-mode': {
+    label: 'First thing the team sees switch in the team layout editor',
+    panel: true,
+  },
+  'teams.layout.move-down': {
+    label: 'Move down button in the team layout editor',
+    perField: true,
+    panel: true,
+  },
+  'teams.layout.move-up': {
+    label: 'Move up button in the team layout editor',
+    perField: true,
+    panel: true,
+  },
+  'teams.layout.toggle': {
+    label: 'Show switch in the team layout editor',
+    perField: true,
+    panel: true,
+  },
+  'teams.mentoring.resource': {
+    label: 'Resource link in the mentoring Resources list',
+    perField: true,
+  },
+  'teams.post-task.close': {
+    label: 'Close button in the Post a task dialog header',
+    panel: true,
+  },
+  'teams.resources.filter': {
+    label: 'Filter menu in the team Resources page',
+  },
+  'teams.targets.assessment': {
+    label: 'Assessment menu in the Learning targets dialog',
+    panel: true,
+  },
+  'teams.targets.close': {
+    label: 'Close button in the Learning targets dialog header',
+    panel: true,
+  },
+  'teams.template.close': {
+    label: 'Close button in the note template dialog header',
+    panel: true,
+  },
+  'teams.tracker.filter': {
+    label: 'Filter pairs menu in the mentoring tracker',
+  },
+  'teams.updates.filter': {
+    label: 'Filter updates menu in the team Updates page',
+  },
   'teams.actions.add': {
     label: 'Add action item box in a note',
   },

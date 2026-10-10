@@ -150,6 +150,7 @@ export const TeamTypeDefaultsView: React.FC<TeamTypeDefaultsViewProps> = ({
       <div className="flex flex-wrap items-center gap-3">
         <SegmentedControl
           ariaLabel="Team type"
+          anchor={tourAttr('teams.admin-defaults.team-type')}
           value={type}
           onChange={setType}
           options={TEAM_TYPE_ORDER.map((k) => ({
@@ -175,6 +176,23 @@ export const TeamTypeDefaultsView: React.FC<TeamTypeDefaultsViewProps> = ({
                 count={draft.pages.length}
                 lockedOn={landing}
                 switchLabel={`${label} on by default`}
+                anchors={{
+                  up: tourFieldAttr(
+                    'teams.admin-defaults.move-up',
+                    'teams-admin-defaults',
+                    `page-${p.id}`
+                  ),
+                  down: tourFieldAttr(
+                    'teams.admin-defaults.move-down',
+                    'teams-admin-defaults',
+                    `page-${p.id}`
+                  ),
+                  toggle: tourFieldAttr(
+                    'teams.admin-defaults.toggle',
+                    'teams-admin-defaults',
+                    `page-${p.id}`
+                  ),
+                }}
                 note={
                   landing && (
                     <span className="text-xxs font-bold uppercase tracking-wider text-brand-blue-primary">
@@ -206,6 +224,23 @@ export const TeamTypeDefaultsView: React.FC<TeamTypeDefaultsViewProps> = ({
               index={i}
               count={draft.cards.length}
               switchLabel={`${c.label} on by default`}
+              anchors={{
+                up: tourFieldAttr(
+                  'teams.admin-defaults.move-up',
+                  'teams-admin-defaults',
+                  `card-${c.key}`
+                ),
+                down: tourFieldAttr(
+                  'teams.admin-defaults.move-down',
+                  'teams-admin-defaults',
+                  `card-${c.key}`
+                ),
+                toggle: tourFieldAttr(
+                  'teams.admin-defaults.toggle',
+                  'teams-admin-defaults',
+                  `card-${c.key}`
+                ),
+              }}
               onMove={(d) => edit({ cards: move(draft.cards, i, d) })}
               onToggle={(on) =>
                 edit({

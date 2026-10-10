@@ -1,6 +1,7 @@
 // Table view behind every chart, so no number is only readable from a mark.
 
 import React from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 
 export const DataTable: React.FC<{
   head: string[];
@@ -48,11 +49,13 @@ export const DataTable: React.FC<{
 export const TableToggle: React.FC<{
   table: boolean;
   onToggle: () => void;
-}> = ({ table, onToggle }) => (
+  anchor?: TourAnchorAttrs;
+}> = ({ table, onToggle, anchor }) => (
   <button
     type="button"
     aria-pressed={table}
     onClick={onToggle}
+    {...anchor}
     className="rounded text-xs font-semibold text-slate-500 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
   >
     {table ? 'Chart' : 'Table'}
