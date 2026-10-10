@@ -418,7 +418,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
                   onClick={() => deleteStep(step.id)}
                   {...tourAttr('projects-editor.step-delete')}
                   aria-label={`Delete ${step.title || `step ${index + 1}`}`}
-                  className="px-2 text-slate-300 opacity-0 transition hover:text-brand-red-primary group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100"
+                  className="px-2 text-slate-300 opacity-0 transition hover:text-brand-red-primary group-hover:opacity-100 touch:opacity-100 group-focus-within:opacity-100"
                 >
                   <X className="h-3.5 w-3.5" aria-hidden />
                 </button>

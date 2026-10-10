@@ -136,11 +136,11 @@ const SlideThumbBody = React.memo(function SlideThumbBody({
         onClick={() => onDelete(slide.index)}
         aria-label={t('glStudio.deleteSlideN', { n })}
         title={t('glStudio.deleteSlideN', { n })}
-        className="absolute right-1 top-1 rounded-md bg-white/90 p-1 text-slate-600 opacity-0 shadow-sm transition-opacity hover:text-red-700 focus:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
+        className="absolute right-1 top-1 rounded-md bg-white/90 p-1 text-slate-600 opacity-0 shadow-sm transition-opacity hover:text-red-700 focus:opacity-100 group-hover:opacity-100 touch:opacity-100"
       >
         <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
       </button>
-      <div className="absolute bottom-1 right-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 has-[[aria-expanded=true]]:opacity-100 [@media(hover:none)]:opacity-100">
+      <div className="absolute bottom-1 right-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 touch:opacity-100 has-[[aria-expanded=true]]:opacity-100">
         <StudioMenu
           label={t('glStudio.slideActionsN', { n })}
           testId={`gl-studio-slide-menu-${slide.index}`}

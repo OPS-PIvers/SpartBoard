@@ -323,7 +323,7 @@ export const PageStrip: React.FC<PageStripProps> = ({
                         )}
                         title={`Rename page ${index + 1}`}
                         aria-label={`Rename page ${index + 1}`}
-                        className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity p-1 rounded text-slate-300 hover:bg-white/10 hover:text-white"
+                        className="opacity-0 group-hover:opacity-100 touch:opacity-100 focus-visible:opacity-100 transition-opacity p-1 rounded text-slate-300 hover:bg-white/10 hover:text-white"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
@@ -338,7 +338,7 @@ export const PageStrip: React.FC<PageStripProps> = ({
                         disabled={pages.length <= 1}
                         title={`Delete page ${index + 1}`}
                         aria-label={`Page ${index + 1} actions`}
-                        className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity p-1 rounded text-red-300 hover:bg-red-500/20 hover:text-red-200 disabled:opacity-20 disabled:hover:bg-transparent"
+                        className="opacity-0 group-hover:opacity-100 touch:opacity-100 focus-visible:opacity-100 transition-opacity p-1 rounded text-red-300 hover:bg-red-500/20 hover:text-red-200 disabled:opacity-20 disabled:hover:bg-transparent"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

@@ -690,7 +690,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
               onClick={() => void fetchNutrislice()}
               variant="ghost"
               size="sm"
-              className="absolute top-2 right-2 rounded-xl bg-white/40 hover:bg-white border border-slate-200 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute top-2 right-2 rounded-xl bg-white/40 hover:bg-white border border-slate-200 opacity-0 group-hover:opacity-100 touch:opacity-100 transition-opacity"
               style={{
                 width: 'min(32px, 8cqmin)',
                 height: 'min(32px, 8cqmin)',

@@ -709,7 +709,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                               'saved',
                               sw.id
                             )}
-                            className="absolute top-1 left-1 p-1 rounded-md text-slate-400 hover:text-brand-red-primary hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+                            className="absolute top-1 left-1 p-1 rounded-md text-slate-400 hover:text-brand-red-primary hover:bg-red-50 opacity-0 group-hover:opacity-100 touch:opacity-100 transition-all"
                             aria-label="Delete saved widget"
                             title="Delete saved widget"
                           >
@@ -731,7 +731,7 @@ export const WidgetLibrary = forwardRef<HTMLDivElement, WidgetLibraryProps>(
                             className={`absolute top-1 right-1 p-1 rounded-md transition-all ${
                               sw.pinnedToDock
                                 ? 'text-brand-blue-primary opacity-100'
-                                : 'text-slate-400 hover:text-brand-blue-primary opacity-0 group-hover:opacity-100'
+                                : 'text-slate-400 hover:text-brand-blue-primary opacity-0 group-hover:opacity-100 touch:opacity-100'
                             }`}
                             aria-label={
                               sw.pinnedToDock
