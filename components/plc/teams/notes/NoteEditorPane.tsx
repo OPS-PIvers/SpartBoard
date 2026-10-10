@@ -549,6 +549,11 @@ export const NoteEditorPane: React.FC<NoteEditorPaneProps> = ({
             }
             readOnly={false}
             showToolbar={focused === index}
+            bodyAnchor={tourFieldAttr(
+              'teams.notes.section-body',
+              'teams-notes',
+              String(index)
+            )}
           />
         ) : (
           <textarea

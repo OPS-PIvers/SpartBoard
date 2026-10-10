@@ -87,6 +87,7 @@ export const TeamTemplateEditor: React.FC<{
       onClose={onClose}
       title={title}
       maxWidth="max-w-xl"
+      closeTourId="teams.template.close"
       footer={
         <div className="flex w-full items-center gap-2">
           {current.source === 'team' && (

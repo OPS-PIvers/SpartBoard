@@ -1,6 +1,7 @@
 // Small presentational pieces for the Teams redesign harness, built only from classes the PLC pages already use.
 
 import React from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -66,12 +67,14 @@ export const MenuSelect: React.FC<{
   value: string;
   options: { value: string; label: string }[];
   onChange?: (value: string) => void;
-}> = ({ label, value, options, onChange }) => (
+  anchor?: TourAnchorAttrs;
+}> = ({ label, value, options, onChange, anchor }) => (
   <span className="relative inline-flex items-center">
     <select
       aria-label={label}
       value={value}
       onChange={(e) => onChange?.(e.target.value)}
+      {...anchor}
       className="appearance-none rounded-md bg-transparent py-1 pl-1.5 pr-5 [field-sizing:content] text-xs font-semibold text-slate-700 hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
     >
       {options.map((o) => (

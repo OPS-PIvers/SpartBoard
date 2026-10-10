@@ -24,7 +24,7 @@ import {
 import { ReactionButton, UpdateBody } from './UpdateParts';
 import { reactionCount, shortDate } from './updateFormat';
 import { UpdateComposer, type AttachPicker } from './UpdateComposer';
-import { tourFieldAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export interface UpdatesViewProps {
   updates: PlcUpdate[];
@@ -310,6 +310,7 @@ export const UpdatesView: React.FC<UpdatesViewProps> = (props) => {
         <h3 className={EYEBROW}>Updates</h3>
         <MenuSelect
           label="Filter updates"
+          anchor={tourAttr('teams.updates.filter')}
           value={filter}
           options={FILTERS}
           onChange={(v) => setFilter(v as UpdatesFilter)}

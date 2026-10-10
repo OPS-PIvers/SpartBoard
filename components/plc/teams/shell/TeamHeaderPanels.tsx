@@ -240,6 +240,11 @@ export const TeamDrawerView: React.FC<{
           options={[
             {
               value: 'whatsnew',
+              anchor: tourFieldAttr(
+                'teams.drawer.tab',
+                'teams-shell',
+                'whatsnew'
+              ),
               label: t('teams.header.whatsNewCount', {
                 count: whatsNew,
                 defaultValue: "What's new · {{count}}",
@@ -247,6 +252,11 @@ export const TeamDrawerView: React.FC<{
             },
             {
               value: 'myitems',
+              anchor: tourFieldAttr(
+                'teams.drawer.tab',
+                'teams-shell',
+                'myitems'
+              ),
               label: t('teams.header.myItemsCount', {
                 count: myItemsCount,
                 defaultValue: 'My items · {{count}}',
