@@ -31,6 +31,7 @@ import { FeaturePermissionsManager } from './FeaturePermissionsManager';
 import { BackgroundManager } from './BackgroundManager';
 import { FeaturesPanel } from './access/FeaturesPanel';
 import { PreviewsPanel } from './access/PreviewsPanel';
+import { AiModelsPanel } from './access/AiModelsPanel';
 import { AnnouncementsManager } from './Announcements';
 import { OrganizationPanel } from './Organization/OrganizationPanel';
 import { AnalyticsManager } from './Analytics/AnalyticsManager';
@@ -78,6 +79,12 @@ const TAB_GROUPS = [
         label: 'Previews',
         icon: FlaskConical,
         component: PreviewsPanel,
+      },
+      {
+        id: 'ai',
+        label: 'AI',
+        icon: Sparkles,
+        component: AiModelsPanel,
       },
     ],
   },

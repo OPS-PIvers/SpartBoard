@@ -134,13 +134,12 @@ describe('FeaturesPanel', () => {
     expect(goToTab).toHaveBeenCalledWith('previews');
   });
 
-  it('groups features into category sections with a Gemini models card', async () => {
+  it('groups features into category sections', async () => {
     render(<FeaturesPanel />);
     await waitFor(() => {
       expect(screen.getByText('Live Sessions')).toBeInTheDocument();
     });
     expect(screen.getByText('Sharing & sessions')).toBeInTheDocument();
-    expect(screen.getByText('Gemini models')).toBeInTheDocument();
     expect(screen.queryByText('Custom Logo')).toBeNull();
   });
 });

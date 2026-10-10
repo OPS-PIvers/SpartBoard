@@ -9,6 +9,7 @@ import type {
   Transaction,
 } from 'firebase-admin/firestore';
 import './functionsInit';
+import { ANTHROPIC_API_KEY } from './secrets';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import {
   archiveQuizArtifactCore,
@@ -826,7 +827,7 @@ export const transcribePaperWrittenPageV1 = onDocumentCreated(
     memory: '1GiB' as const,
     timeoutSeconds: 300,
     maxInstances: 20,
-    secrets: QUIZ_MEDIA_ARCHIVE_SECRETS,
+    secrets: [...QUIZ_MEDIA_ARCHIVE_SECRETS, ANTHROPIC_API_KEY],
   },
   async (event) => {
     const outcome = await runPaperTranscriptionJob(

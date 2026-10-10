@@ -1,13 +1,8 @@
 import './functionsInit';
+import { ANTHROPIC_API_KEY } from './secrets';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
-import {
-  GoogleGenAI,
-  Content,
-  Type,
-  Schema,
-  GoogleGenAIOptions,
-} from '@google/genai';
+import { Type, Schema } from '@google/genai';
 import { sanitizePrompt } from './sanitize';
 import { parseGeminiJson } from './parseGeminiJson';
 import { adminPassesMissingDoc } from './featureMissingDoc';
@@ -20,12 +15,15 @@ import {
 import { BoundedLruMap } from './utils/boundedLruMap';
 import { ALLOWED_ORIGINS, resolveOrgIdForDomain } from './classlinkShared';
 import { resolveDomainCandidates } from './resolveOrgForUser';
-import {
-  GlobalPermission,
-  GlobalPermConfig,
-  normalizeModelName,
-} from './shared';
+import { GlobalPermission, GlobalPermConfig } from './shared';
 import { assertViewAsAllowed } from './viewAsGuard';
+import {
+  VERTEX_LOCATION,
+  getGeminiModelConfig,
+  resetAiModelConfigCache,
+  vertexClientOptions,
+} from './aiModelConfig';
+import { generateAi, type AiPart } from './aiRouter';
 
 interface AIData {
   type:
@@ -53,51 +51,6 @@ interface AIData {
 
 type QuizGenType = 'MC' | 'FIB' | 'Matching' | 'Ordering' | 'MA';
 
-const DEFAULT_ADVANCED_MODEL = 'gemini-3.8-flash';
-const DEFAULT_STANDARD_MODEL = 'gemini-3.5-flash-lite';
-
-// Gemini 3.x models are global-endpoint only on Vertex; us-central1 returns model-not-found.
-const VERTEX_LOCATION = 'global';
-
-// Vertex AI auth via ADC (not Developer API key) — needs roles/aiplatform.user; see docs/gemini-api-terms-audit.md.
-function vertexClientOptions(): GoogleGenAIOptions {
-  // GCLOUD_PROJECT/GOOGLE_CLOUD_PROJECT aren't guaranteed on gen2 (Cloud Run); FIREBASE_CONFIG.projectId is, so it's a fallback, not a replacement.
-  const project =
-    process.env.GCLOUD_PROJECT ||
-    process.env.GOOGLE_CLOUD_PROJECT ||
-    projectIdFromFirebaseConfig();
-  if (!project) {
-    console.error(
-      'CRITICAL: no Cloud project id in the environment (checked GCLOUD_PROJECT, ' +
-        'GOOGLE_CLOUD_PROJECT, FIREBASE_CONFIG.projectId); cannot reach Vertex AI'
-    );
-    throw new HttpsError('internal', 'AI service is not configured.');
-  }
-  return { vertexai: true, project, location: VERTEX_LOCATION };
-}
-
-/**
- * Reads `projectId` out of the `FIREBASE_CONFIG` env var Firebase Functions
- * sets on both generations. Returns '' when unset or unparseable — a
- * malformed value must not throw here, or it would mask the caller's clearer
- * "AI service is not configured" error with a raw SyntaxError.
- */
-function projectIdFromFirebaseConfig(): string {
-  try {
-    const parsed = JSON.parse(process.env.FIREBASE_CONFIG || '{}') as {
-      projectId?: unknown;
-    };
-    return typeof parsed.projectId === 'string' ? parsed.projectId : '';
-  } catch {
-    return '';
-  }
-}
-
-interface GeminiModelConfig {
-  advancedModel?: string;
-  standardModel?: string;
-}
-
 // Module-scope read caches for `generateWithAI`. Cloud Functions 2nd-gen
 // reuses warm instances, so caching across invocations within a warm
 // instance materially cuts Firestore reads for high-traffic AI features
@@ -109,16 +62,6 @@ interface GeminiModelConfig {
 // `global_permissions/*` reads. Those gate rate-limit enforcement and
 // must be transactional to prevent races.
 const READ_CACHE_TTL_MS = 5 * 60 * 1000;
-
-interface ModelConfigCacheEntry {
-  value: {
-    advancedModel: string;
-    standardModel: string;
-    usedFallback: boolean;
-  };
-  cachedAt: number;
-}
-let cachedModelConfig: ModelConfigCacheEntry | null = null;
 
 interface AdminStatusCacheEntry {
   isAdmin: boolean;
@@ -301,62 +244,8 @@ export {
  * not a production API.
  */
 export function __resetGenerateWithAICaches(): void {
-  cachedModelConfig = null;
+  resetAiModelConfigCache();
   cachedAdminStatus.clear();
-}
-
-/**
- * Reads the admin-configured model overrides from the `gemini-functions`
- * global permissions document. Returns validated model names (or defaults).
- * Memoized with a 5-minute TTL — see `READ_CACHE_TTL_MS` above.
- *
- * `usedFallback` is `true` when the Firestore read threw — meaning the
- * caller is running with hardcoded defaults rather than whatever overrides
- * an admin may have configured. Plumb this back to the client so admins
- * get a one-time UI signal during Firestore brownouts. Cache hits always
- * return `usedFallback: false` because the catch path deliberately does
- * NOT populate the cache.
- */
-async function getGeminiModelConfig(db: admin.firestore.Firestore): Promise<{
-  advancedModel: string;
-  standardModel: string;
-  usedFallback: boolean;
-}> {
-  const now = Date.now();
-  if (
-    cachedModelConfig &&
-    now - cachedModelConfig.cachedAt < READ_CACHE_TTL_MS
-  ) {
-    return cachedModelConfig.value;
-  }
-  try {
-    const doc = await db
-      .collection('global_permissions')
-      .doc('gemini-functions')
-      .get();
-    const cfg = doc.data()?.config as GeminiModelConfig | undefined;
-    const value = {
-      advancedModel:
-        normalizeModelName(cfg?.advancedModel) ?? DEFAULT_ADVANCED_MODEL,
-      standardModel:
-        normalizeModelName(cfg?.standardModel) ?? DEFAULT_STANDARD_MODEL,
-      usedFallback: false,
-    };
-    cachedModelConfig = { value, cachedAt: now };
-    return value;
-  } catch (error) {
-    console.warn(
-      'Failed to read Gemini model config from Firestore; using defaults.',
-      error
-    );
-    // Do not cache the fallback — a transient Firestore error shouldn't
-    // pin the function to defaults for 5 minutes.
-    return {
-      advancedModel: DEFAULT_ADVANCED_MODEL,
-      standardModel: DEFAULT_STANDARD_MODEL,
-      usedFallback: true,
-    };
-  }
 }
 
 /**
@@ -665,7 +554,10 @@ export {
 export const generateWithAI = onCall(
   {
     memory: '512MiB',
+    // Long enough for Claude to write a mini-app and still fall back to Gemini.
+    timeoutSeconds: 300,
     cors: ALLOWED_ORIGINS,
+    secrets: [ANTHROPIC_API_KEY],
   },
   async (request) => {
     assertViewAsAllowed(request, { outward: true });
@@ -890,8 +782,6 @@ export const generateWithAI = onCall(
 
     try {
       // `genType` is already computed above (feature-permission gate); reuse it.
-      const ai = new GoogleGenAI(vertexClientOptions());
-
       // Input size guards
       if (data?.prompt && String(data.prompt).length > 10000) {
         throw new HttpsError(
@@ -1204,34 +1094,15 @@ Output JSON ONLY in this exact shape:
 
       const { systemPrompt, userPrompt } = promptDataFn();
 
-      const contents: Content[] = [
-        {
-          role: 'user',
-          parts: [{ text: systemPrompt + '\n\n' + userPrompt }],
-        },
-      ];
-
+      const parts: AiPart[] = [{ text: systemPrompt + '\n\n' + userPrompt }];
       // Add image if provided (for OCR or multi-modal prompts)
-      if (data.image && contents[0] && contents[0].parts) {
+      if (data.image) {
         // Strip data:image/png;base64, prefix if present
         const base64Data = data.image.includes(',')
           ? data.image.split(',')[1]
           : data.image;
-
-        contents[0].parts.push({
-          inlineData: {
-            mimeType: 'image/png',
-            data: base64Data,
-          },
-        });
+        parts.push({ inlineData: { mimeType: 'image/png', data: base64Data } });
       }
-
-      // Use higher complexity model for code generation, and lite for OCR and simple JSON tasks
-      // Model names are admin-configurable via global_permissions/gemini-functions
-      const model =
-        genType === 'mini-app' || genType === 'widget-builder'
-          ? geminiConfig.advancedModel
-          : geminiConfig.standardModel;
 
       // Quiz alone uses structured-output (responseSchema) — it has a fixed
       // shape we want to enforce. Other generators stay on plain JSON mode
@@ -1241,19 +1112,20 @@ Output JSON ONLY in this exact shape:
           ? buildQuizResponseSchema(Number(data?.typeCounts?.MA) >= 1)
           : undefined;
 
-      const result = await ai.models.generateContent({
-        model,
-        contents,
-        config: {
-          // widget-builder, widget-explainer, and blooms-ai return plain text; all other types return JSON
-          responseMimeType:
-            genType === 'widget-builder' ||
-            genType === 'widget-explainer' ||
-            genType === 'blooms-ai'
-              ? 'text/plain'
-              : 'application/json',
-          ...(responseSchema ? { responseSchema } : {}),
-        },
+      // The model is chosen per generation type on the Admin Settings AI tab (aiRouter.ts).
+      const result = await generateAi(db, {
+        // promptDataFn above only exists for a known generation type.
+        integration: genType as AIData['type'],
+        claudeTimeoutMs: 180_000,
+        parts,
+        // widget-builder, widget-explainer, and blooms-ai return plain text; all other types return JSON
+        responseMimeType:
+          genType === 'widget-builder' ||
+          genType === 'widget-explainer' ||
+          genType === 'blooms-ai'
+            ? 'text/plain'
+            : 'application/json',
+        ...(responseSchema ? { responseSchema } : {}),
       });
 
       const text = result.text;
@@ -1910,12 +1782,6 @@ export const generateVideoActivity = onCall(
       await recordAiUsage(db, request.auth.token, uid, 'video-activity-ai');
     }
 
-    // Read model config from Firestore
-    const geminiConfig = await getGeminiModelConfig(db);
-    const videoModel = geminiConfig.standardModel;
-
-    const ai = new GoogleGenAI(vertexClientOptions());
-
     const systemPrompt = buildVideoActivityPrompt(
       counts,
       total,
@@ -1924,26 +1790,19 @@ export const generateVideoActivity = onCall(
     );
 
     try {
-      const result = await ai.models.generateContent({
-        model: videoModel,
-        contents: [
+      const result = await generateAi(db, {
+        integration: 'video-activity',
+        parts: [
+          { text: systemPrompt },
           {
-            role: 'user',
-            parts: [
-              { text: systemPrompt },
-              {
-                fileData: {
-                  fileUri: `https://www.youtube.com/watch?v=${videoId}`,
-                  mimeType: 'video/mp4',
-                },
-              },
-            ],
+            fileData: {
+              fileUri: `https://www.youtube.com/watch?v=${videoId}`,
+              mimeType: 'video/mp4',
+            },
           },
         ],
-        config: {
-          responseMimeType: 'application/json',
-          responseSchema: buildVideoActivityResponseSchema(),
-        },
+        responseMimeType: 'application/json',
+        responseSchema: buildVideoActivityResponseSchema(),
       });
 
       const text = result.text;
@@ -1973,16 +1832,13 @@ export const generateVideoActivity = onCall(
       return {
         title: parsed.title,
         questions: validatedQuestions,
-        _modelConfigUsedFallback: geminiConfig.usedFallback,
+        _modelConfigUsedFallback: result.usedFallbackConfig,
       };
     } catch (error: unknown) {
       console.error('[generateVideoActivity] Gemini error:', error);
       if (error instanceof HttpsError) throw error;
       const detail = error instanceof Error ? error.message : 'unknown error';
-      throw new HttpsError(
-        'internal',
-        `AI generation failed (model: ${videoModel}): ${detail}`
-      );
+      throw new HttpsError('internal', `AI generation failed: ${detail}`);
     }
   }
 );
@@ -2232,11 +2088,6 @@ export const transcribeVideoWithGemini = onCall(
         ? Math.floor(durationSeconds)
         : undefined;
 
-    // Use the YouTube video URL directly with Gemini's video understanding
-    const model =
-      normalizeModelName(perm.config?.model) ?? DEFAULT_STANDARD_MODEL;
-    const ai = new GoogleGenAI(vertexClientOptions());
-
     const systemPrompt = buildVideoActivityPrompt(
       counts,
       total,
@@ -2245,26 +2096,21 @@ export const transcribeVideoWithGemini = onCall(
     );
 
     try {
-      const result = await ai.models.generateContent({
-        model,
-        contents: [
+      // Uses the YouTube URL directly, so this always runs on Gemini.
+      const result = await generateAi(db, {
+        integration: 'video-transcription',
+        legacyModel: perm.config?.model,
+        parts: [
+          { text: systemPrompt },
           {
-            role: 'user',
-            parts: [
-              { text: systemPrompt },
-              {
-                fileData: {
-                  fileUri: `https://www.youtube.com/watch?v=${videoId}`,
-                  mimeType: 'video/mp4',
-                },
-              },
-            ],
+            fileData: {
+              fileUri: `https://www.youtube.com/watch?v=${videoId}`,
+              mimeType: 'video/mp4',
+            },
           },
         ],
-        config: {
-          responseMimeType: 'application/json',
-          responseSchema: buildVideoActivityResponseSchema(),
-        },
+        responseMimeType: 'application/json',
+        responseSchema: buildVideoActivityResponseSchema(),
       });
 
       const text = result.text;
@@ -2299,7 +2145,7 @@ export const transcribeVideoWithGemini = onCall(
       console.error('[transcribeVideoWithGemini] Gemini error:', error);
       if (error instanceof HttpsError) throw error;
       const detail = error instanceof Error ? error.message : 'unknown error';
-      const msg = `AI generation failed (model: ${model}): ${detail}`;
+      const msg = `AI generation failed: ${detail}`;
       throw new HttpsError('internal', msg);
     }
   }
@@ -2359,8 +2205,10 @@ interface GuidedLearningImageInput {
 export const generateGuidedLearning = onCall(
   {
     memory: '512MiB',
-    timeoutSeconds: 120,
+    // Room for a 60 s Claude attempt and a full Gemini retry.
+    timeoutSeconds: 180,
     cors: ALLOWED_ORIGINS,
+    secrets: [ANTHROPIC_API_KEY],
   },
   async (request) => {
     assertViewAsAllowed(request, { outward: true });
@@ -2438,13 +2286,7 @@ export const generateGuidedLearning = onCall(
       await recordAiUsage(db, token, uid, 'guided-learning-ai');
     }
 
-    // Read model config from Firestore
-    const geminiConfig = await getGeminiModelConfig(db);
-    const guidedLearningModel = geminiConfig.advancedModel;
-
     try {
-      const ai = new GoogleGenAI(vertexClientOptions());
-
       const imageCount = images.length;
       const maxIndex = imageCount - 1;
       const systemInstruction = `You are an educational content creator helping teachers build interactive guided learning experiences.
@@ -2518,10 +2360,7 @@ Writing:
         ? `Additional instructions: ${sanitizePrompt(prompt)}`
         : 'Analyze the image(s) below and create an engaging guided learning experience.';
 
-      const parts: {
-        text?: string;
-        inlineData?: { mimeType: string; data: string };
-      }[] = [{ text: userPromptHeader }];
+      const parts: AiPart[] = [{ text: userPromptHeader }];
 
       images.forEach((img, index) => {
         const caption = img.caption ? sanitizePrompt(img.caption) : '';
@@ -2537,21 +2376,14 @@ Writing:
         });
       });
 
-      const response = await ai.models.generateContent({
-        model: guidedLearningModel,
-        contents: [
-          {
-            role: 'user',
-            parts,
-          },
-        ],
-        config: {
-          systemInstruction,
-          responseMimeType: 'application/json',
-        },
+      const response = await generateAi(db, {
+        integration: 'guided-learning',
+        parts,
+        systemInstruction,
+        responseMimeType: 'application/json',
       });
 
-      const rawText = response.text ?? '';
+      const rawText = response.text;
       const parsed = parseGeminiJson<GeneratedGuidedLearning>(rawText);
 
       if (
@@ -2576,14 +2408,13 @@ Writing:
 
       return {
         ...parsed,
-        _modelConfigUsedFallback: geminiConfig.usedFallback,
+        _modelConfigUsedFallback: response.usedFallbackConfig,
       };
     } catch (error: unknown) {
       if (error instanceof HttpsError) throw error;
       console.error('[generateGuidedLearning] Gemini error:', error);
       const detail = error instanceof Error ? error.message : 'unknown error';
-      const msg = `AI generation failed (model: ${guidedLearningModel}): ${detail}`;
-      throw new HttpsError('internal', msg);
+      throw new HttpsError('internal', `AI generation failed: ${detail}`);
     }
   }
 );
@@ -2592,8 +2423,10 @@ Writing:
 export const draftGuidedLearningStepTextV1 = onCall(
   {
     memory: '512MiB',
-    timeoutSeconds: 120,
+    // Room for a 60 s Claude attempt and a full Gemini retry.
+    timeoutSeconds: 180,
     cors: ALLOWED_ORIGINS,
+    secrets: [ANTHROPIC_API_KEY],
   },
   async (request) => {
     assertViewAsAllowed(request, { outward: true });
@@ -2621,20 +2454,16 @@ export const draftGuidedLearningStepTextV1 = onCall(
         'guided-learning-ai'
       );
     }
-    const { advancedModel } = await getGeminiModelConfig(db);
     try {
-      const ai = new GoogleGenAI(vertexClientOptions());
-      const response = await ai.models.generateContent({
-        model: advancedModel,
-        contents: [{ role: 'user', parts: buildStepTextParts(parsedRequest) }],
-        config: {
-          systemInstruction: STEP_TEXT_SYSTEM_INSTRUCTION,
-          responseMimeType: 'application/json',
-        },
+      const response = await generateAi(db, {
+        integration: 'guided-learning-step-text',
+        parts: buildStepTextParts(parsedRequest),
+        systemInstruction: STEP_TEXT_SYSTEM_INSTRUCTION,
+        responseMimeType: 'application/json',
       });
       return {
         steps: clampStepTextResponse(
-          parseGeminiJson<unknown>(response.text ?? ''),
+          parseGeminiJson<unknown>(response.text),
           parsedRequest.steps.length
         ),
       };
@@ -2642,10 +2471,7 @@ export const draftGuidedLearningStepTextV1 = onCall(
       if (error instanceof HttpsError) throw error;
       console.error('[draftGuidedLearningStepTextV1] Gemini error:', error);
       const detail = error instanceof Error ? error.message : 'unknown error';
-      throw new HttpsError(
-        'internal',
-        `AI drafting failed (model: ${advancedModel}): ${detail}`
-      );
+      throw new HttpsError('internal', `AI drafting failed: ${detail}`);
     }
   }
 );

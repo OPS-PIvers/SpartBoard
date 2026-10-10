@@ -1,16 +1,14 @@
 // PLC goal coach callable: checks a draft goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22).
 import './functionsInit';
+import { ANTHROPIC_API_KEY } from './secrets';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
-import { FinishReason, GoogleGenAI } from '@google/genai';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import {
   enforceAiFeatureAccess,
-  getGeminiModelConfig,
   recordAiUsage,
   refundAiUsage,
   resolveCallerIsAdmin,
-  vertexClientOptions,
   type AiUsageCharge,
 } from './aiGeneration';
 import {
@@ -33,6 +31,7 @@ import {
   type GoalCoachCriterion,
 } from './plcGoalCoachRubric';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { generateAi } from './aiRouter';
 
 type Firestore = admin.firestore.Firestore;
 type Data = Record<string, unknown>;
@@ -200,23 +199,20 @@ function defaultDeps(): GoalCoachDeps {
         'plc-goal-coach-checks'
       ),
     generate: async (prompt, rubric) => {
-      const { standardModel } = await getGeminiModelConfig(db);
-      const ai = new GoogleGenAI(vertexClientOptions());
-      const result = await ai.models.generateContent({
-        model: standardModel,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: {
-          systemInstruction: GOAL_COACH_SYSTEM_PROMPT,
-          responseMimeType: 'application/json',
-          responseSchema: buildGoalCoachSchema(rubric),
-          temperature: 0,
-        },
+      const result = await generateAi(db, {
+        integration: 'plc-goal-coach',
+        parts: [{ text: prompt }],
+        systemInstruction: GOAL_COACH_SYSTEM_PROMPT,
+        responseMimeType: 'application/json',
+        responseSchema: buildGoalCoachSchema(rubric),
+        temperature: 0,
       });
-      const finish = result.candidates?.[0]?.finishReason;
-      if (finish && finish !== FinishReason.STOP) {
-        throw new Error(`Gemini stopped early: ${finish}`);
+      if (result.stopped !== 'complete') {
+        throw new Error(
+          `${result.model} stopped early: ${result.finishReason}`
+        );
       }
-      if (!result.text) throw new Error('Empty response from Gemini.');
+      if (!result.text) throw new Error('Empty response from the AI model.');
       return result.text;
     },
   };
@@ -225,9 +221,10 @@ function defaultDeps(): GoalCoachDeps {
 export const plcGoalCoachV1 = onCall(
   {
     memory: '256MiB',
-    timeoutSeconds: 60,
+    timeoutSeconds: 120,
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
+    secrets: [ANTHROPIC_API_KEY],
   },
   async (request) => {
     assertViewAsAllowed(request, { outward: true });

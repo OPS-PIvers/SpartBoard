@@ -1,11 +1,9 @@
 // Transcribes one scanned page of handwritten paper answers with Gemini (plan D24).
 import * as admin from 'firebase-admin';
-import { Type, type Part, type Schema } from '@google/genai';
+import { Type, type Schema } from '@google/genai';
+import type { AiPart } from './aiRouter';
 import { parseGeminiJson } from './parseGeminiJson';
-import {
-  normalizeModelTier,
-  type PaperModelTier,
-} from './paperHandwritingQuota';
+import type { PaperModelTier } from './paperHandwritingQuota';
 
 export const ILLEGIBLE_MARK = '[illegible]';
 export const MAX_TRANSCRIPT_CHARS = 20000;
@@ -22,12 +20,12 @@ export interface PaperCropImage {
 
 export interface PaperTranscribeDeps {
   loadCrop: (storagePath: string) => Promise<PaperCropImage>;
-  resolveModel: (tier: PaperModelTier) => Promise<string>;
+  /** Runs the page on the tier's model (or the AI tab's choice) and reports which model answered. */
   generate: (request: {
-    model: string;
-    parts: Part[];
+    tier: PaperModelTier;
+    parts: AiPart[];
     schema: Schema;
-  }) => Promise<string>;
+  }) => Promise<{ text: string; model: string }>;
 }
 
 export type PaperBoxTranscript =
@@ -44,15 +42,6 @@ export type PaperBoxTranscript =
 export interface PaperPageTranscript {
   model: string;
   boxes: PaperBoxTranscript[];
-}
-
-export function modelForTier(
-  tier: unknown,
-  models: { standardModel: string; advancedModel: string }
-): string {
-  return normalizeModelTier(tier) === 'advanced'
-    ? models.advancedModel
-    : models.standardModel;
 }
 
 export function buildTranscribeResponseSchema(): Schema {
@@ -91,8 +80,8 @@ For every box, return one entry with that questionId:
 
 export function buildTranscribeParts(
   boxes: { questionId: string; image: PaperCropImage }[]
-): Part[] {
-  const parts: Part[] = [{ text: TRANSCRIBE_PROMPT }];
+): AiPart[] {
+  const parts: AiPart[] = [{ text: TRANSCRIBE_PROMPT }];
   for (const box of boxes) {
     parts.push({ text: `questionId: ${box.questionId}` });
     parts.push({
@@ -206,12 +195,11 @@ export async function transcribePaperPage(
   tier: PaperModelTier,
   deps: PaperTranscribeDeps
 ): Promise<PaperPageTranscript> {
-  const [model, images] = await Promise.all([
-    deps.resolveModel(tier),
-    Promise.all(boxes.map((b) => deps.loadCrop(b.storagePath))),
-  ]);
-  const raw = await deps.generate({
-    model,
+  const images = await Promise.all(
+    boxes.map((b) => deps.loadCrop(b.storagePath))
+  );
+  const { text: raw, model } = await deps.generate({
+    tier,
     parts: buildTranscribeParts(
       boxes.map((b, i) => ({ questionId: b.questionId, image: images[i] }))
     ),
@@ -244,29 +232,17 @@ export function buildDefaultPaperTranscribeDeps(): PaperTranscribeDeps {
         .download();
       return { data, mimeType: cropMimeType(storagePath) };
     },
-    resolveModel: async (tier) => {
-      const ai = await import('./aiGeneration');
-      return modelForTier(
+    generate: async ({ tier, parts, schema }) => {
+      const { generateAi } = await import('./aiRouter');
+      const result = await generateAi(admin.firestore(), {
+        integration: 'paper-handwriting',
         tier,
-        await ai.getGeminiModelConfig(admin.firestore())
-      );
-    },
-    generate: async ({ model, parts, schema }) => {
-      const [{ GoogleGenAI }, ai] = await Promise.all([
-        import('@google/genai'),
-        import('./aiGeneration'),
-      ]);
-      const client = new GoogleGenAI(ai.vertexClientOptions());
-      const result = await client.models.generateContent({
-        model,
-        contents: [{ role: 'user', parts }],
-        config: {
-          temperature: 0,
-          responseMimeType: 'application/json',
-          responseSchema: schema,
-        },
+        parts,
+        temperature: 0,
+        responseMimeType: 'application/json',
+        responseSchema: schema,
       });
-      return result.text ?? '';
+      return { text: result.text, model: result.model };
     },
   };
 }

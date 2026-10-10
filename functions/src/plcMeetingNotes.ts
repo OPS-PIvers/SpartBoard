@@ -1,10 +1,11 @@
 // PLC meeting notes: request, queue trigger and draft resolve (docs/plans/shipped/PLC_MEETING_RECORDING.md, phase 2).
 import './functionsInit';
+import { ANTHROPIC_API_KEY } from './secrets';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { onDocumentCreated } from 'firebase-functions/v2/firestore';
 import * as logger from 'firebase-functions/logger';
 import * as admin from 'firebase-admin';
-import { FinishReason, GoogleGenAI, ThinkingLevel } from '@google/genai';
+import { ThinkingLevel } from '@google/genai';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
@@ -13,13 +14,12 @@ import ffmpeg from 'fluent-ffmpeg';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import {
   enforceAiFeatureAccess,
-  getGeminiModelConfig,
   recordAiUsage,
   refundAiUsage,
   resolveCallerIsAdmin,
-  vertexClientOptions,
   type AiUsageCharge,
 } from './aiGeneration';
+import { generateAi, type AiPart } from './aiRouter';
 import {
   buildDraftActionItems,
   buildSummarizePrompt,
@@ -593,39 +593,33 @@ async function concatParts(inputs: string[], output: string): Promise<void> {
 }
 
 async function generateJson(
-  model: string,
-  parts: Array<
-    { text: string } | { fileData: { fileUri: string; mimeType: string } }
-  >,
+  db: admin.firestore.Firestore,
+  integration: 'plc-meeting-transcribe' | 'plc-meeting-summary',
+  parts: AiPart[],
   systemInstruction: string,
   responseSchema: typeof TRANSCRIBE_SCHEMA
 ): Promise<string> {
-  const ai = new GoogleGenAI(vertexClientOptions());
-  const result = await ai.models.generateContent({
-    model,
-    contents: [{ role: 'user', parts }],
-    config: {
-      systemInstruction,
-      responseMimeType: 'application/json',
-      responseSchema,
-      thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-      temperature: 0,
-      maxOutputTokens: 65536,
-    },
+  const result = await generateAi(db, {
+    integration,
+    parts,
+    systemInstruction,
+    responseMimeType: 'application/json',
+    responseSchema,
+    thinkingLevel: ThinkingLevel.LOW,
+    temperature: 0,
+    maxOutputTokens: 65536,
+    claudeTimeoutMs: 240_000,
   });
-  const finish = result.candidates?.[0]?.finishReason;
-  if (finish && finish !== FinishReason.STOP) {
-    throw new Error(`Gemini stopped early: ${finish}`);
+  if (result.stopped !== 'complete') {
+    throw new Error(`${result.model} stopped early: ${result.finishReason}`);
   }
-  const text = result.text;
-  if (!text) throw new Error('Empty response from Gemini.');
-  return text;
+  if (!result.text) throw new Error('Empty response from the AI model.');
+  return result.text;
 }
 
 function defaultJobDeps(): JobDeps {
   const base = defaultDeps();
   const bucket = admin.storage().bucket();
-  const model = async () => (await getGeminiModelConfig(base.db)).advancedModel;
   return {
     ...base,
     prepareAudio: async (plcId, recordingId, partCount) => {
@@ -669,7 +663,8 @@ function defaultJobDeps(): JobDeps {
     transcribe: async (uri) =>
       parseTranscriptResponse(
         await generateJson(
-          await model(),
+          base.db,
+          'plc-meeting-transcribe',
           [
             { text: 'Transcribe this meeting recording.' },
             { fileData: { fileUri: uri, mimeType: 'audio/webm' } },
@@ -681,7 +676,8 @@ function defaultJobDeps(): JobDeps {
     summarize: async (segments) =>
       parseSummaryResponse(
         await generateJson(
-          await model(),
+          base.db,
+          'plc-meeting-summary',
           [{ text: buildSummarizePrompt(segments) }],
           SUMMARIZE_SYSTEM_PROMPT,
           SUMMARIZE_SCHEMA
@@ -747,6 +743,7 @@ export const runPlcMeetingNotesJob = onDocumentCreated(
     memory: '2GiB',
     timeoutSeconds: 540,
     maxInstances: 10,
+    secrets: [ANTHROPIC_API_KEY],
   },
   async (event) => {
     const { plcId, recordingId, jobId } = event.params;
