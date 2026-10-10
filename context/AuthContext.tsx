@@ -457,6 +457,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Tracks the latest setSelectedBuildings / setLanguage call to detect and suppress stale writes
   const writeTokenRef = useRef(0);
   const widgetConfigTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingConfigTypesRef = useRef<Set<WidgetType>>(new Set());
+  const savedWidgetConfigsRef = useRef(savedWidgetConfigs);
+  savedWidgetConfigsRef.current = savedWidgetConfigs;
   const materialsPrefsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const penColorsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const widgetPresetTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -2562,37 +2565,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const filtered = pickAppearanceKeys(config);
       if (Object.keys(filtered).length === 0) return;
 
-      setSavedWidgetConfigs((prev) => {
-        const newConfigs = {
-          ...prev,
-          [type]: {
-            ...(prev[type] ?? {}),
-            ...filtered,
-          },
-        };
+      const newConfigs = {
+        ...savedWidgetConfigsRef.current,
+        [type]: {
+          ...(savedWidgetConfigsRef.current[type] ?? {}),
+          ...filtered,
+        },
+      };
+      savedWidgetConfigsRef.current = newConfigs;
+      setSavedWidgetConfigs(newConfigs);
+      pendingConfigTypesRef.current.add(type);
 
-        if (widgetConfigTimeoutRef.current) {
-          clearTimeout(widgetConfigTimeoutRef.current);
-        }
+      if (widgetConfigTimeoutRef.current) {
+        clearTimeout(widgetConfigTimeoutRef.current);
+      }
 
-        widgetConfigTimeoutRef.current = setTimeout(() => {
-          // Carried over from board edits, which stay local in view-as (D12).
-          if (!user || isAuthBypass || viewAsSuppressesBackgroundWrites())
-            return;
-          const myToken = ++writeTokenRef.current;
-          setDoc(
-            doc(db, 'users', user.uid, 'userProfile', 'profile'),
-            { savedWidgetConfigs: newConfigs },
-            { merge: true }
-          ).catch((error) => {
-            if (myToken === writeTokenRef.current) {
-              console.error('Error saving widget configs:', error);
-            }
-          });
-        }, 1000);
-
-        return newConfigs;
-      });
+      widgetConfigTimeoutRef.current = setTimeout(() => {
+        const pending = [...pendingConfigTypesRef.current];
+        pendingConfigTypesRef.current.clear();
+        // Carried over from board edits, which stay local in view-as (D12).
+        if (!user || isAuthBypass || viewAsSuppressesBackgroundWrites()) return;
+        const payload = Object.fromEntries(
+          pending.map((t) => [t, savedWidgetConfigsRef.current[t]])
+        );
+        const myToken = ++writeTokenRef.current;
+        setDoc(
+          doc(db, 'users', user.uid, 'userProfile', 'profile'),
+          { savedWidgetConfigs: payload },
+          { merge: true }
+        ).catch((error) => {
+          if (myToken === writeTokenRef.current) {
+            console.error('Error saving widget configs:', error);
+          }
+        });
+      }, 1000);
     },
     [user]
   );
@@ -2601,15 +2607,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const saveWidgetDefault = useCallback(
     (type: WidgetType, config: Partial<WidgetConfig>) => {
       const filtered = pickAppearanceKeys(config);
-      if (widgetConfigTimeoutRef.current) {
-        clearTimeout(widgetConfigTimeoutRef.current);
-      }
-      setSavedWidgetConfigs((prev) => {
-        const next = { ...prev };
-        if (Object.keys(filtered).length > 0) next[type] = filtered;
-        else delete next[type];
-        return next;
-      });
+      // Its own write below supersedes this type's pending debounce; other types stay queued.
+      pendingConfigTypesRef.current.delete(type);
+      const next = { ...savedWidgetConfigsRef.current };
+      if (Object.keys(filtered).length > 0) next[type] = filtered;
+      else delete next[type];
+      savedWidgetConfigsRef.current = next;
+      setSavedWidgetConfigs(next);
       if (!user || isAuthBypass || viewAsBlocksWrite()) return;
       const myToken = ++writeTokenRef.current;
       const path = new FieldPath('savedWidgetConfigs', type);
