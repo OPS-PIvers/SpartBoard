@@ -414,7 +414,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                               next[i] = { ...next[i], stickerUrl: undefined };
                               onChange({ ...routine, steps: next });
                             }}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover/upload:opacity-100 transition-opacity"
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover/upload:opacity-100 touch:opacity-100 transition-opacity"
                           >
                             <X size={10} />
                           </button>
@@ -464,7 +464,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                               next[i] = { ...next[i], imageUrl: undefined };
                               onChange({ ...routine, steps: next });
                             }}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover/upload-img:opacity-100 transition-opacity"
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover/upload-img:opacity-100 touch:opacity-100 transition-opacity"
                           >
                             <X size={10} />
                           </button>

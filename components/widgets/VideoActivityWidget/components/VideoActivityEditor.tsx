@@ -259,7 +259,7 @@ const QuestionPill = React.memo(function QuestionPill({
         className={`flex items-center rounded-r-md pl-1 pr-1.5 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-brand-red-primary ${
           isSelected
             ? 'text-white/70 hover:text-white hover:bg-white/15'
-            : 'text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100'
+            : 'text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 touch:opacity-100 group-focus-within:opacity-100'
         }`}
       >
         <X className="w-3.5 h-3.5" />

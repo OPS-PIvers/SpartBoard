@@ -299,7 +299,7 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
                     e.stopPropagation();
                     onRemovePlacedAsset(a.id);
                   }}
-                  className="absolute -top-2 -right-2 bg-white text-red-500 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-500 hover:text-white"
+                  className="absolute -top-2 -right-2 bg-white text-red-500 rounded-full shadow-md opacity-0 group-hover:opacity-100 touch:opacity-100 transition-opacity p-1 hover:bg-red-500 hover:text-white"
                   {...tourTypeAttr(
                     'smart-notebook.remove-asset',
                     'smartNotebook'
@@ -317,7 +317,7 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
                   onPointerDown={(e) => beginDrag(e, a, 'resize')}
                   onPointerMove={onPointerMove}
                   onPointerUp={onPointerUp}
-                  className="absolute -bottom-1 -right-1 bg-white border-2 border-indigo-500 rounded-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute -bottom-1 -right-1 bg-white border-2 border-indigo-500 rounded-sm opacity-0 group-hover:opacity-100 touch:opacity-100 transition-opacity"
                   style={{
                     width: 'min(14px, 4cqmin)',
                     height: 'min(14px, 4cqmin)',

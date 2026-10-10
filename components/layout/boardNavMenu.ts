@@ -9,7 +9,7 @@ export const MENU_HEADER_CLASS =
 
 // Row actions stay hidden until hover/focus, except on touch screens with no hover.
 export const ROW_ACTIONS_CLASS =
-  'flex shrink-0 items-center gap-0.5 pr-1.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100';
+  'flex shrink-0 items-center gap-0.5 pr-1.5 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 touch:opacity-100';
 
 /** One flattened row: the Collection, its nesting depth, and the parent id a
  * consumer should group it under (differs from `c.parentCollectionId` only
