@@ -95,12 +95,17 @@ describe('TourEditorPanel picking', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Pick' }));
     fireEvent.click(screen.getByText('Tools'));
-    expect(session.setBinding).toHaveBeenCalledWith('a', {
-      anchor: 'dock.open-tools',
-      action: 'toggle',
-      value: true,
-      fallback: { role: 'button', name: 'tools' },
-    });
+    expect(session.updateStep).toHaveBeenCalledWith(
+      'a',
+      expect.objectContaining({
+        tour: {
+          anchor: 'dock.open-tools',
+          action: 'toggle',
+          value: true,
+          fallback: { role: 'button', name: 'tools' },
+        },
+      })
+    );
     expect(screen.queryByTestId('tour-anchor-picker-bar')).toBeNull();
   });
 
@@ -117,11 +122,31 @@ describe('TourEditorPanel picking', () => {
       target: { value: 'dock.open-tools' },
     });
     fireEvent.click(screen.getByRole('option'));
-    expect(session.setBinding).toHaveBeenCalledWith('a', {
-      anchor: 'dock.open-tools',
-      action: 'click',
-    });
+    expect(session.updateStep).toHaveBeenCalledWith(
+      'a',
+      expect.objectContaining({
+        tour: {
+          anchor: 'dock.open-tools',
+          action: 'click',
+        },
+      })
+    );
     expect(screen.getByTestId('tour-editor-outline')).toBeInTheDocument();
+  });
+
+  it("starts an empty step's text from the picked control and keeps its title", () => {
+    const session = makeSession([step('a')]);
+    renderPanel(session);
+    fireEvent.click(screen.getByRole('button', { name: 'Pick' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Choose from list' }));
+    fireEvent.change(screen.getByRole('combobox'), {
+      target: { value: 'dock.open-tools' },
+    });
+    fireEvent.click(screen.getByRole('option'));
+    expect(session.updateStep).toHaveBeenCalledWith('a', {
+      tour: { anchor: 'dock.open-tools', action: 'click' },
+      text: 'Click the Open Tools button in the collapsed dock.',
+    });
   });
 
   it('adds a step after the selection and starts picking for it', () => {
@@ -154,10 +179,15 @@ describe('TourEditorPanel picking', () => {
     fireEvent.change(screen.getByTestId('tour-editor-widget-type'), {
       target: { value: 'clock' },
     });
-    expect(session.setBinding).toHaveBeenCalledWith('a', {
-      anchor: 'dock.item:clock',
-      action: 'click',
-    });
+    expect(session.updateStep).toHaveBeenCalledWith(
+      'a',
+      expect.objectContaining({
+        tour: {
+          anchor: 'dock.item:clock',
+          action: 'click',
+        },
+      })
+    );
     expect(screen.queryByTestId('tour-editor-field-key')).toBeNull();
   });
 
@@ -172,10 +202,15 @@ describe('TourEditorPanel picking', () => {
     fireEvent.change(screen.getByTestId('tour-editor-field-key'), {
       target: { value: 'showSeconds' },
     });
-    expect(session.setBinding).toHaveBeenCalledWith('a', {
-      anchor: 'settings.field:not-a-widget#showSeconds',
-      action: 'click',
-    });
+    expect(session.updateStep).toHaveBeenCalledWith(
+      'a',
+      expect.objectContaining({
+        tour: {
+          anchor: 'settings.field:not-a-widget#showSeconds',
+          action: 'click',
+        },
+      })
+    );
   });
 
   it('drops the setting when the widget changes', () => {
@@ -186,10 +221,15 @@ describe('TourEditorPanel picking', () => {
     fireEvent.change(screen.getByTestId('tour-editor-widget-type'), {
       target: { value: 'clock' },
     });
-    expect(session.setBinding).toHaveBeenCalledWith('a', {
-      anchor: 'settings.field:clock',
-      action: 'click',
-    });
+    expect(session.updateStep).toHaveBeenCalledWith(
+      'a',
+      expect.objectContaining({
+        tour: {
+          anchor: 'settings.field:clock',
+          action: 'click',
+        },
+      })
+    );
   });
 
   it('hides the widget select for anchors that are not per widget type', () => {
