@@ -3,12 +3,14 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-09_
+_Last audited: 2026-10-10_
 _Last action: 2026-09-24 — MEDIUM `QuizStimulusView.tsx` zero-`cqmin` blocker resolved: added an optional `cqScaled?: boolean` prop (default `false`) threaded through every subcomponent in the file, applying `min(Xpx, Ycqmin)` inline styles only when set, so the two CQ-container consumers (`CurrentQuestionCard.tsx`, `QuizPreview.tsx`) now scale while the two non-CQ consumers (`QuizStudentApp.tsx`, `FreeResponseGrader.tsx`) keep today's fixed styling untouched — the same `cqScaled` pattern proven on `AssignTargetingSection.tsx`. 1250/1250 relevant tests pass. Item moved to Completed. PR opened against dev-paul._
 
 ---
 
 ## Audit guidance — `cqmin` is not always the right answer
+
+_2026-10-10: Daily audit (Saturday). Scanned `*Widget.tsx`/`Widget.tsx`/`index.tsx` under `components/widgets/` for `max-[hw]-[Npx]` and large fixed `w/h-[Npx]`; only hits are two `fixed` portaled popups in `DrawingWidget/Widget.tsx` (`min-w-[200px]`, `w-[260px]`), which are not content-area caps. Existing Open items not re-touched. 0 new issues._
 
 _2026-10-07: Daily audit (Wednesday). Widget.tsx files changed since the last audit (Clock, Quiz, RoutineGuide, Random) re-scanned; no `max-[h|w]-[Npx]` caps in any Widget.tsx and RoutineGuide/Random use `min()`/`clamp()` with `cqmin`. Existing Open items unchanged. 0 new issues._
 
