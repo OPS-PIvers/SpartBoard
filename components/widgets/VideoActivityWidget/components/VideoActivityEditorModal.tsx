@@ -289,6 +289,7 @@ export const VideoActivityEditorModal: React.FC<
           folders={folders}
           value={folderId ?? null}
           onChange={onFolderChange}
+          anchor={tourAttr('video-activity.editor-folder')}
         />
       ) : null,
     [folders, folderId, onFolderChange]

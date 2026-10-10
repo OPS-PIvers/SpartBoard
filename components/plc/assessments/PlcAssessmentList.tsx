@@ -1273,6 +1273,11 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
         onMoveFolder={canEdit ? folderState.moveFolder : undefined}
         onDeleteFolder={canEdit ? folderState.deleteFolder : undefined}
         {...(canEdit ? folderSidebarExtras : {})}
+        anchors={{
+          newFolder: tourAttr('plc-assessments.folder-new'),
+          root: tourAttr('plc-assessments.folder-root'),
+          newFolderInput: tourAttr('plc-assessments.folder-name'),
+        }}
         enableDrop={canEdit}
       />
       {showSuggestions && (

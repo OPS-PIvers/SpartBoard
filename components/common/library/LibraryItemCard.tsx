@@ -214,13 +214,14 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({
                   }}
                   disabled={item.disabled}
                   title={item.disabled ? item.disabledReason : undefined}
-                  {...(rowKey
-                    ? tourFieldAttr(
-                        'library-shell.card-menu-item',
-                        widgetType,
-                        `${rowKey}-item-${i + 1}`
-                      )
-                    : {})}
+                  {...(item.anchor ??
+                    (rowKey
+                      ? tourFieldAttr(
+                          'library-shell.card-menu-item',
+                          widgetType,
+                          `${rowKey}-item-${i + 1}`
+                        )
+                      : {}))}
                   className={`flex w-full items-center gap-2 px-3 py-1.5 text-left font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                     item.destructive
                       ? 'text-brand-red-dark hover:bg-brand-red-lighter/30'

@@ -104,6 +104,7 @@ export const SubSharesPanel: React.FC<SubSharesPanelProps> = ({
                     type="button"
                     disabled={busy}
                     onClick={() => onUpdateNow(share)}
+                    {...tourAttr('boards.sub-share-update')}
                     className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
                   >
                     <RefreshCw className="w-3.5 h-3.5" aria-hidden />
@@ -120,6 +121,7 @@ export const SubSharesPanel: React.FC<SubSharesPanelProps> = ({
                   type="button"
                   disabled={busy}
                   onClick={() => onExtend(share)}
+                  {...tourAttr('boards.sub-share-extend')}
                   className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
                 >
                   <Clock className="w-3.5 h-3.5" aria-hidden />
@@ -129,6 +131,7 @@ export const SubSharesPanel: React.FC<SubSharesPanelProps> = ({
                   type="button"
                   disabled={busy}
                   onClick={() => onEnd(share)}
+                  {...tourAttr('boards.sub-share-end')}
                   className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-bold text-brand-red-primary hover:bg-brand-red-primary/10 disabled:opacity-50"
                 >
                   <X className="w-3.5 h-3.5" aria-hidden />

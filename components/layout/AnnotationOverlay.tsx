@@ -57,6 +57,7 @@ import { useSelection } from '@/components/widgets/DrawingWidget/useSelection';
 import { hitTestObject } from '@/components/widgets/DrawingWidget/hitTest';
 import { applyTextWrapOnResize } from '@/components/widgets/DrawingWidget/renderers/text';
 import { Button } from '@/components/common/Button';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { PenColorSwatches } from '@/components/common/PenColorSwatches';
 import { extractTextWithGemini } from '@/utils/ai';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
@@ -794,6 +795,7 @@ export const AnnotationOverlay: React.FC = () => {
                   }`}
                   title={label}
                   aria-label={label}
+                  {...tourFieldAttr('annotation.tool', 'annotation', tool)}
                 >
                   <Icon className="w-4 h-4 text-slate-600" />
                 </button>
@@ -811,6 +813,7 @@ export const AnnotationOverlay: React.FC = () => {
                 value={color}
                 onSelect={(c) => updateAnnotationState({ color: c })}
                 className="flex gap-1 bg-slate-100 p-1 rounded-lg"
+                anchor={tourAttr('annotation.colors')}
               />
             </div>
 
@@ -827,6 +830,7 @@ export const AnnotationOverlay: React.FC = () => {
                 }
                 className="w-20 accent-indigo-600"
                 aria-label="Brush thickness"
+                {...tourAttr('annotation.width')}
               />
               <span className="w-9 text-center font-mono text-xs text-slate-600">
                 {width}px
@@ -847,6 +851,7 @@ export const AnnotationOverlay: React.FC = () => {
             <Button
               onClick={undoAnnotation}
               title="Undo"
+              {...tourAttr('annotation.undo')}
               aria-label="Undo"
               variant="ghost"
               size="icon"
@@ -856,6 +861,7 @@ export const AnnotationOverlay: React.FC = () => {
             <Button
               onClick={redoAnnotation}
               title="Redo"
+              {...tourAttr('annotation.redo')}
               aria-label="Redo"
               variant="ghost"
               size="icon"
@@ -865,6 +871,7 @@ export const AnnotationOverlay: React.FC = () => {
             <Button
               onClick={handleClear}
               title="Clear all"
+              {...tourAttr('annotation.clear')}
               variant="ghost-danger"
               size="icon"
               disabled={objects.length === 0}
@@ -874,6 +881,7 @@ export const AnnotationOverlay: React.FC = () => {
             <Button
               onClick={openImagePicker}
               disabled={isUploadingImage}
+              {...tourAttr('annotation.insert-image')}
               title="Insert image"
               aria-label="Insert image"
               variant="ghost"
@@ -892,6 +900,7 @@ export const AnnotationOverlay: React.FC = () => {
             <Button
               onClick={() => void handleDownload()}
               disabled={isBusy !== null}
+              {...tourAttr('annotation.download')}
               variant="ghost"
               size="icon"
               title="Download PNG"
@@ -900,6 +909,7 @@ export const AnnotationOverlay: React.FC = () => {
             <Button
               onClick={() => void handleSaveToDrive()}
               disabled={isBusy !== null}
+              {...tourAttr('annotation.save-drive')}
               variant="ghost"
               size="icon"
               title="Save to Google Drive"
@@ -915,6 +925,7 @@ export const AnnotationOverlay: React.FC = () => {
               <Button
                 onClick={() => void handleExtractText()}
                 disabled={isBusy !== null}
+                {...tourAttr('annotation.extract-text')}
                 variant="ghost"
                 size="icon"
                 title="Extract text (AI)"
@@ -933,6 +944,7 @@ export const AnnotationOverlay: React.FC = () => {
             <Button
               onClick={exitAnnotation}
               variant="secondary"
+              {...tourAttr('annotation.exit')}
               size="sm"
               title="Exit annotation (Esc)"
               icon={<X className="w-3.5 h-3.5" />}

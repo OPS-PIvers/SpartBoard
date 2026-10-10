@@ -28,6 +28,7 @@ import {
 import { AuthContext } from '@/context/AuthContextValue';
 import { requestStartTour } from '@/components/tours/tourState';
 import { useHasLiveTour } from '@/components/tours/useTourOffers';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface WhatsNewModalProps {
   isOpen: boolean;
@@ -226,6 +227,7 @@ const Entry: React.FC<{
                 onClick={() => setExpanded((prev) => !prev)}
                 aria-expanded={expanded}
                 aria-controls={detailsId}
+                {...tourAttr('whats-new.expand')}
                 className="text-xs font-semibold text-brand-blue-primary hover:text-brand-blue-dark inline-flex items-center gap-1"
               >
                 {expanded
@@ -320,6 +322,7 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
       <button
         type="button"
         onClick={onClose}
+        {...tourAttr('whats-new.dismiss')}
         className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
       >
         {showUpdateButton
@@ -330,6 +333,7 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
         <button
           type="button"
           onClick={onUpdate}
+          {...tourAttr('whats-new.update-now')}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark transition-colors"
         >
           <RefreshCw className="w-4 h-4" />

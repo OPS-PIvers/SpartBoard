@@ -182,6 +182,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
             folders={folders}
             value={folderId ?? null}
             onChange={onFolderChange}
+            anchor={tourTypeAttr('mini-app.editor-folder', 'miniApp')}
           />
         ) : undefined
       }
@@ -237,6 +238,8 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
           canGenerate={!!prompt.trim()}
           onGenerate={() => void handleGenerate()}
           generateLabel="Generate Code"
+          closeAnchor={tourTypeAttr('mini-app.ai-close', 'miniApp')}
+          generateAnchor={tourTypeAttr('mini-app.ai-generate', 'miniApp')}
         >
           <textarea
             value={prompt}
@@ -254,6 +257,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
                 setFileName(name);
               }}
               disabled={isGenerating}
+              anchor={tourTypeAttr('mini-app.ai-attach-drive', 'miniApp')}
             />
           )}
         </AIGeneratorOverlay>

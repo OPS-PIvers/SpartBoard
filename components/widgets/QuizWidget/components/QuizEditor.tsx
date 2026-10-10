@@ -1529,6 +1529,8 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
       onGenerate={() => void runAiGenerate()}
       error={aiError}
       generateLabel="Generate Quiz"
+      closeAnchor={tourTypeAttr('quiz-editor.ai-close', 'quiz')}
+      generateAnchor={tourTypeAttr('quiz-editor.ai-generate', 'quiz')}
     >
       <textarea
         value={aiPrompt}
@@ -1602,6 +1604,7 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
           onFileContent={(content, name) => setAiFile(content, name)}
           onExtractingChange={setAiFileExtracting}
           disabled={aiGenerating}
+          anchor={tourTypeAttr('quiz-editor.ai-attach-file', 'quiz')}
         />
       )}
     </AIGeneratorOverlay>

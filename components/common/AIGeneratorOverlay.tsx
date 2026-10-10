@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { AlertTriangle, Loader2, Sparkles, X } from 'lucide-react';
 import { useViewAsOutward } from '@/hooks/useViewAsOutward';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 
 interface AIGeneratorOverlayProps {
   open: boolean;
@@ -21,6 +22,8 @@ interface AIGeneratorOverlayProps {
   onGenerate: () => void;
   /** Generate button label. Defaults to "Generate". */
   generateLabel?: string;
+  closeAnchor?: TourAnchorAttrs;
+  generateAnchor?: TourAnchorAttrs;
 }
 
 /**
@@ -50,6 +53,8 @@ export const AIGeneratorOverlay: React.FC<AIGeneratorOverlayProps> = ({
   canGenerate,
   onGenerate,
   generateLabel = 'Generate',
+  closeAnchor,
+  generateAnchor,
 }) => {
   const outward = useViewAsOutward();
   // Store onClose in a ref so the effect below never needs it as a
@@ -102,6 +107,7 @@ export const AIGeneratorOverlay: React.FC<AIGeneratorOverlayProps> = ({
             onClick={onClose}
             className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600"
             aria-label="Close generator"
+            {...closeAnchor}
           >
             <X className="w-5 h-5" />
           </button>
@@ -131,6 +137,7 @@ export const AIGeneratorOverlay: React.FC<AIGeneratorOverlayProps> = ({
           onClick={() => outward.run('Generate with AI', onGenerate)}
           disabled={generating || !canGenerate || outward.locked}
           title={outward.lockedTitle}
+          {...generateAnchor}
           className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
         >
           {generating ? (
