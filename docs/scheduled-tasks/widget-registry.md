@@ -406,14 +406,16 @@ _2026-06-30: Full audit after rebasing onto dev-paul (new commits: fix(analytics
 _No open items._
 
 
+
+## Completed
+
 ### LOW `routineGuide` has no `WIDGET_SETTINGS_SCHEMAS` entry, unlike other no-settings widgets
 - **Detected:** 2026-10-03
 - **File:** components/widgets/WidgetRegistry.ts
 - **Detail:** `routineGuide` (added in `aa1d7719`) is registered in `WIDGET_COMPONENTS`, `WIDGET_SCALING_CONFIG`, `WIDGET_DEFAULTS`, `TOOLS` and `WIDGET_GRADE_LEVELS`, but not in `WIDGET_SETTINGS_SCHEMAS`. The other widgets without settings (`traffic`, `classes`) point at the shared `noSettingsSchema` stub, and the only absent types are the documented `blooms-detail`/`onboarding`/`sticker`. The legacy settings maps are empty, so the settings drawer has nothing to render for this widget.
 - **Fix:** Add a `routineGuide` entry in `WIDGET_SETTINGS_SCHEMAS` importing `@/components/settings/schema/noSettingsSchema` like `traffic`, or a real schema if settings are wanted, or document it as an intentional omission.
 ---
-
-## Completed
+- **Resolved 2026-10-10:** Added `routineGuide` entry pointing at the shared `noSettingsSchema` stub in `WidgetRegistry.ts`; regenerated `functions/src/mcp/settingsFieldList.ts` (`UPDATE_TOUR_ANCHOR_LIST=1`). `vitest related` green after regeneration. PR opened to dev-paul.
 
 ### LOW `projects` `WIDGET_DEFAULTS` w/h now diverges from `WIDGET_SCALING_CONFIG` baseWidth/baseHeight
 

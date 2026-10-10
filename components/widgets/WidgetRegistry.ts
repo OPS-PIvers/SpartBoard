@@ -370,6 +370,10 @@ export const WIDGET_SETTINGS_SCHEMAS: Partial<
     import('@/components/settings/schema/noSettingsSchema').then(
       (m) => m.default
     ),
+  routineGuide: () =>
+    import('@/components/settings/schema/noSettingsSchema').then(
+      (m) => m.default
+    ),
   projects: () => import('./Projects/settings.schema').then((m) => m.default),
   'activity-wall': () =>
     import('./ActivityWall/settings.schema').then((m) => m.default),
