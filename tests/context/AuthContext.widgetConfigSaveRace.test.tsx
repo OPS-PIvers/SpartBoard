@@ -138,9 +138,16 @@ describe('AuthContext widget config save race', () => {
       await vi.advanceTimersByTimeAsync(2000);
     });
 
-    const written = vi
+    const payloads = vi
       .mocked(firestore.setDoc)
-      .mock.calls.map((c) => JSON.stringify(c[1]));
-    expect(written.filter((w) => w.includes('{}'))).toEqual([]);
+      .mock.calls.map(
+        (c) =>
+          (c[1] as { savedWidgetConfigs?: Record<string, unknown> })
+            .savedWidgetConfigs
+      );
+    expect(payloads.length).toBeGreaterThan(0);
+    for (const p of payloads) {
+      expect(Object.keys(p ?? {}).length).toBeGreaterThan(0);
+    }
   });
 });
