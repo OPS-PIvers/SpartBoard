@@ -177,6 +177,11 @@ export const QuizBehaviorSettingsPanel: React.FC<
             <ToggleRow
               compact
               label={t('quizScoreOnSubmit.label', 'Show score on submit')}
+              anchor={tourFieldAttr(
+                'assign-quiz-behavior.toggle',
+                'assign',
+                'score-on-submit'
+              )}
               checked={scoreOnSubmit}
               disabled={hasManualGrading}
               onChange={(v) => patch({ showScoreOnSubmit: v })}
@@ -250,6 +255,11 @@ export const QuizBehaviorSettingsPanel: React.FC<
                   'quizHandRaise.label',
                   'Allow students to raise a hand'
                 )}
+                anchor={tourFieldAttr(
+                  'assign-quiz-behavior.toggle',
+                  'assign',
+                  'raise-hand'
+                )}
                 checked={value.sessionOptions.handRaiseEnabled ?? false}
                 onChange={(v) => patch({ handRaiseEnabled: v })}
               />
@@ -257,6 +267,11 @@ export const QuizBehaviorSettingsPanel: React.FC<
             {readAloudAvailable && (
               <ToggleRow
                 label={t('quizReadAloud.label', 'Read aloud')}
+                anchor={tourFieldAttr(
+                  'assign-quiz-behavior.toggle',
+                  'assign',
+                  'read-aloud'
+                )}
                 checked={value.sessionOptions.readAloudAll ?? false}
                 onChange={(v) => patch({ readAloudAll: v })}
                 hint={t('quizReadAloud.help', 'Signed-in students only.')}
@@ -270,6 +285,11 @@ export const QuizBehaviorSettingsPanel: React.FC<
                 <ToggleRow
                   compact
                   label="Speed Bonus Points"
+                  anchor={tourFieldAttr(
+                    'assign-quiz-behavior.toggle',
+                    'assign',
+                    'speed-bonus'
+                  )}
                   checked={value.sessionOptions.speedBonusEnabled ?? false}
                   onChange={(v) => patch({ speedBonusEnabled: v })}
                   hint="Up to 50% bonus for fast answers"
@@ -277,12 +297,22 @@ export const QuizBehaviorSettingsPanel: React.FC<
                 <ToggleRow
                   compact
                   label="Streak Bonuses"
+                  anchor={tourFieldAttr(
+                    'assign-quiz-behavior.toggle',
+                    'assign',
+                    'streak-bonus'
+                  )}
                   checked={value.sessionOptions.streakBonusEnabled ?? false}
                   onChange={(v) => patch({ streakBonusEnabled: v })}
                 />
                 <ToggleRow
                   compact
                   label="Podium Between Questions"
+                  anchor={tourFieldAttr(
+                    'assign-quiz-behavior.toggle',
+                    'assign',
+                    'podium'
+                  )}
                   checked={
                     value.sessionOptions.showPodiumBetweenQuestions ?? false
                   }

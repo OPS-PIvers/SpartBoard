@@ -665,6 +665,52 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  // Assign dialogs round 2: switches, rule toggles and numbers.
+  'assign-top.pacing': {
+    label: 'Pacing switch at the top of the Assign dialog',
+    panel: true,
+  },
+  'flashcards-check.mode': {
+    label: 'Mode switch in the Flashcards check step',
+    panel: true,
+  },
+  'flashcards-check.show-first': {
+    label: 'Show first switch in the Flashcards check step',
+    panel: true,
+  },
+  'assign-periods.mode': {
+    label: 'How periods open switch in the Assign window',
+    panel: true,
+  },
+  'assign-when.mode-option': {
+    label: 'Manual or Scheduled option in the Assign dialog',
+    perField: true,
+    panel: true,
+  },
+  'assign-rule.toggle': {
+    label: 'Setting switch in the Assign dialog quiz steps',
+    perField: true,
+    panel: true,
+  },
+  'assign-rule.number': {
+    label: 'Setting number box in the Assign dialog quiz steps',
+    perField: true,
+    panel: true,
+  },
+  'assign-settings.toggle': {
+    label: 'Setting switch in the Assign window',
+    perField: true,
+    panel: true,
+  },
+  'assign-quiz-behavior.toggle': {
+    label: 'Setting switch in the Quiz assign settings',
+    perField: true,
+    panel: true,
+  },
+  'assign-quiz-time.toggle': {
+    label: 'Time limit switch in the Quiz assign settings',
+    panel: true,
+  },
   // Assign dialogs: stepper steps, legacy Assign window, student pickers, settings and publish.
   'assign-when.mode': {
     label: 'Manual or Scheduled switch in the Assign dialog',

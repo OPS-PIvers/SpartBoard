@@ -33,6 +33,7 @@ export const QuizTimeLimitRow: React.FC<{
     <div>
       <ToggleRow
         label={label}
+        anchor={tourAttr('assign-quiz-time.toggle')}
         checked={enabled}
         onChange={(on) => {
           if (!on) {

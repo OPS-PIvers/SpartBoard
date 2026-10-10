@@ -44,6 +44,7 @@ import {
   resolveSharingPlc,
   type SharingStepValue,
 } from './SharingStep.format';
+import { tourAttr } from '@/config/tourAnchors';
 
 export interface VideoAssignStepperResult {
   pacing: VideoActivitySessionMode;
@@ -230,6 +231,7 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
             onChange={setPickedPacing}
             options={PACING_SWITCH_OPTIONS}
             ariaLabel="Pacing"
+            anchor={tourAttr('assign-top.pacing')}
           />
         )}
         {error && (

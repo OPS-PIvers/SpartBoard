@@ -73,6 +73,7 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
         <SegmentedControl
           role="radiogroup"
           ariaLabel="Mode"
+          anchor={tourAttr('flashcards-check.mode')}
           options={FLASHCARD_MODE_OPTIONS}
           value={value.checkMode}
           onChange={(checkMode) => update({ checkMode })}
@@ -83,6 +84,7 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
         <SegmentedControl
           role="radiogroup"
           ariaLabel="Show first"
+          anchor={tourAttr('flashcards-check.show-first')}
           options={FLASHCARD_SIDE_OPTIONS}
           value={value.showFirst}
           onChange={(showFirst) => update({ showFirst })}

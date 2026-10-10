@@ -307,7 +307,10 @@ export const AssignmentSettingsToggleGroup: React.FC<
             label="Focus mode"
             checked={options.tabWarningsEnabled ?? true}
             onChange={(v) => update('tabWarningsEnabled', v)}
-            anchor={anchors?.focusMode}
+            anchor={
+              anchors?.focusMode ??
+              tourFieldAttr('assign-settings.toggle', 'assign', 'focus-mode')
+            }
           />
           {afterTabWarningsSlot}
           {showCopyPasteToggle && (
@@ -315,7 +318,14 @@ export const AssignmentSettingsToggleGroup: React.FC<
               label="Block Copy & Paste"
               checked={options.blockCopyPaste ?? false}
               onChange={(v) => update('blockCopyPaste', v)}
-              anchor={anchors?.copyPaste}
+              anchor={
+                anchors?.copyPaste ??
+                tourFieldAttr(
+                  'assign-settings.toggle',
+                  'assign',
+                  'block-copy-paste'
+                )
+              }
             />
           )}
         </>
@@ -336,7 +346,14 @@ export const AssignmentSettingsToggleGroup: React.FC<
               label="Shuffle Questions"
               checked={options.shuffleQuestions ?? false}
               onChange={(v) => update('shuffleQuestions', v)}
-              anchor={anchors?.shuffleQuestions}
+              anchor={
+                anchors?.shuffleQuestions ??
+                tourFieldAttr(
+                  'assign-settings.toggle',
+                  'assign',
+                  'shuffle-questions'
+                )
+              }
               disabled={!shuffleQuestionsAvailable}
               hint={
                 shuffleQuestionsAvailable ? undefined : shuffleQuestionsHint
@@ -348,7 +365,14 @@ export const AssignmentSettingsToggleGroup: React.FC<
             label="Shuffle Answer Options"
             checked={options.shuffleAnswerOptions ?? true}
             onChange={(v) => update('shuffleAnswerOptions', v)}
-            anchor={anchors?.shuffleAnswerOptions}
+            anchor={
+              anchors?.shuffleAnswerOptions ??
+              tourFieldAttr(
+                'assign-settings.toggle',
+                'assign',
+                'shuffle-answers'
+              )
+            }
           />
         </CollapsibleSection>
       )}
@@ -366,12 +390,22 @@ export const AssignmentSettingsToggleGroup: React.FC<
           <ToggleRow
             compact
             label="Show right/wrong to students"
+            anchor={tourFieldAttr(
+              'assign-settings.toggle',
+              'assign',
+              'show-right-wrong'
+            )}
             checked={options.showResultToStudent ?? false}
             onChange={(v) => update('showResultToStudent', v)}
           />
           <ToggleRow
             compact
             label="Reveal correct answer to students"
+            anchor={tourFieldAttr(
+              'assign-settings.toggle',
+              'assign',
+              'reveal-correct'
+            )}
             checked={options.showCorrectAnswerToStudent ?? false}
             onChange={(v) => update('showCorrectAnswerToStudent', v)}
             disabled={!options.showResultToStudent}
@@ -380,6 +414,11 @@ export const AssignmentSettingsToggleGroup: React.FC<
             <ToggleRow
               compact
               label="Show correct answer on board"
+              anchor={tourFieldAttr(
+                'assign-settings.toggle',
+                'assign',
+                'correct-on-board'
+              )}
               checked={options.showCorrectOnBoard ?? false}
               onChange={(v) => update('showCorrectOnBoard', v)}
             />
@@ -388,6 +427,11 @@ export const AssignmentSettingsToggleGroup: React.FC<
             <ToggleRow
               compact
               label="Group results by learning target"
+              anchor={tourFieldAttr(
+                'assign-settings.toggle',
+                'assign',
+                'learning-targets'
+              )}
               checked={options.showLearningTargets ?? false}
               onChange={(v) => update('showLearningTargets', v)}
             />
