@@ -5,6 +5,7 @@ import { ANTHROPIC_API_KEY } from './secrets';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import { resolveCallerIsAdmin } from './aiGeneration';
 import { claudeConfigured } from './aiRouter';
+import { assertViewAsAllowed } from './viewAsGuard';
 
 /** Admin Settings > Access > AI: whether a real Claude key is stored (never the key itself). */
 export const getAiProviderStatusV1 = onCall(
@@ -15,6 +16,7 @@ export const getAiProviderStatusV1 = onCall(
     secrets: [ANTHROPIC_API_KEY],
   },
   async (request) => {
+    assertViewAsAllowed(request, { read: true });
     if (!request.auth)
       throw new HttpsError('unauthenticated', 'Sign in required.');
     if (!(await resolveCallerIsAdmin(admin.firestore(), request.auth.token)))
