@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-10-02_
+_Last audited: 2026-10-09_
 _Last action: 2026-09-23 — MEDIUM `FeaturePermissionsManager.tsx` grid/list card-body duplication resolved: extracted a shared `WidgetPermissionCardBody` component (`variant: 'grid' | 'list'`) consumed by both view modes, shrinking the file from 1,078 to 738 lines. Moved to Completed._
+
+_2026-10-09: Friday weekly audit (C1), light pass. Largest files: `context/DashboardContext.tsx` 7647 lines (existing HIGH/MEDIUM items), `QuizStudentApp.tsx` 6003, `QuizResults.tsx` 4341, `QuizWidget/Widget.tsx` 4146, `useQuizSession.ts` 3815, `useQuizAssignments.ts` 3640, `DraggableWindow.tsx` 3619. No imports with 3+ levels of `../` in components/context/hooks/utils. Existing Open items not re-diffed. 0 new issues._
 
 ---
 
@@ -128,6 +130,8 @@ _2026-06-05: Weekly audit pass. DashboardContext.tsx now 5,596 lines (+321 from 
 ### HIGH `DashboardContext.tsx` grew 1262 lines since May 13 extraction — now 5596 lines
 
 - **Detected:** 2026-05-22
+- **Updated:** 2026-10-09 — scheduled action agent skipped again: `context/DashboardContext.tsx` still has `522dea02` and `3b5dcc3a` among its last 5 commits, and the BLOCKED status (supervised, runtime-verified refactor) is unchanged. No source changes made.
+- **Updated:** 2026-10-08 — scheduled action agent skipped this item: `context/DashboardContext.tsx` was modified within the last 5 branch commits (`522dea02` fix(tours), `3b5dcc3a` Embed token refresh), and the existing BLOCKED status (needs supervised, runtime-verified refactor) is unchanged. File is now 7,647 lines. No source changes made.
 - **Updated:** 2026-09-25 — file is now **7,396 lines** (+300 since 7,096 on 2026-09-18). The portion visible within this session's git history (`6fac1845..HEAD`, +113/-18) is driven by the new "place a new widget in the center of the view, or the nearest open space" feature, which added a `findWidgetPlacement` import/call from the new single-consumer `utils/widgetPlacement.ts` (134 lines) — a small, already-extracted pure-function seam, not new inline logic. `getAdminBuildingConfig` re-confirmed unchanged as the thin bridge (now at `context/DashboardContext.tsx:5469-5473`) to `utils/adminBuildingConfig.ts`, which is byte-for-byte unchanged since 2026-09-18. BLOCKED status unchanged; no unattended action taken.
 - **Updated:** 2026-09-18 — file is now **7,096 lines** (+27 since 7,069 on 2026-09-11) — a very quiet cycle for this file despite 177 commits landing elsewhere (Flashcards widget, quiz translation, paper answer sheets, PLC collaborative notes all stayed off DashboardContext). `getAdminBuildingConfig` re-confirmed unchanged as the thin bridge to `utils/adminBuildingConfig.ts` (that file is byte-for-byte unchanged since 2026-09-11). BLOCKED status unchanged; no unattended action taken.
 - **Updated:** 2026-09-11 — file is now **7,069 lines** (+85 since 6,984 on 2026-09-04) — a much smaller jump than the prior cycle's +1,069. `getAdminBuildingConfig` re-confirmed unchanged as the 4-line bridge to `utils/adminBuildingConfig.ts`. BLOCKED status unchanged; no unattended action taken.

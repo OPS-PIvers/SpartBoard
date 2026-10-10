@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-07_
+_Last audited: 2026-10-10_
 _Last action: 2026-10-07 — LOW `projects` scaling base updated to 620×560 to match its spawn size. Prior: 2026-09-26 — LOW `WIDGET_DEFAULTS` `as XConfig` trio resolved for `specialist-schedule`/`graphic-organizer`/`reveal-grid`: changed all three from `as` to `satisfies` per the skill's Step 5 guidance, with no field changes needed since every required field was already present. Moved to Completed._
+
+_2026-10-10: Daily audit (Saturday). `WidgetType` 68, 0 duplicates. Scripted cross-reference: `WIDGET_COMPONENTS` 67/68 (only `sticker`, documented), `WIDGET_SCALING_CONFIG` 68/68, `WIDGET_DEFAULTS`/`WIDGET_GRADE_LEVELS` complete, `config/tools.ts` gaps exactly the 7 documented exclusions (0 orphans beyond `magic`/`record`/`remote`), `WIDGET_SETTINGS_SCHEMAS` 64/68 (missing `blooms-detail`/`onboarding`/`sticker` documented plus `routineGuide`, already tracked). Legacy settings/appearance maps empty. All 65 `lazyNamed()` calls resolve to real exports. 0 new issues._
 
 _2026-10-07: Daily audit (Wednesday). After rebase onto `origin/dev-paul`. Scripted cross-reference: `WidgetType` 67; `WIDGET_COMPONENTS` 66/67 (`sticker`, documented); `WIDGET_SCALING_CONFIG` 67/67; `WIDGET_DEFAULTS` 67/67; `WIDGET_GRADE_LEVELS` 70 (67 + `magic`/`record`/`remote`); `config/tools.ts` 63 types, gaps exactly the 7 documented exclusions, 0 orphans. All 64 `lazyNamed()` calls resolve (`poll` resolves via `PollWidget/index.ts` `export * from './Widget'`). Open items unchanged. 0 new issues._
 
@@ -22,6 +24,8 @@ The headline finding this cycle: **`WIDGET_SETTINGS_COMPONENTS` and `WIDGET_APPE
 
 Re-verified all 3 existing Open items against current file content rather than trusting prior line numbers. The `as XConfig` trio (`specialist-schedule`/`graphic-organizer`/`reveal-grid`) **still reproduces, unchanged, at the identical cited lines** `config/widgetDefaults.ts:520/530/558`. The `WIDGET_APPEARANCE_COMPONENTS` JSDoc-gap item **still reproduces**, citation updated to `components/widgets/WidgetRegistry.ts:375-379` and Detail rewritten for the 5/65 → 0/65 change described above. The `projects` w/h-vs-`WIDGET_SCALING_CONFIG` divergence **still reproduces, values unchanged** (`w: 620, h: 560` vs `baseWidth: 540, baseHeight: 360`), citation refreshed to `components/widgets/WidgetRegistry.ts:843-849` (shifted up ~35 lines by wave 13/14 shrinking the file above it; `config/widgetDefaults.ts:701-715` unchanged). **Net this cycle: 0 new items filed, 0 resolved/moved to Completed, 1 item's Detail substantially rewritten to reflect the settings-drawer migration's completion, all 3 citations current.**_
 
+_2026-10-09: Friday daily audit (rebased on `origin/dev-paul`). Scripted cross-reference: `WidgetType` 68; `WIDGET_COMPONENTS` 67/68 (`sticker`, documented); `WIDGET_SCALING_CONFIG`/`WIDGET_DEFAULTS` 68/68; `WIDGET_GRADE_LEVELS` 71 = 68 + `magic`/`record`/`remote`; `config/tools.ts` 64 types, gaps exactly the 7 documented exclusions, 0 unexplained orphans. All 65 `lazyNamed()` calls resolve to a real named export (barrels followed). 0 new issues._
+
 ---
 
 ## In Progress
@@ -33,6 +37,8 @@ _Nothing currently in progress._
 _2026-09-26 action: Item selection ran across today's reading list (the three dailies only — no weekly journal carries a Saturday cadence). Nothing In Progress anywhere. All Open items across all three dailies were LOW severity (widget-registry's 3, css-scaling's 17, typescript-eslint's 0 structured items), so priority fell to journal order among dailies (widget-registry > css-scaling > typescript-eslint) and then document order within this journal: the `as XConfig` trio, first of this journal's 3 Open items. File-recency check passed: `git log --oneline -10 -- config/widgetDefaults.ts` returned `88a00fe`/`8f90d50`, neither among `scheduled-tasks`' 10 most recent commits, so the file wasn't touched by another agent in the last 5 commits. Changed `as SpecialistScheduleConfig`/`as GraphicOrganizerConfig`/`as RevealGridConfig` to `satisfies` on all three (no field changes needed — this journal's own prior audits had already confirmed every required field present on all three literals). `pnpm exec vitest related --run config/widgetDefaults.ts` — 301 test files / 3114 tests, all passed. PR opened to `dev-paul`. Moved to Completed._
 
 ## Open
+
+_2026-10-08: Thursday daily audit (merged `origin/dev-paul` @ `5b543ff2` first). `WidgetType` now 68 members. `WIDGET_COMPONENTS` 67/68 (`sticker` absent, documented), `WIDGET_SCALING_CONFIG` 68/68, `WIDGET_DEFAULTS` and `WIDGET_GRADE_LEVELS` cover every type with 0 orphans, `config/tools.ts` gaps are exactly the 7 documented exclusions. `WIDGET_SETTINGS_COMPONENTS` and `WIDGET_APPEARANCE_COMPONENTS` are now empty `{}` (all settings schema-driven), so per-type presence checks no longer apply. `pnpm type-check` clean, which type-checks every `lazyNamed()` import. 0 new issues; existing Open items not re-diffed this cycle._
 
 _2026-10-06: Daily audit (Tuesday). Scripted cross-reference: `WidgetType` 67; `WIDGET_COMPONENTS` 66/67 (`sticker`, documented); `WIDGET_SCALING_CONFIG` 67/67; `WIDGET_DEFAULTS` 67/67; `WIDGET_GRADE_LEVELS` 70 (67 + `magic`/`record`/`remote` internal tools); `config/tools.ts` gap set is exactly the 7 documented exclusions (+ the 3 internal tools). `WIDGET_SETTINGS_COMPONENTS` and `WIDGET_APPEARANCE_COMPONENTS` are intentionally empty (all schema-driven). All 64 `lazyNamed()` calls resolve to a real named export (5 via `export *` barrels, confirmed). 0 new issues; existing Open items unchanged._
 
@@ -400,14 +406,16 @@ _2026-06-30: Full audit after rebasing onto dev-paul (new commits: fix(analytics
 _No open items._
 
 
+
+## Completed
+
 ### LOW `routineGuide` has no `WIDGET_SETTINGS_SCHEMAS` entry, unlike other no-settings widgets
 - **Detected:** 2026-10-03
 - **File:** components/widgets/WidgetRegistry.ts
 - **Detail:** `routineGuide` (added in `aa1d7719`) is registered in `WIDGET_COMPONENTS`, `WIDGET_SCALING_CONFIG`, `WIDGET_DEFAULTS`, `TOOLS` and `WIDGET_GRADE_LEVELS`, but not in `WIDGET_SETTINGS_SCHEMAS`. The other widgets without settings (`traffic`, `classes`) point at the shared `noSettingsSchema` stub, and the only absent types are the documented `blooms-detail`/`onboarding`/`sticker`. The legacy settings maps are empty, so the settings drawer has nothing to render for this widget.
 - **Fix:** Add a `routineGuide` entry in `WIDGET_SETTINGS_SCHEMAS` importing `@/components/settings/schema/noSettingsSchema` like `traffic`, or a real schema if settings are wanted, or document it as an intentional omission.
 ---
-
-## Completed
+- **Resolved 2026-10-10:** Added `routineGuide` entry pointing at the shared `noSettingsSchema` stub in `WidgetRegistry.ts`; regenerated `functions/src/mcp/settingsFieldList.ts` (`UPDATE_TOUR_ANCHOR_LIST=1`). `vitest related` green after regeneration. PR opened to dev-paul.
 
 ### LOW `projects` `WIDGET_DEFAULTS` w/h now diverges from `WIDGET_SCALING_CONFIG` baseWidth/baseHeight
 

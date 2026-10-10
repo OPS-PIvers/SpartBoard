@@ -85,3 +85,27 @@ describe('isBlockedIp embedded and reserved ranges', () => {
     expect(isBlockedIp(address)).toBe(false);
   });
 });
+
+describe('isBlockedIp non-global ranges', () => {
+  it.each([
+    '192.0.0.8',
+    '192.0.2.1',
+    '198.51.100.9',
+    '203.0.113.7',
+    'ff02::1',
+    'ff00::',
+    '64:ff9b:1::a00:1',
+    '2001:0:4136:e378:8000:63bf:3fff:fdd2',
+    '2001::1',
+    '2001:db8::1',
+  ])('blocks %s', (addr) => {
+    expect(isBlockedIp(addr)).toBe(true);
+  });
+
+  it.each(['8.8.8.8', '192.0.3.1', '2606:4700:4700::1111', '2001:4860::8888'])(
+    'allows %s',
+    (addr) => {
+      expect(isBlockedIp(addr)).toBe(false);
+    }
+  );
+});

@@ -3,12 +3,14 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-07_
+_Last audited: 2026-10-10_
 _Last action: 2026-09-24 — MEDIUM `QuizStimulusView.tsx` zero-`cqmin` blocker resolved: added an optional `cqScaled?: boolean` prop (default `false`) threaded through every subcomponent in the file, applying `min(Xpx, Ycqmin)` inline styles only when set, so the two CQ-container consumers (`CurrentQuestionCard.tsx`, `QuizPreview.tsx`) now scale while the two non-CQ consumers (`QuizStudentApp.tsx`, `FreeResponseGrader.tsx`) keep today's fixed styling untouched — the same `cqScaled` pattern proven on `AssignTargetingSection.tsx`. 1250/1250 relevant tests pass. Item moved to Completed. PR opened against dev-paul._
 
 ---
 
 ## Audit guidance — `cqmin` is not always the right answer
+
+_2026-10-10: Daily audit (Saturday). Scanned `*Widget.tsx`/`Widget.tsx`/`index.tsx` under `components/widgets/` for `max-[hw]-[Npx]` and large fixed `w/h-[Npx]`; only hits are two `fixed` portaled popups in `DrawingWidget/Widget.tsx` (`min-w-[200px]`, `w-[260px]`), which are not content-area caps. Existing Open items not re-touched. 0 new issues._
 
 _2026-10-07: Daily audit (Wednesday). Widget.tsx files changed since the last audit (Clock, Quiz, RoutineGuide, Random) re-scanned; no `max-[h|w]-[Npx]` caps in any Widget.tsx and RoutineGuide/Random use `min()`/`clamp()` with `cqmin`. Existing Open items unchanged. 0 new issues._
 
@@ -34,6 +36,8 @@ _2026-09-13 action notes (Sunday): Reading list = three dailies (widget-registry
 
 _2026-09-17 action notes (Thursday): Reading list = three dailies only (widget-registry, css-scaling, typescript-eslint) — no weekly journal carries a Thursday cadence, confirmed by grepping every `docs/scheduled-tasks/*.md` header for `cadence: weekly — Thursday` (0 matches). Nothing In Progress in any of the three. widget-registry's Open section carries only 3 LOW items; typescript-eslint has no structured `### [SEVERITY]` items at all (narrative-log-only journal). css-scaling (order 2 of 3) is therefore the first journal with an open MEDIUM, and per document order its first open MEDIUM was `AssignTargetingSection.tsx` (ahead of the second, `QuizStimulusView.tsx`). File-recency check passed: `git log --oneline -10 -- components/common/library/AssignTargetingSection.tsx` shows the last touching commit (`a81498e`) predates all 5 of the branch's most recent commits (today's five docs-only audit commits). Resolution recorded above; moved to Completed._
 
+_2026-10-09: Friday daily audit. Scanned `Widget.tsx` files for `max-w/h-[Npx]` caps and fixed-pixel `w/h/min-w-[Npx]` classes: no `max-*-[Npx]` hits; the only 2 fixed-px hits are `fixed` floating popovers in `DrawingWidget/Widget.tsx` (lines 1293, 1378), not content-area sizing, so not flagged. Existing Open items not re-diffed. 0 new issues._
+
 ---
 
 ## In Progress
@@ -43,6 +47,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-10-08: Thursday daily audit. Scanned `components/widgets/**/Widget.tsx` / `*Widget.tsx` for `max-h/max-w-[Npx]`: 0 hits. No new anti-patterns found; the standing LOW items below were not re-verified line by line this cycle. 0 new issues._
 
 _2026-10-06: Daily audit (Tuesday). `max-[Npx]`/`max-w-[Npx]` scan of non-test, non-Settings widget files: 9 hits, all small chrome/editor elements (GL editor/timeline, CustomMaterialForm color grid, RandomClassContextButton dropdown, LiveControl label, SmartNotebook assets panel, DrawingWidget PageStrip) — none cap a primary content area; SmartNotebook and RandomClassContext already tracked. 0 new issues._
 

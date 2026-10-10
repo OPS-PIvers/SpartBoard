@@ -102,6 +102,7 @@ import { RecordFromHere } from './RecordFromHere';
 import { TourAnchorList } from './TourAnchorList';
 import { TourWidgetFields } from './TourWidgetFields';
 import { applyAnchorPick, type TourAnchorPick } from './pickAnchor';
+import { bindWithStarterText } from './starterText';
 import {
   TOUR_ACTIONS,
   isRedStatus,
@@ -226,9 +227,12 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
     : undefined;
   const bindPick = (pick: TourAnchorPick) => {
     if (pickingStep)
-      session.setBinding(
+      session.updateStep(
         pickingStep.id,
-        applyAnchorPick(pickingStep.tour, pick)
+        bindWithStarterText(
+          pickingStep,
+          applyAnchorPick(pickingStep.tour, pick)
+        )
       );
     setPicking(null);
   };
@@ -845,7 +849,7 @@ const StepCard: React.FC<{
   const update = (patch: Partial<GuidedLearningStep>, field?: string) =>
     session.updateStep(step.id, patch, field);
   const bind = (next: NonNullable<GuidedLearningStep['tour']>) =>
-    session.setBinding(step.id, next);
+    session.updateStep(step.id, bindWithStarterText(step, next));
   const thumb = tourThumbnail(step);
   const pictured = !!tour?.anchor && tour.anchor !== WHOLE_BOARD_ANCHOR;
   return (
