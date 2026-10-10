@@ -25,7 +25,7 @@ export const AbsentStudentsModal: React.FC<AbsentStudentsModalProps> = ({
   roster,
 }) => {
   const { t } = useTranslation();
-  const { setAbsentStudents } = useDashboard();
+  const { setAbsentStudents, addToast } = useDashboard();
 
   const today = getLocalIsoDate();
 
@@ -47,6 +47,20 @@ export const AbsentStudentsModal: React.FC<AbsentStudentsModalProps> = ({
     [roster.students]
   );
 
+  const save = useCallback(
+    (studentIds: string[]) => {
+      setAbsentStudents(roster.id, studentIds).catch(() =>
+        addToast(
+          t('widgets.random.absent.saveFailed', {
+            defaultValue: 'Could not save the absent list. Try again.',
+          }),
+          'error'
+        )
+      );
+    },
+    [roster.id, setAbsentStudents, addToast, t]
+  );
+
   const toggleStudent = useCallback(
     (studentId: string) => {
       const nextIds = new Set(absentIds);
@@ -55,14 +69,14 @@ export const AbsentStudentsModal: React.FC<AbsentStudentsModalProps> = ({
       } else {
         nextIds.add(studentId);
       }
-      void setAbsentStudents(roster.id, [...nextIds]);
+      save([...nextIds]);
     },
-    [absentIds, roster.id, setAbsentStudents]
+    [absentIds, save]
   );
 
   const clearAll = useCallback(() => {
-    void setAbsentStudents(roster.id, []);
-  }, [roster.id, setAbsentStudents]);
+    save([]);
+  }, [save]);
 
   const formattedDate = new Date().toLocaleDateString(undefined, {
     weekday: 'long',
