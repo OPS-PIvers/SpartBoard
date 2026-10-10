@@ -355,6 +355,7 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
           )}
           <span />
           <Toggle
+            anchor={tourAttr('gradebook.column.counts-overall')}
             checked={config?.countsTowardOverall ?? true}
             onChange={(checked) =>
               saveColumn(column, { countsTowardOverall: checked }).catch(fail)

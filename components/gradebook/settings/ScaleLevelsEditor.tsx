@@ -146,6 +146,11 @@ export const ScaleLevelsEditor: React.FC<{
         min={n - 1 - i}
         max={i === 0 ? 100 : levels[i - 1].min - 1}
         label={`${l.name} cutoff`}
+        anchor={tourFieldAttr(
+          'gradebook.settings.scale-cutoff',
+          'gradebook-settings',
+          String(i)
+        )}
         onCommit={(raw) => {
           const min = clampPct(Number(raw), 0, 100);
           const next = { levels: levels.map((x) => ({ ...x })) };

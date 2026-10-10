@@ -333,6 +333,11 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                             placeholder="None"
                             compact
                             label={`${f.name} value`}
+                            anchor={tourFieldAttr(
+                              'gradebook.settings.flag-value',
+                              'gradebook-settings',
+                              f.id
+                            )}
                             onCommit={(raw) =>
                               setFlag(
                                 i,
@@ -461,6 +466,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
         <LabeledToggle
           checked={body.autoFlags}
           disabled={ro}
+          anchor={tourAttr('gradebook.settings.auto-flags')}
           onChange={(autoFlags) => set({ autoFlags }, 'Automatic flags')}
         >
           Apply Late and Missing automatically from due dates
@@ -529,6 +535,11 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                     value={c.weight}
                     disabled={ro}
                     label={`${c.name} weight`}
+                    anchor={tourFieldAttr(
+                      'gradebook.settings.category-weight',
+                      'gradebook-settings',
+                      c.id
+                    )}
                     onCommit={(raw) =>
                       setCat(
                         i,
@@ -678,6 +689,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
         <LabeledToggle
           checked={scoresOn}
           disabled={ro}
+          anchor={tourAttr('gradebook.settings.student-scores')}
           onChange={(on) =>
             set(
               {
@@ -697,6 +709,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
         <LabeledToggle
           checked={vis.standards}
           disabled={ro}
+          anchor={tourAttr('gradebook.settings.student-standards')}
           onChange={(standards) =>
             set(
               { studentVisibility: { ...vis, standards } },
