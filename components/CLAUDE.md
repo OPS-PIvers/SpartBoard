@@ -8,6 +8,18 @@ Loaded when working under `components/`.
 - A global `prefers-reduced-motion` rule (Tailwind base-layer plugin in `tailwind.config.js`) disables decorative/looping animations. Urgency signals are color-based, not animation-based. Don't reintroduce always-on looping animations without a `motion-reduce:` guard.
 - Backgrounds can be a Tailwind class string OR a URL/data URI (handled in `components/layout/DashboardView.tsx`); custom backgrounds are set via inline style, not className.
 
+## Touch panels
+
+Teachers run the board on 50" classroom touchscreens as well as laptops, so every board control has to work with a finger and no hover.
+
+- `DraggableWindow` already handles touch: Pointer Events with pointer capture, `touchAction: 'none'` on drag and resize surfaces, a second finger freezing a drag in place, native scrolling inside scrollable panels, no context menu, and `select-none` on the widget. `html` and `body` have `overscroll-behavior: none`. Don't re-add these per widget.
+- A 600ms one-finger long-press on a widget takes a screenshot and a two-finger long-press toggles annotation, so don't build a widget gesture on long-press.
+- There is no hover on touch. A control hidden behind `opacity-0 group-hover:opacity-100` is invisible on the panel (the dock's minimized-widget close button is one). Give it a visible resting state, as `StudentChip`'s `opacity-60 hover:opacity-100` does.
+- Tailwind's `hoverOnlyWhenSupported` is off, so a `hover:` style sticks after a tap until something else is touched. Don't put meaning in a hover-only change, and gate hover motion with `[@media(hover:hover)]:`.
+- Tap targets are at least 44px. `touch-target-expand` (`index.css`) enlarges a small icon button's hit area without changing its look.
+- There is no global `-webkit-tap-highlight-color` reset. A custom tap target with its own pressed state adds `[-webkit-tap-highlight-color:transparent]`.
+- Detect a touch-first device with `matchMedia('(pointer: coarse)')` (as `utils/contentEditableDragSelect.ts` does); for a control used by mouse and finger alike, branch on the event's `pointerType`.
+
 ## On-screen copy
 
 Permanent helper text was cut across the app in September 2026 (`docs/plans/shipped/ALWAYS_VISIBLE_COPY.md`), so don't add it back.
