@@ -1,6 +1,7 @@
 import React from 'react';
 import { ClipboardList, Loader2, X } from 'lucide-react';
 import { spaNavigate } from '@/utils/plcPath';
+import { tourAttr } from '@/config/tourAnchors';
 import {
   buildGradebookPath,
   type ParsedGradebookPath,
@@ -45,7 +46,11 @@ export const GradebookShell: React.FC<{
         Gradebook
       </h1>
       {rosterId && (
-        <div role="tablist" className="flex gap-0.5 rounded-lg bg-white/15 p-1">
+        <div
+          role="tablist"
+          {...tourAttr('gradebook.tabs')}
+          className="flex gap-0.5 rounded-lg bg-white/15 p-1"
+        >
           {(
             [
               ['grid', 'Grades'],
@@ -73,6 +78,7 @@ export const GradebookShell: React.FC<{
       <button
         type="button"
         onClick={onClose}
+        {...tourAttr('gradebook.close')}
         className="rounded-lg p-1.5 hover:bg-white/20"
         aria-label="Close gradebook"
         title="Close"

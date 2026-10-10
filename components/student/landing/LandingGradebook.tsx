@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { tourAttr } from '@/config/tourAnchors';
 import type { AssignmentSummary } from '@/hooks/useStudentAssignments';
 import type { StudentGradesState } from '@/hooks/useStudentGrades';
 import type { TurnInMap } from '@/hooks/useStudentTurnIns';
@@ -99,6 +100,7 @@ export const LandingGradebook: React.FC<LandingGradebookProps> = ({
         <div
           role="tablist"
           aria-label="Gradebook view"
+          {...tourAttr('gradebook.student-view.tab')}
           className="inline-flex self-end rounded-lg bg-slate-200/70 p-0.5 text-xs font-semibold"
         >
           {VIEWS.map((v) => (

@@ -4,6 +4,7 @@ import { ChevronDown, CircleHelp, Download, Eye } from 'lucide-react';
 import { CellPopover } from '@/components/admin/Organization/components/primitives';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { Toggle } from '@/components/common/Toggle';
+import { tourAttr } from '@/config/tourAnchors';
 import { spaNavigate } from '@/utils/plcPath';
 import { buildGradebookPath } from '@/utils/gradebookPath';
 import {
@@ -140,6 +141,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
     <div className="flex min-h-[52px] shrink-0 flex-wrap items-center gap-2 border-b border-slate-200 bg-white px-4 py-2 md:px-6">
       <Sel
         aria-label="Class"
+        {...tourAttr('gradebook.class-select')}
         value={rosterId}
         onChange={(e) => spaNavigate(buildGradebookPath(e.target.value))}
         className={selectCls}
@@ -152,6 +154,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
       </Sel>
       <Sel
         aria-label="Grading period"
+        {...tourAttr('gradebook.period-select')}
         value={periodId ?? 'all'}
         onChange={(e) =>
           setPeriodId(e.target.value === 'all' ? null : e.target.value)
@@ -171,6 +174,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
           <button
             ref={viewRef}
             type="button"
+            {...tourAttr('gradebook.view-menu')}
             className={menuBtn(menu === 'view')}
             aria-haspopup="true"
             aria-expanded={menu === 'view'}
@@ -182,6 +186,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
           <button
             ref={filterRef}
             type="button"
+            {...tourAttr('gradebook.filter-menu')}
             className={menuBtn(menu === 'filter')}
             aria-haspopup="true"
             aria-expanded={menu === 'filter'}
@@ -203,6 +208,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
         className={iconBtn(privacy)}
         aria-pressed={privacy}
         aria-label="Privacy blur"
+        {...tourAttr('gradebook.privacy')}
         title="Privacy blur (P)"
         onClick={() => setPrivacy(!privacy)}
       >
@@ -212,6 +218,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
         type="button"
         className={iconBtn(exportAnchor !== null)}
         aria-label="Export"
+        {...tourAttr('gradebook.export')}
         title="Export"
         onClick={(e) => {
           const el = e.currentTarget;
@@ -230,6 +237,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
         type="button"
         className={iconBtn(menu === 'help')}
         aria-label="Help and shortcuts"
+        {...tourAttr('gradebook.help')}
         title="Help and shortcuts"
         aria-expanded={menu === 'help'}
         onClick={() => toggle('help')}
@@ -268,6 +276,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
             <Label htmlFor="gb-names">Names</Label>
             <Sel
               id="gb-names"
+              {...tourAttr('gradebook.view.names')}
               className={menuSelectCls}
               wrapClassName="w-full"
               value={view.nameFormat}
@@ -285,6 +294,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
             <Label htmlFor="gb-sort">Sort rows</Label>
             <Sel
               id="gb-sort"
+              {...tourAttr('gradebook.view.sort')}
               className={menuSelectCls}
               wrapClassName="w-full"
               value={sortValue(view.sort)}
@@ -334,6 +344,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
             <Label htmlFor="gb-fcat">Category</Label>
             <Sel
               id="gb-fcat"
+              {...tourAttr('gradebook.filter.category')}
               className={menuSelectCls}
               wrapClassName="w-full"
               value={filters.categoryId ?? 'all'}
@@ -355,6 +366,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
             <Label htmlFor="gb-fkind">Activity type</Label>
             <Sel
               id="gb-fkind"
+              {...tourAttr('gradebook.filter.activity-type')}
               className={menuSelectCls}
               wrapClassName="w-full"
               value={filters.kind ?? 'all'}
@@ -387,6 +399,7 @@ export const GradebookSubBar: React.FC<{ onGrid: boolean }> = ({ onGrid }) => {
               </ul>
               <button
                 type="button"
+                {...tourAttr('gradebook.filter.show-hidden')}
                 className="h-8 rounded-lg px-3 text-xs font-semibold text-slate-600 hover:bg-slate-100"
                 onClick={() => {
                   for (const c of hiddenColumns) {

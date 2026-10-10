@@ -12,6 +12,7 @@ import {
   SCALE_COLOR_LABELS,
   SCALE_COLOR_STYLES,
 } from '@/utils/gradebook/scaleColors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { addScaleLevel, clampPct } from '@/utils/gradebook/settingsConfig';
 import { CommitInput, ICON_BTN, LINK_BTN, PctInput } from './settingsFields';
 
@@ -19,9 +20,10 @@ export type ScaleEditKind = 'cutoff' | 'level';
 
 const ColorPicker: React.FC<{
   level: ScaleLevel;
+  index: number;
   disabled: boolean;
   onPick: (color: ScaleColor) => void;
-}> = ({ level, disabled, onPick }) => {
+}> = ({ level, index, disabled, onPick }) => {
   const [open, setOpen] = useState(false);
   return (
     <span
@@ -40,6 +42,11 @@ const ColorPicker: React.FC<{
         aria-expanded={open}
         aria-label={`${level.name} color: ${SCALE_COLOR_LABELS[level.color]}`}
         title={SCALE_COLOR_LABELS[level.color]}
+        {...tourFieldAttr(
+          'gradebook.settings.scale-color',
+          'gradebook-settings',
+          String(index)
+        )}
         onClick={() => setOpen((o) => !o)}
         className={`h-[22px] w-[22px] shrink-0 rounded focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30 disabled:cursor-default ${SCALE_COLOR_STYLES[level.color].bar}`}
       />
@@ -55,6 +62,11 @@ const ColorPicker: React.FC<{
               type="button"
               aria-label={SCALE_COLOR_LABELS[c]}
               aria-pressed={c === level.color}
+              {...tourFieldAttr(
+                'gradebook.settings.scale-color-option',
+                'gradebook-settings',
+                c
+              )}
               title={SCALE_COLOR_LABELS[c]}
               onClick={() => {
                 setOpen(false);
@@ -99,6 +111,7 @@ export const ScaleLevelsEditor: React.FC<{
   const picker = (l: ScaleLevel, i: number) => (
     <ColorPicker
       level={l}
+      index={i}
       disabled={!editable}
       onPick={(color) => onCommit(patch(i, { color }), 'Level color', 'level')}
     />
@@ -109,6 +122,11 @@ export const ScaleLevelsEditor: React.FC<{
       disabled={!editable}
       maxLength={30}
       aria-label={`Level ${i + 1} name`}
+      {...tourFieldAttr(
+        'gradebook.settings.scale-name',
+        'gradebook-settings',
+        String(i)
+      )}
       className="w-full min-w-0"
       onCommit={(raw) => {
         const name = raw.trim();
@@ -156,6 +174,11 @@ export const ScaleLevelsEditor: React.FC<{
         disabled={n <= MIN_SCALE_LEVELS}
         title="Remove level"
         aria-label={`Remove ${l.name}`}
+        {...tourFieldAttr(
+          'gradebook.settings.scale-remove',
+          'gradebook-settings',
+          String(i)
+        )}
         onClick={() =>
           onCommit(
             normalizeScale({
@@ -175,6 +198,7 @@ export const ScaleLevelsEditor: React.FC<{
     <button
       type="button"
       className={`${LINK_BTN} disabled:opacity-50 disabled:no-underline`}
+      {...tourAttr('gradebook.settings.scale-add')}
       disabled={!added}
       onClick={() => added && onCommit(added, 'Levels', 'level')}
     >

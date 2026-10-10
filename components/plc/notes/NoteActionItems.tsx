@@ -179,6 +179,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
       <>
         {canEdit && (
           <button
+            {...tourFieldAttr('plc-notes.action-drag', 'plc', item.id)}
             type="button"
             {...(canDrag ? handle.attributes : {})}
             {...(canDrag ? handle.listeners : {})}

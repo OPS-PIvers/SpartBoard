@@ -10,6 +10,7 @@ import {
 } from '@/hooks/gradebook/useGradebookMarkWrites';
 import { useGradebookColumnWrites } from '@/hooks/gradebook/useGradebookColumnWrites';
 import { logError } from '@/utils/logError';
+import { tourAttr } from '@/config/tourAnchors';
 import { GradebookPopoverShell } from './GradebookPopoverShell';
 import { Btn, IconBtn, INPUT_CLASS, Select, Toggle } from './popoverParts';
 import { KIND_LABELS, fmtDate, fmtPct, fmtPoints } from './popoverFormat';
@@ -165,6 +166,7 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
           {onSortByColumn && (
             <IconBtn
               aria-label="Sort by this column"
+              {...tourAttr('gradebook.column.sort')}
               title="Sort by this column"
               aria-pressed={!!sortedByColumn}
               onClick={() => onSortByColumn(column)}
@@ -175,6 +177,7 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
           {onEditAssignment && (
             <IconBtn
               aria-label="Edit assignment"
+              {...tourAttr('gradebook.column.edit')}
               title="Edit assignment"
               onClick={() => onEditAssignment(column)}
             >
@@ -183,6 +186,7 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
           )}
           <IconBtn
             aria-label="Hide column"
+            {...tourAttr('gradebook.column.hide')}
             title="Hide column"
             onClick={() => {
               setHidden(column, ctx.rosterId, true)
@@ -201,6 +205,7 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
             <IconBtn
               danger
               aria-label="Delete assignment"
+              {...tourAttr('gradebook.column.delete')}
               title="Delete assignment"
               onClick={() => setConfirmDelete(true)}
             >
@@ -220,6 +225,7 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
             <Btn
               tone="danger"
               size="sm"
+              {...tourAttr('gradebook.column.delete-confirm')}
               onClick={() => {
                 onDeleteAssignment(column);
                 onClose();
@@ -227,7 +233,11 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
             >
               Delete
             </Btn>
-            <Btn size="sm" onClick={() => setConfirmDelete(false)}>
+            <Btn
+              size="sm"
+              {...tourAttr('gradebook.column.confirm-cancel')}
+              onClick={() => setConfirmDelete(false)}
+            >
               Cancel
             </Btn>
           </div>
@@ -239,6 +249,7 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
           <Btn
             className="px-2"
             title={completion ? 'Open submissions' : 'Open results'}
+            {...tourAttr('gradebook.column.results')}
             onClick={() => onOpenResults(column)}
           >
             {completion ? 'Submissions' : 'Results'}
@@ -248,6 +259,7 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
           <Btn
             className="px-2"
             title="Analyze this assignment"
+            {...tourAttr('gradebook.column.analyze')}
             onClick={() => onAnalyze(column)}
           >
             Analyze
@@ -257,6 +269,7 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
           <Btn
             className="px-2"
             tone={published ? 'default' : 'primary'}
+            {...tourAttr('gradebook.column.publish')}
             title={
               published
                 ? 'Hide scores from students'
@@ -282,6 +295,7 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
                 </label>
                 <Select
                   id={`${ids}-cat`}
+                  {...tourAttr('gradebook.column.category')}
                   value={config?.category ?? ctx.settings.categories[0].id}
                   onChange={(e) =>
                     saveColumn(column, { category: e.target.value }).catch(fail)
@@ -300,6 +314,7 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
           </label>
           <input
             id={`${ids}-max`}
+            {...tourAttr('gradebook.column.total-points')}
             type="number"
             min={1}
             step="any"
@@ -320,6 +335,7 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
           </label>
           <Select
             id={`${ids}-policy`}
+            {...tourAttr('gradebook.column.retakes')}
             value={config?.attemptPolicy ?? 'latest'}
             onChange={(e) =>
               saveColumn(column, {
@@ -363,6 +379,7 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
             </label>
             <Select
               id={`${ids}-mark`}
+              {...tourAttr('gradebook.column.mark-all')}
               className="flex-1"
               value={markValue}
               onChange={(e) => setMarkValue(e.target.value)}
@@ -376,6 +393,7 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
             <Btn
               size="sm"
               className="h-9"
+              {...tourAttr('gradebook.column.mark-apply')}
               disabled={empties.length === 0}
               onClick={applyMarkAll}
             >

@@ -3,6 +3,7 @@ import {
   topCutoff,
   type ProficiencyScale,
 } from '@/utils/gradebook/gradebookCore';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { bandFor } from './bands';
 
 export interface HeatmapColumn {
@@ -67,6 +68,11 @@ export const ProficiencyHeatmap: React.FC<ProficiencyHeatmapProps> = ({
             {onSelectColumn ? (
               <button
                 type="button"
+                {...tourFieldAttr(
+                  'gradebook.analysis.heatmap-column',
+                  'gradebook',
+                  c.id
+                )}
                 onClick={() => onSelectColumn(c.id)}
                 className="font-bold truncate hover:text-brand-blue-primary hover:underline"
               >
@@ -86,6 +92,11 @@ export const ProficiencyHeatmap: React.FC<ProficiencyHeatmapProps> = ({
               {onSelectRow ? (
                 <button
                   type="button"
+                  {...tourFieldAttr(
+                    'gradebook.analysis.heatmap-row',
+                    'gradebook',
+                    r.id
+                  )}
                   onClick={() => onSelectRow(r.id)}
                   className="truncate text-left hover:text-brand-blue-primary hover:underline"
                 >

@@ -51,6 +51,7 @@ const UseInMyGradebook: React.FC<{
       <ChecklistSelect
         label="Use in my gradebook"
         emptyText="No classes"
+        anchor={tourAttr('plc-settings.gradebook-classes')}
         className="flex-1 max-w-[320px]"
         disabled={s.loading}
         options={classes.map((c) => {
