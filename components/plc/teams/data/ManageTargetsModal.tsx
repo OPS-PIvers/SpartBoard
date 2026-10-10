@@ -281,7 +281,11 @@ export const ManageTargetsModal: React.FC<ManageTargetsModalProps> = ({
               step={1}
               value={value}
               onChange={(e) => onChange(e.target.value)}
-              {...tourFieldAttr('teams.targets.cutoff', 'teams-data', String(i))}
+              {...tourFieldAttr(
+                'teams.targets.cutoff',
+                'teams-data',
+                String(i)
+              )}
               className={`${INPUT} w-20 py-1.5 tabular-nums`}
             />
             %

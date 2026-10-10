@@ -262,10 +262,14 @@ export const AssessmentHeroView: React.FC<AssessmentHeroViewProps> = ({
               />
               <ChartLegend items={itemLegend(t)} />
               <TableToggle
- table={table}
- onToggle={toggleTable}
- anchor={tourFieldAttr('teams.data.table-toggle','teams-data','items')}
- />
+                table={table}
+                onToggle={toggleTable}
+                anchor={tourFieldAttr(
+                  'teams.data.table-toggle',
+                  'teams-data',
+                  'items'
+                )}
+              />
             </>
           )}
         </SectionHead>
@@ -348,10 +352,14 @@ export const DistributionView: React.FC<{ featured: FeaturedAssessment }> = ({
       >
         {dist.status === 'ready' && (
           <TableToggle
- table={table}
- onToggle={toggleTable}
- anchor={tourFieldAttr('teams.data.table-toggle','teams-data','distribution')}
- />
+            table={table}
+            onToggle={toggleTable}
+            anchor={tourFieldAttr(
+              'teams.data.table-toggle',
+              'teams-data',
+              'distribution'
+            )}
+          />
         )}
       </SectionHead>
       {dist.status !== 'ready' ? (
@@ -423,10 +431,14 @@ export const TrendView: React.FC<{
       >
         {trend.length > 0 && (
           <TableToggle
- table={table}
- onToggle={toggleTable}
- anchor={tourFieldAttr('teams.data.table-toggle','teams-data','trend')}
- />
+            table={table}
+            onToggle={toggleTable}
+            anchor={tourFieldAttr(
+              'teams.data.table-toggle',
+              'teams-data',
+              'trend'
+            )}
+          />
         )}
       </SectionHead>
       {trend.length === 0 ? (
@@ -477,10 +489,14 @@ export const ParticipationView: React.FC<{
       >
         {rows.length > 0 && (
           <TableToggle
- table={table}
- onToggle={toggleTable}
- anchor={tourFieldAttr('teams.data.table-toggle','teams-data','participation')}
- />
+            table={table}
+            onToggle={toggleTable}
+            anchor={tourFieldAttr(
+              'teams.data.table-toggle',
+              'teams-data',
+              'participation'
+            )}
+          />
         )}
       </SectionHead>
       {rows.length === 0 ? (
@@ -593,10 +609,14 @@ export const MasteryView: React.FC<MasteryViewProps> = ({
           </TextLink>
         )}
         <TableToggle
- table={table}
- onToggle={toggleTable}
- anchor={tourFieldAttr('teams.data.table-toggle','teams-data','mastery')}
- />
+          table={table}
+          onToggle={toggleTable}
+          anchor={tourFieldAttr(
+            'teams.data.table-toggle',
+            'teams-data',
+            'mastery'
+          )}
+        />
       </SectionHead>
       {table ? (
         <DataTable
@@ -729,7 +749,11 @@ export const RecentAssessmentsView: React.FC<{
             <button
               key={r.assessmentId}
               type="button"
-              {...tourFieldAttr('teams.data.recent-assessment', 'teams-data', r.assessmentId)}
+              {...tourFieldAttr(
+                'teams.data.recent-assessment',
+                'teams-data',
+                r.assessmentId
+              )}
               onClick={() => onOpen(r.assessmentId)}
               className="text-left font-semibold text-brand-blue-primary hover:text-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
             >
@@ -780,7 +804,10 @@ export const MeetingStripView: React.FC<MeetingStripProps> = ({
             {t('plcDataOverview.nextMeeting', { defaultValue: 'Next meeting' })}
           </span>
           <span className="text-slate-500">{nextMeeting}</span>
-          <TextLink onClick={onOpenNote} {...tourAttr('teams.data.open-next-note')}>
+          <TextLink
+            onClick={onOpenNote}
+            {...tourAttr('teams.data.open-next-note')}
+          >
             {t('plcDataOverview.openNote', { defaultValue: 'Open note' })}
           </TextLink>
         </span>
@@ -798,7 +825,10 @@ export const MeetingStripView: React.FC<MeetingStripProps> = ({
               defaultValue: '{{total}} · {{mine}} yours',
             })}
           </span>
-          <TextLink onClick={onViewItems} {...tourAttr('teams.data.view-open-items')}>
+          <TextLink
+            onClick={onViewItems}
+            {...tourAttr('teams.data.view-open-items')}
+          >
             {t('plcDataOverview.view', { defaultValue: 'View' })}
           </TextLink>
         </span>
