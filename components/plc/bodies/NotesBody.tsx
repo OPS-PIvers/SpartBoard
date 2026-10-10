@@ -1021,6 +1021,7 @@ const NotesBodyInner: React.FC<
         </h3>
         {sidePanels && (
           <button
+            {...tourAttr('plc-notes.header-show-actions')}
             type="button"
             onClick={() => setOpenPanel('actions')}
             aria-label={t('plcDashboard.notes.sidePanels.showActionItems', {

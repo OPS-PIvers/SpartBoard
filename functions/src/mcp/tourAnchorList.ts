@@ -5301,6 +5301,54 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     destructive: true,
   },
   {
+    id: 'plc-assign.sheet-toggle',
+    label: 'Auto-generated sheet switch in the PLC assign dialog',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'plc-assign.option-toggle',
+    label: 'Option switch in the PLC assign dialog',
+    scope: 'field',
+    panel: true,
+  },
+  {
+    id: 'plc-settings.gradebook-classes',
+    label: 'Use in my gradebook classes select in the PLC settings tab',
+    scope: 'board',
+  },
+  {
+    id: 'plc-members.invite-email',
+    label: 'Invite email field in the PLC members tab',
+    scope: 'board',
+  },
+  {
+    id: 'plc-home.drag-tile',
+    label: 'Drag handle button for a tile in the PLC home',
+    scope: 'field',
+  },
+  {
+    id: 'plc-goals.close',
+    label: 'Close button in the PLC goal editor',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'plc-notes.action-drag',
+    label: 'Drag handle button for an action item in PLC notes',
+    scope: 'field',
+  },
+  {
+    id: 'plc-notes.header-show-actions',
+    label: 'Show action items button in the PLC notes header',
+    scope: 'board',
+  },
+  {
+    id: 'plc-assessments.drag',
+    label: 'Drag handle button for an assessment in the PLC assessments tab',
+    scope: 'field',
+  },
+  {
     id: 'admin-plc.group-new',
     label: 'Group new button in the PLC admin tools',
     scope: 'board',

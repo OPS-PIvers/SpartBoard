@@ -4275,6 +4275,42 @@ export const TOUR_ANCHORS = {
     panel: true,
     destructive: true,
   },
+  // PLC deferred controls: drag handles, option toggles, invite email, gradebook classes
+  'plc-assign.sheet-toggle': {
+    label: 'Auto-generated sheet switch in the PLC assign dialog',
+    panel: true,
+  },
+  'plc-assign.option-toggle': {
+    label: 'Option switch in the PLC assign dialog',
+    perField: true,
+    panel: true,
+  },
+  'plc-settings.gradebook-classes': {
+    label: 'Use in my gradebook classes select in the PLC settings tab',
+    persists: true,
+  },
+  'plc-members.invite-email': {
+    label: 'Invite email field in the PLC members tab',
+  },
+  'plc-home.drag-tile': {
+    label: 'Drag handle button for a tile in the PLC home',
+    perField: true,
+  },
+  'plc-goals.close': {
+    label: 'Close button in the PLC goal editor',
+    panel: true,
+  },
+  'plc-notes.action-drag': {
+    label: 'Drag handle button for an action item in PLC notes',
+    perField: true,
+  },
+  'plc-notes.header-show-actions': {
+    label: 'Show action items button in the PLC notes header',
+  },
+  'plc-assessments.drag': {
+    label: 'Drag handle button for an assessment in the PLC assessments tab',
+    perField: true,
+  },
   // PLC pages, modals and admin tools
   'admin-plc.group-new': {
     label: 'Group new button in the PLC admin tools',
