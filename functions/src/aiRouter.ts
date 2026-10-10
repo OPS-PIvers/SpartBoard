@@ -163,6 +163,17 @@ async function callGemini(
   };
 }
 
+/** A Claude response that came back but can't be used; it carries the billed tokens for the call log. */
+class ClaudeUnusableError extends Error {
+  constructor(
+    message: string,
+    readonly inputTokens: number,
+    readonly outputTokens: number
+  ) {
+    super(message);
+  }
+}
+
 async function callClaude(
   model: string,
   tier: AiTier,
@@ -220,25 +231,37 @@ async function callClaude(
       },
     })
     .finalMessage();
+  const usage = message.usage;
+  const inputTokens =
+    usage.input_tokens +
+    (usage.cache_read_input_tokens ?? 0) +
+    (usage.cache_creation_input_tokens ?? 0);
+  const outputTokens = usage.output_tokens;
   if (message.stop_reason !== 'end_turn') {
-    throw new Error(`Claude stopped early: ${message.stop_reason}`);
+    throw new ClaudeUnusableError(
+      `Claude stopped early: ${message.stop_reason}`,
+      inputTokens,
+      outputTokens
+    );
   }
   const text = message.content
     .map((block) => (block.type === 'text' ? block.text : ''))
     .join('');
-  if (!text) throw new Error('Empty response from Claude.');
-  const usage = message.usage;
+  if (!text) {
+    throw new ClaudeUnusableError(
+      'Empty response from Claude.',
+      inputTokens,
+      outputTokens
+    );
+  }
   return {
     text,
     model,
     provider: 'claude',
     stopped: 'complete',
     finishReason: message.stop_reason,
-    inputTokens:
-      usage.input_tokens +
-      (usage.cache_read_input_tokens ?? 0) +
-      (usage.cache_creation_input_tokens ?? 0),
-    outputTokens: usage.output_tokens,
+    inputTokens,
+    outputTokens,
   };
 }
 
@@ -314,8 +337,10 @@ export async function generateAi(
           integration: req.integration,
           model,
           provider: 'claude',
-          inputTokens: 0,
-          outputTokens: 0,
+          inputTokens:
+            error instanceof ClaudeUnusableError ? error.inputTokens : 0,
+          outputTokens:
+            error instanceof ClaudeUnusableError ? error.outputTokens : 0,
           fellBack: false,
           failed: true,
         });

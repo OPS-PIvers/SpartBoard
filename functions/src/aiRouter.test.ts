@@ -296,6 +296,14 @@ describe('generateAi', () => {
       { integration: 'poll', parts: [{ text: 'hi' }] }
     );
     expect(result.provider).toBe('gemini');
+    expect(logSets[0]).toMatchObject({
+      id: expect.stringMatching(/__poll__claude-haiku-5-5$/) as unknown,
+      data: {
+        errors: { inc: 1 },
+        inputTokens: { inc: 20 },
+        outputTokens: { inc: 8 },
+      },
+    });
   });
 
   it('sends audio, video and Word files to Gemini even when Claude is chosen', async () => {
