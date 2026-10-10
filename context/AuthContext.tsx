@@ -2583,6 +2583,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       widgetConfigTimeoutRef.current = setTimeout(() => {
         const pending = [...pendingConfigTypesRef.current];
         pendingConfigTypesRef.current.clear();
+        if (pending.length === 0) return;
         // Carried over from board edits, which stay local in view-as (D12).
         if (!user || isAuthBypass || viewAsSuppressesBackgroundWrites()) return;
         const payload = Object.fromEntries(

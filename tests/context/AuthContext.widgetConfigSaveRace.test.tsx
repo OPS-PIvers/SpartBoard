@@ -79,25 +79,29 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+const signIn = async () => {
+  const onAuth = vi.mocked(firebaseAuth.onAuthStateChanged);
+  onAuth.mockImplementation(() => () => undefined);
+  render(
+    <AuthProvider>
+      <Probe />
+    </AuthProvider>
+  );
+  const listener = onAuth.mock.calls[onAuth.mock.calls.length - 1][1] as (
+    u: User | null
+  ) => void;
+  Object.defineProperty(auth, 'currentUser', {
+    configurable: true,
+    writable: true,
+    value: user,
+  });
+  act(() => listener(user));
+  await waitFor(() => expect(ctxHolder.current?.profileLoaded).toBe(true));
+};
+
 describe('AuthContext widget config save race', () => {
   it('a default save for one type does not drop another type pending appearance write', async () => {
-    const onAuth = vi.mocked(firebaseAuth.onAuthStateChanged);
-    onAuth.mockImplementation(() => () => undefined);
-    render(
-      <AuthProvider>
-        <Probe />
-      </AuthProvider>
-    );
-    const listener = onAuth.mock.calls[onAuth.mock.calls.length - 1][1] as (
-      u: User | null
-    ) => void;
-    Object.defineProperty(auth, 'currentUser', {
-      configurable: true,
-      writable: true,
-      value: user,
-    });
-    act(() => listener(user));
-    await waitFor(() => expect(ctxHolder.current?.profileLoaded).toBe(true));
+    await signIn();
 
     vi.useFakeTimers();
     vi.mocked(firestore.setDoc).mockClear();
@@ -117,5 +121,26 @@ describe('AuthContext widget config save race', () => {
       .join('|');
     expect(written).toContain('"clock"');
     expect(written).toContain('serif');
+  });
+
+  it('writes nothing when a default save supersedes the only pending type', async () => {
+    await signIn();
+
+    vi.useFakeTimers();
+    vi.mocked(firestore.setDoc).mockClear();
+    act(() => {
+      ctxHolder.current?.saveWidgetConfig('clock', { fontFamily: 'serif' });
+    });
+    act(() => {
+      ctxHolder.current?.saveWidgetDefault('clock', { fontFamily: 'mono' });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+
+    const written = vi
+      .mocked(firestore.setDoc)
+      .mock.calls.map((c) => JSON.stringify(c[1]));
+    expect(written.filter((w) => w.includes('{}'))).toEqual([]);
   });
 });
