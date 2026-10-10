@@ -3,6 +3,7 @@
 // plan's decisions — alignment, quota, D17, D29 — are under test.
 
 import { describe, it, expect, vi } from 'vitest';
+import * as admin from 'firebase-admin';
 
 const INCREMENT = Symbol('increment');
 
@@ -989,6 +990,46 @@ describe('translateQuizV1 / translateResponseV1 — caller identity verification
     ).rejects.toMatchObject({
       code: 'permission-denied',
       message: 'Quiz translation is not available for your account.',
+    });
+  });
+});
+
+describe('translateQuizV1 / translateResponseV1 — gemini-functions kill switch', () => {
+  const VERIFIED = {
+    uid: 'uid-1',
+    token: { email: 'teacher@x.org', email_verified: true },
+  };
+  const switchedOff = () =>
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb({
+        'global_permissions/quiz-translation': {
+          enabled: true,
+          accessLevel: 'public',
+        },
+        'global_permissions/gemini-functions': { enabled: false },
+      }) as never
+    );
+
+  it('translateQuizV1 refuses when Gemini functions are switched off', async () => {
+    switchedOff();
+    await expect(
+      translateQuizV1Handler({ auth: VERIFIED, data: baseRequest() })
+    ).rejects.toMatchObject({
+      code: 'permission-denied',
+      message: 'Gemini functions are currently disabled by an administrator.',
+    });
+  });
+
+  it('translateResponseV1 refuses when Gemini functions are switched off', async () => {
+    switchedOff();
+    await expect(
+      translateResponseV1Handler({
+        auth: VERIFIED,
+        data: { text: 'creo que si', sourceLocale: 'es' },
+      })
+    ).rejects.toMatchObject({
+      code: 'permission-denied',
+      message: 'Gemini functions are currently disabled by an administrator.',
     });
   });
 });
