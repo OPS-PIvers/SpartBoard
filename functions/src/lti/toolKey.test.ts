@@ -8,7 +8,9 @@ const TOKEN_AUD =
 
 describe('signToolJwt', () => {
   it('signs a verifiable RS256 JWT with the published kid and standard claims', async () => {
-    const { publicKey, privateKey } = await generateKeyPair('RS256');
+    const { publicKey, privateKey } = await generateKeyPair('RS256', {
+      extractable: true,
+    });
     const pem = await exportPKCS8(privateKey);
 
     const jwt = await signToolJwt(pem, {
@@ -33,7 +35,9 @@ describe('signToolJwt', () => {
   });
 
   it('honors an explicit subject and a short expiry', async () => {
-    const { publicKey, privateKey } = await generateKeyPair('RS256');
+    const { publicKey, privateKey } = await generateKeyPair('RS256', {
+      extractable: true,
+    });
     const pem = await exportPKCS8(privateKey);
     const jwt = await signToolJwt(pem, {
       issuer: 'client-123',
@@ -50,7 +54,9 @@ describe('signToolJwt', () => {
   });
 
   it('produces a unique jti on each call', async () => {
-    const { privateKey } = await generateKeyPair('RS256');
+    const { privateKey } = await generateKeyPair('RS256', {
+      extractable: true,
+    });
     const pem = await exportPKCS8(privateKey);
     const decodeJti = (jwt: string) =>
       (

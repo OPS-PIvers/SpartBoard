@@ -15,7 +15,7 @@ function jsonResponse(obj: unknown, status = 200): Response {
 }
 
 async function testPem(): Promise<string> {
-  const { privateKey } = await generateKeyPair('RS256');
+  const { privateKey } = await generateKeyPair('RS256', { extractable: true });
   return exportPKCS8(privateKey);
 }
 
