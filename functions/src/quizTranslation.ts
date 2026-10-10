@@ -10,22 +10,16 @@
  * per-question source hashes; it never writes a sidecar itself.
  */
 import './functionsInit';
+import { ANTHROPIC_API_KEY } from './secrets';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
-import {
-  GoogleGenAI,
-  Type,
-  Schema,
-  ThinkingLevel,
-  GoogleGenAIOptions,
-} from '@google/genai';
+import { Type, Schema, ThinkingLevel } from '@google/genai';
 import {
   ALLOWED_ORIGINS,
   normalizeEmailDomain,
   resolveOrgIdForDomain,
 } from './classlinkShared';
 import { parseGeminiJson } from './parseGeminiJson';
-import { normalizeModelName } from './shared';
 import { LANGUAGE_TAG_RE } from './languageTag';
 import { adminPassesMissingDoc } from './featureMissingDoc';
 import { canonicalizeBuildingIdsServer } from './buildingIds';
@@ -34,14 +28,11 @@ import {
   type HashableQuestion,
 } from './quizTranslationHash';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { generateAi } from './aiRouter';
 
 type Firestore = admin.firestore.Firestore;
 
 export const QUIZ_TRANSLATION_SETTINGS_DOC = 'quiz_translation';
-const DEFAULT_STANDARD_MODEL = 'gemini-3.5-flash-lite';
-// Mirrors aiGeneration.ts DEFAULT_ADVANCED_MODEL.
-const DEFAULT_ADVANCED_MODEL = 'gemini-3.8-flash';
-const VERTEX_LOCATION = 'global';
 
 // Mirrors config/quizTranslation.ts; functions cannot import the root package.
 export const QUIZ_TRANSLATION_LANGUAGES: readonly {
@@ -122,15 +113,17 @@ export const MAX_BACK_TRANSLATION_CHARS = 5000;
 export interface TranslationDeps {
   db: Firestore;
   generate: (input: {
-    model: string;
+    integration: 'quiz-translation' | 'response-translation';
     systemInstruction: string;
     prompt: string;
     responseSchema?: Schema;
     maxOutputTokens: number;
   }) => Promise<{
     text: string | undefined;
+    /** `MAX_TOKENS` when the output was cut off. */
     finishReason?: string;
     outputTokens: number;
+    model: string;
   }>;
   now: () => number;
 }
@@ -908,7 +901,7 @@ export async function translateQuiz(
   const label =
     QUIZ_TRANSLATION_LANGUAGES.find((l) => l.code === request.locale)?.label ??
     request.locale;
-  const model = await resolveTranslationModel(deps.db);
+  let model = '';
   const systemInstruction = buildSystemInstruction(request.locale, label);
   const basePrompt = buildTranslationPrompt(
     request.title,
@@ -940,13 +933,14 @@ export async function translateQuiz(
           ? basePrompt
           : `${basePrompt}\nYour previous output was rejected: ${complaint}\nReturn corrected JSON that fixes this.`;
       const result = await deps.generate({
-        model,
+        integration: 'quiz-translation',
         systemInstruction,
         prompt,
         responseSchema,
         maxOutputTokens,
       });
       outputTokens += result.outputTokens;
+      model = result.model;
       // A truncated array is a MISALIGNED array — never serve it.
       if (result.finishReason === 'MAX_TOKENS')
         throw new HttpsError(
@@ -1032,11 +1026,10 @@ export async function translateResponse(
   const nowMs = deps.now();
   await reserveBackTranslationUnit(deps.db, uid, nowMs);
 
-  const model = await resolveStandardModel(deps.db);
   let outputTokens = 0;
   try {
     const result = await deps.generate({
-      model,
+      integration: 'response-translation',
       systemInstruction:
         'You translate a K-12 student’s quiz answer into English for their teacher. ' +
         'Translate faithfully, preserve numbers and proper nouns, add nothing, and return JSON only.',
@@ -1059,7 +1052,7 @@ export async function translateResponse(
     const parsed = parseGeminiJson<{ text?: string }>(result.text);
     if (typeof parsed.text !== 'string' || parsed.text.trim() === '')
       throw new HttpsError('internal', 'The translator returned no text.');
-    return { text: parsed.text, model };
+    return { text: parsed.text, model: result.model };
   } finally {
     try {
       await billBackTranslationTokens(deps.db, uid, outputTokens, nowMs);
@@ -1069,89 +1062,35 @@ export async function translateResponse(
   }
 }
 
-// ── Vertex plumbing ────────────────────────────────────────────────────────
-
-function projectIdFromFirebaseConfig(): string | undefined {
-  try {
-    const cfg = JSON.parse(process.env.FIREBASE_CONFIG ?? '{}') as {
-      projectId?: string;
-    };
-    return cfg.projectId;
-  } catch {
-    return undefined;
-  }
-}
-
-function vertexClientOptions(): GoogleGenAIOptions {
-  const project =
-    process.env.GCLOUD_PROJECT ||
-    process.env.GOOGLE_CLOUD_PROJECT ||
-    projectIdFromFirebaseConfig();
-  if (!project)
-    throw new HttpsError('internal', 'AI service is not configured.');
-  return { vertexai: true, project, location: VERTEX_LOCATION };
-}
-
-async function resolveConfiguredModel(
-  db: Firestore,
-  key: 'standardModel' | 'advancedModel',
-  fallback: string
-): Promise<string> {
-  try {
-    const doc = await db
-      .collection('global_permissions')
-      .doc('gemini-functions')
-      .get();
-    const cfg = doc.data()?.config as Record<string, string> | undefined;
-    return normalizeModelName(cfg?.[key]) ?? fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-/** Honors the admin override at `global_permissions/gemini-functions` (D20). */
-export function resolveStandardModel(db: Firestore): Promise<string> {
-  return resolveConfiguredModel(db, 'standardModel', DEFAULT_STANDARD_MODEL);
-}
-
-/** Quiz translation uses the advanced model: flash-lite output was too literal for students. */
-export function resolveTranslationModel(db: Firestore): Promise<string> {
-  return resolveConfiguredModel(db, 'advancedModel', DEFAULT_ADVANCED_MODEL);
-}
-
 function buildDefaultDeps(): TranslationDeps {
   return {
     db: admin.firestore(),
     now: () => Date.now(),
     generate: async ({
-      model,
+      integration,
       systemInstruction,
       prompt,
       responseSchema,
       maxOutputTokens,
     }) => {
-      const ai = new GoogleGenAI(vertexClientOptions());
-      const result = await ai.models.generateContent({
-        model,
-        contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        config: {
-          systemInstruction,
-          responseMimeType: 'application/json',
-          ...(responseSchema ? { responseSchema } : {}),
-          // Flash models reject MINIMAL; LOW is accepted by lite and flash alike.
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
-          temperature: 0.2,
-          maxOutputTokens,
-        },
+      const result = await generateAi(admin.firestore(), {
+        integration,
+        parts: [{ text: prompt }],
+        systemInstruction,
+        responseMimeType: 'application/json',
+        ...(responseSchema ? { responseSchema } : {}),
+        // Flash models reject MINIMAL; LOW is accepted by lite and flash alike.
+        thinkingLevel: ThinkingLevel.LOW,
+        temperature: 0.2,
+        maxOutputTokens,
+        claudeTimeoutMs: integration === 'quiz-translation' ? 150_000 : 45_000,
       });
-      const usage = result.usageMetadata;
       return {
         text: result.text,
-        finishReason: result.candidates?.[0]?.finishReason as
-          | string
-          | undefined,
-        outputTokens:
-          (usage?.candidatesTokenCount ?? 0) + (usage?.thoughtsTokenCount ?? 0),
+        finishReason:
+          result.stopped === 'max_tokens' ? 'MAX_TOKENS' : result.finishReason,
+        outputTokens: result.outputTokens,
+        model: result.model,
       };
     },
   };
@@ -1166,6 +1105,7 @@ export const translateQuizV1 = onCall(
     maxInstances: 10,
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
+    secrets: [ANTHROPIC_API_KEY],
   },
   async (request) => {
     assertViewAsAllowed(request, { outward: true });
@@ -1201,6 +1141,7 @@ export const translateResponseV1 = onCall(
     maxInstances: 10,
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
+    secrets: [ANTHROPIC_API_KEY],
   },
   async (request) => {
     assertViewAsAllowed(request, { outward: true });

@@ -5603,6 +5603,11 @@ service cloud.firestore {
       // No client write — quota increments are performed server-side via Admin SDK only.
     }
 
+    // Per-day, per-integration, per-model AI call counts written by functions/src/aiRouter.ts; admins read them on the AI tab.
+    match /ai_call_log/{logId} {
+      allow read: if isAdmin();
+    }
+
     // Guided Learning Sessions — Teacher creates, authenticated (incl. anonymous) students read and submit
     match /guided_learning_sessions/{sessionId} {
       // `get` stays permissive (see quiz_sessions); `list` is scoped so a signed-in

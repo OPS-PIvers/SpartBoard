@@ -182,6 +182,7 @@ function deps(
             questions: [{ id: 'q1', ...goodMc() }],
           }),
           outputTokens: 120,
+          model: 'gemini-test',
         })
       ),
   };
@@ -343,33 +344,21 @@ describe('translateQuiz', () => {
     ).toMatchObject({ count: 1 });
   });
 
-  it('translates with the advanced model, honoring the admin override', async () => {
-    const generate = vi.fn(() =>
+  it('asks for the quiz-translation integration and reports the model that answered', async () => {
+    const generate = vi.fn<TranslationDeps['generate']>(() =>
       Promise.resolve({
         text: JSON.stringify({ questions: [{ id: 'q1', ...goodMc() }] }),
         outputTokens: 10,
+        model: 'claude-sonnet-5-5',
       })
     );
-    const byDefault = await translateQuiz(
+    const result = await translateQuiz(
       baseRequest(),
       'teacher-1',
       deps({ generate })
     );
-    expect(byDefault.model).toBe('gemini-3.8-flash');
-    const overridden = await translateQuiz(baseRequest(), 'teacher-1', {
-      ...deps({
-        docs: {
-          'global_permissions/gemini-functions': {
-            config: {
-              standardModel: 'gemini-3.5-flash-lite',
-              advancedModel: 'gemini-2.5-flash',
-            },
-          },
-        },
-      }),
-      generate,
-    });
-    expect(overridden.model).toBe('gemini-2.5-flash');
+    expect(generate.mock.calls[0][0].integration).toBe('quiz-translation');
+    expect(result.model).toBe('claude-sonnet-5-5');
   });
 
   it('omits the title when only a stale subset is regenerated', async () => {
@@ -377,6 +366,7 @@ describe('translateQuiz', () => {
       Promise.resolve({
         text: JSON.stringify({ questions: [{ id: 'q1', ...goodMc() }] }),
         outputTokens: 10,
+        model: 'gemini-test',
       })
     );
     const result = await translateQuiz(
@@ -396,10 +386,12 @@ describe('translateQuiz', () => {
           questions: [{ id: 'q1', text: 'x', choices: ['a', 'b'] }],
         }),
         outputTokens: 10,
+        model: 'gemini-test',
       })
       .mockResolvedValueOnce({
         text: JSON.stringify({ questions: [{ id: 'q1', ...goodMc() }] }),
         outputTokens: 20,
+        model: 'gemini-test',
       });
     const result = await translateQuiz(
       baseRequest(),
@@ -420,6 +412,7 @@ describe('translateQuiz', () => {
           questions: [{ id: 'q1', text: 'x', choices: ['a'] }],
         }),
         outputTokens: 10,
+        model: 'gemini-test',
       })
     );
     await expect(
@@ -434,6 +427,7 @@ describe('translateQuiz', () => {
         text: JSON.stringify({ questions: [] }),
         finishReason: 'MAX_TOKENS',
         outputTokens: 16384,
+        model: 'gemini-test',
       })
     );
     await expect(
@@ -533,6 +527,7 @@ describe('quota metering', () => {
       return Promise.resolve({
         text: JSON.stringify({ questions: [{ id: 'q1', ...goodMc() }] }),
         outputTokens: 5,
+        model: 'gemini-test',
       });
     });
     await translateQuiz(baseRequest(), 'teacher-1', deps({ docs, generate }));
@@ -547,6 +542,7 @@ describe('quota metering', () => {
           questions: [{ id: 'q1', text: 'x', choices: ['a'] }],
         }),
         outputTokens: 40,
+        model: 'gemini-test',
       })
     );
     await expect(
@@ -565,6 +561,7 @@ describe('quota metering', () => {
         text: JSON.stringify({ questions: [] }),
         finishReason: 'MAX_TOKENS',
         outputTokens: 16384,
+        model: 'gemini-test',
       })
     );
     await expect(
@@ -617,16 +614,25 @@ describe('translateResponse', () => {
           Promise.resolve({
             text: JSON.stringify({ text: 'I think so' }),
             outputTokens: 30,
+            model: 'gemini-test',
           })
         ),
     });
 
-  it('keeps back-translation on the standard model', async () => {
+  it('asks for the response-translation integration', async () => {
+    const generate = vi.fn<TranslationDeps['generate']>(() =>
+      Promise.resolve({
+        text: JSON.stringify({ text: 'I think so' }),
+        outputTokens: 30,
+        model: 'gemini-3.5-flash-lite',
+      })
+    );
     const result = await translateResponse(
       { text: 'creo que si', sourceLocale: 'es' },
       'teacher-1',
-      backDeps({})
+      backDeps({}, generate)
     );
+    expect(generate.mock.calls[0][0].integration).toBe('response-translation');
     expect(result.model).toBe('gemini-3.5-flash-lite');
   });
 
@@ -656,6 +662,7 @@ describe('translateResponse', () => {
       return Promise.resolve({
         text: JSON.stringify({ text: 'I think so' }),
         outputTokens: 5,
+        model: 'gemini-test',
       });
     });
     await translateResponse(
@@ -1120,6 +1127,7 @@ describe('FIB blank tokens', () => {
           ],
         }),
         outputTokens: 30,
+        model: 'gemini-test',
       })
     );
     const result = await translateQuiz(

@@ -18,6 +18,7 @@ import { ALLOWED_ORIGINS } from './classlinkShared';
 import { isGlobalFeatureGranted } from './quizMediaArchive';
 import { parseGeminiJson } from './parseGeminiJson';
 import './functionsInit';
+import { ANTHROPIC_API_KEY } from './secrets';
 import { assertViewAsAllowed } from './viewAsGuard';
 
 export const QUIZ_DOCUMENT_IMPORT_FEATURE_ID = 'quiz-document-import';
@@ -594,29 +595,18 @@ async function geminiExtract(
   mimeType: string,
   multiAnswer: boolean
 ): Promise<string> {
-  const [{ GoogleGenAI }, ai] = await Promise.all([
-    import('@google/genai'),
-    import('./aiGeneration'),
-  ]);
-  const client = new GoogleGenAI(ai.__vertexClientOptions());
-  const { standardModel } = await ai.__getGeminiModelConfig(admin.firestore());
-  const result = await client.models.generateContent({
-    model: standardModel,
-    contents: [
-      {
-        role: 'user',
-        parts: [
-          { text: buildExtractPrompt(multiAnswer) },
-          { inlineData: { mimeType, data: bytes.toString('base64') } },
-        ],
-      },
+  const { generateAi } = await import('./aiRouter');
+  // A .docx goes to Gemini even when Claude is chosen; Claude reads PDFs only.
+  const result = await generateAi(admin.firestore(), {
+    integration: 'quiz-document-import',
+    parts: [
+      { text: buildExtractPrompt(multiAnswer) },
+      { inlineData: { mimeType, data: bytes.toString('base64') } },
     ],
-    config: {
-      responseMimeType: 'application/json',
-      responseSchema: buildDocumentResponseSchema(multiAnswer),
-    },
+    responseMimeType: 'application/json',
+    responseSchema: buildDocumentResponseSchema(multiAnswer),
   });
-  return result.text ?? '';
+  return result.text;
 }
 
 /** Mirrors generateWithAI's per-feature counter; admins are uncapped. */
@@ -690,6 +680,7 @@ export const extractQuizFromDocumentV1 = onCall(
     timeoutSeconds: 120,
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
+    secrets: [ANTHROPIC_API_KEY],
   },
   async (request) => {
     assertViewAsAllowed(request, { outward: true });

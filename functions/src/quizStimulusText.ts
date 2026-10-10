@@ -8,6 +8,7 @@ import { ALLOWED_ORIGINS } from './classlinkShared';
 import { isGlobalFeatureGranted } from './quizMediaArchive';
 import { QUIZ_READ_ALOUD_FEATURE_ID } from './quizReadAloud';
 import './functionsInit';
+import { ANTHROPIC_API_KEY } from './secrets';
 import {
   createPinnedAgent,
   isBlockedIp,
@@ -335,26 +336,16 @@ async function pdfFirstPagesBytes(
 }
 
 async function geminiOcr(bytes: Buffer, mimeType: string): Promise<string> {
-  const [{ GoogleGenAI }, ai] = await Promise.all([
-    import('@google/genai'),
-    import('./aiGeneration'),
-  ]);
-  const client = new GoogleGenAI(ai.__vertexClientOptions());
-  const { standardModel } = await ai.__getGeminiModelConfig(admin.firestore());
-  const result = await client.models.generateContent({
-    model: standardModel,
-    contents: [
-      {
-        role: 'user',
-        parts: [
-          { text: OCR_PROMPT },
-          { inlineData: { mimeType, data: bytes.toString('base64') } },
-        ],
-      },
+  const { generateAi } = await import('./aiRouter');
+  const result = await generateAi(admin.firestore(), {
+    integration: 'quiz-stimulus-ocr',
+    parts: [
+      { text: OCR_PROMPT },
+      { inlineData: { mimeType, data: bytes.toString('base64') } },
     ],
-    config: { responseMimeType: 'text/plain' },
+    responseMimeType: 'text/plain',
   });
-  return result.text ?? '';
+  return result.text;
 }
 
 /** Mirrors generateWithAI's per-feature `ocr` counter; admins are uncapped. */
@@ -456,6 +447,7 @@ export const extractStimulusReadAloudTextV1 = onCall(
     timeoutSeconds: 120,
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
+    secrets: [ANTHROPIC_API_KEY],
   },
   async (request) => {
     assertViewAsAllowed(request, { outward: true });

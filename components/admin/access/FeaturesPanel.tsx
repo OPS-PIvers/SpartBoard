@@ -7,7 +7,6 @@ import {
 } from '@/config/featureDefaults';
 import { AccessFeatureRow } from './AccessFeatureRow';
 import { AccessSearchEmpty, AdminSearchField } from './AdminSearchField';
-import { GeminiModelsCard } from './GeminiModelsCard';
 import {
   featureSearchFields,
   featuresTabFeatures,
@@ -15,8 +14,6 @@ import {
 } from './accessSearch';
 import { useAccessSearch } from './accessSearchContext';
 import { useGlobalPermissionsEditor } from './useGlobalPermissionsEditor';
-
-const GEMINI_MODEL_FIELDS = ['Gemini models', 'model overrides', 'AI'];
 
 type SectionKey = FeatureCategory;
 
@@ -41,7 +38,6 @@ export const FeaturesPanel: React.FC = () => {
   const visible = featuresTabFeatures(editor.graduated).filter((id) =>
     matchesSearch(query, featureSearchFields(id))
   );
-  const showModels = matchesSearch(query, GEMINI_MODEL_FIELDS);
   const sections = (Object.keys(SECTION_LABELS) as SectionKey[])
     .map((key) => ({
       key,
@@ -51,7 +47,7 @@ export const FeaturesPanel: React.FC = () => {
           FEATURE_DEFAULTS[a].label.localeCompare(FEATURE_DEFAULTS[b].label)
         ),
     }))
-    .filter(({ key, ids }) => ids.length > 0 || (key === 'ai' && showModels));
+    .filter(({ ids }) => ids.length > 0);
 
   return (
     <div className="space-y-3">
@@ -69,17 +65,6 @@ export const FeaturesPanel: React.FC = () => {
             {SECTION_LABELS[key]}
           </h3>
           <div className="divide-y divide-slate-200 border-y border-slate-200">
-            {key === 'ai' && showModels && (
-              <GeminiModelsCard
-                permission={editor.getPermission('gemini-functions')}
-                onUpdate={(updates) =>
-                  editor.updatePermission('gemini-functions', updates)
-                }
-                onSave={() => void editor.savePermission('gemini-functions')}
-                isSaving={editor.saving.has('gemini-functions')}
-                hasUnsaved={editor.unsavedChanges.has('gemini-functions')}
-              />
-            )}
             {ids.map((id) => (
               <AccessFeatureRow
                 key={id}
