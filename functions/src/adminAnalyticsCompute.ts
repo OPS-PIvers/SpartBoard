@@ -573,12 +573,15 @@ export async function computeAnalyticsForOrg(
   //   generateGuidedLearning, draftGuidedLearningStepTextV1 (aiGeneration.ts): guided-learning-ai
   //   transcribeVideoWithGemini (aiGeneration.ts): video-activity-audio-transcription
   //   paper handwriting worker (paperHandwritingQuota.ts): paper-handwritten-responses, in pages
+  //   requestPlcMeetingNotesV1 (plcMeetingNotes.ts): plc-meeting-ai-notes
+  //   plcGoalCoachV1 (plcGoalCoach.ts): plc-goal-coach
+  //   translateQuizV1 / translateResponseV1 (quizTranslation.ts): translation (count + backCount)
+  //   extractQuizFromDocumentV1 counts as quiz; extractStimulusReadAloudTextV1 counts as ocr
   //
   // Kept for existing docs only: video-activity-recommend (now counted as video-activity-ai).
   //
-  // IMPORTANT: Keep in sync with the mirror in
-  // tests/components/admin/Analytics/AiFeatureLabels.test.ts — that test's
-  // exhaustiveness check validates AI_FEATURE_LABELS against this list.
+  // tests/components/admin/Analytics/AiFeatureLabels.test.ts reads this list and
+  // fails unless components/admin/Analytics/aiFeatureLabels.ts labels every id.
   const GEMINI_SPECIFIC_FEATURES = [
     'smart-poll',
     'embed-mini-app',
@@ -599,6 +602,21 @@ export async function computeAnalyticsForOrg(
     'mini-app-ai',
     'drawing-ai',
     'webcam-ai',
+    'plc-meeting-ai-notes',
+    'plc-goal-coach',
+  ];
+
+  // Sub-limit counters beside a feature counter; skipped so they never double count.
+  const AI_SUB_LIMIT_COUNTERS = [
+    'plc-meeting-transcribe',
+    'plc-meeting-regenerate',
+    'plc-goal-coach-checks',
+  ];
+
+  // Features that write no `{uid}_{date}` overall doc, so their per-feature count feeds the totals.
+  const FEATURES_WITHOUT_OVERALL_DOC = [
+    'paper-handwritten-responses',
+    'translation',
   ];
 
   const aiUsageStream = db
@@ -613,6 +631,7 @@ export async function computeAnalyticsForOrg(
 
     const datePart = idParts[idParts.length - 1];
     const secondToLast = idParts[idParts.length - 2];
+    if (AI_SUB_LIMIT_COUNTERS.includes(secondToLast)) continue;
     const isSpecificFeature = GEMINI_SPECIFIC_FEATURES.includes(secondToLast);
 
     const uidParts = idParts.slice(0, isSpecificFeature ? -2 : -1);
@@ -625,22 +644,28 @@ export async function computeAnalyticsForOrg(
     const usageData = usageDoc.data();
     const count = typeof usageData.count === 'number' ? usageData.count : 0;
 
+    let featureCalls = 0;
     if (isSpecificFeature) {
       // Back-translation writes `backCount`, not `count` — both are translation calls.
       const backCount =
         typeof usageData.backCount === 'number' ? usageData.backCount : 0;
+      featureCalls = count + backCount;
       aiCallsByFeature[secondToLast] =
-        (aiCallsByFeature[secondToLast] ?? 0) + count + backCount;
+        (aiCallsByFeature[secondToLast] ?? 0) + featureCalls;
     }
 
-    // ONLY count "overall" records for total analytics to avoid double counting
-    // (per-feature records are for rate-limit enforcement, overall tracks all).
-    if (!isSpecificFeature) {
-      totalAiCalls += count;
-      callsPerUser[uid] = (callsPerUser[uid] ?? 0) + count;
-      dailyCallCounts[datePart] = (dailyCallCounts[datePart] ?? 0) + count;
+    // Totals come from overall docs, plus features that never write one, so nothing is counted twice.
+    const totalCalls = !isSpecificFeature
+      ? count
+      : FEATURES_WITHOUT_OVERALL_DOC.includes(secondToLast)
+        ? featureCalls
+        : 0;
+    if (totalCalls > 0) {
+      totalAiCalls += totalCalls;
+      callsPerUser[uid] = (callsPerUser[uid] ?? 0) + totalCalls;
+      dailyCallCounts[datePart] = (dailyCallCounts[datePart] ?? 0) + totalCalls;
       // Usage dates are UTC; midday UTC keeps them on the same district day.
-      if (estimateOwed && count > 0) {
+      if (estimateOwed) {
         datedEvents.push([uid, parseTimeMs(`${datePart}T17:00:00Z`)]);
       }
     }

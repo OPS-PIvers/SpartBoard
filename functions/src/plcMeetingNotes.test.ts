@@ -59,6 +59,7 @@ const VIEWER = 'u-viewer';
 const NOW = 1_800_000_000_000;
 const REC_PATH = `plcs/${PLC}/recordings/${REC}`;
 const CHARGE = { docIds: ['a', 'b', 'c'] };
+const ADMIN_CHARGE = { docIds: ['admin'] };
 
 const plcDoc = (): StubData => ({
   memberUids: [EDITOR, VIEWER, 'u-sarah'],
@@ -82,6 +83,7 @@ function setup(rec: StubData, opts: { admin?: boolean } = {}) {
     isAdmin: vi.fn(() => Promise.resolve(opts.admin === true)),
     charge: vi.fn(() => Promise.resolve(CHARGE)),
     refund: vi.fn(() => Promise.resolve()),
+    record: vi.fn(() => Promise.resolve(ADMIN_CHARGE)),
     prepareAudio: vi.fn(() =>
       Promise.resolve({
         uri: 'gs://bucket/audio.webm',
@@ -193,7 +195,7 @@ describe('requestMeetingNotes', () => {
     expect(fs.has(`${REC_PATH}/notesJobs/${rec.jobId as string}`)).toBe(true);
   });
 
-  it('does not charge admins', async () => {
+  it('counts an admin request without charging the quota', async () => {
     const { fs, deps } = setup(ready(), { admin: true });
     await requestMeetingNotes(
       { plcId: PLC, recordingId: REC, mode: 'transcribe' },
@@ -202,7 +204,8 @@ describe('requestMeetingNotes', () => {
       deps
     );
     expect(deps.charge).not.toHaveBeenCalled();
-    expect(fs.get(REC_PATH)!.quotaCharge).toBeNull();
+    expect(deps.record).toHaveBeenCalledWith({}, EDITOR, 'transcribe');
+    expect(fs.get(REC_PATH)!.quotaCharge).toEqual(ADMIN_CHARGE);
   });
 
   it('refuses viewers before charging', async () => {

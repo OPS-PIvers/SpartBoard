@@ -55,6 +55,7 @@ vi.mock('./classlinkShared', () => ({
 import {
   BACK_TRANSLATION_DAILY_LIMIT,
   TEACHER_DAILY_LIMIT,
+  assertGeminiEnabled,
   assertQuizTranslationFeature,
   parseTranslateQuizRequest,
   translateResponse,
@@ -354,21 +355,21 @@ describe('translateQuiz', () => {
       'teacher-1',
       deps({ generate })
     );
-    expect(byDefault.model).toBe('gemini-3.7-flash');
+    expect(byDefault.model).toBe('gemini-3.8-flash');
     const overridden = await translateQuiz(baseRequest(), 'teacher-1', {
       ...deps({
         docs: {
           'global_permissions/gemini-functions': {
             config: {
               standardModel: 'gemini-3.5-flash-lite',
-              advancedModel: 'gemini-3.8-flash',
+              advancedModel: 'gemini-2.5-flash',
             },
           },
         },
       }),
       generate,
     });
-    expect(overridden.model).toBe('gemini-3.8-flash');
+    expect(overridden.model).toBe('gemini-2.5-flash');
   });
 
   it('omits the title when only a stale subset is regenerated', async () => {
@@ -759,6 +760,24 @@ describe('parseTranslateQuizRequest bounds', () => {
     expect(() =>
       parseTranslateQuizRequest(baseRequest({ title: 'x'.repeat(1000) }))
     ).not.toThrow();
+  });
+});
+
+describe('assertGeminiEnabled', () => {
+  it('refuses when gemini-functions is switched off', async () => {
+    await expect(
+      assertGeminiEnabled(
+        makeDb({ 'global_permissions/gemini-functions': { enabled: false } })
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+  it('passes when the doc is missing or enabled', async () => {
+    await expect(assertGeminiEnabled(makeDb({}))).resolves.toBeUndefined();
+    await expect(
+      assertGeminiEnabled(
+        makeDb({ 'global_permissions/gemini-functions': { enabled: true } })
+      )
+    ).resolves.toBeUndefined();
   });
 });
 

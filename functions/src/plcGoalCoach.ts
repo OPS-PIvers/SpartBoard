@@ -7,6 +7,7 @@ import { ALLOWED_ORIGINS } from './classlinkShared';
 import {
   enforceAiFeatureAccess,
   getGeminiModelConfig,
+  recordAiUsage,
   refundAiUsage,
   resolveCallerIsAdmin,
   vertexClientOptions,
@@ -51,6 +52,8 @@ export interface GoalCoachDeps {
   isAdmin: (token: Token) => Promise<boolean>;
   charge: (token: Token, uid: string) => Promise<AiUsageCharge>;
   refund: (charge: AiUsageCharge) => Promise<void>;
+  /** Counts an admin's check with no limit checks. */
+  record: (token: Token, uid: string) => Promise<AiUsageCharge>;
   generate: (prompt: string, rubric: GoalCoachCriterion[]) => Promise<string>;
 }
 
@@ -137,7 +140,7 @@ export async function runGoalCoach(
     );
   }
   const charge = (await deps.isAdmin(token))
-    ? null
+    ? await deps.record(token, uid)
     : await deps.charge(token, uid);
   try {
     const [rubric, context] = await Promise.all([
@@ -188,6 +191,14 @@ function defaultDeps(): GoalCoachDeps {
         message: `You can check goals ${GOAL_COACH_DAILY_LIMIT} times a day. Try again tomorrow.`,
       }),
     refund: (charge) => refundAiUsage(db, charge),
+    record: (token, uid) =>
+      recordAiUsage(
+        db,
+        token,
+        uid,
+        PLC_GOAL_COACH_FEATURE_ID,
+        'plc-goal-coach-checks'
+      ),
     generate: async (prompt, rubric) => {
       const { standardModel } = await getGeminiModelConfig(db);
       const ai = new GoogleGenAI(vertexClientOptions());

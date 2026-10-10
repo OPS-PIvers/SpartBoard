@@ -2,7 +2,7 @@
 export const AI_FEATURE_LABELS: Record<string, string> = {
   'smart-poll': 'Smart Poll',
   'embed-mini-app': 'Mini App',
-  'video-activity-audio-transcription': 'Video Activity',
+  'video-activity-audio-transcription': 'Video Audio Transcription',
   quiz: 'Quiz Generation',
   ocr: 'OCR',
   'blooms-ai': "Bloom's AI",
@@ -19,4 +19,6 @@ export const AI_FEATURE_LABELS: Record<string, string> = {
   'mini-app-ai': 'Mini App AI',
   'drawing-ai': 'Drawing Text Recognition',
   'webcam-ai': 'Webcam Text Recognition',
+  'plc-meeting-ai-notes': 'PLC Meeting Notes',
+  'plc-goal-coach': 'PLC Goal Coach',
 };
