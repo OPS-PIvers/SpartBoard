@@ -11,7 +11,7 @@ import {
   type FlashcardResultRecord,
   type FlashcardStudyRow,
 } from '@/utils/flashcardResults';
-import { tourTypeAttr } from '@/config/tourAnchors';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { ResultsSection, SectionEmpty } from './resultsShared';
 import { relativeTime } from './resultsFormat';
 
@@ -135,9 +135,14 @@ export const FlashcardStudyResults: React.FC<FlashcardStudyResultsProps> = ({
         {sortedRows.length === 0 ? (
           <SectionEmpty message="No student has opened this assignment yet." />
         ) : (
-          sortedRows.map((row) => (
+          sortedRows.map((row, rowIndex) => (
             <SessionRow
               key={row.studentUid}
+              anchor={tourFieldAttr(
+                'flashcards.student-row',
+                'flashcards',
+                `row-${rowIndex + 1}`
+              )}
               dot={{ tone: row.started ? 'success' : 'neutral' }}
               onClick={() =>
                 setOpenStudent(

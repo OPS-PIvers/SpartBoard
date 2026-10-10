@@ -77,6 +77,8 @@ export interface LibraryMenuAction {
   disabled?: boolean;
   /** Tooltip when hover-disabled. */
   disabledReason?: string;
+  /** Live-tour anchor; replaces the positional row tag. */
+  anchor?: TourAnchorAttrs;
 }
 
 /** Primary action on a card — always visible, never nested under overflow. */

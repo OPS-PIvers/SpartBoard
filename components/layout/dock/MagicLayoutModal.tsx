@@ -100,6 +100,7 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
             }}
             disabled={isGenerating}
             className="mb-4"
+            anchor={tourAttr('dock.magic-layout-attach')}
           />
         )}
 

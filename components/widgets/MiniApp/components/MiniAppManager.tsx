@@ -885,6 +885,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             icon: saving ? Loader2 : BookDown,
             onClick: () => onSaveGlobalToLibrary(app),
             disabled: saving,
+            anchor: tourTypeAttr('mini-app.card-save-library', 'miniApp'),
           },
         ]
       : [
@@ -906,6 +907,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             icon: saving ? Loader2 : BookDown,
             onClick: () => onSaveGlobalToLibrary(app),
             disabled: saving,
+            anchor: tourTypeAttr('mini-app.card-save-library', 'miniApp'),
           },
         ];
 

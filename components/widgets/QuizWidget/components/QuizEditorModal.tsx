@@ -544,6 +544,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
           folders={folders}
           value={folderId ?? null}
           onChange={onFolderChange}
+          anchor={tourTypeAttr('quiz-editor.folder', 'quiz')}
         />
       ) : null,
     [folders, folderId, onFolderChange]

@@ -638,6 +638,8 @@ export const VideoActivityAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
       onGenerate={() => void runAiGenerate()}
       error={aiError}
       generateLabel="Generate Questions"
+      closeAnchor={tourAttr('video-activity.editor-ai-close')}
+      generateAnchor={tourAttr('video-activity.editor-ai-generate')}
     >
       <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 space-y-3">
         <div className="flex items-center justify-between text-xs font-bold text-indigo-700/70 uppercase tracking-widest">

@@ -498,6 +498,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
                 }}
                 disabled={busy}
                 label="Attach context doc"
+                anchor={tourAttr('gl-ai.attach-doc')}
               />
             )}
           </div>

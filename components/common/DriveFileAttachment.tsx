@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { FileText, X, Loader2, HardDrive, AlertCircle } from 'lucide-react';
 import { useGooglePicker, PickedFile } from '@/hooks/useGooglePicker';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 
 const FILE_TEXT_LIMIT = 30_000;
 
@@ -20,6 +21,8 @@ interface DriveFileAttachmentProps {
    * containers; `'dark'` is slate-on-transparent for dark overlays.
    */
   variant?: 'light' | 'dark';
+  anchor?: TourAnchorAttrs;
+  removeAnchor?: TourAnchorAttrs;
 }
 
 /**
@@ -36,6 +39,8 @@ export const DriveFileAttachment: React.FC<DriveFileAttachmentProps> = ({
   className = '',
   label = 'Attach file from Drive',
   variant = 'light',
+  anchor,
+  removeAnchor,
 }) => {
   const { openPicker, isConnected } = useGooglePicker();
   const { getDriveFileTextContent } = useGoogleDrive();
@@ -158,6 +163,7 @@ export const DriveFileAttachment: React.FC<DriveFileAttachmentProps> = ({
             disabled={disabled}
             className={removeButtonClasses}
             aria-label="Remove attached file"
+            {...removeAnchor}
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -175,6 +181,7 @@ export const DriveFileAttachment: React.FC<DriveFileAttachmentProps> = ({
           onClick={handlePick}
           disabled={disabled}
           className={pickButtonClasses}
+          {...anchor}
         >
           <HardDrive className="w-3.5 h-3.5" />
           {label}

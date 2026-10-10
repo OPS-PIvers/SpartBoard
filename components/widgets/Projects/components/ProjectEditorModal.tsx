@@ -538,6 +538,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
           folders={folders}
           value={draft.folderId ?? null}
           onChange={(folderId) => patch({ folderId })}
+          anchor={tourAttr('projects-editor.folder')}
         />
       }
       subtitle={`${draft.steps.length} step${draft.steps.length === 1 ? '' : 's'}`}

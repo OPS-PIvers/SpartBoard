@@ -13439,6 +13439,169 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz-editor.folder': {
+    label: 'Folder picker in the Quiz editor header',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.ai-close': {
+    label: 'Close button in the Quiz AI generator',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.ai-generate': {
+    label: 'Generate Quiz button in the Quiz AI generator',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.ai-attach-file': {
+    label: 'Attach file from Drive button in the Quiz AI generator',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.editor-folder': {
+    label: 'Folder picker in the Mini App editor header',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.ai-close': {
+    label: 'Close button in the Mini App AI generator',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.ai-generate': {
+    label: 'Generate Code button in the Mini App AI generator',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.ai-attach-drive': {
+    label: 'Attach file from Drive button in the Mini App AI generator',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.card-save-library': {
+    label: 'Save to my library item in a Mini App card menu',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'video-activity.editor-folder': {
+    label: 'Folder picker in the Video Activity editor header',
+    panel: true,
+  },
+  'video-activity.editor-ai-close': {
+    label: 'Close button in the Video Activity AI generator',
+    panel: true,
+  },
+  'video-activity.editor-ai-generate': {
+    label: 'Generate Questions button in the Video Activity AI generator',
+    panel: true,
+  },
+  'projects-editor.folder': {
+    label: 'Folder picker in the Projects editor header',
+    panel: true,
+  },
+  'gl-ai.attach-doc': {
+    label: 'Attach context doc button in the Guided Learning AI generator',
+    panel: true,
+  },
+  'dock.magic-layout-attach': {
+    label: 'Attach file from Drive button in the Magic Layout dialog',
+    panel: true,
+  },
+  'flashcards.student-row': {
+    label: 'Student row in Flashcards Study results',
+    perField: true,
+    panel: true,
+  },
+  'plc-assessments.folder-new': {
+    label: 'New folder button in the PLC assessments folder panel',
+    panel: true,
+  },
+  'plc-assessments.folder-root': {
+    label: 'All items row in the PLC assessments folder panel',
+    panel: true,
+  },
+  'plc-assessments.folder-name': {
+    label: 'New folder name box in the PLC assessments folder panel',
+    panel: true,
+  },
+  'annotation.tool': {
+    label: 'Drawing tool button in the annotation toolbar',
+    perField: true,
+    panel: true,
+  },
+  'annotation.colors': {
+    label: 'Pen color swatches in the annotation toolbar',
+    panel: true,
+  },
+  'annotation.width': {
+    label: 'Brush thickness slider in the annotation toolbar',
+    panel: true,
+  },
+  'annotation.undo': {
+    label: 'Undo button in the annotation toolbar',
+    panel: true,
+  },
+  'annotation.redo': {
+    label: 'Redo button in the annotation toolbar',
+    panel: true,
+  },
+  'annotation.clear': {
+    label: 'Clear all button in the annotation toolbar',
+    destructive: true,
+    panel: true,
+  },
+  'annotation.insert-image': {
+    label: 'Insert image button in the annotation toolbar',
+    panel: true,
+  },
+  'annotation.download': {
+    label: 'Download PNG button in the annotation toolbar',
+    panel: true,
+  },
+  'annotation.save-drive': {
+    label: 'Save to Google Drive button in the annotation toolbar',
+    persists: true,
+    panel: true,
+  },
+  'annotation.extract-text': {
+    label: 'Extract text button in the annotation toolbar',
+    panel: true,
+  },
+  'annotation.exit': {
+    label: 'Exit button in the annotation toolbar',
+    panel: true,
+  },
+  'whats-new.expand': {
+    label: "Read full update button in the What's New dialog",
+    panel: true,
+  },
+  'whats-new.dismiss': {
+    label: "Later or Close button in the What's New dialog",
+    panel: true,
+  },
+  'whats-new.update-now': {
+    label: "Update Now button in the What's New dialog",
+    persists: true,
+    panel: true,
+  },
+  'boards.sub-share-update': {
+    label: 'Update now button on an active sub share',
+    persists: true,
+    panel: true,
+  },
+  'boards.sub-share-extend': {
+    label: 'Add a week button on an active sub share',
+    persists: true,
+    panel: true,
+  },
+  'boards.sub-share-end': {
+    label: 'End now button on an active sub share',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;
