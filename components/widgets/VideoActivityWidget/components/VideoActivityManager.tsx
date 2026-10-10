@@ -17,7 +17,7 @@
  *     specific toggles flow through that slot, not by forking the primitive.
  */
 
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
   Activity,
@@ -1175,6 +1175,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         <LibraryPreviewPane
           isOpen={true}
           onClose={() => setPreviewActivityId(null)}
+          closeAnchor={tourAttr('video-activity.preview-close')}
           title={previewActivity.title}
           subtitle={
             <>
@@ -1188,6 +1189,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           primaryAction={{
             label: 'Open editor',
             icon: Edit2,
+            anchor: tourAttr('video-activity.preview-open-editor'),
             onClick: () => {
               const a = previewActivity;
               setPreviewActivityId(null);
@@ -1507,6 +1509,11 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         onDeleteFolder={folderState.deleteFolder}
         {...folderView}
         enableDrop
+        anchors={{
+          newFolder: tourAttr('video-activity.folder-new'),
+          root: tourAttr('video-activity.folder-root'),
+          newFolderInput: tourAttr('video-activity.folder-name'),
+        }}
       />
     ) : undefined;
 
@@ -1601,6 +1608,14 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           }}
           onClose={() => setFolderPickerTarget(null)}
           title={`Move "${folderPickerTarget.title}" to…`}
+          rootAnchor={tourAttr('video-activity.folder-picker-root')}
+          rowAnchor={(id) =>
+            tourFieldAttr(
+              'video-activity.folder-picker-folder',
+              'video-activity',
+              id
+            )
+          }
         />
       )}
 

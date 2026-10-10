@@ -108,6 +108,11 @@ export const FlashcardCheckReview: React.FC<FlashcardCheckReviewProps> = ({
           rows.map((row, rowIndex) => (
             <SessionRow
               key={row.studentUid}
+              anchor={tourFieldAttr(
+                'flashcards.score-row',
+                'flashcards',
+                `row-${rowIndex + 1}`
+              )}
               dot={{
                 tone: row.submittedAt !== null ? 'success' : 'neutral',
               }}

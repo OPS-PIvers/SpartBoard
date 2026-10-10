@@ -295,6 +295,11 @@ const StudentRow: React.FC<StudentRowProps> = ({
 
   return (
     <SessionRow
+      anchor={tourFieldAttr(
+        'video-activity.monitor-row',
+        'video-activity',
+        response.studentUid
+      )}
       dot={{ tone: completed ? 'success' : 'warn' }}
       trailing={trailing}
     >
