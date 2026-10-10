@@ -1,6 +1,7 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, Search } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import type { GradebookTargetTag } from '@/utils/gradebook/gradebookCore';
 import {
   useColumnTargetCatalog,
@@ -36,6 +37,7 @@ export const ColumnStandardsSelect: React.FC<ColumnStandardsSelectProps> = ({
       <button
         id={id}
         type="button"
+        {...tourAttr('gradebook.column.standards')}
         disabled={disabled}
         aria-haspopup="true"
         aria-expanded={open}
@@ -184,6 +186,7 @@ const StandardsMenu: React.FC<{
           onChange={(e) => setQuery(e.target.value)}
           placeholder={`Search ${entries.length} standards`}
           aria-label="Search standards"
+          {...tourAttr('gradebook.column.standards-search')}
           className="h-[34px] w-full rounded-lg border border-slate-300 pl-8 pr-2 text-[13px] focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-lighter"
         />
       </div>
@@ -206,6 +209,11 @@ const StandardsMenu: React.FC<{
                 type="button"
                 role="menuitemcheckbox"
                 aria-checked={on}
+                {...tourFieldAttr(
+                  'gradebook.column.standard-option',
+                  'gradebook',
+                  tag.id
+                )}
                 onClick={() => toggle(tag)}
                 title={tag.label}
                 className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] leading-4 hover:bg-slate-50 focus-visible:bg-slate-50 focus-visible:outline-none ${
