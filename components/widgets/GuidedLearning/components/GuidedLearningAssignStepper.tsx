@@ -34,7 +34,6 @@ import {
   EMPTY_ASSIGN_TARGETING_VALUE,
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
-import { tourAttr } from '@/config/tourAnchors';
 
 export interface GuidedLearningStepperAssign {
   classes: AssignClassesValue;
