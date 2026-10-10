@@ -99,6 +99,12 @@ const isTextSizePreset = (value: unknown): value is TextSizePreset =>
  */
 const VALID_TRAFFIC_COLORS = ['red', 'yellow', 'green'] as const;
 
+// Drops null/primitive entries so per-item reads on admin-stored lists can't throw.
+const objectEntries = (value: unknown[]): Array<Record<string, unknown>> =>
+  value.filter(
+    (e): e is Record<string, unknown> => typeof e === 'object' && e !== null
+  );
+
 // Validates admin-stored markers: requires non-empty id, finite value, hex color; drops malformed/dup-id entries.
 const sanitizeNumberLineMarkers = (value: unknown): NumberLineMarker[] => {
   if (!Array.isArray(value)) return [];
@@ -394,13 +400,11 @@ export const getAdminBuildingConfig = (
     }
     case 'checklist':
       if (Array.isArray(raw.items) && raw.items.length > 0) {
-        out.items = (raw.items as Array<{ id: string; text: string }>).map(
-          (item) => ({
-            id: crypto.randomUUID(),
-            text: item.text,
-            completed: false,
-          })
-        );
+        out.items = objectEntries(raw.items).map((item) => ({
+          id: crypto.randomUUID(),
+          text: item.text,
+          completed: false,
+        }));
       }
       if (
         typeof raw.scaleMultiplier === 'number' &&
@@ -497,20 +501,18 @@ export const getAdminBuildingConfig = (
       break;
     case 'scoreboard':
       if (Array.isArray(raw.teams) && raw.teams.length > 0) {
-        out.teams = (raw.teams as Array<{ name: string; color?: string }>).map(
-          (t) => ({
-            id: crypto.randomUUID(),
-            name: t.name,
-            color: t.color,
-            score: 0,
-          })
-        );
+        out.teams = objectEntries(raw.teams).map((t) => ({
+          id: crypto.randomUUID(),
+          name: t.name,
+          color: t.color,
+          score: 0,
+        }));
       }
       break;
     case 'poll':
       if (typeof raw.question === 'string') out.question = raw.question;
       if (Array.isArray(raw.options) && raw.options.length > 0) {
-        out.options = (raw.options as Array<{ label: string }>).map((opt) => ({
+        out.options = objectEntries(raw.options).map((opt) => ({
           id: crypto.randomUUID(),
           label: opt.label,
           votes: 0,
@@ -592,13 +594,7 @@ export const getAdminBuildingConfig = (
       break;
     case 'url':
       if (Array.isArray(raw.urls) && raw.urls.length > 0) {
-        out.urls = (
-          raw.urls as Array<{
-            url: string;
-            title?: string;
-            color?: string;
-          }>
-        ).map((item) => ({
+        out.urls = objectEntries(raw.urls).map((item) => ({
           id: crypto.randomUUID(),
           url: typeof item.url === 'string' ? item.url : '',
           ...(typeof item.title === 'string' ? { title: item.title } : {}),
@@ -609,7 +605,7 @@ export const getAdminBuildingConfig = (
     case 'soundboard': {
       const soundIds: string[] = [];
       if (Array.isArray(raw.availableSounds)) {
-        for (const s of raw.availableSounds as Array<{ id?: string }>) {
+        for (const s of objectEntries(raw.availableSounds)) {
           if (typeof s.id === 'string') soundIds.push(s.id);
         }
       }
@@ -628,17 +624,11 @@ export const getAdminBuildingConfig = (
     }
     case 'schedule': {
       if (Array.isArray(raw.schedules) && raw.schedules.length > 0) {
-        out.schedules = (
-          raw.schedules as Array<{
-            name?: string;
-            items?: Array<Record<string, unknown>>;
-            days?: number[];
-          }>
-        ).map((sched) => ({
+        out.schedules = objectEntries(raw.schedules).map((sched) => ({
           ...sched,
           id: crypto.randomUUID(),
           items: Array.isArray(sched.items)
-            ? sched.items.map((item) => ({
+            ? objectEntries(sched.items).map((item) => ({
                 ...item,
                 id: crypto.randomUUID(),
               }))
@@ -646,12 +636,10 @@ export const getAdminBuildingConfig = (
         }));
       }
       if (Array.isArray(raw.items) && raw.items.length > 0) {
-        out.items = (raw.items as Array<Record<string, unknown>>).map(
-          (item) => ({
-            ...item,
-            id: crypto.randomUUID(),
-          })
-        );
+        out.items = objectEntries(raw.items).map((item) => ({
+          ...item,
+          id: crypto.randomUUID(),
+        }));
       }
       // Appearance defaults — fontFamily uses the prefixed FONTS-id space.
       if (isWidgetFontFamily(raw.fontFamily)) out.fontFamily = raw.fontFamily;

@@ -1083,3 +1083,18 @@ describe('getAdminBuildingConfig', () => {
     ).toEqual({});
   });
 });
+
+describe('getAdminBuildingConfig malformed list entries', () => {
+  it.each([
+    ['checklist', 'items', [null, { text: 'a' }]],
+    ['scoreboard', 'teams', [null, { name: 'a' }]],
+    ['poll', 'options', [null, { label: 'a' }]],
+    ['url', 'urls', [null, { url: 'https://a.com' }]],
+    ['soundboard', 'availableSounds', [null, { id: 's1' }]],
+    ['schedule', 'schedules', [null, { name: 'a', items: [null, { t: 1 }] }]],
+    ['schedule', 'items', [null, { t: 1 }]],
+  ] as const)('%s.%s skips null entries without throwing', (type, key, v) => {
+    const perm = makePerm(type, { high: { [key]: v } });
+    expect(() => getAdminBuildingConfig(type, [perm], ['high'])).not.toThrow();
+  });
+});
