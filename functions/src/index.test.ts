@@ -1382,6 +1382,62 @@ describe('adminAnalytics', () => {
     expect(result.api.byFeature['translation']).toBe(5);
   });
 
+  it('reports PLC AI features and skips their sub-limit counters', async () => {
+    mockFirestoreState.users = [
+      {
+        id: 'uid1',
+        data: {
+          email: 'teacher@district.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+    ];
+    mockFirestoreState.dashboards = [];
+    mockFirestoreState.aiUsage = [
+      { id: 'uid1_2026-06-10', data: { count: 3 } },
+      { id: 'uid1_plc-meeting-ai-notes_2026-06-10', data: { count: 1 } },
+      { id: 'uid1_plc-meeting-transcribe_2026-06-10', data: { count: 1 } },
+      { id: 'uid1_plc-goal-coach_2026-06-10', data: { count: 2 } },
+      { id: 'uid1_plc-goal-coach-checks_2026-06-10', data: { count: 2 } },
+    ];
+
+    const result = await computeAnalyticsForOrg('orono');
+
+    expect(result.api.byFeature['plc-meeting-ai-notes']).toBe(1);
+    expect(result.api.byFeature['plc-goal-coach']).toBe(2);
+    expect(result.api.byFeature['plc-meeting-transcribe']).toBeUndefined();
+    expect(result.api.totalCalls).toBe(3);
+  });
+
+  it('adds paper and translation counts to the totals, which have no overall doc', async () => {
+    mockFirestoreState.users = [
+      {
+        id: 'uid1',
+        data: {
+          email: 'teacher@district.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+    ];
+    mockFirestoreState.dashboards = [];
+    mockFirestoreState.aiUsage = [
+      { id: 'uid1_2026-06-10', data: { count: 4 } },
+      { id: 'uid1_quiz_2026-06-10', data: { count: 4 } },
+      {
+        id: 'uid1_paper-handwritten-responses_2026-06-10',
+        data: { count: 6 },
+      },
+      { id: 'uid1_translation_2026-06-10', data: { count: 2, backCount: 1 } },
+    ];
+
+    const result = await computeAnalyticsForOrg('orono');
+
+    expect(result.api.totalCalls).toBe(13);
+    expect(result.api.byFeature['quiz']).toBe(4);
+  });
+
   it('does not populate a phantom byFeature bucket for guided-learning (stale GEMINI_SPECIFIC_FEATURES entry)', async () => {
     // Root cause: `guided-learning` was listed in GEMINI_SPECIFIC_FEATURES even
     // though no Cloud Function ever writes a `{uid}_guided-learning_{date}` doc
@@ -3806,6 +3862,23 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
     });
   });
 
+  it('counts an admin call in ai_usage without a limit check', async () => {
+    mockFirestoreState.admins.add('admin@school.org');
+    await handler(VALID_DATA, {
+      auth: {
+        uid: 'uid-admin-1',
+        token: { email: 'admin@school.org', email_verified: true },
+      },
+    }).catch(() => undefined);
+    const today = new Date().toISOString().split('T')[0];
+    const written = transactionSet.mock.calls.map(
+      (c) => (c[0] as { path: string }).path
+    );
+    expect(written).toContain(
+      `ai_usage/uid-admin-1_video-activity-ai_${today}`
+    );
+  });
+
   it('throws permission-denied for non-admin when accessLevel is "admin"', async () => {
     // Arrange: global permission restricts Gemini to admins only.
     geminiConfigDocGet.mockResolvedValue({
@@ -4194,6 +4267,40 @@ describe('transcribeVideoWithGemini', () => {
     expect(generateContentMock).not.toHaveBeenCalled();
   });
 
+  it('refuses everyone, admins included, while gemini-functions is switched off', async () => {
+    mockFirestoreState.admins.add('admin@school.org');
+    audioTranscriptionPermDocGet.mockResolvedValue({
+      exists: true,
+      data: () =>
+        ({ enabled: true, accessLevel: 'public' }) as Record<string, unknown>,
+    });
+    geminiConfigDocGet.mockResolvedValue({
+      exists: true,
+      data: () => ({ enabled: false }) as Record<string, unknown>,
+    });
+    await expect(handler(VALID_DATA, { auth: ADMIN_AUTH })).rejects.toThrow(
+      'Gemini functions are currently disabled by an administrator.'
+    );
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
+  it('counts an admin transcription in ai_usage without a limit check', async () => {
+    mockFirestoreState.admins.add('admin@school.org');
+    audioTranscriptionPermDocGet.mockResolvedValue({
+      exists: true,
+      data: () =>
+        ({ enabled: true, accessLevel: 'admin' }) as Record<string, unknown>,
+    });
+    await handler(VALID_DATA, { auth: ADMIN_AUTH }).catch(() => undefined);
+    const today = new Date().toISOString().split('T')[0];
+    const written = transactionSet.mock.calls.map(
+      (c) => (c[0] as { path: string }).path
+    );
+    expect(written).toContain(
+      `ai_usage/uid-admin-1_video-activity-audio-transcription_${today}`
+    );
+  });
+
   it('throws permission-denied when the feature is disabled', async () => {
     audioTranscriptionPermDocGet.mockResolvedValue({
       exists: true,
@@ -4441,13 +4548,28 @@ describe('generateGuidedLearning', () => {
         contents: { role: string; parts: unknown[] }[];
       },
     ];
-    expect(call.model).toBe('gemini-3.7-flash');
+    expect(call.model).toBe('gemini-3.8-flash');
     expect(call.contents[0].parts[2]).toEqual({
       inlineData: {
         mimeType: VALID_IMAGE.mimeType,
         data: VALID_IMAGE.base64,
       },
     });
+  });
+
+  it('counts an admin call in ai_usage without a limit check', async () => {
+    mockFirestoreState.admins.add('admin@school.org');
+    await handler({ images: [VALID_IMAGE] }, { auth: ADMIN_AUTH }).catch(
+      () => undefined
+    );
+    const today = new Date().toISOString().split('T')[0];
+    const written = transactionSet.mock.calls.map(
+      (c) => (c[0] as { path: string }).path
+    );
+    expect(written).toContain(`ai_usage/uid-admin-1_${today}`);
+    expect(written).toContain(
+      `ai_usage/uid-admin-1_guided-learning-ai_${today}`
+    );
   });
 
   it('lets a teacher through once the Guided Learning AI switch is public', async () => {
@@ -4534,6 +4656,20 @@ describe('draftGuidedLearningStepTextV1', () => {
     expect(generateContentMock).not.toHaveBeenCalled();
   });
 
+  it('counts an admin call in ai_usage', async () => {
+    mockFirestoreState.admins.add('admin@school.org');
+    await handler({ steps: [STEP] }, { auth: ADMIN_AUTH }).catch(
+      () => undefined
+    );
+    const today = new Date().toISOString().split('T')[0];
+    const written = transactionSet.mock.calls.map(
+      (c) => (c[0] as { path: string }).path
+    );
+    expect(written).toContain(
+      `ai_usage/uid-admin-1_guided-learning-ai_${today}`
+    );
+  });
+
   it('clamps what the model returns to the writing rules, one entry per step', async () => {
     mockFirestoreState.admins.add('admin@school.org');
     generateContentMock.mockResolvedValueOnce({
@@ -4558,7 +4694,7 @@ describe('draftGuidedLearningStepTextV1', () => {
     const [call] = generateContentMock.mock.calls[0] as unknown as [
       { model: string; contents: { parts: unknown[] }[] },
     ];
-    expect(call.model).toBe('gemini-3.7-flash');
+    expect(call.model).toBe('gemini-3.8-flash');
     expect(call.contents[0].parts[2]).toEqual({
       inlineData: { mimeType: 'image/png', data: 'AAAA' },
     });

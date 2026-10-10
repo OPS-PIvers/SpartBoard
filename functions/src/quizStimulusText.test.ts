@@ -501,6 +501,15 @@ describe('chargeOcrQuota', () => {
     expect(docs.get('ai_usage/t1_ocr_2026-09-08')).toMatchObject({ count: 2 });
     expect(docs.get('ai_usage/t1_2026-09-08')).toMatchObject({ count: 2 });
   });
+  it('refuses and charges nothing when Gemini functions are switched off', async () => {
+    const { db, docs } = makeDb({
+      'global_permissions/gemini-functions': { enabled: false },
+    });
+    await expect(chargeOcrQuota(db, 't1', null, NOW)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    expect(docs.get('ai_usage/t1_2026-09-08')).toBeUndefined();
+  });
   it('throws resource-exhausted at the configured limit', async () => {
     const { db } = makeDb({
       'global_permissions/ocr': { config: { dailyLimit: 1 } },

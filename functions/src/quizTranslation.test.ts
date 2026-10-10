@@ -3,6 +3,7 @@
 // plan's decisions — alignment, quota, D17, D29 — are under test.
 
 import { describe, it, expect, vi } from 'vitest';
+import * as admin from 'firebase-admin';
 
 const INCREMENT = Symbol('increment');
 
@@ -55,6 +56,7 @@ vi.mock('./classlinkShared', () => ({
 import {
   BACK_TRANSLATION_DAILY_LIMIT,
   TEACHER_DAILY_LIMIT,
+  assertGeminiEnabled,
   assertQuizTranslationFeature,
   parseTranslateQuizRequest,
   translateResponse,
@@ -354,21 +356,21 @@ describe('translateQuiz', () => {
       'teacher-1',
       deps({ generate })
     );
-    expect(byDefault.model).toBe('gemini-3.7-flash');
+    expect(byDefault.model).toBe('gemini-3.8-flash');
     const overridden = await translateQuiz(baseRequest(), 'teacher-1', {
       ...deps({
         docs: {
           'global_permissions/gemini-functions': {
             config: {
               standardModel: 'gemini-3.5-flash-lite',
-              advancedModel: 'gemini-3.8-flash',
+              advancedModel: 'gemini-2.5-flash',
             },
           },
         },
       }),
       generate,
     });
-    expect(overridden.model).toBe('gemini-3.8-flash');
+    expect(overridden.model).toBe('gemini-2.5-flash');
   });
 
   it('omits the title when only a stale subset is regenerated', async () => {
@@ -762,6 +764,24 @@ describe('parseTranslateQuizRequest bounds', () => {
   });
 });
 
+describe('assertGeminiEnabled', () => {
+  it('refuses when gemini-functions is switched off', async () => {
+    await expect(
+      assertGeminiEnabled(
+        makeDb({ 'global_permissions/gemini-functions': { enabled: false } })
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+  it('passes when the doc is missing or enabled', async () => {
+    await expect(assertGeminiEnabled(makeDb({}))).resolves.toBeUndefined();
+    await expect(
+      assertGeminiEnabled(
+        makeDb({ 'global_permissions/gemini-functions': { enabled: true } })
+      )
+    ).resolves.toBeUndefined();
+  });
+});
+
 describe('assertQuizTranslationFeature', () => {
   const run = (docs: Record<string, Doc>, email?: string, uid = 'uid-1') =>
     assertQuizTranslationFeature(makeDb(docs), email, uid);
@@ -970,6 +990,46 @@ describe('translateQuizV1 / translateResponseV1 — caller identity verification
     ).rejects.toMatchObject({
       code: 'permission-denied',
       message: 'Quiz translation is not available for your account.',
+    });
+  });
+});
+
+describe('translateQuizV1 / translateResponseV1 — gemini-functions kill switch', () => {
+  const VERIFIED = {
+    uid: 'uid-1',
+    token: { email: 'teacher@x.org', email_verified: true },
+  };
+  const switchedOff = () =>
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb({
+        'global_permissions/quiz-translation': {
+          enabled: true,
+          accessLevel: 'public',
+        },
+        'global_permissions/gemini-functions': { enabled: false },
+      }) as never
+    );
+
+  it('translateQuizV1 refuses when Gemini functions are switched off', async () => {
+    switchedOff();
+    await expect(
+      translateQuizV1Handler({ auth: VERIFIED, data: baseRequest() })
+    ).rejects.toMatchObject({
+      code: 'permission-denied',
+      message: 'Gemini functions are currently disabled by an administrator.',
+    });
+  });
+
+  it('translateResponseV1 refuses when Gemini functions are switched off', async () => {
+    switchedOff();
+    await expect(
+      translateResponseV1Handler({
+        auth: VERIFIED,
+        data: { text: 'creo que si', sourceLocale: 'es' },
+      })
+    ).rejects.toMatchObject({
+      code: 'permission-denied',
+      message: 'Gemini functions are currently disabled by an administrator.',
     });
   });
 });
