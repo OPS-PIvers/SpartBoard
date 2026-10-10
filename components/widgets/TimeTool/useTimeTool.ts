@@ -60,14 +60,13 @@ export const useTimeTool = (widget: WidgetData) => {
     const now = Date.now();
     updateWidget(widget.id, {
       config: {
-        ...config,
         isRunning: true,
         startTime: now,
         elapsedTime: displayTime,
-      },
+      } as WidgetConfig,
     });
     setRunningDisplayTime(displayTime);
-  }, [config, updateWidget, widget.id, displayTime]);
+  }, [updateWidget, widget.id, displayTime]);
 
   const handleReset = useCallback(() => {
     const resetTime = config.mode === 'timer' ? config.duration : 0;
