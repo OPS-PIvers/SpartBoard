@@ -211,6 +211,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     if (kind !== 'quiz' || !code || !teacherReady) {
       // Clear any prior session id so a stale one (after logout / a code change)
       // can't keep useQuizSessionTeacher subscribed to the previous session.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clears the session id before resolving it from Firestore
       setSessionId(null);
       setResolvingSession(false);
       return;
@@ -249,6 +250,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
     if (!quizId) {
       // No session/quiz resolved (yet, or it changed) — drop any stale quiz so
       // the grader can't show a previous quiz's questions/answers/scores.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- drops a stale quiz before loading from Drive
       setQuizData(null);
       return;
     }

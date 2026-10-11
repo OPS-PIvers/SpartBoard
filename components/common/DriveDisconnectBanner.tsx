@@ -43,6 +43,7 @@ export const DriveDisconnectBanner: React.FC = () => {
   const [isConnecting, setIsConnecting] = useState(false);
 
   const isConnected = !!googleAccessToken;
+  // eslint-disable-next-line react-hooks/purity -- dismiss expiry is rechecked on every render
   const isDismissed = dismissedUntil > Date.now();
   const [pastGrace, setPastGrace] = useState(false);
 
@@ -50,6 +51,7 @@ export const DriveDisconnectBanner: React.FC = () => {
   // window, so an in-flight silent refresh never shows the banner.
   useEffect(() => {
     if (isConnected) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets the grace timer on reconnect
       setPastGrace(false);
       return;
     }
@@ -61,6 +63,7 @@ export const DriveDisconnectBanner: React.FC = () => {
   // shows the banner again.
   useEffect(() => {
     if (isConnected) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clears dismiss state on reconnect, mirrored to localStorage
       setDismissedUntil(0);
       writeStoredDismissUntil(null);
     }

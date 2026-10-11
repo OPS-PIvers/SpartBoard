@@ -249,6 +249,7 @@ export const WidgetBuilderModal: React.FC<WidgetBuilderModalProps> = ({
   // edited changes (e.g. user closes and reopens with a different widget).
   useEffect(() => {
     if (!isOpen) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- state synced from an external system or reset on open
     setState(buildInitialState(existingWidget));
     setSaving(false);
     setSaveMessage(null);

@@ -584,6 +584,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     autoAdvance && playing && !watchGlide && !resumeOffer && !isHeld;
   useEffect(() => {
     if (timerRuns) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- starts an interval timer
       startTimer();
     } else {
       // Pause freezes in-step progress; resume restarts the step's timer.

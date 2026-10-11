@@ -1514,13 +1514,16 @@ export const useVideoActivitySessionStudent =
     // read the current counter without re-binding (and re-attaching the
     // visibility listener on every snapshot).
     const myResponseRef = useRef<VideoActivityResponse | null>(null);
+    // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers
     myResponseRef.current = myResponse;
     const warningCountRef = useRef(0);
     // Server-side counter is the source of truth; clamp to the higher
     // of the two so a stale snapshot in flight doesn't roll back the
     // local view briefly. Idempotent across re-renders, so we mutate the
     // ref directly in the render body instead of paying for an effect.
+    // eslint-disable-next-line react-hooks/refs -- monotonic counter mirror, read only in handlers
     warningCountRef.current = Math.max(
+      // eslint-disable-next-line react-hooks/refs -- monotonic counter mirror, read only in handlers
       warningCountRef.current,
       myResponse?.tabSwitchWarnings ?? 0
     );

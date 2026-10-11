@@ -454,6 +454,7 @@ export const VideoActivityLivePlayer: React.FC<
       paused={!playing}
       teacherMode
       onTick={handleTick}
+      // eslint-disable-next-line react-hooks/refs -- initial playhead, never reassigned
       startSeconds={startSecondsRef.current}
       seekRequest={seekRequest}
     />

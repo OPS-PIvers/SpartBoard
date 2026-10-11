@@ -333,6 +333,7 @@ export function useQuizEditorState({
   // referentially stable (it's passed into memoized question rows) while
   // still reading the selection at event time.
   const selectedIdRef = useRef(selectedId);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers
   selectedIdRef.current = selectedId;
 
   const [checkedIds, setCheckedIds] = useState<ReadonlySet<string>>(
@@ -340,8 +341,10 @@ export function useQuizEditorState({
   );
   const lastToggledRef = useRef<string | null>(null);
   const questionsRef = useRef(questions);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers
   questionsRef.current = questions;
   const orderRef = useRef(order);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers
   orderRef.current = order;
 
   // Shift-range follows the visible row order; slot rows are never checkable.

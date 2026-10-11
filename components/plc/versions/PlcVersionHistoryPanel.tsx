@@ -127,6 +127,7 @@ export const PlcVersionHistoryPanel: React.FC<PlcVersionHistoryPanelProps> = ({
 
   // External system (Firestore one-shot read) — effect is the right tool here.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- state synced from an external system or reset on open
     void load();
   }, [load]);
 

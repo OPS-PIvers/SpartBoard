@@ -518,6 +518,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         ([, sid]) => sid === sessionId
       )?.[0];
     if (!setId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- records a failed rehydrate lookup
       setResultsLoadError(sessionId);
       return;
     }
@@ -747,6 +748,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   // link inline). Throws on failure so callers can surface their own error
   // path; non-silent callers swallow + toast.
   const performAssign = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps kept as written
     async (
       data: GuidedLearningSet,
       source: 'personal' | 'building',
@@ -1168,6 +1170,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   // Persist a new ordering of personal sets. We write `order` onto each
   // metadata doc in a single batch — the Drive blob is untouched.
   const handleReorderPersonal = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps kept as written
     async (orderedIds: string[]) => {
       if (!user?.uid || isTourSandboxActive()) return;
       const batch = writeBatch(db);
@@ -1283,6 +1286,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
 
   // Recreated per render on purpose — the wizard holds its own parsed state,
   // and useStorage's function identities change every render anyway.
+  // eslint-disable-next-line react-hooks/refs -- adapter reads refs only when the wizard calls it
   const importAdapter = createGuidedLearningImportAdapter({
     save: async (set, title) => {
       if (!user?.uid) throw new Error('Not authenticated');

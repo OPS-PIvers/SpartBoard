@@ -282,6 +282,7 @@ const GenericConfigEditor: React.FC<{
   const [jsonError, setJsonError] = useState<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- re-syncs editor text when the config prop changes
     setJsonStr(JSON.stringify(config, null, 2));
   }, [config]);
 
@@ -975,7 +976,9 @@ export const AnnouncementsManager: React.FC = () => {
     try {
       await updateDoc(doc(db, 'announcements', a.id), {
         isActive: newActive,
+        // eslint-disable-next-line react-hooks/purity -- runs in an async click handler, not render
         activatedAt: newActive ? Date.now() : a.activatedAt,
+        // eslint-disable-next-line react-hooks/purity -- runs in an async click handler, not render
         updatedAt: Date.now(),
       });
     } catch (err) {

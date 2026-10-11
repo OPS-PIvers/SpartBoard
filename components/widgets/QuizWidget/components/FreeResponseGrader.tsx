@@ -611,6 +611,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   // The last rubric total we auto-filled, so a manual override is recognizable.
   const lastAutoFilledPointsRef = useRef('');
   const pointsInputRef = useRef('');
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   pointsInputRef.current = pointsInput;
   const editSourceRef = useRef<EditSource>('none');
   // Auto-advance arms once per visit, and never for a grade that arrived complete.
@@ -671,16 +672,21 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     setDraftRubricScores(hydrated.rubricScores);
     setActiveAnnotationId(null);
     setSeek({ ms: 0, nonce: 0 });
+    // eslint-disable-next-line react-hooks/refs -- reset alongside the hydrate state adjust
     lastJumpRef.current = null;
     setPinnedTakeIndex(hydrated.pinnedTakeIndex);
     setAdjudication(hydrated.adjudication);
     setSaveError(null);
     setAdvanceArmed(false);
+    // eslint-disable-next-line react-hooks/refs -- reset alongside the hydrate state adjust
     editSourceRef.current = 'none';
+    // eslint-disable-next-line react-hooks/refs -- reset alongside the hydrate state adjust
     completeSeenRef.current = false;
+    // eslint-disable-next-line react-hooks/refs -- reset alongside the hydrate state adjust
     wasCompleteOnEnterRef.current = draftCtx
       ? isGradeComplete(hydrated, draftCtx)
       : false;
+    // eslint-disable-next-line react-hooks/refs -- reset alongside the hydrate state adjust
     lastAutoFilledPointsRef.current =
       rubricCriteriaCount > 0 &&
       savedGrade?.rubricScores?.length === rubricCriteriaCount
@@ -701,10 +707,12 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   if (takeKey !== seekTakeKey) {
     setSeekTakeKey(takeKey);
     setSeek({ ms: 0, nonce: 0 });
+    // eslint-disable-next-line react-hooks/refs -- reset alongside the take state adjust
     lastJumpRef.current = null;
   }
 
   const handleRubricScoresChange = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps kept as written
     (scores: WrittenAnswerRubricScore[], derivedPoints: number) => {
       editSourceRef.current = 'rubric';
       setDraftRubricScores(scores);
@@ -740,6 +748,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   // Walk that strand's tagged passages in text order, one per click. Opening
   // the annotation is what scrolls the mark (text) or seeks the take (audio).
   const handleJumpToTagged = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps kept as written
     (criterionId: string) => {
       const tagged = draftAnnotations
         .filter((a) =>
@@ -769,6 +778,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     ? activeTake.archive?.driveFileId
     : undefined;
   const resolverRef = useRef(resolveTakeUrl);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   resolverRef.current = resolveTakeUrl;
 
   useEffect(() => {
@@ -840,6 +850,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     studentLabel,
     isDirty,
   });
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   writeInfoRef.current = {
     draft,
     ctx: draftCtx,
@@ -992,6 +1003,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   // Any further touch on the right rail means the teacher is not done here.
   const railRef = useRef<HTMLElement | null>(null);
   const advanceArmedRef = useRef(false);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   advanceArmedRef.current = advanceArmed;
   useEffect(() => {
     const rail = railRef.current;
@@ -1106,6 +1118,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     [cancelPendingWrite, complete, commitDraft, arm]
   );
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps kept as written
   const handleUndoExcuse = useCallback(async () => {
     if (!onClearGrade || !target || !responseKey) return;
     setClearing(true);
@@ -1125,6 +1138,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   }, [onClearGrade, target, responseKey, targetKey, tg]);
 
   const onCloseRef = useRef(onClose);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   onCloseRef.current = onClose;
   const handleClose = useCallback(() => {
     leaveTarget();

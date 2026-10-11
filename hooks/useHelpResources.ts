@@ -311,6 +311,7 @@ export const useSharedHelpItems = (): HelpResourceItem[] => {
       startSharedOrgListener(orgId);
     }
     sharedSubscribers.add(listener);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs from the shared Firestore listener
     setState(sharedState);
     return () => {
       sharedSubscribers.delete(listener);

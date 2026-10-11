@@ -430,6 +430,15 @@ export function useTourCapture({
     capture(field, 'type', recordableValue(field, field.value, matcher));
   };
 
+  const finish = async (): Promise<TourRecording> => {
+    commitTyping();
+    setStatus((s) => (s === 'recording' ? 'paused' : s));
+    await Promise.all([...inflight.current]);
+    const result = recording.current;
+    reset();
+    return result;
+  };
+
   // A label click forwards a detail-0 click to its checkbox; only keyboard clicks have no pointerdown before them.
   const lastPointerDown = useRef(-Infinity);
   const onPointerDown = useEffectEvent((e: PointerEvent) => {
@@ -562,15 +571,6 @@ export function useTourCapture({
     const stream = streamRef;
     return () => stream.current?.getTracks().forEach((t) => t.stop());
   }, []);
-
-  const finish = async (): Promise<TourRecording> => {
-    commitTyping();
-    setStatus((s) => (s === 'recording' ? 'paused' : s));
-    await Promise.all([...inflight.current]);
-    const result = recording.current;
-    reset();
-    return result;
-  };
 
   return {
     status,

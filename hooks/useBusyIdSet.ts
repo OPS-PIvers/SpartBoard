@@ -46,6 +46,7 @@ export function useBusyIdSet(): UseBusyIdSetResult {
   // synchronous reads and writes. The state mirror exists only so
   // components re-render when busy-state changes.
   const busyRef = useRef<Set<string>>(new Set());
+  // eslint-disable-next-line react-hooks/refs -- initial snapshot only
   const [, forceSnapshot] = useState<ReadonlySet<string>>(busyRef.current);
 
   const commit = useCallback(() => {

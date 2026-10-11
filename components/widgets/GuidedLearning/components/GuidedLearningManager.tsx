@@ -1884,6 +1884,7 @@ const GuidedLearningPreviewPane: React.FC<{
   const lastLoadedUpdatedAtRef = React.useRef<number | null>(null);
   React.useEffect(() => {
     if (previewState !== 'playing') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- tracks remote updatedAt changes while previewing
       setPreviewStale(false);
       return;
     }

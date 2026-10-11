@@ -19,6 +19,7 @@ export function useCatalystSets() {
 
   useEffect(() => {
     if (isAuthBypass) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- auth-bypass short-circuit of the Firestore load
       setSets([]);
       setLoading(false);
       return;

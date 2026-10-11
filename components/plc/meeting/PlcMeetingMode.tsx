@@ -365,6 +365,7 @@ const PlcMeetingLiveFlow: React.FC<{
     if (idx > 0) goToStep(MEETING_STEP_ORDER[idx - 1]);
   }, [step, goToStep]);
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- depends on user?.uid, not the whole user object
   const handleSave = useCallback(async () => {
     const id = meetingDocId ?? (await ensureMeetingDoc());
     if (!id) return;

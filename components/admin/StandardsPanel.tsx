@@ -83,6 +83,7 @@ const StandardSetRow: React.FC<{ entry: StandardSetEntry }> = ({ entry }) => {
   }, [entry]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetches counts from Firestore on mount
     void refresh();
   }, [refresh]);
 

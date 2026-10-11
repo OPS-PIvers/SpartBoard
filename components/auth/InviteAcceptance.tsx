@@ -294,6 +294,7 @@ export const InviteAcceptance: React.FC = () => {
     if (status.kind !== 'idle') return;
 
     claimRanRef.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- marks the one-shot async claim as started
     setStatus({ kind: 'claiming' });
 
     const run = async () => {

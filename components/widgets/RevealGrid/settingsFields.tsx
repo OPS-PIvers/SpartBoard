@@ -73,6 +73,7 @@ export const RevealGridCardsField: React.FC<{
   }, [driveService]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetches Drive files when the service becomes available
     if (driveService) void fetchDriveFiles();
   }, [driveService, fetchDriveFiles]);
 

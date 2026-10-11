@@ -416,6 +416,7 @@ export function useCanvasTools(
         key,
         alt: true,
         when: (e) => calloutSelected && onCanvas(e),
+        // eslint-disable-next-line react-hooks/refs -- sizeCallout reads refs only when the shortcut runs
         run: () => sizeCallout(axis, dir),
       })),
       {

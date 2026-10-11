@@ -1655,6 +1655,7 @@ export const AnalyticsManager: React.FC = () => {
   }, [orgId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount/org change; loading state follows the request
     void fetchAnalytics();
   }, [fetchAnalytics]);
 

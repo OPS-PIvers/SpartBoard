@@ -133,6 +133,7 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
         return;
       }
       const loaded = await loadSetData(driveFileId);
+      // eslint-disable-next-line react-hooks/purity -- runs in an async select handler, not render
       const now = Date.now();
       const copy: GuidedLearningSet = {
         ...loaded,

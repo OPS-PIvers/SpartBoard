@@ -986,6 +986,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
 
   useEffect(() => {
     if (!widgetEl) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- DOM measurement of the widget rect
     updateWidgetRect();
 
     // Coalesce all rect updates into one per animation frame. DraggableWindow
@@ -1304,6 +1305,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   // back to a bare `endSession`, otherwise the archive row could stay
   // stuck as `active` even though the session ended.
   const handleEndSessionFromModal = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps kept as written
     async (sessionId: string) => {
       const localMatch = assignments.find(
         (a) => a.sessionId === sessionId && a.status === 'active'
@@ -1428,6 +1430,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   );
 
   // Import Wizard adapter (rebuilt per user so save() closes over uid).
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps kept as written
   const importAdapter = React.useMemo(() => {
     if (!user?.uid) return null;
     return createMiniAppImportAdapter(user.uid);

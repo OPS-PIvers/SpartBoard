@@ -59,6 +59,7 @@ export const VideoActivityConfigurationModal: React.FC<
 
   useEffect(() => {
     if (isAuthBypass) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resolves loading for the Firestore load
       setLoading(false);
       return;
     }

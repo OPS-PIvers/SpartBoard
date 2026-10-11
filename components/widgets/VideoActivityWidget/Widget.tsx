@@ -303,6 +303,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     const match = assignments.find((a) => a.id === selectedSession.id);
     if (match && match.status !== 'inactive') return;
     unsubscribeFromSession();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reacts to the live assignments subscription ending the session
     setSelectedSession(null);
     addToast('Assignment is no longer active — returning to library.', 'info');
     updateWidget(widget.id, {

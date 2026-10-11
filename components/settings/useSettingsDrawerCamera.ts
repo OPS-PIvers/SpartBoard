@@ -98,6 +98,7 @@ export const useSettingsDrawerCamera = ({
 
   const openBoardIdRef = useRef<string | null>(null);
   const boardIdRef = useRef<string | null>(boardId);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   boardIdRef.current = boardId;
   const wasOpenRef = useRef(false);
 

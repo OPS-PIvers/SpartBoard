@@ -229,6 +229,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
   React.useEffect(() => {
     if (!isOpen) return;
     if (!subBuildingId && defaultBuildingId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- seeds the pick once the async default building arrives
       setSubBuildingId(defaultBuildingId);
       return;
     }

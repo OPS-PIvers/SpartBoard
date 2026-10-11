@@ -501,6 +501,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
         const r = byUid.get(uid);
         return r ? quizLiveRaw(r, quiz.questions, fibGrading) : null;
       },
+      // eslint-disable-next-line react-hooks/purity -- called from export handlers, not during render
       Date.now()
     );
   };
@@ -573,7 +574,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   // Close popup on click-outside or Escape
   const closeScoreboardPrompt = useCallback(() => {
     setShowScoreboardPrompt(false);
-  }, []);
+  }, [setShowScoreboardPrompt]);
   useClickOutside(scoreboardPromptRef, closeScoreboardPrompt);
   useEffect(() => {
     if (!showScoreboardPrompt) return;
@@ -643,6 +644,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   // every targeted period (not just `classIds[0]`). The fallback to
   // `[session.classId]` keeps single-class sessions working. For legacy
   // code+PIN sessions both maps are empty and pinToName handles display.
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps on classIds/classId keep the array stable across session updates
   const sessionClassIds = useMemo(() => {
     if (session?.classIds && session.classIds.length > 0)
       return session.classIds;
@@ -978,7 +980,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
             setScreen('students');
           }
         : undefined,
-    [selection, studentResultsActions, plcView, resultsTools]
+    [selection, studentResultsActions, plcView, resultsTools, setScreen]
   );
 
   // The Students screen's open row, lifted so item analysis can jump to a student.
@@ -995,7 +997,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
             setScreen('students');
           }
         : undefined,
-    [resultsTools, plcView]
+    [resultsTools, plcView, setScreen]
   );
 
   // Printing to hand back (docs/plans/shipped/QUIZ_RESULTS_PRINT.md); never for PLC teammates (D7).
@@ -1105,10 +1107,13 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       (showMediaGrading || !question.recording),
     [canOpenGrader, showMediaGrading]
   );
-  const openGrader = useCallback((target?: GraderTarget) => {
-    setGraderTarget(target);
-    setShowGrader(true);
-  }, []);
+  const openGrader = useCallback(
+    (target?: GraderTarget) => {
+      setGraderTarget(target);
+      setShowGrader(true);
+    },
+    [setGraderTarget, setShowGrader]
+  );
 
   const handleSendToScoreboard = useCallback(
     (mode: 'pin' | 'name') => {
@@ -1197,6 +1202,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       updateWidget,
       addWidget,
       addToast,
+      setShowScoreboardPrompt,
     ]
   );
 
@@ -1210,7 +1216,13 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
     } else {
       handleSendToScoreboard('pin');
     }
-  }, [filteredCompleted.length, hasNames, addToast, handleSendToScoreboard]);
+  }, [
+    filteredCompleted.length,
+    hasNames,
+    addToast,
+    handleSendToScoreboard,
+    setShowScoreboardPrompt,
+  ]);
 
   // Recovery path shared by handleExport (initial export) and
   // handleUpdateSheet (delta append). When the configured PLC sheet is

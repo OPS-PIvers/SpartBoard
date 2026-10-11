@@ -9,7 +9,13 @@
  * handwritten box crops (handwritten plan D20, D21).
  */
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -244,7 +250,9 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
   const fileRef = useRef<HTMLInputElement>(null);
   const uploaderRef = useRef<CropUploader | null>(null);
   const thumbsRef = useRef(thumbs);
-  thumbsRef.current = thumbs;
+  useLayoutEffect(() => {
+    thumbsRef.current = thumbs;
+  });
 
   useEffect(() => () => revokeAll(thumbsRef.current), []);
 

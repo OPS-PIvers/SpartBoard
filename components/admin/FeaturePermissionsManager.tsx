@@ -217,6 +217,7 @@ export const FeaturePermissionsManager: React.FC = () => {
 
   // Load permissions from Firestore
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loads permissions from Firestore
     void loadPermissions();
   }, [loadPermissions]);
 

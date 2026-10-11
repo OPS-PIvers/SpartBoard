@@ -337,6 +337,7 @@ export const LiveTourRunner: React.FC = () => {
     uid: user?.uid,
     featurePermissions,
   });
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   latest.current = {
     dashboard,
     canAccessFeature,
@@ -432,6 +433,7 @@ export const LiveTourRunner: React.FC = () => {
     : [];
   const added = [...legacyAdded, ...tourAdded.map((w) => w.id)];
   const tourIdsRef = useRef<string[]>([]);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   tourIdsRef.current = tour?.tourIds ?? [];
 
   // Temporary layouts live in the canvas store only while a step is showing.
@@ -445,6 +447,7 @@ export const LiveTourRunner: React.FC = () => {
   }
   const overridesKey = overrides ? JSON.stringify([...overrides]) : '';
   const overridesRef = useRef(overrides);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   overridesRef.current = overrides;
   useEffect(() => {
     if (overridesRef.current) setTourLayoutOverrides(overridesRef.current);
@@ -501,6 +504,7 @@ export const LiveTourRunner: React.FC = () => {
       : null;
   const savedKey = saved ? JSON.stringify(saved) : null;
   const savedRun = useRef(saved);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   savedRun.current = saved;
   const wroteSaved = useRef(false);
   const ended = tour === null;
@@ -526,6 +530,7 @@ export const LiveTourRunner: React.FC = () => {
     anchor.status === 'found'
       ? (anchor.element?.closest<HTMLElement>('[data-role="dock"]') ?? null)
       : null;
+  // eslint-disable-next-line react-hooks/immutability -- lifts a DOM element's z-index and restores it on cleanup
   useEffect(() => {
     if (!liftEl) return;
     const prev = liftEl.style.zIndex;
@@ -616,6 +621,7 @@ export const LiveTourRunner: React.FC = () => {
   }
   const patchesKey = JSON.stringify([...patches]);
   const patchesRef = useRef(patches);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   patchesRef.current = patches;
   useEffect(() => {
     if (patchesRef.current.size > 0) setTourWidgetPatches(patchesRef.current);
@@ -841,6 +847,7 @@ export const LiveTourRunner: React.FC = () => {
     else runSetup(set, steps, from, opts);
   };
   const beginRef = useRef(begin);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   beginRef.current = begin;
 
   const launch = (req: TourStartRequest, opts: LaunchOptions = {}) => {
@@ -892,6 +899,7 @@ export const LiveTourRunner: React.FC = () => {
     })();
   };
   const launchRef = useRef(launch);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   launchRef.current = launch;
 
   useEffect(() => {
@@ -1064,6 +1072,7 @@ export const LiveTourRunner: React.FC = () => {
   };
 
   const advanceRef = useRef(goTo);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   advanceRef.current = goTo;
   const stepIndex = tour?.index ?? 0;
 
@@ -1115,6 +1124,7 @@ export const LiveTourRunner: React.FC = () => {
     setFfTarget(selected > from ? selected : null);
   });
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- starts the editor stage once the board is idle
     if (editIdle) startEdit();
   }, [editIdle]);
 
@@ -1122,6 +1132,7 @@ export const LiveTourRunner: React.FC = () => {
   const editEnded = !editTarget && !!tour?.edit;
   const endEdit = useEffectEvent(() => endTour());
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- tears the stage down when the editor closes
     if (editEnded) endEdit();
   }, [editEnded]);
 
@@ -1210,6 +1221,7 @@ export const LiveTourRunner: React.FC = () => {
   useEffect(() => (active ? shieldTourUi() : undefined), [active]);
   // Escape never destroys work: Keep on teardown, Cancel on the practice offer.
   const finishRef = useRef(finish);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   finishRef.current = !tour
     ? () => dismissResume(false)
     : tour.edit
@@ -1264,6 +1276,7 @@ export const LiveTourRunner: React.FC = () => {
     endTour();
   });
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- ends the tour when the board switches
     if (boardSwitched) endOnBoardSwitch();
   }, [boardSwitched]);
 
@@ -1406,6 +1419,7 @@ export const LiveTourRunner: React.FC = () => {
     setCue({ ...cue, to: center });
   }
   const cueRef = useRef(cue);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   cueRef.current = cue;
   // A glide cut short when the anchor vanished never lands, so start the step over.
   if (autoStage === 'demo' && !found) setAuto(null);
@@ -1423,8 +1437,10 @@ export const LiveTourRunner: React.FC = () => {
   const staticHintOn = hintOn && staticHint === stepKey;
 
   const latestAdded = useRef(added);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   latestAdded.current = added;
   const latestSlots = useRef<TourSlots | undefined>(tour?.slots);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   latestSlots.current = tour?.slots;
 
   // Autopilot performs the step, then waits for the app to show the next step's anchor.
@@ -1494,6 +1510,7 @@ export const LiveTourRunner: React.FC = () => {
       });
   };
   const autoClickRef = useRef(autoClick);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   autoClickRef.current = autoClick;
 
   const runAuto = () => {
@@ -1544,6 +1561,7 @@ export const LiveTourRunner: React.FC = () => {
   const skipMissing = jumping && anchor.status === 'missing';
   const stopOnMissing = !!tour?.edit && !!tour.sandboxed;
   const stopJumpRef = useRef(stopJump);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   stopJumpRef.current = stopJump;
   useEffect(() => {
     if (!skipMissing) return;
@@ -1598,6 +1616,7 @@ export const LiveTourRunner: React.FC = () => {
   useEffect(() => {
     if (!entryKey) return;
     const ctrl = new AbortController();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- applies the start step against the live board, abortable
     applyStart(ctrl.signal);
     return () => ctrl.abort();
   }, [entryKey]);
@@ -1637,6 +1656,7 @@ export const LiveTourRunner: React.FC = () => {
     missing: missingIds,
     slots: tour?.slots ?? {},
   });
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   playbackRef.current = {
     index: stepIndex,
     anchor: plain ? 'found' : anchor.status,
