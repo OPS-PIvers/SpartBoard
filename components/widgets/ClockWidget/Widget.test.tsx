@@ -164,7 +164,7 @@ describe('ClockWidget', () => {
     renderWidget(createWidget({ format24: true, showSeconds: true }));
 
     const seconds = screen.getByText('45');
-    expect(seconds).toHaveStyle({ fontSize: '0.85em' });
+    expect(seconds.style.fontSize).toBe('0.85em');
   });
 
   // Perf: when seconds aren't displayed, nothing on screen changes between

@@ -115,20 +115,24 @@ export default defineConfig({
     chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'firebase-app': ['firebase/app'],
-          'firebase-auth': ['firebase/auth'],
-          'firebase-firestore': ['firebase/firestore'],
-          'firebase-storage': ['firebase/storage'],
-          'firebase-functions': ['firebase/functions'],
-          'dnd-kit': [
-            '@dnd-kit/core',
-            '@dnd-kit/sortable',
-            '@dnd-kit/utilities',
-          ],
-          'imgly-bg-removal': ['@imgly/background-removal'],
-          utils: ['html-to-image', 'jszip'],
+        manualChunks(id: string) {
+          if (!id.includes('node_modules')) return undefined;
+          if (/[\\/]node_modules[\\/](react|react-dom)[\\/]/.test(id)) {
+            return 'react-vendor';
+          }
+          const firebase = id.match(
+            /[\\/]node_modules[\\/]firebase[\\/](app|auth|firestore|storage|functions)[\\/]/
+          );
+          if (firebase) return `firebase-${firebase[1]}`;
+          if (/[\\/]node_modules[\\/]@dnd-kit[\\/]/.test(id)) return 'dnd-kit';
+          if (
+            /[\\/]node_modules[\\/]@imgly[\\/]background-removal[\\/]/.test(id)
+          ) {
+            return 'imgly-bg-removal';
+          }
+          if (/[\\/]node_modules[\\/](html-to-image|jszip)[\\/]/.test(id))
+            return 'utils';
+          return undefined;
         },
       },
     },

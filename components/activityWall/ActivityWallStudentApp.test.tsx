@@ -226,7 +226,7 @@ describe('ActivityWallStudentApp', () => {
     mockDeleteObject.mockResolvedValue(undefined);
     vi.spyOn(globalThis.crypto, 'getRandomValues').mockImplementation(
       // Deterministic 10-byte fill so the uncapped id suffix is always "AAAAAAAAAA".
-      (arr: ArrayBufferView) => {
+      (arr) => {
         new Uint8Array(arr.buffer, arr.byteOffset, arr.byteLength).fill(0);
         return arr;
       }

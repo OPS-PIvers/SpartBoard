@@ -16,7 +16,7 @@ import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import React, { useId, useState } from 'react';
 import {
   ArrowLeft,
-  Youtube,
+  CirclePlay,
   FileSpreadsheet,
   PlusCircle,
   Search as SearchIcon,
@@ -325,7 +325,7 @@ export const Creator: React.FC<CreatorProps> = ({
                       {
                         id: 'paste' as const,
                         label: 'Paste URL',
-                        Icon: Youtube,
+                        Icon: CirclePlay,
                       },
                       ...(aiEnabled
                         ? [
@@ -374,7 +374,7 @@ export const Creator: React.FC<CreatorProps> = ({
 
                   {discoverTab === 'paste' && (
                     <div className="relative">
-                      <Youtube
+                      <CirclePlay
                         className="absolute left-4 top-1/2 -translate-y-1/2 text-red-500"
                         style={{
                           width: 'min(20px, 5cqmin)',
