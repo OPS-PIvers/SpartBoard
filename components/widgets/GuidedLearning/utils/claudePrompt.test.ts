@@ -6,15 +6,14 @@ const step = (
   id: string,
   imageIndex: number,
   label?: string
-): GuidedLearningStep =>
-  ({
-    id,
-    imageIndex,
-    label,
-    xPct: 0,
-    yPct: 0,
-    interactionType: 'text-popover',
-  }) as GuidedLearningStep;
+): GuidedLearningStep => ({
+  id,
+  imageIndex,
+  label,
+  xPct: 0,
+  yPct: 0,
+  interactionType: 'text-popover',
+});
 
 const set = {
   id: 'set-1',
