@@ -21,8 +21,8 @@ import { where } from 'firebase/firestore';
 // Firebase – onSnapshot returns an unsubscribe no-op by default; individual
 // tests call the captured callback to inject announcement data.
 let firestoreCallback:
-  | ((snap: { forEach: (fn: (d: unknown) => void) => void }) => void)
-  | null = null;
+  ((snap: { forEach: (fn: (d: unknown) => void) => void }) => void) | null =
+  null;
 
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),

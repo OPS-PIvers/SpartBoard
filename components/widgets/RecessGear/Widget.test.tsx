@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 import { render, screen } from '@testing-library/react';
 import { RecessGearWidget } from './Widget';
-import { WidgetData, RecessGearConfig, WeatherConfig } from '@/types';
+import { WidgetData, WeatherConfig } from '@/types';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 import { useDashboard } from '@/context/useDashboard';
@@ -59,7 +59,7 @@ describe('RecessGearWidget', () => {
     config: {
       linkedWeatherWidgetId: null,
       useFeelsLike: true,
-    } as RecessGearConfig,
+    },
   };
 
   beforeEach(() => {

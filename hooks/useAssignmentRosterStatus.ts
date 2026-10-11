@@ -19,7 +19,6 @@ import { collection, doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import type { AssignmentKind } from '@/components/assignmentsHub/useUnifiedAssignments';
 import type { AssignmentStudentStatus } from '@/components/assignmentsHub/AssignmentStatusChip';
-import type { QuizResponse } from '@/types';
 import {
   deriveQuizStudentStatus,
   deriveCompletedAtStudentStatus,
@@ -105,10 +104,7 @@ export function useAssignmentRosterStatus(
         snap.forEach((d) => {
           const data = d.data();
           if (kind === 'quiz') {
-            next.set(
-              d.id,
-              deriveQuizStudentStatus(data as Partial<QuizResponse>)
-            );
+            next.set(d.id, deriveQuizStudentStatus(data));
           } else if (kind === 'mini-app') {
             next.set(d.id, deriveSubmissionStudentStatus(true));
           } else if (kind === 'flashcards') {

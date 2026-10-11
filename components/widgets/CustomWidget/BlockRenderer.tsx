@@ -1422,26 +1422,11 @@ const BlockRendererInner: React.FC<BlockRendererProps> = ({ block }) => {
         />
       );
     case 'toggle':
-      return (
-        <ToggleBlock
-          {...commonProps}
-          config={cfg as unknown as ToggleBlockConfig}
-        />
-      );
+      return <ToggleBlock {...commonProps} config={cfg} />;
     case 'stars':
-      return (
-        <StarsBlock
-          {...commonProps}
-          config={cfg as unknown as StarsBlockConfig}
-        />
-      );
+      return <StarsBlock {...commonProps} config={cfg} />;
     case 'text-input':
-      return (
-        <TextInputBlock
-          {...commonProps}
-          config={cfg as unknown as TextInputBlockConfig}
-        />
-      );
+      return <TextInputBlock {...commonProps} config={cfg} />;
     case 'poll':
       return (
         <PollBlock
@@ -1478,12 +1463,7 @@ const BlockRendererInner: React.FC<BlockRendererProps> = ({ block }) => {
         />
       );
     case 'progress':
-      return (
-        <ProgressBlock
-          {...commonProps}
-          config={cfg as unknown as ProgressBlockConfig}
-        />
-      );
+      return <ProgressBlock {...commonProps} config={cfg} />;
     case 'timer':
       return (
         <TimerBlock
@@ -1492,12 +1472,7 @@ const BlockRendererInner: React.FC<BlockRendererProps> = ({ block }) => {
         />
       );
     case 'score':
-      return (
-        <ScoreBlock
-          {...commonProps}
-          config={cfg as unknown as ScoreBlockConfig}
-        />
-      );
+      return <ScoreBlock {...commonProps} config={cfg} />;
     case 'checklist':
       return (
         <ChecklistBlock

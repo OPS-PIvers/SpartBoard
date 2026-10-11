@@ -33,7 +33,6 @@ import {
   MockQuizDriveService,
   QuizDriveLike,
 } from '@/utils/mockQuizDriveService';
-import type { QuizData } from '@/types';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 import {
   publishSyncedVideoActivity,
@@ -225,10 +224,7 @@ export const useVideoActivity = (
       // Reuse the quiz drive service — saves JSON to the same Drive folder.
       // Cast to satisfy the method signature (VideoActivityData is
       // structurally compatible with the JSON blob the service writes).
-      const driveFileId = await drive.saveQuiz(
-        updated as unknown as QuizData,
-        existingDriveFileId
-      );
+      const driveFileId = await drive.saveQuiz(updated, existingDriveFileId);
 
       const metadata: VideoActivityMetadata = {
         id: activity.id,
@@ -296,7 +292,7 @@ export const useVideoActivity = (
         updatedAt: now,
       };
       const driveFileId = await drive.saveQuiz(
-        refreshed as unknown as QuizData,
+        refreshed,
         activityMeta.driveFileId
       );
 
@@ -394,7 +390,7 @@ export const useVideoActivity = (
       try {
         // The Drive service is reused from the quiz path — it stores
         // arbitrary JSON, so the cast is structural.
-        createdDriveFileId = await drive.saveQuiz(fresh as unknown as QuizData);
+        createdDriveFileId = await drive.saveQuiz(fresh);
         const metadata: VideoActivityMetadata = {
           id: fresh.id,
           title: fresh.title,

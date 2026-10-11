@@ -12,17 +12,16 @@ const q = (
   type: QuizQuestion['type'],
   correctAnswer: string,
   extra: Partial<QuizQuestion> = {}
-): QuizQuestion =>
-  ({
-    id,
-    type,
-    text: `Question ${id}`,
-    correctAnswer,
-    incorrectAnswers: [],
-    timeLimit: 0,
-    points: 1,
-    ...extra,
-  }) as unknown as QuizQuestion;
+): QuizQuestion => ({
+  id,
+  type,
+  text: `Question ${id}`,
+  correctAnswer,
+  incorrectAnswers: [],
+  timeLimit: 0,
+  points: 1,
+  ...extra,
+});
 
 const response = (
   answers: Record<string, string>,
@@ -69,7 +68,7 @@ describe('computeStudentDrilldown', () => {
     const gradeFn = makeQuestionGradeFn({
       answers: { q1: { es: ['perro'] } },
       overridesByStudentUid: { s1: { language: 'es' } },
-    } as never);
+    });
     expect(computeStudentDrilldown([fib], r, gradeFn).lines[0].mark).toBe(
       'correct'
     );
@@ -121,11 +120,14 @@ describe('computeStudentDrilldown', () => {
 
     const graded = computeStudentDrilldown(
       [written],
-      response({ w: 'An answer' }, {
-        grading: {
-          w: { pointsAwarded: 3, gradedAt: 1, gradedBy: 't' },
-        },
-      } as Partial<QuizResponse>)
+      response(
+        { w: 'An answer' },
+        {
+          grading: {
+            w: { pointsAwarded: 3, gradedAt: 1, gradedBy: 't' },
+          },
+        }
+      )
     );
     expect(graded.lines[0]).toMatchObject({
       mark: 'partial',
@@ -143,11 +145,14 @@ describe('computeStudentDrilldown', () => {
     } as unknown as Partial<QuizQuestion>);
     const d = computeStudentDrilldown(
       [spoken, q('q1', 'MC', 'a')],
-      response({ q1: 'a' }, {
-        grading: {
-          s: { pointsAwarded: 0, excused: true, gradedAt: 1, gradedBy: 't' },
-        },
-      } as Partial<QuizResponse>)
+      response(
+        { q1: 'a' },
+        {
+          grading: {
+            s: { pointsAwarded: 0, excused: true, gradedAt: 1, gradedBy: 't' },
+          },
+        }
+      )
     );
     expect(d.lines[0].mark).toBe('excused');
     expect(d.lines[0].pointsMax).toBe(0);
@@ -253,10 +258,13 @@ describe('computeStudentDrilldown — print data', () => {
     };
     const d = computeStudentDrilldown(
       [written],
-      response({ w: '<p>My <b>essay</b></p>' }, {
-        submittedAt: 500,
-        grading: { w: grade },
-      } as Partial<QuizResponse>)
+      response(
+        { w: '<p>My <b>essay</b></p>' },
+        {
+          submittedAt: 500,
+          grading: { w: grade },
+        }
+      )
     );
     expect(d.submittedAt).toBe(500);
     expect(d.lines[0]).toMatchObject({

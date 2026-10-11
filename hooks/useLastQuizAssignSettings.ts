@@ -1,4 +1,4 @@
-import type { QuizBehaviorSettings, QuizSessionOptions } from '@/types';
+import type { QuizBehaviorSettings } from '@/types';
 import {
   resetLastAssignSettingsCache,
   useLastAssignSettings,
@@ -40,7 +40,7 @@ export function parseLastQuizAssignSettings(
   }
   return {
     sessionMode: 'student',
-    sessionOptions: sessionOptions as QuizSessionOptions,
+    sessionOptions: sessionOptions,
     attemptLimit,
   };
 }

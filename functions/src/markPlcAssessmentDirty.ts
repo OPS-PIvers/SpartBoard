@@ -261,7 +261,7 @@ export const markPlcAssessmentDirtyOnSession = onDocumentWritten(
     await handleSessionWrite(
       admin.firestore(),
       event.params.sessionId,
-      event.data as Change | undefined
+      event.data
     );
   }
 );
@@ -276,7 +276,7 @@ export const markPlcAssessmentDirtyOnResponse = onDocumentWritten(
     await handleResponseWrite(
       admin.firestore(),
       event.params.sessionId,
-      event.data as Change | undefined
+      event.data
     );
   }
 );

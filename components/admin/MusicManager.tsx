@@ -333,7 +333,7 @@ export const MusicManager: React.FC = () => {
     }
     setValidationError(null);
     const updated = stations.map((s) =>
-      s.id === editingId ? ({ ...s, ...editForm } as MusicStation) : s
+      s.id === editingId ? { ...s, ...editForm } : s
     );
     setStations(updated);
     void saveToFirestore(updated);

@@ -131,7 +131,6 @@ import {
   type BulkAction,
   type LibraryMenuAction,
   type LibrarySortOption,
-  type LibrarySortDir,
   type AssignmentStatusBadge,
   type LibraryBadgeTone,
   type LibrarySelectionApi,
@@ -584,7 +583,7 @@ function resolveStatus(
 /* ─── Helpers for library sort ────────────────────────────────────────────── */
 
 const SORT_OPTIONS: LibrarySortOption[] = [
-  { key: 'manual', label: 'Manual', defaultDir: 'asc' as LibrarySortDir },
+  { key: 'manual', label: 'Manual', defaultDir: 'asc' },
   { key: 'updated', label: 'Last updated', defaultDir: 'desc' },
   { key: 'created', label: 'Date created', defaultDir: 'desc' },
   { key: 'title', label: 'Title', defaultDir: 'asc' },

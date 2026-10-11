@@ -72,7 +72,7 @@ const inShare = (
         value={subShareContextValue({
           shareId: 'share-1',
           version: 0,
-          load: (() => Promise.resolve(null)) as never,
+          load: () => Promise.resolve(null),
           loadKey,
         })}
       >
@@ -168,7 +168,7 @@ describe('SubShareGuidedLearningWidget', () => {
     expect(await screen.findByTestId('gl-player')).toHaveTextContent(
       'Fire drill'
     );
-    expect((getDoc.mock.calls[0][0] as { __path: string }).__path).toBe(
+    expect(getDoc.mock.calls[0][0].__path).toBe(
       'building_guided_learning/set-1'
     );
   });

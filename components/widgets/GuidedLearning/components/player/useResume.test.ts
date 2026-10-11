@@ -7,6 +7,10 @@ afterEach(() => window.localStorage.clear());
 const saveLocal = (idx: number) =>
   writeResume({ id: 'set', idx, mode: 'try', updatedAt: Date.now() });
 
+const resumeProps = (
+  pristine: boolean
+): { server?: number; pristine: boolean } => ({ server: undefined, pristine });
+
 describe('useResumeOffer (P8-8 cross-device resume)', () => {
   it('offers the server’s furthest step when this device saved nothing', () => {
     const { result } = renderHook(() => useResumeOffer('set', 5, true, 3));
@@ -39,10 +43,7 @@ describe('useResumeOffer (P8-8 cross-device resume)', () => {
       ({ server, pristine }: { server?: number; pristine: boolean }) =>
         useResumeOffer('set', 5, true, server, pristine),
       {
-        initialProps: { server: undefined, pristine: true } as {
-          server?: number;
-          pristine: boolean;
-        },
+        initialProps: resumeProps(true),
       }
     );
     expect(result.current[0]).toBeNull();
@@ -55,10 +56,7 @@ describe('useResumeOffer (P8-8 cross-device resume)', () => {
       ({ server, pristine }: { server?: number; pristine: boolean }) =>
         useResumeOffer('set', 5, true, server, pristine),
       {
-        initialProps: { server: undefined, pristine: false } as {
-          server?: number;
-          pristine: boolean;
-        },
+        initialProps: resumeProps(false),
       }
     );
     moved.rerender({ server: 3, pristine: false });

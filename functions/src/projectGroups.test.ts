@@ -24,7 +24,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as CryptoJS from 'crypto-js';
 
 const h = vi.hoisted(() => ({
-  hmacSecret: 'test-hmac-secret' as string,
+  hmacSecret: 'test-hmac-secret',
   docStore: new Map<string, any>(),
   writes: [] as Array<{
     type: 'set' | 'update' | 'delete';

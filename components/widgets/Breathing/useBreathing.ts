@@ -66,8 +66,7 @@ export const useBreathing = (patternId: BreathingPattern) => {
     // Rebase the current phase's duration (paused or running); resume derives startTime from it.
     const currentPhase = stateRef.current.phase;
     if (currentPhase !== 'ready') {
-      const newPhaseDuration =
-        newPattern[currentPhase as keyof PatternData] * 1000;
+      const newPhaseDuration = newPattern[currentPhase] * 1000;
       stateRef.current.phaseDuration = newPhaseDuration;
       if (stateRef.current.isActive) {
         // Keep the elapsed fraction so the circle does not jump; a zero-length phase ends on the next tick.
@@ -144,8 +143,7 @@ export const useBreathing = (patternId: BreathingPattern) => {
             nextPhase = 'ready';
         }
 
-        nextDuration =
-          nextPhase !== 'ready' ? p[nextPhase as keyof PatternData] : 0;
+        nextDuration = nextPhase !== 'ready' ? p[nextPhase] : 0;
 
         setPhase(nextPhase);
         setTimeLeft(nextDuration);

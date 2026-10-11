@@ -154,7 +154,7 @@ describe('field accessible names', () => {
     ({ field, role, config }) => {
       render(
         <FieldRenderer
-          field={{ ...field, help: 'labelHelp' } as Field}
+          field={{ ...field, help: 'labelHelp' }}
           widget={widget}
           ctx={makeCtx(config ?? {})}
           updateConfig={vi.fn()}

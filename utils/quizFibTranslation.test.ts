@@ -70,9 +70,12 @@ describe('fibTranslationIssue', () => {
       })
     ).toBeNull();
     expect(
-      fibTranslationIssue({ ...fib(), type: 'MC' } as QuizQuestion, {
-        text: 'x',
-      })
+      fibTranslationIssue(
+        { ...fib(), type: 'MC' },
+        {
+          text: 'x',
+        }
+      )
     ).toBeNull();
   });
 });

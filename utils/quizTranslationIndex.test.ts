@@ -18,7 +18,7 @@ const mc: QuizQuestion = {
   correctAnswer: 'Seven',
   incorrectAnswers: ['Eight'],
   timeLimit: 0,
-} as QuizQuestion;
+};
 
 const fib: QuizQuestion = {
   id: 'q2',
@@ -28,17 +28,16 @@ const fib: QuizQuestion = {
   timeLimit: 0,
 } as QuizQuestion;
 
-const payload = (sourceHashes: Record<string, string>): QuizTranslation =>
-  ({
-    locale: 'es',
-    title: 'Números',
-    questions: { q1: { text: '¿Cuál es primo?' } },
-    sourceHashes,
-    reviewedQuestionIds: ['q1'],
-    model: 'gemini-3.5-flash-lite',
-    generatedAt: 1,
-    updatedAt: 2,
-  }) as QuizTranslation;
+const payload = (sourceHashes: Record<string, string>): QuizTranslation => ({
+  locale: 'es',
+  title: 'Números',
+  questions: { q1: { text: '¿Cuál es primo?' } },
+  sourceHashes,
+  reviewedQuestionIds: ['q1'],
+  model: 'gemini-3.5-flash-lite',
+  generatedAt: 1,
+  updatedAt: 2,
+});
 
 describe('quizTranslationIndex over the translatable subset', () => {
   it('reports a FIB question with no sidecar hash as stale', async () => {

@@ -38,33 +38,31 @@ const secondTarget: QuestionTargetTag = {
   standardIds: [standard.id],
 };
 
-const question = (id: string, targets: QuestionTargetTag[]): QuizQuestion =>
-  ({
-    id,
-    type: 'MC',
-    text: `Question ${id}`,
-    correctAnswer: 'Correct',
-    incorrectAnswers: ['Wrong'],
-    timeLimit: 30,
-    points: 1,
-    targets,
-  }) as QuizQuestion;
+const question = (id: string, targets: QuestionTargetTag[]): QuizQuestion => ({
+  id,
+  type: 'MC',
+  text: `Question ${id}`,
+  correctAnswer: 'Correct',
+  incorrectAnswers: ['Wrong'],
+  timeLimit: 30,
+  points: 1,
+  targets,
+});
 
 const response = (
   uid: string,
   servedQuestionIds: string[],
   answers: Array<{ questionId: string; answer: string }>
-): QuizResponse =>
-  ({
-    _responseKey: `response-${uid}`,
-    studentUid: uid,
-    joinedAt: 1,
-    status: 'completed',
-    servedQuestionIds,
-    answers: answers.map((answer) => ({ ...answer, answeredAt: 2 })),
-    score: null,
-    submittedAt: 3,
-  }) as QuizResponse;
+): QuizResponse => ({
+  _responseKey: `response-${uid}`,
+  studentUid: uid,
+  joinedAt: 1,
+  status: 'completed',
+  servedQuestionIds,
+  answers: answers.map((answer) => ({ ...answer, answeredAt: 2 })),
+  score: null,
+  submittedAt: 3,
+});
 
 describe('computeTargetStats', () => {
   it('uses served subsets, weighted question scores and union standard rollups', () => {

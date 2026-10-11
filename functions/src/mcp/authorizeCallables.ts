@@ -143,7 +143,7 @@ export const mcpAuthorizeV1 = onCall<AuthorizeRequest>(
       request.auth
         ? {
             uid: request.auth.uid,
-            token: request.auth.token as Record<string, unknown>,
+            token: request.auth.token,
           }
         : undefined,
       request.data ?? {}

@@ -16,9 +16,7 @@
  */
 
 export type PlcWriteFailureScope =
-  | 'assignmentTemplate'
-  | 'assignmentIndex'
-  | 'assignmentStatusMirror';
+  'assignmentTemplate' | 'assignmentIndex' | 'assignmentStatusMirror';
 
 export interface PlcWriteFailureDetail {
   scope: PlcWriteFailureScope;

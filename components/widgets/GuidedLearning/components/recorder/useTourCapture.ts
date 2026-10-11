@@ -62,10 +62,7 @@ type Captured = {
 export type CaptureStatus = 'idle' | 'starting' | 'recording' | 'paused';
 
 export type CaptureError =
-  | 'unsupported'
-  | 'not-chrome'
-  | 'cancelled'
-  | 'not-this-tab';
+  'unsupported' | 'not-chrome' | 'cancelled' | 'not-this-tab';
 
 /** `preferCurrentTab` and tab-only capture are Chromium features. */
 export const isChromium = (): boolean => {

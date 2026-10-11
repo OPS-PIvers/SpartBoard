@@ -50,8 +50,7 @@ const HotspotBaseImageField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
   const savedLibrary =
     (
       savedWidgetPresets['hotspot-image'] as
-        | Partial<HotspotImageConfig>
-        | undefined
+        Partial<HotspotImageConfig> | undefined
     )?.savedLibrary ?? [];
   const t = (leaf: string) => ctx.t(`widgetSettings.hotspot-image.${leaf}`);
 

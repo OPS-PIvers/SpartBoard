@@ -613,13 +613,7 @@ describe('createClassroomAttachment (spike)', () => {
       'addon-tok'
     );
     // View URIs are derived from the validated origin, not client-supplied.
-    const body = createSpy.mock.calls[0][5] as {
-      title: string;
-      teacherViewUri: { uri: string };
-      studentViewUri: { uri: string };
-      studentWorkReviewUri?: { uri: string };
-      maxPoints?: number;
-    };
+    const body = createSpy.mock.calls[0][5];
     // The teacher view now carries the SAME content ref as the student view so
     // the iframe can resolve the session and render the in-place grading view.
     expect(body.teacherViewUri.uri).toBe(

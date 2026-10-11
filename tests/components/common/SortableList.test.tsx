@@ -103,8 +103,7 @@ describe('SortableList', () => {
             {...handle.attributes}
             onPointerDown={
               handle.listeners?.onPointerDown as unknown as
-                | React.PointerEventHandler<HTMLButtonElement>
-                | undefined
+                React.PointerEventHandler<HTMLButtonElement> | undefined
             }
           >
             {item.label}

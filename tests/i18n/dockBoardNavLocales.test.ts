@@ -76,8 +76,7 @@ describe.each(NON_EN)(
   ({ code, locale }) => {
     it(`${code}: has all dock live-session keys`, () => {
       const dock = (locale as Record<string, unknown>).dock as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       for (const key of DOCK_LIVE_KEYS) {
         expect(dock, `${code}.dock.${key} is missing`).toHaveProperty(key);
       }
@@ -85,8 +84,7 @@ describe.each(NON_EN)(
 
     it(`${code}: has all boardNav navigation keys`, () => {
       const boardNav = (locale as Record<string, unknown>).boardNav as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       for (const key of BOARD_NAV_KEYS) {
         expect(boardNav, `${code}.boardNav.${key} is missing`).toHaveProperty(
           key
@@ -97,8 +95,7 @@ describe.each(NON_EN)(
     it(`${code}: has sidebar.nav.whatsNewSrAnnouncement`, () => {
       const nav = (
         (locale as Record<string, unknown>).sidebar as
-          | Record<string, unknown>
-          | undefined
+          Record<string, unknown> | undefined
       )?.nav as Record<string, unknown> | undefined;
       expect(
         nav,

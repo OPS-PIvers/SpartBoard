@@ -196,7 +196,7 @@ describe('QuizResults — bulk Reopen', () => {
     const onReopenStudent = vi.fn();
     renderResults(makeActions(), /^students/i, {
       onReopenStudent,
-      session: { ...session, status: 'ended' } as QuizSession,
+      session: { ...session, status: 'ended' },
     });
     fireEvent.click(screen.getByRole('checkbox', { name: 'Select PIN 1111' }));
     const reopen = within(screen.getByRole('toolbar')).getByRole('button', {

@@ -217,9 +217,7 @@ Required fields:
   "id": "any-uuid", // regenerated on import; still required
   "title": "Parts of a Plant Cell",
   "imageUrls": ["data:image/png;base64,…"], // ≥ 1, slide order
-  "steps": [
-    /* ≥ 1 GuidedLearningStep, see below */
-  ],
+  "steps": [/* ≥ 1 GuidedLearningStep, see below */],
   "mode": "structured", // "structured" | "guided" | "explore"
   "createdAt": 0, // ms epoch; regenerated on import
   "updatedAt": 0,

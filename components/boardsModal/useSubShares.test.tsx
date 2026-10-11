@@ -182,8 +182,7 @@ describe('useSubShares', () => {
     await waitFor(() =>
       expect(extendSubstituteCollectionShare).toHaveBeenCalled()
     );
-    const [shareId, next] = extendSubstituteCollectionShare.mock
-      .calls[0] as unknown as [string, number];
+    const [shareId, next] = extendSubstituteCollectionShare.mock.calls[0];
     expect(shareId).toBe('share-1');
     expect(next).toBe(before + 7 * DAY_MS);
   });
@@ -202,8 +201,7 @@ describe('useSubShares', () => {
     await waitFor(() =>
       expect(extendSubstituteCollectionShare).toHaveBeenCalled()
     );
-    const [, next] = extendSubstituteCollectionShare.mock
-      .calls[0] as unknown as [string, number];
+    const [, next] = extendSubstituteCollectionShare.mock.calls[0];
     expect(next).toBeLessThanOrEqual(Date.now() + 14 * DAY_MS);
   });
 
@@ -224,7 +222,7 @@ describe('useSubShares', () => {
   });
 
   it('asks before ending a share, and does not end it when the teacher says no', async () => {
-    showConfirm.mockResolvedValueOnce(false as unknown as true);
+    showConfirm.mockResolvedValueOnce(false);
     const { result } = await load();
 
     await act(async () => {

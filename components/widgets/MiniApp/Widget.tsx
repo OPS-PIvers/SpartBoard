@@ -869,7 +869,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           config: {
             ...config,
             lastRosterIdsByAppId: nextRosters,
-          } as MiniAppConfig,
+          },
         });
       } catch (cfgErr) {
         console.warn(

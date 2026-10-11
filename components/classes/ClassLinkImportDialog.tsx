@@ -87,8 +87,7 @@ const materializeTestClassStudents = (emails: string[]): Student[] =>
   }));
 
 export type ClassLinkDialogMode =
-  | { kind: 'new' }
-  | { kind: 'merge'; rosterId: string; rosterName: string };
+  { kind: 'new' } | { kind: 'merge'; rosterId: string; rosterName: string };
 
 interface ClassLinkImportDialogProps {
   isOpen: boolean;
@@ -185,12 +184,12 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
                 }
                 return {
                   extraClasses: [] as ClassLinkClass[],
-                  extraEmails: {} as Record<string, string[]>,
+                  extraEmails: {},
                 };
               })
           : Promise.resolve({
               extraClasses: [] as ClassLinkClass[],
-              extraEmails: {} as Record<string, string[]>,
+              extraEmails: {},
             });
 
       try {

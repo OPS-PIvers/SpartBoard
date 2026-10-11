@@ -162,8 +162,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     () => (revealMode ? answerKeysOf(set.steps) : undefined),
     [revealMode, set.steps]
   );
-  const steps =
-    publicSteps ?? (set.steps as unknown as GuidedLearningPublicStep[]);
+  const steps: GuidedLearningPublicStep[] = publicSteps ?? set.steps;
   const startIdx = Math.max(
     0,
     steps.findIndex((s) => s.id === startStepId)

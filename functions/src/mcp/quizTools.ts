@@ -10,7 +10,6 @@ import {
   logActivity,
   reserveWrite,
   snapshotRevision,
-  type ItemType,
   type ToolContext,
 } from './activity';
 import { driveTokenFor, readDriveJson, saveQuizJson } from './drive';
@@ -272,7 +271,7 @@ async function saveContent(
   if (opts.previous) {
     const serialized = JSON.stringify(opts.previous);
     revisionId = snapshotRevision(ctx, batch, {
-      itemType: KIND[kind].itemType as ItemType,
+      itemType: KIND[kind].itemType,
       itemId: content.id,
       title: opts.previous.title,
       data:
@@ -290,7 +289,7 @@ async function saveContent(
   batch.set(ctx.db.doc(metaPath(kind, ctx.uid, content.id)), meta);
   logActivity(ctx, batch, {
     action: opts.action,
-    itemType: KIND[kind].itemType as ItemType,
+    itemType: KIND[kind].itemType,
     itemId: content.id,
     title: content.title,
     revisionId,
@@ -430,11 +429,7 @@ export function registerQuizTools(server: McpServer, ctx: ToolContext): void {
       (input) =>
         run(names.create, ctx, async () => {
           await assertFolder(ctx, folderType, input.folder_id);
-          const questions = await buildQuestions(
-            ctx,
-            input.questions as FriendlyQuestion[],
-            []
-          );
+          const questions = await buildQuestions(ctx, input.questions, []);
           const token = await driveTokenFor(ctx.uid);
           await reserveWrite(ctx);
           const now = Date.now();

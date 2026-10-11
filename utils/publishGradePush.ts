@@ -142,8 +142,7 @@ export async function runPublishGradePush<R>({
       doc(db, sessionCollectionForKind(kind), sessionId)
     );
     const sess = sessSnap.data() as
-      | { ltiAttachment?: unknown; ltiToolColumn?: unknown }
-      | undefined;
+      { ltiAttachment?: unknown; ltiToolColumn?: unknown } | undefined;
     ltiLinked = !!sess?.ltiAttachment;
     toolColumn =
       !ltiLinked && schoologyToolColumns && sess?.ltiToolColumn === true;

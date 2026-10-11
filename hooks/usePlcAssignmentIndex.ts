@@ -127,7 +127,7 @@ export const usePlcAssignmentIndex = (
       (snap) => {
         const list: PlcAssignmentIndexEntry[] = [];
         snap.forEach((d) => {
-          const parsed = parseEntry(d.id, d.data() as Record<string, unknown>);
+          const parsed = parseEntry(d.id, d.data());
           if (parsed) list.push(parsed);
         });
         setEntries(list);

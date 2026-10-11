@@ -123,7 +123,7 @@ describe('useDrawingCanvas', () => {
       x: 0,
       y: 0,
       toJSON: () => ({}),
-    } as DOMRect);
+    });
   });
 
   afterEach(() => {
@@ -367,7 +367,7 @@ describe('useDrawingCanvas', () => {
       x: 0,
       y: 0,
       toJSON: () => ({}),
-    } as DOMRect);
+    });
 
     const canvas = makeCanvas();
     const canvasRef = { current: canvas };

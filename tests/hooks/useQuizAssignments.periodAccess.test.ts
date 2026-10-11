@@ -127,8 +127,7 @@ describe('useQuizAssignments — per-period sessions', () => {
 
   const setAt = (path: string): Record<string, unknown> | undefined =>
     batchSet.mock.calls.find(([ref]) => ref === path)?.[1] as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
 
   async function create(withPeriods: boolean): Promise<string> {
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));

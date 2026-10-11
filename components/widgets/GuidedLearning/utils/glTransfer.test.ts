@@ -144,7 +144,7 @@ describe('embedSetImages', () => {
     });
     const fetchMedia = vi
       .fn()
-      .mockResolvedValue({ size: perSlideBytes, type: 'image/png' } as Blob);
+      .mockResolvedValue({ size: perSlideBytes, type: 'image/png' });
     await expect(embedSetImages(set, fetchMedia)).rejects.toThrow(
       GlExportBudgetExceededError
     );
@@ -161,7 +161,7 @@ describe('embedSetImages', () => {
     });
     const fetchMedia = vi
       .fn()
-      .mockResolvedValue({ size: perSlideBytes, type: 'image/png' } as Blob);
+      .mockResolvedValue({ size: perSlideBytes, type: 'image/png' });
     await expect(embedSetImages(set, fetchMedia)).rejects.toThrow(
       GlExportBudgetExceededError
     );

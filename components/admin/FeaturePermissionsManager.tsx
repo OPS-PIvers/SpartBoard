@@ -132,8 +132,7 @@ export const FeaturePermissionsManager: React.FC = () => {
 
   const getGlobalStickers = (): (string | GlobalSticker)[] => {
     const config = getPermission('stickers').config as
-      | StickerGlobalConfig
-      | undefined;
+      StickerGlobalConfig | undefined;
     return config?.globalStickers ?? [];
   };
 

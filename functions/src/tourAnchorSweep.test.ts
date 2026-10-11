@@ -6,11 +6,13 @@ vi.mock('firebase-functions/v2/scheduler', () => ({
 vi.mock('./functionsInit', () => ({}));
 vi.mock('firebase-functions/logger', () => ({ info: vi.fn() }));
 
-const h = vi.hoisted(() => ({
-  pages: {} as Record<string, number[]>,
-  wheres: [] as unknown[][],
-  deleted: [] as string[],
-}));
+const h = vi.hoisted(
+  (): {
+    pages: Record<string, number[]>;
+    wheres: unknown[][];
+    deleted: string[];
+  } => ({ pages: {}, wheres: [], deleted: [] })
+);
 
 vi.mock('firebase-admin', () => ({
   apps: [{}],

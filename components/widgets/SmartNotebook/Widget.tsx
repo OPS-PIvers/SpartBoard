@@ -127,7 +127,7 @@ export const SmartNotebookWidget: React.FC<{
           sections: data.sections as NotebookSection[] | undefined,
           objectLinks: data.objectLinks as NotebookObjectLink[] | undefined,
           hiddenPages: data.hiddenPages as number[] | undefined,
-        } as NotebookItem;
+        };
       });
       setNotebooks(items);
     });

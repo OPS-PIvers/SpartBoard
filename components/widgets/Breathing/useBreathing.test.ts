@@ -10,7 +10,7 @@ describe('useBreathing', () => {
       return setTimeout(() => cb(performance.now()), 0) as unknown as number;
     });
     vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => {
-      clearTimeout(id as unknown as number);
+      clearTimeout(id);
     });
   });
 

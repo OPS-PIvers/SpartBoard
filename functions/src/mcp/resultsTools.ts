@@ -122,10 +122,8 @@ async function quizSessionSummary(
       import('../recomputePlcAssessments'),
       import('../quizSectionsChosen'),
     ]);
-  const s = await withQuizSessionContent(
-    sessionDoc.ref,
-    (sessionDoc.data() ?? {}) as Data
-  );
+  const sessionData: Data = sessionDoc.data() ?? {};
+  const s = await withQuizSessionContent(sessionDoc.ref, sessionData);
   const assignmentId = asText(s.assignmentId, sessionDoc.id);
   const [responses, assignmentSnap] = await Promise.all([
     sessionDoc.ref
@@ -134,7 +132,7 @@ async function quizSessionSummary(
       .get(),
     ctx.db.doc(`users/${ctx.uid}/quiz_assignments/${assignmentId}`).get(),
   ]);
-  const assignment = (assignmentSnap.data() ?? {}) as Data;
+  const assignment: Data = assignmentSnap.data() ?? {};
   const header = {
     assignment_id: sessionDoc.id,
     class_periods: asArray(s.periodNames ?? assignment.periodNames),
@@ -159,8 +157,8 @@ async function quizSessionSummary(
         teacherUid: ctx.uid,
         publicQuestions: asArray(s.publicQuestions),
         questionSnapshot: asArray(assignment.questionSnapshot),
-        responses: responses.docs.map(
-          (d): CompletedResponse => recompute.parseCompletedResponse(d.data())
+        responses: responses.docs.map((d): CompletedResponse =>
+          recompute.parseCompletedResponse(d.data())
         ),
         scorePublishedAt:
           typeof s.scorePublishedAt === 'number' ? s.scorePublishedAt : null,
@@ -243,7 +241,7 @@ async function videoSessionSummary(
   sessionDoc: admin.firestore.DocumentSnapshot
 ) {
   const recompute = await import('../recomputePlcAssessments');
-  const s = (sessionDoc.data() ?? {}) as Data;
+  const s: Data = sessionDoc.data() ?? {};
   const [responses, keySnap] = await Promise.all([
     sessionDoc.ref.collection('responses').get(),
     sessionDoc.ref.collection('key').doc('answers').get(),

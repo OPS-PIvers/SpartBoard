@@ -67,7 +67,7 @@ describe('GraphicOrganizerWidget', () => {
     config: {
       templateType,
       nodes,
-    } as GraphicOrganizerConfig,
+    },
   });
 
   it('renders Frayer model by default and allows editing', () => {
@@ -98,13 +98,13 @@ describe('GraphicOrganizerWidget', () => {
 
     expect(mockUpdateWidget).toHaveBeenCalledWith(
       'test-widget-1',
-      expect.objectContaining({
-        config: expect.objectContaining({
+      expect.objectContaining<Record<string, unknown>>({
+        config: expect.objectContaining<Record<string, unknown>>({
           nodes: expect.objectContaining({
             'top-left': { id: 'top-left', text: 'New Definition' },
-          } as Record<string, unknown>),
-        } as Record<string, unknown>),
-      } as Record<string, unknown>)
+          }),
+        }),
+      })
     );
   });
 
@@ -166,13 +166,13 @@ describe('GraphicOrganizerWidget', () => {
     // Should be called immediately without waiting for timeout
     expect(mockUpdateWidget).toHaveBeenCalledWith(
       'test-widget-1',
-      expect.objectContaining({
-        config: expect.objectContaining({
+      expect.objectContaining<Record<string, unknown>>({
+        config: expect.objectContaining<Record<string, unknown>>({
           nodes: expect.objectContaining({
             cause: { id: 'cause', text: 'It rained' },
-          } as Record<string, unknown>),
-        } as Record<string, unknown>),
-      } as Record<string, unknown>)
+          }),
+        }),
+      })
     );
   });
 

@@ -14,7 +14,7 @@ export const SeatingChartActionsField: React.FC<{
   const { showConfirm } = useDialog();
 
   const updateConfig = (patch: Partial<SeatingChartConfig>) =>
-    ctx.updateConfig(patch as Record<string, unknown>);
+    ctx.updateConfig(patch);
 
   const handleClearAssignments = async () => {
     const confirmed = await showConfirm(

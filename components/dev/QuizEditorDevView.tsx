@@ -13,14 +13,7 @@ import {
 import { BankEditorModal } from '@/components/widgets/QuizWidget/components/BankEditorModal';
 import { DEFAULT_RECORDING_CONFIG } from '@/config/quizRecordingDefaults';
 import type { QuestionBankData, QuizData, QuizStimulus } from '@/types';
-
-export const QUIZ_EDITOR_STATES = [
-  'qe-gated',
-  'qe-ungated',
-  'qe-bank',
-  'qe-bank-slot',
-] as const;
-export type QuizEditorStateKey = (typeof QUIZ_EDITOR_STATES)[number];
+import { type QuizEditorStateKey } from './devViewStates';
 
 const quiz = (): QuizData => ({
   id: 'dev-quiz',

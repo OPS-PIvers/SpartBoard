@@ -171,9 +171,7 @@ export const ToggleRow: React.FC<ToggleRowProps> = ({
 /* ─── Toggle group ────────────────────────────────────────────────────────── */
 
 export type AssignmentSettingsSection =
-  | 'integrity'
-  | 'randomization'
-  | 'feedback';
+  'integrity' | 'randomization' | 'feedback';
 
 export interface AssignmentSettingsToggleGroupProps {
   options: BaseSessionOptions;

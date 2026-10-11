@@ -35,7 +35,7 @@ const inShare = (load: () => Promise<unknown>) =>
         value={subShareContextValue({
           shareId: 's1',
           version: 0,
-          load: load as never,
+          load: load,
           loadKey: noSubShareKey,
         })}
       >

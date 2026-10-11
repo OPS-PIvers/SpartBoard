@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
     updateFrequencyMinutes: 15,
     temperatureRanges: [],
     source: 'earth_networks',
-  } as Record<string, unknown>,
+  },
 }));
 
 vi.mock('@/config/firebase', () => ({ db: {}, functions: {} }));

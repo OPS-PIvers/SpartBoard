@@ -69,8 +69,7 @@ overridesBySourcedId?: Record<string, StudentOverride>;
 
 ```ts
 type StudentTargetRef =
-  | { kind: 'classlink'; sourcedId: string }
-  | { kind: 'test'; email: string }; // test-class students (uid = HMAC('test:'+email))
+  { kind: 'classlink'; sourcedId: string } | { kind: 'test'; email: string }; // test-class students (uid = HMAC('test:'+email))
 ```
 
 ⚠️ **sourcedId PII caveat:** OneRoster `sourcedId` is SIS-defined and in many districts **is the real student ID number**. It is therefore treated as PII-adjacent: it appears only on the teacher's own assignment doc (owner-read-only under `/users/{uid}/`) and in the CF payload — never on session docs, pointer docs, or any surface other org members can read. Verify the ClassLink tenant's sourcedId format before ever relaxing this.

@@ -65,7 +65,7 @@ export function validateSchema<C = Record<string, unknown>>(
 ): SchemaValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
-  const catalog = options.locale ?? (en as LocaleCatalog);
+  const catalog = options.locale ?? en;
   const defaults =
     'defaults' in options
       ? options.defaults

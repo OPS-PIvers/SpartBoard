@@ -58,7 +58,7 @@ const QUIZ: QuizData = {
   ],
   createdAt: 0,
   updatedAt: 0,
-} as QuizData;
+};
 
 const BEHAVIOR: QuizBehaviorSettings = {
   sessionMode: 'student',

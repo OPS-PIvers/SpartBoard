@@ -109,8 +109,7 @@ describe.each([
 
   it(`${code}: has all required sidebar.plcs keys`, () => {
     const plcs = (locale.sidebar as Record<string, unknown>).plcs as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     for (const key of REQUIRED_PLCS_KEYS) {
       expect(plcs, `${code}.sidebar.plcs.${key} is missing`).toHaveProperty(
         key

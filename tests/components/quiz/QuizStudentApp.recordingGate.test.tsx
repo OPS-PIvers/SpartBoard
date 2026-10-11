@@ -24,7 +24,7 @@ const { mockAuth, hookState, spies } = vi.hoisted(() => ({
       isAnonymous: false,
       getIdTokenResult: () =>
         Promise.resolve({ claims: { studentRole: true } }),
-    } as unknown,
+    },
   },
   hookState: {
     session: null as QuizSession | null,

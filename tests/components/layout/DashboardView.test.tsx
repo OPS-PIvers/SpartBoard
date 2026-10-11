@@ -59,10 +59,10 @@ type DashboardGestureHandlers = {
   }) => void;
 };
 
-const { mockUseGesture, gestureState } = vi.hoisted(() => ({
-  mockUseGesture: vi.fn(),
-  gestureState: { handlers: {} as DashboardGestureHandlers },
-}));
+const { mockUseGesture, gestureState } = vi.hoisted(() => {
+  const handlers: DashboardGestureHandlers = {};
+  return { mockUseGesture: vi.fn(), gestureState: { handlers } };
+});
 
 // Mock context
 vi.mock('@/components/groupReminders/GroupReminderHost', () => ({

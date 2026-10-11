@@ -13,7 +13,7 @@ function resp(overrides: Partial<QuizResponse>): QuizResponse {
     score: null,
     submittedAt: 0,
     ...overrides,
-  } as QuizResponse;
+  };
 }
 
 const sso = (uid: string): QuizResponse => resp({ studentUid: uid });

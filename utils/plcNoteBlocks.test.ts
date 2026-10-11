@@ -12,17 +12,16 @@ import {
 
 const base = { section: 'Decisions', createdBy: 'u1', createdAt: 1 };
 
-const note = (id: string, extra: Partial<PlcNote> = {}): PlcNote =>
-  ({
-    id,
-    title: id,
-    body: '',
-    createdBy: 'u1',
-    createdAt: 1,
-    lastEditedBy: 'u1',
-    lastEditedAt: 1,
-    ...extra,
-  }) as PlcNote;
+const note = (id: string, extra: Partial<PlcNote> = {}): PlcNote => ({
+  id,
+  title: id,
+  body: '',
+  createdBy: 'u1',
+  createdAt: 1,
+  lastEditedBy: 'u1',
+  lastEditedAt: 1,
+  ...extra,
+});
 
 const item = (id: string, extra: Record<string, unknown> = {}) => ({
   id,

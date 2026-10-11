@@ -124,7 +124,7 @@ export function useStarterPacks(userId?: string | null) {
         addWidget(widget.type, {
           ...widget,
           config: structuredClone(widget.config),
-        } as unknown as AddWidgetOverrides);
+        });
       });
     },
     []

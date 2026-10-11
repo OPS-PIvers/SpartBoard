@@ -1,12 +1,7 @@
 // Shared types for the widget quality rubric (docs/plans/WIDGET_RUBRIC.md).
 
 export type DimensionId =
-  | 'layout'
-  | 'visual'
-  | 'interaction'
-  | 'config'
-  | 'robustness'
-  | 'ecosystem';
+  'layout' | 'visual' | 'interaction' | 'config' | 'robustness' | 'ecosystem';
 
 export type CriterionId =
   | 'S1'

@@ -411,8 +411,7 @@ export const ClassroomAddonTeacherReview: React.FC<TeacherReviewProps> = ({
   }, []);
   const connectDrive = useCallback(async () => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
-      | string
-      | undefined;
+      string | undefined;
     if (!clientId) {
       setErrorMsg('Google Drive sign-in is not configured.');
       return;

@@ -66,9 +66,7 @@ export const folderAwareCollisionDetection: CollisionDetection = (args) => {
   });
   const cardContainers = args.droppableContainers.filter((c) => {
     const data = c.data.current as
-      | FolderDropData
-      | ItemMergeDropData
-      | undefined;
+      FolderDropData | ItemMergeDropData | undefined;
     return data?.type !== 'folder' && data?.type !== 'item-merge';
   });
 

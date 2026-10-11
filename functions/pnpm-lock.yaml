@@ -83,8 +83,8 @@ importers:
         specifier: ^3.5.0
         version: 3.5.0(firebase-admin@13.10.0)(firebase-functions@7.4.0(firebase-admin@13.10.0))(jest@30.2.0(@types/node@26.6.5))
       typescript:
-        specifier: ^5.9.3
-        version: 5.9.3
+        specifier: ~6.0.3
+        version: 6.0.3
       vite:
         specifier: ^8.3.4
         version: 8.3.4(@types/node@26.6.5)
@@ -2742,8 +2742,8 @@ packages:
   typedarray@0.0.6:
     resolution: {integrity: sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA==}
 
-  typescript@5.9.3:
-    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
+  typescript@6.0.3:
+    resolution: {integrity: sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==}
     engines: {node: '>=14.17'}
     hasBin: true
 
@@ -5983,7 +5983,7 @@ snapshots:
 
   typedarray@0.0.6: {}
 
-  typescript@5.9.3: {}
+  typescript@6.0.3: {}
 
   undici-types@8.9.0: {}
 

@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 
-const { getDocMock, setDocMock, stored } = vi.hoisted(() => ({
-  getDocMock: vi.fn(),
-  setDocMock: vi.fn(),
-  stored: {} as Record<string, unknown>,
-}));
+const { getDocMock, setDocMock, stored } = vi.hoisted(() => {
+  const stored: Record<string, unknown> = {};
+  return { getDocMock: vi.fn(), setDocMock: vi.fn(), stored };
+});
 
 vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
 vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));

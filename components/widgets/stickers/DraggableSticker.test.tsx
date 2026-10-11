@@ -577,7 +577,7 @@ describe('DraggableSticker', () => {
     // Spy AFTER the initial render so React's own scheduling is untouched.
     const rafSpy = vi
       .spyOn(window, 'requestAnimationFrame')
-      .mockReturnValue(4242 as unknown as number);
+      .mockReturnValue(4242);
     const cancelSpy = vi.spyOn(window, 'cancelAnimationFrame');
 
     // Start a body-drag and move once so a frame is queued (rafId set).

@@ -14,7 +14,7 @@ import type { MiniAppSession, PeriodAccess } from '@/types';
 const NOW = 1_800_000_000_000;
 
 const h = vi.hoisted(() => ({
-  claims: {} as Record<string, unknown>,
+  claims: {},
   session: null as Record<string, unknown> | null,
   contentReadable: false,
   sessionListener: null as ((snap: unknown) => void) | null,

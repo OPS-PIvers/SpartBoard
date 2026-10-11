@@ -90,8 +90,7 @@ const SlideThumbBody = React.memo(function SlideThumbBody({
         {...handle.attributes}
         onPointerDown={
           handle.listeners?.onPointerDown as
-            | React.PointerEventHandler<HTMLButtonElement>
-            | undefined
+            React.PointerEventHandler<HTMLButtonElement> | undefined
         }
         {...tourAttr('studio.slide-thumb')}
         onClick={() => onSelect(slide.index)}

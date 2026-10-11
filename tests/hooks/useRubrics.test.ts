@@ -45,13 +45,11 @@ describe('useRubrics', () => {
     );
     vi.mocked(firestore.query).mockImplementation((c) => c as never);
     vi.mocked(firestore.orderBy).mockImplementation(() => ({}) as never);
-    vi.mocked(firestore.onSnapshot).mockImplementation(((
-      ...args: unknown[]
-    ) => {
+    vi.mocked(firestore.onSnapshot).mockImplementation((...args: unknown[]) => {
       const onNext = args[1] as (snap: { docs: unknown[] }) => void;
       onNext({ docs: [] });
       return () => undefined;
-    }) as never);
+    });
   });
 
   it('is a no-op with a stable shape when signed out', async () => {
@@ -190,15 +188,13 @@ describe('useRubrics', () => {
 
   it('streams rubrics ordered by updatedAt desc via onSnapshot', async () => {
     const rubricA = fakeRubric({ id: 'a', updatedAt: 2000 });
-    vi.mocked(firestore.onSnapshot).mockImplementation(((
-      ...args: unknown[]
-    ) => {
+    vi.mocked(firestore.onSnapshot).mockImplementation((...args: unknown[]) => {
       const onNext = args[1] as (snap: {
         docs: Array<{ data: () => Rubric }>;
       }) => void;
       onNext({ docs: [{ data: () => rubricA }] });
       return () => undefined;
-    }) as never);
+    });
 
     const { result } = renderHook(() => useRubrics(UID));
 

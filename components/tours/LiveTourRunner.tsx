@@ -10,7 +10,6 @@ import React, {
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type {
-  GuidedLearningPublicStep,
   GuidedLearningSet,
   GuidedLearningStep,
   TourAutopilotPolicy,
@@ -130,12 +129,7 @@ import {
 const TourMiniPlayer = lazy(() => import('./TourMiniPlayer'));
 
 type Phase =
-  | 'welcome'
-  | 'materials'
-  | 'practice-offer'
-  | 'running'
-  | 'keep'
-  | 'teardown';
+  'welcome' | 'materials' | 'practice-offer' | 'running' | 'keep' | 'teardown';
 
 interface LaunchOptions {
   /** Widgets a reloaded run had already added, so teardown can still remove them. */
@@ -1715,7 +1709,7 @@ export const LiveTourRunner: React.FC = () => {
   const canRead = !!step && (!!step.narration?.url || speechAvailable());
   useReadAloud({
     enabled: (tour?.edit ? !!editTarget?.readAloud : readAloud) && canRead,
-    step: step as unknown as GuidedLearningPublicStep | null,
+    step: step,
     stepKey: step && tour ? `${tour.set.id}:${tour.index}:${attempt}` : null,
   });
 

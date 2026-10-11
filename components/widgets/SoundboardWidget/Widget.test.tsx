@@ -15,9 +15,7 @@ vi.mock('@/context/useAuth', () => ({
 
 vi.mock('@/context/dashboardCanvasStore');
 
-const mockPlay = vi
-  .fn<() => Promise<void>>()
-  .mockResolvedValue(undefined as unknown as void);
+const mockPlay = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
 
 const mockAudioConstructor = vi.fn<(src?: string) => void>();
 

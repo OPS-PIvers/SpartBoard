@@ -36,26 +36,25 @@ const mc = (id: string, text: string): QuizPublicQuestion => ({
 
 const questions = [mc('q1', 'First question'), mc('q2', 'Second question')];
 
-const session = (overrides: Partial<QuizSession> = {}): QuizSession =>
-  ({
-    id: 'sess',
-    assignmentId: 'sess',
-    quizId: 'quiz',
-    quizTitle: 'Fractions review',
-    teacherUid: 't1',
-    status: 'active',
-    sessionMode: 'game',
-    currentQuestionIndex: -1,
-    startedAt: null,
-    endedAt: null,
-    code: 'ABC123',
-    totalQuestions: 2,
-    publicQuestions: questions,
-    shuffleAnswerOptions: false,
-    gameDurationMs: 600_000,
-    gameEndsAt: Date.now() + 600_000,
-    ...overrides,
-  }) as QuizSession;
+const session = (overrides: Partial<QuizSession> = {}): QuizSession => ({
+  id: 'sess',
+  assignmentId: 'sess',
+  quizId: 'quiz',
+  quizTitle: 'Fractions review',
+  teacherUid: 't1',
+  status: 'active',
+  sessionMode: 'game',
+  currentQuestionIndex: -1,
+  startedAt: null,
+  endedAt: null,
+  code: 'ABC123',
+  totalQuestions: 2,
+  publicQuestions: questions,
+  shuffleAnswerOptions: false,
+  gameDurationMs: 600_000,
+  gameEndsAt: Date.now() + 600_000,
+  ...overrides,
+});
 
 const response: QuizResponse = {
   studentUid: 'stu1',

@@ -173,7 +173,7 @@ const memberRecord = (
   const members = plcData.members;
   if (!isRecord(members)) return null;
   const entry = members[uid];
-  return isRecord(entry) ? (entry as PlcMemberRecord) : null;
+  return isRecord(entry) ? entry : null;
 };
 
 const legacyMemberUids = (plcData: Record<string, unknown>): string[] =>
@@ -425,10 +425,7 @@ export async function handleGetTeammatePrintContext(
     const groupSnap = await db.collection('synced_quizzes').doc(groupId).get();
     if (!groupSnap.exists)
       throw new HttpsError('not-found', 'Synced quiz group not found.');
-    quiz = quizFromContent(
-      quizId ?? groupId,
-      (groupSnap.data() ?? {}) as Record<string, unknown>
-    );
+    quiz = quizFromContent(quizId ?? groupId, groupSnap.data() ?? {});
     contentSource = 'synced-group';
   }
 

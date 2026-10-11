@@ -1,12 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { SoundWidget } from './Widget';
-import {
-  WidgetData,
-  SoundConfig,
-  Dashboard,
-  ExpectationsConfig,
-} from '@/types';
+import { WidgetData, SoundConfig, Dashboard } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 
 // Mock useDashboard
@@ -264,7 +259,7 @@ describe('SoundWidget', () => {
           {
             id: 'expectations-1',
             type: 'expectations',
-            config: { voiceLevel: 4 } as ExpectationsConfig,
+            config: { voiceLevel: 4 },
           },
         ],
       } as Dashboard,

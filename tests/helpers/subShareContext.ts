@@ -21,8 +21,8 @@ export function subShareContextValue(
     version: 0,
     boardId: 'board-1',
     rosters: [],
-    load: rejectUnexpected('load') as SubShareContentValue['load'],
-    loadKey: rejectUnexpected('loadKey') as SubShareContentValue['loadKey'],
+    load: rejectUnexpected('load'),
+    loadKey: rejectUnexpected('loadKey'),
     ...overrides,
   };
 }

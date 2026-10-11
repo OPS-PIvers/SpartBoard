@@ -210,7 +210,7 @@ describe('rebindQueueItem', () => {
     const gone = {
       ...stored,
       steps: stored.steps.filter((s) => s.id !== 'a'),
-    } as GuidedLearningSet;
+    };
     const save = vi.fn(() => Promise.resolve());
     const count = await rebindQueueItem(item('sidebar.boards'), {
       load: () => Promise.resolve(gone),

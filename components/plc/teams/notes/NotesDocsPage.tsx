@@ -194,13 +194,11 @@ const NotesDocsInner: React.FC<
       | { kind: 'note'; at: number; note: PlcNote }
       | { kind: 'doc'; at: number; doc: PlcDoc };
     const list: Entry[] = [
-      ...notes.map(
-        (note): Entry => ({
-          kind: 'note',
-          at: note.meetingAt ?? note.lastEditedAt,
-          note,
-        })
-      ),
+      ...notes.map((note): Entry => ({
+        kind: 'note',
+        at: note.meetingAt ?? note.lastEditedAt,
+        note,
+      })),
       ...docs.map((doc): Entry => ({ kind: 'doc', at: doc.updatedAt, doc })),
     ];
     return list.sort((a, b) => b.at - a.at);

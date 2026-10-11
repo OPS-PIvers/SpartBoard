@@ -82,9 +82,9 @@ beforeEach(() => {
   snapCbs = {};
   subscriptions = [];
   vi.stubGlobal('crypto', { randomUUID: () => 'sess-1' });
-  (doc as Mock).mockImplementation(
-    (_db: unknown, ...segs: string[]): Ref => ({ path: segs.join('/') })
-  );
+  (doc as Mock).mockImplementation((_db: unknown, ...segs: string[]): Ref => ({
+    path: segs.join('/'),
+  }));
   (setDoc as Mock).mockResolvedValue(undefined);
   const batch = { set: batchSet, commit: batchCommit };
   batchSet.mockReturnValue(batch);
@@ -166,20 +166,19 @@ describe('useGuidedLearningSessionTeacher — per-period create', () => {
 
 const perPeriodSession = (
   over: Partial<GuidedLearningSession> = {}
-): GuidedLearningSession =>
-  ({
-    id: 'sess-1',
-    title: 'Cells',
-    mode: 'guided',
-    imageUrls: [],
-    publicSteps: [],
-    teacherUid: 't1',
-    createdAt: 1,
-    stepsInContent: true,
-    accessMode: 'assignment',
-    periodAccess: PERIODS,
-    ...over,
-  }) as GuidedLearningSession;
+): GuidedLearningSession => ({
+  id: 'sess-1',
+  title: 'Cells',
+  mode: 'guided',
+  imageUrls: [],
+  publicSteps: [],
+  teacherUid: 't1',
+  createdAt: 1,
+  stepsInContent: true,
+  accessMode: 'assignment',
+  periodAccess: PERIODS,
+  ...over,
+});
 
 function emitSession(s: GuidedLearningSession) {
   act(() =>

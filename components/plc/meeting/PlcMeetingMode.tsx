@@ -75,13 +75,12 @@ import {
 } from '@/utils/plcMeetingExport';
 import type { PlcSectionId } from '@/components/plc/sections';
 import { PlcMeetingReviewCard } from './PlcMeetingReviewCard';
+import { MEETING_STEP_ORDER, type MeetingStep } from './meetingSteps';
 import {
   MeetingStepRail,
-  MEETING_STEP_ORDER,
   PlcMeetingActStep,
   PlcMeetingDecideStep,
   PlcMeetingPickStep,
-  type MeetingStep,
 } from './PlcMeetingSteps';
 import { PlcMeetingRecordView } from './PlcMeetingRecordView';
 import { pickInProgressMeeting } from '@/components/plc/home/cards/commonAssessmentBannerSelectors';

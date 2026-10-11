@@ -89,9 +89,7 @@ export const BackgroundsModal: React.FC<BackgroundsModalProps> = ({
     const fromPresets: BackgroundItem[] = presets.map((p) => ({
       id: p.id,
       label: p.label,
-      type: extractYouTubeId(p.id)
-        ? ('video' as BackgroundType)
-        : ('still' as BackgroundType),
+      type: extractYouTubeId(p.id) ? 'video' : 'still',
       thumbnailUrl: p.thumbnailUrl,
       tags: p.tags,
       category: p.category,
@@ -99,7 +97,7 @@ export const BackgroundsModal: React.FC<BackgroundsModalProps> = ({
     const fromColors: BackgroundItem[] = colors.map((c) => ({
       id: c.id,
       label: c.id,
-      type: 'color' as BackgroundType,
+      type: 'color',
       tags: [],
     }));
     const fromPatterns: BackgroundItem[] = (
@@ -107,7 +105,7 @@ export const BackgroundsModal: React.FC<BackgroundsModalProps> = ({
     ).map((p) => ({
       id: p.id,
       label: p.label ?? p.id,
-      type: 'pattern' as BackgroundType,
+      type: 'pattern',
       tags: [],
     }));
     const fromGradients: BackgroundItem[] = (
@@ -115,7 +113,7 @@ export const BackgroundsModal: React.FC<BackgroundsModalProps> = ({
     ).map((g) => ({
       id: g.id,
       label: g.label ?? g.id,
-      type: 'gradient' as BackgroundType,
+      type: 'gradient',
       tags: [],
     }));
     return [...fromPresets, ...fromColors, ...fromPatterns, ...fromGradients];

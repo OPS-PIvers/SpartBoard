@@ -105,17 +105,16 @@ let freshHash: string;
 
 const syncedMeta = (
   translations?: Record<string, QuizTranslationIndexEntry>
-): QuizMetadata =>
-  ({
-    id: 'quiz-plc-tr',
-    title: 'Numbers',
-    driveFileId: 'drive-file-plc',
-    questionCount: 1,
-    createdAt: 1_000_000,
-    updatedAt: 1_000_000,
-    sync: { groupId: 'grp-1', lastSyncedVersion: 3 },
-    ...(translations ? { translations } : {}),
-  }) as QuizMetadata;
+): QuizMetadata => ({
+  id: 'quiz-plc-tr',
+  title: 'Numbers',
+  driveFileId: 'drive-file-plc',
+  questionCount: 1,
+  createdAt: 1_000_000,
+  updatedAt: 1_000_000,
+  sync: { groupId: 'grp-1', lastSyncedVersion: 3 },
+  ...(translations ? { translations } : {}),
+});
 
 beforeEach(async () => {
   vi.clearAllMocks();

@@ -791,22 +791,18 @@ const NotesBodyInner: React.FC<
   };
 
   const listEntries: NotesListEntry[] = [
-    ...notes.map(
-      (note): NotesListEntry => ({
-        type: 'note',
-        id: note.id,
-        at: note.lastEditedAt,
-        note,
-      })
-    ),
-    ...(unified ? docs : []).map(
-      (doc): NotesListEntry => ({
-        type: 'doc',
-        id: doc.id,
-        at: doc.updatedAt,
-        doc,
-      })
-    ),
+    ...notes.map((note): NotesListEntry => ({
+      type: 'note',
+      id: note.id,
+      at: note.lastEditedAt,
+      note,
+    })),
+    ...(unified ? docs : []).map((doc): NotesListEntry => ({
+      type: 'doc',
+      id: doc.id,
+      at: doc.updatedAt,
+      doc,
+    })),
   ].sort((a, b) => b.at - a.at);
 
   if (loading) {

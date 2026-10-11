@@ -379,9 +379,10 @@ describe('useActivityWallLibrary — userId transitions', () => {
       cb = onNext;
       return () => undefined;
     });
+    const userProps: { uid: string | undefined } = { uid: USER_UID };
     const { result, rerender } = renderHook(
       ({ uid }: { uid: string | undefined }) => useActivityWallLibrary(uid),
-      { initialProps: { uid: USER_UID as string | undefined } }
+      { initialProps: userProps }
     );
 
     act(() => {

@@ -20,7 +20,7 @@ const wrapWith = (
         value={subShareContextValue({
           shareId: 'share-1',
           version,
-          load: load as never,
+          load: load,
           loadKey: noSubShareKey,
         })}
       >
@@ -157,7 +157,7 @@ describe('useShareKey', () => {
           value={subShareContextValue({
             shareId: 'share-1',
             version: 0,
-            load: (() => Promise.resolve(null)) as never,
+            load: () => Promise.resolve(null),
             loadKey: loadKey as never,
           })}
         >

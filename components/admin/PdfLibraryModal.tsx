@@ -131,7 +131,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
         if (snap.exists()) {
           const data = snap.data() as FeaturePermission;
           if (data.config) {
-            setGlobalConfig(data.config as unknown as PdfGlobalConfig);
+            setGlobalConfig(data.config);
           }
         }
       } catch (err) {

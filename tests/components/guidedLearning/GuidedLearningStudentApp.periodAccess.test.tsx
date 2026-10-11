@@ -7,20 +7,23 @@ import '@testing-library/jest-dom/vitest';
 import type { GuidedLearningSession, PeriodAccess } from '@/types';
 
 const { mockAuth, hookState, takeSeat, submitResponse, progressOpts } =
-  vi.hoisted(() => ({
-    mockAuth: {
-      authStateReady: vi.fn().mockResolvedValue(undefined),
-      currentUser: null as unknown,
-    },
-    hookState: {
-      session: null as import('@/types').GuidedLearningSession | null,
-      periodKeys: [] as string[],
-      contentPending: false,
-    },
-    takeSeat: vi.fn(),
-    submitResponse: vi.fn(),
-    progressOpts: vi.fn(),
-  }));
+  vi.hoisted(() => {
+    const currentUser: unknown = null;
+    return {
+      mockAuth: {
+        authStateReady: vi.fn().mockResolvedValue(undefined),
+        currentUser,
+      },
+      hookState: {
+        session: null as import('@/types').GuidedLearningSession | null,
+        periodKeys: [] as string[],
+        contentPending: false,
+      },
+      takeSeat: vi.fn(),
+      submitResponse: vi.fn(),
+      progressOpts: vi.fn(),
+    };
+  });
 
 vi.mock('@/config/firebase', () => ({
   isConfigured: false,

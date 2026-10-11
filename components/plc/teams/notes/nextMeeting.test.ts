@@ -11,18 +11,17 @@ const weeklyTue: PlcMeetingCadence = {
 };
 const NOW = zonedTimeToEpoch(2026, 10, 7, 9, 0);
 
-const meetingNote = (id: string, meetingAt: number | null): PlcNote =>
-  ({
-    id,
-    title: id,
-    body: '',
-    kind: 'meeting',
-    meetingAt,
-    createdBy: 'u1',
-    createdAt: 1,
-    lastEditedBy: 'u1',
-    lastEditedAt: 1,
-  }) as PlcNote;
+const meetingNote = (id: string, meetingAt: number | null): PlcNote => ({
+  id,
+  title: id,
+  body: '',
+  kind: 'meeting',
+  meetingAt,
+  createdBy: 'u1',
+  createdAt: 1,
+  lastEditedBy: 'u1',
+  lastEditedAt: 1,
+});
 
 describe('selectNextMeeting', () => {
   it('plans the next cadence date with a deterministic note id', () => {

@@ -231,8 +231,7 @@ export const useGooglePicker = () => {
             // Picker works fine without a developer key (OAuth-only); it's
             // only required for usage/billing tracking.
             const apiKey = import.meta.env.VITE_GOOGLE_API_KEY as
-              | string
-              | undefined;
+              string | undefined;
 
             const title =
               options?.title ??
@@ -302,8 +301,7 @@ export const useGooglePicker = () => {
 
             const appId = (import.meta.env.VITE_GOOGLE_APP_ID ??
               import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID) as
-              | string
-              | undefined;
+              string | undefined;
             if (appId) {
               builder.setAppId(appId);
             }

@@ -141,7 +141,7 @@ describe('Schedule settings drawer fields', () => {
       {
         items: [item('math', 'Math', '09:00')],
         settingsSelectedScheduleId: 'default',
-      } as unknown as ScheduleConfig,
+      },
       updateConfig
     );
     render(React.createElement(ScheduleListField, { ctx }));

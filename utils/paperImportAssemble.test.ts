@@ -7,11 +7,7 @@ import {
 } from './paperImportAssemble';
 import { QUESTIONS_PER_PAGE, ROWS_PER_COLUMN } from './paperSheetLayout';
 import { paperBatchTag } from './paperSheetMarker';
-import type {
-  PageReadResult,
-  RowRead,
-  WrittenBoxRead,
-} from './paperSheetReader';
+import type { RowRead, WrittenBoxRead } from './paperSheetReader';
 
 const batch: PaperBatch = {
   id: 'batch-1',
@@ -72,7 +68,7 @@ const failed = (
   status: 'no-marker' | 'no-registration'
 ): ScannedPage => ({
   scanIndex,
-  read: { status } as PageReadResult,
+  read: { status },
 });
 
 describe('assemblePaperScan', () => {

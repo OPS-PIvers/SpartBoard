@@ -9,7 +9,7 @@ const { mockAuth, mockProgress, mockSession, playerProps } = vi.hoisted(() => ({
     currentUser: null as { uid: string } | null,
   },
   mockProgress: vi.fn(),
-  mockSession: { current: {} as Record<string, unknown> },
+  mockSession: { current: {} },
   playerProps: { current: null as Record<string, unknown> | null },
 }));
 

@@ -40,8 +40,7 @@ export const GraphicOrganizerTemplateField: React.FC<{
         value={config.templateType}
         onChange={(event) =>
           ctx.updateConfig({
-            templateType: event.target
-              .value as GraphicOrganizerConfig['templateType'],
+            templateType: event.target.value,
           })
         }
         aria-labelledby={ctx.labelId}

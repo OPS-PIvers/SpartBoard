@@ -1,9 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import {
-  SCREENS,
-  TeamsRedesignDevHarness,
-} from '@/components/plc/redesignMockup/TeamsRedesignDevHarness';
+import { TeamsRedesignDevHarness } from '@/components/plc/redesignMockup/TeamsRedesignDevHarness';
+import { SCREENS } from '@/components/plc/redesignMockup/screens';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({

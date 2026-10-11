@@ -45,11 +45,7 @@ export interface PlaybackRequest {
 
 /** `'not-available'` is an answer, not a failure — a mid-archive take is normal. */
 export type PlaybackUnavailableReason =
-  | 'archiving'
-  | 'failed'
-  | 'deleted'
-  | 'no-recording'
-  | 'too-large';
+  'archiving' | 'failed' | 'deleted' | 'no-recording' | 'too-large';
 
 export type PlaybackResult =
   | {
@@ -290,8 +286,7 @@ export async function resolveArtifactPlayback(
     : [];
   const grading = (response.grading ?? {}) as Record<string, unknown>;
   const gradeEntry = grading[gradingKeyFor(questionId, slot)] as
-    | { gradedTakeIndex?: unknown }
-    | undefined;
+    { gradedTakeIndex?: unknown } | undefined;
   const gradedTakeIndex =
     typeof gradeEntry?.gradedTakeIndex === 'number'
       ? gradeEntry.gradedTakeIndex

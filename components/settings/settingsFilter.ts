@@ -5,7 +5,7 @@ import type {
   WidgetSettingsSchema,
 } from './schema/types';
 import { TAB_GROUPS, isFieldVisible, type GroupId } from './schema/types';
-import { WINDOW_STYLE_LABELS } from './schema/windowStyle';
+import { WINDOW_STYLE_LABELS } from './schema/styleKeys';
 import { contentTierOverrides, resolveStyleFields } from './schema/styleKeys';
 
 export type IndexedField = {
@@ -63,7 +63,7 @@ function buildGroupSections(
         return {
           key: field.key,
           label: searchableLabels.join(' '),
-          field: field as Field,
+          field: field,
         };
       });
     if (fields.length === 0) return [];

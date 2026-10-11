@@ -4,7 +4,7 @@ import {
   type DashboardActions,
 } from '@/context/dashboardCanvasStore';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { WidgetData, TrafficConfig } from '@/types';
+import { WidgetData } from '@/types';
 import { TrafficLightWidget } from './Widget';
 
 vi.mock('@/context/dashboardCanvasStore');
@@ -33,7 +33,7 @@ describe('TrafficLightWidget', () => {
     type: 'traffic',
     config: {
       active,
-    } as TrafficConfig,
+    },
     x: 0,
     y: 0,
     w: 1,

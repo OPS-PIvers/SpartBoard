@@ -139,7 +139,7 @@ export const CatalystConfigurationModal: React.FC<
 
   useEffect(() => {
     if (isOpen && permission?.config) {
-      setGlobalConfig(permission.config as unknown as CatalystGlobalConfig);
+      setGlobalConfig(permission.config);
     }
   }, [isOpen, permission?.config]);
 

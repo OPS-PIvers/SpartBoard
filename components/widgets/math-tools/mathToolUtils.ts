@@ -303,12 +303,7 @@ export const PATTERN_BLOCK_COLORS: Record<string, string> = {
 
 /** Kind identifier for all algebra tile variants */
 export type AlgebraTileKind =
-  | 'x2-pos'
-  | 'x2-neg'
-  | 'x-pos'
-  | 'x-neg'
-  | 'unit-pos'
-  | 'unit-neg';
+  'x2-pos' | 'x2-neg' | 'x-pos' | 'x-neg' | 'unit-pos' | 'unit-neg';
 
 /** Visual and layout metadata for one algebra tile kind */
 export interface AlgebraTileStyle {

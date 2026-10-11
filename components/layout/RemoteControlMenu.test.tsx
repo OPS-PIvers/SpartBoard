@@ -16,6 +16,7 @@ vi.mock('@/context/useAuth', () => ({
 describe('RemoteControlMenu', () => {
   const updateAccountPreferences = vi.fn();
   const onClose = vi.fn();
+  let openMock: ReturnType<typeof vi.fn>;
   const anchorRect = {
     left: 20,
     top: 40,
@@ -30,7 +31,8 @@ describe('RemoteControlMenu', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.stubGlobal('open', vi.fn(() => null) as unknown as typeof window.open);
+    openMock = vi.fn(() => null);
+    vi.stubGlobal('open', openMock);
     Object.defineProperty(window, 'location', {
       configurable: true,
       value: new URL('https://spart.test/dashboard'),
@@ -60,7 +62,7 @@ describe('RemoteControlMenu', () => {
 
     await user.click(screen.getByRole('button', { name: /open remote view/i }));
 
-    expect(window.open).toHaveBeenCalledWith(
+    expect(openMock).toHaveBeenCalledWith(
       'https://spart.test/remote?boardId=board-123',
       '_blank'
     );

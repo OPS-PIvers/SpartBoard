@@ -61,7 +61,7 @@ export function boardLayoutOf(
           ? { aspectRatio: round(w.aspectRatio) }
           : {}),
         ...(Object.keys(appearance).length > 0
-          ? { appearance: appearance as Record<string, unknown> }
+          ? { appearance: appearance }
           : {}),
       };
     });

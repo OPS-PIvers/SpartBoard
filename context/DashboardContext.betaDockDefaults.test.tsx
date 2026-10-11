@@ -178,7 +178,7 @@ function betaPermission(
     accessLevel: 'beta',
     betaUsers: [],
     ...overrides,
-  } as FeaturePermission;
+  };
 }
 
 function setup(): void {

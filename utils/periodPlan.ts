@@ -109,8 +109,7 @@ export function buildPeriodGate({
   rosters: readonly PeriodRoster[];
   sharedWindow: { openAt?: number | null; closeAt?: number | null };
   bellWindow:
-    | ((roster: PeriodRoster, date: Date) => EpochWindow | null)
-    | undefined;
+    ((roster: PeriodRoster, date: Date) => EpochWindow | null) | undefined;
   /** The stepper's Manual start: one class also gets a closed assessment gate. */
   manualStart?: boolean;
 }):

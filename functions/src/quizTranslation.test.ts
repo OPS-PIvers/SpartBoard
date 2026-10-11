@@ -1007,7 +1007,7 @@ describe('translateQuizV1 / translateResponseV1 — gemini-functions kill switch
           accessLevel: 'public',
         },
         'global_permissions/gemini-functions': { enabled: false },
-      }) as never
+      })
     );
 
   it('translateQuizV1 refuses when Gemini functions are switched off', async () => {

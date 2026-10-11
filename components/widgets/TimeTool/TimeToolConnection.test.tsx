@@ -2,13 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useTimeTool } from './useTimeTool';
 import { useDashboard } from '@/context/useDashboard';
-import {
-  WidgetData,
-  TimeToolConfig,
-  TrafficConfig,
-  ExpectationsConfig,
-  DEFAULT_GLOBAL_STYLE,
-} from '@/types';
+import { WidgetData, TimeToolConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
 
 vi.mock('@/context/useDashboard');
 vi.mock('@/utils/timeToolAudio', () => ({
@@ -26,7 +20,7 @@ const mockTrafficWidget: WidgetData = {
   h: 2,
   z: 1,
   flipped: false,
-  config: { active: 'green' } as TrafficConfig,
+  config: { active: 'green' },
 };
 
 const mockDashboardContext = {
@@ -69,7 +63,7 @@ describe('useTimeTool Connection (Nexus)', () => {
         selectedSound: 'Chime',
         ...config,
       },
-    } as WidgetData;
+    };
   };
 
   it('updates traffic light to RED when timer ends', () => {
@@ -252,7 +246,7 @@ describe('useTimeTool Connection (Nexus)', () => {
       h: 2,
       z: 1,
       flipped: false,
-      config: { voiceLevel: 0 } as ExpectationsConfig,
+      config: { voiceLevel: 0 },
     };
 
     // Start with the expectations widget present but no end-trigger set.

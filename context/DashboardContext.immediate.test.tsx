@@ -193,7 +193,7 @@ function makeWidget(id: string): WidgetData {
     h: 1,
     z: 1,
     flipped: false,
-    config: { text: 'test' } as WidgetData['config'],
+    config: { text: 'test' },
   };
 }
 
@@ -254,7 +254,7 @@ describe('DashboardContext immediate-write fast-path', () => {
     // Normal config write: should NOT have persisted within ~20ms.
     act(() => {
       stateRef.current?.updateWidget('w1', {
-        config: { text: 'normal' } as WidgetData['config'],
+        config: { text: 'normal' },
       });
     });
     // Sanity: the write mutated context state.
@@ -278,7 +278,7 @@ describe('DashboardContext immediate-write fast-path', () => {
     act(() => {
       stateRef.current?.updateWidget(
         'w1',
-        { config: { text: 'immediate' } as WidgetData['config'] },
+        { config: { text: 'immediate' } },
         { immediate: true }
       );
     });
@@ -297,7 +297,7 @@ describe('DashboardContext immediate-write fast-path', () => {
     act(() => {
       stateRef.current?.updateWidget(
         'w1',
-        { config: { text: 'immediate' } as WidgetData['config'] },
+        { config: { text: 'immediate' } },
         { immediate: true }
       );
     });
@@ -308,7 +308,7 @@ describe('DashboardContext immediate-write fast-path', () => {
     //    inherit the 0ms fast-path and flush immediately, defeating its debounce.
     act(() => {
       stateRef.current?.updateWidget('w1', {
-        config: { text: 'normal' } as WidgetData['config'],
+        config: { text: 'normal' },
       });
     });
     expect(

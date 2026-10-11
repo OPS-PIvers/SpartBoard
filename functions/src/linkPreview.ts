@@ -227,8 +227,7 @@ export const fetchLinkPreview = onCall(
           error.response.status < 400
         ) {
           const location = error.response.headers?.location as
-            | string
-            | undefined;
+            string | undefined;
           if (!location || hop === MAX_REDIRECTS) {
             throw new HttpsError('failed-precondition', 'Too many redirects.');
           }

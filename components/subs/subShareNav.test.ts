@@ -99,9 +99,7 @@ describe('buildSubShareNav', () => {
   // Pre-v2 shares carry only boardIds; they still have to navigate.
   it('collapses a pre-v2 share into one unnamed group', () => {
     const nav = buildSubShareNav(
-      { boardIds: ['x1', 'x2'], defaultBoardId: undefined } as Parameters<
-        typeof buildSubShareNav
-      >[0],
+      { boardIds: ['x1', 'x2'], defaultBoardId: undefined },
       label
     );
     expect(nav.sections).toEqual([
@@ -118,10 +116,7 @@ describe('buildSubShareNav', () => {
   });
 
   it('handles a share with no boards at all', () => {
-    const nav = buildSubShareNav(
-      { boardIds: [] } as Parameters<typeof buildSubShareNav>[0],
-      label
-    );
+    const nav = buildSubShareNav({ boardIds: [] }, label);
     expect(nav.order).toEqual([]);
   });
 });

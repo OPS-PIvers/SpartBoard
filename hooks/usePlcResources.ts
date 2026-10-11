@@ -133,10 +133,7 @@ export function usePlcResources(
       (snap) => {
         const list: PlcResource[] = [];
         snap.forEach((d) => {
-          const parsed = parseResource(
-            d.id,
-            d.data() as Record<string, unknown>
-          );
+          const parsed = parseResource(d.id, d.data());
           if (parsed) list.push(parsed);
         });
         list.sort((a, b) => b.createdAt - a.createdAt);
@@ -172,10 +169,7 @@ export function usePlcResources(
       (snap) => {
         const list: PlcResource[] = [];
         snap.forEach((d) => {
-          const parsed = parseResource(
-            d.id,
-            d.data() as Record<string, unknown>
-          );
+          const parsed = parseResource(d.id, d.data());
           if (parsed) list.push(parsed);
         });
         setAllScopeResources(list);
@@ -212,10 +206,7 @@ export function usePlcResources(
       (snap) => {
         const list: PlcResource[] = [];
         snap.forEach((d) => {
-          const parsed = parseResource(
-            d.id,
-            d.data() as Record<string, unknown>
-          );
+          const parsed = parseResource(d.id, d.data());
           if (parsed) list.push(parsed);
         });
         setSelectedScopeResources(list);

@@ -136,8 +136,7 @@ vi.mock('@/hooks/useQuiz', () => ({
 }));
 
 let createAssignmentResolver:
-  | ((value: { id: string; code: string }) => void)
-  | null = null;
+  ((value: { id: string; code: string }) => void) | null = null;
 const createAssignment = vi.fn(
   () =>
     new Promise<{ id: string; code: string }>((resolve) => {
@@ -688,7 +687,7 @@ describe('usePlcQuizActions', () => {
         {
           ...personal,
           sync: { groupId: 'sync-other', lastSyncedVersion: 2 },
-        } as unknown as QuizMetadata,
+        },
       ];
       renderSubject();
       fireEvent.click(screen.getByText('OpenShare'));
@@ -710,7 +709,7 @@ describe('usePlcQuizActions', () => {
         {
           ...personal,
           sync: { groupId: 'sync-already', lastSyncedVersion: 1 },
-        } as unknown as QuizMetadata,
+        },
       ];
       renderSubject();
       fireEvent.click(screen.getByText('OpenShare'));

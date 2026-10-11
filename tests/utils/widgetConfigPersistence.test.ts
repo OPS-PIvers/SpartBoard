@@ -175,28 +175,29 @@ describe('mergeWidgetConfig', () => {
   });
 });
 
-/** `WidgetConfig` is a union, so `savedLibrary` needs a cast to read generically. */
+/** `WidgetConfig` is a union, so `savedLibrary` is read through an `in` check. */
 const readPreset = (
   presets: SavedWidgetConfigMap,
   type: 'stations' | 'hotspot-image'
-): unknown =>
-  (presets[type] as Record<string, unknown> | undefined)?.savedLibrary;
+): unknown => {
+  const preset: object | undefined = presets[type];
+  return preset && 'savedLibrary' in preset ? preset.savedLibrary : undefined;
+};
 
 describe('migrateSavedWidgetConfigs', () => {
-  const pollutedProfile = (): SavedWidgetConfigMap =>
-    ({
-      checklist: {
-        items: [{ id: '1', text: 'German II agenda' }],
-        firstNames: 'Alice\nBob',
-        fontFamily: 'handwritten',
-        scaleMultiplier: 1.2,
-      },
-      url: {
-        urls: [{ id: '1', url: 'https://example.com' }],
-        cardColor: '#1e293b',
-      },
-      text: { content: 'leftover note', bgColor: '#60a5fa', fontSize: 18 },
-    }) as SavedWidgetConfigMap;
+  const pollutedProfile = (): SavedWidgetConfigMap => ({
+    checklist: {
+      items: [{ id: '1', text: 'German II agenda' }],
+      firstNames: 'Alice\nBob',
+      fontFamily: 'handwritten',
+      scaleMultiplier: 1.2,
+    },
+    url: {
+      urls: [{ id: '1', url: 'https://example.com' }],
+      cardColor: '#1e293b',
+    },
+    text: { content: 'leftover note', bgColor: '#60a5fa', fontSize: 18 },
+  });
 
   it('keeps appearance and drops content from a polluted profile', () => {
     const { needsMigration, cleaned } =
@@ -233,7 +234,7 @@ describe('migrateSavedWidgetConfigs', () => {
         fontFamily: 'sans',
       },
       'hotspot-image': { savedLibrary: [hotspotItem] },
-    } as SavedWidgetConfigMap);
+    });
 
     expect(presets).toEqual({
       stations: { savedLibrary: [stationsPreset] },
@@ -249,8 +250,8 @@ describe('migrateSavedWidgetConfigs', () => {
     const current = { id: 'new', name: 'Current', stations: [] };
 
     const { presets } = migrateSavedWidgetConfigs(
-      { stations: { savedLibrary: [legacy] } } as SavedWidgetConfigMap,
-      { stations: { savedLibrary: [current] } } as SavedWidgetConfigMap
+      { stations: { savedLibrary: [legacy] } },
+      { stations: { savedLibrary: [current] } }
     );
 
     expect(readPreset(presets, 'stations')).toEqual([current]);
@@ -260,10 +261,10 @@ describe('migrateSavedWidgetConfigs', () => {
     const hotspotItem = { id: 'h1', name: 'Map', hotspots: [] };
 
     const { presets } = migrateSavedWidgetConfigs(
-      { checklist: { items: [] } } as SavedWidgetConfigMap,
+      { checklist: { items: [] } },
       {
         'hotspot-image': { savedLibrary: [hotspotItem] },
-      } as SavedWidgetConfigMap
+      }
     );
 
     expect(readPreset(presets, 'hotspot-image')).toEqual([hotspotItem]);

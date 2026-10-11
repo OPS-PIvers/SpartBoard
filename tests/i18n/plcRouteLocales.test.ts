@@ -67,8 +67,7 @@ describe('EN locale — plcRoute / plc.errors baseline', () => {
 
   it('has a plc.errors section with all required keys', () => {
     const plc = (en as Record<string, unknown>).plc as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const errors = plc?.errors as Record<string, unknown> | undefined;
     for (const key of REQUIRED_PLC_ERROR_KEYS) {
       expect(errors, `en.plc.errors.${key} is missing`).toHaveProperty(key);
@@ -94,8 +93,7 @@ describe.each([
 
     it(`${code}: has all required plcRoute keys`, () => {
       const ns = (locale as Record<string, unknown>).plcRoute as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       for (const key of REQUIRED_PLC_ROUTE_KEYS) {
         expect(ns, `${code}.plcRoute.${key} is missing`).toHaveProperty(key);
       }
@@ -103,8 +101,7 @@ describe.each([
 
     it(`${code}: has all required plc.errors keys`, () => {
       const plc = (locale as Record<string, unknown>).plc as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       const errors = plc?.errors as Record<string, unknown> | undefined;
       for (const key of REQUIRED_PLC_ERROR_KEYS) {
         expect(errors, `${code}.plc.errors.${key} is missing`).toHaveProperty(

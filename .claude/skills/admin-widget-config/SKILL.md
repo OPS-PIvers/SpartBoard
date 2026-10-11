@@ -172,9 +172,7 @@ await setDoc(
 Always use `BUILDINGS` from `@/config/buildings` for the building list. Use a tab or sidebar selector so admins can configure each building independently. Store per-building data as:
 
 ```tsx
-config.buildingDefaults[buildingId] = {
-  /* building-specific config */
-};
+config.buildingDefaults[buildingId] = {/* building-specific config */};
 ```
 
 ### Required imports

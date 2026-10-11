@@ -93,7 +93,7 @@ function parseCsv(content: string): VideoActivityQuestion[] {
       correctAnswer,
       incorrectAnswers,
       timeLimit: isNaN(timeLimit) ? 30 : timeLimit,
-    } as VideoActivityQuestion;
+    };
   });
 }
 

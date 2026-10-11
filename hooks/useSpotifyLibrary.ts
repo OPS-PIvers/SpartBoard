@@ -41,8 +41,7 @@ function toLibraryError(err: unknown): SpotifyLibraryError {
 }
 
 export type SpotifyLibraryError =
-  | { kind: 'scope' }
-  | { kind: 'generic'; message: string };
+  { kind: 'scope' } | { kind: 'generic'; message: string };
 
 export interface UseSpotifyLibraryReturn {
   playlists: SpotifyPlaylist[];

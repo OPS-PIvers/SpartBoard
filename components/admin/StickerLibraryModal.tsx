@@ -54,12 +54,12 @@ export const StickerLibraryModal: React.FC<StickerLibraryModalProps> = ({
   const normalizedStickers = React.useMemo(() => {
     return stickers.map((s) => {
       if (typeof s === 'string') {
-        return { url: s, gradeLevels: [...ALL_GRADE_LEVELS] } as GlobalSticker;
+        return { url: s, gradeLevels: [...ALL_GRADE_LEVELS] };
       }
       return {
         ...s,
         gradeLevels: s.gradeLevels ?? [...ALL_GRADE_LEVELS],
-      } as GlobalSticker;
+      };
     });
   }, [stickers]);
 
