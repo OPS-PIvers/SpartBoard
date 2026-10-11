@@ -10232,6 +10232,10 @@ export const TOUR_ANCHORS = {
     label: 'Keyboard shortcuts button in the Studio top bar',
     panel: true,
   },
+  'studio.copy-for-claude': {
+    label: 'Copy for Claude button in the Studio top bar',
+    panel: true,
+  },
   'studio.properties': {
     label: 'Properties panel toggle in the Studio top bar',
     panel: true,

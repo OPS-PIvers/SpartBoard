@@ -22,7 +22,8 @@ export type ClaudeReviewCollection =
   | 'video_activities'
   | 'flashcard_sets'
   | 'activity_wall_activities'
-  | 'miniapps';
+  | 'miniapps'
+  | 'guided_learning';
 
 export function useClaudeReviewRemindersEnabled(active: boolean): boolean {
   const [enabled, setEnabled] = useState(

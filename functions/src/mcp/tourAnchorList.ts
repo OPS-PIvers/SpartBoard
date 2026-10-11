@@ -13319,6 +13319,12 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     panel: true,
   },
   {
+    id: 'studio.copy-for-claude',
+    label: 'Copy for Claude button in the Studio top bar',
+    scope: 'board',
+    panel: true,
+  },
+  {
     id: 'studio.properties',
     label: 'Properties panel toggle in the Studio top bar',
     scope: 'board',

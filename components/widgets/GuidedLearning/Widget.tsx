@@ -40,6 +40,7 @@ import {
   setHelpCenterFlag,
   useGuidedLearning,
 } from '@/hooks/useGuidedLearning';
+import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { useGuidedLearningSessionTeacher } from '@/hooks/useGuidedLearningSession';
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
 import { useFolders } from '@/hooks/useFolders';
@@ -261,9 +262,11 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     saveBuildingSet,
     deleteBuildingSet,
     duplicateBuildingSet,
+    watchSetRevision,
   } = useGuidedLearning(user?.uid);
 
   const { createSession } = useGuidedLearningSessionTeacher(user?.uid);
+  const claudeReview = useClaudeReview('guided_learning');
 
   const {
     assignments,
@@ -292,6 +295,15 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   // Session whose set couldn't be loaded, so Results shows an error instead of a stale set.
   const [resultsLoadError, setResultsLoadError] = useState<string | null>(null);
   const [editingSet, setEditingSet] = useState<GuidedLearningSet | null>(null);
+  const editingSetId = editingSet?.id;
+  const editingBuilding = editingSet?.isBuilding === true;
+  const editingRevisionWatch = useMemo(
+    () =>
+      editingSetId
+        ? watchSetRevision(editingSetId, editingBuilding)
+        : undefined,
+    [watchSetRevision, editingSetId, editingBuilding]
+  );
   const [editingMeta, setEditingMeta] =
     useState<GuidedLearningSetMetadata | null>(null);
   // The Studio is admin-only until P1-10 retires the classic editor.
@@ -1465,11 +1477,22 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                   onPlay={(setId, driveFileId, buildingEntry) => {
                     void handlePlay(setId, driveFileId, buildingEntry);
                   }}
+                  reviewBadge={claudeReview.badge}
                   onEdit={(setId, driveFileId, buildingEntry) => {
+                    const meta = buildingEntry
+                      ? undefined
+                      : sets.find((s) => s.id === setId);
+                    if (meta) claudeReview.markReviewed(meta);
                     void handleEdit(setId, driveFileId, buildingEntry);
                   }}
                   onAssign={(setId, driveFileId, buildingEntry) => {
-                    void handleAssign(setId, driveFileId, buildingEntry);
+                    const meta = buildingEntry
+                      ? undefined
+                      : sets.find((s) => s.id === setId);
+                    const go = () =>
+                      void handleAssign(setId, driveFileId, buildingEntry);
+                    if (meta) claudeReview.whenReviewed(meta, go);
+                    else go();
                   }}
                   folderDeleteActions={{
                     isBlocked: (id) => openAssignmentIdsFor(id).length > 0,
@@ -1796,6 +1819,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               onClose={closeEditor}
               onSave={handleSave}
               onImport={isDriveConnected ? openImportWizard : undefined}
+              watchRevision={editingRevisionWatch}
               onOpenClassic={(latest) => {
                 setEditingSet(latest);
                 setClassicEditor(true);

@@ -205,6 +205,10 @@ export interface SetDraftPersistence {
   armOverwrite: () => void;
   /** A newer client wrote this set, so every save is refused. */
   readOnly: boolean;
+  /** True for the loaded revision or one this editor wrote. */
+  isOwnRevision: (updatedAt: number) => boolean;
+  /** The current draft token, read after an await. */
+  readDraftToken: () => unknown[];
 }
 
 /** Dirty tracking, legacy radius conversion, save payload and close flush for a GL editor. */
@@ -226,6 +230,8 @@ export function useSetDraftPersistence({
     loadedUpdatedAt ?? set?.updatedAt
   );
   const overwriteRef = useRef(false);
+  // Every revision this editor started writing, so its own saves never read as someone else's.
+  const writtenRef = useRef(new Set<number>());
   const readOnly = isNewerSchema(set);
 
   // Snapshot originals when `set` identity changes
@@ -589,6 +595,7 @@ export function useSetDraftPersistence({
     const guard: GuidedLearningSaveGuard = {
       expectedUpdatedAt: overwriteRef.current ? undefined : base,
     };
+    writtenRef.current.add(updatedAt);
     setSaving(true);
     try {
       await onSave({ ...builtSet, updatedAt }, driveFileId, guard);
@@ -607,6 +614,14 @@ export function useSetDraftPersistence({
   const armOverwrite = useCallback(() => {
     overwriteRef.current = true;
   }, []);
+
+  const readDraftToken = useCallback(() => draftTokenRef.current, []);
+
+  const isOwnRevision = useCallback(
+    (updatedAt: number) =>
+      updatedAt === revisionRef.current || writtenRef.current.has(updatedAt),
+    []
+  );
 
   const { flushMediaDeletions } = editorState;
   const setId = set?.id;
@@ -637,5 +652,7 @@ export function useSetDraftPersistence({
     conflict,
     armOverwrite,
     readOnly,
+    isOwnRevision,
+    readDraftToken,
   };
 }
