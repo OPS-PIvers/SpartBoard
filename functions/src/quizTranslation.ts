@@ -40,7 +40,7 @@ type Firestore = admin.firestore.Firestore;
 export const QUIZ_TRANSLATION_SETTINGS_DOC = 'quiz_translation';
 const DEFAULT_STANDARD_MODEL = 'gemini-3.5-flash-lite';
 // Mirrors aiGeneration.ts DEFAULT_ADVANCED_MODEL.
-const DEFAULT_ADVANCED_MODEL = 'gemini-3.7-flash';
+const DEFAULT_ADVANCED_MODEL = 'gemini-3.8-flash';
 const VERTEX_LOCATION = 'global';
 
 // Mirrors config/quizTranslation.ts; functions cannot import the root package.
@@ -412,6 +412,19 @@ export async function assertQuizTranslationFeature(
       if (!selected.some((b) => allowed.has(b))) deny();
     }
   }
+}
+
+/** The `gemini-functions` kill switch stops translation too. */
+export async function assertGeminiEnabled(db: Firestore): Promise<void> {
+  const snap = await db
+    .collection('global_permissions')
+    .doc('gemini-functions')
+    .get();
+  if (snap.data()?.enabled === false)
+    throw new HttpsError(
+      'permission-denied',
+      'Gemini functions are currently disabled by an administrator.'
+    );
 }
 
 // ── Alignment helpers ──────────────────────────────────────────────────────
@@ -1172,6 +1185,7 @@ export const translateQuizV1 = onCall(
       request.auth.token.email,
       request.auth.uid
     );
+    await assertGeminiEnabled(deps.db);
     return translateQuiz(
       parseTranslateQuizRequest(request.data),
       request.auth.uid,
@@ -1218,6 +1232,7 @@ export const translateResponseV1 = onCall(
       request.auth.token.email,
       request.auth.uid
     );
+    await assertGeminiEnabled(deps.db);
     return translateResponse({ text, sourceLocale }, request.auth.uid, deps);
   }
 );

@@ -14,6 +14,7 @@ import { ALLOWED_ORIGINS } from './classlinkShared';
 import {
   enforceAiFeatureAccess,
   getGeminiModelConfig,
+  recordAiUsage,
   refundAiUsage,
   resolveCallerIsAdmin,
   vertexClientOptions,
@@ -74,6 +75,12 @@ export interface MeetingNotesDeps {
     mode: NotesMode
   ) => Promise<AiUsageCharge>;
   refund: (charge: AiUsageCharge) => Promise<void>;
+  /** Counts an admin's request with no limit checks. */
+  record: (
+    token: Token,
+    uid: string,
+    mode: NotesMode
+  ) => Promise<AiUsageCharge>;
 }
 
 export interface JobDeps extends MeetingNotesDeps {
@@ -254,7 +261,7 @@ export async function requestMeetingNotes(
   const blocker = notesBlocker(pre.data(), req.mode, deps.now());
   if (blocker) throw new HttpsError('failed-precondition', blocker);
   const charge = (await deps.isAdmin(token))
-    ? null
+    ? await deps.record(token, uid, req.mode)
     : await deps.charge(token, uid, req.mode);
   try {
     await queueJob(deps, req, uid, charge);
@@ -556,6 +563,14 @@ function defaultDeps(): MeetingNotesDeps {
         message: LIMIT_MESSAGE[mode],
       }),
     refund: (charge) => refundAiUsage(db, charge),
+    record: (token, uid, mode) =>
+      recordAiUsage(
+        db,
+        token,
+        uid,
+        PLC_MEETING_AI_FEATURE_ID,
+        `plc-meeting-${mode}`
+      ),
   };
 }
 

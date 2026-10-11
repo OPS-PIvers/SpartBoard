@@ -53,7 +53,7 @@ interface AIData {
 
 type QuizGenType = 'MC' | 'FIB' | 'Matching' | 'Ordering' | 'MA';
 
-const DEFAULT_ADVANCED_MODEL = 'gemini-3.7-flash';
+const DEFAULT_ADVANCED_MODEL = 'gemini-3.8-flash';
 const DEFAULT_STANDARD_MODEL = 'gemini-3.5-flash-lite';
 
 // Gemini 3.x models are global-endpoint only on Vertex; us-central1 returns model-not-found.
@@ -603,6 +603,41 @@ async function enforceAiFeatureAccess(
   };
 }
 
+/** Counts an admin's AI call with no limit checks, so admin use still shows in analytics; never throws. */
+async function recordAiUsage(
+  db: admin.firestore.Firestore,
+  token: { email?: string },
+  uid: string,
+  featureId: string,
+  extraKey?: string
+): Promise<AiUsageCharge> {
+  const today = new Date().toISOString().split('T')[0];
+  const docIds = [
+    `${uid}_${today}`,
+    `${uid}_${featureId}_${today}`,
+    ...(extraKey ? [`${uid}_${extraKey}_${today}`] : []),
+  ];
+  try {
+    await db.runTransaction(async (transaction) => {
+      const refs = docIds.map((id) => db.collection('ai_usage').doc(id));
+      const snaps = await Promise.all(refs.map((r) => transaction.get(r)));
+      const lastUsed = admin.firestore.FieldValue.serverTimestamp();
+      snaps.forEach((snap, i) => {
+        const count = (snap.data()?.count as number) || 0;
+        transaction.set(
+          refs[i],
+          { count: count + 1, email: token.email ?? null, lastUsed },
+          { merge: true }
+        );
+      });
+    });
+    return { docIds };
+  } catch (error) {
+    console.error(`[${featureId}] admin usage record failed:`, error);
+    return { docIds: [] };
+  }
+}
+
 /** Gives back one charge from {@link enforceAiFeatureAccess} when the run it paid for failed. */
 async function refundAiUsage(
   db: admin.firestore.Firestore,
@@ -620,7 +655,12 @@ async function refundAiUsage(
 }
 
 // Shared with PLC meeting notes (functions/src/plcMeetingNotes.ts).
-export { enforceAiFeatureAccess, refundAiUsage, resolveCallerIsAdmin };
+export {
+  enforceAiFeatureAccess,
+  recordAiUsage,
+  refundAiUsage,
+  resolveCallerIsAdmin,
+};
 
 export const generateWithAI = onCall(
   {
@@ -1866,6 +1906,8 @@ export const generateVideoActivity = onCall(
         'video-activity-ai',
         true
       );
+    } else {
+      await recordAiUsage(db, request.auth.token, uid, 'video-activity-ai');
     }
 
     // Read model config from Firestore
@@ -2034,6 +2076,17 @@ export const transcribeVideoWithGemini = onCall(
       );
     }
 
+    const geminiDoc = await db
+      .collection('global_permissions')
+      .doc('gemini-functions')
+      .get();
+    if (geminiDoc.data()?.enabled === false) {
+      throw new HttpsError(
+        'permission-denied',
+        'Gemini functions are currently disabled by an administrator.'
+      );
+    }
+
     // Check admin status
     const isAdmin = await resolveCallerIsAdmin(db, request.auth.token);
 
@@ -2137,6 +2190,13 @@ export const transcribeVideoWithGemini = onCall(
           'Failed to verify audio transcription usage limits.'
         );
       }
+    } else {
+      await recordAiUsage(
+        db,
+        request.auth.token,
+        uid,
+        'video-activity-audio-transcription'
+      );
     }
 
     const { url, typeCounts, durationSeconds } = data;
@@ -2374,6 +2434,8 @@ export const generateGuidedLearning = onCall(
     const token = request.auth?.token ?? {};
     if (!(await resolveCallerIsAdmin(db, token))) {
       await enforceAiFeatureAccess(db, token, uid, 'guided-learning-ai', false);
+    } else {
+      await recordAiUsage(db, token, uid, 'guided-learning-ai');
     }
 
     // Read model config from Firestore
@@ -2550,6 +2612,13 @@ export const draftGuidedLearningStepTextV1 = onCall(
         request.auth.uid,
         'guided-learning-ai',
         false
+      );
+    } else {
+      await recordAiUsage(
+        db,
+        request.auth.token,
+        request.auth.uid,
+        'guided-learning-ai'
       );
     }
     const { advancedModel } = await getGeminiModelConfig(db);

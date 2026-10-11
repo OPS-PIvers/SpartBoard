@@ -58,8 +58,15 @@ const googlePickerPlugin = plugin(({ addBase }) => {
   });
 });
 
+// `touch:` targets devices without hover (classroom panels); it is the exact inverse of the `hover:` gate.
+const touchVariantPlugin = plugin(({ addVariant }) => {
+  addVariant('touch', '@media (hover: none), (pointer: coarse)');
+});
+
 /** @type {import('tailwindcss').Config} */
 export default {
+  // Keeps `hover:` styles from sticking after a tap on touchscreens.
+  future: { hoverOnlyWhenSupported: true },
   content: [
     './index.html',
     './components/**/*.{js,ts,jsx,tsx}',
@@ -324,5 +331,10 @@ export default {
       },
     },
   },
-  plugins: [tailwindcssAnimate, reducedMotionPlugin, googlePickerPlugin],
+  plugins: [
+    tailwindcssAnimate,
+    reducedMotionPlugin,
+    googlePickerPlugin,
+    touchVariantPlugin,
+  ],
 };

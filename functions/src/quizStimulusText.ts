@@ -373,11 +373,18 @@ export async function chargeOcrQuota(
     .collection('ai_usage')
     .doc(`${uid}_${OCR_FEATURE_ID}_${today}`);
   const permRef = db.collection('global_permissions').doc(OCR_FEATURE_ID);
+  const geminiRef = db.collection('global_permissions').doc('gemini-functions');
   await db.runTransaction(async (tx) => {
-    const [specific, perm] = await Promise.all([
+    const [specific, perm, gemini] = await Promise.all([
       tx.get(specificRef),
       tx.get(permRef),
+      tx.get(geminiRef),
     ]);
+    if (gemini.data()?.enabled === false)
+      throw new HttpsError(
+        'permission-denied',
+        'Gemini functions are currently disabled by an administrator.'
+      );
     const used = specific.exists ? Number(specific.data()?.count ?? 0) : 0;
     const config = (perm.data()?.config ?? {}) as {
       dailyLimit?: unknown;

@@ -12,6 +12,9 @@ export const BLOCKED_IP_PATTERNS = [
   /^0\./,
   /^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\./,
   /^198\.1[89]\./,
+  /^192\.0\.[02]\./,
+  /^198\.51\.100\./,
+  /^203\.0\.113\./,
   /^(22[4-9]|2[3-5][0-9])\./,
   /^::1$/,
   /^::$/,
@@ -66,8 +69,19 @@ export function normalizeAddress(address: string): string {
   return address;
 }
 
+// Non-global IPv6 blocks matched on parsed groups: multicast, local-use NAT64, Teredo, documentation.
+function isReservedIpv6(address: string): boolean {
+  const g = parseIPv6(address);
+  if (!g) return false;
+  if (g[0] >> 8 === 0xff) return true;
+  if (g[0] === 0x64 && g[1] === 0xff9b && g[2] === 1) return true;
+  if (g[0] === 0x2001 && (g[1] === 0 || g[1] === 0xdb8)) return true;
+  return false;
+}
+
 export function isBlockedIp(address: string): boolean {
   const normalized = normalizeAddress(address);
+  if (isReservedIpv6(normalized)) return true;
   return BLOCKED_IP_PATTERNS.some((pattern) => pattern.test(normalized));
 }
 

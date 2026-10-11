@@ -385,7 +385,7 @@ export const Library: React.FC<LibraryProps> = ({
                       </p>
                     </div>
                     <div
-                      className="absolute flex items-center opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100"
+                      className="absolute flex items-center opacity-0 group-hover:opacity-100 touch:opacity-100 transition-all scale-75 group-hover:scale-100 touch:scale-100"
                       style={{
                         top: 'min(8px, 2cqmin)',
                         right: 'min(8px, 2cqmin)',
