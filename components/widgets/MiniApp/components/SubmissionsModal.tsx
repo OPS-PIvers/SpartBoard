@@ -66,7 +66,7 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
   session,
   onClose,
 }) => {
-  const { orgId, ensureGoogleScope, isExternalUser } = useAuth();
+  const { user, orgId, ensureGoogleScope, isExternalUser } = useAuth();
   const { rosters } = useDashboard();
   // No Let in now here: a student shows up only once they submit.
   const perPeriod =
@@ -162,8 +162,6 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
         ) : (
           <MiniAppResultsView
             title={assignmentName}
-            subtitle={session.appTitle}
-            ended={session.status === 'ended'}
             rows={submissions.map((s) => ({
               id: s.id,
               name: formatStudentName(byAssignmentPseudonym.get(s.id)) || s.id,
@@ -183,6 +181,7 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
             }
             loadAttempts={(rowId) => loadAttempts(sessionId, rowId)}
             onBack={onClose}
+            uid={user?.uid}
             onExport={
               isExternalUser
                 ? undefined
@@ -351,6 +350,17 @@ function formatPayload(payload: unknown): string {
   }
 }
 
+function toItem(raw: unknown): NonNullable<MiniAppAttemptView['items']>[0] {
+  const it = (raw ?? {}) as Record<string, unknown>;
+  return {
+    id: typeof it.id === 'string' ? it.id : '',
+    answer: it.answer,
+    correct: typeof it.correct === 'boolean' ? it.correct : null,
+    earned: typeof it.earned === 'number' ? it.earned : 0,
+    points: typeof it.points === 'number' ? it.points : 0,
+  };
+}
+
 async function loadAttempts(
   sessionId: string,
   rowId: string
@@ -378,6 +388,7 @@ async function loadAttempts(
       maxScore: num(a.maxScore),
       gradedBy:
         a.gradedBy === 'server' || a.gradedBy === 'app' ? a.gradedBy : null,
+      ...(Array.isArray(a.items) ? { items: a.items.map(toItem) } : {}),
       ...(a.kind === 'legacy' ? { rawPayload: a.payload } : {}),
     };
   });

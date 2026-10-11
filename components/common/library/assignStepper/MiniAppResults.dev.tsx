@@ -76,16 +76,37 @@ const ROWS: MiniAppResultRow[] = [
   },
 ];
 
-const ATTEMPTS: MiniAppAttemptView[] = [
-  {
-    attemptNo: 1,
-    submittedAt: T - 900_000,
-    score: 3,
-    maxScore: 5,
-    gradedBy: 'app',
-  },
-  { attemptNo: 2, submittedAt: T, score: 5, maxScore: 5, gradedBy: 'app' },
-];
+const ANSWERS = ['3/4', '15', 'True', 'Numerator', '3 of 8 slices'];
+const WRONG = ['2/3', '12', 'False', 'Denominator', '2 of 8 slices'];
+
+const attemptsFor = (rowId: string): MiniAppAttemptView[] => {
+  const row = ROWS.find((r) => r.id === rowId);
+  if (!row?.best) return [];
+  const best = row.best;
+  return Array.from({ length: row.attemptCount }, (_, i) => {
+    const attemptNo = i + 1;
+    const isBest = attemptNo === best.attemptNo;
+    const score = isBest ? best.score : Math.max(0, best.score - 2 + i);
+    return {
+      attemptNo,
+      submittedAt: T - (row.attemptCount - attemptNo) * 900_000,
+      score,
+      maxScore: best.maxScore,
+      gradedBy: best.gradedBy,
+      ...(isBest
+        ? {
+            items: (best.items ?? []).map((m, q) => ({
+              id: m.id,
+              answer: m.correct ? ANSWERS[q] : WRONG[q],
+              correct: m.correct,
+              earned: m.correct ? 1 : 0,
+              points: 1,
+            })),
+          }
+        : {}),
+    };
+  });
+};
 
 const Preview: React.FC = () => (
   <div
@@ -94,12 +115,10 @@ const Preview: React.FC = () => (
   >
     <MiniAppResultsView
       title="Fractions check, period 3"
-      subtitle="Fraction Pizza"
-      ended={false}
       rows={ROWS}
       questions={QUESTIONS}
       attemptLimit={3}
-      loadAttempts={() => Promise.resolve(ATTEMPTS)}
+      loadAttempts={(id) => Promise.resolve(attemptsFor(id))}
       onBack={() => undefined}
       onExport={() => Promise.resolve('https://docs.google.com')}
     />
