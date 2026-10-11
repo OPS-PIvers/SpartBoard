@@ -152,6 +152,7 @@ export {
 
 // ── Flashcards Check submission (server-graded; docs/plans/shipped/FLASHCARDS.md §7) ─
 export { submitFlashcardCheckV1 } from './flashcardCheck';
+export { submitMiniAppResultV1 } from './miniAppResults';
 export { resolveFlashcardFlagV1 } from './flashcardFlags';
 
 // ── Video Activity answer key (server-graded; key kept off session docs) ────

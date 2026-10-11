@@ -20,7 +20,20 @@ import {
 import { useMiniAppSessionTeacher } from '@/hooks/useMiniAppSession';
 import type { MiniAppItem, MiniAppSession } from '@/types';
 
+const batchSets: unknown[][] = [];
+const batchCommit = vi.fn(() => Promise.resolve());
+
 vi.mock('firebase/firestore', () => ({
+  writeBatch: vi.fn(() => {
+    const batch = {
+      set: (...args: unknown[]) => {
+        batchSets.push(args);
+        return batch;
+      },
+      commit: batchCommit,
+    };
+    return batch;
+  }),
   collection: vi.fn(),
   doc: vi.fn(),
   onSnapshot: vi.fn(),
@@ -77,6 +90,7 @@ beforeEach(() => {
   mockSetDoc.mockResolvedValue(undefined);
   mockUpdateDoc.mockResolvedValue(undefined);
   mockOnSnapshot.mockReturnValue(() => undefined);
+  batchSets.length = 0;
 });
 
 afterEach(() => {
@@ -175,6 +189,57 @@ describe('useMiniAppSessionTeacher — createSession', () => {
     const payload = mockSetDoc.mock.calls[0]?.[1] as MiniAppSession;
     expect(payload.mode).toBe('view-only');
     expect(payload.submissionsEnabled).toBe(false);
+  });
+
+  it('writes a v2 session and its key in one batch when results are on', async () => {
+    vi.spyOn(crypto, 'randomUUID').mockReturnValue(
+      '22222222-2222-4222-8222-222222222222'
+    );
+    const manifest = {
+      questions: [{ id: 'q1', type: 'mc' as const, prompt: 'One' }],
+    };
+    const key = { questions: { q1: { correct: 'B' } } };
+    const { result } = renderHook(() => useMiniAppSessionTeacher());
+    await act(async () => {
+      await result.current.createSession(
+        baseApp({ manifest, collectsResults: true }),
+        TEACHER_UID,
+        'A',
+        { results: { attemptLimit: 1, showCorrectAnswers: true, key } }
+      );
+    });
+    expect(mockSetDoc).not.toHaveBeenCalled();
+    expect(batchCommit).toHaveBeenCalledOnce();
+    const [sessionWrite, keyWrite] = batchSets;
+    expect(sessionWrite[1]).toMatchObject({
+      resultsVersion: 2,
+      attemptLimit: 1,
+      showCorrectAnswers: true,
+      manifest,
+    });
+    expect(keyWrite).toEqual([
+      'mini_app_sessions/22222222-2222-4222-8222-222222222222/private/key',
+      key,
+    ]);
+  });
+
+  it('ignores results on a view-only share', async () => {
+    const { result } = renderHook(() => useMiniAppSessionTeacher());
+    await act(async () => {
+      await result.current.createSession(baseApp(), TEACHER_UID, 'A', {
+        mode: 'view-only',
+        results: {
+          attemptLimit: 1,
+          showCorrectAnswers: true,
+          key: { questions: {} },
+        },
+      });
+    });
+    expect(batchCommit).not.toHaveBeenCalled();
+    const payload = mockSetDoc.mock.calls[0]?.[1] as MiniAppSession;
+    expect(payload).not.toHaveProperty('resultsVersion');
+    expect(payload).not.toHaveProperty('attemptLimit');
+    expect(payload).not.toHaveProperty('manifest');
   });
 
   it('includes cleaned classIds and rosterIds when present, dropping empty/non-string entries', async () => {

@@ -22,7 +22,12 @@ import {
   orderBy,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { AssignmentMode, MiniAppItem, MiniAppSession } from '@/types';
+import {
+  AssignmentMode,
+  MiniAppAnswerKey,
+  MiniAppItem,
+  MiniAppSession,
+} from '@/types';
 import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import { normalizeMiniAppSession } from '@/utils/miniAppNormalize';
 import {
@@ -68,6 +73,12 @@ export interface CreateMiniAppSessionOptions {
   assignmentId?: string;
   /** Per-period gate; the app then moves to `content/app`. */
   periodGate?: Pick<MiniAppSession, 'accessMode' | 'periodAccess'>;
+  /** Mini App results v2 (MINI_APP_RESULTS.md D6, D8, D9); ignored unless mode is submissions. */
+  results?: {
+    attemptLimit: number | null;
+    showCorrectAnswers: boolean;
+    key: MiniAppAnswerKey | null;
+  };
 }
 
 export interface UseMiniAppSessionTeacherResult {
@@ -118,6 +129,7 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
       // gate alongside the `mode` check.
       const submissionsEnabled = mode === 'submissions';
       const inContent = !!options?.periodGate?.periodAccess;
+      const results = mode === 'submissions' ? options?.results : undefined;
 
       const session: MiniAppSession = {
         id: sessionId,
@@ -151,15 +163,23 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
         ...(options?.assignmentId
           ? { assignmentId: options.assignmentId }
           : {}),
+        ...(results
+          ? {
+              resultsVersion: 2 as const,
+              attemptLimit: results.attemptLimit,
+              showCorrectAnswers: results.showCorrectAnswers,
+              ...(app.manifest ? { manifest: app.manifest } : {}),
+            }
+          : {}),
       };
 
       const sessionRef = doc(db, SESSIONS_COLLECTION, sessionId);
-      if (inContent) {
-        const content: MiniAppSessionContent = { appHtml: app.html };
-        // One batch: the content rule checks the session's teacher via getAfter.
-        await writeBatch(db)
-          .set(sessionRef, session)
-          .set(
+      const key = results?.key ?? null;
+      if (inContent || key) {
+        // One batch: the content and key rules check the session's teacher via getAfter.
+        const batch = writeBatch(db).set(sessionRef, session);
+        if (inContent)
+          batch.set(
             doc(
               db,
               SESSIONS_COLLECTION,
@@ -167,9 +187,14 @@ export const useMiniAppSessionTeacher = (): UseMiniAppSessionTeacherResult => {
               MA_CONTENT_COLLECTION,
               MA_CONTENT_DOC
             ),
-            content
-          )
-          .commit();
+            { appHtml: app.html } satisfies MiniAppSessionContent
+          );
+        if (key)
+          batch.set(
+            doc(db, SESSIONS_COLLECTION, sessionId, 'private', 'key'),
+            key
+          );
+        await batch.commit();
       } else {
         await setDoc(sessionRef, session);
       }

@@ -1338,6 +1338,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Inert while Mini App assignments are view-only in Organization settings.
+  'mini-app-results': {
+    label: 'Mini App results',
+    icon: ListChecks,
+    description: 'Graded mini app submissions with attempt limits.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'miniApp',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */

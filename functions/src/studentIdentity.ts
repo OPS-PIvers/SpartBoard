@@ -1,7 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import axios from 'axios';
-import * as CryptoJS from 'crypto-js';
 import { OAuth2Client } from 'google-auth-library';
 import './functionsInit';
 import {
@@ -12,6 +11,7 @@ import {
   GOOGLE_OAUTH_CLIENT_ID,
 } from './secrets';
 import { chunk } from './shared';
+import { computeAssignmentPseudonym } from './assignmentPseudonym';
 import {
   ALLOWED_ORIGINS,
   ONEROSTER_BASE,
@@ -123,18 +123,6 @@ const sameIdSet = (a: readonly string[], b: readonly string[]): boolean => {
   const set = new Set(a);
   return b.every((id) => set.has(id));
 };
-
-function hmacSha256Hex(secret: string, message: string): string {
-  return CryptoJS.HmacSHA256(message, secret).toString(CryptoJS.enc.Hex);
-}
-
-function computeAssignmentPseudonym(
-  uid: string,
-  assignmentId: string,
-  hmacSecret: string
-): string {
-  return hmacSha256Hex(hmacSecret, `asn:${uid}:${assignmentId}`);
-}
 
 function isOneRosterStudent(user: OneRosterUserWithRole): boolean {
   if (user.role && user.role.toLowerCase() === 'student') return true;
