@@ -264,7 +264,20 @@ export async function handleSubmitMiniAppResult(
         !isFiniteNumber(priorBest.maxScore) ||
         ratio(scored.score, scored.maxScore) >
           ratio(priorBest.score, priorBest.maxScore));
-    const best = beatsBest ? { ...scored, attemptNo } : (priorBest ?? null);
+    const best = beatsBest
+      ? {
+          ...scored,
+          attemptNo,
+          // Per-question marks for the results table's columns (D10).
+          items: (outcome?.items ?? [])
+            .filter((g) => g.gradedBy !== null)
+            .map((g) => ({
+              id: g.id,
+              correct: g.correct === true,
+              by: g.gradedBy,
+            })),
+        }
+      : (priorBest ?? null);
 
     tx.set(summaryRef.collection('attempts').doc(String(attemptNo)), {
       attemptNo,

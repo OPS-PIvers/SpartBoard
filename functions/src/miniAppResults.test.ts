@@ -224,7 +224,16 @@ describe('handleSubmitMiniAppResult grading and attempts', () => {
     expect(docs[SUMMARY]).toMatchObject({
       studentUid: 'stu-1',
       attemptCount: 1,
-      best: { score: 1, maxScore: 2, attemptNo: 1, gradedBy: 'server' },
+      best: {
+        score: 1,
+        maxScore: 2,
+        attemptNo: 1,
+        gradedBy: 'server',
+        items: [
+          { id: 'q1', correct: false, by: 'server' },
+          { id: 'q2', correct: true, by: 'server' },
+        ],
+      },
       lastSubmittedAt: NOW,
       submittedAt: NOW,
     });

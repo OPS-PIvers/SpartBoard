@@ -3514,6 +3514,8 @@ export interface MiniAppBestAttempt {
   maxScore: number;
   attemptNo: number;
   gradedBy: 'server' | 'app';
+  /** Per-question marks from that attempt; `by` is who graded it. */
+  items?: { id: string; correct: boolean; by: 'server' | 'app' }[];
 }
 
 /**
