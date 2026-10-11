@@ -13,6 +13,8 @@ describe('withSlideFileRefs', () => {
   it('lists the welcome image from Storage or Drive', () => {
     const fromStorage = withSlideFileRefs({
       imageUrls: [],
+      imagePaths: [] as string[],
+      driveFileIds: [] as string[],
       welcomeImageUrl: storageUrl('users/u/hotspot_images/hello.webp'),
     });
     expect(fromStorage.imagePaths).toEqual([
@@ -20,6 +22,8 @@ describe('withSlideFileRefs', () => {
     ]);
     const fromDrive = withSlideFileRefs({
       imageUrls: [],
+      imagePaths: [] as string[],
+      driveFileIds: [] as string[],
       welcomeImageUrl: 'https://lh3.googleusercontent.com/d/drive-w',
     });
     expect(fromDrive.driveFileIds).toEqual(['drive-w']);
