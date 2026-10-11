@@ -179,18 +179,30 @@ export function parsePlaybackRequest(raw: unknown): PlaybackRequest {
 
 // ── Default dependency implementations ─────────────────────────────────────
 
+export const DRIVE_DOWNLOAD_TIMEOUT_MS = 45_000;
+
 export async function downloadDriveFileById(
   accessToken: string,
   fileId: string
 ): Promise<Buffer> {
-  const response = await fetch(
-    `${DRIVE_API_URL}/files/${encodeURIComponent(fileId)}?alt=media`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  if (!response.ok) {
-    throw new Error(`Drive responded ${response.status}`);
+  // One deadline covers headers and body so a stalled stream cannot outlive the function.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DRIVE_DOWNLOAD_TIMEOUT_MS);
+  try {
+    const response = await fetch(
+      `${DRIVE_API_URL}/files/${encodeURIComponent(fileId)}?alt=media`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        signal: controller.signal,
+      }
+    );
+    if (!response.ok) {
+      throw new Error(`Drive responded ${response.status}`);
+    }
+    return Buffer.from(await response.arrayBuffer());
+  } finally {
+    clearTimeout(timer);
   }
-  return Buffer.from(await response.arrayBuffer());
 }
 
 export function buildDefaultPlaybackDeps(): PlaybackDeps {
