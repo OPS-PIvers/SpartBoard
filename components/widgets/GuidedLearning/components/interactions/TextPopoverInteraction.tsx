@@ -184,8 +184,14 @@ export const TextPopoverInteraction: React.FC<Props> = ({
           <>
             {step.label && (
               <h3
-                className={`${tone.title} font-bold mb-2 pr-6 leading-tight`}
+                className={`${tone.title} font-bold leading-tight`}
                 style={{
+                  marginBottom: explicitBox
+                    ? '8px'
+                    : 'calc(min(8px, 2cqmin) * var(--gl-callout-scale))',
+                  paddingRight: explicitBox
+                    ? '24px'
+                    : 'calc(min(24px, 6cqmin) * var(--gl-callout-scale))',
                   fontSize: explicitBox
                     ? `${CALLOUT_TITLE_RATIO}em`
                     : 'calc(var(--gl-text-title, min(16px, 4.5cqmin)) * var(--gl-callout-scale))',

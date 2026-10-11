@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Sunday_
-_Last audited: 2026-10-04_
+_Last audited: 2026-10-11_
 _Last action: 2026-08-09 — Deleted the entire `scripts/tools/` directory (9 stale Python/Playwright dev-session scripts, zero references anywhere, including `fix_buttons.py` which auto-edited widget source). Resolves the source-modification-risk portion of the "scripts/tools/\*.py" MEDIUM; the root `scripts/*.js` audit portion remains Open (narrowed)._
+
+_2026-10-11: Sunday light pass. `console.log(` in components/context/hooks/utils (non-test): 0 hits. `migrateLocalStorageToFirestore` is still called at `context/DashboardContext.tsx:2715`, so it is not dead. No `'stopwatch'`/`'workSymbols'` type strings generated outside migration/tests; `'timer'` hits are the live TimeTool mode and widget-builder block types. Commented-out-block and unused-export scans not re-run this cycle. 0 new issues._
 
 ---
 
