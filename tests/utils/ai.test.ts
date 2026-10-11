@@ -504,7 +504,7 @@ describe('recommendVideoForActivity', () => {
       {},
       'generateWithAI',
       {
-        timeout: 300_000,
+        timeout: 310_000,
       }
     );
   });
