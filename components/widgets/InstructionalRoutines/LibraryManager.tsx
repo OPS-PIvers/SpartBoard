@@ -74,7 +74,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
     setIsGenerating(true);
     try {
       const generate = httpsCallable(functions, 'generateWithAI', {
-        timeout: 300_000,
+        timeout: 310_000,
       });
       const result = await generate({
         type: 'instructional-routine',

@@ -150,7 +150,7 @@ async function callAI(
         source?: AISource;
       },
       AIResponseData
-    >(functions, 'generateWithAI', { timeout: 300_000 });
+    >(functions, 'generateWithAI', { timeout: 310_000 });
 
     const result = await generateWithAI(payload);
     reportAiModelConfigFallback(result.data?._modelConfigUsedFallback);
@@ -533,7 +533,7 @@ export async function generateGuidedLearning(
     const fn = httpsCallable<
       { images: GuidedLearningImageInput[]; prompt?: string },
       AIGuidedLearningResponse
-    >(functions, 'generateGuidedLearning', { timeout: 180_000 });
+    >(functions, 'generateGuidedLearning', { timeout: 190_000 });
 
     const result = await fn({ images, prompt });
     const data = result.data;
@@ -673,7 +673,7 @@ export async function draftGuidedLearningStepText(
     { steps: StepTextDraftInput[]; goal?: string },
     { steps: { label: string; text: string }[] }
   >(functions, 'draftGuidedLearningStepTextV1', {
-    timeout: 180_000,
+    timeout: 190_000,
   });
   const result = await fn(goal ? { steps, goal } : { steps });
   return result.data.steps;

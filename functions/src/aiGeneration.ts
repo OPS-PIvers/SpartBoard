@@ -551,6 +551,17 @@ export {
   resolveCallerIsAdmin,
 };
 
+// Claude rejects a declared media type that doesn't match the bytes, so read it from the data URL or magic bytes.
+export function imageMimeType(image: string): string {
+  const declared = /^data:(image\/(?:png|jpeg|gif|webp));base64,/.exec(image);
+  if (declared) return declared[1];
+  const b64 = image.includes(',') ? image.split(',')[1] : image;
+  if (b64.startsWith('/9j/')) return 'image/jpeg';
+  if (b64.startsWith('R0lGOD')) return 'image/gif';
+  if (b64.startsWith('UklGR')) return 'image/webp';
+  return 'image/png';
+}
+
 export const generateWithAI = onCall(
   {
     memory: '512MiB',
@@ -1097,11 +1108,12 @@ Output JSON ONLY in this exact shape:
       const parts: AiPart[] = [{ text: systemPrompt + '\n\n' + userPrompt }];
       // Add image if provided (for OCR or multi-modal prompts)
       if (data.image) {
-        // Strip data:image/png;base64, prefix if present
         const base64Data = data.image.includes(',')
           ? data.image.split(',')[1]
           : data.image;
-        parts.push({ inlineData: { mimeType: 'image/png', data: base64Data } });
+        parts.push({
+          inlineData: { mimeType: imageMimeType(data.image), data: base64Data },
+        });
       }
 
       // Quiz alone uses structured-output (responseSchema) — it has a fixed
