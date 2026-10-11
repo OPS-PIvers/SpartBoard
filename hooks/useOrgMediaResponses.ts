@@ -127,6 +127,7 @@ export function useOrgMediaResponses(
 
   useEffect(() => {
     if (!orgId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clears results before the Firestore query
       setRows([]);
       setTeachers([]);
       return undefined;

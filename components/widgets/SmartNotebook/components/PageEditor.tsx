@@ -361,18 +361,22 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   } | null>(null);
   const onRequestLinkRef = useRef(onRequestLink);
 
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   onRequestLinkRef.current = onRequestLink;
 
   const onFollowLinkRef = useRef(onFollowLink);
 
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   onFollowLinkRef.current = onFollowLink;
 
   const linkedObjectTargetsRef = useRef(linkedObjectTargets);
 
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   linkedObjectTargetsRef.current = linkedObjectTargets;
 
   const onClonedLinksRef = useRef(onClonedLinks);
 
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   onClonedLinksRef.current = onClonedLinks;
   const objectsRef = useRef<EditableObjectInfo[]>([]);
   const dragRef = useRef<DragState | null>(null);
@@ -430,7 +434,9 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   const onChangeRef = useRef(onChange);
   // Assign in the render body so handlers always read the latest callbacks.
   // CLAUDE.md: "Assign refs directly in the render body — no effect needed."
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   onSelRef.current = onSelectionChange;
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   onChangeRef.current = onChange;
 
   // Mirror controlled tool props into refs so the pointer handlers always see
@@ -442,15 +448,20 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   const penColorRef = useRef(penColor);
   const penWidthRef = useRef(penWidth);
 
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   toolRef.current = tool;
 
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   penColorRef.current = penColor;
 
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   penWidthRef.current = penWidth;
 
   const textSizeRef = useRef(textSize);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   textSizeRef.current = textSize;
   const eraserSizeRef = useRef(eraserSize);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   eraserSizeRef.current = eraserSize;
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -473,6 +484,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   // a queued state update would not be committed in time.
   // Identical pattern to RandomGroups.GroupDropZone (PR #1965).
   const cancellingRef = useRef(false);
+  // eslint-disable-next-line react-hooks/refs -- cancel flag cleared whenever an editor is open
   if (editing) cancellingRef.current = false;
 
   // PageEditor is purely write-only after mount: it reads the `svg` prop
@@ -840,6 +852,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     marqueeRef.current = marquee;
   }, []);
 
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   rebuildEditorDomRef.current = rebuildEditorDom;
 
   // Mount-once initialization. Runs exactly when this PageEditor instance

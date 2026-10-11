@@ -139,6 +139,7 @@ export const CatalystConfigurationModal: React.FC<
 
   useEffect(() => {
     if (isOpen && permission?.config) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- state synced from an external system or reset on open
       setGlobalConfig(permission.config);
     }
   }, [isOpen, permission?.config]);
@@ -147,6 +148,7 @@ export const CatalystConfigurationModal: React.FC<
   useEffect(() => {
     if (!isOpen) return;
     if (isAuthBypass) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- state synced from an external system or reset on open
       setSets([
         { id: 'set-1', title: 'Set 1', routines: [], createdAt: Date.now() },
         { id: 'set-2', title: 'Set 2', routines: [], createdAt: Date.now() },
@@ -243,6 +245,7 @@ export const CatalystConfigurationModal: React.FC<
 
   useEffect(() => {
     if (!isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- state synced from an external system or reset on open
       setView('sets-list');
       setSetEditor(null);
       setRoutineEditor(EMPTY_ROUTINE_EDITOR);

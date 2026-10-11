@@ -127,6 +127,7 @@ export const BankSlotDetail: React.FC<BankSlotDetailProps> = ({
   useEffect(() => {
     if (!bankApi || !source) return;
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading state for the bank fetch
     setLoad({ status: 'loading' });
     bankApi
       .loadBankContent(source)

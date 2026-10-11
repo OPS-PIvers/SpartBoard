@@ -84,6 +84,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
   // Real-time listener for global PDFs
   useEffect(() => {
     if (isAuthBypass) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- auth-bypass path of the Firestore listener
       setLoading(false);
       return;
     }

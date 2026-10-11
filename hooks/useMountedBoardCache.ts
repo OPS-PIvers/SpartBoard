@@ -41,6 +41,7 @@ export const useMountedBoardCache = (
   return useMemo(() => {
     const knownIds = new Set(dashboards.map((d) => d.id));
     // Pure filter of stale ids; the ref is never mutated here.
+    // eslint-disable-next-line react-hooks/refs -- LRU history ref only orders boards that are already known
     const pruned = lruRef.current.filter((id) => knownIds.has(id));
 
     // Force `activeId` to the tail even on the first render (the effect

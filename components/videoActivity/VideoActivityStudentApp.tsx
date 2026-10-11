@@ -438,7 +438,9 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   // an effect to avoid an extra render cycle (per CLAUDE.md "useEffect is
   // an escape hatch"). Pairs with `joinStatus` in the effect deps —
   // without that dep, the reset would have nothing to trigger the rerun.
+  // eslint-disable-next-line react-hooks/refs -- re-arms SSO auto-join after an error
   if (joinStatus === 'error' && ssoAutoJoinStartedRef.current) {
+    // eslint-disable-next-line react-hooks/refs -- re-arms SSO auto-join after an error
     ssoAutoJoinStartedRef.current = false;
   }
 
@@ -453,6 +455,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     // Wait for the pointer to resolve, and never join for a skipped student.
     if (pointer === undefined || pointer?.excluded === true) return;
     ssoAutoJoinStartedRef.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- clears the error before the async join
     setSsoAutoJoinError(null);
     void (async () => {
       try {
@@ -641,6 +644,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   );
   const playheadRef = useRef(0);
   // No player in live mode: tab exits log the board's last known position.
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   if (isLive) playheadRef.current = session?.live?.playheadSeconds ?? 0;
 
   // Track the previous `tabSwitchWarnings` value via state-during-render

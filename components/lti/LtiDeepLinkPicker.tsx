@@ -428,8 +428,10 @@ const LtiDeepLinkFlow: React.FC = () => {
     setPrevSelectionKey(selectionKey);
     setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
     setTargetingQuizData(
+      // eslint-disable-next-line react-hooks/refs -- cache read in the adjust-state-while-rendering block
       targetingQuizCacheRef.current.get(selectedQuizId) ?? null
     );
+    // eslint-disable-next-line react-hooks/refs -- reset with the adjust-state-while-rendering block
     loadedTargetingForRef.current = null;
   }
 

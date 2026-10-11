@@ -238,18 +238,24 @@ export const SettingsDrawerHost: React.FC = () => {
   const headingRef = useRef<HTMLHeadingElement>(null);
   const originatedRef = useRef(false);
   const openedForRef = useRef<string | null>(null);
+  // eslint-disable-next-line react-hooks/refs -- once-per-open bookkeeping during render, drives originatedLocally
   if (open && openedForRef.current !== widget.id) {
+    // eslint-disable-next-line react-hooks/refs -- once-per-open bookkeeping during render
     openedForRef.current = widget.id;
+    // eslint-disable-next-line react-hooks/refs -- once-per-open bookkeeping during render
     originatedRef.current = consumeLocalSettingsOpen(widget.id);
+    // eslint-disable-next-line react-hooks/refs -- captures the opener element once per open
     openerRef.current =
       typeof document === 'undefined'
         ? null
         : document.querySelector<HTMLElement>(
             `[data-settings-opener="${widget.id}"]`
           );
+    // eslint-disable-next-line react-hooks/refs -- once-per-open bookkeeping during render
   } else if (!open && openedForRef.current !== null) {
     openedForRef.current = null;
   }
+  // eslint-disable-next-line react-hooks/refs -- reads the once-per-open flag set above
   const originatedLocally = open && originatedRef.current;
 
   // Swap and maximize-restore writes: batched, outside render.
@@ -303,13 +309,18 @@ export const SettingsDrawerHost: React.FC = () => {
   const closedByGestureRef = useRef(false);
   const gestureCheckId = widget?.id ?? activeWidgetId;
   if (
+    // eslint-disable-next-line react-hooks/refs -- gesture-close latch checked during render
     !open &&
+    // eslint-disable-next-line react-hooks/refs -- gesture-close latch checked during render
     !closedByGestureRef.current &&
     gestureCheckId &&
     wasSettingsClosedByGesture(gestureCheckId)
   ) {
+    // eslint-disable-next-line react-hooks/refs -- gesture-close latch set during render
     closedByGestureRef.current = true;
+    // eslint-disable-next-line react-hooks/refs -- gesture-close latch checked during render
   } else if (open && closedByGestureRef.current) {
+    // eslint-disable-next-line react-hooks/refs -- gesture-close latch reset during render
     closedByGestureRef.current = false;
   }
 
@@ -323,11 +334,13 @@ export const SettingsDrawerHost: React.FC = () => {
     drawerWidth,
     zoom,
     boardId,
+    // eslint-disable-next-line react-hooks/refs -- gesture-close latch read during render
     restoreOnClose: !closedByGestureRef.current,
   });
 
   useSettingsTargetMarker(open ? widget.id : null, open);
 
+  // eslint-disable-next-line react-hooks/refs -- hook reads the refs only in effects
   useSettingsDrawerFocus({
     widgetId: open ? widget.id : null,
     open: originatedLocally,

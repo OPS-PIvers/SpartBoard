@@ -89,6 +89,7 @@ export const LinkSchoologyModal: React.FC<LinkSchoologyModalProps> = ({
   useEffect(() => {
     if (!isOpen) {
       suggestedRef.current = false;
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- state synced from an external system or reset on open
       setLinkedHere(new Set());
       setSelections({});
       setRowState({});

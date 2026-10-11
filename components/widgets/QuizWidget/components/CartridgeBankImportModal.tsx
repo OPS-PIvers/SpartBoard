@@ -428,6 +428,7 @@ export const CartridgeBankImportModal: React.FC<
           {rows.map((row) => {
             const pathLabel = row.path.join(' › ');
             const showPath = pathLabel !== lastPath;
+            // eslint-disable-next-line react-hooks/immutability -- reassigned synchronously within this map
             lastPath = pathLabel;
             const id = row.bank.id;
             const open = expanded.has(id);

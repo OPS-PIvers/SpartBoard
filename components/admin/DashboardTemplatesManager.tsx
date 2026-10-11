@@ -97,6 +97,7 @@ export const DashboardTemplatesManager: React.FC = () => {
   // Subscribe to templates collection
   useEffect(() => {
     if (isAuthBypass) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- state synced from an external system or reset on open
       setLoading(false);
       return;
     }

@@ -160,6 +160,7 @@ export function useMeetingRecorder(
   depsRef.current ??= options.deps ?? realDeps();
   const deps = depsRef.current;
 
+  // eslint-disable-next-line react-hooks/refs -- deps are fixed after the lazy init
   const [isSupported] = useState(() => deps.isSupported());
   const [phase, setPhaseState] = useState<MeetingRecorderPhase>('idle');
   const [recordingId, setRecordingId] = useState<string | null>(null);
@@ -168,6 +169,7 @@ export function useMeetingRecorder(
   const [pendingUploads, setPendingUploads] = useState(0);
   const [error, setError] = useState<MeetingRecorderError | null>(null);
   const [mics, setMics] = useState<MicOption[]>([]);
+  // eslint-disable-next-line react-hooks/refs -- deps are fixed after the lazy init
   const [selectedMicId, setSelectedMicId] = useState<string | null>(() =>
     deps.readMic()
   );
@@ -564,6 +566,7 @@ export function useMeetingRecorder(
       writeRecording,
     ]
   );
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   stopRef.current = stop;
 
   const retryFinalize = useCallback(
@@ -610,6 +613,7 @@ export function useMeetingRecorder(
     ]
   );
 
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   onTrackEndedRef.current = (part) => {
     void runExclusive(async () => {
       if (phaseRef.current !== 'recording' || activeRef.current !== part) {

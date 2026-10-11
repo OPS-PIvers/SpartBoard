@@ -275,6 +275,7 @@ export const PlcInviteAcceptance: React.FC = () => {
     if (!user) return;
     if (load.kind !== 'idle') return;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- marks the async Firestore load as started
     setLoad({ kind: 'loading' });
     const requestUid = user.uid;
     const run = async () => {

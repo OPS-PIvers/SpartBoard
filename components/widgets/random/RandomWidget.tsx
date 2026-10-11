@@ -217,6 +217,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // this ref instead of the closure-captured `soundEnabled` ensures the callback
   // always sees the current value even if the teacher toggles sound mid-spin.
   const soundEnabledRef = useRef(soundEnabled);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in timers/handlers
   soundEnabledRef.current = soundEnabled;
 
   // Ref kept in sync with the latest `activeDashboard` value on every render.
@@ -227,6 +228,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // wrong time-tool widget. Reading from this ref instead guarantees we always
   // act on the current dashboard state when performUpdate fires.
   const activeDashboardRef = useRef(activeDashboard);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in timers/handlers
   activeDashboardRef.current = activeDashboard;
 
   // Sync displayResult when config.lastResult changes (e.g. mode switch clears
@@ -320,6 +322,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           unassignedNames: [],
         };
         updateWidget(widget.id, { config: update });
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- clears local jigsaw state when the roster changes
         setLocalJigsaw(null);
       }
     }
@@ -398,6 +401,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // diceCountRef/configRef fix in PR #1749). `soundEnabledRef` is declared
   // above and already mirrors `soundEnabled` for the same reason.
   const studentsRef = useRef(students);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in timers/handlers
   studentsRef.current = students;
 
   // Inline stepper display: mirror the call-site default so the on-widget
@@ -1559,6 +1563,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   };
 
   const handlePickRef = useRef(handlePick);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   handlePickRef.current = handlePick;
 
   useEffect(() => {

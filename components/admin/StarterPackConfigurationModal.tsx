@@ -311,6 +311,7 @@ export const StarterPackConfigurationModal: React.FC<
 
   useEffect(() => {
     if (isOpen && permission?.config) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- state synced from an external system or reset on open
       setGlobalConfig(permission.config);
     }
   }, [isOpen, permission?.config]);

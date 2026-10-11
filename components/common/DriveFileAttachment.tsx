@@ -56,8 +56,10 @@ export const DriveFileAttachment: React.FC<DriveFileAttachmentProps> = ({
   // can clear parent state on unmount if the overlay closes while a
   // file is still selected. Ref assignments belong in the render body —
   // no extra render pass needed.
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in unmount cleanup
   hasFileRef.current = hasFile;
   // Keep callback ref fresh to avoid stale closure in cleanup.
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in unmount cleanup
   onFileContentRef.current = onFileContent;
 
   useEffect(() => {

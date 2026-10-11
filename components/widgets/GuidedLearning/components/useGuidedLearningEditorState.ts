@@ -267,6 +267,7 @@ export function useGuidedLearningEditorState({
 }: UseGuidedLearningEditorStateProps): GuidedLearningEditorController {
   const { user } = useAuth();
   const onUploadIssuesRef = useRef(onUploadIssues);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   onUploadIssuesRef.current = onUploadIssues;
   const {
     uploading,
@@ -282,6 +283,7 @@ export function useGuidedLearningEditorState({
     (set) => initialHistory(documentFromSet(set))
   );
   const historyRef = useRef(history);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   historyRef.current = history;
   const {
     title,
@@ -384,6 +386,7 @@ export function useGuidedLearningEditorState({
 
   const [rawImageIndex, setCurrentImageIndex] = useState(0);
   const rawImageIndexRef = useRef(rawImageIndex);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   rawImageIndexRef.current = rawImageIndex;
   // Undo can remove the slide being shown, so clamp on read.
   const currentImageIndex = Math.max(
@@ -404,6 +407,7 @@ export function useGuidedLearningEditorState({
     Record<string, string>
   >(() => existingSet?.slideThumbnails ?? {});
   const slideThumbnailsRef = useRef(slideThumbnails);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   slideThumbnailsRef.current = slideThumbnails;
   const mediaHome: GuidedLearningMediaHome =
     existingSet?.isBuilding || existingSet?.helpCenter ? 'storage' : 'drive';
@@ -417,6 +421,7 @@ export function useGuidedLearningEditorState({
   if (currentSetId !== prevSetId) {
     setPrevSetId(currentSetId);
     dispatch({ type: 'reset', doc: documentFromSet(existingSet) });
+    // eslint-disable-next-line react-hooks/refs -- cleared with the rest of the draft when the set changes
     flushedMediaRef.current = new Set();
     setCurrentImageIndex(0);
     setSelectedStepId(null);
@@ -431,6 +436,7 @@ export function useGuidedLearningEditorState({
   // (which awaits between appends, letting renders flush) can compute the
   // new last index without putting a side effect inside a state updater.
   const slideCountRef = useRef(imageUrls.length);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   slideCountRef.current = imageUrls.length;
 
   const appendSlides = useCallback(

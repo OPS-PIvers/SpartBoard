@@ -112,7 +112,7 @@ const CANNOT = [
 export const ConnectPage: React.FC = () => {
   const { user, loading, signInWithGoogle, signOut, captureOfflineGrant } =
     useAuth();
-  const params = React.useMemo(readParams, []);
+  const params = React.useMemo(() => readParams(), []);
   const [preview, setPreview] = React.useState<PreviewState>({
     kind: 'loading',
   });

@@ -114,6 +114,7 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
   const { user, userRoles, orgId, roleId } = useAuth();
   const bellOptions = useTeacherBellPeriodOptions();
   const backfillRef = useRef({ rosters, updateRoster, bellOptions });
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   backfillRef.current = { rosters, updateRoster, bellOptions };
 
   const canReadTestClassesForOrg = useMemo(
@@ -138,6 +139,7 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets state before the ClassLink fetch
     setLoading(true);
     setError(null);
     setClasses([]);

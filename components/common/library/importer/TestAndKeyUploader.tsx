@@ -137,6 +137,7 @@ export const TestAndKeyUploader: React.FC<TestAndKeyUploaderProps> = ({
 
   // Thumbnails hold object URLs, which outlive the component unless released.
   const contentRef = useRef(content);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in unmount cleanup
   contentRef.current = content;
   useEffect(
     () => () => {

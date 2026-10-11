@@ -183,6 +183,7 @@ export const AnnotationOverlay: React.FC = () => {
   // (empty) text never reaches the shared overlay objects array.
   const [editingText, setEditingText] = useState<TextObject | null>(null);
   const editingTextRef = useRef<TextObject | null>(null);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   editingTextRef.current = editingText;
   const textEditorRef = useRef<TextEditorHandle | null>(null);
   const [canvasRect, setCanvasRect] = useState<DOMRect | null>(null);

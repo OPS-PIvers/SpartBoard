@@ -88,6 +88,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
           ? isCollectionTemplate(t)
           : !isCollectionTemplate(t)
       );
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mock-store path of the Firestore subscription
       setTemplates(filtered);
       setLoadingTemplates(false);
       return;
@@ -131,6 +132,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
   // Reset state when modal closes
   useEffect(() => {
     if (!isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets form state when the modal closes
       setSelectedTemplateId('');
       setNewName('');
       setNewBuildings([]);

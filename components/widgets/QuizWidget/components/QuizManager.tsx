@@ -861,6 +861,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         ) {
           // Stepper (Classroom posts from the assignment's menu) or no other destination: skip the chooser.
           setAssignDestination('spartboard');
+          // eslint-disable-next-line react-hooks/immutability -- stable state setter referenced before its declaration
           setAssignBehavior(seedBehavior(quiz));
           setAssignTarget(quiz);
         } else {
@@ -1000,6 +1001,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           manualAvailable: manualStartAvailable(periodAccess?.bellWindow),
         })
       );
+      // eslint-disable-next-line react-hooks/refs -- reset with the adjust-state-while-rendering block
       loadedAssignQuizDataForRef.current = null;
       setAssignOptions(
         buildDefaultAssignOptions(

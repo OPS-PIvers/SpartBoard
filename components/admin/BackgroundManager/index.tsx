@@ -203,6 +203,7 @@ export const BackgroundManager: React.FC = () => {
         active: true,
         accessLevel: 'public',
         betaUsers: [],
+        // eslint-disable-next-line react-hooks/purity -- runs in an async upload handler, not render
         createdAt: Date.now(),
       };
 
@@ -261,6 +262,7 @@ export const BackgroundManager: React.FC = () => {
   }, [message]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading flag for the Firestore subscription
     setLoading(true);
     const q = query(
       collection(db, 'admin_backgrounds'),

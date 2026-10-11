@@ -184,7 +184,9 @@ export function usePlcNoteCrdt({
   const beforeApplyRef = useRef(onBeforeRemoteApply);
   const afterApplyRef = useRef(onAfterRemoteApply);
 
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   beforeApplyRef.current = onBeforeRemoteApply;
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   afterApplyRef.current = onAfterRemoteApply;
 
   const active = enabled && !!plcId && !!noteId && !!uid;
@@ -298,6 +300,7 @@ export function usePlcNoteCrdt({
 
   useEffect(() => {
     if (!active || !plcId || !noteId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets status when the CRDT sync is inactive
       setStatus('idle');
       setContent(EMPTY_CONTENT);
       return;
@@ -500,8 +503,10 @@ export function usePlcNoteCrdt({
     );
   }, []);
 
+  // eslint-disable-next-line react-hooks/refs -- stable Y.Doc instance exposed to callers
   return {
     status,
+    // eslint-disable-next-line react-hooks/refs -- stable Y.Doc instance exposed to callers
     doc: docRef.current,
     content,
     setTitle,
