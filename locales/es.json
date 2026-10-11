@@ -3009,7 +3009,18 @@
     "resetCalloutAll": "Restablecer todo",
     "calloutSizeHint": "Haz clic en el globo para cambiar su tamaño con los controles o elegir un color.",
     "editOnBoard": "Editar en la pizarra",
-    "editOnBoardFailed": "No se pudo guardar el recorrido, así que el editor de la pizarra no se abrió."
+    "editOnBoardFailed": "No se pudo guardar el recorrido, así que el editor de la pizarra no se abrió.",
+    "welcomeCard": "Bienvenida",
+    "welcomeOff": "Bienvenida desactivada",
+    "welcomePinned": "Siempre primero. Los estudiantes la ven antes de la diapositiva 1.",
+    "welcomeScreen": "Pantalla de bienvenida",
+    "welcomeImage": "Imagen",
+    "welcomeAddImage": "Agregar imagen",
+    "welcomeRemoveImage": "Quitar imagen",
+    "welcomeImageUploading": "Subiendo…",
+    "welcomeImageAlt": "Texto alternativo",
+    "welcomeImageAltPlaceholder": "Describe la imagen o déjalo en blanco si es decorativa",
+    "untitled": "Actividad sin título"
   },
   "helpCenter": {
     "title": "Ayuda",

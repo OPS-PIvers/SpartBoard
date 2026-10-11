@@ -127,6 +127,14 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
   setWelcomeEnabled: (next: boolean) => void;
   welcomeMessage: string;
   setWelcomeMessage: (next: string) => void;
+  /** '' when the welcome screen has no image. */
+  welcomeImageUrl: string;
+  welcomeImageAlt: string;
+  setWelcomeImageAlt: (next: string) => void;
+  /** Uploads the welcome image; a replaced one is queued for deletion on close. */
+  setWelcomeImageFromFile: (file: File) => Promise<boolean>;
+  removeWelcomeImage: () => void;
+  welcomeImageUploading: boolean;
   /** Watch-mode pacing; undefined = standard. */
   watchPace: GuidedLearningWatchPace | undefined;
   setWatchPace: (next: GuidedLearningWatchPace | undefined) => void;
@@ -287,6 +295,8 @@ export function useGuidedLearningEditorState({
     imageTransition,
     welcomeEnabled,
     welcomeMessage,
+    welcomeImageUrl,
+    welcomeImageAlt,
     watchPace,
     tourSetupWidgets,
     tourSetupLayouts,
@@ -339,6 +349,10 @@ export function useGuidedLearningEditorState({
   );
   const setWelcomeMessage = useCallback(
     (next: string) => setField('welcomeMessage', next, 'welcomeMessage'),
+    [setField]
+  );
+  const setWelcomeImageAlt = useCallback(
+    (next: string) => setField('welcomeImageAlt', next, 'welcomeImageAlt'),
     [setField]
   );
   const setWatchPace = useCallback(
@@ -721,6 +735,69 @@ export function useGuidedLearningEditorState({
     },
     [replaceSlideImage]
   );
+
+  const [welcomeImageUploading, setWelcomeImageUploading] = useState(false);
+  const queueWelcomeImageDeletion = useCallback((url: string) => {
+    const ref = url ? slideMediaRef(url) : null;
+    if (ref) dispatch({ type: 'queueMedia', ref });
+  }, []);
+  const setWelcomeImageFromFile = useCallback(
+    async (file: File): Promise<boolean> => {
+      if (!user) return false;
+      setImageError('');
+      const error =
+        validateSlideFile(file) ??
+        (getMediaKind(file) === 'image'
+          ? null
+          : `"${file.name}" is not an image.`);
+      if (error) {
+        setImageError(error);
+        return false;
+      }
+      setWelcomeImageUploading(true);
+      try {
+        const prepared = await prepareImageForUpload(file);
+        const { url, thumbnailUrl: thumb } = await uploadGuidedLearningImage(
+          user.uid,
+          prepared,
+          prepared.name.replace(/[^\w.-]+/g, '_'),
+          mediaHome
+        );
+        // The welcome card shows the full image, so its thumbnail is never used.
+        if (thumb) {
+          const ref = slideMediaRef(thumb);
+          if (ref && 'storagePath' in ref)
+            void deleteStorageFile(ref.storagePath).catch(() => undefined);
+        }
+        if (discardIfAbandoned(url)) return false;
+        const old = historyRef.current.present.welcomeImageUrl;
+        applyDoc((doc) => ({ ...doc, welcomeImageUrl: url }));
+        queueWelcomeImageDeletion(old);
+        return true;
+      } catch (err) {
+        console.error('[GuidedLearningEditor] Welcome image failed:', err);
+        setImageError(`"${file.name}" failed to upload.`);
+        return false;
+      } finally {
+        setWelcomeImageUploading(false);
+      }
+    },
+    [
+      user,
+      uploadGuidedLearningImage,
+      mediaHome,
+      deleteStorageFile,
+      discardIfAbandoned,
+      applyDoc,
+      queueWelcomeImageDeletion,
+    ]
+  );
+  const removeWelcomeImage = useCallback(() => {
+    const old = historyRef.current.present.welcomeImageUrl;
+    if (!old) return;
+    applyDoc((doc) => ({ ...doc, welcomeImageUrl: '', welcomeImageAlt: '' }));
+    queueWelcomeImageDeletion(old);
+  }, [applyDoc, queueWelcomeImageDeletion]);
 
   const recaptureStep = useCallback(
     (capture: StepRecapture): boolean => {
@@ -1189,6 +1266,7 @@ export function useGuidedLearningEditorState({
     const present = historyRef.current.present;
     const inUse = fileRefsIn([
       present.imageUrls,
+      present.welcomeImageUrl,
       present.steps,
       present.imageUrls.map((url) => slideThumbnailsRef.current[url]),
     ]);
@@ -1260,6 +1338,12 @@ export function useGuidedLearningEditorState({
     setWelcomeEnabled,
     welcomeMessage,
     setWelcomeMessage,
+    welcomeImageUrl,
+    welcomeImageAlt,
+    setWelcomeImageAlt,
+    setWelcomeImageFromFile,
+    removeWelcomeImage,
+    welcomeImageUploading,
     watchPace,
     setWatchPace,
     tourSetupWidgets,

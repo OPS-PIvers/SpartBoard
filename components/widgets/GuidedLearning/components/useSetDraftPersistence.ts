@@ -244,6 +244,8 @@ export function useSetDraftPersistence({
     set?.imageTransition ?? 'none';
   const originalWelcomeEnabled = Boolean(set?.welcomeEnabled);
   const originalWelcomeMessage = set?.welcomeMessage ?? '';
+  const originalWelcomeImageUrl = set?.welcomeImageUrl ?? '';
+  const originalWelcomeImageAlt = set?.welcomeImageAlt ?? '';
   const originalImageUrls = useMemo(
     () => (set ? [...set.imageUrls] : []),
     [set]
@@ -306,6 +308,8 @@ export function useSetDraftPersistence({
       tracked.imageTransition !== originalImageTransition ||
       tracked.welcomeEnabled !== originalWelcomeEnabled ||
       tracked.welcomeMessage !== originalWelcomeMessage ||
+      tracked.welcomeImageUrl !== originalWelcomeImageUrl ||
+      tracked.welcomeImageAlt !== originalWelcomeImageAlt ||
       !arraysEqual(tracked.imageUrls, originalImageUrls) ||
       !arraysEqual(tracked.imageKinds, originalImageKinds) ||
       !trimsEqual(tracked.videoTrims, originalVideoTrims) ||
@@ -323,6 +327,8 @@ export function useSetDraftPersistence({
     tracked.imageTransition,
     tracked.welcomeEnabled,
     tracked.welcomeMessage,
+    tracked.welcomeImageUrl,
+    tracked.welcomeImageAlt,
     tracked.imageUrls,
     tracked.imageKinds,
     tracked.videoTrims,
@@ -338,6 +344,8 @@ export function useSetDraftPersistence({
     originalImageTransition,
     originalWelcomeEnabled,
     originalWelcomeMessage,
+    originalWelcomeImageUrl,
+    originalWelcomeImageAlt,
     originalImageUrls,
     originalImageKinds,
     originalVideoTrims,
@@ -446,6 +454,8 @@ export function useSetDraftPersistence({
       tracked.imageTransition,
       tracked.welcomeEnabled,
       tracked.welcomeMessage,
+      tracked.welcomeImageUrl,
+      tracked.welcomeImageAlt,
       tracked.imageUrls,
       tracked.imageKinds,
       tracked.videoTrims,
@@ -463,6 +473,8 @@ export function useSetDraftPersistence({
       tracked.imageTransition,
       tracked.welcomeEnabled,
       tracked.welcomeMessage,
+      tracked.welcomeImageUrl,
+      tracked.welcomeImageAlt,
       tracked.imageUrls,
       tracked.imageKinds,
       tracked.videoTrims,
@@ -501,6 +513,8 @@ export function useSetDraftPersistence({
       imageTransition: _imageTransition,
       welcomeEnabled: _welcomeEnabled,
       welcomeMessage: _welcomeMessage,
+      welcomeImageUrl: _welcomeImageUrl,
+      welcomeImageAlt: _welcomeImageAlt,
       watchPace: _watchPace,
       hasLiveTour: _hasLiveTour,
       slideThumbnails: _slideThumbnails,
@@ -553,10 +567,20 @@ export function useSetDraftPersistence({
       // Toggle-on-but-empty falls back to default behavior at render time
       // anyway, so don't write the field; this also avoids cluttering
       // legacy sets that have never touched welcome settings.
-      ...(editorState.welcomeEnabled && editorState.welcomeMessage.trim()
+      ...(editorState.welcomeEnabled &&
+      (editorState.welcomeMessage.trim() || editorState.welcomeImageUrl)
+        ? { welcomeEnabled: true }
+        : {}),
+      // Message and image are kept while the welcome is off, so switching it back on restores them.
+      ...(editorState.welcomeMessage.trim()
+        ? { welcomeMessage: editorState.welcomeMessage }
+        : {}),
+      ...(editorState.welcomeImageUrl
         ? {
-            welcomeEnabled: true,
-            welcomeMessage: editorState.welcomeMessage,
+            welcomeImageUrl: editorState.welcomeImageUrl,
+            ...(editorState.welcomeImageAlt.trim()
+              ? { welcomeImageAlt: editorState.welcomeImageAlt }
+              : {}),
           }
         : {}),
       ...(editorState.watchPace ? { watchPace: editorState.watchPace } : {}),

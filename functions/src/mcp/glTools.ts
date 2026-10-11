@@ -498,7 +498,7 @@ export async function loadSet(
   };
 }
 
-function fullSet(loaded: Loaded) {
+export function fullSet(loaded: Loaded) {
   const { set } = loaded;
   return {
     set_id: set.id,
@@ -509,6 +509,8 @@ function fullSet(loaded: Loaded) {
     mode: set.mode,
     welcome_enabled: set.welcomeEnabled === true,
     welcome_message: set.welcomeMessage ?? '',
+    welcome_image: typeof set.welcomeImageUrl === 'string',
+    welcome_image_alt: set.welcomeImageAlt ?? '',
     schema_version: set.schemaVersion ?? 1,
     slide_count: set.imageUrls.length,
     slide_kinds: set.imageKinds ?? set.imageUrls.map(() => 'image'),
@@ -524,6 +526,7 @@ const EDITABLE = [
   'mode',
   'welcomeEnabled',
   'welcomeMessage',
+  'welcomeImageAlt',
   'steps',
   'schemaVersion',
 ] as const;
@@ -631,7 +634,7 @@ export async function saveSet(
   };
 }
 
-function applyEdit(loaded: Loaded, input: EditInput): GlSet {
+export function applyEdit(loaded: Loaded, input: EditInput): GlSet {
   const { set } = loaded;
   const steps = input.steps
     ? mergeSteps(set.steps, input.steps, set.imageUrls.length)
@@ -662,15 +665,23 @@ function applyEdit(loaded: Loaded, input: EditInput): GlSet {
     next.welcomeEnabled = input.welcome_enabled;
   if (input.welcome_message !== undefined)
     next.welcomeMessage = input.welcome_message || undefined;
+  if (input.welcome_image_alt !== undefined) {
+    if (typeof set.welcomeImageUrl !== 'string')
+      throw new ToolError(
+        'This set has no welcome image. The teacher adds one in the Guided Learning Studio.'
+      );
+    next.welcomeImageAlt = input.welcome_image_alt.trim() || undefined;
+  }
   return next;
 }
 
-interface EditInput {
+export interface EditInput {
   title?: string;
   description?: string;
   mode?: 'structured' | 'guided' | 'explore';
   welcome_enabled?: boolean;
   welcome_message?: string;
+  welcome_image_alt?: string;
   steps?: StepInput[];
 }
 
@@ -949,6 +960,13 @@ export function registerGuidedLearningTools(
         mode: z.enum(['structured', 'guided', 'explore']).optional(),
         welcome_enabled: z.boolean().optional(),
         welcome_message: z.string().max(300).optional(),
+        welcome_image_alt: z
+          .string()
+          .max(200)
+          .optional()
+          .describe(
+            'Alt text for the welcome image, when the set has one; empty marks it decorative. The image itself is set in SpartBoard.'
+          ),
         steps: z.array(stepInput).min(1).max(MAX_STEPS).optional(),
       },
       annotations: OVERWRITES,

@@ -3009,7 +3009,18 @@
     "resetCalloutAll": "Tout réinitialiser",
     "calloutSizeHint": "Cliquez sur la bulle pour la redimensionner avec ses poignées ou choisir une couleur.",
     "editOnBoard": "Modifier sur le tableau",
-    "editOnBoardFailed": "La visite n’a pas pu être enregistrée, l’éditeur du tableau ne s’est donc pas ouvert."
+    "editOnBoardFailed": "La visite n’a pas pu être enregistrée, l’éditeur du tableau ne s’est donc pas ouvert.",
+    "welcomeCard": "Accueil",
+    "welcomeOff": "Accueil désactivé",
+    "welcomePinned": "Toujours en premier. Les élèves la voient avant la diapositive 1.",
+    "welcomeScreen": "Écran d'accueil",
+    "welcomeImage": "Image",
+    "welcomeAddImage": "Ajouter une image",
+    "welcomeRemoveImage": "Retirer l'image",
+    "welcomeImageUploading": "Envoi…",
+    "welcomeImageAlt": "Texte alternatif",
+    "welcomeImageAltPlaceholder": "Décrivez l'image, ou laissez vide si elle est décorative",
+    "untitled": "Activité sans titre"
   },
   "helpCenter": {
     "title": "Aide",

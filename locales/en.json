@@ -4142,7 +4142,18 @@
     "resetCalloutAll": "Reset all",
     "calloutSizeHint": "Click the callout to resize it with its handles, or pick a colour.",
     "editOnBoard": "Edit on the board",
-    "editOnBoardFailed": "Couldn't save the tour, so the board editor didn't open."
+    "editOnBoardFailed": "Couldn't save the tour, so the board editor didn't open.",
+    "welcomeCard": "Welcome",
+    "welcomeOff": "Welcome off",
+    "welcomePinned": "Always first. Students see it before slide 1.",
+    "welcomeScreen": "Welcome screen",
+    "welcomeImage": "Image",
+    "welcomeAddImage": "Add image",
+    "welcomeRemoveImage": "Remove image",
+    "welcomeImageUploading": "Uploading…",
+    "welcomeImageAlt": "Alt text",
+    "welcomeImageAltPlaceholder": "Describe the image, or leave blank if decorative",
+    "untitled": "Untitled activity"
   },
   "helpCenter": {
     "title": "Help",

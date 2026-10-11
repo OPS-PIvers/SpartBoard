@@ -8286,6 +8286,10 @@ export interface GuidedLearningSet {
    * on, so an enabled-but-empty welcome doesn't render an empty card.
    */
   welcomeMessage?: string;
+  /** Welcome screen image, above the message; Storage or Drive URL. */
+  welcomeImageUrl?: string;
+  /** Alt text for `welcomeImageUrl`; absent = decorative. */
+  welcomeImageAlt?: string;
   watchPace?: GuidedLearningWatchPace;
   /** Live tour prerequisites. Teacher-only: never mirrored to sessions. */
   tourSetup?: {
@@ -8476,6 +8480,10 @@ export interface GuidedLearningSession
   welcomeEnabled?: boolean;
   /** Mirrors `GuidedLearningSet.welcomeMessage`. */
   welcomeMessage?: string;
+  /** Mirrors `GuidedLearningSet.welcomeImageUrl`. */
+  welcomeImageUrl?: string;
+  /** Mirrors `GuidedLearningSet.welcomeImageAlt`. */
+  welcomeImageAlt?: string;
   /** Mirrors `GuidedLearningSet.watchPace`. */
   watchPace?: GuidedLearningWatchPace;
   /** Stamped when the creator could use `gl-player-v2`; students can't evaluate the flag. */
@@ -9980,7 +9988,9 @@ export type GlobalFeature =
   /** Push scores into a SpartBoard-made Schoology gradebook column (docs/plans/SCHOOLOGY_TOOL_COLUMNS.md D11). */
   | 'schoology-tool-columns'
   /** A what's-new button under a widget whose changelog entry carries a note for that widget type. */
-  | 'widget-whats-new';
+  | 'widget-whats-new'
+  /** Guided Learning Studio: a pinned Welcome card in the slide strip, with an optional welcome image. */
+  | 'gl-welcome-card';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

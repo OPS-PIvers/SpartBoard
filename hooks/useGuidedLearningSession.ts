@@ -422,10 +422,21 @@ export const useGuidedLearningSessionTeacher = (
         ...(set.imageTransition && set.imageTransition !== 'none'
           ? { imageTransition: set.imageTransition }
           : {}),
-        ...(set.welcomeEnabled && set.welcomeMessage?.trim()
+        ...(set.welcomeEnabled &&
+        (set.welcomeMessage?.trim() || set.welcomeImageUrl)
           ? {
               welcomeEnabled: true,
-              welcomeMessage: set.welcomeMessage,
+              ...(set.welcomeMessage?.trim()
+                ? { welcomeMessage: set.welcomeMessage }
+                : {}),
+              ...(set.welcomeImageUrl
+                ? {
+                    welcomeImageUrl: set.welcomeImageUrl,
+                    ...(set.welcomeImageAlt?.trim()
+                      ? { welcomeImageAlt: set.welcomeImageAlt }
+                      : {}),
+                  }
+                : {}),
             }
           : {}),
         ...(set.watchPace === 'calm' ? { watchPace: set.watchPace } : {}),

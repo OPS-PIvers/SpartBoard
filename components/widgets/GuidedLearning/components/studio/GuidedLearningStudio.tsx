@@ -76,6 +76,7 @@ import { StudioPlayMode } from './StudioPlayMode';
 import { StudioFilmstrip } from './StudioFilmstrip';
 import { StudioTimeline } from './StudioTimeline';
 import { StudioPropertiesPanel } from './StudioPropertiesPanel';
+import { StudioWelcomePreview } from './StudioWelcomePreview';
 import { DevicePresetPicker } from './DevicePresetPicker';
 import { loadDevicePreset, saveDevicePreset } from './devicePresets';
 import {
@@ -494,6 +495,35 @@ const StudioSession: React.FC<
       setCurrentImageIndex(opening.imageIndex);
     }
   }
+
+  const welcomeCard = canAccessFeature('gl-welcome-card');
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
+  // Picking a step or moving to another slide leaves the Welcome card.
+  const [welcomeFrom, setWelcomeFrom] = useState({
+    step: selectedStepId,
+    slide: currentImageIndex,
+  });
+  if (
+    welcomeFrom.step !== selectedStepId ||
+    welcomeFrom.slide !== currentImageIndex
+  ) {
+    setWelcomeFrom({ step: selectedStepId, slide: currentImageIndex });
+    if (selectedStepId !== null || welcomeFrom.slide !== currentImageIndex)
+      setWelcomeOpen(false);
+  }
+  const welcomeShown = welcomeCard && welcomeOpen && selectedStepId === null;
+  const selectWelcome = useCallback(() => {
+    setSelectedStepId(null);
+    setWelcomeOpen(true);
+    setPropertiesOpen(true);
+  }, [setSelectedStepId]);
+  const selectSlide = useCallback(
+    (index: number) => {
+      setWelcomeOpen(false);
+      setCurrentImageIndex(index);
+    },
+    [setCurrentImageIndex]
+  );
 
   // Every delete is undoable from its toast; none asks first.
   const toastUndoFor = useCallback(
@@ -1107,6 +1137,9 @@ const StudioSession: React.FC<
           collapsed={filmstripCollapsed}
           onToggleCollapsed={() => setFilmstripCollapsed((v) => !v)}
           onCopyForClaude={canCopyForClaude ? copySlideForClaude : undefined}
+          onSelectSlide={welcomeCard ? selectSlide : undefined}
+          onSelectWelcome={welcomeCard ? selectWelcome : undefined}
+          welcomeSelected={welcomeShown}
         />
         <div className="flex min-h-0 min-w-0 flex-col">
           <main
@@ -1125,6 +1158,14 @@ const StudioSession: React.FC<
                   lastPlayedRef.current = id;
                 }}
                 onExit={exitPlay}
+              />
+            ) : welcomeShown ? (
+              <StudioWelcomePreview
+                title={editorState.title}
+                enabled={editorState.welcomeEnabled}
+                message={editorState.welcomeMessage}
+                imageUrl={editorState.welcomeImageUrl}
+                imageAlt={editorState.welcomeImageAlt}
               />
             ) : imageUrls.length === 0 ? (
               <StudioStartHub
@@ -1189,6 +1230,8 @@ const StudioSession: React.FC<
             onDeleteStep={deleteStepWithUndo}
             canvasRef={canvasRef}
             calloutEditing={calloutEditing}
+            welcomeCard={welcomeCard}
+            welcomeSelected={welcomeShown}
             onEditOnBoard={
               liveTours && isAdmin === true && !readOnly
                 ? () => void editOnBoard()
