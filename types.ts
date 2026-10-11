@@ -8329,6 +8329,10 @@ export interface GuidedLearningSetMetadata {
    * Refers to a folder id in `/users/{userId}/guided_learning_folders/{folderId}`.
    */
   folderId?: string | null;
+  /** Set when the Claude connector last saved this set (functions/src/mcp/glTools.ts). */
+  claudeEditedAt?: number;
+  /** Claude made or changed this set and the teacher hasn't opened it since. */
+  claudeReviewPendingAt?: number;
 }
 
 /** Library entry for a building set, written only by the glBuildingIndexMirror function. */

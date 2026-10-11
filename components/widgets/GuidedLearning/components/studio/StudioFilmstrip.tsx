@@ -9,6 +9,7 @@ import React, {
 import { useTranslation } from 'react-i18next';
 import {
   Clipboard,
+  ClipboardCopy,
   ClipboardPaste,
   Copy,
   Film,
@@ -60,6 +61,8 @@ interface SlideThumbProps {
   onDuplicate: (index: number) => void;
   onPaste: (index: number) => void;
   onReplace: (index: number) => void;
+  /** Copies a Claude starter prompt for the slide; absent without connector access. */
+  onCopyForClaude?: (index: number) => void;
   /** Steps waiting on the clipboard. */
   pasteCount: number;
 }
@@ -72,6 +75,7 @@ const SlideThumbBody = React.memo(function SlideThumbBody({
   onDuplicate,
   onPaste,
   onReplace,
+  onCopyForClaude,
   pasteCount,
   current,
   count,
@@ -170,6 +174,16 @@ const SlideThumbBody = React.memo(function SlideThumbBody({
               icon: ImageUp,
               onSelect: () => onReplace(slide.index),
             },
+            ...(onCopyForClaude
+              ? [
+                  {
+                    id: 'copy-for-claude',
+                    label: t('glStudio.copyForClaude'),
+                    icon: ClipboardCopy,
+                    onSelect: () => onCopyForClaude(slide.index),
+                  },
+                ]
+              : []),
           ]}
         />
       </div>
@@ -234,6 +248,7 @@ interface FilmstripBodyProps extends FilmstripState {
   onReorderSlides: (order: number[], moved: number) => void;
   collapsed: boolean;
   onToggleCollapsed?: () => void;
+  onCopyForClaude?: (index: number) => void;
 }
 
 const sameProps = (a: FilmstripBodyProps, b: FilmstripBodyProps) =>
@@ -265,6 +280,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
   stepCounts,
   collapsed,
   onToggleCollapsed,
+  onCopyForClaude,
 }: FilmstripBodyProps) {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -314,6 +330,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
         onDuplicate={duplicateSlide}
         onPaste={pasteSteps}
         onReplace={onReplace}
+        onCopyForClaude={onCopyForClaude}
         pasteCount={clipboardStepCount}
       />
     ),
@@ -323,6 +340,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
       duplicateSlide,
       pasteSteps,
       onReplace,
+      onCopyForClaude,
       clipboardStepCount,
     ]
   );
@@ -534,6 +552,7 @@ interface StudioFilmstripProps {
   /** Folded to a narrow rail that shows only the current slide. */
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
+  onCopyForClaude?: (index: number) => void;
 }
 
 /** Left column: slide thumbnails to pick, reorder, add, replace and delete. */
@@ -542,6 +561,7 @@ export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({
   onDeleteSlide,
   collapsed = false,
   onToggleCollapsed,
+  onCopyForClaude,
 }) => {
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
@@ -590,6 +610,7 @@ export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({
       stepCounts={stepCounts}
       collapsed={collapsed}
       onToggleCollapsed={onToggleCollapsed}
+      onCopyForClaude={onCopyForClaude}
     />
   );
 };

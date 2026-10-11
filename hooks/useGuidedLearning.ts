@@ -46,6 +46,7 @@ import { normalizeGuidedLearningSet } from '@/components/widgets/GuidedLearning/
 import { withSlideFileRefs } from '@/components/widgets/GuidedLearning/utils/slideMedia';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 import { logError } from '@/utils/logError';
+import { CLAUDE_REVIEW_FIELD } from '@/utils/claudeReview';
 import {
   releaseClosedTombstones,
   releaseDriveFiles,
@@ -53,6 +54,7 @@ import {
 } from '@/utils/guidedLearningFileRelease';
 import {
   GuidedLearningSaveConflictError,
+  type GuidedLearningRevisionWatch,
   type GuidedLearningSaveGuard,
   isStaleRevision,
 } from '@/components/widgets/GuidedLearning/utils/saveConflict';
@@ -211,6 +213,11 @@ export interface UseGuidedLearningResult {
   ) => Promise<void>;
   /** Delete an admin building set from Firestore */
   deleteBuildingSet: (setId: string) => Promise<void>;
+  /** Watches one set's stored revision while an editor has it open. */
+  watchSetRevision: (
+    setId: string,
+    building: boolean
+  ) => GuidedLearningRevisionWatch;
   /** Duplicate an admin building set by id into a new doc (Storage refs shared). */
   duplicateBuildingSet: (setId: string) => Promise<GuidedLearningSet>;
 }
@@ -307,6 +314,8 @@ export const useGuidedLearning = (
         ...metadata,
         description: metadata.description ?? deleteField(),
         imagePaths: metadata.imagePaths ?? deleteField(),
+        // A teacher's own save counts as a review.
+        [CLAUDE_REVIEW_FIELD]: deleteField(),
         // An empty list marks the set as recorded; absent means saved before ids were kept.
         driveFileIds: metadata.driveFileIds ?? [],
       };
@@ -522,6 +531,39 @@ export const useGuidedLearning = (
     [isAdmin, userId]
   );
 
+  const watchSetRevision = useCallback(
+    (setId: string, building: boolean): GuidedLearningRevisionWatch =>
+      (onRevision) => {
+        if (!building && !userId) return () => undefined;
+        const ref = building
+          ? doc(db, BUILDING_GL_COLLECTION, setId)
+          : doc(db, 'users', userId as string, GL_COLLECTION, setId);
+        return onSnapshot(
+          ref,
+          (snap) => {
+            const data = snap.data();
+            if (!data || snap.metadata.hasPendingWrites) return;
+            const updatedAt: unknown = data.updatedAt;
+            if (typeof updatedAt !== 'number') return;
+            onRevision({
+              updatedAt,
+              byClaude: data.claudeEditedAt === updatedAt,
+              loadLatest: async () => ({
+                set: normalizeGuidedLearningSet(
+                  building
+                    ? (data as GuidedLearningSet)
+                    : await getDriveService().loadSet(String(data.driveFileId))
+                ),
+                updatedAt,
+              }),
+            });
+          },
+          (err) => console.warn('[GuidedLearning] revision watch failed', err)
+        );
+      },
+    [userId, getDriveService]
+  );
+
   const deleteBuildingSet = useCallback(
     async (setId: string): Promise<void> => {
       if (!isAdmin) throw new Error('Admin access required');
@@ -544,6 +586,7 @@ export const useGuidedLearning = (
     duplicateBuildingSet,
     saveBuildingSet,
     deleteBuildingSet,
+    watchSetRevision,
   });
 };
 

@@ -149,6 +149,8 @@ interface LibraryEntry {
   helpCenter?: boolean;
   /** Personal-only: current folder assignment (`null` = root). */
   folderId?: string | null;
+  /** Personal-only: Claude changed it and the teacher hasn't opened it since. */
+  claudeReviewPendingAt?: number;
 }
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */
@@ -158,6 +160,11 @@ export interface GuidedLearningManagerProps {
   userId?: string;
   /** Personal set metadata (Drive-backed). */
   sets: GuidedLearningSetMetadata[];
+  /** "Review before assigning" badge for a set Claude changed. */
+  reviewBadge?: (
+    item: { claudeReviewPendingAt?: number },
+    onOpen: () => void
+  ) => LibraryBadge | null;
   /** Admin-authored building sets (Firestore-backed). */
   buildingSets: GuidedLearningBuildingSetIndex[];
   /** Teacher's per-assignment archive. */
@@ -398,6 +405,7 @@ const buildLibraryEntries = (
     order: meta.order,
     driveFileId: meta.driveFileId,
     folderId: meta.folderId ?? null,
+    claudeReviewPendingAt: meta.claudeReviewPendingAt,
   }));
 
   const building: LibraryEntry[] = buildingSets.map((entry) => ({
@@ -454,6 +462,7 @@ const ViewCountSubtitle: React.FC<{ sessionId: string }> = ({ sessionId }) => {
 export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   userId,
   sets,
+  reviewBadge,
   buildingSets,
   assignments,
   loading,
@@ -910,6 +919,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         tone: 'warn',
       });
     }
+    const review = reviewBadge?.(entry, () =>
+      onEdit(rawId, entry.driveFileId, entry.buildingEntry)
+    );
+    if (review) badges.push(review);
     // Authors see where a tour stands: only a published building tour reaches teachers.
     if (isTour && isAdmin) {
       if (entry.source === 'personal') {

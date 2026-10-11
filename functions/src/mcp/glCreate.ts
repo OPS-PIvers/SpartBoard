@@ -8,6 +8,7 @@ import {
   logActivity,
   reserveWrite,
   type ToolContext,
+  REVIEW_MARK,
 } from './activity';
 import { createGuidedLearningJson, driveTokenFor } from './drive';
 import {
@@ -298,6 +299,7 @@ export async function saveNewSet(
       createdAt: now,
       updatedAt: now,
       claudeCreatedAt: now,
+      [REVIEW_MARK]: now,
       ...(slides.paths.length > 0 ? { imagePaths: slides.paths } : {}),
       ...(input.folder_id ? { folderId: input.folder_id } : {}),
       driveFileIds: [],
