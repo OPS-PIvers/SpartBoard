@@ -206,7 +206,8 @@ const QuestionPill = React.memo(function QuestionPill({
         {...dragHandleAttributes}
         onPointerDown={
           dragHandleListeners?.onPointerDown as
-            React.PointerEventHandler<HTMLButtonElement> | undefined
+            | React.PointerEventHandler<HTMLButtonElement>
+            | undefined
         }
         onClick={() => onSelect(q.id)}
         aria-current={isSelected ? 'true' : undefined}
