@@ -71,7 +71,7 @@ export function exportMiniAppResults(
             isCorrect: earned >= max,
             pointsEarned: earned,
             pointsMax: max,
-            state: 'graded',
+            state: 'scored',
           };
         }
         const correct = answer === 'Correct';
@@ -79,7 +79,7 @@ export function exportMiniAppResults(
           isCorrect: correct,
           pointsEarned: correct ? max : 0,
           pointsMax: max,
-          state: 'graded',
+          state: 'scored',
         };
       },
     }

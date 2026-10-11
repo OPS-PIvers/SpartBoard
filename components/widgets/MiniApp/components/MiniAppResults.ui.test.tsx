@@ -40,7 +40,7 @@ describe('MiniAppAssignStepper results step', () => {
   });
 
   it('hands the picked attempts to submit', async () => {
-    const onSubmit = vi.fn(() => Promise.resolve());
+    const onSubmit = vi.fn((..._args: unknown[]) => Promise.resolve());
     stepper({
       onSubmit,
       resultsDefault: { attemptLimit: 1, showCorrectAnswers: true },
