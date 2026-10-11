@@ -1295,9 +1295,12 @@ export const useRosters = (user: User | null) => {
         );
       } catch (err) {
         console.error('Failed to persist absent list:', err);
+        // Only revert if no later toggle has replaced our optimistic value.
         setRosters((prev) =>
           prev.map((r) =>
-            r.id === rosterId ? { ...r, absent: previousAbsent } : r
+            r.id === rosterId && r.absent === payload
+              ? { ...r, absent: previousAbsent }
+              : r
           )
         );
         throw err;
