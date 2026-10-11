@@ -10,6 +10,7 @@ import {
   reserveWrite,
   snapshotRevision,
   type ToolContext,
+  REVIEW_MARK,
 } from './activity';
 import {
   driveTokenFor,
@@ -605,6 +606,8 @@ export async function saveSet(
         mode: saved.mode,
         stepCount: saved.steps.length,
         updatedAt: now,
+        claudeEditedAt: now,
+        [REVIEW_MARK]: now,
       },
       { merge: true }
     );

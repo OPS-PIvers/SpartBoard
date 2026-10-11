@@ -324,6 +324,7 @@ export function useSandboxedGuidedLearning(
     },
     saveBuildingSet: () => Promise.resolve(),
     deleteBuildingSet: () => Promise.resolve(),
+    watchSetRevision: () => () => () => undefined,
   });
 }
 
