@@ -4667,3 +4667,23 @@ rather than "no data") is also still open.
       - A comment cites an "aiModelsParity" test that doesn't exist.
 - Notes:
   - `gh` is unavailable, so GitHub access went through MCP.
+
+## 2026-10-11
+- PRs reviewed:
+  - #4076 Ignore a stale PLC invite read after an account switch
+  - #4075 Keep a later absent toggle when an earlier save fails
+  - #4074 fix(guided-learning): scale callout title margins with container size
+  - #4073 Unifier run 113: aligned
+  - #4070 Update dependencies to latest
+  - #4062 Route every AI call through one helper, with an admin AI tab and Claude support
+- Comments processed: 0 needing action — 0 fixed, 0 explained. Every open thread and bot summary already had an author reply; the answered #4076 `useEffect` ref thread was resolved.
+- Fixes pushed: none
+- Reviews posted: 6
+- Merge readiness:
+  - Ready: #4076, #4075, #4074, #4073.
+  - Needs changes:
+    - #4070: CI red. Prettier 3.9 flags 216 files; about 1,500 lint problems from TS 6 / typescript-eslint 8.71 / react-hooks 7.1; `landingIcons` pin still on lucide 0.563; the Playwright CI image is still v1.58 against @playwright/test 1.64; the functions tests never ran.
+    - #4062: `claudeTimeoutMs` is only the SDK request timeout, so it likely doesn't cut off a streaming reply. The Guided Learning callables still use the 70 s client default against 180 s server timeouts.
+- Notes:
+  - `gh` is unavailable, so GitHub access went through MCP.
+  - #4073's log says `pnpm run validate` was run, which CLAUDE.md forbids unless asked.
