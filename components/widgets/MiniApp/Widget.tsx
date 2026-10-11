@@ -1949,6 +1949,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         }
         onClose={() => setEditingApp(null)}
         onSave={saveMiniApp}
+        resultsOn={resultsOn}
       />
       {/* Import wizard (Wave 2 shared primitive) */}
       {importAdapter && (
