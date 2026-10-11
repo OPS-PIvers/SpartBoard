@@ -564,9 +564,6 @@ describe('welcome image transfer', () => {
   it('counts the welcome image against the export budget', async () => {
     // Three 20MB slides fit (about 80MB as base64); a fourth 20MB image does not.
     const big = { size: 20 * 1024 * 1024, type: 'image/png' } as Blob;
-    const fetchMedia = vi.fn((url: string) =>
-      url === WELCOME ? Promise.resolve(big) : Promise.resolve(pngBlob())
-    );
     const slides = ['a', 'b', 'c'].map((n) => `https://example.com/${n}.png`);
     const sized = vi.fn(() => Promise.resolve(big));
     await expect(
@@ -578,7 +575,6 @@ describe('welcome image transfer', () => {
         sized
       )
     ).rejects.toBeInstanceOf(GlExportBudgetExceededError);
-    expect(fetchMedia).not.toHaveBeenCalled();
   });
 
   it('uploads an embedded welcome image on import and lists its file', async () => {
