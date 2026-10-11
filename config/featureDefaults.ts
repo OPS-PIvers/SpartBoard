@@ -1332,6 +1332,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Pinned Welcome card in the Guided Learning Studio slide strip, plus a welcome image.
+  'gl-welcome-card': {
+    label: 'Guided Learning welcome card',
+    icon: Sparkles,
+    description: 'A pinned welcome card and image in the Studio.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */

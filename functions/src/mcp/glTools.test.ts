@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  applyEdit,
   filterSetRows,
+  fullSet,
   glSlideStoragePath,
   mergeSteps,
   requiredSchemaVersion,
@@ -399,5 +401,51 @@ describe('filterSetRows', () => {
         kind: 'guided_learning',
       }).map((r) => r.id)
     ).toEqual(['b']);
+  });
+});
+
+describe('Guided Learning welcome image', () => {
+  const loaded = (extra: Record<string, unknown> = {}) => ({
+    source: 'mine' as const,
+    set: {
+      id: 'set-1',
+      title: 'Cells',
+      mode: 'structured',
+      imageUrls: ['https://example.com/a.png'],
+      steps: [],
+      ...extra,
+    },
+  });
+
+  it('reports whether the set has a welcome image, never its link', () => {
+    const out = fullSet(
+      loaded({
+        welcomeImageUrl: 'https://example.com/hello.webp',
+        welcomeImageAlt: 'A cell',
+      }) as never
+    );
+    expect(out).toMatchObject({
+      welcome_image: true,
+      welcome_image_alt: 'A cell',
+    });
+    expect(JSON.stringify(out)).not.toContain('hello.webp');
+    expect(fullSet(loaded() as never).welcome_image).toBe(false);
+  });
+
+  it('edits the alt text only when there is an image', () => {
+    const withImage = loaded({
+      welcomeImageUrl: 'https://example.com/hello.webp',
+      welcomeImageAlt: 'Old',
+    });
+    expect(
+      applyEdit(withImage as never, { welcome_image_alt: ' A cell ' })
+        .welcomeImageAlt
+    ).toBe('A cell');
+    expect(
+      applyEdit(withImage as never, { welcome_image_alt: '' }).welcomeImageAlt
+    ).toBeUndefined();
+    expect(() =>
+      applyEdit(loaded() as never, { welcome_image_alt: 'A cell' })
+    ).toThrow(/no welcome image/);
   });
 });

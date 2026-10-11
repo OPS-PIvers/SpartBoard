@@ -16,6 +16,7 @@ import type {
 import { StudioRegionControls } from './StudioRegionControls';
 import { StudioNarration, StudioNarrationBatch } from './StudioNarration';
 import { StudioStepFields, StudioStepPlayback } from './StudioStepFields';
+import { StudioWelcomePanel } from './StudioWelcomePanel';
 import { VideoTrimBar } from '../editorShared/VideoTrimBar';
 import {
   ChoiceGroup,
@@ -40,6 +41,10 @@ interface StudioPropertiesPanelProps {
   onEditOnBoard?: () => void;
   /** `gl-callout-editing`: callout size and colour summary, and Reset all. */
   calloutEditing?: boolean;
+  /** `gl-welcome-card`: the welcome settings live on the pinned card instead. */
+  welcomeCard?: boolean;
+  /** The pinned Welcome card is selected. */
+  welcomeSelected?: boolean;
 }
 
 const MODES: readonly GuidedLearningMode[] = [
@@ -99,8 +104,12 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
   canOfferTour = false,
   onEditOnBoard,
   calloutEditing = false,
+  welcomeCard = false,
+  welcomeSelected = false,
 }) => {
   const { selectedStep } = state;
+  if (welcomeCard && welcomeSelected && !selectedStep)
+    return <StudioWelcomePanel state={state} />;
   return (
     <div className="flex flex-col divide-y divide-slate-200">
       {selectedStep ? (
@@ -116,6 +125,7 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
           state={state}
           canOfferTour={canOfferTour}
           onEditOnBoard={onEditOnBoard}
+          welcomeCard={welcomeCard}
         />
       )}
       {state.imageUrls.length > 0 && (
@@ -203,7 +213,8 @@ const ActivitySection: React.FC<{
   state: GuidedLearningEditorController;
   canOfferTour: boolean;
   onEditOnBoard?: () => void;
-}> = ({ state, canOfferTour, onEditOnBoard }) => {
+  welcomeCard: boolean;
+}> = ({ state, canOfferTour, onEditOnBoard, welcomeCard }) => {
   const { t } = useTranslation();
   const {
     steps,
@@ -284,35 +295,37 @@ const ActivitySection: React.FC<{
           testId="gl-studio-watch-pace"
         />
       )}
-      <div className="flex flex-col gap-2">
-        <label className="flex items-start gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            {...tourAttr('studio.props-welcome-enabled')}
-            checked={welcomeEnabled}
-            onChange={(e) => setWelcomeEnabled(e.target.checked)}
-            className="mt-0.5 h-4 w-4 accent-brand-blue-primary"
-          />
-          <span className="flex flex-col gap-0.5">
-            <span className="text-xs font-bold">
-              {t('glStudio.welcomeToggle')}
-            </span>
-            <span className={hintClass}>{t('glStudio.welcomeHint')}</span>
-          </span>
-        </label>
-        {welcomeEnabled && (
-          <Field label={t('glStudio.welcomeMessage')}>
-            <textarea
-              value={welcomeMessage}
-              onChange={(e) => setWelcomeMessage(e.target.value)}
-              rows={3}
-              {...tourAttr('studio.props-welcome-message')}
-              placeholder={t('glStudio.welcomePlaceholder')}
-              className={`${inputClass} resize-none`}
+      {!welcomeCard && (
+        <div className="flex flex-col gap-2">
+          <label className="flex items-start gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              {...tourAttr('studio.props-welcome-enabled')}
+              checked={welcomeEnabled}
+              onChange={(e) => setWelcomeEnabled(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-brand-blue-primary"
             />
-          </Field>
-        )}
-      </div>
+            <span className="flex flex-col gap-0.5">
+              <span className="text-xs font-bold">
+                {t('glStudio.welcomeToggle')}
+              </span>
+              <span className={hintClass}>{t('glStudio.welcomeHint')}</span>
+            </span>
+          </label>
+          {welcomeEnabled && (
+            <Field label={t('glStudio.welcomeMessage')}>
+              <textarea
+                value={welcomeMessage}
+                onChange={(e) => setWelcomeMessage(e.target.value)}
+                rows={3}
+                {...tourAttr('studio.props-welcome-message')}
+                placeholder={t('glStudio.welcomePlaceholder')}
+                className={`${inputClass} resize-none`}
+              />
+            </Field>
+          )}
+        </div>
+      )}
       {steps.length > 0 && <StudioNarrationBatch state={state} />}
       {mode === 'tour' && onEditOnBoard && (
         <button

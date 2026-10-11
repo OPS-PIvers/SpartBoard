@@ -144,3 +144,47 @@ describe('GuidedLearningStudentApp mode chip and auto-play', () => {
     expect(queryByTestId('gl-start-mode-chip')).toBeNull();
   });
 });
+
+describe('GuidedLearningStudentApp welcome image', () => {
+  it('shows the welcome image above the title, with its alt text', async () => {
+    mockSession.current = {
+      ...baseSession,
+      welcomeEnabled: true,
+      welcomeMessage: 'Hello',
+      welcomeImageUrl: 'https://example.com/hello.webp',
+      welcomeImageAlt: 'A plant cell',
+    };
+    const { findByRole, getByText } = render(<GuidedLearningStudentApp />);
+    const img = await findByRole('img', { name: 'A plant cell' });
+    expect(img).toHaveAttribute('src', 'https://example.com/hello.webp');
+    expect(
+      img.compareDocumentPosition(getByText('Test Set')) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(getByText('Hello')).toBeInTheDocument();
+  });
+
+  it('treats an image-only welcome as a welcome, with a decorative image', async () => {
+    mockSession.current = {
+      ...baseSession,
+      welcomeEnabled: true,
+      welcomeImageUrl: 'https://example.com/hello.webp',
+    };
+    const { findByText, getByTestId, queryByTestId } = render(
+      <GuidedLearningStudentApp />
+    );
+    await findByText(/get started/i);
+    expect(getByTestId('gl-welcome-image')).toHaveAttribute('alt', '');
+    expect(queryByTestId('gl-start-mode-chip')).toBeNull();
+  });
+
+  it('ignores the image while the welcome is off', async () => {
+    mockSession.current = {
+      ...baseSession,
+      welcomeImageUrl: 'https://example.com/hello.webp',
+    };
+    const { findByText, queryByTestId } = render(<GuidedLearningStudentApp />);
+    await findByText(/start/i);
+    expect(queryByTestId('gl-welcome-image')).toBeNull();
+  });
+});

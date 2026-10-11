@@ -13559,6 +13559,37 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     panel: true,
   },
   {
+    id: 'studio.props-welcome-image',
+    label: 'Add or replace welcome image button in the Studio properties panel',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'studio.props-welcome-image-remove',
+    label: 'Remove welcome image button in the Studio properties panel',
+    scope: 'board',
+    panel: true,
+    destructive: true,
+  },
+  {
+    id: 'studio.props-welcome-image-alt',
+    label: 'Welcome image alt text box in the Studio properties panel',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'studio.welcome-card',
+    label: 'Pinned Welcome card at the top of the Studio filmstrip',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'studio.welcome-toggle',
+    label: 'Welcome screen on/off switch on the Studio Welcome card',
+    scope: 'board',
+    panel: true,
+  },
+  {
     id: 'studio.props-edit-on-board',
     label: 'Edit on board button in the Studio properties panel',
     scope: 'board',

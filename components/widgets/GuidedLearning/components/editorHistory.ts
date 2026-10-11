@@ -22,6 +22,9 @@ export interface EditorDocument {
   imageTransition: 'none' | 'slide' | 'fade';
   welcomeEnabled: boolean;
   welcomeMessage: string;
+  /** '' when the welcome screen has no image. */
+  welcomeImageUrl: string;
+  welcomeImageAlt: string;
   watchPace: GuidedLearningWatchPace | undefined;
   /** Live tours: widget types the tour adds to the board before it starts. */
   tourSetupWidgets: WidgetType[];
@@ -108,6 +111,8 @@ export function documentFromSet(set: GuidedLearningSet | null): EditorDocument {
     imageTransition: set?.imageTransition ?? 'none',
     welcomeEnabled: Boolean(set?.welcomeEnabled),
     welcomeMessage: set?.welcomeMessage ?? '',
+    welcomeImageUrl: set?.welcomeImageUrl ?? '',
+    welcomeImageAlt: set?.welcomeImageAlt ?? '',
     watchPace: set?.watchPace,
     tourSetupWidgets: set?.tourSetup?.widgets ?? [],
     tourSetupLayouts: set?.tourSetup?.layouts ?? [],

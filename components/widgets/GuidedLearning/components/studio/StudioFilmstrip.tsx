@@ -37,6 +37,7 @@ import { StudioMenu } from './StudioMenu';
 import { modShortcutLabel } from './useStudioShortcuts';
 import { useFileDrop } from './useFileDrop';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { StudioWelcomeCard } from './StudioWelcomeCard';
 
 interface SlideItem {
   id: string;
@@ -240,6 +241,9 @@ type FilmstripState = Pick<
   | 'replaceSlideFromFile'
   | 'uploadFromClipboard'
   | 'addCapturedMedia'
+  | 'welcomeEnabled'
+  | 'setWelcomeEnabled'
+  | 'welcomeImageUrl'
 >;
 
 interface FilmstripBodyProps extends FilmstripState {
@@ -249,6 +253,10 @@ interface FilmstripBodyProps extends FilmstripState {
   collapsed: boolean;
   onToggleCollapsed?: () => void;
   onCopyForClaude?: (index: number) => void;
+  /** `gl-welcome-card`: the pinned Welcome card is shown, and whether it is selected. */
+  welcomeCard: boolean;
+  welcomeSelected: boolean;
+  onSelectWelcome?: () => void;
 }
 
 const sameProps = (a: FilmstripBodyProps, b: FilmstripBodyProps) =>
@@ -281,6 +289,12 @@ const FilmstripBody = React.memo(function FilmstripBody({
   collapsed,
   onToggleCollapsed,
   onCopyForClaude,
+  welcomeEnabled,
+  setWelcomeEnabled,
+  welcomeImageUrl,
+  welcomeCard,
+  welcomeSelected,
+  onSelectWelcome,
 }: FilmstripBodyProps) {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -306,8 +320,11 @@ const FilmstripBody = React.memo(function FilmstripBody({
     [imageUrls, imageKinds, slideThumbnails]
   );
   const currentSlide = useMemo(
-    () => ({ index: currentImageIndex, counts: stepCounts }),
-    [currentImageIndex, stepCounts]
+    () => ({
+      index: welcomeSelected ? -1 : currentImageIndex,
+      counts: stepCounts,
+    }),
+    [welcomeSelected, currentImageIndex, stepCounts]
   );
   const onReorder = useCallback(
     (next: SlideItem[], movedId: string) => {
@@ -462,6 +479,15 @@ const FilmstripBody = React.memo(function FilmstripBody({
         )}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3 custom-scrollbar">
+        {welcomeCard && onSelectWelcome && (
+          <StudioWelcomeCard
+            enabled={welcomeEnabled}
+            imageUrl={welcomeImageUrl}
+            selected={welcomeSelected}
+            onSelect={onSelectWelcome}
+            onEnabledChange={setWelcomeEnabled}
+          />
+        )}
         {slides.length === 0 && !uploading && (
           <p className="rounded-lg border-2 border-dashed border-slate-200 px-3 py-6 text-center text-xs text-slate-500">
             {t('glStudio.filmstripEmpty')}
@@ -553,6 +579,11 @@ interface StudioFilmstripProps {
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
   onCopyForClaude?: (index: number) => void;
+  /** Picks a slide; the Studio passes one that also leaves the Welcome card. */
+  onSelectSlide?: (index: number) => void;
+  /** Shows the pinned Welcome card; absent without `gl-welcome-card`. */
+  onSelectWelcome?: () => void;
+  welcomeSelected?: boolean;
 }
 
 /** Left column: slide thumbnails to pick, reorder, add, replace and delete. */
@@ -562,6 +593,9 @@ export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({
   collapsed = false,
   onToggleCollapsed,
   onCopyForClaude,
+  onSelectSlide,
+  onSelectWelcome,
+  welcomeSelected = false,
 }) => {
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
@@ -595,7 +629,7 @@ export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({
       imageKinds={state.imageKinds}
       slideThumbnails={state.slideThumbnails}
       currentImageIndex={state.currentImageIndex}
-      setCurrentImageIndex={state.setCurrentImageIndex}
+      setCurrentImageIndex={onSelectSlide ?? state.setCurrentImageIndex}
       onReorderSlides={onReorderSlides}
       deleteImage={onDeleteSlide ?? state.deleteImage}
       duplicateSlide={state.duplicateSlide}
@@ -611,6 +645,12 @@ export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({
       collapsed={collapsed}
       onToggleCollapsed={onToggleCollapsed}
       onCopyForClaude={onCopyForClaude}
+      welcomeEnabled={state.welcomeEnabled}
+      setWelcomeEnabled={state.setWelcomeEnabled}
+      welcomeImageUrl={state.welcomeImageUrl}
+      welcomeCard={!!onSelectWelcome}
+      welcomeSelected={welcomeSelected}
+      onSelectWelcome={onSelectWelcome}
     />
   );
 };
