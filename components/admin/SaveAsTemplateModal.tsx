@@ -199,7 +199,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
               ...existing,
               ...captureBoardForBoardTemplate(target.dashboard),
               updatedAt: Date.now(),
-            } as AnyTemplate);
+            });
           } else {
             mockTemplateStore.save({
               ...existing,
@@ -310,7 +310,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
         // In auth-bypass / E2E mode, write to the in-memory mock store
         // instead of Firestore (db is a {} stub; addDoc would throw).
         const id = crypto.randomUUID();
-        mockTemplateStore.save({ ...payload, id } as AnyTemplate);
+        mockTemplateStore.save({ ...payload, id });
       } else {
         await addDoc(collection(db, TEMPLATES_COLLECTION), payload);
       }

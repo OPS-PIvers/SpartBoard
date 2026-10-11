@@ -177,7 +177,7 @@ const widget = (id: string): WidgetData => ({
   h: 100,
   z: 1,
   flipped: false,
-  config: { text: 'hello' } as WidgetData['config'],
+  config: { text: 'hello' },
 });
 
 // `driveFileId` is preset so the save path's own first-export branch stays
@@ -428,7 +428,7 @@ describe('DashboardContext annotation save cadence', () => {
       widgets: [
         {
           ...widget('w1'),
-          config: { firstNames: 'Ada\nGrace' } as WidgetData['config'],
+          config: { firstNames: 'Ada\nGrace' },
         },
       ],
     };

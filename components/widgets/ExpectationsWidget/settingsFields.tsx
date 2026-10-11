@@ -2,7 +2,7 @@ import React from 'react';
 import { Toggle } from '@/components/common/Toggle';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import { useDashboard } from '@/context/useDashboard';
-import type { ExpectationsConfig, SoundConfig } from '@/types';
+import type { ExpectationsConfig } from '@/types';
 import { tourAttr } from '@/config/tourAnchors';
 
 export const ExpectationsSoundSyncField: React.FC<{
@@ -26,7 +26,7 @@ export const ExpectationsSoundSyncField: React.FC<{
             config: {
               ...widget.config,
               syncSoundWidget: false,
-            } as ExpectationsConfig,
+            },
           });
         }
       }
@@ -38,7 +38,7 @@ export const ExpectationsSoundSyncField: React.FC<{
           config: {
             ...widget.config,
             syncExpectations: next,
-          } as SoundConfig,
+          },
         });
       }
     }

@@ -36,7 +36,6 @@ import {
   AnnouncementDismissalType,
   WidgetType,
   WidgetData,
-  WidgetConfig,
   PollConfig,
 } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
@@ -342,9 +341,7 @@ function renderConfigEditor(
       return (
         <TextConfigEditor
           config={form.widgetConfig}
-          onChange={(config) =>
-            handleConfigChange(config as Record<string, unknown>)
-          }
+          onChange={(config) => handleConfigChange(config)}
         />
       );
     case 'embed':
@@ -352,9 +349,7 @@ function renderConfigEditor(
         <EmbedConfigEditor
           config={form.widgetConfig}
           label={form.name}
-          onChange={(config) =>
-            handleConfigChange(config as Record<string, unknown>)
-          }
+          onChange={(config) => handleConfigChange(config)}
         />
       );
     case 'qr':
@@ -495,7 +490,7 @@ const AnnouncementPreview: React.FC<{
     flipped: false,
     minimized: false,
     maximized: false,
-    config: widgetConfig as WidgetConfig,
+    config: widgetConfig,
   };
 
   return (

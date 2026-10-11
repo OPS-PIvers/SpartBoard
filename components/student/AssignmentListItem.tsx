@@ -141,7 +141,7 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
         const turnIn = readTurnInState(
           assignment.kind,
           assignment.flashcardKind,
-          snap.exists() ? (snap.data() as Record<string, unknown>) : null
+          snap.exists() ? snap.data() : null
         );
         const next: CompletionState =
           turnIn === 'turned-in'

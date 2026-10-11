@@ -2017,7 +2017,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         const fileId = shareId.replace('drive-', '');
         const drv = await driveService.importDashboard(fileId);
-        return drv as SharedBoardSnapshot | null;
+        return drv;
       }
       return loadSharedDashboardFirestore(shareId);
     },
@@ -4685,7 +4685,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 ...structuredClone(b),
                 id: crypto.randomUUID(),
                 order: baseOrder + idx + 1,
-              } as Dashboard,
+              },
               { collectionId: newCollectionId, silent: true }
             )
           )
@@ -6024,7 +6024,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 hProp: prop.hProp,
                 aspectRatio,
                 config: baseConfig,
-              } as WidgetData;
+              };
             };
 
             // 1. SMART LAYOUT: If AI provided spatial data

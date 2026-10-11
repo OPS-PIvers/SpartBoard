@@ -8,12 +8,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
-import type {
-  QuizSession,
-  QuizResponse,
-  QuizPublicQuestion,
-  StudentAssignmentPointer,
-} from '@/types';
+import type { QuizSession, QuizResponse, QuizPublicQuestion } from '@/types';
 
 const { mockAuth, mockJoinQuizSession, hookState } = vi.hoisted(() => {
   type MockUser = {
@@ -128,7 +123,7 @@ beforeEach(() => {
     isAnonymous: false,
     getIdTokenResult: () =>
       Promise.resolve({
-        claims: { studentRole: true } as Record<string, unknown>,
+        claims: { studentRole: true },
       }),
   };
   mockJoinQuizSession.mockResolvedValue('session-1');
@@ -194,7 +189,7 @@ describe('QuizStudentApp — submitted summary answered count', () => {
       override: { questionIds: ['q1'] },
       createdAt: Date.now(),
       updatedAt: Date.now(),
-    } as StudentAssignmentPointer;
+    };
     hookState.myResponse = buildResponse({
       answers: [
         { questionId: 'q1', answer: 'a', answeredAt: Date.now() },
@@ -220,7 +215,7 @@ describe('QuizStudentApp — submitted summary answered count', () => {
       override: { questionIds: ['q1'] },
       createdAt: Date.now(),
       updatedAt: Date.now(),
-    } as StudentAssignmentPointer;
+    };
     hookState.myResponse = buildResponse({
       answers: [
         { questionId: 'q1', answer: 'a', answeredAt: Date.now() },

@@ -1253,13 +1253,10 @@ export const useQuizSessionTeacher = (
         // Carry the doc id through as `_responseKey` so the live monitor
         // can remove/delete by the actual Firestore key rather than the
         // `studentUid` field, which may differ for PIN-authed joiners.
-        const list = snap.docs.map(
-          (d) =>
-            ({
-              ...(d.data() as QuizResponse),
-              _responseKey: d.id,
-            }) as QuizResponse
-        );
+        const list = snap.docs.map((d) => ({
+          ...(d.data() as QuizResponse),
+          _responseKey: d.id,
+        }));
         throttle.push(list);
       },
       (err) => {

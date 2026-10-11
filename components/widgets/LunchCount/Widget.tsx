@@ -274,7 +274,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
   // Resolve global lunch count settings from feature permissions
   const lunchGlobalConfig = useMemo((): LunchCountGlobalConfig => {
     const perm = featurePermissions.find((p) => p.widgetType === 'lunchCount');
-    return (perm?.config ?? {}) as LunchCountGlobalConfig;
+    return perm?.config ?? {};
   }, [featurePermissions]);
 
   const { isSyncing, fetchNutrislice } = useNutrislice({

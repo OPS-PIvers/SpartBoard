@@ -1293,9 +1293,10 @@ export const useQuizAssignments = (
               LegacySyncLinkageShape;
             // Pipe through the PLC mapper AND the sync-linkage mapper so
             // consumers only ever see the canonical sub-object shapes.
-            return migrateSyncLinkageShape(
+            const assignment: QuizAssignment = migrateSyncLinkageShape(
               migrateLegacyAssignmentShape(raw)
-            ) as QuizAssignment;
+            );
+            return assignment;
           })
         );
         setLoading(false);
@@ -2296,9 +2297,9 @@ export const useQuizAssignments = (
     // sub-object regardless of whether the share was written before or
     // after the PLC refactor (see migrateLegacyAssignmentShape for the
     // migration rules).
-    const settings = migrateLegacyAssignmentShape(
+    const settings: QuizAssignmentSettings = migrateLegacyAssignmentShape(
       data.assignmentSettings as QuizAssignmentSettings & LegacyPlcShape
-    ) as QuizAssignmentSettings;
+    );
     return {
       title: data.title,
       originalAuthor: data.originalAuthor,
@@ -2323,13 +2324,13 @@ export const useQuizAssignments = (
       // `sync` sub-object, but consistency keeps the invariant
       // ("every read goes through both migrators") intact so a future
       // change can rely on it.
-      const assignment = migrateSyncLinkageShape(
+      const assignment: QuizAssignment = migrateSyncLinkageShape(
         migrateLegacyAssignmentShape(
           snap.data() as QuizAssignment &
             LegacyPlcShape &
             LegacySyncLinkageShape
         )
-      ) as QuizAssignment;
+      );
 
       // Sync-mode plumbing: every share now carries a `syncGroupId` so the
       // importer's mode picker can offer "Synced" as an option. If the
@@ -2439,7 +2440,7 @@ export const useQuizAssignments = (
         assignmentSettings: migrateLegacyAssignmentShape(
           sharedRaw.assignmentSettings as QuizAssignmentSettings &
             LegacyPlcShape
-        ) as QuizAssignmentSettings,
+        ),
       };
 
       // 1. Copy the quiz into the importer's library.
@@ -2754,13 +2755,13 @@ export const useQuizAssignments = (
       if (!assignmentSnap.exists()) {
         throw new Error('Assignment not found.');
       }
-      const assignment = migrateSyncLinkageShape(
+      const assignment: QuizAssignment = migrateSyncLinkageShape(
         migrateLegacyAssignmentShape(
           assignmentSnap.data() as QuizAssignment &
             LegacyPlcShape &
             LegacySyncLinkageShape
         )
-      ) as QuizAssignment;
+      );
       if (!assignment.sync) {
         // Not a synced assignment — nothing to do. Returning a no-op result
         // (rather than throwing) lets callers wire the action without

@@ -743,7 +743,7 @@ const TeacherQuizWidget: React.FC<{
 
   const setView = useCallback(
     (view: QuizConfig['view']) => {
-      updateWidget(widget.id, { config: { ...config, view } as QuizConfig });
+      updateWidget(widget.id, { config: { ...config, view } });
     },
     [updateWidget, widget.id, config]
   );
@@ -864,7 +864,7 @@ const TeacherQuizWidget: React.FC<{
             activeAssignmentId: assignmentId,
             activeLiveSessionCode: code,
             lastRosterIdsByQuizId: nextMap,
-          } as QuizConfig,
+          },
         });
       })();
     },
@@ -1230,7 +1230,7 @@ const TeacherQuizWidget: React.FC<{
   const handleUpdateQuizConfig = useCallback(
     (updates: Partial<QuizConfig>) => {
       updateWidget(widget.id, {
-        config: { ...configRef.current, ...updates } as QuizConfig,
+        config: { ...configRef.current, ...updates },
       });
     },
     [updateWidget, widget.id]
@@ -1371,7 +1371,7 @@ const TeacherQuizWidget: React.FC<{
               config: {
                 ...currentConfig,
                 liveScoreboardWidgetId: existingScoreboard.id,
-              } as QuizConfig,
+              },
             });
           }
           creatingScoreboardRef.current = false;
@@ -1786,7 +1786,7 @@ const TeacherQuizWidget: React.FC<{
           // active assignment doc so other consumers (assignment list,
           // settings modal, copy-to-clipboard menu) see the live URL.
           updateWidget(widget.id, {
-            config: { ...config, plcSheetUrl: newUrl } as QuizConfig,
+            config: { ...config, plcSheetUrl: newUrl },
           });
           if (config.activeAssignmentId && activeAssignment?.plc) {
             try {
@@ -1887,7 +1887,7 @@ const TeacherQuizWidget: React.FC<{
                   ...config,
                   view: 'manager',
                   managerTab: 'active',
-                } as QuizConfig,
+                },
               })
             }
             className="inline-flex items-center rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-sm transition-colors"
@@ -1945,7 +1945,7 @@ const TeacherQuizWidget: React.FC<{
               ...config,
               view: 'manager',
               managerTab: 'archive',
-            } as QuizConfig,
+            },
           });
         }}
         onPause={
@@ -1986,7 +1986,7 @@ const TeacherQuizWidget: React.FC<{
               ...config,
               view: 'manager',
               managerTab: 'active',
-            } as QuizConfig,
+            },
           });
         }}
         overridesBySourcedId={
@@ -2594,7 +2594,7 @@ const TeacherQuizWidget: React.FC<{
                   plcOptions.periodNames?.[0] ?? plcOptions.periodName ?? '',
                 periodNames: plcOptions.periodNames ?? [],
                 lastRosterIdsByQuizId: nextMap,
-              } as QuizConfig,
+              },
             });
             // Library-row chooser → Google Classroom: the SpartBoard assignment
             // now exists (we have its id + join code), so hand it straight to the
@@ -3009,7 +3009,7 @@ const TeacherQuizWidget: React.FC<{
               teacherName: a.teacherName ?? '',
               plcMode: !!a.plc,
               plcSheetUrl: a.plc?.sheetUrl ?? '',
-            } as QuizConfig,
+            },
           });
         }}
         onArchiveStart={async (a) => {
@@ -3056,7 +3056,7 @@ const TeacherQuizWidget: React.FC<{
               teacherName: a.teacherName ?? '',
               plcMode: !!a.plc,
               plcSheetUrl: a.plc?.sheetUrl ?? '',
-            } as QuizConfig,
+            },
           });
         }}
         onArchiveResults={async (a) => {
@@ -3080,7 +3080,7 @@ const TeacherQuizWidget: React.FC<{
               periodName: a.periodName ?? '',
               periodNames: a.periodNames ?? [],
               teacherName: a.teacherName ?? '',
-            } as QuizConfig,
+            },
           });
         }}
         onArchiveEditSettings={

@@ -28,7 +28,7 @@ describe('BreathingWidget', () => {
       return setTimeout(() => cb(performance.now()), 0) as unknown as number;
     });
     vi.spyOn(window, 'cancelAnimationFrame').mockImplementation((id) => {
-      clearTimeout(id as unknown as number);
+      clearTimeout(id);
     });
 
     // Mock performance.now to work correctly with vitest fake timers

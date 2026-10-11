@@ -62,20 +62,19 @@ const project = (
   ...overrides,
 });
 
-const run = (overrides: Partial<ProjectRun> = {}): ProjectRun =>
-  ({
-    id: 'teacher-1_project-a',
-    projectId: 'project-a',
-    teacherUid: 'teacher-1',
-    title: 'Ecosystem poster',
-    steps: [{ id: 'step-1', title: 'Research' }],
-    classIds: ['class-a'],
-    approvalStepIds: [],
-    showStatusToStudents: true,
-    acceptingUpdates: true,
-    updatedAt: 2,
-    ...overrides,
-  }) as ProjectRun;
+const run = (overrides: Partial<ProjectRun> = {}): ProjectRun => ({
+  id: 'teacher-1_project-a',
+  projectId: 'project-a',
+  teacherUid: 'teacher-1',
+  title: 'Ecosystem poster',
+  steps: [{ id: 'step-1', title: 'Research' }],
+  classIds: ['class-a'],
+  approvalStepIds: [],
+  showStatusToStudents: true,
+  acceptingUpdates: true,
+  updatedAt: 2,
+  ...overrides,
+});
 
 const widget = (config = {}): WidgetData =>
   ({

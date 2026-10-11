@@ -128,12 +128,7 @@ export function useActivityWallStudentSession(
           return;
         }
         setSessionMissing(false);
-        setSession(
-          normalizeActivityWallSession(
-            snap.id,
-            snap.data() as Partial<ActivityWallSession>
-          )
-        );
+        setSession(normalizeActivityWallSession(snap.id, snap.data()));
       },
       (error) => {
         console.error('[ActivityWallStudentApp] Session read failed:', error);

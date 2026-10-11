@@ -1442,7 +1442,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           {
             key: 'manual',
             label: 'Manual',
-            defaultDir: 'asc' as LibrarySortDir,
+            defaultDir: 'asc',
           },
           { key: 'updated', label: 'Recently updated', defaultDir: 'desc' },
           { key: 'created', label: 'Recently created', defaultDir: 'desc' },

@@ -220,7 +220,7 @@ export const ActivityWallGalleryView: React.FC = () => {
         setRawSubmissions(
           snap.docs.map((d) => ({
             id: d.id,
-            data: d.data() as Partial<ActivityWallSubmission>,
+            data: d.data(),
           }))
         );
         setSubmissionsReady(true);
@@ -244,12 +244,7 @@ export const ActivityWallGalleryView: React.FC = () => {
       doc(db, 'activity_wall_sessions', sessionId),
       (snap) => {
         if (!snap.exists()) return;
-        setSession(
-          normalizeActivityWallSession(
-            sessionId,
-            snap.data() as Partial<ActivityWallSession>
-          )
-        );
+        setSession(normalizeActivityWallSession(sessionId, snap.data()));
       },
       (err) => {
         console.error('[ActivityWallGallery] Session snapshot error:', err);

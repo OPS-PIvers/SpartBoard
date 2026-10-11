@@ -235,10 +235,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
     return onSnapshot(
       doc(db, 'guided_learning_sessions', sessionId),
       (snap) => {
-        const next = toPeriodSession(
-          sessionId,
-          snap.data() as PeriodAccessSessionFields & { teacherUid?: string }
-        );
+        const next = toPeriodSession(sessionId, snap.data());
         if (next) setPeriodSession(next);
       },
       (err) => logError('GuidedLearningResults.periodListener', err)

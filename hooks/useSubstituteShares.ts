@@ -108,7 +108,7 @@ export function useSubstituteShares(
     const canonical = canonicalBuildingId(buildingId);
     const q = query(
       collection(db, 'shared_boards'),
-      where('intendedMode', '==', 'substitute' as SharedBoardIntendedMode),
+      where('intendedMode', '==', 'substitute'),
       where('buildingId', '==', canonical),
       where('expiresAt', '>', Date.now())
     );

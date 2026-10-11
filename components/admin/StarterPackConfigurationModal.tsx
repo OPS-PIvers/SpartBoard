@@ -311,7 +311,7 @@ export const StarterPackConfigurationModal: React.FC<
 
   useEffect(() => {
     if (isOpen && permission?.config) {
-      setGlobalConfig(permission.config as unknown as StarterPackGlobalConfig);
+      setGlobalConfig(permission.config);
     }
   }, [isOpen, permission?.config]);
 
@@ -471,7 +471,7 @@ export const StarterPackConfigurationModal: React.FC<
       color: pack.color,
       gradeLevels: [...pack.gradeLevels],
       isLocked: pack.isLocked,
-      widgets: pack.widgets as PackWidgetEntry[],
+      widgets: pack.widgets,
     });
     resetSnapState();
     setView('editor');

@@ -72,7 +72,7 @@ describe('TourAnchorList', () => {
     };
     const spy = vi
       .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
-      .mockReturnValue({ ...rect, toJSON: () => rect } as DOMRect);
+      .mockReturnValue({ ...rect, toJSON: () => rect });
     const onPick = vi.fn();
     render(<TourAnchorList onPick={onPick} />);
     expect(screen.getByText('On screen')).toBeInTheDocument();

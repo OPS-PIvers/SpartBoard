@@ -104,7 +104,7 @@ const OptionsMenu: React.FC<{
     <div
       className="relative"
       onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+        if (!e.currentTarget.contains(e.relatedTarget)) {
           setOpen(false);
         }
       }}

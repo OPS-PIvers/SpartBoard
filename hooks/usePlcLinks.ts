@@ -75,10 +75,7 @@ export const usePlcLinks = (plcId: string | null, enabled = true) => {
       (snap) => {
         const list: PlcLink[] = [];
         snap.forEach((d) => {
-          const parsed = parsePlcLink(
-            d.id,
-            d.data() as Record<string, unknown>
-          );
+          const parsed = parsePlcLink(d.id, d.data());
           if (parsed) list.push(parsed);
         });
         setLinks(list);

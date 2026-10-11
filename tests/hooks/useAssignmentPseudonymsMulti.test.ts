@@ -200,7 +200,7 @@ describe('useAssignmentPseudonymsMulti', () => {
     expect(result.current.byStudentUid.size).toBe(0);
     expect(calls).toBe(0);
 
-    rerender({ aid: 'assignment-x', cids: [] } as Props);
+    rerender({ aid: 'assignment-x', cids: [] });
     expect(result.current.byStudentUid.size).toBe(0);
     expect(result.current.loading).toBe(false);
     expect(calls).toBe(0);

@@ -184,12 +184,12 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
                 }
                 return {
                   extraClasses: [] as ClassLinkClass[],
-                  extraEmails: {} as Record<string, string[]>,
+                  extraEmails: {},
                 };
               })
           : Promise.resolve({
               extraClasses: [] as ClassLinkClass[],
-              extraEmails: {} as Record<string, string[]>,
+              extraEmails: {},
             });
 
       try {

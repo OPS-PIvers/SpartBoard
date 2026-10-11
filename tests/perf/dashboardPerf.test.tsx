@@ -720,14 +720,14 @@ function buildWidgets(): WidgetData[] {
     const n = i + 1;
     return {
       id: `w-${n}`,
-      type: type as WidgetType,
+      type: type,
       x: 40 + (i % 5) * 190,
       y: 40 + Math.floor(i / 5) * 230,
       w: 260 + (i % 3) * 40,
       h: 180 + (i % 2) * 60,
       z: n,
       flipped: false,
-      config: {} as WidgetData['config'],
+      config: {},
     };
   });
 }

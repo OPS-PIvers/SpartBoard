@@ -158,10 +158,7 @@ function useStandaloneActivity(
       (snap) => {
         const list: PlcActivityEvent[] = [];
         snap.forEach((d) => {
-          const parsed = parseActivity(
-            d.id,
-            d.data() as Record<string, unknown>
-          );
+          const parsed = parseActivity(d.id, d.data());
           if (parsed) list.push(parsed);
         });
         setActivity(list);

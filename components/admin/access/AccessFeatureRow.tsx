@@ -229,7 +229,7 @@ export const ModelTierEditor: React.FC<{
           onUpdate({
             config: {
               ...permission.config,
-              modelTier: e.target.value as AiModelTier,
+              modelTier: e.target.value,
             },
           })
         }

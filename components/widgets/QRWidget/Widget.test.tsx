@@ -2,7 +2,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { QRWidget } from './Widget';
 import { QRSettingsFields as QRSettings } from './settingsFields';
-import { WidgetData, QRConfig, TextConfig } from '@/types';
+import { WidgetData, QRConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useAuth } from '@/context/useAuth';
@@ -204,7 +204,7 @@ describe('QRWidget', () => {
       {
         id: 'text-widget-1',
         type: 'text',
-        config: { content: targetText } as TextConfig,
+        config: { content: targetText },
       } as WidgetData,
     ];
 
@@ -239,7 +239,7 @@ describe('QRWidget', () => {
       {
         id: 'text-widget-1',
         type: 'text',
-        config: { content: initialText } as TextConfig,
+        config: { content: initialText },
       } as WidgetData,
     ];
 
@@ -263,7 +263,7 @@ describe('QRWidget', () => {
       {
         id: 'text-widget-1',
         type: 'text',
-        config: { content: updatedText } as TextConfig,
+        config: { content: updatedText },
       } as WidgetData,
       {
         id: 'clock-widget-1',
@@ -363,7 +363,7 @@ describe('QRSettings', () => {
       {
         id: 'text-widget-1',
         type: 'text',
-        config: { content: syncedText } as TextConfig,
+        config: { content: syncedText },
       } as WidgetData,
     ];
     // Stored url intentionally stale.

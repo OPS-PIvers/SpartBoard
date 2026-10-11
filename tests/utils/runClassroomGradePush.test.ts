@@ -130,7 +130,7 @@ describe('runClassroomGradePush (multi-course fan-out)', () => {
       requestToken,
       onStatus: (s) => {
         if (s.phase === 'pushed') {
-          pushedData = s.data as { pushed: number; failed: number };
+          pushedData = s.data;
         }
       },
       onError: vi.fn(),
@@ -174,11 +174,7 @@ describe('runClassroomGradePush (multi-course fan-out)', () => {
       requestToken,
       onStatus: (s) => {
         if (s.phase === 'pushed') {
-          pushedData = s.data as {
-            pushed: number;
-            skipped: number;
-            failed: number;
-          };
+          pushedData = s.data;
         }
       },
       onError: vi.fn(),
@@ -241,7 +237,7 @@ describe('runClassroomGradePush (multi-course fan-out)', () => {
       requestToken,
       onStatus: vi.fn(),
       onError: (e) => {
-        errArg = e as { permissionDenied: boolean };
+        errArg = e;
       },
       logTag: 'test',
     });

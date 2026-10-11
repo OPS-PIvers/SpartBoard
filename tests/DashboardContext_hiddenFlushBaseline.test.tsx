@@ -191,7 +191,7 @@ function makeWidget(id: string, configValue: unknown): WidgetData {
     h: 100,
     z: 1,
     flipped: false,
-    config: { text: configValue } as WidgetData['config'],
+    config: { text: configValue },
   };
 }
 
@@ -252,7 +252,7 @@ describe('DashboardContext hidden-tab flush baseline', () => {
     // Local edit on widget A.
     await act(async () => {
       stateRef.current?.updateWidget('wA', {
-        config: { text: 'local-A' } as WidgetData['config'],
+        config: { text: 'local-A' },
       });
       await Promise.resolve();
     });

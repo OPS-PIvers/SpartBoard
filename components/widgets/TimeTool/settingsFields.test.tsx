@@ -27,7 +27,7 @@ const t = (key: string, options?: Record<string, unknown>): string => {
 
 const widget = {
   id: 'tt-1',
-  type: 'time-tool' as WidgetType,
+  type: 'time-tool',
   x: 0,
   y: 0,
   w: 420,
@@ -38,7 +38,7 @@ const widget = {
 
 const makeCtx = (config: Record<string, unknown>): FieldCtx => ({
   config,
-  widget: { ...widget, config } as WidgetData,
+  widget: { ...widget, config },
   isAdmin: false,
   canAccessFeature: () => true,
   t,

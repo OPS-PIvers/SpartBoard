@@ -60,7 +60,7 @@ const idleWidget: WidgetData = {
       { id: 'o2', label: 'Blue', votes: 1 },
     ],
   },
-} as WidgetData;
+};
 
 const liveWidget: WidgetData = {
   ...idleWidget,
@@ -69,7 +69,7 @@ const liveWidget: WidgetData = {
     activePollSessionId: 'K3F9Q',
     joinCode: 'K3F9Q',
   },
-} as WidgetData;
+};
 
 const multiQuestionWidget: WidgetData = {
   ...idleWidget,
@@ -88,7 +88,7 @@ const multiQuestionWidget: WidgetData = {
     ],
     currentQuestionIndex: 0,
   },
-} as WidgetData;
+};
 
 beforeEach(() => {
   vi.clearAllMocks();

@@ -7,7 +7,7 @@ import '@testing-library/jest-dom/vitest';
 const { mockAuth, mockLookupSession } = vi.hoisted(() => ({
   mockAuth: {
     authStateReady: vi.fn().mockResolvedValue(undefined),
-    currentUser: { uid: 'anon-uid', isAnonymous: true } as unknown,
+    currentUser: { uid: 'anon-uid', isAnonymous: true },
   },
   mockLookupSession: vi.fn(),
 }));

@@ -45,7 +45,7 @@ const compactStudentOverride = (override: StudentOverride): StudentOverride => {
     }
     next[key] = value;
   }
-  return next as StudentOverride;
+  return next;
 };
 
 /**

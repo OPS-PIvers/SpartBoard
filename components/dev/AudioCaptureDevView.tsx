@@ -8,32 +8,10 @@ import { AudioResponseCapture } from '@/components/quiz/recording/AudioResponseC
 import { SubmitBlockedNotice } from '@/components/quiz/recording/SubmitBlockedNotice';
 import type { AudioRecordingDeps } from '@/hooks/useAudioRecording';
 import type { RecordingConfig, ResponseArtifact } from '@/types';
-
-export const AUDIO_CAPTURE_STATES = [
-  'notice',
-  'prep',
-  'armed',
-  'recording',
-  'review',
-  'committing',
-  'archive-failed',
-  'take-limit',
-  'window-closed',
-  'mic-unavailable',
-  // Not AudioResponseCapture — SubmitBlockedNotice, the self-paced quiz's
-  // submit gate. Only reachable in production behind the light prop (the
-  // quiz app is light-only); the dark variant stays a harness-only fixture.
-  'submit-blocked',
-] as const;
-
-/** Same states in the dark (teacher-paced) shell. */
-export const AUDIO_CAPTURE_DARK_STATES = AUDIO_CAPTURE_STATES.map(
-  (key) => `dark-${key}`
-) as readonly `dark-${(typeof AUDIO_CAPTURE_STATES)[number]}`[];
-
-export type AudioCaptureStateKey =
-  | (typeof AUDIO_CAPTURE_STATES)[number]
-  | (typeof AUDIO_CAPTURE_DARK_STATES)[number];
+import {
+  AUDIO_CAPTURE_STATES,
+  type AudioCaptureStateKey,
+} from './devViewStates';
 
 const ACKED_AT = 1_700_000_000_000;
 

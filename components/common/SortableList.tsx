@@ -104,7 +104,7 @@ const SortableRow: React.FC<SortableRowProps> = ({ id, children }) => {
   return (
     <div ref={setNodeRef} style={style}>
       {children({
-        attributes: attributes as React.HTMLAttributes<HTMLElement>,
+        attributes: attributes,
         listeners: listeners as
           Record<string, (event: Event) => void> | undefined,
         isDragging,

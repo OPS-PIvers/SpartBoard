@@ -23,14 +23,13 @@ export const makeWidget = (over: Partial<WidgetData> = {}): WidgetData =>
     ...over,
   }) as WidgetData;
 
-export const makeBoard = (widgets: WidgetData[], id = 'b1'): Dashboard =>
-  ({
-    id,
-    name: 'Board',
-    background: 'bg-slate-900',
-    widgets,
-    createdAt: 0,
-  }) as Dashboard;
+export const makeBoard = (widgets: WidgetData[], id = 'b1'): Dashboard => ({
+  id,
+  name: 'Board',
+  background: 'bg-slate-900',
+  widgets,
+  createdAt: 0,
+});
 
 export interface HostHarness {
   actions: DashboardActions;

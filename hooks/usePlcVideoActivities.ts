@@ -170,10 +170,7 @@ export const usePlcVideoActivities = (
       (snap) => {
         const list: PlcVideoActivityEntry[] = [];
         snap.forEach((d) => {
-          const parsed = parsePlcVideoActivityEntry(
-            d.id,
-            d.data() as Record<string, unknown>
-          );
+          const parsed = parsePlcVideoActivityEntry(d.id, d.data());
           // Soft-deleted (unshared) entries drop out of the live library — they
           // live in Trash until restored or GC'd (Decision 3.1).
           if (parsed && parsed.deletedAt == null) list.push(parsed);

@@ -166,20 +166,19 @@ describe('useGuidedLearningSessionTeacher — per-period create', () => {
 
 const perPeriodSession = (
   over: Partial<GuidedLearningSession> = {}
-): GuidedLearningSession =>
-  ({
-    id: 'sess-1',
-    title: 'Cells',
-    mode: 'guided',
-    imageUrls: [],
-    publicSteps: [],
-    teacherUid: 't1',
-    createdAt: 1,
-    stepsInContent: true,
-    accessMode: 'assignment',
-    periodAccess: PERIODS,
-    ...over,
-  }) as GuidedLearningSession;
+): GuidedLearningSession => ({
+  id: 'sess-1',
+  title: 'Cells',
+  mode: 'guided',
+  imageUrls: [],
+  publicSteps: [],
+  teacherUid: 't1',
+  createdAt: 1,
+  stepsInContent: true,
+  accessMode: 'assignment',
+  periodAccess: PERIODS,
+  ...over,
+});
 
 function emitSession(s: GuidedLearningSession) {
   act(() =>

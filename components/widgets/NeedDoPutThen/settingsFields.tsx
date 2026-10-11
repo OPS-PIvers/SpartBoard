@@ -23,8 +23,7 @@ const newTileId = () =>
 
 type TileKey = 'needItems' | 'putItems' | 'thenItems';
 
-const configFor = (ctx: CustomRenderCtx): NeedDoPutThenConfig =>
-  ctx.config as unknown as NeedDoPutThenConfig;
+const configFor = (ctx: CustomRenderCtx): NeedDoPutThenConfig => ctx.config;
 
 const translate = (
   ctx: CustomRenderCtx,

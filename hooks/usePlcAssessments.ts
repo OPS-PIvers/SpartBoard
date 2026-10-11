@@ -169,10 +169,7 @@ export function usePlcAssessments(
       (snap) => {
         const list: PlcCommonAssessment[] = [];
         snap.forEach((d) => {
-          const parsed = parsePlcAssessment(
-            d.id,
-            d.data() as Record<string, unknown>
-          );
+          const parsed = parsePlcAssessment(d.id, d.data());
           // Soft-deleted assessments drop out of the live list — they live in
           // Trash until restored or GC'd (Decision 3.1).
           if (parsed && parsed.deletedAt == null) list.push(parsed);

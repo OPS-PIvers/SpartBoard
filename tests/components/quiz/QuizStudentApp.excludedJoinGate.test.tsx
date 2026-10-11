@@ -9,16 +9,19 @@ import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 
 const { mockAuth, mockJoinQuizSession, mockLookupSession, mockGetDoc } =
-  vi.hoisted(() => ({
-    mockAuth: {
-      onAuthStateChanged: vi.fn(),
-      authStateReady: vi.fn().mockResolvedValue(undefined),
-      currentUser: null as unknown,
-    },
-    mockJoinQuizSession: vi.fn(),
-    mockLookupSession: vi.fn(),
-    mockGetDoc: vi.fn(),
-  }));
+  vi.hoisted(() => {
+    const currentUser: unknown = null;
+    return {
+      mockAuth: {
+        onAuthStateChanged: vi.fn(),
+        authStateReady: vi.fn().mockResolvedValue(undefined),
+        currentUser,
+      },
+      mockJoinQuizSession: vi.fn(),
+      mockLookupSession: vi.fn(),
+      mockGetDoc: vi.fn(),
+    };
+  });
 
 vi.mock('@/hooks/useStudentAssignmentPointer', () => ({
   useStudentAssignmentPointer: () => null,

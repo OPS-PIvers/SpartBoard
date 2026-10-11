@@ -178,7 +178,7 @@ export function usePlcTrash(plcId: string | null): UsePlcTrashResult {
       (snap) => {
         const list: PlcNote[] = [];
         snap.forEach((d) => {
-          const parsed = parseNote(d.id, d.data() as Record<string, unknown>);
+          const parsed = parseNote(d.id, d.data());
           if (parsed && parsed.deletedAt != null) list.push(parsed);
         });
         setNotes(list);
@@ -191,7 +191,7 @@ export function usePlcTrash(plcId: string | null): UsePlcTrashResult {
       (snap) => {
         const list: PlcDoc[] = [];
         snap.forEach((d) => {
-          const parsed = parseDoc(d.id, d.data() as Record<string, unknown>);
+          const parsed = parseDoc(d.id, d.data());
           if (parsed && parsed.deletedAt != null) list.push(parsed);
         });
         setDocs(list);
@@ -204,10 +204,7 @@ export function usePlcTrash(plcId: string | null): UsePlcTrashResult {
       (snap) => {
         const list: PlcComment[] = [];
         snap.forEach((d) => {
-          const parsed = parseComment(
-            d.id,
-            d.data() as Record<string, unknown>
-          );
+          const parsed = parseComment(d.id, d.data());
           if (parsed && parsed.deletedAt != null) list.push(parsed);
         });
         setComments(list);
@@ -220,10 +217,7 @@ export function usePlcTrash(plcId: string | null): UsePlcTrashResult {
       (snap) => {
         const list: PlcQuizEntry[] = [];
         snap.forEach((d) => {
-          const parsed = parsePlcQuizEntry(
-            d.id,
-            d.data() as Record<string, unknown>
-          );
+          const parsed = parsePlcQuizEntry(d.id, d.data());
           if (parsed && parsed.deletedAt != null) list.push(parsed);
         });
         setQuizzes(list);
@@ -236,10 +230,7 @@ export function usePlcTrash(plcId: string | null): UsePlcTrashResult {
       (snap) => {
         const list: PlcVideoActivityEntry[] = [];
         snap.forEach((d) => {
-          const parsed = parsePlcVideoActivityEntry(
-            d.id,
-            d.data() as Record<string, unknown>
-          );
+          const parsed = parsePlcVideoActivityEntry(d.id, d.data());
           if (parsed && parsed.deletedAt != null) list.push(parsed);
         });
         setVideoActivities(list);
@@ -252,10 +243,7 @@ export function usePlcTrash(plcId: string | null): UsePlcTrashResult {
       (snap) => {
         const list: PlcRubricEntry[] = [];
         snap.forEach((d) => {
-          const parsed = parsePlcRubricEntry(
-            d.id,
-            d.data() as Record<string, unknown>
-          );
+          const parsed = parsePlcRubricEntry(d.id, d.data());
           if (parsed && parsed.deletedAt != null) list.push(parsed);
         });
         setRubrics(list);

@@ -23,16 +23,19 @@ const coll = (
   createdAt: 0,
 });
 
-const board = (id: string, collectionId: string | null, order = 0): Dashboard =>
-  ({
-    id,
-    name: `Board ${id}`,
-    background: 'bg-slate-800',
-    widgets: [],
-    createdAt: 0,
-    order,
-    collectionId,
-  }) as Dashboard;
+const board = (
+  id: string,
+  collectionId: string | null,
+  order = 0
+): Dashboard => ({
+  id,
+  name: `Board ${id}`,
+  background: 'bg-slate-800',
+  widgets: [],
+  createdAt: 0,
+  order,
+  collectionId,
+});
 
 describe('flattenSharedCollection', () => {
   // Monday (2 boards) and Tuesday (1) under a Week root that has one of its own.

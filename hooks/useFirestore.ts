@@ -483,14 +483,10 @@ export const useFirestore = (userId: string | null) => {
         // the live path uses so loadSharedDashboard's mapping works in bypass.
         return mockSharedStore.add({
           ...dashboard,
-          ...(hostDisplayName
-            ? ({ originalAuthorName: hostDisplayName } as Partial<Dashboard>)
-            : {}),
-          ...(intendedMode
-            ? ({ intendedMode } as unknown as Partial<Dashboard>)
-            : {}),
-          ...(plcId ? ({ plcId } as unknown as Partial<Dashboard>) : {}),
-        } as Dashboard);
+          ...(hostDisplayName ? { originalAuthorName: hostDisplayName } : {}),
+          ...(intendedMode ? { intendedMode } : {}),
+          ...(plcId ? { plcId } : {}),
+        });
       }
 
       const shareRef = collection(db, 'shared_boards');
@@ -560,12 +556,10 @@ export const useFirestore = (userId: string | null) => {
       if (isAuthBypass) {
         return mockSharedStore.add({
           ...dashboard,
-          ...(hostDisplayName
-            ? ({ originalAuthorName: hostDisplayName } as Partial<Dashboard>)
-            : {}),
+          ...(hostDisplayName ? { originalAuthorName: hostDisplayName } : {}),
           intendedMode: 'substitute',
           ...(sharedRosters?.length ? { sharedRosters } : {}),
-        } as Dashboard);
+        });
       }
 
       const shareRef = collection(db, 'shared_boards');
@@ -632,7 +626,7 @@ export const useFirestore = (userId: string | null) => {
           ...patch,
           updatedAt: Date.now(),
           updatedBy: userId ?? 'mock',
-        } as Partial<Dashboard>);
+        });
         return;
       }
 

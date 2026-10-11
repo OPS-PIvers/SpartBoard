@@ -938,7 +938,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   // Numbered by real name across every period, so "Student 3" is the same student on every screen.
   const maskedNameByResponseKey = useMemo(() => {
     const rows = responses.map((r) => ({
-      key: getResponseDocKey(r) as string,
+      key: getResponseDocKey(r),
       name: resolveResponseDisplayName(r, pinToName, byStudentUid),
     }));
     rows.sort(
@@ -4381,7 +4381,7 @@ const StudentsScreen: React.FC<{
 
                     {resultsActions && (
                       <StudentResultsControl
-                        responseKey={getResponseDocKey(r) as string}
+                        responseKey={getResponseDocKey(r)}
                         override={r.resultsOverride}
                         completed={r.status === 'completed'}
                         displayName={displayName}
@@ -4456,7 +4456,7 @@ const StudentsScreen: React.FC<{
                     resultsActions ? (
                       <StudentResultsControl
                         layout="panel"
-                        responseKey={getResponseDocKey(r) as string}
+                        responseKey={getResponseDocKey(r)}
                         override={r.resultsOverride}
                         completed={r.status === 'completed'}
                         displayName={displayName}

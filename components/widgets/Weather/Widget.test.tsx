@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { WeatherWidget } from './Widget';
-import { WidgetData, WeatherGlobalConfig, WeatherConfig } from '@/types';
+import { WidgetData, WeatherGlobalConfig } from '@/types';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import '@testing-library/jest-dom';
 
@@ -87,7 +87,7 @@ describe('WeatherWidget', () => {
   it('displays default clothing message when no range matches', () => {
     const widget: WidgetData = {
       ...baseWidget,
-      config: { ...baseWidget.config, temp: 72 } as WeatherConfig,
+      config: { ...baseWidget.config, temp: 72 },
     };
     render(<WeatherWidget widget={widget} />);
     expect(screen.getByText(/Long Sleeves/i)).toBeInTheDocument();
@@ -96,7 +96,7 @@ describe('WeatherWidget', () => {
   it('displays custom message and image when range matches (Freezing)', () => {
     const widget: WidgetData = {
       ...baseWidget,
-      config: { ...baseWidget.config, temp: 20 } as WeatherConfig,
+      config: { ...baseWidget.config, temp: 20 },
     };
     render(<WeatherWidget widget={widget} />);
     expect(screen.getByText('It is freezing!')).toBeInTheDocument();
@@ -107,7 +107,7 @@ describe('WeatherWidget', () => {
   it('displays custom message without image when range matches (Hot)', () => {
     const widget: WidgetData = {
       ...baseWidget,
-      config: { ...baseWidget.config, temp: 90 } as WeatherConfig,
+      config: { ...baseWidget.config, temp: 90 },
     };
     render(<WeatherWidget widget={widget} />);
     expect(screen.getByText('It is hot!')).toBeInTheDocument();
@@ -120,7 +120,7 @@ describe('WeatherWidget', () => {
         ...baseWidget.config,
         temp: 72,
         hideClothing: true,
-      } as WeatherConfig,
+      },
     };
     render(<WeatherWidget widget={widget} />);
     expect(screen.queryByText(/Long Sleeves/i)).not.toBeInTheDocument();
@@ -133,7 +133,7 @@ describe('WeatherWidget', () => {
         ...baseWidget.config,
         condition: 'sunny',
         syncBackground: true,
-      } as WeatherConfig,
+      },
     };
     render(<WeatherWidget widget={widget} />);
 
@@ -155,7 +155,7 @@ describe('WeatherWidget', () => {
         ...baseWidget.config,
         condition: 'sunny',
         syncBackground: true,
-      } as WeatherConfig,
+      },
     };
     render(<WeatherWidget widget={widget} />);
 

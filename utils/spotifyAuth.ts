@@ -117,7 +117,7 @@ interface SpotifyRefreshErrorDetails {
 function detailsFrom(err: unknown): SpotifyRefreshErrorDetails | null {
   if (err instanceof FunctionsError) {
     const d = err.details;
-    if (d && typeof d === 'object') return d as SpotifyRefreshErrorDetails;
+    if (d && typeof d === 'object') return d;
   }
   return null;
 }

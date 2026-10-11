@@ -113,7 +113,7 @@ describe('useScreenRecord', () => {
 
     let onendedAtStopTime: (() => void) | null = null;
     mockTrack.stop.mockImplementation(() => {
-      onendedAtStopTime = mockTrack.onended as (() => void) | null;
+      onendedAtStopTime = mockTrack.onended;
     });
 
     unmount();

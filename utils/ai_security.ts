@@ -54,7 +54,7 @@ export const sanitizeAIConfig = (
   }
 
   if (type === 'miniApp' || type === 'embed') {
-    const c = sanitized as unknown as Record<string, unknown>;
+    const c = sanitized;
     delete c.html;
   }
 
@@ -198,5 +198,5 @@ export const sanitizeAIConfig = (
     }
   }
 
-  return sanitized as Partial<WidgetConfig>;
+  return sanitized;
 };

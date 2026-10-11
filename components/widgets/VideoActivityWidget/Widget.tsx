@@ -242,7 +242,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   const setView = useCallback(
     (view: VideoActivityConfig['view']) => {
       updateWidget(widget.id, {
-        config: { ...config, view } as VideoActivityConfig,
+        config: { ...config, view },
       });
     },
     [updateWidget, widget.id, config]
@@ -310,7 +310,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         ...config,
         view: 'manager',
         resultsSessionId: null,
-      } as VideoActivityConfig,
+      },
     });
   }, [
     viewForGuard,
@@ -494,7 +494,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           ...config,
           view: 'manager',
           resultsSessionId: null,
-        } as VideoActivityConfig,
+        },
       });
     };
     return (
@@ -542,7 +542,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           ...config,
           view: 'manager',
           resultsSessionId: null,
-        } as VideoActivityConfig,
+        },
       });
     };
     if (sessionForMonitor.sessionMode === 'teacher') {
@@ -581,7 +581,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
               ...config,
               view: 'manager',
               resultsSessionId: null,
-            } as VideoActivityConfig,
+            },
           });
         }}
         onPause={async () => {
@@ -615,7 +615,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
               ...config,
               view: 'manager',
               resultsSessionId: null,
-            } as VideoActivityConfig,
+            },
           });
         }}
       />
@@ -928,7 +928,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
               selectedActivityTitle: meta.title,
               resultsSessionId: sessionId,
               lastRosterIdsByActivityId: nextMap,
-            } as VideoActivityConfig,
+            },
           });
           if (isLive) return sessionId;
 
@@ -1141,7 +1141,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
               selectedActivityId: assignment.activityId,
               selectedActivityTitle: assignment.activityTitle,
               resultsSessionId: assignment.id,
-            } as VideoActivityConfig,
+            },
           });
         }}
         onArchiveMonitor={async (assignment) => {
@@ -1184,7 +1184,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
               selectedActivityId: assignment.activityId,
               selectedActivityTitle: assignment.activityTitle,
               resultsSessionId: assignment.id,
-            } as VideoActivityConfig,
+            },
           });
         }}
         onArchivePublishScores={(assignment) =>

@@ -22,7 +22,7 @@ vi.mock('@/hooks/useFeaturePermissions');
 // runs (which is hoisted to the top of the compiled output).
 const { mockGetTodayStr, defaultGetTodayStr } = vi.hoisted(() => ({
   mockGetTodayStr: vi.fn<() => string>(),
-  defaultGetTodayStr: { current: (() => '') as () => string },
+  defaultGetTodayStr: { current: (): string => '' },
 }));
 
 vi.mock('@/components/widgets/Schedule/utils', async (importOriginal) => {
@@ -159,7 +159,7 @@ describe('ScheduleWidget', () => {
         ],
         ...config,
       },
-    } as WidgetData;
+    };
   };
 
   it('renders schedule items', () => {

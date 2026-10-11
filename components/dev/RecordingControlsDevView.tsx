@@ -9,18 +9,9 @@ import { ResponseFormatSection } from '@/components/widgets/QuizWidget/component
 import { QuizAuthoringAdvisory } from '@/components/widgets/QuizWidget/components/QuizAuthoringAdvisory';
 import { DEFAULT_RECORDING_CONFIG } from '@/config/quizRecordingDefaults';
 import type { QuizQuestion } from '@/types';
+import { type RecordingControlStateKey } from './devViewStates';
 
 // Prefixed so no key collides with AUDIO_CAPTURE_STATES in the harness picker.
-export const RECORDING_CONTROL_STATES = [
-  'rc-typed',
-  'rc-enabled-defaults',
-  'rc-clamped-limit',
-  'rc-take-limit',
-  'rc-advisory',
-] as const;
-
-export type RecordingControlStateKey =
-  (typeof RECORDING_CONTROL_STATES)[number];
 
 const baseQuestion = (): QuizQuestion => ({
   id: 'dev-q1',

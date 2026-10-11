@@ -3386,7 +3386,7 @@ describe('useQuizSessionTeacher — removeStudent / revealAnswer / hideAnswer', 
       env.sessionCallback?.({
         exists: () => true,
         data: () => buildSession({ status: 'active', quizId: 'quiz-1' }),
-      } as never);
+      });
     });
 
     // getDoc #1: fallback response fetch (snapshot list is empty, so the
@@ -3438,7 +3438,7 @@ describe('useQuizSessionTeacher — removeStudent / revealAnswer / hideAnswer', 
       env.sessionCallback?.({
         exists: () => true,
         data: () => buildSession({ status: 'active', quizId: 'quiz-1' }),
-      } as never);
+      });
     });
 
     const getDocMock = firestore.getDoc as unknown as ReturnType<typeof vi.fn>;
@@ -3490,7 +3490,7 @@ describe('useQuizSessionTeacher — removeStudent / revealAnswer / hideAnswer', 
       env.sessionCallback?.({
         exists: () => true,
         data: () => buildSession({ status: 'active', quizId: 'quiz-1' }),
-      } as never);
+      });
     });
 
     // Exactly ONE getDoc — the fallback response fetch. No ledger probe.
@@ -3661,7 +3661,7 @@ describe('useQuizSessionTeacher — endQuizSession', () => {
             answers: [],
             score: null,
             submittedAt: null,
-          } as QuizResponse,
+          },
         },
         {
           id: 'pin-default-bbb',
@@ -3673,7 +3673,7 @@ describe('useQuizSessionTeacher — endQuizSession', () => {
             answers: [],
             score: null,
             submittedAt: null,
-          } as QuizResponse,
+          },
         },
         {
           id: 'pin-default-ccc',
@@ -3685,7 +3685,7 @@ describe('useQuizSessionTeacher — endQuizSession', () => {
             answers: [],
             score: null,
             submittedAt: 999,
-          } as QuizResponse,
+          },
         },
       ]),
     });
@@ -3758,7 +3758,7 @@ describe('useQuizSessionTeacher — endQuizSession', () => {
             answers: [],
             score: null,
             submittedAt: 999,
-          } as QuizResponse,
+          },
         },
       ]),
     });
@@ -3968,7 +3968,7 @@ describe('useQuizSessionTeacher — advanceQuestion', () => {
             answers: [],
             score: null,
             submittedAt: null,
-          } as QuizResponse,
+          },
         },
       ]),
     });

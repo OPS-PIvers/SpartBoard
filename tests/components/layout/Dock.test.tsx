@@ -244,8 +244,8 @@ function setupMocks({
   dockItems = [] as MockDockItem[],
   addWidget = vi.fn(),
   annotationActive = false,
-  annotationTool = 'pen' as string,
-  activeDashboard = null as unknown,
+  annotationTool = 'pen',
+  activeDashboard = null,
 }: {
   canAccessWidget?: ReturnType<typeof vi.fn>;
   canAccessFeature?: ReturnType<typeof vi.fn>;
@@ -537,7 +537,7 @@ describe('Dock smart-paste – processAndUploadImage is not a spurious dep', () 
     vi.mocked(useImageUpload).mockReturnValue({
       processAndUploadImage: fnA,
       uploading: false,
-    } as unknown as ReturnType<typeof useImageUpload>);
+    });
 
     const { rerender } = render(<Dock />);
 
@@ -564,7 +564,7 @@ describe('Dock smart-paste – processAndUploadImage is not a spurious dep', () 
     vi.mocked(useImageUpload).mockReturnValue({
       processAndUploadImage: fnB,
       uploading: false,
-    } as unknown as ReturnType<typeof useImageUpload>);
+    });
 
     rerender(<Dock />);
 
@@ -628,7 +628,7 @@ describe('Dock screen-record – startRecording identity is stable across unrela
       startRecording: stableStartRecording,
       stopRecording: stableStopRecording,
       error: null,
-    } as unknown as ReturnType<typeof useScreenRecord>);
+    });
 
     const { rerender } = render(<Dock />);
 
@@ -662,7 +662,7 @@ describe('Dock screen-record – startRecording identity is stable across unrela
       startRecording: stableStartRecording, // same reference
       stopRecording: stableStopRecording, // same reference
       error: null,
-    } as unknown as ReturnType<typeof useScreenRecord>);
+    });
 
     rerender(<Dock />);
 
@@ -707,7 +707,7 @@ describe('Dock screen-record – startRecording identity is stable across unrela
         startRecording: vi.fn(),
         stopRecording: vi.fn(),
         error: null,
-      } as unknown as ReturnType<typeof useScreenRecord>;
+      };
     });
 
     const { rerender } = render(<Dock />);
@@ -890,7 +890,7 @@ describe('Dock screen-record – recording filename uses local time, not UTC', (
         startRecording: vi.fn(),
         stopRecording: vi.fn(),
         error: null,
-      } as unknown as ReturnType<typeof useScreenRecord>;
+      };
     });
 
     const anchors: HTMLAnchorElement[] = [];

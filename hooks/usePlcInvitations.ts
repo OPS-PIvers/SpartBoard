@@ -158,7 +158,7 @@ export const usePlcInvitations = (
       (snap) => {
         const list: PlcInvitation[] = [];
         snap.forEach((d) => {
-          const parsed = parseInvite(d.id, d.data() as Record<string, unknown>);
+          const parsed = parseInvite(d.id, d.data());
           if (parsed) list.push(parsed);
         });
         list.sort((a, b) => b.invitedAt - a.invitedAt);
@@ -191,7 +191,7 @@ export const usePlcInvitations = (
       (snap) => {
         const list: PlcInvitation[] = [];
         snap.forEach((d) => {
-          const parsed = parseInvite(d.id, d.data() as Record<string, unknown>);
+          const parsed = parseInvite(d.id, d.data());
           if (parsed) list.push(parsed);
         });
         list.sort((a, b) => b.invitedAt - a.invitedAt);

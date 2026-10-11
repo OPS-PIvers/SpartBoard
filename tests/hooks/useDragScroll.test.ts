@@ -24,7 +24,7 @@ interface PointerInit {
  * primary-button guard reads — so assign it explicitly (default 0 = primary).
  */
 function makePointer(type: string, init: PointerInit = {}): PointerEvent {
-  const ev = new PointerEvent(type, init as PointerEventInit);
+  const ev = new PointerEvent(type, init);
   Object.defineProperty(ev, 'button', {
     value: init.button ?? 0,
     configurable: true,

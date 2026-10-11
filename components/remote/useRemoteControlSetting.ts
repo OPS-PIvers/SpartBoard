@@ -22,8 +22,8 @@ export const useRemoteControlSetting = (): boolean => {
     return onSnapshot(
       doc(db, 'users', uid, 'userProfile', 'profile'),
       (snap) => {
-        const value = (snap.data() as Record<string, unknown> | undefined)
-          ?.remoteControlEnabled;
+        const data: Record<string, unknown> | undefined = snap.data();
+        const value = data?.remoteControlEnabled;
         setLive({ uid, value: typeof value === 'boolean' ? value : true });
       },
       (err: unknown) => {

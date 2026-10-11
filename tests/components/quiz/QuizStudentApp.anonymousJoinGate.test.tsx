@@ -10,7 +10,7 @@ const { mockAuth, mockJoinQuizSession, mockLookupSession, mockSsoGate } =
     mockAuth: {
       onAuthStateChanged: vi.fn(),
       authStateReady: vi.fn().mockResolvedValue(undefined),
-      currentUser: { uid: 'anon-uid', isAnonymous: true } as unknown,
+      currentUser: { uid: 'anon-uid', isAnonymous: true },
     },
     mockJoinQuizSession: vi.fn(),
     mockLookupSession: vi.fn(),

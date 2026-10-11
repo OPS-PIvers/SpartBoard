@@ -63,12 +63,12 @@ function makeAdapter(opts: MakeAdapterOptions = {}): {
     widgetLabel: 'Quiz',
     supportedSources: opts.supportedSources ?? ['sheet', 'csv', 'json'],
     templateHelper: opts.templateHelper,
-    parse: parseSpy as unknown as ImportAdapter<FakeData>['parse'],
-    validate: validateSpy as unknown as ImportAdapter<FakeData>['validate'],
+    parse: parseSpy,
+    validate: validateSpy,
     renderPreview: (data) => (
       <div data-testid="preview">rows: {data.rows.join(', ')}</div>
     ),
-    save: saveSpy as unknown as ImportAdapter<FakeData>['save'],
+    save: saveSpy,
     aiAssist,
     suggestTitle: opts.suggestTitle,
   };

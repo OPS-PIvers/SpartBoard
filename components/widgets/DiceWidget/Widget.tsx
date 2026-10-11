@@ -89,7 +89,7 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         );
         setAnimatedValues(finalValues);
         updateWidget(currentWidgetId, {
-          config: { ...currentConfig, lastRoll: finalValues } as DiceConfig,
+          config: { ...currentConfig, lastRoll: finalValues },
         });
         rollingRef.current = false;
         setIsRolling(false);

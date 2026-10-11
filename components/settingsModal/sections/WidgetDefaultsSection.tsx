@@ -91,7 +91,7 @@ export const WidgetDefaultsSection: React.FC = () => {
     key: string
   ) => {
     const { [key]: _removed, ...rest } = config;
-    saveWidgetDefault(type, rest as Partial<WidgetConfig>);
+    saveWidgetDefault(type, rest);
   };
 
   return (

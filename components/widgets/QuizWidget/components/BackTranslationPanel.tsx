@@ -32,7 +32,7 @@ export interface BackTranslationPanelProps {
 
 const errorCodeOf = (error: unknown): string =>
   typeof error === 'object' && error !== null && 'code' in error
-    ? String((error as { code: unknown }).code)
+    ? String(error.code)
     : '';
 
 export const BackTranslationPanel: React.FC<BackTranslationPanelProps> = ({

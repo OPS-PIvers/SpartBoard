@@ -64,7 +64,7 @@ vi.mock('@/components/common/ScalableWidget', () => ({
 
 // We use 'text' as a valid WidgetType to pass type checking
 const registrySchemas = vi.hoisted(
-  () => ({}) as Record<string, () => Promise<unknown>>
+  (): Record<string, () => Promise<unknown>> => ({})
 );
 vi.mock('@/components/widgets/WidgetRegistry', () => ({
   WIDGET_SETTINGS_COMPONENTS: {},

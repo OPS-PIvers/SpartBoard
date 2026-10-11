@@ -8,9 +8,8 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { EmbedWidget } from './index';
-import { WidgetData, EmbedConfig, EmbedGlobalConfig } from '@/types';
+import { WidgetData, EmbedGlobalConfig } from '@/types';
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { User } from 'firebase/auth';
 import '@testing-library/jest-dom';
 import * as aiModule from '@/utils/ai';
 import { useAuth } from '@/context/useAuth';
@@ -35,7 +34,7 @@ vi.mock('@/context/useAuth', () => ({
       providerId: 'firebase',
       refreshToken: 'test-refresh-token',
       tenantId: null,
-    } as unknown as User,
+    },
     googleAccessToken: 'test-token',
     loading: false,
     isAdmin: false,
@@ -190,7 +189,7 @@ describe('EmbedWidget', () => {
     config: {
       url: 'https://example.com',
       mode: 'url',
-    } as EmbedConfig,
+    },
   };
 
   beforeEach(() => {
@@ -221,7 +220,7 @@ describe('EmbedWidget', () => {
       config: {
         ...baseWidget.config,
         url: 'https://drive.google.com/file/d/abc456/view',
-      } as EmbedConfig,
+      },
     };
     render(<EmbedWidget widget={driveWidget} />);
     const iframe = screen.getByTitle('Embed Content');
@@ -234,7 +233,7 @@ describe('EmbedWidget', () => {
       config: {
         ...baseWidget.config,
         url: 'https://vids.google.com/vids/some_vids_id-123',
-      } as EmbedConfig,
+      },
     };
     render(<EmbedWidget widget={vidsWidget} />);
     const iframe = screen.getByTitle('Embed Content');
@@ -247,7 +246,7 @@ describe('EmbedWidget', () => {
       config: {
         mode: 'code',
         html: '<h1>Hello World</h1>',
-      } as EmbedConfig,
+      },
     };
     render(<EmbedWidget widget={codeWidget} />);
     const iframe = screen.getByTitle('Embed Content');
@@ -260,7 +259,7 @@ describe('EmbedWidget', () => {
       config: {
         ...baseWidget.config,
         refreshInterval: 1, // 1 minute
-      } as EmbedConfig,
+      },
     };
 
     const { container } = render(<EmbedWidget widget={refreshWidget} />);
@@ -403,7 +402,7 @@ describe('EmbedWidget', () => {
           providerId: 'firebase',
           refreshToken: 'test-refresh-token',
           tenantId: null,
-        } as unknown as User,
+        },
         googleAccessToken: 'test-token',
         loading: false,
         isAdmin: false,

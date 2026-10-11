@@ -1,19 +1,22 @@
 import { act } from '@testing-library/react';
+import { vi } from 'vitest';
 
 /** Replaces requestAnimationFrame with a queue the test advances one frame at a time. */
 export function manualFrames() {
   let queue = new Map<number, FrameRequestCallback>();
   let nextId = 1;
-  const realRequest = window.requestAnimationFrame;
-  const realCancel = window.cancelAnimationFrame;
-  window.requestAnimationFrame = (cb: FrameRequestCallback) => {
-    const id = nextId++;
-    queue.set(id, cb);
-    return id;
-  };
-  window.cancelAnimationFrame = (id: number) => {
-    queue.delete(id);
-  };
+  const requestSpy = vi
+    .spyOn(window, 'requestAnimationFrame')
+    .mockImplementation((cb: FrameRequestCallback) => {
+      const id = nextId++;
+      queue.set(id, cb);
+      return id;
+    });
+  const cancelSpy = vi
+    .spyOn(window, 'cancelAnimationFrame')
+    .mockImplementation((id: number) => {
+      queue.delete(id);
+    });
   return {
     /** Frames requested and not yet run or cancelled. */
     pending: () => queue.size,
@@ -26,8 +29,8 @@ export function manualFrames() {
       });
     },
     restore() {
-      window.requestAnimationFrame = realRequest;
-      window.cancelAnimationFrame = realCancel;
+      requestSpy.mockRestore();
+      cancelSpy.mockRestore();
     },
   };
 }

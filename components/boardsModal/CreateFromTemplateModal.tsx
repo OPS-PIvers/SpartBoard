@@ -58,9 +58,10 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const all = snap.docs.map(
-          (d) => ({ ...(d.data() as AnyTemplate), id: d.id }) as AnyTemplate
-        );
+        const all = snap.docs.map((d) => ({
+          ...(d.data() as AnyTemplate),
+          id: d.id,
+        }));
         // Defensive: drop any docs that snuck through with enabled:false
         // (rule changes, race conditions) so we never instantiate a
         // disabled template.

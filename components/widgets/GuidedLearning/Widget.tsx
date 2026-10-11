@@ -369,7 +369,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const setView = useCallback(
     (view: GuidedLearningConfig['view']) => {
       updateWidget(widget.id, {
-        config: { ...config, view } as GuidedLearningConfig,
+        config: { ...config, view },
       });
     },
     [updateWidget, widget.id, config]
@@ -545,7 +545,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         ...config,
         view: 'player',
         playerSetId: setId,
-      } as GuidedLearningConfig,
+      },
     });
   };
 
@@ -876,7 +876,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
           config: {
             ...config,
             lastRosterIdsBySetId: nextMap,
-          } as GuidedLearningConfig,
+          },
         });
         if (!silent) {
           await navigator.clipboard.writeText(url);
@@ -1044,7 +1044,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         ...config,
         view: 'results',
         resultsSessionId: sessionId,
-      } as GuidedLearningConfig,
+      },
     });
   };
 
@@ -1065,7 +1065,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         ...config,
         view: 'results',
         resultsSessionId: assignment.sessionId,
-      } as GuidedLearningConfig,
+      },
     });
   };
 
@@ -1651,7 +1651,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                         ...config,
                         view: 'library',
                         playerSetId: null,
-                      } as GuidedLearningConfig,
+                      },
                     })
                   }
                   teacherMode={!playerV2}
@@ -1683,7 +1683,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                             ...config,
                             view: 'library',
                             resultsSessionId: null,
-                          } as GuidedLearningConfig,
+                          },
                         });
                       }}
                       className="inline-flex items-center rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-sm transition-colors"
@@ -1712,7 +1712,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                       ...config,
                       view: 'library',
                       resultsSessionId: null,
-                    } as GuidedLearningConfig,
+                    },
                   });
                 const isViewOnlyResults =
                   resultsAssignment?.assignmentMode === 'view-only';

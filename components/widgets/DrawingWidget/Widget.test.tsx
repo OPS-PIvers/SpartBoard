@@ -134,7 +134,7 @@ describe('DrawingWidget', () => {
       x: 0,
       y: 0,
       toJSON: () => ({}),
-    } as DOMRect);
+    });
   });
 
   afterEach(() => {
@@ -154,7 +154,7 @@ describe('DrawingWidget', () => {
       color: '#000000',
       width: 4,
       objects: [],
-    } as DrawingConfig,
+    },
   };
 
   it('renders without crashing', () => {
@@ -207,7 +207,7 @@ describe('DrawingWidget', () => {
             ],
           },
         ],
-      } as DrawingConfig,
+      },
     };
     render(<DrawingWidget widget={widgetWithObjects} />);
     expect(mockContext.moveTo).toHaveBeenCalledWith(10, 10);
@@ -232,7 +232,7 @@ describe('DrawingWidget', () => {
             ],
           },
         ],
-      } as unknown as DrawingConfig,
+      },
     };
     render(<DrawingWidget widget={legacyWidget} />);
     expect(mockContext.moveTo).toHaveBeenCalledWith(5, 5);
@@ -246,7 +246,7 @@ describe('DrawingWidget', () => {
       config: {
         ...widget.config,
         activeTool: 'arrow',
-      } as DrawingConfig,
+      },
     };
     const { getByLabelText } = render(
       <DrawingWidget widget={widgetWithTool} />
@@ -276,7 +276,7 @@ describe('DrawingWidget', () => {
       config: {
         ...widget.config,
         activeTool: 'arrow',
-      } as DrawingConfig,
+      },
     };
     const { getByLabelText } = render(
       <DrawingWidget widget={widgetWithTool} />
@@ -310,7 +310,7 @@ describe('DrawingWidget', () => {
       config: {
         ...widget.config,
         activeTool: 'text',
-      } as DrawingConfig,
+      },
     };
     const { container } = render(<DrawingWidget widget={widgetTextTool} />);
     expect(container.querySelector('[role="textbox"]')).toBeNull();
@@ -340,7 +340,7 @@ describe('DrawingWidget', () => {
       config: {
         ...widget.config,
         activeTool: 'text',
-      } as DrawingConfig,
+      },
     };
     const { container } = render(<DrawingWidget widget={widgetTextTool} />);
     const canvas = container.querySelector('canvas');
@@ -392,7 +392,7 @@ describe('DrawingWidget', () => {
       config: {
         ...widget.config,
         objects: [textObj],
-      } as DrawingConfig,
+      },
     };
     const { container } = render(<DrawingWidget widget={widgetWithText} />);
     const canvas = container.querySelector('canvas');
@@ -422,7 +422,7 @@ describe('DrawingWidget', () => {
         width: 4,
         pages: [{ id: 'p1', objects: [] }],
         currentPage: 0,
-      } as DrawingConfig,
+      },
     };
     const { getByLabelText } = render(
       <DrawingWidget widget={widgetWithPage} />
@@ -454,7 +454,7 @@ describe('DrawingWidget', () => {
         width: 4,
         pages: [{ id: 'p1', objects: [] }],
         currentPage: 0,
-      } as DrawingConfig,
+      },
     };
     const { getByLabelText } = render(
       <DrawingWidget widget={widgetWithPage} />
@@ -478,7 +478,7 @@ describe('DrawingWidget', () => {
         width: 4,
         pages: [{ id: 'p1', objects: [] }],
         currentPage: 0,
-      } as DrawingConfig,
+      },
     };
     const { getByLabelText } = render(
       <DrawingWidget widget={widgetWithPage} />
@@ -523,7 +523,7 @@ describe('DrawingWidget', () => {
       config: {
         ...widget.config,
         objects: [textObj],
-      } as DrawingConfig,
+      },
     };
     const { container } = render(<DrawingWidget widget={widgetWithText} />);
     const canvas = container.querySelector('canvas');
@@ -633,7 +633,7 @@ describe('DrawingWidget', () => {
         ...widget.config,
         activeTool: 'select',
         objects: [rectObj],
-      } as DrawingConfig,
+      },
     };
     const { container } = render(<DrawingWidget widget={widgetSelect} />);
     const canvas = container.querySelector('canvas');
@@ -671,7 +671,7 @@ describe('DrawingWidget', () => {
         ...widget.config,
         activeTool: 'select',
         objects: [rectObj],
-      } as DrawingConfig,
+      },
     };
     const { container } = render(<DrawingWidget widget={widgetSelect} />);
     const canvas = container.querySelector('canvas');
@@ -851,7 +851,7 @@ describe('DrawingWidget', () => {
     ];
     const widgetWithObjs: WidgetData = {
       ...widget,
-      config: { ...widget.config, objects: seed } as DrawingConfig,
+      config: { ...widget.config, objects: seed },
     };
     const { container, getByTitle } = render(
       <DrawingWidget widget={widgetWithObjs} />
@@ -891,7 +891,7 @@ describe('DrawingWidget', () => {
         ...widget.config,
         activeTool: 'select',
         objects: [rectObj],
-      } as DrawingConfig,
+      },
     };
     const { container } = render(<DrawingWidget widget={widgetSelect} />);
     const canvas = container.querySelector('canvas');
@@ -975,7 +975,7 @@ describe('DrawingWidget', () => {
             strokeWidth: 2,
           },
         ],
-      } as DrawingConfig,
+      },
     };
     const { getByLabelText } = render(<DrawingWidget widget={legacy} />);
     // Single page is implied; the compact control shows just "Add page".
@@ -1011,7 +1011,7 @@ describe('DrawingWidget', () => {
           { id: 'p2', objects: [] },
         ],
         currentPage: 1,
-      } as DrawingConfig,
+      },
     };
     const { getByLabelText } = render(<DrawingWidget widget={pagedWidget} />);
     // Phase 2 toolbar redesign: per-page actions live inside the Pages
@@ -1052,7 +1052,7 @@ describe('DrawingWidget', () => {
           { id: 'p2', objects: [] },
         ],
         currentPage: 0,
-      } as DrawingConfig,
+      },
     };
     const { getByLabelText, container } = render(
       <DrawingWidget widget={pagedWidget} />

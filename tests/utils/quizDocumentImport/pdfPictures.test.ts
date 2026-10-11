@@ -57,7 +57,7 @@ describe('imageBoxesFromOperatorList', () => {
   it('finds every image draw in a recorded operator list', () => {
     const page = recorded.pages[0];
     const boxes = imageBoxesFromOperatorList(
-      page.operatorList as PdfOperatorListLike,
+      page.operatorList,
       ops,
       page.viewport
     );
@@ -289,7 +289,7 @@ describe('anchoring pictures to questions', () => {
   it('puts a picture after the last line above it', () => {
     const [first] = recorded.pages;
     const pictures = picturesOnPage(
-      first.operatorList as PdfOperatorListLike,
+      first.operatorList,
       ops,
       first.viewport,
       first.textItems

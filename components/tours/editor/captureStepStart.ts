@@ -91,9 +91,7 @@ export function captureStepStart(args: {
       ...(typeof w.aspectRatio === 'number'
         ? { aspectRatio: round(w.aspectRatio) }
         : {}),
-      ...(Object.keys(appearance).length > 0
-        ? { appearance: appearance as Record<string, unknown> }
-        : {}),
+      ...(Object.keys(appearance).length > 0 ? { appearance: appearance } : {}),
     });
   }
   const materials = args.set.tourSetup?.materials ?? [];

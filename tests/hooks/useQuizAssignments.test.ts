@@ -2916,10 +2916,8 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
       const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
         wrapper: gateWrapper(
           gateAuth('teacher-choice', {
-            canAccessFeature: ((id: string) =>
-              id === 'anonymous-join'
-                ? granted
-                : false) as AuthContextType['canAccessFeature'],
+            canAccessFeature: (id: string) =>
+              id === 'anonymous-join' ? granted : false,
           })
         ),
       });

@@ -19,12 +19,10 @@ import { describe, it, expect, vi } from 'vitest';
 import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
 import { SURFACE_COLOR_PRESETS } from '@/config/widgetAppearance';
 
-type Cfg = { cardColor?: string; cardOpacity?: number };
-
 const renderWith = (label?: string) =>
   render(
     <SurfaceColorSettings
-      config={{} as Cfg}
+      config={{}}
       updateConfig={vi.fn()}
       {...(label ? { label } : {})}
     />
@@ -93,8 +91,6 @@ describe('SurfaceColorSettings — aria-label composition', () => {
  * file — the highest-traffic sibling (21 call sites) — was never audited.
  */
 describe('SurfaceColorSettings — radiogroup keyboard contract', () => {
-  type Cfg = { cardColor?: string; cardOpacity?: number };
-
   const swatchFor = (preset: { name: string }) =>
     screen.getByRole('radio', { name: `Select surface color ${preset.name}` });
 
@@ -102,7 +98,7 @@ describe('SurfaceColorSettings — radiogroup keyboard contract', () => {
     const selected = SURFACE_COLOR_PRESETS[2];
     render(
       <SurfaceColorSettings
-        config={{ cardColor: selected.hex } as Cfg}
+        config={{ cardColor: selected.hex }}
         updateConfig={vi.fn()}
       />
     );
@@ -118,7 +114,7 @@ describe('SurfaceColorSettings — radiogroup keyboard contract', () => {
     const updateConfig = vi.fn();
     render(
       <SurfaceColorSettings
-        config={{ cardColor: SURFACE_COLOR_PRESETS[0].hex } as Cfg}
+        config={{ cardColor: SURFACE_COLOR_PRESETS[0].hex }}
         updateConfig={updateConfig}
       />
     );
@@ -155,7 +151,7 @@ describe('SurfaceColorSettings — radiogroup keyboard contract', () => {
   });
 
   it('keeps exactly one swatch tabbable when cardColor defaults (unset)', () => {
-    render(<SurfaceColorSettings config={{} as Cfg} updateConfig={vi.fn()} />);
+    render(<SurfaceColorSettings config={{}} updateConfig={vi.fn()} />);
 
     const tabbable = screen
       .getAllByRole('radio')
@@ -168,7 +164,7 @@ describe('SurfaceColorSettings — radiogroup keyboard contract', () => {
   it('keeps exactly one swatch tabbable when cardColor is a custom (non-preset) value', () => {
     render(
       <SurfaceColorSettings
-        config={{ cardColor: '#123456' } as Cfg}
+        config={{ cardColor: '#123456' }}
         updateConfig={vi.fn()}
       />
     );
@@ -181,7 +177,7 @@ describe('SurfaceColorSettings — radiogroup keyboard contract', () => {
   });
 
   it('still exposes the custom color input and opacity slider', () => {
-    render(<SurfaceColorSettings config={{} as Cfg} updateConfig={vi.fn()} />);
+    render(<SurfaceColorSettings config={{}} updateConfig={vi.fn()} />);
     expect(screen.getByLabelText('Custom surface color')).toBeInTheDocument();
     expect(screen.getByLabelText('Surface opacity')).toBeInTheDocument();
   });

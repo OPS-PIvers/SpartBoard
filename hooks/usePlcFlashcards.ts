@@ -34,7 +34,6 @@ import {
   buildPlcFlashcardResultSummary,
   type PlcFlashcardResultSummary,
 } from '@/utils/plcFlashcardResults';
-import type { FlashcardResultRecord } from '@/utils/flashcardResults';
 import {
   FLASHCARD_PROGRESS_SUBCOLLECTION,
   FLASHCARD_SESSIONS_COLLECTION,
@@ -196,7 +195,7 @@ function usePlcSubscription<T>(
       (snap) => {
         const list: T[] = [];
         snap.forEach((d) => {
-          const parsed = parse(d.id, d.data() as Record<string, unknown>);
+          const parsed = parse(d.id, d.data());
           if (parsed && keep(parsed)) list.push(parsed);
         });
         setItems(list);
@@ -328,9 +327,10 @@ export async function loadFlashcardResultSummary(
         : null
     );
   }
-  const results = progressSnap.docs.map(
-    (d) => ({ ...d.data(), studentUid: d.id }) as FlashcardResultRecord
-  );
+  const results = progressSnap.docs.map((d) => ({
+    ...d.data(),
+    studentUid: d.id,
+  }));
   return buildPlcFlashcardResultSummary(session, results);
 }
 

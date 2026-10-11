@@ -313,7 +313,7 @@ describe('useHelpResources', () => {
             onNext({ docs: [{ id: 'g1', data: () => rawGlobalItem }] })
           );
         } else {
-          orgOnNext = onNext as (snap: { docs: unknown[] }) => void;
+          orgOnNext = onNext;
           orgOnError = onError;
           queueMicrotask(() => onError?.(new Error('permission-denied')));
         }

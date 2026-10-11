@@ -183,7 +183,7 @@ function makeWidget(config: Partial<GuidedLearningConfig> = {}): WidgetData {
     w: 400,
     h: 300,
     z: 1,
-    config: { view: 'library', ...config } as GuidedLearningConfig,
+    config: { view: 'library', ...config },
   } as unknown as WidgetData;
 }
 

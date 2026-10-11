@@ -128,7 +128,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
         docRef,
         {
           type: 'specialist-schedule',
-          config: toSave as unknown as Record<string, unknown>,
+          config: toSave,
           updatedAt: Date.now(),
         },
         { merge: true }

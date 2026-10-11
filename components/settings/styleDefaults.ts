@@ -1,4 +1,3 @@
-import type { WidgetConfig } from '@/types';
 import {
   mergeWidgetConfig,
   pickAppearanceKeys,
@@ -19,12 +18,7 @@ export type StyleDefaultsState = {
 
 const appearance = (...layers: Array<Values | undefined>): Values =>
   pickAppearanceKeys(
-    mergeWidgetConfig(
-      layers[0] as Partial<WidgetConfig> | undefined,
-      layers[1],
-      layers[2] as Partial<WidgetConfig> | undefined,
-      undefined
-    )
+    mergeWidgetConfig(layers[0], layers[1], layers[2], undefined)
   );
 
 const same = (a: unknown, b: unknown) =>

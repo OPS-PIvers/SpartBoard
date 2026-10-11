@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { QRWidget } from '@/components/widgets/QRWidget';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
-import { WidgetData, QRConfig, TextConfig } from '@/types';
+import { WidgetData } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useAuth } from '@/context/useAuth';
@@ -54,7 +54,7 @@ describe('QRWidget Link Repeater Connection', () => {
         content: 'https://example.com/synced',
         bgColor: '#fff',
         fontSize: 12,
-      } as TextConfig,
+      },
     };
 
     const qrWidget: WidgetData = {
@@ -69,7 +69,7 @@ describe('QRWidget Link Repeater Connection', () => {
       config: {
         url: 'https://google.com',
         syncWithTextWidget: true,
-      } as QRConfig,
+      },
     };
 
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -106,7 +106,7 @@ describe('QRWidget Link Repeater Connection', () => {
         content: 'https://example.com/synced',
         bgColor: '#fff',
         fontSize: 12,
-      } as TextConfig,
+      },
     };
 
     const qrWidget: WidgetData = {
@@ -121,7 +121,7 @@ describe('QRWidget Link Repeater Connection', () => {
       config: {
         url: 'https://google.com',
         syncWithTextWidget: false,
-      } as QRConfig,
+      },
     };
 
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -150,7 +150,7 @@ describe('QRWidget Link Repeater Connection', () => {
       h: 2,
       z: 1,
       flipped: false,
-      config: { content: 'https://fresh.example' } as TextConfig,
+      config: { content: 'https://fresh.example' },
     };
 
     const qrWidget: WidgetData = {
@@ -165,7 +165,7 @@ describe('QRWidget Link Repeater Connection', () => {
       config: {
         url: 'https://stale-stored.example',
         syncWithTextWidget: true,
-      } as QRConfig,
+      },
     };
 
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -192,7 +192,7 @@ describe('QRWidget Link Repeater Connection', () => {
         content: 'https://same.com',
         bgColor: '#fff',
         fontSize: 12,
-      } as TextConfig,
+      },
     };
 
     const qrWidget: WidgetData = {
@@ -204,7 +204,7 @@ describe('QRWidget Link Repeater Connection', () => {
       h: 2,
       z: 1,
       flipped: false,
-      config: { url: 'https://same.com', syncWithTextWidget: true } as QRConfig,
+      config: { url: 'https://same.com', syncWithTextWidget: true },
     };
 
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -232,7 +232,7 @@ describe('QRWidget Link Repeater Connection', () => {
       config: {
         url: 'https://google.com',
         syncWithTextWidget: true,
-      } as QRConfig,
+      },
     };
 
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({

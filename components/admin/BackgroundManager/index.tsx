@@ -474,7 +474,7 @@ export const BackgroundManager: React.FC = () => {
         prev.map((p) => {
           if (p.id !== id) return p;
           const { category: _removed, ...rest } = p;
-          return rest as BackgroundPreset;
+          return rest;
         })
       );
     } catch (error) {

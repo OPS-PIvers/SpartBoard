@@ -87,7 +87,7 @@ export function useGlobalStyleEditor(): GlobalStyleEditor {
 
   const setField = useCallback(
     <K extends keyof GlobalStyle>(field: K, value: GlobalStyle[K]) =>
-      commit({ [field]: value } as Partial<GlobalStyle>),
+      commit({ [field]: value }),
     [commit]
   );
 

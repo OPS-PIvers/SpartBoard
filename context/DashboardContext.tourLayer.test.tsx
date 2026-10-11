@@ -180,7 +180,7 @@ function makeWidget(id: string, z = 1): WidgetData {
     h: 1,
     z,
     flipped: false,
-    config: { text: 'test' } as WidgetData['config'],
+    config: { text: 'test' },
   };
 }
 

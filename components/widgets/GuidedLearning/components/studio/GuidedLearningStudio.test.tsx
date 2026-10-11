@@ -51,7 +51,7 @@ vi.mock('@/hooks/useStorage', () => ({
   }),
 }));
 
-const openDialog = vi.hoisted(() => ({ current: null as unknown }));
+const openDialog = vi.hoisted((): { current: unknown } => ({ current: null }));
 const showConfirm = vi.hoisted(() => vi.fn());
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({
@@ -195,7 +195,7 @@ describe('GuidedLearningStudio', () => {
     expect(frame().style.height).toBe('657px');
     // The stage sits inside the player's own top bar and footer.
     expect(screen.getByTestId('gl-device-shell')).toContainElement(
-      document.querySelector('[data-gl-stage]') as HTMLElement
+      document.querySelector('[data-gl-stage]')
     );
     cleanup();
     renderStudio();

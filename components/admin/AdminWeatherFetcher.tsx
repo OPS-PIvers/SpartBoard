@@ -4,10 +4,7 @@ import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { WeatherGlobalConfig } from '@/types';
-import {
-  isStoredWeatherFresh,
-  type StoredWeatherMeta,
-} from './adminWeatherFreshness';
+import { isStoredWeatherFresh } from './adminWeatherFreshness';
 
 // Constants shared with WeatherWidget
 const STATION_CONFIG = {
@@ -78,7 +75,7 @@ export const AdminWeatherFetcher: React.FC = () => {
         if (abortController.signal.aborted) return;
         if (
           snap.exists() &&
-          isStoredWeatherFresh(snap.data() as StoredWeatherMeta, {
+          isStoredWeatherFresh(snap.data(), {
             source,
             cityKey,
             frequencyMinutes: frequency,

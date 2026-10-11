@@ -59,17 +59,16 @@ const run = (overrides: Partial<ProjectRun> = {}): ProjectRun =>
     ...overrides,
   }) as ProjectRun;
 
-const group = (id: string, name: string, order: number): ProjectGroup =>
-  ({
-    id,
-    name,
-    classId: 'class-a',
-    memberUids: [],
-    order,
-    stepStates: {},
-    workLinks: [],
-    updatedAt: 1,
-  }) as ProjectGroup;
+const group = (id: string, name: string, order: number): ProjectGroup => ({
+  id,
+  name,
+  classId: 'class-a',
+  memberUids: [],
+  order,
+  stepStates: {},
+  workLinks: [],
+  updatedAt: 1,
+});
 
 const groups = [group('g1', 'Group 1', 0), group('g2', 'Group 2', 1)];
 

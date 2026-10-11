@@ -33,12 +33,7 @@ import {
   PostSubmitError,
 } from '@/components/activityWall/submission/submitPost';
 import { updateViewAsTabState } from '@/utils/viewAsTab';
-import type {
-  ActivityWallSession,
-  GuidedLearningResponse,
-  QuizSession,
-  VideoActivitySession,
-} from '@/types';
+import type { ActivityWallSession, GuidedLearningResponse } from '@/types';
 
 vi.mock('firebase/firestore', () => ({
   addDoc: vi.fn(),
@@ -129,7 +124,7 @@ describe('Video activity preview', () => {
       teacherUid: 't1',
       status: 'active',
       questions: [],
-    } as unknown as VideoActivitySession;
+    };
     const { result } = renderHook(() => useVideoActivitySessionStudent());
     await act(async () => {
       await result.current.previewResponse('s1', 'stu-1');
@@ -188,7 +183,7 @@ describe('Quiz preview', () => {
   it('never asks the server to score a previewed submission', () => {
     renderHook(() =>
       useQuizScoreOnSubmit(
-        { id: 's1', showScoreOnSubmit: true } as QuizSession,
+        { id: 's1', showScoreOnSubmit: true },
         { status: 'completed', score: null, completedAttempts: 1 }
       )
     );

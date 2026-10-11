@@ -10,7 +10,6 @@ import React, {
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type {
-  GuidedLearningPublicStep,
   GuidedLearningSet,
   GuidedLearningStep,
   TourAutopilotPolicy,
@@ -1710,7 +1709,7 @@ export const LiveTourRunner: React.FC = () => {
   const canRead = !!step && (!!step.narration?.url || speechAvailable());
   useReadAloud({
     enabled: (tour?.edit ? !!editTarget?.readAloud : readAloud) && canRead,
-    step: step as unknown as GuidedLearningPublicStep | null,
+    step: step,
     stepKey: step && tour ? `${tour.set.id}:${tour.index}:${attempt}` : null,
   });
 

@@ -118,7 +118,7 @@ export const usePlcTodos = (plcId: string | null): UsePlcTodosResult => {
       (snap) => {
         const list: PlcTodo[] = [];
         snap.forEach((d) => {
-          const parsed = parseTodo(d.id, d.data() as Record<string, unknown>);
+          const parsed = parseTodo(d.id, d.data());
           if (parsed && parsed.deletedAt == null) list.push(parsed);
         });
         setTodos(list);

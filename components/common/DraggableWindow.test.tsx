@@ -62,7 +62,7 @@ vi.mock('@/hooks/useClickOutside', () => ({
 // in a UTC-negative timezone actually sees.
 const { mockGetLocalIsoDate, defaultGetLocalIsoDate } = vi.hoisted(() => ({
   mockGetLocalIsoDate: vi.fn<() => string>(),
-  defaultGetLocalIsoDate: { current: (() => '') as () => string },
+  defaultGetLocalIsoDate: { current: (): string => '' },
 }));
 
 vi.mock('@/utils/localDate', async (importOriginal) => {
@@ -1364,7 +1364,7 @@ describe('DraggableWindow', () => {
     } as DOMRect;
 
     type ElementsFromPoint = (x: number, y: number) => Element[];
-    type DocWithElementsFromPoint = Document & {
+    type DocWithElementsFromPoint = Omit<Document, 'elementsFromPoint'> & {
       elementsFromPoint?: ElementsFromPoint;
     };
 
@@ -1395,8 +1395,7 @@ describe('DraggableWindow', () => {
       elementsFromPointMock = vi.fn().mockReturnValue([stubButton]);
       const doc = document as DocWithElementsFromPoint;
       originalElementsFromPoint = doc.elementsFromPoint;
-      doc.elementsFromPoint =
-        elementsFromPointMock as unknown as ElementsFromPoint;
+      doc.elementsFromPoint = elementsFromPointMock;
 
       document.body.classList.remove('is-dragging-widget');
     });

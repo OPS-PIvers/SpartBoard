@@ -6,15 +6,14 @@ import {
   restoreSharedQuizContent,
 } from '@/utils/quizShareContent';
 
-const q = (id: string): QuizQuestion =>
-  ({
-    id,
-    type: 'MC',
-    text: `Question ${id}`,
-    correctAnswer: 'a',
-    incorrectAnswers: ['b'],
-    timeLimit: 0,
-  }) as QuizQuestion;
+const q = (id: string): QuizQuestion => ({
+  id,
+  type: 'MC',
+  text: `Question ${id}`,
+  correctAnswer: 'a',
+  incorrectAnswers: ['b'],
+  timeLimit: 0,
+});
 
 const bankOnlyQuiz: QuizData = {
   id: 'quiz-1',

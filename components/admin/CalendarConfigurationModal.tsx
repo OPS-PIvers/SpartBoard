@@ -139,10 +139,7 @@ export const CalendarConfigurationModal: React.FC<
         docRef,
         {
           type: 'calendar',
-          config: (updatedConfig ?? config) as unknown as Record<
-            string,
-            unknown
-          >,
+          config: updatedConfig ?? config,
           updatedAt: Date.now(),
         },
         { merge: true }

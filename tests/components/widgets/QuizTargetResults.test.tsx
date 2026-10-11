@@ -26,17 +26,16 @@ const question: QuizQuestion = {
   targets: [target],
 };
 
-const response = (uid: string, answer: string): QuizResponse =>
-  ({
-    _responseKey: uid,
-    studentUid: uid,
-    joinedAt: 1,
-    status: 'completed',
-    servedQuestionIds: ['q1'],
-    answers: [{ questionId: 'q1', answer, answeredAt: 2 }],
-    score: null,
-    submittedAt: 3,
-  }) as QuizResponse;
+const response = (uid: string, answer: string): QuizResponse => ({
+  _responseKey: uid,
+  studentUid: uid,
+  joinedAt: 1,
+  status: 'completed',
+  servedQuestionIds: ['q1'],
+  answers: [{ questionId: 'q1', answer, answeredAt: 2 }],
+  score: null,
+  submittedAt: 3,
+});
 
 describe('QuizTargetResults', () => {
   it('renders standard rollups, expandable target questions and a sortable grid', () => {

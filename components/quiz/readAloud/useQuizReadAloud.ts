@@ -106,7 +106,7 @@ export function questionPartKeys(q: QuizPublicQuestion): string[] {
   const keys = [readAloudPartKey(q.id, { kind: 'question' })];
   const listed = (kind: 'choice' | ReadAloudItemKind, items?: string[]) =>
     (items ?? []).forEach((_t, index) =>
-      keys.push(readAloudPartKey(q.id, { kind, index } as QuizReadAloudPart))
+      keys.push(readAloudPartKey(q.id, { kind, index }))
     );
   if (q.type === 'MC' || q.type === 'MA') listed('choice', q.choices);
   if (q.type === 'Matching') {

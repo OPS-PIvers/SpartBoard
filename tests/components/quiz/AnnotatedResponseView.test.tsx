@@ -321,18 +321,17 @@ describe('AnnotatedResponseView — rubric strand tagging', () => {
       getBoundingClientRect?: () => DOMRect;
     };
     const originalRangeRect = rangeProto.getBoundingClientRect;
-    rangeProto.getBoundingClientRect = () =>
-      ({
-        top: 10,
-        bottom: 24,
-        left: 0,
-        right: 40,
-        width: 40,
-        height: 14,
-        x: 0,
-        y: 10,
-        toJSON: () => ({}),
-      }) as DOMRect;
+    rangeProto.getBoundingClientRect = () => ({
+      top: 10,
+      bottom: 24,
+      left: 0,
+      right: 40,
+      width: 40,
+      height: 14,
+      x: 0,
+      y: 10,
+      toJSON: () => ({}),
+    });
 
     const onChange = vi.fn();
     render(

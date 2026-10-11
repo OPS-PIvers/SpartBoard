@@ -159,7 +159,7 @@ describe('loadYouTubeApi', () => {
       Player: class MockPlayer {} as unknown as NonNullable<
         typeof window.YT
       >['Player'],
-    } as unknown as typeof window.YT;
+    };
 
     const callback = vi.fn();
 

@@ -687,7 +687,7 @@ describe('usePlcQuizActions', () => {
         {
           ...personal,
           sync: { groupId: 'sync-other', lastSyncedVersion: 2 },
-        } as unknown as QuizMetadata,
+        },
       ];
       renderSubject();
       fireEvent.click(screen.getByText('OpenShare'));
@@ -709,7 +709,7 @@ describe('usePlcQuizActions', () => {
         {
           ...personal,
           sync: { groupId: 'sync-already', lastSyncedVersion: 1 },
-        } as unknown as QuizMetadata,
+        },
       ];
       renderSubject();
       fireEvent.click(screen.getByText('OpenShare'));

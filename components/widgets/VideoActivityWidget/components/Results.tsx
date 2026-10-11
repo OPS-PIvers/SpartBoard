@@ -373,8 +373,9 @@ export const Results: React.FC<ResultsProps> = ({
         // to empty string so the export shape stays string-typed.
         pin: r.pin ?? '',
         joinedAt: r.joinedAt,
-        status: (r.completedAt ? 'completed' : 'in-progress') as
-          'completed' | 'in-progress' | 'joined',
+        status: r.completedAt
+          ? ('completed' as const)
+          : ('in-progress' as const),
         answers: r.answers.map((a) => ({
           questionId: a.questionId,
           answer: a.answer,
@@ -406,9 +407,7 @@ export const Results: React.FC<ResultsProps> = ({
       const url = await drive.exportResultsToSheet(
         session.assignmentName,
         quizResponses,
-        questions as unknown as Parameters<
-          typeof drive.exportResultsToSheet
-        >[2],
+        questions,
         {
           byStudentUid,
           gradeFn:

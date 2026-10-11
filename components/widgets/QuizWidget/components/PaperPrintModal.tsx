@@ -825,12 +825,12 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       const printed = byMap
         ? analysis.entries.map((e) => ({
             questionId: e.questionId,
-            row: e.label as number | string,
+            row: e.label,
             written: e.kind === 'written',
           }))
         : analysis.rows.map((r) => ({
             questionId: r.questionId,
-            row: r.row as number | string,
+            row: r.row,
             written: false,
           }));
       // Paper prints only these, so the choose line counts only them.

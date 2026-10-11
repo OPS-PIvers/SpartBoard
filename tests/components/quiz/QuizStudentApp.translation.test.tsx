@@ -570,7 +570,7 @@ describe('QuizStudentApp — recording takes carry the rendering locale', () => 
       takeLimit: 3,
     },
     localized: { es: { text: 'Describe París.' } },
-  } as QuizPublicQuestion;
+  };
 
   beforeEach(() => {
     hookState.session = buildSession({
@@ -614,7 +614,7 @@ describe('QuizStudentApp — localized FIB feedback', () => {
     text: 'Capital of France?',
     timeLimit: 0,
     localized: { es: { text: '¿Capital de Francia?' } },
-  } as QuizPublicQuestion;
+  };
 
   beforeEach(() => {
     hookState.session = buildSession({

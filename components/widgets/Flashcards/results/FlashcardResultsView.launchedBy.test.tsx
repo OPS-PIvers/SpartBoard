@@ -31,19 +31,18 @@ import { FlashcardResultsView } from './FlashcardResultsView';
 
 const assignment = (
   over: Partial<FlashcardAssignment> = {}
-): FlashcardAssignment =>
-  ({
-    id: 'a1',
-    sessionId: 'a1',
-    setId: 'set-1',
-    setTitle: 'Spanish',
-    teacherUid: 'teacher-1',
-    kind: 'study',
-    status: 'active',
-    createdAt: Date.UTC(2026, 8, 23, 14, 0, 0),
-    updatedAt: 0,
-    ...over,
-  }) as FlashcardAssignment;
+): FlashcardAssignment => ({
+  id: 'a1',
+  sessionId: 'a1',
+  setId: 'set-1',
+  setTitle: 'Spanish',
+  teacherUid: 'teacher-1',
+  kind: 'study',
+  status: 'active',
+  createdAt: Date.UTC(2026, 8, 23, 14, 0, 0),
+  updatedAt: 0,
+  ...over,
+});
 
 const show = (over: Partial<FlashcardAssignment> = {}) =>
   render(

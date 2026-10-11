@@ -217,12 +217,14 @@ function makePiiWidget(id: string): WidgetData {
     z: 1,
     flipped: false,
     // `names` is a roster PII field (see utils/dashboardPII.ts PII_WIDGET_FIELDS).
-    config: { names: 'Alice\nBob' } as unknown as WidgetData['config'],
+    config: { names: 'Alice\nBob' },
   };
 }
 
-const bumpSeatCount = (config: WidgetConfig): WidgetConfig =>
-  ({ ...config, seatCount: 30 }) as unknown as WidgetConfig;
+const bumpSeatCount = (config: WidgetConfig): WidgetConfig => ({
+  ...config,
+  seatCount: 30,
+});
 
 function makeDashboard(id: string, widgets: WidgetData[]): Dashboard {
   return {
@@ -528,7 +530,7 @@ function makeMaterialsWidget(id: string, selectedItems: string[]): WidgetData {
     h: 1,
     z: 1,
     flipped: false,
-    config: { selectedItems, activeItems: [] } as unknown as WidgetConfig,
+    config: { selectedItems, activeItems: [] },
   };
 }
 
@@ -575,7 +577,7 @@ describe('DashboardContext updateWidgetConfigsAcrossBoards rollback', () => {
             selectedItems: materialsConfig.selectedItems.filter(
               (id) => id !== 'm1'
             ),
-          } as unknown as WidgetConfig;
+          };
         }
       );
     });
@@ -632,7 +634,7 @@ describe('DashboardContext save baseline PII scrub', () => {
 
     act(() => {
       stateRef.current?.updateWidget('w-pii', {
-        config: { seatCount: 24 } as unknown as WidgetData['config'],
+        config: { seatCount: 24 },
       });
     });
     await act(async () => {
@@ -662,7 +664,7 @@ describe('DashboardContext save baseline PII scrub', () => {
     // branch, which takes every board-level field straight from the server.
     act(() => {
       stateRef.current?.updateWidget('w-pii', {
-        config: { seatCount: 24 } as unknown as WidgetData['config'],
+        config: { seatCount: 24 },
       });
     });
 
@@ -679,7 +681,7 @@ describe('DashboardContext save baseline PII scrub', () => {
     saveDashboardMock.mockClear();
     act(() => {
       stateRef.current?.updateWidget('w-pii', {
-        config: { seatCount: 25 } as unknown as WidgetData['config'],
+        config: { seatCount: 25 },
       });
     });
     await act(async () => {
@@ -704,7 +706,7 @@ function makeTextWidget(id: string, text: string): WidgetData {
     h: 1,
     z: 1,
     flipped: false,
-    config: { content: text } as unknown as WidgetConfig,
+    config: { content: text },
   };
 }
 
@@ -743,7 +745,7 @@ describe('DashboardContext transaction self-echo', () => {
     saveDashboardMock.mockResolvedValueOnce(4242);
     act(() => {
       stateRef.current?.updateWidget('w-text', {
-        config: { content: 'v1' } as unknown as WidgetConfig,
+        config: { content: 'v1' },
       });
     });
     await act(async () => {
@@ -767,7 +769,7 @@ describe('DashboardContext transaction self-echo', () => {
                 ...w,
                 config: {
                   content: 'from-other-device',
-                } as unknown as WidgetConfig,
+                },
               }
             : w
         ),
@@ -787,7 +789,7 @@ describe('DashboardContext transaction self-echo', () => {
     uploadFileMock.mockClear();
     act(() => {
       stateRef.current?.updateWidget('w-text', {
-        config: { content: 'v2' } as unknown as WidgetConfig,
+        config: { content: 'v2' },
       });
     });
     await act(async () => {
@@ -883,7 +885,7 @@ describe('DashboardContext save baseline vs concurrent snapshot', () => {
     );
     act(() => {
       stateRef.current?.updateWidget('w-local', {
-        config: { content: 'l1' } as unknown as WidgetConfig,
+        config: { content: 'l1' },
       });
     });
     await act(async () => {
@@ -911,7 +913,7 @@ describe('DashboardContext save baseline vs concurrent snapshot', () => {
     saveDashboardMock.mockClear();
     act(() => {
       stateRef.current?.updateWidget('w-local', {
-        config: { content: 'l2' } as unknown as WidgetConfig,
+        config: { content: 'l2' },
       });
     });
     await act(async () => {
@@ -1038,7 +1040,7 @@ describe('DashboardContext autosave when the Drive PII backup fails', () => {
     flipped: false,
     version: 1,
     // Firestore only ever holds the scrubbed config.
-    config: { rosterMode: 'custom' } as unknown as WidgetConfig,
+    config: { rosterMode: 'custom' },
   });
 
   const typeNames = (
@@ -1047,7 +1049,7 @@ describe('DashboardContext autosave when the Drive PII backup fails', () => {
   ) =>
     act(() => {
       stateRef.current?.updateWidget('w-rand', {
-        config: { rosterMode: 'custom', firstNames } as unknown as WidgetConfig,
+        config: { rosterMode: 'custom', firstNames },
       });
     });
 

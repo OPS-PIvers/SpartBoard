@@ -8,6 +8,7 @@ import React from 'react';
 // must be simulated by invoking the observer callback with a contentRect.
 let resizeCallback: ResizeObserverCallback | null = null;
 let disconnectSpy: ReturnType<typeof vi.fn> | null = null;
+let rafSpy: ReturnType<typeof vi.spyOn>;
 
 class MockResizeObserver {
   observe = vi.fn();
@@ -40,7 +41,9 @@ describe('PopcornBallsView', () => {
     resizeCallback = null;
     disconnectSpy = null;
     vi.stubGlobal('ResizeObserver', MockResizeObserver);
-    vi.spyOn(window, 'requestAnimationFrame').mockImplementation(() => 1);
+    rafSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation(() => 1);
     // eslint-disable-next-line @typescript-eslint/no-empty-function
     vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
   });
@@ -68,12 +71,12 @@ describe('PopcornBallsView', () => {
   it('starts animation once measured and stops it on unmount', () => {
     const { container, unmount } = render(<PopcornBallsView volume={50} />);
     // No animation until the container has a non-zero measured size.
-    expect(window.requestAnimationFrame).not.toHaveBeenCalled();
+    expect(rafSpy).not.toHaveBeenCalled();
 
     const measured = container.querySelector('div');
     emitResize(measured as Element, 400, 300);
 
-    expect(window.requestAnimationFrame).toHaveBeenCalled();
+    expect(rafSpy).toHaveBeenCalled();
     unmount();
     expect(window.cancelAnimationFrame).toHaveBeenCalled();
     // Pin the ResizeObserver teardown contract: the effect cleanup must

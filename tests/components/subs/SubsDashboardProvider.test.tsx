@@ -36,7 +36,7 @@ function makeShare(
     buildingId: 'oms',
     libraryOrder: [],
     ...overrides,
-  } as SubstituteShareDoc;
+  };
 }
 
 interface ProbeHandle {
@@ -86,7 +86,7 @@ describe('SubsDashboardProvider', () => {
     act(() => {
       expectHandle(handle).update('w1', {
         config: { counts: { hot: 99, cold: 0, home: 0 } },
-      } as Partial<WidgetData>);
+      });
     });
     expect(
       (
@@ -113,7 +113,7 @@ describe('SubsDashboardProvider', () => {
     act(() => {
       expectHandle(handle).update('w1', {
         config: { addedByUser: 'sub-note' },
-      } as unknown as Partial<WidgetData>);
+      });
     });
     const merged = expectHandle(handle).widgets[0].config as {
       counts: Record<string, number>;
@@ -138,7 +138,7 @@ describe('SubsDashboardProvider', () => {
     act(() => {
       expectHandle(handle).update('w1', {
         config: { counts: { hot: 99, cold: 0, home: 0 } },
-      } as Partial<WidgetData>);
+      });
     });
     expect(
       (
@@ -170,7 +170,7 @@ describe('SubsDashboardProvider', () => {
     act(() => {
       expectHandle(handle).update('w1', {
         config: { counts: { hot: 99, cold: 0, home: 0 } },
-      } as Partial<WidgetData>);
+      });
     });
     expect(
       (
@@ -293,7 +293,7 @@ describe('SubsDashboardProvider names', () => {
     expect(firstNamesOf(expectHandle(handle))).toBeUndefined();
     act(() => {
       expectHandle(handle).update('w1', {
-        config: { mode: 'shuffle' } as WidgetData['config'],
+        config: { mode: 'shuffle' },
       });
     });
 

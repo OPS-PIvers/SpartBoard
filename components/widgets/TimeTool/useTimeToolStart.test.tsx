@@ -21,18 +21,17 @@ const baseConfig: TimeToolConfig = {
   selectedSound: 'Gong',
 };
 
-const makeWidget = (config: TimeToolConfig): WidgetData =>
-  ({
-    id: 'tt-1',
-    type: 'time-tool',
-    x: 0,
-    y: 0,
-    w: 400,
-    h: 400,
-    z: 1,
-    flipped: false,
-    config,
-  }) as WidgetData;
+const makeWidget = (config: TimeToolConfig): WidgetData => ({
+  id: 'tt-1',
+  type: 'time-tool',
+  x: 0,
+  y: 0,
+  w: 400,
+  h: 400,
+  z: 1,
+  flipped: false,
+  config,
+});
 
 describe('useTimeTool handleStart', () => {
   it('does not overwrite config changed while audio resumes', async () => {

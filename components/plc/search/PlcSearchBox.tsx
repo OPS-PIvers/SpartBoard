@@ -121,7 +121,7 @@ export const PlcSearchBox: React.FC<PlcSearchBoxProps> = ({
   const flatByIndex = useMemo(() => flat, [flat]);
 
   const selectResult = (result: PlcSearchResult) => {
-    onNavigate(result.section as PlcSectionId);
+    onNavigate(result.section);
     setOpen(false);
     setQuery('');
     inputRef.current?.blur();

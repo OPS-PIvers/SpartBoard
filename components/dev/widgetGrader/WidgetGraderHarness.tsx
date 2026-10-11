@@ -21,7 +21,6 @@ import {
   type Dashboard,
   type GlobalStyle,
   type LiveSession,
-  type WidgetConfig,
   type WidgetData,
 } from '@/types';
 import { WIDGET_FIXTURES, UNSUPPORTED_FIXTURES } from './fixtures';
@@ -107,7 +106,7 @@ const buildWidgets = (params: HarnessParams): WidgetData[] => {
     config: structuredClone({
       ...base,
       ...(i === 0 ? own : {}),
-    }) as WidgetConfig,
+    }),
   }));
 };
 
