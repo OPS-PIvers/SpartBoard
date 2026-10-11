@@ -8,8 +8,9 @@ const h = vi.hoisted(() => ({
   session: null as Record<string, unknown> | null,
   summary: null as Record<string, unknown> | null,
   setDoc: vi.fn((..._args: unknown[]) => Promise.resolve()),
-  submit: vi.fn((..._args: unknown[]) =>
-    Promise.resolve({ data: { attempt: 1, attemptsLeft: 0 } })
+  submit: vi.fn(
+    (..._args: unknown[]): Promise<{ data: Record<string, unknown> }> =>
+      Promise.resolve({ data: { attempt: 1, attemptsLeft: 0 } })
   ),
 }));
 
@@ -41,12 +42,13 @@ vi.mock('firebase/firestore', () => ({
   addDoc: vi.fn(() => Promise.resolve()),
   collection: vi.fn(),
   doc: vi.fn((_db: unknown, ...segs: string[]) => segs.join('/')),
-  getDoc: vi.fn((path: string) =>
-    Promise.resolve(
-      path.includes('/submissions/') && h.summary
-        ? { exists: () => true, data: () => h.summary }
-        : { exists: () => false }
-    )
+  getDoc: vi.fn(
+    (path: string): Promise<{ exists: () => boolean; data?: () => unknown }> =>
+      Promise.resolve(
+        path.includes('/submissions/') && h.summary
+          ? { exists: () => true, data: () => h.summary }
+          : { exists: () => false }
+      )
   ),
   serverTimestamp: vi.fn(),
   setDoc: h.setDoc,
