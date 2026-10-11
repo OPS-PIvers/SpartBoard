@@ -37,8 +37,8 @@ vi.mock('firebase-functions/params', () => ({
   defineSecret: (name: string) => ({ value: () => `secret:${name}` }),
 }));
 
-const ffmpegState = vi.hoisted(() => ({
-  path: '/usr/bin/ffmpeg' as string | null,
+const ffmpegState = vi.hoisted((): { path: string | null } => ({
+  path: '/usr/bin/ffmpeg',
 }));
 vi.mock('ffmpeg-static', () => ({
   get default() {
@@ -512,9 +512,9 @@ describe('archiveQuizArtifactCore', () => {
   it('rejects a forged storagePath before any Drive write', async () => {
     const seed = baseSeed();
     (
-      (seed.response as { answers: { artifacts: { storagePath: string }[] }[] })
-        .answers[0].artifacts[0] as { storagePath: string }
-    ).storagePath = 'quiz_response_media/sess-1/someone-else/art-1.webm';
+      seed.response as { answers: { artifacts: { storagePath: string }[] }[] }
+    ).answers[0].artifacts[0].storagePath =
+      'quiz_response_media/sess-1/someone-else/art-1.webm';
     const { db } = makeStubDb(seed);
     const deps = makeDeps(db);
     await expect(call(deps)).rejects.toMatchObject({

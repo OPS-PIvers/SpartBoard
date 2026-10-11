@@ -617,7 +617,7 @@ async function recoverOnce(
     if (existingId) {
       const existingRef = recordingRef(deps.db, plcId, existingId);
       const existing = await tx.get(existingRef);
-      const e = existing.data() as Data | undefined;
+      const e = existing.data();
       if (e && lateSegmentAction(e) === 'merge') {
         tx.update(existingRef, {
           status: 'finalizing',
@@ -647,7 +647,7 @@ async function recoverOnce(
   });
   if (!targetId) return false;
   const targetRef = recordingRef(deps.db, plcId, targetId);
-  const target = ((await targetRef.get()).data() ?? {}) as Data;
+  const target = (await targetRef.get()).data() ?? {};
   const { counts } = await mergePendingSegments(
     deps.bucket,
     plcId,
@@ -832,7 +832,7 @@ export async function finalizeAsRecorder(
     deps.db.collection('plcs').doc(plcId).get(),
     recordingRef(deps.db, plcId, recordingId).get(),
   ]);
-  const rec = recSnap.data() as Data | undefined;
+  const rec = recSnap.data();
   if (!rec || !isPlcMember(plcSnap.data(), uid) || rec.recorderUid !== uid) {
     throw new HttpsError(
       'permission-denied',
@@ -876,7 +876,7 @@ export async function deleteAudioAsEditor(
   if (!canEditPlc(plcSnap.data(), uid)) {
     throw new HttpsError('permission-denied', 'Only editors can do this.');
   }
-  const rec = recSnap.data() as Data | undefined;
+  const rec = recSnap.data();
   if (!rec) throw new HttpsError('not-found', 'Recording not found.');
   if (BLOCKS_EARLY_DELETE.has(String(rec.status))) {
     throw new HttpsError(

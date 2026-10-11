@@ -565,5 +565,5 @@ export function normalizeContent(raw: unknown, id: string): QuizContent {
     questions,
     createdAt: data.createdAt ?? Date.now(),
     updatedAt: data.updatedAt ?? Date.now(),
-  } as QuizContent;
+  };
 }

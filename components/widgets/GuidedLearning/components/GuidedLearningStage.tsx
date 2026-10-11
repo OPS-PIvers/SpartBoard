@@ -350,6 +350,7 @@ const StageBody: React.FC<
   // place, so cached images can swap without firing onLoad.
   useEffect(() => {
     // DOM measurement after commit; it cannot be computed during render.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     measureImg();
     // A cached image can swap in without a load event.
     const img = imgRef.current;

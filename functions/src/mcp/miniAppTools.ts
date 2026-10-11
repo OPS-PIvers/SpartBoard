@@ -125,7 +125,7 @@ export async function restoreMiniAppRevision(
   return saveEdit(
     ctx,
     current,
-    { ...data, id, folderId: current.folderId ?? null } as MiniApp,
+    { ...data, id, folderId: current.folderId ?? null },
     'restore'
   );
 }

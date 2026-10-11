@@ -180,7 +180,7 @@ describe('isEmptyGroup', () => {
   it('is empty when participants is missing / null / non-object', () => {
     expect(isEmptyGroup({})).toBe(true);
     expect(isEmptyGroup({ participants: null })).toBe(true);
-    expect(isEmptyGroup({ participants: 'oops' as unknown })).toBe(true);
+    expect(isEmptyGroup({ participants: 'oops' })).toBe(true);
   });
 
   it('is NOT empty when at least one participant remains', () => {

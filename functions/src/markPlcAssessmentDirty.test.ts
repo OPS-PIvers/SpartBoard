@@ -294,9 +294,9 @@ describe('markPlcAssessmentDirtyOnResponse', () => {
   });
 
   it('never throws when the session read fails', async () => {
-    stub.db.collection = (() => {
+    stub.db.collection = () => {
       throw new Error('firestore down');
-    }) as typeof stub.db.collection;
+    };
     await expect(
       onResponse(responseEvent(null, { status: 'completed' }))
     ).resolves.toBeUndefined();

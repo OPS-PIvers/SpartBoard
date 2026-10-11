@@ -252,8 +252,13 @@ const ReadOnlyView: React.FC<ReadProps> = ({
     recomputePinnedTopsRef.current = recomputePinnedTops;
   }, [recomputePinnedTops]);
 
-  // Measure the rendered article once it's in the DOM (read layout, project it into state).
+  // Measure the rendered article once it's in the DOM. The setState
+  // inside `recomputePinnedTops` is the standard DOM-measurement
+  // pattern (read layout in useLayoutEffect, project it into state) —
+  // there's no external system to synchronize, so the lint rule fires
+  // a false positive here.
   useLayoutEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     recomputePinnedTops();
   }, [recomputePinnedTops, tree]);
 

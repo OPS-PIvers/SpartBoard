@@ -191,7 +191,7 @@ export const organizationMemberCounters = onDocumentWritten(
       } catch (err) {
         const errCode =
           err && typeof err === 'object' && 'code' in err
-            ? String((err as { code: unknown }).code)
+            ? String(err.code)
             : undefined;
         logger.error(
           'organizationMemberCounters: org increment failed; skipping per-building and per-domain writes to avoid opposite-direction drift. action_required:run scripts/recount-org-members.js',

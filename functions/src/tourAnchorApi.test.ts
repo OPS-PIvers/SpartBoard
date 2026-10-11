@@ -94,7 +94,7 @@ function makeRes() {
 
 const call = async (req: Partial<Req>) => {
   const { out, res } = makeRes();
-  await handler({ method: 'GET', path: '/', headers: {}, ...req } as Req, res);
+  await handler({ method: 'GET', path: '/', headers: {}, ...req }, res);
   return out;
 };
 

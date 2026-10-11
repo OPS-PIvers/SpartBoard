@@ -9,6 +9,7 @@ import React from 'react';
 let resizeCallback: ResizeObserverCallback | null = null;
 let disconnectSpy: ReturnType<typeof vi.fn> | null = null;
 let rafSpy: ReturnType<typeof vi.spyOn>;
+let cancelSpy: ReturnType<typeof vi.spyOn>;
 
 class MockResizeObserver {
   observe = vi.fn();
@@ -44,8 +45,9 @@ describe('PopcornBallsView', () => {
     rafSpy = vi
       .spyOn(window, 'requestAnimationFrame')
       .mockImplementation(() => 1);
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => {});
+    cancelSpy = vi
+      .spyOn(window, 'cancelAnimationFrame')
+      .mockImplementation(() => undefined);
   });
 
   afterEach(() => {
@@ -78,7 +80,7 @@ describe('PopcornBallsView', () => {
 
     expect(rafSpy).toHaveBeenCalled();
     unmount();
-    expect(window.cancelAnimationFrame).toHaveBeenCalled();
+    expect(cancelSpy).toHaveBeenCalled();
     // Pin the ResizeObserver teardown contract: the effect cleanup must
     // disconnect the observer so it stops firing after unmount.
     expect(disconnectSpy).toHaveBeenCalled();

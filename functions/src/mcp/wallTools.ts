@@ -158,7 +158,7 @@ export function sessionMirror(
     appearance: entry.appearance ?? DEFAULT_APPEARANCE,
     allowGuests,
     showNames:
-      (entry.showNames as boolean | undefined) ??
+      entry.showNames ??
       (entry.identificationMode === 'name' ||
         entry.identificationMode === 'name-pin'),
     maxPostsPerStudent: entry.maxPostsPerStudent ?? 0,
@@ -287,7 +287,7 @@ export async function restoreWallRevision(
       studentsCanSeePosts: current.studentsCanSeePosts,
       classIds: current.classIds,
       rosterIds: current.rosterIds,
-    } as Wall,
+    },
     Date.now()
   );
   if (current.classIds === undefined) delete restored.classIds;
@@ -440,10 +440,7 @@ export function registerWallTools(server: McpServer, ctx: ToolContext): void {
           { ...defaultWall(randomUUID(), now), title: input.title.trim() },
           input
         );
-        const wall = finalizeWall(
-          { ...draft, claudeCreatedAt: now } as Wall,
-          now
-        );
+        const wall = finalizeWall({ ...draft, claudeCreatedAt: now }, now);
         await reserveWrite(ctx);
         const result = await writeWall(ctx, wall, {
           previous: null,
@@ -477,10 +474,7 @@ export function registerWallTools(server: McpServer, ctx: ToolContext): void {
           { ...existing, title: input.title?.trim() || existing.title },
           input
         );
-        const wall = finalizeWall(
-          { ...draft, claudeEditedAt: now } as Wall,
-          now
-        );
+        const wall = finalizeWall({ ...draft, claudeEditedAt: now }, now);
         await reserveWrite(ctx);
         return writeWall(ctx, wall, { previous: existing, action: 'update' });
       })

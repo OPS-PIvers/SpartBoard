@@ -488,7 +488,7 @@ async function queueBoxJob(
   return {
     jobId,
     write: () => {
-      tx.create(nextRef, fresh as unknown as Rec);
+      tx.create(nextRef, fresh);
       if (open && latestRef) {
         tx.update(latestRef, {
           status: 'superseded',

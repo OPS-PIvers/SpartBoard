@@ -578,11 +578,9 @@ const uploadStreamToDrive = async (
         Authorization: `Bearer ${accessToken}`,
         'Content-Type': mimeType,
       },
-      body: Readable.toWeb(
-        createReadStream(filePath)
-      ) as unknown as ReadableStream<Uint8Array>,
+      body: Readable.toWeb(createReadStream(filePath)),
       duplex: 'half',
-    } as RequestInit & { duplex: 'half' }
+    }
   );
   if (!uploadResponse.ok) {
     throw new Error('Failed to upload file content to Drive');
@@ -974,7 +972,7 @@ const TRIGGER_OPTIONS = {
 export const archiveActivityWallSubmissionOnCreate = onDocumentCreated(
   TRIGGER_OPTIONS,
   async (event) => {
-    const data = event.data?.data() as Record<string, unknown> | undefined;
+    const data = event.data?.data();
     if (!shouldArchiveSubmission(data)) return;
     await runTriggerArchive(event.params.sessionId, event.params.submissionId);
   }
@@ -983,10 +981,8 @@ export const archiveActivityWallSubmissionOnCreate = onDocumentCreated(
 export const archiveActivityWallSubmissionOnUpdate = onDocumentUpdated(
   TRIGGER_OPTIONS,
   async (event) => {
-    const before = event.data?.before.data() as
-      Record<string, unknown> | undefined;
-    const after = event.data?.after.data() as
-      Record<string, unknown> | undefined;
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
     if (!shouldArchiveSubmission(after)) return;
     // Only a fresh transition into 'firebase' is a new job for the pipeline.
     if (effectiveArchiveStatus(before) === 'firebase') return;

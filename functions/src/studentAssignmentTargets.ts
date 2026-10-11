@@ -921,9 +921,9 @@ export async function handleSetAssignmentTargets(
   const storedMirror: unknown = assignmentData.overridesByStudentUid;
   if (typeof storedMirror === 'object' && storedMirror !== null) {
     for (const [uid, value] of Object.entries(
-      storedMirror as Record<string, unknown>
+      storedMirror as Record<string, StudentOverride | null | undefined>
     )) {
-      const stored = (value ?? null) as StudentOverride | null;
+      const stored = value ?? null;
       storedMirrorByUid.set(uid, stored);
       // A student who was already skipped had nothing delivered or prepared,
       // so the "gained" checks must compare against that suppressed state.
@@ -1013,7 +1013,10 @@ export async function handleSetAssignmentTargets(
   // Existing pointer docs feed the two parts of the merge contract a field-level
   // write can't express on its own: `createdAt` is preserved, never rewritten,
   // and an untouched stored `override` still decides the effective window.
-  const existingByUid = new Map<string, Record<string, unknown>>();
+  const existingByUid = new Map<
+    string,
+    Record<string, unknown> & { override?: StudentOverride | null }
+  >();
   const existingExcludedByUid = new Map<string, Record<string, unknown>>();
   const readRefs = [
     ...admitted,
@@ -1034,8 +1037,7 @@ export async function handleSetAssignmentTargets(
   /** The mutable half of a pointer write, shared by adds and refreshes. */
   const mutableFields = (key: string, uid: string): Record<string, unknown> => {
     const overrideChanged = key in input.overridesBySourcedId;
-    const storedOverride = (existingByUid.get(uid)?.override ?? undefined) as
-      StudentOverride | undefined;
+    const storedOverride = existingByUid.get(uid)?.override ?? undefined;
     const effectiveOverride = overrideChanged
       ? input.overridesBySourcedId[key]
       : storedOverride;

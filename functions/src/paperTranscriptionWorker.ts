@@ -645,7 +645,7 @@ export async function requeuePaperJob(
       createdAt: opts.now,
       updatedAt: opts.now,
     };
-    tx.create(nextRef, fresh as unknown as Record<string, unknown>);
+    tx.create(nextRef, fresh);
     for (const box of live) {
       tx.set(
         privateRefFor(responseRef, box.questionId),

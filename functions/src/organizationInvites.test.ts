@@ -255,7 +255,7 @@ describe('normalizeInvite', () => {
     const result = normalizeInvite({
       email: 'user@ex.com',
       roleId: 'teacher',
-      buildingIds: ['b1', 2, null, '', 'b2'] as unknown as string[],
+      buildingIds: ['b1', 2, null, '', 'b2'] as unknown,
     });
     expect('invite' in result).toBe(true);
     if ('invite' in result) {
