@@ -4,7 +4,7 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { MiniAppAssignStepper } from './MiniAppAssignStepper';
-import { MiniAppResultsTable } from './MiniAppResultsTable';
+import { MiniAppResultsView } from './MiniAppResultsView';
 import { SAMPLE_ROSTERS } from '@/components/common/library/assignStepper/assignStepperTestRosters';
 
 const stepper = (
@@ -56,13 +56,16 @@ describe('MiniAppAssignStepper results step', () => {
   });
 });
 
-describe('MiniAppResultsTable', () => {
+describe('MiniAppResultsView', () => {
   it('shows best score, attempts and per-question marks', async () => {
     const loadAttempts = vi.fn(() =>
       Promise.resolve([{ attemptNo: 1, submittedAt: 1, score: 1, maxScore: 2 }])
     );
     render(
-      <MiniAppResultsTable
+      <MiniAppResultsView
+        title="Fraction Pizza"
+        ended={false}
+        onBack={() => undefined}
         rows={[
           {
             id: 'a',
@@ -90,7 +93,9 @@ describe('MiniAppResultsTable', () => {
         loadAttempts={loadAttempts}
       />
     );
-    expect(screen.getByText('1 of 3')).toBeInTheDocument();
+    expect(screen.getByText('50%')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: /Students/ }));
+    expect(screen.getByText(/1 of 3 attempts/)).toBeInTheDocument();
     expect(screen.getByLabelText('Correct')).toBeInTheDocument();
     expect(screen.getByLabelText('Incorrect')).toBeInTheDocument();
     expect(screen.getByText('from app')).toBeInTheDocument();

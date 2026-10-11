@@ -1,11 +1,10 @@
-// DEV-only: the v2 Mini App results table in the Submissions dialog, for /assign-stepper-dev mockups.
+// DEV-only: the v2 Mini App results view over the widget, for /assign-stepper-dev mockups.
 import React from 'react';
-import { Inbox, X } from 'lucide-react';
 import {
-  MiniAppResultsTable,
+  MiniAppResultsView,
   type MiniAppAttemptView,
   type MiniAppResultRow,
-} from '@/components/widgets/MiniApp/components/MiniAppResultsTable';
+} from '@/components/widgets/MiniApp/components/MiniAppResultsView';
 import type { MiniAppManifestQuestion } from '@/types';
 
 const QUESTIONS: MiniAppManifestQuestion[] = [
@@ -89,35 +88,26 @@ const ATTEMPTS: MiniAppAttemptView[] = [
 ];
 
 const Preview: React.FC = () => (
-  <div className="relative h-[620px] w-[760px] overflow-hidden rounded-2xl bg-slate-800">
-    <div className="absolute inset-0 z-overlay bg-brand-blue-dark/70 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-        <div className="bg-indigo-600 p-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-white min-w-0">
-            <Inbox className="w-5 h-5 shrink-0" />
-            <div className="min-w-0">
-              <p className="font-black uppercase tracking-tight">Submissions</p>
-              <p className="text-white/80 text-xs truncate">Fraction Pizza</p>
-            </div>
-          </div>
-          <X className="w-5 h-5 text-white/60" />
-        </div>
-        <div className="p-5 overflow-y-auto">
-          <MiniAppResultsTable
-            rows={ROWS}
-            questions={QUESTIONS}
-            attemptLimit={3}
-            loadAttempts={() => Promise.resolve(ATTEMPTS)}
-            onExport={() => undefined}
-          />
-        </div>
-      </div>
-    </div>
+  <div
+    className="relative h-[620px] w-[760px] overflow-hidden rounded-2xl bg-white shadow-xl"
+    style={{ containerType: 'size' }}
+  >
+    <MiniAppResultsView
+      title="Fractions check, period 3"
+      subtitle="Fraction Pizza"
+      ended={false}
+      rows={ROWS}
+      questions={QUESTIONS}
+      attemptLimit={3}
+      loadAttempts={() => Promise.resolve(ATTEMPTS)}
+      onBack={() => undefined}
+      onExport={() => Promise.resolve('https://docs.google.com')}
+    />
   </div>
 );
 
 const MiniAppResultsDev = {
-  title: 'Mini App results table',
+  title: 'Mini App results',
   render: Preview,
 };
 

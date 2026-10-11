@@ -32,9 +32,10 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import type { MiniAppBestAttempt, MiniAppSession } from '@/types';
 import {
-  MiniAppResultsTable,
+  MiniAppResultsView,
   type MiniAppAttemptView,
-} from './MiniAppResultsTable';
+} from './MiniAppResultsView';
+import { exportMiniAppResults } from '@/utils/miniAppResultsExport';
 import { usePeriodAccess } from '@/hooks/usePeriodAccess';
 import { hasPeriodAccess } from '@/utils/periodAccess';
 import { PeriodAccessControls } from '@/components/common/sessionViews/PeriodAccessControls';
@@ -65,7 +66,7 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
   session,
   onClose,
 }) => {
-  const { orgId } = useAuth();
+  const { orgId, ensureGoogleScope, isExternalUser } = useAuth();
   const { rosters } = useDashboard();
   // No Let in now here: a student shows up only once they submit.
   const perPeriod =
@@ -138,6 +139,81 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
     return unsub;
   }, [sessionId]);
 
+  const periodControls =
+    perPeriod && session?.periodAccess ? (
+      <PeriodAccessControls
+        periodAccess={session.periodAccess}
+        actions={periodActions}
+        logTag="MiniAppSubmissionsModal.periodAccess"
+      />
+    ) : undefined;
+
+  if (isV2 && session) {
+    return (
+      <div className="absolute inset-0 z-overlay bg-white">
+        {error ? (
+          <p className="p-4 text-sm text-brand-red-primary font-medium">
+            {error}
+          </p>
+        ) : loading ? (
+          <div className="h-full flex items-center justify-center text-brand-blue-primary">
+            <Loader2 className="w-5 h-5 animate-spin" />
+          </div>
+        ) : (
+          <MiniAppResultsView
+            title={assignmentName}
+            subtitle={session.appTitle}
+            ended={session.status === 'ended'}
+            rows={submissions.map((s) => ({
+              id: s.id,
+              name: formatStudentName(byAssignmentPseudonym.get(s.id)) || s.id,
+              attemptCount: s.attemptCount ?? 0,
+              best: s.best ?? null,
+              lastSubmittedAt: s.lastSubmittedAt ?? s.submittedAt,
+              doneOnly: !s.attemptCount && isDoneOnly(s.payload),
+              ...(!s.attemptCount && !isDoneOnly(s.payload)
+                ? { legacyPayload: s.payload }
+                : {}),
+            }))}
+            questions={session.manifest?.questions ?? []}
+            attemptLimit={
+              typeof session.attemptLimit === 'number'
+                ? session.attemptLimit
+                : null
+            }
+            loadAttempts={(rowId) => loadAttempts(sessionId, rowId)}
+            onBack={onClose}
+            onExport={
+              isExternalUser
+                ? undefined
+                : async () => {
+                    const token = await ensureGoogleScope('drive.file', {
+                      interactive: true,
+                    });
+                    if (!token)
+                      throw new Error(
+                        'Google Drive access is required to export. Please sign out and sign in again.'
+                      );
+                    return exportMiniAppResults(
+                      token,
+                      assignmentName,
+                      submissions.map((s) => ({
+                        id: s.id,
+                        best: s.best ?? null,
+                        lastSubmittedAt: s.lastSubmittedAt ?? s.submittedAt,
+                      })),
+                      session.manifest?.questions ?? [],
+                      byAssignmentPseudonym
+                    );
+                  }
+            }
+            periodControls={periodControls}
+          />
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="absolute inset-0 z-overlay bg-brand-blue-dark/70 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
@@ -160,13 +236,9 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
           </button>
         </div>
 
-        {perPeriod && session?.periodAccess && (
+        {periodControls && (
           <div className="border-b border-slate-200 px-4 py-2">
-            <PeriodAccessControls
-              periodAccess={session.periodAccess}
-              actions={periodActions}
-              logTag="MiniAppSubmissionsModal.periodAccess"
-            />
+            {periodControls}
           </div>
         )}
 
@@ -189,25 +261,6 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
                 Submissions appear here as students finish the activity.
               </p>
             </div>
-          ) : isV2 ? (
-            <MiniAppResultsTable
-              rows={submissions.map((s) => ({
-                id: s.id,
-                name:
-                  formatStudentName(byAssignmentPseudonym.get(s.id)) || s.id,
-                attemptCount: s.attemptCount ?? 0,
-                best: s.best ?? null,
-                lastSubmittedAt: s.lastSubmittedAt ?? s.submittedAt,
-                doneOnly: !s.attemptCount,
-              }))}
-              questions={session?.manifest?.questions ?? []}
-              attemptLimit={
-                typeof session?.attemptLimit === 'number'
-                  ? session.attemptLimit
-                  : null
-              }
-              loadAttempts={(rowId) => loadAttempts(sessionId, rowId)}
-            />
           ) : (
             <div className="space-y-2">
               <p className="text-xs text-slate-500">
@@ -283,6 +336,12 @@ const SubmissionRowView: React.FC<{
     </div>
   );
 };
+
+const isDoneOnly = (payload: unknown): boolean =>
+  typeof payload === 'object' &&
+  payload !== null &&
+  Object.keys(payload).length === 1 &&
+  (payload as { completed?: unknown }).completed === true;
 
 function formatPayload(payload: unknown): string {
   try {
