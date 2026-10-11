@@ -89,6 +89,19 @@ export async function embedSetImages(
 ): Promise<GlTransferResult> {
   const warnings: string[] = [];
   let totalEmbeddedBytes = 0;
+  // A data URI within the per-file and total budgets, or 'too-big' to keep the link.
+  const embed = async (url: string): Promise<string> => {
+    const blob = await fetchMedia(url);
+    if (blob.size > GL_MAX_EMBED_BYTES) return 'too-big';
+    // Checked before conversion, using base64-inflated size so the budget bounds the actual .gl.json file.
+    totalEmbeddedBytes += Math.ceil(blob.size / 3) * 4;
+    if (totalEmbeddedBytes > GL_MAX_TOTAL_EMBED_BYTES) {
+      throw new GlExportBudgetExceededError(
+        `This activity's embedded media exceeds the ${Math.round(GL_MAX_TOTAL_EMBED_BYTES / 1024 / 1024)}MB export limit. Remove some slides or shrink the media before exporting.`
+      );
+    }
+    return blobToDataUri(blob);
+  };
   const imageUrls = await Promise.all(
     set.imageUrls.map(async (url, index) => {
       if (url.startsWith('data:')) return url;
@@ -97,21 +110,14 @@ export async function embedSetImages(
         return url;
       }
       try {
-        const blob = await fetchMedia(url);
-        if (blob.size > GL_MAX_EMBED_BYTES) {
+        const embedded = await embed(url);
+        if (embedded === 'too-big') {
           warnings.push(
             `Slide ${index + 1} is larger than ${Math.round(GL_MAX_EMBED_BYTES / 1024 / 1024)}MB and stays linked online.`
           );
           return url;
         }
-        // Checked before conversion, using base64-inflated size so the budget bounds the actual .gl.json file.
-        totalEmbeddedBytes += Math.ceil(blob.size / 3) * 4;
-        if (totalEmbeddedBytes > GL_MAX_TOTAL_EMBED_BYTES) {
-          throw new GlExportBudgetExceededError(
-            `This activity's embedded media exceeds the ${Math.round(GL_MAX_TOTAL_EMBED_BYTES / 1024 / 1024)}MB export limit. Remove some slides or shrink the media before exporting.`
-          );
-        }
-        return await blobToDataUri(blob);
+        return embedded;
       } catch (err) {
         if (err instanceof GlExportBudgetExceededError) throw err;
         warnings.push(
@@ -121,6 +127,24 @@ export async function embedSetImages(
       }
     })
   );
+  let welcomeImageUrl = set.welcomeImageUrl;
+  if (welcomeImageUrl && !welcomeImageUrl.startsWith('data:')) {
+    try {
+      const embedded = await embed(welcomeImageUrl);
+      if (embedded === 'too-big') {
+        warnings.push(
+          'The welcome image is too large and stays linked online.'
+        );
+      } else {
+        welcomeImageUrl = embedded;
+      }
+    } catch (err) {
+      if (err instanceof GlExportBudgetExceededError) throw err;
+      warnings.push(
+        'The welcome image could not be embedded and keeps its online link.'
+      );
+    }
+  }
   const stepMediaCount = set.steps.filter(
     (s) => Boolean(s.audioUrl) || Boolean(s.videoUrl && s.videoStoragePath)
   ).length;
@@ -130,7 +154,11 @@ export async function embedSetImages(
     );
   }
   // File refs and thumbnails belong to the exporter's storage — meaningless in a file.
-  const exported: GuidedLearningSet = { ...set, imageUrls };
+  const exported: GuidedLearningSet = {
+    ...set,
+    imageUrls,
+    ...(welcomeImageUrl ? { welcomeImageUrl } : {}),
+  };
   delete exported.imagePaths;
   delete exported.driveFileIds;
   delete exported.slideThumbnails;
@@ -180,6 +208,30 @@ export async function rehostImportedSetImages(
     }
   }
   const rehosted: GuidedLearningSet = { ...set, imageUrls };
+  const welcome = set.welcomeImageUrl;
+  if (welcome?.startsWith('data:')) {
+    const parsed = parseDataUri(welcome);
+    if (parsed?.mimeType.startsWith('image/')) {
+      const blob = new Blob([parsed.bytes.buffer as ArrayBuffer], {
+        type: parsed.mimeType,
+      });
+      const uploaded = await upload(
+        blob,
+        `imported-welcome.${extensionForMime(parsed.mimeType)}`
+      );
+      rehosted.welcomeImageUrl = uploaded.url;
+      imagePaths.push(uploaded.storagePath);
+      if (uploaded.driveFileId) driveFileIds.push(uploaded.driveFileId);
+      onUploaded?.(uploaded.storagePath, uploaded.driveFileId);
+    } else {
+      // An unreadable welcome image is dropped; the slides still import.
+      delete rehosted.welcomeImageUrl;
+      delete rehosted.welcomeImageAlt;
+      warnings.push('The welcome image could not be read and was left out.');
+    }
+  } else if (welcome) {
+    warnings.push('The welcome image references an online link.');
+  }
   if (imagePaths.some(Boolean)) {
     rehosted.imagePaths = imagePaths;
   } else {
