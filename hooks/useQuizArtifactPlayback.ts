@@ -14,11 +14,7 @@ import { functions } from '@/config/firebase';
 import type { ArtifactSlot } from '@/types';
 
 export type PlaybackUnavailableReason =
-  | 'archiving'
-  | 'failed'
-  | 'deleted'
-  | 'no-recording'
-  | 'too-large';
+  'archiving' | 'failed' | 'deleted' | 'no-recording' | 'too-large';
 
 export interface PlaybackRequest {
   sessionId: string;

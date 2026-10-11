@@ -26,12 +26,7 @@ export const SPEECH_BITS_PER_SECOND = 32_000;
 export const MIC_STORAGE_KEY = 'spartboard.meetingRecorder.micId';
 
 export type MeetingRecorderPhase =
-  | 'idle'
-  | 'starting'
-  | 'recording'
-  | 'paused'
-  | 'stopping'
-  | 'stopped';
+  'idle' | 'starting' | 'recording' | 'paused' | 'stopping' | 'stopped';
 
 export type MeetingRecorderError =
   | 'unsupported'

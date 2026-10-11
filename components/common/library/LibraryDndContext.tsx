@@ -183,9 +183,7 @@ export const LibraryDndContext: React.FC<LibraryDndContextProps> = ({
     (event: DragOverEvent): void => {
       if (!enabled) return;
       const data = event.over?.data.current as
-        | FolderDropData
-        | ItemMergeDropData
-        | undefined;
+        FolderDropData | ItemMergeDropData | undefined;
       setOverFolder(data?.type === 'folder');
       const target =
         data?.type === 'item-merge' && !draggingIds.includes(data.itemId)
@@ -285,9 +283,7 @@ export const LibraryDndContext: React.FC<LibraryDndContextProps> = ({
       if (!over) return;
 
       const overData = over.data.current as
-        | FolderDropData
-        | ItemMergeDropData
-        | undefined;
+        FolderDropData | ItemMergeDropData | undefined;
       const fail = (err: unknown): void => {
         logError('LibraryDndContext.drop', err);
         addToast?.('Could not move. Try again.', 'error');

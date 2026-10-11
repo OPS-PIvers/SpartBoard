@@ -623,8 +623,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       };
 
       const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
-        | string
-        | undefined;
+        string | undefined;
       const email = user?.email;
 
       const runRefreshChain = async (): Promise<string | null> => {
@@ -794,8 +793,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           // through to Firebase popup" — common in dev/test where the
           // GIS code-flow client isn't configured.
           const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
-            | string
-            | undefined;
+            string | undefined;
           if (clientId) {
             const exchanged = await requestAndExchangeAuthCode(
               clientId,
@@ -910,8 +908,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const captureOfflineGrant = useCallback(async (): Promise<boolean> => {
     if (isAuthBypass || isViewAsTab) return false;
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
-      | string
-      | undefined;
+      string | undefined;
     if (!clientId) return false;
 
     const outcome = await requestAndExchangeAuthCode(
@@ -963,8 +960,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (isAuthBypass || isViewAsTab || !user || !googleAccessToken) return;
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
-      | string
-      | undefined;
+      string | undefined;
     if (!clientId) return;
 
     try {
@@ -1037,8 +1033,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (isViewAsTab) return null;
 
       const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
-        | string
-        | undefined;
+        string | undefined;
       const email = user?.email;
       if (!clientId || !email || typeof window.google === 'undefined') {
         // No GIS client/identity available — cannot acquire on demand. The
@@ -1224,8 +1219,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
 
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
-      | string
-      | undefined;
+      string | undefined;
     if (!clientId) return;
 
     const stored = localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY);
@@ -3077,8 +3071,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // and skip the gate, letting users pick widgets they'd then lose
       // access to the moment setup completed.
       const rawDockDefaults = permission.config?.dockDefaults as
-        | Record<string, boolean>
-        | undefined;
+        Record<string, boolean> | undefined;
       const checkBuildings = customBuildings ?? selectedBuildings;
       if (rawDockDefaults && checkBuildings.length > 0) {
         const dockDefaults = canonicalizeBuildingKeyedRecord(rawDockDefaults);

@@ -200,8 +200,7 @@ async function fetchTargetedRefKeys(
     )
   );
   const a = snap.data() as
-    | { targetMode?: string; targetStudents?: StudentTargetRef[] }
-    | undefined;
+    { targetMode?: string; targetStudents?: StudentTargetRef[] } | undefined;
   if (a?.targetMode !== 'students') return null;
   return new Set((a.targetStudents ?? []).map(studentTargetRefKey));
 }

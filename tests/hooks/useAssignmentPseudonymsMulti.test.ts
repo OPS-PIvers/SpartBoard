@@ -32,8 +32,7 @@ interface CallableResult {
   pseudonyms: Record<string, PseudonymEntry>;
 }
 type CallableReturn =
-  | Promise<{ data: CallableResult }>
-  | { data: CallableResult };
+  Promise<{ data: CallableResult }> | { data: CallableResult };
 type CallableHandler = (input: CallableInput) => CallableReturn;
 
 vi.mock('firebase/functions', () => ({

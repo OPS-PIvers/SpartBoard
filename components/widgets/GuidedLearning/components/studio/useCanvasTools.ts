@@ -411,15 +411,13 @@ export function useCanvasTools(
           ['callout-larger', 'ArrowUp', 'scale', 1],
           ['callout-smaller', 'ArrowDown', 'scale', -1],
         ] as const
-      ).map(
-        ([id, key, axis, dir]): StudioShortcut => ({
-          id,
-          key,
-          alt: true,
-          when: (e) => calloutSelected && onCanvas(e),
-          run: () => sizeCallout(axis, dir),
-        })
-      ),
+      ).map(([id, key, axis, dir]): StudioShortcut => ({
+        id,
+        key,
+        alt: true,
+        when: (e) => calloutSelected && onCanvas(e),
+        run: () => sizeCallout(axis, dir),
+      })),
       {
         id: 'place-step',
         key: 'Enter',

@@ -319,11 +319,7 @@ export function applyMediaSlots(
 
 /** Human-facing reason a take cannot be played right now, or null. */
 export type TakeUnplayableReason =
-  | 'archiving'
-  | 'archive-failed'
-  | 'lost'
-  | 'deleted'
-  | 'unknown';
+  'archiving' | 'archive-failed' | 'lost' | 'deleted' | 'unknown';
 
 export function takeUnplayableReason(
   take: MediaTake | undefined

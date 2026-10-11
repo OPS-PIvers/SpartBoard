@@ -7,10 +7,7 @@
 import type { LocalizedQuestionStrings, QuizPublicQuestion } from '@/types';
 
 type ArrayField =
-  | 'choices'
-  | 'matchingLeft'
-  | 'matchingRight'
-  | 'orderingItems';
+  'choices' | 'matchingLeft' | 'matchingRight' | 'orderingItems';
 
 const ARRAY_FIELDS: ArrayField[] = [
   'choices',

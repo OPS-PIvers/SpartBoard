@@ -93,12 +93,10 @@ beforeEach(() => {
     getIdTokenResult: () =>
       Promise.resolve({ claims: { studentRole: true, classIds: ['c1'] } }),
   };
-  (doc as Mock).mockImplementation(
-    (_db: unknown, ...segs: string[]): Ref => ({
-      path: segs.join('/'),
-      id: segs[segs.length - 1],
-    })
-  );
+  (doc as Mock).mockImplementation((_db: unknown, ...segs: string[]): Ref => ({
+    path: segs.join('/'),
+    id: segs[segs.length - 1],
+  }));
   (getDoc as Mock).mockImplementation((ref: Ref) =>
     Promise.resolve({
       id: ref.id,

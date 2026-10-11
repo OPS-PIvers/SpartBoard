@@ -257,10 +257,7 @@ function num(value: unknown): number {
 }
 
 export type StaleAction =
-  | 'interrupted'
-  | 'paused-timeout'
-  | 'lease-expired'
-  | 'time-limit';
+  'interrupted' | 'paused-timeout' | 'lease-expired' | 'time-limit';
 
 /** What the 5-minute finalizer should do with this recording, if anything. `serverCreatedMs` is the doc's createTime. */
 export function staleAction(

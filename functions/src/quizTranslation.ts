@@ -1148,8 +1148,7 @@ function buildDefaultDeps(): TranslationDeps {
       return {
         text: result.text,
         finishReason: result.candidates?.[0]?.finishReason as
-          | string
-          | undefined,
+          string | undefined,
         outputTokens:
           (usage?.candidatesTokenCount ?? 0) + (usage?.thoughtsTokenCount ?? 0),
       };

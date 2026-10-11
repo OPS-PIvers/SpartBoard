@@ -106,11 +106,11 @@ function segmentStart(b: Buffer): { segOff: number; seg: Header } {
 }
 
 function timecodeScale(b: Buffer, seg: Header): number {
-  for (let o = seg.data; o < b.length; ) {
+  for (let o = seg.data; o < b.length;) {
     const h = header(b, o);
     if (h.id === ID.Cluster || h.size === null) break;
     if (h.id === ID.Info) {
-      for (let p = h.data; p < h.data + h.size; ) {
+      for (let p = h.data; p < h.data + h.size;) {
         const c = header(b, p);
         if (c.size === null) break;
         if (c.id === ID.TimecodeScale) return readUInt(b, c.data, c.size);
@@ -136,7 +136,7 @@ export function computeDurationMs(b: Buffer): number {
       let last = (tc * scale) / 1e6;
       const end =
         h.size === null ? b.length : Math.min(b.length, h.data + h.size);
-      for (let p = tcEl.data + tcEl.size; p < end; ) {
+      for (let p = tcEl.data + tcEl.size; p < end;) {
         const c = tryHeader(b, p);
         if (!c || c.size === null || c.data + c.size > b.length) break;
         if (c.id === ID.SimpleBlock) {
@@ -160,7 +160,7 @@ export function injectDuration(b: Buffer, durationMs: number): Buffer {
   const { segOff, seg } = segmentStart(b);
   let info: Header | null = null;
   let infoOff = 0;
-  for (let o = seg.data; o < b.length; ) {
+  for (let o = seg.data; o < b.length;) {
     const h = header(b, o);
     if (h.id === ID.SeekHead) throw new Error('SeekHead present');
     if (h.id === ID.Info) {
@@ -175,7 +175,7 @@ export function injectDuration(b: Buffer, durationMs: number): Buffer {
     throw new Error('no Info before first Cluster');
   let scale = 1e6;
   const kept: Buffer[] = [];
-  for (let p = info.data; p < info.data + info.size; ) {
+  for (let p = info.data; p < info.data + info.size;) {
     const c = header(b, p);
     if (c.size === null) throw new Error('unsized Info child');
     const end = c.data + c.size;

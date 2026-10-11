@@ -265,8 +265,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
     try {
       const now = Date.now();
       let payload:
-        | Omit<DashboardTemplate, 'id'>
-        | Omit<CollectionTemplate, 'id'>;
+        Omit<DashboardTemplate, 'id'> | Omit<CollectionTemplate, 'id'>;
       if (target.kind === 'board') {
         payload = {
           type: 'board',

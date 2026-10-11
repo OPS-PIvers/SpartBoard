@@ -22,9 +22,7 @@ export const RATE_STORAGE_KEY = 'quiz_read_aloud_rate';
 export const AUTO_STORAGE_KEY = 'quiz_read_aloud_auto';
 
 export type ReadAloudItemKind =
-  | 'matchingLeft'
-  | 'matchingRight'
-  | 'orderingItem';
+  'matchingLeft' | 'matchingRight' | 'orderingItem';
 export type ReadAloudStatus = 'idle' | 'loading' | 'playing';
 export type ReadAloudError = 'load' | 'unavailable' | null;
 

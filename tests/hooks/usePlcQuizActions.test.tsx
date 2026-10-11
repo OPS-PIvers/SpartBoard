@@ -136,8 +136,7 @@ vi.mock('@/hooks/useQuiz', () => ({
 }));
 
 let createAssignmentResolver:
-  | ((value: { id: string; code: string }) => void)
-  | null = null;
+  ((value: { id: string; code: string }) => void) | null = null;
 const createAssignment = vi.fn(
   () =>
     new Promise<{ id: string; code: string }>((resolve) => {

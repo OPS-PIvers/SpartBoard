@@ -33,12 +33,7 @@ export type PlcSearchSection = 'assessments' | 'docs' | 'sharedBoards';
 
 /** The flavor of a searched record — drives the result icon + group label. */
 export type PlcSearchKind =
-  | 'assessment'
-  | 'quiz'
-  | 'video-activity'
-  | 'doc'
-  | 'note'
-  | 'board';
+  'assessment' | 'quiz' | 'video-activity' | 'doc' | 'note' | 'board';
 
 /**
  * One searchable record handed to {@link searchPlcRecords}. The caller flattens

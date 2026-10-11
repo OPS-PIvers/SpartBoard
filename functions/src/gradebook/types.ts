@@ -10,10 +10,7 @@ export type GradeKind = GradebookKind;
 
 /** Builder state; `in-progress` is stored as `not-attempted` (or the previous attempt during a retake). */
 export type BuildState =
-  | 'scored'
-  | 'awaiting-grade'
-  | 'not-attempted'
-  | 'in-progress';
+  'scored' | 'awaiting-grade' | 'not-attempted' | 'in-progress';
 
 /** A stored attempt, numbered so a regrade replaces the same attempt. */
 export interface IndexAttempt extends GradeAttempt {

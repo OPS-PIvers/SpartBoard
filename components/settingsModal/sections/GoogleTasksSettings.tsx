@@ -54,8 +54,7 @@ export const GoogleTasksSettings: React.FC = () => {
     try {
       if (enabled) {
         const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
-          | string
-          | undefined;
+          string | undefined;
         if (!clientId) throw new Error('VITE_GOOGLE_CLIENT_ID is not set');
         const outcome = await requestAndExchangeAuthCode(
           clientId,

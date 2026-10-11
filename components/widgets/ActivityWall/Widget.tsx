@@ -360,8 +360,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
 
   const connectDrive = useCallback(async () => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
-      | string
-      | undefined;
+      string | undefined;
     if (!clientId) {
       addToast('Google Drive sign-in is not configured.', 'error');
       return;

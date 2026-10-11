@@ -89,11 +89,7 @@ interface BlockParagraph {
 }
 
 type Block =
-  | BlockBullet
-  | BlockOrdered
-  | BlockHeading
-  | BlockQuote
-  | BlockParagraph;
+  BlockBullet | BlockOrdered | BlockHeading | BlockQuote | BlockParagraph;
 
 /** Parse the markdown body into a flat list of blocks. */
 function parseBlocks(body: string): Block[] {

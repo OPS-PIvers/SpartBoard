@@ -46,8 +46,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     (p) => p.widgetType === 'weather'
   );
   const globalConfig = weatherPermission?.config as
-    | WeatherGlobalConfig
-    | undefined;
+    WeatherGlobalConfig | undefined;
 
   // Use local config if set, otherwise fallback to global config
   const showFeelsLike =

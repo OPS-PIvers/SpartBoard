@@ -11,11 +11,7 @@ export const TOUR_ANCHOR_QUEUE_COLLECTION = 'tour_anchor_queue';
 export const TOUR_ANCHOR_BATCHES_COLLECTION = 'tour_anchor_batches';
 
 export type TourAnchorQueueStatus =
-  | 'open'
-  | 'pr-open'
-  | 'mapped'
-  | 'rebound'
-  | 'needs-human';
+  'open' | 'pr-open' | 'mapped' | 'rebound' | 'needs-human';
 
 export interface TourAnchorAncestor {
   tag: string;
@@ -157,12 +153,7 @@ export function parseQueueItem(
 }
 
 export type QueueDisplayState =
-  | 'open'
-  | 'pr-open'
-  | 'waiting-deploy'
-  | 'mapped'
-  | 'rebound'
-  | 'needs-human';
+  'open' | 'pr-open' | 'waiting-deploy' | 'mapped' | 'rebound' | 'needs-human';
 
 // `anchorId` may be a full ref (`id:type#field`); only its registry id has to be deployed.
 const inRegistry = (ref: string | undefined, registry: Registry) =>

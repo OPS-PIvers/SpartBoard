@@ -4,10 +4,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 
 export type AssignmentStudentStatus =
-  | 'not-started'
-  | 'in-progress'
-  | 'submitted'
-  | 'graded';
+  'not-started' | 'in-progress' | 'submitted' | 'graded';
 
 const STATUS_STYLES: Record<AssignmentStudentStatus, string> = {
   'not-started': 'bg-slate-100 text-slate-500',

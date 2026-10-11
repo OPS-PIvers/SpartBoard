@@ -51,12 +51,7 @@ export const MAX_RETRY_JOBS = 500;
 const MAX_ERROR_CHARS = 300;
 
 export type JobOutcome =
-  | 'missing'
-  | 'not-claimed'
-  | 'superseded'
-  | 'over-quota'
-  | 'failed'
-  | 'done';
+  'missing' | 'not-claimed' | 'superseded' | 'over-quota' | 'failed' | 'done';
 
 export interface WorkerDeps {
   db: Firestore;

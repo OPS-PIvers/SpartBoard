@@ -57,8 +57,7 @@ export const BankSlotRow = React.memo(function BankSlotRow({
         {...dragHandleAttributes}
         onPointerDown={
           dragHandleListeners?.onPointerDown as
-            | React.PointerEventHandler<HTMLButtonElement>
-            | undefined
+            React.PointerEventHandler<HTMLButtonElement> | undefined
         }
         onClick={(e) => e.stopPropagation()}
         aria-label="Drag to reorder"

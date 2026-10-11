@@ -1984,8 +1984,7 @@ describe('adminAnalytics', () => {
     // correlation id so Cloud Logging alerts can be pivoted back to the
     // exact client-visible response.
     const jsonCall = jsonSpy.mock.calls[0]?.[0] as
-      | { error?: string; requestId?: string }
-      | undefined;
+      { error?: string; requestId?: string } | undefined;
     expect(jsonCall?.error).toBe('invalid-argument');
     expect(typeof jsonCall?.requestId).toBe('string');
     expect(jsonCall?.requestId?.length ?? 0).toBeGreaterThan(0);
@@ -2023,8 +2022,7 @@ describe('adminAnalytics', () => {
 
     expect(statusSpy).toHaveBeenCalledWith(403);
     const jsonCall = jsonSpy.mock.calls[0]?.[0] as
-      | { error?: string; requestId?: string }
-      | undefined;
+      { error?: string; requestId?: string } | undefined;
     expect(jsonCall?.error).toBe('permission-denied');
     expect(typeof jsonCall?.requestId).toBe('string');
     expect(jsonCall?.requestId?.length ?? 0).toBeGreaterThan(0);
@@ -2121,8 +2119,7 @@ describe('adminAnalytics', () => {
       // Forbidden: alice is not a member of org-b and not a super admin.
       expect(statusSpy).toHaveBeenCalledWith(403);
       const jsonCall = jsonSpy.mock.calls[0]?.[0] as
-        | { error?: string }
-        | undefined;
+        { error?: string } | undefined;
       expect(jsonCall?.error).toBe('permission-denied');
 
       // Tenant isolation: the auth gate must run BEFORE any reads against
@@ -2195,8 +2192,7 @@ describe('adminAnalytics', () => {
 
     expect(statusSpy).toHaveBeenCalledWith(503);
     const jsonCall = jsonSpy.mock.calls[0]?.[0] as
-      | { error?: string; message?: string }
-      | undefined;
+      { error?: string; message?: string } | undefined;
     expect(jsonCall?.error).toBe('not-yet-computed');
     expect(jsonCall?.message ?? '').toMatch(/scheduled refresh/i);
 

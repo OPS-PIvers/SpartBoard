@@ -716,8 +716,7 @@ export const useFirestore = (userId: string | null) => {
         if (!existing) return;
         const participants = {
           ...(existing.participants as
-            | Record<string, SharedBoardParticipant>
-            | undefined),
+            Record<string, SharedBoardParticipant> | undefined),
           [userId]: entry,
         };
         mockSharedStore.update(shareId, { participants });
@@ -740,8 +739,7 @@ export const useFirestore = (userId: string | null) => {
         if (!existing) return;
         const participants = {
           ...(existing.participants as
-            | Record<string, SharedBoardParticipant>
-            | undefined),
+            Record<string, SharedBoardParticipant> | undefined),
         };
         delete participants[userId];
         mockSharedStore.update(shareId, { participants });

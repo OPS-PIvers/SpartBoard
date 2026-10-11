@@ -45,9 +45,7 @@ export const PLC_FLASHCARD_SETS = 'flashcard_sets';
 export const PLC_FLASHCARD_RESULTS = 'flashcard_results';
 
 export type SharePlcFlashcardSetOutcome =
-  | 'created'
-  | 'restored'
-  | 'already-shared';
+  'created' | 'restored' | 'already-shared';
 
 export interface SharePlcFlashcardSetInput {
   set: FlashcardSet;

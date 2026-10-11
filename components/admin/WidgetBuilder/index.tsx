@@ -412,10 +412,7 @@ export const WidgetBuilderModal: React.FC<WidgetBuilderModalProps> = ({
                           onClick={() =>
                             setBlockBuildStep(
                               item.key as
-                                | 'layout'
-                                | 'blocks'
-                                | 'details'
-                                | 'connections'
+                                'layout' | 'blocks' | 'details' | 'connections'
                             )
                           }
                           className={`flex items-center justify-center gap-2 rounded-lg border px-2 py-2 text-xs transition-colors ${

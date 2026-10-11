@@ -135,8 +135,7 @@ export const videoActivityAssignBlocker = ({
   youtubeUrl,
   questions,
 }: Pick<VideoActivityCompletenessInput, 'youtubeUrl' | 'questions'>):
-  | string
-  | null => {
+  string | null => {
   if (!youtubeUrl?.trim()) return 'it has no video';
   for (let i = 0; i < questions.length; i += 1) {
     const q = questions[i];

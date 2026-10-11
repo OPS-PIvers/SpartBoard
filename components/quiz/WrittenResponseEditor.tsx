@@ -137,9 +137,9 @@ const WrittenResponseEditorInner: React.FC<
         // was already released (e.g. by `pointercancel` firing before
         // `pointerup`). Anything else is unexpected — surface it instead
         // of swallowing the whole class of DOM errors silently.
-        if (
-          !(err instanceof DOMException && err.name === 'InvalidStateError')
-        ) {
+        if (!(
+          err instanceof DOMException && err.name === 'InvalidStateError'
+        )) {
           console.warn(
             '[WrittenResponseEditor] unexpected releasePointerCapture error',
             err

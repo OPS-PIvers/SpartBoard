@@ -159,8 +159,8 @@ async function quizSessionSummary(
         teacherUid: ctx.uid,
         publicQuestions: asArray(s.publicQuestions),
         questionSnapshot: asArray(assignment.questionSnapshot),
-        responses: responses.docs.map(
-          (d): CompletedResponse => recompute.parseCompletedResponse(d.data())
+        responses: responses.docs.map((d): CompletedResponse =>
+          recompute.parseCompletedResponse(d.data())
         ),
         scorePublishedAt:
           typeof s.scorePublishedAt === 'number' ? s.scorePublishedAt : null,

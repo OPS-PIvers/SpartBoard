@@ -66,12 +66,7 @@ import type {
 
 export type FeatureStage = 'preview' | 'permanent';
 export type FeatureCategory =
-  | 'ai'
-  | 'sharing'
-  | 'integrations'
-  | 'students'
-  | 'groups'
-  | 'look';
+  'ai' | 'sharing' | 'integrations' | 'students' | 'groups' | 'look';
 
 export const FEATURE_CATEGORY_LABELS: Record<FeatureCategory, string> = {
   ai: 'AI',

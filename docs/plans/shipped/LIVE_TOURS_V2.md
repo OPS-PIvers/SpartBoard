@@ -73,11 +73,7 @@ The Why list above came from an older read. These items are already done or diff
 
 ```ts
 type TourAnchorQueueStatus =
-  | 'open'
-  | 'pr-open'
-  | 'mapped'
-  | 'rebound'
-  | 'needs-human';
+  'open' | 'pr-open' | 'mapped' | 'rebound' | 'needs-human';
 
 interface TourAnchorQueueItem {
   fingerprint: string; // sha-1 of widgetType|pathname|ancestorChain|name, hex

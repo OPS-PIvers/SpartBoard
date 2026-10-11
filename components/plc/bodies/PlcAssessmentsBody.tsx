@@ -21,11 +21,7 @@ import { useAuth } from '@/context/useAuth';
 import { tourFieldAttr } from '@/config/tourAnchors';
 
 type AssessmentType =
-  | 'quiz'
-  | 'bank'
-  | 'video-activity'
-  | 'rubric'
-  | 'flashcards';
+  'quiz' | 'bank' | 'video-activity' | 'rubric' | 'flashcards';
 
 interface TypeNavDef {
   id: AssessmentType;

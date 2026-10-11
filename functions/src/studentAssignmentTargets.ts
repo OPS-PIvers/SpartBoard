@@ -148,8 +148,7 @@ const BATCH_OP_LIMIT = 400;
 const GET_ALL_CHUNK = 100;
 
 export type StudentTargetRef =
-  | { kind: 'classlink'; sourcedId: string }
-  | { kind: 'test'; email: string };
+  { kind: 'classlink'; sourcedId: string } | { kind: 'test'; email: string };
 
 export interface StudentOverride {
   timeMultiplier?: 1.5 | 2 | 'unlimited';
@@ -1036,8 +1035,7 @@ export async function handleSetAssignmentTargets(
   const mutableFields = (key: string, uid: string): Record<string, unknown> => {
     const overrideChanged = key in input.overridesBySourcedId;
     const storedOverride = (existingByUid.get(uid)?.override ?? undefined) as
-      | StudentOverride
-      | undefined;
+      StudentOverride | undefined;
     const effectiveOverride = overrideChanged
       ? input.overridesBySourcedId[key]
       : storedOverride;

@@ -897,8 +897,7 @@ const StepPill = React.memo(function StepPill({
       {...dragHandleAttributes}
       onPointerDown={
         dragHandleListeners?.onPointerDown as
-          | React.PointerEventHandler<HTMLButtonElement>
-          | undefined
+          React.PointerEventHandler<HTMLButtonElement> | undefined
       }
       {...tourAttr('gl-editor.step-chip')}
       onClick={() => onSelect(s)}

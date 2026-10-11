@@ -984,11 +984,9 @@ export const archiveActivityWallSubmissionOnUpdate = onDocumentUpdated(
   TRIGGER_OPTIONS,
   async (event) => {
     const before = event.data?.before.data() as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const after = event.data?.after.data() as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     if (!shouldArchiveSubmission(after)) return;
     // Only a fresh transition into 'firebase' is a new job for the pipeline.
     if (effectiveArchiveStatus(before) === 'firebase') return;

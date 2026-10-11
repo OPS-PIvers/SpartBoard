@@ -32,8 +32,8 @@ vi.mock('@/config/firebase', () => ({
   isAuthBypass: false,
 }));
 
-const mockUpdateDoc = vi.fn(
-  (..._args: unknown[]): Promise<void> => Promise.resolve()
+const mockUpdateDoc = vi.fn((..._args: unknown[]): Promise<void> =>
+  Promise.resolve()
 );
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((..._args: unknown[]) => ({ __mockDocRefArgs: _args })),

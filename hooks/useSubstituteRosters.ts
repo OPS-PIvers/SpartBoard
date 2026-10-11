@@ -13,12 +13,7 @@ import type { ClassRoster, SubstituteShareRoster } from '@/types';
 
 // `locked`: drive.file can't read another user's file until the sub opens it in the Picker.
 export type SubRosterStatus =
-  | 'none'
-  | 'checking'
-  | 'locked'
-  | 'loading'
-  | 'ready'
-  | 'error';
+  'none' | 'checking' | 'locked' | 'loading' | 'ready' | 'error';
 
 export interface SubstituteRosterState {
   rosters: ClassRoster[];

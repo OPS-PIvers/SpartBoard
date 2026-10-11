@@ -2781,8 +2781,7 @@ export const useQuizAssignments = (
       );
       // A deleted session hands back nothing; treat that as untranslated, not a throw.
       const rawSessionData = sessionSnap?.data() as
-        | (QuizSession & { mediaResponseEnabled?: boolean })
-        | undefined;
+        (QuizSession & { mediaResponseEnabled?: boolean }) | undefined;
       const contentRef = doc(
         db,
         QUIZ_SESSIONS_COLLECTION,
@@ -2796,8 +2795,7 @@ export const useQuizAssignments = (
           ? {
               ...rawSessionData,
               ...((await getDoc(contentRef)).data() as
-                | QuizSessionContent
-                | undefined),
+                QuizSessionContent | undefined),
             }
           : rawSessionData;
       // Exactly the locales already being served — a re-sync never widens coverage.
@@ -3332,8 +3330,8 @@ export const useQuizAssignments = (
       // matches the unpublish semantics: republishing without protection
       // must NOT silently re-apply settings from a stale prior publish.
       const protectionWrite:
-        | ResultsProtection
-        | ReturnType<typeof deleteField> = protection ?? deleteField();
+        ResultsProtection | ReturnType<typeof deleteField> =
+        protection ?? deleteField();
       const modeWrite = writtenReturnMode ? { writtenReturnMode } : {};
       firstBatch.update(assignmentRef, {
         scoreVisibility: visibility,

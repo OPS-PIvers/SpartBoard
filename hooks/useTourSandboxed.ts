@@ -90,8 +90,7 @@ const quizMetaOf = (
 ): QuizMetadata => {
   const prev =
     (sandboxGet('quiz', quiz.id)?.meta as unknown as
-      | QuizMetadata
-      | undefined) ?? real.find((q) => q.id === quiz.id);
+      QuizMetadata | undefined) ?? real.find((q) => q.id === quiz.id);
   const now = Date.now();
   return {
     ...prev,
@@ -110,8 +109,7 @@ const activityMetaOf = (
 ): VideoActivityMetadata => {
   const prev =
     (sandboxGet('video-activity', a.id)?.meta as unknown as
-      | VideoActivityMetadata
-      | undefined) ?? real.find((x) => x.id === a.id);
+      VideoActivityMetadata | undefined) ?? real.find((x) => x.id === a.id);
   const now = Date.now();
   return {
     ...prev,
@@ -131,8 +129,8 @@ const setMetaOf = (
 ): GuidedLearningSetMetadata => {
   const prev =
     (sandboxGet('guided-learning', set.id)?.meta as unknown as
-      | GuidedLearningSetMetadata
-      | undefined) ?? real.find((s) => s.id === set.id);
+      GuidedLearningSetMetadata | undefined) ??
+    real.find((s) => s.id === set.id);
   const now = Date.now();
   return {
     ...prev,

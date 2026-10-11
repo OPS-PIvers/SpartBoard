@@ -145,8 +145,7 @@ export const AdminWeatherFetcher: React.FC = () => {
         } else {
           // OpenWeather
           const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY as
-            | string
-            | undefined;
+            string | undefined;
           if (!apiKey) throw new Error('No API Key');
 
           const city = config.city;

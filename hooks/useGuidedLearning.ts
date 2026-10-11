@@ -354,8 +354,7 @@ export const useGuidedLearning = (
       const drive = getDriveService();
       const metaRef = doc(db, 'users', userId, GL_COLLECTION, setId);
       const meta = (await getDoc(metaRef)).data() as
-        | Partial<GuidedLearningSetMetadata>
-        | undefined;
+        Partial<GuidedLearningSetMetadata> | undefined;
       const driveFileIds = Array.isArray(meta?.driveFileIds)
         ? meta.driveFileIds
         : [];

@@ -82,9 +82,9 @@ beforeEach(() => {
   snapCbs = {};
   subscriptions = [];
   vi.stubGlobal('crypto', { randomUUID: () => 'sess-1' });
-  (doc as Mock).mockImplementation(
-    (_db: unknown, ...segs: string[]): Ref => ({ path: segs.join('/') })
-  );
+  (doc as Mock).mockImplementation((_db: unknown, ...segs: string[]): Ref => ({
+    path: segs.join('/'),
+  }));
   (setDoc as Mock).mockResolvedValue(undefined);
   const batch = { set: batchSet, commit: batchCommit };
   batchSet.mockReturnValue(batch);

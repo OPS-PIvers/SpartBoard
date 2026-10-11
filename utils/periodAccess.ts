@@ -2,11 +2,7 @@ import type { PeriodAccess, PeriodAccessSessionFields } from '@/types';
 
 /** Chip/student view of one period: the stored state resolved against the clock. */
 export type EffectivePeriodState =
-  | 'open'
-  | 'paused'
-  | 'closed'
-  | 'scheduled'
-  | 'ended';
+  'open' | 'paused' | 'closed' | 'scheduled' | 'ended';
 
 export function effectivePeriodState(
   access: Pick<PeriodAccess, 'state' | 'openAt' | 'closeAt'>,

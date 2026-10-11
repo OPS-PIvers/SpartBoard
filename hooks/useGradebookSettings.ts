@@ -133,9 +133,7 @@ export function useGradebookSettings(
         const m = new Map<string, GradebookConfigRef | null>();
         snap.docs.forEach((d) => {
           const ref = d.data().configRef as
-            | GradebookConfigRef
-            | null
-            | undefined;
+            GradebookConfigRef | null | undefined;
           m.set(d.id, ref ?? null);
         });
         setClassRefs(m);
@@ -195,8 +193,7 @@ export function useGradebookSettings(
         doc(db, 'plcs', plcId, 'meta', 'learningTargets'),
         (snap) => {
           const mc = snap.data()?.masteryCutoffs as
-            | { proficient?: unknown; approaching?: unknown }
-            | undefined;
+            { proficient?: unknown; approaching?: unknown } | undefined;
           const cutoffs =
             typeof mc?.proficient === 'number' &&
             typeof mc?.approaching === 'number'

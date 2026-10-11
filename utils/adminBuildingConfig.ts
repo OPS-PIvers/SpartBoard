@@ -179,8 +179,7 @@ export const getAdminBuildingConfig = (
   const perm = featurePermissions.find((p) => p.widgetType === type);
   const rawBuildingDefaults = (
     perm?.config as
-      | { buildingDefaults?: Record<string, Record<string, unknown>> }
-      | undefined
+      { buildingDefaults?: Record<string, Record<string, unknown>> } | undefined
   )?.buildingDefaults;
   // Same legacy-key issue as `dockDefaults` — canonicalize so
   // `orono-high-school`-keyed entries still resolve for canonical

@@ -232,8 +232,7 @@ import { useNotebookSharing } from '@/hooks/useNotebookSharing';
 import type { DockFolder } from '@/types';
 
 type MockDockItem =
-  | { type: 'tool'; toolType: string }
-  | { type: 'folder'; folder: DockFolder };
+  { type: 'tool'; toolType: string } | { type: 'folder'; folder: DockFolder };
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 

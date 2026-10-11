@@ -46,12 +46,10 @@ export const RESERVED_SLUGS: readonly string[] = [
 ];
 
 export type SlugValidationResult =
-  | { ok: true; slug: string }
-  | { ok: false; reason: string };
+  { ok: true; slug: string } | { ok: false; reason: string };
 
 export type DestinationValidationResult =
-  | { ok: true; url: string }
-  | { ok: false; reason: string };
+  { ok: true; url: string } | { ok: false; reason: string };
 
 /**
  * Normalize and validate a user-supplied slug. Returns the canonical form

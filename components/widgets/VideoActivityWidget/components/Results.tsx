@@ -374,9 +374,7 @@ export const Results: React.FC<ResultsProps> = ({
         pin: r.pin ?? '',
         joinedAt: r.joinedAt,
         status: (r.completedAt ? 'completed' : 'in-progress') as
-          | 'completed'
-          | 'in-progress'
-          | 'joined',
+          'completed' | 'in-progress' | 'joined',
         answers: r.answers.map((a) => ({
           questionId: a.questionId,
           answer: a.answer,

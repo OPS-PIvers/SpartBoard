@@ -292,9 +292,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   // Effect must run before the early-return guards below to keep hook
   // order stable across renders.
   const rawViewForGuard = config.view as
-    | VideoActivityView
-    | 'editor'
-    | undefined;
+    VideoActivityView | 'editor' | undefined;
   const viewForGuard: VideoActivityView =
     rawViewForGuard === 'editor' || !rawViewForGuard
       ? 'manager'

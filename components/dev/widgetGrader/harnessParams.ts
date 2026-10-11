@@ -28,8 +28,7 @@ export interface HarnessParams {
 }
 
 export type HarnessParamsResult =
-  | { ok: true; params: HarnessParams }
-  | { ok: false; error: string };
+  { ok: true; params: HarnessParams } | { ok: false; error: string };
 
 const isWidgetType = (value: string): value is WidgetType =>
   value in WIDGET_DEFAULTS;

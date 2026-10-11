@@ -52,10 +52,7 @@ import {
  */
 
 export type CompletionState =
-  | 'unknown'
-  | 'completed'
-  | 'in-progress'
-  | 'not-completed';
+  'unknown' | 'completed' | 'in-progress' | 'not-completed';
 
 interface AssignmentListItemProps {
   assignment: AssignmentSummary;

@@ -926,8 +926,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     if (savedTools) {
       try {
         const tools = JSON.parse(savedTools) as (
-          | WidgetType
-          | InternalToolType
+          WidgetType | InternalToolType
         )[];
         return migrateToDockItems(tools);
       } catch (e) {
@@ -1110,8 +1109,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
    *   building-specific defaults are found.
    */
   const getDefaultDockTools = useCallback((): (
-    | WidgetType
-    | InternalToolType
+    WidgetType | InternalToolType
   )[] => {
     // Checks whether a FeaturePermission is accessible to the current user; beta check delegates to the shared isBetaUser helper.
     const isPermAccessible = (perm: FeaturePermission): boolean => {
@@ -1149,8 +1147,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
     (featurePermissions ?? []).forEach((perm) => {
       const rawDockDefaults = perm.config?.dockDefaults as
-        | Record<string, boolean>
-        | undefined;
+        Record<string, boolean> | undefined;
 
       // Canonicalize stored keys so legacy IDs (`orono-high-school`) still
       // match the canonical buildingIds (`high`). Without this, every
@@ -1279,8 +1276,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           setVisibleTools(derivedVisible);
         } else if (savedVisibleToolsRaw !== null) {
           const parsedTools = JSON.parse(savedVisibleToolsRaw) as (
-            | WidgetType
-            | InternalToolType
+            WidgetType | InternalToolType
           )[];
           setVisibleTools(parsedTools);
           setDockItems(migrateToDockItems(parsedTools));
@@ -5500,8 +5496,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               (w) => w.id === widget.id
             );
             const latestConfig = latestWidget?.config as
-              | DrawingConfig
-              | undefined;
+              DrawingConfig | undefined;
             // If the widget was removed mid-migration, drop the writeback.
             if (!latestConfig) return;
             const latestPages = Array.isArray(latestConfig.pages)

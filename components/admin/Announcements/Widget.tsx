@@ -1589,8 +1589,7 @@ export const AnnouncementsManager: React.FC = () => {
                         setForm((f) => ({
                           ...f,
                           dismissalDurationUnit: e.target.value as
-                            | 'seconds'
-                            | 'minutes',
+                            'seconds' | 'minutes',
                         }))
                       }
                       className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"

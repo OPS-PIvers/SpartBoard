@@ -646,8 +646,7 @@ describe('DashboardContext per-widget merge', () => {
       timeout: 3000,
     });
     const baseline = mockSaveDashboard.mock.calls[0][1] as
-      | { dashboardFields?: Record<string, string> }
-      | undefined;
+      { dashboardFields?: Record<string, string> } | undefined;
     // The true prior baseline is "no globalStyle was ever synced from this
     // device" (serializes to the string "null"). If the incoming snapshot's
     // matching value had advanced it instead, a later save racing a

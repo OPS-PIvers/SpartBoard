@@ -79,8 +79,7 @@ export async function handleJoinPlcAssignmentSyncGroup(
       throw new HttpsError('not-found', 'PLC assignment template not found.');
     }
     const templateData = templateSnap.data() as
-      | { syncGroupId?: unknown }
-      | undefined;
+      { syncGroupId?: unknown } | undefined;
     const groupId = templateData?.syncGroupId;
     if (typeof groupId !== 'string' || groupId.length === 0) {
       throw new HttpsError(

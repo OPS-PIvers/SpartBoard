@@ -85,15 +85,7 @@ export const getObjectCenter = (obj: DrawableObject): Point => {
 /** The 8 resize handles + the rotation handle. Names match the cardinal
  *  + ordinal compass points, plus 'rotate'. */
 export type HandleName =
-  | 'nw'
-  | 'n'
-  | 'ne'
-  | 'e'
-  | 'se'
-  | 's'
-  | 'sw'
-  | 'w'
-  | 'rotate';
+  'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'rotate';
 
 export interface BoundingBox {
   x: number;

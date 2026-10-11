@@ -354,8 +354,7 @@ describe('DashboardContext tour layer', () => {
       await vi.advanceTimersByTimeAsync(0);
     });
     const saved = firestoreMock.saveDashboards.mock.calls.at(-1)?.[0] as
-      | Dashboard[]
-      | undefined;
+      Dashboard[] | undefined;
     expect(saved?.map((d) => d.id)).toEqual(['dash-1']);
     expect(saved?.[0].widgets.map((w) => w.id)).toContain(id);
   });

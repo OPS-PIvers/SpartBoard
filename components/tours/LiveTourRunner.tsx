@@ -130,12 +130,7 @@ import {
 const TourMiniPlayer = lazy(() => import('./TourMiniPlayer'));
 
 type Phase =
-  | 'welcome'
-  | 'materials'
-  | 'practice-offer'
-  | 'running'
-  | 'keep'
-  | 'teardown';
+  'welcome' | 'materials' | 'practice-offer' | 'running' | 'keep' | 'teardown';
 
 interface LaunchOptions {
   /** Widgets a reloaded run had already added, so teardown can still remove them. */

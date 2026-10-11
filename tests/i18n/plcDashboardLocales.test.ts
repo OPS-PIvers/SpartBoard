@@ -759,8 +759,7 @@ describe('EN locale — plcDashboard baseline', () => {
 
   it('has all required plcDashboard.notesDocs keys', () => {
     const notesDocs = (en.plcDashboard as Record<string, unknown>).notesDocs as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     for (const key of REQUIRED_NOTES_DOCS_KEYS) {
       expect(
         notesDocs,
@@ -771,8 +770,7 @@ describe('EN locale — plcDashboard baseline', () => {
 
   it('has all required plcDashboard.members keys', () => {
     const members = (en.plcDashboard as Record<string, unknown>).members as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     for (const key of REQUIRED_MEMBERS_KEYS) {
       expect(
         members,
@@ -783,8 +781,7 @@ describe('EN locale — plcDashboard baseline', () => {
 
   it('has all required plcDashboard.members.roles keys', () => {
     const members = (en.plcDashboard as Record<string, unknown>).members as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const roles = members?.roles as Record<string, unknown> | undefined;
     for (const key of REQUIRED_MEMBERS_ROLES_KEYS) {
       expect(
@@ -796,8 +793,7 @@ describe('EN locale — plcDashboard baseline', () => {
 
   it('has all required plcDashboard.activity keys', () => {
     const activity = (en.plcDashboard as Record<string, unknown>).activity as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     for (const key of REQUIRED_ACTIVITY_KEYS) {
       expect(
         activity,
@@ -842,8 +838,7 @@ describe.each([
 
   it(`${code}: has all required top-level sections`, () => {
     const plc = (locale as Record<string, unknown>).plcDashboard as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     for (const key of REQUIRED_TOP_LEVEL_SECTIONS) {
       expect(plc, `${code}.plcDashboard.${key} is missing`).toHaveProperty(key);
     }
@@ -851,8 +846,7 @@ describe.each([
 
   it(`${code}: has all required plcDashboard.tabs keys`, () => {
     const plc = (locale as Record<string, unknown>).plcDashboard as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const tabs = plc?.tabs as Record<string, unknown> | undefined;
     for (const key of REQUIRED_TABS_KEYS) {
       expect(
@@ -864,8 +858,7 @@ describe.each([
 
   it(`${code}: has all required plcDashboard.quizLibrary keys`, () => {
     const plc = (locale as Record<string, unknown>).plcDashboard as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const ql = plc?.quizLibrary as Record<string, unknown> | undefined;
     for (const key of REQUIRED_QUIZ_LIBRARY_KEYS) {
       expect(
@@ -877,8 +870,7 @@ describe.each([
 
   it(`${code}: has all required plcDashboard.notes keys`, () => {
     const plc = (locale as Record<string, unknown>).plcDashboard as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const notes = plc?.notes as Record<string, unknown> | undefined;
     for (const key of REQUIRED_NOTES_KEYS) {
       expect(
@@ -890,8 +882,7 @@ describe.each([
 
   it(`${code}: has all required plcDashboard.notesDocs keys`, () => {
     const plc = (locale as Record<string, unknown>).plcDashboard as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const notesDocs = plc?.notesDocs as Record<string, unknown> | undefined;
     for (const key of REQUIRED_NOTES_DOCS_KEYS) {
       expect(
@@ -903,8 +894,7 @@ describe.each([
 
   it(`${code}: has all required plcDashboard.settings keys`, () => {
     const plc = (locale as Record<string, unknown>).plcDashboard as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const settings = plc?.settings as Record<string, unknown> | undefined;
     for (const key of REQUIRED_SETTINGS_KEYS) {
       expect(
@@ -916,8 +906,7 @@ describe.each([
 
   it(`${code}: has all required plcDashboard.overview keys`, () => {
     const plc = (locale as Record<string, unknown>).plcDashboard as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const overview = plc?.overview as Record<string, unknown> | undefined;
     for (const key of REQUIRED_OVERVIEW_KEYS) {
       expect(
@@ -929,8 +918,7 @@ describe.each([
 
   it(`${code}: has all required plcDashboard.trash keys`, () => {
     const plc = (locale as Record<string, unknown>).plcDashboard as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const trash = plc?.trash as Record<string, unknown> | undefined;
     for (const key of REQUIRED_TRASH_KEYS) {
       expect(
@@ -949,8 +937,7 @@ describe.each([
 
   it(`${code}: has all required plcDashboard.presence keys`, () => {
     const plc = (locale as Record<string, unknown>).plcDashboard as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const presence = plc?.presence as Record<string, unknown> | undefined;
     for (const key of REQUIRED_PRESENCE_KEYS) {
       expect(
@@ -962,8 +949,7 @@ describe.each([
 
   it(`${code}: has all required plcDashboard.activity keys`, () => {
     const plc = (locale as Record<string, unknown>).plcDashboard as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const activity = plc?.activity as Record<string, unknown> | undefined;
     for (const key of REQUIRED_ACTIVITY_KEYS) {
       expect(
@@ -982,8 +968,7 @@ describe.each([
 
   it(`${code}: has all required plcDashboard.members keys`, () => {
     const plc = (locale as Record<string, unknown>).plcDashboard as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const members = plc?.members as Record<string, unknown> | undefined;
     for (const key of REQUIRED_MEMBERS_KEYS) {
       expect(
@@ -995,8 +980,7 @@ describe.each([
 
   it(`${code}: has all required plcDashboard.members.roles keys`, () => {
     const plc = (locale as Record<string, unknown>).plcDashboard as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     const members = plc?.members as Record<string, unknown> | undefined;
     const roles = members?.roles as Record<string, unknown> | undefined;
     for (const key of REQUIRED_MEMBERS_ROLES_KEYS) {

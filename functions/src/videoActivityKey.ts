@@ -82,8 +82,7 @@ export function isLiveQuestionOpen(
   questionId: string
 ): boolean {
   const live = session.live as
-    | { currentQuestionId?: unknown; questionPhase?: unknown }
-    | undefined;
+    { currentQuestionId?: unknown; questionPhase?: unknown } | undefined;
   return (
     live?.currentQuestionId === questionId &&
     live.questionPhase === 'open' &&

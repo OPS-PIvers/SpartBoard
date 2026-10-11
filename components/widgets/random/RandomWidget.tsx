@@ -821,8 +821,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       const { active, over } = event;
       if (!over) return;
       const data = active.data.current as
-        | { name?: string; sourceZoneId?: string }
-        | undefined;
+        { name?: string; sourceZoneId?: string } | undefined;
       const name = data?.name;
       const sourceZoneId = data?.sourceZoneId;
       if (!name || !sourceZoneId) return;

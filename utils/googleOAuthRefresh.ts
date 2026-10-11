@@ -74,8 +74,7 @@ export type BackendRefreshOutcome =
  * needs-consent UX silently, so the test suite locks the literal values.
  */
 type RefreshErrorDetails =
-  | { reason: 'needs-consent'; cause: string }
-  | { reason: 'transient' };
+  { reason: 'needs-consent'; cause: string } | { reason: 'transient' };
 
 /**
  * The redirect_uri Google uses internally for `ux_mode: 'popup'` is its own

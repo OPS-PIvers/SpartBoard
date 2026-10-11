@@ -22,13 +22,7 @@ export const DEFAULT_HELP_CATEGORIES: HelpCategory[] = [
 
 export type HelpResourceKind = 'embed' | 'guided-learning';
 export type HelpEmbedType =
-  | 'youtube'
-  | 'doc'
-  | 'slides'
-  | 'sheet'
-  | 'pdf'
-  | 'drive'
-  | 'other';
+  'youtube' | 'doc' | 'slides' | 'sheet' | 'pdf' | 'drive' | 'other';
 
 export interface HelpResourceItem {
   id: string; // == doc id

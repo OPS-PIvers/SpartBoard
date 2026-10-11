@@ -63,8 +63,7 @@ describe.each([
       it(`${code}.${ns}: has all EN key paths`, () => {
         const enNs = (en as unknown as JsonObject)[ns] as JsonObject;
         const localeNs = (locale as unknown as JsonObject)[ns] as
-          | JsonObject
-          | undefined;
+          JsonObject | undefined;
         expect(localeNs, `${code}.${ns} is missing`).toBeTruthy();
         const enPaths = collectKeyPaths(enNs);
         const localePaths = new Set(collectKeyPaths(localeNs ?? {}));

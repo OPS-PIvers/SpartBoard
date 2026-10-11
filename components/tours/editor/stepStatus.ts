@@ -13,11 +13,7 @@ import { TOOLS } from '@/config/tools';
 
 /** `board` plays as a centred card; `missing` and `unregistered` show red in the outline. */
 export type TourStepStatus =
-  | 'ok'
-  | 'board'
-  | 'unbound'
-  | 'missing'
-  | 'unregistered';
+  'ok' | 'board' | 'unbound' | 'missing' | 'unregistered';
 
 export const tourStepStatus = (
   step: Pick<GuidedLearningStep, 'id' | 'tour'>,

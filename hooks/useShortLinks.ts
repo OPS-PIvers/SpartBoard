@@ -71,12 +71,10 @@ interface UpdateShortLinkInput {
 }
 
 export type CreateResult =
-  | { ok: true; link: ShortLink }
-  | { ok: false; reason: string };
+  { ok: true; link: ShortLink } | { ok: false; reason: string };
 
 export type UpdateResult =
-  | { ok: true; link: ShortLink }
-  | { ok: false; reason: string };
+  { ok: true; link: ShortLink } | { ok: false; reason: string };
 
 interface UseShortLinksResult {
   links: ShortLink[];

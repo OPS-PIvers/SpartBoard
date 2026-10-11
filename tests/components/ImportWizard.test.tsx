@@ -542,8 +542,7 @@ describe('ImportWizard', () => {
   it('does not let a stale in-flight parse from before a close/reopen clobber the freshly-reset state', async () => {
     // Deferred promise lets the test control exactly when adapter.parse resolves.
     let resolveParse:
-      | ((v: { data: FakeData; warnings: string[] }) => void)
-      | null = null;
+      ((v: { data: FakeData; warnings: string[] }) => void) | null = null;
     const parsePromise = new Promise<{ data: FakeData; warnings: string[] }>(
       (resolve) => {
         resolveParse = resolve;

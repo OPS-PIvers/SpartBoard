@@ -640,12 +640,7 @@ export const useVideoActivitySessionTeacher =
 // ---------------------------------------------------------------------------
 
 export type StudentJoinStatus =
-  | 'idle'
-  | 'loading'
-  | 'joined'
-  | 'error'
-  | 'not-found'
-  | 'pin-rejected';
+  'idle' | 'loading' | 'joined' | 'error' | 'not-found' | 'pin-rejected';
 
 export interface UseVideoActivitySessionStudentResult {
   session: VideoActivitySession | null;

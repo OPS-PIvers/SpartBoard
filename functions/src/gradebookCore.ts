@@ -137,11 +137,7 @@ export interface GradebookMark {
 }
 
 export type GradebookHistoryField =
-  | 'override'
-  | 'comment'
-  | 'flags'
-  | 'publish'
-  | 'fill';
+  'override' | 'comment' | 'flags' | 'publish' | 'fill';
 
 /** D24 `gradebook_marks/{id}/history/{autoId}`, append-only. */
 export interface GradebookHistoryEntry {
@@ -208,14 +204,7 @@ export interface GradebookCategory {
 }
 
 export type ScaleColor =
-  | 'emerald'
-  | 'teal'
-  | 'sky'
-  | 'blue'
-  | 'amber'
-  | 'orange'
-  | 'rose'
-  | 'slate';
+  'emerald' | 'teal' | 'sky' | 'blue' | 'amber' | 'orange' | 'rose' | 'slate';
 
 /** Picker order; no purples (same family as flag colors). */
 export const SCALE_COLORS: readonly ScaleColor[] = [
@@ -414,12 +403,7 @@ export function activeFlags(
 }
 
 export type FinalScoreStatus =
-  | 'scored'
-  | 'excluded'
-  | 'awaiting'
-  | 'empty'
-  | 'complete'
-  | 'not-assigned';
+  'scored' | 'excluded' | 'awaiting' | 'empty' | 'complete' | 'not-assigned';
 
 export interface FinalScore {
   status: FinalScoreStatus;
@@ -1017,13 +1001,7 @@ export type GradebookConfigRef =
   | { source: 'plc'; plcId: string };
 
 export type GradebookSortKey =
-  | 'last'
-  | 'first'
-  | 'overall'
-  | 'column'
-  | 'missing'
-  | 'flag'
-  | 'group';
+  'last' | 'first' | 'overall' | 'column' | 'missing' | 'flag' | 'group';
 
 export interface GradebookSort {
   key: GradebookSortKey;

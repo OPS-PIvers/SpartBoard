@@ -32,8 +32,7 @@ vi.mock('@/utils/quizJoinCodes', () => ({
   findQuizSessionsByCode: vi.fn(async () => {
     const { getDocs } = await import('firebase/firestore');
     const snap = (await (getDocs as unknown as () => Promise<unknown>)()) as
-      | { docs?: { id: string; data: () => unknown }[] }
-      | undefined;
+      { docs?: { id: string; data: () => unknown }[] } | undefined;
     return (snap?.docs ?? []).map((d) => ({ id: d.id, data: d.data() }));
   }),
   addJoinCodePointerToBatch: vi.fn(),

@@ -641,8 +641,7 @@ describe('DashboardContext save baseline PII scrub', () => {
 
     expect(saveDashboardMock).toHaveBeenCalled();
     const baseline = saveDashboardMock.mock.calls.at(-1)?.[1] as
-      | { widgets: WidgetData[] }
-      | undefined;
+      { widgets: WidgetData[] } | undefined;
     expect(baseline).toBeDefined();
     const baselineConfig = baseline?.widgets[0].config as Record<
       string,
@@ -688,8 +687,7 @@ describe('DashboardContext save baseline PII scrub', () => {
     });
 
     const baseline = saveDashboardMock.mock.calls.at(-1)?.[1] as
-      | { dashboardFields: Record<string, string> }
-      | undefined;
+      { dashboardFields: Record<string, string> } | undefined;
     // A baseline still reading "false" would make the accepted pin look like a
     // local edit and clobber a newer server value on the next save.
     expect(baseline?.dashboardFields.isPinned).toBe('true');
@@ -921,8 +919,7 @@ describe('DashboardContext save baseline vs concurrent snapshot', () => {
     });
 
     const baseline = saveDashboardMock.mock.calls.at(-1)?.[1] as
-      | { widgets: WidgetData[] }
-      | undefined;
+      { widgets: WidgetData[] } | undefined;
     const baseRemote = baseline?.widgets.find((w) => w.id === 'w-remote');
     // The settled save's pre-write capture still held version 1. Restoring it
     // would make the adopted remote edit read as a local change, so the next

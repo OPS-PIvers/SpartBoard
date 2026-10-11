@@ -17,11 +17,7 @@ import type {
 } from '@/types';
 
 export type AssignmentKind =
-  | 'quiz'
-  | 'video-activity'
-  | 'guided-learning'
-  | 'mini-app'
-  | 'flashcards';
+  'quiz' | 'video-activity' | 'guided-learning' | 'mini-app' | 'flashcards';
 
 /** Lifecycle status for the hub's status filter chip; 'paused' only applies to quiz/video-activity kinds. */
 export type UnifiedAssignmentStatus = 'active' | 'paused' | 'inactive';

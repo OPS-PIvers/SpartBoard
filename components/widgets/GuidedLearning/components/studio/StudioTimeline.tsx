@@ -158,8 +158,7 @@ const TimelineBody = React.memo(function TimelineBody({
                     {...handle.attributes}
                     onPointerDown={
                       handle.listeners?.onPointerDown as
-                        | React.PointerEventHandler<HTMLButtonElement>
-                        | undefined
+                        React.PointerEventHandler<HTMLButtonElement> | undefined
                     }
                     {...tourAttr('studio.timeline-step')}
                     onClick={() => {

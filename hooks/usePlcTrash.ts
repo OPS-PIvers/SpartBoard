@@ -63,12 +63,7 @@ const PLCS_COLLECTION = 'plcs';
  * segment for the soft-delete/restore write.
  */
 export type PlcTrashItemType =
-  | 'note'
-  | 'doc'
-  | 'comment'
-  | 'quiz'
-  | 'videoActivity'
-  | 'rubric';
+  'note' | 'doc' | 'comment' | 'quiz' | 'videoActivity' | 'rubric';
 
 /** One soft-deleted row, normalized across content types for the Trash list. */
 export interface PlcTrashItem {

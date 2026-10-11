@@ -269,8 +269,7 @@ describe('GuidedLearningStudentApp — honest submit', () => {
       await screen.findByText('Your responses have been submitted.')
     ).toBeInTheDocument();
     const last = submitResponse.mock.calls.at(-1)?.[0] as
-      | GuidedLearningResponse
-      | undefined;
+      GuidedLearningResponse | undefined;
     expect(typeof last?.completedAt).toBe('number');
   });
 

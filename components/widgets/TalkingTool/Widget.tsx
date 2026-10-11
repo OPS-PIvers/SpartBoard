@@ -26,8 +26,7 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
   );
 
   const config = permission?.config as
-    | Partial<TalkingToolGlobalConfig>
-    | undefined;
+    Partial<TalkingToolGlobalConfig> | undefined;
 
   const categories = config?.categories?.length
     ? config.categories
