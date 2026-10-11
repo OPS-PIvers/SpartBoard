@@ -1244,6 +1244,7 @@ export const SETTINGS_FIELD_LIST: Readonly<
   ],
   traffic: [],
   classes: [],
+  routineGuide: [],
   projects: [
     {
       anchor: 'settings.group:projects#behavior',

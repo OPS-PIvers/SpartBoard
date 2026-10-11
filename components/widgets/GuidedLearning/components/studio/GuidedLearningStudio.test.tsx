@@ -336,7 +336,7 @@ describe('GuidedLearningStudio', () => {
       renderWithToasts();
       expect(
         screen.getByRole('button', { name: 'Delete slide 1' }).className
-      ).toContain('[@media(hover:none)]:opacity-100');
+      ).toContain('touch:opacity-100');
     });
 
     it('binds the header undo and redo buttons to history', () => {

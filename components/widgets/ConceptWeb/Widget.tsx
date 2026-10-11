@@ -554,7 +554,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
               <>
                 <button
                   type="button"
-                  className="absolute bg-white border border-slate-200 text-rose-500 opacity-0 hover:bg-rose-50 hover:text-rose-600 transition-opacity focus:opacity-100 group-hover:opacity-100"
+                  className="absolute bg-white border border-slate-200 text-rose-500 opacity-0 hover:bg-rose-50 hover:text-rose-600 transition-opacity focus:opacity-100 group-hover:opacity-100 touch:opacity-100"
                   style={{
                     top: 'max(-4px, -1cqmin)',
                     right: 'max(-4px, -1cqmin)',

@@ -55,6 +55,7 @@ const MEMBER = 'u-member';
 const REMOVED = 'u-removed';
 const OUTSIDER = 'u-out';
 const CHARGE = { docIds: ['a', 'b', 'c'] };
+const ADMIN_CHARGE = { docIds: ['admin'] };
 const RUBRIC = [...DEFAULT_GOAL_COACH_RUBRIC];
 const GOAL = {
   title: 'Students will improve at citing evidence.',
@@ -128,6 +129,7 @@ function setup(
     isAdmin: vi.fn(() => Promise.resolve(opts.admin === true)),
     charge: vi.fn(() => Promise.resolve(CHARGE)),
     refund: vi.fn(() => Promise.resolve()),
+    record: vi.fn(() => Promise.resolve(ADMIN_CHARGE)),
     generate: vi.fn(() =>
       Promise.resolve(goodResponse({ 'baseline-target': false }))
     ),
@@ -385,10 +387,11 @@ describe('runGoalCoach gating', () => {
     ]);
   });
 
-  it('skips the charge for an admin', async () => {
+  it('counts an admin check without charging the quota', async () => {
     const { deps } = setup({ admin: true });
     await runGoalCoach({ plcId: PLC, goal: GOAL }, MEMBER, {}, deps);
     expect(deps.charge).not.toHaveBeenCalled();
+    expect(deps.record).toHaveBeenCalledWith({}, MEMBER);
   });
 
   it('refunds the charge when the model fails', async () => {

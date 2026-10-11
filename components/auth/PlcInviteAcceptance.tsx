@@ -244,6 +244,11 @@ export const PlcInviteAcceptance: React.FC = () => {
   const [action, setAction] = React.useState<ActionState>({ kind: 'idle' });
 
   const myEmailLower = (user?.email ?? '').toLowerCase();
+  const currentUidRef = React.useRef(user?.uid);
+  const uid = user?.uid;
+  React.useEffect(() => {
+    currentUidRef.current = uid;
+  }, [uid]);
 
   // Reset load/action state when the signed-in user changes. Without this,
   // a user who lands on `wrong-account`, signs out via the in-page button,
@@ -271,11 +276,15 @@ export const PlcInviteAcceptance: React.FC = () => {
     if (load.kind !== 'idle') return;
 
     setLoad({ kind: 'loading' });
+    const requestUid = user.uid;
     const run = async () => {
+      const setIfCurrent = (next: LoadState) => {
+        if (currentUidRef.current === requestUid) setLoad(next);
+      };
       try {
         const snap = await getDoc(doc(db, INVITATIONS_COLLECTION, inviteId));
         if (!snap.exists()) {
-          setLoad({ kind: 'not-found' });
+          setIfCurrent({ kind: 'not-found' });
           return;
         }
         const data = snap.data();
@@ -284,16 +293,16 @@ export const PlcInviteAcceptance: React.FC = () => {
             ? data.inviteeEmailLower
             : '';
         if (expectedEmail && expectedEmail !== myEmailLower) {
-          setLoad({ kind: 'wrong-account', expectedEmail });
+          setIfCurrent({ kind: 'wrong-account', expectedEmail });
           return;
         }
         const status = typeof data.status === 'string' ? data.status : '';
         if (status === 'accepted' || status === 'declined') {
-          setLoad({ kind: 'already-used', status });
+          setIfCurrent({ kind: 'already-used', status });
           return;
         }
         if (status !== 'pending') {
-          setLoad({ kind: 'not-found' });
+          setIfCurrent({ kind: 'not-found' });
           return;
         }
         const invite: PlcInvitation = {
@@ -307,17 +316,17 @@ export const PlcInviteAcceptance: React.FC = () => {
             typeof data.invitedAt === 'number' ? data.invitedAt : Date.now(),
           status: 'pending',
         };
-        setLoad({ kind: 'ready', invite });
+        setIfCurrent({ kind: 'ready', invite });
       } catch (error) {
         console.error('Failed to load PLC invite:', error);
         const code = (error as { code?: string } | null)?.code;
         if (code === 'permission-denied') {
           // Signed in with an account the rules won't let read this doc —
           // most commonly, a different email than the invitee.
-          setLoad({ kind: 'wrong-account', expectedEmail: '' });
+          setIfCurrent({ kind: 'wrong-account', expectedEmail: '' });
           return;
         }
-        setLoad({
+        setIfCurrent({
           kind: 'error',
           message: error instanceof Error ? error.message : 'Unexpected error',
         });

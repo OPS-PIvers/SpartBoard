@@ -62,4 +62,14 @@ describe('useFileDrop', () => {
     fireEvent.dragLeave(zone, dragging);
     expect(zone).toHaveTextContent('idle');
   });
+
+  it('clears the highlight when it goes busy mid-drag and the file leaves', () => {
+    const { rerender } = render(<Zone onFile={vi.fn()} />);
+    const dragging = { dataTransfer: { files: [], types: ['Files'] } };
+    fireEvent.dragEnter(screen.getByTestId('zone'), dragging);
+    expect(screen.getByText('over')).toBeTruthy();
+    rerender(<Zone onFile={vi.fn()} disabled />);
+    fireEvent.dragLeave(screen.getByTestId('zone'), dragging);
+    expect(screen.getByText('idle')).toBeTruthy();
+  });
 });

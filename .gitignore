@@ -81,6 +81,9 @@ skills-lock.json
 !.claude/skills/preview/
 !.claude/skills/ship/
 !.claude/skills/undo/
+!.claude/skills/break-ui/
+!.claude/skills/animate/
+!.claude/skills/review-animations/
 
 # Playwright MCP scratch
 .playwright-mcp/

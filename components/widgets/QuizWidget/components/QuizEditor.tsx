@@ -688,7 +688,9 @@ const QuestionRow = React.memo(function QuestionRow({
           String(index + 1)
         )}
         className={`shrink-0 accent-brand-blue-primary transition-opacity ${
-          isChecked ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+          isChecked
+            ? 'opacity-100'
+            : 'opacity-0 group-hover:opacity-100 touch:opacity-100'
         }`}
       />
       <span className="text-slate-400 font-mono font-bold text-xs w-5 shrink-0 text-center">
@@ -746,7 +748,7 @@ const QuestionRow = React.memo(function QuestionRow({
           'quiz',
           String(index + 1)
         )}
-        className="text-slate-300 hover:text-brand-blue-primary hover:bg-slate-100 rounded p-1 transition-colors opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+        className="text-slate-300 hover:text-brand-blue-primary hover:bg-slate-100 rounded p-1 transition-colors opacity-0 group-hover:opacity-100 touch:opacity-100 focus-visible:opacity-100"
       >
         <Copy className="w-3.5 h-3.5" />
       </button>
@@ -763,7 +765,7 @@ const QuestionRow = React.memo(function QuestionRow({
           'quiz',
           String(index + 1)
         )}
-        className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded p-1 transition-colors opacity-0 group-hover:opacity-100"
+        className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded p-1 transition-colors opacity-0 group-hover:opacity-100 touch:opacity-100"
       >
         <Trash2 className="w-3.5 h-3.5" />
       </button>

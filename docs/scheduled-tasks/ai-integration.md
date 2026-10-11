@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-10-05_
+_Last audited: 2026-10-09_
 _Last action: 2026-09-18 — MEDIUM per-feature AI permission enforcement gap resolved: `generateWithAI`'s `specificFeatureId` branch now enforces `enabled`/`accessLevel`/`betaUsers` server-side, mirroring the existing global `gemini-functions` check, so a disabled/admin-only/beta-restricted feature (e.g. `embed-mini-app`) can no longer be reached by calling the Cloud Function directly. Moved to Completed._
 
 ---
@@ -25,6 +25,8 @@ _Last action: 2026-09-18 — MEDIUM per-feature AI permission enforcement gap re
 | `transcription`            | `transcribeVideoWithGemini` | utils/ai.ts `transcribeVideoWithGemini`             | per-function rate limit                    | ✓                  | ✓                  | feature perm checked                                                                           |
 | `guided-learning`          | `generateGuidedLearning`    | GuidedLearning/components/GuidedLearningAIGenerator | None — admin-exempt by design (documented) | ✓                  | ✓                  | `isAdmin` check in Widget.tsx (not perm)                                                       |
 | `video-activity-recommend` | `generateWithAI`            | utils/ai.ts `recommendVideoForActivity`             | global only                                | ✓                  | ✓                  | ✗ **AIData interface gap (see LOW item)**                                                      |
+
+_2026-10-09: Friday weekly audit (E2), light pass. Model strings in `functions/src` are now centralized as `DEFAULT_ADVANCED_MODEL`/`DEFAULT_STANDARD_MODEL` (`generation.ts:56-57`) with admin overrides read from `global_permissions/gemini-functions`; no other hardcoded `gemini-N` literals outside the retired-prefix list in `shared.ts`. Existing Open items not re-diffed. 0 new issues._
 
 ---
 

@@ -249,8 +249,11 @@ export const TooltipInteraction: React.FC<Props> = ({
           <>
             {step.label && (
               <div
-                className={`font-bold ${tone.title} mb-1 tracking-tight`}
+                className={`font-bold ${tone.title} tracking-tight`}
                 style={{
+                  marginBottom: boxRect
+                    ? '4px'
+                    : 'calc(min(4px, 1cqmin) * var(--gl-callout-scale))',
                   fontSize: boxRect
                     ? `${CALLOUT_TITLE_RATIO}em`
                     : 'calc(var(--gl-text-title, min(18px, 4.2cqmin)) * var(--gl-callout-scale))',

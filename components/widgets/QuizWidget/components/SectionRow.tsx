@@ -102,7 +102,7 @@ export const SectionRow: React.FC<SectionRowProps> = ({
         aria-label="Remove section"
         title="Remove section"
         {...tourTypeAttr('quiz-editor.section-remove', 'quiz')}
-        className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded p-1 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+        className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded p-1 transition-colors opacity-0 group-hover:opacity-100 touch:opacity-100 focus:opacity-100"
       >
         <Trash2 className="w-3.5 h-3.5" />
       </button>
