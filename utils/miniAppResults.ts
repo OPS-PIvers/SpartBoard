@@ -12,11 +12,19 @@ export const miniAppResultsOn = (
 ): boolean =>
   assignmentMode === 'submissions' && canAccessFeature('mini-app-results');
 
-/** D8/D9 defaults until the assign controls ship. */
-export const DEFAULT_MINI_APP_RESULTS = {
+export interface MiniAppResultsChoice {
+  attemptLimit: number | null;
+  showCorrectAnswers: boolean;
+}
+
+/** D8/D9 defaults: one attempt, score and right or wrong shown. */
+export const DEFAULT_MINI_APP_RESULTS: MiniAppResultsChoice = {
   attemptLimit: 1,
   showCorrectAnswers: true,
-} as const;
+};
+
+export const formatMiniAppResultsChoice = (v: MiniAppResultsChoice): string =>
+  `${v.attemptLimit === null ? 'Unlimited attempts' : v.attemptLimit === 1 ? '1 attempt' : `${v.attemptLimit} attempts`}${v.showCorrectAnswers ? ', score shown' : ''}`;
 
 /** The teacher's answer key for an app, or null when it has none. */
 export async function loadMiniAppKey(

@@ -34,6 +34,11 @@ import {
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
 import type { MiniAppStepperChoices } from '../miniAppStepperAssign';
+import { MiniAppResultsStep } from './MiniAppResultsStep';
+import {
+  formatMiniAppResultsChoice,
+  type MiniAppResultsChoice,
+} from '@/utils/miniAppResults';
 
 export interface MiniAppAssignStepperProps {
   appTitle: string;
@@ -46,8 +51,13 @@ export interface MiniAppAssignStepperProps {
   defaultKind: AssignKind;
   periodAccess?: AssignPeriodAccessContext;
   submitting: boolean;
-  onSubmit: (choices: MiniAppStepperChoices) => Promise<void>;
+  onSubmit: (
+    choices: MiniAppStepperChoices,
+    results?: MiniAppResultsChoice
+  ) => Promise<void>;
   onClose: () => void;
+  /** Mini App results on: adds the Attempts and results step for submitted work. */
+  resultsDefault?: MiniAppResultsChoice;
 }
 
 export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
@@ -61,6 +71,7 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
   submitting,
   onSubmit,
   onClose,
+  resultsDefault,
 }) => {
   const { t } = useTranslation();
   const [kind, setKind] = useState<AssignKind>(defaultKind);
@@ -80,6 +91,10 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
     EMPTY_ASSIGN_TARGETING_VALUE
   );
   const [showMods, setShowMods] = useState(false);
+  const [results, setResults] = useState<MiniAppResultsChoice | undefined>(
+    resultsDefault
+  );
+  const resultsStepOn = !!results && kind === 'work';
 
   const pickedRosters = rosters.filter((r) => classes.classIds.includes(r.id));
   const variant = kind === 'resource' ? 'available' : 'when';
@@ -141,6 +156,13 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
       value: values[id],
       body: bodies[id],
     }));
+  if (resultsStepOn && results)
+    steps.push({
+      id: 'attempts',
+      title: 'Attempts and results',
+      value: formatMiniAppResultsChoice(results),
+      body: <MiniAppResultsStep value={results} onChange={setResults} />,
+    });
 
   const topSwitch = (
     <div className="space-y-4">
@@ -181,7 +203,12 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
       submitLabel="Assign"
       submitting={submitting}
       disabled={nameMissing}
-      onSubmit={() => onSubmit({ kind, classes, when, targeting })}
+      onSubmit={() =>
+        onSubmit(
+          { kind, classes, when, targeting },
+          resultsStepOn ? results : undefined
+        )
+      }
       overlayView={
         showMods ? (
           <ModificationsView

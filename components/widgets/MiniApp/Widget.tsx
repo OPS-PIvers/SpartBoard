@@ -3,6 +3,7 @@ import {
   DEFAULT_MINI_APP_RESULTS,
   loadMiniAppKey,
   miniAppResultsOn,
+  type MiniAppResultsChoice,
 } from '@/utils/miniAppResults';
 import { createPortal } from 'react-dom';
 import { useDashboard } from '@/context/useDashboard';
@@ -658,7 +659,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     unsubscribeFromAppSessions,
   ]);
 
-  const handleConfirmAssign = async (stepper?: MiniAppStepperChoices) => {
+  const handleConfirmAssign = async (
+    stepper?: MiniAppStepperChoices,
+    resultsChoice?: MiniAppResultsChoice
+  ) => {
     if (!user || !assigningApp) return;
     setIsCreatingSession(true);
     setAssignError(null);
@@ -721,12 +725,19 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               bellWindow: assignPeriodCtx?.bellWindow,
             })
           : undefined;
-      const results = resultsOn
-        ? {
-            ...DEFAULT_MINI_APP_RESULTS,
-            key: await loadMiniAppKey(user.uid, assigningApp.id),
-          }
-        : undefined;
+      // The stepper asks only for submitted work; the older dialog keeps the defaults.
+      const resultsPicked = stepper
+        ? resultsChoice
+        : resultsOn
+          ? DEFAULT_MINI_APP_RESULTS
+          : undefined;
+      const results =
+        resultsOn && resultsPicked
+          ? {
+              ...resultsPicked,
+              key: await loadMiniAppKey(user.uid, assigningApp.id),
+            }
+          : undefined;
       const sessionId = await createSession(
         assigningApp,
         user.uid,
@@ -1476,6 +1487,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         submitting={isCreatingSession}
         onSubmit={handleConfirmAssign}
         onClose={closeAssign}
+        resultsDefault={resultsOn ? DEFAULT_MINI_APP_RESULTS : undefined}
       />
     ) : (
       <MiniAppAssignModal
