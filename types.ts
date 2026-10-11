@@ -3466,6 +3466,56 @@ export interface MiniAppItem {
    * Refers to a folder id in `/users/{userId}/miniapp_folders/{folderId}`.
    */
   folderId?: string | null;
+  /** The app sends results through `SpartBoard.submit` (MINI_APP_RESULTS.md D4). */
+  collectsResults?: boolean;
+  /** Questions the app reports on; ids match result items and the answer key. */
+  manifest?: MiniAppManifest;
+}
+
+export type MiniAppQuestionType =
+  'mc' | 'multi' | 'tf' | 'numeric' | 'short' | 'order' | 'other';
+
+export interface MiniAppManifestQuestion {
+  id: string;
+  type: MiniAppQuestionType;
+  prompt: string;
+  points?: number;
+}
+
+export interface MiniAppManifest {
+  questions: MiniAppManifestQuestion[];
+}
+
+/** One question's key at `users/{uid}/mini_app_keys/{appId}`; never in the app HTML (D5). */
+export interface MiniAppAnswerKeyEntry {
+  /** `mc`/`tf`: the value; `multi`/`order`: the values; `numeric`: the number. */
+  correct?: unknown;
+  /** `numeric` only: accepted distance from `correct`. */
+  tolerance?: number;
+  /** `short` only: accepted answers, matched ignoring case and spacing. */
+  accepted?: string[];
+}
+
+export interface MiniAppAnswerKey {
+  questions: Record<string, MiniAppAnswerKeyEntry>;
+}
+
+/** What `SpartBoard.submit(result)` sends (D3). */
+export interface MiniAppResult {
+  items?: { id: string; answer: unknown; correct?: boolean; points?: number }[];
+  score?: number;
+  maxScore?: number;
+  data?: Record<string, unknown>;
+}
+
+/** The best attempt on a v2 submission summary doc (D8). */
+export interface MiniAppBestAttempt {
+  score: number;
+  maxScore: number;
+  attemptNo: number;
+  gradedBy: 'server' | 'app';
+  /** Per-question marks from that attempt; `by` is who graded it. */
+  items?: { id: string; correct: boolean; by: 'server' | 'app' }[];
 }
 
 /**
@@ -3572,6 +3622,14 @@ export interface MiniAppSession
    *  keys per-student pointer docs by this id — absent on legacy sessions
    *  created before this field existed. */
   assignmentId?: string;
+  /** 2: every submission goes through `submitMiniAppResultV1` (MINI_APP_RESULTS.md D6). */
+  resultsVersion?: 2;
+  /** v2 only: graded attempts allowed per student; null = unlimited (D8). */
+  attemptLimit?: number | null;
+  /** v2 only: students see per-question correctness after submitting (D9). */
+  showCorrectAnswers?: boolean;
+  /** v2 only: frozen copy of the app's manifest at assign. */
+  manifest?: MiniAppManifest;
 }
 
 /**
@@ -3606,6 +3664,10 @@ export interface MiniAppSubmission {
    * the submission handler before persisting.
    */
   payload: Record<string, unknown>;
+  /** v2 sessions: graded attempts so far; each is in `attempts/{n}`. */
+  attemptCount?: number;
+  best?: MiniAppBestAttempt | null;
+  lastSubmittedAt?: number;
 }
 
 export interface PdfItem {
@@ -9873,7 +9935,9 @@ export type GlobalFeature =
   /** A what's-new button under a widget whose changelog entry carries a note for that widget type. */
   | 'widget-whats-new'
   /** Guided Learning Studio: a pinned Welcome card in the slide strip, with an optional welcome image. */
-  | 'gl-welcome-card';
+  | 'gl-welcome-card'
+  /** Mini App results: helper, server grading, attempts and results table (docs/plans/MINI_APP_RESULTS.md). */
+  | 'mini-app-results';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

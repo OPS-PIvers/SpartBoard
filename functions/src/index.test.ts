@@ -3629,6 +3629,7 @@ describe('index barrel — deployed export set', () => {
     'launchSubAssignmentV1',
     // Flashcards Check submission
     'submitFlashcardCheckV1',
+    'submitMiniAppResultV1',
     'resolveFlashcardFlagV1',
     // Video Activity answer key
     'checkVideoActivityAnswerV1',

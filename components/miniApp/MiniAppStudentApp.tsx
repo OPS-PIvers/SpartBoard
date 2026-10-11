@@ -16,7 +16,13 @@
  *     PII; for anonymous users the docId is the anon Firebase Auth UID.
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from 'react';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import {
   addDoc,
@@ -60,12 +66,31 @@ import {
   MiniAppPeriodLockedScreen,
   MiniAppPeriodPausedOverlay,
 } from './MiniAppPeriodLockedScreen';
+import {
+  MSG_INIT,
+  MSG_LEGACY_RESULT,
+  MSG_SUBMIT,
+  MSG_SUBMIT_RESULT,
+  injectMiniAppHelper,
+  type MiniAppInitPayload,
+} from '@/utils/miniAppHelper';
+import {
+  submitErrorCode,
+  submitMiniAppResult,
+  type MiniAppSubmitKind,
+} from '@/utils/miniAppResults';
 
 type SubmissionStatus =
   | { kind: 'idle' }
   | { kind: 'submitting' }
   | { kind: 'saved'; at: number }
-  | { kind: 'error'; payload: unknown };
+  | { kind: 'error'; payload: unknown; request?: SubmitRequest };
+
+/** A v2 submission: the frame's request id is absent for legacy messages. */
+interface SubmitRequest {
+  kind: Exclude<MiniAppSubmitKind, 'done'>;
+  requestId?: string;
+}
 
 const SESSIONS_COLLECTION = 'mini_app_sessions';
 
@@ -396,6 +421,18 @@ const AppViewer: React.FC<{
   // View-only sessions never accept submissions, regardless of the
   // submissionsEnabled flag stored on the session doc.
   const submissionsEnabled = !isViewOnly && session.submissionsEnabled === true;
+  // Results v2 (MINI_APP_RESULTS.md): every write goes through submitMiniAppResultV1.
+  const isV2 = session.resultsVersion === 2 && !isViewOnly;
+  const attemptLimit =
+    typeof session.attemptLimit === 'number' ? session.attemptLimit : null;
+  const [attemptsUsed, setAttemptsUsed] = useState(0);
+  const [turnedIn, setTurnedIn] = useState(false);
+  const attemptsLeft =
+    attemptLimit === null ? null : Math.max(0, attemptLimit - attemptsUsed);
+  const heldRequestRef = useRef<{
+    payload: unknown;
+    request: SubmitRequest;
+  } | null>(null);
 
   // Subscribe to auth so the view-log effect re-runs when anon sign-in
   // resolves; `auth.currentUser` alone is non-reactive.
@@ -482,30 +519,39 @@ const AppViewer: React.FC<{
         const snap = await getDoc(
           doc(db, SESSIONS_COLLECTION, session.id, 'submissions', docId)
         );
-        if (snap.exists()) setHasSubmitted(true);
+        if (snap.exists()) {
+          setHasSubmitted(true);
+          const used = (snap.data() as MiniAppSubmission).attemptCount;
+          if (isV2 && typeof used === 'number') {
+            setAttemptsUsed(used);
+            if (attemptLimit !== null && used >= attemptLimit)
+              setTurnedIn(true);
+          }
+        }
       } catch {
         // Doc doesn't exist yet or network error — leave hasSubmitted false.
       }
     };
     void checkExisting();
-  }, [session.id]);
+  }, [session.id, isV2, attemptLimit]);
 
   // Handshake: post SPART_MINIAPP_INIT into the iframe once it loads so the
   // app knows whether to reveal its [data-spart-submit] button. The app is
   // expected to listen for this message and hide submit controls when
   // submissionsEnabled is false.
   // timeMultiplier must be applied silently by the generated app: never displayed, never labeled as extended/modified.
+  const initPayload = useMemo<MiniAppInitPayload>(
+    () =>
+      isV2
+        ? { submissionsEnabled, timeMultiplier, attemptsLeft }
+        : { submissionsEnabled, timeMultiplier },
+    [isV2, submissionsEnabled, timeMultiplier, attemptsLeft]
+  );
   const handleIframeLoad = useCallback(() => {
     const target = iframeRef.current?.contentWindow;
     if (!target) return;
-    target.postMessage(
-      {
-        type: 'SPART_MINIAPP_INIT',
-        payload: { submissionsEnabled, timeMultiplier },
-      },
-      '*'
-    );
-  }, [submissionsEnabled, timeMultiplier]);
+    target.postMessage({ type: MSG_INIT, payload: initPayload }, '*');
+  }, [initPayload]);
 
   // Re-post INIT whenever submissionsEnabled or timeMultiplier changes, so a
   // teacher toggling the assignment (or an accommodation resolving after
@@ -513,14 +559,8 @@ const AppViewer: React.FC<{
   useEffect(() => {
     const target = iframeRef.current?.contentWindow;
     if (!target) return;
-    target.postMessage(
-      {
-        type: 'SPART_MINIAPP_INIT',
-        payload: { submissionsEnabled, timeMultiplier },
-      },
-      '*'
-    );
-  }, [submissionsEnabled, timeMultiplier]);
+    target.postMessage({ type: MSG_INIT, payload: initPayload }, '*');
+  }, [initPayload]);
 
   const submit = useCallback(
     async (payload: unknown) => {
@@ -591,6 +631,83 @@ const AppViewer: React.FC<{
     void submit(payload);
   }, [paused, submit]);
 
+  const replyToFrame = useCallback(
+    (requestId: string | undefined, message: Record<string, unknown>) => {
+      if (!requestId) return;
+      iframeRef.current?.contentWindow?.postMessage(
+        { type: MSG_SUBMIT_RESULT, requestId, ...message },
+        '*'
+      );
+    },
+    []
+  );
+
+  const submitV2 = useCallback(
+    async (payload: unknown, request: SubmitRequest) => {
+      if (!submissionsEnabled) {
+        replyToFrame(request.requestId, {
+          ok: false,
+          error: {
+            code: 'submissions-off',
+            message: 'Not taking submissions.',
+          },
+        });
+        return;
+      }
+      if (paused) {
+        heldRequestRef.current = { payload, request };
+        return;
+      }
+      if (status.kind === 'submitting') {
+        replyToFrame(request.requestId, {
+          ok: false,
+          error: { code: 'busy', message: 'Already saving.' },
+        });
+        return;
+      }
+      setStatus({ kind: 'submitting' });
+      try {
+        const result = await submitMiniAppResult(
+          session.id,
+          request.kind,
+          payload
+        );
+        setAttemptsUsed(result.attempt);
+        setStatus({ kind: 'saved', at: Date.now() });
+        setHasSubmitted(true);
+        replyToFrame(request.requestId, { ok: true, result });
+      } catch (err) {
+        const code = submitErrorCode(err);
+        replyToFrame(request.requestId, {
+          ok: false,
+          error: {
+            code,
+            message: err instanceof Error ? err.message : 'Not saved.',
+          },
+        });
+        if (code === 'attempts-exhausted') {
+          setStatus({ kind: 'idle' });
+          setTurnedIn(true);
+        } else if (code === 'invalid-result') {
+          logError('MiniAppStudentApp.invalidResult', err, {
+            sessionId: session.id,
+          });
+          setStatus({ kind: 'idle' });
+        } else {
+          setStatus({ kind: 'error', payload, request });
+        }
+      }
+    },
+    [session.id, submissionsEnabled, paused, status.kind, replyToFrame]
+  );
+
+  useEffect(() => {
+    if (paused || !heldRequestRef.current) return;
+    const { payload, request } = heldRequestRef.current;
+    heldRequestRef.current = null;
+    void submitV2(payload, request);
+  }, [paused, submitV2]);
+
   // Writes a minimal {completed: true} completion marker so the student's
   // assignment badge in /my-assignments shows "Completed". Works for both
   // view-only (submissionsEnabled=false) and submission-enabled sessions.
@@ -604,6 +721,12 @@ const AppViewer: React.FC<{
     }
     setStatus({ kind: 'submitting' });
     try {
+      if (isV2) {
+        await submitMiniAppResult(session.id, 'done', null);
+        setStatus({ kind: 'saved', at: Date.now() });
+        setHasSubmitted(true);
+        return;
+      }
       const tokenResult = await currentUser.getIdTokenResult();
       const isStudentRole = tokenResult.claims?.studentRole === true;
       const docId = isStudentRole
@@ -631,16 +754,30 @@ const AppViewer: React.FC<{
       console.error('[MiniAppStudentApp] Mark-done write failed:', err);
       setStatus({ kind: 'idle' });
     }
-  }, [session.id, hasSubmitted, paused, status.kind]);
+  }, [session.id, hasSubmitted, paused, status.kind, isV2]);
 
   const handleMessage = useCallback(
     (event: MessageEvent) => {
       if (event.source !== iframeRef.current?.contentWindow) return;
-      const data = event.data as { type?: string; payload?: unknown } | null;
-      if (data?.type !== 'SPART_MINIAPP_RESULT') return;
+      const data = event.data as {
+        type?: string;
+        payload?: unknown;
+        requestId?: unknown;
+      } | null;
+      if (isV2) {
+        if (data?.type === MSG_SUBMIT && typeof data.requestId === 'string')
+          void submitV2(data.payload, {
+            kind: 'result',
+            requestId: data.requestId,
+          });
+        else if (data?.type === MSG_LEGACY_RESULT)
+          void submitV2(data.payload, { kind: 'legacy' });
+        return;
+      }
+      if (data?.type !== MSG_LEGACY_RESULT) return;
       void submit(data.payload);
     },
-    [submit]
+    [submit, submitV2, isV2]
   );
 
   useEffect(() => {
@@ -656,15 +793,21 @@ const AppViewer: React.FC<{
     return () => window.clearTimeout(timeout);
   }, [status]);
 
+  const srcDoc = useMemo(
+    () => (isV2 ? injectMiniAppHelper(session.appHtml) : session.appHtml),
+    [isV2, session.appHtml]
+  );
+
   // Teacher skipped this student for this assignment.
   if (excluded) return <AssignmentExcludedNotice />;
+  if (turnedIn) return <TurnedInScreen appTitle={session.appTitle} />;
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-slate-900 flex flex-col">
       <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-500 z-10" />
       <iframe
         ref={iframeRef}
-        srcDoc={session.appHtml}
+        srcDoc={srcDoc}
         title={session.appTitle}
         sandbox="allow-scripts allow-forms allow-modals"
         className="flex-1 w-full border-0"
@@ -672,7 +815,14 @@ const AppViewer: React.FC<{
         onLoad={handleIframeLoad}
       />
       {paused && <MiniAppPeriodPausedOverlay />}
-      <SubmissionStatusOverlay status={status} onRetry={submit} />
+      <SubmissionStatusOverlay
+        status={status}
+        onRetry={(payload) =>
+          status.kind === 'error' && status.request
+            ? void submitV2(payload, { kind: status.request.kind })
+            : void submit(payload)
+        }
+      />
       {/* "I'm Done" button — allows students to mark the assignment complete
           regardless of whether the mini-app itself has a submit button.
           Hidden for view-only shares (no submissions tracked) and once the
@@ -768,6 +918,14 @@ const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
     <AlertCircle className="w-12 h-12 text-red-400" />
     <h1 className="text-white text-xl font-bold">Something went wrong</h1>
     <p className="text-white/60 max-w-sm">{message}</p>
+  </div>
+);
+
+const TurnedInScreen: React.FC<{ appTitle: string }> = ({ appTitle }) => (
+  <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-4 p-8 text-center">
+    <CheckCircle2 className="w-10 h-10 text-emerald-400" />
+    <h1 className="text-white text-xl font-bold">Turned in</h1>
+    <p className="text-white/60 max-w-sm">{appTitle}</p>
   </div>
 );
 

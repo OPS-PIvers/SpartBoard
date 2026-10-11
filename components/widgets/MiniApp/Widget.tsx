@@ -1,4 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import {
+  DEFAULT_MINI_APP_RESULTS,
+  loadMiniAppKey,
+  miniAppResultsOn,
+} from '@/utils/miniAppResults';
 import { createPortal } from 'react-dom';
 import { useDashboard } from '@/context/useDashboard';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
@@ -535,6 +540,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   // View-only shares a link with no classes, so it keeps its own dialog (D20).
   const stepperOn =
     canAccessFeature('assign-stepper') && assignmentMode === 'submissions';
+  const resultsOn = miniAppResultsOn(canAccessFeature, assignmentMode);
   const { showConfirm } = useDialog();
   const claudeReview = useClaudeReview('miniapps');
   const { saveSavedWidget } = useSavedWidgets();
@@ -715,11 +721,18 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               bellWindow: assignPeriodCtx?.bellWindow,
             })
           : undefined;
+      const results = resultsOn
+        ? {
+            ...DEFAULT_MINI_APP_RESULTS,
+            key: await loadMiniAppKey(user.uid, assigningApp.id),
+          }
+        : undefined;
       const sessionId = await createSession(
         assigningApp,
         user.uid,
         assignmentName,
         {
+          ...(results ? { results } : {}),
           classIds: derived.classIds,
           rosterIds: derived.rosterIds,
           mode: assignmentMode,
