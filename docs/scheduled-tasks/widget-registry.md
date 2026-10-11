@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-10_
+_Last audited: 2026-10-11_
 _Last action: 2026-10-07 — LOW `projects` scaling base updated to 620×560 to match its spawn size. Prior: 2026-09-26 — LOW `WIDGET_DEFAULTS` `as XConfig` trio resolved for `specialist-schedule`/`graphic-organizer`/`reveal-grid`: changed all three from `as` to `satisfies` per the skill's Step 5 guidance, with no field changes needed since every required field was already present. Moved to Completed._
 
 _2026-10-10: Daily audit (Saturday). `WidgetType` 68, 0 duplicates. Scripted cross-reference: `WIDGET_COMPONENTS` 67/68 (only `sticker`, documented), `WIDGET_SCALING_CONFIG` 68/68, `WIDGET_DEFAULTS`/`WIDGET_GRADE_LEVELS` complete, `config/tools.ts` gaps exactly the 7 documented exclusions (0 orphans beyond `magic`/`record`/`remote`), `WIDGET_SETTINGS_SCHEMAS` 64/68 (missing `blooms-detail`/`onboarding`/`sticker` documented plus `routineGuide`, already tracked). Legacy settings/appearance maps empty. All 65 `lazyNamed()` calls resolve to real exports. 0 new issues._
@@ -25,6 +25,8 @@ The headline finding this cycle: **`WIDGET_SETTINGS_COMPONENTS` and `WIDGET_APPE
 Re-verified all 3 existing Open items against current file content rather than trusting prior line numbers. The `as XConfig` trio (`specialist-schedule`/`graphic-organizer`/`reveal-grid`) **still reproduces, unchanged, at the identical cited lines** `config/widgetDefaults.ts:520/530/558`. The `WIDGET_APPEARANCE_COMPONENTS` JSDoc-gap item **still reproduces**, citation updated to `components/widgets/WidgetRegistry.ts:375-379` and Detail rewritten for the 5/65 → 0/65 change described above. The `projects` w/h-vs-`WIDGET_SCALING_CONFIG` divergence **still reproduces, values unchanged** (`w: 620, h: 560` vs `baseWidth: 540, baseHeight: 360`), citation refreshed to `components/widgets/WidgetRegistry.ts:843-849` (shifted up ~35 lines by wave 13/14 shrinking the file above it; `config/widgetDefaults.ts:701-715` unchanged). **Net this cycle: 0 new items filed, 0 resolved/moved to Completed, 1 item's Detail substantially rewritten to reflect the settings-drawer migration's completion, all 3 citations current.**_
 
 _2026-10-09: Friday daily audit (rebased on `origin/dev-paul`). Scripted cross-reference: `WidgetType` 68; `WIDGET_COMPONENTS` 67/68 (`sticker`, documented); `WIDGET_SCALING_CONFIG`/`WIDGET_DEFAULTS` 68/68; `WIDGET_GRADE_LEVELS` 71 = 68 + `magic`/`record`/`remote`; `config/tools.ts` 64 types, gaps exactly the 7 documented exclusions, 0 unexplained orphans. All 65 `lazyNamed()` calls resolve to a real named export (barrels followed). 0 new issues._
+
+_2026-10-11: Daily audit (Sunday), after merging `origin/dev-paul`. `WidgetType` 68. Scripted cross-reference: `WIDGET_COMPONENTS` 67/68 (`sticker`, documented), `WIDGET_SCALING_CONFIG` 68/68, `WIDGET_DEFAULTS` 68/68, `tools.ts` gaps are only the 7 documented exclusions, `WIDGET_SETTINGS_COMPONENTS`/`WIDGET_APPEARANCE_COMPONENTS` remain empty (documented migration). `lazyNamed()` names resolve (`PollWidget` via `export *` in index.ts). 0 new issues._
 
 ---
 
