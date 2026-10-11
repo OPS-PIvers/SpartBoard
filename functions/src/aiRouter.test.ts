@@ -287,6 +287,30 @@ describe('generateAi', () => {
     });
   });
 
+  it('cuts off a Claude reply that is still streaming at the timeout', async () => {
+    secretValue.current = 'sk-ant-test';
+    claudeStreamMock.mockImplementation(
+      (_body: unknown, opts?: { signal?: AbortSignal }) => ({
+        finalMessage: () =>
+          new Promise((_resolve, reject) =>
+            opts?.signal?.addEventListener('abort', () =>
+              reject(new Error('Request was aborted.'))
+            )
+          ),
+      })
+    );
+    generateContentMock.mockResolvedValue(geminiOk());
+    const result = await generateAi(
+      fakeDb({ integrationModels: { 'guided-learning': 'claude-sonnet-5-5' } }),
+      {
+        integration: 'guided-learning',
+        parts: [{ text: 'hi' }],
+        claudeTimeoutMs: 20,
+      }
+    );
+    expect(result).toMatchObject({ provider: 'gemini', fellBack: true });
+  });
+
   it('falls back when Claude stops early or refuses', async () => {
     secretValue.current = 'sk-ant-test';
     claudeStreamMock.mockReturnValue(claudeOk('', 'refusal'));

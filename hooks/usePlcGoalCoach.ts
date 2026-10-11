@@ -10,7 +10,7 @@ export function usePlcGoalCoach(plcId: string) {
       const call = httpsCallable<
         { plcId: string; goal: GoalCoachDraft },
         GoalCoachResult
-      >(functions, 'plcGoalCoachV1');
+      >(functions, 'plcGoalCoachV1', { timeout: 120_000 });
       return (await call({ plcId, goal })).data;
     },
     [plcId]

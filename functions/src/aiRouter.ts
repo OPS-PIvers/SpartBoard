@@ -179,10 +179,11 @@ async function callClaude(
   tier: AiTier,
   req: AiRequest
 ): Promise<Omit<AiResult, 'fellBack' | 'usedFallbackConfig'>> {
+  const timeoutMs = req.claudeTimeoutMs ?? 60_000;
   const client = new Anthropic({
     apiKey: claudeApiKey(),
     maxRetries: 0,
-    timeout: req.claudeTimeoutMs ?? 60_000,
+    timeout: timeoutMs,
   });
   const media: Anthropic.ContentBlockParam[] = [];
   const texts: Anthropic.ContentBlockParam[] = [];
@@ -218,18 +219,22 @@ async function callClaude(
       : '';
   const system = [req.systemInstruction, jsonNote].filter(Boolean).join('\n\n');
   const message = await client.messages
-    .stream({
-      model,
-      max_tokens: req.maxOutputTokens ?? 16000,
-      ...(system ? { system } : {}),
-      // Media before text, as Claude reads documents best that way.
-      messages: [{ role: 'user', content: [...media, ...texts] }],
-      thinking: { type: 'adaptive' },
-      output_config: {
-        effort: tier === 'advanced' ? 'medium' : 'low',
-        ...(schema ? { format: { type: 'json_schema', schema } } : {}),
+    .stream(
+      {
+        model,
+        max_tokens: req.maxOutputTokens ?? 16000,
+        ...(system ? { system } : {}),
+        // Media before text, as Claude reads documents best that way.
+        messages: [{ role: 'user', content: [...media, ...texts] }],
+        thinking: { type: 'adaptive' },
+        output_config: {
+          effort: tier === 'advanced' ? 'medium' : 'low',
+          ...(schema ? { format: { type: 'json_schema', schema } } : {}),
+        },
       },
-    })
+      // The client timeout stops at response headers; this also caps the streamed body.
+      { signal: AbortSignal.timeout(timeoutMs) }
+    )
     .finalMessage();
   const usage = message.usage;
   const inputTokens =
