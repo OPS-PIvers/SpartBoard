@@ -15,7 +15,13 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+import {
+  collection,
+  getDocs,
+  onSnapshot,
+  orderBy,
+  query,
+} from 'firebase/firestore';
 import { X, Loader2, Inbox, ChevronDown, ChevronRight } from 'lucide-react';
 import { db } from '@/config/firebase';
 import {
@@ -24,7 +30,11 @@ import {
 } from '@/hooks/useAssignmentPseudonyms';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
-import type { MiniAppSession } from '@/types';
+import type { MiniAppBestAttempt, MiniAppSession } from '@/types';
+import {
+  MiniAppResultsTable,
+  type MiniAppAttemptView,
+} from './MiniAppResultsTable';
 import { usePeriodAccess } from '@/hooks/usePeriodAccess';
 import { hasPeriodAccess } from '@/utils/periodAccess';
 import { PeriodAccessControls } from '@/components/common/sessionViews/PeriodAccessControls';
@@ -34,6 +44,9 @@ interface SubmissionRow {
   id: string;
   submittedAt: number;
   payload: unknown;
+  attemptCount?: number;
+  best?: MiniAppBestAttempt | null;
+  lastSubmittedAt?: number;
 }
 
 interface SubmissionsModalProps {
@@ -76,6 +89,7 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const isV2 = session?.resultsVersion === 2;
 
   useEffect(() => {
     const q = query(
@@ -93,6 +107,13 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
               submittedAt:
                 typeof data.submittedAt === 'number' ? data.submittedAt : 0,
               payload: data.payload,
+              attemptCount:
+                typeof data.attemptCount === 'number' ? data.attemptCount : 0,
+              best: data.best ?? null,
+              lastSubmittedAt:
+                typeof data.lastSubmittedAt === 'number'
+                  ? data.lastSubmittedAt
+                  : undefined,
             };
           })
         );
@@ -168,6 +189,25 @@ export const SubmissionsModal: React.FC<SubmissionsModalProps> = ({
                 Submissions appear here as students finish the activity.
               </p>
             </div>
+          ) : isV2 ? (
+            <MiniAppResultsTable
+              rows={submissions.map((s) => ({
+                id: s.id,
+                name:
+                  formatStudentName(byAssignmentPseudonym.get(s.id)) || s.id,
+                attemptCount: s.attemptCount ?? 0,
+                best: s.best ?? null,
+                lastSubmittedAt: s.lastSubmittedAt ?? s.submittedAt,
+                doneOnly: !s.attemptCount,
+              }))}
+              questions={session?.manifest?.questions ?? []}
+              attemptLimit={
+                typeof session?.attemptLimit === 'number'
+                  ? session.attemptLimit
+                  : null
+              }
+              loadAttempts={(rowId) => loadAttempts(sessionId, rowId)}
+            />
           ) : (
             <div className="space-y-2">
               <p className="text-xs text-slate-500">
@@ -250,4 +290,36 @@ function formatPayload(payload: unknown): string {
   } catch {
     return String(payload);
   }
+}
+
+async function loadAttempts(
+  sessionId: string,
+  rowId: string
+): Promise<MiniAppAttemptView[]> {
+  const snap = await getDocs(
+    query(
+      collection(
+        db,
+        'mini_app_sessions',
+        sessionId,
+        'submissions',
+        rowId,
+        'attempts'
+      ),
+      orderBy('attemptNo', 'asc')
+    )
+  );
+  return snap.docs.map((d) => {
+    const a = d.data() as Record<string, unknown>;
+    const num = (v: unknown) => (typeof v === 'number' ? v : undefined);
+    return {
+      attemptNo: num(a.attemptNo) ?? 0,
+      submittedAt: num(a.submittedAt) ?? 0,
+      score: num(a.score),
+      maxScore: num(a.maxScore),
+      gradedBy:
+        a.gradedBy === 'server' || a.gradedBy === 'app' ? a.gradedBy : null,
+      ...(a.kind === 'legacy' ? { rawPayload: a.payload } : {}),
+    };
+  });
 }
