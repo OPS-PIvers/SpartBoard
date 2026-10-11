@@ -43,8 +43,11 @@ function makeDb(docs: Record<string, Doc>) {
         exists: docs[path] !== undefined,
         data: () => docs[path],
       }),
-    set: (data: Doc, opts?: { merge?: boolean }) => {
-      docs[path] = opts?.merge ? { ...(docs[path] ?? {}), ...data } : data;
+    set: (data: Doc, opts?: { merge?: boolean; mergeFields?: string[] }) => {
+      docs[path] =
+        opts?.merge || opts?.mergeFields
+          ? { ...(docs[path] ?? {}), ...data }
+          : data;
     },
   });
   const docRef = (
@@ -65,7 +68,7 @@ function makeDb(docs: Record<string, Doc>) {
         set: (
           ref: ReturnType<typeof refFor>,
           d: Doc,
-          o?: { merge?: boolean }
+          o?: { merge?: boolean; mergeFields?: string[] }
         ) => ref.set(d, o),
       }),
   } as unknown as Db;
@@ -308,14 +311,38 @@ describe('handleSubmitMiniAppResult grading and attempts', () => {
     });
   });
 
-  it('saves a legacy payload as an attempt', async () => {
-    const docs: Record<string, Doc> = { [SESSION]: session() };
-    await submit(docs, { sessionId: 's1', kind: 'legacy', payload: 42 });
-    expect(docs[SUMMARY]).toMatchObject({
-      attemptCount: 1,
-      payload: { value: 42 },
-      best: null,
+  it('saves legacy posts without using an attempt', async () => {
+    const docs: Record<string, Doc> = {
+      [SESSION]: session({ attemptLimit: 1 }),
+    };
+    await submit(docs, { sessionId: 's1', kind: 'legacy', payload: 41 });
+    expect(
+      await submit(docs, { sessionId: 's1', kind: 'legacy', payload: 42 })
+    ).toEqual({ attempt: 0, attemptsLeft: 1 });
+    expect(docs[SUMMARY]).toMatchObject({ payload: { value: 42 } });
+    expect(docs[SUMMARY].attemptCount).toBeUndefined();
+    expect((await submit(docs, result('B', true))).attempt).toBe(1);
+  });
+
+  it('grades an answer with an @ before stripping it from the saved copy', async () => {
+    const docs: Record<string, Doc> = {
+      [SESSION]: session({
+        manifest: { questions: [{ id: 'q1', type: 'short', prompt: 'One' }] },
+      }),
+      [`${SESSION}/private/key`]: {
+        questions: { q1: { accepted: ['a@b.co'] } },
+      },
+    };
+    const res = await submit(docs, {
+      sessionId: 's1',
+      kind: 'result',
+      payload: { items: [{ id: 'q1', answer: 'a@b.co' }] },
     });
+    expect(res.score).toBe(1);
+    const attempt = docs[`${SUMMARY}/attempts/1`] as {
+      items: { answer: unknown }[];
+    };
+    expect(attempt.items[0].answer).toBeNull();
   });
 
   it("marks I'm Done without using an attempt, even with submissions off", async () => {

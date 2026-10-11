@@ -182,15 +182,23 @@ export async function handleSubmitMiniAppResult(
   let outcome: GradeOutcome | null = null;
   if (input.kind === 'result') {
     try {
-      const clean = parseMiniAppResult(
-        stripPrivateFields(parseMiniAppResult(input.payload))
-      );
+      // Grade the raw answers so an answer containing "@" still counts; only the stripped copy is saved.
+      const raw = parseMiniAppResult(input.payload);
+      const clean = parseMiniAppResult(stripPrivateFields(raw));
       const keySnap = await sessionRef.collection('private').doc('key').get();
-      outcome = gradeMiniAppResult(
-        clean,
+      const graded = gradeMiniAppResult(
+        raw,
         readManifest(session.manifest),
         readAnswerKey(keySnap.exists ? keySnap.data() : null)
       );
+      const savedAnswers = new Map(clean.items.map((i) => [i.id, i.answer]));
+      outcome = {
+        ...graded,
+        items: graded.items.map((g) => ({
+          ...g,
+          answer: savedAnswers.get(g.id) ?? null,
+        })),
+      };
       payload = {
         items: clean.items,
         ...(clean.score !== undefined ? { score: clean.score } : {}),
@@ -241,6 +249,31 @@ export async function handleSubmitMiniAppResult(
           payload: { ...prior, completed: true },
         },
         { merge: true }
+      );
+      return { attempt: count, attemptsLeft: left(count) };
+    }
+
+    // Old apps post progress repeatedly, so a legacy post replaces the saved payload without using an attempt.
+    if (input.kind === 'legacy') {
+      tx.set(
+        summaryRef,
+        {
+          submittedAt: nowMs,
+          studentUid: caller.uid,
+          payload:
+            isRecord(summary.payload) && summary.payload.completed === true
+              ? { ...payload, completed: true }
+              : payload,
+          lastSubmittedAt: nowMs,
+        },
+        {
+          mergeFields: [
+            'submittedAt',
+            'studentUid',
+            'payload',
+            'lastSubmittedAt',
+          ],
+        }
       );
       return { attempt: count, attemptsLeft: left(count) };
     }
