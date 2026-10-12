@@ -221,6 +221,7 @@ export function toPublicStep(
     calloutWidthPct: step.calloutWidthPct,
     calloutScale: step.calloutScale,
     calloutTone: step.calloutTone,
+    calloutAlign: step.calloutAlign,
     calloutBox: step.calloutBox,
     cursor: step.cursor,
     // Playback fields only; `tour` is teacher-only and never mirrored.

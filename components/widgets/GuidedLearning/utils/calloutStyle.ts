@@ -1,4 +1,5 @@
 import type {
+  GuidedLearningCalloutAlign,
   GuidedLearningCalloutBox,
   GuidedLearningCalloutTone,
   GuidedLearningStep,
@@ -20,19 +21,25 @@ export const CALLOUT_BOX_SIZE_MAX = 500;
 /** Box top-left bounds in image-%; the render clamp keeps it on the visible stage. */
 export const CALLOUT_BOX_POS_MIN = -500;
 export const CALLOUT_BOX_POS_MAX = 500;
-/** Auto-fit body size range in px; the floor is the readable minimum (G10). */
-export const CALLOUT_TEXT_FLOOR_PX = 12;
-export const CALLOUT_TEXT_CAP_PX = 96;
+/** Auto-fit body size range in px; wide enough that the author's box, not a limit, sets the size. */
+export const CALLOUT_TEXT_FLOOR_PX = 1;
+export const CALLOUT_TEXT_CAP_PX = 1000;
 export const CALLOUT_TITLE_RATIO = 1.2;
 export const CALLOUT_TONES: readonly GuidedLearningCalloutTone[] = [
   'dark',
   'light',
   'accent',
 ];
+/** Text alignments in the order the toolbar button cycles through them. */
+export const CALLOUT_ALIGNS: readonly GuidedLearningCalloutAlign[] = [
+  'left',
+  'center',
+  'right',
+];
 
 type CalloutStyleFields = Pick<
   GuidedLearningStep,
-  'calloutWidthPct' | 'calloutScale' | 'calloutTone'
+  'calloutWidthPct' | 'calloutScale' | 'calloutTone' | 'calloutAlign'
 >;
 
 /** True when the step draws a tooltip or popover the style fields apply to. */
@@ -63,6 +70,9 @@ export const clampCalloutScale = (scale: number): number =>
 
 export const isCalloutTone = (v: unknown): v is GuidedLearningCalloutTone =>
   CALLOUT_TONES.includes(v as GuidedLearningCalloutTone);
+
+export const isCalloutAlign = (v: unknown): v is GuidedLearningCalloutAlign =>
+  CALLOUT_ALIGNS.includes(v as GuidedLearningCalloutAlign);
 
 const inRange = (v: unknown, lo: number, hi: number): v is number =>
   isNum(v) && v >= lo && v <= hi;
@@ -148,6 +158,12 @@ export function calloutToneOf(
   return isCalloutTone(step.calloutTone) ? step.calloutTone : 'dark';
 }
 
+export function calloutAlignOf(
+  step: Pick<GuidedLearningStep, 'calloutAlign'>
+): GuidedLearningCalloutAlign {
+  return isCalloutAlign(step.calloutAlign) ? step.calloutAlign : 'left';
+}
+
 /** True when a callout step renders any schema-v4 field; leftovers on other types and 'dark' don't count. */
 export function stepUsesCalloutStyle(
   step: CalloutStyleFields &
@@ -157,13 +173,20 @@ export function stepUsesCalloutStyle(
     stepHasCallout(step) &&
     (step.calloutWidthPct !== undefined ||
       step.calloutScale !== undefined ||
-      (step.calloutTone !== undefined && step.calloutTone !== 'dark'))
+      (step.calloutTone !== undefined && step.calloutTone !== 'dark') ||
+      (step.calloutAlign !== undefined && step.calloutAlign !== 'left'))
   );
 }
 
 /** Import check: every present callout style field is in range. */
 export function isValidCalloutStyle(step: CalloutStyleFields): boolean {
-  const { calloutWidthPct: w, calloutScale: s, calloutTone: tone } = step;
+  const {
+    calloutWidthPct: w,
+    calloutScale: s,
+    calloutTone: tone,
+    calloutAlign: align,
+  } = step;
+  if (align !== undefined && !isCalloutAlign(align)) return false;
   if (
     w !== undefined &&
     (!isNum(w) || w < CALLOUT_WIDTH_PCT_MIN || w > CALLOUT_WIDTH_PCT_MAX)

@@ -42,6 +42,7 @@ import {
   containerRectToBox,
   isTooltipCallout,
   leaderEnd,
+  isCornerHandle,
   resizeCalloutBox,
   type CalloutHandle,
 } from './calloutHandles';
@@ -135,6 +136,8 @@ type Gesture =
       grab: { x: number; y: number };
       client: Client;
       active: boolean;
+      /** Body text size when the drag started, which side handles hold and corners scale. */
+      bodyPx?: number | null;
     }
   | {
       kind: 'callout';
@@ -332,15 +335,19 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
     rect: PxRect,
     nextGuides: SnapGuides
   ) => {
+    const preview = previewFor(gesture.step, 'card');
+    // Text grown past the box at the floor is drawn taller; the frame follows it, the commit doesn't (G10).
+    const drawnH =
+      gesture.kind === 'callout-size' ? preview.size(rect.w, rect.h) : rect.h;
     const shift = { id: gesture.step.id, rect };
     calloutShiftRef.current = shift;
     flushSync(() => {
-      setCalloutShift(shift);
+      setCalloutShift(
+        drawnH > rect.h ? { ...shift, rect: { ...rect, h: drawnH } } : shift
+      );
       setGuides(nextGuides);
     });
-    const preview = previewFor(gesture.step, 'card');
     preview.shift(rect.x - gesture.box.x, rect.y - gesture.box.y);
-    if (gesture.kind === 'callout-size') preview.size(rect.w, rect.h);
     preview.route(rect, regionRect(g.regionFor(gesture.step)));
   };
 
@@ -708,8 +715,11 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
         if (!gesture.active) {
           if (dist(gesture.client, client) <= CALLOUT_PX) return;
           gesture.active = true;
+          gesture.bodyPx = previewFor(gesture.step, 'card').bodyPx();
         }
         const h = gesture.handle;
+        const corner = isCornerHandle(h);
+        const body0 = gesture.bodyPx;
         const px = toPx(p);
         const held = g.containerPxToImagePct(
           px.x - gesture.grab.x,
@@ -721,11 +731,24 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
               y: h.includes('n') || h.includes('s'),
             })
           : { ...held, guides: NO_GUIDES };
-        const rect = resizeCalloutBox(gesture.box, h, toPx(at), {
-          keepAspect: e.shiftKey,
+        // Corners scale box and text together like a design tool; Shift frees the aspect ratio.
+        let rect = resizeCalloutBox(gesture.box, h, toPx(at), {
+          keepAspect: corner !== e.shiftKey,
           fromCentre: e.altKey,
           container: g.containerSize,
         });
+        // Side handles keep the text size and re-wrap it; the height hugs the text from the top edge.
+        if ((h === 'e' || h === 'w') && body0) {
+          const hug = previewFor(gesture.step, 'card').heightAt(rect.w, body0);
+          if (hug) {
+            const hh = Math.min(hug, g.containerSize.h);
+            rect = {
+              ...rect,
+              y: Math.min(gesture.box.y, g.containerSize.h - hh),
+              h: hh,
+            };
+          }
+        }
         showCallout(gesture, rect, at.guides);
         return;
       }

@@ -13270,6 +13270,12 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     panel: true,
   },
   {
+    id: 'studio.callout-align',
+    label: 'Callout text alignment button',
+    scope: 'board',
+    panel: true,
+  },
+  {
     id: 'studio.callout-delete',
     label: 'Delete callout step button',
     scope: 'board',

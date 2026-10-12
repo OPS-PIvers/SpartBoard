@@ -13,6 +13,7 @@ import {
   CALLOUT_TITLE_RATIO,
   CALLOUT_TONE_STYLES,
   calloutScaleOf,
+  calloutAlignOf,
   calloutToneOf,
   calloutWidthPctOf,
 } from '../../utils/calloutStyle';
@@ -144,9 +145,11 @@ export const TextPopoverInteraction: React.FC<Props> = ({
                 minHeight: boxHeight,
                 padding: '1.4em',
                 overflowWrap: 'anywhere',
+                textAlign: calloutAlignOf(step),
               } as React.CSSProperties)
             : ({
                 '--gl-callout-scale': calloutScaleOf(step),
+                textAlign: calloutAlignOf(step),
                 maxWidth:
                   authoredWidth ??
                   'calc(var(--gl-popover-max-w, min(380px, 90cqw)) * var(--gl-callout-scale))',
@@ -187,10 +190,10 @@ export const TextPopoverInteraction: React.FC<Props> = ({
                 className={`${tone.title} font-bold leading-tight`}
                 style={{
                   marginBottom: explicitBox
-                    ? '8px'
+                    ? '0.4em'
                     : 'calc(min(8px, 2cqmin) * var(--gl-callout-scale))',
                   paddingRight: explicitBox
-                    ? '24px'
+                    ? '1.2em'
                     : 'calc(min(24px, 6cqmin) * var(--gl-callout-scale))',
                   fontSize: explicitBox
                     ? `${CALLOUT_TITLE_RATIO}em`

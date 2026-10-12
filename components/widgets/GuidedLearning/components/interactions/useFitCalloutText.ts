@@ -4,12 +4,8 @@ import { type CalloutFit, fitCalloutText } from '../../utils/fitCalloutText';
 /** CSS variable the card reads its body font size from. */
 export const FIT_BODY_VAR = '--gl-fit-body';
 
-/** Fits a card's text to a w x h px box by measuring a hidden clone beside it. */
-export function measureCalloutFit(
-  card: HTMLElement,
-  w: number,
-  h: number
-): CalloutFit {
+// A hidden copy of the card at w px wide, with an auto height, for measuring.
+function cloneAtWidth(card: HTMLElement, w: number): HTMLElement {
   const clone = card.cloneNode(true) as HTMLElement;
   clone.removeAttribute('data-gl-callout');
   clone.removeAttribute('data-gl-previewing');
@@ -33,6 +29,16 @@ export function measureCalloutFit(
     transition: 'none',
   });
   card.parentElement?.appendChild(clone);
+  return clone;
+}
+
+/** Fits a card's text to a w x h px box by measuring a hidden clone beside it. */
+export function measureCalloutFit(
+  card: HTMLElement,
+  w: number,
+  h: number
+): CalloutFit {
+  const clone = cloneAtWidth(card, w);
   const fit = fitCalloutText({
     boxH: h,
     measure: (px) => {
@@ -42,6 +48,19 @@ export function measureCalloutFit(
   });
   clone.remove();
   return fit;
+}
+
+/** The card's height at w px wide with its body text at bodyPx. */
+export function measureCalloutHeight(
+  card: HTMLElement,
+  w: number,
+  bodyPx: number
+): number {
+  const clone = cloneAtWidth(card, w);
+  clone.style.setProperty(FIT_BODY_VAR, `${bodyPx}px`);
+  const h = clone.offsetHeight;
+  clone.remove();
+  return h;
 }
 
 /** Fits a callout's text to its box by measuring a hidden clone at the box's pixel width. */

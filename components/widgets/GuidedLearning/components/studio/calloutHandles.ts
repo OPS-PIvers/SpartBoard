@@ -17,7 +17,7 @@ export const CALLOUT_HANDLES: readonly CalloutHandle[] = [
 ];
 
 /** Smallest box a handle drag may leave, in container px. */
-export const CALLOUT_MIN_PX = { w: 48, h: 28 };
+export const CALLOUT_MIN_PX = { w: 8, h: 6 };
 /** Alt+arrows grow or shrink the box by this many image-% per press. */
 export const CALLOUT_NUDGE_PCT = 1;
 
@@ -58,6 +58,9 @@ export interface BoxResizeOptions {
   container: { w: number; h: number };
 }
 
+/** True for the four corner handles, which scale the box and its text together. */
+export const isCornerHandle = (h: CalloutHandle): boolean => h.length === 2;
+
 /** A handle drag on a callout box, in container px; the box never leaves the stage. */
 export function resizeCalloutBox(
   start: PxRect,
@@ -91,7 +94,8 @@ export function resizeCalloutBox(
   if (keepAspect && start.w > 0 && start.h > 0) {
     const aspect = start.w / start.h;
     if (horiz && vert) {
-      const k = Math.max(w / start.w, h / start.h);
+      const fits = Math.min(container.w / start.w, container.h / start.h);
+      const k = Math.min(Math.max(w / start.w, h / start.h), fits);
       w = start.w * k;
       h = start.h * k;
     } else if (horiz) {

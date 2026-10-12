@@ -11,6 +11,7 @@ import {
   CALLOUT_TITLE_RATIO,
   CALLOUT_TONE_STYLES,
   calloutScaleOf,
+  calloutAlignOf,
   calloutToneOf,
   calloutWidthPctOf,
 } from '../../utils/calloutStyle';
@@ -18,6 +19,12 @@ import { pinSizePx } from '../../utils/regionGeometry';
 import { renderStepText } from '../../utils/richText';
 import { CalloutArrow } from './CalloutArrow';
 import { FIT_BODY_VAR, useFitCalloutText } from './useFitCalloutText';
+
+const ALIGN_CLASSES = {
+  left: 'items-start text-left',
+  center: 'items-center text-center',
+  right: 'items-end text-right',
+} as const;
 
 interface Props {
   step: GuidedLearningPublicStep;
@@ -153,6 +160,7 @@ export const TooltipInteraction: React.FC<Props> = ({
   };
 
   const tone = CALLOUT_TONE_STYLES[calloutToneOf(step)];
+  const align = calloutAlignOf(step);
   const overflowing = showFit && fit?.overflow === true;
   const cardWidth = squeezed
     ? placement.width
@@ -210,11 +218,7 @@ export const TooltipInteraction: React.FC<Props> = ({
         data-gl-callout={step.id}
         data-gl-callout-overflow={overflowing || undefined}
         data-side={placement.side}
-        className={`absolute flex flex-col ${
-          placement.side === 'left'
-            ? 'items-end text-right'
-            : 'items-start text-left'
-        } ${tone.tooltipCard} rounded-2xl leading-relaxed shadow-2xl animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none${
+        className={`absolute flex flex-col ${ALIGN_CLASSES[align]} ${tone.tooltipCard} rounded-2xl leading-relaxed shadow-2xl animate-in fade-in zoom-in-95 duration-200 motion-reduce:animate-none${
           overflowing
             ? ' outline outline-2 outline-offset-2 outline-amber-400'
             : ''
@@ -252,7 +256,7 @@ export const TooltipInteraction: React.FC<Props> = ({
                 className={`font-bold ${tone.title} tracking-tight`}
                 style={{
                   marginBottom: boxRect
-                    ? '4px'
+                    ? '0.2em'
                     : 'calc(min(4px, 1cqmin) * var(--gl-callout-scale))',
                   fontSize: boxRect
                     ? `${CALLOUT_TITLE_RATIO}em`

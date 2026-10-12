@@ -70,6 +70,7 @@ const CALLOUT_STYLE_FIELDS = [
   'calloutWidthPct',
   'calloutScale',
   'calloutTone',
+  'calloutAlign',
 ] as const;
 const BOX_REPLACED_FIELDS = [
   'calloutPin',
@@ -153,6 +154,7 @@ export const stepInput = z
     calloutWidthPct: z.number().min(10).max(95).optional(),
     calloutScale: z.number().min(0.75).max(2).optional(),
     calloutTone: z.enum(['dark', 'light', 'accent']).optional(),
+    calloutAlign: z.enum(['left', 'center', 'right']).optional(),
     calloutBox: z
       .object({
         xPct: z.number().min(-500).max(500),

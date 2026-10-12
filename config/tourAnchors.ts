@@ -10221,6 +10221,10 @@ export const TOUR_ANCHORS = {
   },
   'studio.callout-kind': { label: 'Toggle callout kind button', panel: true },
   'studio.callout-tone': { label: 'Callout colour option', panel: true },
+  'studio.callout-align': {
+    label: 'Callout text alignment button',
+    panel: true,
+  },
   'studio.callout-delete': {
     label: 'Delete callout step button',
     destructive: true,

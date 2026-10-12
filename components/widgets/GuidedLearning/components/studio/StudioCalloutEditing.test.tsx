@@ -365,11 +365,15 @@ describe('Studio callout editing (gl-callout-editing)', () => {
     expectBox('rect-1', { x: 600, y: 380, w: 100, h: 80 });
   });
 
-  it('keeps the aspect with Shift and resizes about the centre with Alt', () => {
+  it('scales from a corner, frees the aspect with Shift and resizes about the centre with Alt', () => {
     selectCallout();
-    dragHandle('se', [700, 460], [710, 470], { shiftKey: true });
+    dragHandle('se', [700, 460], [710, 470]);
     // The larger of 1.1× and 1.17× wins.
     expectBox('rect-1', { x: 600, y: 400, w: (100 * 70) / 60, h: 70 });
+    act(() => editor().undo());
+    selectCallout();
+    dragHandle('se', [700, 460], [710, 470], { shiftKey: true });
+    expectBox('rect-1', { x: 600, y: 400, w: 110, h: 70 });
     act(() => editor().undo());
     selectCallout();
     dragHandle('e', [700, 430], [720, 430], { altKey: true });

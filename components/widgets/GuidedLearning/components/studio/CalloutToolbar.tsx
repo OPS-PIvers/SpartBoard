@@ -1,6 +1,9 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
   Check,
   LocateFixed,
   MessageSquare,
@@ -11,10 +14,15 @@ import {
 } from 'lucide-react';
 import type { GuidedLearningStep } from '@/types';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
-import { CALLOUT_TONES, CALLOUT_TONE_STYLES } from '../../utils/calloutStyle';
+import {
+  CALLOUT_TONES,
+  CALLOUT_TONE_STYLES,
+  calloutAlignOf,
+} from '../../utils/calloutStyle';
 import {
   clearCalloutPin,
   clearCalloutSize,
+  cycleCalloutAlign,
   setCalloutTone,
 } from './regionEdits';
 import { isTooltipCallout, toggleCalloutKind } from './calloutHandles';
@@ -26,6 +34,17 @@ interface CalloutToolbarProps {
   onEdit: () => void;
   onDelete: () => void;
 }
+
+const ALIGN_ICONS = {
+  left: AlignLeft,
+  center: AlignCenter,
+  right: AlignRight,
+} as const;
+const ALIGN_LABEL_KEYS = {
+  left: 'glStudio.calloutAlignLeft',
+  center: 'glStudio.calloutAlignCenter',
+  right: 'glStudio.calloutAlignRight',
+} as const;
 
 const buttonClass =
   'flex h-8 w-8 items-center justify-center rounded-md text-slate-700 transition-colors hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary disabled:pointer-events-none disabled:opacity-40';
@@ -48,6 +67,9 @@ export const CalloutToolbar: React.FC<CalloutToolbarProps> = ({
     ? t('glStudio.calloutToPopover')
     : t('glStudio.calloutToTooltip');
   const KindIcon = tooltip ? MessageSquare : MessageSquareShare;
+  const align = calloutAlignOf(step);
+  const AlignIcon = ALIGN_ICONS[align];
+  const alignLabel = t(ALIGN_LABEL_KEYS[align]);
   return (
     <div
       role="group"
@@ -102,6 +124,16 @@ export const CalloutToolbar: React.FC<CalloutToolbarProps> = ({
         className={buttonClass}
       >
         <KindIcon className="h-4 w-4" aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        {...tourAttr('studio.callout-align')}
+        onClick={() => onChange(cycleCalloutAlign(step))}
+        aria-label={alignLabel}
+        title={alignLabel}
+        className={buttonClass}
+      >
+        <AlignIcon className="h-4 w-4" aria-hidden="true" />
       </button>
       <span className="mx-0.5 h-5 w-px bg-slate-200" aria-hidden="true" />
       <div
