@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { ToolContext } from './activity';
 import {
   ADMIN_ONLY_TOOLS,
@@ -14,6 +14,12 @@ import {
 } from './glLiveTour';
 import type { Step } from './glTools';
 import { hiddenToolsFor } from './tools';
+
+const resultsOn = vi.hoisted(() => ({ value: false }));
+vi.mock('./miniAppTools', async (importActual) => ({
+  ...(await importActual<typeof import('./miniAppTools')>()),
+  miniAppResultsOn: () => Promise.resolve(resultsOn.value),
+}));
 
 const ctxFor = (exists: boolean | Error): ToolContext =>
   ({
@@ -122,6 +128,11 @@ describe('live tour tools', () => {
     const hidden = await hiddenToolsFor(ctxFor(false));
     expect(hidden.has('get_mini_app_spec')).toBe(true);
     expect(hidden.has('get_mini_app_results_summary')).toBe(true);
+    resultsOn.value = true;
+    const shown = await hiddenToolsFor(ctxFor(false));
+    resultsOn.value = false;
+    expect(shown.has('get_mini_app_spec')).toBe(false);
+    expect(shown.has('get_mini_app_results_summary')).toBe(false);
   });
 });
 
