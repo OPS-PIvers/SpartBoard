@@ -76,7 +76,7 @@ const isQuestionType = (value: unknown): value is MiniAppQuestionType =>
   QUESTION_TYPES.includes(value as MiniAppQuestionType);
 
 export const jsonBytes = (value: unknown): number =>
-  Buffer.byteLength(JSON.stringify(value ?? null), 'utf8');
+  new TextEncoder().encode(JSON.stringify(value ?? null)).length;
 
 const NAME_KEY =
   /^(first|last|full|given|family|sur|middle|display|student|user|nick)?name$/;
@@ -307,7 +307,8 @@ export function gradeMiniAppResult(
       const entry = key.get(q.id);
       if (keyGrades(q.type, entry)) {
         const points = q.points ?? 1;
-        const correct = item ? gradeAnswer(q.type, entry!, item.answer) : false;
+        const correct =
+          item && entry ? gradeAnswer(q.type, entry, item.answer) : false;
         graded.push({
           id: q.id,
           answer: item?.answer ?? null,
