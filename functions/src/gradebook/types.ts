@@ -41,6 +41,8 @@ export interface RowScore {
   classId: string | null;
   /** Current attempt number when the kind counts attempts; null otherwise. */
   attemptNumber: number | null;
+  /** Mini App results v2 only: who scored the best attempt. */
+  gradedBy?: 'server' | 'app';
 }
 
 export interface SessionMeta {

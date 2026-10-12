@@ -532,11 +532,6 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { user, getAssignmentMode, canAccessFeature } = useAuth();
   const availabilityOn = canAccessFeature('assign-availability');
-  const workKindSetting: WorkKindSetting | undefined = canAccessFeature(
-    'study-resources'
-  )
-    ? { default: resolveWorkKind('mini-app', null) }
-    : undefined;
   const assignmentMode: AssignmentMode = getAssignmentMode('miniApp');
   // View-only shares a link with no classes, so it keeps its own dialog (D20).
   const stepperOn =
@@ -593,6 +588,16 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
 
   // Assign flow state
   const [assigningApp, setAssigningApp] = useState<MiniAppItem | null>(null);
+  // An app that collects results counts as Work, so its scores reach the Gradebook (MINI_APP_RESULTS.md D13).
+  const resultsWork = resultsOn && assigningApp?.collectsResults === true;
+  const defaultWorkKind = resultsWork
+    ? 'work'
+    : resolveWorkKind('mini-app', null);
+  const workKindSetting: WorkKindSetting | undefined = canAccessFeature(
+    'study-resources'
+  )
+    ? { default: defaultWorkKind }
+    : undefined;
   const [assignmentName, setAssignmentName] = useState('');
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [createdSessionId, setCreatedSessionId] = useState<string | null>(null);
@@ -753,7 +758,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           dueAt: targetingForSave.dueAt ?? null,
           ...(targetingForSave.workKind
             ? { workKind: targetingForSave.workKind }
-            : {}),
+            : results && resultsWork
+              ? { workKind: 'work' as const }
+              : {}),
           assignmentId: generatedAssignmentId,
           ...(periodGate ? { periodGate } : {}),
         }
@@ -1482,7 +1489,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         onNameChange={setAssignmentName}
         rosters={rosters}
         initialClassIds={assignPickerValue.rosterIds}
-        defaultKind={resolveWorkKind('mini-app', null)}
+        defaultKind={defaultWorkKind}
         periodAccess={assignPeriodCtx}
         submitting={isCreatingSession}
         onSubmit={handleConfirmAssign}

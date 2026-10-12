@@ -19,6 +19,7 @@ const columnRef = (c: GradebookColumn): GradebookColumnRef => ({
   dueAt: c.dueAt,
   closeAt: c.closeAt,
   config: c.config,
+  completionOnly: c.completionOnly,
 });
 
 /** Mounts the cell and header popover slots against their anchors. */
