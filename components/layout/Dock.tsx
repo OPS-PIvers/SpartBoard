@@ -547,8 +547,11 @@ export const Dock: React.FC = () => {
               'success'
             );
           } else if (result.action === 'import-board') {
-            // Navigate to the share URL to trigger import
-            window.location.href = result.url;
+            // Stay on this origin so a pasted link can't redirect off the app.
+            const sharePath = new URL(result.url).pathname
+              .slice('/share/'.length)
+              .replace(/[^\w/-]/g, '');
+            window.location.assign(`/share/${sharePath}`);
           } else if (result.action === 'create-mini-app') {
             // Open the widget immediately with the HTML running — user can save later
             const id = crypto.randomUUID();
