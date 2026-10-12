@@ -4530,7 +4530,7 @@ describe('generateGuidedLearning', () => {
         contents: { role: string; parts: unknown[] }[];
       },
     ];
-    expect(call.model).toBe('gemini-3.8-flash');
+    expect(call.model).toBe('gemini-3.7-flash');
     expect(call.contents[0].parts[2]).toEqual({
       inlineData: {
         mimeType: VALID_IMAGE.mimeType,
@@ -4676,7 +4676,7 @@ describe('draftGuidedLearningStepTextV1', () => {
     const [call] = generateContentMock.mock.calls[0] as unknown as [
       { model: string; contents: { parts: unknown[] }[] },
     ];
-    expect(call.model).toBe('gemini-3.8-flash');
+    expect(call.model).toBe('gemini-3.7-flash');
     expect(call.contents[0].parts[2]).toEqual({
       inlineData: { mimeType: 'image/png', data: 'AAAA' },
     });

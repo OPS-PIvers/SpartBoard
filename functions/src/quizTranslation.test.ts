@@ -356,7 +356,7 @@ describe('translateQuiz', () => {
       'teacher-1',
       deps({ generate })
     );
-    expect(byDefault.model).toBe('gemini-3.8-flash');
+    expect(byDefault.model).toBe('gemini-3.7-flash');
     const overridden = await translateQuiz(baseRequest(), 'teacher-1', {
       ...deps({
         docs: {

@@ -1350,6 +1350,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'quiz-monitor-declutter': {
+    label: 'Quiz live monitor cleanup',
+    icon: LayoutDashboard,
+    description: 'Simpler Quiz live monitor with Close all and footer buttons.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
 };
 
 /** Retired global ids the Dock reads until a Widgets-page doc exists (plan D3). */
