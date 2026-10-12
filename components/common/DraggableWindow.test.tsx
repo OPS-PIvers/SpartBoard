@@ -1,3 +1,4 @@
+import '@testing-library/jest-dom/vitest';
 import userEvent from '@testing-library/user-event';
 import React from 'react';
 import {
@@ -1294,6 +1295,19 @@ describe('DraggableWindow', () => {
       'test-widget',
       expect.objectContaining({ maximized: false })
     );
+  });
+
+  it('reveals the maximized bar from a tap on the top handle', () => {
+    renderComponent({ maximized: true });
+    const bar = document.querySelector('[data-max-bar]');
+    expect(bar?.className).toContain('pointer-events-none');
+
+    fireEvent.click(screen.getByLabelText('Show window controls'));
+
+    expect(bar?.className).toContain('pointer-events-auto');
+    expect(
+      screen.queryByLabelText('Show window controls')
+    ).not.toBeInTheDocument();
   });
 
   it('keeps the maximized bar out while a live tour runs', () => {
