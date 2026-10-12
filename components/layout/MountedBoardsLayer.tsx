@@ -61,7 +61,13 @@ export const MountedBoardsLayer: FC<MountedBoardsLayerProps> = ({
     return s;
   }, [sessions]);
 
-  const mounted = useMountedBoardCache(activeId, dashboards, pinnedIds);
+  const lruMounted = useMountedBoardCache(activeId, dashboards, pinnedIds);
+  // Stable DOM order: React moving a Board node detaches its iframes, which reloads them.
+  const mounted = useMemo(
+    () =>
+      [...lruMounted].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0)),
+    [lruMounted]
+  );
 
   return (
     <div className="relative w-full h-full">
