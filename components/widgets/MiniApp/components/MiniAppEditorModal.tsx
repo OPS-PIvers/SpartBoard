@@ -212,6 +212,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
           questions: draft.key.questions,
         });
         setSavedKeyJson(keyJson);
+        setLoadedKey(draft.key);
       }
     } finally {
       setSaving(false);
