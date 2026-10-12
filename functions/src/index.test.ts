@@ -4243,6 +4243,39 @@ describe('generateWithAI — specificFeatureId accessLevel enforcement', () => {
     );
   });
 
+  it('denies Edit with AI to a non-admin when mini-app-ai-edit has no doc', async () => {
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb({}) as unknown as admin.firestore.Firestore
+    );
+
+    await expect(
+      handler(
+        { ...MINI_APP_DATA, html: '<html>v1</html>' },
+        { auth: NON_ADMIN_AUTH }
+      )
+    ).rejects.toThrow(
+      'Edit with AI is currently restricted to administrators.'
+    );
+  });
+
+  it('lets a non-admin use Edit with AI once mini-app-ai-edit is public', async () => {
+    vi.mocked(admin.firestore).mockReturnValueOnce(
+      makeDb({
+        'mini-app-ai-edit': { enabled: true, accessLevel: 'all' },
+      }) as unknown as admin.firestore.Firestore
+    );
+
+    const err = await handler(
+      { ...MINI_APP_DATA, html: '<html>v1</html>' },
+      { auth: NON_ADMIN_AUTH }
+    ).then(
+      () => null,
+      (e: unknown) => e as Error
+    );
+    expect(err).toBeInstanceOf(Error);
+    expect(err?.name).not.toBe('permission-denied');
+  });
+
   it('does not check accessLevel when no global_permissions doc exists for the feature', async () => {
     vi.mocked(admin.firestore).mockReturnValueOnce(
       makeDb({}) as unknown as admin.firestore.Firestore

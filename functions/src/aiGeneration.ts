@@ -629,6 +629,34 @@ export const generateWithAI = onCall(
       .trim();
     const specificFeatureId = specificFeatureIdFor(genType, data?.source);
 
+    // Edit with AI on a Mini App also needs its own preview flag.
+    if (
+      !isAdmin &&
+      genType === 'mini-app' &&
+      typeof data?.html === 'string' &&
+      data.html.trim()
+    ) {
+      const editDoc = await db
+        .collection('global_permissions')
+        .doc('mini-app-ai-edit')
+        .get();
+      const adminOnly =
+        'Edit with AI is currently restricted to administrators.';
+      if (editDoc.exists) {
+        assertPermissionAllows(
+          editDoc.data() as GlobalPermission,
+          callerToken,
+          {
+            disabled: 'Edit with AI is currently disabled by an administrator.',
+            adminOnly,
+            notBeta: 'You do not have access to Edit with AI.',
+          }
+        );
+      } else if (missingDocDeniesNonAdmin('mini-app-ai-edit')) {
+        throw new HttpsError('permission-denied', adminOnly);
+      }
+    }
+
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
     try {

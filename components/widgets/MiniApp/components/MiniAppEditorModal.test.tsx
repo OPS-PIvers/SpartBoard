@@ -82,6 +82,22 @@ describe('MiniAppEditorModal Edit with AI', () => {
     ).toBeInTheDocument();
   });
 
+  it('shows no Undo AI change after a draft without the edit flag', async () => {
+    vi.mocked(generateMiniAppCode).mockResolvedValue({
+      title: 'Spinner',
+      html: '<html>new</html>',
+    });
+    setup(AI);
+    fireEvent.click(screen.getByRole('button', { name: /Draft with AI/ }));
+    fireEvent.change(screen.getByLabelText('Describe your mini-app'), {
+      target: { value: 'a spinner' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Generate Code/ }));
+
+    await waitFor(() => expect(codeBox()).toHaveValue('<html>new</html>'));
+    expect(screen.queryByRole('button', { name: /Undo AI change/ })).toBeNull();
+  });
+
   it('revises the current code, keeps the title and can undo', async () => {
     vi.mocked(editMiniAppCode).mockResolvedValue({
       title: 'Something else',

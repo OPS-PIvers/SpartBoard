@@ -255,7 +255,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
         ? await editMiniAppCode(html, fullPrompt)
         : await generateMiniAppCode(fullPrompt, 'mini-app');
       if (!editing || !title.trim()) setTitle(result.title);
-      setBeforeAi(html);
+      if (aiEditOn) setBeforeAi(html);
       setHtml(result.html);
       if (editorOn) setView('preview');
       setShowPromptInput(false);
