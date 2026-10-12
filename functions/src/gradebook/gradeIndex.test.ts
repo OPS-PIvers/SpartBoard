@@ -556,6 +556,66 @@ describe('Resource sessions', () => {
   });
 });
 
+describe('Mini App results (MINI_APP_RESULTS.md D13)', () => {
+  const best = { score: 3, maxScore: 4, attemptNo: 2, gradedBy: 'app' };
+  const rowFor = async (session: StubData, submission: StubData) => {
+    const stub = makeStubFirestore({
+      'mini_app_sessions/m1': {
+        teacherUid: 't1',
+        appTitle: 'Fractions',
+        classIds: ['c1'],
+        workKind: 'work',
+        ...session,
+      },
+      'mini_app_sessions/m1/submissions/s1': {
+        studentUid: 'u1',
+        submittedAt: NOW - DAY,
+        ...submission,
+      },
+    });
+    await recomputeSession(stub.db as unknown as Db, 'mini-app', 'm1', NOW);
+    return stub.get('grade_index/m1__u1') as unknown as IndexRow;
+  };
+
+  it('scores a results session from the best attempt', async () => {
+    expect(await rowFor({ resultsVersion: 2 }, { best })).toMatchObject({
+      state: 'scored',
+      points: 3,
+      max: 4,
+      rawPct: 75,
+      gradedBy: 'app',
+      attempts: [],
+    });
+  });
+
+  it('keeps a session without results, or a results session with no score, as completion', async () => {
+    for (const row of [
+      await rowFor({}, { best }),
+      await rowFor({ resultsVersion: 2 }, {}),
+      await rowFor({ resultsVersion: 2 }, { best: { ...best, maxScore: 0 } }),
+    ]) {
+      expect(row).toMatchObject({ state: 'scored', points: null, max: null });
+      expect(row).not.toHaveProperty('gradedBy');
+    }
+  });
+
+  it('rebuilds the row when the best attempt changes', () => {
+    expect(
+      docWriteMatters({
+        kind: 'mini-app',
+        sessionId: 'm1',
+        docId: 's1',
+        before: { studentUid: 'u1', submittedAt: 1, best },
+        after: {
+          studentUid: 'u1',
+          submittedAt: 1,
+          best: { ...best, score: 4 },
+        },
+      })
+    ).toBe(true);
+  });
+});
+
 describe('kill switch', () => {
   it('leaves everything untouched while admin_settings/gradebook_index is off', async () => {
     const stub = seed({ 'admin_settings/gradebook_index': { enabled: false } });
