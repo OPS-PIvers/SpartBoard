@@ -40,7 +40,6 @@ import {
   type LibraryItemNoun,
 } from './DeleteFolderDialog';
 import type { LibraryFolderViewModel } from './LibraryFolderViewContext';
-import { LIBRARY_ROOT_LABEL } from './FolderViewHeader';
 import { folderPath, sameLocation, type LibraryLocation } from './folderView';
 import { SOURCE_LABELS, SOURCE_ORDER } from './sourceFolders';
 import type { PlacedItem } from './useSourceFolders';
@@ -69,6 +68,15 @@ export type FolderDeleteActions = Pick<
   FolderDeleteConfig,
   'deleteItems' | 'isBlocked' | 'blockedReason'
 >;
+
+export interface FolderSidebarExtraNav {
+  id: string;
+  icon: LucideIcon;
+  label: string;
+  count?: number;
+  onClick: () => void;
+  anchor?: TourAnchorAttrs;
+}
 
 export interface FolderSidebarProps {
   /** Which widget's folder tree to render. Reserved for future use. */
@@ -117,6 +125,8 @@ export interface FolderSidebarProps {
   /** Folder view model; when set the panel navigates places instead of filtering. */
   folderView?: LibraryFolderViewModel | null;
 
+  /** Links to another library (e.g. Quiz to Question banks), below a divider. */
+  extraNav?: FolderSidebarExtraNav[];
   anchors?: {
     newFolder?: TourAnchorAttrs;
     root?: TourAnchorAttrs;
@@ -142,6 +152,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   error = null,
   enableDrop = false,
   folderView = null,
+  extraNav,
   anchors,
 }) => {
   const rootDropData = useMemo<FolderDropData>(
@@ -431,7 +442,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         isOver={isRootOver}
         isRail={isRail}
         icon={folderView ? Home : Inbox}
-        label={folderView ? LIBRARY_ROOT_LABEL : 'All items'}
+        label={folderView ? folderView.rootLabel : 'All items'}
         selected={
           folderView
             ? isAt({ kind: 'folder', folderId: null })
@@ -557,6 +568,28 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
             onClick={() => folderView.navigate({ kind: 'recent' })}
             tourId="library-shell.folder-view-recent"
           />
+        </>
+      )}
+
+      {extraNav && extraNav.length > 0 && (
+        <>
+          <div
+            className="border-t border-brand-gray-lightest"
+            style={{ marginBlock: 'min(6px, 1.5cqmin)' }}
+            role="separator"
+          />
+          {extraNav.map((nav) => (
+            <SidebarNavButton
+              key={nav.id}
+              anchor={nav.anchor}
+              isRail={isRail}
+              icon={nav.icon}
+              label={nav.label}
+              selected={false}
+              count={nav.count}
+              onClick={nav.onClick}
+            />
+          ))}
         </>
       )}
 

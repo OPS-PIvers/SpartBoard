@@ -9939,7 +9939,8 @@ export type GlobalFeature =
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
   /** Quiz live monitor declutter (#4023): footer buttons, Close all, no More actions menu for assessments. */
-  | 'quiz-monitor-declutter';
+  | 'quiz-monitor-declutter'
+  | 'quiz-banks-in-library';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

@@ -30,6 +30,7 @@ const model = (
   totals: new Map([['u', { folders: 3, items: 5 }]]),
   folderRows: [],
   itemNoun: ['set', 'sets'],
+  rootLabel: 'Library',
   searchActive: false,
   searchScope: 'folder',
   setSearchScope: vi.fn(),

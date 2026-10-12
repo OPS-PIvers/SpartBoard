@@ -19,8 +19,6 @@ import type {
   LibraryFolderViewModel,
 } from './LibraryFolderViewContext';
 
-export const LIBRARY_ROOT_LABEL = 'Library';
-
 const textStyle: React.CSSProperties = { fontSize: 'min(13px, 4cqmin)' };
 const iconStyle: React.CSSProperties = {
   width: 'min(14px, 4cqmin)',
@@ -84,7 +82,7 @@ const Breadcrumb: React.FC<{ model: LibraryFolderViewModel }> = ({ model }) => {
             );
           } else {
             const label =
-              entry.kind === 'root' ? LIBRARY_ROOT_LABEL : entry.folder.name;
+              entry.kind === 'root' ? model.rootLabel : entry.folder.name;
             const target: LibraryLocation = {
               kind: 'folder',
               folderId: entry.kind === 'root' ? null : entry.folder.id,
@@ -326,7 +324,7 @@ export const FolderViewHeader: React.FC<{
               }}
             >
               {searchScope === 'folder'
-                ? `Search all of ${LIBRARY_ROOT_LABEL}`
+                ? `Search all of ${model.rootLabel}`
                 : `Search only ${openFolder.name}`}
             </button>
           )}

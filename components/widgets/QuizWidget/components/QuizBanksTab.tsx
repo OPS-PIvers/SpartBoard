@@ -41,7 +41,10 @@ import { useFolders } from '@/hooks/useFolders';
 import { useDialog } from '@/context/useDialog';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
-import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
+import type {
+  FolderDeleteActions,
+  FolderSidebarExtraNav,
+} from '@/components/common/library/FolderSidebar';
 import { useLibraryFolderViewEnabled } from '@/components/common/library/useFolderLibraryView';
 import { useSourceFolders } from '@/components/common/library/useSourceFolders';
 import { isSourceFolderId } from '@/components/common/library/sourceFolders';
@@ -82,6 +85,9 @@ export interface QuizBanksTabProps {
   onPreviewSharedBank?: (source: BankSource) => void;
   /** Surfaces a failed folder move (drag or bulk) as a toast. */
   onError?: (message: string) => void;
+  /** Top-level folder name when banks sit inside the Quiz library. */
+  rootLabel?: string;
+  extraNav?: FolderSidebarExtraNav[];
 }
 
 const SORT_OPTIONS: LibrarySortOption[] = [
@@ -147,6 +153,8 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   onUnshareBankFromPlc,
   onPreviewSharedBank,
   onError,
+  rootLabel,
+  extraNav,
 }) => {
   const { showConfirm } = useDialog();
   const confirmDelete = useLibraryDeleteConfirm();
@@ -230,6 +238,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
       foldersLoading: folderState.loading,
       getId: GET_ID,
       itemNoun: BANK_NOUN,
+      rootLabel,
       extraItemFolderIds: teammateFolderIds,
     },
     initialSort: INITIAL_SORT,
@@ -509,6 +518,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
       onDeleteFolder={folderState.deleteFolder}
       {...folderView}
       enableDrop
+      extraNav={extraNav}
       anchors={{
         newFolder: tourTypeAttr('quiz-banks.folder-new', 'quiz'),
         root: tourTypeAttr('quiz-banks.folder-root', 'quiz'),

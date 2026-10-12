@@ -27,6 +27,7 @@ import type { UseLibraryViewOptions, UseLibraryViewResult } from './types';
 import { useLibraryView } from './useLibraryView';
 
 export const LIBRARY_FOLDER_VIEW_FEATURE = 'library-folder-view';
+export const LIBRARY_ROOT_LABEL = 'Library';
 
 /** The `library-folder-view` preview flag, read without requiring an AuthProvider. */
 export function useLibraryFolderViewEnabled(override?: boolean): boolean {
@@ -50,6 +51,8 @@ export interface FolderViewOptions<TItem> {
   /** Defaults to `updatedAt ?? createdAt`. Pass the later of that and the last assign time. */
   getRecentAt?: (item: TItem) => number | null | undefined;
   itemNoun: ItemNoun;
+  /** Defaults to "Library". */
+  rootLabel?: string;
   /** Legacy (flag off) folder filter; defaults to `filterByFolder`. */
   legacyFilter?: (items: TItem[], selectedFolderId: string | null) => TItem[];
   /** Folders of items listed outside `items` (e.g. teammates' banks), counted in folder totals. */
@@ -94,6 +97,7 @@ export function useFolderLibraryView<TItem>(
     foldersLoading,
     getId,
     itemNoun,
+    rootLabel = LIBRARY_ROOT_LABEL,
     getFolderId = defaultFolderId,
     getRecentAt = defaultRecentAt,
     extraItemFolderIds,
@@ -293,6 +297,7 @@ export function useFolderLibraryView<TItem>(
       totals,
       folderRows,
       itemNoun,
+      rootLabel,
       searchActive,
       searchScope,
       setSearchScope,
@@ -314,6 +319,7 @@ export function useFolderLibraryView<TItem>(
     sort,
     totals,
     itemNoun,
+    rootLabel,
     visibleItems,
     itemFolderId,
     getId,

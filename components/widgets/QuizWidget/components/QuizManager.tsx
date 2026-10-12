@@ -64,6 +64,8 @@ import {
   ScanLine,
   ScanText,
   ClipboardCheck,
+  ClipboardList,
+  Library,
 } from 'lucide-react';
 import {
   AssignmentMode,
@@ -746,6 +748,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // Plan D16/D12: the stepper replaces the assign dialog and always prefills last-used rules.
   const stepperOn = !isReview && canAccessFeature('assign-stepper');
   const schoologyToolColumns = canAccessFeature('schoology-tool-columns');
+  // Banks open from the Library sidebar instead of their own tab; Archive reads Completed.
+  const banksInLibrary =
+    !isReview && Boolean(banks) && canAccessFeature('quiz-banks-in-library');
   const prefillLastUsed = assessmentOnly || stepperOn;
   const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
     userId,
@@ -2254,6 +2259,20 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         onDeleteFolder={folderState.deleteFolder}
         {...folderView}
         enableDrop
+        extraNav={
+          banksInLibrary
+            ? [
+                {
+                  id: 'banks',
+                  icon: Library,
+                  label: 'Question banks',
+                  count: banks?.length,
+                  onClick: () => onTabChange?.('banks'),
+                  anchor: tourTypeAttr('quiz-library.banks-link', 'quiz'),
+                },
+              ]
+            : undefined
+        }
         anchors={{
           newFolder: tourTypeAttr('quiz-library.folder-new', 'quiz'),
           root: tourTypeAttr('quiz-library.folder-root', 'quiz'),
@@ -2365,11 +2384,17 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // ─── Shared tab chrome ────────────────────────────────────────────────────
   const tabCounts = {
     library: quizzes.length,
-    ...(banks ? { banks: banks.length } : {}),
+    ...(banks && !banksInLibrary ? { banks: banks.length } : {}),
     active: activeAssignments.length,
     archive: inactiveAssignments.length,
   };
-  const tabLabels = isViewOnly ? { active: 'Shared' } : undefined;
+  const tabLabels =
+    isViewOnly || banksInLibrary
+      ? {
+          ...(isViewOnly ? { active: 'Shared' } : {}),
+          ...(banksInLibrary ? { archive: 'Completed' } : {}),
+        }
+      : undefined;
 
   if (managerTab === 'banks' && banks && onNewBank && onEditBank) {
     return (
@@ -2382,11 +2407,26 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         shell={{
           widgetLabel: 'Quiz',
           widgetType: 'quiz',
-          tab: managerTab,
+          tab: banksInLibrary ? 'library' : managerTab,
           onTabChange: (t) => onTabChange?.(t),
           counts: tabCounts,
           tabLabels,
         }}
+        rootLabel={banksInLibrary ? 'Question banks' : undefined}
+        extraNav={
+          banksInLibrary
+            ? [
+                {
+                  id: 'quizzes',
+                  icon: ClipboardList,
+                  label: 'Quizzes',
+                  count: quizzes.length,
+                  onClick: () => onTabChange?.('library'),
+                  anchor: tourTypeAttr('quiz-banks.quizzes-link', 'quiz'),
+                },
+              ]
+            : undefined
+        }
         onNewBank={onNewBank}
         onImportBank={onImportBank}
         onEditBank={onEditBank}
@@ -2550,7 +2590,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           buildActions={buildArchiveActions}
           syncedGroups={syncedGroups}
           emptyTitle={
-            isViewOnly ? 'No archived shares' : 'No archived assignments'
+            isViewOnly
+              ? 'No archived shares'
+              : banksInLibrary
+                ? 'No completed assignments'
+                : 'No archived assignments'
           }
           tourWidgetType={isReview ? 'review' : 'quiz'}
           emptySub={
