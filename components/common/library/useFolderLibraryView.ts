@@ -27,7 +27,6 @@ import type { UseLibraryViewOptions, UseLibraryViewResult } from './types';
 import { useLibraryView } from './useLibraryView';
 
 export const LIBRARY_FOLDER_VIEW_FEATURE = 'library-folder-view';
-export const LIBRARY_ROOT_LABEL = 'Library';
 
 /** The `library-folder-view` preview flag, read without requiring an AuthProvider. */
 export function useLibraryFolderViewEnabled(override?: boolean): boolean {
@@ -51,12 +50,12 @@ export interface FolderViewOptions<TItem> {
   /** Defaults to `updatedAt ?? createdAt`. Pass the later of that and the last assign time. */
   getRecentAt?: (item: TItem) => number | null | undefined;
   itemNoun: ItemNoun;
-  /** Defaults to "Library". */
-  rootLabel?: string;
   /** Legacy (flag off) folder filter; defaults to `filterByFolder`. */
   legacyFilter?: (items: TItem[], selectedFolderId: string | null) => TItem[];
   /** Folders of items listed outside `items` (e.g. teammates' banks), counted in folder totals. */
   extraItemFolderIds?: readonly (string | null)[];
+  /** Folder of an item listed outside `items`, for drag moves and Undo. */
+  extraFolderIdOf?: (itemId: string) => string | null;
   /** Overrides the feature flag (tests and fixtures). */
   enabled?: boolean;
 }
@@ -97,10 +96,10 @@ export function useFolderLibraryView<TItem>(
     foldersLoading,
     getId,
     itemNoun,
-    rootLabel = LIBRARY_ROOT_LABEL,
     getFolderId = defaultFolderId,
     getRecentAt = defaultRecentAt,
     extraItemFolderIds,
+    extraFolderIdOf,
     legacyFilter = filterByFolder as (
       list: TItem[],
       selected: string | null
@@ -297,12 +296,12 @@ export function useFolderLibraryView<TItem>(
       totals,
       folderRows,
       itemNoun,
-      rootLabel,
       searchActive,
       searchScope,
       setSearchScope,
       pathByItemId,
-      folderIdOf: (itemId) => folderIdById.get(itemId) ?? null,
+      folderIdOf: (itemId) =>
+        folderIdById.get(itemId) ?? extraFolderIdOf?.(itemId) ?? null,
       emptyFolder:
         showRows &&
         openFolderId != null &&
@@ -319,13 +318,13 @@ export function useFolderLibraryView<TItem>(
     sort,
     totals,
     itemNoun,
-    rootLabel,
     visibleItems,
     itemFolderId,
     getId,
     navigate,
     searchScope,
     folderIdById,
+    extraFolderIdOf,
   ]);
 
   const resetToTopLevel = useCallback(() => {

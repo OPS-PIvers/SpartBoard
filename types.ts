@@ -4314,6 +4314,8 @@ export interface QuestionBankMetadata {
   driveFileId: string;
   questionCount: number;
   folderId?: string | null;
+  /** Quiz library folder once banks share the quiz folders; null = filed at the top. */
+  libraryFolderId?: string | null;
   order?: number;
   searchText?: string;
   /** Union of bank tags and every question's tags. */

@@ -446,6 +446,7 @@ const TeacherQuizWidget: React.FC<{
     deleteBank,
     duplicateBank,
     reorderBanks,
+    moveBankToLibraryFolder,
     shareBankWithPlc,
     unshareBankFromPlc,
     appendQuestionsToBank,
@@ -2966,6 +2967,9 @@ const TeacherQuizWidget: React.FC<{
           }
         }}
         onReorderBanks={user?.uid ? reorderBanks : undefined}
+        onMoveBankToLibraryFolder={
+          user?.uid ? moveBankToLibraryFolder : undefined
+        }
         onShareBankWithPlc={(meta) => setShareBankTarget(meta)}
         onUnshareBankFromPlc={async (meta, plcId) => {
           const plcName = plcs.find((p) => p.id === plcId)?.name ?? 'the PLC';

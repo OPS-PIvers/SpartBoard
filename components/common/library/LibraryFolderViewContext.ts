@@ -20,8 +20,6 @@ export interface LibraryFolderViewModel {
   totals: Map<string, FolderTotals>;
   folderRows: LibraryFolderRow[];
   itemNoun: ItemNoun;
-  /** Name of the top level in the sidebar, breadcrumb and move toasts. */
-  rootLabel: string;
   searchActive: boolean;
   searchScope: 'folder' | 'all';
   setSearchScope: (scope: 'folder' | 'all') => void;

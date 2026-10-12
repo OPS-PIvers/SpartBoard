@@ -13449,10 +13449,6 @@ export const TOUR_ANCHORS = {
     label: 'Question banks link in the Quiz library sidebar',
     panel: true,
   },
-  'quiz-banks.quizzes-link': {
-    label: 'Quizzes link in the Question banks sidebar',
-    panel: true,
-  },
   'quiz-banks.folder-root': {
     label: 'Library root folder in the Question banks library',
     panel: true,

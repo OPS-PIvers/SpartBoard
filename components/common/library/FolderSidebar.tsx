@@ -40,6 +40,7 @@ import {
   type LibraryItemNoun,
 } from './DeleteFolderDialog';
 import type { LibraryFolderViewModel } from './LibraryFolderViewContext';
+import { LIBRARY_ROOT_LABEL } from './FolderViewHeader';
 import { folderPath, sameLocation, type LibraryLocation } from './folderView';
 import { SOURCE_LABELS, SOURCE_ORDER } from './sourceFolders';
 import type { PlacedItem } from './useSourceFolders';
@@ -74,6 +75,8 @@ export interface FolderSidebarExtraNav {
   icon: LucideIcon;
   label: string;
   count?: number;
+  /** When set, nothing else in the sidebar shows as selected. */
+  selected?: boolean;
   onClick: () => void;
   anchor?: TourAnchorAttrs;
 }
@@ -379,13 +382,18 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
     for (const [id, t] of folderView.totals) out[id] = t.items;
     return out;
   }, [folderView, itemCounts]);
+  const extraSelected = extraNav?.some((nav) => nav.selected) ?? false;
   const isAt = (target: LibraryLocation): boolean =>
-    folderView != null && sameLocation(folderView.location, target);
-  const treeSelectedId = folderView
-    ? folderView.location.kind === 'folder'
-      ? folderView.location.folderId
-      : NO_FOLDER_SELECTED
-    : selectedFolderId;
+    !extraSelected &&
+    folderView != null &&
+    sameLocation(folderView.location, target);
+  const treeSelectedId = extraSelected
+    ? NO_FOLDER_SELECTED
+    : folderView
+      ? folderView.location.kind === 'folder'
+        ? folderView.location.folderId
+        : NO_FOLDER_SELECTED
+      : selectedFolderId;
   const selectFolder = (folderId: string | null): void => {
     if (folderView) folderView.navigate({ kind: 'folder', folderId });
     else onSelectFolder(folderId);
@@ -442,11 +450,11 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         isOver={isRootOver}
         isRail={isRail}
         icon={folderView ? Home : Inbox}
-        label={folderView ? folderView.rootLabel : 'All items'}
+        label={folderView ? LIBRARY_ROOT_LABEL : 'All items'}
         selected={
           folderView
             ? isAt({ kind: 'folder', folderId: null })
-            : selectedFolderId === null
+            : !extraSelected && selectedFolderId === null
         }
         count={folderView ? undefined : totalItemCount}
         onClick={() => selectFolder(null)}
@@ -585,7 +593,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
               isRail={isRail}
               icon={nav.icon}
               label={nav.label}
-              selected={false}
+              selected={nav.selected ?? false}
               count={nav.count}
               onClick={nav.onClick}
             />

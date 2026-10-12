@@ -56,6 +56,7 @@ import {
 import type { LibraryFolderViewModel } from './LibraryFolderViewContext';
 import { NEW_FOLDER_NAME } from './folderView';
 import { acceptsItem, isSourceFolderId, ownParentId } from './sourceFolders';
+import { LIBRARY_ROOT_LABEL } from './FolderViewHeader';
 import {
   folderAwareCollisionDetection,
   type FolderDropData,
@@ -221,8 +222,8 @@ export const LibraryDndContext: React.FC<LibraryDndContextProps> = ({
       await Promise.all(moving.map(async (id) => onDropOnFolder(id, folderId)));
       const name =
         folderId == null
-          ? folderView.rootLabel
-          : (folderView.index.byId.get(folderId)?.name ?? folderView.rootLabel);
+          ? LIBRARY_ROOT_LABEL
+          : (folderView.index.byId.get(folderId)?.name ?? LIBRARY_ROOT_LABEL);
       undoToast(
         `Moved ${countLabel(moving.length, folderView.itemNoun)} to ${name}`,
         async () => {
