@@ -2429,7 +2429,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // New Quiz always opens a menu so every create path starts in one place.
   // Item ids keep the old positional tour keys so saved live tours still find them.
   const primaryAction =
-    managerTab === 'library'
+    managerTab === 'library' || (banksInLibrary && managerTab === 'banks')
       ? {
           label: banksInLibrary ? 'New' : 'New Quiz',
           icon: Plus,
@@ -2588,6 +2588,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           counts: tabCounts,
           tabLabels,
         }}
+        headerAction={banksInLibrary ? primaryAction : undefined}
         libraryFolders={
           banksInLibrary
             ? {
