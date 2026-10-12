@@ -106,6 +106,9 @@ export const TextPopoverInteraction: React.FC<Props> = ({
         : placePopover(box, target as PxRect, container);
 
   const tone = CALLOUT_TONE_STYLES[calloutToneOf(step)];
+  // Unset inherits, as before alignment existed.
+  const popoverAlign =
+    step.calloutAlign === undefined ? undefined : calloutAlignOf(step);
   const overflowing = showFit && fit?.overflow === true;
   const widthPct = calloutWidthPctOf(step);
   const authoredWidth =
@@ -145,11 +148,11 @@ export const TextPopoverInteraction: React.FC<Props> = ({
                 minHeight: boxHeight,
                 padding: '1.4em',
                 overflowWrap: 'anywhere',
-                textAlign: calloutAlignOf(step),
+                textAlign: popoverAlign,
               } as React.CSSProperties)
             : ({
                 '--gl-callout-scale': calloutScaleOf(step),
-                textAlign: calloutAlignOf(step),
+                textAlign: popoverAlign,
                 maxWidth:
                   authoredWidth ??
                   'calc(var(--gl-popover-max-w, min(380px, 90cqw)) * var(--gl-callout-scale))',

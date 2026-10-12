@@ -3116,13 +3116,23 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       let baselineGenerationAtSave = baselineGenerationRef.current;
       // One save at a time: an older transaction retried after a newer one landed rewrites the older state.
       const previous = saveChainRef.current.catch(() => undefined);
+      let chainTimer: ReturnType<typeof setTimeout> | undefined;
       const write = Promise.race([
         previous,
         // A save that never settles must not hold every later one forever.
-        new Promise((resolve) => setTimeout(resolve, SAVE_CHAIN_MAX_WAIT_MS)),
+        new Promise((resolve) => {
+          chainTimer = setTimeout(resolve, SAVE_CHAIN_MAX_WAIT_MS);
+        }),
       ]).then(() => {
+        clearTimeout(chainTimer);
+        // A snapshot merge while queued moved the baseline, so save the merged copy, not the pre-merge one.
+        const merged =
+          baselineGenerationRef.current !== baselineGenerationAtSave;
         baselineGenerationAtSave = baselineGenerationRef.current;
-        return saveDashboard(active, buildSaveBaseline(active.id));
+        const toSave = merged
+          ? (dashboardsRef.current.find((d) => d.id === active.id) ?? active)
+          : active;
+        return saveDashboard(toSave, buildSaveBaseline(active.id));
       });
       saveChainRef.current = write;
       write

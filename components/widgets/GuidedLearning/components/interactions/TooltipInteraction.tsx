@@ -160,7 +160,13 @@ export const TooltipInteraction: React.FC<Props> = ({
   };
 
   const tone = CALLOUT_TONE_STYLES[calloutToneOf(step)];
-  const align = calloutAlignOf(step);
+  // Unset keeps the original side-based alignment so existing sets look the same.
+  const align =
+    step.calloutAlign === undefined
+      ? placement.side === 'left'
+        ? 'right'
+        : 'left'
+      : calloutAlignOf(step);
   const overflowing = showFit && fit?.overflow === true;
   const cardWidth = squeezed
     ? placement.width
