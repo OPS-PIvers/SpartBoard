@@ -135,8 +135,10 @@ const parseTimeMs = (raw: unknown): number => {
  * inline implementation used, so existing Cloud Logging filters keep working.
  */
 export interface HistoryOptions {
-  // Write today's measured day and attach the history series.
+  // Attach the history series.
   record: boolean;
+  // Write the measured day; only the morning run does, after the 24h window closes.
+  saveDay: boolean;
   // Once per org, fill days before the first measured one from dated records.
   estimate: boolean;
 }
@@ -161,7 +163,11 @@ const toMs = (raw: unknown): number => {
 export async function computeAnalyticsForOrg(
   orgId: string,
   logContext: { requestId?: string; scheduled?: boolean } = {},
-  historyOptions: HistoryOptions = { record: false, estimate: false }
+  historyOptions: HistoryOptions = {
+    record: false,
+    saveDay: false,
+    estimate: false,
+  }
 ): Promise<AdminAnalyticsPayload> {
   const db = admin.firestore();
   const now = Date.now();
@@ -301,6 +307,7 @@ export async function computeAnalyticsForOrg(
   );
   const estimateOwed =
     historyOptions.record &&
+    historyOptions.saveDay &&
     historyOptions.estimate &&
     !(await estimateMarkerRef
       .get()
@@ -765,6 +772,7 @@ export async function computeAnalyticsForOrg(
         memberUids,
         authUsersMap,
         datedEvents,
+        saveDay: historyOptions.saveDay,
         estimateMarkerRef: estimateOwed ? estimateMarkerRef : null,
       });
     } catch (err) {
@@ -780,7 +788,8 @@ export async function computeAnalyticsForOrg(
           orgId,
           now,
           signIns: studentSignIns,
-          estimate: historyOptions.estimate,
+          saveDay: historyOptions.saveDay,
+          estimate: historyOptions.saveDay && historyOptions.estimate,
         });
       } catch (err) {
         console.error('[getAdminAnalytics] student history failed', {
@@ -844,19 +853,22 @@ async function recordAndBuildHistory(input: {
     { lastSignInMs: number; lastRefreshMs: number; creationMs: number }
   >;
   datedEvents: [string, number][];
+  saveDay: boolean;
   // Set only while the one-time estimate is owed; written once it is done.
   estimateMarkerRef: admin.firestore.DocumentReference | null;
 }): Promise<AnalyticsHistory> {
   const { orgId, now, memberUids, authUsersMap } = input;
   const today = measuredDateKey(now);
   const existing = await readActivityDays(orgId);
-  const toWrite: DayActivityDoc[] = [
-    {
-      date: today,
-      activeUids: [...new Set(input.dailyActiveUids)].sort(),
-      estimated: false,
-    },
-  ];
+  const toWrite: DayActivityDoc[] = input.saveDay
+    ? [
+        {
+          date: today,
+          activeUids: [...new Set(input.dailyActiveUids)].sort(),
+          estimated: false,
+        },
+      ]
+    : [];
 
   const markerRef = input.estimateMarkerRef;
   if (markerRef) {
@@ -872,7 +884,7 @@ async function recordAndBuildHistory(input: {
     toWrite.push(...estimateActivityDays(events, firstMeasured));
   }
 
-  await writeActivityDays(orgId, toWrite);
+  if (toWrite.length > 0) await writeActivityDays(orgId, toWrite);
   // A marker, not the estimated docs, records the fill so an org with nothing to estimate is not rescanned.
   if (markerRef) {
     await markerRef.set({
@@ -898,22 +910,25 @@ async function recordAndBuildStudentHistory(input: {
   orgId: string;
   now: number;
   signIns: [string, number][];
+  saveDay: boolean;
   estimate: boolean;
 }): Promise<ActivityPoint[]> {
   const { orgId, now, signIns } = input;
   const db = admin.firestore();
   const today = measuredDateKey(now);
   const existing = await readActivityDays(orgId, 'students');
-  const toWrite: DayActivityDoc[] = [
-    {
-      date: today,
-      activeUids: signIns
-        .filter(([, ms]) => ms > 0 && now - ms <= 24 * 60 * 60 * 1000)
-        .map(([uid]) => uid)
-        .sort(),
-      estimated: false,
-    },
-  ];
+  const toWrite: DayActivityDoc[] = input.saveDay
+    ? [
+        {
+          date: today,
+          activeUids: signIns
+            .filter(([, ms]) => ms > 0 && now - ms <= 24 * 60 * 60 * 1000)
+            .map(([uid]) => uid)
+            .sort(),
+          estimated: false,
+        },
+      ]
+    : [];
 
   const markerRef = db.doc(
     `organizations/${orgId}/analytics/student_history_estimate`
@@ -944,7 +959,7 @@ async function recordAndBuildStudentHistory(input: {
     }
   }
 
-  await writeActivityDays(orgId, toWrite, 'students');
+  if (toWrite.length > 0) await writeActivityDays(orgId, toWrite, 'students');
   if (estimateOwed) {
     await markerRef.set({ estimatedAt: now, days: toWrite.length - 1 });
   }

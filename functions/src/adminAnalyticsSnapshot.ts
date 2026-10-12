@@ -8,7 +8,7 @@
  * Functions + Firestore bill (see `docs/CLOUD_FUNCTIONS_COST_OPTIMIZATION.md`).
  *
  * The cache architecture:
- *   - `recomputeAdminAnalytics` runs once a day at 5 AM Central, iterates
+ *   - `recomputeAdminAnalytics` runs at 5 AM, 12 PM and 3 PM Central, iterates
  *     every non-archived org, and writes the computed payload to
  *     `/organizations/{orgId}/analytics/snapshot` with `computedAt` and
  *     `nextRecomputeAt` timestamps.
@@ -30,6 +30,7 @@ import {
   computeAnalyticsForOrg,
   type AdminAnalyticsPayload,
 } from './adminAnalyticsCompute';
+import { chicagoHour, nextChicagoHourMs } from './adminAnalyticsHistory';
 
 // Skip archived orgs. Active + trial both get recomputed.
 const ACTIVE_ORG_STATUSES = new Set(['active', 'trial']);
@@ -42,7 +43,8 @@ const ACTIVE_ORG_STATUSES = new Set(['active', 'trial']);
  */
 export const SNAPSHOT_SCHEMA_VERSION = 1;
 
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+// District-time hours; keep in sync with the cron below.
+const RUN_HOURS = [5, 12, 15] as const;
 
 export interface AnalyticsSnapshotDoc {
   schemaVersion: number;
@@ -53,14 +55,13 @@ export interface AnalyticsSnapshotDoc {
 }
 
 /**
- * Scheduled daily recompute. 5 AM America/Chicago — off-peak for US-Central
- * teachers, well clear of the morning login wave. 4 GiB / 540 s ceilings
+ * Scheduled recompute at 5 AM, 12 PM and 3 PM America/Chicago. 4 GiB / 540 s ceilings
  * mirror the previous HTTP handler since the compute work itself is
  * unchanged; only its trigger surface moved.
  */
 export const recomputeAdminAnalytics = onSchedule(
   {
-    schedule: '0 5 * * *',
+    schedule: '0 5,12,15 * * *',
     timeZone: 'America/Chicago',
     memory: '4GiB',
     timeoutSeconds: 540,
@@ -68,6 +69,8 @@ export const recomputeAdminAnalytics = onSchedule(
   async () => {
     const startedAt = Date.now();
     const db = admin.firestore();
+    // measuredDateKey only names the right day before 6 AM.
+    const saveDay = chicagoHour(startedAt) < 6;
 
     const orgsSnap = await db.collection('organizations').get();
     const targetOrgs: string[] = [];
@@ -97,7 +100,7 @@ export const recomputeAdminAnalytics = onSchedule(
         payload = await computeAnalyticsForOrg(
           orgId,
           { scheduled: true },
-          { record: true, estimate: true }
+          { record: true, saveDay, estimate: true }
         );
       } catch (err) {
         failed += 1;
@@ -119,7 +122,7 @@ export const recomputeAdminAnalytics = onSchedule(
         const snapshot: AnalyticsSnapshotDoc = {
           schemaVersion: SNAPSHOT_SCHEMA_VERSION,
           computedAt,
-          nextRecomputeAt: computedAt + ONE_DAY_MS,
+          nextRecomputeAt: nextChicagoHourMs(computedAt, RUN_HOURS),
           computeDurationMs: computedAt - orgStartedAt,
           payload,
         };
