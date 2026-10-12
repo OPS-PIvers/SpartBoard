@@ -15,6 +15,7 @@ import {
 } from './aiModelConfig';
 import { AI_INTEGRATIONS, type AiIntegrationId } from './aiIntegrations';
 import { providerOf, type AiProvider, type AiTier } from './aiModels';
+import { CLAUDE_OUTPUT_TOKENS_DEFAULTS } from './aiLimits';
 import { normalizeModelName } from './shared';
 
 /** One of text, inline bytes or a file URI, in Gemini's part shape. */
@@ -224,7 +225,7 @@ async function callClaude(
     .stream(
       {
         model,
-        max_tokens: req.maxOutputTokens ?? 16000,
+        max_tokens: req.maxOutputTokens ?? CLAUDE_OUTPUT_TOKENS_DEFAULTS[tier],
         ...(system ? { system } : {}),
         // Media before text, as Claude reads documents best that way.
         messages: [{ role: 'user', content: [...media, ...texts] }],
@@ -321,6 +322,10 @@ export async function generateAi(
   const config = await getAiModelConfig(db);
   const tier = req.tier ?? AI_INTEGRATIONS[req.integration].tier;
   const { model, geminiFallback } = chooseModels(req, config);
+  // The admin's output limit for this integration wins over the call site's.
+  const adminOutput =
+    config.integrationLimits[req.integration]?.maxOutputTokens;
+  if (adminOutput) req = { ...req, maxOutputTokens: adminOutput };
   const usedFallbackConfig = config.usedFallback;
 
   let fellBack = false;

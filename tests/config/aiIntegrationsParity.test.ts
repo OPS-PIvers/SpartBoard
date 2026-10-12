@@ -7,6 +7,7 @@ import {
   DEFAULT_ADVANCED_MODEL,
   DEFAULT_STANDARD_MODEL,
 } from '@/config/aiModels';
+import * as clientLimits from '@/config/aiLimits';
 
 const serverSource = (file: string): string =>
   readFileSync(resolve(__dirname, '../../functions/src', file), 'utf8');
@@ -73,5 +74,48 @@ describe('tier default models', () => {
       new RegExp(`${name} = '([^']+)'`).exec(source)?.[1];
     expect(DEFAULT_ADVANCED_MODEL).toBe(read('DEFAULT_ADVANCED_MODEL'));
     expect(DEFAULT_STANDARD_MODEL).toBe(read('DEFAULT_STANDARD_MODEL'));
+  });
+});
+
+describe('AI limits', () => {
+  it('match the server defaults, bounds and prompt-limited list', () => {
+    const source = serverSource('aiLimits.ts');
+    const num = (name: string) =>
+      Number(
+        new RegExp(`const ${name} = ([\\d_]+);`)
+          .exec(source)?.[1]
+          ?.replace(/_/g, '')
+      );
+    for (const name of [
+      'DEFAULT_MAX_INPUT_CHARS',
+      'MIN_INPUT_CHARS',
+      'MAX_INPUT_CHARS',
+      'MIN_OUTPUT_TOKENS',
+      'MAX_OUTPUT_TOKENS',
+    ] as const) {
+      expect(clientLimits[name]).toBe(num(name));
+    }
+    const block = (name: string) =>
+      /=\s*(\{[\s\S]*?\}|\[[\s\S]*?\]);/.exec(
+        source.slice(source.indexOf(name))
+      )?.[1] ?? '';
+    const entries = (text: string) =>
+      Object.fromEntries(
+        [...text.matchAll(/'?([\w-]+)'?: ([\d_]+)/g)].map(([, k, v]) => [
+          k,
+          Number(v.replace(/_/g, '')),
+        ])
+      );
+    expect(clientLimits.INPUT_CHARS_DEFAULTS).toEqual(
+      entries(block('INPUT_CHARS_DEFAULTS'))
+    );
+    expect(clientLimits.CLAUDE_OUTPUT_TOKENS_DEFAULTS).toEqual(
+      entries(block('CLAUDE_OUTPUT_TOKENS_DEFAULTS'))
+    );
+    expect([...clientLimits.PROMPT_LIMITED_INTEGRATIONS]).toEqual(
+      [...block('PROMPT_LIMITED_INTEGRATIONS').matchAll(/'([\w-]+)'/g)].map(
+        (m) => m[1]
+      )
+    );
   });
 });

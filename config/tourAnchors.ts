@@ -6773,6 +6773,16 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'admin.ai.input-limit': {
+    label: 'AI feature input limit',
+    perField: true,
+    panel: true,
+  },
+  'admin.ai.output-limit': {
+    label: 'AI feature output limit',
+    perField: true,
+    panel: true,
+  },
   'admin.gemini.save': {
     label: 'Save Gemini models button',
     persists: true,
