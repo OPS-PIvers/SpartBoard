@@ -1,0 +1,18 @@
+{
+  "spartboard-dev": {
+    "refreshed": "2026-10-12",
+    "tours": [
+      {
+        "id": "3d4f2415-918c-46cd-a568-aabad701b67f",
+        "title": "Sync My Teams tasks to Google Tasks",
+        "anchors": [
+          "plcs.open-plc",
+          "profile.close",
+          "profile.tab-connected-apps",
+          "sidebar.open-menu",
+          "sidebar.profile-settings"
+        ]
+      }
+    ]
+  }
+}

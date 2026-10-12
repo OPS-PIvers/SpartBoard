@@ -253,6 +253,26 @@ jobs:
         id: affected
         run: node scripts/widget-grader/affected.ts --base "origin/${{ github.base_ref }}" --shards 4
 
+  # Fails when an anchor saved live tours use leaves config/tourAnchors.ts; warns on new unanchored controls.
+  tour-anchors:
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-24.04
+    name: Live Tour Anchors
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Check tour anchors
+        run: node scripts/checkTourAnchors.ts --base "origin/${{ github.base_ref }}"
+
   widget-grader-gates:
     needs: grader-scope
     if: needs.grader-scope.outputs.shard_count > 0
@@ -364,6 +384,7 @@ jobs:
         e2e,
         grader-scope,
         widget-grader-gates,
+        tour-anchors,
       ]
     runs-on: ubuntu-24.04
     if: always()
