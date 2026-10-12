@@ -34,6 +34,9 @@ const GEMINI_IDS: string[] = KNOWN_GEMINI_MODELS.map((m) => m.value);
 const FIELD =
   'h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30';
 
+const LIMIT_FIELD =
+  'h-8 w-36 rounded-lg border border-slate-300 bg-white px-2 text-right text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary focus:ring-[3px] focus:ring-brand-blue-primary/30';
+
 const formatCount = (n: number): string =>
   n >= 1_000_000
     ? `${(n / 1_000_000).toFixed(1)}M`
@@ -68,7 +71,9 @@ const LimitField: React.FC<{
   onChange,
 }) => (
   <label className="flex items-center gap-2 text-xs text-slate-600">
-    <span className="font-semibold text-slate-700">{label}</span>
+    <span className="whitespace-nowrap font-semibold text-slate-700">
+      {label}
+    </span>
     <input
       type="number"
       aria-label={`${label} for ${feature}`}
@@ -86,7 +91,7 @@ const LimitField: React.FC<{
           onChange(Math.min(max, Math.max(min, Math.round(value))));
       }}
       {...anchor}
-      className={`${FIELD} h-8 w-32 px-2 text-right`}
+      className={LIMIT_FIELD}
     />
     <span>{unit}</span>
   </label>
