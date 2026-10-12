@@ -1410,6 +1410,30 @@ describe('adminAnalytics', () => {
     expect(result.api.totalCalls).toBe(3);
   });
 
+  it('leaves read-aloud text-to-speech out of AI usage', async () => {
+    mockFirestoreState.users = [
+      {
+        id: 'uid1',
+        data: {
+          email: 'teacher@district.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+    ];
+    mockFirestoreState.dashboards = [];
+    mockFirestoreState.aiUsage = [
+      { id: 'uid1_2026-06-10', data: { count: 2 } },
+      { id: 'uid1_tts_2026-06-10', data: { count: 40, chars: 9000 } },
+      { id: 'global_tts_2026-06', data: { neural2Chars: 9000 } },
+    ];
+
+    const result = await computeAnalyticsForOrg('orono');
+
+    expect(result.api.byFeature['tts']).toBeUndefined();
+    expect(result.api.totalCalls).toBe(2);
+  });
+
   it('adds paper and translation counts to the totals, which have no overall doc', async () => {
     mockFirestoreState.users = [
       {

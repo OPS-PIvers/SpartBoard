@@ -594,7 +594,6 @@ export async function computeAnalyticsForOrg(
     'instructional-routine',
     'widget-builder',
     'widget-explainer',
-    'tts',
     'translation',
     'paper-handwritten-responses',
     'video-activity-ai',
@@ -612,6 +611,9 @@ export async function computeAnalyticsForOrg(
     'plc-meeting-regenerate',
     'plc-goal-coach-checks',
   ];
+
+  // Read-aloud is Cloud Text-to-Speech, not AI; it shares ai_usage only for its billing counters.
+  const NON_AI_USAGE_COUNTERS = ['tts'];
 
   // Features that write no `{uid}_{date}` overall doc, so their per-feature count feeds the totals.
   const FEATURES_WITHOUT_OVERALL_DOC = [
@@ -632,6 +634,7 @@ export async function computeAnalyticsForOrg(
     const datePart = idParts[idParts.length - 1];
     const secondToLast = idParts[idParts.length - 2];
     if (AI_SUB_LIMIT_COUNTERS.includes(secondToLast)) continue;
+    if (NON_AI_USAGE_COUNTERS.includes(secondToLast)) continue;
     const isSpecificFeature = GEMINI_SPECIFIC_FEATURES.includes(secondToLast);
 
     const uidParts = idParts.slice(0, isSpecificFeature ? -2 : -1);
