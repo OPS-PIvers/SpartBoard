@@ -34,6 +34,7 @@
     "test:all": "pnpm test && pnpm -C functions test && pnpm run test:counts",
     "check:rules-size": "node scripts/checkRulesSize.mjs",
     "test:counts": "node scripts/checkTestCounts.mjs",
+    "check:tour-anchors": "node scripts/checkTourAnchors.ts --base origin/dev-paul",
     "test:e2e": "playwright test",
     "test:rules": "firebase emulators:exec --only firestore,storage \"node scripts/runRulesTests.mjs\"",
     "test:perf": "vitest run --config vitest.perf.config.ts",

@@ -1,0 +1,92 @@
+{
+  "spartboard": {
+    "refreshed": "2026-10-12",
+    "tours": [
+      {
+        "id": "424ab204-90a1-41d0-913c-94ee2b5fbb27",
+        "title": "Create a Spartboard Quiz",
+        "anchors": [
+          "dock.item",
+          "editor.close",
+          "editor.title",
+          "library-shell.card-menu",
+          "library-shell.card-menu-item",
+          "library-shell.new",
+          "library-shell.new-menu-item",
+          "library-shell.tab",
+          "quiz-editor.add-question",
+          "quiz-editor.correct",
+          "quiz-editor.option",
+          "quiz-editor.prompt"
+        ]
+      },
+      {
+        "id": "600985fc-93f9-49f4-b736-74b98e279c31",
+        "title": "Find help in SpartBoard",
+        "anchors": [
+          "board-actions.help",
+          "help-center.close",
+          "help-center.guides.category",
+          "help-center.guides.item",
+          "help-center.guides.kind-filter",
+          "help-center.search",
+          "help-center.shortcuts.gestures",
+          "help-center.tab",
+          "help-center.viewer.back"
+        ]
+      },
+      {
+        "id": "3eabb4b6-9450-4bb0-ab02-4e138eab934d",
+        "title": "Group-Maker",
+        "anchors": [
+          "random.class-context",
+          "random.group-color",
+          "random.group-color-swatch",
+          "random.group-size",
+          "random.mode",
+          "random.pick",
+          "widget.window"
+        ]
+      },
+      {
+        "id": "f1b4575b-3dcc-4786-90dc-e6534344ebd0",
+        "title": "Schedule & Timer",
+        "anchors": [
+          "schedule.start-timer",
+          "settings.group",
+          "settings.toggle",
+          "widget.settings-opener",
+          "widget.window"
+        ]
+      },
+      {
+        "id": "f8c55c05-04ba-47a0-b0e4-d374daa9dd3d",
+        "title": "Syncing your Google Calendar",
+        "anchors": [
+          "settings.field",
+          "widget-settings.calendar.add-calendar",
+          "widget-settings.calendar.connect-google",
+          "widget-settings.calendar.instructions",
+          "widget.settings-opener",
+          "widget.window"
+        ]
+      }
+    ]
+  },
+  "spartboard-dev": {
+    "refreshed": "2026-10-12",
+    "tours": [
+      {
+        "id": "3d4f2415-918c-46cd-a568-aabad701b67f",
+        "title": "Sync My Teams tasks to Google Tasks",
+        "anchors": [
+          "plcs.open-plc",
+          "profile.close",
+          "profile.tab-connected-apps",
+          "sidebar.open-menu",
+          "sidebar.profile-settings"
+        ]
+      }
+    ]
+  }
+}
