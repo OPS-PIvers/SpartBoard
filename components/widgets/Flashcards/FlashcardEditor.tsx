@@ -371,13 +371,13 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
             }}
           >
             <div
-              className="grid grid-cols-1 rounded-2xl border border-slate-200 bg-white shadow-sm @[640px]:grid-cols-2"
+              className="grid grid-cols-1 rounded-2xl border border-slate-200 bg-white shadow-sm [@container(min-width:680px)]:grid-cols-2"
               style={{
                 gap: 'min(12px, 3cqmin)',
                 padding: 'min(14px, 3.5cqmin)',
               }}
             >
-              <label className="@[640px]:col-span-2">
+              <label className="[@container(min-width:680px)]:col-span-2">
                 <span
                   className="font-black uppercase tracking-widest text-slate-500"
                   style={{ fontSize: 'min(10px, 3.2cqmin)' }}
@@ -397,7 +397,7 @@ export const FlashcardEditor: React.FC<FlashcardEditorProps> = ({
                   {...tourTypeAttr('editor.title', 'flashcards')}
                 />
               </label>
-              <label className="@[640px]:col-span-2">
+              <label className="[@container(min-width:680px)]:col-span-2">
                 <span
                   className="font-black uppercase tracking-widest text-slate-500"
                   style={{ fontSize: 'min(10px, 3.2cqmin)' }}
