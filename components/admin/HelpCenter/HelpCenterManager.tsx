@@ -7,6 +7,7 @@ import React, {
   useState,
   useSyncExternalStore,
 } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   collection,
   deleteDoc,
@@ -340,6 +341,11 @@ export const HelpCenterManager: React.FC = () => {
             <Toggle
               checked={item.visible}
               onChange={() => void handleToggleVisible(item)}
+              anchor={tourFieldAttr(
+                'admin.help-center.item-toggle',
+                'help',
+                item.id
+              )}
               label={`Visible: ${item.title}`}
               size="sm"
               showLabels={false}
@@ -347,6 +353,7 @@ export const HelpCenterManager: React.FC = () => {
             <button
               type="button"
               aria-label={`Edit ${item.title}`}
+              {...tourFieldAttr('admin.help-center.item-edit', 'help', item.id)}
               onClick={() => {
                 setEditing(item);
                 setFormOpen(true);
@@ -358,6 +365,11 @@ export const HelpCenterManager: React.FC = () => {
             <button
               type="button"
               aria-label={`Delete ${item.title}`}
+              {...tourFieldAttr(
+                'admin.help-center.item-delete',
+                'help',
+                item.id
+              )}
               onClick={() => void handleDelete(item)}
               className="text-slate-400 hover:text-red-600"
             >
@@ -387,6 +399,7 @@ export const HelpCenterManager: React.FC = () => {
           <button
             type="button"
             aria-pressed={sortByOpens}
+            {...tourAttr('admin.help-center.sort-by-opens')}
             onClick={() => setSortByOpens((prev) => !prev)}
             className={`flex items-center gap-1 px-3 py-2 rounded-lg border text-sm ${
               sortByOpens
@@ -400,6 +413,7 @@ export const HelpCenterManager: React.FC = () => {
           <button
             type="button"
             disabled={!canPublish || !hasCategories}
+            {...tourAttr('admin.help-center.add-item')}
             onClick={() => {
               setEditing(null);
               setFormOpen(true);
@@ -485,6 +499,11 @@ export const HelpCenterManager: React.FC = () => {
                   type="button"
                   onClick={() => toggleCollapsed(category.id)}
                   aria-expanded={!isCollapsed}
+                  {...tourFieldAttr(
+                    'admin.help-center.category-toggle',
+                    'help',
+                    category.id || 'uncategorized'
+                  )}
                   className="w-full flex items-center justify-between px-3 py-2 text-left"
                 >
                   <span className="flex items-center gap-2 text-sm font-semibold text-slate-900">
@@ -543,6 +562,7 @@ export const HelpCenterManager: React.FC = () => {
         <button
           type="button"
           aria-expanded={tourHealthOpen}
+          {...tourAttr('admin.help-center.tour-health-toggle')}
           onClick={() => setTourHealthOpen((open) => !open)}
           className="flex items-center gap-1 text-sm font-semibold text-slate-900"
         >

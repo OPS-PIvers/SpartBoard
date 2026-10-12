@@ -10,12 +10,11 @@ vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
 describe('viewAsDrive', () => {
   const realLocal = window.localStorage;
   const realSession = window.sessionStorage;
-  const realFetch = window.fetch;
   let fetchSpy: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     fetchSpy = vi.fn(() => Promise.resolve(new Response('{}')));
-    window.fetch = fetchSpy as unknown as typeof fetch;
+    vi.stubGlobal('fetch', fetchSpy);
     callableMock.mockReset();
   });
 
@@ -28,7 +27,7 @@ describe('viewAsDrive', () => {
       value: realSession,
       configurable: true,
     });
-    window.fetch = realFetch;
+    vi.unstubAllGlobals();
     window.history.replaceState({}, '', '/');
     vi.resetModules();
   });

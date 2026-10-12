@@ -166,6 +166,7 @@ describe('usePlcAutoPullSync', () => {
 
   it('ignores a suspended replica (own publish in flight): no conflict, no pull', async () => {
     const pull = pullMock();
+    const suspendedProps: { suspended: string | null } = { suspended: 'r1' };
     const { result, rerender } = renderHook(
       ({ suspended }: { suspended: string | null }) =>
         usePlcAutoPullSync<Meta>({
@@ -176,7 +177,7 @@ describe('usePlcAutoPullSync', () => {
           pull,
           acknowledgeVersion: ackMock(),
         }),
-      { initialProps: { suspended: 'r1' as string | null } }
+      { initialProps: suspendedProps }
     );
     expect(result.current.conflicts).toEqual([]);
     await new Promise((r) => setTimeout(r, 0));

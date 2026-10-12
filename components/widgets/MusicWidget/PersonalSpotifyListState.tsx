@@ -9,6 +9,7 @@
  */
 
 import React from 'react';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 export const SpotifyRowSkeleton: React.FC = () => (
   <div
@@ -59,6 +60,7 @@ export const SpotifyReconnectBanner: React.FC<{ onReconnect: () => void }> = ({
     <button
       type="button"
       onClick={onReconnect}
+      {...tourTypeAttr('music.spotify-reconnect', 'music')}
       className="rounded-md bg-amber-500 text-amber-950 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
       style={{
         fontSize: 'min(15px, 4.5cqmin)',

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Plus, RotateCcw, Trash2 } from 'lucide-react';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import type { NeedDoPutThenConfig, NeedDoPutThenTile } from '@/types';
 import { IconPicker } from '@/components/widgets/InstructionalRoutines/IconPicker';
 import { getContrastingTextColor } from '@/components/widgets/MaterialsWidget/constants';
@@ -22,8 +23,7 @@ const newTileId = () =>
 
 type TileKey = 'needItems' | 'putItems' | 'thenItems';
 
-const configFor = (ctx: CustomRenderCtx): NeedDoPutThenConfig =>
-  ctx.config as unknown as NeedDoPutThenConfig;
+const configFor = (ctx: CustomRenderCtx): NeedDoPutThenConfig => ctx.config;
 
 const translate = (
   ctx: CustomRenderCtx,
@@ -83,6 +83,11 @@ const TileEditor: React.FC<{
       <div className="flex items-center justify-end">
         <button
           type="button"
+          {...tourFieldAttr(
+            'widget-settings.need-do-put-then.restore-defaults',
+            ctx.widget.type,
+            keyName
+          )}
           onClick={() => updateItems(defaults.map((item) => ({ ...item })))}
           className="flex items-center gap-1 text-xxs font-bold uppercase tracking-wide text-slate-500 hover:text-brand-blue-primary"
           title={translate(ctx, 'restoreDefaults')}
@@ -157,6 +162,11 @@ const TileEditor: React.FC<{
       </div>
       <button
         type="button"
+        {...tourFieldAttr(
+          'widget-settings.need-do-put-then.add-item',
+          ctx.widget.type,
+          keyName
+        )}
         onClick={addItem}
         disabled={items.length >= MAX_TILE_ITEMS}
         className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 py-2 text-xs font-bold text-slate-500 transition-all hover:border-brand-blue-primary hover:text-brand-blue-primary disabled:cursor-not-allowed disabled:opacity-40"
@@ -204,6 +214,11 @@ const ListField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
       <div className="flex items-center justify-end">
         <button
           type="button"
+          {...tourFieldAttr(
+            'widget-settings.need-do-put-then.restore-defaults',
+            ctx.widget.type,
+            'doItems'
+          )}
           onClick={() => updateItems([...DEFAULT_DO_ITEMS])}
           className="flex items-center gap-1 text-xxs font-bold uppercase tracking-wide text-slate-500 hover:text-brand-blue-primary"
           title={translate(ctx, 'restoreDefaults')}
@@ -255,6 +270,11 @@ const ListField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
       {items.length < MAX_LIST_ITEMS && (
         <button
           type="button"
+          {...tourFieldAttr(
+            'widget-settings.need-do-put-then.add-item',
+            ctx.widget.type,
+            'doItems'
+          )}
           onClick={() => updateItems([...items, ''])}
           className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-slate-300 py-2 text-xs font-bold text-slate-500 transition-all hover:border-brand-blue-primary hover:text-brand-blue-primary"
         >

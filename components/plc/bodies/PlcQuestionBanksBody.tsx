@@ -22,6 +22,7 @@ import { loadSyncedBankContent } from '@/hooks/useBankSources';
 import { logError } from '@/utils/logError';
 import { PlcSharePickerModal } from '@/components/plc/PlcSharePickerModal';
 import { PlcViewerReadOnlyBadge } from '@/components/plc/viewer/PlcViewerReadOnlyBadge';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcQuestionBanksBodyProps {
   plc: Plc;
@@ -232,6 +233,7 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
 
   const shareCta = canEdit ? (
     <button
+      {...tourAttr('plc-banks.share')}
       type="button"
       onClick={() => setSharePickerOpen(true)}
       disabled={!isDriveConnected}
@@ -367,6 +369,7 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
                 <div className="shrink-0 flex items-center gap-1.5">
                   {!isOwner && (
                     <button
+                      {...tourFieldAttr('plc-banks.import', 'plc', entry.id)}
                       type="button"
                       onClick={() => void handleImport(entry)}
                       disabled={isBusy || !isDriveConnected}
@@ -391,6 +394,7 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
                   )}
                   {isOwner && canEdit && (
                     <button
+                      {...tourFieldAttr('plc-banks.unshare', 'plc', entry.id)}
                       type="button"
                       onClick={() => void handleUnshare(entry)}
                       disabled={isBusy}

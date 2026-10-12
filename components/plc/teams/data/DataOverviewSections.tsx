@@ -37,6 +37,7 @@ import type {
 } from './dataOverviewModel';
 import { ITEM_COLUMNS, buildItemRows, itemLegend } from './itemAnalysisRows';
 import { useBandLabel, useDateFormat } from './format';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const COMPACT_QUESTIONS = 8;
 
@@ -142,13 +143,20 @@ export const AssessmentHeroView: React.FC<AssessmentHeroViewProps> = ({
                 })}
               </span>
               {onShowLatest && (
-                <TextLink onClick={onShowLatest}>
+                <TextLink
+                  onClick={onShowLatest}
+                  {...tourAttr('teams.hero.show-latest')}
+                >
                   {t('plcDataOverview.showLatest', {
                     defaultValue: 'Show latest',
                   })}
                 </TextLink>
               )}
-              <TextLink quiet onClick={() => setNudge(false)}>
+              <TextLink
+                quiet
+                onClick={() => setNudge(false)}
+                {...tourAttr('teams.hero.keep-pinned')}
+              >
                 {t('plcDataOverview.keepPinned', {
                   defaultValue: 'Keep pinned',
                 })}
@@ -165,12 +173,18 @@ export const AssessmentHeroView: React.FC<AssessmentHeroViewProps> = ({
               title={t('plcDataOverview.changeTitle', {
                 defaultValue: 'Change what the team sees first',
               })}
+              {...tourAttr('teams.hero.change')}
               onClick={onChange}
             >
               {t('plcDataOverview.change', { defaultValue: 'Change' })}
             </Button>
           )}
-          <Button variant="secondary" size="sm" onClick={onOpenResults}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={onOpenResults}
+            {...tourAttr('teams.data.open-results')}
+          >
             {t('plcDataOverview.openResults', {
               defaultValue: 'Open results',
             })}
@@ -229,6 +243,7 @@ export const AssessmentHeroView: React.FC<AssessmentHeroViewProps> = ({
                   defaultValue: 'Sort questions',
                 })}
                 value={sort}
+                anchor={tourAttr('teams.data.sort-questions')}
                 onChange={(v) => setSort(v as 'low' | 'order')}
                 options={[
                   {
@@ -246,7 +261,15 @@ export const AssessmentHeroView: React.FC<AssessmentHeroViewProps> = ({
                 ]}
               />
               <ChartLegend items={itemLegend(t)} />
-              <TableToggle table={table} onToggle={toggleTable} />
+              <TableToggle
+                table={table}
+                onToggle={toggleTable}
+                anchor={tourFieldAttr(
+                  'teams.data.table-toggle',
+                  'teams-data',
+                  'items'
+                )}
+              />
             </>
           )}
         </SectionHead>
@@ -282,7 +305,11 @@ export const AssessmentHeroView: React.FC<AssessmentHeroViewProps> = ({
               })}
             />
             {ordered.length > COMPACT_QUESTIONS && (
-              <TextLink className="mt-2" onClick={() => setShowAll((v) => !v)}>
+              <TextLink
+                className="mt-2"
+                onClick={() => setShowAll((v) => !v)}
+                {...tourAttr('teams.data.show-all-questions')}
+              >
                 {showAll
                   ? t('plcDataOverview.showFewer', {
                       defaultValue: 'Show fewer',
@@ -324,7 +351,15 @@ export const DistributionView: React.FC<{ featured: FeaturedAssessment }> = ({
         meta={featured.shortTitle}
       >
         {dist.status === 'ready' && (
-          <TableToggle table={table} onToggle={toggleTable} />
+          <TableToggle
+            table={table}
+            onToggle={toggleTable}
+            anchor={tourFieldAttr(
+              'teams.data.table-toggle',
+              'teams-data',
+              'distribution'
+            )}
+          />
         )}
       </SectionHead>
       {dist.status !== 'ready' ? (
@@ -395,7 +430,15 @@ export const TrendView: React.FC<{
         })}
       >
         {trend.length > 0 && (
-          <TableToggle table={table} onToggle={toggleTable} />
+          <TableToggle
+            table={table}
+            onToggle={toggleTable}
+            anchor={tourFieldAttr(
+              'teams.data.table-toggle',
+              'teams-data',
+              'trend'
+            )}
+          />
         )}
       </SectionHead>
       {trend.length === 0 ? (
@@ -445,7 +488,15 @@ export const ParticipationView: React.FC<{
         })}
       >
         {rows.length > 0 && (
-          <TableToggle table={table} onToggle={toggleTable} />
+          <TableToggle
+            table={table}
+            onToggle={toggleTable}
+            anchor={tourFieldAttr(
+              'teams.data.table-toggle',
+              'teams-data',
+              'participation'
+            )}
+          />
         )}
       </SectionHead>
       {rows.length === 0 ? (
@@ -547,13 +598,25 @@ export const MasteryView: React.FC<MasteryViewProps> = ({
         })}
       >
         {isLead && onManageTargets && (
-          <TextLink icon={Target} onClick={onManageTargets}>
+          <TextLink
+            icon={Target}
+            onClick={onManageTargets}
+            {...tourAttr('teams.data.manage-targets')}
+          >
             {t('plcDataOverview.manageTargets', {
               defaultValue: 'Manage targets',
             })}
           </TextLink>
         )}
-        <TableToggle table={table} onToggle={toggleTable} />
+        <TableToggle
+          table={table}
+          onToggle={toggleTable}
+          anchor={tourFieldAttr(
+            'teams.data.table-toggle',
+            'teams-data',
+            'mastery'
+          )}
+        />
       </SectionHead>
       {table ? (
         <DataTable
@@ -641,7 +704,7 @@ export const TagPrompt: React.FC<{ onTag: () => void }> = ({ onTag }) => {
         defaultValue:
           'Tag questions to learning targets to see mastery by target.',
       })}
-      <TextLink onClick={onTag}>
+      <TextLink onClick={onTag} {...tourAttr('teams.data.tag-questions')}>
         {t('plcDataOverview.tagQuestions', { defaultValue: 'Tag questions' })}
       </TextLink>
     </p>
@@ -662,7 +725,7 @@ export const RecentAssessmentsView: React.FC<{
           defaultValue: 'Recent assessments',
         })}
       >
-        <TextLink onClick={onAll}>
+        <TextLink onClick={onAll} {...tourAttr('teams.data.all-assessments')}>
           {t('plcDataOverview.allAssessments', {
             defaultValue: 'All assessments',
           })}
@@ -686,6 +749,11 @@ export const RecentAssessmentsView: React.FC<{
             <button
               key={r.assessmentId}
               type="button"
+              {...tourFieldAttr(
+                'teams.data.recent-assessment',
+                'teams-data',
+                r.assessmentId
+              )}
               onClick={() => onOpen(r.assessmentId)}
               className="text-left font-semibold text-brand-blue-primary hover:text-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
             >
@@ -736,7 +804,10 @@ export const MeetingStripView: React.FC<MeetingStripProps> = ({
             {t('plcDataOverview.nextMeeting', { defaultValue: 'Next meeting' })}
           </span>
           <span className="text-slate-500">{nextMeeting}</span>
-          <TextLink onClick={onOpenNote}>
+          <TextLink
+            onClick={onOpenNote}
+            {...tourAttr('teams.data.open-next-note')}
+          >
             {t('plcDataOverview.openNote', { defaultValue: 'Open note' })}
           </TextLink>
         </span>
@@ -754,7 +825,10 @@ export const MeetingStripView: React.FC<MeetingStripProps> = ({
               defaultValue: '{{total}} · {{mine}} yours',
             })}
           </span>
-          <TextLink onClick={onViewItems}>
+          <TextLink
+            onClick={onViewItems}
+            {...tourAttr('teams.data.view-open-items')}
+          >
             {t('plcDataOverview.view', { defaultValue: 'View' })}
           </TextLink>
         </span>

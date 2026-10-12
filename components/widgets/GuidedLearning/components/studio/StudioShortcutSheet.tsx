@@ -6,6 +6,7 @@ import {
   useReturnFocusOnClose,
   useStudioFocusTrap,
 } from './useStudioFocusTrap';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface ShortcutRow {
   id: string;
@@ -115,6 +116,7 @@ export const StudioShortcutSheet: React.FC<{ onClose: () => void }> = ({
           <button
             type="button"
             onClick={onClose}
+            {...tourAttr('modal.close')}
             aria-label={t('glStudio.shortcutsClose')}
             className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
           >

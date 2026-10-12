@@ -50,8 +50,8 @@ const h = vi.hoisted(() => ({
   batchOps: [] as Array<{ type: 'set' | 'delete'; path: string; data?: any }>,
   // 'ok' | 'throw' | 'no-payload'
   verify: {
-    behavior: 'ok' as 'ok' | 'throw' | 'no-payload',
-    payload: {} as Record<string, unknown>,
+    behavior: 'ok',
+    payload: {},
   },
   axiosGet: null as null | ((url: string, cfg?: unknown) => Promise<any>),
 }));

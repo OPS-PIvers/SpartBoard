@@ -15,6 +15,7 @@ import {
 import { Plus, Trash2, GripVertical, Type } from 'lucide-react';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { Card } from '@/components/common/Card';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 interface PollConfigurationPanelProps {
   config: PollGlobalConfig;
@@ -123,6 +124,11 @@ export const PollConfigurationPanel: React.FC<PollConfigurationPanelProps> = ({
           <div className="bg-white border border-slate-200 rounded-lg px-3 py-2 flex items-center gap-2 shadow-sm focus-within:ring-2 focus-within:ring-brand-blue-primary focus-within:border-brand-blue-primary transition-all">
             <Type className="w-4 h-4 text-slate-400 shrink-0" />
             <input
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'poll',
+                'question'
+              )}
               type="text"
               value={question}
               onChange={(e) => handleUpdateQuestion(e.target.value)}
@@ -139,6 +145,7 @@ export const PollConfigurationPanel: React.FC<PollConfigurationPanelProps> = ({
               Default Options ({options.length})
             </label>
             <button
+              {...tourTypeAttr('admin.widget-config.remove', 'poll')}
               onClick={handleResetToDefault}
               className="text-xxs text-slate-400 hover:text-slate-600 font-medium transition-colors"
             >
@@ -155,6 +162,11 @@ export const PollConfigurationPanel: React.FC<PollConfigurationPanelProps> = ({
                 <GripVertical className="w-3.5 h-3.5 text-slate-300 shrink-0" />
 
                 <input
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'poll',
+                    `option-${option.id}`
+                  )}
                   type="text"
                   value={option.label}
                   onChange={(e) =>
@@ -165,6 +177,11 @@ export const PollConfigurationPanel: React.FC<PollConfigurationPanelProps> = ({
                 />
 
                 <button
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'poll',
+                    `remove-${option.id}`
+                  )}
                   onClick={() => handleRemoveOption(index)}
                   disabled={options.length <= 2}
                   className="text-red-400 hover:text-red-600 p-0.5 shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
@@ -182,6 +199,7 @@ export const PollConfigurationPanel: React.FC<PollConfigurationPanelProps> = ({
 
           {/* Add option button */}
           <button
+            {...tourTypeAttr('admin.widget-config.add', 'poll')}
             onClick={handleAddOption}
             className="flex items-center gap-1 px-3 py-1.5 text-xxs font-bold bg-brand-blue-primary text-white rounded hover:bg-brand-blue-dark transition-colors w-full justify-center"
           >

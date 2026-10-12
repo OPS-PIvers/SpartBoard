@@ -5,8 +5,8 @@ vi.mock('@/config/firebase', () => ({ db: {} }));
 
 // Capture the onSnapshot callback so the test can push doc sets.
 let onNext:
-  | ((snap: { docs: { id: string; data: () => unknown }[] }) => void)
-  | null = null;
+  ((snap: { docs: { id: string; data: () => unknown }[] }) => void) | null =
+  null;
 vi.mock('firebase/firestore', () => ({
   collection: (_db: unknown, ...segs: string[]) => ({ path: segs.join('/') }),
   onSnapshot: (

@@ -29,23 +29,25 @@ const setUserAgent = (ua: string) => {
 };
 
 const setMatchMedia = (coarse: boolean) => {
-  window.matchMedia = vi.fn().mockImplementation((q: string) => ({
-    matches: q === '(pointer: coarse)' ? coarse : false,
-    media: q,
-    addListener: vi.fn(),
-    removeListener: vi.fn(),
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-    dispatchEvent: vi.fn(),
-    onchange: null,
-  }));
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn().mockImplementation((q: string) => ({
+      matches: q === '(pointer: coarse)' ? coarse : false,
+      media: q,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+      onchange: null,
+    }))
+  );
 };
 
 describe('installDragSelectEnhancer — preventDefault gating', () => {
   let editor: HTMLDivElement;
   let cleanup: (() => void) | undefined;
   const originalUA = navigator.userAgent;
-  const originalMatchMedia = window.matchMedia;
   const originalCaretAPI = (
     document as unknown as { caretPositionFromPoint?: unknown }
   ).caretPositionFromPoint;
@@ -68,7 +70,7 @@ describe('installDragSelectEnhancer — preventDefault gating', () => {
     cleanup = undefined;
     document.body.removeChild(editor);
     setUserAgent(originalUA);
-    window.matchMedia = originalMatchMedia;
+    vi.unstubAllGlobals();
     (
       document as unknown as { caretPositionFromPoint?: unknown }
     ).caretPositionFromPoint = originalCaretAPI;

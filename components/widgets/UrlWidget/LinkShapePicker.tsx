@@ -1,5 +1,6 @@
 import React from 'react';
 import { Square, Circle } from 'lucide-react';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 export type LinkShape = 'rectangle' | 'circle';
 
@@ -15,6 +16,7 @@ export const LinkShapePicker: React.FC<LinkShapePickerProps> = ({
   <div className="grid grid-cols-2 gap-2">
     <button
       type="button"
+      {...tourFieldAttr('url.shape', 'url', 'rectangle')}
       onClick={() => onChange('rectangle')}
       aria-pressed={shape === 'rectangle'}
       className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xxs font-black uppercase tracking-widest transition-all border-2 ${
@@ -28,6 +30,7 @@ export const LinkShapePicker: React.FC<LinkShapePickerProps> = ({
     </button>
     <button
       type="button"
+      {...tourFieldAttr('url.shape', 'url', 'circle')}
       onClick={() => onChange('circle')}
       aria-pressed={shape === 'circle'}
       className={`flex items-center justify-center gap-1.5 py-1.5 rounded-lg text-xxs font-black uppercase tracking-widest transition-all border-2 ${

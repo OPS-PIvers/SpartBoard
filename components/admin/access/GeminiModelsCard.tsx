@@ -1,4 +1,5 @@
 import React from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { Save, Sparkles } from 'lucide-react';
 import type { GlobalFeaturePermission } from '@/types';
 import { KNOWN_GEMINI_MODELS } from '@/config/geminiModels';
@@ -115,6 +116,7 @@ const GeminiModelConfigSection: React.FC<{
       </label>
       <select
         value={getSelectValue(currentValue, showCustom)}
+        {...tourFieldAttr('admin.gemini.model', 'admin', field)}
         onChange={(e) =>
           handleSelectChange(field, e.target.value, setShowCustom)
         }
@@ -198,6 +200,7 @@ export const GeminiModelsCard: React.FC<{
         onClick={onSave}
         disabled={isSaving || !hasUnsaved}
         aria-label="Save Gemini models"
+        {...tourAttr('admin.gemini.save')}
         className={`p-2 rounded-lg transition-colors disabled:cursor-not-allowed ${
           hasUnsaved
             ? 'bg-orange-600 hover:bg-orange-700 text-white'

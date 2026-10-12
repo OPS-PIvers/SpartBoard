@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { ChevronRight, type LucideIcon } from 'lucide-react';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface TileFrameProps {
   icon: LucideIcon;
@@ -46,6 +47,7 @@ export const TileFrame: React.FC<TileFrameProps> = ({
     <div className="flex-1 min-h-0 px-5 pb-4">{children}</div>
     {link && (
       <button
+        {...tourAttr('plc-home.tile-link')}
         type="button"
         onClick={link.onClick}
         className="flex items-center justify-end gap-1 border-t border-slate-100 px-5 py-2.5 text-xs font-semibold text-brand-blue-primary transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary/40"

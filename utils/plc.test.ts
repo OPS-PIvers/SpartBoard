@@ -152,19 +152,18 @@ describe('plc helpers', () => {
     ...overrides,
   });
 
-  const mapPlc = (members: Record<string, PlcMember>): Plc =>
-    ({
-      id: 'plc-map',
-      name: 'Map PLC',
-      leadUid: 'lead-1',
-      memberUids: Object.keys(members),
-      memberEmails: Object.fromEntries(
-        Object.values(members).map((m) => [m.uid, m.email])
-      ),
-      members,
-      createdAt: 1000,
-      updatedAt: 1000,
-    }) as Plc;
+  const mapPlc = (members: Record<string, PlcMember>): Plc => ({
+    id: 'plc-map',
+    name: 'Map PLC',
+    leadUid: 'lead-1',
+    memberUids: Object.keys(members),
+    memberEmails: Object.fromEntries(
+      Object.values(members).map((m) => [m.uid, m.email])
+    ),
+    members,
+    createdAt: 1000,
+    updatedAt: 1000,
+  });
 
   describe('getPlcMembers', () => {
     it('appends uids present in memberUids but missing from the map', () => {
@@ -243,7 +242,7 @@ describe('plc helpers', () => {
       const plc = {
         ...mockPlc,
         members: {},
-      } as Plc;
+      };
       expect(getPlcMembers(plc).map((m) => m.uid)).toEqual([
         'user-1',
         'user-2',

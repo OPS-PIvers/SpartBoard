@@ -443,6 +443,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
             </label>
             <input
               id={`${headingId}-expires`}
+              {...tourAttr('sub-share.expires')}
               type="datetime-local"
               value={expiresAtIso}
               onChange={(e) => setExpiresAtIso(e.target.value)}
@@ -476,6 +477,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
                         key={email}
                         type="button"
                         aria-pressed={on}
+                        {...tourAttr('sub-share.email-chip')}
                         onClick={() => toggleEmail(email)}
                         className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold transition-colors ${
                           on
@@ -509,6 +511,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
                       <button
                         type="button"
                         onClick={() => toggleEmail(email)}
+                        {...tourAttr('sub-share.remove-email')}
                         aria-label={t(
                           'shareLinkCreatorModal.substitute.removeEmail',
                           { defaultValue: 'Remove email' }
@@ -563,6 +566,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
             <button
               type="button"
               onClick={onClose}
+              {...tourAttr('sub-share.cancel')}
               className="px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100 rounded"
             >
               {t('common.cancel', { defaultValue: 'Cancel' })}
@@ -623,6 +627,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
             <input
               type="text"
               readOnly
+              {...tourAttr('sub-share.url')}
               value={createdUrl}
               aria-label={t('shareWithSub.urlLabel', {
                 defaultValue: 'Sub share link',
@@ -642,6 +647,7 @@ export const ShareWithSubModal: FC<ShareWithSubModalProps> = ({
                   }
                 })();
               }}
+              {...tourAttr('sub-share.copy-link')}
               className="px-2 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 rounded hover:bg-slate-200"
             >
               {t('shareCollection.copy', { defaultValue: 'Copy' })}

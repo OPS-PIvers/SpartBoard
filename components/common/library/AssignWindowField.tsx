@@ -1,4 +1,5 @@
 import React from 'react';
+import type { tourAttr } from '@/config/tourAnchors';
 import {
   localInputValueToMs,
   msToLocalInputValue,
@@ -13,7 +14,9 @@ export const WindowField: React.FC<{
   value: number | undefined;
   onChange: (ms: number | undefined) => void;
   cqScaled?: boolean;
-}> = ({ id, label, className, value, onChange, cqScaled }) => (
+  /** Live-tour anchor attrs from `tourAttr` or `tourFieldAttr`. */
+  anchor?: ReturnType<typeof tourAttr>;
+}> = ({ id, label, className, value, onChange, cqScaled, anchor }) => (
   <label className={`block ${className ?? ''}`} htmlFor={id}>
     <span
       className={
@@ -40,6 +43,7 @@ export const WindowField: React.FC<{
       }
       value={msToLocalInputValue(value)}
       onChange={(e) => onChange(localInputValueToMs(e.target.value))}
+      {...anchor}
     />
   </label>
 );

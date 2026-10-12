@@ -1,10 +1,5 @@
 import React, { useMemo } from 'react';
-import {
-  WidgetData,
-  SoundboardConfig,
-  SoundboardGlobalConfig,
-  SoundboardSound,
-} from '@/types';
+import { WidgetData, SoundboardConfig, SoundboardSound } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import {
   useDashboardActions,
@@ -214,7 +209,7 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
 
   const globalConfig = useMemo(() => {
     const perm = featurePermissions.find((p) => p.widgetType === 'soundboard');
-    return perm?.config as SoundboardGlobalConfig | undefined;
+    return perm?.config;
   }, [featurePermissions]);
 
   // All sounds the teacher has made available (selectedSoundIds pool)

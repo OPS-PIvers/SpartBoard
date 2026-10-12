@@ -223,7 +223,7 @@ function makeWidget(
     h: 1,
     z,
     flipped: false,
-    config: { text: 'test' } as WidgetData['config'],
+    config: { text: 'test' },
     ...extra,
   };
 }
@@ -316,7 +316,7 @@ describe('useDashboardActions identity stability', () => {
     });
     act(() => {
       latestActions(captured).updateWidget('w-2', {
-        config: { text: 'edited' } as WidgetData['config'],
+        config: { text: 'edited' },
       });
     });
     act(() => {

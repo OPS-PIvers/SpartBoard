@@ -163,10 +163,7 @@ working around them.
 
 ```ts
 export type ProjectStepState =
-  | 'notStarted'
-  | 'inProgress'
-  | 'readyForReview'
-  | 'done';
+  'notStarted' | 'inProgress' | 'readyForReview' | 'done';
 
 export interface ProjectStep {
   id: string;

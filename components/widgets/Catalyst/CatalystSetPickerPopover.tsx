@@ -11,6 +11,7 @@ import {
 } from '@/components/widgets/Catalyst/catalystHelpers';
 import { Z_INDEX } from '@/config/zIndex';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 interface Props {
   anchorRect: DOMRect;
@@ -81,6 +82,7 @@ export const CatalystSetPickerPopover: React.FC<Props> = ({
               {selectedSet.routines.map((routine) => (
                 <button
                   key={routine.id}
+                  {...tourTypeAttr('catalyst.picker-routine', 'catalyst')}
                   onClick={() => onSelectRoutine(selectedSet.id, routine.id)}
                   className="w-8 h-8 rounded-lg border border-slate-200 shadow-sm hover:scale-105 transition-all flex items-center justify-center"
                   style={{
@@ -116,6 +118,7 @@ export const CatalystSetPickerPopover: React.FC<Props> = ({
             {sets.map((set) => (
               <button
                 key={set.id}
+                {...tourTypeAttr('catalyst.picker-set', 'catalyst')}
                 onClick={() => {
                   setSelectedSetId(set.id);
                 }}

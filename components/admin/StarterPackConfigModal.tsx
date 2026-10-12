@@ -12,6 +12,7 @@ import { db, isAuthBypass } from '@/config/firebase';
 import { StarterPack } from '@/types';
 import { ALL_GRADE_LEVELS } from '@/config/widgetGradeLevels';
 import { Edit2, Trash2, Wand2 } from 'lucide-react';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { useDialog } from '@/context/useDialog';
 
 const appId =
@@ -145,6 +146,11 @@ export const AdminStarterPackConfig = () => {
             <label className="text-sm font-medium text-slate-700">Name</label>
             <input
               type="text"
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'starter-pack',
+                'name'
+              )}
               value={formData.name ?? ''}
               onChange={(e) =>
                 setFormData({ ...formData, name: e.target.value })
@@ -159,6 +165,11 @@ export const AdminStarterPackConfig = () => {
             </label>
             <input
               type="text"
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'starter-pack',
+                'icon'
+              )}
               value={formData.icon ?? ''}
               onChange={(e) =>
                 setFormData({ ...formData, icon: e.target.value })
@@ -173,6 +184,11 @@ export const AdminStarterPackConfig = () => {
             </label>
             <input
               type="text"
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'starter-pack',
+                'description'
+              )}
               value={formData.description ?? ''}
               onChange={(e) =>
                 setFormData({ ...formData, description: e.target.value })
@@ -191,6 +207,11 @@ export const AdminStarterPackConfig = () => {
                 return (
                   <button
                     key={level}
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'starter-pack',
+                      `gradeLevel-${level}`
+                    )}
                     onClick={() => {
                       const current = formData.gradeLevels ?? [];
                       const next = isSelected
@@ -215,6 +236,7 @@ export const AdminStarterPackConfig = () => {
         <div className="flex justify-end gap-2 pt-2">
           {editingId && (
             <button
+              {...tourTypeAttr('admin.widget-config.close', 'starter-pack')}
               onClick={() => {
                 setEditingId(null);
                 setFormData(INITIAL_FORM_DATA);
@@ -225,6 +247,7 @@ export const AdminStarterPackConfig = () => {
             </button>
           )}
           <button
+            {...tourTypeAttr('admin.widget-config.save', 'starter-pack')}
             onClick={() => {
               void handleSave();
             }}
@@ -269,11 +292,21 @@ export const AdminStarterPackConfig = () => {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleEdit(pack)}
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'starter-pack',
+                      `edit-${pack.id}`
+                    )}
                     className="p-2 text-slate-400 hover:text-brand-blue-primary hover:bg-slate-50 rounded-lg"
                   >
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'starter-pack',
+                      `remove-${pack.id}`
+                    )}
                     onClick={() => {
                       void handleDelete(pack.id);
                     }}

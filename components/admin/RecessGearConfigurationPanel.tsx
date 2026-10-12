@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { RecessGearGlobalConfig, RecessGearTemperatureRange } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 export interface RecessGearConfigurationPanelProps {
   uploadWeatherImage?: (rangeId: string, file: File) => Promise<string>;
@@ -88,6 +89,11 @@ export const RecessGearConfigurationPanel: React.FC<
         </label>
         <div className="flex bg-white rounded-lg border border-slate-200 p-1">
           <button
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'recessGear',
+              'fetchingStrategy-client'
+            )}
             onClick={() =>
               onChange({
                 ...config,
@@ -104,6 +110,11 @@ export const RecessGearConfigurationPanel: React.FC<
             Client (Direct)
           </button>
           <button
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'recessGear',
+              'fetchingStrategy-admin_proxy'
+            )}
             onClick={() =>
               onChange({
                 ...config,
@@ -130,6 +141,11 @@ export const RecessGearConfigurationPanel: React.FC<
             </label>
             <div className="flex bg-white rounded-lg border border-slate-200 p-1">
               <button
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'recessGear',
+                  'source-openweather'
+                )}
                 onClick={() =>
                   onChange({
                     ...config,
@@ -145,6 +161,11 @@ export const RecessGearConfigurationPanel: React.FC<
                 OpenWeather
               </button>
               <button
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'recessGear',
+                  'source-earth_networks'
+                )}
                 onClick={() =>
                   onChange({
                     ...config,
@@ -179,6 +200,11 @@ export const RecessGearConfigurationPanel: React.FC<
                 City (Optional)
               </label>
               <input
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'recessGear',
+                  'city'
+                )}
                 type="text"
                 placeholder="Default: Local Station"
                 value={config.city ?? ''}
@@ -193,6 +219,11 @@ export const RecessGearConfigurationPanel: React.FC<
               Update Frequency (Minutes)
             </label>
             <input
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'recessGear',
+                'updateFrequencyMinutes'
+              )}
               type="number"
               min="5"
               max="1440"
@@ -222,6 +253,11 @@ export const RecessGearConfigurationPanel: React.FC<
           </span>
         </div>
         <Toggle
+          anchor={tourFieldAttr(
+            'admin.widget-config.field',
+            'recessGear',
+            'useFeelsLike'
+          )}
           label="Use Feels Like"
           checked={config.useFeelsLike ?? false}
           onChange={(checked) => onChange({ ...config, useFeelsLike: checked })}
@@ -236,6 +272,7 @@ export const RecessGearConfigurationPanel: React.FC<
             Recess Gear Items
           </label>
           <button
+            {...tourTypeAttr('admin.widget-config.add', 'recessGear')}
             onClick={addRange}
             className="flex items-center gap-1 text-xs font-bold text-brand-blue-primary hover:bg-brand-blue-primary/10 px-2 py-1 rounded transition-colors"
           >
@@ -252,6 +289,11 @@ export const RecessGearConfigurationPanel: React.FC<
             >
               <div className="flex items-center gap-2 flex-wrap">
                 <select
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'recessGear',
+                    `rangeType-${range.id}`
+                  )}
                   value={range.type ?? 'range'}
                   onChange={(e) =>
                     updateRange(range.id, {
@@ -269,6 +311,11 @@ export const RecessGearConfigurationPanel: React.FC<
                 {(range.type === 'range' || !range.type) && (
                   <>
                     <input
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'recessGear',
+                        `rangeMin-${range.id}`
+                      )}
                       type="number"
                       placeholder="Min"
                       value={range.min}
@@ -283,6 +330,11 @@ export const RecessGearConfigurationPanel: React.FC<
                     />
                     <span className="text-slate-400 text-xs">-</span>
                     <input
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'recessGear',
+                        `rangeMax-${range.id}`
+                      )}
                       type="number"
                       placeholder="Max"
                       value={range.max}
@@ -304,6 +356,11 @@ export const RecessGearConfigurationPanel: React.FC<
                       Above
                     </span>
                     <input
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'recessGear',
+                        `rangeAbove-${range.id}`
+                      )}
                       type="number"
                       placeholder="Temp"
                       value={range.min}
@@ -324,6 +381,11 @@ export const RecessGearConfigurationPanel: React.FC<
                       Below
                     </span>
                     <input
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'recessGear',
+                        `rangeBelow-${range.id}`
+                      )}
                       type="number"
                       placeholder="Temp"
                       value={range.max}
@@ -339,6 +401,11 @@ export const RecessGearConfigurationPanel: React.FC<
                 )}
 
                 <select
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'recessGear',
+                    `rangeCategory-${range.id}`
+                  )}
                   value={range.category}
                   onChange={(e) =>
                     updateRange(range.id, {
@@ -355,6 +422,11 @@ export const RecessGearConfigurationPanel: React.FC<
 
                 <div className="flex-1" />
                 <button
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'recessGear',
+                    `remove-${range.id}`
+                  )}
                   onClick={() => removeRange(range.id)}
                   className="text-red-500 hover:text-red-700 p-1"
                 >
@@ -364,6 +436,11 @@ export const RecessGearConfigurationPanel: React.FC<
 
               <div className="flex items-center gap-2">
                 <input
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'recessGear',
+                    `rangeLabel-${range.id}`
+                  )}
                   type="text"
                   placeholder="Gear Label (e.g. Winter Coat)..."
                   value={range.label}
@@ -373,6 +450,11 @@ export const RecessGearConfigurationPanel: React.FC<
                   className="flex-1 px-2 py-1.5 text-xs border border-slate-200 rounded focus:border-brand-blue-primary outline-none"
                 />
                 <input
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'recessGear',
+                    `rangeIcon-${range.id}`
+                  )}
                   type="text"
                   placeholder="Emoji Icon..."
                   value={range.icon ?? ''}
@@ -392,6 +474,11 @@ export const RecessGearConfigurationPanel: React.FC<
                       className="w-full h-full object-cover"
                     />
                     <button
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'recessGear',
+                        `clearImage-${range.id}`
+                      )}
                       onClick={() =>
                         updateRange(range.id, { imageUrl: undefined })
                       }

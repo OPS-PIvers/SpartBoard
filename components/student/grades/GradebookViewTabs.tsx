@@ -1,4 +1,5 @@
 import React from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 
 export type GradebookView = 'scores' | 'targets';
 
@@ -15,6 +16,7 @@ export const GradebookViewTabs: React.FC<{
   <div
     role="tablist"
     aria-label="Gradebook view"
+    {...tourAttr('gradebook.student-view.tab')}
     className="inline-flex items-center gap-1 rounded-full bg-white border border-slate-200 p-1 shadow-sm"
   >
     {TABS.map((tab) => {

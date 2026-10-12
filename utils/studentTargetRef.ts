@@ -389,6 +389,17 @@ export function buildSetAssignmentTargetsPayload(
   };
 }
 
+/** True when an assignment has fanned out pointer docs that carry their own copy of the window. */
+export function hasStudentPointers(assignment: {
+  targetStudents?: readonly unknown[] | null;
+  excludedTargets?: readonly unknown[] | null;
+}): boolean {
+  return (
+    (assignment.targetStudents?.length ?? 0) > 0 ||
+    (assignment.excludedTargets?.length ?? 0) > 0
+  );
+}
+
 /** True when a payload carries work for `setAssignmentTargetsV1`; class-wide no-ops skip the call. */
 export function payloadRequiresCall(
   payload: SetAssignmentTargetsPayload,

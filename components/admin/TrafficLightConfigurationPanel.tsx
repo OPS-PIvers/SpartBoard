@@ -1,3 +1,4 @@
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { Card } from '@/components/common/Card';
 import React from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
@@ -126,6 +127,11 @@ export const TrafficLightConfigurationPanel: React.FC<
                 <button
                   key={String(opt.value)}
                   onClick={() => handleUpdateBuilding({ active: opt.value })}
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'traffic',
+                    `active-${String(opt.value)}`
+                  )}
                   className={`p-3 rounded-lg border text-left flex items-center gap-3 transition-colors ${
                     isSelected ? opt.activeClass : opt.inactiveClass
                   }`}

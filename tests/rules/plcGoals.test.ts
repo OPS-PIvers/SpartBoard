@@ -240,6 +240,62 @@ describe('progress numbers', () => {
   });
 });
 
+describe('SMART frame pieces', () => {
+  const pieces = {
+    dueDate: '2027-05-14',
+    students: 'our 7th graders',
+    outcome: 'write a claim with two pieces of evidence',
+    title: `By May 14, 2027, ${'x'.repeat(400)}.`,
+  };
+
+  it('lets an editor create and update a goal with the pieces', async () => {
+    await assertSucceeds(
+      setDoc(doc(as(EDITOR), GOAL_PATH), goal(EDITOR, pieces))
+    );
+    await assertSucceeds(
+      updateDoc(doc(as(EDITOR), GOAL_PATH), {
+        dueDate: deleteField(),
+        students: 'all 7th graders',
+        updatedAt: 2,
+      })
+    );
+  });
+
+  it('refuses viewers and outsiders writing the pieces', async () => {
+    await assertFails(setDoc(doc(as(VIEWER), GOAL_PATH), goal(VIEWER, pieces)));
+    await assertFails(
+      setDoc(doc(as(OUTSIDER), GOAL_PATH), goal(OUTSIDER, pieces))
+    );
+    await seedGoal();
+    await assertFails(
+      updateDoc(doc(as(VIEWER), GOAL_PATH), { outcome: 'x', updatedAt: 2 })
+    );
+  });
+
+  it('refuses a bad date, long pieces and an over-long sentence', async () => {
+    for (const bad of [
+      { dueDate: 'May 14' },
+      { dueDate: 20270514 },
+      { students: 'x'.repeat(201) },
+      { outcome: 'x'.repeat(301) },
+      { outcome: 5 },
+      { title: 'x'.repeat(601) },
+    ]) {
+      await assertFails(setDoc(doc(as(EDITOR), GOAL_PATH), goal(EDITOR, bad)));
+    }
+  });
+
+  it('lets members read a goal with the pieces and denies outsiders', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), GOAL_PATH), goal(LEAD, pieces));
+    });
+    for (const uid of [LEAD, EDITOR, VIEWER]) {
+      await assertSucceeds(getDoc(doc(as(uid), GOAL_PATH)));
+    }
+    await assertFails(getDoc(doc(as(OUTSIDER), GOAL_PATH)));
+  });
+});
+
 describe('update and delete', () => {
   it('lets an editor change the title, practices and clear the measure', async () => {
     await seedGoal();

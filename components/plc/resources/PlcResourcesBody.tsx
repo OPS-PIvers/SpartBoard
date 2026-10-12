@@ -26,6 +26,7 @@ import { getPlcMemberEmail } from '@/utils/plc';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import type { PlcSectionId } from '@/components/plc/sections';
 import { PlcGroupLinks } from './PlcGroupLinks';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcResourcesBodyProps {
   plc: Plc;
@@ -362,6 +363,7 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
                       )}
                     </div>
                     <button
+                      {...tourFieldAttr('plc-resources.use', 'plc', res.id)}
                       onClick={() => handleUse(res)}
                       disabled={isPending || isDone}
                       className="shrink-0 flex items-center gap-1.5 text-sm font-semibold text-brand-blue-primary hover:text-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors px-3 py-1.5 rounded-lg hover:bg-brand-blue-primary/10"

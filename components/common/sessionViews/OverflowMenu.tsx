@@ -10,6 +10,7 @@ import { MoreHorizontal, Loader2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { Z_INDEX } from '@/config/zIndex';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { useCloseOnHostResize } from '../useCloseOnHostResize';
 import { tourFieldAttr, type TourAnchorId } from '@/config/tourAnchors';
 
@@ -46,6 +47,8 @@ interface OverflowMenuProps {
   triggerStyle?: React.CSSProperties;
   triggerTitle?: string;
   triggerProps?: Record<string, string>;
+  /** Live-tour anchor for the trigger button. */
+  triggerAnchor?: TourAnchorAttrs;
 }
 
 /**
@@ -70,6 +73,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
   triggerStyle,
   triggerTitle,
   triggerProps,
+  triggerAnchor,
 }) => {
   const [open, setOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(
@@ -161,6 +165,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
         aria-expanded={open}
         title={triggerTitle}
         {...triggerProps}
+        {...triggerAnchor}
         onClick={() => setOpen((o) => !o)}
         className={`inline-flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 ${triggerClassName}`}
         style={

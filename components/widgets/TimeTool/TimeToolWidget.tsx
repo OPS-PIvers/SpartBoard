@@ -16,7 +16,7 @@ import {
 import { STANDARD_COLORS } from '@/config/colors';
 import { TIME_TOOL_MAX_DURATION_SECONDS } from '@/config/timeTool';
 import { WidgetLayout } from '../WidgetLayout';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -34,7 +34,8 @@ const AdjustButton: React.FC<{
   disabled?: boolean;
   ariaLabel: string;
   onAdjust: (deltaSeconds: number) => void;
-}> = ({ sign, step, disabled, ariaLabel, onAdjust }) => {
+  anchor?: ReturnType<typeof tourAttr>;
+}> = ({ sign, step, disabled, ariaLabel, onAdjust, anchor }) => {
   const handlers = useHoldAccelerate((multiplier) => {
     if (disabled) return;
     onAdjust(sign * step * multiplier);
@@ -45,6 +46,7 @@ const AdjustButton: React.FC<{
   return (
     <button
       type="button"
+      {...anchor}
       aria-label={ariaLabel}
       disabled={disabled}
       onPointerDown={handlers.onPointerDown}
@@ -126,7 +128,8 @@ const Keypad: React.FC<{
   onConfirm: (totalSeconds: number) => void;
   onCancel: () => void;
   initialSeconds: number;
-}> = ({ onConfirm, onCancel, initialSeconds }) => {
+  widget: WidgetData;
+}> = ({ onConfirm, onCancel, initialSeconds, widget }) => {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeField, setActiveField] = useState<'min' | 'sec'>('min');
@@ -242,6 +245,7 @@ const Keypad: React.FC<{
           }}
         >
           <button
+            {...tourAttr('time-tool.field-minutes', widget.id, widget.type)}
             onClick={() => setActiveField('min')}
             className={`border-2 transition-all ${
               activeField === 'min'
@@ -260,6 +264,7 @@ const Keypad: React.FC<{
           <span className="text-slate-300 opacity-30">:</span>
 
           <button
+            {...tourAttr('time-tool.field-seconds', widget.id, widget.type)}
             onClick={() => setActiveField('sec')}
             className={`border-2 transition-all ${
               activeField === 'sec'
@@ -289,6 +294,7 @@ const Keypad: React.FC<{
           {PRESETS.map((s) => (
             <button
               key={s}
+              {...tourFieldAttr('time-tool.preset', widget.type, String(s))}
               onClick={() => handlePreset(s)}
               className={`rounded-xl font-black transition-all active:scale-95 ${presetBtnColor}`}
               style={{ padding: 'min(8px, 2cqmin)' }}
@@ -311,6 +317,11 @@ const Keypad: React.FC<{
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
             <button
               key={n}
+              {...tourFieldAttr(
+                'time-tool.keypad-digit',
+                widget.type,
+                String(n)
+              )}
               onClick={() => handleInput(n.toString())}
               className={`${btnBase} ${btnColor}`}
               style={{ borderRadius: 'min(16px, 3cqmin)' }}
@@ -320,6 +331,7 @@ const Keypad: React.FC<{
           ))}
 
           <button
+            {...tourAttr('time-tool.keypad-backspace', widget.id, widget.type)}
             onClick={handleBackspace}
             className={`${btnBase} ${btnColor}`}
             style={{ borderRadius: 'min(16px, 3cqmin)' }}
@@ -329,6 +341,7 @@ const Keypad: React.FC<{
           </button>
 
           <button
+            {...tourAttr('time-tool.keypad-zero', widget.id, widget.type)}
             onClick={() => handleInput('0')}
             className={`${btnBase} ${btnColor}`}
             style={{ borderRadius: 'min(16px, 3cqmin)' }}
@@ -337,6 +350,7 @@ const Keypad: React.FC<{
           </button>
 
           <button
+            {...tourAttr('time-tool.confirm', widget.id, widget.type)}
             onClick={() =>
               onConfirm(
                 parseInt(editValues.min) * 60 + parseInt(editValues.sec)
@@ -354,6 +368,7 @@ const Keypad: React.FC<{
         </div>
 
         <button
+          {...tourAttr('time-tool.cancel-edit', widget.id, widget.type)}
           onClick={onCancel}
           className="shrink-0 font-black uppercase tracking-widest text-slate-400 hover:text-brand-red-primary hover:bg-brand-red-lighter/20 transition-all"
           style={{
@@ -478,6 +493,7 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
         >
           {isEditing ? (
             <Keypad
+              widget={widget}
               initialSeconds={config.elapsedTime}
               onConfirm={(s) => {
                 setTime(s);
@@ -511,6 +527,7 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
                 {/* The core centering unit: Time + Absolute Controls */}
                 <div className="relative flex flex-col items-center justify-center">
                   <button
+                    {...tourAttr('time-tool.edit-time', widget.id, widget.type)}
                     onClick={() => {
                       if (!isRunning && mode === 'timer') setIsEditing(true);
                     }}
@@ -590,6 +607,11 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
                         sign={-1}
                         step={effectiveAdjustStep}
                         disabled={displayTime <= 0}
+                        anchor={tourAttr(
+                          'time-tool.subtract-time',
+                          widget.id,
+                          widget.type
+                        )}
                         ariaLabel={t('widgets.timeTool.subtractTime')}
                         onAdjust={adjustTime}
                       />
@@ -653,6 +675,11 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
                         sign={1}
                         step={effectiveAdjustStep}
                         disabled={displayTime >= TIME_TOOL_MAX_DURATION_SECONDS}
+                        anchor={tourAttr(
+                          'time-tool.add-time',
+                          widget.id,
+                          widget.type
+                        )}
                         ariaLabel={t('widgets.timeTool.addTime')}
                         onAdjust={adjustTime}
                       />

@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { Check, ChevronDown } from 'lucide-react';
 import { CellPopover } from '@/components/admin/Organization/components/primitives';
 
@@ -21,6 +22,7 @@ export const ChecklistSelect: React.FC<{
   emptyText: string;
   disabled?: boolean;
   className?: string;
+  anchor?: TourAnchorAttrs;
 }> = ({
   label,
   options,
@@ -29,6 +31,7 @@ export const ChecklistSelect: React.FC<{
   emptyText,
   disabled,
   className = '',
+  anchor,
 }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -43,6 +46,7 @@ export const ChecklistSelect: React.FC<{
   return (
     <>
       <button
+        {...anchor}
         ref={ref}
         type="button"
         aria-label={label}

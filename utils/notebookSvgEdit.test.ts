@@ -15,7 +15,7 @@ const parseSvg = (markup: string): SVGSVGElement => {
   const doc = new DOMParser().parseFromString(markup, 'image/svg+xml');
   const svg = doc.querySelector('svg');
   if (!svg) throw new Error('no svg');
-  return svg as unknown as SVGSVGElement;
+  return svg;
 };
 
 const PAGE = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>

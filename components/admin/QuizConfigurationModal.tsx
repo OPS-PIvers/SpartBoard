@@ -30,6 +30,7 @@ import {
   QUIZ_HAND_RAISE_MODES,
   type QuizHandRaiseMode,
 } from '@/utils/quizHandRaise';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 interface QuizConfigurationModalProps {
   isOpen: boolean;
@@ -202,6 +203,7 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
         </div>
       </div>
       <button
+        {...tourTypeAttr('admin.widget-config.close', 'quiz')}
         onClick={() => void requestClose()}
         aria-label={t('quizAdmin.close', 'Close')}
         className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
@@ -222,6 +224,7 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
       </p>
       <div className="flex gap-3">
         <button
+          {...tourTypeAttr('admin.widget-config.close', 'quiz')}
           onClick={() => void requestClose()}
           className="px-6 py-2.5 rounded-2xl text-sm font-black text-slate-500 hover:bg-white transition-all border border-transparent hover:border-slate-200"
         >
@@ -229,6 +232,7 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
         </button>
         {showFooterSave && (
           <button
+            {...tourTypeAttr('admin.widget-config.save', 'quiz')}
             onClick={() => void handleSave()}
             disabled={saving}
             className="px-8 py-2.5 bg-brand-blue-primary text-white rounded-2xl text-sm font-black shadow-lg hover:bg-brand-blue-dark transition-all flex items-center gap-2 disabled:opacity-50"
@@ -283,6 +287,11 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
           ).map(({ id, label, icon: Icon }) => (
             <button
               key={id}
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'quiz',
+                `tab-${id}`
+              )}
               onClick={() => setTab(id)}
               aria-pressed={tab === id}
               className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest border transition-colors flex items-center gap-2 ${
@@ -343,6 +352,11 @@ export const QuizConfigurationModal: React.FC<QuizConfigurationModalProps> = ({
                       className="flex items-start gap-3 cursor-pointer bg-white p-3 rounded-xl border border-slate-200"
                     >
                       <input
+                        {...tourFieldAttr(
+                          'admin.widget-config.field',
+                          'quiz',
+                          `handRaiseMode-${mode}`
+                        )}
                         type="radio"
                         name="quiz-hand-raise-mode"
                         value={mode}

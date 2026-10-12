@@ -17,6 +17,7 @@ import {
   FLASHCARD_TEST_TYPE_OPTIONS,
 } from '@/components/widgets/Flashcards/utils/flashcardAssignOptions';
 import type { FlashcardsCheckValue } from './flashcardsCheckValue';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export interface FlashcardsCheckContext {
   cardCount: number;
@@ -72,6 +73,7 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
         <SegmentedControl
           role="radiogroup"
           ariaLabel="Mode"
+          anchor={tourAttr('flashcards-check.mode')}
           options={FLASHCARD_MODE_OPTIONS}
           value={value.checkMode}
           onChange={(checkMode) => update({ checkMode })}
@@ -82,6 +84,7 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
         <SegmentedControl
           role="radiogroup"
           ariaLabel="Show first"
+          anchor={tourAttr('flashcards-check.show-first')}
           options={FLASHCARD_SIDE_OPTIONS}
           value={value.showFirst}
           onChange={(showFirst) => update({ showFirst })}
@@ -94,6 +97,7 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
           <Toggle
             size="sm"
             label="Strict mode"
+            anchor={tourAttr('flashcards-check.strict')}
             checked={value.strict}
             onChange={(strict) => update({ strict })}
           />
@@ -131,6 +135,11 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
                     size="sm"
                     label={option.label}
                     disabled={disabled}
+                    anchor={tourFieldAttr(
+                      'flashcards-check.test-type',
+                      'assign',
+                      option.value
+                    )}
                     checked={
                       !disabled && value.testTypes.includes(option.value)
                     }
@@ -151,6 +160,7 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
             </label>
             <select
               id="flashcards-check-count"
+              {...tourAttr('flashcards-check.questions')}
               value={String(testCount)}
               onChange={(event) =>
                 update({
@@ -182,6 +192,7 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
           </label>
           <input
             id="flashcards-check-mastery"
+            {...tourAttr('flashcards-check.mastery')}
             type="number"
             min={MASTERY_MIN}
             max={MASTERY_MAX}
@@ -205,6 +216,7 @@ export const FlashcardsCheckStep: React.FC<FlashcardsCheckStepProps> = ({
         </label>
         <select
           id="flashcards-check-score-visibility"
+          {...tourAttr('flashcards-check.score-visibility')}
           value={value.scoreVisibility}
           onChange={(event) =>
             update({

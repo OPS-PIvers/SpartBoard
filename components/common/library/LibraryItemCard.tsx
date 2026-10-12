@@ -43,7 +43,7 @@ import { useLibraryFolderView } from './LibraryFolderViewContext';
 import { useLibraryDrag } from './LibraryDragContext';
 import { itemMergeDroppableId } from './folderDropTargets';
 import { useCloseOnHostResize } from '../useCloseOnHostResize';
-import { tourFieldAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import type {
   LibraryBadge,
   LibraryBadgeTone,
@@ -214,13 +214,14 @@ const OverflowMenu: React.FC<OverflowMenuProps> = ({
                   }}
                   disabled={item.disabled}
                   title={item.disabled ? item.disabledReason : undefined}
-                  {...(rowKey
-                    ? tourFieldAttr(
-                        'library-shell.card-menu-item',
-                        widgetType,
-                        `${rowKey}-item-${i + 1}`
-                      )
-                    : {})}
+                  {...(item.anchor ??
+                    (rowKey
+                      ? tourFieldAttr(
+                          'library-shell.card-menu-item',
+                          widgetType,
+                          `${rowKey}-item-${i + 1}`
+                        )
+                      : {}))}
                   className={`flex w-full items-center gap-2 px-3 py-1.5 text-left font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                     item.destructive
                       ? 'text-brand-red-dark hover:bg-brand-red-lighter/30'
@@ -379,6 +380,7 @@ const BadgeChip: React.FC<{ badge: LibraryBadge }> = ({ badge }) => {
         }
         title={accessibleLabel}
         aria-label={accessibleLabel}
+        {...tourAttr('library-shell.card-badge')}
         className={`${baseClasses} ${interactiveClasses}`}
         style={baseStyle}
       >
@@ -556,6 +558,13 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
           role="checkbox"
           aria-checked={!!selected}
           aria-label={selected ? `Deselect ${title}` : `Select ${title}`}
+          {...(tourRowKey
+            ? tourFieldAttr(
+                'library-shell.select-item',
+                tourWidgetTypeResolved,
+                tourRowKey
+              )
+            : {})}
           className={`flex shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
             selected
               ? 'border-brand-blue-primary bg-brand-blue-primary text-white'

@@ -38,22 +38,11 @@ import { useSubShareContentLoader } from '@/hooks/useSubShareContentLoader';
 import type {
   DashboardContextValue,
   PendingShareImport,
-  SharedBoardImportMode,
   SubstituteShareInput,
   SubstituteShareResult,
   AnnotationState,
 } from '@/context/DashboardContextValue';
-import type {
-  Dashboard,
-  WidgetData,
-  WidgetType,
-  Toast,
-  GradeFilter,
-  GlobalStyle,
-  AddWidgetOverrides,
-  WidgetConfig,
-  GridPosition,
-} from '@/types';
+import type { Dashboard, WidgetData, Toast } from '@/types';
 import {
   SubsControlContext,
   type SubsControlContextValue,
@@ -363,12 +352,12 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       loading: false,
       isSaving: false,
       saveRetrying: false,
-      gradeFilter: 'all' as GradeFilter,
+      gradeFilter: 'all',
       annotationActive: false,
       annotationState: DEFAULT_ANNOTATION_STATE,
       zoom: 1,
       selectedWidgetId: null,
-      selectedWidgetIds: EMPTY_ARRAY as string[],
+      selectedWidgetIds: EMPTY_ARRAY,
       groupBuildMode: false,
       pendingShareId: null,
       pendingShareImport: null as PendingShareImport | null,
@@ -393,39 +382,24 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
         data?: Dashboard
       ) => Promise<string | undefined>,
       saveCurrentDashboard: NOOP_ASYNC,
-      deleteDashboard: NOOP_ASYNC as (id: string) => Promise<void>,
-      duplicateDashboard: NOOP_ASYNC as (id: string) => Promise<void>,
-      duplicateCollection: NOOP_ASYNC as (id: string) => Promise<void>,
-      renameDashboard: NOOP_ASYNC as (
-        id: string,
-        name: string
-      ) => Promise<void>,
+      deleteDashboard: NOOP_ASYNC,
+      duplicateDashboard: NOOP_ASYNC,
+      duplicateCollection: NOOP_ASYNC,
+      renameDashboard: NOOP_ASYNC,
       loadDashboard: NOOP,
-      reorderDashboards: NOOP_ASYNC as (ids: string[]) => Promise<void>,
-      setDefaultDashboard: NOOP_ASYNC as (boardId: string) => Promise<void>,
-      moveBoardToCollection: NOOP_ASYNC as (
-        boardId: string,
-        collectionId: string | null
-      ) => Promise<void>,
-      pinBoard: NOOP_ASYNC as (boardId: string) => Promise<void>,
-      unpinBoard: NOOP_ASYNC as (boardId: string) => Promise<void>,
+      reorderDashboards: NOOP_ASYNC,
+      setDefaultDashboard: NOOP_ASYNC,
+      moveBoardToCollection: NOOP_ASYNC,
+      pinBoard: NOOP_ASYNC,
+      unpinBoard: NOOP_ASYNC,
       setActiveCollectionId: NOOP,
       setGradeFilter: NOOP,
 
       // Widget CRUD — disallowed for subs. The read-only flag already
       // blocks the canonical provider; we no-op here so a misbehaving
       // widget that calls these directly cannot mutate the board.
-      addWidget: NOOP as (
-        type: WidgetType,
-        overrides?: AddWidgetOverrides
-      ) => void,
-      addWidgets: NOOP as (
-        widgetsToAdd: {
-          type: WidgetType;
-          config?: WidgetConfig;
-          gridConfig?: GridPosition;
-        }[]
-      ) => void,
+      addWidget: NOOP,
+      addWidgets: NOOP,
       removeWidget: NOOP,
       duplicateWidget: NOOP,
       removeWidgets: NOOP,
@@ -442,11 +416,9 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       deleteAllWidgets: NOOP,
       resetWidgetSize: NOOP,
       setBackground: NOOP,
-      setGlobalStyle: NOOP as (style: Partial<GlobalStyle>) => void,
-      updateDashboardSettings: NOOP as (
-        settings: Partial<Dashboard['settings']>
-      ) => void,
-      updateDashboard: NOOP as (updates: Partial<Dashboard>) => void,
+      setGlobalStyle: NOOP,
+      updateDashboardSettings: NOOP,
+      updateDashboard: NOOP,
       updateWidgets: NOOP,
       updateWidgetConfigsAcrossBoards: () => Promise.resolve(),
 
@@ -465,9 +437,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       reportAnnotationCanvasSize: NOOP,
       setZoom: NOOP,
       setSelectedWidgetId: NOOP,
-      setSelectedWidgetIds: NOOP as (
-        ids: string[] | ((prev: string[]) => string[])
-      ) => void,
+      setSelectedWidgetIds: NOOP,
       groupWidgets: NOOP,
       ungroupWidgets: NOOP,
       setGroupBuildMode: NOOP,
@@ -491,11 +461,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       clearPendingSharedCollection: NOOP,
 
       // Sharing — subs never originate shares of their own.
-      shareDashboard: NOOP_ASYNC_STRING as (
-        dashboard: Dashboard,
-        intendedMode?: SharedBoardImportMode,
-        plcId?: string
-      ) => Promise<string>,
+      shareDashboard: NOOP_ASYNC_STRING,
       shareSubstituteDashboard: (
         _input: SubstituteShareInput
       ): Promise<SubstituteShareResult> =>
@@ -504,12 +470,8 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
         Promise.resolve(null),
       clearPendingShare: NOOP,
       cancelPendingShareImport: NOOP,
-      importSharedBoard: NOOP_ASYNC as (
-        mode: SharedBoardImportMode
-      ) => Promise<void>,
-      stopSharingDashboard: NOOP_ASYNC as (
-        dashboardId: string
-      ) => Promise<void>,
+      importSharedBoard: NOOP_ASYNC,
+      stopSharingDashboard: NOOP_ASYNC,
       clearPendingQuizShare: NOOP,
       setPendingQuizShareId: NOOP,
       clearPendingAssignmentShare: NOOP,
@@ -523,13 +485,11 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
 
       // Roster CRUD — subs only read the shared rosters.
       addRoster: () => Promise.resolve(''),
-      updateRoster: NOOP_ASYNC as DashboardContextValue['updateRoster'],
-      deleteRoster: NOOP_ASYNC as DashboardContextValue['deleteRoster'],
+      updateRoster: NOOP_ASYNC,
+      deleteRoster: NOOP_ASYNC,
       setActiveRoster: setSelectedRosterId,
-      setAbsentStudents:
-        NOOP_ASYNC as DashboardContextValue['setAbsentStudents'],
-      appendRosterGroups:
-        NOOP_ASYNC as DashboardContextValue['appendRosterGroups'],
+      setAbsentStudents: NOOP_ASYNC,
+      appendRosterGroups: NOOP_ASYNC,
     };
   }, [
     activeDashboard,

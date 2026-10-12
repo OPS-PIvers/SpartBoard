@@ -252,6 +252,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
               {t('sidebar.groups.typeLabel', { defaultValue: 'Type' })}
             </label>
             <select
+              {...tourAttr('plc-edit.group-type')}
               id="plc-edit-group-type"
               value={groupType}
               onChange={(e) => setGroupType(e.target.value as PlcGroupType)}

@@ -229,6 +229,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
   React.useEffect(() => {
     if (!isOpen) return;
     if (!subBuildingId && defaultBuildingId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- seeds the pick once the async default building arrives
       setSubBuildingId(defaultBuildingId);
       return;
     }
@@ -476,6 +477,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
           <button
             type="button"
             onClick={onClose}
+            {...tourAttr('share-link.close')}
             aria-label={t('shareLinkCreatorModal.close', {
               defaultValue: 'Close',
             })}
@@ -537,6 +539,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
             <input
               type="text"
               readOnly
+              {...tourAttr('share-link.url')}
               value={createdUrl}
               onFocus={(e) => e.currentTarget.select()}
               className="flex-1 bg-transparent text-xs text-slate-700 truncate focus:outline-none"
@@ -547,6 +550,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
             <button
               type="button"
               onClick={() => void handleCopy()}
+              {...tourAttr('share-link.copy')}
               className={`shrink-0 inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-bold transition-colors cursor-pointer ${
                 copied
                   ? 'bg-emerald-100 text-emerald-700'
@@ -571,6 +575,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
           <button
             type="button"
             onClick={onClose}
+            {...tourAttr('share-link.done')}
             className="w-full rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm py-2 transition-colors cursor-pointer"
           >
             {t('shareLinkCreatorModal.done', { defaultValue: 'Done' })}
@@ -589,6 +594,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
             })}
             Icon={Cloud}
             onPick={setMode}
+            tourId="share-link.mode-synced"
           />
           <ModeOption
             mode="view-only"
@@ -601,6 +607,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
             })}
             Icon={Eye}
             onPick={setMode}
+            tourId="share-link.mode-view-only"
           />
           <ModeOption
             mode="copy"
@@ -613,6 +620,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
             })}
             Icon={Copy}
             onPick={setMode}
+            tourId="share-link.mode-copy"
           />
           {offerSubstitute && (
             <ModeOption
@@ -627,6 +635,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
               })}
               Icon={GraduationCap}
               onPick={setMode}
+              tourId="share-link.mode-substitute"
             />
           )}
           {!offerSubstitute && onShareWithSub && (
@@ -672,6 +681,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
                 </label>
                 <input
                   id="sub-expires-at"
+                  {...tourAttr('share-link.sub-expires')}
                   type="datetime-local"
                   value={subExpiresAt}
                   onChange={(e) => setSubExpiresAt(e.target.value)}
@@ -698,6 +708,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
                 </label>
                 <select
                   id="sub-building"
+                  {...tourAttr('share-link.sub-building')}
                   value={subBuildingId}
                   onChange={(e) => setSubBuildingId(e.target.value)}
                   className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
@@ -753,6 +764,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
                           // permanently inert (the onClick guard below
                           // silently no-ops on it with no error feedback).
                           disabled={added || !isValidOronoEmail(email)}
+                          {...tourAttr('share-link.sub-preset-email')}
                           onClick={() =>
                             // Mirror the typed-input path: validate against
                             // the Orono domain and de-dupe before adding
@@ -802,6 +814,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
                               prev.filter((e) => e !== email)
                             )
                           }
+                          {...tourAttr('share-link.sub-remove-email')}
                           aria-label={t(
                             'shareLinkCreatorModal.substitute.removeEmail',
                             { defaultValue: 'Remove email' }
@@ -819,6 +832,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
                   <input
                     type="email"
                     value={subEmailDraft}
+                    {...tourAttr('share-link.sub-email-input')}
                     onChange={(e) => {
                       setSubEmailDraft(e.target.value);
                       setSubEmailError(null);
@@ -835,6 +849,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
                   <button
                     type="button"
                     onClick={handleAddSubEmail}
+                    {...tourAttr('share-link.add-sub-email')}
                     className="shrink-0 inline-flex items-center gap-1 rounded-md bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-700 transition-colors cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
@@ -873,6 +888,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
               </p>
               <select
                 id="share-plc-scope"
+                {...tourAttr('share-link.plc-scope')}
                 value={plcId ?? ''}
                 onChange={(e) => setPlcId(e.target.value || null)}
                 className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
@@ -895,6 +911,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
             onClick={() => void handleCreate()}
             disabled={!canShare || creating || outward.locked}
             title={outward.lockedTitle}
+            {...tourAttr('share-link.create')}
             className="w-full rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold text-sm py-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             {creating

@@ -144,7 +144,7 @@ describe('embedSetImages', () => {
     });
     const fetchMedia = vi
       .fn()
-      .mockResolvedValue({ size: perSlideBytes, type: 'image/png' } as Blob);
+      .mockResolvedValue({ size: perSlideBytes, type: 'image/png' });
     await expect(embedSetImages(set, fetchMedia)).rejects.toThrow(
       GlExportBudgetExceededError
     );
@@ -161,7 +161,7 @@ describe('embedSetImages', () => {
     });
     const fetchMedia = vi
       .fn()
-      .mockResolvedValue({ size: perSlideBytes, type: 'image/png' } as Blob);
+      .mockResolvedValue({ size: perSlideBytes, type: 'image/png' });
     await expect(embedSetImages(set, fetchMedia)).rejects.toThrow(
       GlExportBudgetExceededError
     );
@@ -526,5 +526,99 @@ describe('blobToDataUri', () => {
     const uri = await blobToDataUri(new Blob(['hello'], { type: 'image/png' }));
     const parsed = parseDataUri(uri);
     expect(new TextDecoder().decode(parsed?.bytes)).toBe('hello');
+  });
+});
+
+describe('welcome image transfer', () => {
+  const WELCOME = 'https://example.com/welcome.webp';
+  const pngBlob = () => new Blob(['hello'], { type: 'image/png' });
+
+  it('embeds the welcome image with the slides', async () => {
+    const fetchMedia = vi.fn().mockResolvedValue(pngBlob());
+    const { set: out, warnings } = await embedSetImages(
+      makeSet({ welcomeImageUrl: WELCOME, welcomeImageAlt: 'A cell' }),
+      fetchMedia
+    );
+    expect(fetchMedia).toHaveBeenCalledWith(WELCOME);
+    expect(out.welcomeImageUrl).toMatch(/^data:image\/png;base64,/);
+    expect(out.welcomeImageAlt).toBe('A cell');
+    expect(warnings).toEqual([]);
+  });
+
+  it('keeps the welcome link and warns when it cannot be fetched', async () => {
+    const fetchMedia = vi.fn((url: string) =>
+      url === WELCOME
+        ? Promise.reject(new Error('offline'))
+        : Promise.resolve(pngBlob())
+    );
+    const { set: out, warnings } = await embedSetImages(
+      makeSet({ welcomeImageUrl: WELCOME }),
+      fetchMedia
+    );
+    expect(out.welcomeImageUrl).toBe(WELCOME);
+    expect(warnings).toEqual([
+      'The welcome image could not be embedded and keeps its online link.',
+    ]);
+  });
+
+  it('counts the welcome image against the export budget', async () => {
+    // Three 20MB slides fit (about 80MB as base64); a fourth 20MB image does not.
+    const big = { size: 20 * 1024 * 1024, type: 'image/png' } as Blob;
+    const slides = ['a', 'b', 'c'].map((n) => `https://example.com/${n}.png`);
+    const sized = vi.fn(() => Promise.resolve(big));
+    await expect(
+      embedSetImages(makeSet({ imageUrls: slides }), sized)
+    ).resolves.toBeTruthy();
+    await expect(
+      embedSetImages(
+        makeSet({ imageUrls: slides, welcomeImageUrl: WELCOME }),
+        sized
+      )
+    ).rejects.toBeInstanceOf(GlExportBudgetExceededError);
+  });
+
+  it('uploads an embedded welcome image on import and lists its file', async () => {
+    const upload = vi
+      .fn()
+      .mockResolvedValueOnce({
+        url: 'https://storage/slide.png',
+        storagePath: 'users/u/hotspot_images/slide.png',
+      })
+      .mockResolvedValueOnce({
+        url: 'https://lh3.googleusercontent.com/d/drive-w',
+        storagePath: '',
+        driveFileId: 'drive-w',
+      });
+    const onUploaded = vi.fn();
+    const result = await rehostImportedSetImages(
+      makeSet({ imageUrls: [PNG_DATA_URI], welcomeImageUrl: PNG_DATA_URI }),
+      upload,
+      onUploaded
+    );
+    expect(upload).toHaveBeenLastCalledWith(
+      expect.any(Blob),
+      'imported-welcome.png'
+    );
+    expect(result.set.welcomeImageUrl).toBe(
+      'https://lh3.googleusercontent.com/d/drive-w'
+    );
+    expect(result.driveFileIds).toEqual(['drive-w']);
+    expect(onUploaded).toHaveBeenLastCalledWith('', 'drive-w');
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('drops an unreadable welcome image but still imports the slides', async () => {
+    const result = await rehostImportedSetImages(
+      makeSet({
+        welcomeImageUrl: 'data:text/html;base64,aGk=',
+        welcomeImageAlt: 'Hi',
+      }),
+      vi.fn()
+    );
+    expect(result.set).not.toHaveProperty('welcomeImageUrl');
+    expect(result.set).not.toHaveProperty('welcomeImageAlt');
+    expect(result.warnings).toContain(
+      'The welcome image could not be read and was left out.'
+    );
   });
 });

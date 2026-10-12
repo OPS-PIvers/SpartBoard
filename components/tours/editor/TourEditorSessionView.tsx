@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { shieldTourUi } from '@/components/tours/popups';
 import {
   clearTourEdit,
   getTourEdit,
@@ -17,6 +18,8 @@ const TourEditorSessionView: React.FC = () => {
   const playback = useTourEditPlayback();
   const target = useTourEditTarget();
   useEditorThumbnails(session);
+  // Pick, Add step and Record leave the board's open menu open.
+  useEffect(() => shieldTourUi(), []);
   if (!session || !target) return null;
   // A first failed save keeps the editor open with its alert; Close again while it shows closes anyway.
   const close = async () => {

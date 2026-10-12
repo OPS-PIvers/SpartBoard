@@ -39,8 +39,7 @@ const SyntaxEditorHarness: React.FC = () => {
     t,
     id: 'syntax-editor',
     labelId: 'syntax-editor-label',
-    updateConfig: (patch) =>
-      setConfig((current) => ({ ...current, ...patch }) as SyntaxFramerConfig),
+    updateConfig: (patch) => setConfig((current) => ({ ...current, ...patch })),
   };
 
   return <SyntaxTokenEditorField ctx={ctx} />;

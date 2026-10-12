@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useGradebookLmsPush } from '@/hooks/useGradebookLmsPush';
+import { tourAttr } from '@/config/tourAnchors';
 import { Btn } from './popoverParts';
 import type { GradebookCellData, GradebookColumnRef } from './types';
 
@@ -22,6 +23,7 @@ export const GradebookPushScoresButton: React.FC<{
       {dialog}
       <Btn
         className="px-2"
+        {...tourAttr('gradebook.column.push-lms')}
         disabled={pushing}
         title={`Send final scores to ${lms}`}
         aria-label={`Push final scores to ${lms}`}

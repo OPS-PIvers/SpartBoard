@@ -68,7 +68,14 @@ export const ModerationAndAccess: React.FC<ModerationAndAccessProps> = ({
     />
 
     {classes.length > 0 && (
-      <fieldset className="rounded-xl border border-slate-200 bg-white px-3 py-2.5">
+      <fieldset
+        {...tourAttr(
+          'activity-wall-editor.target-classes',
+          widgetId,
+          widgetType
+        )}
+        className="rounded-xl border border-slate-200 bg-white px-3 py-2.5"
+      >
         <legend className="text-sm font-semibold text-slate-700">
           Target classes
         </legend>

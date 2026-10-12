@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { usePlcMembers, usePlcWhoIsHere } from '@/context/usePlcContext';
 import type { PlcSectionId } from '@/components/plc/sections';
 import { initials } from './avatarInitials';
+import { tourAttr } from '@/config/tourAnchors';
 
 const MAX_VISIBLE = 6;
 
@@ -91,6 +92,7 @@ export const HomeAvatarStack: React.FC<{
   expanded?: boolean;
 }> = ({ people, overflow, onClick, ariaLabel, expanded }) => (
   <button
+    {...tourAttr('plc-home.members-avatars')}
     type="button"
     onClick={onClick}
     aria-label={ariaLabel}

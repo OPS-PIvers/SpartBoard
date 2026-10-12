@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { NotebookObjectLink, PlacedNotebookAsset } from '@/types';
 import { clampPosFrac, clampWidthFrac } from '@/utils/notebookPlacedAssets';
 import { NotebookZoom, useNotebookZoomGestures } from '../useNotebookZoom';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 /** dataTransfer type for an asset dragged from the Assets panel onto a page. */
 export const NOTEBOOK_ASSET_MIME = 'application/notebook-asset';
@@ -299,6 +300,10 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
                     onRemovePlacedAsset(a.id);
                   }}
                   className="absolute -top-2 -right-2 bg-white text-red-500 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-500 hover:text-white"
+                  {...tourTypeAttr(
+                    'smart-notebook.remove-asset',
+                    'smartNotebook'
+                  )}
                   aria-label="Remove asset"
                 >
                   <X
@@ -334,6 +339,7 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
             <button
               key={link.id}
               onClick={() => onFollowLink(link.targetPage)}
+              {...tourTypeAttr('smart-notebook.link-hotspot', 'smartNotebook')}
               className="absolute rounded-md ring-1 ring-transparent hover:ring-2 hover:ring-indigo-500 hover:bg-indigo-500/10 transition-all"
               style={{
                 left: content.left + link.xFrac * content.width,

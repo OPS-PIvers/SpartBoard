@@ -47,18 +47,17 @@ const migratedSchemas = {
 const makeWidget = (
   type: WidgetType,
   config: Record<string, unknown> = {}
-): WidgetData =>
-  ({
-    id: `${type}-1`,
-    type,
-    x: 0,
-    y: 0,
-    w: 500,
-    h: 400,
-    z: 1,
-    flipped: true,
-    config,
-  }) as WidgetData;
+): WidgetData => ({
+  id: `${type}-1`,
+  type,
+  x: 0,
+  y: 0,
+  w: 500,
+  h: 400,
+  z: 1,
+  flipped: true,
+  config,
+});
 
 describe('notice-widget settings-drawer migrations', () => {
   beforeEach(() => {

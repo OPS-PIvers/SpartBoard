@@ -122,7 +122,7 @@ beforeEach(() => {
   };
   global.fetch = vi.fn(() =>
     Promise.resolve({ ok: true, json: () => Promise.resolve({}) } as Response)
-  ) as unknown as typeof fetch;
+  );
 });
 
 describe('archiveActivityWallPhoto resume path', () => {
@@ -191,7 +191,7 @@ describe('archiveActivityWallPhoto resume path', () => {
         ok: false,
         json: () => Promise.resolve({}),
       } as Response)
-    ) as unknown as typeof fetch;
+    );
 
     await expect(
       callableHandler({
@@ -240,7 +240,7 @@ describe('archiveActivityWallPhoto fresh upload path', () => {
         ok: true,
         json: () => Promise.resolve({ id: 'drive-new', files: [] }),
       } as Response)
-    ) as unknown as typeof fetch;
+    );
   });
 
   it('shares a fresh upload per the session driveVisibility', async () => {

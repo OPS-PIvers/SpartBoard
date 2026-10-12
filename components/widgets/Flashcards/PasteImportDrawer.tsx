@@ -5,6 +5,7 @@ import {
   parseFlashcardText,
   type FlashcardImportSeparator,
 } from './utils/flashcardImport';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 interface PasteImportDrawerProps {
   onClose: () => void;
@@ -70,6 +71,7 @@ export const PasteImportDrawer: React.FC<PasteImportDrawerProps> = ({
           className="rounded-lg text-slate-500 hover:bg-slate-100"
           style={{ padding: 'min(6px, 1.5cqmin)' }}
           aria-label="Close paste import"
+          {...tourTypeAttr('flashcards.paste-close', 'flashcards')}
         >
           <X
             style={{
@@ -88,6 +90,7 @@ export const PasteImportDrawer: React.FC<PasteImportDrawerProps> = ({
           <span style={{ fontSize: 'min(11px, 3.5cqmin)' }}>Separator</span>
           <select
             value={separator}
+            {...tourTypeAttr('flashcards.paste-separator', 'flashcards')}
             onChange={(event) =>
               setSeparator(event.target.value as FlashcardImportSeparator)
             }
@@ -112,6 +115,10 @@ export const PasteImportDrawer: React.FC<PasteImportDrawerProps> = ({
             </span>
             <input
               value={customSeparator}
+              {...tourTypeAttr(
+                'flashcards.paste-custom-separator',
+                'flashcards'
+              )}
               onChange={(event) => setCustomSeparator(event.target.value)}
               className="mt-1 w-full rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-rose-500/30"
               style={{
@@ -132,6 +139,7 @@ export const PasteImportDrawer: React.FC<PasteImportDrawerProps> = ({
           </span>
           <textarea
             value={source}
+            {...tourTypeAttr('flashcards.paste-source', 'flashcards')}
             onChange={(event) => setSource(event.target.value)}
             className="mt-1 flex-1 resize-none rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-rose-500/30"
             style={{
@@ -223,6 +231,7 @@ export const PasteImportDrawer: React.FC<PasteImportDrawerProps> = ({
         <button
           type="button"
           disabled={cards.length === 0}
+          {...tourTypeAttr('flashcards.paste-add', 'flashcards')}
           onClick={() => {
             onImport(cards);
             onClose();

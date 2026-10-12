@@ -1,3 +1,4 @@
+import { tourAttr } from '@/config/tourAnchors';
 import React, { useState } from 'react';
 import { ChevronRight, Folder } from 'lucide-react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
@@ -53,6 +54,7 @@ export const CollectionTreeNode: React.FC<CollectionTreeNodeProps> = ({
         ref={setRef}
         {...attributes}
         {...listeners}
+        {...tourAttr('boards-modal.tree-collection')}
         className={`relative flex items-center gap-1 px-1 py-1 rounded-md text-sm cursor-pointer transition-colors ${
           isDragging ? 'opacity-50' : ''
         } ${
@@ -78,6 +80,7 @@ export const CollectionTreeNode: React.FC<CollectionTreeNodeProps> = ({
           // listens for).
           onPointerDown={(e) => e.stopPropagation()}
           aria-label={isExpanded ? 'Collapse' : 'Expand'}
+          {...tourAttr('boards-modal.tree-expand')}
           className={`shrink-0 p-0.5 rounded hover:bg-slate-200 ${
             hasChildren ? 'visible' : 'invisible'
           }`}

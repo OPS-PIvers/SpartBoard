@@ -25,8 +25,7 @@ interface CallableResult {
   names: Record<string, { givenName: string; familyName: string }>;
 }
 type CallableReturn =
-  | Promise<{ data: CallableResult }>
-  | { data: CallableResult };
+  Promise<{ data: CallableResult }> | { data: CallableResult };
 type CallableHandler = (input: CallableInput) => CallableReturn;
 
 let callCount = 0;

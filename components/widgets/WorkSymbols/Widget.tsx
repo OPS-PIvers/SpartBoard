@@ -16,6 +16,7 @@ import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { getFontClass } from '@/utils/styles';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 export const WorkSymbolsWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -142,6 +143,11 @@ export const WorkSymbolsWidget: React.FC<{ widget: WidgetData }> = ({
                   {unselected.map((symbol) => (
                     <button
                       key={symbol.id}
+                      {...tourFieldAttr(
+                        'work-symbols.symbol',
+                        widget.type,
+                        symbol.id
+                      )}
                       onClick={() =>
                         updateConfig({ selectedSymbolId: symbol.id })
                       }

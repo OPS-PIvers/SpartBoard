@@ -1,3 +1,4 @@
+import { tourFieldAttr } from '@/config/tourAnchors';
 import React from 'react';
 import { First5GlobalConfig } from '@/types';
 import { computeCurrentDayNumber } from '@/utils/first5';
@@ -63,12 +64,22 @@ export const First5ConfigurationPanel: React.FC<
             value={todaysDayNumber ?? (activeDayNumber || '')}
             onChange={(e) => handleDayNumberChange(e.target.value)}
             placeholder="e.g. 777"
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'first-5',
+              'activeDayNumber'
+            )}
             className="w-32 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-brand-blue-primary outline-none text-sm"
           />
           {referenceDate && referenceDate !== localTodayISO && (
             <button
               type="button"
               onClick={handleResetToToday}
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'first-5',
+                'syncToToday'
+              )}
               className="px-3 py-2 text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors"
             >
               Sync to Today

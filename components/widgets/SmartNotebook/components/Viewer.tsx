@@ -26,6 +26,7 @@ import {
   visiblePageIndices,
   visiblePositionOf,
 } from '@/utils/notebookPages';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 interface ViewerProps {
   activeNotebook: NotebookItem;
@@ -175,6 +176,7 @@ export const Viewer: React.FC<ViewerProps> = ({
             {sections && sections.length > 1 && (
               <select
                 aria-label="Jump to lesson"
+                {...tourTypeAttr('smart-notebook.lesson-jump', 'smartNotebook')}
                 value={currentSectionIndex >= 0 ? currentSectionIndex : 0}
                 onChange={(e) =>
                   setCurrentPage(sections[Number(e.target.value)].startIndex)
@@ -205,6 +207,7 @@ export const Viewer: React.FC<ViewerProps> = ({
             {onAddPage && (
               <button
                 onClick={onAddPage}
+                {...tourTypeAttr('smart-notebook.add-page', 'smartNotebook')}
                 disabled={pageOpBusy}
                 className={toolBtnClass}
                 style={toolBtnStyle}
@@ -216,6 +219,10 @@ export const Viewer: React.FC<ViewerProps> = ({
             {onToggleHiddenPage && (
               <button
                 onClick={onToggleHiddenPage}
+                {...tourTypeAttr(
+                  'smart-notebook.toggle-hidden-page',
+                  'smartNotebook'
+                )}
                 disabled={pageOpBusy}
                 className={toolBtnClass}
                 style={toolBtnStyle}
@@ -241,6 +248,7 @@ export const Viewer: React.FC<ViewerProps> = ({
             {onDeletePage && (
               <button
                 onClick={onDeletePage}
+                {...tourTypeAttr('smart-notebook.remove-page', 'smartNotebook')}
                 disabled={pageOpBusy}
                 className={toolBtnClass}
                 style={toolBtnStyle}
@@ -252,6 +260,7 @@ export const Viewer: React.FC<ViewerProps> = ({
             {onEditPage && (
               <button
                 onClick={onEditPage}
+                {...tourTypeAttr('smart-notebook.edit-page', 'smartNotebook')}
                 className={toolBtnClass}
                 style={toolBtnStyle}
                 title="Edit page"
@@ -262,6 +271,10 @@ export const Viewer: React.FC<ViewerProps> = ({
             {hasAssets && (
               <button
                 onClick={() => setShowAssets(!showAssets)}
+                {...tourTypeAttr(
+                  'smart-notebook.toggle-assets',
+                  'smartNotebook'
+                )}
                 className={`rounded-xl transition-all shadow-sm border ${
                   showAssets
                     ? 'bg-indigo-600 text-white border-indigo-700'
@@ -281,6 +294,10 @@ export const Viewer: React.FC<ViewerProps> = ({
             {onShare && (
               <button
                 onClick={onShare}
+                {...tourTypeAttr(
+                  'smart-notebook.share-notebook',
+                  'smartNotebook'
+                )}
                 className={toolBtnClass}
                 style={toolBtnStyle}
                 title="Share notebook (copies a paste-able link)"
@@ -292,6 +309,10 @@ export const Viewer: React.FC<ViewerProps> = ({
             {handleClose && (
               <button
                 onClick={handleClose}
+                {...tourTypeAttr(
+                  'smart-notebook.close-notebook',
+                  'smartNotebook'
+                )}
                 aria-label="Close notebook"
                 className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-lg transition-all border border-slate-700 active:scale-95"
                 style={{ padding: 'min(8px, 2cqmin)' }}
@@ -411,6 +432,7 @@ export const Viewer: React.FC<ViewerProps> = ({
           <button
             disabled={prevVisible === null}
             onClick={() => prevVisible !== null && setCurrentPage(prevVisible)}
+            {...tourTypeAttr('smart-notebook.page-prev', 'smartNotebook')}
             className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl disabled:opacity-30 disabled:grayscale transition-all shadow-sm active:scale-90"
             style={{ padding: 'min(12px, 2.5cqmin)' }}
           >
@@ -428,6 +450,7 @@ export const Viewer: React.FC<ViewerProps> = ({
             <button
               ref={jumpTriggerRef}
               onClick={() => setJumpMenuOpen((o) => !o)}
+              {...tourTypeAttr('smart-notebook.page-jump', 'smartNotebook')}
               className="flex items-center rounded-lg hover:bg-slate-100 transition-colors"
               style={{
                 gap: 'min(4px, 1cqmin)',
@@ -481,6 +504,7 @@ export const Viewer: React.FC<ViewerProps> = ({
           <button
             disabled={nextVisible === null}
             onClick={() => nextVisible !== null && setCurrentPage(nextVisible)}
+            {...tourTypeAttr('smart-notebook.page-next', 'smartNotebook')}
             className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl disabled:opacity-30 disabled:grayscale transition-all shadow-sm active:scale-90"
             style={{ padding: 'min(12px, 2.5cqmin)' }}
           >

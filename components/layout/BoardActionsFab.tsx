@@ -163,6 +163,7 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({ onOpenHelp }) => {
             // zoom percentage to assistive tech without conflicting with
             // the implicit range.
             aria-valuetext={`${percentage}%`}
+            {...tourAttr('board-actions.zoom-slider')}
             className="w-full accent-brand-blue-primary cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary rounded"
           />
 
@@ -174,6 +175,7 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({ onOpenHelp }) => {
                   key={value}
                   type="button"
                   onClick={() => handlePresetClick(value)}
+                  {...tourAttr('board-actions.zoom-preset')}
                   className={`text-xxs font-bold py-1 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50 ${
                     active
                       ? 'bg-brand-blue-primary text-white'
@@ -192,6 +194,7 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({ onOpenHelp }) => {
               <button
                 type="button"
                 onClick={handleReset}
+                {...tourAttr('board-actions.zoom-panel-reset')}
                 className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-white/60 hover:text-white/90 py-1 rounded-md transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
               >
                 <RotateCcw className="w-3.5 h-3.5" />

@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import {
   BarChart3,
   BookOpen,
@@ -341,6 +342,11 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
       {...folderView}
       loading={folders.loading}
       error={folders.error}
+      anchors={{
+        newFolder: tourTypeAttr('flashcards.folder-new', 'flashcards'),
+        root: tourTypeAttr('flashcards.folder-root', 'flashcards'),
+        newFolderInput: tourTypeAttr('flashcards.folder-name', 'flashcards'),
+      }}
     />
   );
 
@@ -546,6 +552,13 @@ export const FlashcardLibrary: React.FC<FlashcardLibraryProps> = ({
           folders={folders.folders}
           selectedFolderId={folderTarget.folderId ?? null}
           title={`Move “${folderTarget.title}” to…`}
+          rootAnchor={tourTypeAttr(
+            'flashcards.folder-picker-root',
+            'flashcards'
+          )}
+          rowAnchor={(id) =>
+            tourFieldAttr('flashcards.folder-picker-folder', 'flashcards', id)
+          }
           onClose={() => setFolderTarget(null)}
           onSelect={(folderId) => {
             void handleDropOnFolder(folderTarget.id, folderId);

@@ -1,3 +1,4 @@
+import { tourFieldAttr } from '@/config/tourAnchors';
 import React from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
@@ -93,6 +94,11 @@ export const NeedDoPutThenConfigurationPanel: React.FC<
           </label>
           <select
             value={currentBuildingConfig.fontFamily ?? 'global'}
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'need-do-put-then',
+              'fontFamily'
+            )}
             onChange={(e) => {
               const selected = e.target.value;
               handleUpdateBuilding({
@@ -121,6 +127,11 @@ export const NeedDoPutThenConfigurationPanel: React.FC<
           </label>
           <select
             value={currentBuildingConfig.textSizePreset ?? 'medium'}
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'need-do-put-then',
+              'textSizePreset'
+            )}
             onChange={(e) =>
               handleUpdateBuilding({
                 textSizePreset: e.target.value as TextSizePreset,
@@ -137,7 +148,13 @@ export const NeedDoPutThenConfigurationPanel: React.FC<
         </div>
 
         {/* Default Text Colour */}
-        <div>
+        <div
+          {...tourFieldAttr(
+            'admin.widget-config.field',
+            'need-do-put-then',
+            'fontColor'
+          )}
+        >
           <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
             Default Text Colour
           </label>
@@ -150,7 +167,13 @@ export const NeedDoPutThenConfigurationPanel: React.FC<
         </div>
 
         {/* Default Surface Colour */}
-        <div>
+        <div
+          {...tourFieldAttr(
+            'admin.widget-config.field',
+            'need-do-put-then',
+            'cardColor'
+          )}
+        >
           <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
             Default Surface Colour
           </label>
@@ -169,6 +192,11 @@ export const NeedDoPutThenConfigurationPanel: React.FC<
           </label>
           <input
             type="range"
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'need-do-put-then',
+              'cardOpacity'
+            )}
             min="0"
             max="1"
             step="0.05"

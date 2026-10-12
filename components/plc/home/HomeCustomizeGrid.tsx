@@ -25,6 +25,7 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 import { getPlcHomeTileDef, listAddableTileDefs } from './tiles/registry';
 import { useAuth } from '@/context/useAuth';
 import type { PlcHomeTileInstance } from './tiles/tileTypes';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const SortableTileCard: React.FC<{
   tile: PlcHomeTileInstance;
@@ -52,6 +53,7 @@ const SortableTileCard: React.FC<{
       }`}
     >
       <button
+        {...tourFieldAttr('plc-home.drag-tile', 'plc', tile.id)}
         type="button"
         {...attributes}
         {...listeners}
@@ -71,6 +73,7 @@ const SortableTileCard: React.FC<{
         {label}
       </span>
       <button
+        {...tourFieldAttr('plc-home.remove-tile', 'plc', tile.id)}
         type="button"
         onClick={onRemove}
         aria-label={t('plcDashboard.home.customize.removeTile', {
@@ -100,6 +103,7 @@ export const AddTileMenu: React.FC<{
   return (
     <div ref={ref} className="relative">
       <button
+        {...tourAttr('plc-home.add-tile-menu')}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
@@ -121,6 +125,11 @@ export const AddTileMenu: React.FC<{
             return (
               <li key={def.kind}>
                 <button
+                  {...tourFieldAttr(
+                    'plc-home.add-tile-option',
+                    'plc',
+                    def.kind
+                  )}
                   type="button"
                   onClick={() => {
                     onAdd({ id: crypto.randomUUID(), kind: def.kind });

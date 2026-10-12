@@ -95,8 +95,8 @@ describe('isDigestOptIn — default OFF', () => {
   it('is OFF when absent / false / truthy-but-not-true', () => {
     expect(isDigestOptIn({})).toBe(false);
     expect(isDigestOptIn({ digestOptIn: false })).toBe(false);
-    expect(isDigestOptIn({ digestOptIn: 'true' as unknown })).toBe(false);
-    expect(isDigestOptIn({ digestOptIn: 1 as unknown })).toBe(false);
+    expect(isDigestOptIn({ digestOptIn: 'true' })).toBe(false);
+    expect(isDigestOptIn({ digestOptIn: 1 })).toBe(false);
   });
 });
 

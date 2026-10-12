@@ -28,6 +28,7 @@ import { PlcGradebookSection } from '@/components/plc/settings/PlcGradebookSecti
 import { MentoringPairingsSettings } from '@/components/plc/teams/mentoring/MentoringPairingsSettings';
 import { isPlcLeadOrCoLead } from '@/utils/plc';
 import { TeamCalendarSettings } from '@/components/plc/teams/building/TeamCalendarSettings';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcSettingsTabProps {
   plc: Plc;
@@ -215,6 +216,11 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
             const anyBusy = busyKey !== null;
             return (
               <button
+                {...tourFieldAttr(
+                  'plc-settings.feature-switch',
+                  'plc',
+                  row.key
+                )}
                 key={row.key}
                 type="button"
                 role="switch"
@@ -297,6 +303,7 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
               })}
         </p>
         <button
+          {...tourAttr('plc-settings.digest')}
           type="button"
           onClick={() => void handleDigestToggle()}
           disabled={digestBusy}
@@ -354,6 +361,7 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
           PlcTrashBody listeners. */}
       <div ref={trashRef} className="border-t border-slate-200 pt-4">
         <button
+          {...tourAttr('plc-settings.trash-toggle')}
           type="button"
           onClick={toggleTrash}
           aria-expanded={trashOpen}

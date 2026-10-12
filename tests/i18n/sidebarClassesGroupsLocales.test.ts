@@ -82,8 +82,7 @@ describe.each([
   ({ code, locale }) => {
     it(`${code}: has all required sidebar.classes group-editor keys`, () => {
       const classes = (locale.sidebar as Record<string, unknown>).classes as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       for (const key of REQUIRED_GROUPS_KEYS) {
         expect(
           classes,

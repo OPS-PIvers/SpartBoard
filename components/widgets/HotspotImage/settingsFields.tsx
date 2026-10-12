@@ -50,8 +50,7 @@ const HotspotBaseImageField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
   const savedLibrary =
     (
       savedWidgetPresets['hotspot-image'] as
-        | Partial<HotspotImageConfig>
-        | undefined
+        Partial<HotspotImageConfig> | undefined
     )?.savedLibrary ?? [];
   const t = (leaf: string) => ctx.t(`widgetSettings.hotspot-image.${leaf}`);
 
@@ -119,6 +118,7 @@ const HotspotBaseImageField: React.FC<{ ctx: CustomRenderCtx }> = ({ ctx }) => {
       baseImageUrl,
       hotspots,
       popoverTheme: config.popoverTheme,
+      // eslint-disable-next-line react-hooks/purity -- runs in a click handler, not during render
       createdAt: Date.now(),
     };
     saveWidgetPreset('hotspot-image', {

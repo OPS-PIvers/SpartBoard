@@ -307,13 +307,12 @@ afterEach(() => {
 const withSteps = (
   set: GuidedLearningSet,
   extras: Record<string, unknown>[]
-): GuidedLearningSet =>
-  ({
-    ...set,
-    steps: set.steps.map((st) =>
-      st.id.startsWith('s') ? { ...st, ...extras[Number(st.id.slice(1))] } : st
-    ),
-  }) as GuidedLearningSet;
+): GuidedLearningSet => ({
+  ...set,
+  steps: set.steps.map((st) =>
+    st.id.startsWith('s') ? { ...st, ...extras[Number(st.id.slice(1))] } : st
+  ),
+});
 
 // Gives each anchored step a picture of its own control.
 const withThumbnails = (
@@ -2659,11 +2658,10 @@ describe('LiveTourRunner cleared stage', () => {
   const stageSet = (
     steps: (Binding & Record<string, unknown>)[],
     setup: Record<string, unknown>
-  ): GuidedLearningSet =>
-    ({
-      ...makeSet(steps),
-      tourSetup: { widgets: [], ...setup },
-    }) as unknown as GuidedLearningSet;
+  ): GuidedLearningSet => ({
+    ...makeSet(steps),
+    tourSetup: { widgets: [], ...setup },
+  });
   const diceStep = {
     anchor: 'widget.settings-opener:dice',
     action: 'observe' as const,
@@ -3130,7 +3128,7 @@ describe('LiveTourRunner with Sparty', () => {
       ...makeSet([{ anchor: 'sidebar.boards', action: 'observe' }]),
       welcomeEnabled: true,
       welcomeMessage: 'Hi.',
-    } as GuidedLearningSet);
+    });
     expect(
       screen.getByRole('dialog').querySelector('svg.sparty-wave')
     ).not.toBeNull();
@@ -3150,7 +3148,7 @@ describe('LiveTourRunner with Sparty', () => {
       ...makeSet([{ anchor: 'sidebar.boards', action: 'observe' }]),
       welcomeEnabled: true,
       welcomeMessage: 'Hi.',
-    } as GuidedLearningSet);
+    });
     expect(screen.getByRole('dialog').querySelector('svg.sparty')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Start tour' }));
     await frames();

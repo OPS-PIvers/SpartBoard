@@ -95,7 +95,7 @@ describe('RosterList — hand vs idle flags', () => {
     renderRoster({ monitorBoardView: false }, vi.fn(), {
       ...session,
       handRaiseEnabled: false,
-    } as QuizSession);
+    });
     expect(screen.queryByTestId('hand-row')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Clear' })).toBeNull();
     // The student is still listed, just without the hand treatment.

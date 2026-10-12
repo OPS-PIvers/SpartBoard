@@ -11,6 +11,7 @@ import {
   type StandardMatch,
 } from '@/utils/quizDocumentImport/keyStandards';
 import type { SuggestedTargetsSlots } from './QuizImportSuggestedTargets';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 const hasTag = (q: QuizQuestion, tag: QuestionTargetTag): boolean =>
   (q.targets ?? []).some((t) => t.id === tag.id && t.kind === tag.kind);
@@ -48,6 +49,7 @@ const useKeyStandardSlots = (
         {pending.length > 0 && (
           <button
             type="button"
+            {...tourTypeAttr('quiz-import.key-standards-add-all', 'quiz')}
             onClick={() =>
               applyMany(new Map(pending.map((q) => [q.id, pendingTags(q)])))
             }
@@ -91,6 +93,11 @@ const useKeyStandardSlots = (
               </span>
               <button
                 type="button"
+                {...tourFieldAttr(
+                  'quiz-import.key-standard-add',
+                  'quiz',
+                  `${question.id}-${b.id}`
+                )}
                 onClick={() => apply(tag)}
                 aria-label={`Add standard ${b.code} to question ${number}`}
                 className="inline-flex items-center gap-0.5 rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-xs font-bold text-brand-blue-primary hover:bg-slate-50"

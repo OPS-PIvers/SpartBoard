@@ -18,6 +18,7 @@ import {
 import type { Plc, PlcDoc } from '@/types';
 import { usePlcDocs } from '@/hooks/usePlcDocs';
 import type { PlcSectionId } from '@/components/plc/sections';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface RecentDocsCardProps {
   plc: Plc;
@@ -113,6 +114,7 @@ export const RecentDocsCard: React.FC<RecentDocsCardProps> = ({
 
       {/* Footer */}
       <button
+        {...tourFieldAttr('plc-home.card-link', 'plc', 'recent-docs-all')}
         type="button"
         onClick={() => onNavigate('docs')}
         className="flex items-center justify-center gap-1.5 px-5 py-3 border-t border-slate-100 text-xs font-bold uppercase tracking-wider text-brand-blue-primary hover:bg-brand-blue-lighter/40 transition-colors"
@@ -144,6 +146,7 @@ const DocRow: React.FC<{ doc: PlcDoc }> = ({ doc }) => {
       </span>
       {safeUrl && (
         <a
+          {...tourFieldAttr('plc-home.card-link', 'plc', 'recent-doc-open')}
           href={safeUrl}
           target="_blank"
           rel="noreferrer noopener"

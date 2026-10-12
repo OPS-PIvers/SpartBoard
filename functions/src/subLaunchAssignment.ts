@@ -398,6 +398,8 @@ interface GlKeySet {
   imageTransition?: unknown;
   welcomeEnabled?: unknown;
   welcomeMessage?: unknown;
+  welcomeImageUrl?: unknown;
+  welcomeImageAlt?: unknown;
   watchPace?: unknown;
 }
 
@@ -435,11 +437,30 @@ export function glSessionPresentation(set: GlKeySet): Record<string, unknown> {
   const imageUrls = Array.isArray(set.imageUrls) ? set.imageUrls : [];
   const kinds = Array.isArray(set.imageKinds) ? set.imageKinds : null;
   const trims = Array.isArray(set.videoTrims) ? set.videoTrims : null;
+  const message =
+    typeof set.welcomeMessage === 'string' && set.welcomeMessage.trim()
+      ? set.welcomeMessage
+      : '';
+  const image =
+    typeof set.welcomeImageUrl === 'string' && set.welcomeImageUrl
+      ? set.welcomeImageUrl
+      : '';
+  const alt =
+    typeof set.welcomeImageAlt === 'string' && set.welcomeImageAlt.trim()
+      ? set.welcomeImageAlt
+      : '';
   const welcome =
-    set.welcomeEnabled === true &&
-    typeof set.welcomeMessage === 'string' &&
-    set.welcomeMessage.trim()
-      ? { welcomeEnabled: true, welcomeMessage: set.welcomeMessage }
+    set.welcomeEnabled === true && (message || image)
+      ? {
+          welcomeEnabled: true,
+          ...(message ? { welcomeMessage: message } : {}),
+          ...(image
+            ? {
+                welcomeImageUrl: image,
+                ...(alt ? { welcomeImageAlt: alt } : {}),
+              }
+            : {}),
+        }
       : {};
   return {
     imageUrls,

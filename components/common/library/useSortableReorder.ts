@@ -77,11 +77,14 @@ export function useSortableReorder<TItem>(
   // during render without a useEffect.
   const lastSeenItemsRef = useRef<TItem[]>(items);
 
+  // eslint-disable-next-line react-hooks/refs -- previous-items ref compared during render to adopt upstream changes
   if (lastSeenItemsRef.current !== items) {
+    // eslint-disable-next-line react-hooks/refs -- previous-items ref compared during render to adopt upstream changes
     const previousIds = lastSeenItemsRef.current.map(getId);
     const currentIds = items.map(getId);
     const currentOrderedIds = orderedItems.map(getId);
 
+    // eslint-disable-next-line react-hooks/refs -- previous-items ref compared during render to adopt upstream changes
     lastSeenItemsRef.current = items;
 
     if (!sameIdSet(previousIds, currentIds)) {

@@ -4,9 +4,7 @@
  */
 
 export type StudentViewCompatibility =
-  | 'read-only'
-  | 'limited'
-  | 'not-compatible';
+  'read-only' | 'limited' | 'not-compatible';
 
 export interface StudentViewWidgetCompatibilityConfig {
   readOnlyCompatible: string[];

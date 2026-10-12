@@ -9,6 +9,7 @@ import {
 import { GuidedLearningPlayer } from '../GuidedLearningPlayer';
 import type { DevicePreset, StepEvent } from '../../types/stage';
 import { DeviceFrame } from './DeviceFrame';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface StudioPlayModeProps {
   set: GuidedLearningSet;
@@ -55,6 +56,7 @@ export const StudioPlayMode: React.FC<StudioPlayModeProps> = ({
       <div className="flex shrink-0 items-center justify-center gap-2">
         <button
           type="button"
+          {...tourAttr('studio.play-exit')}
           onClick={onExit}
           className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-4 py-1.5 text-sm font-bold text-slate-700 shadow-md transition-colors hover:bg-slate-50"
         >
@@ -63,6 +65,7 @@ export const StudioPlayMode: React.FC<StudioPlayModeProps> = ({
         </button>
         <button
           type="button"
+          {...tourAttr('studio.play-show-key')}
           role="switch"
           aria-checked={showKey}
           onClick={() => {

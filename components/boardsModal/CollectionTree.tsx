@@ -1,3 +1,4 @@
+import { tourAttr } from '@/config/tourAnchors';
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FolderOpen } from 'lucide-react';
@@ -83,6 +84,7 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
               : 'text-slate-700 hover:bg-slate-100'
           }`}
           onClick={() => onSelectCollection(null)}
+          {...tourAttr('boards-modal.tree-all-boards')}
         >
           <span className="flex-1 truncate">
             {t('boardsModal.rootLabel', {

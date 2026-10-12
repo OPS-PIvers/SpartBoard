@@ -6,6 +6,7 @@ import { useGradebook } from '@/components/gradebook/GradebookContext';
 import { GradebookPopovers } from '@/components/gradebook/GradebookPopovers';
 import { Private } from '@/components/gradebook/Private';
 import { buildGradebookPath } from '@/utils/gradebookPath';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { spaNavigate, spaReplace } from '@/utils/plcPath';
 import { proficiencyLevel } from '@/utils/gradebook/gradebookCore';
 import {
@@ -238,12 +239,18 @@ export const GradebookStudentView: React.FC<{ studentUid: string }> = ({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
-        <Btn variant="ghost" icon={<ArrowLeft size={16} />} onClick={back}>
+        <Btn
+          variant="ghost"
+          icon={<ArrowLeft size={16} />}
+          {...tourAttr('gradebook.student.back')}
+          onClick={back}
+        >
           Grades
         </Btn>
         <Btn
           size="sm"
           aria-label="Previous student"
+          {...tourAttr('gradebook.student.prev')}
           title="Previous student (←)"
           disabled={!prevUid}
           onClick={() => goTo(prevUid)}
@@ -259,6 +266,7 @@ export const GradebookStudentView: React.FC<{ studentUid: string }> = ({
         <Btn
           size="sm"
           aria-label="Next student"
+          {...tourAttr('gradebook.student.next')}
           title="Next student (→)"
           disabled={!nextUid}
           onClick={() => goTo(nextUid)}
@@ -270,6 +278,7 @@ export const GradebookStudentView: React.FC<{ studentUid: string }> = ({
         <Btn
           variant={customize ? 'secondary' : 'ghost'}
           aria-pressed={customize}
+          {...tourAttr('gradebook.student.customize')}
           onClick={() => setCustomize((v) => !v)}
         >
           {customize ? 'Done' : 'Customize cards'}
@@ -309,6 +318,11 @@ export const GradebookStudentView: React.FC<{ studentUid: string }> = ({
                   <span className="inline-flex gap-1">
                     <CardCtl
                       label="Move up"
+                      anchor={tourFieldAttr(
+                        'gradebook.student.card-move',
+                        'gradebook',
+                        `${id}:up`
+                      )}
                       disabled={n === 0}
                       onClick={() => move(id, -1)}
                     >
@@ -316,12 +330,24 @@ export const GradebookStudentView: React.FC<{ studentUid: string }> = ({
                     </CardCtl>
                     <CardCtl
                       label="Move down"
+                      anchor={tourFieldAttr(
+                        'gradebook.student.card-move',
+                        'gradebook',
+                        `${id}:down`
+                      )}
                       disabled={n === visible.length - 1}
                       onClick={() => move(id, 1)}
                     >
                       ↓
                     </CardCtl>
-                    <CardCtl onClick={() => toggleHidden(id)}>
+                    <CardCtl
+                      anchor={tourFieldAttr(
+                        'gradebook.student.card-hide',
+                        'gradebook',
+                        id
+                      )}
+                      onClick={() => toggleHidden(id)}
+                    >
                       {hidden ? 'Show' : 'Hide'}
                     </CardCtl>
                   </span>
@@ -353,10 +379,12 @@ const Kpi: React.FC<{ value: string; label: string }> = ({ value, label }) => (
 const CardCtl: React.FC<{
   label?: string;
   disabled?: boolean;
+  anchor?: ReturnType<typeof tourFieldAttr>;
   onClick: () => void;
   children: React.ReactNode;
-}> = ({ label, disabled, onClick, children }) => (
+}> = ({ label, disabled, anchor, onClick, children }) => (
   <button
+    {...anchor}
     type="button"
     aria-label={label}
     disabled={disabled}

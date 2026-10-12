@@ -1,5 +1,6 @@
 // Mini App's assign dialog on the stepper: name, Students submit work / Study resource, Classes, When (docs/plans/ASSIGN_STEPPER.md D20).
 import React, { useState } from 'react';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
 import type { ClassRoster } from '@/types';
 import { AssignStepper } from '@/components/common/library/assignStepper/AssignStepper';
@@ -33,6 +34,11 @@ import {
   type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
 import type { MiniAppStepperChoices } from '../miniAppStepperAssign';
+import { MiniAppResultsStep } from './MiniAppResultsStep';
+import {
+  formatMiniAppResultsChoice,
+  type MiniAppResultsChoice,
+} from '@/utils/miniAppResults';
 
 export interface MiniAppAssignStepperProps {
   appTitle: string;
@@ -45,8 +51,13 @@ export interface MiniAppAssignStepperProps {
   defaultKind: AssignKind;
   periodAccess?: AssignPeriodAccessContext;
   submitting: boolean;
-  onSubmit: (choices: MiniAppStepperChoices) => Promise<void>;
+  onSubmit: (
+    choices: MiniAppStepperChoices,
+    results?: MiniAppResultsChoice
+  ) => Promise<void>;
   onClose: () => void;
+  /** Mini App results on: adds the Attempts and results step for submitted work. */
+  resultsDefault?: MiniAppResultsChoice;
 }
 
 export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
@@ -60,6 +71,7 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
   submitting,
   onSubmit,
   onClose,
+  resultsDefault,
 }) => {
   const { t } = useTranslation();
   const [kind, setKind] = useState<AssignKind>(defaultKind);
@@ -79,6 +91,10 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
     EMPTY_ASSIGN_TARGETING_VALUE
   );
   const [showMods, setShowMods] = useState(false);
+  const [results, setResults] = useState<MiniAppResultsChoice | undefined>(
+    resultsDefault
+  );
+  const resultsStepOn = !!results && kind === 'work';
 
   const pickedRosters = rosters.filter((r) => classes.classIds.includes(r.id));
   const variant = kind === 'resource' ? 'available' : 'when';
@@ -92,11 +108,18 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
           rosters={rosters}
           value={classes}
           onChange={setClasses}
+          anchor={tourTypeAttr('mini-app.stepper-class-picker', 'miniApp')}
+          rowAnchor={(classId) =>
+            tourFieldAttr('mini-app.stepper-class-row', 'miniApp', classId)
+          }
         />
         <StudentPickMenu
           rosters={rosters}
           value={classes}
           onChange={setClasses}
+          rowAnchor={(classId) =>
+            tourFieldAttr('mini-app.stepper-student-menu', 'miniApp', classId)
+          }
         />
         <ModificationsLink
           rosters={rosters}
@@ -133,6 +156,13 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
       value: values[id],
       body: bodies[id],
     }));
+  if (resultsStepOn && results)
+    steps.push({
+      id: 'attempts',
+      title: 'Attempts and results',
+      value: formatMiniAppResultsChoice(results),
+      body: <MiniAppResultsStep value={results} onChange={setResults} />,
+    });
 
   const topSwitch = (
     <div className="space-y-4">
@@ -145,6 +175,7 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
         </label>
         <input
           id="miniapp-assignment-name"
+          {...tourTypeAttr('mini-app.session-name', 'miniApp')}
           type="text"
           value={assignmentName}
           onChange={(e) => onNameChange(e.target.value)}
@@ -157,6 +188,7 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
         onChange={setKind}
         options={KIND_SWITCH_OPTIONS}
         ariaLabel="Student work"
+        anchor={tourTypeAttr('mini-app.stepper-kind-switch', 'miniApp')}
       />
     </div>
   );
@@ -171,7 +203,12 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
       submitLabel="Assign"
       submitting={submitting}
       disabled={nameMissing}
-      onSubmit={() => onSubmit({ kind, classes, when, targeting })}
+      onSubmit={() =>
+        onSubmit(
+          { kind, classes, when, targeting },
+          resultsStepOn ? results : undefined
+        )
+      }
       overlayView={
         showMods ? (
           <ModificationsView

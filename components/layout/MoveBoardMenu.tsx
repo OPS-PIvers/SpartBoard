@@ -9,6 +9,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Check, ChevronLeft, Folder, Home, Plus } from 'lucide-react';
 import type { Collection } from '@/types';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { InlineNameInput } from './boardNavMenuParts';
 import {
   MENU_PANEL_CLASS,
@@ -105,6 +106,7 @@ export const MoveBoardMenu: FC<MoveBoardMenuProps> = ({
           type="button"
           role="menuitem"
           onClick={onBack}
+          {...tourAttr('board-nav.move-back')}
           aria-label={t('common.back', { defaultValue: 'Back' })}
           title={t('common.back', { defaultValue: 'Back' })}
           className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-white/70 hover:bg-white/15 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
@@ -127,6 +129,7 @@ export const MoveBoardMenu: FC<MoveBoardMenuProps> = ({
         role="menuitemradio"
         aria-checked={currentCollectionId === null}
         onClick={() => onMove(null, rootLabel)}
+        {...tourAttr('board-nav.move-to-root')}
         style={{ paddingLeft: '0.75rem' }}
         className={itemClass(currentCollectionId === null)}
       >
@@ -145,6 +148,7 @@ export const MoveBoardMenu: FC<MoveBoardMenuProps> = ({
             role="menuitemradio"
             aria-checked={isCurrent}
             onClick={() => onMove(c.id, c.name)}
+            {...tourFieldAttr('board-nav.move-target', 'collections', c.id)}
             style={{ paddingLeft: `${0.75 + depth * 1}rem` }}
             className={itemClass(isCurrent)}
           >
@@ -164,6 +168,7 @@ export const MoveBoardMenu: FC<MoveBoardMenuProps> = ({
       <div className="my-1 border-t border-white/10" />
       {isCreating ? (
         <InlineNameInput
+          anchor={tourAttr('board-nav.name-input')}
           placeholder={t('boardsModal.newCollectionPrompt', {
             defaultValue: 'Collection name',
           })}
@@ -185,6 +190,7 @@ export const MoveBoardMenu: FC<MoveBoardMenuProps> = ({
           type="button"
           role="menuitem"
           data-new-collection
+          {...tourAttr('board-nav.move-new-collection')}
           onClick={() => setIsCreating(true)}
           className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-white/80 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
         >

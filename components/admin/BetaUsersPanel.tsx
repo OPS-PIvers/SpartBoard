@@ -1,4 +1,5 @@
 import React from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { Plus, Trash2 } from 'lucide-react';
 
 interface BetaUsersPanelProps {
@@ -48,6 +49,11 @@ export const BetaUsersPanel: React.FC<BetaUsersPanelProps> = ({
               onClick={() => onChange(betaUsers.filter((e) => e !== email))}
               className="text-red-600 hover:bg-red-100 p-1 rounded transition-colors"
               aria-label={`Remove ${email}`}
+              {...tourFieldAttr(
+                'admin.beta.remove',
+                'admin',
+                String(betaUsers.indexOf(email))
+              )}
             >
               <Trash2 className="w-3 h-3" />
             </button>
@@ -59,6 +65,7 @@ export const BetaUsersPanel: React.FC<BetaUsersPanelProps> = ({
             type="email"
             placeholder="user@example.com"
             aria-label="Add beta user email"
+            {...tourAttr('admin.beta.email')}
             className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -76,6 +83,7 @@ export const BetaUsersPanel: React.FC<BetaUsersPanelProps> = ({
             }}
             className="px-3 py-2 bg-brand-blue-primary text-white rounded-lg hover:bg-brand-blue-dark transition-colors"
             aria-label="Add beta user"
+            {...tourAttr('admin.beta.add')}
           >
             <Plus className="w-4 h-4" />
           </button>

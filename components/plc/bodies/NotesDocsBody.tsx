@@ -18,6 +18,7 @@ import {
   mergeActionItems,
   openActionItemsByNote,
 } from '@/utils/plcActionItems';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface NotesDocsBodyProps {
   plc: Plc;
@@ -166,6 +167,7 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
   const rollupMenu = openCount > 0 && (
     <div className={sidePanels ? 'relative' : 'relative ml-auto'}>
       <button
+        {...tourAttr('plc-notes.rollup-toggle')}
         type="button"
         onClick={() => setRollupOpen((v) => !v)}
         className={
@@ -186,6 +188,7 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
         >
           {docGroups.map(({ doc: d, items }) => (
             <button
+              {...tourFieldAttr('plc-notes.doc-select', 'plc', d.id)}
               key={d.id}
               type="button"
               onClick={() => handleSelectDoc(d.id)}
@@ -214,6 +217,7 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
           ) : (
             groups.map(({ note, items }) => (
               <button
+                {...tourFieldAttr('plc-notes.note-select', 'plc', note.id)}
                 key={note.id}
                 type="button"
                 onClick={() => handleSelectNote(note.id)}
@@ -258,6 +262,7 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
               const active = tab === id;
               return (
                 <button
+                  {...tourFieldAttr('plc-notes.docs-tab', 'plc', id)}
                   key={id}
                   type="button"
                   role="tab"
@@ -296,6 +301,7 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
             })}
           </span>
           <button
+            {...tourAttr('plc-notes.docs-import')}
             type="button"
             disabled={importing}
             onClick={() => void handleImport()}

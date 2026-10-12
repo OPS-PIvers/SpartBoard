@@ -8,6 +8,7 @@ import {
   LineChart,
 } from 'lucide-react';
 import { PlcAssignmentIndexEntry, QuizAssignmentStatus } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface PlcAssignmentIndexRowProps {
   entry: PlcAssignmentIndexEntry;
@@ -116,6 +117,7 @@ export const PlcAssignmentIndexRow: React.FC<PlcAssignmentIndexRowProps> = ({
       <div className="shrink-0 flex items-center gap-1.5">
         {onMonitor && (
           <button
+            {...tourAttr('plc-assign.row-monitor')}
             type="button"
             onClick={onMonitor}
             data-testid="row-action-monitor"
@@ -132,6 +134,7 @@ export const PlcAssignmentIndexRow: React.FC<PlcAssignmentIndexRowProps> = ({
         )}
         {onResults && (
           <button
+            {...tourAttr('plc-assign.row-results')}
             type="button"
             onClick={onResults}
             data-testid="row-action-results"
@@ -148,6 +151,7 @@ export const PlcAssignmentIndexRow: React.FC<PlcAssignmentIndexRowProps> = ({
         )}
         {onAssignToMyClasses && (
           <button
+            {...tourAttr('plc-assign.row-assign')}
             type="button"
             onClick={isBusy ? undefined : onAssignToMyClasses}
             disabled={isBusy}
@@ -169,6 +173,7 @@ export const PlcAssignmentIndexRow: React.FC<PlcAssignmentIndexRowProps> = ({
         {/* Always show Open Sheet as a secondary fallback action */}
         {!hasActions && safeSheetUrl && (
           <a
+            {...tourAttr('plc-assign.row-sheet')}
             href={safeSheetUrl}
             target="_blank"
             rel="noreferrer noopener"
@@ -183,6 +188,7 @@ export const PlcAssignmentIndexRow: React.FC<PlcAssignmentIndexRowProps> = ({
         {/* When actions are present and a sheet URL exists, show it as a small icon link */}
         {hasActions && safeSheetUrl && (
           <a
+            {...tourAttr('plc-assign.row-sheet')}
             href={safeSheetUrl}
             target="_blank"
             rel="noreferrer noopener"

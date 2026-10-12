@@ -1,11 +1,5 @@
 export type BackgroundType =
-  | 'all'
-  | 'still'
-  | 'video'
-  | 'color'
-  | 'pattern'
-  | 'gradient'
-  | 'upload';
+  'all' | 'still' | 'video' | 'color' | 'pattern' | 'gradient' | 'upload';
 
 export interface BackgroundItem {
   id: string;

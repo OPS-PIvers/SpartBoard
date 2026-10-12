@@ -43,6 +43,7 @@ export const UpdateHeroView: React.FC<{
         <ReactionButton
           count={reactionCount(u)}
           reacted={reacted}
+          anchorKey={u.id}
           onToggle={() => onReact?.(u.id, !reacted)}
         />
       </div>

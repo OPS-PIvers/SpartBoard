@@ -39,6 +39,15 @@ export type PlcGoalProgress = Partial<
   Record<(typeof PLC_GOAL_PROGRESS_KEYS)[number], number>
 >;
 
+/** Optional text pieces of the SMART goal frame. */
+export const PLC_GOAL_TEXT_KEYS = [
+  'measure',
+  'dueDate',
+  'students',
+  'outcome',
+] as const;
+type PlcGoalTextKey = (typeof PLC_GOAL_TEXT_KEYS)[number];
+
 /** A whole percent, 0 to 100. */
 export const isGoalPercent = (v: unknown): v is number =>
   typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= 100;
@@ -64,8 +73,9 @@ export function parsePlcGoal(
     createdAt: tsToMillis(data.createdAt),
     updatedAt: tsToMillis(data.updatedAt),
   };
-  if (typeof data.measure === 'string' && data.measure.trim()) {
-    goal.measure = data.measure;
+  for (const key of PLC_GOAL_TEXT_KEYS) {
+    const v = data[key];
+    if (typeof v === 'string' && v.trim()) goal[key] = v;
   }
   for (const key of PLC_GOAL_PROGRESS_KEYS) {
     const v = data[key];
@@ -85,6 +95,9 @@ export interface PlcGoalDraft {
   id?: string;
   title: string;
   measure?: string;
+  dueDate?: string;
+  students?: string;
+  outcome?: string;
   /** Absent leaves stored numbers alone; present replaces them, missing keys cleared. */
   progress?: PlcGoalProgress;
   practices: PlcGoalPractice[];
@@ -138,7 +151,11 @@ export function usePlcGoals(plcId: string | null) {
             : { id: p.id, text: p.text.trim() }
         )
         .filter((p) => 'routineId' in p || p.text);
-      const measure = draft.measure?.trim() ?? '';
+      const text: Partial<Record<PlcGoalTextKey, string>> = {};
+      for (const key of PLC_GOAL_TEXT_KEYS) {
+        const v = draft[key]?.trim();
+        if (v) text[key] = v;
+      }
       const progress = draft.progress;
       const numbers: Record<string, number> = {};
       for (const key of PLC_GOAL_PROGRESS_KEYS) {
@@ -155,7 +172,9 @@ export function usePlcGoals(plcId: string | null) {
         const ref = doc(db, 'plcs', plcId, 'goals', draft.id);
         await updateDoc(ref, {
           ...fields,
-          measure: measure.length > 0 ? measure : deleteField(),
+          ...Object.fromEntries(
+            PLC_GOAL_TEXT_KEYS.map((k) => [k, text[k] ?? deleteField()])
+          ),
           ...(progress
             ? Object.fromEntries(
                 PLC_GOAL_PROGRESS_KEYS.map((k) => [
@@ -171,7 +190,7 @@ export function usePlcGoals(plcId: string | null) {
       await setDoc(ref, {
         id: ref.id,
         ...fields,
-        ...(measure.length > 0 ? { measure } : {}),
+        ...text,
         ...numbers,
         createdBy: uid,
         createdAt: serverTimestamp(),

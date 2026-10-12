@@ -41,12 +41,7 @@ import { logError } from '@/utils/logError';
  * so the specialization can land without changing throw sites.
  */
 export type DriveAuthErrorReason =
-  | '401'
-  | '403'
-  | 'expired'
-  | 'revoked'
-  | 'insufficient-scope'
-  | 'unknown';
+  '401' | '403' | 'expired' | 'revoked' | 'insufficient-scope' | 'unknown';
 
 export class DriveAuthError extends Error {
   readonly reason: DriveAuthErrorReason;

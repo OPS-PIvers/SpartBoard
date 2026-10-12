@@ -1,4 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import {
+  DEFAULT_MINI_APP_RESULTS,
+  loadMiniAppKey,
+  miniAppResultsOn,
+  type MiniAppResultsChoice,
+} from '@/utils/miniAppResults';
 import { createPortal } from 'react-dom';
 import { useDashboard } from '@/context/useDashboard';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
@@ -95,6 +101,7 @@ import type { LibraryTab } from '@/components/common/library/types';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import { withoutClaudeReview } from '@/utils/claudeReview';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import {
@@ -238,6 +245,7 @@ export const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
           </div>
           <button
             onClick={onClose}
+            {...tourTypeAttr('mini-app.dialog-close', 'miniApp')}
             className="text-white/60 hover:text-white transition-colors"
           >
             <X
@@ -290,6 +298,7 @@ export const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
               <div className="grid" style={{ gap: 'min(8px, 2cqmin)' }}>
                 <button
                   onClick={() => void handleCopy()}
+                  {...tourTypeAttr('mini-app.copy-link', 'miniApp')}
                   className="w-full flex items-center justify-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm"
                   style={{
                     gap: 'min(8px, 2cqmin)',
@@ -397,6 +406,7 @@ export const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                     </label>
                     <input
                       id="miniapp-assignment-name"
+                      {...tourTypeAttr('mini-app.session-name', 'miniApp')}
                       type="text"
                       value={assignmentName}
                       onChange={(e) => onNameChange(e.target.value)}
@@ -465,6 +475,7 @@ export const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                   outward.locked ||
                   (!isViewOnly && assignmentName.trim().length === 0)
                 }
+                {...tourTypeAttr('mini-app.assign-confirm', 'miniApp')}
                 title={outward.lockedTitle}
                 className="w-full flex items-center justify-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm disabled:opacity-60"
                 style={{
@@ -521,15 +532,11 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { user, getAssignmentMode, canAccessFeature } = useAuth();
   const availabilityOn = canAccessFeature('assign-availability');
-  const workKindSetting: WorkKindSetting | undefined = canAccessFeature(
-    'study-resources'
-  )
-    ? { default: resolveWorkKind('mini-app', null) }
-    : undefined;
   const assignmentMode: AssignmentMode = getAssignmentMode('miniApp');
   // View-only shares a link with no classes, so it keeps its own dialog (D20).
   const stepperOn =
     canAccessFeature('assign-stepper') && assignmentMode === 'submissions';
+  const resultsOn = miniAppResultsOn(canAccessFeature, assignmentMode);
   const { showConfirm } = useDialog();
   const claudeReview = useClaudeReview('miniapps');
   const { saveSavedWidget } = useSavedWidgets();
@@ -581,6 +588,16 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
 
   // Assign flow state
   const [assigningApp, setAssigningApp] = useState<MiniAppItem | null>(null);
+  // An app that collects results counts as Work, so its scores reach the Gradebook (MINI_APP_RESULTS.md D13).
+  const resultsWork = resultsOn && assigningApp?.collectsResults === true;
+  const defaultWorkKind = resultsWork
+    ? 'work'
+    : resolveWorkKind('mini-app', null);
+  const workKindSetting: WorkKindSetting | undefined = canAccessFeature(
+    'study-resources'
+  )
+    ? { default: defaultWorkKind }
+    : undefined;
   const [assignmentName, setAssignmentName] = useState('');
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [createdSessionId, setCreatedSessionId] = useState<string | null>(null);
@@ -647,7 +664,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     unsubscribeFromAppSessions,
   ]);
 
-  const handleConfirmAssign = async (stepper?: MiniAppStepperChoices) => {
+  const handleConfirmAssign = async (
+    stepper?: MiniAppStepperChoices,
+    resultsChoice?: MiniAppResultsChoice
+  ) => {
     if (!user || !assigningApp) return;
     setIsCreatingSession(true);
     setAssignError(null);
@@ -710,11 +730,25 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               bellWindow: assignPeriodCtx?.bellWindow,
             })
           : undefined;
+      // The stepper asks only for submitted work; the older dialog keeps the defaults.
+      const resultsPicked = stepper
+        ? resultsChoice
+        : resultsOn
+          ? DEFAULT_MINI_APP_RESULTS
+          : undefined;
+      const results =
+        resultsOn && resultsPicked
+          ? {
+              ...resultsPicked,
+              key: await loadMiniAppKey(user.uid, assigningApp.id),
+            }
+          : undefined;
       const sessionId = await createSession(
         assigningApp,
         user.uid,
         assignmentName,
         {
+          ...(results ? { results } : {}),
           classIds: derived.classIds,
           rosterIds: derived.rosterIds,
           mode: assignmentMode,
@@ -724,7 +758,9 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           dueAt: targetingForSave.dueAt ?? null,
           ...(targetingForSave.workKind
             ? { workKind: targetingForSave.workKind }
-            : {}),
+            : results && resultsWork
+              ? { workKind: 'work' as const }
+              : {}),
           assignmentId: generatedAssignmentId,
           ...(periodGate ? { periodGate } : {}),
         }
@@ -864,7 +900,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
           config: {
             ...config,
             lastRosterIdsByAppId: nextRosters,
-          } as MiniAppConfig,
+          },
         });
       } catch (cfgErr) {
         console.warn(
@@ -981,6 +1017,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
 
   useEffect(() => {
     if (!widgetEl) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- DOM measurement of the widget rect
     updateWidgetRect();
 
     // Coalesce all rect updates into one per animation frame. DraggableWindow
@@ -1299,6 +1336,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   // back to a bare `endSession`, otherwise the archive row could stay
   // stuck as `active` even though the session ended.
   const handleEndSessionFromModal = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps kept as written
     async (sessionId: string) => {
       const localMatch = assignments.find(
         (a) => a.sessionId === sessionId && a.status === 'active'
@@ -1423,6 +1461,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   );
 
   // Import Wizard adapter (rebuilt per user so save() closes over uid).
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps kept as written
   const importAdapter = React.useMemo(() => {
     if (!user?.uid) return null;
     return createMiniAppImportAdapter(user.uid);
@@ -1450,11 +1489,12 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         onNameChange={setAssignmentName}
         rosters={rosters}
         initialClassIds={assignPickerValue.rosterIds}
-        defaultKind={resolveWorkKind('mini-app', null)}
+        defaultKind={defaultWorkKind}
         periodAccess={assignPeriodCtx}
         submitting={isCreatingSession}
         onSubmit={handleConfirmAssign}
         onClose={closeAssign}
+        resultsDefault={resultsOn ? DEFAULT_MINI_APP_RESULTS : undefined}
       />
     ) : (
       <MiniAppAssignModal
@@ -1617,6 +1657,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                                 className="bg-indigo-600 hover:bg-indigo-500 text-white flex items-center font-black uppercase tracking-widest transition-colors rounded-lg shadow-sm"
                                 style={buttonBaseStyle}
                                 title="Assign (copy student link)"
+                                {...tourTypeAttr(
+                                  'mini-app.toolbar-student-link',
+                                  'miniApp'
+                                )}
                               >
                                 <Link2 style={iconStyle} />
                                 <span style={labelStyle}>Assign</span>
@@ -1626,6 +1670,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                                 className="bg-white hover:bg-slate-50 text-slate-700 flex items-center font-black uppercase tracking-widest transition-colors rounded-lg shadow-sm border border-slate-200/60"
                                 style={buttonBaseStyle}
                                 title="View assignments"
+                                {...tourTypeAttr(
+                                  'mini-app.toolbar-sessions',
+                                  'miniApp'
+                                )}
                               >
                                 <BarChart3 style={iconStyle} />
                                 <span style={labelStyle}>Assignments</span>
@@ -1675,6 +1723,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                               className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-indigo-500 font-black transition-colors"
                               style={buttonBaseStyle}
                               title="Save to library"
+                              {...tourTypeAttr(
+                                'mini-app.toolbar-save',
+                                'miniApp'
+                              )}
                             >
                               <Save style={iconStyle} />
                               <span style={labelStyle}>Save</span>
@@ -1688,6 +1740,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                             className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                             style={buttonBaseStyle}
                             title="Share via QR — drops a QR-code widget that students can scan"
+                            {...tourTypeAttr('mini-app.toolbar-qr', 'miniApp')}
                           >
                             {isCreatingQrShare ? (
                               <Loader2
@@ -1708,6 +1761,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                               className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors"
                               style={buttonBaseStyle}
                               title="Save as widget — pin this mini app to your dock"
+                              {...tourTypeAttr(
+                                'mini-app.toolbar-save-as-widget',
+                                'miniApp'
+                              )}
                             >
                               <Bookmark style={iconStyle} />
                               <span style={labelStyle}>Save as Widget</span>
@@ -1721,6 +1778,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                             className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors"
                             style={buttonBaseStyle}
                             title="Back to library"
+                            {...tourTypeAttr(
+                              'mini-app.toolbar-library',
+                              'miniApp'
+                            )}
                           >
                             <LayoutGrid style={iconStyle} />
                             <span style={labelStyle}>Library</span>
@@ -1775,6 +1836,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                       className="rounded-lg hover:bg-slate-100 text-slate-400"
                       style={{ padding: 'min(4px, 1cqmin)' }}
                       aria-label="Cancel save"
+                      {...tourTypeAttr('mini-app.save-cancel', 'miniApp')}
                     >
                       <X
                         style={{
@@ -1790,6 +1852,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                     onChange={(e) => setPendingSaveTitle(e.target.value)}
                     placeholder="App title…"
                     autoFocus
+                    {...tourTypeAttr('mini-app.save-title', 'miniApp')}
                     className="w-full bg-slate-100 rounded-xl font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     style={{
                       paddingLeft: 'min(12px, 3cqmin)',
@@ -1805,6 +1868,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                   />
                   <button
                     onClick={() => void handleSavePasted()}
+                    {...tourTypeAttr('mini-app.save-app', 'miniApp')}
                     className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black uppercase tracking-widest shadow-md transition-all flex items-center justify-center active:scale-95"
                     style={{
                       paddingTop: 'min(10px, 2.5cqmin)',
@@ -1892,6 +1956,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         }
         onClose={() => setEditingApp(null)}
         onSave={saveMiniApp}
+        resultsOn={resultsOn}
       />
       {/* Import wizard (Wave 2 shared primitive) */}
       {importAdapter && (

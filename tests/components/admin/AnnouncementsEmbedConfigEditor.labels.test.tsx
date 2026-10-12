@@ -4,7 +4,6 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
-import type { EmbedConfig } from '@/types';
 
 vi.mock('@/hooks/useGoogleDrive', () => ({
   useGoogleDrive: () => ({ driveService: null, userDomain: undefined }),
@@ -33,12 +32,7 @@ afterEach(cleanup);
 
 describe('EmbedConfigEditor (Announcements) — label associations', () => {
   it('names the Auto-play video toggle', () => {
-    render(
-      <EmbedConfigEditor
-        config={{} as Partial<EmbedConfig>}
-        onChange={vi.fn()}
-      />
-    );
+    render(<EmbedConfigEditor config={{}} onChange={vi.fn()} />);
 
     expect(
       screen.getByRole('switch', { name: 'Auto-play video' })

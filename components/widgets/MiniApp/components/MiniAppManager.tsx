@@ -95,6 +95,7 @@ import {
   LIBRARY_ITEM_NOUNS,
   useLibraryDeleteConfirm,
 } from '@/components/common/library/useLibraryDeleteConfirm';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
@@ -691,6 +692,11 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         onDeleteFolder={folderState.deleteFolder}
         {...folderView}
         enableDrop
+        anchors={{
+          newFolder: tourTypeAttr('mini-app.folder-new', 'miniApp'),
+          root: tourTypeAttr('mini-app.folder-root', 'miniApp'),
+          newFolderInput: tourTypeAttr('mini-app.folder-name', 'miniApp'),
+        }}
       />
     ) : undefined;
 
@@ -879,6 +885,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             icon: saving ? Loader2 : BookDown,
             onClick: () => onSaveGlobalToLibrary(app),
             disabled: saving,
+            anchor: tourTypeAttr('mini-app.card-save-library', 'miniApp'),
           },
         ]
       : [
@@ -900,6 +907,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             icon: saving ? Loader2 : BookDown,
             onClick: () => onSaveGlobalToLibrary(app),
             disabled: saving,
+            anchor: tourTypeAttr('mini-app.card-save-library', 'miniApp'),
           },
         ];
 
@@ -1297,6 +1305,11 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
                 onMove={handleBulkMove}
                 onDelete={handleBulkDelete}
                 busy={bulkBusy}
+                anchors={{
+                  clear: tourTypeAttr('mini-app.bulk-clear', 'miniApp'),
+                  move: tourTypeAttr('mini-app.bulk-move', 'miniApp'),
+                  delete: tourTypeAttr('mini-app.bulk-delete', 'miniApp'),
+                }}
               />
             </div>
           )}
@@ -1421,6 +1434,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
                 fontSize: 'min(11px, 4cqmin)',
               }}
               aria-pressed={selectionMode}
+              {...tourTypeAttr('mini-app.select-mode', 'miniApp')}
               title={
                 selectionMode ? 'Exit selection mode' : 'Enter selection mode'
               }
@@ -1475,6 +1489,10 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
       }}
       onClose={() => setFolderPickerTarget(null)}
       title={`Move "${folderPickerTarget.title}" to…`}
+      rootAnchor={tourTypeAttr('mini-app.folder-picker-root', 'miniApp')}
+      rowAnchor={(id) =>
+        tourFieldAttr('mini-app.folder-picker-folder', 'miniApp', id)
+      }
     />
   ) : null;
 
@@ -1545,6 +1563,7 @@ const MiniAppPreviewPane: React.FC<{
     <LibraryPreviewPane
       isOpen={true}
       onClose={onClose}
+      closeAnchor={tourTypeAttr('mini-app.preview-close', 'miniApp')}
       title={app.title}
       subtitle={
         <span className="font-mono">
@@ -1556,16 +1575,21 @@ const MiniAppPreviewPane: React.FC<{
           ? {
               label: 'Open editor',
               icon: Pencil,
+              anchor: tourTypeAttr('mini-app.preview-open-editor', 'miniApp'),
               onClick: () => {
                 const a = app;
                 onClose();
-                onEdit(a as MiniAppItem);
+                onEdit(a);
               },
             }
           : !isPersonal
             ? {
                 label: saving ? 'Saving…' : 'Save to my library',
                 icon: Pencil,
+                anchor: tourTypeAttr(
+                  'mini-app.preview-save-library',
+                  'miniApp'
+                ),
                 disabled: saving,
                 onClick: () => {
                   const a = app as GlobalMiniAppItem;

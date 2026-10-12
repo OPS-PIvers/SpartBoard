@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import { tourAttr } from '@/config/tourAnchors';
 import {
   Search,
   Plus,
@@ -49,6 +50,7 @@ export const BoardsModalHeader: React.FC<BoardsModalHeaderProps> = ({
         <div className="flex items-center gap-3">
           <button
             onClick={onClearSelection}
+            {...tourAttr('boards-modal.clear-selection')}
             aria-label={t('boardsModal.clearSelection', {
               defaultValue: 'Clear selection',
             })}
@@ -66,6 +68,7 @@ export const BoardsModalHeader: React.FC<BoardsModalHeaderProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={onBulkPin}
+            {...tourAttr('boards-modal.bulk-pin')}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xxs font-bold uppercase tracking-wider text-slate-700 bg-white rounded-lg hover:bg-slate-100 transition"
           >
             <Pin className="w-3.5 h-3.5" />
@@ -73,6 +76,7 @@ export const BoardsModalHeader: React.FC<BoardsModalHeaderProps> = ({
           </button>
           <button
             onClick={onBulkUnpin}
+            {...tourAttr('boards-modal.bulk-unpin')}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xxs font-bold uppercase tracking-wider text-slate-700 bg-white rounded-lg hover:bg-slate-100 transition"
           >
             <PinOff className="w-3.5 h-3.5" />
@@ -80,6 +84,7 @@ export const BoardsModalHeader: React.FC<BoardsModalHeaderProps> = ({
           </button>
           <button
             onClick={onBulkMove}
+            {...tourAttr('boards-modal.bulk-move')}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xxs font-bold uppercase tracking-wider text-slate-700 bg-white rounded-lg hover:bg-slate-100 transition"
           >
             <FolderInput className="w-3.5 h-3.5" />
@@ -87,6 +92,7 @@ export const BoardsModalHeader: React.FC<BoardsModalHeaderProps> = ({
           </button>
           <button
             onClick={onBulkDelete}
+            {...tourAttr('boards-modal.bulk-delete')}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xxs font-bold uppercase tracking-wider text-white bg-brand-red-primary rounded-lg hover:bg-brand-red-dark transition"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -103,6 +109,7 @@ export const BoardsModalHeader: React.FC<BoardsModalHeaderProps> = ({
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
         <input
           type="search"
+          {...tourAttr('boards-modal.search')}
           value={search}
           onChange={(e) => onSearchChange(e.target.value)}
           placeholder={t('boardsModal.searchPlaceholder', {
@@ -116,6 +123,7 @@ export const BoardsModalHeader: React.FC<BoardsModalHeaderProps> = ({
           <button
             type="button"
             onClick={onCreateFromTemplate}
+            {...tourAttr('boards-modal.create-from-template')}
             className="flex items-center gap-1.5 px-3 py-2 text-xxs font-bold uppercase tracking-wider text-slate-700 bg-slate-100 rounded-xl hover:bg-slate-200 transition"
           >
             <LayoutTemplate className="w-3.5 h-3.5" />
@@ -126,6 +134,7 @@ export const BoardsModalHeader: React.FC<BoardsModalHeaderProps> = ({
         )}
         <button
           onClick={onCreateCollection}
+          {...tourAttr('boards-modal.new-collection')}
           className="flex items-center gap-1.5 px-3 py-2 text-xxs font-bold uppercase tracking-wider text-slate-700 bg-slate-100 rounded-xl hover:bg-slate-200 transition"
         >
           <FolderPlus className="w-3.5 h-3.5" />
@@ -133,6 +142,7 @@ export const BoardsModalHeader: React.FC<BoardsModalHeaderProps> = ({
         </button>
         <button
           onClick={onCreateBoard}
+          {...tourAttr('boards-modal.new-board')}
           className="flex items-center gap-1.5 px-3 py-2 text-xxs font-bold uppercase tracking-wider text-white bg-brand-blue-primary rounded-xl hover:bg-brand-blue-dark shadow-sm transition"
         >
           <Plus className="w-3.5 h-3.5" />

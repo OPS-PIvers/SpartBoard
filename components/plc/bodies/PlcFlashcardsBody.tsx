@@ -33,6 +33,7 @@ import { getPlcMemberEmail } from '@/utils/plc';
 import { logError } from '@/utils/logError';
 import { PlcSharePickerModal } from '@/components/plc/PlcSharePickerModal';
 import { PlcViewerReadOnlyBadge } from '@/components/plc/viewer/PlcViewerReadOnlyBadge';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface PlcFlashcardsBodyProps {
   plc: Plc;
@@ -84,6 +85,7 @@ export const PlcFlashcardResultRow: React.FC<{
   return (
     <div className="bg-white border border-slate-200 rounded-xl">
       <button
+        {...tourAttr('plc-flashcards.set-expand')}
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
@@ -218,6 +220,7 @@ export const PlcFlashcardSetRow: React.FC<{
       </div>
       <div className="shrink-0 flex items-center gap-1.5">
         <button
+          {...tourAttr('plc-flashcards.import')}
           type="button"
           onClick={onImport}
           disabled={busy}
@@ -230,6 +233,7 @@ export const PlcFlashcardSetRow: React.FC<{
         </button>
         {canEdit && (
           <button
+            {...tourAttr('plc-flashcards.unshare')}
             type="button"
             onClick={onUnshare}
             disabled={busy}
@@ -439,6 +443,7 @@ export const PlcFlashcardsBody: React.FC<PlcFlashcardsBodyProps> = ({
         sets.length,
         canEdit ? (
           <button
+            {...tourAttr('plc-flashcards.share')}
             type="button"
             onClick={() => setPickerOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-lg text-xxs font-bold uppercase tracking-wider transition-colors"

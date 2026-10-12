@@ -7,23 +7,11 @@ import React, { useMemo } from 'react';
 import { FreeResponseGrader } from '@/components/widgets/QuizWidget/components/FreeResponseGrader';
 import type {
   ArtifactArchiveEntry,
-  QuizData,
   QuizQuestion,
   QuizResponse,
   ResponseArtifact,
 } from '@/types';
-
-export const MEDIA_GRADING_STATES = [
-  'queue',
-  'typed',
-  'playing',
-  'provisional',
-  'capture-unavailable',
-  'archiving',
-  'deleted',
-] as const;
-
-export type MediaGradingStateKey = (typeof MEDIA_GRADING_STATES)[number];
+import { type MediaGradingStateKey } from './devViewStates';
 
 // 0.2s of silence — enough for the transport to be real without a fixture file.
 const SILENT_WAV =
@@ -235,15 +223,14 @@ export const MediaGradingDevView: React.FC<{ state: MediaGradingStateKey }> = ({
   state,
 }) => {
   const quiz = useMemo(
-    () =>
-      ({
-        id: 'quiz-dev',
-        title: 'Spoken checks',
-        questions: makeQuestions(state),
-        stimuli: [DEV_STIMULUS],
-        createdAt: 0,
-        updatedAt: 0,
-      }) as QuizData,
+    () => ({
+      id: 'quiz-dev',
+      title: 'Spoken checks',
+      questions: makeQuestions(state),
+      stimuli: [DEV_STIMULUS],
+      createdAt: 0,
+      updatedAt: 0,
+    }),
     [state]
   );
   const responses = useMemo(() => makeResponses(state), [state]);

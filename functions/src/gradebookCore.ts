@@ -102,6 +102,8 @@ export interface GradeIndexRow {
   published: boolean;
   /** False when the student is outside the assignment's targeting (D25). */
   assigned: boolean;
+  /** Mini App results v2: who scored the best attempt; absent on completion rows. */
+  gradedBy?: 'server' | 'app';
   updatedAt: number;
 }
 
@@ -137,11 +139,7 @@ export interface GradebookMark {
 }
 
 export type GradebookHistoryField =
-  | 'override'
-  | 'comment'
-  | 'flags'
-  | 'publish'
-  | 'fill';
+  'override' | 'comment' | 'flags' | 'publish' | 'fill';
 
 /** D24 `gradebook_marks/{id}/history/{autoId}`, append-only. */
 export interface GradebookHistoryEntry {
@@ -208,14 +206,7 @@ export interface GradebookCategory {
 }
 
 export type ScaleColor =
-  | 'emerald'
-  | 'teal'
-  | 'sky'
-  | 'blue'
-  | 'amber'
-  | 'orange'
-  | 'rose'
-  | 'slate';
+  'emerald' | 'teal' | 'sky' | 'blue' | 'amber' | 'orange' | 'rose' | 'slate';
 
 /** Picker order; no purples (same family as flag colors). */
 export const SCALE_COLORS: readonly ScaleColor[] = [
@@ -366,6 +357,16 @@ export function isCompletionOnly(kind: GradebookKind): boolean {
   return COMPLETION_ONLY_KINDS.includes(kind);
 }
 
+/** A scored Mini App row (results v2) counts like any graded work. */
+export function isScoredMiniAppRow(row: GradeIndexRow | null): boolean {
+  return (
+    row?.kind === 'mini-app' &&
+    row.gradedBy !== undefined &&
+    row.max !== null &&
+    row.max > 0
+  );
+}
+
 export interface ActiveFlag {
   id: string;
   auto: boolean;
@@ -414,12 +415,7 @@ export function activeFlags(
 }
 
 export type FinalScoreStatus =
-  | 'scored'
-  | 'excluded'
-  | 'awaiting'
-  | 'empty'
-  | 'complete'
-  | 'not-assigned';
+  'scored' | 'excluded' | 'awaiting' | 'empty' | 'complete' | 'not-assigned';
 
 export interface FinalScore {
   status: FinalScoreStatus;
@@ -506,7 +502,7 @@ export function resolveFinalScore(
     counts: false,
   };
   if (raw && !raw.assigned) return { ...base, status: 'not-assigned' };
-  if (kind && isCompletionOnly(kind)) {
+  if (kind && isCompletionOnly(kind) && !isScoredMiniAppRow(raw)) {
     const done = raw !== null && raw.submittedAt !== null;
     return { ...base, status: done ? 'complete' : 'empty' };
   }
@@ -1017,13 +1013,7 @@ export type GradebookConfigRef =
   | { source: 'plc'; plcId: string };
 
 export type GradebookSortKey =
-  | 'last'
-  | 'first'
-  | 'overall'
-  | 'column'
-  | 'missing'
-  | 'flag'
-  | 'group';
+  'last' | 'first' | 'overall' | 'column' | 'missing' | 'flag' | 'group';
 
 export interface GradebookSort {
   key: GradebookSortKey;

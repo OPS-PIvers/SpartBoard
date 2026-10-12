@@ -12,6 +12,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { Folder as FolderIcon, Inbox, ChevronDown } from 'lucide-react';
 import type { LibraryFolder } from '@/types';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { FolderPickerPopover } from './FolderPickerPopover';
 
 export interface FolderSelectFieldProps {
@@ -27,6 +28,7 @@ export interface FolderSelectFieldProps {
   disabledReason?: string;
   /** `header` drops the visible label for a compact button in an editor header. */
   variant?: 'field' | 'header';
+  anchor?: TourAnchorAttrs;
 }
 
 export const FolderSelectField: React.FC<FolderSelectFieldProps> = ({
@@ -37,6 +39,7 @@ export const FolderSelectField: React.FC<FolderSelectFieldProps> = ({
   disabled = false,
   disabledReason,
   variant = 'field',
+  anchor,
 }) => {
   const [pickerOpen, setPickerOpen] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -72,6 +75,7 @@ export const FolderSelectField: React.FC<FolderSelectFieldProps> = ({
         aria-label={isHeader ? `${label}: ${displayName}` : undefined}
         aria-haspopup="dialog"
         aria-expanded={pickerOpen}
+        {...anchor}
         className={`inline-flex items-center gap-2 border border-slate-300 bg-white text-left text-sm font-medium text-slate-700 transition-colors hover:border-brand-blue-primary/40 hover:bg-brand-blue-lighter/10 disabled:cursor-not-allowed disabled:opacity-60 ${
           isHeader
             ? 'w-full max-w-[16rem] rounded-lg px-2.5 py-1.5'

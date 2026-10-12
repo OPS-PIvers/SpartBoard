@@ -2,11 +2,11 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@/i18n';
+import { AudioCaptureDevView } from './AudioCaptureDevView';
 import {
-  AudioCaptureDevView,
   AUDIO_CAPTURE_STATES,
   AUDIO_CAPTURE_DARK_STATES,
-} from './AudioCaptureDevView';
+} from './devViewStates';
 
 beforeEach(() => {
   globalThis.URL.createObjectURL = vi.fn(() => 'blob:dev');

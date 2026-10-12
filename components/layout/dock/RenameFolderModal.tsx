@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { GlassCard } from '@/components/common/GlassCard';
 import { Modal } from '@/components/common/Modal';
 import { GlobalStyle } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface RenameFolderModalProps {
   name: string;
@@ -47,6 +48,7 @@ export const RenameFolderModal: React.FC<RenameFolderModalProps> = ({
             if (showError) setShowError(false);
           }}
           autoFocus
+          {...tourAttr('dock.rename-folder-input')}
           placeholder="Folder name..."
           aria-invalid={showError || undefined}
           aria-describedby={showError ? 'rename-folder-error' : undefined}
@@ -65,12 +67,14 @@ export const RenameFolderModal: React.FC<RenameFolderModalProps> = ({
         <div className={showError ? 'flex gap-3' : 'flex gap-3 mt-6'}>
           <button
             onClick={onClose}
+            {...tourAttr('dock.rename-folder-cancel')}
             className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-500 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={commit}
+            {...tourAttr('dock.rename-folder-save')}
             className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-white bg-brand-blue-primary rounded-xl hover:bg-brand-blue-dark shadow-lg shadow-brand-blue-primary/20 transition-all"
           >
             Save

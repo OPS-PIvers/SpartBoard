@@ -20,6 +20,7 @@ import {
 } from '@/components/plc/home/cards/yourActionItems';
 import { TileEmpty, TileFrame } from './TileFrame';
 import type { PlcHomeTileProps } from './tileTypes';
+import { tourAttr } from '@/config/tourAnchors';
 
 const COMPACT_ITEMS = 2;
 const HERO_SINCE = 8;
@@ -102,6 +103,7 @@ const ItemRow: React.FC<{ view: ActionItemView; plcId: string }> = ({
   return (
     <li className="flex items-center gap-2.5 py-1.5">
       <button
+        {...tourAttr('plc-home.action-done')}
         type="button"
         onClick={() => void markDone()}
         disabled={busy}

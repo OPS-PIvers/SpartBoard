@@ -20,7 +20,6 @@ import {
   QuizSession,
   QuizSessionStatus,
   QuizResponse,
-  QuizResponseStatus,
   QuizData,
   QuizConfig,
   QuizPublicQuestion,
@@ -37,7 +36,7 @@ const VA_SESSION_ID = 'dev-va-session-1';
 // Current time so relative-time formatting in the views reads realistically
 // ("5 minutes ago", not "2 years ago"). Date.now() is fine in source files —
 // the restriction is specific to workflow scripts.
-const NOW = Date.now();
+export const NOW = Date.now();
 
 /* ─── Quiz quiz data ─────────────────────────────────────────────────────── */
 
@@ -151,7 +150,7 @@ function quizCompleted(
     studentUid: key,
     pin,
     joinedAt: NOW - 540_000,
-    status: 'completed' as QuizResponseStatus,
+    status: 'completed',
     answers: [
       { questionId: QUIZ_Q1_ID, answer: q1Answer, answeredAt: NOW - 480_000 },
       { questionId: QUIZ_Q2_ID, answer: q2Answer, answeredAt: NOW - 420_000 },

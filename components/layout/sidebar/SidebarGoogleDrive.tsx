@@ -8,6 +8,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { APP_NAME } from '@/config/constants';
 import { useViewAsDriveStatus } from '@/hooks/useViewAsDriveStatus';
 import { VIEW_AS_DRIVE_UNAVAILABLE } from '@/utils/viewAsDrive';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface SidebarGoogleDriveProps {
   isVisible: boolean;
@@ -136,6 +137,7 @@ export const SidebarGoogleDrive: React.FC<SidebarGoogleDriveProps> = ({
                   <>
                     <button
                       onClick={handleRefreshDrive}
+                      {...tourAttr('sidebar.drive-refresh')}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-emerald-200 text-xxs font-bold text-emerald-700 uppercase tracking-wider hover:bg-emerald-50 transition-all shadow-sm"
                     >
                       <RefreshCw className="w-3.5 h-3.5" />
@@ -145,6 +147,7 @@ export const SidebarGoogleDrive: React.FC<SidebarGoogleDriveProps> = ({
                     </button>
                     <button
                       onClick={handleDisconnectDrive}
+                      {...tourAttr('sidebar.drive-disconnect')}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-xxs font-bold text-slate-500 uppercase tracking-wider hover:text-brand-red-primary hover:border-brand-red-lighter hover:bg-red-50 transition-all shadow-sm"
                     >
                       <Unlink className="w-3.5 h-3.5" />
@@ -156,6 +159,7 @@ export const SidebarGoogleDrive: React.FC<SidebarGoogleDriveProps> = ({
                 ) : (
                   <button
                     onClick={() => void connectGoogleDrive()}
+                    {...tourAttr('sidebar.drive-connect')}
                     className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-brand-blue-primary text-white text-xxs font-bold uppercase tracking-wider shadow-md hover:bg-brand-blue-dark transition-all"
                   >
                     <GoogleDriveIcon className="w-4 h-4" />

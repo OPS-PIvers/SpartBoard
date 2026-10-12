@@ -38,9 +38,7 @@ export function resolveStudentTabWarningThreshold(
   sessionThreshold: number | 'off' | undefined,
   studentUid: string | null | undefined,
   overridesBySourcedId:
-    | Record<string, { tabWarningThreshold?: number | 'off' }>
-    | null
-    | undefined,
+    Record<string, { tabWarningThreshold?: number | 'off' }> | null | undefined,
   targetRefKeyByStudentUid: Map<string, string> | null | undefined
 ): number | 'off' {
   const targetRefKey = studentUid

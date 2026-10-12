@@ -10,6 +10,7 @@ import {
 import { useDashboard } from '@/context/useDashboard';
 import { Z_INDEX } from '@/config/zIndex';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 
 /**
  * Optional pool selection (docs/plans/shipped/ROSTER_GROUPS_INTEGRATION.md D8/D16).
@@ -34,12 +35,16 @@ interface ActiveClassChipProps {
    */
   compact?: boolean;
   groupSelection?: ActiveClassChipGroupSelection;
+  anchor?: TourAnchorAttrs;
+  groupAnchor?: (groupId: string) => TourAnchorAttrs;
 }
 
 export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
   className,
   compact = false,
   groupSelection,
+  anchor,
+  groupAnchor,
 }) => {
   const { rosters, activeRosterId, setActiveRoster } = useDashboard();
   const activeRoster = rosters.find((r) => r.id === activeRosterId);
@@ -290,6 +295,7 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
       <button
         ref={anchorRef}
         type="button"
+        {...anchor}
         onClick={() => (open ? closeMenu() : openMenu())}
         className={`${chipClass} ${interactiveHoverClass} ${className ?? ''}`.trim()}
         style={chipStyle}
@@ -361,6 +367,7 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
                     {groups.length > 0 && (
                       <RosterGroupMenuItems
                         roster={r}
+                        anchor={groupAnchor}
                         selectedGroupId={isActiveClass ? selectedGroupId : null}
                         onSelect={(groupId) => {
                           if (!isActiveClass) setActiveRoster(r.id);

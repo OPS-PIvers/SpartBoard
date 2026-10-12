@@ -3,6 +3,7 @@
 import type { Student } from '@/types';
 import {
   isCompletionOnly,
+  isScoredMiniAppRow,
   isPublishedFor,
   type FinalScore,
   type GradebookClassStateDoc,
@@ -76,7 +77,8 @@ export function buildColumns(
   for (const [sessionId, list] of bySession) {
     const head = list.reduce((a, b) => (b.updatedAt > a.updatedAt ? b : a));
     const config = configs.get(sessionId) ?? null;
-    const completionOnly = isCompletionOnly(head.kind);
+    const completionOnly =
+      isCompletionOnly(head.kind) && !list.some(isScoredMiniAppRow);
     let hasUnpublished = false;
     let ungradedCount = 0;
     for (const r of list) {

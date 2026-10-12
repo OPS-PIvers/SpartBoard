@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { ConfirmDialog } from '@/components/widgets/InstructionalRoutines/ConfirmDialog';
 
 interface AiReaderToggleProps {
   checked: boolean;
   onChange: (checked: boolean) => void;
   disabled?: boolean;
+  anchor?: TourAnchorAttrs;
 }
 
 /** Opt-in to the AI reader; turning it on asks the teacher to confirm the cost. */
@@ -12,6 +14,7 @@ export const AiReaderToggle: React.FC<AiReaderToggleProps> = ({
   checked,
   onChange,
   disabled,
+  anchor,
 }) => {
   const [confirming, setConfirming] = useState(false);
 
@@ -19,6 +22,7 @@ export const AiReaderToggle: React.FC<AiReaderToggleProps> = ({
     <>
       <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
         <input
+          {...anchor}
           type="checkbox"
           checked={checked}
           onChange={(e) => {

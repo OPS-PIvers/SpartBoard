@@ -18,6 +18,7 @@ import {
   setCalloutTone,
 } from './regionEdits';
 import { isTooltipCallout, toggleCalloutKind } from './calloutHandles';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface CalloutToolbarProps {
   step: GuidedLearningStep;
@@ -62,6 +63,7 @@ export const CalloutToolbar: React.FC<CalloutToolbarProps> = ({
     >
       <button
         type="button"
+        {...tourAttr('studio.callout-edit-text')}
         onClick={onEdit}
         aria-label={t('glStudio.calloutEditText')}
         title={t('glStudio.calloutEditText')}
@@ -71,6 +73,7 @@ export const CalloutToolbar: React.FC<CalloutToolbarProps> = ({
       </button>
       <button
         type="button"
+        {...tourAttr('studio.callout-reset-position')}
         onClick={() => onChange(clearCalloutPin(step))}
         disabled={!step.calloutPin && !step.calloutBox}
         aria-label={t('glStudio.calloutResetPosition')}
@@ -81,6 +84,7 @@ export const CalloutToolbar: React.FC<CalloutToolbarProps> = ({
       </button>
       <button
         type="button"
+        {...tourAttr('studio.callout-reset-size')}
         onClick={() => onChange(clearCalloutSize(step))}
         disabled={!sized}
         aria-label={t('glStudio.calloutResetSize')}
@@ -91,6 +95,7 @@ export const CalloutToolbar: React.FC<CalloutToolbarProps> = ({
       </button>
       <button
         type="button"
+        {...tourAttr('studio.callout-kind')}
         onClick={() => onChange(toggleCalloutKind(step))}
         aria-label={kindLabel}
         title={kindLabel}
@@ -121,6 +126,7 @@ export const CalloutToolbar: React.FC<CalloutToolbarProps> = ({
               tabIndex={checked ? 0 : -1}
               aria-label={t(style.labelKey)}
               title={t(style.labelKey)}
+              {...tourAttr('studio.callout-tone')}
               onClick={() => onChange(setCalloutTone(step, option))}
               className={`flex h-6 w-6 items-center justify-center rounded-full border border-slate-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-1 ${style.swatch}`}
             >
@@ -139,6 +145,7 @@ export const CalloutToolbar: React.FC<CalloutToolbarProps> = ({
       <span className="mx-0.5 h-5 w-px bg-slate-200" aria-hidden="true" />
       <button
         type="button"
+        {...tourAttr('studio.callout-delete')}
         onClick={onDelete}
         aria-label={t('glStudio.calloutDeleteStep')}
         title={t('glStudio.calloutDeleteStep')}

@@ -6,6 +6,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   Building2,
   LayoutGrid,
@@ -739,6 +740,7 @@ export const OrganizationPanel: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setSection('orgs')}
+                {...tourAttr('admin.org.all-organizations')}
                 className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-white hover:text-slate-900 transition-colors"
               >
                 <ChevronLeft size={14} />
@@ -777,6 +779,7 @@ export const OrganizationPanel: React.FC = () => {
                   key={s.id}
                   type="button"
                   onClick={() => setSection(s.id)}
+                  {...tourFieldAttr('admin.org.section', 'admin', s.id)}
                   className={`text-left p-3 rounded-xl transition-colors flex items-start gap-3 ${
                     active
                       ? 'bg-brand-blue-lighter text-brand-blue-dark'
@@ -847,6 +850,7 @@ export const OrganizationPanel: React.FC = () => {
           <select
             value={effectiveSection}
             onChange={(e) => setSection(e.target.value as SectionId)}
+            {...tourAttr('admin.org.section-select')}
             className="w-full h-10 px-3 rounded-lg border border-slate-300 bg-white text-sm font-semibold mb-4"
             aria-label="Organization section"
           >
@@ -1160,7 +1164,11 @@ const ManualResetLinkModal: React.FC<{
       title="Copy password-reset link"
       icon={<KeyRound size={18} />}
       footer={
-        <Btn variant="secondary" onClick={onClose}>
+        <Btn
+          variant="secondary"
+          onClick={onClose}
+          {...tourAttr('admin.org.reset-link-done')}
+        >
           Done
         </Btn>
       }
@@ -1179,10 +1187,16 @@ const ManualResetLinkModal: React.FC<{
             readOnly
             defaultValue=""
             onFocus={(e) => e.currentTarget.select()}
+            {...tourAttr('admin.org.reset-link-url')}
             aria-label="Password reset URL"
             className="flex-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-mono text-slate-800 focus:outline-none focus-visible:ring-[3px] focus-visible:ring-brand-blue-primary/30"
           />
-          <Btn variant="primary" onClick={handleCopy} icon={copyIcon}>
+          <Btn
+            variant="primary"
+            onClick={handleCopy}
+            icon={copyIcon}
+            {...tourAttr('admin.org.reset-link-copy')}
+          >
             {copyLabel}
           </Btn>
         </div>

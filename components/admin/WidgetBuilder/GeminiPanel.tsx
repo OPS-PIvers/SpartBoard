@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
 import { Sparkles, Wrench, Plus, HelpCircle, Loader2 } from 'lucide-react';
@@ -120,6 +121,7 @@ export const GeminiPanel: React.FC<GeminiPanelProps> = ({
 
       <div className="flex-1 flex flex-col gap-3 p-3 overflow-auto">
         <textarea
+          {...tourAttr('admin.widget-builder.ai-prompt')}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Describe what you want this widget to do..."
@@ -129,6 +131,7 @@ export const GeminiPanel: React.FC<GeminiPanelProps> = ({
 
         <div className="grid grid-cols-2 gap-2">
           <button
+            {...tourAttr('admin.widget-builder.ai-generate')}
             onClick={() => handleAction('generate')}
             disabled={loading}
             className="flex items-center justify-center gap-1.5 px-3 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-medium rounded transition-colors"
@@ -137,6 +140,7 @@ export const GeminiPanel: React.FC<GeminiPanelProps> = ({
             Generate
           </button>
           <button
+            {...tourAttr('admin.widget-builder.ai-fix')}
             onClick={() => handleAction('fix')}
             disabled={loading}
             className="flex items-center justify-center gap-1.5 px-3 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-medium rounded transition-colors"
@@ -145,6 +149,7 @@ export const GeminiPanel: React.FC<GeminiPanelProps> = ({
             Fix Errors
           </button>
           <button
+            {...tourAttr('admin.widget-builder.ai-add')}
             onClick={() => handleAction('add')}
             disabled={loading}
             className="flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-medium rounded transition-colors"
@@ -153,6 +158,7 @@ export const GeminiPanel: React.FC<GeminiPanelProps> = ({
             Add Feature
           </button>
           <button
+            {...tourAttr('admin.widget-builder.ai-explain')}
             onClick={() => handleAction('explain')}
             disabled={loading}
             className="flex items-center justify-center gap-1.5 px-3 py-2 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-medium rounded transition-colors"

@@ -16,6 +16,7 @@ import {
   type NewerHeroData,
 } from './heroStaleness';
 import { useNewerHeroData } from './useHeroStaleness';
+import { tourAttr } from '@/config/tourAnchors';
 
 const fmt = new Intl.DateTimeFormat('en-US', {
   month: 'short',
@@ -44,15 +45,25 @@ export const HeroStaleNudgeView: React.FC<{
         })}
       </span>
       {editor ? (
-        <TextLink onClick={onShowLatest}>
+        <TextLink
+          onClick={onShowLatest}
+          {...tourAttr('teams.layout.follow-latest')}
+        >
           {t('teams.layout.followLatest', { defaultValue: 'Follow latest' })}
         </TextLink>
       ) : (
         <>
-          <TextLink onClick={onShowLatest}>
+          <TextLink
+            onClick={onShowLatest}
+            {...tourAttr('teams.hero.show-latest')}
+          >
             {t('teams.hero.showLatest', { defaultValue: 'Show latest' })}
           </TextLink>
-          <TextLink quiet onClick={onKeepPinned}>
+          <TextLink
+            quiet
+            onClick={onKeepPinned}
+            {...tourAttr('teams.hero.keep-pinned')}
+          >
             {t('teams.hero.keepPinned', { defaultValue: 'Keep pinned' })}
           </TextLink>
         </>

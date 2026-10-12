@@ -432,18 +432,17 @@ describe('useSelection', () => {
     canvasEl.width = 800;
     canvasEl.height = 600;
     // Stub getBoundingClientRect to return 2:1 ratio.
-    canvasEl.getBoundingClientRect = (() =>
-      ({
-        x: 0,
-        y: 0,
-        left: 0,
-        top: 0,
-        right: 400,
-        bottom: 300,
-        width: 400,
-        height: 300,
-        toJSON: () => ({}),
-      }) as DOMRect) as () => DOMRect;
+    canvasEl.getBoundingClientRect = () => ({
+      x: 0,
+      y: 0,
+      left: 0,
+      top: 0,
+      right: 400,
+      bottom: 300,
+      width: 400,
+      height: 300,
+      toJSON: () => ({}),
+    });
     const canvasRef = {
       current: canvasEl,
     } as React.RefObject<HTMLCanvasElement>;

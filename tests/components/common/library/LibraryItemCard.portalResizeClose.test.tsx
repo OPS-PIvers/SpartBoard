@@ -88,12 +88,12 @@ describe('LibraryItemCard overflow menu — closes on host resize across a Modal
     expect(instance.observe).toHaveBeenCalledWith(hostRef.current);
 
     act(() => {
-      instance.callback([], instance as unknown as ResizeObserver); // observe()'s always-fires-once initial callback
+      instance.callback([], instance); // observe()'s always-fires-once initial callback
     });
     expect(screen.getByRole('menu')).toBeInTheDocument();
 
     act(() => {
-      instance.callback([], instance as unknown as ResizeObserver); // a real geometry change
+      instance.callback([], instance); // a real geometry change
     });
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
 

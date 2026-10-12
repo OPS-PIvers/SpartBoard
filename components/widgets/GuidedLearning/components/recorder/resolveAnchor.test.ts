@@ -75,6 +75,17 @@ describe('resolveRecordedAnchor', () => {
     });
   });
 
+  it('records a menu item inside its opener tag as its own untagged step', () => {
+    const root = dom(
+      '<div data-tour="settings.help"><button aria-haspopup="menu">?</button><div role="menu"><button role="menuitem"><span class="u">Open guides</span></button></div></div>'
+    );
+    expect(resolveRecordedAnchor(pick(root, '.u'))).toMatchObject({
+      anchor: '',
+      fallback: { role: 'menuitem', name: 'open guides' },
+      untagged: true,
+    });
+  });
+
   it("ignores the recorder's own UI", () => {
     const root = dom(
       '<div data-tour-ignore><button data-tour="sidebar.boards">Pause</button></div>'

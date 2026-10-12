@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import {
   canonicalBuildingId,
@@ -50,6 +51,11 @@ export const DockDefaultsPanel: React.FC<DockDefaultsPanelProps> = ({
               {building.name}
             </span>
             <Toggle
+              anchor={tourFieldAttr(
+                'admin.dock-defaults.building',
+                'admin',
+                building.id
+              )}
               checked={!!dockDefaults[canonicalBuildingId(building.id)]}
               onChange={() => handleToggle(building.id)}
               label={`Dock on ${building.name} by default`}

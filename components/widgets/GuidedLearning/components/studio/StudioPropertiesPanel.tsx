@@ -16,6 +16,7 @@ import type {
 import { StudioRegionControls } from './StudioRegionControls';
 import { StudioNarration, StudioNarrationBatch } from './StudioNarration';
 import { StudioStepFields, StudioStepPlayback } from './StudioStepFields';
+import { StudioWelcomePanel } from './StudioWelcomePanel';
 import { VideoTrimBar } from '../editorShared/VideoTrimBar';
 import {
   ChoiceGroup,
@@ -26,6 +27,7 @@ import {
 } from './panelControls';
 import type { GuidedLearningEditorController } from '../useGuidedLearningEditorState';
 import { markReviewed } from './aiDraftReview';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface StudioPropertiesPanelProps {
   state: GuidedLearningEditorController;
@@ -39,6 +41,10 @@ interface StudioPropertiesPanelProps {
   onEditOnBoard?: () => void;
   /** `gl-callout-editing`: callout size and colour summary, and Reset all. */
   calloutEditing?: boolean;
+  /** `gl-welcome-card`: the welcome settings live on the pinned card instead. */
+  welcomeCard?: boolean;
+  /** The pinned Welcome card is selected. */
+  welcomeSelected?: boolean;
 }
 
 const MODES: readonly GuidedLearningMode[] = [
@@ -98,8 +104,12 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
   canOfferTour = false,
   onEditOnBoard,
   calloutEditing = false,
+  welcomeCard = false,
+  welcomeSelected = false,
 }) => {
   const { selectedStep } = state;
+  if (welcomeCard && welcomeSelected && !selectedStep)
+    return <StudioWelcomePanel state={state} />;
   return (
     <div className="flex flex-col divide-y divide-slate-200">
       {selectedStep ? (
@@ -115,6 +125,7 @@ export const StudioPropertiesPanel: React.FC<StudioPropertiesPanelProps> = ({
           state={state}
           canOfferTour={canOfferTour}
           onEditOnBoard={onEditOnBoard}
+          welcomeCard={welcomeCard}
         />
       )}
       {state.imageUrls.length > 0 && (
@@ -153,6 +164,7 @@ const StepSection: React.FC<{
         </div>
         <button
           type="button"
+          {...tourAttr('studio.props-delete-step')}
           onClick={() => (onDeleteStep ?? deleteStep)(step.id)}
           className="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold text-red-700 transition-colors hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-600/40"
         >
@@ -168,6 +180,7 @@ const StepSection: React.FC<{
           </p>
           <button
             type="button"
+            {...tourAttr('studio.props-mark-reviewed')}
             onClick={() => updateStep(markReviewed(step))}
             className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
           >
@@ -200,7 +213,8 @@ const ActivitySection: React.FC<{
   state: GuidedLearningEditorController;
   canOfferTour: boolean;
   onEditOnBoard?: () => void;
-}> = ({ state, canOfferTour, onEditOnBoard }) => {
+  welcomeCard: boolean;
+}> = ({ state, canOfferTour, onEditOnBoard, welcomeCard }) => {
   const { t } = useTranslation();
   const {
     steps,
@@ -233,12 +247,20 @@ const ActivitySection: React.FC<{
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
+          {...tourAttr('studio.props-description')}
           placeholder={t('glStudio.descriptionPlaceholder')}
           className={`${inputClass} resize-none`}
         />
       </Field>
       <ChoiceGroup
         legend={t('glStudio.playMode')}
+        optionAnchor={(v) =>
+          tourFieldAttr(
+            'studio.panel-option',
+            'guided-learning',
+            `playMode-${v}`
+          )
+        }
         value={mode}
         options={(canOfferTour || mode === 'tour'
           ? [...MODES, 'tour' as const]
@@ -254,6 +276,13 @@ const ActivitySection: React.FC<{
       {mode === 'guided' && (
         <ChoiceGroup
           legend={t('glStudio.watchPace')}
+          optionAnchor={(v) =>
+            tourFieldAttr(
+              'studio.panel-option',
+              'guided-learning',
+              `watchPace-${v}`
+            )
+          }
           value={watchPace ?? 'standard'}
           options={PACES.map((value) => ({
             value,
@@ -266,37 +295,42 @@ const ActivitySection: React.FC<{
           testId="gl-studio-watch-pace"
         />
       )}
-      <div className="flex flex-col gap-2">
-        <label className="flex items-start gap-2 text-sm text-slate-700">
-          <input
-            type="checkbox"
-            checked={welcomeEnabled}
-            onChange={(e) => setWelcomeEnabled(e.target.checked)}
-            className="mt-0.5 h-4 w-4 accent-brand-blue-primary"
-          />
-          <span className="flex flex-col gap-0.5">
-            <span className="text-xs font-bold">
-              {t('glStudio.welcomeToggle')}
-            </span>
-            <span className={hintClass}>{t('glStudio.welcomeHint')}</span>
-          </span>
-        </label>
-        {welcomeEnabled && (
-          <Field label={t('glStudio.welcomeMessage')}>
-            <textarea
-              value={welcomeMessage}
-              onChange={(e) => setWelcomeMessage(e.target.value)}
-              rows={3}
-              placeholder={t('glStudio.welcomePlaceholder')}
-              className={`${inputClass} resize-none`}
+      {!welcomeCard && (
+        <div className="flex flex-col gap-2">
+          <label className="flex items-start gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              {...tourAttr('studio.props-welcome-enabled')}
+              checked={welcomeEnabled}
+              onChange={(e) => setWelcomeEnabled(e.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-brand-blue-primary"
             />
-          </Field>
-        )}
-      </div>
+            <span className="flex flex-col gap-0.5">
+              <span className="text-xs font-bold">
+                {t('glStudio.welcomeToggle')}
+              </span>
+              <span className={hintClass}>{t('glStudio.welcomeHint')}</span>
+            </span>
+          </label>
+          {welcomeEnabled && (
+            <Field label={t('glStudio.welcomeMessage')}>
+              <textarea
+                value={welcomeMessage}
+                onChange={(e) => setWelcomeMessage(e.target.value)}
+                rows={3}
+                {...tourAttr('studio.props-welcome-message')}
+                placeholder={t('glStudio.welcomePlaceholder')}
+                className={`${inputClass} resize-none`}
+              />
+            </Field>
+          )}
+        </div>
+      )}
       {steps.length > 0 && <StudioNarrationBatch state={state} />}
       {mode === 'tour' && onEditOnBoard && (
         <button
           type="button"
+          {...tourAttr('studio.props-edit-on-board')}
           onClick={onEditOnBoard}
           data-testid="gl-studio-edit-on-board"
           className="flex items-center justify-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-2 text-sm font-bold text-white transition-colors hover:bg-brand-blue-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 focus-visible:ring-offset-2"
@@ -364,6 +398,13 @@ const SlideSection: React.FC<{
       <Group title={t('glStudio.allSlides')}>
         <ChoiceGroup
           legend={t('glStudio.pulse')}
+          optionAnchor={(v) =>
+            tourFieldAttr(
+              'studio.panel-option',
+              'guided-learning',
+              `pulse-${v}`
+            )
+          }
           value={hotspotPulse}
           options={PULSES.map((value) => ({
             value,
@@ -376,6 +417,13 @@ const SlideSection: React.FC<{
         />
         <ChoiceGroup
           legend={t('glStudio.transition')}
+          optionAnchor={(v) =>
+            tourFieldAttr(
+              'studio.panel-option',
+              'guided-learning',
+              `transition-${v}`
+            )
+          }
           value={imageTransition}
           options={TRANSITIONS.map((value) => ({
             value,

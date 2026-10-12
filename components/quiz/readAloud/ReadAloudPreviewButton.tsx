@@ -2,6 +2,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Square, Volume2 } from 'lucide-react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import {
   resolveReadAloudUrl,
   synthesizeQuizAudio,
@@ -23,7 +24,8 @@ export const ReadAloudPreviewButton: React.FC<{
   voice?: string;
   label?: string;
   className?: string;
-}> = ({ language, voice, label, className = '' }) => {
+  anchor?: TourAnchorAttrs;
+}> = ({ language, voice, label, className = '', anchor }) => {
   const { t } = useTranslation();
   const [state, setState] = useState<State>('idle');
   const seqRef = useRef(0);
@@ -75,6 +77,7 @@ export const ReadAloudPreviewButton: React.FC<{
         onClick={active ? stop : () => void play()}
         aria-pressed={state === 'playing'}
         aria-busy={state === 'loading'}
+        {...anchor}
         className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
           active
             ? 'border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary'

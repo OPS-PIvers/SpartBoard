@@ -114,6 +114,7 @@ import {
 } from '@/components/tours/publishedTours';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 // Lazy so the preview player chunk loads only when a teacher hits Play preview.
 const LazyGuidedLearningPlayer = lazy(() =>
@@ -148,6 +149,8 @@ interface LibraryEntry {
   helpCenter?: boolean;
   /** Personal-only: current folder assignment (`null` = root). */
   folderId?: string | null;
+  /** Personal-only: Claude changed it and the teacher hasn't opened it since. */
+  claudeReviewPendingAt?: number;
 }
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */
@@ -157,6 +160,11 @@ export interface GuidedLearningManagerProps {
   userId?: string;
   /** Personal set metadata (Drive-backed). */
   sets: GuidedLearningSetMetadata[];
+  /** "Review before assigning" badge for a set Claude changed. */
+  reviewBadge?: (
+    item: { claudeReviewPendingAt?: number },
+    onOpen: () => void
+  ) => LibraryBadge | null;
   /** Admin-authored building sets (Firestore-backed). */
   buildingSets: GuidedLearningBuildingSetIndex[];
   /** Teacher's per-assignment archive. */
@@ -397,6 +405,7 @@ const buildLibraryEntries = (
     order: meta.order,
     driveFileId: meta.driveFileId,
     folderId: meta.folderId ?? null,
+    claudeReviewPendingAt: meta.claudeReviewPendingAt,
   }));
 
   const building: LibraryEntry[] = buildingSets.map((entry) => ({
@@ -453,6 +462,7 @@ const ViewCountSubtitle: React.FC<{ sessionId: string }> = ({ sessionId }) => {
 export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   userId,
   sets,
+  reviewBadge,
   buildingSets,
   assignments,
   loading,
@@ -909,6 +919,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         tone: 'warn',
       });
     }
+    const review = reviewBadge?.(entry, () =>
+      onEdit(rawId, entry.driveFileId, entry.buildingEntry)
+    );
+    if (review) badges.push(review);
     // Authors see where a tour stands: only a published building tour reaches teachers.
     if (isTour && isAdmin) {
       if (entry.source === 'personal') {
@@ -1560,6 +1574,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       mode === 'archive' && hasOlderAssignments && onShowOlderAssignments ? (
         <button
           type="button"
+          {...tourAttr('gl-manager.show-older')}
           onClick={onShowOlderAssignments}
           className="self-center rounded-lg px-3 py-1.5 font-semibold text-brand-blue-primary hover:bg-slate-100"
           style={{ fontSize: 'min(12px, 4cqmin)' }}
@@ -1614,6 +1629,11 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         onDeleteFolder={folderState.deleteFolder}
         {...folderView}
         enableDrop
+        anchors={{
+          newFolder: tourAttr('gl-manager.folder-new'),
+          root: tourAttr('gl-manager.folder-root'),
+          newFolderInput: tourAttr('gl-manager.folder-name'),
+        }}
       />
     ) : undefined;
 
@@ -1717,6 +1737,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
                 {userId && (
                   <button
                     type="button"
+                    {...tourAttr('gl-manager.select-mode')}
                     onClick={() => {
                       if (selectionMode) {
                         selection.clear();
@@ -1778,6 +1799,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       }}
       onClose={() => setFolderPickerTarget(null)}
       title={`Move "${folderPickerTarget.title}" to…`}
+      rootAnchor={tourAttr('gl-folder-picker.root')}
+      rowAnchor={(id) =>
+        tourFieldAttr('gl-folder-picker.folder', 'guided-learning', id)
+      }
     />
   ) : null;
 
@@ -1859,6 +1884,7 @@ const GuidedLearningPreviewPane: React.FC<{
   const lastLoadedUpdatedAtRef = React.useRef<number | null>(null);
   React.useEffect(() => {
     if (previewState !== 'playing') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- tracks remote updatedAt changes while previewing
       setPreviewStale(false);
       return;
     }
@@ -1875,6 +1901,7 @@ const GuidedLearningPreviewPane: React.FC<{
     <LibraryPreviewPane
       isOpen={true}
       onClose={onClose}
+      closeAnchor={tourAttr('gl-manager.preview-close')}
       title={entry.title}
       subtitle={
         <>
@@ -1888,6 +1915,7 @@ const GuidedLearningPreviewPane: React.FC<{
           ? {
               label: 'Open editor',
               icon: Pencil,
+              anchor: tourAttr('gl-manager.preview-open-editor'),
               onClick: () => onEdit(entry),
             }
           : undefined
@@ -1929,6 +1957,7 @@ const GuidedLearningPreviewPane: React.FC<{
               >
                 <button
                   type="button"
+                  {...tourAttr('gl-manager.preview-play')}
                   onClick={handlePlayPreview}
                   className="rounded-full border border-white/20 bg-slate-900/70 font-medium text-slate-100 shadow-lg backdrop-blur-sm transition-colors hover:bg-slate-900/85"
                   style={{
@@ -1963,6 +1992,7 @@ const GuidedLearningPreviewPane: React.FC<{
             {loadSet && (
               <button
                 type="button"
+                {...tourAttr('gl-manager.preview-play')}
                 onClick={handlePlayPreview}
                 disabled={previewState === 'loading'}
                 className="absolute inset-0 flex items-center justify-center rounded-lg bg-slate-900/0 transition-colors hover:bg-slate-900/30 focus-visible:bg-slate-900/30"

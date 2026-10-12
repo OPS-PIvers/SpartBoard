@@ -20,6 +20,7 @@ import type {
 import { Modal } from '@/components/common/Modal';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
+import { tourAttr } from '@/config/tourAnchors';
 import {
   NO_STUDENT_SIGN_IN_WARNING,
   PROJECT_GROUP_COLORS,
@@ -131,6 +132,7 @@ export const ProjectGroupsManager: React.FC<ProjectGroupsManagerProps> = ({
                 </label>
                 <select
                   id="project-groups-class"
+                  {...tourAttr('projects.groups-class')}
                   value={rosterId}
                   disabled={locked}
                   onChange={(e) => setRosterId(e.target.value)}
@@ -208,6 +210,7 @@ const GroupColorPicker: React.FC<{
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label={`Change the color of ${name}`}
+        {...tourAttr('projects.group-color')}
         aria-haspopup="true"
         aria-expanded={open}
         title="Change color"
@@ -424,6 +427,7 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
         <button
           type="button"
           onClick={() => toggleSelected(member)}
+          {...tourAttr('projects.member-select')}
           disabled={namesPending}
           aria-pressed={isSelected}
           className="min-w-0 flex-1 truncate text-left font-medium text-slate-800 disabled:cursor-default"
@@ -440,6 +444,7 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
           <button
             type="button"
             onClick={() => moveTo(member, null)}
+            {...tourAttr('projects.member-remove')}
             disabled={namesPending}
             aria-label={`Take ${label} out of ${groupName}`}
             title="Take out of group"
@@ -468,6 +473,7 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
         <button
           type="button"
           onClick={addGroup}
+          {...tourAttr('projects.add-group')}
           disabled={draft.length >= MAX_GROUPS}
           className={quietButton}
         >
@@ -480,6 +486,7 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
             onClick={() =>
               setDraft((current) => spreadUnassigned(current, unassigned))
             }
+            {...tourAttr('projects.spread-students')}
             className={quietButton}
           >
             <Shuffle className="h-4 w-4" aria-hidden />
@@ -526,6 +533,7 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
                     value={group.name}
                     onChange={(e) => renameGroup(group.id, e.target.value)}
                     aria-label={`Name of ${name}`}
+                    {...tourAttr('projects.group-name')}
                     maxLength={60}
                     className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm font-bold text-slate-800 hover:border-slate-300 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
                   />
@@ -541,6 +549,7 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
                         : setConfirmDeleteId(group.id)
                     }
                     aria-label={`Delete ${name}`}
+                    {...tourAttr('projects.group-delete')}
                     title="Delete group"
                     className="shrink-0 rounded p-1 text-slate-500 hover:bg-red-50 hover:text-brand-red-primary"
                   >
@@ -562,6 +571,7 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
                       <button
                         type="button"
                         onClick={() => setConfirmDeleteId(null)}
+                        {...tourAttr('projects.group-keep')}
                         className="rounded-md px-2 py-1 font-semibold text-slate-600 hover:bg-slate-100"
                       >
                         Keep
@@ -569,6 +579,7 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
                       <button
                         type="button"
                         onClick={() => deleteGroup(group.id)}
+                        {...tourAttr('projects.group-delete-confirm')}
                         className="rounded-md bg-brand-red-primary px-2 py-1 font-bold text-white"
                       >
                         Delete group
@@ -592,6 +603,7 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
                   <button
                     type="button"
                     onClick={() => selected && moveTo(selected, group.id)}
+                    {...tourAttr('projects.group-move-here')}
                     className="inline-flex items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-brand-blue-primary/50 px-2 py-1.5 text-sm font-semibold text-brand-blue-primary hover:bg-brand-blue-primary/5"
                   >
                     <ArrowRightLeft className="h-4 w-4" aria-hidden />
@@ -620,6 +632,7 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
               <button
                 type="button"
                 onClick={() => moveTo(selected, null)}
+                {...tourAttr('projects.take-out')}
                 className="inline-flex items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-slate-300 px-2 py-1.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
               >
                 <UserMinus className="h-4 w-4" aria-hidden />
@@ -668,6 +681,7 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
               setConfirmDeleteId(null);
             }}
             disabled={busy}
+            {...tourAttr('projects.groups-undo')}
             className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
           >
             Undo changes
@@ -676,6 +690,7 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
         <button
           type="button"
           onClick={onClose}
+          {...tourAttr('projects.groups-close')}
           disabled={busy}
           className="rounded-xl px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-50"
         >
@@ -684,6 +699,7 @@ const ClassGroupsEditor: React.FC<ClassGroupsEditorProps> = ({
         <button
           type="button"
           onClick={() => void handleSave()}
+          {...tourAttr('projects.groups-save')}
           disabled={busy || !isDirty || oversized.length > 0}
           className="inline-flex items-center gap-1.5 rounded-xl bg-brand-blue-primary px-4 py-2 text-sm font-bold text-white disabled:opacity-50"
         >

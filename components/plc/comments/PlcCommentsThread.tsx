@@ -37,6 +37,7 @@ import {
   resolveMentions,
   type MentionCandidate,
 } from './mentionUtils';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcCommentsThreadProps {
   plcId: string;
@@ -81,6 +82,7 @@ const CommentRow: React.FC<{
         )}
         {canDelete && (
           <button
+            {...tourFieldAttr('plc-comments.delete', 'plc', comment.id)}
             type="button"
             onClick={() => onDelete(comment)}
             aria-label={t('plcDashboard.comments.delete', {
@@ -374,6 +376,7 @@ export const PlcCommentsThread: React.FC<PlcCommentsThreadProps> = ({
             {t('plcDashboard.comments.add', { defaultValue: 'Add a comment' })}
           </label>
           <textarea
+            {...tourAttr('plc-comments.input')}
             ref={textareaRef}
             id={`${idPrefix}-input`}
             value={draft}
@@ -407,6 +410,7 @@ export const PlcCommentsThread: React.FC<PlcCommentsThreadProps> = ({
           )}
           <div className="mt-1.5 flex items-center justify-end">
             <button
+              {...tourAttr('plc-comments.post')}
               type="button"
               onClick={() => void handlePost()}
               disabled={posting || draft.trim().length === 0}

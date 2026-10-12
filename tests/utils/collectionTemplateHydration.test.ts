@@ -41,7 +41,7 @@ beforeEach(() => {
   let n = 0;
   vi.stubGlobal('crypto', {
     randomUUID: () => `uuid-${++n}`,
-  } as unknown as Crypto);
+  });
 });
 
 afterEach(() => {

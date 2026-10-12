@@ -195,7 +195,7 @@ describe('FlashcardAssignmentPage — per-period access', () => {
       accessMode: undefined,
       cardsInContent: undefined,
       cards: [{ id: 'c1', term: 'uno', definition: 'one' }],
-    } as Partial<FlashcardSession>);
+    });
     render(<FlashcardAssignmentPage />);
     expect(await screen.findByText('1 cards')).toBeInTheDocument();
     expect(seatWrites()).toHaveLength(0);

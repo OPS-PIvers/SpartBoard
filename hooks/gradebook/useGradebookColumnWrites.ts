@@ -23,7 +23,7 @@ export type ColumnPatch = Partial<
 >;
 
 export function defaultColumnConfig(
-  column: Pick<GradebookColumnRef, 'sessionId' | 'kind'>,
+  column: Pick<GradebookColumnRef, 'sessionId' | 'kind' | 'completionOnly'>,
   ownerUid: string
 ): GradebookColumnConfig {
   return {
@@ -32,7 +32,9 @@ export function defaultColumnConfig(
     ownerUid,
     editorUids: [],
     category: null,
-    countsTowardOverall: !isCompletionOnly(column.kind),
+    countsTowardOverall: !(
+      column.completionOnly ?? isCompletionOnly(column.kind)
+    ),
     maxPointsOverride: null,
     attemptPolicy: DEFAULT_ATTEMPT_POLICY,
     targets: [],

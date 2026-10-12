@@ -18,6 +18,7 @@ import {
   where,
   deleteField,
 } from 'firebase/firestore';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { db, storage } from '@/config/firebase';
 import { ref, deleteObject } from 'firebase/storage';
 import { BackgroundPreset, AccessLevel } from '@/types';
@@ -202,6 +203,7 @@ export const BackgroundManager: React.FC = () => {
         active: true,
         accessLevel: 'public',
         betaUsers: [],
+        // eslint-disable-next-line react-hooks/purity -- runs in an async upload handler, not render
         createdAt: Date.now(),
       };
 
@@ -260,6 +262,7 @@ export const BackgroundManager: React.FC = () => {
   }, [message]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading flag for the Firestore subscription
     setLoading(true);
     const q = query(
       collection(db, 'admin_backgrounds'),
@@ -473,7 +476,7 @@ export const BackgroundManager: React.FC = () => {
         prev.map((p) => {
           if (p.id !== id) return p;
           const { category: _removed, ...rest } = p;
-          return rest as BackgroundPreset;
+          return rest;
         })
       );
     } catch (error) {
@@ -663,6 +666,7 @@ export const BackgroundManager: React.FC = () => {
       {(['all', 'on', 'off'] as const).map((val) => (
         <button
           key={val}
+          {...tourFieldAttr('admin.backgrounds.filter-active', 'admin', val)}
           onClick={() => setFilterActive(val)}
           className={btnClass(filterActive === val)}
         >
@@ -678,6 +682,11 @@ export const BackgroundManager: React.FC = () => {
       {(['all', 'admin', 'beta', 'public'] as const).map((val) => (
         <button
           key={val}
+          {...tourFieldAttr(
+            'admin.backgrounds.filter-availability',
+            'admin',
+            val
+          )}
           onClick={() => setFilterAvailability(val)}
           className={btnClass(filterAvailability === val)}
         >
@@ -691,12 +700,18 @@ export const BackgroundManager: React.FC = () => {
     <div className="flex items-center gap-1 flex-wrap">
       <span className="text-xs text-slate-500 font-medium">Category:</span>
       <button
+        {...tourFieldAttr('admin.backgrounds.filter-category', 'admin', 'all')}
         onClick={() => setFilterCategory('all')}
         className={btnClass(filterCategory === 'all')}
       >
         All
       </button>
       <button
+        {...tourFieldAttr(
+          'admin.backgrounds.filter-category',
+          'admin',
+          'uncategorized'
+        )}
         onClick={() => setFilterCategory('__uncategorized__')}
         className={btnClass(filterCategory === '__uncategorized__')}
       >
@@ -705,6 +720,11 @@ export const BackgroundManager: React.FC = () => {
       {allCategories.map((cat) => (
         <button
           key={cat}
+          {...tourFieldAttr(
+            'admin.backgrounds.filter-category',
+            'admin',
+            `cat:${cat}`
+          )}
           onClick={() => setFilterCategory(cat)}
           className={btnClass(filterCategory === cat)}
         >
@@ -718,6 +738,7 @@ export const BackgroundManager: React.FC = () => {
     <div className="flex items-center gap-1 flex-wrap">
       <span className="text-xs text-slate-500 font-medium">Building:</span>
       <button
+        {...tourFieldAttr('admin.backgrounds.filter-building', 'admin', 'all')}
         onClick={() => setFilterBuilding('all')}
         className={btnClass(filterBuilding === 'all')}
       >
@@ -726,6 +747,7 @@ export const BackgroundManager: React.FC = () => {
       {BUILDINGS.map((b) => (
         <button
           key={b.id}
+          {...tourFieldAttr('admin.backgrounds.filter-building', 'admin', b.id)}
           onClick={() => setFilterBuilding(b.id)}
           className={btnClass(filterBuilding === b.id)}
           title={b.name}
@@ -762,6 +784,7 @@ export const BackgroundManager: React.FC = () => {
           <div className="flex gap-2 flex-wrap">
             <Button
               variant="dark"
+              {...tourAttr('admin.backgrounds.google-drive')}
               onClick={() => void loadDriveImages()}
               disabled={!isDriveConnected}
               isLoading={loadingDrive}
@@ -776,6 +799,7 @@ export const BackgroundManager: React.FC = () => {
             </Button>
             <Button
               variant="secondary"
+              {...tourAttr('admin.backgrounds.restore-defaults')}
               onClick={() => void restoreDefaults()}
               icon={<Plus size={16} />}
               title="Restore original stock images"
@@ -786,6 +810,7 @@ export const BackgroundManager: React.FC = () => {
             {isPexelsConfigured() && (
               <Button
                 variant="secondary"
+                {...tourAttr('admin.backgrounds.stock-photos')}
                 onClick={() => setShowStockPicker(true)}
                 icon={<ImageIcon size={16} />}
               >
@@ -794,6 +819,7 @@ export const BackgroundManager: React.FC = () => {
             )}
             <Button
               variant="primary"
+              {...tourAttr('admin.backgrounds.upload')}
               onClick={() => fileInputRef.current?.click()}
               isLoading={uploading}
               icon={<Upload size={16} />}
@@ -809,10 +835,12 @@ export const BackgroundManager: React.FC = () => {
             className="hidden"
             accept="image/*"
             multiple
+            {...tourAttr('admin.backgrounds.upload-input')}
             onChange={(e) => void handleFileUpload(e)}
           />
 
           <button
+            {...tourAttr('admin.backgrounds.manage-categories')}
             onClick={() => setShowCategoryManager((v) => !v)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:border-brand-blue-light text-xs font-semibold transition-all"
           >
@@ -865,6 +893,7 @@ export const BackgroundManager: React.FC = () => {
                 type="text"
                 placeholder="New category name..."
                 value={categoryManagerName}
+                {...tourAttr('admin.backgrounds.category-name-input')}
                 onChange={(e) => setCategoryManagerName(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && categoryManagerName.trim()) {
@@ -878,6 +907,7 @@ export const BackgroundManager: React.FC = () => {
                 className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
               />
               <button
+                {...tourAttr('admin.backgrounds.category-note')}
                 onClick={() => {
                   if (categoryManagerName.trim()) {
                     showMessage(
@@ -904,6 +934,7 @@ export const BackgroundManager: React.FC = () => {
         <div className="flex items-center gap-2 px-1">
           {/* Mobile: collapsible filter toggle */}
           <button
+            {...tourAttr('admin.backgrounds.filters-toggle')}
             onClick={() => setShowFilters((v) => !v)}
             className="flex items-center gap-1.5 text-slate-500 md:hidden"
             aria-expanded={showFilters}
@@ -951,6 +982,11 @@ export const BackgroundManager: React.FC = () => {
                 <button
                   key={tab.value}
                   type="button"
+                  {...tourFieldAttr(
+                    'admin.backgrounds.media-type',
+                    'admin',
+                    tab.value
+                  )}
                   onClick={() => setMediaType(tab.value)}
                   aria-pressed={mediaType === tab.value}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
@@ -983,6 +1019,11 @@ export const BackgroundManager: React.FC = () => {
               <button
                 key={tab.value}
                 type="button"
+                {...tourFieldAttr(
+                  'admin.backgrounds.media-type',
+                  'admin',
+                  tab.value
+                )}
                 onClick={() => setMediaType(tab.value)}
                 aria-pressed={mediaType === tab.value}
                 className={`flex items-center gap-1 px-2 py-1.5 rounded-md text-xs font-semibold transition-all ${
@@ -1002,6 +1043,7 @@ export const BackgroundManager: React.FC = () => {
           <div className="ml-auto hidden md:flex bg-white p-0.5 rounded-lg border border-slate-200">
             <button
               type="button"
+              {...tourAttr('admin.backgrounds.view-grid')}
               onClick={() => setViewMode('grid')}
               className={`p-1.5 rounded-md transition-all ${
                 viewMode === 'grid'
@@ -1016,6 +1058,7 @@ export const BackgroundManager: React.FC = () => {
             </button>
             <button
               type="button"
+              {...tourAttr('admin.backgrounds.view-list')}
               onClick={() => setViewMode('list')}
               className={`p-1.5 rounded-md transition-all ${
                 viewMode === 'list'
@@ -1056,6 +1099,7 @@ export const BackgroundManager: React.FC = () => {
             type="url"
             placeholder="YouTube URL (e.g. https://www.youtube.com/watch?v=...)"
             value={youtubeUrl}
+            {...tourAttr('admin.backgrounds.youtube-url')}
             onChange={(e) => setYoutubeUrl(e.target.value)}
             className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
           />
@@ -1063,11 +1107,13 @@ export const BackgroundManager: React.FC = () => {
             type="text"
             placeholder='Label (e.g. "Cozy Rain Cafe")'
             value={youtubeLabel}
+            {...tourAttr('admin.backgrounds.youtube-label')}
             onChange={(e) => setYoutubeLabel(e.target.value)}
             className="w-full sm:max-w-[200px] px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
           />
           <Button
             variant="primary"
+            {...tourAttr('admin.backgrounds.youtube-add')}
             onClick={() => void handleAddYoutubeVideo()}
             disabled={!youtubeUrl.trim() || !youtubeLabel.trim()}
             isLoading={addingYoutube}
@@ -1087,6 +1133,7 @@ export const BackgroundManager: React.FC = () => {
                 Select Image from Google Drive
               </h3>
               <button
+                {...tourAttr('admin.backgrounds.drive-picker-close')}
                 onClick={() => setShowDrivePicker(false)}
                 className="p-2 hover:bg-slate-100 rounded-full transition-colors"
               >
@@ -1099,6 +1146,11 @@ export const BackgroundManager: React.FC = () => {
                   {driveFiles.map((file) => (
                     <button
                       key={file.id}
+                      {...tourFieldAttr(
+                        'admin.backgrounds.drive-picker-file',
+                        'admin',
+                        file.id
+                      )}
                       onClick={() => void handleDriveSelect(file)}
                       className="group relative aspect-video bg-slate-100 rounded-xl overflow-hidden border-2 border-transparent hover:border-brand-blue-primary transition-all text-left"
                     >

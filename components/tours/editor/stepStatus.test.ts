@@ -16,6 +16,19 @@ describe('tourStepStatus', () => {
     ).toBe('unbound');
     expect(
       tourStepStatus(
+        {
+          id: 'a',
+          tour: {
+            anchor: '',
+            action: 'click',
+            fallback: { role: 'menuitem', name: 'open guides' },
+          },
+        },
+        []
+      )
+    ).toBe('ok');
+    expect(
+      tourStepStatus(
         { id: 'a', tour: { anchor: 'gone.button', action: 'click' } },
         []
       )
@@ -33,6 +46,12 @@ describe('tourStepStatus', () => {
       'Widget button in the dock: Dice'
     );
     expect(tourControlLabel({ anchor: 'nope' })).toBeNull();
+    expect(
+      tourControlLabel({
+        anchor: '',
+        fallback: { role: 'button', name: 'stroke eraser' },
+      })
+    ).toBe('"stroke eraser"');
   });
 
   it('keeps a value only where the new kind uses it', () => {

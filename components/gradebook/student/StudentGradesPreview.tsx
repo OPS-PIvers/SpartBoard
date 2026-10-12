@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useAuth } from '@/context/useAuth';
 import { Btn } from '@/components/admin/Organization/components/primitives';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
+import { tourAttr } from '@/config/tourAnchors';
 import {
   NewBadge,
   StudentGradesList,
@@ -25,7 +26,11 @@ export const PreviewAsStudentButton: React.FC<{ onClick: () => void }> = ({
   const { canAccessFeature } = useAuth();
   if (!canAccessFeature('student-gradebook')) return null;
   return (
-    <Btn variant="primary" onClick={onClick}>
+    <Btn
+      variant="primary"
+      {...tourAttr('gradebook.student.preview')}
+      onClick={onClick}
+    >
       Preview as student
     </Btn>
   );
@@ -66,7 +71,11 @@ export const StudentGradesPreview: React.FC<StudentGradesPreviewProps> = ({
         </b>
         <span>This is exactly what the student sees.</span>
         <span className="flex-1" />
-        <Btn size="sm" onClick={onExit}>
+        <Btn
+          size="sm"
+          {...tourAttr('gradebook.student.preview-exit')}
+          onClick={onExit}
+        >
           Back to gradebook
         </Btn>
       </div>

@@ -33,6 +33,7 @@ import {
   moveRow,
   type LayoutDraft,
 } from './layoutDraft';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export interface HeroPinGroup {
   label: string;
@@ -112,11 +113,16 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
             'Pages, cards and the pinned item go back to the district default. Content stays.',
         })}
       </span>
-      <Button variant="secondary" onClick={() => setConfirmReset(false)}>
+      <Button
+        variant="secondary"
+        {...tourAttr('teams.layout.reset-cancel')}
+        onClick={() => setConfirmReset(false)}
+      >
         {t('common.cancel', { defaultValue: 'Cancel' })}
       </Button>
       <Button
         variant="danger"
+        {...tourAttr('teams.layout.reset-confirm')}
         onClick={() => {
           if (districtDefault) {
             setDraft(draftFromLayout(districtDefault, groupType));
@@ -133,6 +139,7 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
         <Button
           variant="ghost"
           icon={<RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />}
+          {...tourAttr('teams.layout.reset-to-default')}
           onClick={() => setConfirmReset(true)}
         >
           {t('teams.layout.resetToDefault', {
@@ -141,10 +148,18 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
         </Button>
       )}
       <span className="flex-1" />
-      <Button variant="secondary" onClick={onClose}>
+      <Button
+        variant="secondary"
+        {...tourAttr('teams.layout.cancel')}
+        onClick={onClose}
+      >
         {t('common.cancel', { defaultValue: 'Cancel' })}
       </Button>
-      <Button onClick={save} disabled={saving}>
+      <Button
+        onClick={save}
+        disabled={saving}
+        {...tourAttr('teams.layout.save')}
+      >
         {t('common.save', { defaultValue: 'Save' })}
       </Button>
     </div>
@@ -169,6 +184,7 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
           <button
             type="button"
             onClick={onClose}
+            {...tourAttr('teams.layout.close')}
             className="ml-auto rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100"
             aria-label={t('plcDashboard.close', { defaultValue: 'Close' })}
           >
@@ -194,6 +210,23 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
               index={i}
               count={draft.pages.length}
               lockedOn={isLanding}
+              anchors={{
+                up: tourFieldAttr(
+                  'teams.layout.move-up',
+                  'teams-layout',
+                  `page-${p.id}`
+                ),
+                down: tourFieldAttr(
+                  'teams.layout.move-down',
+                  'teams-layout',
+                  `page-${p.id}`
+                ),
+                toggle: tourFieldAttr(
+                  'teams.layout.toggle',
+                  'teams-layout',
+                  `page-${p.id}`
+                ),
+              }}
               switchLabel={t('teams.layout.show', {
                 label,
                 defaultValue: 'Show {{label}}',
@@ -226,6 +259,7 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
         </span>
         <select
           value={draft.landing}
+          {...tourAttr('teams.layout.landing-select')}
           onChange={(e) => {
             const landing = e.target.value as LayoutDraft['landing'];
             const on = draft.cards.filter((c) => c.on).flatMap((c) => c.ids);
@@ -249,6 +283,7 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
         </h4>
         <SegmentedControl
           role="radiogroup"
+          anchor={tourAttr('teams.layout.hero-mode')}
           ariaLabel={t('teams.layout.firstThing', {
             defaultValue: 'First thing the team sees',
           })}
@@ -275,6 +310,7 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
               </span>
               <select
                 value={selectedKey ?? ''}
+                {...tourAttr('teams.layout.pinned-item-select')}
                 onChange={(e) => update({ heroKey: e.target.value })}
                 className={`${INPUT} min-w-0 flex-1 py-1.5`}
               >
@@ -326,6 +362,23 @@ export const LayoutEditorView: React.FC<LayoutEditorViewProps> = ({
                 index={i}
                 count={draft.cards.length}
                 disabled={blocked}
+                anchors={{
+                  up: tourFieldAttr(
+                    'teams.layout.move-up',
+                    'teams-layout',
+                    `card-${c.key}`
+                  ),
+                  down: tourFieldAttr(
+                    'teams.layout.move-down',
+                    'teams-layout',
+                    `card-${c.key}`
+                  ),
+                  toggle: tourFieldAttr(
+                    'teams.layout.toggle',
+                    'teams-layout',
+                    `card-${c.key}`
+                  ),
+                }}
                 switchLabel={t('teams.layout.show', {
                   label,
                   defaultValue: 'Show {{label}}',

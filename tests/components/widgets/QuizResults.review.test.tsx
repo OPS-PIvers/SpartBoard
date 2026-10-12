@@ -218,7 +218,7 @@ describe('QuizResults, Review variant', () => {
         responses={responses}
         config={config}
         onBack={vi.fn()}
-        session={{ ...gameSession, sessionMode: 'student' } as QuizSession}
+        session={{ ...gameSession, sessionMode: 'student' }}
       />
     );
     expect(screen.getByText('Class average')).toBeInTheDocument();

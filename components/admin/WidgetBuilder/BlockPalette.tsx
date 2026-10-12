@@ -1,4 +1,5 @@
 import React from 'react';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { CustomBlockType } from '@/types';
 import {
   BLOCK_CATEGORIES,
@@ -50,6 +51,11 @@ export const BlockPalette: React.FC<BlockPaletteProps> = ({
           <div className="grid grid-cols-2 gap-1.5">
             {category.blocks.map((blockType) => (
               <button
+                {...tourFieldAttr(
+                  'admin.widget-builder.palette-block',
+                  'admin',
+                  blockType
+                )}
                 key={blockType}
                 type="button"
                 onClick={() => onSelectBlock(blockType)}

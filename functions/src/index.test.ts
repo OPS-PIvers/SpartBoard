@@ -45,6 +45,10 @@ const mockFirestoreState = {
   organizations: [] as { id: string; status: string }[],
   // `organizations/{orgId}/analytics_days/{date}` docs keyed by full path.
   activityDays: new Map<string, Record<string, unknown>>(),
+  // `student_sections` docs for the active-student counts and history.
+  studentSections: [] as { id: string; orgId: string; updatedAt: number }[],
+  // Quiz `responses` docs: [sessionsCollection, studentUid, joinedAt].
+  studentResponses: [] as [string, string, number][],
 };
 
 const toDocSnapshot = (doc: MockDocInput) => ({
@@ -276,7 +280,29 @@ const mockFirestore = {
       };
     }
 
-    if (name.endsWith('/analytics_days')) {
+    if (name === 'student_sections') {
+      return {
+        where: (_f: string, _op: string, orgId: string) => ({
+          select: () => ({
+            get: () =>
+              Promise.resolve({
+                docs: mockFirestoreState.studentSections
+                  .filter((d) => d.orgId === orgId)
+                  .map((d) => ({
+                    id: d.id,
+                    get: (field: string) =>
+                      field === 'updatedAt' ? d.updatedAt : undefined,
+                  })),
+              }),
+          }),
+        }),
+      };
+    }
+
+    if (
+      name.endsWith('/analytics_days') ||
+      name.endsWith('/analytics_student_days')
+    ) {
       return {
         doc: (id: string) => ({ id, path: `${name}/${id}` }),
         get: vi.fn(() =>
@@ -328,6 +354,33 @@ const mockFirestore = {
         select: vi.fn(() => ({
           stream: vi.fn(() => toAsyncStream(mockFirestoreState.dashboards)),
         })),
+      };
+    }
+
+    if (name === 'responses' || name === 'submissions') {
+      return {
+        where: (_f: string, _op: string, ids: string[]) => ({
+          where: () => ({
+            select: () => ({
+              get: () =>
+                Promise.resolve({
+                  docs: mockFirestoreState.studentResponses
+                    .filter(
+                      ([, uid]) => name === 'responses' && ids.includes(uid)
+                    )
+                    .map(([sessions, uid, at]) => ({
+                      ref: { parent: { parent: { parent: { id: sessions } } } },
+                      get: (field: string) =>
+                        field === 'studentUid'
+                          ? uid
+                          : field === 'joinedAt'
+                            ? at
+                            : null,
+                    })),
+                }),
+            }),
+          }),
+        }),
       };
     }
 
@@ -1329,6 +1382,62 @@ describe('adminAnalytics', () => {
     expect(result.api.byFeature['translation']).toBe(5);
   });
 
+  it('reports PLC AI features and skips their sub-limit counters', async () => {
+    mockFirestoreState.users = [
+      {
+        id: 'uid1',
+        data: {
+          email: 'teacher@district.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+    ];
+    mockFirestoreState.dashboards = [];
+    mockFirestoreState.aiUsage = [
+      { id: 'uid1_2026-06-10', data: { count: 3 } },
+      { id: 'uid1_plc-meeting-ai-notes_2026-06-10', data: { count: 1 } },
+      { id: 'uid1_plc-meeting-transcribe_2026-06-10', data: { count: 1 } },
+      { id: 'uid1_plc-goal-coach_2026-06-10', data: { count: 2 } },
+      { id: 'uid1_plc-goal-coach-checks_2026-06-10', data: { count: 2 } },
+    ];
+
+    const result = await computeAnalyticsForOrg('orono');
+
+    expect(result.api.byFeature['plc-meeting-ai-notes']).toBe(1);
+    expect(result.api.byFeature['plc-goal-coach']).toBe(2);
+    expect(result.api.byFeature['plc-meeting-transcribe']).toBeUndefined();
+    expect(result.api.totalCalls).toBe(3);
+  });
+
+  it('adds paper and translation counts to the totals, which have no overall doc', async () => {
+    mockFirestoreState.users = [
+      {
+        id: 'uid1',
+        data: {
+          email: 'teacher@district.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+    ];
+    mockFirestoreState.dashboards = [];
+    mockFirestoreState.aiUsage = [
+      { id: 'uid1_2026-06-10', data: { count: 4 } },
+      { id: 'uid1_quiz_2026-06-10', data: { count: 4 } },
+      {
+        id: 'uid1_paper-handwritten-responses_2026-06-10',
+        data: { count: 6 },
+      },
+      { id: 'uid1_translation_2026-06-10', data: { count: 2, backCount: 1 } },
+    ];
+
+    const result = await computeAnalyticsForOrg('orono');
+
+    expect(result.api.totalCalls).toBe(13);
+    expect(result.api.byFeature['quiz']).toBe(4);
+  });
+
   it('does not populate a phantom byFeature bucket for guided-learning (stale GEMINI_SPECIFIC_FEATURES entry)', async () => {
     // Root cause: `guided-learning` was listed in GEMINI_SPECIFIC_FEATURES even
     // though no Cloud Function ever writes a `{uid}_guided-learning_{date}` doc
@@ -1875,8 +1984,7 @@ describe('adminAnalytics', () => {
     // correlation id so Cloud Logging alerts can be pivoted back to the
     // exact client-visible response.
     const jsonCall = jsonSpy.mock.calls[0]?.[0] as
-      | { error?: string; requestId?: string }
-      | undefined;
+      { error?: string; requestId?: string } | undefined;
     expect(jsonCall?.error).toBe('invalid-argument');
     expect(typeof jsonCall?.requestId).toBe('string');
     expect(jsonCall?.requestId?.length ?? 0).toBeGreaterThan(0);
@@ -1914,8 +2022,7 @@ describe('adminAnalytics', () => {
 
     expect(statusSpy).toHaveBeenCalledWith(403);
     const jsonCall = jsonSpy.mock.calls[0]?.[0] as
-      | { error?: string; requestId?: string }
-      | undefined;
+      { error?: string; requestId?: string } | undefined;
     expect(jsonCall?.error).toBe('permission-denied');
     expect(typeof jsonCall?.requestId).toBe('string');
     expect(jsonCall?.requestId?.length ?? 0).toBeGreaterThan(0);
@@ -2012,8 +2119,7 @@ describe('adminAnalytics', () => {
       // Forbidden: alice is not a member of org-b and not a super admin.
       expect(statusSpy).toHaveBeenCalledWith(403);
       const jsonCall = jsonSpy.mock.calls[0]?.[0] as
-        | { error?: string }
-        | undefined;
+        { error?: string } | undefined;
       expect(jsonCall?.error).toBe('permission-denied');
 
       // Tenant isolation: the auth gate must run BEFORE any reads against
@@ -2086,8 +2192,7 @@ describe('adminAnalytics', () => {
 
     expect(statusSpy).toHaveBeenCalledWith(503);
     const jsonCall = jsonSpy.mock.calls[0]?.[0] as
-      | { error?: string; message?: string }
-      | undefined;
+      { error?: string; message?: string } | undefined;
     expect(jsonCall?.error).toBe('not-yet-computed');
     expect(jsonCall?.message ?? '').toMatch(/scheduled refresh/i);
 
@@ -2195,6 +2300,57 @@ describe('recomputeAdminAnalytics (scheduled)', () => {
     mockFirestoreState.docs = new Map();
     mockFirestoreState.organizations = [];
     mockFirestoreState.activityDays = new Map();
+    mockFirestoreState.studentSections = [];
+    mockFirestoreState.studentResponses = [];
+  });
+
+  it('records student days and estimates past ones from assignment opens', async () => {
+    const day = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    mockFirestoreState.organizations = [{ id: 'orono', status: 'active' }];
+    mockFirestoreState.users = [
+      {
+        id: 'uid-1',
+        data: { email: 'a@orono.k12.mn.us', lastLogin: now },
+      },
+    ];
+    mockFirestoreState.studentSections = [
+      { id: 'stu-1', orgId: 'orono', updatedAt: now - 60 * 1000 },
+      { id: 'stu-2', orgId: 'orono', updatedAt: now - 5 * day },
+      { id: 'stu-other', orgId: 'elsewhere', updatedAt: now },
+    ];
+    mockFirestoreState.studentResponses = [
+      ['quiz_sessions', 'stu-1', Date.UTC(2026, 0, 15, 17)],
+      ['quiz_sessions', 'stu-other', Date.UTC(2026, 0, 16, 17)],
+      ['plc_sessions', 'stu-2', Date.UTC(2026, 0, 17, 17)],
+    ];
+    const run = recomputeAdminAnalytics as unknown as () => Promise<void>;
+    await run();
+
+    const studentDays = [...mockFirestoreState.activityDays.entries()].filter(
+      ([path]) => path.includes('/analytics_student_days/')
+    );
+    const measured = studentDays.filter(([, d]) => d.estimated === false);
+    expect(measured).toHaveLength(1);
+    expect(measured[0][1].activeUids).toEqual(['stu-1']);
+    const estimatedDates = studentDays
+      .filter(([, d]) => d.estimated === true)
+      .map(([path]) => path.split('/').pop());
+    expect(estimatedDates).toContain('2026-01-15');
+    expect(estimatedDates).not.toContain('2026-01-16');
+    expect(estimatedDates).not.toContain('2026-01-17');
+
+    const snapshot = mockFirestoreState.docs.get(
+      'organizations/orono/analytics/snapshot'
+    ) as { payload: { history?: { studentDays?: unknown[] } } };
+    expect(snapshot.payload.history?.studentDays?.at(-1)).toEqual(
+      expect.objectContaining({ dau: 1, mau: 2, estimated: false })
+    );
+    expect(
+      mockFirestoreState.docs.get(
+        'organizations/orono/analytics/student_history_estimate'
+      )
+    ).toBeDefined();
   });
 
   it('records the measured day and attaches the history series', async () => {
@@ -2393,12 +2549,11 @@ describe('recomputeAdminAnalytics (scheduled)', () => {
           get: vi.fn(() =>
             Promise.reject(new Error('synthetic failure: roster read'))
           ),
-        } as unknown as ReturnType<typeof originalCollection>;
+        };
       }
       return originalCollection(name);
     });
-    mockFirestore.collection =
-      wrappedCollection as unknown as typeof originalCollection;
+    mockFirestore.collection = wrappedCollection;
 
     try {
       // The test mock for `firebase-functions/v2/scheduler` returns the inner
@@ -2443,12 +2598,11 @@ describe('recomputeAdminAnalytics (scheduled)', () => {
           get: vi.fn(() =>
             Promise.reject(new Error('synthetic failure: roster read'))
           ),
-        } as unknown as ReturnType<typeof originalCollection>;
+        };
       }
       return originalCollection(name);
     });
-    mockFirestore.collection =
-      wrappedCollection as unknown as typeof originalCollection;
+    mockFirestore.collection = wrappedCollection;
 
     try {
       await expect(
@@ -3475,6 +3629,7 @@ describe('index barrel — deployed export set', () => {
     'launchSubAssignmentV1',
     // Flashcards Check submission
     'submitFlashcardCheckV1',
+    'submitMiniAppResultV1',
     'resolveFlashcardFlagV1',
     // Video Activity answer key
     'checkVideoActivityAnswerV1',
@@ -3702,16 +3857,32 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
     });
   });
 
+  it('counts an admin call in ai_usage without a limit check', async () => {
+    mockFirestoreState.admins.add('admin@school.org');
+    await handler(VALID_DATA, {
+      auth: {
+        uid: 'uid-admin-1',
+        token: { email: 'admin@school.org', email_verified: true },
+      },
+    }).catch(() => undefined);
+    const today = new Date().toISOString().split('T')[0];
+    const written = transactionSet.mock.calls.map(
+      (c) => (c[0] as { path: string }).path
+    );
+    expect(written).toContain(
+      `ai_usage/uid-admin-1_video-activity-ai_${today}`
+    );
+  });
+
   it('throws permission-denied for non-admin when accessLevel is "admin"', async () => {
     // Arrange: global permission restricts Gemini to admins only.
     geminiConfigDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({
-          enabled: true,
-          accessLevel: 'admin',
-          betaUsers: [],
-        }) as Record<string, unknown>,
+      data: () => ({
+        enabled: true,
+        accessLevel: 'admin',
+        betaUsers: [],
+      }),
     });
 
     // Act / Assert: non-admin teacher must be rejected.
@@ -3726,12 +3897,11 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
     // Arrange: global permission restricts Gemini to beta users.
     geminiConfigDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({
-          enabled: true,
-          accessLevel: 'beta',
-          betaUsers: ['beta@school.org'],
-        }) as Record<string, unknown>,
+      data: () => ({
+        enabled: true,
+        accessLevel: 'beta',
+        betaUsers: ['beta@school.org'],
+      }),
     });
 
     // teacher@school.org is NOT in betaUsers → must be rejected.
@@ -3746,12 +3916,11 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
     // Arrange: caller is in betaUsers — should pass the accessLevel gate.
     geminiConfigDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({
-          enabled: true,
-          accessLevel: 'beta',
-          betaUsers: ['teacher@school.org'],
-        }) as Record<string, unknown>,
+      data: () => ({
+        enabled: true,
+        accessLevel: 'beta',
+        betaUsers: ['teacher@school.org'],
+      }),
     });
 
     // The mocked Gemini call rejects afterwards; what matters is that the gate let it through.
@@ -3770,12 +3939,11 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
     mockFirestoreState.admins.add('teacher@school.org');
     geminiConfigDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({
-          enabled: true,
-          accessLevel: 'admin',
-          betaUsers: [],
-        }) as Record<string, unknown>,
+      data: () => ({
+        enabled: true,
+        accessLevel: 'admin',
+        betaUsers: [],
+      }),
     });
 
     await handler(VALID_DATA, { auth: NON_ADMIN_AUTH }).catch(() => undefined);
@@ -3807,12 +3975,11 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
     mockFirestoreState.admins.add('admin@school.org');
     geminiConfigDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({
-          enabled: true,
-          accessLevel: 'admin',
-          betaUsers: [],
-        }) as Record<string, unknown>,
+      data: () => ({
+        enabled: true,
+        accessLevel: 'admin',
+        betaUsers: [],
+      }),
     });
 
     await expect(
@@ -4090,14 +4257,45 @@ describe('transcribeVideoWithGemini', () => {
     expect(generateContentMock).not.toHaveBeenCalled();
   });
 
+  it('refuses everyone, admins included, while gemini-functions is switched off', async () => {
+    mockFirestoreState.admins.add('admin@school.org');
+    audioTranscriptionPermDocGet.mockResolvedValue({
+      exists: true,
+      data: () => ({ enabled: true, accessLevel: 'public' }),
+    });
+    geminiConfigDocGet.mockResolvedValue({
+      exists: true,
+      data: () => ({ enabled: false }),
+    });
+    await expect(handler(VALID_DATA, { auth: ADMIN_AUTH })).rejects.toThrow(
+      'Gemini functions are currently disabled by an administrator.'
+    );
+    expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
+  it('counts an admin transcription in ai_usage without a limit check', async () => {
+    mockFirestoreState.admins.add('admin@school.org');
+    audioTranscriptionPermDocGet.mockResolvedValue({
+      exists: true,
+      data: () => ({ enabled: true, accessLevel: 'admin' }),
+    });
+    await handler(VALID_DATA, { auth: ADMIN_AUTH }).catch(() => undefined);
+    const today = new Date().toISOString().split('T')[0];
+    const written = transactionSet.mock.calls.map(
+      (c) => (c[0] as { path: string }).path
+    );
+    expect(written).toContain(
+      `ai_usage/uid-admin-1_video-activity-audio-transcription_${today}`
+    );
+  });
+
   it('throws permission-denied when the feature is disabled', async () => {
     audioTranscriptionPermDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({
-          enabled: false,
-          accessLevel: 'all',
-        }) as Record<string, unknown>,
+      data: () => ({
+        enabled: false,
+        accessLevel: 'all',
+      }),
     });
 
     await expect(handler(VALID_DATA, { auth: NON_ADMIN_AUTH })).rejects.toThrow(
@@ -4109,12 +4307,11 @@ describe('transcribeVideoWithGemini', () => {
   it('throws permission-denied for a non-admin when accessLevel is "admin"', async () => {
     audioTranscriptionPermDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({
-          enabled: true,
-          accessLevel: 'admin',
-          betaUsers: [],
-        }) as Record<string, unknown>,
+      data: () => ({
+        enabled: true,
+        accessLevel: 'admin',
+        betaUsers: [],
+      }),
     });
 
     await expect(handler(VALID_DATA, { auth: NON_ADMIN_AUTH })).rejects.toThrow(
@@ -4126,12 +4323,11 @@ describe('transcribeVideoWithGemini', () => {
   it('throws permission-denied for a non-beta user when accessLevel is "beta"', async () => {
     audioTranscriptionPermDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({
-          enabled: true,
-          accessLevel: 'beta',
-          betaUsers: ['beta@school.org'],
-        }) as Record<string, unknown>,
+      data: () => ({
+        enabled: true,
+        accessLevel: 'beta',
+        betaUsers: ['beta@school.org'],
+      }),
     });
 
     await expect(handler(VALID_DATA, { auth: NON_ADMIN_AUTH })).rejects.toThrow(
@@ -4144,12 +4340,11 @@ describe('transcribeVideoWithGemini', () => {
     mockFirestoreState.admins.add('admin@school.org');
     audioTranscriptionPermDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({
-          enabled: true,
-          accessLevel: 'admin',
-          betaUsers: [],
-        }) as Record<string, unknown>,
+      data: () => ({
+        enabled: true,
+        accessLevel: 'admin',
+        betaUsers: [],
+      }),
     });
 
     // Admins skip the rate-limit transaction entirely, so this reaches the
@@ -4180,12 +4375,11 @@ describe('transcribeVideoWithGemini', () => {
     mockFirestoreState.admins.add('admin@school.org');
     audioTranscriptionPermDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({
-          enabled: true,
-          accessLevel: 'admin',
-          betaUsers: [],
-        }) as Record<string, unknown>,
+      data: () => ({
+        enabled: true,
+        accessLevel: 'admin',
+        betaUsers: [],
+      }),
     });
 
     await expect(
@@ -4205,12 +4399,11 @@ describe('transcribeVideoWithGemini', () => {
     mockFirestoreState.admins.add('admin@school.org');
     audioTranscriptionPermDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({
-          enabled: true,
-          accessLevel: 'admin',
-          betaUsers: [],
-        }) as Record<string, unknown>,
+      data: () => ({
+        enabled: true,
+        accessLevel: 'admin',
+        betaUsers: [],
+      }),
     });
 
     await expect(
@@ -4346,6 +4539,21 @@ describe('generateGuidedLearning', () => {
     });
   });
 
+  it('counts an admin call in ai_usage without a limit check', async () => {
+    mockFirestoreState.admins.add('admin@school.org');
+    await handler({ images: [VALID_IMAGE] }, { auth: ADMIN_AUTH }).catch(
+      () => undefined
+    );
+    const today = new Date().toISOString().split('T')[0];
+    const written = transactionSet.mock.calls.map(
+      (c) => (c[0] as { path: string }).path
+    );
+    expect(written).toContain(`ai_usage/uid-admin-1_${today}`);
+    expect(written).toContain(
+      `ai_usage/uid-admin-1_guided-learning-ai_${today}`
+    );
+  });
+
   it('lets a teacher through once the Guided Learning AI switch is public', async () => {
     const key = 'global_permissions/guided-learning-ai';
     mockFirestoreState.docs.set(key, {
@@ -4428,6 +4636,20 @@ describe('draftGuidedLearningStepTextV1', () => {
       )
     ).rejects.toThrow('Admin access required to use AI generation.');
     expect(generateContentMock).not.toHaveBeenCalled();
+  });
+
+  it('counts an admin call in ai_usage', async () => {
+    mockFirestoreState.admins.add('admin@school.org');
+    await handler({ steps: [STEP] }, { auth: ADMIN_AUTH }).catch(
+      () => undefined
+    );
+    const today = new Date().toISOString().split('T')[0];
+    const written = transactionSet.mock.calls.map(
+      (c) => (c[0] as { path: string }).path
+    );
+    expect(written).toContain(
+      `ai_usage/uid-admin-1_guided-learning-ai_${today}`
+    );
   });
 
   it('clamps what the model returns to the writing rules, one entry per step', async () => {

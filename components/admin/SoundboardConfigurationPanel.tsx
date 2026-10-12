@@ -1,3 +1,4 @@
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { Card } from '@/components/common/Card';
 import React, { useEffect, useRef, useState } from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
@@ -341,6 +342,11 @@ export const SoundboardConfigurationPanel: React.FC<
               ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
               : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
           }`}
+          {...tourFieldAttr(
+            'admin.widget-config.field',
+            'soundboard',
+            `all-${soundId}-${key}`
+          )}
           onClick={() => toggleSoundForAllBuildings(soundId, key)}
         >
           All
@@ -350,6 +356,11 @@ export const SoundboardConfigurationPanel: React.FC<
           return (
             <button
               key={`${soundId}-${building.id}-${key}`}
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'soundboard',
+                `building-${soundId}-${building.id}-${key}`
+              )}
               type="button"
               className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
                 selected
@@ -404,6 +415,11 @@ export const SoundboardConfigurationPanel: React.FC<
                   <button
                     type="button"
                     onClick={() => void testSound(libSound.id, libSound.url)}
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'soundboard',
+                      `preview-${libSound.id}`
+                    )}
                     className={`p-1 rounded-md transition-colors ${
                       isPlaying
                         ? 'bg-brand-blue-primary text-white'
@@ -435,6 +451,7 @@ export const SoundboardConfigurationPanel: React.FC<
           <Button
             size="sm"
             onClick={addCustomSound}
+            {...tourTypeAttr('admin.widget-config.add', 'soundboard')}
             className="flex-shrink-0 shadow-sm"
           >
             <Plus size={16} className="mr-1.5" />
@@ -467,6 +484,11 @@ export const SoundboardConfigurationPanel: React.FC<
                         </label>
                         <input
                           type="text"
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'soundboard',
+                            `label-${sound.id}`
+                          )}
                           value={sound.label}
                           onChange={(e) =>
                             updateCustomSound(index, { label: e.target.value })
@@ -482,6 +504,11 @@ export const SoundboardConfigurationPanel: React.FC<
                         <div className="flex gap-2 items-center">
                           <input
                             type="color"
+                            {...tourFieldAttr(
+                              'admin.widget-config.field',
+                              'soundboard',
+                              `color-${sound.id}`
+                            )}
                             value={sound.color ?? '#6366f1'}
                             onChange={(e) =>
                               updateCustomSound(index, {
@@ -492,6 +519,11 @@ export const SoundboardConfigurationPanel: React.FC<
                           />
                           <input
                             type="text"
+                            {...tourFieldAttr(
+                              'admin.widget-config.field',
+                              'soundboard',
+                              `colorHex-${sound.id}`
+                            )}
                             value={sound.color ?? '#6366f1'}
                             onChange={(e) =>
                               updateCustomSound(index, {
@@ -511,6 +543,11 @@ export const SoundboardConfigurationPanel: React.FC<
                       <div className="flex gap-2">
                         <input
                           type="url"
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'soundboard',
+                            `url-${sound.id}`
+                          )}
                           value={sound.url}
                           onChange={(e) => {
                             setPlaybackErrors((prev) => ({
@@ -526,6 +563,11 @@ export const SoundboardConfigurationPanel: React.FC<
                         />
                         <button
                           onClick={() => void testSound(sound.id, sound.url)}
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'soundboard',
+                            `test-${sound.id}`
+                          )}
                           disabled={!validation.canTest}
                           className={`px-3 py-1.5 rounded-lg border transition-all flex items-center gap-1.5 ${
                             isPlaying
@@ -574,6 +616,11 @@ export const SoundboardConfigurationPanel: React.FC<
 
                   <button
                     onClick={() => removeCustomSound(index)}
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'soundboard',
+                      `remove-${sound.id}`
+                    )}
                     className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors mt-6"
                     title="Remove sound"
                   >

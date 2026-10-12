@@ -9,6 +9,7 @@ import { useAuth } from '@/context/useAuth';
 import { DEFAULT_TALKING_TOOL_CATEGORIES } from '@/config/talkingToolData';
 import { getIcon } from './constants';
 import { hexToRgba } from '@/utils/styles';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
   widget,
@@ -25,8 +26,7 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
   );
 
   const config = permission?.config as
-    | Partial<TalkingToolGlobalConfig>
-    | undefined;
+    Partial<TalkingToolGlobalConfig> | undefined;
 
   const categories = config?.categories?.length
     ? config.categories
@@ -97,6 +97,7 @@ export const TalkingToolWidget: React.FC<WidgetComponentProps> = ({
               <button
                 key={cat.id}
                 aria-pressed={isActive}
+                {...tourFieldAttr('talking-tool.category', widget.type, cat.id)}
                 onClick={() => setActiveTab(cat.id)}
                 className={`w-full flex flex-col items-center justify-center transition-all border ${
                   isActive

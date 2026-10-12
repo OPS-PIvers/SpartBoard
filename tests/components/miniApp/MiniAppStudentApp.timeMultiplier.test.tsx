@@ -19,7 +19,7 @@ const {
     currentUser: {
       uid: 'student-auth-uid',
       getIdTokenResult: () => mockGetIdTokenResult() as Promise<unknown>,
-    } as { uid: string; getIdTokenResult: () => Promise<unknown> } | null,
+    },
     authStateReady: () => Promise.resolve(),
   },
   mockDb: {},

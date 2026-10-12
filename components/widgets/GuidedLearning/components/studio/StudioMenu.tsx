@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { createPortal } from 'react-dom';
 import { MoreHorizontal, type LucideIcon } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
@@ -24,12 +25,16 @@ export const StudioMenu: React.FC<{
   triggerClassName: string;
   testId?: string;
   iconClassName?: string;
+  anchor?: TourAnchorAttrs;
+  itemAnchor?: (itemId: string) => TourAnchorAttrs;
 }> = ({
   label,
   items,
   triggerClassName,
   testId,
   iconClassName = 'h-3.5 w-3.5',
+  anchor,
+  itemAnchor,
 }) => {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -75,6 +80,7 @@ export const StudioMenu: React.FC<{
   return (
     <div ref={wrapperRef} className="relative">
       <button
+        {...anchor}
         ref={triggerRef}
         type="button"
         aria-label={label}
@@ -106,6 +112,7 @@ export const StudioMenu: React.FC<{
           >
             {items.map((item) => (
               <button
+                {...itemAnchor?.(item.id)}
                 key={item.id}
                 type="button"
                 role="menuitem"

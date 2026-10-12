@@ -37,32 +37,30 @@ const rubric: Rubric = {
   ],
 } as unknown as Rubric;
 
-const run = (overrides: Partial<ProjectRun> = {}): ProjectRun =>
-  ({
-    id: 'teacher-1_project-1',
-    projectId: 'project-1',
-    teacherUid: 'teacher-1',
-    title: 'Ecosystem poster',
-    steps: [{ id: 'step-1', title: 'Research' }],
-    classIds: ['class-a'],
-    approvalStepIds: [],
-    showStatusToStudents: true,
-    acceptingUpdates: true,
-    updatedAt: 1,
-    ...overrides,
-  }) as ProjectRun;
+const run = (overrides: Partial<ProjectRun> = {}): ProjectRun => ({
+  id: 'teacher-1_project-1',
+  projectId: 'project-1',
+  teacherUid: 'teacher-1',
+  title: 'Ecosystem poster',
+  steps: [{ id: 'step-1', title: 'Research' }],
+  classIds: ['class-a'],
+  approvalStepIds: [],
+  showStatusToStudents: true,
+  acceptingUpdates: true,
+  updatedAt: 1,
+  ...overrides,
+});
 
 const project = (
   overrides: Partial<ProjectDefinition> = {}
-): ProjectDefinition =>
-  ({
-    id: 'project-1',
-    title: 'Ecosystem poster',
-    steps: [{ id: 'step-1', title: 'Research' }],
-    createdAt: 1,
-    updatedAt: 2,
-    ...overrides,
-  }) as ProjectDefinition;
+): ProjectDefinition => ({
+  id: 'project-1',
+  title: 'Ecosystem poster',
+  steps: [{ id: 'step-1', title: 'Research' }],
+  createdAt: 1,
+  updatedAt: 2,
+  ...overrides,
+});
 
 const payload = (): Record<string, unknown> =>
   updateDocMock.mock.calls[0][1] as Record<string, unknown>;

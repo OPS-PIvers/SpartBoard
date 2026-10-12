@@ -6,6 +6,7 @@ import { useAuth } from '@/context/useAuth';
 import { Smartphone, ExternalLink, Copy, Check } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
 import { Toggle } from '@/components/common/Toggle';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface Props {
   onClose: () => void;
@@ -118,6 +119,7 @@ const RemoteControlMenu: React.FC<Props> = ({ onClose, anchorRect }) => {
           </div>
           <Toggle
             checked={enabled}
+            anchor={tourAttr('remote-control.enable')}
             onChange={(val) =>
               void updateAccountPreferences({ remoteControlEnabled: val })
             }
@@ -146,6 +148,7 @@ const RemoteControlMenu: React.FC<Props> = ({ onClose, anchorRect }) => {
                 </span>
                 <button
                   onClick={handleCopyLink}
+                  {...tourAttr('remote-control.copy-link')}
                   className={`shrink-0 p-1 rounded-md transition-all ${
                     copied
                       ? 'bg-green-500 text-white shadow-sm'
@@ -163,6 +166,7 @@ const RemoteControlMenu: React.FC<Props> = ({ onClose, anchorRect }) => {
 
       <div className="p-2 border-t bg-slate-50">
         <button
+          {...tourAttr('remote-control.open-view')}
           onClick={() => {
             window.open(remoteUrl, '_blank');
             onClose();

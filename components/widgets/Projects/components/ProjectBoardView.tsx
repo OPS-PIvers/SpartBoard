@@ -198,6 +198,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
     <button
       type="button"
       onClick={onBackToLibrary}
+      {...tourAttr('projects.back-to-library', widget.id, 'projects')}
       className="shrink-0 inline-flex items-center rounded-full bg-white/70 border border-slate-200 text-slate-600 font-semibold"
       style={{
         gap: 'min(3px, 0.8cqmin)',
@@ -254,6 +255,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
     <button
       type="button"
       onClick={onManageGroups}
+      {...tourAttr('projects.manage-groups', widget.id, 'projects')}
       className="inline-flex items-center rounded-full bg-brand-blue-primary font-bold text-white"
       style={{
         gap: 'min(4px, 1cqmin)',
@@ -451,6 +453,7 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
               ref={reviewButtonRef}
               type="button"
               onClick={openFirstReview}
+              {...tourAttr('projects.review-waiting', widget.id, 'projects')}
               className="shrink-0 inline-flex items-center rounded-full bg-amber-400 font-bold text-amber-950"
               style={{
                 gap: 'min(4px, 1cqmin)',
@@ -495,6 +498,13 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
                     key={option.label}
                     type="button"
                     aria-pressed={collapsed === option.value}
+                    {...(option.value
+                      ? tourAttr('projects.layout-bars', widget.id, 'projects')
+                      : tourAttr(
+                          'projects.layout-grid',
+                          widget.id,
+                          'projects'
+                        ))}
                     onClick={() => {
                       if (collapsed === option.value) return;
                       setOpenCell(null);
@@ -518,9 +528,22 @@ export const ProjectBoardView: React.FC<ProjectBoardViewProps> = ({
               </div>
               <OverflowMenu
                 ariaLabel="Project actions"
+                triggerProps={tourAttr(
+                  'projects.actions-menu',
+                  widget.id,
+                  'projects'
+                )}
+                tourId="projects.actions-menu-item"
+                tourScope="projects"
                 items={[
-                  { label: 'Grade groups', icon: SquarePen, onClick: onGrade },
                   {
+                    id: 'grade-groups',
+                    label: 'Grade groups',
+                    icon: SquarePen,
+                    onClick: onGrade,
+                  },
+                  {
+                    id: 'manage-groups',
                     label: 'Manage groups',
                     icon: Users,
                     onClick: onManageGroups,

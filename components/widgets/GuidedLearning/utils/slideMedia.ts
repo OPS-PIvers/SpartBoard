@@ -88,6 +88,7 @@ export function withSlideFileRefs<
     driveFileIds?: string[];
     slideThumbnails?: Record<string, string>;
     steps?: readonly StepMediaFields[];
+    welcomeImageUrl?: string;
   },
 >(set: T): T {
   const {
@@ -102,7 +103,11 @@ export function withSlideFileRefs<
       return thumb ? [[url, thumb] as const] : [];
     })
   );
-  const derivedPaths = [...set.imageUrls, ...Object.values(thumbs)].flatMap(
+  const ownedUrls = [
+    ...set.imageUrls,
+    ...(set.welcomeImageUrl ? [set.welcomeImageUrl] : []),
+  ];
+  const derivedPaths = [...ownedUrls, ...Object.values(thumbs)].flatMap(
     (url) => {
       const ref = slideMediaRef(url);
       return ref && 'storagePath' in ref ? [ref.storagePath] : [];
@@ -120,7 +125,7 @@ export function withSlideFileRefs<
   ];
   const driveFileIds = [
     ...new Set(
-      set.imageUrls.flatMap((url) => {
+      ownedUrls.flatMap((url) => {
         const id = driveIdFromSlideUrl(url);
         return id ? [id] : [];
       })

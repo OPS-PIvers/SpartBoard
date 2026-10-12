@@ -13,6 +13,7 @@
  */
 
 import React, { useMemo, useRef, useEffect } from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import {
   Folder,
   FolderOpen,
@@ -135,6 +136,7 @@ const RenameInput: React.FC<{
         e.stopPropagation();
       }}
       onClick={(e) => e.stopPropagation()}
+      {...tourAttr('library-shell.folder-rename-input')}
       className="flex-1 min-w-0 bg-white border border-brand-blue-primary/40 rounded px-1.5 py-0.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
     />
   );
@@ -248,6 +250,7 @@ const FolderRow: React.FC<FolderRowProps> = ({
           onClick={() => onSelectFolder(folder.id)}
           title={`${folder.name}${count > 0 ? ` (${count})` : ''}`}
           aria-label={`${folder.name}, ${count} items`}
+          {...tourAttr('library-shell.folder-tree-item')}
           className="flex items-center justify-center"
           style={{
             width: 'min(32px, 9cqmin)',
@@ -293,6 +296,7 @@ const FolderRow: React.FC<FolderRowProps> = ({
         }}
         className="shrink-0 w-4 h-5 flex items-center justify-center text-slate-400"
         aria-label={isExpanded ? 'Collapse' : 'Expand'}
+        {...tourAttr('library-shell.folder-tree-expand')}
         tabIndex={-1}
       >
         {hasChildren ? (
@@ -346,6 +350,7 @@ const FolderRow: React.FC<FolderRowProps> = ({
           className="flex-1 min-w-0 flex items-center gap-1 py-1 text-left cursor-pointer"
           aria-label={`${folder.name}, ${count} items`}
           aria-pressed={isSelected}
+          {...tourAttr('library-shell.folder-tree-item')}
         >
           <span
             className={`shrink-0 ${iconTint ?? 'text-brand-blue-primary/80'}`}
@@ -407,6 +412,7 @@ const FolderRow: React.FC<FolderRowProps> = ({
               aria-label={`Actions for ${folder.name}`}
               aria-haspopup="menu"
               aria-expanded={isMenuOpen}
+              {...tourAttr('library-shell.folder-menu')}
               className={`absolute inset-0 flex items-center justify-center rounded-md text-slate-400 hover:text-brand-blue-dark hover:bg-white/60 transition-opacity ${
                 isMenuOpen
                   ? 'opacity-100'
@@ -432,6 +438,7 @@ const FolderRow: React.FC<FolderRowProps> = ({
             type="button"
             role="menuitem"
             className="w-full text-left px-2.5 py-1.5 rounded-md hover:bg-slate-100 text-slate-700"
+            {...tourAttr('library-shell.folder-menu-rename')}
             onClick={() => {
               onOpenMenu(null);
               onStartRename(folder.id);
@@ -443,6 +450,7 @@ const FolderRow: React.FC<FolderRowProps> = ({
             type="button"
             role="menuitem"
             className="w-full text-left px-2.5 py-1.5 rounded-md hover:bg-slate-100 text-slate-700"
+            {...tourAttr('library-shell.folder-menu-new-subfolder')}
             onClick={() => {
               onOpenMenu(null);
               onCreateChild(folder.id);
@@ -455,6 +463,7 @@ const FolderRow: React.FC<FolderRowProps> = ({
               type="button"
               role="menuitem"
               className="w-full text-left px-2.5 py-1.5 rounded-md hover:bg-slate-100 text-slate-700"
+              {...tourAttr('library-shell.folder-menu-move-to-root')}
               onClick={() => {
                 onOpenMenu(null);
                 onMoveToRoot(folder.id);
@@ -478,6 +487,7 @@ const FolderRow: React.FC<FolderRowProps> = ({
             type="button"
             role="menuitem"
             className="w-full text-left px-2.5 py-1.5 rounded-md hover:bg-brand-red-lighter/40 text-brand-red-dark"
+            {...tourAttr('library-shell.folder-menu-delete')}
             onClick={() => {
               onOpenMenu(null);
               onRequestDelete(folder);

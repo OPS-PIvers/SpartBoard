@@ -10,6 +10,7 @@ import { useStorage } from '@/hooks/useStorage';
 import { GL_MAX_VIDEO_BYTES } from '@/utils/guidedLearningMedia';
 import { INTERACTION_TYPES } from './editorShared/setOptions';
 import { TargetsField } from '@/components/quiz/targets/TargetsField';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface Props {
   step: GuidedLearningStep;
@@ -80,6 +81,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
         <button
           onClick={onDelete}
           className="flex items-center gap-1.5 text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors px-3 py-1.5 rounded-lg text-xs font-bold"
+          {...tourAttr('gl-editor.step-delete')}
           aria-label="Delete step"
         >
           <Trash2 className="w-4 h-4" />
@@ -96,6 +98,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
             type="text"
             value={step.label ?? ''}
             onChange={(e) => update({ label: e.target.value })}
+            {...tourAttr('gl-editor.step-label')}
             placeholder="Step title or caption"
             className={inputClass}
           />
@@ -105,6 +108,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
         <div>
           <label className={labelClass}>Interaction Type</label>
           <select
+            {...tourAttr('gl-editor.step-interaction')}
             value={step.interactionType}
             onChange={(e) =>
               update({
@@ -126,6 +130,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
           <div>
             <label className={labelClass}>Slide</label>
             <select
+              {...tourAttr('gl-editor.step-slide')}
               value={step.imageIndex}
               onChange={(e) =>
                 update({ imageIndex: parseInt(e.target.value, 10) || 0 })
@@ -144,6 +149,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
         <label className="flex items-start gap-2 text-sm text-slate-700">
           <input
             type="checkbox"
+            {...tourAttr('gl-editor.step-hide-marker')}
             checked={Boolean(step.hotspotAlwaysHidden ?? step.hideStepNumber)}
             onChange={(e) => update({ hotspotAlwaysHidden: e.target.checked })}
             className="accent-brand-blue-primary w-4 h-4 mt-0.5"
@@ -160,6 +166,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
               value={step.text ?? ''}
               onChange={(e) => update({ text: e.target.value })}
               rows={4}
+              {...tourAttr('gl-editor.step-text')}
               placeholder="Enter the text to display…"
               className={`${inputClass} resize-none`}
             />
@@ -171,6 +178,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
             <div>
               <label className={labelClass}>Tooltip Position</label>
               <select
+                {...tourAttr('gl-editor.step-tooltip-position')}
                 value={step.tooltipPosition ?? 'auto'}
                 onChange={(e) =>
                   update({
@@ -196,6 +204,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
                 min={0}
                 max={48}
                 step={2}
+                {...tourAttr('gl-editor.step-tooltip-offset')}
                 value={step.tooltipOffset ?? 12}
                 onChange={(e) =>
                   update({ tooltipOffset: parseInt(e.target.value, 10) })
@@ -219,6 +228,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
                   audioStoragePath: undefined,
                 })
               }
+              {...tourAttr('gl-editor.step-audio-url')}
               placeholder="Paste an audio URL (.mp3, .wav, .ogg)…"
               className={inputClass}
             />
@@ -245,6 +255,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
                   videoStoragePath: undefined,
                 })
               }
+              {...tourAttr('gl-editor.step-video-url')}
               placeholder="Paste a YouTube or direct video URL…"
               className={inputClass}
             />
@@ -270,6 +281,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
               min={1.5}
               max={6}
               step={0.5}
+              {...tourAttr('gl-editor.step-zoom')}
               value={step.panZoomScale ?? 2.5}
               onChange={(e) =>
                 update({ panZoomScale: parseFloat(e.target.value) })
@@ -291,6 +303,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
               min={5}
               max={50}
               step={1}
+              {...tourAttr('gl-editor.step-spotlight')}
               value={step.spotlightRadius ?? 25}
               onChange={(e) =>
                 update({ spotlightRadius: parseInt(e.target.value) })
@@ -307,6 +320,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
             <div>
               <label className={labelClass}>Overlay Style</label>
               <select
+                {...tourAttr('gl-editor.step-overlay')}
                 value={step.showOverlay ?? 'none'}
                 onChange={(e) =>
                   update({
@@ -330,6 +344,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
                   value={step.text ?? ''}
                   onChange={(e) => update({ text: e.target.value })}
                   rows={4}
+                  {...tourAttr('gl-editor.step-overlay-text')}
                   placeholder="Enter overlay text…"
                   className={`${inputClass} resize-none`}
                 />
@@ -341,6 +356,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
                 <div>
                   <label className={labelClass}>Tooltip Position</label>
                   <select
+                    {...tourAttr('gl-editor.step-tooltip-position')}
                     value={step.tooltipPosition ?? 'auto'}
                     onChange={(e) =>
                       update({
@@ -366,6 +382,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
                     min={0}
                     max={48}
                     step={2}
+                    {...tourAttr('gl-editor.step-tooltip-offset')}
                     value={step.tooltipOffset ?? 12}
                     onChange={(e) =>
                       update({
@@ -382,6 +399,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
               <div>
                 <label className={labelClass}>Banner Tone</label>
                 <select
+                  {...tourAttr('gl-editor.step-banner-tone')}
                   value={step.bannerTone ?? 'blue'}
                   onChange={(e) =>
                     update({
@@ -414,6 +432,7 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
             type="number"
             min={0}
             max={120}
+            {...tourAttr('gl-editor.step-auto-advance')}
             value={step.autoAdvanceDuration ?? 0}
             onChange={(e) =>
               update({ autoAdvanceDuration: parseInt(e.target.value) || 0 })
@@ -490,6 +509,7 @@ const StepMediaUpload: React.FC<{
       />
       <button
         type="button"
+        {...tourAttr('gl-editor.step-upload')}
         onClick={() => inputRef.current?.click()}
         disabled={progress !== null}
         className="flex items-center gap-1.5 text-xs font-bold text-brand-blue-primary hover:text-brand-blue-dark disabled:opacity-60 transition-colors"
@@ -536,6 +556,7 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ step, onChange }) => {
       <div>
         <label className={labelClass}>Question Type</label>
         <select
+          {...tourAttr('gl-editor.question-type')}
           value={q.type}
           onChange={(e) =>
             updateQ({ type: e.target.value as GuidedLearningQuestionType })
@@ -556,6 +577,7 @@ const QuestionEditor: React.FC<QuestionEditorProps> = ({ step, onChange }) => {
           value={q.text}
           onChange={(e) => updateQ({ text: e.target.value })}
           rows={2}
+          {...tourAttr('gl-editor.question-text')}
           placeholder="Enter your question…"
           className={`${inputClass} resize-none`}
         />
@@ -607,6 +629,7 @@ const MCEditor: React.FC<{
             checked={q.correctAnswer === choice && choice !== ''}
             onChange={() => updateQ({ correctAnswer: choice })}
             className="accent-emerald-600 flex-shrink-0 w-4 h-4"
+            {...tourAttr('gl-editor.question-correct')}
             aria-label={`Mark choice ${idx + 1} as correct`}
           />
           <input
@@ -622,6 +645,7 @@ const MCEditor: React.FC<{
                   choices: choices.map((c, i) => (i === idx ? newVal : c)),
                 });
             }}
+            {...tourAttr('gl-editor.question-choice')}
             placeholder={`Choice ${idx + 1}`}
             className="flex-1 bg-white border border-slate-300 rounded text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 px-2 py-1.5 text-sm"
           />
@@ -629,6 +653,7 @@ const MCEditor: React.FC<{
             <button
               onClick={() => removeChoice(idx)}
               className="text-red-500 hover:text-red-700 transition-colors"
+              {...tourAttr('gl-editor.question-choice-remove')}
               aria-label="Remove choice"
             >
               <Trash2 className="w-4 h-4" />
@@ -638,6 +663,7 @@ const MCEditor: React.FC<{
       ))}
       {choices.length < 6 && (
         <button
+          {...tourAttr('gl-editor.question-choice-add')}
           onClick={addChoice}
           className="flex items-center gap-1 text-slate-500 hover:text-slate-700 transition-colors font-bold text-xs"
         >
@@ -676,6 +702,7 @@ const MatchingEditor: React.FC<{
             type="text"
             value={pair.left}
             onChange={(e) => setPair(idx, 'left', e.target.value)}
+            {...tourAttr('gl-editor.question-match-left')}
             placeholder="Term"
             className="flex-1 bg-white border border-slate-300 rounded text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 px-2 py-1.5 text-sm"
           />
@@ -684,6 +711,7 @@ const MatchingEditor: React.FC<{
             type="text"
             value={pair.right}
             onChange={(e) => setPair(idx, 'right', e.target.value)}
+            {...tourAttr('gl-editor.question-match-right')}
             placeholder="Definition"
             className="flex-1 bg-white border border-slate-300 rounded text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 px-2 py-1.5 text-sm"
           />
@@ -693,6 +721,7 @@ const MatchingEditor: React.FC<{
                 updateQ({ matchingPairs: pairs.filter((_, i) => i !== idx) })
               }
               className="text-red-500 hover:text-red-700 transition-colors"
+              {...tourAttr('gl-editor.question-match-remove')}
               aria-label="Remove pair"
             >
               <Trash2 className="w-4 h-4" />
@@ -702,6 +731,7 @@ const MatchingEditor: React.FC<{
       ))}
       {pairs.length < 8 && (
         <button
+          {...tourAttr('gl-editor.question-match-add')}
           onClick={() =>
             updateQ({ matchingPairs: [...pairs, { left: '', right: '' }] })
           }
@@ -737,6 +767,7 @@ const SortingEditor: React.FC<{
               updated[idx] = e.target.value;
               updateQ({ sortingItems: updated });
             }}
+            {...tourAttr('gl-editor.question-sort-item')}
             placeholder={`Item ${idx + 1}`}
             className="flex-1 bg-white border border-slate-300 rounded text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 px-2 py-1.5 text-sm"
           />
@@ -746,6 +777,7 @@ const SortingEditor: React.FC<{
                 updateQ({ sortingItems: items.filter((_, i) => i !== idx) })
               }
               className="text-red-500 hover:text-red-700 transition-colors"
+              {...tourAttr('gl-editor.question-sort-remove')}
               aria-label="Remove item"
             >
               <Trash2 className="w-4 h-4" />
@@ -755,6 +787,7 @@ const SortingEditor: React.FC<{
       ))}
       {items.length < 10 && (
         <button
+          {...tourAttr('gl-editor.question-sort-add')}
           onClick={() => updateQ({ sortingItems: [...items, ''] })}
           className="flex items-center gap-1 text-slate-500 hover:text-slate-700 transition-colors font-bold text-xs"
         >

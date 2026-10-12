@@ -21,6 +21,7 @@
  * don't double-load the IFrame script when MusicWidget is also mounted.
  */
 
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
 import {
@@ -317,6 +318,7 @@ export const Timeline: React.FC<TimelineProps> = ({
         <div
           ref={trackRef}
           role="slider"
+          {...tourAttr('video-activity.timeline-track')}
           aria-label="Video timeline"
           aria-orientation="horizontal"
           aria-valuemin={0}
@@ -451,6 +453,11 @@ export const Timeline: React.FC<TimelineProps> = ({
 
             return (
               <button
+                {...tourFieldAttr(
+                  'video-activity.timeline-marker',
+                  'video-activity',
+                  q.id
+                )}
                 key={q.id}
                 type="button"
                 onPointerDown={handleMarkerPointerDown}
@@ -481,6 +488,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             Drag a marker to move its question.
           </p>
           <button
+            {...tourAttr('video-activity.timeline-add')}
             type="button"
             disabled={!playerReady}
             onClick={() => onAddAtTime(Math.floor(playhead))}

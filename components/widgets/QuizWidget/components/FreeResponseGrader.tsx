@@ -58,6 +58,7 @@ import { sanitizeQuizResponse } from '@/utils/security';
 import { countWords } from '@/utils/wordCount';
 import { wordCounterLabel, wordLimitStatus } from '@/utils/wordLimit';
 import { highlightClass, htmlToPlainText } from '@/utils/writtenAnnotations';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { sumRubricScorePoints } from '@/utils/rubricPoints';
 import { resolveRubricForResponse } from '@/utils/rubricOverrideResolution';
 import {
@@ -610,6 +611,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   // The last rubric total we auto-filled, so a manual override is recognizable.
   const lastAutoFilledPointsRef = useRef('');
   const pointsInputRef = useRef('');
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   pointsInputRef.current = pointsInput;
   const editSourceRef = useRef<EditSource>('none');
   // Auto-advance arms once per visit, and never for a grade that arrived complete.
@@ -670,16 +672,21 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     setDraftRubricScores(hydrated.rubricScores);
     setActiveAnnotationId(null);
     setSeek({ ms: 0, nonce: 0 });
+    // eslint-disable-next-line react-hooks/refs -- reset alongside the hydrate state adjust
     lastJumpRef.current = null;
     setPinnedTakeIndex(hydrated.pinnedTakeIndex);
     setAdjudication(hydrated.adjudication);
     setSaveError(null);
     setAdvanceArmed(false);
+    // eslint-disable-next-line react-hooks/refs -- reset alongside the hydrate state adjust
     editSourceRef.current = 'none';
+    // eslint-disable-next-line react-hooks/refs -- reset alongside the hydrate state adjust
     completeSeenRef.current = false;
+    // eslint-disable-next-line react-hooks/refs -- reset alongside the hydrate state adjust
     wasCompleteOnEnterRef.current = draftCtx
       ? isGradeComplete(hydrated, draftCtx)
       : false;
+    // eslint-disable-next-line react-hooks/refs -- reset alongside the hydrate state adjust
     lastAutoFilledPointsRef.current =
       rubricCriteriaCount > 0 &&
       savedGrade?.rubricScores?.length === rubricCriteriaCount
@@ -700,10 +707,12 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   if (takeKey !== seekTakeKey) {
     setSeekTakeKey(takeKey);
     setSeek({ ms: 0, nonce: 0 });
+    // eslint-disable-next-line react-hooks/refs -- reset alongside the take state adjust
     lastJumpRef.current = null;
   }
 
   const handleRubricScoresChange = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps kept as written
     (scores: WrittenAnswerRubricScore[], derivedPoints: number) => {
       editSourceRef.current = 'rubric';
       setDraftRubricScores(scores);
@@ -739,6 +748,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   // Walk that strand's tagged passages in text order, one per click. Opening
   // the annotation is what scrolls the mark (text) or seeks the take (audio).
   const handleJumpToTagged = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps kept as written
     (criterionId: string) => {
       const tagged = draftAnnotations
         .filter((a) =>
@@ -768,6 +778,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     ? activeTake.archive?.driveFileId
     : undefined;
   const resolverRef = useRef(resolveTakeUrl);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   resolverRef.current = resolveTakeUrl;
 
   useEffect(() => {
@@ -839,6 +850,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     studentLabel,
     isDirty,
   });
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   writeInfoRef.current = {
     draft,
     ctx: draftCtx,
@@ -991,6 +1003,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   // Any further touch on the right rail means the teacher is not done here.
   const railRef = useRef<HTMLElement | null>(null);
   const advanceArmedRef = useRef(false);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   advanceArmedRef.current = advanceArmed;
   useEffect(() => {
     const rail = railRef.current;
@@ -1105,6 +1118,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
     [cancelPendingWrite, complete, commitDraft, arm]
   );
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps kept as written
   const handleUndoExcuse = useCallback(async () => {
     if (!onClearGrade || !target || !responseKey) return;
     setClearing(true);
@@ -1124,6 +1138,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   }, [onClearGrade, target, responseKey, targetKey, tg]);
 
   const onCloseRef = useRef(onClose);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   onCloseRef.current = onClose;
   const handleClose = useCallback(() => {
     leaveTarget();
@@ -1161,6 +1176,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
           <button
             type="button"
             onClick={onClose}
+            {...tourTypeAttr('quiz-grading.empty-close', 'quiz')}
             className="mt-6 rounded-xl px-4 py-2 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100"
           >
             {tg('close')}
@@ -1313,6 +1329,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
         <button
           type="button"
           onClick={writeQueue.retryAll}
+          {...tourTypeAttr('quiz-grading.retry-save', 'quiz')}
           title={failedWrites.map((f) => f.studentName).join(', ')}
           className="inline-flex items-center gap-1 rounded-lg bg-brand-red-lighter/50 px-2 py-1 text-xs font-bold text-brand-red-dark transition-colors hover:bg-brand-red-lighter"
         >
@@ -1339,6 +1356,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
             key={m}
             type="button"
             onClick={() => changeMode(m)}
+            {...tourFieldAttr('quiz-grading.mode-toggle', 'quiz', m)}
             aria-pressed={mode === m}
             className={`rounded-md px-2.5 py-1 transition-colors ${
               mode === m
@@ -1355,6 +1373,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
         role="switch"
         aria-checked={autoAdvanceOn}
         onClick={toggleAutoAdvance}
+        {...tourTypeAttr('quiz-grading.auto-advance', 'quiz')}
         className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-100"
       >
         <span
@@ -1388,6 +1407,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
       <button
         type="button"
         onClick={() => advance(-1)}
+        {...tourTypeAttr('quiz-grading.advance-prev', 'quiz')}
         aria-label={tg('prev')}
         title={`${tg('prev')} (←)`}
         className="shrink-0 rounded-lg border border-slate-300 p-1.5 text-slate-600 transition-colors hover:bg-slate-100"
@@ -1397,6 +1417,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
       <button
         type="button"
         onClick={() => advance(1)}
+        {...tourTypeAttr('quiz-grading.advance-next', 'quiz')}
         aria-label={tg('next')}
         title={`${tg('next')} (→)`}
         data-advance-armed={advanceArmed || undefined}
@@ -1482,6 +1503,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
               type="button"
               onClick={toggleRail}
               aria-label={tg('expandList')}
+              {...tourTypeAttr('quiz-grading.rail-expand', 'quiz')}
               title={tg('expandList')}
               aria-expanded={false}
               className={stepperButton}
@@ -1513,6 +1535,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                   type="button"
                   onClick={toggleRail}
                   aria-label={tg('collapseList')}
+                  {...tourTypeAttr('quiz-grading.rail-collapse', 'quiz')}
                   title={tg('collapseList')}
                   aria-expanded
                   className={`${stepperButton} -ml-2`}
@@ -1537,6 +1560,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 onClick={goPrevStudent}
                 disabled={studentIdx === 0}
                 aria-label={tg('prevStudent')}
+                {...tourTypeAttr('quiz-grading.student-prev', 'quiz')}
                 title={tg('prevStudent')}
                 className={stepperButton}
               >
@@ -1547,6 +1571,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 onClick={goNextStudent}
                 disabled={studentIdx >= students.length - 1}
                 aria-label={tg('nextStudent')}
+                {...tourTypeAttr('quiz-grading.student-next', 'quiz')}
                 title={tg('nextStudent')}
                 className={stepperButton}
               >
@@ -1561,6 +1586,11 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                     <button
                       type="button"
                       onClick={() => selectStudent(idx)}
+                      {...tourFieldAttr(
+                        'quiz-grading.student-select',
+                        'quiz',
+                        String(idx)
+                      )}
                       aria-current={idx === studentIdx ? 'true' : undefined}
                       className={`flex w-full items-center gap-2 px-4 py-2 text-left text-sm transition-colors ${
                         idx === studentIdx
@@ -1623,6 +1653,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                   onClick={goPrevQuestion}
                   disabled={questionIdx === 0}
                   aria-label={tg('prevQuestion')}
+                  {...tourTypeAttr('quiz-grading.question-prev', 'quiz')}
                   title={tg('prevQuestion')}
                   className={stepperButton}
                 >
@@ -1639,6 +1670,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                   onClick={goNextQuestion}
                   disabled={questionIdx >= questions.length - 1}
                   aria-label={tg('nextQuestion')}
+                  {...tourTypeAttr('quiz-grading.question-next', 'quiz')}
                   title={tg('nextQuestion')}
                   className={stepperButton}
                 >
@@ -1674,6 +1706,11 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                       key={x.slot.slot}
                       type="button"
                       onClick={() => selectSlot(x.slot.slot)}
+                      {...tourFieldAttr(
+                        'quiz-grading.slot-tab',
+                        'quiz',
+                        x.slot.slot
+                      )}
                       aria-pressed={x.slot.slot === slot.slot}
                       className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors ${
                         x.slot.slot === slot.slot
@@ -1793,6 +1830,11 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                           setAdjudication(choice);
                         }}
                         aria-pressed={adjudication === choice}
+                        {...tourFieldAttr(
+                          'quiz-grading.unavailable-choice',
+                          'quiz',
+                          choice
+                        )}
                         className={`rounded-xl border px-3 py-2.5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${
                           adjudication === choice
                             ? 'border-brand-blue-primary bg-brand-blue-primary/5 ring-1 ring-brand-blue-primary'
@@ -1884,6 +1926,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                     setPointsInput(e.target.value);
                   }}
                   onKeyDown={handlePointsKeyDown}
+                  {...tourTypeAttr('quiz-grading.points', 'quiz')}
                   aria-invalid={pointsOutOfRange || undefined}
                   className="w-28 rounded-lg border-2 border-emerald-500/30 bg-white px-3 py-2 text-lg font-bold text-emerald-800 focus:border-emerald-500 focus:outline-none aria-[invalid]:border-brand-red-primary/60"
                   placeholder="0"
@@ -1947,6 +1990,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 }}
                 rows={5}
                 aria-required={adjudication === 'substitute'}
+                {...tourTypeAttr('quiz-grading.comment', 'quiz')}
                 placeholder={tg('commentPlaceholder')}
                 className="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
               />
@@ -1991,6 +2035,11 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                           setPinnedTakeIndex(take.takeIndex);
                         }}
                         aria-pressed={isActive}
+                        {...tourFieldAttr(
+                          'quiz-grading.take-pin',
+                          'quiz',
+                          String(take.takeIndex)
+                        )}
                         className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs transition-colors ${
                           isActive
                             ? 'border-brand-blue-primary bg-brand-blue-primary/5'
@@ -2035,6 +2084,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 <button
                   type="button"
                   onClick={handleUndoExcuse}
+                  {...tourTypeAttr('quiz-grading.undo-excuse', 'quiz')}
                   disabled={clearing}
                   className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -2088,7 +2138,7 @@ const AnnotationsList: React.FC<{
   }
   return (
     <div className="flex flex-col gap-1.5">
-      {annotations.map((a) => {
+      {annotations.map((a, index) => {
         const snippet = plaintext.slice(a.from, a.to);
         const truncated =
           snippet.length > 60 ? `${snippet.slice(0, 60)}…` : snippet;
@@ -2098,6 +2148,11 @@ const AnnotationsList: React.FC<{
             key={a.id}
             type="button"
             onClick={() => onSelect(a.id)}
+            {...tourFieldAttr(
+              'quiz-grading.highlight-select',
+              'quiz',
+              String(index)
+            )}
             className={`rounded-lg border p-2 text-left text-xs leading-relaxed transition-colors ${
               isActive
                 ? 'border-violet-400 bg-violet-50'

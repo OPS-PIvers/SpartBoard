@@ -17,6 +17,7 @@ import { Plc } from '@/types';
 import { getPlcMembers } from '@/utils/plc';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import { useAuth } from '@/context/useAuth';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcShareTargetModalProps {
   /** PLCs the user is a current member of. Caller filters; modal renders as-is. */
@@ -103,6 +104,7 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
             </div>
           </div>
           <button
+            {...tourAttr('plc-share.close')}
             type="button"
             onClick={onClose}
             disabled={submitting}
@@ -128,6 +130,7 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
               }`}
             >
               <input
+                {...tourFieldAttr('plc-share.target', 'plc', plc.id)}
                 type="radio"
                 name="plc-share-target"
                 value={plc.id}
@@ -161,6 +164,7 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
 
         <div className="flex items-center justify-end gap-2 pt-1">
           <button
+            {...tourAttr('plc-share.cancel')}
             type="button"
             onClick={onClose}
             disabled={submitting}
@@ -171,6 +175,7 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
             })}
           </button>
           <button
+            {...tourAttr('plc-share.submit')}
             type="button"
             onClick={() => void handleSubmit()}
             disabled={!canSubmit}

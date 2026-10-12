@@ -16,6 +16,7 @@
 
 import * as admin from 'firebase-admin';
 import {
+  type ActivityPoint,
   type AnalyticsHistory,
   type DayActivityDoc,
   buildActivitySeries,
@@ -26,6 +27,8 @@ import {
   readActivityDays,
   writeActivityDays,
 } from './adminAnalyticsHistory';
+import { OPEN_SOURCES } from './adminActiveStudents';
+import { chunk as chunksOf } from './shared';
 
 export interface AdminAnalyticsPayload {
   users: {
@@ -570,12 +573,15 @@ export async function computeAnalyticsForOrg(
   //   generateGuidedLearning, draftGuidedLearningStepTextV1 (aiGeneration.ts): guided-learning-ai
   //   transcribeVideoWithGemini (aiGeneration.ts): video-activity-audio-transcription
   //   paper handwriting worker (paperHandwritingQuota.ts): paper-handwritten-responses, in pages
+  //   requestPlcMeetingNotesV1 (plcMeetingNotes.ts): plc-meeting-ai-notes
+  //   plcGoalCoachV1 (plcGoalCoach.ts): plc-goal-coach
+  //   translateQuizV1 / translateResponseV1 (quizTranslation.ts): translation (count + backCount)
+  //   extractQuizFromDocumentV1 counts as quiz; extractStimulusReadAloudTextV1 counts as ocr
   //
   // Kept for existing docs only: video-activity-recommend (now counted as video-activity-ai).
   //
-  // IMPORTANT: Keep in sync with the mirror in
-  // tests/components/admin/Analytics/AiFeatureLabels.test.ts — that test's
-  // exhaustiveness check validates AI_FEATURE_LABELS against this list.
+  // tests/components/admin/Analytics/AiFeatureLabels.test.ts reads this list and
+  // fails unless components/admin/Analytics/aiFeatureLabels.ts labels every id.
   const GEMINI_SPECIFIC_FEATURES = [
     'smart-poll',
     'embed-mini-app',
@@ -596,6 +602,21 @@ export async function computeAnalyticsForOrg(
     'mini-app-ai',
     'drawing-ai',
     'webcam-ai',
+    'plc-meeting-ai-notes',
+    'plc-goal-coach',
+  ];
+
+  // Sub-limit counters beside a feature counter; skipped so they never double count.
+  const AI_SUB_LIMIT_COUNTERS = [
+    'plc-meeting-transcribe',
+    'plc-meeting-regenerate',
+    'plc-goal-coach-checks',
+  ];
+
+  // Features that write no `{uid}_{date}` overall doc, so their per-feature count feeds the totals.
+  const FEATURES_WITHOUT_OVERALL_DOC = [
+    'paper-handwritten-responses',
+    'translation',
   ];
 
   const aiUsageStream = db
@@ -610,6 +631,7 @@ export async function computeAnalyticsForOrg(
 
     const datePart = idParts[idParts.length - 1];
     const secondToLast = idParts[idParts.length - 2];
+    if (AI_SUB_LIMIT_COUNTERS.includes(secondToLast)) continue;
     const isSpecificFeature = GEMINI_SPECIFIC_FEATURES.includes(secondToLast);
 
     const uidParts = idParts.slice(0, isSpecificFeature ? -2 : -1);
@@ -622,22 +644,28 @@ export async function computeAnalyticsForOrg(
     const usageData = usageDoc.data();
     const count = typeof usageData.count === 'number' ? usageData.count : 0;
 
+    let featureCalls = 0;
     if (isSpecificFeature) {
       // Back-translation writes `backCount`, not `count` — both are translation calls.
       const backCount =
         typeof usageData.backCount === 'number' ? usageData.backCount : 0;
+      featureCalls = count + backCount;
       aiCallsByFeature[secondToLast] =
-        (aiCallsByFeature[secondToLast] ?? 0) + count + backCount;
+        (aiCallsByFeature[secondToLast] ?? 0) + featureCalls;
     }
 
-    // ONLY count "overall" records for total analytics to avoid double counting
-    // (per-feature records are for rate-limit enforcement, overall tracks all).
-    if (!isSpecificFeature) {
-      totalAiCalls += count;
-      callsPerUser[uid] = (callsPerUser[uid] ?? 0) + count;
-      dailyCallCounts[datePart] = (dailyCallCounts[datePart] ?? 0) + count;
+    // Totals come from overall docs, plus features that never write one, so nothing is counted twice.
+    const totalCalls = !isSpecificFeature
+      ? count
+      : FEATURES_WITHOUT_OVERALL_DOC.includes(secondToLast)
+        ? featureCalls
+        : 0;
+    if (totalCalls > 0) {
+      totalAiCalls += totalCalls;
+      callsPerUser[uid] = (callsPerUser[uid] ?? 0) + totalCalls;
+      dailyCallCounts[datePart] = (dailyCallCounts[datePart] ?? 0) + totalCalls;
       // Usage dates are UTC; midday UTC keeps them on the same district day.
-      if (estimateOwed && count > 0) {
+      if (estimateOwed) {
         datedEvents.push([uid, parseTimeMs(`${datePart}T17:00:00Z`)]);
       }
     }
@@ -698,17 +726,19 @@ export async function computeAnalyticsForOrg(
 
   // studentLoginV1 stamps student_sections/{uid}.updatedAt on every SSO sign-in.
   let students: { monthly: number; daily: number } | undefined;
+  let studentSignIns: [string, number][] | undefined;
   try {
     const studentSnap = await db
       .collection('student_sections')
       .where('orgId', '==', orgId)
       .select('updatedAt')
       .get();
+    studentSignIns = studentSnap.docs.map((d) => {
+      const at: unknown = d.get('updatedAt');
+      return [d.id, typeof at === 'number' ? at : 0];
+    });
     students = countActiveStudents(
-      studentSnap.docs.map((d) => {
-        const at: unknown = d.get('updatedAt');
-        return typeof at === 'number' ? at : 0;
-      }),
+      studentSignIns.map(([, ms]) => ms),
       now
     );
   } catch (err) {
@@ -740,6 +770,22 @@ export async function computeAnalyticsForOrg(
         orgId,
         error: err instanceof Error ? err.message : String(err),
       });
+    }
+    if (history && studentSignIns && studentSignIns.length > 0) {
+      try {
+        history.studentDays = await recordAndBuildStudentHistory({
+          orgId,
+          now,
+          signIns: studentSignIns,
+          estimate: historyOptions.estimate,
+        });
+      } catch (err) {
+        console.error('[getAdminAnalytics] student history failed', {
+          ...logContext,
+          orgId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
     }
   }
 
@@ -843,6 +889,96 @@ async function recordAndBuildHistory(input: {
     newUsersByMonth: buildNewUsersByMonth([...signupByUid.values()], now),
     cohorts: buildCohorts(signupByUid, days, now),
   };
+}
+
+async function recordAndBuildStudentHistory(input: {
+  orgId: string;
+  now: number;
+  signIns: [string, number][];
+  estimate: boolean;
+}): Promise<ActivityPoint[]> {
+  const { orgId, now, signIns } = input;
+  const db = admin.firestore();
+  const today = measuredDateKey(now);
+  const existing = await readActivityDays(orgId, 'students');
+  const toWrite: DayActivityDoc[] = [
+    {
+      date: today,
+      activeUids: signIns
+        .filter(([, ms]) => ms > 0 && now - ms <= 24 * 60 * 60 * 1000)
+        .map(([uid]) => uid)
+        .sort(),
+      estimated: false,
+    },
+  ];
+
+  const markerRef = db.doc(
+    `organizations/${orgId}/analytics/student_history_estimate`
+  );
+  let estimateOwed =
+    input.estimate &&
+    !(await markerRef
+      .get()
+      .then((snap) => snap.exists === true)
+      .catch(() => true));
+  if (estimateOwed) {
+    const firstMeasured = existing
+      .filter((d) => !d.estimated)
+      .map((d) => d.date)
+      .reduce((min, d) => (d < min ? d : min), today);
+    try {
+      const opens = await readStudentOpenEvents(signIns.map(([uid]) => uid));
+      toWrite.push(
+        ...estimateActivityDays([...signIns, ...opens], firstMeasured)
+      );
+    } catch (err) {
+      // Today's measured day still records; the estimate retries next run.
+      estimateOwed = false;
+      console.error('[getAdminAnalytics] student estimate failed', {
+        orgId,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  await writeActivityDays(orgId, toWrite, 'students');
+  if (estimateOwed) {
+    await markerRef.set({ estimatedAt: now, days: toWrite.length - 1 });
+  }
+  const byDate = new Map(existing.map((d) => [d.date, d]));
+  for (const d of toWrite) byDate.set(d.date, d);
+  return buildActivitySeries([...byDate.values()]);
+}
+
+// Assignment opens and submissions by this org's SSO students, for the one-time student estimate.
+async function readStudentOpenEvents(
+  studentUids: string[]
+): Promise<[string, number][]> {
+  const db = admin.firestore();
+  const events: [string, number][] = [];
+  // Same studentField + timeField shape as getActiveStudentsV1, so its composite indexes serve it.
+  const jobs = OPEN_SOURCES.flatMap((src) =>
+    chunksOf(studentUids, 30).map((ids) => ({ src, ids }))
+  );
+  for (const batch of chunksOf(jobs, 8)) {
+    await Promise.all(
+      batch.map(async ({ src, ids }) => {
+        const snap = await db
+          .collectionGroup(src.group)
+          .where(src.studentField, 'in', ids)
+          .where(src.timeField, '>=', 0)
+          .select(src.studentField, src.timeField)
+          .get();
+        for (const doc of snap.docs) {
+          if (doc.ref.parent.parent?.parent.id !== src.sessions) continue;
+          const uid: unknown = doc.get(src.studentField);
+          if (typeof uid !== 'string') continue;
+          events.push([uid, toMs(doc.get(src.timeField))]);
+        }
+      })
+    );
+  }
+  return events;
 }
 
 async function readLibraryEvents(

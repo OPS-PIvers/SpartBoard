@@ -44,6 +44,7 @@ import type {
   PlcHomeTileContext,
   PlcHomeTileInstance,
 } from './tiles/tileTypes';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcHomeV2Props {
   plc: Plc;
@@ -261,6 +262,7 @@ export const PlcHomeV2: React.FC<PlcHomeV2Props> = ({
     const label = t(def.labelKey, { defaultValue: def.labelDefault });
     const spotlight = (
       <button
+        {...tourFieldAttr('plc-home.spotlight', 'plc', tile.kind)}
         type="button"
         onClick={() => toggleSpotlight(tile, hero)}
         aria-label={
@@ -319,6 +321,7 @@ export const PlcHomeV2: React.FC<PlcHomeV2Props> = ({
                 onAdd={(tile) => setDraft([...draft, tile])}
               />
               <button
+                {...tourAttr('plc-home.customize-done')}
                 type="button"
                 onClick={finishCustomize}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-sm font-bold text-white hover:bg-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50 focus-visible:ring-offset-2"
@@ -331,6 +334,7 @@ export const PlcHomeV2: React.FC<PlcHomeV2Props> = ({
             </>
           ) : (
             <button
+              {...tourAttr('plc-home.customize-open')}
               type="button"
               onClick={() => setDraft(tiles)}
               disabled={layoutLoading}
@@ -356,6 +360,7 @@ export const PlcHomeV2: React.FC<PlcHomeV2Props> = ({
               })}
             </p>
             <button
+              {...tourAttr('plc-home.customize-clear')}
               type="button"
               onClick={() => setDraft([])}
               className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"

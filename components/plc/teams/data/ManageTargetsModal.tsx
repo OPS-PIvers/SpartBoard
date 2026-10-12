@@ -21,6 +21,7 @@ import {
   SectionHead,
   TextLink,
 } from '@/components/plc/redesignMockup/ui';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const COMPACT_QUESTIONS = 7;
 
@@ -127,6 +128,7 @@ export const ManageTargetsModal: React.FC<ManageTargetsModalProps> = ({
         defaultValue: 'Learning targets',
       })}
       maxWidth="max-w-3xl"
+      closeTourId="teams.targets.close"
       footer={
         <div className="flex items-center justify-end gap-2">
           {error && (
@@ -137,10 +139,18 @@ export const ManageTargetsModal: React.FC<ManageTargetsModalProps> = ({
               {t('learningTargets.saveFailed', { defaultValue: 'Save failed' })}
             </span>
           )}
-          <Button variant="secondary" onClick={onClose}>
+          <Button
+            variant="secondary"
+            onClick={onClose}
+            {...tourAttr('teams.targets.cancel')}
+          >
             {t('common.cancel', { defaultValue: 'Cancel' })}
           </Button>
-          <Button onClick={() => void save()} disabled={saving}>
+          <Button
+            onClick={() => void save()}
+            disabled={saving}
+            {...tourAttr('teams.targets.save')}
+          >
             {t('common.save', { defaultValue: 'Save' })}
           </Button>
         </div>
@@ -154,6 +164,7 @@ export const ManageTargetsModal: React.FC<ManageTargetsModalProps> = ({
           size="sm"
           icon={<Plus className="h-3.5 w-3.5" aria-hidden="true" />}
           aria-expanded={adding}
+          {...tourAttr('teams.targets.add-target')}
           onClick={() => setAdding((v) => !v)}
         >
           {t('learningTargets.addTarget', { defaultValue: 'Add target' })}
@@ -176,6 +187,7 @@ export const ManageTargetsModal: React.FC<ManageTargetsModalProps> = ({
             aria-label={t('learningTargets.columns.code', {
               defaultValue: 'Code',
             })}
+            {...tourAttr('teams.targets.code')}
             className={`${INPUT} w-28 py-1.5`}
           />
           <input
@@ -187,9 +199,15 @@ export const ManageTargetsModal: React.FC<ManageTargetsModalProps> = ({
             aria-label={t('learningTargets.columns.label', {
               defaultValue: 'Target',
             })}
+            {...tourAttr('teams.targets.label')}
             className={`${INPUT} min-w-0 flex-1 py-1.5`}
           />
-          <Button type="submit" size="sm" disabled={!label.trim()}>
+          <Button
+            type="submit"
+            size="sm"
+            disabled={!label.trim()}
+            {...tourAttr('teams.targets.add')}
+          >
             {t('learningTargets.add', { defaultValue: 'Add' })}
           </Button>
         </form>
@@ -222,6 +240,7 @@ export const ManageTargetsModal: React.FC<ManageTargetsModalProps> = ({
               })}
               size="sm"
               variant="danger"
+              {...tourFieldAttr('teams.targets.archive', 'teams-data', tg.id)}
               onClick={() => setDraft((d) => archiveTarget(d, tg.id))}
             />,
           ])}
@@ -249,7 +268,7 @@ export const ManageTargetsModal: React.FC<ManageTargetsModalProps> = ({
               setApproaching,
             ],
           ] as const
-        ).map(([text, value, onChange]) => (
+        ).map(([text, value, onChange], i) => (
           <label
             key={text}
             className="flex items-center gap-2 text-sm text-slate-700"
@@ -262,6 +281,11 @@ export const ManageTargetsModal: React.FC<ManageTargetsModalProps> = ({
               step={1}
               value={value}
               onChange={(e) => onChange(e.target.value)}
+              {...tourFieldAttr(
+                'teams.targets.cutoff',
+                'teams-data',
+                String(i)
+              )}
               className={`${INPUT} w-20 py-1.5 tabular-nums`}
             />
             %
@@ -281,6 +305,7 @@ export const ManageTargetsModal: React.FC<ManageTargetsModalProps> = ({
                 defaultValue: 'Assessment',
               })}
               value={setId}
+              anchor={tourAttr('teams.targets.assessment')}
               onChange={(v) => {
                 setSetId(v);
                 setShowAll(false);
@@ -318,7 +343,11 @@ export const ManageTargetsModal: React.FC<ManageTargetsModalProps> = ({
             )}
           </ul>
           {questions.length > COMPACT_QUESTIONS && (
-            <TextLink className="mt-2" onClick={() => setShowAll((v) => !v)}>
+            <TextLink
+              className="mt-2"
+              onClick={() => setShowAll((v) => !v)}
+              {...tourAttr('teams.targets.show-all')}
+            >
               {showAll
                 ? t('plcDataOverview.showFewer', { defaultValue: 'Show fewer' })
                 : t('plcDataOverview.showAllN', {

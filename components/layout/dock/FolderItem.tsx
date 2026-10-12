@@ -40,6 +40,7 @@ import {
   DockPosition,
 } from '@/types';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { reorderPreservingHidden } from './folderPermissions';
 
 interface FolderItemProps {
@@ -226,6 +227,7 @@ export const FolderItem = React.memo(
                   {folder.name}
                 </h4>
                 <button
+                  {...tourFieldAttr('dock.folder-rename', 'folders', folder.id)}
                   onClick={() => {
                     onRename(folder.id);
                     setShowPopover(false);
@@ -298,6 +300,7 @@ export const FolderItem = React.memo(
         >
           {isEditMode && (
             <button
+              {...tourFieldAttr('dock.folder-delete', 'folders', folder.id)}
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(folder.id);
@@ -312,6 +315,7 @@ export const FolderItem = React.memo(
             ref={buttonRef}
             {...attributes}
             {...listeners}
+            {...tourFieldAttr('dock.folder-open', 'folders', folder.id)}
             onPointerDown={longPress.onPointerDown}
             onPointerUp={longPress.onPointerUp}
             onPointerLeave={longPress.onPointerUp}

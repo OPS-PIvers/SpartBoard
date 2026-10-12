@@ -436,8 +436,7 @@ export async function applyProfileBuildingsChange(
       .get();
     for (const doc of snap.docs) {
       const data = doc.data();
-      if (isAutoRosterGroup(data))
-        groups.push({ id: doc.id, data: data as Data });
+      if (isAutoRosterGroup(data)) groups.push({ id: doc.id, data: data });
     }
   }
   if (groups.length === 0) return result;

@@ -211,7 +211,7 @@ function useSubcollection<T>(
       (snap) => {
         const list: T[] = [];
         snap.forEach((d) => {
-          const parsed = parse(d.id, d.data() as Record<string, unknown>);
+          const parsed = parse(d.id, d.data());
           if (parsed) list.push(parsed);
         });
         const finalList = postProcess ? postProcess(list) : list;
@@ -326,7 +326,7 @@ function usePresenceListener(plcId: string): PlcPresenceEntry[] {
           // 'estimate' keeps our own just-written heartbeat fresh instead of dropping it while serverTimestamp() is pending.
           const parsed = parsePresence(
             d.id,
-            d.data({ serverTimestamps: 'estimate' }) as Record<string, unknown>
+            d.data({ serverTimestamps: 'estimate' })
           );
           if (parsed) list.push(parsed);
         });
@@ -371,10 +371,7 @@ function useActivityListener(plcId: string): PlcActivityEvent[] {
       (snap) => {
         const list: PlcActivityEvent[] = [];
         snap.forEach((d) => {
-          const parsed = parseActivity(
-            d.id,
-            d.data() as Record<string, unknown>
-          );
+          const parsed = parseActivity(d.id, d.data());
           if (parsed) list.push(parsed);
         });
         setActivity(list);
@@ -413,7 +410,7 @@ function useHomeLayoutListener(
       (snap) => {
         setState({
           data: snap.exists()
-            ? parsePlcHomeLayout(snap.data() as Record<string, unknown>)
+            ? parsePlcHomeLayout(snap.data())
             : EMPTY_PLC_HOME_LAYOUT,
           loading: false,
           error: null,
@@ -920,7 +917,7 @@ function useStableActions(
         if (err instanceof PlcNoteVersionConflictError) throw err;
         const code =
           typeof err === 'object' && err !== null && 'code' in err
-            ? String((err as { code: unknown }).code)
+            ? String(err.code)
             : '';
         if (code === 'permission-denied' || code === 'failed-precondition') {
           throw new PlcNoteVersionConflictError(
@@ -1216,10 +1213,7 @@ function useStableActions(
       const ref = meetingRef(meetingId);
       const snap = await getDoc(ref);
       if (!snap.exists()) throw new Error('Meeting not found');
-      const meeting = parsePlcMeeting(
-        snap.id,
-        snap.data() as Record<string, unknown>
-      );
+      const meeting = parsePlcMeeting(snap.id, snap.data());
       if (!meeting) throw new Error('Meeting record is malformed');
       const pending = actionItemsNeedingTodos(meeting.actionItems);
       if (pending.length === 0) return [];
@@ -1235,7 +1229,7 @@ function useStableActions(
       let existingActionItems: PlcNote['actionItems'] = [];
       let existingVersion: number | undefined;
       for (const d of notesSnap.docs) {
-        const parsed = parseNote(d.id, d.data() as Record<string, unknown>);
+        const parsed = parseNote(d.id, d.data());
         if (parsed && parsed.deletedAt == null) {
           noteId = parsed.id;
           existingActionItems = parsed.actionItems ?? [];
@@ -1321,10 +1315,7 @@ function useStableActions(
       // caller may have created it with a different facilitator).
       const snap = await getDoc(ref);
       if (!snap.exists()) throw new Error('Meeting not found');
-      const existing = parsePlcMeeting(
-        snap.id,
-        snap.data() as Record<string, unknown>
-      );
+      const existing = parsePlcMeeting(snap.id, snap.data());
       if (!existing) throw new Error('Meeting record is malformed');
 
       // Attendees: explicit override (editable before save, §11) wins; otherwise

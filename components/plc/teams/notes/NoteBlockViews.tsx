@@ -8,6 +8,7 @@ import type { ItemAnalysisQuestion } from '@/utils/plcDataOverview';
 import { ItemAnalysisLegend } from '@/components/plc/redesignMockup/charts/ItemAnalysisChart';
 import { META, Row, TextLink } from '@/components/plc/redesignMockup/ui';
 import { NoteItemAnalysisChart } from './NoteItemAnalysisChart';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 const BLOCK = 'rounded-xl border border-slate-200 p-4';
 
@@ -23,8 +24,10 @@ export const QuietSelect: React.FC<{
   groups: SelectGroup[];
   noneLabel?: string;
   onChange: (value: string) => void;
-}> = ({ label, value, groups, noneLabel, onChange }) => (
+  tourProps?: Record<string, string>;
+}> = ({ label, value, groups, noneLabel, onChange, tourProps }) => (
   <select
+    {...tourProps}
     aria-label={label}
     title={label}
     value={value}
@@ -62,6 +65,7 @@ export interface DataBlockViewProps {
   /** Editors: switch the assessment. */
   picker?: React.ReactNode;
   onRemove?: () => void;
+  anchorKey?: string;
 }
 
 export const DataBlockView: React.FC<DataBlockViewProps> = ({
@@ -73,6 +77,7 @@ export const DataBlockView: React.FC<DataBlockViewProps> = ({
   onOpenData,
   picker,
   onRemove,
+  anchorKey = '',
 }) => {
   const { t } = useTranslation();
   return (
@@ -99,7 +104,14 @@ export const DataBlockView: React.FC<DataBlockViewProps> = ({
         )}
         <span className="flex-1" />
         {onOpenData && (
-          <TextLink onClick={onOpenData}>
+          <TextLink
+            onClick={onOpenData}
+            {...tourFieldAttr(
+              'teams.note-block.open-data',
+              'teams-notes',
+              anchorKey
+            )}
+          >
             {t('teams.notes.data.open', {
               defaultValue: 'Open in Data overview',
             })}
@@ -112,6 +124,11 @@ export const DataBlockView: React.FC<DataBlockViewProps> = ({
               defaultValue: 'Remove block',
             })}
             size="sm"
+            {...tourFieldAttr(
+              'teams.note-block.remove-data',
+              'teams-notes',
+              anchorKey
+            )}
             onClick={onRemove}
           />
         )}
@@ -151,6 +168,7 @@ export interface DecisionBlockViewProps {
     onRevisit: (value: string) => void;
     onRemove: () => void;
   };
+  anchorKey?: string;
 }
 
 export const DecisionBlockView: React.FC<DecisionBlockViewProps> = ({
@@ -161,6 +179,7 @@ export const DecisionBlockView: React.FC<DecisionBlockViewProps> = ({
   onOpenLink,
   revisitLabel,
   edit,
+  anchorKey = '',
 }) => {
   const { t } = useTranslation();
   const dateRef = useRef<HTMLInputElement>(null);
@@ -179,7 +198,15 @@ export const DecisionBlockView: React.FC<DecisionBlockViewProps> = ({
           <span className="flex-1" />
           {edit && (
             <>
-              <TextLink quiet onClick={edit.statusAction.run}>
+              <TextLink
+                quiet
+                {...tourFieldAttr(
+                  'teams.note-block.decision-status',
+                  'teams-notes',
+                  anchorKey
+                )}
+                onClick={edit.statusAction.run}
+              >
                 {edit.statusAction.label}
               </TextLink>
               <IconButton
@@ -188,6 +215,11 @@ export const DecisionBlockView: React.FC<DecisionBlockViewProps> = ({
                   defaultValue: 'Remove block',
                 })}
                 size="sm"
+                {...tourFieldAttr(
+                  'teams.note-block.remove-decision',
+                  'teams-notes',
+                  anchorKey
+                )}
                 onClick={edit.onRemove}
               />
             </>
@@ -197,6 +229,11 @@ export const DecisionBlockView: React.FC<DecisionBlockViewProps> = ({
           <textarea
             value={text}
             onChange={(e) => edit.onText(e.target.value)}
+            {...tourFieldAttr(
+              'teams.note-block.decision-text',
+              'teams-notes',
+              anchorKey
+            )}
             rows={1}
             aria-label={t('teams.notes.decision.title', {
               defaultValue: 'Decision',
@@ -217,7 +254,15 @@ export const DecisionBlockView: React.FC<DecisionBlockViewProps> = ({
           ) : (
             linkLabel &&
             (onOpenLink ? (
-              <TextLink icon={Link2} onClick={onOpenLink}>
+              <TextLink
+                icon={Link2}
+                {...tourFieldAttr(
+                  'teams.note-block.open-link',
+                  'teams-notes',
+                  anchorKey
+                )}
+                onClick={onOpenLink}
+              >
                 {linkLabel}
               </TextLink>
             ) : (
@@ -232,6 +277,11 @@ export const DecisionBlockView: React.FC<DecisionBlockViewProps> = ({
             <span className="relative inline-flex items-center gap-1 text-slate-500">
               <button
                 type="button"
+                {...tourFieldAttr(
+                  'teams.note-block.revisit-date',
+                  'teams-notes',
+                  anchorKey
+                )}
                 onClick={() => {
                   try {
                     dateRef.current?.showPicker();
@@ -252,6 +302,11 @@ export const DecisionBlockView: React.FC<DecisionBlockViewProps> = ({
                   aria-label={t('teams.notes.decision.clearRevisit', {
                     defaultValue: 'Clear revisit date',
                   })}
+                  {...tourFieldAttr(
+                    'teams.note-block.clear-revisit',
+                    'teams-notes',
+                    anchorKey
+                  )}
                   onClick={() => edit.onRevisit('')}
                   className="rounded p-0.5 text-slate-400 hover:text-slate-700"
                 >
@@ -284,7 +339,8 @@ export const AgendaRow: React.FC<{
   text: string;
   who: string;
   onRemove?: () => void;
-}> = ({ text, who, onRemove }) => {
+  anchorKey?: string;
+}> = ({ text, who, onRemove, anchorKey = '' }) => {
   const { t } = useTranslation();
   return (
     <Row
@@ -301,6 +357,11 @@ export const AgendaRow: React.FC<{
               title={t('teams.notes.agenda.remove', {
                 defaultValue: 'Remove agenda item',
               })}
+              {...tourFieldAttr(
+                'teams.note-block.remove-agenda',
+                'teams-notes',
+                anchorKey
+              )}
               onClick={onRemove}
               className="rounded p-0.5 text-slate-400 transition-colors hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
             >

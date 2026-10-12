@@ -22,7 +22,7 @@ import {
   isSafeHttpUrl,
 } from '@/components/activityWall/render/useMediaUrl';
 import { logError } from '@/utils/logError';
-import type { ActivityWallLibraryEntry, ActivityWallSubmission } from '@/types';
+import type { ActivityWallSubmission } from '@/types';
 
 const STORAGE_BACKED_TYPES = new Set(['photo', 'video', 'file']);
 
@@ -67,7 +67,7 @@ export function wallPostsReader(
     if (!entrySnap.exists()) throw new Error('activity wall not found');
     const entry = normalizeActivityWallLibraryEntry(
       entrySnap.id,
-      entrySnap.data() as Partial<ActivityWallLibraryEntry>
+      entrySnap.data()
     );
     const sessionId = activityWallSessionId(hostUid, activityId);
     const snap = await getDocs(

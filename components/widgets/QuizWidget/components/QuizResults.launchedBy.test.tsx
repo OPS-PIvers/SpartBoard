@@ -57,23 +57,22 @@ import { QuizResults } from './QuizResults';
 const quiz = { id: 'q1', title: 'Cells', questions: [] } as unknown as QuizData;
 const config = {} as QuizConfig;
 
-const session = (over: Partial<QuizSession> = {}): QuizSession =>
-  ({
-    id: 's1',
-    assignmentId: 's1',
-    quizId: 'q1',
-    quizTitle: 'Cells',
-    teacherUid: 'teacher-1',
-    status: 'active',
-    sessionMode: 'student',
-    currentQuestionIndex: 0,
-    startedAt: Date.UTC(2026, 8, 23, 14, 0, 0),
-    endedAt: null,
-    code: 'AB12CD',
-    totalQuestions: 0,
-    publicQuestions: [],
-    ...over,
-  }) as QuizSession;
+const session = (over: Partial<QuizSession> = {}): QuizSession => ({
+  id: 's1',
+  assignmentId: 's1',
+  quizId: 'q1',
+  quizTitle: 'Cells',
+  teacherUid: 'teacher-1',
+  status: 'active',
+  sessionMode: 'student',
+  currentQuestionIndex: 0,
+  startedAt: Date.UTC(2026, 8, 23, 14, 0, 0),
+  endedAt: null,
+  code: 'AB12CD',
+  totalQuestions: 0,
+  publicQuestions: [],
+  ...over,
+});
 
 const show = (over?: Partial<QuizSession>) =>
   render(

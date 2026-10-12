@@ -5,19 +5,18 @@ import { WidgetBuildingToggle } from './WidgetBuildingToggle';
 import { AuthContext, AuthContextType } from '@/context/AuthContextValue';
 import { WidgetData } from '@/types';
 
-const makeWidget = (overrides: Partial<WidgetData> = {}): WidgetData =>
-  ({
-    id: 'w1',
-    type: 'schedule',
-    x: 0,
-    y: 0,
-    w: 300,
-    h: 200,
-    z: 1,
-    flipped: false,
-    config: {},
-    ...overrides,
-  }) as WidgetData;
+const makeWidget = (overrides: Partial<WidgetData> = {}): WidgetData => ({
+  id: 'w1',
+  type: 'schedule',
+  x: 0,
+  y: 0,
+  w: 300,
+  h: 200,
+  z: 1,
+  flipped: false,
+  config: {},
+  ...overrides,
+});
 
 const mockUpdateWidget = vi.fn();
 

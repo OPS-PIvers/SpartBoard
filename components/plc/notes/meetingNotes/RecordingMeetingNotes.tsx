@@ -12,6 +12,7 @@ import {
 import { logError } from '@/utils/logError';
 import { RecordingTranscript } from './RecordingTranscript';
 import { MeetingNotesReviewModal } from './MeetingNotesReviewModal';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface RecordingMeetingNotesProps {
   plcId: string;
@@ -125,6 +126,7 @@ export const RecordingMeetingNotes: React.FC<RecordingMeetingNotesProps> = ({
     );
     action = (
       <button
+        {...tourAttr('plc-notes.review-open')}
         type="button"
         onClick={() => setReviewing(true)}
         className="px-2.5 py-1 rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xxs font-bold transition-colors"
@@ -145,6 +147,7 @@ export const RecordingMeetingNotes: React.FC<RecordingMeetingNotesProps> = ({
     if (canRequest) {
       action = (
         <button
+          {...tourAttr('plc-notes.request-notes')}
           type="button"
           disabled={requesting}
           onClick={() => void request()}
@@ -159,6 +162,7 @@ export const RecordingMeetingNotes: React.FC<RecordingMeetingNotesProps> = ({
   } else if (state === 'generate' && canRequest) {
     action = (
       <button
+        {...tourAttr('plc-notes.request-notes')}
         type="button"
         disabled={requesting}
         onClick={() => void request()}

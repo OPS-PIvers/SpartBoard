@@ -3,6 +3,7 @@ import { Link, QrCode, X, ArrowLeft, Check } from 'lucide-react';
 import { GlassCard } from '@/components/common/GlassCard';
 import { Modal } from '@/components/common/Modal';
 import { GlobalStyle } from '@/types';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { isSafeIconUrl } from '@/components/widgets/Catalyst/catalystHelpers';
 import { useStorage } from '@/hooks/useStorage';
 import {
@@ -112,6 +113,7 @@ export const UrlPickerModal: React.FC<UrlPickerModalProps> = ({
             {stage === 'customize' && (
               <button
                 onClick={() => setStage('choose')}
+                {...tourAttr('dock.url-picker-back')}
                 className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
                 aria-label="Back"
               >
@@ -133,6 +135,7 @@ export const UrlPickerModal: React.FC<UrlPickerModalProps> = ({
           </div>
           <button
             onClick={onClose}
+            {...tourAttr('dock.url-picker-close')}
             className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
             aria-label="Close"
           >
@@ -154,6 +157,7 @@ export const UrlPickerModal: React.FC<UrlPickerModalProps> = ({
           <div className="px-6 pb-6 grid grid-cols-2 gap-3">
             <button
               onClick={() => setStage('customize')}
+              {...tourAttr('dock.url-picker-links')}
               className="group flex flex-col items-center gap-3 p-5 bg-blue-50 hover:bg-blue-100 border-2 border-blue-200 hover:border-blue-400 rounded-2xl transition-all active:scale-95 text-left"
             >
               <div className="w-11 h-11 rounded-xl bg-blue-500 flex items-center justify-center shadow-md shadow-blue-400/40 group-hover:scale-110 transition-transform">
@@ -171,6 +175,7 @@ export const UrlPickerModal: React.FC<UrlPickerModalProps> = ({
 
             <button
               onClick={() => onSelect({ type: 'qr' })}
+              {...tourAttr('dock.url-picker-qr')}
               className="group flex flex-col items-center gap-3 p-5 bg-brand-blue-lighter hover:bg-brand-blue-lighter/80 border-2 border-brand-blue-lighter hover:border-brand-blue-light rounded-2xl transition-all active:scale-95 text-left"
             >
               <div className="w-11 h-11 rounded-xl bg-brand-blue-primary flex items-center justify-center shadow-md shadow-brand-blue-primary/40 group-hover:scale-110 transition-transform">
@@ -247,6 +252,7 @@ export const UrlPickerModal: React.FC<UrlPickerModalProps> = ({
                   if (e.key === 'Enter') handleConfirm();
                 }}
                 autoFocus
+                {...tourAttr('dock.url-picker-title')}
                 placeholder="e.g. Class Website"
                 className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"
               />
@@ -271,6 +277,7 @@ export const UrlPickerModal: React.FC<UrlPickerModalProps> = ({
                     key={id}
                     type="button"
                     onClick={() => setIconId(id)}
+                    {...tourFieldAttr('dock.url-picker-icon', 'url', id)}
                     title={label}
                     aria-label={label}
                     aria-pressed={iconId === id}
@@ -305,6 +312,7 @@ export const UrlPickerModal: React.FC<UrlPickerModalProps> = ({
             <button
               type="button"
               onClick={handleConfirm}
+              {...tourAttr('dock.url-picker-confirm')}
               className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white px-4 py-2.5 rounded-xl font-black uppercase tracking-widest text-xs transition-colors"
             >
               <Check className="w-4 h-4" />

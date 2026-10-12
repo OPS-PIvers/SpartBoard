@@ -10,6 +10,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { CloudDownload, FileUp, Loader2, ScanText, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { AiReaderToggle } from '@/components/common/library/importer/AiReaderToggle';
 import { useFileDrop } from '@/hooks/useFileDrop';
 import type { QuizData } from '@/types';
@@ -283,6 +284,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
       </div>
       <button
         type="button"
+        {...tourTypeAttr('quiz-import.paper-text-close', 'quiz')}
         onClick={onClose}
         aria-label="Close"
         className="shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
@@ -309,7 +311,13 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
         submitLabel="Import"
         onSubmit={(selection) => void readSelection(selection)}
       >
-        {canUseAi && <AiReaderToggle checked={useAi} onChange={setUseAi} />}
+        {canUseAi && (
+          <AiReaderToggle
+            checked={useAi}
+            onChange={setUseAi}
+            anchor={tourTypeAttr('quiz-import.paper-text-ai-toggle', 'quiz')}
+          />
+        )}
       </TestAndKeyUploader>
     </div>
   );
@@ -334,6 +342,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
       />
       <button
         type="button"
+        {...tourTypeAttr('quiz-import.paper-text-upload', 'quiz')}
         onClick={() => fileRef.current?.click()}
         {...dropProps}
         className={`flex w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-6 text-sm font-semibold transition-colors ${
@@ -350,6 +359,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
       {onPickFromDrive && (
         <button
           type="button"
+          {...tourTypeAttr('quiz-import.paper-text-drive', 'quiz')}
           onClick={() => void pickFromDrive()}
           disabled={picking}
           className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:border-brand-blue-primary hover:text-brand-blue-primary disabled:opacity-50"
@@ -395,6 +405,11 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
             >
               <input
                 type="checkbox"
+                {...tourFieldAttr(
+                  'quiz-import.paper-text-apply',
+                  'quiz',
+                  String(row)
+                )}
                 aria-label={`Apply question ${row}`}
                 checked={!!apply[row]}
                 onChange={(e) =>
@@ -407,6 +422,11 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
               </span>
               <div className="min-w-0 flex-1">
                 <textarea
+                  {...tourFieldAttr(
+                    'quiz-import.paper-text-draft',
+                    'quiz',
+                    String(row)
+                  )}
                   aria-label={`Question ${row} text`}
                   value={draft}
                   rows={2}
@@ -460,6 +480,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
       <div className="flex justify-end gap-2">
         <button
           type="button"
+          {...tourTypeAttr('quiz-import.paper-text-back', 'quiz')}
           onClick={() => setStep('setup')}
           className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
         >
@@ -467,6 +488,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
         </button>
         <button
           type="button"
+          {...tourTypeAttr('quiz-import.paper-text-save-key', 'quiz')}
           onClick={() => void saveKeyFill(keyFill)}
           disabled={keyFill.filled.length === 0}
           className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
@@ -478,6 +500,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
       <div className="flex justify-end gap-2">
         <button
           type="button"
+          {...tourTypeAttr('quiz-import.paper-text-back-review', 'quiz')}
           onClick={() => setStep('setup')}
           className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
         >
@@ -485,6 +508,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
         </button>
         <button
           type="button"
+          {...tourTypeAttr('quiz-import.paper-text-apply-submit', 'quiz')}
           onClick={() => void handleSave()}
           disabled={applyCount === 0}
           className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
@@ -496,6 +520,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
       <div className="flex items-center gap-3">
         <button
           type="button"
+          {...tourTypeAttr('quiz-import.paper-text-cancel', 'quiz')}
           onClick={onClose}
           className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
         >

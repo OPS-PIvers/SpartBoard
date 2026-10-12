@@ -804,6 +804,10 @@ service cloud.firestore {
     match /users/{userId}/miniapps/{appId} {
       allow read, write: if ownsUser(userId);
     }
+    // Mini App answer keys (MINI_APP_RESULTS.md D5): owner only, never in the app HTML.
+    match /users/{userId}/mini_app_keys/{appId} {
+      allow read, write: if ownsUser(userId);
+    }
 
     // Saved Widgets - per-user "Save as widget" shortcuts (frozen widget configs
     // surfaced as dock/library entries). Owner-only.
@@ -3183,6 +3187,7 @@ service cloud.firestore {
           && incoming().keys().hasOnly([
                'id', 'title', 'measure', 'practices', 'order',
                'baseline', 'current', 'target',
+               'dueDate', 'students', 'outcome',
                'createdBy', 'createdAt', 'updatedAt'
              ])
           && incoming().id == goalId
@@ -3190,8 +3195,13 @@ service cloud.firestore {
           && optPct(incoming(), 'current')
           && optPct(incoming(), 'target')
           && isStr('title')
-          && incoming().title.size() <= 300
+          && incoming().title.size() <= 600
           && (!('measure' in incoming()) || isStr('measure'))
+          && (!('dueDate' in incoming())
+                || (isStr('dueDate') && incoming().dueDate.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')))
+          && optShortString(incoming(), 'students')
+          && (!('outcome' in incoming())
+                || (isStr('outcome') && incoming().outcome.size() <= 300))
           && isList('practices')
           && incoming().practices.size() <= 20
           && optInt(incoming(), 'order')
@@ -5540,6 +5550,8 @@ service cloud.firestore {
         // {completed: true}) for the /my-assignments badge.
         allow create, update: if signedIn() &&
           maSessionData().status == 'active' && maOpen() &&
+          // v2 sessions write only through submitMiniAppResultV1 (MINI_APP_RESULTS.md D6).
+          maSessionData().get('resultsVersion', 1) != 2 &&
           passesStudentClassGateList(maSessionClassIds()) &&
           (isStudentRoleUser() || submissionId == authUid()) &&
           incoming().studentUid == authUid() &&
@@ -5566,6 +5578,25 @@ service cloud.firestore {
           isAdmin() ||
           maSessionData().teacherUid == authUid()
         );
+
+        // v2 attempt history, written only by submitMiniAppResultV1.
+        match /attempts/{attemptId} {
+          allow read, delete: if signedIn() && (
+            isAdmin() ||
+            maSessionData().teacherUid == authUid()
+          );
+          allow create, update: if false;
+        }
+      }
+
+      // v2 answer key copied at assign; students never read it (MINI_APP_RESULTS.md D5).
+      match /private/{docId} {
+        allow read: if signedIn() && (
+          isAdmin() ||
+          maSessionData().teacherUid == authUid()
+        );
+        allow create, update: if contentWriteOk('mini_app_sessions', sessionId);
+        allow delete: if false;
       }
 
       // View tracking for view-only Share links (see quiz_sessions/views).

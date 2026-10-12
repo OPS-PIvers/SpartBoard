@@ -41,6 +41,19 @@ describe('parsePlcGoal', () => {
     ).not.toHaveProperty('measure');
   });
 
+  it('keeps the SMART frame pieces and drops blank or non-string ones', () => {
+    const g = parsePlcGoal('x', {
+      title: 'T',
+      createdBy: 'u',
+      dueDate: '2027-05-14',
+      students: 'our 7th graders',
+      outcome: ' ',
+    });
+    expect(g?.dueDate).toBe('2027-05-14');
+    expect(g?.students).toBe('our 7th graders');
+    expect(g).not.toHaveProperty('outcome');
+  });
+
   it('keeps whole-percent progress numbers and drops bad ones', () => {
     const g = parsePlcGoal('x', {
       title: 'T',

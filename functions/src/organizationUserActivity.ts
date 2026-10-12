@@ -198,8 +198,7 @@ export const getOrgUserActivity = onCall<OrgUserActivityPayload>(
         failedBatchCount += 1;
         if (firstFailureCode === undefined) {
           const err = outcome.error as
-            | { code?: unknown; message?: unknown }
-            | undefined;
+            { code?: unknown; message?: unknown } | undefined;
           firstFailureCode =
             typeof err?.code === 'string' ? err.code : 'unknown';
           firstFailureMessage =

@@ -32,6 +32,7 @@ import { RubricScoringPanel } from '@/components/widgets/QuizWidget/components/R
 import { rubricMaxPoints } from '@/utils/rubricPoints';
 import { clampPoints } from '@/utils/gradeDraft';
 import { Toggle } from '@/components/common/Toggle';
+import { tourAttr } from '@/config/tourAnchors';
 
 /** The editable half of a grade; everything else is derived on save. */
 interface GradeDraft {
@@ -219,6 +220,7 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
         maxWidth="max-w-xl"
         className="h-auto"
         saveErrorMessage={false}
+        tourScope="projects"
       >
         <div className="flex flex-col items-center gap-3 py-10 text-center">
           <ClipboardList className="h-10 w-10 text-slate-300" aria-hidden />
@@ -242,6 +244,7 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
       <button
         type="button"
         onClick={() => void move(-1)}
+        {...tourAttr('projects.grade-prev')}
         disabled={index === 0 || busy}
         aria-label="Previous group"
         title="Previous group"
@@ -252,6 +255,7 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
       <button
         type="button"
         onClick={() => skip(1)}
+        {...tourAttr('projects.grade-skip')}
         disabled={index >= ordered.length - 1 || busy}
         className="rounded-lg px-2 py-1.5 text-xs font-bold text-slate-500 disabled:opacity-40"
       >
@@ -260,6 +264,7 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
       <button
         type="button"
         onClick={() => void saveNow()}
+        {...tourAttr('projects.grade-save')}
         disabled={busy || !dirty}
         className="inline-flex items-center gap-1 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-600 disabled:opacity-40"
       >
@@ -269,6 +274,7 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
       <button
         type="button"
         onClick={() => void move(1)}
+        {...tourAttr('projects.grade-save-next')}
         disabled={index >= ordered.length - 1 || busy}
         className="inline-flex shrink-0 items-center gap-1 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-brand-blue-dark disabled:opacity-40"
       >
@@ -291,6 +297,7 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
       maxWidth="max-w-5xl"
       bodyClassName="!p-0 !overflow-hidden"
       saveErrorMessage={false}
+      tourScope="projects"
     >
       <div className="grid h-full min-h-0 grid-cols-[minmax(160px,1fr)_2.6fr]">
         <nav
@@ -308,6 +315,7 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
                   <button
                     type="button"
                     onClick={() => setIndex(idx)}
+                    {...tourAttr('projects.grade-queue-item')}
                     aria-current={idx === index ? 'true' : undefined}
                     className={`flex w-full items-center gap-2 px-4 py-2 text-left text-sm transition-colors ${
                       idx === index
@@ -386,6 +394,7 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
                 </label>
                 <textarea
                   id="project-grade-comment"
+                  {...tourAttr('projects.grade-feedback')}
                   rows={3}
                   value={draft.comment}
                   onChange={(event) =>
@@ -419,6 +428,7 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
                         </label>
                         <input
                           id={`override-${uid}`}
+                          {...tourAttr('projects.grade-override')}
                           type="number"
                           inputMode="decimal"
                           min={0}
@@ -438,6 +448,7 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
                         </label>
                         <input
                           id={`override-note-${uid}`}
+                          {...tourAttr('projects.grade-override-note')}
                           type="text"
                           value={override?.note ?? ''}
                           disabled={!override}
@@ -461,6 +472,7 @@ export const ProjectGrader: React.FC<ProjectGraderProps> = ({
                     setDraft((current) => ({ ...current, released: next }))
                   }
                   label="Let this group see their score"
+                  anchor={tourAttr('projects.grade-visible')}
                 />
               </label>
 

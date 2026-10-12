@@ -9,24 +9,22 @@ import {
 import { buildFilledSheetHtml } from './paperSheetPrint';
 import { planSheetReprint, sheetFillFor } from './paperSheetReprint';
 
-const mc = (id: string, correct: string, wrong: string[]): QuizQuestion =>
-  ({
-    id,
-    type: 'MC',
-    text: id,
-    correctAnswer: correct,
-    incorrectAnswers: wrong,
-    timeLimit: 0,
-  }) as QuizQuestion;
+const mc = (id: string, correct: string, wrong: string[]): QuizQuestion => ({
+  id,
+  type: 'MC',
+  text: id,
+  correctAnswer: correct,
+  incorrectAnswers: wrong,
+  timeLimit: 0,
+});
 
-const quiz = (questions: QuizQuestion[]): QuizData =>
-  ({
-    id: 'quiz',
-    title: 'T',
-    createdAt: 1,
-    updatedAt: 1,
-    questions,
-  }) as QuizData;
+const quiz = (questions: QuizQuestion[]): QuizData => ({
+  id: 'quiz',
+  title: 'T',
+  createdAt: 1,
+  updatedAt: 1,
+  questions,
+});
 
 const batch = (over: Partial<PaperBatch> = {}): PaperBatch => ({
   id: 'batch-1',

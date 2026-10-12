@@ -5,6 +5,7 @@ import { Download, Loader2, Pause, Play, Trash2 } from 'lucide-react';
 import { storage } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { formatRecordingClock } from './recordingTime';
+import { tourAttr } from '@/config/tourAnchors';
 
 export interface RecordingPart {
   path: string;
@@ -153,6 +154,7 @@ export const RecordingPlayer: React.FC<RecordingPlayerProps> = ({
         className="hidden"
       />
       <button
+        {...tourAttr('plc-recording.play')}
         type="button"
         onClick={() => void togglePlay()}
         disabled={status === 'loading'}
@@ -172,6 +174,7 @@ export const RecordingPlayer: React.FC<RecordingPlayerProps> = ({
         {formatRecordingClock(positionMs)}
       </span>
       <input
+        {...tourAttr('plc-recording.seek')}
         type="range"
         min={0}
         max={Math.max(1, totalMs)}
@@ -194,6 +197,7 @@ export const RecordingPlayer: React.FC<RecordingPlayerProps> = ({
           : meta}
       </span>
       <button
+        {...tourAttr('plc-recording.download')}
         type="button"
         onClick={() => void handleDownload()}
         aria-label={t('plcDashboard.notes.recording.download', {
@@ -208,6 +212,7 @@ export const RecordingPlayer: React.FC<RecordingPlayerProps> = ({
       </button>
       {onDelete && (
         <button
+          {...tourAttr('plc-recording.delete')}
           type="button"
           onClick={onDelete}
           aria-label={t('plcDashboard.notes.recording.delete', {

@@ -10,6 +10,7 @@ import { EmbedGlobalConfig, BuildingEmbedDefaults } from '@/types';
 import { Plus, Trash2, Settings2 } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
 import { Card } from '@/components/common/Card';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 interface EmbedConfigurationPanelProps {
   config: EmbedGlobalConfig;
@@ -130,6 +131,11 @@ export const EmbedConfigurationPanel: React.FC<
             onChange={(checked) =>
               handleUpdateBuilding({ hideUrlField: !checked })
             }
+            anchor={tourFieldAttr(
+              'admin.widget-config.field',
+              'embed',
+              'hideUrlField'
+            )}
           />
         </div>
 
@@ -145,6 +151,7 @@ export const EmbedConfigurationPanel: React.FC<
           <div className="flex gap-2">
             <input
               type="text"
+              {...tourFieldAttr('admin.widget-config.field', 'embed', 'newUrl')}
               value={newUrl}
               onChange={(e) => setNewUrl(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleAddUrl()}
@@ -152,6 +159,7 @@ export const EmbedConfigurationPanel: React.FC<
               className="flex-1 px-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:ring-1 focus:ring-brand-blue-primary outline-none font-medium"
             />
             <button
+              {...tourTypeAttr('admin.widget-config.add', 'embed')}
               onClick={handleAddUrl}
               className="px-3 py-1.5 bg-brand-blue-primary text-white rounded-lg text-xs font-bold hover:bg-brand-blue-dark transition-colors flex items-center gap-1"
             >
@@ -174,6 +182,11 @@ export const EmbedConfigurationPanel: React.FC<
                     {domain}
                   </span>
                   <button
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'embed',
+                      `remove-${domain}`
+                    )}
                     onClick={() => handleRemoveUrl(domain)}
                     className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
                   >

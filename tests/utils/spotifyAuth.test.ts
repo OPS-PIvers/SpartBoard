@@ -544,7 +544,7 @@ describe('runSpotifyAuthPopup', () => {
     const state = url.searchParams.get('state');
     expect(state).toBeTruthy();
 
-    postCallback({ code: 'auth-code-123', state: state as string });
+    postCallback({ code: 'auth-code-123', state: state });
 
     expect(await pending).toEqual({
       kind: 'success',

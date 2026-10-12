@@ -9,6 +9,7 @@ import type { AssignWhenValue } from './assignWhenValue';
 import { getAssignStepTitle } from './assignSteps';
 import { useQuizRuleGates } from './QuizRuleStepGates';
 import { quizRuleStepDefs } from './quizRuleStepDefs';
+import { tourAttr } from '@/config/tourAnchors';
 
 export interface InlineAssignStepBodiesProps {
   activity: 'quiz' | 'video';
@@ -76,6 +77,7 @@ export const InlineAssignStepBodies: React.FC<InlineAssignStepBodiesProps> = ({
               checked={windowOn}
               onChange={onWindowOnChange}
               label={scheduleLabel}
+              anchor={tourAttr('assign-when.window')}
             />
           </div>
         )}

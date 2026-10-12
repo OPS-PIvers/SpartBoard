@@ -12,6 +12,7 @@ import type {
   TeamCardProps,
   TeamHeroProps,
 } from '@/components/plc/teams/types';
+import { tourAttr } from '@/config/tourAnchors';
 
 export const GoogleCalendarFrame: React.FC<{ url: string; tall?: boolean }> = ({
   url,
@@ -41,7 +42,11 @@ export const CalendarCardView: React.FC<{
   return (
     <>
       <SectionHead title={title}>
-        <TextLink icon={ExternalLink} onClick={() => openCalendar(url)}>
+        <TextLink
+          icon={ExternalLink}
+          onClick={() => openCalendar(url)}
+          {...tourAttr('teams.building.open-calendar')}
+        >
           Google Calendar
         </TextLink>
       </SectionHead>
@@ -66,7 +71,11 @@ export const CalendarHeroView: React.FC<{
         meta={
           <>
             <CalendarDays className="h-3 w-3" aria-hidden="true" />
-            <TextLink icon={ExternalLink} onClick={() => openCalendar(url)}>
+            <TextLink
+              icon={ExternalLink}
+              onClick={() => openCalendar(url)}
+              {...tourAttr('teams.building.open-calendar')}
+            >
               Google Calendar
             </TextLink>
           </>

@@ -324,10 +324,7 @@ export function usePlcMeetings(plcId: string | null): UsePlcMeetingsResult {
       (snap) => {
         const list: PlcMeeting[] = [];
         snap.forEach((d) => {
-          const parsed = parsePlcMeeting(
-            d.id,
-            d.data() as Record<string, unknown>
-          );
+          const parsed = parsePlcMeeting(d.id, d.data());
           // Soft-deleted meetings drop out of the live list — they live in
           // Trash until restored or GC'd (Decision 3.1).
           if (parsed && parsed.deletedAt == null) list.push(parsed);

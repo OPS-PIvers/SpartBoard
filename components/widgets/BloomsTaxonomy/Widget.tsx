@@ -37,8 +37,7 @@ export const BloomsTaxonomyWidget: React.FC<{ widget: WidgetData }> = ({
     (p) => p.widgetType === 'blooms-taxonomy'
   );
   const globalConfig = bloomsPerm?.config as
-    | BloomsTaxonomyGlobalConfig
-    | undefined;
+    BloomsTaxonomyGlobalConfig | undefined;
   const buildingConfig: BloomsTaxonomyBuildingConfig =
     globalConfig?.buildingDefaults?.[buildingId] ?? {};
   const { availableCategories, defaultEnabledCategories } = buildingConfig;

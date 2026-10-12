@@ -16,6 +16,7 @@ import { Plus, Trash2, GripVertical } from 'lucide-react';
 import { Card } from '@/components/common/Card';
 import { HexColorField } from './HexColorField';
 import { GLOBAL_FONT_FAMILY_OPTIONS } from '@/config/fonts';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 interface ChecklistConfigurationPanelProps {
   config: ChecklistGlobalConfig;
@@ -113,6 +114,11 @@ export const ChecklistConfigurationPanel: React.FC<
           </label>
           <input
             type="range"
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'checklist',
+              'scaleMultiplier'
+            )}
             min="0.5"
             max="2.5"
             step="0.1"
@@ -141,6 +147,11 @@ export const ChecklistConfigurationPanel: React.FC<
               Default Font Family
             </label>
             <select
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'checklist',
+                'fontFamily'
+              )}
               value={currentBuildingConfig.fontFamily ?? 'global'}
               onChange={(e) => {
                 const selected = e.target.value;
@@ -190,6 +201,11 @@ export const ChecklistConfigurationPanel: React.FC<
             </label>
             <input
               type="range"
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'checklist',
+                'cardOpacity'
+              )}
               min="0"
               max="1"
               step="0.05"
@@ -225,12 +241,22 @@ export const ChecklistConfigurationPanel: React.FC<
                 <GripVertical className="w-3.5 h-3.5 text-slate-300 shrink-0" />
                 <input
                   type="text"
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'checklist',
+                    `item-${item.id}`
+                  )}
                   value={item.text}
                   onChange={(e) => handleUpdateItem(item.id, e.target.value)}
                   className="flex-1 text-xs border-none outline-none bg-transparent"
                   placeholder="Item text..."
                 />
                 <button
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'checklist',
+                    `remove-${item.id}`
+                  )}
                   onClick={() => handleRemoveItem(item.id)}
                   className="text-red-400 hover:text-red-600 p-0.5 shrink-0"
                 >
@@ -249,6 +275,11 @@ export const ChecklistConfigurationPanel: React.FC<
           <div className="flex gap-2">
             <input
               type="text"
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'checklist',
+                'newItemText'
+              )}
               value={newItemText}
               onChange={(e) => setNewItemText(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -256,6 +287,7 @@ export const ChecklistConfigurationPanel: React.FC<
               className="flex-1 px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
             />
             <button
+              {...tourTypeAttr('admin.widget-config.add', 'checklist')}
               onClick={handleAddItem}
               disabled={!newItemText.trim()}
               className="flex items-center gap-1 px-3 py-1.5 text-xxs font-bold bg-brand-blue-primary text-white rounded hover:bg-brand-blue-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors"

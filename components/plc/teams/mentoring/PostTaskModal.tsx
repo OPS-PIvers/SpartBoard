@@ -13,6 +13,7 @@ import type { MentoringSubmitter, MentoringWorkspace, Plc } from '@/types';
 import { logError } from '@/utils/logError';
 import { MENTORING_SUBMITTERS, driveFileUrl } from '@/utils/mentoring';
 import { SUBMITTER_LABEL } from './mentoringFormat';
+import { tourAttr } from '@/config/tourAnchors';
 
 const LABEL = 'mb-1 block text-xs font-semibold text-slate-600';
 
@@ -98,6 +99,7 @@ export const PostTaskModal: React.FC<{
       onClose={onClose}
       title="Post a task"
       maxWidth="max-w-lg"
+      closeTourId="teams.post-task.close"
       footer={
         <div className="flex items-center justify-end gap-2">
           {failed && (
@@ -105,10 +107,18 @@ export const PostTaskModal: React.FC<{
               Couldn&apos;t save that change. Try again.
             </span>
           )}
-          <Button variant="secondary" onClick={onClose}>
+          <Button
+            variant="secondary"
+            onClick={onClose}
+            {...tourAttr('teams.post-task.cancel')}
+          >
             Cancel
           </Button>
-          <Button onClick={() => void post()} disabled={!canPost || busy}>
+          <Button
+            onClick={() => void post()}
+            disabled={!canPost || busy}
+            {...tourAttr('teams.post-task.post')}
+          >
             Post
           </Button>
         </div>
@@ -125,6 +135,7 @@ export const PostTaskModal: React.FC<{
             value={title}
             maxLength={200}
             onChange={(e) => setTitle(e.target.value)}
+            {...tourAttr('teams.post-task.title')}
           />
         </div>
         <div>
@@ -138,6 +149,7 @@ export const PostTaskModal: React.FC<{
             maxLength={5000}
             value={instructions}
             onChange={(e) => setInstructions(e.target.value)}
+            {...tourAttr('teams.post-task.instructions')}
           />
         </div>
         <div className="grid grid-cols-2 gap-4">
@@ -151,6 +163,7 @@ export const PostTaskModal: React.FC<{
               className={`${INPUT} w-full`}
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
+              {...tourAttr('teams.post-task.due-date')}
             />
           </div>
           <div>
@@ -161,6 +174,7 @@ export const PostTaskModal: React.FC<{
               id={`${id}-who`}
               className={`${INPUT} w-full`}
               value={submitter}
+              {...tourAttr('teams.post-task.submitter')}
               onChange={(e) =>
                 setSubmitter(e.target.value as MentoringSubmitter)
               }
@@ -186,6 +200,7 @@ export const PostTaskModal: React.FC<{
               <Button
                 variant="ghost"
                 size="sm"
+                {...tourAttr('teams.post-task.remove-template')}
                 onClick={() => setTemplate(null)}
               >
                 Remove
@@ -196,6 +211,7 @@ export const PostTaskModal: React.FC<{
               aria-describedby={`${id}-template`}
               variant="secondary"
               size="sm"
+              {...tourAttr('teams.post-task.choose-template')}
               onClick={() => void pickTemplate()}
             >
               Choose from Drive

@@ -43,18 +43,17 @@ const migratedSchemas = {
   classes: noSettingsSchema,
 } satisfies Partial<Record<WidgetType, WidgetSettingsSchema>>;
 
-const widgetOf = (type: WidgetType, config: object = {}): WidgetData =>
-  ({
-    id: `${type}-1`,
-    type,
-    x: 0,
-    y: 0,
-    w: 300,
-    h: 300,
-    z: 1,
-    flipped: true,
-    config,
-  }) as WidgetData;
+const widgetOf = (type: WidgetType, config: object = {}): WidgetData => ({
+  id: `${type}-1`,
+  type,
+  x: 0,
+  y: 0,
+  w: 300,
+  h: 300,
+  z: 1,
+  flipped: true,
+  config,
+});
 
 describe('wave 13 settings-drawer widget migrations', () => {
   beforeEach(() => {

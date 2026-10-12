@@ -18,6 +18,7 @@ import type {
 import { getResponseDocKey } from '@/hooks/useQuizSession';
 import { logError } from '@/utils/logError';
 import { ShowResultsDialog } from './ShowResultsDialog';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import type {
   StudentResultsActions,
   StudentResultsSelection,
@@ -163,6 +164,7 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
         type="button"
         onClick={() => setDialogOpen(true)}
         disabled={busy !== null || completedKeys.length === 0}
+        {...tourTypeAttr('quiz-results.bulk-show', 'quiz')}
         title={
           completedKeys.length === 0
             ? 'None of the selected students have finished yet'
@@ -178,6 +180,7 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
         type="button"
         onClick={() => void run('hide')}
         disabled={busy !== null}
+        {...tourTypeAttr('quiz-results.bulk-hide', 'quiz')}
         className={buttonCls}
         style={buttonStyle}
       >
@@ -193,6 +196,7 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
         onClick={() => void run('clear')}
         disabled={busy !== null}
         title="Remove these students' overrides so they see what the class sees."
+        {...tourTypeAttr('quiz-results.bulk-follow-class', 'quiz')}
         className={buttonCls}
         style={buttonStyle}
       >
@@ -206,6 +210,7 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
       <button
         type="button"
         onClick={() => void copyNames()}
+        {...tourTypeAttr('quiz-results.bulk-copy-names', 'quiz')}
         className={buttonCls}
         style={buttonStyle}
       >
@@ -216,6 +221,7 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
         <button
           type="button"
           onClick={() => onPrint(keys)}
+          {...tourTypeAttr('quiz-results.bulk-print', 'quiz')}
           className={buttonCls}
           style={buttonStyle}
         >
@@ -227,6 +233,7 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
         <button
           type="button"
           onClick={() => void reopen()}
+          {...tourTypeAttr('quiz-results.bulk-reopen', 'quiz')}
           disabled={
             busy !== null ||
             reopenBlockedReason !== null ||
@@ -253,6 +260,7 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
         type="button"
         onClick={selection.clearSelection}
         aria-label="Clear selection"
+        {...tourTypeAttr('quiz-results.bulk-clear', 'quiz')}
         className="rounded-md hover:bg-white/15 transition-colors"
         style={{ padding: 'min(4px, 1cqmin)' }}
       >

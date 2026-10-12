@@ -95,8 +95,7 @@ export function nextFreeFlagKey(
 }
 
 export type FlagKeyCheck =
-  | { ok: true; key: string }
-  | { ok: false; message: string };
+  { ok: true; key: string } | { ok: false; message: string };
 
 /** D14: one letter, not P, unused by another flag. */
 export function checkFlagKey(

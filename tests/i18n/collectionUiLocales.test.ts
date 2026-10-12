@@ -254,8 +254,7 @@ describe.each([
     it(`${code}: sidebar.boards.manageAll is translated`, () => {
       const enBoards = en.sidebar.boards as RecordLike;
       const langBoards = (locale.sidebar as RecordLike)?.boards as
-        | RecordLike
-        | undefined;
+        RecordLike | undefined;
       for (const key of SIDEBAR_BOARDS_KEYS) {
         // assertTranslated checks presence on langBoards and non-verbatim vs enBoards
         assertTranslated(
@@ -324,8 +323,7 @@ describe.each([
     it(`${code}: importSharedCollection keys are present and translated`, () => {
       const enSection = en.importSharedCollection as RecordLike;
       const langSection = locale.importSharedCollection as
-        | RecordLike
-        | undefined;
+        RecordLike | undefined;
       for (const key of IMPORT_SHARED_COLLECTION_KEYS) {
         assertTranslated(
           locale,

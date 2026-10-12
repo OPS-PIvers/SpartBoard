@@ -5,6 +5,7 @@ import {
   getCustomWidgetIcon,
 } from '@/config/customWidgetIcons';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 const COLOR_PRESETS: ReadonlyArray<{ label: string; value: string }> = [
   { label: 'Blue', value: 'bg-blue-500' },
@@ -69,6 +70,7 @@ export const SaveAsWidgetModal: React.FC<SaveAsWidgetModalProps> = ({
             onClick={onClose}
             className="text-white/70 hover:text-white transition-colors"
             aria-label="Close"
+            {...tourTypeAttr('mini-app.save-as-widget-close', 'miniApp')}
           >
             <X className="w-5 h-5" />
           </button>
@@ -102,6 +104,7 @@ export const SaveAsWidgetModal: React.FC<SaveAsWidgetModalProps> = ({
             </label>
             <input
               id="save-as-widget-title"
+              {...tourTypeAttr('mini-app.save-as-widget-title', 'miniApp')}
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -128,6 +131,11 @@ export const SaveAsWidgetModal: React.FC<SaveAsWidgetModalProps> = ({
                     key={option.key}
                     type="button"
                     onClick={() => setIcon(option.key)}
+                    {...tourFieldAttr(
+                      'mini-app.save-as-widget-icon',
+                      'miniApp',
+                      option.key
+                    )}
                     title={option.label}
                     aria-label={option.label}
                     aria-pressed={active}
@@ -157,6 +165,11 @@ export const SaveAsWidgetModal: React.FC<SaveAsWidgetModalProps> = ({
                     key={preset.value}
                     type="button"
                     onClick={() => setColor(preset.value)}
+                    {...tourFieldAttr(
+                      'mini-app.save-as-widget-color',
+                      'miniApp',
+                      preset.value
+                    )}
                     title={preset.label}
                     aria-label={preset.label}
                     aria-pressed={active}
@@ -179,6 +192,7 @@ export const SaveAsWidgetModal: React.FC<SaveAsWidgetModalProps> = ({
           <button
             type="button"
             onClick={onClose}
+            {...tourTypeAttr('mini-app.save-as-widget-cancel', 'miniApp')}
             className="px-4 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors"
           >
             Cancel
@@ -187,6 +201,7 @@ export const SaveAsWidgetModal: React.FC<SaveAsWidgetModalProps> = ({
             type="button"
             onClick={handleSubmit}
             disabled={!canSave}
+            {...tourTypeAttr('mini-app.save-as-widget-save', 'miniApp')}
             className="px-4 py-2 rounded-xl text-sm font-black uppercase tracking-widest bg-brand-blue-primary hover:bg-brand-blue-dark text-white transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
           >
             {isSaving ? (

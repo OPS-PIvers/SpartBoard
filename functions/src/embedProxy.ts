@@ -187,11 +187,24 @@ export const checkUrlCompatibility = onCall(
     let addresses: ResolvedAddress[];
     try {
       addresses = await resolveAndValidateHost(literalIp);
-    } catch {
-      throw new HttpsError(
-        'invalid-argument',
-        'URLs pointing to private or reserved IP ranges are not allowed.'
-      );
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : '';
+      if (
+        message === 'Blocked host' ||
+        message === 'Host resolves to a private address'
+      ) {
+        throw new HttpsError(
+          'invalid-argument',
+          'URLs pointing to private or reserved IP ranges are not allowed.'
+        );
+      }
+      // A DNS miss is an unreachable site, not an SSRF attempt.
+      console.error('Compatibility Check DNS Error:', error);
+      return {
+        isEmbeddable: false,
+        error: message || 'Failed to check site',
+        uncertain: true,
+      };
     }
 
     try {

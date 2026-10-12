@@ -11,6 +11,7 @@ import {
 } from '@/hooks/usePlcNorming';
 import { groupNormingCopies, normingLabelFor } from '@/utils/plcNorming';
 import { NormingLevelSymbol } from './NormingLevelSymbol';
+import { tourAttr } from '@/config/tourAnchors';
 
 /** Fetches through the rules-checked read (never a public download URL) on first play. */
 const NormingAudio: React.FC<{ path: string }> = ({ path }) => {
@@ -40,6 +41,7 @@ const NormingAudio: React.FC<{ path: string }> = ({ path }) => {
   return (
     <div className="flex items-center gap-2">
       <button
+        {...tourAttr('plc-norming.load')}
         type="button"
         onClick={() => void load()}
         disabled={state === 'loading'}
@@ -110,6 +112,7 @@ const NormingCard: React.FC<{
         </span>
         {canRemove && (
           <button
+            {...tourAttr('plc-norming.remove')}
             type="button"
             onClick={() => void remove()}
             disabled={busy}

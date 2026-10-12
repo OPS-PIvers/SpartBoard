@@ -109,7 +109,7 @@ describe('PresentScreen with a game', () => {
     render(
       <PresentScreen
         {...data}
-        session={{ ...session, status: 'ended' } as QuizSession}
+        session={{ ...session, status: 'ended' }}
         showNames={false}
         gameBoard={baseProps}
       />

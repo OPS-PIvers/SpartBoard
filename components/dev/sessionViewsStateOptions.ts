@@ -7,27 +7,21 @@ import {
   AUDIO_CAPTURE_STATES,
   AUDIO_CAPTURE_DARK_STATES,
   type AudioCaptureStateKey,
-} from './AudioCaptureDevView';
+} from './devViewStates';
 import {
   RECORDING_CONTROL_STATES,
   type RecordingControlStateKey,
-} from './RecordingControlsDevView';
-import {
-  QUIZ_EDITOR_STATES,
-  type QuizEditorStateKey,
-} from './QuizEditorDevView';
+} from './devViewStates';
+import { QUIZ_EDITOR_STATES, type QuizEditorStateKey } from './devViewStates';
 import {
   MEDIA_GRADING_STATES,
   type MediaGradingStateKey,
-} from './MediaGradingDevView';
-import {
-  STUDENT_QUIZ_STATES,
-  type StudentQuizStateKey,
-} from './StudentQuizDevView';
+} from './devViewStates';
+import { STUDENT_QUIZ_STATES, type StudentQuizStateKey } from './devViewStates';
 import {
   RESULTS_PLAYBACK_STATES,
   type ResultsPlaybackStateKey,
-} from './ResultsPlaybackDevView';
+} from './devViewStates';
 
 export type ViewKey =
   | 'quiz-monitor'
@@ -48,6 +42,7 @@ export type StateKey =
   | 'reviewing'
   | 'self-paced'
   | 'timed'
+  | 'per-period'
   | 'paused'
   | 'ended'
   | 'populated'
@@ -99,6 +94,7 @@ const SESSION_STATE_LABELS: Record<string, string> = {
   reviewing: 'Reviewing (present)',
   'self-paced': 'Self-paced (present)',
   timed: 'Timed (monitor)',
+  'per-period': 'Per-class assessment (monitor)',
   paused: 'Paused',
   ended: 'Ended',
   populated: 'Populated (results)',
@@ -112,39 +108,31 @@ export const STATES: StateOption[] = [
     Object.keys(SESSION_STATE_LABELS) as StateKey[],
     (key) => SESSION_STATE_LABELS[key]
   ),
+  ...qualify('audio-capture', AUDIO_CAPTURE_STATES, (key) => `Audio: ${key}`),
   ...qualify(
     'audio-capture',
-    AUDIO_CAPTURE_STATES as readonly StateKey[],
-    (key) => `Audio: ${key}`
-  ),
-  ...qualify(
-    'audio-capture',
-    AUDIO_CAPTURE_DARK_STATES as readonly StateKey[],
+    AUDIO_CAPTURE_DARK_STATES,
     (key) => `Audio (dark): ${key.slice('dark-'.length)}`
   ),
   ...qualify(
     'recording-controls',
-    RECORDING_CONTROL_STATES as readonly StateKey[],
+    RECORDING_CONTROL_STATES,
     (key) => `Recording: ${key.slice('rc-'.length)}`
   ),
   ...qualify(
     'quiz-editor',
-    QUIZ_EDITOR_STATES as readonly StateKey[],
+    QUIZ_EDITOR_STATES,
     (key) => `Editor: ${key.slice('qe-'.length)}`
   ),
-  ...qualify(
-    'media-grading',
-    MEDIA_GRADING_STATES as readonly StateKey[],
-    (key) => `Grading: ${key}`
-  ),
+  ...qualify('media-grading', MEDIA_GRADING_STATES, (key) => `Grading: ${key}`),
   ...qualify(
     'results-playback',
-    RESULTS_PLAYBACK_STATES as readonly StateKey[],
+    RESULTS_PLAYBACK_STATES,
     (key) => `Playback: ${key}`
   ),
   ...qualify(
     'quiz-student',
-    STUDENT_QUIZ_STATES as readonly StateKey[],
+    STUDENT_QUIZ_STATES,
     (key) => `Student: ${key.slice('sq-'.length)}`
   ),
 ];

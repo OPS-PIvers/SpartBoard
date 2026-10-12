@@ -1,5 +1,6 @@
 import React from 'react';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
+import { tourAttr } from '@/config/tourAnchors';
 import { resolveLabel } from '@/components/settings/renderer/resolveLabel';
 
 const pad = (n: string) => n.padStart(2, '0');
@@ -33,6 +34,11 @@ const LunchTimeControlImpl: React.FC<CustomRenderCtx> = ({
           type="number"
           min={1}
           max={12}
+          {...tourAttr(
+            'widget-settings.lunch-count.time-hour',
+            widget.id,
+            widget.type
+          )}
           value={hour}
           aria-label={label('lunchTimeHourAria')}
           onChange={(e) => {
@@ -60,6 +66,11 @@ const LunchTimeControlImpl: React.FC<CustomRenderCtx> = ({
           type="number"
           min={0}
           max={59}
+          {...tourAttr(
+            'widget-settings.lunch-count.time-minute',
+            widget.id,
+            widget.type
+          )}
           value={minute}
           aria-label={label('lunchTimeMinuteAria')}
           onChange={(e) => {

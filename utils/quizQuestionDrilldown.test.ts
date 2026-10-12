@@ -11,17 +11,16 @@ const q = (
   type: QuizQuestion['type'],
   correctAnswer: string,
   extra: Partial<QuizQuestion> = {}
-): QuizQuestion =>
-  ({
-    id,
-    type,
-    text: `Question ${id}`,
-    correctAnswer,
-    incorrectAnswers: [],
-    timeLimit: 0,
-    points: 1,
-    ...extra,
-  }) as unknown as QuizQuestion;
+): QuizQuestion => ({
+  id,
+  type,
+  text: `Question ${id}`,
+  correctAnswer,
+  incorrectAnswers: [],
+  timeLimit: 0,
+  points: 1,
+  ...extra,
+});
 
 const response = (
   key: string,
@@ -221,8 +220,8 @@ describe('computeQuestionDrilldowns', () => {
     const d = drill(
       [frq],
       [
-        response('s1', { q1: 'Full answer' }, graded(4) as never),
-        response('s2', { q1: 'Half answer' }, graded(2) as never),
+        response('s1', { q1: 'Full answer' }, graded(4)),
+        response('s2', { q1: 'Half answer' }, graded(2)),
         response('s3', { q1: 'Not graded yet' }),
         response('s4', { q1: '<p><br></p>' }),
       ]
@@ -282,15 +281,24 @@ describe('computeQuestionDrilldowns', () => {
         prepExpiry: 'armed',
         takeLimit: null,
       },
-    } as Partial<QuizQuestion>);
+    });
     const d = drill(
       [recorded],
       [
-        response('s1', { q1: 'Answer' }, {
-          grading: {
-            q1: { pointsAwarded: 0, excused: true, gradedBy: 't', gradedAt: 1 },
-          },
-        } as never),
+        response(
+          's1',
+          { q1: 'Answer' },
+          {
+            grading: {
+              q1: {
+                pointsAwarded: 0,
+                excused: true,
+                gradedBy: 't',
+                gradedAt: 1,
+              },
+            },
+          }
+        ),
         response('s2', { q1: 'Answer' }),
       ]
     );

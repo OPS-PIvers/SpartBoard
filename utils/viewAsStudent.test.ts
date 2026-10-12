@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type MockInstance,
+} from 'vitest';
 
 const startMock = vi.fn();
 vi.mock('firebase/functions', () => ({
@@ -58,10 +66,13 @@ describe('studentPreviewUrl', () => {
 
 describe('openStudentPreviewTab', () => {
   let win: ReturnType<typeof fakeWin>;
+  let openSpy: MockInstance<typeof window.open>;
 
   beforeEach(() => {
     win = fakeWin();
-    vi.spyOn(window, 'open').mockReturnValue(win as unknown as Window);
+    openSpy = vi
+      .spyOn(window, 'open')
+      .mockReturnValue(win as unknown as Window);
     startMock.mockReset().mockResolvedValue({ data: PREVIEW });
   });
 
@@ -75,7 +86,7 @@ describe('openStudentPreviewTab', () => {
       sessionId: 'va-1',
       studentKey: 'stu-1',
     });
-    expect(window.open).toHaveBeenCalledWith(
+    expect(openSpy).toHaveBeenCalledWith(
       '/activity/va-1?viewAs=student',
       '_blank'
     );

@@ -31,7 +31,7 @@ export const widget = {
 export function makeCtx(config: Record<string, unknown> = {}): FieldCtx {
   return {
     config,
-    widget: { ...widget, config } as WidgetData,
+    widget: { ...widget, config },
     isAdmin: false,
     canAccessFeature: () => true,
     t,

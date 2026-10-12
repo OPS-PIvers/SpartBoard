@@ -33,7 +33,7 @@ export function useDebouncedCallback<TArgs extends unknown[]>(
     try {
       // Cast to unknown first to avoid unsafe-assignment while still
       // allowing us to check for a returned Promise at runtime.
-      const result: unknown = (current as (...a: TArgs) => unknown)(...args);
+      const result: unknown = current(...args);
       if (result instanceof Promise) {
         result.catch((err: unknown) => logError('useDebouncedCallback', err));
       }

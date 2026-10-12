@@ -1,6 +1,13 @@
 import React, { useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ClipboardPaste, Copy, CopyPlus, Film, Plus } from 'lucide-react';
+import {
+  ClipboardCopy,
+  ClipboardPaste,
+  Copy,
+  CopyPlus,
+  Film,
+  Plus,
+} from 'lucide-react';
 import { SortableList } from '@/components/common/SortableList';
 import {
   thumbnailUrl,
@@ -10,6 +17,7 @@ import type { GuidedLearningEditorController } from '../useGuidedLearningEditorS
 import { stepsInIdOrder } from './timelineOrder';
 import { StudioMenu } from './StudioMenu';
 import { modShortcutLabel } from './useStudioShortcuts';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface StepChip {
   id: string;
@@ -56,6 +64,7 @@ interface TimelineBodyProps {
   onCopyStep: (id: string) => void;
   onPasteSteps: () => void;
   clipboardStepCount: number;
+  onCopyForClaude?: (id: string) => void;
 }
 
 const sameBodyProps = (a: TimelineBodyProps, b: TimelineBodyProps) =>
@@ -82,6 +91,7 @@ const TimelineBody = React.memo(function TimelineBody({
   onCopyStep,
   onPasteSteps,
   clipboardStepCount,
+  onCopyForClaude,
 }: TimelineBodyProps) {
   const { t } = useTranslation();
 
@@ -121,6 +131,7 @@ const TimelineBody = React.memo(function TimelineBody({
                   {s.runStart && (
                     <button
                       type="button"
+                      {...tourAttr('studio.timeline-slide')}
                       onClick={() => setCurrentImageIndex(s.slide)}
                       aria-current={onSlide}
                       aria-label={t('glStudio.goToSlideN', { n: s.slide + 1 })}
@@ -156,9 +167,9 @@ const TimelineBody = React.memo(function TimelineBody({
                     {...handle.attributes}
                     onPointerDown={
                       handle.listeners?.onPointerDown as
-                        | React.PointerEventHandler<HTMLButtonElement>
-                        | undefined
+                        React.PointerEventHandler<HTMLButtonElement> | undefined
                     }
+                    {...tourAttr('studio.timeline-step')}
                     onClick={() => {
                       setSelectedStepId(s.id);
                       setCurrentImageIndex(s.slide);
@@ -191,6 +202,10 @@ const TimelineBody = React.memo(function TimelineBody({
       <StudioMenu
         label={t('glStudio.stepActions')}
         testId="gl-studio-step-menu"
+        anchor={tourAttr('studio.timeline-step-actions')}
+        itemAnchor={(id) =>
+          tourFieldAttr('studio.menu-item', 'guided-learning', id)
+        }
         triggerClassName="flex shrink-0 items-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 transition-colors hover:border-slate-400"
         items={[
           {
@@ -221,10 +236,24 @@ const TimelineBody = React.memo(function TimelineBody({
             disabled: clipboardStepCount === 0,
             onSelect: onPasteSteps,
           },
+          ...(onCopyForClaude
+            ? [
+                {
+                  id: 'copy-for-claude',
+                  label: t('glStudio.copyForClaude'),
+                  icon: ClipboardCopy,
+                  disabled: selectedStepId === null,
+                  onSelect: () => {
+                    if (selectedStepId) onCopyForClaude(selectedStepId);
+                  },
+                },
+              ]
+            : []),
         ]}
       />
       <button
         type="button"
+        {...tourAttr('studio.add-step')}
         onClick={() => {
           setSelectedStepId(null);
           setAddingStep(!addingStep);
@@ -247,12 +276,14 @@ interface StudioTimelineProps {
   state: GuidedLearningEditorController;
   /** Copies a step; the Studio passes one that confirms with a toast. */
   onCopyStep?: (id: string) => void;
+  onCopyForClaude?: (id: string) => void;
 }
 
 /** Bottom strip: every step in play order, grouped into runs per slide. */
 export const StudioTimeline: React.FC<StudioTimelineProps> = ({
   state,
   onCopyStep,
+  onCopyForClaude,
 }) => {
   const {
     steps,
@@ -315,6 +346,7 @@ export const StudioTimeline: React.FC<StudioTimelineProps> = ({
       onCopyStep={onCopyStep ?? copyStep}
       onPasteSteps={pasteHere}
       clipboardStepCount={state.clipboardStepCount}
+      onCopyForClaude={onCopyForClaude}
     />
   );
 };

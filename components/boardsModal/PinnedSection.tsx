@@ -1,3 +1,4 @@
+import { tourAttr } from '@/config/tourAnchors';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pin } from 'lucide-react';
@@ -45,6 +46,7 @@ export const PinnedSection: React.FC<PinnedSectionProps> = ({
             >
               <button
                 onClick={() => loadDashboard(b.id)}
+                {...tourAttr('boards-modal.pinned-open')}
                 className="flex-1 truncate text-left"
               >
                 {b.name}
@@ -58,6 +60,7 @@ export const PinnedSection: React.FC<PinnedSectionProps> = ({
                 aria-label={t('boardsModal.unpinBoard', {
                   defaultValue: 'Unpin Board',
                 })}
+                {...tourAttr('boards-modal.pinned-unpin')}
                 className="p-0.5 rounded text-amber-500 opacity-0 group-hover:opacity-100 hover:bg-amber-100 transition"
               >
                 <Pin className="w-3 h-3 fill-current" />

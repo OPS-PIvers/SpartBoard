@@ -1,4 +1,5 @@
 import React from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { Loader2 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -16,6 +17,7 @@ interface ActionButtonProps {
   active?: boolean;
   /** Collapse to icon-only (tooltip shows the label). */
   labelHidden?: boolean;
+  anchor?: TourAnchorAttrs;
 }
 
 const VARIANT: Record<ActionButtonProps['variant'], string> = {
@@ -39,8 +41,10 @@ export const ActionButton: React.FC<ActionButtonProps> = ({
   loading = false,
   active,
   labelHidden = false,
+  anchor,
 }) => (
   <button
+    {...anchor}
     type="button"
     onClick={onClick}
     disabled={disabled || loading}

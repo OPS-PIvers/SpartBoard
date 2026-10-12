@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { tourAttr } from '@/config/tourAnchors';
 
 export interface UndoEntry {
   run: () => Promise<void>;
@@ -49,6 +50,7 @@ export function useUndoToast(scope: string) {
           {toast.canUndo && (
             <button
               type="button"
+              {...tourAttr('gradebook.undo-toast.undo')}
               className="font-bold underline"
               onClick={undo}
             >

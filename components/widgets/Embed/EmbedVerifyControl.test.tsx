@@ -45,7 +45,7 @@ const widget: WidgetData = {
   z: 1,
   flipped: false,
   config: {},
-} as WidgetData;
+};
 
 describe('EmbedVerifyControl stale verification', () => {
   it('discards a verify result once the teacher has edited the url to something else', async () => {

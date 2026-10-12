@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Sunday_
-_Last audited: 2026-10-04_
+_Last audited: 2026-10-11_
 _Last action: 2026-09-27 — HIGH ActivityWall `no case 'activity-wall'` in admin building config resolved: added `BuildingActivityWallDefaults` (fontFamily/fontColor/cardColor/cardOpacity/imageSize) to types.ts, a `case 'activity-wall':` handler to `getAdminBuildingConfig()`, and an "Appearance Defaults" section to `ActivityWallConfigurationPanel.tsx`. Moved to Completed._
+
+_2026-10-11: Sunday run limited to the shared registry/lint dailies plus a light pass; the full per-widget Settings-vs-`getAdminBuildingConfig` matrix was not re-derived this cycle, and `WIDGET_SETTINGS_COMPONENTS` is empty after the settings-drawer migration, so prior per-widget findings should be re-verified next cycle. 0 new issues._
 
 ---
 

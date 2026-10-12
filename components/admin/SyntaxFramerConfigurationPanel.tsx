@@ -1,3 +1,4 @@
+import { tourFieldAttr } from '@/config/tourAnchors';
 import React from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
@@ -84,6 +85,11 @@ export const SyntaxFramerConfigurationPanel: React.FC<
                   : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}
               onClick={() => handleUpdate({ mode: 'text' })}
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'syntax-framer',
+                'mode-text'
+              )}
             >
               <Type className="w-4 h-4" />
               Text
@@ -96,6 +102,11 @@ export const SyntaxFramerConfigurationPanel: React.FC<
                   : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}
               onClick={() => handleUpdate({ mode: 'math' })}
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'syntax-framer',
+                'mode-math'
+              )}
             >
               <Calculator className="w-4 h-4" />
               Math
@@ -117,6 +128,11 @@ export const SyntaxFramerConfigurationPanel: React.FC<
                   : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
               }`}
               onClick={() => handleUpdate({ alignment: 'left' })}
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'syntax-framer',
+                'alignment-left'
+              )}
               title="Align Left"
               aria-label="Align Left"
               aria-pressed={
@@ -134,6 +150,11 @@ export const SyntaxFramerConfigurationPanel: React.FC<
                   : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
               }`}
               onClick={() => handleUpdate({ alignment: 'center' })}
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'syntax-framer',
+                'alignment-center'
+              )}
               title="Align Center"
               aria-label="Align Center"
               aria-pressed={

@@ -21,20 +21,19 @@ const fib = (): QuizQuestion =>
     timeLimit: 0,
   }) as unknown as QuizQuestion;
 
-const sidecar = (over: Partial<QuizTranslation> = {}): QuizTranslation =>
-  ({
-    locale: 'es',
-    title: 'Números',
-    questions: {
-      q1: { text: 'La capital de Francia es ____.', answer: 'París' },
-    },
-    sourceHashes: { q1: 'h' },
-    reviewedQuestionIds: ['q1'],
-    model: 'm',
-    generatedAt: 1,
-    updatedAt: 1,
-    ...over,
-  }) as QuizTranslation;
+const sidecar = (over: Partial<QuizTranslation> = {}): QuizTranslation => ({
+  locale: 'es',
+  title: 'Números',
+  questions: {
+    q1: { text: 'La capital de Francia es ____.', answer: 'París' },
+  },
+  sourceHashes: { q1: 'h' },
+  reviewedQuestionIds: ['q1'],
+  model: 'm',
+  generatedAt: 1,
+  updatedAt: 1,
+  ...over,
+});
 
 const fresh = { es: new Set(['q1']) };
 
@@ -146,7 +145,7 @@ describe('servedLocaleForResponse / fibAnswersForResponse', () => {
     expect(
       fibAnswersForResponse(
         { answers, overridesBySourcedId: { 's-1': { language: 'so' } } },
-        { studentUid: '', sourcedId: 's-1' } as never,
+        { studentUid: '', sourcedId: 's-1' },
         'q1'
       )
     ).toEqual(['Baariis']);

@@ -1,4 +1,5 @@
 import React from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import type { ScoreTone } from '@/utils/scoreColor';
 
 type DotTone = 'success' | 'warn' | 'neutral' | 'danger';
@@ -26,6 +27,7 @@ interface SessionRowProps {
   /** Right-aligned trailing slot (score pill, actions, overflow). */
   trailing?: React.ReactNode;
   onClick?: () => void;
+  anchor?: TourAnchorAttrs;
 }
 
 /**
@@ -40,9 +42,11 @@ export const SessionRow: React.FC<SessionRowProps> = ({
   children,
   trailing,
   onClick,
+  anchor,
 }) => {
   return (
     <div
+      {...anchor}
       data-testid="session-row"
       onClick={onClick}
       role={onClick ? 'button' : undefined}

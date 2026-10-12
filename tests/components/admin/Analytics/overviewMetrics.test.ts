@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import {
   activityStats,
+  combineDays,
   filterRange,
+  joinWeeks,
   lastActiveOf,
   recencyBuckets,
   toWeekly,
@@ -45,6 +47,40 @@ describe('overviewMetrics', () => {
     const days = series('2026-09-13', [1, 2]);
     days[0].estimated = true;
     expect(toWeekly(days)[0].estimated).toBe(true);
+  });
+
+  it('joins staff and student weeks, leaving gaps where a series has none', () => {
+    const staff = [
+      { week: '2026-09-13', dau: 3, mau: 9, estimated: true },
+      { week: '2026-09-20', dau: 4, mau: 10, estimated: false },
+    ];
+    const students = [
+      { week: '2026-09-06', dau: 20, mau: 50, estimated: false },
+      { week: '2026-09-20', dau: 30, mau: 60, estimated: true },
+    ];
+    expect(joinWeeks(staff, students)).toEqual([
+      { week: '2026-09-06', studentDau: 20, studentMau: 50, estimated: false },
+      { week: '2026-09-13', dau: 3, mau: 9, estimated: true },
+      {
+        week: '2026-09-20',
+        dau: 4,
+        mau: 10,
+        studentDau: 30,
+        studentMau: 60,
+        estimated: true,
+      },
+    ]);
+  });
+
+  it('adds staff and student days, keeping days only one side has', () => {
+    const staff = series('2026-09-14', [2, 3]);
+    const students = series('2026-09-15', [10, 20], 50);
+    students[0].estimated = true;
+    expect(combineDays(staff, students)).toEqual([
+      { date: '2026-09-14', dau: 2, mau: 10, estimated: false },
+      { date: '2026-09-15', dau: 13, mau: 61, estimated: true },
+      { date: '2026-09-16', dau: 20, mau: 51, estimated: false },
+    ]);
   });
 
   it('trims to the selected range', () => {

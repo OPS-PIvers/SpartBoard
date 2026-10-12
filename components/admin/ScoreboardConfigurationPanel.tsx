@@ -12,6 +12,7 @@ import {
   ScoreboardDefaultTeam,
 } from '@/types';
 import { Plus, Trash2, GripVertical } from 'lucide-react';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 interface ScoreboardConfigurationPanelProps {
   config: ScoreboardGlobalConfig;
@@ -116,6 +117,7 @@ export const ScoreboardConfigurationPanel: React.FC<
               Default Teams ({teams.length})
             </label>
             <button
+              {...tourTypeAttr('admin.widget-config.remove', 'scoreboard')}
               onClick={handleResetToDefault}
               className="text-xxs text-slate-400 hover:text-slate-600 font-medium transition-colors"
             >
@@ -135,6 +137,11 @@ export const ScoreboardConfigurationPanel: React.FC<
                   />
 
                   <input
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'scoreboard',
+                      `teamName-${team.id}`
+                    )}
                     type="text"
                     value={team.name}
                     onChange={(e) =>
@@ -145,6 +152,11 @@ export const ScoreboardConfigurationPanel: React.FC<
                   />
 
                   <button
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'scoreboard',
+                      `remove-${team.id}`
+                    )}
                     onClick={() => handleRemoveTeam(team.id)}
                     disabled={teams.length <= 2}
                     className="text-red-400 hover:text-red-600 p-0.5 shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
@@ -163,6 +175,11 @@ export const ScoreboardConfigurationPanel: React.FC<
                   {AVAILABLE_COLORS.map((colorClass) => (
                     <button
                       key={colorClass}
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'scoreboard',
+                        `teamColor-${team.id}-${colorClass}`
+                      )}
                       onClick={() =>
                         handleUpdateTeam(team.id, { color: colorClass })
                       }
@@ -187,6 +204,7 @@ export const ScoreboardConfigurationPanel: React.FC<
 
           {/* Add team button */}
           <button
+            {...tourTypeAttr('admin.widget-config.add', 'scoreboard')}
             onClick={handleAddTeam}
             disabled={teams.length >= 8}
             className="flex items-center gap-1 px-3 py-1.5 text-xxs font-bold bg-brand-blue-primary text-white rounded hover:bg-brand-blue-dark disabled:opacity-40 disabled:cursor-not-allowed transition-colors w-full justify-center"

@@ -85,6 +85,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({
       ref={setNodeRef}
       {...attributes}
       {...listeners}
+      {...tourAttr('boards-modal.board-open')}
       className={`relative group rounded-xl border bg-white p-4 cursor-grab active:cursor-grabbing transition-all hover:shadow-md ${
         isDragging ? 'opacity-50' : ''
       } ${
@@ -119,6 +120,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({
             : t('boardsModal.select', { defaultValue: 'Select' })
         }
         aria-pressed={isSelected}
+        {...tourAttr('boards-modal.board-select')}
         className={`absolute top-2 right-2 z-10 w-5 h-5 rounded border-2 flex items-center justify-center transition hover:scale-110 motion-reduce:hover:scale-100 shadow-md ring-1 ring-black/10 ${
           isSelected
             ? 'bg-brand-blue-primary border-brand-blue-primary'
@@ -197,6 +199,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({
           })}
           title={t('boardsModal.editBoard', { defaultValue: 'Edit board' })}
           aria-haspopup="menu"
+          {...tourAttr('boards-modal.board-edit')}
           className="p-1 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition"
         >
           <Pencil className="w-3.5 h-3.5" />
@@ -227,6 +230,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({
           disabled={isDuplicating}
           aria-busy={isDuplicating}
           aria-label={t('boardsModal.duplicate', { defaultValue: 'Duplicate' })}
+          {...tourAttr('boards-modal.board-duplicate')}
           className="p-1 rounded text-slate-300 hover:text-slate-700 hover:bg-slate-100 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-300"
         >
           {isDuplicating ? (
@@ -252,6 +256,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({
               ? t('boardsModal.unpin', { defaultValue: 'Unpin' })
               : t('boardsModal.pin', { defaultValue: 'Pin' })
           }
+          {...tourAttr('boards-modal.board-pin')}
           className="p-1 rounded text-slate-300 hover:text-amber-500 hover:bg-amber-50 transition"
         >
           <Pin

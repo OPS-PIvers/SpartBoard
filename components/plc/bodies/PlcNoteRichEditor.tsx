@@ -17,6 +17,7 @@ import {
 } from '@/utils/contentEditableLists';
 import { installDragSelectEnhancer } from '@/utils/contentEditableDragSelect';
 import { editorDomToMarkdown, markdownToEditorHtml } from './notesRichText';
+import { tourFieldAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 
 interface PlcNoteRichEditorProps {
   /** Note body as Markdown. */
@@ -27,6 +28,7 @@ interface PlcNoteRichEditorProps {
   showToolbar: boolean;
   /** Controls at the right end of the toolbar. */
   toolbarEnd?: React.ReactNode;
+  bodyAnchor?: TourAnchorAttrs;
 }
 
 const HEADING_TAGS = new Set(['H1', 'H2', 'H3']);
@@ -67,6 +69,7 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
   readOnly,
   showToolbar,
   toolbarEnd,
+  bodyAnchor,
 }) => {
   const { t } = useTranslation();
   const editorRef = useRef<HTMLDivElement>(null);
@@ -283,6 +286,7 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
             const Icon = tool.icon;
             return (
               <button
+                {...tourFieldAttr('plc-notes.rich-tool', 'plc', tool.id)}
                 key={tool.id}
                 type="button"
                 disabled={readOnly}
@@ -309,6 +313,7 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
         <div
           ref={editorRef}
           role="textbox"
+          {...bodyAnchor}
           aria-multiline="true"
           aria-label={t('plcDashboard.notes.rich.body', {
             defaultValue: 'Note',

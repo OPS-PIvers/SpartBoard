@@ -1,3 +1,4 @@
+import { tourFieldAttr } from '@/config/tourAnchors';
 import React from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
@@ -84,6 +85,11 @@ export const NextUpConfigurationPanel: React.FC<
           </div>
           <input
             type="range"
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'nextUp',
+              'displayCount'
+            )}
             min="1"
             max="10"
             value={currentBuildingConfig.displayCount}
@@ -111,6 +117,11 @@ export const NextUpConfigurationPanel: React.FC<
               ].map((c) => (
                 <button
                   key={c}
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'nextUp',
+                    `themeColor-${c}`
+                  )}
                   onClick={() => handleUpdateBuilding({ themeColor: c })}
                   className={`w-8 h-8 rounded-full border-2 transition-all ${
                     currentBuildingConfig.themeColor === c
@@ -130,6 +141,11 @@ export const NextUpConfigurationPanel: React.FC<
             </label>
             <select
               value={currentBuildingConfig.fontFamily}
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'nextUp',
+                'fontFamily'
+              )}
               onChange={(e) =>
                 handleUpdateBuilding({ fontFamily: e.target.value })
               }

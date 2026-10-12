@@ -14,6 +14,7 @@ import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { X, Check } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import type { PeriodSelectorProps } from './types';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export const PeriodSelector: React.FC<PeriodSelectorProps> = ({
   rosters,
@@ -77,6 +78,7 @@ export const PeriodSelector: React.FC<PeriodSelectorProps> = ({
         </span>
         <button
           onClick={onClose}
+          {...tourAttr('assign-periods.selector-close')}
           className="text-slate-400 hover:text-slate-600"
           aria-label="Close"
         >
@@ -106,6 +108,11 @@ export const PeriodSelector: React.FC<PeriodSelectorProps> = ({
                 checked={checked}
                 disabled={locked && checked}
                 onChange={() => handleToggle(r.name)}
+                {...tourFieldAttr(
+                  'assign-periods.selector-period',
+                  'assign',
+                  r.id
+                )}
                 className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 disabled:opacity-50"
               />
               <span className="text-sm text-slate-800 flex-1">{r.name}</span>
@@ -134,6 +141,7 @@ export const PeriodSelector: React.FC<PeriodSelectorProps> = ({
         <div className="flex items-center gap-2">
           <button
             onClick={onClose}
+            {...tourAttr('assign-periods.selector-cancel')}
             className="text-xs font-medium text-slate-500 hover:text-slate-700 px-2 py-1 rounded transition-colors"
           >
             Cancel
@@ -141,6 +149,7 @@ export const PeriodSelector: React.FC<PeriodSelectorProps> = ({
           <button
             onClick={handleSave}
             disabled={!canSave}
+            {...tourAttr('assign-periods.selector-save')}
             className="flex items-center gap-1 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Check className="w-3 h-3" />

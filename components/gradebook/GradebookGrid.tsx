@@ -1,6 +1,7 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { average } from '@/utils/gradebook/gradebookModel';
 import { spaNavigate } from '@/utils/plcPath';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { buildGradebookPath } from '@/utils/gradebookPath';
 import { useGradebook, type GradebookColumn } from './GradebookContext';
 import { GradebookCellContent } from './GradebookCellContent';
@@ -208,6 +209,7 @@ export const GradebookGrid: React.FC = () => {
               <button
                 type="button"
                 onClick={sortName}
+                {...tourAttr('gradebook.grid.sort-student')}
                 className="inline-flex items-center gap-1 px-3.5 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-slate-200 hover:text-white"
                 title="Sort by name"
               >
@@ -225,6 +227,7 @@ export const GradebookGrid: React.FC = () => {
               <button
                 type="button"
                 onClick={sortOverall}
+                {...tourAttr('gradebook.grid.sort-overall')}
                 className="w-full px-2 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-200 hover:text-white"
                 title="Sort by overall"
               >
@@ -249,6 +252,11 @@ export const GradebookGrid: React.FC = () => {
                   <button
                     type="button"
                     data-gb-head={c.sessionId}
+                    {...tourFieldAttr(
+                      'gradebook.grid.column-header',
+                      'gradebook',
+                      c.sessionId
+                    )}
                     onClick={() => openHeader(c.sessionId)}
                     aria-expanded={open}
                     aria-haspopup="dialog"
@@ -293,6 +301,11 @@ export const GradebookGrid: React.FC = () => {
                 >
                   <button
                     type="button"
+                    {...tourFieldAttr(
+                      'gradebook.grid.student-name',
+                      'gradebook',
+                      s.uid
+                    )}
                     onClick={() =>
                       spaNavigate(
                         buildGradebookPath(rosterId, 'student', s.uid)
@@ -331,6 +344,11 @@ export const GradebookGrid: React.FC = () => {
                       <button
                         type="button"
                         data-gb-cell={cellAnchorId(c.sessionId, s.uid)}
+                        {...tourFieldAttr(
+                          'gradebook.grid.cell',
+                          'gradebook',
+                          cellAnchorId(c.sessionId, s.uid)
+                        )}
                         tabIndex={isActive ? 0 : -1}
                         onClick={() => {
                           setFocus({ sessionId: c.sessionId, uid: s.uid });

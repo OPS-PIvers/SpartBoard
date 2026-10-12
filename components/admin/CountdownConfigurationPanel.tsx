@@ -8,6 +8,7 @@ import {
 import { BuildingSelector } from './BuildingSelector';
 import { CountdownGlobalConfig, BuildingCountdownDefaults } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface CountdownConfigurationPanelProps {
   config: CountdownGlobalConfig;
@@ -124,6 +125,11 @@ export const CountdownConfigurationPanel: React.FC<
           </label>
           <input
             type="text"
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'countdown',
+              'title'
+            )}
             value={currentBuildingConfig.title ?? ''}
             onChange={(e) => handleUpdateBuilding({ title: e.target.value })}
             className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-none font-bold"
@@ -138,6 +144,11 @@ export const CountdownConfigurationPanel: React.FC<
             </label>
             <input
               type="date"
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'countdown',
+                'startDate'
+              )}
               value={formatDateForInput(currentBuildingConfig.startDate)}
               onChange={(e) => handleDateChange('startDate', e.target.value)}
               className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-none font-bold bg-white"
@@ -149,6 +160,11 @@ export const CountdownConfigurationPanel: React.FC<
             </label>
             <input
               type="date"
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'countdown',
+                'eventDate'
+              )}
               value={formatDateForInput(currentBuildingConfig.eventDate)}
               onChange={(e) => handleDateChange('eventDate', e.target.value)}
               className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-blue-primary outline-none font-bold bg-white"
@@ -162,6 +178,11 @@ export const CountdownConfigurationPanel: React.FC<
           </label>
           <div className="flex bg-white p-1 rounded-xl border border-slate-200">
             <button
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'countdown',
+                'viewMode-number'
+              )}
               onClick={() => handleUpdateBuilding({ viewMode: 'number' })}
               className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${
                 currentBuildingConfig.viewMode === 'number' ||
@@ -173,6 +194,11 @@ export const CountdownConfigurationPanel: React.FC<
               Number
             </button>
             <button
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'countdown',
+                'viewMode-grid'
+              )}
               onClick={() => handleUpdateBuilding({ viewMode: 'grid' })}
               className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${
                 currentBuildingConfig.viewMode === 'grid'
@@ -206,6 +232,11 @@ export const CountdownConfigurationPanel: React.FC<
               onChange={(checked) =>
                 handleUpdateBuilding({ includeWeekends: checked })
               }
+              anchor={tourFieldAttr(
+                'admin.widget-config.field',
+                'countdown',
+                'includeWeekends'
+              )}
             />
           </div>
           <div className="flex items-center justify-between">
@@ -226,6 +257,11 @@ export const CountdownConfigurationPanel: React.FC<
               onChange={(checked) =>
                 handleUpdateBuilding({ countToday: checked })
               }
+              anchor={tourFieldAttr(
+                'admin.widget-config.field',
+                'countdown',
+                'countToday'
+              )}
             />
           </div>
         </div>

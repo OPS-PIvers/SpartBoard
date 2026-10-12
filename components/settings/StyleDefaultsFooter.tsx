@@ -1,4 +1,5 @@
 import React from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import type { TranslateFn } from './schema/types';
 import type { StyleDefaultsState } from './styleDefaults';
 
@@ -7,6 +8,7 @@ export type StyleDefaultsFooterProps = {
   onSave: () => void;
   onReset: () => void;
   t: TranslateFn;
+  widget: { id: string; type: string };
 };
 
 const buttonClass =
@@ -18,6 +20,7 @@ export const StyleDefaultsFooter: React.FC<StyleDefaultsFooterProps> = ({
   onSave,
   onReset,
   t,
+  widget,
 }) => {
   if (state.keys.length === 0) return null;
   return (
@@ -34,6 +37,7 @@ export const StyleDefaultsFooter: React.FC<StyleDefaultsFooterProps> = ({
         <button
           type="button"
           onClick={onSave}
+          {...tourAttr('settings.style-defaults-save', widget.id, widget.type)}
           disabled={!state.differs}
           className={`${buttonClass} bg-brand-blue-primary text-white hover:bg-brand-blue-dark`}
         >
@@ -42,6 +46,7 @@ export const StyleDefaultsFooter: React.FC<StyleDefaultsFooterProps> = ({
         <button
           type="button"
           onClick={onReset}
+          {...tourAttr('settings.style-defaults-reset', widget.id, widget.type)}
           disabled={!state.differs}
           className={`${buttonClass} bg-slate-100 text-slate-800 hover:bg-slate-200`}
         >

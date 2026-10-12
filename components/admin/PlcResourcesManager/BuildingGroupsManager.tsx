@@ -16,6 +16,7 @@ import {
   type AdminMemberRole,
   type AdminMemberTarget,
 } from './PlcAdminMembersEditor';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const inputClass =
   'w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary';
@@ -251,6 +252,7 @@ export const BuildingGroupsManager: React.FC = () => {
         </h3>
         {!showForm && (
           <button
+            {...tourAttr('admin-plc.group-new')}
             type="button"
             onClick={() => setShowForm(true)}
             disabled={!orgId}
@@ -274,6 +276,7 @@ export const BuildingGroupsManager: React.FC = () => {
               {t('admin.buildingGroups.name', { defaultValue: 'Name' })}
             </label>
             <input
+              {...tourFieldAttr('admin-plc.group-field', 'plc', 'name')}
               id="bg-name"
               className={inputClass}
               value={name}
@@ -290,6 +293,7 @@ export const BuildingGroupsManager: React.FC = () => {
               })}
             </label>
             <select
+              {...tourFieldAttr('admin-plc.group-field', 'plc', 'building')}
               id="bg-building"
               className={inputClass}
               value={buildingId}
@@ -312,6 +316,7 @@ export const BuildingGroupsManager: React.FC = () => {
               {t('admin.buildingGroups.lead', { defaultValue: 'Lead email' })}
             </label>
             <input
+              {...tourFieldAttr('admin-plc.group-field', 'plc', 'lead')}
               id="bg-lead"
               type="email"
               className={inputClass}
@@ -326,6 +331,7 @@ export const BuildingGroupsManager: React.FC = () => {
               })}
             </label>
             <input
+              {...tourFieldAttr('admin-plc.group-field', 'plc', 'coleads')}
               id="bg-coleads"
               className={inputClass}
               value={coLeads}
@@ -334,6 +340,7 @@ export const BuildingGroupsManager: React.FC = () => {
           </div>
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-700 sm:col-span-2">
             <input
+              {...tourFieldAttr('admin-plc.group-field', 'plc', 'auto-roster')}
               type="checkbox"
               checked={autoRoster}
               onChange={(e) => setAutoRoster(e.target.checked)}
@@ -345,6 +352,7 @@ export const BuildingGroupsManager: React.FC = () => {
           </label>
           <div className="flex justify-end gap-2 sm:col-span-2">
             <button
+              {...tourAttr('admin-plc.group-reset')}
               type="button"
               onClick={resetForm}
               className="px-4 py-2 text-sm font-bold text-slate-600 hover:text-slate-800"
@@ -352,6 +360,7 @@ export const BuildingGroupsManager: React.FC = () => {
               {t('common.cancel', { defaultValue: 'Cancel' })}
             </button>
             <button
+              {...tourAttr('admin-plc.group-create')}
               type="submit"
               disabled={!canCreate || busyId === 'new'}
               className="bg-brand-blue-primary text-white px-5 py-2 rounded-xl text-sm font-bold hover:bg-brand-blue-dark transition-colors disabled:opacity-50"
@@ -397,6 +406,11 @@ export const BuildingGroupsManager: React.FC = () => {
                           })}
                         </label>
                         <input
+                          {...tourFieldAttr(
+                            'admin-plc.group-rename-input',
+                            'plc',
+                            g.id
+                          )}
                           id={`bg-rename-${g.id}`}
                           autoFocus
                           maxLength={120}
@@ -409,6 +423,11 @@ export const BuildingGroupsManager: React.FC = () => {
                           }}
                         />
                         <button
+                          {...tourFieldAttr(
+                            'admin-plc.group-rename-save',
+                            'plc',
+                            g.id
+                          )}
                           type="submit"
                           disabled={busy || !renameValue.trim()}
                           aria-label={t('admin.buildingGroups.saveName', {
@@ -419,6 +438,11 @@ export const BuildingGroupsManager: React.FC = () => {
                           <Check className="h-4 w-4" aria-hidden="true" />
                         </button>
                         <button
+                          {...tourFieldAttr(
+                            'admin-plc.group-rename-cancel',
+                            'plc',
+                            g.id
+                          )}
                           type="button"
                           onClick={() => setRenamingId(null)}
                           aria-label={t('common.cancel', {
@@ -444,6 +468,11 @@ export const BuildingGroupsManager: React.FC = () => {
                   </div>
                   <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
                     <input
+                      {...tourFieldAttr(
+                        'admin-plc.group-auto-roster',
+                        'plc',
+                        g.id
+                      )}
                       type="checkbox"
                       checked={on}
                       disabled={busy}
@@ -456,6 +485,7 @@ export const BuildingGroupsManager: React.FC = () => {
                   </label>
                   <div className="flex flex-wrap items-center gap-1">
                     <button
+                      {...tourFieldAttr('admin-plc.group-sync', 'plc', g.id)}
                       type="button"
                       onClick={() => void handleSync(g.id)}
                       disabled={busy || !on}
@@ -470,6 +500,7 @@ export const BuildingGroupsManager: React.FC = () => {
                       })}
                     </button>
                     <button
+                      {...tourFieldAttr('admin-plc.group-rename', 'plc', g.id)}
                       type="button"
                       onClick={() => {
                         setRenamingId(g.id);
@@ -484,6 +515,7 @@ export const BuildingGroupsManager: React.FC = () => {
                       })}
                     </button>
                     <button
+                      {...tourFieldAttr('admin-plc.group-members', 'plc', g.id)}
                       type="button"
                       onClick={() =>
                         setMembersOpenId(membersOpen ? null : g.id)
@@ -498,6 +530,7 @@ export const BuildingGroupsManager: React.FC = () => {
                       })}
                     </button>
                     <button
+                      {...tourFieldAttr('admin-plc.group-delete', 'plc', g.id)}
                       type="button"
                       onClick={() => handleDelete(g)}
                       disabled={busy}

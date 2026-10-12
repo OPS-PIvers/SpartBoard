@@ -1,4 +1,5 @@
 import React from 'react';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import {
   STUDENT_GRADE_KIND_LABELS,
   formatDueDate,
@@ -95,6 +96,11 @@ const GradeRow: React.FC<{
       {href ? (
         <a
           href={href}
+          {...tourFieldAttr(
+            'gradebook.student-view.grade-row',
+            'gradebook',
+            row.sessionId
+          )}
           className={`${cls} transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary`}
         >
           {body}

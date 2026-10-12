@@ -19,7 +19,9 @@ const CTX: AssignPeriodAccessContext = {
 };
 
 const Preview: React.FC = () => {
-  const before = new URLSearchParams(window.location.search).get('before');
+  const params = new URLSearchParams(window.location.search);
+  const before = params.get('before');
+  const results = params.get('results');
   const [name, setName] = useState('Fraction Pizza');
   const [picker, setPicker] = useState({ rosterIds: ['c1'] });
   const [targeting, setTargeting] = useState(EMPTY_ASSIGN_TARGETING_VALUE);
@@ -61,7 +63,10 @@ const Preview: React.FC = () => {
       onNameChange={setName}
       rosters={ROSTERS}
       initialClassIds={['c1']}
-      defaultKind="resource"
+      defaultKind={results ? 'work' : 'resource'}
+      resultsDefault={
+        results ? { attemptLimit: 1, showCorrectAnswers: true } : undefined
+      }
       periodAccess={CTX}
       submitting={false}
       onSubmit={() => Promise.resolve()}

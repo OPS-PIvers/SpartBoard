@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ClassRoster } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 import { AssignStepper } from '@/components/common/library/assignStepper/AssignStepper';
 import { AssignTopSwitch } from '@/components/common/library/assignStepper/AssignTopSwitch';
 import { KIND_SWITCH_OPTIONS } from '@/components/common/library/assignStepper/assignTopSwitchOptions';
@@ -169,6 +170,7 @@ export const GuidedLearningAssignStepper: React.FC<{
             onChange={setKind}
             options={KIND_SWITCH_OPTIONS}
             ariaLabel="Student work"
+            anchor={tourAttr('gl-assign.kind-switch')}
           />
         ) : undefined
       }

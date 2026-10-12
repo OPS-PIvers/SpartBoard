@@ -334,7 +334,7 @@ export const archiveProjectUploadOnCreate = onDocumentCreated(
     secrets: ACTIVITY_WALL_ARCHIVE_SECRETS,
   },
   async (event) => {
-    const data = event.data?.data() as Record<string, unknown> | undefined;
+    const data = event.data?.data();
     if (!shouldArchiveProjectUpload(data)) return;
     await runTriggerArchive(
       event.params.runId,

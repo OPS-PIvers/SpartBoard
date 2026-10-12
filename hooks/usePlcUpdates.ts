@@ -87,7 +87,7 @@ export function usePlcUpdates(plcId: string | null, enabled = true) {
         snap.forEach((d) => {
           const parsed = parsePlcUpdate(
             d.id,
-            d.data({ serverTimestamps: 'estimate' }) as Record<string, unknown>
+            d.data({ serverTimestamps: 'estimate' })
           );
           if (parsed) list.push(parsed);
         });

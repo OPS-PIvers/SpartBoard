@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { Loader2, Search, Share2, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export interface PlcSharePickerItem {
   id: string;
@@ -117,6 +118,7 @@ export const PlcSharePickerModal: React.FC<PlcSharePickerModalProps> = ({
             </div>
           </div>
           <button
+            {...tourAttr('plc-share.close')}
             type="button"
             onClick={onClose}
             disabled={!!busyId}
@@ -145,6 +147,7 @@ export const PlcSharePickerModal: React.FC<PlcSharePickerModalProps> = ({
                 aria-hidden="true"
               />
               <input
+                {...tourAttr('plc-share.search')}
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -192,6 +195,11 @@ export const PlcSharePickerModal: React.FC<PlcSharePickerModalProps> = ({
                         )}
                       </div>
                       <button
+                        {...tourFieldAttr(
+                          'plc-share.pick-item',
+                          'plc',
+                          item.id
+                        )}
                         type="button"
                         onClick={() => void handlePick(item.id)}
                         disabled={disabled}

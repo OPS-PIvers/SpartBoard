@@ -16,6 +16,7 @@ const Harness: React.FC = () => {
     t: (key: string) => key,
     id: 'do-items',
     labelId: 'do-items-label',
+    widget: { id: 'w1', type: 'need-do-put-then' },
   } as unknown as CustomRenderCtx;
   return <DoItemsField ctx={ctx} />;
 };

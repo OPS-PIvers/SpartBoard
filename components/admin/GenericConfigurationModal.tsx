@@ -1,3 +1,4 @@
+import { tourTypeAttr } from '@/config/tourAnchors';
 import React from 'react';
 import { X, Save, Loader2 } from 'lucide-react';
 import {
@@ -59,6 +60,7 @@ export const GenericConfigurationModal: React.FC<
         onClick={onClose}
         className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
         aria-label="Close"
+        {...tourTypeAttr('admin.widget-config.close', tool.type)}
       >
         <X className="w-6 h-6" />
       </button>
@@ -73,6 +75,7 @@ export const GenericConfigurationModal: React.FC<
       <div className="flex gap-3">
         <button
           onClick={onClose}
+          {...tourTypeAttr('admin.widget-config.close', tool.type)}
           className="px-6 py-2.5 rounded-2xl text-sm font-black text-slate-500 hover:bg-white transition-all border border-transparent hover:border-slate-200"
         >
           Cancel
@@ -82,6 +85,7 @@ export const GenericConfigurationModal: React.FC<
             void onSave();
           }}
           disabled={isSaving || !hasUnsavedChanges}
+          {...tourTypeAttr('admin.widget-config.save', tool.type)}
           className="px-8 py-2.5 bg-brand-blue-primary text-white rounded-2xl text-sm font-black shadow-lg shadow-blue-500/20 hover:bg-brand-blue-dark transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSaving ? (

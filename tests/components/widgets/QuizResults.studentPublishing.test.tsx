@@ -88,19 +88,18 @@ const response = (
   pin: string,
   override?: QuizResultsOverride,
   status: QuizResponse['status'] = 'completed'
-): QuizResponse =>
-  ({
-    studentUid: `uid-${pin}`,
-    _responseKey: `pin-p1-${pin}`,
-    pin,
-    classPeriod: 'Period 1',
-    answers: [{ questionId: 'q1', answer: 'a', answeredAt: 100 }],
-    status,
-    submittedAt: 200,
-    score: null,
-    joinedAt: 1,
-    ...(override ? { resultsOverride: override } : {}),
-  }) as QuizResponse;
+): QuizResponse => ({
+  studentUid: `uid-${pin}`,
+  _responseKey: `pin-p1-${pin}`,
+  pin,
+  classPeriod: 'Period 1',
+  answers: [{ questionId: 'q1', answer: 'a', answeredAt: 100 }],
+  status,
+  submittedAt: 200,
+  score: null,
+  joinedAt: 1,
+  ...(override ? { resultsOverride: override } : {}),
+});
 
 const session = {
   id: 'session-1',

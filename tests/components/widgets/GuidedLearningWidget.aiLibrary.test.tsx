@@ -64,6 +64,7 @@ vi.mock('@/hooks/useGuidedLearning', () => ({
     duplicateSet: vi.fn(),
     saveBuildingSet: vi.fn(),
     deleteBuildingSet: vi.fn(),
+    watchSetRevision: () => () => () => undefined,
     duplicateBuildingSet: vi.fn(),
   }),
 }));

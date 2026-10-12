@@ -8,6 +8,7 @@ import { resolveShortLink } from '@/utils/shortLinksApi';
 import { buildShortUrl } from '@/utils/shortLinkValidation';
 import { logError } from '@/utils/logError';
 import { buildHelpItemUrl, helpShortLinkCode } from './helpCenterState';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface HelpCopyLinkButtonProps {
   item: HelpResourceItem;
@@ -89,6 +90,7 @@ export const HelpCopyLinkButton: React.FC<HelpCopyLinkButtonProps> = ({
   if (variant === 'icon') {
     return (
       <button
+        {...tourAttr('help-center.guides.copy-link')}
         type="button"
         onClick={(e) => void handleClick(e)}
         aria-label={t('helpCenter.guides.copyLinkFor', { title: item.title })}
@@ -102,6 +104,7 @@ export const HelpCopyLinkButton: React.FC<HelpCopyLinkButtonProps> = ({
 
   return (
     <button
+      {...tourAttr('help-center.viewer.copy-link')}
       type="button"
       onClick={(e) => void handleClick(e)}
       className="flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"

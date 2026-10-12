@@ -153,7 +153,7 @@ export const WIDGET_FIXTURES: Partial<Record<WidgetType, WidgetFixtureSet>> = {
   'talking-tool': talkingToolFixtures,
   // New widgets
   'arts-letters-agenda': artsLettersAgendaFixtures,
-} as Partial<Record<WidgetType, WidgetFixtureSet>>;
+};
 
 // Types the harness can't grade, with the reason.
 export const UNSUPPORTED_FIXTURES: Partial<Record<WidgetType, string>> = {

@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Scissors } from 'lucide-react';
 import type { GuidedLearningVideoTrim } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 
 // ─── Video trim bar ──────────────────────────────────────────────────────────
 
@@ -176,7 +177,10 @@ export const VideoTrimBar: React.FC<{
     'absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-7 rounded-md bg-white border-2 border-brand-blue-primary shadow-sm cursor-ew-resize touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50';
 
   return (
-    <div className="flex flex-wrap items-center gap-3 shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2.5">
+    <div
+      {...tourAttr('gl-editor.trim')}
+      className="flex flex-wrap items-center gap-3 shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2.5"
+    >
       <span className="flex items-center gap-1.5 text-xs font-bold text-slate-600 shrink-0">
         <Scissors
           className="w-3.5 h-3.5 text-brand-blue-primary"
@@ -226,6 +230,7 @@ export const VideoTrimBar: React.FC<{
       </span>
       <button
         type="button"
+        {...tourAttr('gl-editor.trim-reset')}
         onClick={() => {
           onChange(null);
           scrubTo(0);

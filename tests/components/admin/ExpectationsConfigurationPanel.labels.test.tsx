@@ -3,7 +3,6 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
-import type { ExpectationsGlobalConfig } from '@/types';
 
 vi.mock('@/hooks/useAdminBuildings', () => ({
   useAdminBuildings: () => [{ id: 'b1', name: 'Test School' }],
@@ -17,7 +16,7 @@ describe('ExpectationsConfigurationPanel — label associations', () => {
   it('names the category toggle and each per-option toggle', () => {
     render(
       <ExpectationsConfigurationPanel
-        config={{ buildings: {} } as ExpectationsGlobalConfig}
+        config={{ buildings: {} }}
         onChange={vi.fn()}
       />
     );

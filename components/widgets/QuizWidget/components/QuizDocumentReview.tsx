@@ -10,6 +10,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { AlertCircle, FileWarning, X } from 'lucide-react';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import type {
   QuestionTargetTag,
   QuizData,
@@ -286,6 +287,7 @@ const ReviewTable: React.FC<
         <label className="flex items-center gap-1.5 text-xs text-slate-600">
           <input
             type="checkbox"
+            {...tourTypeAttr('quiz-import.review-only-flagged', 'quiz')}
             checked={onlyFlagged}
             onChange={(e) => setOnlyFlagged(e.target.checked)}
             className="accent-brand-blue-primary"
@@ -333,6 +335,11 @@ const ReviewTable: React.FC<
                 <div className="flex items-start gap-2">
                   <input
                     type="checkbox"
+                    {...tourFieldAttr(
+                      'quiz-import.review-include',
+                      'quiz',
+                      q.id
+                    )}
                     checked={included}
                     onChange={(e) => toggle(q.id, e.target.checked)}
                     className="mt-1 shrink-0 accent-brand-blue-primary"
@@ -385,6 +392,11 @@ const ReviewTable: React.FC<
                       })}
 
                     <textarea
+                      {...tourFieldAttr(
+                        'quiz-import.review-question-text',
+                        'quiz',
+                        q.id
+                      )}
                       value={q.text}
                       onChange={(e) =>
                         updateQuestion(q.id, (prev) => ({
@@ -421,6 +433,11 @@ const ReviewTable: React.FC<
                             >
                               <input
                                 type="checkbox"
+                                {...tourFieldAttr(
+                                  'quiz-import.review-choice-correct',
+                                  'quiz',
+                                  `${q.id}-${choiceIndex}`
+                                )}
                                 checked={right.includes(choice)}
                                 onChange={(e) =>
                                   updateQuestion(q.id, (prev) => {
@@ -474,6 +491,11 @@ const ReviewTable: React.FC<
                           >
                             <input
                               type="radio"
+                              {...tourFieldAttr(
+                                'quiz-import.review-answer-radio',
+                                'quiz',
+                                `${q.id}-${choiceIndex}`
+                              )}
                               name={`answer-${q.id}`}
                               checked={q.correctAnswer === choice}
                               onChange={() =>
@@ -526,6 +548,11 @@ const ReviewTable: React.FC<
                                   />
                                   <button
                                     type="button"
+                                    {...tourFieldAttr(
+                                      'quiz-import.review-remove-picture',
+                                      'quiz',
+                                      `${q.id}-${imageId}`
+                                    )}
                                     onClick={() => unlinkPicture(q.id, imageId)}
                                     aria-label={`Remove ${pictureLabel(imageId)} from question ${index + 1}`}
                                     className="absolute -right-1.5 -top-1.5 rounded-full border border-slate-300 bg-white p-0.5 text-slate-600 hover:bg-slate-100"
@@ -548,6 +575,11 @@ const ReviewTable: React.FC<
                                 Add a picture to question {index + 1}
                               </span>
                               <select
+                                {...tourFieldAttr(
+                                  'quiz-import.review-link-picture',
+                                  'quiz',
+                                  q.id
+                                )}
                                 value=""
                                 onChange={(e) => {
                                   if (e.target.value)

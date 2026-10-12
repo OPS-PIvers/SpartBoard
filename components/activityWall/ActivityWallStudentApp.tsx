@@ -202,7 +202,7 @@ export const ActivityWallStudentApp: React.FC = () => {
     setSheet(null);
     setSheetError(null);
     setProgress(null);
-  }, []);
+  }, [setSheet, setSheetError, setProgress]);
 
   if (state.kind === 'loading' || state.kind === 'redirecting') {
     return (

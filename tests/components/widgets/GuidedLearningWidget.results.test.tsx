@@ -58,17 +58,16 @@ const SET_META = {
   updatedAt: 2000,
 } as unknown as GuidedLearningSetMetadata;
 
-const loadSetData = vi.fn(
-  (): Promise<GuidedLearningSet> =>
-    Promise.resolve({
-      id: 'gl-1',
-      title: 'Fractions Warmup',
-      imageUrls: [],
-      steps: [],
-      mode: 'structured',
-      createdAt: 1000,
-      updatedAt: 2000,
-    } as unknown as GuidedLearningSet)
+const loadSetData = vi.fn((): Promise<GuidedLearningSet> =>
+  Promise.resolve({
+    id: 'gl-1',
+    title: 'Fractions Warmup',
+    imageUrls: [],
+    steps: [],
+    mode: 'structured',
+    createdAt: 1000,
+    updatedAt: 2000,
+  } as unknown as GuidedLearningSet)
 );
 vi.mock('@/hooks/useGuidedLearning', () => ({
   useGuidedLearning: () => ({
@@ -83,6 +82,7 @@ vi.mock('@/hooks/useGuidedLearning', () => ({
     duplicateSet: vi.fn(),
     saveBuildingSet: vi.fn(),
     deleteBuildingSet: vi.fn(),
+    watchSetRevision: () => () => () => undefined,
     duplicateBuildingSet: vi.fn(),
   }),
 }));
@@ -173,7 +173,7 @@ function makeWidget(config: Partial<GuidedLearningConfig>): WidgetData {
     w: 400,
     h: 300,
     z: 1,
-    config: { view: 'library', ...config } as GuidedLearningConfig,
+    config: { view: 'library', ...config },
   } as unknown as WidgetData;
 }
 

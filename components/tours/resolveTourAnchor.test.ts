@@ -241,11 +241,9 @@ describe('tour session helpers', () => {
 
   it('does not reclaim a type after the tour widget is closed', () => {
     const before = new Set<string>();
-    const claims = claimTourWidgets(
-      [{ id: 'tour', type: 'dice' as WidgetType }],
-      before,
-      ['dice']
-    );
+    const claims = claimTourWidgets([{ id: 'tour', type: 'dice' }], before, [
+      'dice',
+    ]);
     const replaced = [{ id: 'teacher', type: 'dice' as WidgetType }];
     const again = claimTourWidgets(replaced, before, ['dice'], claims);
     expect(tourWidgetIds(replaced, again)).toEqual([]);

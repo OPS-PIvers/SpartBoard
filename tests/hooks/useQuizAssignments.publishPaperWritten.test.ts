@@ -185,8 +185,7 @@ describe('useQuizAssignments — handwritten paper answers on publish', () => {
 
   function patchFor(ref: string): Record<string, unknown> | undefined {
     return batchUpdate.mock.calls.find(([r]) => r === ref)?.[1] as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
   }
 
   it('copies the mode onto the assignment and session', async () => {

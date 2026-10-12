@@ -30,8 +30,6 @@ const MapPinPicker = lazy(() => import('./MapPinPicker'));
 
 const DEFAULT_MAP_CENTER = { lat: 39.5, lng: -98.35, zoom: 4 };
 
-type UploadType = 'photo' | 'video' | 'file';
-
 export interface ComposerSheetProps {
   session: ActivityWallSession;
   /** Prefilled by a hover-plus spot; prefilled fields hide their picker. */
@@ -227,7 +225,7 @@ export const ComposerSheet: React.FC<ComposerSheetProps> = ({
                 </p>
               ) : (
                 <FileField
-                  type={type as UploadType}
+                  type={type}
                   file={draft.file}
                   previewUrl={previewUrl}
                   onSelect={(file) => patchDraft({ file })}

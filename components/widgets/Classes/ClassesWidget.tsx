@@ -5,6 +5,7 @@ import { WidgetData } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface Props {
   widget: WidgetData;
@@ -48,6 +49,7 @@ const ClassesWidget: React.FC<Props> = ({ widget: _widget }) => {
         })}
         action={
           <button
+            {...tourAttr('classes-widget.manage', _widget.id, _widget.type)}
             onClick={openManageSidebar}
             className="bg-brand-blue-primary text-white font-black uppercase tracking-widest rounded-xl hover:bg-brand-blue-dark shadow-sm transition-colors"
             style={{
@@ -91,6 +93,11 @@ const ClassesWidget: React.FC<Props> = ({ widget: _widget }) => {
               }}
             >
               <button
+                {...tourAttr(
+                  'classes-widget.clear-active',
+                  _widget.id,
+                  _widget.type
+                )}
                 onClick={() => setActiveRoster(null)}
                 disabled={!activeRoster}
                 className="shrink-0 text-amber-500 hover:text-amber-600 transition-colors disabled:text-slate-300 disabled:hover:text-slate-300 disabled:cursor-default"
@@ -170,6 +177,11 @@ const ClassesWidget: React.FC<Props> = ({ widget: _widget }) => {
                 {otherRosters.map((r) => (
                   <button
                     key={r.id}
+                    {...tourFieldAttr(
+                      'classes-widget.roster-row',
+                      _widget.type,
+                      r.id
+                    )}
                     onClick={() => setActiveRoster(r.id)}
                     className="flex items-center bg-white border border-slate-200 rounded-xl hover:border-brand-blue-primary hover:shadow-sm transition-all text-left group"
                     style={{
@@ -204,6 +216,7 @@ const ClassesWidget: React.FC<Props> = ({ widget: _widget }) => {
 
           {/* Manage footer CTA */}
           <button
+            {...tourAttr('classes-widget.manage', _widget.id, _widget.type)}
             onClick={openManageSidebar}
             className="shrink-0 flex items-center justify-center bg-brand-blue-lighter/50 text-brand-blue-primary font-black uppercase tracking-widest rounded-xl hover:bg-brand-blue-lighter transition-colors"
             style={{

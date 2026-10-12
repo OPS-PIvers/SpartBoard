@@ -34,20 +34,19 @@ import { Results } from './Results';
 
 const session = (
   over: Partial<VideoActivitySession> = {}
-): VideoActivitySession =>
-  ({
-    id: 's1',
-    activityId: 'va-1',
-    activityTitle: 'Photosynthesis',
-    assignmentName: 'Period 5',
-    teacherUid: 'teacher-1',
-    youtubeUrl: 'https://youtu.be/abc',
-    questions: [],
-    status: 'active',
-    allowedPins: [],
-    createdAt: Date.UTC(2026, 8, 23, 14, 0, 0),
-    ...over,
-  }) as VideoActivitySession;
+): VideoActivitySession => ({
+  id: 's1',
+  activityId: 'va-1',
+  activityTitle: 'Photosynthesis',
+  assignmentName: 'Period 5',
+  teacherUid: 'teacher-1',
+  youtubeUrl: 'https://youtu.be/abc',
+  questions: [],
+  status: 'active',
+  allowedPins: [],
+  createdAt: Date.UTC(2026, 8, 23, 14, 0, 0),
+  ...over,
+});
 
 const show = (over: Partial<VideoActivitySession> = {}) =>
   render(<Results session={session(over)} responses={[]} onBack={vi.fn()} />);

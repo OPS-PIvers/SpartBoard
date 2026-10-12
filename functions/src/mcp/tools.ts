@@ -42,7 +42,11 @@ import { registerQuizTools, restoreQuizRevision } from './quizTools';
 import { registerVideoTools, restoreVideoRevision } from './videoTools';
 import { registerRubricTools, restoreRubricRevision } from './rubricTools';
 import { registerWallTools, restoreWallRevision } from './wallTools';
-import { registerMiniAppTools, restoreMiniAppRevision } from './miniAppTools';
+import {
+  miniAppResultsOn,
+  registerMiniAppTools,
+  restoreMiniAppRevision,
+} from './miniAppTools';
 import { registerResultsTools } from './resultsTools';
 import {
   registerGuidedLearningTools,
@@ -187,7 +191,9 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
             'create',
             'edit',
             'undo edits',
-            'class-level quiz and video activity results',
+            (await miniAppResultsOn(ctx).catch(() => false))
+              ? 'class-level quiz, video activity and mini-app results'
+              : 'class-level quiz and video activity results',
           ],
           cannot: ['delete', 'assign to students', 'share', 'see student data'],
           daily_change_limit: DAILY_WRITE_LIMIT,
@@ -603,13 +609,22 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
   registerMeetingTools(server, ctx);
 }
 
-/** Tools left out of a non-admin's tools/list; each handler still checks admin itself. */
+/** Mini App results tools, listed only when results are on for the teacher. */
+const RESULTS_ONLY_TOOLS = [
+  'get_mini_app_spec',
+  'get_mini_app_results_summary',
+] as const;
+
+/** Tools left out of a teacher's tools/list; each handler still checks access itself. */
 export async function hiddenToolsFor(
   ctx: ToolContext
 ): Promise<ReadonlySet<string>> {
-  try {
-    return (await isAdmin(ctx)) ? new Set() : ADMIN_ONLY_TOOLS;
-  } catch {
-    return ADMIN_ONLY_TOOLS;
-  }
+  const [admin, resultsOn] = await Promise.all([
+    isAdmin(ctx).catch(() => false),
+    miniAppResultsOn(ctx).catch(() => false),
+  ]);
+  return new Set([
+    ...(admin ? [] : ADMIN_ONLY_TOOLS),
+    ...(resultsOn ? [] : RESULTS_ONLY_TOOLS),
+  ]);
 }

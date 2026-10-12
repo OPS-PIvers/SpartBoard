@@ -1119,11 +1119,18 @@ describe('QuizManager assign on the stepper (assign-stepper)', () => {
       />
     );
     fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
-    fireEvent.click(
-      await screen.findByRole('button', { name: /SpartBoard Only/i })
-    );
     return screen.findByRole('dialog', { name: /chapter 5 review/i });
   };
+
+  it('opens straight into the stepper with no destination chooser', async () => {
+    await openStepper(vi.fn(), { canAssignToClassroom: true });
+    expect(
+      screen.queryByRole('button', { name: /SpartBoard Only/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /Continue to Google Classroom/i })
+    ).not.toBeInTheDocument();
+  });
 
   const stepTitles = (dialog: HTMLElement) =>
     within(dialog)

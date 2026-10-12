@@ -4,6 +4,7 @@ import { ChevronDown, MessageSquare } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { Z_INDEX } from '@/config/zIndex';
 import { usePopoverPosition } from './usePopoverPosition';
+import { tourAttr } from '@/config/tourAnchors';
 
 // ─── WelcomeChip (compact "Welcome: On/Off ▾" with a textarea popover) ───────
 
@@ -45,6 +46,7 @@ export const WelcomeChip: React.FC<WelcomeChipProps> = ({
   return (
     <div ref={containerRef} className="relative shrink-0">
       <button
+        {...tourAttr('gl-editor.welcome')}
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -100,6 +102,7 @@ export const WelcomeChip: React.FC<WelcomeChipProps> = ({
             <label className="flex items-start gap-2 text-sm text-slate-700">
               <input
                 type="checkbox"
+                {...tourAttr('gl-editor.welcome-enabled')}
                 checked={enabled}
                 onChange={(e) => onEnabledChange(e.target.checked)}
                 className="accent-brand-blue-primary w-4 h-4 mt-0.5"
@@ -107,6 +110,7 @@ export const WelcomeChip: React.FC<WelcomeChipProps> = ({
               <span className="font-bold text-xs">Show welcome screen</span>
             </label>
             <textarea
+              {...tourAttr('gl-editor.welcome-message')}
               value={message}
               onChange={(e) => onMessageChange(e.target.value)}
               disabled={!enabled}

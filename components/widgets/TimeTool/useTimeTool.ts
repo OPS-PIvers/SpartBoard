@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { TimeToolConfig, WidgetData, WidgetConfig } from '@/types';
+import { TimeToolConfig, WidgetData } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { playTimerAlert, resumeAudio } from '@/utils/timeToolAudio';
 import { TIME_TOOL_MAX_DURATION_SECONDS } from '@/config/timeTool';
@@ -46,7 +46,7 @@ export const useTimeTool = (widget: WidgetData) => {
             isRunning: false,
             elapsedTime: timeToSave,
             startTime: null,
-          } as WidgetConfig,
+          },
         },
         opts
       );
@@ -60,14 +60,13 @@ export const useTimeTool = (widget: WidgetData) => {
     const now = Date.now();
     updateWidget(widget.id, {
       config: {
-        ...config,
         isRunning: true,
         startTime: now,
         elapsedTime: displayTime,
       },
     });
     setRunningDisplayTime(displayTime);
-  }, [config, updateWidget, widget.id, displayTime]);
+  }, [updateWidget, widget.id, displayTime]);
 
   const handleReset = useCallback(() => {
     const resetTime = config.mode === 'timer' ? config.duration : 0;
@@ -227,7 +226,7 @@ export const useTimeTool = (widget: WidgetData) => {
           {
             config: {
               voiceLevel: config.timerEndVoiceLevel,
-            } as WidgetConfig,
+            },
           },
           { skipHistory: true }
         );
@@ -245,7 +244,7 @@ export const useTimeTool = (widget: WidgetData) => {
           {
             config: {
               active: config.timerEndTrafficColor,
-            } as WidgetConfig,
+            },
           },
           { skipHistory: true }
         );
@@ -267,7 +266,7 @@ export const useTimeTool = (widget: WidgetData) => {
           {
             config: {
               externalTrigger: Date.now(),
-            } as WidgetConfig,
+            },
           },
           { skipHistory: true }
         );
@@ -289,7 +288,7 @@ export const useTimeTool = (widget: WidgetData) => {
           {
             config: {
               externalTrigger: Date.now(),
-            } as WidgetConfig,
+            },
           },
           { skipHistory: true }
         );
@@ -311,7 +310,7 @@ export const useTimeTool = (widget: WidgetData) => {
           {
             config: {
               rotationTrigger: Date.now(),
-            } as WidgetConfig,
+            },
           },
           { skipHistory: true }
         );

@@ -16,7 +16,6 @@ import { normalizeActivityWallLibraryEntry } from '@/utils/activityWallNormalize
 import { normalizeGuidedLearningSet } from '@/components/widgets/GuidedLearning/utils/setMigration';
 import type {
   ActivityWallConfig,
-  ActivityWallLibraryEntry,
   CalendarConfig,
   CalendarEvent,
   CustomWidgetConfig,
@@ -286,10 +285,7 @@ async function bundleActivityWall(
   if (!snap.exists()) throw new Error('activity wall not found');
   // Normalized first, so a wall predating the redesign reaches the sub with
   // the same derived layout and appearance the teacher sees.
-  const data = normalizeActivityWallLibraryEntry(
-    snap.id,
-    snap.data() as Partial<ActivityWallLibraryEntry>
-  );
+  const data = normalizeActivityWallLibraryEntry(snap.id, snap.data());
   // Then field by field, never the normalizer's own object: it spreads the raw
   // doc, which carries the ClassLink class and roster ids the wall never draws,
   // and `content/` is broadly readable. The student posts are not bundled at

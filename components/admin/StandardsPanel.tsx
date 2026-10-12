@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import {
   collection,
   doc,
@@ -82,6 +83,7 @@ const StandardSetRow: React.FC<{ entry: StandardSetEntry }> = ({ entry }) => {
   }, [entry]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetches counts from Firestore on mount
     void refresh();
   }, [refresh]);
 
@@ -120,6 +122,7 @@ const StandardSetRow: React.FC<{ entry: StandardSetEntry }> = ({ entry }) => {
         )}
       </div>
       <button
+        {...tourAttr('admin.standards.seed')}
         type="button"
         onClick={handleSeed}
         disabled={state.running}

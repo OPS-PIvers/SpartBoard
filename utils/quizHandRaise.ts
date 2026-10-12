@@ -67,8 +67,7 @@ export const readQuizHandRaiseMode = (
   if (!permissions) return DEFAULT_QUIZ_HAND_RAISE_MODE;
 
   const config = permissions.find((p) => p.widgetType === 'quiz')?.config as
-    | QuizGlobalConfig
-    | undefined;
+    QuizGlobalConfig | undefined;
   const rawDefaults = config?.buildingDefaults;
   if (!rawDefaults) return DEFAULT_QUIZ_HAND_RAISE_MODE;
   const buildingDefaults = canonicalizeBuildingKeyedRecord(rawDefaults);

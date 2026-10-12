@@ -34,6 +34,7 @@ import {
   type TargetMasteryRow,
 } from './resultsSelectors';
 import type { PlcHomeTileProps } from './tileTypes';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 /** Newest index entries Home reads; an older still-active one can be missed (plan §6). */
 const HOME_ASSIGNMENT_INDEX_LIMIT = 25;
@@ -155,6 +156,7 @@ const FallbackHint: React.FC<{
   return (
     <p className="mt-2 text-xs text-slate-500">
       <button
+        {...tourAttr('plc-home.results-targets')}
         type="button"
         onClick={onOpenTargets}
         className="font-semibold text-brand-blue-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 rounded"
@@ -281,6 +283,7 @@ const FeaturedAssessment: React.FC<{
       </div>
       {hero && (
         <button
+          {...tourAttr('plc-home.results-meeting')}
           type="button"
           onClick={onOpenMeeting}
           className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50 focus-visible:ring-offset-2"
@@ -333,6 +336,11 @@ const LiveAssignments: React.FC<{ entries: PlcAssignmentIndexEntry[] }> = ({
               </span>
               {safeUrl && (
                 <a
+                  {...tourFieldAttr(
+                    'plc-home.card-link',
+                    'plc',
+                    'results-sheet'
+                  )}
                   href={safeUrl}
                   target="_blank"
                   rel="noreferrer noopener"

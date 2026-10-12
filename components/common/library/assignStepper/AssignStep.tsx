@@ -1,8 +1,21 @@
 // One accordion row of the assign stepper: numbered header, closed value, open body with Continue (D1, D14).
 import React from 'react';
 import { ArrowRight } from 'lucide-react';
+import { tourAttr } from '@/config/tourAnchors';
+import type { AssignStepId } from './assignSteps';
+
+const STEP_TOUR: Record<AssignStepId, ReturnType<typeof tourAttr>> = {
+  classes: tourAttr('assign-step.classes'),
+  when: tourAttr('assign-step.when'),
+  attempts: tourAttr('assign-step.attempts'),
+  integrity: tourAttr('assign-step.integrity'),
+  feedback: tourAttr('assign-step.feedback'),
+  check: tourAttr('assign-step.check'),
+  sharing: tourAttr('assign-step.sharing'),
+};
 
 export interface AssignStepProps {
+  id: AssignStepId;
   number: number;
   title: string;
   value: string;
@@ -15,7 +28,7 @@ export interface AssignStepProps {
 
 export const AssignStep = React.forwardRef<HTMLDivElement, AssignStepProps>(
   function AssignStep(
-    { number, title, value, open, onOpen, onContinue, children },
+    { id, number, title, value, open, onOpen, onContinue, children },
     ref
   ) {
     const bodyId = React.useId();
@@ -25,6 +38,7 @@ export const AssignStep = React.forwardRef<HTMLDivElement, AssignStepProps>(
         className={`rounded-xl border bg-white ${open ? 'border-brand-blue-primary/40 shadow-sm' : 'border-slate-200'}`}
       >
         <button
+          {...STEP_TOUR[id]}
           type="button"
           onClick={onOpen}
           aria-expanded={open}
@@ -56,6 +70,7 @@ export const AssignStep = React.forwardRef<HTMLDivElement, AssignStepProps>(
             {onContinue && (
               <div className="flex justify-end">
                 <button
+                  {...tourAttr('assign-step.continue')}
                   type="button"
                   onClick={onContinue}
                   className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm"

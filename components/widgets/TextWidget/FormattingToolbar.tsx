@@ -362,18 +362,10 @@ function rangeSpansMultipleBlocks(range: Range, editor: HTMLElement): boolean {
 }
 
 type InlineStyleCommand =
-  | 'bold'
-  | 'italic'
-  | 'underline'
-  | 'foreColor'
-  | 'hiliteColor';
+  'bold' | 'italic' | 'underline' | 'foreColor' | 'hiliteColor';
 
 type InlineStyleKey =
-  | 'fontWeight'
-  | 'fontStyle'
-  | 'textDecoration'
-  | 'color'
-  | 'backgroundColor';
+  'fontWeight' | 'fontStyle' | 'textDecoration' | 'color' | 'backgroundColor';
 
 /** Map each inline-style command to the JS-style property that represents it.
  *  Used to detect "is this text already styled" and to clear the matching

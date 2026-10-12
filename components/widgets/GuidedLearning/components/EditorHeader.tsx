@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { AlertCircle, Sparkles, X } from 'lucide-react';
 import { AutosaveIndicator } from '@/components/common/EditorModalShell';
 import type { AutosaveStatus } from '@/hooks/useAutosave';
+import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 interface EditorHeaderProps {
   title: string;
@@ -51,6 +52,7 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
           value={title}
           onChange={(e) => onTitleChange(e.target.value)}
           placeholder={titlePlaceholder}
+          {...tourTypeAttr('editor.title', 'guided-learning')}
           aria-label={t('glStudio.titleLabel')}
           className="w-full truncate border-0 bg-transparent p-0 text-lg font-black text-slate-800 placeholder:font-bold placeholder:text-slate-400 focus:outline-none focus:ring-0"
         />
@@ -75,6 +77,7 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
       {onDraftWithAi && (
         <button
           type="button"
+          {...tourAttr('gl-editor.draft-ai')}
           onClick={onDraftWithAi}
           className="flex h-9 items-center gap-2 rounded-xl bg-brand-blue-primary px-3 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-brand-blue-dark"
         >
@@ -85,6 +88,7 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
       {onOpenClassic && (
         <button
           type="button"
+          {...tourAttr('gl-editor.open-classic')}
           onClick={onOpenClassic}
           className="text-xs font-bold text-slate-500 underline-offset-2 hover:text-slate-800 hover:underline"
         >
@@ -93,6 +97,7 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
       )}
       <button
         type="button"
+        {...tourAttr('modal.close')}
         onClick={onClose}
         aria-label={t('glStudio.close')}
         title={t('glStudio.close')}

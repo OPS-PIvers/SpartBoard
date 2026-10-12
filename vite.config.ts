@@ -115,20 +115,37 @@ export default defineConfig({
     chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'react-vendor': ['react', 'react-dom'],
-          'firebase-app': ['firebase/app'],
-          'firebase-auth': ['firebase/auth'],
-          'firebase-firestore': ['firebase/firestore'],
-          'firebase-storage': ['firebase/storage'],
-          'firebase-functions': ['firebase/functions'],
-          'dnd-kit': [
-            '@dnd-kit/core',
-            '@dnd-kit/sortable',
-            '@dnd-kit/utilities',
+        // Same vendor chunks as before Vite 8, plus one chunk for the rest of the startup code.
+        codeSplitting: {
+          groups: [
+            {
+              name: 'react-vendor',
+              test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+              priority: 20,
+            },
+            {
+              name: (id: string) =>
+                `firebase-${/[\\/]node_modules[\\/]@?firebase[\\/](app|auth|firestore|storage|functions)/.exec(id)?.[1] ?? 'core'}`,
+              test: /[\\/]node_modules[\\/]@?firebase[\\/]/,
+              priority: 20,
+            },
+            {
+              name: 'dnd-kit',
+              test: /[\\/]node_modules[\\/]@dnd-kit[\\/]/,
+              priority: 20,
+            },
+            {
+              name: 'imgly-bg-removal',
+              test: /[\\/]node_modules[\\/]@imgly[\\/]background-removal[\\/]/,
+              priority: 20,
+            },
+            {
+              name: 'utils',
+              test: /[\\/]node_modules[\\/](html-to-image|jszip)[\\/]/,
+              priority: 20,
+            },
+            { name: 'startup', tags: ['$initial'], priority: 10 },
           ],
-          'imgly-bg-removal': ['@imgly/background-removal'],
-          utils: ['html-to-image', 'jszip'],
         },
       },
     },

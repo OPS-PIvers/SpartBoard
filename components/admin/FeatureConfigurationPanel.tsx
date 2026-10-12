@@ -1,3 +1,4 @@
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { SoundboardConfigurationPanel } from './SoundboardConfigurationPanel';
 import React, { useState } from 'react';
 import {
@@ -95,7 +96,7 @@ const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
   routineGuide:
     RoutineGuideConfigurationPanel as unknown as BuildingConfigPanel,
   lunchCount: LunchCountBuildingConfigPanel,
-  url: UrlConfigurationPanel as unknown as BuildingConfigPanel,
+  url: UrlConfigurationPanel,
   soundboard: SoundboardConfigurationPanel as unknown as BuildingConfigPanel,
   schedule: ScheduleConfigurationPanel as unknown as BuildingConfigPanel,
   clock: ClockConfigurationPanel as unknown as BuildingConfigPanel,
@@ -109,32 +110,29 @@ const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
   scoreboard: ScoreboardConfigurationPanel as unknown as BuildingConfigPanel,
   drawing: DrawingConfigurationPanel as unknown as BuildingConfigPanel,
   materials: MaterialsConfigurationPanel as unknown as BuildingConfigPanel,
-  mathTools: MathToolsConfigurationPanel as unknown as BuildingConfigPanel,
+  mathTools: MathToolsConfigurationPanel,
   nextUp: NextUpConfigurationPanel as unknown as BuildingConfigPanel,
   'car-rider-pro': CarRiderConfigurationPanel as unknown as BuildingConfigPanel,
   'blending-board':
     BlendingBoardConfigurationPanel as unknown as BuildingConfigPanel,
   poll: PollConfigurationPanel as unknown as BuildingConfigPanel,
-  'activity-wall':
-    ActivityWallConfigurationPanel as unknown as BuildingConfigPanel,
+  'activity-wall': ActivityWallConfigurationPanel,
   qr: QRConfigurationPanel as unknown as BuildingConfigPanel,
   embed: EmbedConfigurationPanel as unknown as BuildingConfigPanel,
   breathing: BreathingConfigurationPanel as unknown as BuildingConfigPanel,
   numberLine: NumberLineConfigurationPanel as unknown as BuildingConfigPanel,
   'hotspot-image':
     HotspotImageConfigurationPanel as unknown as BuildingConfigPanel,
-  'concept-web': ConceptWebConfigurationPanel as unknown as BuildingConfigPanel,
+  'concept-web': ConceptWebConfigurationPanel,
   'syntax-framer':
     SyntaxFramerConfigurationPanel as unknown as BuildingConfigPanel,
-  'seating-chart':
-    SeatingChartConfigurationPanel as unknown as BuildingConfigPanel,
-  'reveal-grid': RevealGridConfigurationPanel as unknown as BuildingConfigPanel,
-  recessGear: RecessGearConfigurationPanel as unknown as BuildingConfigPanel,
+  'seating-chart': SeatingChartConfigurationPanel,
+  'reveal-grid': RevealGridConfigurationPanel,
+  recessGear: RecessGearConfigurationPanel,
   classes: ClassesConfigurationPanel as unknown as BuildingConfigPanel,
   smartNotebook:
     SmartNotebookConfigurationPanel as unknown as BuildingConfigPanel,
-  'guided-learning':
-    GuidedLearningConfigurationPanel as unknown as BuildingConfigPanel,
+  'guided-learning': GuidedLearningConfigurationPanel,
   countdown: CountdownConfigurationPanel as unknown as BuildingConfigPanel,
   'first-5': First5ConfigurationPanel as unknown as BuildingConfigPanel,
   'need-do-put-then':
@@ -279,6 +277,11 @@ export const FeatureConfigurationPanel: React.FC<
                         })
                       }
                       title="Each teacher fetches weather directly. Uses more API calls."
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'weather',
+                        'fetchingStrategy-client'
+                      )}
                       className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
                         config.fetchingStrategy === 'client' ||
                         !config.fetchingStrategy
@@ -298,6 +301,11 @@ export const FeatureConfigurationPanel: React.FC<
                         })
                       }
                       title="Fetched once for all teachers. Saves API calls."
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'weather',
+                        'fetchingStrategy-admin_proxy'
+                      )}
                       className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
                         config.fetchingStrategy === 'admin_proxy'
                           ? 'bg-brand-blue-primary text-white shadow-sm'
@@ -325,6 +333,11 @@ export const FeatureConfigurationPanel: React.FC<
                               },
                             })
                           }
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'weather',
+                            'source-openweather'
+                          )}
                           className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
                             config.source === 'openweather' || !config.source
                               ? 'bg-brand-blue-primary text-white shadow-sm'
@@ -342,6 +355,11 @@ export const FeatureConfigurationPanel: React.FC<
                               },
                             })
                           }
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'weather',
+                            'source-earth_networks'
+                          )}
                           className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
                             config.source === 'earth_networks'
                               ? 'bg-brand-blue-primary text-white shadow-sm'
@@ -361,6 +379,11 @@ export const FeatureConfigurationPanel: React.FC<
                         <input
                           type="text"
                           placeholder="Default: Local Station"
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'weather',
+                            'city'
+                          )}
                           value={config.city ?? ''}
                           onChange={(e) =>
                             updatePermission(tool.type, {
@@ -385,6 +408,11 @@ export const FeatureConfigurationPanel: React.FC<
                     type="number"
                     min="5"
                     max="1440"
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'weather',
+                      'updateFrequencyMinutes'
+                    )}
                     value={config.updateFrequencyMinutes ?? 15}
                     onChange={(e) => {
                       const val = parseInt(e.target.value);
@@ -416,6 +444,11 @@ export const FeatureConfigurationPanel: React.FC<
                     }
                     size="xs"
                     showLabels={false}
+                    anchor={tourFieldAttr(
+                      'admin.widget-config.field',
+                      'weather',
+                      'showFeelsLike'
+                    )}
                   />
                 </div>
 
@@ -426,6 +459,7 @@ export const FeatureConfigurationPanel: React.FC<
                     </label>
                     <button
                       onClick={() => addWeatherRange(tool.type)}
+                      {...tourTypeAttr('admin.widget-config.add', 'weather')}
                       className="text-xxs font-bold text-brand-blue-primary hover:text-brand-blue-dark flex items-center gap-1"
                     >
                       <Plus className="w-3 h-3" /> Add Range
@@ -441,6 +475,11 @@ export const FeatureConfigurationPanel: React.FC<
                         <div className="flex items-center gap-2">
                           <select
                             value={range.type ?? 'range'}
+                            {...tourFieldAttr(
+                              'admin.widget-config.field',
+                              'weather',
+                              `rangeType-${range.id}`
+                            )}
                             onChange={(e) =>
                               updateWeatherRange(tool.type, range.id, {
                                 type: e.target
@@ -468,6 +507,11 @@ export const FeatureConfigurationPanel: React.FC<
                                 }}
                                 className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded text-center"
                                 title="Min Temp"
+                                {...tourFieldAttr(
+                                  'admin.widget-config.field',
+                                  'weather',
+                                  `rangeMin-${range.id}`
+                                )}
                               />
                               <span className="text-slate-400 text-xs">-</span>
                               <input
@@ -482,6 +526,11 @@ export const FeatureConfigurationPanel: React.FC<
                                 }}
                                 className="w-14 px-1.5 py-1 text-xs border border-slate-200 rounded text-center"
                                 title="Max Temp"
+                                {...tourFieldAttr(
+                                  'admin.widget-config.field',
+                                  'weather',
+                                  `rangeMax-${range.id}`
+                                )}
                               />
                             </>
                           )}
@@ -495,6 +544,11 @@ export const FeatureConfigurationPanel: React.FC<
                                 type="number"
                                 placeholder="Temp"
                                 value={range.min}
+                                {...tourFieldAttr(
+                                  'admin.widget-config.field',
+                                  'weather',
+                                  `rangeAbove-${range.id}`
+                                )}
                                 onChange={(e) => {
                                   const val = parseFloat(e.target.value);
                                   updateWeatherRange(tool.type, range.id, {
@@ -515,6 +569,11 @@ export const FeatureConfigurationPanel: React.FC<
                                 type="number"
                                 placeholder="Temp"
                                 value={range.max}
+                                {...tourFieldAttr(
+                                  'admin.widget-config.field',
+                                  'weather',
+                                  `rangeBelow-${range.id}`
+                                )}
                                 onChange={(e) => {
                                   const val = parseFloat(e.target.value);
                                   updateWeatherRange(tool.type, range.id, {
@@ -531,6 +590,10 @@ export const FeatureConfigurationPanel: React.FC<
                             onClick={() =>
                               removeWeatherRange(tool.type, range.id)
                             }
+                            {...tourTypeAttr(
+                              'admin.widget-config.remove',
+                              'weather'
+                            )}
                             className="text-red-500 hover:text-red-700 p-1"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -540,6 +603,11 @@ export const FeatureConfigurationPanel: React.FC<
                         <input
                           type="text"
                           placeholder="Display Message..."
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'weather',
+                            `rangeMessage-${range.id}`
+                          )}
                           value={range.message}
                           onChange={(e) =>
                             updateWeatherRange(tool.type, range.id, {
@@ -563,6 +631,11 @@ export const FeatureConfigurationPanel: React.FC<
                                     imageUrl: undefined,
                                   })
                                 }
+                                {...tourFieldAttr(
+                                  'admin.widget-config.field',
+                                  'weather',
+                                  `rangeImageClear-${range.id}`
+                                )}
                                 className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white"
                               >
                                 <X className="w-4 h-4" />

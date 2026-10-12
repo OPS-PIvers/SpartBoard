@@ -10,7 +10,6 @@ import React, {
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import type {
-  GuidedLearningPublicStep,
   GuidedLearningSet,
   GuidedLearningStep,
   TourAutopilotPolicy,
@@ -116,6 +115,7 @@ import {
   type SavedTour,
 } from './tourResume';
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
+import { openPopupBoxes, shieldTourUi, withNearbyPopups } from './popups';
 import { startTourRunLog, type TourRunLog } from './tourRuns';
 import {
   clearTourEdit,
@@ -129,12 +129,7 @@ import {
 const TourMiniPlayer = lazy(() => import('./TourMiniPlayer'));
 
 type Phase =
-  | 'welcome'
-  | 'materials'
-  | 'practice-offer'
-  | 'running'
-  | 'keep'
-  | 'teardown';
+  'welcome' | 'materials' | 'practice-offer' | 'running' | 'keep' | 'teardown';
 
 interface LaunchOptions {
   /** Widgets a reloaded run had already added, so teardown can still remove them. */
@@ -263,12 +258,14 @@ const readViewport = () =>
     ? { w: 0, h: 0 }
     : { w: window.innerWidth, h: window.innerHeight };
 
-/** The dock, Sidebar pill and FABs, which the callout keeps clear of. */
-const tourObstacles = () =>
-  Array.from(document.querySelectorAll('[data-tour-obstacle]'))
+/** The dock, Sidebar pill, FABs and open menus, which the callout keeps clear of. */
+const tourObstacles = () => [
+  ...Array.from(document.querySelectorAll('[data-tour-obstacle]'))
     .map((el) => el.getBoundingClientRect())
     .filter((r) => r.width > 0 && r.height > 0)
-    .map((r) => ({ x: r.x, y: r.y, w: r.width, h: r.height }));
+    .map((r) => ({ x: r.x, y: r.y, w: r.width, h: r.height })),
+  ...openPopupBoxes(),
+];
 
 const SHAKE: Keyframe[] = [
   { transform: 'translateX(0)' },
@@ -340,6 +337,7 @@ export const LiveTourRunner: React.FC = () => {
     uid: user?.uid,
     featurePermissions,
   });
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   latest.current = {
     dashboard,
     canAccessFeature,
@@ -435,6 +433,7 @@ export const LiveTourRunner: React.FC = () => {
     : [];
   const added = [...legacyAdded, ...tourAdded.map((w) => w.id)];
   const tourIdsRef = useRef<string[]>([]);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   tourIdsRef.current = tour?.tourIds ?? [];
 
   // Temporary layouts live in the canvas store only while a step is showing.
@@ -448,6 +447,7 @@ export const LiveTourRunner: React.FC = () => {
   }
   const overridesKey = overrides ? JSON.stringify([...overrides]) : '';
   const overridesRef = useRef(overrides);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   overridesRef.current = overrides;
   useEffect(() => {
     if (overridesRef.current) setTourLayoutOverrides(overridesRef.current);
@@ -504,6 +504,7 @@ export const LiveTourRunner: React.FC = () => {
       : null;
   const savedKey = saved ? JSON.stringify(saved) : null;
   const savedRun = useRef(saved);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   savedRun.current = saved;
   const wroteSaved = useRef(false);
   const ended = tour === null;
@@ -529,6 +530,7 @@ export const LiveTourRunner: React.FC = () => {
     anchor.status === 'found'
       ? (anchor.element?.closest<HTMLElement>('[data-role="dock"]') ?? null)
       : null;
+  // eslint-disable-next-line react-hooks/immutability -- lifts a DOM element's z-index and restores it on cleanup
   useEffect(() => {
     if (!liftEl) return;
     const prev = liftEl.style.zIndex;
@@ -619,6 +621,7 @@ export const LiveTourRunner: React.FC = () => {
   }
   const patchesKey = JSON.stringify([...patches]);
   const patchesRef = useRef(patches);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   patchesRef.current = patches;
   useEffect(() => {
     if (patchesRef.current.size > 0) setTourWidgetPatches(patchesRef.current);
@@ -844,6 +847,7 @@ export const LiveTourRunner: React.FC = () => {
     else runSetup(set, steps, from, opts);
   };
   const beginRef = useRef(begin);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   beginRef.current = begin;
 
   const launch = (req: TourStartRequest, opts: LaunchOptions = {}) => {
@@ -895,6 +899,7 @@ export const LiveTourRunner: React.FC = () => {
     })();
   };
   const launchRef = useRef(launch);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   launchRef.current = launch;
 
   useEffect(() => {
@@ -1067,6 +1072,7 @@ export const LiveTourRunner: React.FC = () => {
   };
 
   const advanceRef = useRef(goTo);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   advanceRef.current = goTo;
   const stepIndex = tour?.index ?? 0;
 
@@ -1118,6 +1124,7 @@ export const LiveTourRunner: React.FC = () => {
     setFfTarget(selected > from ? selected : null);
   });
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- starts the editor stage once the board is idle
     if (editIdle) startEdit();
   }, [editIdle]);
 
@@ -1125,6 +1132,7 @@ export const LiveTourRunner: React.FC = () => {
   const editEnded = !editTarget && !!tour?.edit;
   const endEdit = useEffectEvent(() => endTour());
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- tears the stage down when the editor closes
     if (editEnded) endEdit();
   }, [editEnded]);
 
@@ -1209,8 +1217,11 @@ export const LiveTourRunner: React.FC = () => {
     setTourRunning(active);
     return () => setTourRunning(false);
   }, [active]);
+  // Next and the bar never close a menu the step is about.
+  useEffect(() => (active ? shieldTourUi() : undefined), [active]);
   // Escape never destroys work: Keep on teardown, Cancel on the practice offer.
   const finishRef = useRef(finish);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   finishRef.current = !tour
     ? () => dismissResume(false)
     : tour.edit
@@ -1265,6 +1276,7 @@ export const LiveTourRunner: React.FC = () => {
     endTour();
   });
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- ends the tour when the board switches
     if (boardSwitched) endOnBoardSwitch();
   }, [boardSwitched]);
 
@@ -1280,6 +1292,24 @@ export const LiveTourRunner: React.FC = () => {
     onResize();
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
+  }, [active]);
+  // A menu opened or closed by a click re-places the callout off it.
+  const [, setPopupKey] = useState('');
+  useEffect(() => {
+    if (!active) return;
+    const timers: number[] = [];
+    const check = () =>
+      setPopupKey(JSON.stringify(openPopupBoxes().map((b) => [b.x, b.y])));
+    const onInput = () => {
+      timers.push(window.setTimeout(check, 60), window.setTimeout(check, 350));
+    };
+    window.addEventListener('click', onInput, true);
+    window.addEventListener('keyup', onInput, true);
+    return () => {
+      window.removeEventListener('click', onInput, true);
+      window.removeEventListener('keyup', onInput, true);
+      timers.forEach((id) => window.clearTimeout(id));
+    };
   }, [active]);
   useEffect(() => {
     if (!escapable) return;
@@ -1321,8 +1351,12 @@ export const LiveTourRunner: React.FC = () => {
     ? { x: rect.x, y: rect.y, w: rect.width, h: rect.height }
     : null;
   const obstacles = tour ? tourObstacles() : [];
-  const placement = target
-    ? placeCallout({ box, target, container: viewport, obstacles })
+  // A menu the step's control opened is lit and kept clear along with it.
+  const spot = target
+    ? withNearbyPopups(target, tour ? openPopupBoxes() : [])
+    : null;
+  const placement = spot
+    ? placeCallout({ box, target: spot, container: viewport, obstacles })
     : null;
   const tether =
     placement && target
@@ -1385,6 +1419,7 @@ export const LiveTourRunner: React.FC = () => {
     setCue({ ...cue, to: center });
   }
   const cueRef = useRef(cue);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   cueRef.current = cue;
   // A glide cut short when the anchor vanished never lands, so start the step over.
   if (autoStage === 'demo' && !found) setAuto(null);
@@ -1402,8 +1437,10 @@ export const LiveTourRunner: React.FC = () => {
   const staticHintOn = hintOn && staticHint === stepKey;
 
   const latestAdded = useRef(added);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   latestAdded.current = added;
   const latestSlots = useRef<TourSlots | undefined>(tour?.slots);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   latestSlots.current = tour?.slots;
 
   // Autopilot performs the step, then waits for the app to show the next step's anchor.
@@ -1473,6 +1510,7 @@ export const LiveTourRunner: React.FC = () => {
       });
   };
   const autoClickRef = useRef(autoClick);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   autoClickRef.current = autoClick;
 
   const runAuto = () => {
@@ -1523,6 +1561,7 @@ export const LiveTourRunner: React.FC = () => {
   const skipMissing = jumping && anchor.status === 'missing';
   const stopOnMissing = !!tour?.edit && !!tour.sandboxed;
   const stopJumpRef = useRef(stopJump);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   stopJumpRef.current = stopJump;
   useEffect(() => {
     if (!skipMissing) return;
@@ -1577,6 +1616,7 @@ export const LiveTourRunner: React.FC = () => {
   useEffect(() => {
     if (!entryKey) return;
     const ctrl = new AbortController();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- applies the start step against the live board, abortable
     applyStart(ctrl.signal);
     return () => ctrl.abort();
   }, [entryKey]);
@@ -1594,10 +1634,8 @@ export const LiveTourRunner: React.FC = () => {
     autoStage === 'blocked' ||
     autoStage === 'confirm' ||
     autoStage === 'fallback';
-  const editRect =
-    tour?.edit && rect
-      ? { x: rect.x, y: rect.y, w: rect.width, h: rect.height }
-      : null;
+  // The panel steps aside from a menu the control opened, not just the control.
+  const editRect = tour?.edit && spot ? spot : null;
   const playbackKey = tour?.edit
     ? JSON.stringify([
         stepIndex,
@@ -1618,6 +1656,7 @@ export const LiveTourRunner: React.FC = () => {
     missing: missingIds,
     slots: tour?.slots ?? {},
   });
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   playbackRef.current = {
     index: stepIndex,
     anchor: plain ? 'found' : anchor.status,
@@ -1690,7 +1729,7 @@ export const LiveTourRunner: React.FC = () => {
   const canRead = !!step && (!!step.narration?.url || speechAvailable());
   useReadAloud({
     enabled: (tour?.edit ? !!editTarget?.readAloud : readAloud) && canRead,
-    step: step as unknown as GuidedLearningPublicStep | null,
+    step: step,
     stepKey: step && tour ? `${tour.set.id}:${tour.index}:${attempt}` : null,
   });
 
@@ -1972,7 +2011,9 @@ export const LiveTourRunner: React.FC = () => {
       <>
         {showDim && (
           <TourSpotlight
-            rect={rect}
+            rect={
+              spot && { x: spot.x, y: spot.y, width: spot.w, height: spot.h }
+            }
             onMisclick={misclick}
             pulse={anchor.centred}
             breathe={acted && !isMissing && !autoRunning && !autoBusy}

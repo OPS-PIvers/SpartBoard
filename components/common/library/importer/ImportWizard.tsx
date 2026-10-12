@@ -153,6 +153,7 @@ export function ImportWizard<TData>({
   const [prevOpen, setPrevOpen] = useState(isOpen);
   if (prevOpen !== isOpen) {
     setPrevOpen(isOpen);
+    // eslint-disable-next-line react-hooks/refs -- session counter bumped with the open/close reset
     sessionRef.current += 1;
     if (isOpen) {
       setStep('source');

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import type { TourAnchorAttrs, TourAnchorId } from '@/config/tourAnchors';
 import {
   Eye,
   EyeOff,
@@ -18,6 +19,7 @@ import type {
 } from '@/types';
 import { resultsOverrideState } from '@/utils/quizResultsVisibility';
 import { logError } from '@/utils/logError';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { ShowResultsDialog } from './ShowResultsDialog';
 import type { StudentResultsActions } from './studentResultsSelection';
 
@@ -78,6 +80,10 @@ export interface StudentResultsControlProps {
   triggerClassName?: string;
   /** Offers Unlock in the menu when the student is locked out of their results. */
   onUnlock?: () => Promise<void>;
+  /** Live-tour anchors for the kebab trigger and its items (menu layout). */
+  triggerAnchor?: TourAnchorAttrs;
+  tourId?: TourAnchorId;
+  tourScope?: string;
 }
 
 /** Show, hide, or return one student's results to the class setting. */
@@ -92,6 +98,9 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
   layout = 'menu',
   triggerClassName = 'rounded-md text-brand-gray-primary hover:bg-brand-gray-lightest hover:text-brand-blue-dark',
   onUnlock,
+  triggerAnchor,
+  tourId,
+  tourScope,
 }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [busy, setBusy] = useState<'hide' | 'clear' | 'unlock' | null>(null);
@@ -194,7 +203,15 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
           items={items}
           ariaLabel={`Results options for ${displayName}`}
           triggerIcon={MoreVertical}
+          triggerProps={tourFieldAttr(
+            'quiz-results.student-results-menu',
+            'quiz',
+            key
+          )}
           triggerClassName={triggerClassName}
+          triggerAnchor={triggerAnchor}
+          tourId={tourId}
+          tourScope={tourScope}
         />
         {dialog}
       </>
@@ -249,6 +266,7 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
           type="button"
           onClick={() => setDialogOpen(true)}
           disabled={busy !== null}
+          {...tourFieldAttr('quiz-results.student-show', 'quiz', key)}
           className={buttonCls}
           style={buttonStyle}
         >
@@ -261,6 +279,7 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
           type="button"
           onClick={() => void run('hide')}
           disabled={busy !== null}
+          {...tourFieldAttr('quiz-results.student-hide', 'quiz', key)}
           className={buttonCls}
           style={buttonStyle}
         >
@@ -278,6 +297,7 @@ export const StudentResultsControl: React.FC<StudentResultsControlProps> = ({
           onClick={() => void run('clear')}
           disabled={busy !== null}
           title={FOLLOW_CLASS_TIP}
+          {...tourFieldAttr('quiz-results.student-follow-class', 'quiz', key)}
           className={buttonCls}
           style={buttonStyle}
         >

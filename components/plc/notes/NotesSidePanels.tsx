@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
 import {
   ListChecks,
@@ -91,6 +91,7 @@ export const NotesRail: React.FC<NotesRailProps> = ({ entries, onOpen }) => {
       className="w-28 shrink-0 flex flex-col border-r border-slate-200"
     >
       <button
+        {...tourAttr('plc-notes.panel-open')}
         type="button"
         onClick={onOpen}
         aria-label={showList}
@@ -103,6 +104,7 @@ export const NotesRail: React.FC<NotesRailProps> = ({ entries, onOpen }) => {
         {entries.map(({ key, title, icon: Icon, active, onSelect }) => (
           <li key={key}>
             <button
+              {...tourFieldAttr('plc-notes.panel-select', 'plc', key)}
               type="button"
               onClick={onSelect}
               aria-current={active ? 'true' : undefined}
@@ -189,6 +191,7 @@ export const ActionItemsPanel: React.FC<ActionItemsPanelProps> = ({
           </h3>
         )}
         <button
+          {...tourAttr('plc-notes.panel-close')}
           type="button"
           onClick={onClose}
           aria-label={showList}

@@ -84,6 +84,7 @@ import {
 import { usePlcAssessments } from '@/hooks/usePlcAssessments';
 import { usePlcAggregate } from '@/hooks/usePlcAggregate';
 import { usePlcLearningTargets } from '@/hooks/useLearningTargets';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface NotesBodyProps {
   plc: Plc;
@@ -288,8 +289,10 @@ const NotesBodyInner: React.FC<
   // Which note the editor is actually showing when a save resolves.
   const selectedIdRef = useRef(selectedId);
 
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   selectedIdRef.current = selectedId;
 
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   draftRef.current = {
     title: draftTitle,
     body: draftBody,
@@ -297,9 +300,12 @@ const NotesBodyInner: React.FC<
   };
 
   const draftIsClean =
+    // eslint-disable-next-line react-hooks/refs -- clean baseline is set together with the draft state
     draftTitle === cleanBaselineRef.current.title &&
+    // eslint-disable-next-line react-hooks/refs -- clean baseline is set together with the draft state
     draftBody === cleanBaselineRef.current.body &&
     actionItemsSignature(draftActionItems) ===
+      // eslint-disable-next-line react-hooks/refs -- clean baseline is set together with the draft state
       actionItemsSignature(cleanBaselineRef.current.actionItems);
 
   // Auto-select the most-recent note once data lands.
@@ -309,6 +315,7 @@ const NotesBodyInner: React.FC<
     const first = notes[0];
     if (first) {
       setSelectedId(first.id);
+      // eslint-disable-next-line react-hooks/refs -- seedDraft resets the baseline while adjusting state
       seedDraft(first);
       setBodyMode(openModeFor(first.body));
     }
@@ -328,6 +335,7 @@ const NotesBodyInner: React.FC<
     if (note) {
       setSelectedDocId(null);
       setSelectedId(note.id);
+      // eslint-disable-next-line react-hooks/refs -- seedDraft resets the baseline while adjusting state
       seedDraft(note);
       setBodyMode(openModeFor(note.body));
       setOpenPanel('actions');
@@ -426,6 +434,7 @@ const NotesBodyInner: React.FC<
       lastEditedAt: selectedNote.lastEditedAt,
       version: selectedNote.version,
     });
+    // eslint-disable-next-line react-hooks/refs -- seedDraft resets the baseline while adjusting state
     seedDraft(selectedNote);
   } else if (
     selectedNote &&
@@ -439,6 +448,7 @@ const NotesBodyInner: React.FC<
       lastEditedAt: selectedNote.lastEditedAt,
       version: selectedNote.version,
     });
+    // eslint-disable-next-line react-hooks/refs -- seedDraft resets the baseline while adjusting state
     seedDraft(selectedNote);
   }
 
@@ -465,6 +475,7 @@ const NotesBodyInner: React.FC<
   // render, no effect — same posture as `usePlcs`/`PlcContext`).
   const reloadRef = useRef(reloadCanonical);
 
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   reloadRef.current = reloadCanonical;
 
   const flushPendingSave = useCallback(() => {
@@ -790,22 +801,18 @@ const NotesBodyInner: React.FC<
   };
 
   const listEntries: NotesListEntry[] = [
-    ...notes.map(
-      (note): NotesListEntry => ({
-        type: 'note',
-        id: note.id,
-        at: note.lastEditedAt,
-        note,
-      })
-    ),
-    ...(unified ? docs : []).map(
-      (doc): NotesListEntry => ({
-        type: 'doc',
-        id: doc.id,
-        at: doc.updatedAt,
-        doc,
-      })
-    ),
+    ...notes.map((note): NotesListEntry => ({
+      type: 'note',
+      id: note.id,
+      at: note.lastEditedAt,
+      note,
+    })),
+    ...(unified ? docs : []).map((doc): NotesListEntry => ({
+      type: 'doc',
+      id: doc.id,
+      at: doc.updatedAt,
+      doc,
+    })),
   ].sort((a, b) => b.at - a.at);
 
   if (loading) {
@@ -1000,6 +1007,32 @@ const NotesBodyInner: React.FC<
   );
   const listOpen = !sidePanels || openPanel === 'list';
 
+  const newMenuItems = [
+    {
+      id: 'meeting',
+      icon: CalendarClock,
+      label: t('plcDashboard.notes.newMenu.meeting', {
+        defaultValue: 'Meeting note',
+      }),
+      run: () => void handleCreate('meeting'),
+    },
+    {
+      id: 'note',
+      icon: StickyNote,
+      label: t('plcDashboard.notes.newMenu.note', {
+        defaultValue: 'Blank note',
+      }),
+      run: () => void handleCreate('freeform'),
+    },
+    {
+      id: 'doc',
+      icon: FileText,
+      label: t('plcDashboard.notes.newMenu.googleDoc', {
+        defaultValue: 'Link a Google Doc',
+      }),
+      run: () => setAddDocOpen(true),
+    },
+  ] as const;
   const notesList = (
     <aside
       className={`flex flex-col overflow-hidden ${
@@ -1020,6 +1053,7 @@ const NotesBodyInner: React.FC<
         </h3>
         {sidePanels && (
           <button
+            {...tourAttr('plc-notes.header-show-actions')}
             type="button"
             onClick={() => setOpenPanel('actions')}
             aria-label={t('plcDashboard.notes.sidePanels.showActionItems', {
@@ -1036,6 +1070,7 @@ const NotesBodyInner: React.FC<
         {canEdit && !unified && (
           <div className="flex items-center gap-1">
             <button
+              {...tourFieldAttr('plc-notes.new-note', 'plc', 'meeting')}
               type="button"
               onClick={() => void handleCreate('meeting')}
               className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xxs font-bold uppercase tracking-wider rounded-md transition-colors"
@@ -1049,6 +1084,7 @@ const NotesBodyInner: React.FC<
               })}
             </button>
             <button
+              {...tourFieldAttr('plc-notes.new-note', 'plc', 'freeform')}
               type="button"
               onClick={() => void handleCreate('freeform')}
               className="inline-flex items-center gap-1 px-2 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xxs font-bold uppercase tracking-wider rounded-md transition-colors"
@@ -1061,6 +1097,7 @@ const NotesBodyInner: React.FC<
         {canEdit && unified && (
           <div ref={newMenuRef} className="relative">
             <button
+              {...tourAttr('plc-notes.new-menu')}
               type="button"
               onClick={() => setNewMenuOpen((v) => !v)}
               aria-haspopup="menu"
@@ -1076,35 +1113,10 @@ const NotesBodyInner: React.FC<
                 role="menu"
                 className="absolute right-0 top-full mt-1 z-20 w-48 py-1 bg-white border border-slate-200 rounded-xl shadow-lg"
               >
-                {(
-                  [
-                    {
-                      id: 'meeting',
-                      icon: CalendarClock,
-                      label: t('plcDashboard.notes.newMenu.meeting', {
-                        defaultValue: 'Meeting note',
-                      }),
-                      run: () => void handleCreate('meeting'),
-                    },
-                    {
-                      id: 'note',
-                      icon: StickyNote,
-                      label: t('plcDashboard.notes.newMenu.note', {
-                        defaultValue: 'Blank note',
-                      }),
-                      run: () => void handleCreate('freeform'),
-                    },
-                    {
-                      id: 'doc',
-                      icon: FileText,
-                      label: t('plcDashboard.notes.newMenu.googleDoc', {
-                        defaultValue: 'Link a Google Doc',
-                      }),
-                      run: () => setAddDocOpen(true),
-                    },
-                  ] as const
-                ).map(({ id, icon: Icon, label, run }) => (
+                {/* eslint-disable-next-line react-hooks/refs -- menu run() callbacks only fire on click */}
+                {newMenuItems.map(({ id, icon: Icon, label, run }) => (
                   <button
+                    {...tourFieldAttr('plc-notes.new-menu-item', 'plc', id)}
                     key={id}
                     type="button"
                     role="menuitem"
@@ -1142,6 +1154,7 @@ const NotesBodyInner: React.FC<
                 return (
                   <li key={`doc-${doc.id}`}>
                     <button
+                      {...tourFieldAttr('plc-notes.doc-select', 'plc', doc.id)}
                       type="button"
                       onClick={() => handleSelectDoc(doc.id)}
                       className={`w-full text-left px-3 py-2.5 border-b border-slate-100 transition-colors ${
@@ -1176,6 +1189,7 @@ const NotesBodyInner: React.FC<
               return (
                 <li key={note.id}>
                   <button
+                    {...tourFieldAttr('plc-notes.note-select', 'plc', note.id)}
                     type="button"
                     onClick={() => handleSelect(note.id)}
                     className={`w-full text-left px-3 py-2.5 border-b border-slate-100 transition-colors ${
@@ -1232,6 +1246,7 @@ const NotesBodyInner: React.FC<
 
   const noteOpenInDocs = selectedNote && canEdit && unified && (
     <button
+      {...tourAttr('plc-notes.open-in-docs')}
       type="button"
       disabled={noteGoogleDoc.creatingNoteId === selectedNote.id}
       onClick={() => void handleOpenInDocs(selectedNote)}
@@ -1272,6 +1287,7 @@ const NotesBodyInner: React.FC<
               {selectedDoc.title}
             </h3>
             <a
+              {...tourAttr('plc-notes.doc-link')}
               href={ensureProtocol(selectedDoc.url)}
               target="_blank"
               rel="noopener noreferrer"
@@ -1285,6 +1301,7 @@ const NotesBodyInner: React.FC<
             {sidePanels && <span className="flex-1" />}
             {canEdit && (
               <button
+                {...tourAttr('plc-notes.doc-delete')}
                 type="button"
                 onClick={() => void handleDeleteDoc(selectedDoc)}
                 className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
@@ -1326,6 +1343,7 @@ const NotesBodyInner: React.FC<
               </span>
             )}
             <input
+              {...tourAttr('plc-notes.title')}
               type="text"
               ref={titleFieldRef}
               value={editorTitle}
@@ -1355,6 +1373,7 @@ const NotesBodyInner: React.FC<
             {(!richEditor || !canEdit) && recordControl}
             {!richEditor && (
               <button
+                {...tourAttr('plc-notes.body-mode')}
                 type="button"
                 onClick={() =>
                   setBodyMode((m) => (m === 'edit' ? 'preview' : 'edit'))
@@ -1389,6 +1408,7 @@ const NotesBodyInner: React.FC<
             {!sidePanels && noteOpenInDocs}
             {canEdit && (
               <button
+                {...tourAttr('plc-notes.note-delete')}
                 type="button"
                 onClick={() => void handleDelete(selectedNote)}
                 className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
@@ -1416,6 +1436,7 @@ const NotesBodyInner: React.FC<
               />
             ) : bodyMode === 'edit' ? (
               <textarea
+                {...tourAttr('plc-notes.body')}
                 ref={bodyFieldRef}
                 value={editorBody}
                 readOnly={editorReadOnly}
@@ -1492,6 +1513,11 @@ const NotesBodyInner: React.FC<
           {canEdit ? (
             <div className="mt-3 flex items-center gap-2">
               <button
+                {...tourFieldAttr(
+                  'plc-notes.new-note',
+                  'plc',
+                  'freeform-empty'
+                )}
                 type="button"
                 onClick={() => void handleCreate('freeform')}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xxs font-bold uppercase tracking-wider rounded-lg transition-colors"
@@ -1502,6 +1528,7 @@ const NotesBodyInner: React.FC<
                 })}
               </button>
               <button
+                {...tourFieldAttr('plc-notes.new-note', 'plc', 'meeting-empty')}
                 type="button"
                 onClick={() => void handleCreate('meeting')}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xxs font-bold uppercase tracking-wider rounded-lg transition-colors"

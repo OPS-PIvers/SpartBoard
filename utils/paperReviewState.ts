@@ -48,16 +48,14 @@ const expandSheet = (sheet: PaperPendingSheet): AssembledSheet => ({
   seat: sheet.seat,
   kind: sheet.kind,
   student: sheet.student,
-  answers: sheet.answers.map(
-    (a): SheetAnswer => ({
-      question: a.question,
-      choice: a.choice,
-      ...(a.doubt ? { doubt: a.doubt } : {}),
-      fills: [],
-      crop: NO_CROP,
-      scanIndex: -1,
-    })
-  ),
+  answers: sheet.answers.map((a): SheetAnswer => ({
+    question: a.question,
+    choice: a.choice,
+    ...(a.doubt ? { doubt: a.doubt } : {}),
+    fills: [],
+    crop: NO_CROP,
+    scanIndex: -1,
+  })),
   pagesSeen: sheet.pagesSeen,
   missingPages: sheet.missingPages,
   isBlank: sheet.isBlank,

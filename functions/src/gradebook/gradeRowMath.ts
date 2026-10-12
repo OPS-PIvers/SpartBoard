@@ -212,6 +212,7 @@ export function assembleRow(input: AssembleInput): IndexRow {
     targetEvidence: score.targetEvidence,
     published: score.published,
     assigned: input.assigned,
+    ...(score.gradedBy ? { gradedBy: score.gradedBy } : {}),
     schemaVersion: GRADE_INDEX_SCHEMA_VERSION,
     updatedAt: input.now,
   };
@@ -681,6 +682,35 @@ export function scoreCompletion(
     state: submittedAt !== null ? 'scored' : 'not-attempted',
     submittedAt,
     attemptNumber: null,
+  };
+}
+
+/** Mini App results v2: the best attempt's score, or null when it has none (D13). */
+export function scoreMiniAppBest(
+  submission: Doc,
+  classId: string | null
+): RowScore | null {
+  const best = asRecord(submission.best);
+  const { score, maxScore } = best;
+  if (
+    typeof score !== 'number' ||
+    typeof maxScore !== 'number' ||
+    !Number.isFinite(score) ||
+    !Number.isFinite(maxScore) ||
+    maxScore <= 0
+  )
+    return null;
+  return {
+    classId,
+    published: true,
+    targetEvidence: [],
+    rawPct: round2((score / maxScore) * 100),
+    points: score,
+    max: maxScore,
+    state: 'scored',
+    submittedAt: toMillis(submission.submittedAt),
+    attemptNumber: null,
+    gradedBy: best.gradedBy === 'app' ? 'app' : 'server',
   };
 }
 

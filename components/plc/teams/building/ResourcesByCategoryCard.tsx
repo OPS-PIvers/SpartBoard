@@ -12,6 +12,7 @@ import {
   useResourceCategories,
   type ResourceCategory,
 } from './resourceCategories';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export const ResourcesByCategoryView: React.FC<{
   categories: ResourceCategory[];
@@ -19,7 +20,9 @@ export const ResourcesByCategoryView: React.FC<{
 }> = ({ categories, onAll }) => (
   <>
     <SectionHead title="Resources">
-      <TextLink onClick={onAll}>All resources</TextLink>
+      <TextLink onClick={onAll} {...tourAttr('teams.building.all-resources')}>
+        All resources
+      </TextLink>
     </SectionHead>
     {categories.length === 0 ? (
       <p className={`${META} py-2`}>No Resources Yet</p>
@@ -35,6 +38,11 @@ export const ResourcesByCategoryView: React.FC<{
                 <li key={item.id} className="py-2">
                   <TextLink
                     className="max-w-full text-left text-sm"
+                    {...tourFieldAttr(
+                      'teams.building.resource',
+                      'teams-building',
+                      item.id
+                    )}
                     onClick={() =>
                       item.url
                         ? window.open(item.url, '_blank', 'noopener,noreferrer')

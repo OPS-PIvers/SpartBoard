@@ -79,6 +79,7 @@ export const RecordingSession: React.FC<RecordingSessionProps> = ({
   const rosters = dashboard?.rosters ?? [];
   const unloaded = rosters.filter((r) => r.loadError).length;
   const boardRef = useRef<WidgetData[]>([]);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   boardRef.current = dashboard?.activeDashboard?.widgets ?? [];
   const snapshot = () => boardLayoutOf(boardRef.current);
 

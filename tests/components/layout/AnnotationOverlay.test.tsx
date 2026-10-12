@@ -5,10 +5,7 @@ import { AnnotationOverlay } from '@/components/layout/AnnotationOverlay';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { toPng } from 'html-to-image';
-import type {
-  AnnotationState,
-  DashboardContextValue,
-} from '@/context/DashboardContextValue';
+import type { AnnotationState } from '@/context/DashboardContextValue';
 import type { DrawableObject, TextObject } from '@/types';
 import { getAnnotationWorldRect } from '@/utils/annotationSize';
 import { ZOOM_MIN } from '@/utils/zoomMapping';
@@ -58,9 +55,9 @@ const {
   defaultGetLocalTimestampForFilename,
 } = vi.hoisted(() => ({
   mockGetLocalIsoDate: vi.fn<() => string>(),
-  defaultGetLocalIsoDate: { current: (() => '') as () => string },
+  defaultGetLocalIsoDate: { current: (): string => '' },
   mockGetLocalTimestampForFilename: vi.fn<() => string>(),
-  defaultGetLocalTimestampForFilename: { current: (() => '') as () => string },
+  defaultGetLocalTimestampForFilename: { current: (): string => '' },
 }));
 
 vi.mock('@/utils/localDate', async (importOriginal) => {
@@ -170,7 +167,7 @@ const setupContext = (overrides: ContextOverrides = {}) => {
     addToast,
     zoom: overrides.zoom ?? 1,
     reportAnnotationCanvasSize: overrides.reportAnnotationCanvasSize ?? vi.fn(),
-  } as unknown as DashboardContextValue);
+  });
 
   (useAuth as Mock).mockReturnValue({
     canAccessFeature: () => false,
@@ -279,7 +276,7 @@ describe('AnnotationOverlay', () => {
       x: 0,
       y: 0,
       toJSON: () => ({}),
-    } as DOMRect);
+    });
 
     render(<AnnotationOverlay />);
     // The overlay portals into `#dashboard-root`, so the canvas lives in
@@ -349,7 +346,7 @@ describe('AnnotationOverlay', () => {
       x: 0,
       y: 0,
       toJSON: () => ({}),
-    } as DOMRect);
+    });
 
     render(<AnnotationOverlay />);
     const canvas = document.querySelector('canvas');
@@ -404,7 +401,7 @@ describe('AnnotationOverlay', () => {
       x: 0,
       y: 0,
       toJSON: () => ({}),
-    } as DOMRect);
+    });
 
     render(<AnnotationOverlay />);
     const canvas = document.querySelector('canvas');
@@ -475,7 +472,7 @@ describe('AnnotationOverlay', () => {
     mockGetLocalTimestampForFilename.mockReturnValue('2026-03-05T20-15-30');
     global.fetch = vi.fn().mockResolvedValue({
       blob: () => Promise.resolve(new Blob(['x'])),
-    } as unknown as Response);
+    });
 
     const { getByTitle } = render(<AnnotationOverlay />);
     fireEvent.click(getByTitle('Save to Google Drive'));
@@ -727,18 +724,17 @@ describe('AnnotationOverlay — persistence + layout', () => {
     });
     const VIEWPORT_W = 1024;
     const VIEWPORT_H = 768;
-    const rectAt = (left: number): DOMRect =>
-      ({
-        left,
-        top: 0,
-        width: VIEWPORT_W,
-        height: VIEWPORT_H,
-        right: left + VIEWPORT_W,
-        bottom: VIEWPORT_H,
-        x: left,
-        y: 0,
-        toJSON: () => ({}),
-      }) as DOMRect;
+    const rectAt = (left: number): DOMRect => ({
+      left,
+      top: 0,
+      width: VIEWPORT_W,
+      height: VIEWPORT_H,
+      right: left + VIEWPORT_W,
+      bottom: VIEWPORT_H,
+      x: left,
+      y: 0,
+      toJSON: () => ({}),
+    });
     const rectSpy = vi
       .spyOn(HTMLCanvasElement.prototype, 'getBoundingClientRect')
       .mockReturnValue(rectAt(0));

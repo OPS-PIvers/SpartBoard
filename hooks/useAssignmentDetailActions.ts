@@ -50,6 +50,7 @@ import {
   buildSetAssignmentTargetsPayload,
   expandClassTargeting,
   payloadRequiresCall,
+  hasStudentPointers,
   studentTargetRefKey,
   type AssignTargetingValue,
   type ClassTargetingContext,
@@ -142,9 +143,10 @@ export function useAssignmentDetailActions(): UseAssignmentDetailActionsResult {
 
       // A window edit must still reach the pointer docs this assignment
       // already fanned out, or "Close now" never reaches accommodated students.
-      const hasExistingPointers =
-        (previous.targetStudents?.length ?? 0) > 0 ||
-        (previous.excludedStudents?.length ?? 0) > 0;
+      const hasExistingPointers = hasStudentPointers({
+        targetStudents: previous.targetStudents,
+        excludedTargets: previous.excludedStudents,
+      });
       const callCf = payloadRequiresCall(payload, hasExistingPointers);
 
       let skipped: SaveAssignmentEditResult['skipped'] = [];

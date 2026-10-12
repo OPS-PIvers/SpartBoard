@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import * as Icons from 'lucide-react';
 import { COMMON_INSTRUCTIONAL_ICONS } from '@/config/instructionalIcons';
 import { getRoutineColorClasses } from './colorHelpers';
@@ -8,7 +9,8 @@ export const IconPicker: React.FC<{
   currentIcon: string;
   onSelect: (icon: string) => void;
   color?: string;
-}> = ({ currentIcon, onSelect, color = 'blue' }) => {
+  anchor?: TourAnchorAttrs;
+}> = ({ currentIcon, onSelect, color = 'blue', anchor }) => {
   const [isOpen, setIsOpen] = useState(false);
   const colorClasses = getRoutineColorClasses(color);
 
@@ -18,6 +20,7 @@ export const IconPicker: React.FC<{
         onClick={() => setIsOpen(!isOpen)}
         className={`p-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-all flex items-center justify-center ${colorClasses.text} ${colorClasses.bg}`}
         title="Select Icon"
+        {...anchor}
       >
         {(Icons as unknown as Record<string, React.ElementType>)[
           currentIcon

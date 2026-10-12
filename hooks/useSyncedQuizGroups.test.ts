@@ -73,7 +73,7 @@ function makeSnap(path: string) {
   return {
     exists: () => data !== undefined,
     data: () => data,
-    ref: { path, id: path.split('/').pop() ?? '' } as FakeRef,
+    ref: { path, id: path.split('/').pop() ?? '' },
   };
 }
 
@@ -84,7 +84,7 @@ beforeEach(() => {
   const doc = firestore.doc as unknown as ReturnType<typeof vi.fn>;
   doc.mockImplementation((_db: unknown, ...segments: string[]) => {
     const path = segments.join('/');
-    return { path, id: segments[segments.length - 1] } as FakeRef;
+    return { path, id: segments[segments.length - 1] };
   });
 
   const collection = firestore.collection as unknown as ReturnType<
@@ -92,7 +92,7 @@ beforeEach(() => {
   >;
   collection.mockImplementation((_db: unknown, ...segments: string[]) => {
     const path = segments.join('/');
-    return { path, id: segments[segments.length - 1] } as FakeRef;
+    return { path, id: segments[segments.length - 1] };
   });
 
   // query/orderBy just thread the collection ref through with the requested
@@ -128,7 +128,7 @@ beforeEach(() => {
         .filter(([path]) => !path.slice(prefix.length).includes('/'))
         .map(([path, data]) => ({
           id: path.split('/').pop() ?? '',
-          ref: { path, id: path.split('/').pop() ?? '' } as FakeRef,
+          ref: { path, id: path.split('/').pop() ?? '' },
           data: () => data,
           exists: () => true,
         }));

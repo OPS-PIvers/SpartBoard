@@ -2,6 +2,7 @@ import React, { RefObject, useEffect, useMemo, useRef } from 'react';
 import { EyeOff } from 'lucide-react';
 import { NotebookSection } from '@/types';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface PageJumpMenuProps {
   pageUrls: string[];
@@ -105,6 +106,11 @@ export const PageJumpMenu: React.FC<PageJumpMenuProps> = ({
                 <button
                   key={page}
                   data-current={isCurrent}
+                  {...tourFieldAttr(
+                    'smart-notebook.page-thumb',
+                    'smartNotebook',
+                    String(page + 1)
+                  )}
                   onClick={() => {
                     onSelect(page);
                     onClose();

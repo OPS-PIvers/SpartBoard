@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createFakeBucket, createFakeDb } from './glMediaTestFakes';
 
-const state = vi.hoisted(() => ({
-  db: null as unknown,
-  bucket: null as unknown,
+const state = vi.hoisted((): { db: unknown; bucket: unknown } => ({
+  db: null,
+  bucket: null,
 }));
 
 vi.mock('firebase-admin', () => ({

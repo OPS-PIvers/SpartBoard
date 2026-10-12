@@ -1,6 +1,7 @@
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { useId } from 'react';
 import { Info } from 'lucide-react';
-import type { GuidedLearningGlobalConfig, TourAutopilotPolicy } from '@/types';
+import type { TourAutopilotPolicy } from '@/types';
 import { resolveTourAutopilotPolicy } from '@/components/tours/tourSession';
 
 interface GuidedLearningConfigurationPanelProps {
@@ -46,12 +47,16 @@ export const GuidedLearningConfigurationPanel: React.FC<
         </label>
         <select
           id={selectId}
+          {...tourFieldAttr(
+            'admin.widget-config.field',
+            'guided-learning',
+            'tourAutopilotPolicy'
+          )}
           value={policy}
           onChange={(e) =>
             onChange({
               ...config,
-              tourAutopilotPolicy: e.target
-                .value as GuidedLearningGlobalConfig['tourAutopilotPolicy'],
+              tourAutopilotPolicy: e.target.value,
             })
           }
           className="w-full px-3 py-2 border border-slate-200 bg-white rounded-xl text-sm focus:ring-2 focus:ring-brand-blue-primary focus:outline-none"

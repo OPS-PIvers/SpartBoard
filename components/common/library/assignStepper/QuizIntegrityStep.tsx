@@ -19,6 +19,7 @@ import {
   StepSubRows,
   StepToggleRow,
 } from './QuizStepRows';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 /** "Quiz integrity": focus mode with its sub-settings, block copy and paste (D8). */
 export const QuizIntegrityStep: React.FC<QuizRuleStepProps> = ({
@@ -40,6 +41,7 @@ export const QuizIntegrityStep: React.FC<QuizRuleStepProps> = ({
     <div className="space-y-1.5">
       <StepToggleRow
         label="Focus mode"
+        anchor={tourFieldAttr('assign-rule.toggle', 'assign', 'focus-mode')}
         checked={focus}
         onChange={(tabWarningsEnabled) => patch({ tabWarningsEnabled })}
       />
@@ -48,6 +50,11 @@ export const QuizIntegrityStep: React.FC<QuizRuleStepProps> = ({
           <StepToggleRow
             sub
             label="Auto-submit after repeated tab switches"
+            anchor={tourFieldAttr(
+              'assign-rule.toggle',
+              'assign',
+              'tab-switch-auto-submit'
+            )}
             checked={threshold !== 'off'}
             onChange={(on) =>
               patch({
@@ -63,6 +70,11 @@ export const QuizIntegrityStep: React.FC<QuizRuleStepProps> = ({
                 max={TAB_WARNING_THRESHOLD_MAX}
                 widthClass="w-14"
                 ariaLabel="Warnings before auto-submit"
+                anchor={tourFieldAttr(
+                  'assign-rule.number',
+                  'assign',
+                  'tab-switch-threshold'
+                )}
                 onCommit={(tabWarningThreshold) =>
                   patch({ tabWarningThreshold })
                 }
@@ -73,6 +85,11 @@ export const QuizIntegrityStep: React.FC<QuizRuleStepProps> = ({
             <StepToggleRow
               sub
               label="Auto-submit if away too long"
+              anchor={tourFieldAttr(
+                'assign-rule.toggle',
+                'assign',
+                'away-auto-submit'
+              )}
               checked={awayOn}
               onChange={(tabAwayAutoSubmit) =>
                 patch({ tabAwayAutoSubmit, tabAwayLimitSeconds: awaySeconds })
@@ -84,6 +101,11 @@ export const QuizIntegrityStep: React.FC<QuizRuleStepProps> = ({
                     min={TAB_AWAY_LIMIT_MIN_SECONDS}
                     max={TAB_AWAY_LIMIT_MAX_SECONDS}
                     ariaLabel="Seconds away before auto-submit"
+                    anchor={tourFieldAttr(
+                      'assign-rule.number',
+                      'assign',
+                      'away-seconds'
+                    )}
                     unit="sec"
                     onCommit={(tabAwayLimitSeconds) =>
                       patch({ tabAwayAutoSubmit: true, tabAwayLimitSeconds })
@@ -97,6 +119,11 @@ export const QuizIntegrityStep: React.FC<QuizRuleStepProps> = ({
       )}
       <StepToggleRow
         label="Block copy and paste"
+        anchor={tourFieldAttr(
+          'assign-rule.toggle',
+          'assign',
+          'block-copy-paste'
+        )}
         checked={o.blockCopyPaste ?? false}
         onChange={(blockCopyPaste) => patch({ blockCopyPaste })}
       />

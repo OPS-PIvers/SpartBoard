@@ -11,6 +11,7 @@ import { MessageSquarePlus, X } from 'lucide-react';
 import { Rubric, RubricCriterion, RubricLevel } from '@/types';
 import type { WrittenAnswerRubricScore } from '@/types';
 import { rubricMaxPoints, sumRubricScorePoints } from '@/utils/rubricPoints';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface RubricScoringPanelProps {
   rubric: Rubric;
@@ -185,6 +186,11 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
                   <button
                     type="button"
                     onClick={() => onJumpToTagged(criterion.id)}
+                    {...tourFieldAttr(
+                      'quiz-grading.rubric-jump-tagged',
+                      'quiz',
+                      criterion.id
+                    )}
                     // Opens with the visible count so voice control can match it.
                     aria-label={`${countLabel}${t(
                       'quizMediaResponse.grading.rubricTags.jumpToSuffix',
@@ -199,6 +205,11 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
                   <button
                     type="button"
                     onClick={() => toggleNote(criterion.id)}
+                    {...tourFieldAttr(
+                      'quiz-grading.rubric-note-toggle',
+                      'quiz',
+                      criterion.id
+                    )}
                     aria-expanded={noteOpen}
                     aria-label={`${noteOpen ? 'Hide' : 'Add'} note for ${criterion.name}`}
                     title={`${noteOpen ? 'Hide' : 'Add'} note`}
@@ -231,6 +242,11 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
                         value={level.id}
                         checked={isSelected}
                         onChange={() => selectLevel(criterion, level)}
+                        {...tourFieldAttr(
+                          'quiz-grading.rubric-level',
+                          'quiz',
+                          `${criterion.id}-${level.id}`
+                        )}
                         className="mt-0.5 accent-emerald-600"
                       />
                       <span className="min-w-0 flex-1">
@@ -256,6 +272,11 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
               {selected && noteOpen && (
                 <textarea
                   aria-label={`Note for ${criterion.name}`}
+                  {...tourFieldAttr(
+                    'quiz-grading.rubric-note',
+                    'quiz',
+                    criterion.id
+                  )}
                   value={noteDrafts[criterion.id] ?? selected.note ?? ''}
                   onChange={(e) => setNote(criterion.id, e.target.value)}
                   rows={2}

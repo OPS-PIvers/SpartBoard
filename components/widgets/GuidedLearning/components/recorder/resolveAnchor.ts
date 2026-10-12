@@ -1,5 +1,6 @@
 import type { GuidedLearningTourBinding, WidgetType } from '@/types';
 import { accessibleName, roleOf } from '@/components/tours/resolveTourAnchor';
+import { untaggedControlOf } from '@/components/tours/popups';
 import type {
   TourAnchorAncestor,
   UnmappedAnchorContext,
@@ -45,7 +46,9 @@ const fallbackOf = (el: Element): RecordedAnchor['fallback'] => {
 export function resolveRecordedAnchor(target: Element): RecordedAnchor | null {
   if (target.closest('[data-tour-ignore]')) return null;
   const tagged = target.closest<HTMLElement>(TAGGED);
-  if (tagged) {
+  // A menu item inside its opener's tag, or a control inside a whole widget, is its own step.
+  const control = tagged ? untaggedControlOf(target, tagged) : null;
+  if (tagged && !control) {
     const id = tagged.getAttribute('data-tour') ?? '';
     const type = tagged.getAttribute('data-tour-widget-type');
     const field = tagged.getAttribute('data-tour-field');
@@ -57,6 +60,7 @@ export function resolveRecordedAnchor(target: Element): RecordedAnchor | null {
     };
   }
   const element =
+    control ??
     target.closest<HTMLElement>(INTERACTIVE) ??
     (target instanceof HTMLElement ? target : null);
   if (!element) return null;

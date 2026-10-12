@@ -25,6 +25,7 @@ import { createPortal } from 'react-dom';
 import { Folder as FolderIcon, Check, Inbox } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
 import type { LibraryFolder } from '@/types';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 
 export interface FolderPickerPopoverProps {
@@ -51,6 +52,8 @@ export interface FolderPickerPopoverProps {
    * Required for `'popover'`, ignored for `'dialog'`.
    */
   anchorRef?: RefObject<HTMLElement | null>;
+  rootAnchor?: TourAnchorAttrs;
+  rowAnchor?: (folderId: string) => TourAnchorAttrs;
 }
 
 interface FlatNode {
@@ -114,6 +117,8 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
   title = 'Move to folder',
   variant = 'popover',
   anchorRef,
+  rootAnchor,
+  rowAnchor,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const headerId = useId();
@@ -191,6 +196,7 @@ export const FolderPickerPopover: React.FC<FolderPickerPopoverProps> = ({
     const selected = selectedFolderId === id;
     return (
       <button
+        {...(id === null ? rootAnchor : rowAnchor?.(id))}
         key={id ?? 'root'}
         type="button"
         onClick={() => {

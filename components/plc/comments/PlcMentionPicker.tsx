@@ -17,6 +17,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { MentionCandidate } from './mentionUtils';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcMentionPickerProps {
   candidates: MentionCandidate[];
@@ -62,6 +63,7 @@ export const PlcMentionPicker: React.FC<PlcMentionPickerProps> = ({
         return (
           <li key={candidate.uid} role="presentation">
             <button
+              {...tourFieldAttr('plc-comments.mention', 'plc', candidate.uid)}
               type="button"
               id={`${idPrefix}-opt-${index}`}
               role="option"

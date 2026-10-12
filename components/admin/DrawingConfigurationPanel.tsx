@@ -10,6 +10,7 @@ import { DrawingGlobalConfig, BuildingDrawingDefaults } from '@/types';
 import { WIDGET_PALETTE } from '@/config/colors';
 import { Pencil, Palette } from 'lucide-react';
 import { Card } from '@/components/common/Card';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface DrawingConfigurationPanelProps {
   config: DrawingGlobalConfig;
@@ -91,6 +92,11 @@ export const DrawingConfigurationPanel: React.FC<
           <div className="flex items-center gap-4 px-2">
             <input
               type="range"
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'drawing',
+                'width'
+              )}
               min="1"
               max="20"
               step="1"
@@ -121,6 +127,11 @@ export const DrawingConfigurationPanel: React.FC<
               >
                 <input
                   type="color"
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'drawing',
+                    `color-${i}`
+                  )}
                   value={c}
                   onChange={(e) => handleColorChange(i, e.target.value)}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"

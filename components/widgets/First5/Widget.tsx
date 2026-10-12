@@ -3,6 +3,7 @@ import { WidgetData } from '@/types';
 import { ExternalLink, Loader2, Sparkles } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
+import { tourAttr } from '@/config/tourAnchors';
 import { useFirst5Url } from './hooks/useFirst5Url';
 
 export const First5Widget: React.FC<{ widget: WidgetData }> = ({
@@ -50,6 +51,7 @@ export const First5Widget: React.FC<{ widget: WidgetData }> = ({
       content={
         <div className="w-full h-full relative group/first5-content">
           <a
+            {...tourAttr('first5.open-link', _widget.id, _widget.type)}
             href={url}
             target="_blank"
             rel="noopener noreferrer"

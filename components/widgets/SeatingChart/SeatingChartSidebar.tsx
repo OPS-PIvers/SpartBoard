@@ -6,6 +6,7 @@ import {
   WidgetData,
 } from '@/types';
 import { RefreshCw, Trash2, UserPlus } from 'lucide-react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   TEMPLATES,
   FURNITURE_TYPES,
@@ -62,6 +63,7 @@ export const SeatingChartSidebar: React.FC<SeatingChartSidebarProps> = ({
               {TEMPLATES.map((t) => (
                 <button
                   key={t.id}
+                  {...tourFieldAttr('seating.template', 'seating-chart', t.id)}
                   onClick={() =>
                     updateWidget(widgetId, {
                       config: { ...config, template: t.id },
@@ -88,6 +90,11 @@ export const SeatingChartSidebar: React.FC<SeatingChartSidebarProps> = ({
                 </label>
                 <input
                   type="number"
+                  {...tourAttr(
+                    'seating.template-columns',
+                    widgetId,
+                    'seating-chart'
+                  )}
                   min="1"
                   max="20"
                   value={localTemplateColumns}
@@ -130,6 +137,7 @@ export const SeatingChartSidebar: React.FC<SeatingChartSidebarProps> = ({
 
             {/* Apply button */}
             <button
+              {...tourAttr('seating.apply-layout', widgetId, 'seating-chart')}
               onClick={applyTemplate}
               disabled={
                 template === 'freeform' ||
@@ -160,6 +168,11 @@ export const SeatingChartSidebar: React.FC<SeatingChartSidebarProps> = ({
               {FURNITURE_TYPES.map((t) => (
                 <button
                   key={t.type}
+                  {...tourFieldAttr(
+                    'seating.add-furniture',
+                    'seating-chart',
+                    t.type
+                  )}
                   onClick={() => addFurniture(t.type)}
                   className="flex flex-col items-center justify-center gap-1 p-2 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-300 rounded-lg transition-colors aspect-square shadow-sm"
                 >
@@ -175,6 +188,7 @@ export const SeatingChartSidebar: React.FC<SeatingChartSidebarProps> = ({
           {/* Reset */}
           <div className="mt-auto p-3">
             <button
+              {...tourAttr('seating.reset-canvas', widgetId, 'seating-chart')}
               onClick={clearAllFurniture}
               className="w-full flex items-center justify-center gap-2 p-2 bg-red-500/10 hover:bg-red-500/20 text-red-600 border border-red-500/20 rounded-lg transition-colors text-xxs font-black uppercase tracking-wider"
             >
@@ -192,6 +206,7 @@ export const SeatingChartSidebar: React.FC<SeatingChartSidebarProps> = ({
           </div>
           <div className="p-2 border-b border-slate-200">
             <button
+              {...tourAttr('seating.add-all-random', widgetId, 'seating-chart')}
               onClick={addAllRandomly}
               className="w-full flex items-center justify-center gap-2 p-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200 rounded-lg transition-colors text-xxs font-black uppercase tracking-wider"
             >
@@ -212,6 +227,11 @@ export const SeatingChartSidebar: React.FC<SeatingChartSidebarProps> = ({
                   onDragStart={(e) =>
                     e.dataTransfer.setData('studentId', student.id)
                   }
+                  {...tourAttr(
+                    'seating.unseated-student',
+                    widgetId,
+                    'seating-chart'
+                  )}
                   onClick={() => handleStudentClick(student.id)}
                   className={`p-2 bg-white border ${selectedStudent === student.id ? 'border-indigo-500 ring-2 ring-indigo-200' : 'border-slate-200'} rounded-lg shadow-sm text-xs font-black text-slate-700 cursor-grab active:cursor-grabbing hover:border-indigo-300 transition-all`}
                   title="Drag or Click to assign"

@@ -470,6 +470,7 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
             onSave={() => styleDefaults.onSave(styleDefaultsState.toSave)}
             onReset={() => updateConfig(styleDefaultsState.resetPatch)}
             t={t}
+            widget={widget}
           />
         )}
       </div>
@@ -551,6 +552,7 @@ const SettingsDrawerComponent: React.FC<SettingsDrawerProps> = ({
               type="button"
               onClick={() => setQueryAndTab('')}
               aria-label={t('widgetSettings.common.clearFilter')}
+              {...tourAttr('settings.clear-filter', widget.id, widget.type)}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-600 hover:text-slate-800"
             >
               <X className="w-3.5 h-3.5" />

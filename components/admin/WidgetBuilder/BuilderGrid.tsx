@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import {
   CustomGridDefinition,
   CustomGridCell,
@@ -208,6 +209,7 @@ export const BuilderGrid: React.FC<BuilderGridProps> = ({
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-400 font-medium">Columns</span>
           <button
+            {...tourAttr('admin.widget-builder.grid-columns-less')}
             type="button"
             onClick={() => handleColumnChange(-1)}
             disabled={columns <= 1}
@@ -219,6 +221,7 @@ export const BuilderGrid: React.FC<BuilderGridProps> = ({
             {columns}
           </span>
           <button
+            {...tourAttr('admin.widget-builder.grid-columns-more')}
             type="button"
             onClick={() => handleColumnChange(1)}
             disabled={columns >= 4}
@@ -232,6 +235,7 @@ export const BuilderGrid: React.FC<BuilderGridProps> = ({
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-400 font-medium">Rows</span>
           <button
+            {...tourAttr('admin.widget-builder.grid-rows-less')}
             type="button"
             onClick={() => handleRowChange(-1)}
             disabled={rows <= 1}
@@ -243,6 +247,7 @@ export const BuilderGrid: React.FC<BuilderGridProps> = ({
             {rows}
           </span>
           <button
+            {...tourAttr('admin.widget-builder.grid-rows-more')}
             type="button"
             onClick={() => handleRowChange(1)}
             disabled={rows >= 8}
@@ -255,6 +260,7 @@ export const BuilderGrid: React.FC<BuilderGridProps> = ({
         {/* Merge / Split */}
         <div className="flex items-center gap-2 ml-auto">
           <button
+            {...tourAttr('admin.widget-builder.grid-merge')}
             type="button"
             onClick={handleMerge}
             disabled={!canMerge()}
@@ -263,6 +269,7 @@ export const BuilderGrid: React.FC<BuilderGridProps> = ({
             Merge Selected
           </button>
           <button
+            {...tourAttr('admin.widget-builder.grid-split')}
             type="button"
             onClick={handleSplit}
             disabled={!isMergedSelected}

@@ -37,6 +37,7 @@ import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { useDashboard } from '@/context/useDashboard';
 import { createBoardSnapshot } from '@/utils/widgetHelpers';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { Modal } from '@/components/common/Modal';
 import { useDialog } from '@/context/useDialog';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
@@ -219,6 +220,11 @@ const SnapZonePicker: React.FC<SnapZonePickerProps> = ({
                   <button
                     key={zone.id}
                     type="button"
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'starter-pack',
+                      `snapZone-${layout.id}-${zone.id}`
+                    )}
                     onClick={() => {
                       const bounds = calculateSnapBounds(zone);
                       onSelect(key, bounds);
@@ -305,7 +311,8 @@ export const StarterPackConfigurationModal: React.FC<
 
   useEffect(() => {
     if (isOpen && permission?.config) {
-      setGlobalConfig(permission.config as unknown as StarterPackGlobalConfig);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- state synced from an external system or reset on open
+      setGlobalConfig(permission.config);
     }
   }, [isOpen, permission?.config]);
 
@@ -465,7 +472,7 @@ export const StarterPackConfigurationModal: React.FC<
       color: pack.color,
       gradeLevels: [...pack.gradeLevels],
       isLocked: pack.isLocked,
-      widgets: pack.widgets as PackWidgetEntry[],
+      widgets: pack.widgets,
     });
     resetSnapState();
     setView('editor');
@@ -553,6 +560,11 @@ export const StarterPackConfigurationModal: React.FC<
         {view === 'editor' && (
           <button
             onClick={() => void handleBack()}
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'starter-pack',
+              'back'
+            )}
             className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors text-slate-500"
           >
             <ChevronLeft className="w-5 h-5" />
@@ -578,6 +590,7 @@ export const StarterPackConfigurationModal: React.FC<
       </div>
       <button
         onClick={onClose}
+        {...tourTypeAttr('admin.widget-config.close', 'starter-pack')}
         className="p-2 hover:bg-slate-100 rounded-xl transition-colors text-slate-400 hover:text-slate-600"
       >
         <X className="w-5 h-5" />
@@ -590,12 +603,18 @@ export const StarterPackConfigurationModal: React.FC<
       <div className="flex items-center justify-between w-full">
         <button
           onClick={() => void handleBack()}
+          {...tourFieldAttr(
+            'admin.widget-config.field',
+            'starter-pack',
+            'cancel'
+          )}
           className="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-xl font-semibold transition-colors text-sm"
         >
           Cancel
         </button>
         <button
           onClick={() => void handleSave()}
+          {...tourTypeAttr('admin.widget-config.save', 'starter-pack')}
           disabled={saving || !formData.name.trim() || isAuthBypass}
           className="flex items-center gap-2 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold rounded-xl transition-colors"
         >
@@ -633,6 +652,11 @@ export const StarterPackConfigurationModal: React.FC<
               />
               <div className="flex justify-end border-t border-slate-50 pt-3">
                 <button
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'starter-pack',
+                    'saveDockDefaults'
+                  )}
                   onClick={() => {
                     onSave({
                       config: globalConfig as unknown as Record<
@@ -659,6 +683,7 @@ export const StarterPackConfigurationModal: React.FC<
             </p>
             <button
               onClick={handleNewPack}
+              {...tourTypeAttr('admin.widget-config.add', 'starter-pack')}
               className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors"
             >
               <Plus className="w-4 h-4" />
@@ -680,6 +705,11 @@ export const StarterPackConfigurationModal: React.FC<
               </p>
               <button
                 onClick={handleNewPack}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'starter-pack',
+                  'addFirstPack'
+                )}
                 className="mt-2 flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors"
               >
                 <Plus className="w-4 h-4" />
@@ -742,6 +772,11 @@ export const StarterPackConfigurationModal: React.FC<
                     <div className="flex items-center gap-1 shrink-0">
                       <button
                         onClick={() => handleEdit(pack)}
+                        {...tourFieldAttr(
+                          'admin.widget-config.field',
+                          'starter-pack',
+                          `edit-${pack.id}`
+                        )}
                         className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
                         title="Edit pack"
                       >
@@ -749,6 +784,11 @@ export const StarterPackConfigurationModal: React.FC<
                       </button>
                       <button
                         onClick={() => void handleDelete(pack.id)}
+                        {...tourFieldAttr(
+                          'admin.widget-config.field',
+                          'starter-pack',
+                          `remove-${pack.id}`
+                        )}
                         className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                         title="Delete pack"
                       >
@@ -777,6 +817,11 @@ export const StarterPackConfigurationModal: React.FC<
                 </label>
                 <input
                   type="text"
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'starter-pack',
+                    'name'
+                  )}
                   value={formData.name}
                   onChange={(e) =>
                     setFormData((p) => ({ ...p, name: e.target.value }))
@@ -792,6 +837,11 @@ export const StarterPackConfigurationModal: React.FC<
                 </label>
                 <input
                   type="text"
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'starter-pack',
+                    'description'
+                  )}
                   value={formData.description}
                   onChange={(e) =>
                     setFormData((p) => ({
@@ -816,6 +866,11 @@ export const StarterPackConfigurationModal: React.FC<
                   <button
                     type="button"
                     onClick={() => setShowIconPicker(!showIconPicker)}
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'starter-pack',
+                      'iconPicker'
+                    )}
                     className="flex items-center gap-3 px-3 py-2 border-2 border-slate-200 rounded-xl hover:border-indigo-500 transition-colors bg-white w-full sm:w-auto"
                   >
                     <div
@@ -845,6 +900,11 @@ export const StarterPackConfigurationModal: React.FC<
                             <button
                               key={name}
                               type="button"
+                              {...tourFieldAttr(
+                                'admin.widget-config.field',
+                                'starter-pack',
+                                `icon-${name}`
+                              )}
                               onClick={() => {
                                 setFormData((p) => ({ ...p, icon: name }));
                                 setShowIconPicker(false);
@@ -876,6 +936,11 @@ export const StarterPackConfigurationModal: React.FC<
                     <button
                       key={value}
                       type="button"
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'starter-pack',
+                        `color-${value}`
+                      )}
                       onClick={() =>
                         setFormData((p) => ({ ...p, color: value }))
                       }
@@ -909,6 +974,11 @@ export const StarterPackConfigurationModal: React.FC<
                   return (
                     <button
                       key={level}
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'starter-pack',
+                        `gradeLevel-${level}`
+                      )}
                       onClick={() => {
                         const current = formData.gradeLevels;
                         setFormData((p) => ({
@@ -942,6 +1012,11 @@ export const StarterPackConfigurationModal: React.FC<
                 </p>
               </div>
               <button
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'starter-pack',
+                  'isLocked'
+                )}
                 onClick={() =>
                   setFormData((p) => ({ ...p, isLocked: !p.isLocked }))
                 }
@@ -972,6 +1047,11 @@ export const StarterPackConfigurationModal: React.FC<
               </div>
               <button
                 onClick={handleCaptureBoard}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'starter-pack',
+                  'captureBoard'
+                )}
                 className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors"
                 title="Capture all widgets from your current board (positions and sizes included)"
               >
@@ -1024,6 +1104,11 @@ export const StarterPackConfigurationModal: React.FC<
                                   </span>
                                   <input
                                     type="number"
+                                    {...tourFieldAttr(
+                                      'admin.widget-config.field',
+                                      'starter-pack',
+                                      `widget-${index}-${field}`
+                                    )}
                                     value={widget[field]}
                                     onChange={(e) => {
                                       const next =
@@ -1044,6 +1129,11 @@ export const StarterPackConfigurationModal: React.FC<
                           )}
                         </div>
                         <button
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'starter-pack',
+                            `manualCoords-${index}`
+                          )}
                           onClick={() =>
                             setShowWidgetManualPositioning((prev) => ({
                               ...prev,
@@ -1060,6 +1150,11 @@ export const StarterPackConfigurationModal: React.FC<
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'starter-pack',
+                            `snapLayout-${index}`
+                          )}
                           onClick={() =>
                             setSnappingWidgetIndex(isSnapOpen ? null : index)
                           }
@@ -1076,6 +1171,11 @@ export const StarterPackConfigurationModal: React.FC<
                         </button>
                         <button
                           onClick={() => handleRemoveWidget(index)}
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'starter-pack',
+                            `removeWidget-${index}`
+                          )}
                           className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -1122,6 +1222,11 @@ export const StarterPackConfigurationModal: React.FC<
                 </p>
                 <button
                   type="button"
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'starter-pack',
+                    'toggleManual'
+                  )}
                   onClick={() =>
                     setShowManualPositioning(!showManualPositioning)
                   }
@@ -1142,6 +1247,11 @@ export const StarterPackConfigurationModal: React.FC<
                       Widget Type
                     </label>
                     <select
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'starter-pack',
+                        'newWidgetType'
+                      )}
                       value={newWidgetType}
                       onChange={(e) =>
                         handleWidgetTypeChange(e.target.value as WidgetType)
@@ -1158,6 +1268,11 @@ export const StarterPackConfigurationModal: React.FC<
 
                   <button
                     onClick={handleAddWidget}
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'starter-pack',
+                      'addWidget'
+                    )}
                     className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl transition-colors h-[42px]"
                   >
                     <Plus className="w-4 h-4" />
@@ -1189,6 +1304,11 @@ export const StarterPackConfigurationModal: React.FC<
                         </label>
                         <input
                           type="number"
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'starter-pack',
+                            `newWidget-${label}`
+                          )}
                           value={val}
                           onChange={(e) => {
                             const next = e.currentTarget.valueAsNumber;

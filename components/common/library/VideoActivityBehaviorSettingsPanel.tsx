@@ -24,6 +24,7 @@ import { CollapsibleSection } from './CollapsibleSection';
 import { PUBLISH_LEVEL_OPTIONS } from './publishScoreLevels';
 import { TabAwayLimitRow, TabWarningThresholdRow } from './TabWarningRows';
 import { AuthContext } from '@/context/AuthContextValue';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export interface VideoActivityBehaviorSettingsPanelProps {
   value: VideoActivityBehaviorSettings;
@@ -38,7 +39,7 @@ const SCORE_VISIBILITY_OPTIONS: {
 }[] = [
   { value: 'none', label: 'Hidden' },
   ...PUBLISH_LEVEL_OPTIONS.map((opt) => ({
-    value: opt.id as VideoActivityScoreVisibility,
+    value: opt.id,
     label: opt.title,
   })),
 ];
@@ -105,7 +106,10 @@ export const VideoActivityBehaviorSettingsPanel: React.FC<
           )
         }
         trailingSlot={
-          <CollapsibleSection label="Scoring">
+          <CollapsibleSection
+            label="Scoring"
+            anchor={tourAttr('assign-video-behavior.scoring')}
+          >
             <div className="space-y-3">
               <div>
                 <p className="text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest mb-2">
@@ -116,9 +120,19 @@ export const VideoActivityBehaviorSettingsPanel: React.FC<
                     const selected = currentVisibility === opt.value;
                     return (
                       <button
+                        {...tourFieldAttr(
+                          'video-activity.settings-score-visibility',
+                          'video-activity',
+                          opt.value
+                        )}
                         key={opt.value}
                         type="button"
                         aria-pressed={selected}
+                        {...tourFieldAttr(
+                          'assign-video-behavior.score-visibility',
+                          'assign',
+                          opt.value
+                        )}
                         onClick={() =>
                           onChange({
                             ...value,

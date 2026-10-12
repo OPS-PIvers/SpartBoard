@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import {
   Globe,
   Plus,
@@ -85,6 +86,7 @@ export const DomainsView: React.FC<Props> = ({ domains, onAdd, onRemove }) => {
         blurb="Only these domains can sign in."
         actions={
           <Btn
+            {...tourAttr('admin.org.add-domain')}
             variant="primary"
             icon={<Plus size={14} />}
             onClick={() => setShowAdd(true)}
@@ -101,6 +103,7 @@ export const DomainsView: React.FC<Props> = ({ domains, onAdd, onRemove }) => {
           message="Add at least one email domain so teachers in your district can sign in."
           cta={
             <Btn
+              {...tourAttr('admin.org.add-domain')}
               variant="primary"
               icon={<Plus size={14} />}
               onClick={() => setShowAdd(true)}
@@ -274,10 +277,15 @@ const AddDomainModal: React.FC<{
       icon={<Globe size={18} />}
       footer={
         <>
-          <Btn variant="ghost" onClick={onClose}>
+          <Btn
+            {...tourAttr('admin.org.add-domain-cancel')}
+            variant="ghost"
+            onClick={onClose}
+          >
             Cancel
           </Btn>
           <Btn
+            {...tourAttr('admin.org.add-domain-submit')}
             variant="primary"
             disabled={!isValid}
             onClick={() => {
@@ -311,6 +319,7 @@ const AddDomainModal: React.FC<{
           <div className="flex items-center rounded-lg border border-slate-300 focus-within:border-brand-blue-primary focus-within:ring-[3px] focus-within:ring-brand-blue-primary/30 bg-white">
             <span className="pl-3 text-slate-400 font-mono text-sm">@</span>
             <input
+              {...tourAttr('admin.org.add-domain-name')}
               id="add-domain-input"
               value={domain.replace(/^@/, '')}
               onChange={(e) => setDomain(e.target.value)}
@@ -322,6 +331,7 @@ const AddDomainModal: React.FC<{
         </Field>
         <Field label="Auth method">
           <Select
+            {...tourAttr('admin.org.add-domain-method')}
             value={method}
             onChange={(e) => setMethod(e.target.value as AuthMethod)}
           >
@@ -335,6 +345,7 @@ const AddDomainModal: React.FC<{
         {method === 'saml' && (
           <Field label="IdP metadata URL">
             <Input
+              {...tourAttr('admin.org.add-domain-saml-url')}
               value={samlUrl}
               onChange={(e) => setSamlUrl(e.target.value)}
               placeholder="https://idp.district.org/metadata.xml"

@@ -1,3 +1,4 @@
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import React, { useState, useCallback, useMemo } from 'react';
 import {
   X,
@@ -326,6 +327,7 @@ export const GraphicOrganizerConfigurationModal: React.FC<
           </div>
           <button
             onClick={onClose}
+            {...tourTypeAttr('admin.widget-config.close', 'graphic-organizer')}
             className="rounded-lg p-2 text-slate-400 hover:bg-slate-200 hover:text-slate-600 transition-colors"
           >
             <X className="h-5 w-5" />
@@ -383,6 +385,11 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                     </label>
                     <select
                       value={currentAppearanceDefaults.templateType ?? ''}
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'graphic-organizer',
+                        'templateType'
+                      )}
                       onChange={(e) => {
                         const selected = e.target.value;
                         updateAppearanceDefaults({
@@ -415,6 +422,11 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                     </label>
                     <select
                       value={currentAppearanceDefaults.fontFamily ?? 'global'}
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'graphic-organizer',
+                        'fontFamily'
+                      )}
                       onChange={(e) => {
                         const selected = e.target.value;
                         updateAppearanceDefaults({
@@ -438,11 +450,29 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                   </div>
 
                   {/* Default Surface Colour */}
-                  <div>
+                  <div
+                    {...tourFieldAttr(
+                      'admin.widget-config.field',
+                      'graphic-organizer',
+                      'cardColor'
+                    )}
+                  >
                     <label className="block text-sm font-bold text-slate-700 mb-1">
                       Default Surface Colour
                     </label>
                     <HexColorField
+                      anchors={{
+                        swatch: tourFieldAttr(
+                          'admin.widget-config.field',
+                          'graphic-organizer',
+                          'cardColorSwatch'
+                        ),
+                        input: tourFieldAttr(
+                          'admin.widget-config.field',
+                          'graphic-organizer',
+                          'cardColorInput'
+                        ),
+                      }}
                       value={currentAppearanceDefaults.cardColor}
                       onChange={(cardColor) =>
                         updateAppearanceDefaults({ cardColor })
@@ -460,6 +490,11 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                     </label>
                     <input
                       type="range"
+                      {...tourFieldAttr(
+                        'admin.widget-config.field',
+                        'graphic-organizer',
+                        'cardOpacity'
+                      )}
                       min="0"
                       max="1"
                       step="0.05"
@@ -487,6 +522,10 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                     <Button
                       size="sm"
                       onClick={startNewTemplate}
+                      {...tourTypeAttr(
+                        'admin.widget-config.add',
+                        'graphic-organizer'
+                      )}
                       className="gap-2"
                     >
                       <Plus className="h-4 w-4" /> Add Template
@@ -525,11 +564,20 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                               variant="secondary"
                               size="sm"
                               onClick={() => editTemplate(template)}
+                              {...tourFieldAttr(
+                                'admin.widget-config.field',
+                                'graphic-organizer',
+                                `edit-${template.id}`
+                              )}
                             >
                               Edit
                             </Button>
                             <button
                               onClick={() => deleteTemplate(template.id)}
+                              {...tourTypeAttr(
+                                'admin.widget-config.remove',
+                                'graphic-organizer'
+                              )}
                               className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                               title="Delete Template"
                             >
@@ -547,6 +595,11 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                     <div className="flex items-center gap-2 mb-6">
                       <button
                         onClick={cancelTemplateEdit}
+                        {...tourFieldAttr(
+                          'admin.widget-config.field',
+                          'graphic-organizer',
+                          'backFromTemplate'
+                        )}
                         className="p-1 hover:bg-slate-100 rounded text-slate-500"
                       >
                         <ChevronLeft className="h-5 w-5" />
@@ -570,6 +623,11 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                         <input
                           type="text"
                           value={currentTemplateDraft.name}
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'graphic-organizer',
+                            'templateName'
+                          )}
                           onChange={(e) =>
                             setCurrentTemplateDraft({
                               ...currentTemplateDraft,
@@ -588,6 +646,11 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                         </label>
                         <select
                           value={currentTemplateDraft.layout}
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'graphic-organizer',
+                            'templateLayout'
+                          )}
                           onChange={(e) =>
                             handleLayoutChange(
                               e.target.value as GraphicOrganizerLayoutType
@@ -610,6 +673,11 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                         </label>
                         <select
                           value={currentTemplateDraft.fontFamily ?? 'sans'}
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'graphic-organizer',
+                            'templateFontFamily'
+                          )}
                           onChange={(e) =>
                             setCurrentTemplateDraft({
                               ...currentTemplateDraft,
@@ -640,6 +708,11 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                                 </label>
                                 <input
                                   type="text"
+                                  {...tourFieldAttr(
+                                    'admin.widget-config.field',
+                                    'graphic-organizer',
+                                    `nodeLabel-${nodeKey}`
+                                  )}
                                   value={
                                     currentTemplateDraft.defaultNodes[nodeKey]
                                   }
@@ -663,10 +736,22 @@ export const GraphicOrganizerConfigurationModal: React.FC<
                         <Button
                           variant="secondary"
                           onClick={cancelTemplateEdit}
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'graphic-organizer',
+                            'cancelTemplate'
+                          )}
                         >
                           Cancel
                         </Button>
-                        <Button onClick={saveTemplateDraft}>
+                        <Button
+                          onClick={saveTemplateDraft}
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'graphic-organizer',
+                            'saveTemplate'
+                          )}
+                        >
                           Save Template
                         </Button>
                       </div>
@@ -684,11 +769,21 @@ export const GraphicOrganizerConfigurationModal: React.FC<
             {isSaving ? 'APPLYING...' : 'PENDING PARENT SAVE'}
           </div>
           <div className="flex gap-3">
-            <Button variant="secondary" onClick={onClose} disabled={isSaving}>
+            <Button
+              variant="secondary"
+              onClick={onClose}
+              disabled={isSaving}
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'graphic-organizer',
+                'cancel'
+              )}
+            >
               Cancel
             </Button>
             <Button
               onClick={handleSave}
+              {...tourTypeAttr('admin.widget-config.save', 'graphic-organizer')}
               disabled={isSaving || !!editingTemplateId}
               className="gap-2"
             >

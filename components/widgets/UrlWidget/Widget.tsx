@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { WidgetData, UrlWidgetConfig } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { Globe } from 'lucide-react';
 import { isSafeIconUrl } from '@/components/widgets/Catalyst/catalystHelpers';
@@ -102,6 +103,11 @@ export const UrlWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       )}
                       <button
                         type="button"
+                        {...tourFieldAttr(
+                          'url.open-link',
+                          widget.type,
+                          urlItem.id
+                        )}
                         onClick={() => {
                           const href = toSafeLinkHref(urlItem.url);
                           if (href) {

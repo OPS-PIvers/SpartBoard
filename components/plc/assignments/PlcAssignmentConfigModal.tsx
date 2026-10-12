@@ -74,6 +74,7 @@ import type {
   ClassRoster,
 } from '@/types';
 import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -305,7 +306,7 @@ export const PlcAssignmentConfigModal: React.FC<
           // branch preserves correct behavior for any future caller that
           // opens this modal for a quiz without providing quizBehavior.
           effectiveSessionMode = quizMode;
-          effectiveSessionOptions = { ...quizOptions } as QuizSessionOptions;
+          effectiveSessionOptions = { ...quizOptions };
           effectiveAttemptLimit = attemptLimit;
         }
 
@@ -398,7 +399,7 @@ export const PlcAssignmentConfigModal: React.FC<
             ...(parsedDueAt != null
               ? { dueAt: parsedDueAt, dueAtHasTime: true }
               : {}),
-          } as VideoActivitySessionOptions;
+          };
         }
 
         const vaSettings: VideoActivityAssignmentSettings = {
@@ -530,6 +531,7 @@ export const PlcAssignmentConfigModal: React.FC<
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
           <button
+            {...tourAttr('plc-assign.close')}
             type="button"
             onClick={onClose}
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
@@ -549,6 +551,7 @@ export const PlcAssignmentConfigModal: React.FC<
               })}
             </label>
             <input
+              {...tourAttr('plc-assign.teacher-name')}
               type="text"
               value={teacherName}
               onChange={(e) => setTeacherName(e.target.value)}
@@ -571,6 +574,7 @@ export const PlcAssignmentConfigModal: React.FC<
               })}
             </label>
             <input
+              {...tourAttr('plc-assign.due-date')}
               type="date"
               value={dueAtInput}
               onChange={(e) => setDueAtInput(e.target.value)}
@@ -630,6 +634,7 @@ export const PlcAssignmentConfigModal: React.FC<
                 >
                   {DEFAULT_QUIZ_MODES.map((m) => (
                     <button
+                      {...tourFieldAttr('plc-assign.quiz-mode', 'plc', m.id)}
                       key={m.id}
                       type="button"
                       role="radio"
@@ -655,6 +660,28 @@ export const PlcAssignmentConfigModal: React.FC<
                 onAttemptLimitChange={setAttemptLimit}
                 shuffleQuestionsAvailable={false}
                 showCopyPasteToggle
+                anchors={{
+                  focusMode: tourFieldAttr(
+                    'plc-assign.option-toggle',
+                    'plc',
+                    'focus-mode'
+                  ),
+                  copyPaste: tourFieldAttr(
+                    'plc-assign.option-toggle',
+                    'plc',
+                    'copy-paste'
+                  ),
+                  shuffleQuestions: tourFieldAttr(
+                    'plc-assign.option-toggle',
+                    'plc',
+                    'shuffle-questions'
+                  ),
+                  shuffleAnswerOptions: tourFieldAttr(
+                    'plc-assign.option-toggle',
+                    'plc',
+                    'shuffle-answers'
+                  ),
+                }}
               />
             </>
           ) : vaBehavior ? (
@@ -687,6 +714,23 @@ export const PlcAssignmentConfigModal: React.FC<
               attemptLimit={undefined}
               onAttemptLimitChange={undefined}
               shuffleQuestionsAvailable
+              anchors={{
+                focusMode: tourFieldAttr(
+                  'plc-assign.option-toggle',
+                  'plc',
+                  'focus-mode'
+                ),
+                shuffleQuestions: tourFieldAttr(
+                  'plc-assign.option-toggle',
+                  'plc',
+                  'shuffle-questions'
+                ),
+                shuffleAnswerOptions: tourFieldAttr(
+                  'plc-assign.option-toggle',
+                  'plc',
+                  'shuffle-answers'
+                ),
+              }}
             />
           )}
 
@@ -708,6 +752,7 @@ export const PlcAssignmentConfigModal: React.FC<
         {/* Footer */}
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100">
           <button
+            {...tourAttr('plc-assign.cancel')}
             type="button"
             onClick={onClose}
             className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
@@ -715,6 +760,7 @@ export const PlcAssignmentConfigModal: React.FC<
             {t('common.cancel', { defaultValue: 'Cancel' })}
           </button>
           <button
+            {...tourAttr('plc-assign.submit')}
             type="button"
             onClick={handleSubmit}
             disabled={submitting}

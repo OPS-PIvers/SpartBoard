@@ -22,6 +22,7 @@ import type { Plc, PlcAssignmentIndexEntry } from '@/types';
 import { usePlcAssignmentIndex } from '@/hooks/usePlcAssignmentIndex';
 import { usePlcAggregatesData } from '@/context/usePlcContext';
 import type { PlcSectionId } from '@/components/plc/sections';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface AttentionCardProps {
   plc: Plc;
@@ -91,6 +92,11 @@ export const AttentionCard: React.FC<AttentionCardProps> = ({
       {/* Results hint */}
       {recentResultsCount > 0 && (
         <button
+          {...tourFieldAttr(
+            'plc-home.card-link',
+            'plc',
+            'attention-assessments'
+          )}
           type="button"
           onClick={() => onNavigate('assessments')}
           className="mx-5 mb-3 flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-semibold hover:bg-emerald-100 transition-colors text-left"
@@ -158,6 +164,7 @@ export const AttentionCard: React.FC<AttentionCardProps> = ({
 
       {/* Footer CTA */}
       <button
+        {...tourFieldAttr('plc-home.card-link', 'plc', 'attention-footer')}
         type="button"
         onClick={() => onNavigate('assessments')}
         className="flex items-center justify-center gap-1.5 px-5 py-3 border-t border-slate-100 text-xs font-bold uppercase tracking-wider text-brand-blue-primary hover:bg-brand-blue-lighter/40 transition-colors"
@@ -206,6 +213,7 @@ const AttentionRow: React.FC<{ entry: PlcAssignmentIndexEntry }> = ({
       </div>
       {safeSheetUrl && (
         <a
+          {...tourFieldAttr('plc-home.card-link', 'plc', 'attention-sheet')}
           href={safeSheetUrl}
           target="_blank"
           rel="noreferrer noopener"

@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Cloud, Copy } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 export type PlcImportMode = 'sync' | 'copy';
 
@@ -23,6 +24,7 @@ const ModeOption: React.FC<ModeOptionProps> = ({
   onPick,
 }) => (
   <button
+    {...tourFieldAttr('plc-import.mode', 'plc', mode)}
     type="button"
     onClick={() => onPick(mode)}
     className="w-full text-left rounded-xl border border-slate-200 bg-white px-4 py-4 transition-all hover:border-brand-blue-primary hover:shadow-md focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"

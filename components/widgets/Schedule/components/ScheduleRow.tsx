@@ -295,6 +295,11 @@ export const ScheduleRow = React.memo<ScheduleRowProps>(function ScheduleRow({
       )}
       <button
         onClick={() => onToggle(index)}
+        {...tourFieldAttr(
+          'schedule.toggle-item',
+          'schedule',
+          isActive ? 'active' : `row-${index + 1}`
+        )}
         className="flex items-center flex-1 min-w-0 h-full"
         style={{ gap: scheduleSize(3, 16), padding: scheduleSize(3, 16) }}
       >

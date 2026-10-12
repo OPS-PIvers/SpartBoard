@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { AlertTriangle, Printer, X } from 'lucide-react';
 import type {
   PaperBatch,
@@ -517,6 +518,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
           role="radio"
           aria-checked={choice.preset === p.id}
           onClick={() => pickPreset(p.id)}
+          {...tourFieldAttr('quiz-print.results-preset', 'quiz', p.id)}
           className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
             choice.preset === p.id
               ? 'border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-dark'
@@ -537,6 +539,11 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
           <Toggle
             checked={options[t.key]}
             onChange={(v) => setOption(t.key, v)}
+            anchor={tourFieldAttr(
+              'quiz-print.results-option-toggle',
+              'quiz',
+              t.key
+            )}
             label={t.label}
             size="sm"
           />
@@ -556,6 +563,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
               role="radio"
               aria-checked={options.keyMode === m.id}
               onClick={() => setOption('keyMode', m.id)}
+              {...tourFieldAttr('quiz-print.results-key-mode', 'quiz', m.id)}
               className={`px-2.5 py-1 text-xs font-semibold transition-colors ${
                 options.keyMode === m.id
                   ? 'bg-brand-blue-primary text-white'
@@ -582,6 +590,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
                 role="radio"
                 aria-checked={options.layout === m.id}
                 onClick={() => setOption('layout', m.id)}
+                {...tourFieldAttr('quiz-print.results-layout', 'quiz', m.id)}
                 className={`px-2.5 py-1 text-xs font-semibold transition-colors ${
                   options.layout === m.id
                     ? 'bg-brand-blue-primary text-white'
@@ -612,6 +621,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
             role="radio"
             aria-checked={writtenMode === m.id}
             onClick={() => setWrittenMode(m.id)}
+            {...tourFieldAttr('quiz-print.results-written-mode', 'quiz', m.id)}
             className={`px-2.5 py-1 text-xs font-semibold transition-colors ${
               writtenMode === m.id
                 ? 'bg-brand-blue-primary text-white'
@@ -652,6 +662,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
             type="button"
             onClick={onClose}
             aria-label="Close"
+            {...tourTypeAttr('quiz-print.results-close', 'quiz')}
             className="shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
           >
             <X className="h-5 w-5" />
@@ -669,6 +680,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
             <button
               type="button"
               onClick={onClose}
+              {...tourTypeAttr('quiz-print.results-cancel', 'quiz')}
               className="rounded-lg px-4 py-2 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100"
             >
               Cancel
@@ -676,6 +688,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
             <button
               type="button"
               onClick={handlePrint}
+              {...tourTypeAttr('quiz-print.results-print', 'quiz')}
               disabled={chosen.length === 0 || !ready}
               className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -712,6 +725,11 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
                         role="radio"
                         aria-checked={on}
                         onClick={() => pickPreset(c.id)}
+                        {...tourFieldAttr(
+                          'quiz-print.results-report-choice',
+                          'quiz',
+                          c.id
+                        )}
                         className={`rounded-lg border p-2.5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-brand-blue-primary ${
                           on
                             ? 'border-brand-blue-primary bg-brand-blue-lighter/60'
@@ -738,7 +756,10 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
                 </div>
               </fieldset>
               <details className="group">
-                <summary className="cursor-pointer text-xs font-semibold text-brand-blue-primary hover:underline">
+                <summary
+                  {...tourTypeAttr('quiz-print.results-more-options', 'quiz')}
+                  className="cursor-pointer text-xs font-semibold text-brand-blue-primary hover:underline"
+                >
                   More print options
                 </summary>
                 <div className="mt-2 space-y-4">
@@ -810,6 +831,7 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
               </span>
               <button
                 type="button"
+                {...tourTypeAttr('quiz-print.results-select-all', 'quiz')}
                 onClick={() =>
                   setSelected(
                     allTicked
@@ -832,6 +854,11 @@ export const ResultsPrintModal: React.FC<ResultsPrintModalProps> = ({
                         type="checkbox"
                         checked={selected.has(student.key)}
                         onChange={() => toggleStudent(student.key)}
+                        {...tourFieldAttr(
+                          'quiz-print.results-student-select',
+                          'quiz',
+                          student.key
+                        )}
                         className="accent-brand-blue-primary"
                       />
                       <span className="min-w-0 flex-1 truncate">{shown}</span>

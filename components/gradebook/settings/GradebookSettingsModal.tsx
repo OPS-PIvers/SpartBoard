@@ -14,6 +14,7 @@ import {
 } from '@/components/admin/Organization/components/primitives';
 import { useBackdropDismiss } from '@/hooks/useBackdropDismiss';
 import { useAuth } from '@/context/useAuth';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   useGradebookSettings,
   type GradebookSettingsActions,
@@ -256,6 +257,7 @@ export const GradebookSettingsModalView: React.FC<
             variant="primary"
             size="sm"
             className="!h-[34px] !px-3.5 !text-[13px]"
+            {...tourAttr('gradebook.settings.done')}
             onClick={onClose}
           >
             Done
@@ -274,6 +276,7 @@ export const GradebookSettingsModalView: React.FC<
                 defaultValue={shown.name}
                 maxLength={80}
                 aria-label="Configuration name"
+                {...tourAttr('gradebook.settings.rename-input')}
                 className={`${FIELD} flex-1 min-w-0 max-w-[320px]`}
                 onFocus={(e) => e.currentTarget.select()}
                 onBlur={(e) => commitRename(e.currentTarget.value)}
@@ -288,6 +291,7 @@ export const GradebookSettingsModalView: React.FC<
             ) : (
               <SelectBox
                 id="gb-cfg"
+                {...tourAttr('gradebook.settings.config')}
                 value={shown.key}
                 onChange={(e) => {
                   setPickedKey(e.target.value);
@@ -320,6 +324,7 @@ export const GradebookSettingsModalView: React.FC<
                   className={ICON_BTN}
                   title="Rename"
                   aria-label="Rename configuration"
+                  {...tourAttr('gradebook.settings.rename')}
                   onClick={() => setRenaming(true)}
                 >
                   <Pencil size={15} aria-hidden />
@@ -334,6 +339,7 @@ export const GradebookSettingsModalView: React.FC<
                     : 'Duplicate'
                 }
                 aria-label="Duplicate configuration"
+                {...tourAttr('gradebook.settings.duplicate')}
                 onClick={() =>
                   createFrom(
                     {
@@ -352,6 +358,7 @@ export const GradebookSettingsModalView: React.FC<
                   className={`${ICON_BTN} hover:text-brand-red-primary`}
                   title="Delete"
                   aria-label="Delete configuration"
+                  {...tourAttr('gradebook.settings.delete')}
                   onClick={() => setConfirmDelete(true)}
                 >
                   <Trash2 size={15} aria-hidden />
@@ -360,6 +367,7 @@ export const GradebookSettingsModalView: React.FC<
             </span>
             <Btn
               size="sm"
+              {...tourAttr('gradebook.settings.new')}
               onClick={() =>
                 createFrom(
                   defaultSettingsBody('New configuration'),
@@ -378,10 +386,19 @@ export const GradebookSettingsModalView: React.FC<
                 {explicitUsers.length > 0 &&
                   ` ${explicitUsers.length} class${explicitUsers.length === 1 ? ' goes' : 'es go'} back to the default settings.`}
               </span>
-              <Btn variant="danger" size="sm" onClick={onDelete}>
+              <Btn
+                variant="danger"
+                size="sm"
+                {...tourAttr('gradebook.settings.delete-confirm')}
+                onClick={onDelete}
+              >
                 Delete
               </Btn>
-              <Btn size="sm" onClick={() => setConfirmDelete(false)}>
+              <Btn
+                size="sm"
+                {...tourAttr('gradebook.settings.confirm-cancel')}
+                onClick={() => setConfirmDelete(false)}
+              >
                 Cancel
               </Btn>
             </div>
@@ -401,6 +418,7 @@ export const GradebookSettingsModalView: React.FC<
                 ref={applyRef}
                 type="button"
                 aria-labelledby="gb-applies"
+                {...tourAttr('gradebook.settings.applies-to')}
                 aria-haspopup="menu"
                 aria-expanded={applyOpen}
                 onClick={() => setApplyOpen((o) => !o)}
@@ -427,6 +445,7 @@ export const GradebookSettingsModalView: React.FC<
               Your PLC lead manages this configuration.{' '}
               <button
                 type="button"
+                {...tourAttr('gradebook.settings.open-plc')}
                 className="font-semibold text-brand-blue-primary hover:underline"
                 onClick={() => {
                   if (shown.ref?.source === 'plc')
@@ -476,6 +495,11 @@ export const GradebookSettingsModalView: React.FC<
                 type="button"
                 role="menuitemcheckbox"
                 aria-checked={on}
+                {...tourFieldAttr(
+                  'gradebook.settings.applies-option',
+                  'gradebook-settings',
+                  c.id
+                )}
                 onClick={() => onApply(c)}
                 className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] leading-5 hover:bg-slate-50 focus:bg-slate-50 focus:outline-none ${on ? 'font-semibold text-slate-900' : 'text-slate-700'}`}
               >
@@ -505,6 +529,7 @@ export const GradebookSettingsModalView: React.FC<
           {toast.canUndo && (
             <button
               type="button"
+              {...tourAttr('gradebook.undo-toast.undo')}
               className="font-bold underline"
               onClick={doUndo}
             >
@@ -552,6 +577,7 @@ export const GradebookSettingsButton: React.FC<
         type="button"
         aria-label="Settings"
         title="Settings"
+        {...tourAttr('gradebook.settings')}
         onClick={() => setOpen(true)}
         className={`${ICON_BTN} ${className}`}
       >

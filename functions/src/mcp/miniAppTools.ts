@@ -21,6 +21,8 @@ import {
   run,
   titleAndFolderFilter,
 } from './toolKit';
+import { checkMiniAppSource } from '../miniAppGrading';
+import { MINI_APP_BASIC_SPEC, MINI_APP_RESULTS_SPEC } from '../miniAppSpec';
 
 const COLLECTION = 'miniapps';
 /** Mirrors MAX_TITLE_LENGTH in the mini-app import adapter. */
@@ -35,9 +37,133 @@ type MiniApp = Record<string, unknown> & {
   html: string;
   createdAt: number;
   order: number;
+  collectsResults?: boolean;
+  manifest?: MiniAppManifest;
 };
 
 const appPath = (uid: string, id: string) => `users/${uid}/${COLLECTION}/${id}`;
+const keyPath = (uid: string, id: string) => `users/${uid}/mini_app_keys/${id}`;
+const RESULTS_FEATURE_ID = 'mini-app-results';
+
+const manifestSchema = z
+  .object({
+    questions: z
+      .array(
+        z.object({
+          id: z.string().trim().min(1).max(128),
+          type: z.enum([
+            'mc',
+            'multi',
+            'tf',
+            'numeric',
+            'short',
+            'order',
+            'other',
+          ]),
+          prompt: z.string().max(500).default(''),
+          points: z.number().min(0).optional(),
+        })
+      )
+      .max(200),
+  })
+  .describe('The questions the app sends answers for; see get_mini_app_spec.');
+
+const answerKeySchema = z
+  .object({
+    questions: z.record(
+      z.string(),
+      z.object({
+        correct: z
+          .union([
+            z.string(),
+            z.number(),
+            z.boolean(),
+            z.array(z.union([z.string(), z.number()])),
+          ])
+          .optional(),
+        tolerance: z.number().min(0).optional(),
+        accepted: z.array(z.string()).optional(),
+      })
+    ),
+  })
+  .describe(
+    'Correct answers by question id. Saved apart from the app; students never see it.'
+  );
+
+const resultsFields = {
+  collects_results: z
+    .boolean()
+    .optional()
+    .describe('True when students send results the teacher wants to see.'),
+  manifest: manifestSchema.optional(),
+  answer_key: answerKeySchema.optional(),
+};
+
+type MiniAppManifest = z.infer<typeof manifestSchema>;
+type MiniAppAnswerKey = z.infer<typeof answerKeySchema>;
+
+/** Server twin of miniAppResultsOn: the preview flag AND Mini App submissions in Organization settings. */
+export async function miniAppResultsOn(ctx: ToolContext): Promise<boolean> {
+  const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
+  const [granted, modes] = await Promise.all([
+    isGlobalFeatureGranted(ctx.db, RESULTS_FEATURE_ID, ctx.email, ctx.uid),
+    ctx.db.doc('global_permissions/assignment-modes').get(),
+  ]);
+  const config: unknown = modes.get('config');
+  const mode =
+    config && typeof config === 'object'
+      ? (config as Record<string, unknown>).miniApp
+      : undefined;
+  return granted && mode !== 'view-only';
+}
+
+async function readKey(
+  ctx: ToolContext,
+  id: string
+): Promise<MiniAppAnswerKey | null> {
+  const snap = await ctx.db.doc(keyPath(ctx.uid, id)).get();
+  return snap.exists ? (snap.data() as MiniAppAnswerKey) : null;
+}
+
+interface ResultsInput {
+  collects_results?: boolean;
+  manifest?: MiniAppManifest;
+  answer_key?: MiniAppAnswerKey;
+}
+
+const RESULTS_OFF_NOTE =
+  "Results scoring isn't on for this teacher, so collects_results, manifest and answer_key were not saved.";
+
+/** Results fields only count for teachers with results on; for everyone else they are dropped. */
+async function resultsInput(
+  ctx: ToolContext,
+  input: ResultsInput
+): Promise<ResultsInput & { ignored: boolean }> {
+  const sent =
+    input.collects_results !== undefined ||
+    input.manifest !== undefined ||
+    input.answer_key !== undefined;
+  if (!sent) return { ignored: false };
+  if (await miniAppResultsOn(ctx)) {
+    return {
+      collects_results: input.collects_results,
+      manifest: input.manifest,
+      answer_key: input.answer_key,
+      ignored: false,
+    };
+  }
+  return { ignored: true };
+}
+
+/** D12: refuses a results app that would not work. */
+function assertResultsApp(html: string, manifest: unknown, key: unknown): void {
+  const problems = checkMiniAppSource(html, manifest, key);
+  if (problems.length > 0) {
+    throw new ToolError(
+      `Not saved. ${problems.join(' ')} Fix these and save again; get_mini_app_spec has the rules.`
+    );
+  }
+}
 
 function summarize(id: string, data: Record<string, unknown>) {
   return {
@@ -47,6 +173,7 @@ function summarize(id: string, data: Record<string, unknown>) {
       ? { size_kb: Math.round(data.html.length / 102.4) / 10 }
       : {}),
     folder_id: data.folderId ?? null,
+    ...(data.collectsResults === true ? { collects_results: true } : {}),
     created_at: iso(data.createdAt),
   };
 }
@@ -76,11 +203,14 @@ async function saveEdit(
   ctx: ToolContext,
   previous: MiniApp,
   next: MiniApp,
-  action: 'update' | 'restore'
+  action: 'update' | 'restore',
+  keys: { previous: MiniAppAnswerKey | null; next?: MiniAppAnswerKey | null }
 ) {
   const batch = ctx.db.batch();
   const data: Record<string, unknown> = { ...previous };
   delete data.id;
+  // The key rides in the revision so an undo restores questions and answers together.
+  data.answerKey = keys.previous;
   const revisionId = snapshotRevision(ctx, batch, {
     itemType: 'mini_app',
     itemId: previous.id,
@@ -98,6 +228,11 @@ async function saveEdit(
     [REVIEW_MARK]: now,
   };
   batch.set(ctx.db.doc(appPath(ctx.uid, doc.id)), doc);
+  if (keys.next !== undefined) {
+    const keyRef = ctx.db.doc(keyPath(ctx.uid, doc.id));
+    if (keys.next) batch.set(keyRef, { questions: keys.next.questions });
+    else batch.delete(keyRef);
+  }
   logActivity(ctx, batch, {
     action,
     itemType: 'mini_app',
@@ -120,13 +255,18 @@ export async function restoreMiniAppRevision(
 ) {
   const id = String(rev.get('itemId'));
   const current = await readApp(ctx, id);
+  const currentKey = await readKey(ctx, id);
   await reserveWrite(ctx);
-  const data = rev.get('data') as MiniApp;
+  const { answerKey, ...data } = rev.get('data') as MiniApp & {
+    answerKey?: MiniAppAnswerKey | null;
+  };
   return saveEdit(
     ctx,
     current,
-    { ...data, id, folderId: current.folderId ?? null } as MiniApp,
-    'restore'
+    { ...data, id, folderId: current.folderId ?? null },
+    'restore',
+    // Revisions saved before keys rode along leave the key as it is.
+    { previous: currentKey, next: answerKey }
   );
 }
 
@@ -186,7 +326,37 @@ export function registerMiniAppTools(
             note: 'This app is too large to read or edit through Claude. The teacher can edit it in SpartBoard.',
           };
         }
-        return { ...summarize(app_id, app), html: app.html };
+        const key =
+          app.collectsResults === true ? await readKey(ctx, app_id) : null;
+        return {
+          ...summarize(app_id, app),
+          html: app.html,
+          ...(app.collectsResults === true
+            ? {
+                manifest: app.manifest ?? { questions: [] },
+                answer_key: key ?? { questions: {} },
+              }
+            : {}),
+        };
+      })
+  );
+
+  server.registerTool(
+    'get_mini_app_spec',
+    {
+      title: 'Get the Mini App spec',
+      description:
+        'Returns how to write a SpartBoard mini-app for this teacher, including how it sends results. Read it before create_mini_app or an update_mini_app that changes html.',
+      inputSchema: {},
+      annotations: READ_ONLY,
+    },
+    () =>
+      run('get_mini_app_spec', ctx, async () => {
+        const resultsOn = await miniAppResultsOn(ctx);
+        return {
+          results_scoring: resultsOn,
+          spec: resultsOn ? MINI_APP_RESULTS_SPEC : MINI_APP_BASIC_SPEC,
+        };
       })
   );
 
@@ -202,6 +372,7 @@ export function registerMiniAppTools(
           .string()
           .optional()
           .describe('From list_folders; omit for top level.'),
+        ...resultsFields,
       },
       annotations: CREATES,
     },
@@ -209,6 +380,10 @@ export function registerMiniAppTools(
       run('create_mini_app', ctx, async () => {
         const html = assertHtml(input.html);
         await assertFolder(ctx, 'mini_apps', input.folder_id);
+        const results = await resultsInput(ctx, input);
+        const collects = results.collects_results === true;
+        if (collects)
+          assertResultsApp(html, results.manifest, results.answer_key);
         await reserveWrite(ctx);
         const col = ctx.db.collection(`users/${ctx.uid}/${COLLECTION}`);
         // New apps land first: order = min(existing) - 1, as handleCreate does.
@@ -227,9 +402,17 @@ export function registerMiniAppTools(
           claudeCreatedAt: now,
           [REVIEW_MARK]: now,
           ...(input.folder_id ? { folderId: input.folder_id } : {}),
+          ...(results.collects_results !== undefined
+            ? { collectsResults: collects }
+            : {}),
+          ...(results.manifest ? { manifest: results.manifest } : {}),
         };
         const batch = ctx.db.batch();
         batch.set(col.doc(app.id), app);
+        if (results.answer_key)
+          batch.set(ctx.db.doc(keyPath(ctx.uid, app.id)), {
+            questions: results.answer_key.questions,
+          });
         logActivity(ctx, batch, {
           action: 'create',
           itemType: 'mini_app',
@@ -240,6 +423,7 @@ export function registerMiniAppTools(
         return {
           ...summarize(app.id, app),
           where_to_find_it: 'SpartBoard > Mini App widget > library',
+          ...(results.ignored ? { note: RESULTS_OFF_NOTE } : {}),
         };
       })
   );
@@ -249,7 +433,7 @@ export function registerMiniAppTools(
     {
       title: 'Edit a mini-app',
       description:
-        'Edits a mini-app; only passed fields change. `html` replaces the whole file.',
+        'Edits a mini-app; only passed fields change. `html`, `manifest` and `answer_key` each replace the whole value.',
       inputSchema: {
         app_id: z.string().min(1),
         title: z.string().trim().min(1).max(MAX_TITLE).optional(),
@@ -259,6 +443,7 @@ export function registerMiniAppTools(
           .nullable()
           .optional()
           .describe('Folder id; null for top level.'),
+        ...resultsFields,
       },
       annotations: OVERWRITES,
     },
@@ -274,8 +459,23 @@ export function registerMiniAppTools(
             'This app is too large to edit through Claude. The teacher can edit it in SpartBoard.'
           );
         }
+        const existingKey = await readKey(ctx, input.app_id);
+        const results = await resultsInput(ctx, input);
+        const collects =
+          results.collects_results ?? existing.collectsResults === true;
+        const touchesResults =
+          html !== undefined ||
+          results.collects_results !== undefined ||
+          results.manifest !== undefined ||
+          results.answer_key !== undefined;
+        if (collects && touchesResults && (await miniAppResultsOn(ctx)))
+          assertResultsApp(
+            html ?? existing.html,
+            results.manifest ?? existing.manifest,
+            results.answer_key ?? existingKey
+          );
         await reserveWrite(ctx);
-        return saveEdit(
+        const saved = await saveEdit(
           ctx,
           existing,
           {
@@ -285,9 +485,20 @@ export function registerMiniAppTools(
             ...(input.folder_id === undefined
               ? {}
               : { folderId: input.folder_id }),
+            ...(results.collects_results === undefined
+              ? {}
+              : { collectsResults: results.collects_results }),
+            ...(results.manifest ? { manifest: results.manifest } : {}),
           },
-          'update'
+          'update',
+          {
+            previous: existingKey,
+            ...(results.answer_key ? { next: results.answer_key } : {}),
+          }
         );
+        return results.ignored
+          ? { ...saved, note: `${saved.note} ${RESULTS_OFF_NOTE}` }
+          : saved;
       })
   );
 }

@@ -8,6 +8,7 @@ import {
 } from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import { Toggle } from '@/components/common/Toggle';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface ClassesConfigurationPanelProps {
   config: ClassesGlobalConfig;
@@ -68,6 +69,11 @@ export const ClassesConfigurationPanel: React.FC<
                 handleUpdate({ classLinkEnabled: checked })
               }
               size="sm"
+              anchor={tourFieldAttr(
+                'admin.widget-config.field',
+                'classes',
+                'classLinkEnabled'
+              )}
             />
           </div>
         </div>

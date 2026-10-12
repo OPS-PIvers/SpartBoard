@@ -6,6 +6,7 @@ import React, {
   useMemo,
   useState,
 } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
@@ -203,6 +204,7 @@ const TourHealthPanel: React.FC = () => {
             <button
               type="button"
               onClick={requestRecordTour}
+              {...tourAttr('admin.help-center.record-tour')}
               className="flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 hover:bg-slate-50"
             >
               <Circle className="w-3.5 h-3.5 fill-current" aria-hidden="true" />
@@ -212,6 +214,7 @@ const TourHealthPanel: React.FC = () => {
           <button
             type="button"
             onClick={checkLive}
+            {...tourAttr('admin.help-center.check-live')}
             disabled={tours.length === 0}
             className="flex items-center gap-1 px-3 py-2 rounded-lg border border-slate-200 bg-white text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50"
           >
@@ -347,6 +350,11 @@ const TourHealthPanel: React.FC = () => {
                       <td className="px-3 py-1.5 text-right">
                         <button
                           type="button"
+                          {...tourFieldAttr(
+                            'admin.help-center.edit-step',
+                            'help',
+                            step.id
+                          )}
                           onClick={() =>
                             requestEditTour({
                               setId: draft.id,

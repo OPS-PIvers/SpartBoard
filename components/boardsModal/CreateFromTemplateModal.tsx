@@ -1,3 +1,4 @@
+import { tourAttr } from '@/config/tourAnchors';
 import React, { useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
@@ -45,6 +46,7 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
       // In auth-bypass / E2E mode, read from the in-memory mock store.
       // Defensive filter matches production: only show enabled templates.
       const all = mockTemplateStore.getAll().filter((tpl) => tpl.enabled);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mock-store path of the Firestore subscription
       setTemplates(all);
       setLoading(false);
       return;
@@ -57,9 +59,10 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const all = snap.docs.map(
-          (d) => ({ ...(d.data() as AnyTemplate), id: d.id }) as AnyTemplate
-        );
+        const all = snap.docs.map((d) => ({
+          ...(d.data() as AnyTemplate),
+          id: d.id,
+        }));
         // Defensive: drop any docs that snuck through with enabled:false
         // (rule changes, race conditions) so we never instantiate a
         // disabled template.
@@ -248,6 +251,7 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
                       }
                     }}
                     disabled={busyTemplateId !== null}
+                    {...tourAttr('boards-modal.template-pick')}
                     className="text-left text-sm font-bold text-slate-800 hover:text-brand-blue-primary disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {tpl.name}

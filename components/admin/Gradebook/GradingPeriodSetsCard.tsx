@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { Trash2 } from 'lucide-react';
 import { Btn } from '@/components/admin/Organization/components/primitives';
 import { SECTION } from '@/components/gradebook/settings/GradebookSettingsEditor';
@@ -159,7 +160,11 @@ export const GradingPeriodSetsCard: React.FC<GradingPeriodSetsCardProps> = ({
           Grading periods
         </h3>
         <span className="flex-1" />
-        <Btn size="sm" onClick={create}>
+        <Btn
+          {...tourAttr('admin.gradebook-settings.new-period-set')}
+          size="sm"
+          onClick={create}
+        >
           + New period set
         </Btn>
       </div>
@@ -177,6 +182,11 @@ export const GradingPeriodSetsCard: React.FC<GradingPeriodSetsCardProps> = ({
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-1">
                   <Commit
+                    {...tourFieldAttr(
+                      'admin.gradebook-settings.period-set-name',
+                      'admin',
+                      set.id
+                    )}
                     value={set.name}
                     maxLength={80}
                     aria-label="Period set name"
@@ -192,6 +202,11 @@ export const GradingPeriodSetsCard: React.FC<GradingPeriodSetsCardProps> = ({
                     }}
                   />
                   <button
+                    {...tourFieldAttr(
+                      'admin.gradebook-settings.delete-period-set',
+                      'admin',
+                      set.id
+                    )}
                     type="button"
                     className={ICON_BTN}
                     title="Delete"
@@ -202,6 +217,11 @@ export const GradingPeriodSetsCard: React.FC<GradingPeriodSetsCardProps> = ({
                   </button>
                 </div>
                 <ChecklistSelect
+                  anchor={tourFieldAttr(
+                    'admin.gradebook-settings.period-set-buildings',
+                    'admin',
+                    set.id
+                  )}
                   label={`Buildings using ${set.name}`}
                   emptyText="No buildings"
                   className="w-full"
@@ -224,10 +244,23 @@ export const GradingPeriodSetsCard: React.FC<GradingPeriodSetsCardProps> = ({
                     <span className="flex-1">
                       Delete <b>{set.name}</b>?
                     </span>
-                    <Btn variant="danger" size="sm" onClick={() => remove(set)}>
+                    <Btn
+                      {...tourAttr(
+                        'admin.gradebook-settings.confirm-delete-period-set'
+                      )}
+                      variant="danger"
+                      size="sm"
+                      onClick={() => remove(set)}
+                    >
                       Delete
                     </Btn>
-                    <Btn size="sm" onClick={() => setConfirmId(null)}>
+                    <Btn
+                      {...tourAttr(
+                        'admin.gradebook-settings.cancel-remove-period-set'
+                      )}
+                      size="sm"
+                      onClick={() => setConfirmId(null)}
+                    >
                       Cancel
                     </Btn>
                   </div>
@@ -250,6 +283,11 @@ export const GradingPeriodSetsCard: React.FC<GradingPeriodSetsCardProps> = ({
                         <tr key={p.id}>
                           <td className="px-1 py-1">
                             <Commit
+                              {...tourFieldAttr(
+                                'admin.gradebook-settings.period-name',
+                                'admin',
+                                p.id
+                              )}
                               value={p.label}
                               maxLength={20}
                               aria-label="Period name"
@@ -269,6 +307,11 @@ export const GradingPeriodSetsCard: React.FC<GradingPeriodSetsCardProps> = ({
                           {(['start', 'end'] as const).map((k) => (
                             <td key={k} className="px-1 py-1">
                               <Commit
+                                {...tourFieldAttr(
+                                  'admin.gradebook-settings.period-date',
+                                  'admin',
+                                  `${p.id}-${k}`
+                                )}
                                 type="date"
                                 value={p[k]}
                                 aria-label={`${p.label} ${k === 'start' ? 'start' : 'end'} date`}
@@ -287,6 +330,11 @@ export const GradingPeriodSetsCard: React.FC<GradingPeriodSetsCardProps> = ({
                           ))}
                           <td className="py-1">
                             <button
+                              {...tourFieldAttr(
+                                'admin.gradebook-settings.remove-period',
+                                'admin',
+                                p.id
+                              )}
                               type="button"
                               className={ICON_BTN}
                               title="Remove period"
@@ -315,6 +363,7 @@ export const GradingPeriodSetsCard: React.FC<GradingPeriodSetsCardProps> = ({
 
                 <div className="flex flex-wrap items-center gap-3">
                   <button
+                    {...tourAttr('admin.gradebook-settings.add-period')}
                     type="button"
                     disabled={set.periods.length >= 12}
                     className="text-xs font-semibold text-brand-blue-primary hover:underline disabled:opacity-50"
@@ -342,6 +391,11 @@ export const GradingPeriodSetsCard: React.FC<GradingPeriodSetsCardProps> = ({
                   {set.periods.length === 0 &&
                     (['quarters', 'semesters'] as const).map((k) => (
                       <button
+                        {...tourFieldAttr(
+                          'admin.gradebook-settings.period-preset',
+                          'admin',
+                          k
+                        )}
                         key={k}
                         type="button"
                         className="text-xs font-semibold text-brand-blue-primary hover:underline"

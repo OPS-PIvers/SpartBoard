@@ -1,4 +1,5 @@
 import React from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import { Music, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { MusicManager } from './MusicManager';
@@ -26,6 +27,7 @@ export const MusicLibraryModal: React.FC<MusicLibraryModalProps> = ({
         </div>
       </div>
       <button
+        {...tourAttr('admin.music.modal-close')}
         type="button"
         aria-label="Close music library"
         onClick={onClose}
@@ -39,6 +41,7 @@ export const MusicLibraryModal: React.FC<MusicLibraryModalProps> = ({
   const footer = (
     <div className="flex items-center justify-end w-full">
       <button
+        {...tourAttr('admin.music.modal-done')}
         type="button"
         onClick={onClose}
         className="px-6 py-2.5 rounded-2xl text-sm font-black text-slate-500 hover:bg-white transition-all border border-transparent hover:border-slate-200"

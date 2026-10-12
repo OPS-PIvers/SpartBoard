@@ -159,6 +159,8 @@ import {
   type SyncedQuizContentFields,
 } from '@/utils/syncedQuizContent';
 import { useSandboxedQuizAssignments } from './useTourSandboxed';
+import { useSetAssignmentTargets } from './useSetAssignmentTargets';
+import { hasStudentPointers } from '@/utils/studentTargetRef';
 
 /** Import-mode picker result for shared-assignment paste flows. */
 export type SharedAssignmentImportMode = 'sync' | 'copy';
@@ -1161,6 +1163,7 @@ export const useQuizAssignments = (
   useEffect(() => {
     assignmentsRef.current = assignments;
   }, [assignments]);
+  const { setAssignmentTargets } = useSetAssignmentTargets();
 
   // The fail-closed media gate lives here because `/quiz` mounts no
   // AuthProvider: the teacher decides at assign time, and the decision travels
@@ -1290,9 +1293,10 @@ export const useQuizAssignments = (
               LegacySyncLinkageShape;
             // Pipe through the PLC mapper AND the sync-linkage mapper so
             // consumers only ever see the canonical sub-object shapes.
-            return migrateSyncLinkageShape(
+            const assignment: QuizAssignment = migrateSyncLinkageShape(
               migrateLegacyAssignmentShape(raw)
-            ) as QuizAssignment;
+            );
+            return assignment;
           })
         );
         setLoading(false);
@@ -2138,8 +2142,34 @@ export const useQuizAssignments = (
       await viewAsDirectSave(assignmentRef, Object.keys(assignmentPatch), () =>
         batch.commit()
       );
+      // Accommodated and skipped students read the window off their own pointer doc.
+      const pointerWindow: {
+        openAt?: number | null;
+        closeAt?: number | null;
+        dueAt?: number | null;
+      } = {};
+      if ('openAt' in patch) pointerWindow.openAt = patch.openAt ?? null;
+      if ('closeAt' in patch) pointerWindow.closeAt = patch.closeAt ?? null;
+      if ('dueAt' in patch) pointerWindow.dueAt = patch.dueAt ?? null;
+      const stored = assignmentsRef.current.find((a) => a.id === assignmentId);
+      if (
+        Object.keys(pointerWindow).length > 0 &&
+        stored &&
+        hasStudentPointers(stored)
+      ) {
+        await setAssignmentTargets({
+          assignmentId,
+          kind: 'quiz',
+          sessionId: assignmentId,
+          targetMode: stored.targetMode,
+          add: [],
+          remove: [],
+          overridesBySourcedId: {},
+          window: pointerWindow,
+        });
+      }
     },
-    [userId, timeLimitOn, scoreOnSubmitOn]
+    [userId, timeLimitOn, scoreOnSubmitOn, setAssignmentTargets]
   );
 
   const setAssignmentRosters = useCallback<
@@ -2267,9 +2297,9 @@ export const useQuizAssignments = (
     // sub-object regardless of whether the share was written before or
     // after the PLC refactor (see migrateLegacyAssignmentShape for the
     // migration rules).
-    const settings = migrateLegacyAssignmentShape(
+    const settings: QuizAssignmentSettings = migrateLegacyAssignmentShape(
       data.assignmentSettings as QuizAssignmentSettings & LegacyPlcShape
-    ) as QuizAssignmentSettings;
+    );
     return {
       title: data.title,
       originalAuthor: data.originalAuthor,
@@ -2294,13 +2324,13 @@ export const useQuizAssignments = (
       // `sync` sub-object, but consistency keeps the invariant
       // ("every read goes through both migrators") intact so a future
       // change can rely on it.
-      const assignment = migrateSyncLinkageShape(
+      const assignment: QuizAssignment = migrateSyncLinkageShape(
         migrateLegacyAssignmentShape(
           snap.data() as QuizAssignment &
             LegacyPlcShape &
             LegacySyncLinkageShape
         )
-      ) as QuizAssignment;
+      );
 
       // Sync-mode plumbing: every share now carries a `syncGroupId` so the
       // importer's mode picker can offer "Synced" as an option. If the
@@ -2410,7 +2440,7 @@ export const useQuizAssignments = (
         assignmentSettings: migrateLegacyAssignmentShape(
           sharedRaw.assignmentSettings as QuizAssignmentSettings &
             LegacyPlcShape
-        ) as QuizAssignmentSettings,
+        ),
       };
 
       // 1. Copy the quiz into the importer's library.
@@ -2725,13 +2755,13 @@ export const useQuizAssignments = (
       if (!assignmentSnap.exists()) {
         throw new Error('Assignment not found.');
       }
-      const assignment = migrateSyncLinkageShape(
+      const assignment: QuizAssignment = migrateSyncLinkageShape(
         migrateLegacyAssignmentShape(
           assignmentSnap.data() as QuizAssignment &
             LegacyPlcShape &
             LegacySyncLinkageShape
         )
-      ) as QuizAssignment;
+      );
       if (!assignment.sync) {
         // Not a synced assignment — nothing to do. Returning a no-op result
         // (rather than throwing) lets callers wire the action without
@@ -2752,8 +2782,7 @@ export const useQuizAssignments = (
       );
       // A deleted session hands back nothing; treat that as untranslated, not a throw.
       const rawSessionData = sessionSnap?.data() as
-        | (QuizSession & { mediaResponseEnabled?: boolean })
-        | undefined;
+        (QuizSession & { mediaResponseEnabled?: boolean }) | undefined;
       const contentRef = doc(
         db,
         QUIZ_SESSIONS_COLLECTION,
@@ -2767,8 +2796,7 @@ export const useQuizAssignments = (
           ? {
               ...rawSessionData,
               ...((await getDoc(contentRef)).data() as
-                | QuizSessionContent
-                | undefined),
+                QuizSessionContent | undefined),
             }
           : rawSessionData;
       // Exactly the locales already being served — a re-sync never widens coverage.
@@ -3303,8 +3331,8 @@ export const useQuizAssignments = (
       // matches the unpublish semantics: republishing without protection
       // must NOT silently re-apply settings from a stale prior publish.
       const protectionWrite:
-        | ResultsProtection
-        | ReturnType<typeof deleteField> = protection ?? deleteField();
+        ResultsProtection | ReturnType<typeof deleteField> =
+        protection ?? deleteField();
       const modeWrite = writtenReturnMode ? { writtenReturnMode } : {};
       firstBatch.update(assignmentRef, {
         scoreVisibility: visibility,

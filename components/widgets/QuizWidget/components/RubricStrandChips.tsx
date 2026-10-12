@@ -13,6 +13,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Rubric } from '@/types';
+import { tourFieldAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import {
   orphanedStrandTags,
   strandLabel,
@@ -28,6 +29,8 @@ interface ChipsProps {
   value: RubricStrandTag[] | undefined;
   onToggle: (criterionId: string) => void;
   disabled?: boolean;
+  /** Anchor for one strand chip, keyed by criterion id. */
+  chipAnchor?: (criterionId: string) => TourAnchorAttrs;
 }
 
 export const RubricStrandChips: React.FC<ChipsProps> = ({
@@ -35,6 +38,7 @@ export const RubricStrandChips: React.FC<ChipsProps> = ({
   value,
   onToggle,
   disabled = false,
+  chipAnchor,
 }) => {
   const { t } = useTranslation();
   const tagged = value ?? [];
@@ -50,6 +54,7 @@ export const RubricStrandChips: React.FC<ChipsProps> = ({
         const on = tagged.some((tg) => tg.criterionId === c.id);
         return (
           <button
+            {...chipAnchor?.(c.id)}
             key={c.id}
             type="button"
             aria-pressed={on}
@@ -62,6 +67,7 @@ export const RubricStrandChips: React.FC<ChipsProps> = ({
               { name: c.name }
             )}
             onClick={() => onToggle(c.id)}
+            {...tourFieldAttr('quiz-grading.strand-chip', 'quiz', c.id)}
             className={`${CHIP_BASE} disabled:cursor-not-allowed disabled:opacity-50 ${
               on
                 ? 'border-violet-600 bg-violet-600 text-white'
@@ -86,6 +92,11 @@ export const RubricStrandChips: React.FC<ChipsProps> = ({
             name: tg.name,
           })}
           onClick={() => onToggle(tg.criterionId)}
+          {...tourFieldAttr(
+            'quiz-grading.strand-chip-orphan',
+            'quiz',
+            tg.criterionId
+          )}
           className={`${CHIP_BASE} border-slate-300 bg-slate-200 text-slate-500 line-through disabled:cursor-not-allowed disabled:opacity-50`}
         >
           {tg.name}

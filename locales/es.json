@@ -2639,6 +2639,18 @@
     "stepActions": "Acciones del paso",
     "duplicateStep": "Duplicar paso",
     "copyStep": "Copiar paso",
+    "copyForClaude": "Copiar para Claude",
+    "copiedForClaude": "Guardado. Indicación copiada para Claude.",
+    "copyForClaudeFailed": "No se pudo guardar, así que no se copió nada.",
+    "clipboardFailed": "No se pudo copiar al portapapeles.",
+    "claudeConflictTitle": "Claude actualizó esta actividad.",
+    "claudeConflictBody": "Tienes cambios sin guardar.",
+    "claudeConflictLoad": "Cargar los cambios de Claude",
+    "claudeConflictKeep": "Conservar los míos",
+    "claudeChangesLoaded": "Claude actualizó esta actividad.",
+    "externalChangesLoaded": "Esta actividad se actualizó en otro lugar.",
+    "undoClaudeChanges": "Deshacer",
+    "undoClaudeFailed": "No se pudo deshacer la actualización.",
     "pasteSteps": "Pegar pasos",
     "stepsCopied_one": "Paso copiado. Pégalo en cualquier conjunto con Ctrl+V o ⌘V.",
     "stepsCopied_other": "{{count}} pasos copiados. Pégalos en cualquier conjunto con Ctrl+V o ⌘V.",
@@ -2997,7 +3009,18 @@
     "resetCalloutAll": "Restablecer todo",
     "calloutSizeHint": "Haz clic en el globo para cambiar su tamaño con los controles o elegir un color.",
     "editOnBoard": "Editar en la pizarra",
-    "editOnBoardFailed": "No se pudo guardar el recorrido, así que el editor de la pizarra no se abrió."
+    "editOnBoardFailed": "No se pudo guardar el recorrido, así que el editor de la pizarra no se abrió.",
+    "welcomeCard": "Bienvenida",
+    "welcomeOff": "Bienvenida desactivada",
+    "welcomePinned": "Siempre primero. Los estudiantes la ven antes de la diapositiva 1.",
+    "welcomeScreen": "Pantalla de bienvenida",
+    "welcomeImage": "Imagen",
+    "welcomeAddImage": "Agregar imagen",
+    "welcomeRemoveImage": "Quitar imagen",
+    "welcomeImageUploading": "Subiendo…",
+    "welcomeImageAlt": "Texto alternativo",
+    "welcomeImageAltPlaceholder": "Describe la imagen o déjalo en blanco si es decorativa",
+    "untitled": "Actividad sin título"
   },
   "helpCenter": {
     "title": "Ayuda",
@@ -3932,6 +3955,7 @@
   },
   "tourPicker": {
     "prompt": "Haz clic en un control para este paso",
+    "altHint": "Mantén Alt para abrir primero un menú",
     "chooseFromList": "Elegir de la lista",
     "cancel": "Cancelar",
     "search": "Buscar controles",
@@ -3941,6 +3965,14 @@
     "pick": "Elegir",
     "addStep": "Añadir paso",
     "listTitle": "Elige un control",
+    "onScreen": "En pantalla",
+    "elsewhere": "En otros lugares",
+    "showMore": "Mostrar {{count}} más",
     "recordFromHere": "Grabar desde aquí"
+  },
+  "widgetWhatsNew": {
+    "label": "Novedades",
+    "dismiss": "Descartar",
+    "gotIt": "Entendido"
   }
 }

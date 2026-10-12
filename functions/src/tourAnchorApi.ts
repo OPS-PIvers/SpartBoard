@@ -162,7 +162,7 @@ export const tourAnchorApi = onRequest(
           )
           .get();
         const items = selectOpenItems(
-          snap.docs.map((d) => ({ id: d.id, data: d.data() as QueueDoc })),
+          snap.docs.map((d) => ({ id: d.id, data: d.data() })),
           Date.now(),
           needsHuman
         );

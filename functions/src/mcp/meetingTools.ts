@@ -57,10 +57,7 @@ function activeMembers(plc: Data | undefined): GroupMember[] {
 }
 
 export type DraftState =
-  | 'none'
-  | 'waiting_for_review'
-  | 'inserted'
-  | 'dismissed';
+  'none' | 'waiting_for_review' | 'inserted' | 'dismissed';
 
 export function draftState(rec: Data): DraftState {
   if (!rec.draft) return 'none';

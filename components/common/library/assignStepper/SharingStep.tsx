@@ -6,6 +6,7 @@ import {
   type SharingStepContext,
   type SharingStepValue,
 } from './SharingStep.format';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface SharingStepProps extends SharingStepContext {
   value: SharingStepValue;
@@ -43,6 +44,7 @@ export const SharingStep: React.FC<SharingStepProps> = ({
           onChange={(plcMode) => onChange({ ...value, plcMode })}
           size="sm"
           label={label}
+          anchor={tourAttr('sharing.plc-toggle')}
         />
       </div>
       {value.plcMode && plcs.length > 1 && (
@@ -54,6 +56,7 @@ export const SharingStep: React.FC<SharingStepProps> = ({
             id={selectId}
             value={effectivePlcId}
             onChange={(e) => onChange({ ...value, plcId: e.target.value })}
+            {...tourAttr('sharing.plc-select')}
             className="h-8 w-56 px-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary"
           >
             <option value="">Select a PLC…</option>

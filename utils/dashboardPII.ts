@@ -13,7 +13,7 @@
  * and is a Record<widgetId, Partial<WidgetConfig>> containing only PII fields.
  */
 
-import { Dashboard, WidgetConfig, WidgetData } from '@/types';
+import { Dashboard, WidgetData } from '@/types';
 
 /** Widget config keys that may contain student PII and must never reach Firestore. */
 export const PII_WIDGET_FIELDS = [
@@ -72,7 +72,7 @@ export function scrubWidgetsPII(widgets: WidgetData[]): WidgetData[] {
     for (const field of PII_WIDGET_FIELDS) {
       delete config[field];
     }
-    return { ...widget, config: config as WidgetConfig };
+    return { ...widget, config: config };
   });
 }
 
@@ -142,7 +142,7 @@ export function mergeWidgetsPII(
       config: {
         ...(widget.config as Record<string, unknown>),
         ...piiFields,
-      } as WidgetConfig,
+      },
     };
   });
 }

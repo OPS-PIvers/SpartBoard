@@ -24,6 +24,7 @@ import {
   normalizeQuizReadAloudSettings,
 } from '@/config/quizReadAloud';
 import { ReadAloudPreviewButton } from '@/components/quiz/readAloud/ReadAloudPreviewButton';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 interface TranslationUsage {
   units: number;
@@ -262,6 +263,11 @@ export const QuizReadAloudConfigurationPanel: React.FC<
                         {translationCode ? (
                           <label className="inline-flex items-center gap-2 text-sm text-slate-700">
                             <input
+                              {...tourFieldAttr(
+                                'admin.widget-config.field',
+                                'quiz',
+                                `translation-${translationCode}`
+                              )}
                               type="checkbox"
                               checked={translationDraft.enabledLanguages.includes(
                                 translationCode
@@ -281,6 +287,11 @@ export const QuizReadAloudConfigurationPanel: React.FC<
                       </td>
                       <td className="px-4 py-2 space-y-1">
                         <select
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'quiz',
+                            `premiumVoice-${tag}`
+                          )}
                           aria-label={`${label} premium voice`}
                           className={selectClass}
                           value={draft.voicesByLanguage[tag] ?? ''}
@@ -302,6 +313,11 @@ export const QuizReadAloudConfigurationPanel: React.FC<
                       </td>
                       <td className="px-4 py-2 space-y-1">
                         <select
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'quiz',
+                            `standardVoice-${tag}`
+                          )}
                           aria-label={`${label} Standard fallback voice`}
                           className={selectClass}
                           value={draft.standardVoicesByLanguage[tag] ?? ''}
@@ -341,6 +357,11 @@ export const QuizReadAloudConfigurationPanel: React.FC<
                     <td className="px-4 py-2">
                       <label className="inline-flex items-center gap-2 text-sm text-slate-700">
                         <input
+                          {...tourFieldAttr(
+                            'admin.widget-config.field',
+                            'quiz',
+                            `translation-${code}`
+                          )}
                           type="checkbox"
                           checked={translationDraft.enabledLanguages.includes(
                             code
@@ -366,6 +387,11 @@ export const QuizReadAloudConfigurationPanel: React.FC<
                 Premium voice characters per month
               </span>
               <input
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'quiz',
+                  'neural2MonthlyCapChars'
+                )}
                 type="number"
                 min={0}
                 step={1000}
@@ -422,6 +448,11 @@ export const QuizReadAloudConfigurationPanel: React.FC<
                   Translations per month
                 </span>
                 <input
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'quiz',
+                    'monthlyCapUnits'
+                  )}
                   type="number"
                   min={0}
                   step={100}
@@ -445,6 +476,11 @@ export const QuizReadAloudConfigurationPanel: React.FC<
                   Translation output tokens per month
                 </span>
                 <input
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'quiz',
+                    'monthlyCapOutputTokens'
+                  )}
                   type="number"
                   min={0}
                   step={100000}
@@ -492,6 +528,7 @@ export const QuizReadAloudConfigurationPanel: React.FC<
           <div className="flex items-center gap-3">
             <button
               type="button"
+              {...tourTypeAttr('admin.widget-config.save', 'quiz')}
               onClick={handleSave}
               disabled={!dirty || saving}
               className="inline-flex items-center gap-2 rounded-lg bg-brand-blue-primary px-4 py-2 text-sm font-bold text-white hover:bg-brand-blue-dark disabled:opacity-40"

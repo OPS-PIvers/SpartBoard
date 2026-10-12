@@ -1,3 +1,4 @@
+import { tourFieldAttr } from '@/config/tourAnchors';
 import React from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
@@ -77,6 +78,11 @@ export const StationsConfigurationPanel: React.FC<
             Default Font Family
           </label>
           <select
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'stations',
+              'fontFamily'
+            )}
             value={currentBuildingConfig.fontFamily ?? 'global'}
             onChange={(e) => {
               const selected = e.target.value;
@@ -104,12 +110,20 @@ export const StationsConfigurationPanel: React.FC<
           <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
             Default Text Colour
           </label>
-          <HexColorField
-            value={currentBuildingConfig.fontColor}
-            onChange={(fontColor) => handleUpdateBuilding({ fontColor })}
-            fallback="#334155"
-            ariaLabel="Pick default stations text colour"
-          />
+          <div
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'stations',
+              'fontColor'
+            )}
+          >
+            <HexColorField
+              value={currentBuildingConfig.fontColor}
+              onChange={(fontColor) => handleUpdateBuilding({ fontColor })}
+              fallback="#334155"
+              ariaLabel="Pick default stations text colour"
+            />
+          </div>
         </div>
 
         {/* Default Surface Colour */}
@@ -117,12 +131,20 @@ export const StationsConfigurationPanel: React.FC<
           <label className="text-xxs font-bold text-slate-500 uppercase mb-1 block">
             Default Surface Colour
           </label>
-          <HexColorField
-            value={currentBuildingConfig.cardColor}
-            onChange={(cardColor) => handleUpdateBuilding({ cardColor })}
-            fallback="#ffffff"
-            ariaLabel="Pick default stations surface colour"
-          />
+          <div
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'stations',
+              'cardColor'
+            )}
+          >
+            <HexColorField
+              value={currentBuildingConfig.cardColor}
+              onChange={(cardColor) => handleUpdateBuilding({ cardColor })}
+              fallback="#ffffff"
+              ariaLabel="Pick default stations surface colour"
+            />
+          </div>
         </div>
 
         {/* Default Surface Opacity */}
@@ -132,6 +154,11 @@ export const StationsConfigurationPanel: React.FC<
           </label>
           <input
             type="range"
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'stations',
+              'cardOpacity'
+            )}
             min="0"
             max="1"
             step="0.05"

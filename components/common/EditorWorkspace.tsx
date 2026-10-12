@@ -1,4 +1,5 @@
 import React from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import {
   EditorModalShell,
   type EditorAutosaveConfig,
@@ -26,6 +27,8 @@ interface EditorWorkspaceProps {
   incompleteNotice?: string | null;
   /** Pass-through to `EditorModalShell.tourScope`. */
   tourScope?: string;
+  /** Pass-through to `EditorModalShell.saveAnchor`. */
+  saveAnchor?: TourAnchorAttrs;
   onClose: () => void;
   confirmDiscardMessage?: string;
   confirmDiscardTitle?: string;

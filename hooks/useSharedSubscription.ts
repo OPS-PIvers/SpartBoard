@@ -54,8 +54,7 @@ export function readShared<T>(
   param: string
 ): T | undefined {
   return entries.get(keyOf(source as SharedSource<unknown>, param))?.value as
-    | T
-    | undefined;
+    T | undefined;
 }
 
 /** Pushes an update into a live shared subscription; no-op when nobody is listening. */

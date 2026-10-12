@@ -1,5 +1,6 @@
 import React from 'react';
 import type { ProficiencyScale } from '@/utils/gradebook/gradebookCore';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { bandFor } from './bands';
 
 export interface BarListRow {
@@ -75,6 +76,11 @@ export const BarList: React.FC<BarListProps> = ({
               {onSelect ? (
                 <button
                   type="button"
+                  {...tourFieldAttr(
+                    'gradebook.analysis.bar-row',
+                    'gradebook',
+                    r.id
+                  )}
                   onClick={() => onSelect(r.id)}
                   className="max-w-full truncate text-left hover:text-brand-blue-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/30 rounded"
                 >

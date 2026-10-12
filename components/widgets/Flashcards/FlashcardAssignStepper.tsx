@@ -33,6 +33,7 @@ import {
   formatFlashcardsCheckValue,
   type FlashcardsCheckValue,
 } from '@/components/common/library/assignStepper/flashcardsCheckValue';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { applyWhen } from '@/utils/assignAvailability';
 import {
   EMPTY_ASSIGN_TARGETING_VALUE,
@@ -136,11 +137,29 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignModalProps> = ({
             rosters={rosters}
             value={classes}
             onChange={setClasses}
+            anchor={tourTypeAttr(
+              'flashcards.stepper-class-picker',
+              'flashcards'
+            )}
+            rowAnchor={(classId) =>
+              tourFieldAttr(
+                'flashcards.stepper-class-row',
+                'flashcards',
+                classId
+              )
+            }
           />
           <StudentPickMenu
             rosters={rosters}
             value={classes}
             onChange={setClasses}
+            rowAnchor={(classId) =>
+              tourFieldAttr(
+                'flashcards.stepper-student-menu',
+                'flashcards',
+                classId
+              )
+            }
           />
           <ModificationsLink
             rosters={rosters}
@@ -228,6 +247,7 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignModalProps> = ({
           onChange={setKind}
           options={KIND_SWITCH_OPTIONS}
           ariaLabel="Student work"
+          anchor={tourTypeAttr('flashcards.stepper-kind-switch', 'flashcards')}
         />
       }
       steps={steps}

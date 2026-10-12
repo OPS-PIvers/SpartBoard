@@ -275,8 +275,7 @@ const JOINABLE_QUIZ_STATUSES = new Set(['waiting', 'active', 'paused']);
 
 /** Identifies the session a launch targets: a quiz join code or a VA session id. */
 export type LtiTargetSessionArgs =
-  | { kind: 'quiz'; quizCode: string }
-  | { kind: 'va'; sessionId: string };
+  { kind: 'quiz'; quizCode: string } | { kind: 'va'; sessionId: string };
 
 /**
  * Fields common to both launch kinds, plus a discriminated `kind`→id pairing so

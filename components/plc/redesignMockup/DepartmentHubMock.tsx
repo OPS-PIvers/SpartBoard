@@ -12,6 +12,7 @@ import {
   SquareSquare,
 } from 'lucide-react';
 import { Button } from '@/components/common/Button';
+import { tourAttr } from '@/config/tourAnchors';
 import {
   ActionItem,
   INPUT,
@@ -79,6 +80,7 @@ export const HeroHead: React.FC<{
           icon={<Pin className="h-3.5 w-3.5" aria-hidden="true" />}
           title="Change what the team sees first"
           onClick={onChange}
+          {...tourAttr('teams.hero.change')}
         >
           Change
         </Button>

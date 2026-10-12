@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { GL_MEDIA_ACCEPT } from '@/utils/guidedLearningMedia';
 import type { SlideUploadProgress } from '../useGuidedLearningEditorState';
+import { tourAttr } from '@/config/tourAnchors';
 
 export interface StudioStartHubProps {
   onFiles: (files: File[]) => void;
@@ -37,6 +38,7 @@ interface TargetProps {
   onClick: () => void;
   disabled?: boolean;
   dashed?: boolean;
+  anchor?: Record<string, string>;
 }
 
 const Target: React.FC<TargetProps> = ({
@@ -47,11 +49,13 @@ const Target: React.FC<TargetProps> = ({
   onClick,
   disabled,
   dashed,
+  anchor,
 }) => {
   const descId = useId();
   return (
     <button
       type="button"
+      {...anchor}
       data-testid={`gl-studio-hub-${id}`}
       onClick={onClick}
       disabled={disabled}
@@ -152,6 +156,7 @@ export const StudioStartHub: React.FC<StudioStartHubProps> = ({
         />
         <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <Target
+            anchor={tourAttr('studio.hub-upload')}
             id="upload"
             icon={Upload}
             label={t('glStudio.hubUpload')}
@@ -160,6 +165,7 @@ export const StudioStartHub: React.FC<StudioStartHubProps> = ({
             dashed
           />
           <Target
+            anchor={tourAttr('studio.hub-paste')}
             id="paste"
             icon={ClipboardPaste}
             label={t('glStudio.hubPaste')}
@@ -168,6 +174,7 @@ export const StudioStartHub: React.FC<StudioStartHubProps> = ({
             disabled={pasteBlocked !== null}
           />
           <Target
+            anchor={tourAttr('studio.hub-capture')}
             id="capture"
             icon={MonitorUp}
             label={t('glStudio.hubCapture')}
@@ -176,6 +183,7 @@ export const StudioStartHub: React.FC<StudioStartHubProps> = ({
           />
           {onRecordTour && (
             <Target
+              anchor={tourAttr('studio.hub-record')}
               id="record"
               icon={CircleDot}
               label={t('glStudio.hubRecord')}
@@ -185,6 +193,7 @@ export const StudioStartHub: React.FC<StudioStartHubProps> = ({
           )}
           {onDraftWithAi && (
             <Target
+              anchor={tourAttr('studio.hub-ai')}
               id="ai"
               icon={Sparkles}
               label={t('glStudio.hubAi')}
@@ -194,6 +203,7 @@ export const StudioStartHub: React.FC<StudioStartHubProps> = ({
           )}
           {onImport && (
             <Target
+              anchor={tourAttr('studio.hub-import')}
               id="import"
               icon={FileJson}
               label={t('glStudio.hubImport')}

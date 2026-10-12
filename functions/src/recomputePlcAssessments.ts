@@ -215,9 +215,8 @@ export async function recomputeOnePlcAssessment(
             .get()
         : Promise.resolve(null),
     ]);
-    const assignmentData = assignmentSnap?.data() as
-      | Record<string, unknown>
-      | undefined;
+    const assignmentData: Record<string, unknown> | undefined =
+      assignmentSnap?.data();
     const questionSnapshot = assignmentData?.questionSnapshot;
     sessions.push({
       id: sessionDoc.id,

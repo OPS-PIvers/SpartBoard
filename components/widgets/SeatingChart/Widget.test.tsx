@@ -7,7 +7,7 @@ import {
 } from './seatingChartLayouts';
 import { useDashboard } from '@/context/useDashboard';
 import { vi, describe, it, expect, beforeEach, afterEach, Mock } from 'vitest';
-import { WidgetData, SeatingChartConfig, FurnitureItem } from '@/types';
+import { WidgetData, SeatingChartConfig } from '@/types';
 import { DashboardContextValue } from '@/context/DashboardContextValue';
 
 vi.mock('@/context/useDashboard');
@@ -54,12 +54,12 @@ describe('SeatingChartWidget', () => {
           width: 60,
           height: 50,
           rotation: 0,
-        } as FurnitureItem,
+        },
       ],
       assignments: {},
       gridSize: 20,
       rosterMode: 'class',
-    } as SeatingChartConfig,
+    },
     x: 0,
     y: 0,
     w: 800,
@@ -270,7 +270,7 @@ describe('SeatingChartWidget', () => {
       names: 'Student 1\nStudent 2\nStudent 3\nStudent 4',
       template: 'rows',
       templateColumns: 2,
-    } as SeatingChartConfig;
+    };
 
     render(<SeatingChartWidget widget={widget} />);
 
@@ -476,13 +476,13 @@ describe('SeatingChartWidget — class group pool', () => {
           width: 60,
           height: 50,
           rotation: 0,
-        } as FurnitureItem,
+        },
       ],
       assignments: { s1: 'desk-1', s2: 'desk-1' },
       gridSize: 20,
       rosterMode: 'class',
       ...config,
-    } as SeatingChartConfig,
+    },
     x: 0,
     y: 0,
     w: 800,

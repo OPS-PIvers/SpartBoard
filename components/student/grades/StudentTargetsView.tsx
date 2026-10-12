@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import {
   proficiencyLevel,
   type ProficiencyScale,
@@ -130,6 +131,11 @@ const TargetRow: React.FC<{
       <button
         type="button"
         aria-expanded={open}
+        {...tourFieldAttr(
+          'gradebook.student-view.target-row',
+          'gradebook',
+          target.targetId
+        )}
         onClick={onToggle}
         className="grid w-full grid-cols-[1fr_auto] items-center gap-x-4 gap-y-2 px-5 py-4 text-left transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-blue-primary sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_auto_auto]"
       >

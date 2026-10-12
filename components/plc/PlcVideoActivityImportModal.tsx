@@ -6,6 +6,7 @@ import { Cloud, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { PlcImportModeOptions } from './PlcImportModeOptions';
 import type { SharedVideoActivityImportMode } from '@/hooks/useVideoActivityAssignments';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface PlcVideoActivityImportModalProps {
   /** Title of the PLC video activity being imported. */
@@ -56,6 +57,7 @@ export const PlcVideoActivityImportModal: React.FC<
             </div>
           </div>
           <button
+            {...tourAttr('plc-import.close')}
             type="button"
             onClick={onClose}
             aria-label={t('plcDashboard.videoActivityImportModal.close', {

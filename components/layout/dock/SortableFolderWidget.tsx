@@ -5,6 +5,7 @@ import { X } from 'lucide-react';
 import { useLongPress } from '@/hooks/useLongPress';
 import { DockIcon } from './DockIcon';
 import { Z_INDEX } from '@/config/zIndex';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import { WidgetType, ToolMetadata, InternalToolType } from '@/types';
 
 interface SortableFolderWidgetProps {
@@ -63,6 +64,7 @@ export const SortableFolderWidget = React.memo(
             type="button"
             {...attributes}
             {...listeners}
+            {...tourTypeAttr('dock.folder-item', type)}
             onClick={() => {
               if (isEditMode) return;
               onAdd();
@@ -92,6 +94,7 @@ export const SortableFolderWidget = React.memo(
           {isEditMode && (
             <div
               role="button"
+              {...tourTypeAttr('dock.folder-widget-remove', type)}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();

@@ -243,7 +243,7 @@ describe('dashboardPII utilities', () => {
           },
           emptyDefaults.widgets[1],
         ],
-      } as unknown as Dashboard;
+      };
       expect(dashboardHasPII(withNames)).toBe(true);
       expect(extractDashboardPII(withNames)).toEqual({
         'random-empty': { firstNames: 'Alice' },

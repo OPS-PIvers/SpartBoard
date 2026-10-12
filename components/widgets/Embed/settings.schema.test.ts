@@ -49,7 +49,7 @@ describe('embed config migration', () => {
       blockedReason: '',
       html: '',
       refreshInterval: 0,
-    } as EmbedConfig,
+    },
   };
 
   it('is a no-op besides stamping configVersion', () => {
@@ -76,7 +76,7 @@ describe('embed config migration', () => {
       zoom: 1.5,
       autoplay: true,
       startAtSeconds: 30,
-    } as Partial<EmbedConfig>);
+    });
     const migrated = migrateWidget({ ...fixture, config: merged });
 
     const frontFaceReadKeys: (keyof EmbedConfig)[] = [

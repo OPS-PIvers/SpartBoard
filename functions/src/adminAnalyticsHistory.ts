@@ -3,7 +3,8 @@
  *
  * The nightly recompute writes one doc per day at
  * `/organizations/{orgId}/analytics_days/{YYYY-MM-DD}` holding the uids
- * active in the previous 24h. Days before the first measured run can be
+ * active in the previous 24h, and the same shape for SSO students under
+ * `analytics_student_days`. Days before the first measured run can be
  * filled once from dated records (`estimated: true`). The snapshot carries
  * the derived series, sign-up months and retention cohorts, never the uids.
  */
@@ -37,6 +38,8 @@ export interface CohortRow {
 
 export interface AnalyticsHistory {
   days: ActivityPoint[];
+  // SSO students, from analytics_student_days; omitted when the student read fails.
+  studentDays?: ActivityPoint[];
   newUsersByMonth: MonthCount[];
   cohorts: CohortRow[];
 }
@@ -206,13 +209,20 @@ export function estimateActivityDays(
     }));
 }
 
-const dayCollection = (orgId: string) =>
-  admin.firestore().collection(`organizations/${orgId}/analytics_days`);
+export type ActivityKind = 'staff' | 'students';
+
+const dayCollection = (orgId: string, kind: ActivityKind) =>
+  admin
+    .firestore()
+    .collection(
+      `organizations/${orgId}/${kind === 'students' ? 'analytics_student_days' : 'analytics_days'}`
+    );
 
 export async function readActivityDays(
-  orgId: string
+  orgId: string,
+  kind: ActivityKind = 'staff'
 ): Promise<DayActivityDoc[]> {
-  const snap = await dayCollection(orgId).get();
+  const snap = await dayCollection(orgId, kind).get();
   return snap.docs.map((doc) => {
     const data = doc.data() as { activeUids?: unknown; estimated?: unknown };
     return {
@@ -227,9 +237,10 @@ export async function readActivityDays(
 
 export async function writeActivityDays(
   orgId: string,
-  docs: DayActivityDoc[]
+  docs: DayActivityDoc[],
+  kind: ActivityKind = 'staff'
 ): Promise<void> {
-  const col = dayCollection(orgId);
+  const col = dayCollection(orgId, kind);
   for (let i = 0; i < docs.length; i += 400) {
     const batch = admin.firestore().batch();
     for (const doc of docs.slice(i, i + 400)) {

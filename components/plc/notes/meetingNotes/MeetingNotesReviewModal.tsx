@@ -5,6 +5,7 @@ import { Modal } from '@/components/common/Modal';
 import { NotesMarkdown } from '@/components/plc/bodies/notesMarkdown';
 import type { PlcMember, PlcRecordingDraft } from '@/types';
 import type { MeetingNotesApplyMode } from '@/utils/plcMeetingNotes';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 type Action = MeetingNotesApplyMode | 'regenerate' | 'dismiss';
 
@@ -69,6 +70,7 @@ export const MeetingNotesReviewModal: React.FC<
   const footer = (
     <div className="flex w-full items-center gap-2">
       <button
+        {...tourAttr('plc-notes.review-insert')}
         type="button"
         disabled={busy !== null}
         onClick={() => void run('insert', () => onApply('insert', owners))}
@@ -79,6 +81,7 @@ export const MeetingNotesReviewModal: React.FC<
         })}
       </button>
       <button
+        {...tourAttr('plc-notes.review-replace')}
         type="button"
         disabled={busy !== null}
         onClick={() => void run('replace', () => onApply('replace', owners))}
@@ -90,6 +93,7 @@ export const MeetingNotesReviewModal: React.FC<
       </button>
       {canRegenerate && (
         <button
+          {...tourAttr('plc-notes.review-regenerate')}
           type="button"
           disabled={busy !== null}
           onClick={() => void run('regenerate', onRegenerate)}
@@ -101,6 +105,7 @@ export const MeetingNotesReviewModal: React.FC<
         </button>
       )}
       <button
+        {...tourAttr('plc-notes.review-dismiss')}
         type="button"
         disabled={busy !== null}
         onClick={() => void run('dismiss', onDismiss)}
@@ -145,6 +150,7 @@ export const MeetingNotesReviewModal: React.FC<
                   {item.text}
                 </span>
                 <select
+                  {...tourFieldAttr('plc-notes.review-owner', 'plc', item.id)}
                   value={owners[item.id] ?? ''}
                   onChange={(e) =>
                     setOwners((o) => ({

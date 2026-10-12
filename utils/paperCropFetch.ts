@@ -20,12 +20,7 @@ export interface PaperCropRequest {
 export type PaperCropResolver = (req: PaperCropRequest) => Promise<string>;
 
 export type PaperCropUnavailableReason =
-  | 'no-crop'
-  | 'missing'
-  | 'archiving'
-  | 'deleted'
-  | 'failed'
-  | 'too-large';
+  'no-crop' | 'missing' | 'archiving' | 'deleted' | 'failed' | 'too-large';
 
 export class PaperCropUnavailableError extends Error {
   constructor(readonly reason: PaperCropUnavailableReason) {

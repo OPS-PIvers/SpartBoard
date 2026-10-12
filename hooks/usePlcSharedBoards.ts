@@ -142,7 +142,7 @@ export const usePlcSharedBoards = (
       (snap) => {
         const list: PlcSharedBoardEntry[] = [];
         snap.forEach((d) => {
-          const parsed = parseEntry(d.id, d.data() as Record<string, unknown>);
+          const parsed = parseEntry(d.id, d.data());
           if (parsed) list.push(parsed);
         });
         setBoards(list);

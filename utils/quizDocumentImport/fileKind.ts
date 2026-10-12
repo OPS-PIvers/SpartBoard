@@ -1,13 +1,7 @@
 /** What a picked file is and what to call the quiz it becomes (D11). */
 
 export type DocumentKind =
-  | 'pdf'
-  | 'docx'
-  | 'odt'
-  | 'rtf'
-  | 'examview'
-  | 'cartridge'
-  | 'image';
+  'pdf' | 'docx' | 'odt' | 'rtf' | 'examview' | 'cartridge' | 'image';
 
 const DOCX_TYPE =
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document';

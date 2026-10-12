@@ -1,4 +1,5 @@
 import React from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { Check, ChevronDown } from 'lucide-react';
 import type {
   ActiveFlag,
@@ -91,13 +92,15 @@ export const Toggle: React.FC<{
   children: React.ReactNode;
   disabled?: boolean;
   small?: boolean;
-}> = ({ checked, onChange, children, disabled, small }) => (
+  anchor?: TourAnchorAttrs;
+}> = ({ checked, onChange, children, disabled, small, anchor }) => (
   <label
     className={`relative inline-flex cursor-pointer select-none items-center gap-2 text-slate-600 ${
       small ? 'text-xs' : 'text-[13px]'
     }`}
   >
     <input
+      {...anchor}
       type="checkbox"
       className="peer absolute h-px w-px opacity-0"
       checked={checked}
@@ -118,12 +121,16 @@ export const FlagMenuList: React.FC<{
   active: ActiveFlag[];
   onToggle: (flagId: string) => void;
   disabled?: boolean;
-}> = ({ flags, active, onToggle, disabled }) => (
-  <div role="menu" className="flex flex-col">
+  anchor?: TourAnchorAttrs;
+  /** Anchor for one flag row, keyed by flag id. */
+  itemAnchor?: (flagId: string) => TourAnchorAttrs;
+}> = ({ flags, active, onToggle, disabled, anchor, itemAnchor }) => (
+  <div {...anchor} role="menu" className="flex flex-col">
     {flags.map((f) => {
       const on = active.find((a) => a.id === f.id);
       return (
         <button
+          {...itemAnchor?.(f.id)}
           key={f.id}
           type="button"
           role="menuitemcheckbox"

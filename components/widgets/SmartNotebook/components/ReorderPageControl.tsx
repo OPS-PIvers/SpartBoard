@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowLeftToLine, ArrowRightToLine } from 'lucide-react';
+import { tourTypeAttr } from '@/config/tourAnchors';
 
 // Match the surrounding header tool buttons' tap target (min(8px, 2cqmin)
 // padding around a min(16px, 4cqmin) icon) so this control is no harder to
@@ -49,6 +50,7 @@ export const ReorderPageControl: React.FC<{
       <button
         type="button"
         onClick={() => onMovePage(-1)}
+        {...tourTypeAttr('smart-notebook.move-page-earlier', 'smartNotebook')}
         disabled={pageOpBusy || !canMoveEarlier}
         className={BTN_CLASS}
         style={BTN_STYLE}
@@ -70,6 +72,7 @@ export const ReorderPageControl: React.FC<{
       <button
         type="button"
         onClick={() => onMovePage(1)}
+        {...tourTypeAttr('smart-notebook.move-page-later', 'smartNotebook')}
         disabled={pageOpBusy || !canMoveLater}
         className={BTN_CLASS}
         style={BTN_STYLE}

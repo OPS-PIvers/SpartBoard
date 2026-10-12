@@ -1,6 +1,7 @@
 import React from 'react';
 import { Loader2 } from 'lucide-react';
 import { Private } from '@/components/gradebook/Private';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { BarList, ScoreHistogram } from '@/components/gradebook/charts';
 import type { ProficiencyScale } from '@/utils/gradebook/gradebookCore';
 import {
@@ -46,6 +47,7 @@ export const GradebookAnalyzeView: React.FC<GradebookAnalyzeViewProps> = ({
         <span className="flex-1" />
         <button
           type="button"
+          {...tourAttr('gradebook.analyze.close')}
           onClick={onClose}
           className="inline-flex h-[34px] items-center rounded-lg border border-slate-300 bg-white px-3.5 text-[13px] font-semibold text-slate-700 shadow-sm hover:bg-slate-50"
         >
@@ -128,6 +130,11 @@ export const GradebookAnalyzeView: React.FC<GradebookAnalyzeViewProps> = ({
                 <button
                   key={s.uid}
                   type="button"
+                  {...tourFieldAttr(
+                    'gradebook.analyze.student',
+                    'gradebook',
+                    s.uid
+                  )}
                   onClick={() => onOpenStudent(s.uid)}
                   className="self-start text-left text-xs text-slate-700 hover:text-brand-blue-primary hover:underline"
                 >

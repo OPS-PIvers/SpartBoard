@@ -11,6 +11,18 @@ export interface GuidedLearningLatestSet {
   updatedAt: number;
 }
 
+/** A stored revision seen while the editor is open; `byClaude` when the connector wrote it. */
+export interface GuidedLearningStoredRevision {
+  updatedAt: number;
+  byClaude: boolean;
+  loadLatest: () => Promise<GuidedLearningLatestSet>;
+}
+
+/** Subscribes to the stored revision of one set; returns the unsubscribe. */
+export type GuidedLearningRevisionWatch = (
+  onRevision: (revision: GuidedLearningStoredRevision) => void
+) => () => void;
+
 /** Thrown when someone else saved the set since the editor loaded it. */
 export class GuidedLearningSaveConflictError extends Error {
   constructor(readonly loadLatest: () => Promise<GuidedLearningLatestSet>) {

@@ -11,8 +11,10 @@
  */
 
 import React, { useRef, useState } from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { FolderInput, Trash2, X, type LucideIcon } from 'lucide-react';
 import type { LibraryFolder } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 import { FolderPickerPopover } from './FolderPickerPopover';
 
 /**
@@ -28,6 +30,7 @@ export interface BulkAction {
   destructive?: boolean;
   /** Disables this individual action (in addition to the toolbar-wide busy). */
   disabled?: boolean;
+  anchor?: TourAnchorAttrs;
 }
 
 export interface BulkActionBarProps {
@@ -46,6 +49,13 @@ export interface BulkActionBarProps {
   onDelete?: () => void | Promise<void>;
   /** Optional busy flag that disables actions while a batch is in-flight. */
   busy?: boolean;
+  /** Anchors for the bar and its built-in buttons. */
+  anchors?: {
+    bar?: TourAnchorAttrs;
+    move?: TourAnchorAttrs;
+    delete?: TourAnchorAttrs;
+    clear?: TourAnchorAttrs;
+  };
 }
 
 export const BulkActionBar: React.FC<BulkActionBarProps> = ({
@@ -56,6 +66,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
   onMove,
   onDelete,
   busy,
+  anchors,
 }) => {
   const [showFolderPicker, setShowFolderPicker] = useState(false);
   // Anchors the picker so it portals to <body> instead of stacking inside the
@@ -66,6 +77,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
 
   return (
     <div
+      {...anchors?.bar}
       role="region"
       aria-label="Bulk actions"
       className="flex flex-wrap items-center rounded-2xl border border-brand-blue-primary/30 bg-brand-blue-lighter/30 shadow-sm backdrop-blur-sm"
@@ -95,12 +107,14 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
           const disabled = Boolean(busy) || Boolean(action.disabled);
           return (
             <button
+              {...action.anchor}
               key={action.id}
               type="button"
               onClick={() => {
                 if (!disabled) void action.onClick();
               }}
               disabled={disabled}
+              {...tourAttr('library-shell.bulk-action')}
               className={`inline-flex items-center rounded-lg bg-white font-bold uppercase tracking-wider shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                 action.destructive
                   ? 'text-brand-red-dark ring-1 ring-brand-red-primary/20 hover:bg-brand-red-lighter/30 hover:ring-brand-red-primary/40'
@@ -130,6 +144,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
         {folders && onMove && (
           <div className="relative">
             <button
+              {...anchors?.move}
               ref={moveButtonRef}
               type="button"
               onClick={() => setShowFolderPicker((v) => !v)}
@@ -142,6 +157,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
                 fontSize: 'min(12px, 4.5cqmin)',
               }}
               aria-haspopup="dialog"
+              {...tourAttr('library-shell.bulk-move')}
               aria-expanded={showFolderPicker}
             >
               <FolderInput
@@ -170,11 +186,13 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
         {/* Legacy onDelete API. */}
         {onDelete && (
           <button
+            {...anchors?.delete}
             type="button"
             onClick={async () => {
               if (!busy) await onDelete();
             }}
             disabled={busy}
+            {...tourAttr('library-shell.bulk-delete')}
             className="inline-flex items-center rounded-lg bg-white font-bold uppercase tracking-wider text-brand-red-dark shadow-sm transition-colors hover:bg-brand-red-lighter/30 disabled:cursor-not-allowed disabled:opacity-50"
             style={{
               gap: 'min(6px, 1.5cqmin)',
@@ -194,6 +212,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
         )}
 
         <button
+          {...anchors?.clear}
           type="button"
           onClick={onClear}
           disabled={busy}
@@ -205,6 +224,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
             fontSize: 'min(12px, 4.5cqmin)',
           }}
           aria-label="Clear selection"
+          {...tourAttr('library-shell.bulk-clear')}
         >
           <X
             style={{

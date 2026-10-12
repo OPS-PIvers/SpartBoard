@@ -1,4 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type MockInstance,
+} from 'vitest';
 
 const startMock = vi.fn();
 const updateMock = vi.fn();
@@ -42,11 +50,14 @@ const sendReady = (source: unknown, origin = window.location.origin) => {
 
 describe('openViewAsTab', () => {
   let win: FakeWin;
+  let openSpy: MockInstance<typeof window.open>;
 
   beforeEach(() => {
     vi.useFakeTimers();
     win = fakeWin();
-    vi.spyOn(window, 'open').mockReturnValue(win as unknown as Window);
+    openSpy = vi
+      .spyOn(window, 'open')
+      .mockReturnValue(win as unknown as Window);
     startMock.mockReset().mockResolvedValue({ data: SESSION });
     updateMock.mockReset().mockResolvedValue({ data: { ended: true } });
   });
@@ -60,7 +71,7 @@ describe('openViewAsTab', () => {
 
   it('opens the tab before minting and hands off the token once the tab is ready', async () => {
     await openViewAsTab('jane@orono.k12.mn.us');
-    expect(window.open).toHaveBeenCalledWith('/?viewAs=1', '_blank');
+    expect(openSpy).toHaveBeenCalledWith('/?viewAs=1', '_blank');
     expect(startMock).toHaveBeenCalledWith({
       targetEmail: 'jane@orono.k12.mn.us',
     });
@@ -118,7 +129,7 @@ describe('openViewAsTab', () => {
   });
 
   it('reports a blocked pop-up', async () => {
-    vi.mocked(window.open).mockReturnValue(null);
+    openSpy.mockReturnValue(null);
     await expect(openViewAsTab('jane@orono.k12.mn.us')).rejects.toThrow(
       /pop-ups/
     );

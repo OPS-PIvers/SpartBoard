@@ -2,6 +2,7 @@
 import React, { useContext, useRef, useState } from 'react';
 import { ChevronRight, Folder } from 'lucide-react';
 import { useDroppable } from '@dnd-kit/core';
+import { tourAttr } from '@/config/tourAnchors';
 import { useLibraryDrag } from './LibraryDragContext';
 import { LibraryGridLockContext } from './LibraryGridLockContext';
 import { crumbDroppableId, folderRowDroppableId } from './folderDropTargets';
@@ -44,6 +45,7 @@ const CrumbButton: React.FC<{
       ref={setNodeRef}
       type="button"
       onClick={onClick}
+      {...tourAttr('library-shell.folder-crumb')}
       className={`rounded px-0.5 break-words focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${
         isOver
           ? 'bg-brand-blue-lighter text-brand-blue-primary ring-2 ring-brand-blue-primary'
@@ -144,6 +146,7 @@ const NameField: React.FC<{
       autoFocus
       onFocus={(e) => e.currentTarget.select()}
       aria-label="Folder name"
+      {...tourAttr('library-shell.folder-name')}
       value={value}
       onChange={(e) => setValue(e.target.value)}
       onKeyDown={(e) => {
@@ -264,6 +267,7 @@ export const FolderRowButton: React.FC<{
       ref={setNodeRef}
       type="button"
       onClick={onOpen}
+      {...tourAttr('library-shell.folder-row')}
       data-testid="library-folder-row"
       className={className}
       style={style}
@@ -313,6 +317,7 @@ export const FolderViewHeader: React.FC<{
                   searchScope === 'folder' ? 'all' : 'folder'
                 )
               }
+              {...tourAttr('library-shell.folder-search-scope')}
               className="rounded-lg font-semibold text-brand-blue-primary hover:bg-brand-blue-lighter/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
               style={{
                 ...textStyle,

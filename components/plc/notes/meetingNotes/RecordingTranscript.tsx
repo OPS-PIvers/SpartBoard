@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import type { PlcTranscriptSegment } from '@/types';
 import { formatTranscriptTime } from '@/utils/plcMeetingNotes';
 import { logError } from '@/utils/logError';
+import { tourAttr } from '@/config/tourAnchors';
 
 interface RecordingTranscriptProps {
   recordingId: string;
@@ -38,6 +39,7 @@ export const RecordingTranscript: React.FC<RecordingTranscriptProps> = ({
   return (
     <div className="mt-2">
       <button
+        {...tourAttr('plc-notes.transcript-toggle')}
         type="button"
         onClick={toggle}
         aria-expanded={open}

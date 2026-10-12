@@ -7,11 +7,11 @@ const makePerm = (
   buildingDefaults: Record<string, Record<string, unknown>>,
   extraConfig: Record<string, unknown> = {}
 ): FeaturePermission => ({
-  widgetType: widgetType as FeaturePermission['widgetType'],
+  widgetType: widgetType,
   accessLevel: 'public',
   betaUsers: [],
   enabled: true,
-  config: { buildingDefaults, ...extraConfig } as FeaturePermission['config'],
+  config: { buildingDefaults, ...extraConfig },
 });
 
 describe('getAdminBuildingConfig', () => {
@@ -1081,5 +1081,20 @@ describe('getAdminBuildingConfig', () => {
         ['high']
       )
     ).toEqual({});
+  });
+});
+
+describe('getAdminBuildingConfig malformed list entries', () => {
+  it.each([
+    ['checklist', 'items', [null, { text: 'a' }]],
+    ['scoreboard', 'teams', [null, { name: 'a' }]],
+    ['poll', 'options', [null, { label: 'a' }]],
+    ['url', 'urls', [null, { url: 'https://a.com' }]],
+    ['soundboard', 'availableSounds', [null, { id: 's1' }]],
+    ['schedule', 'schedules', [null, { name: 'a', items: [null, { t: 1 }] }]],
+    ['schedule', 'items', [null, { t: 1 }]],
+  ] as const)('%s.%s skips null entries without throwing', (type, key, v) => {
+    const perm = makePerm(type, { high: { [key]: v } });
+    expect(() => getAdminBuildingConfig(type, [perm], ['high'])).not.toThrow();
   });
 });

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Pause } from 'lucide-react';
 import type { ClassRoster } from '@/types';
@@ -6,6 +6,7 @@ import { Toggle } from '@/components/common/Toggle';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import {
   closesBeforeOpens,
+  closesInPast,
   specForRoster,
   type AssignAvailability,
   type AssignWhenMode,
@@ -17,6 +18,7 @@ import {
   TagPrompt,
   type AssignPeriodAccessContext,
 } from '../AssignPeriodAccessSection';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const StateLine: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <p className="flex items-center gap-2 text-sm font-medium text-slate-700">
@@ -48,6 +50,7 @@ export const AssignWhenStep: React.FC<{
   perClass = !!periodAccess,
 }) => {
   const { t } = useTranslation();
+  const [openedAt] = useState(() => Date.now());
 
   if (variant === 'live')
     return (
@@ -87,7 +90,10 @@ export const AssignWhenStep: React.FC<{
   return (
     <div className="space-y-3">
       {manualAvailable && (
-        <div className="[&>div]:flex [&>div]:w-full [&>div>button]:flex-1">
+        <div
+          className="[&>div]:flex [&>div]:w-full [&>div>button]:flex-1"
+          {...tourAttr('assign-when.mode')}
+        >
           <SegmentedControl<AssignWhenMode>
             role="radiogroup"
             ariaLabel={t('assignWhen.title', { defaultValue: 'When' })}
@@ -97,12 +103,22 @@ export const AssignWhenStep: React.FC<{
               {
                 value: 'manual',
                 label: t('assignWhen.manual', { defaultValue: 'Manual' }),
+                anchor: tourFieldAttr(
+                  'assign-when.mode-option',
+                  'assign',
+                  'manual'
+                ),
               },
               {
                 value: 'scheduled',
                 label: t('assignWhen.scheduled', {
                   defaultValue: 'Scheduled',
                 }),
+                anchor: tourFieldAttr(
+                  'assign-when.mode-option',
+                  'assign',
+                  'scheduled'
+                ),
               },
             ]}
           />
@@ -152,6 +168,12 @@ export const AssignWhenStep: React.FC<{
                     [roster],
                     bellWindow
                   )}
+                  closed={closesInPast(
+                    specForRoster(availability, roster.id),
+                    [roster],
+                    bellWindow,
+                    openedAt
+                  )}
                   onChange={(spec) =>
                     setAvailability({
                       ...availability,
@@ -171,6 +193,12 @@ export const AssignWhenStep: React.FC<{
                 availability.all,
                 rosters,
                 bellWindow
+              )}
+              closed={closesInPast(
+                availability.all,
+                rosters,
+                bellWindow,
+                openedAt
               )}
               onChange={(all) => setAvailability({ ...availability, all })}
               resource={available}
@@ -208,6 +236,7 @@ export const AssignWhenStep: React.FC<{
                 )
               }
               className="text-xs font-bold text-brand-blue-primary hover:underline"
+              {...tourAttr('assign-when.scope')}
             >
               {eachClass
                 ? t('assignWhen.sameTime', {
@@ -231,6 +260,7 @@ export const AssignWhenStep: React.FC<{
                   setAvailability({ ...availability, allowLate })
                 }
                 label={allowLateLabel}
+                anchor={tourAttr('assign-when.allow-late')}
               />
             </div>
           )}

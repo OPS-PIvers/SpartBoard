@@ -1,4 +1,5 @@
 import React from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import {
   ChevronDown,
   EyeOff,
@@ -9,6 +10,7 @@ import {
   Users,
 } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   DEFAULT_PROFICIENCY_SCALE,
   parseScale,
@@ -110,7 +112,8 @@ const LabeledToggle: React.FC<{
   onChange: (v: boolean) => void;
   disabled: boolean;
   children: string;
-}> = ({ checked, onChange, disabled, children }) => (
+  anchor?: TourAnchorAttrs;
+}> = ({ checked, onChange, disabled, children, anchor }) => (
   <div className="flex items-center gap-2 text-[13px] text-slate-600">
     <Toggle
       checked={checked}
@@ -119,6 +122,7 @@ const LabeledToggle: React.FC<{
       size="xs"
       showLabels={false}
       label={children}
+      anchor={anchor}
     />
     <span>{children}</span>
   </div>
@@ -199,6 +203,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                       <button
                         type="button"
                         aria-label="About value"
+                        {...tourAttr('gradebook.settings.value-info')}
                         aria-describedby="gb-value-tip"
                         className="inline-flex rounded-full text-slate-500 hover:text-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
                       >
@@ -243,6 +248,11 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                             )
                           }
                           title="Change color"
+                          {...tourFieldAttr(
+                            'gradebook.settings.flag-color',
+                            'gradebook-settings',
+                            f.id
+                          )}
                           aria-label={`Change ${f.name} color`}
                           className={`h-[22px] min-w-[22px] px-1 rounded text-[11px] font-bold leading-none inline-grid place-items-center shrink-0 disabled:cursor-default ${flagChipClasses(f.color)}`}
                         >
@@ -253,6 +263,11 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                           disabled={ro}
                           maxLength={40}
                           aria-label="Flag name"
+                          {...tourFieldAttr(
+                            'gradebook.settings.flag-name',
+                            'gradebook-settings',
+                            f.id
+                          )}
                           className="!h-8 w-full min-w-0"
                           onCommit={(raw) => {
                             const name = raw.trim();
@@ -267,6 +282,11 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                         disabled={ro}
                         maxLength={1}
                         aria-label={`${f.name} key`}
+                        {...tourFieldAttr(
+                          'gradebook.settings.flag-key',
+                          'gradebook-settings',
+                          f.id
+                        )}
                         className="!h-8 w-10 !px-0 text-center font-semibold uppercase"
                         onCommit={(raw) => {
                           const res = checkFlagKey(raw, body.flags, f.id);
@@ -289,6 +309,11 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                             value={f.mode ?? 'score'}
                             disabled={ro}
                             aria-label={`${f.name} value type`}
+                            {...tourFieldAttr(
+                              'gradebook.settings.flag-mode',
+                              'gradebook-settings',
+                              f.id
+                            )}
                             wrapClassName="w-[92px] shrink-0"
                             className="!h-8 !pl-2 text-[13px]"
                             onChange={(e) =>
@@ -308,6 +333,11 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                             placeholder="None"
                             compact
                             label={`${f.name} value`}
+                            anchor={tourFieldAttr(
+                              'gradebook.settings.flag-value',
+                              'gradebook-settings',
+                              f.id
+                            )}
                             onCommit={(raw) =>
                               setFlag(
                                 i,
@@ -330,6 +360,11 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                         checked={f.removeWhenScored ?? false}
                         disabled={ro}
                         aria-label={`Remove ${f.name} when scored`}
+                        {...tourFieldAttr(
+                          'gradebook.settings.flag-remove-when-scored',
+                          'gradebook-settings',
+                          f.id
+                        )}
                         className="h-4 w-4 cursor-pointer accent-brand-blue-primary disabled:cursor-default"
                         onChange={(e) =>
                           setFlag(
@@ -346,6 +381,11 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                           type="button"
                           disabled={ro}
                           aria-label={`${f.name}: ${v.label}`}
+                          {...tourFieldAttr(
+                            'gradebook.settings.flag-visibility',
+                            'gradebook-settings',
+                            f.id
+                          )}
                           onClick={() =>
                             setFlag(
                               i,
@@ -384,6 +424,11 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                           type="button"
                           title="Remove flag"
                           aria-label={`Remove ${f.name}`}
+                          {...tourFieldAttr(
+                            'gradebook.settings.flag-remove',
+                            'gradebook-settings',
+                            f.id
+                          )}
                           className={`${ICON_BTN} hover:bg-rose-50 hover:!text-brand-red`}
                           onClick={() =>
                             set(
@@ -407,6 +452,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
           <div>
             <button
               type="button"
+              {...tourAttr('gradebook.settings.flag-add')}
               className={LINK_BTN}
               onClick={() => {
                 const f = newFlag(body.flags, newId('f'));
@@ -420,6 +466,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
         <LabeledToggle
           checked={body.autoFlags}
           disabled={ro}
+          anchor={tourAttr('gradebook.settings.auto-flags')}
           onChange={(autoFlags) => set({ autoFlags }, 'Automatic flags')}
         >
           Apply Late and Missing automatically from due dates
@@ -441,6 +488,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
               size="xs"
               showLabels={false}
               label="Weighted categories"
+              anchor={tourAttr('gradebook.settings.categories-toggle')}
             />
             <span>Weighted categories</span>
           </div>
@@ -448,6 +496,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
           {!ro && body.categoriesEnabled && (
             <button
               type="button"
+              {...tourAttr('gradebook.settings.category-restore')}
               className={LINK_BTN}
               onClick={() =>
                 set(
@@ -471,6 +520,11 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                     disabled={ro}
                     maxLength={60}
                     aria-label="Category name"
+                    {...tourFieldAttr(
+                      'gradebook.settings.category-name',
+                      'gradebook-settings',
+                      c.id
+                    )}
                     className="flex-1 min-w-0"
                     onCommit={(raw) => {
                       const name = raw.trim();
@@ -481,6 +535,11 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                     value={c.weight}
                     disabled={ro}
                     label={`${c.name} weight`}
+                    anchor={tourFieldAttr(
+                      'gradebook.settings.category-weight',
+                      'gradebook-settings',
+                      c.id
+                    )}
                     onCommit={(raw) =>
                       setCat(
                         i,
@@ -495,6 +554,11 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
                       disabled={body.categories.length < 2}
                       title="Remove category"
                       aria-label={`Remove ${c.name}`}
+                      {...tourFieldAttr(
+                        'gradebook.settings.category-remove',
+                        'gradebook-settings',
+                        c.id
+                      )}
                       className={`${ICON_BTN} hover:bg-rose-50 hover:!text-brand-red`}
                       onClick={() => {
                         const rest = body.categories.filter((_, n) => n !== i);
@@ -515,6 +579,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
               {!ro && body.categories.length < 20 && (
                 <button
                   type="button"
+                  {...tourAttr('gradebook.settings.category-add')}
                   className={LINK_BTN}
                   onClick={() =>
                     set(
@@ -559,6 +624,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
           </label>
           <SelectBox
             id="gb-set-scale"
+            {...tourAttr('gradebook.settings.scale')}
             value={scaleValue}
             disabled={ro}
             onChange={(e) => {
@@ -597,6 +663,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
           </label>
           <SelectBox
             id="gb-set-method"
+            {...tourAttr('gradebook.settings.combine-evidence')}
             value={body.method}
             disabled={ro}
             onChange={(e) =>
@@ -622,6 +689,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
         <LabeledToggle
           checked={scoresOn}
           disabled={ro}
+          anchor={tourAttr('gradebook.settings.student-scores')}
           onChange={(on) =>
             set(
               {
@@ -641,6 +709,7 @@ export const GradebookSettingsEditor: React.FC<EditorProps> = ({
         <LabeledToggle
           checked={vis.standards}
           disabled={ro}
+          anchor={tourAttr('gradebook.settings.student-standards')}
           onChange={(standards) =>
             set(
               { studentVisibility: { ...vis, standards } },

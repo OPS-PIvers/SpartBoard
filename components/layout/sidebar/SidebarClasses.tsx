@@ -177,6 +177,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
   // cleared when the modal closes.
   const coursesAccessTokenRef = useRef<string | null>(null);
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps narrowed to user?.email on purpose
   const loadCourses = useCallback(async () => {
     setCourseLoadState('loading');
     setCourseLoadError(null);
@@ -252,6 +253,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
   // Fetch the teacher's active courses whenever the link modal opens.
   useEffect(() => {
     if (!linkingRoster) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetches Classroom courses when the link modal opens
     void loadCourses();
   }, [linkingRoster, loadCourses]);
 
@@ -265,6 +267,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
     coursesAccessTokenRef.current = null;
   }, []);
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps narrowed to user?.email on purpose
   const handleConfirmLink = useCallback(async () => {
     if (!linkingRoster || !selectedCourseId) return;
     const uid = auth.currentUser?.uid;
@@ -341,6 +344,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
     user?.email,
   ]);
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps narrowed to user?.email on purpose
   const handleUnlink = useCallback(async () => {
     const courseId = linkingRoster?.googleClassroomCourseId;
     if (!linkingRoster || !courseId) return;
@@ -548,6 +552,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                   </p>
                 </div>
                 <button
+                  {...tourAttr('classes.new-class-empty')}
                   onClick={() => setEditingRosterId('new')}
                   className="mt-2 px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xxs font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors"
                 >

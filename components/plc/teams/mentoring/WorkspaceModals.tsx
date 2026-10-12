@@ -7,6 +7,7 @@ import { Button } from '@/components/common/Button';
 import { INPUT } from '@/components/plc/redesignMockup/ui';
 import { convertToEmbedUrl, ensureProtocol } from '@/utils/urlHelpers';
 import { httpsUrl } from '@/utils/mentoring';
+import { tourAttr } from '@/config/tourAnchors';
 
 const LABEL = 'mb-1 block text-xs font-semibold text-slate-600';
 
@@ -34,12 +35,18 @@ export const DocEmbedModal: React.FC<{
             href={href}
             target="_blank"
             rel="noopener noreferrer"
+            {...tourAttr('teams.doc-embed.open-docs')}
             className="inline-flex items-center gap-1 rounded text-xs font-semibold text-brand-blue-primary hover:text-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
           >
             Open in Docs
             <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
           </a>
-          <Button variant="ghost" size="sm" onClick={onClose}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onClose}
+            {...tourAttr('teams.doc-embed.close')}
+          >
             Close
           </Button>
         </div>
@@ -84,6 +91,7 @@ export const AddDocModal: React.FC<{
       onClose={onClose}
       title="Add a doc"
       maxWidth="max-w-md"
+      closeTourId="teams.add-doc.close"
       footer={
         <div className="flex items-center justify-end gap-2">
           {failed && (
@@ -91,10 +99,18 @@ export const AddDocModal: React.FC<{
               Couldn&apos;t save that change. Try again.
             </span>
           )}
-          <Button variant="secondary" onClick={onClose}>
+          <Button
+            variant="secondary"
+            onClick={onClose}
+            {...tourAttr('teams.add-doc.cancel')}
+          >
             Cancel
           </Button>
-          <Button onClick={() => void save()} disabled={!ok || busy}>
+          <Button
+            onClick={() => void save()}
+            disabled={!ok || busy}
+            {...tourAttr('teams.add-doc.save')}
+          >
             Save
           </Button>
         </div>
@@ -111,6 +127,7 @@ export const AddDocModal: React.FC<{
             value={title}
             maxLength={200}
             onChange={(e) => setTitle(e.target.value)}
+            {...tourAttr('teams.add-doc.title')}
           />
         </div>
         <div>
@@ -125,6 +142,7 @@ export const AddDocModal: React.FC<{
             className={`${INPUT} w-full`}
             value={url}
             onChange={(e) => setUrl(e.target.value)}
+            {...tourAttr('teams.add-doc.link')}
           />
         </div>
       </div>
@@ -163,6 +181,7 @@ export const CheckInModal: React.FC<{
       onClose={onClose}
       title={initialTitle}
       maxWidth="max-w-2xl"
+      closeTourId="teams.check-in.close"
       footer={
         canEdit ? (
           <div className="flex items-center justify-end gap-2">
@@ -171,10 +190,18 @@ export const CheckInModal: React.FC<{
                 Couldn&apos;t save that change. Try again.
               </span>
             )}
-            <Button variant="secondary" onClick={onClose}>
+            <Button
+              variant="secondary"
+              onClick={onClose}
+              {...tourAttr('teams.check-in.cancel')}
+            >
               Cancel
             </Button>
-            <Button onClick={() => void save()} disabled={busy}>
+            <Button
+              onClick={() => void save()}
+              disabled={busy}
+              {...tourAttr('teams.check-in.save')}
+            >
               Save
             </Button>
           </div>
@@ -193,6 +220,7 @@ export const CheckInModal: React.FC<{
               value={title}
               maxLength={200}
               onChange={(e) => setTitle(e.target.value)}
+              {...tourAttr('teams.check-in.title')}
             />
           </div>
         )}
@@ -204,6 +232,7 @@ export const CheckInModal: React.FC<{
           readOnly={!canEdit}
           value={body}
           onChange={(e) => setBody(e.target.value)}
+          {...tourAttr('teams.check-in.body')}
         />
       </div>
     </Modal>

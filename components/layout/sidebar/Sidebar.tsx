@@ -310,6 +310,7 @@ export const Sidebar: React.FC = () => {
 
         {isAdmin && (
           <IconButton
+            {...tourAttr('sidebar.quick-link')}
             onClick={() => setShowShortLinkQuickCreate(true)}
             icon={<Link2 className="w-5 h-5" />}
             label="Shorten URL"
@@ -451,6 +452,7 @@ export const Sidebar: React.FC = () => {
               <div className="flex items-center gap-3 min-w-0">
                 {activeSection !== 'main' ? (
                   <IconButton
+                    {...tourAttr('sidebar.back')}
                     onClick={() => setActiveSection('main')}
                     icon={<ArrowLeft className="w-5 h-5" />}
                     label={t('sidebar.header.back')}
@@ -551,6 +553,7 @@ export const Sidebar: React.FC = () => {
                   {/* Gradebook replaces Assignments; the hub stays for teachers without the flag. */}
                   {canAccessFeature('gradebook') ? (
                     <button
+                      {...tourAttr('sidebar.gradebook')}
                       onClick={() => {
                         spaNavigate('/gradebook');
                         setIsOpen(false);
@@ -696,6 +699,7 @@ export const Sidebar: React.FC = () => {
                       resolves, so org/internal members are unaffected. */}
                   {!isExternalUser && (
                     <button
+                      {...tourAttr('sidebar.google-drive')}
                       onClick={() => setActiveSection('google-drive')}
                       className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
                     >
@@ -879,6 +883,7 @@ export const Sidebar: React.FC = () => {
                 </div>
 
                 <IconButton
+                  {...tourAttr('sidebar.sign-out')}
                   onClick={() => void signOut()}
                   icon={<LogOut className="w-4 h-4" />}
                   label={t('sidebar.header.signOut')}

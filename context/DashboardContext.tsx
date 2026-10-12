@@ -706,6 +706,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [selectedWidgetIds, setSelectedWidgetIds] = useState<string[]>([]);
   const [groupBuildMode, setGroupBuildMode] = useState(false);
   const dashboardsRef = useRef(dashboards);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   dashboardsRef.current = dashboards;
   // View as: the pending changes panel reads the working copy from outside this provider.
   useEffect(() => {
@@ -741,12 +742,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // the right call here because the selection is fire-once on app open,
   // not a reactive computation.
   const profileLoadedRef = useRef(profileLoaded);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   profileLoadedRef.current = profileLoaded;
   const lastActiveCollectionIdRef = useRef(lastActiveCollectionId);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   lastActiveCollectionIdRef.current = lastActiveCollectionId;
   const lastBoardIdByCollectionRef = useRef(lastBoardIdByCollection);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   lastBoardIdByCollectionRef.current = lastBoardIdByCollection;
   const collectionsRef = useRef(collections);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   collectionsRef.current = collections;
   // Hoisted to component scope (not local to the one-shot initial-board
   // selection effect below) so the snapshot callback can also set it —
@@ -780,6 +785,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [zoom, setZoom] = useState<number>(1);
   const zoomRef = useRef(zoom);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   zoomRef.current = zoom;
 
   // --- Annotation (full-screen draw-over overlay; NOT a widget) ---
@@ -864,6 +870,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Keep a ref in sync so timeout callbacks can read the latest value without
   // capturing a stale closure.
   const isDockInitializedRef = useRef(isDockInitialized);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   isDockInitializedRef.current = isDockInitialized;
 
   const [visibleTools, setVisibleTools] = useState<
@@ -926,8 +933,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     if (savedTools) {
       try {
         const tools = JSON.parse(savedTools) as (
-          | WidgetType
-          | InternalToolType
+          WidgetType | InternalToolType
         )[];
         return migrateToDockItems(tools);
       } catch (e) {
@@ -1042,6 +1048,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // constant (never updated after init) so this effect fires exactly once.
   useEffect(() => {
     if (hadEmptyShareCollectionUrl) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- state synced from an external system or reset on open
       addToast('Invalid share link — missing share id.', 'error');
       window.history.replaceState(null, '', '/');
     }
@@ -1110,8 +1117,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
    *   building-specific defaults are found.
    */
   const getDefaultDockTools = useCallback((): (
-    | WidgetType
-    | InternalToolType
+    WidgetType | InternalToolType
   )[] => {
     // Checks whether a FeaturePermission is accessible to the current user; beta check delegates to the shared isBetaUser helper.
     const isPermAccessible = (perm: FeaturePermission): boolean => {
@@ -1149,8 +1155,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
     (featurePermissions ?? []).forEach((perm) => {
       const rawDockDefaults = perm.config?.dockDefaults as
-        | Record<string, boolean>
-        | undefined;
+        Record<string, boolean> | undefined;
 
       // Canonicalize stored keys so legacy IDs (`orono-high-school`) still
       // match the canonical buildingIds (`high`). Without this, every
@@ -1218,6 +1223,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     const defaultTools = getDefaultDockTools();
     if (defaultTools.length === 0) return;
     const defaultDock = migrateToDockItems(defaultTools);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- state synced from an external system or reset on open
     setDockItems(defaultDock);
     setVisibleTools(defaultTools);
     setIsDockInitialized(true);
@@ -1270,6 +1276,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // empty dock is a user-visible regression.
         if (savedDockRaw !== null) {
           const parsedDock = JSON.parse(savedDockRaw) as DockItem[];
+          // eslint-disable-next-line react-hooks/set-state-in-effect -- state synced from an external system or reset on open
           setDockItems(parsedDock);
           // Derive visibleTools from dockItems so the two stores stay in
           // sync — folder items count as visible too.
@@ -1279,8 +1286,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           setVisibleTools(derivedVisible);
         } else if (savedVisibleToolsRaw !== null) {
           const parsedTools = JSON.parse(savedVisibleToolsRaw) as (
-            | WidgetType
-            | InternalToolType
+            WidgetType | InternalToolType
           )[];
           setVisibleTools(parsedTools);
           setDockItems(migrateToDockItems(parsedTools));
@@ -1363,6 +1369,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Runs once per uid; resets on sign-out / user switch via the cleanup effect below.
   useEffect(() => {
     if (isAuthBypass) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- state synced from an external system or reset on open
       setDockHydrated(true);
       setDockHydrationOk(true);
       return;
@@ -1637,7 +1644,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const locallyAddedWidgetIds = useRef<Set<string>>(new Set());
 
   // Sync refs during render (safe — refs are mutable containers, not state)
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   activeIdRef.current = activeId;
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   dashboardsRef.current = dashboards;
 
   // --- DRIVE WRAPPERS & CALLBACKS ---
@@ -1788,6 +1797,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
   // Read through a ref so a Drive token refresh doesn't re-run the dashboards subscription.
   const saveDashboardRef = useRef(saveDashboard);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   saveDashboardRef.current = saveDashboard;
 
   /**
@@ -1798,6 +1808,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
    * Mirrors pinBoard / moveBoardToCollection.
    */
   const updateDashboardFields = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- existing deps kept to preserve callback identity
     async (dashboard: Dashboard, fields: Record<string, unknown>) => {
       if (isViewAsTab) return;
       if (isAuthBypass) {
@@ -2021,7 +2032,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         }
         const fileId = shareId.replace('drive-', '');
         const drv = await driveService.importDashboard(fileId);
-        return drv as SharedBoardSnapshot | null;
+        return drv;
       }
       return loadSharedDashboardFirestore(shareId);
     },
@@ -2031,6 +2042,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Load dashboards on mount and subscribe to changes
   useEffect(() => {
     if (!user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- state synced from an external system or reset on open
       setLoading(false);
       return;
     }
@@ -2985,9 +2997,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     if (lastSavedDataRef.current === '' || isDashboardSwitch) {
       const { serializedData: initSavedData, fields: initSavedFields } =
         getDashboardSaveState(active);
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastSavedDataRef.current = initSavedData;
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastSavedFieldsRef.current = initSavedFields;
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastWidgetCountRef.current = active.widgets.filter(isSavedWidget).length;
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastSavedDashboardIdRef.current = active.id;
       // The refs now describe a different board, so any pending window from
       // the previous one is meaningless here.
@@ -3231,6 +3247,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // PII supplement loaded) keeps seeing the scrubbed version until they
   // switch dashboards and back. Mirrors the reset in SidebarBackgrounds.
   useDriveReconnected(() => {
+    // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
     lastPiiRestoredIdRef.current = null;
   });
 
@@ -3238,6 +3255,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!driveService || !activeId || loading) return;
     // Only run once per dashboard switch
     if (lastPiiRestoredIdRef.current === activeId) return;
+    // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
     lastPiiRestoredIdRef.current = activeId;
 
     // Capture activeId to guard against race condition if it changes before the
@@ -4689,7 +4707,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 ...structuredClone(b),
                 id: crypto.randomUUID(),
                 order: baseOrder + idx + 1,
-              } as Dashboard,
+              },
               { collectionId: newCollectionId, silent: true }
             )
           )
@@ -4993,7 +5011,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       setDashboards((prev) => prev.map((d) => (d.id === id ? updated : d)));
 
       if (activeId === id) {
+        // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
         lastLocalUpdateAt.current = Date.now();
+        // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
         lastUpdateWasSettingsOnly.current = false;
       }
 
@@ -5078,6 +5098,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // aggregate "Updated N — M failed" toast to avoid per-item notification
   // spam (notification blindness is itself a silent-failure mode).
   const setDefaultDashboard = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- existing deps kept to preserve callback identity
     async (boardId: string, options?: { silent?: boolean }): Promise<void> => {
       if (!user?.uid) throw new Error('Not authenticated');
       const target = dashboards.find((d) => d.id === boardId);
@@ -5151,6 +5172,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const moveBoardToCollection = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- existing deps kept to preserve callback identity
     async (
       boardId: string,
       collectionId: string | null,
@@ -5197,6 +5219,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const pinBoard = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- existing deps kept to preserve callback identity
     async (boardId: string, options?: { silent?: boolean }): Promise<void> => {
       if (!user?.uid) throw new Error('Not authenticated');
       const prev = dashboards.find((d) => d.id === boardId);
@@ -5231,6 +5254,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const unpinBoard = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- existing deps kept to preserve callback identity
     async (boardId: string, options?: { silent?: boolean }): Promise<void> => {
       if (!user?.uid) throw new Error('Not authenticated');
       const prev = dashboards.find((d) => d.id === boardId);
@@ -5429,8 +5453,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // in its dep array. The migration only needs to run when uid or the
   // dashboard *identity* changes, not on every widget mutation.
   const activeDashboardForMigrationRef = useRef(activeDashboard);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   activeDashboardForMigrationRef.current = activeDashboard;
   const migrationUidRef = useRef<string | null>(null);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   migrationUidRef.current = user?.uid ?? null;
   useEffect(() => {
     const dashboard = activeDashboardForMigrationRef.current;
@@ -5500,8 +5526,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               (w) => w.id === widget.id
             );
             const latestConfig = latestWidget?.config as
-              | DrawingConfig
-              | undefined;
+              DrawingConfig | undefined;
             // If the widget was removed mid-migration, drop the writeback.
             if (!latestConfig) return;
             const latestPages = Array.isArray(latestConfig.pages)
@@ -5562,6 +5587,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     activeDashboard?.linkedShareRole === 'viewer' &&
     !activeDashboard?.linkedShareEnded;
   const isActiveBoardReadOnlyRef = useRef(isActiveBoardReadOnly);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   isActiveBoardReadOnlyRef.current = isActiveBoardReadOnly;
 
   /**
@@ -5621,7 +5647,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         ...restoredWidgets,
         ...current.filter((w) => w.transient),
       ];
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastLocalUpdateAt.current = Date.now();
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastUpdateWasSettingsOnly.current = false;
       setDashboards((prev) =>
         prev.map((d) => (d.id === id ? { ...d, widgets } : d))
@@ -5686,7 +5714,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // widgetHistoryVersion only exists to re-derive these after a ref mutation.
   const activeHistory = activeId
-    ? widgetHistoryRef.current.get(activeId)
+    ? // eslint-disable-next-line react-hooks/refs -- ref read during render is intentional here
+      widgetHistoryRef.current.get(activeId)
     : undefined;
   const canUndo =
     widgetHistoryVersion >= 0 && (activeHistory?.undo.length ?? 0) > 0;
@@ -5822,7 +5851,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     (type: WidgetType, overrides?: AddWidgetOverrides) => {
       if (!activeId) return;
       if (isActiveBoardReadOnlyRef.current) return;
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastLocalUpdateAt.current = Date.now();
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastUpdateWasSettingsOnly.current = false;
       const transient = tourSpawnsTransient.current;
       if (!transient) recordHistory();
@@ -5880,7 +5911,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       if (owners.length === 0) return;
       const currentId = activeIdRef.current;
       if (owners.some((d) => d.id === currentId)) recordHistory();
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastLocalUpdateAt.current = Date.now();
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastUpdateWasSettingsOnly.current = false;
       setDashboards((prev) => prev.map((d) => (owns(d) ? keep(d) : d)));
       // The active board rides autosave; other boards are written directly.
@@ -5923,7 +5956,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     ) => {
       if (!activeId) return;
       if (isActiveBoardReadOnlyRef.current) return;
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastLocalUpdateAt.current = Date.now();
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastUpdateWasSettingsOnly.current = false;
       const transient = tourSpawnsTransient.current;
       if (!transient) recordHistory();
@@ -6029,7 +6064,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 hProp: prop.hProp,
                 aspectRatio,
                 config: baseConfig,
-              } as WidgetData;
+              };
             };
 
             // 1. SMART LAYOUT: If AI provided spatial data
@@ -6080,7 +6115,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     (id: string) => {
       if (!activeId) return;
       if (isActiveBoardReadOnlyRef.current) return;
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastLocalUpdateAt.current = Date.now();
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastUpdateWasSettingsOnly.current = false;
       recordHistory();
       setDashboards((prev) =>
@@ -6117,7 +6154,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     (id: string) => {
       if (!activeId) return;
       if (isActiveBoardReadOnlyRef.current) return;
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastLocalUpdateAt.current = Date.now();
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastUpdateWasSettingsOnly.current = false;
       recordHistory();
       setDashboards((prev) =>
@@ -6158,7 +6197,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     (ids: string[]) => {
       if (!activeId) return;
       if (isActiveBoardReadOnlyRef.current) return;
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastLocalUpdateAt.current = Date.now();
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastUpdateWasSettingsOnly.current = false;
       recordHistory();
       const idSet = new Set(ids);
@@ -6229,7 +6270,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const clearAllWidgets = useCallback(() => {
     if (!activeId) return;
     if (isActiveBoardReadOnlyRef.current) return;
+    // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
     lastLocalUpdateAt.current = Date.now();
+    // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
     lastUpdateWasSettingsOnly.current = false;
     recordHistory();
     setDashboards((prev) =>
@@ -6243,6 +6286,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Read through a ref so updateWidget stays mount-stable when permissions load; optional call tolerates partial auth mocks.
   const explicitDefaultsRef = useRef(false);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   explicitDefaultsRef.current = canAccessFeature?.('settings-drawer') ?? false;
 
   const updateWidget = useCallback(
@@ -6254,7 +6298,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!activeIdRef.current) return;
       if (isActiveBoardReadOnlyRef.current) return;
       if (updates.minimized === true) releaseTourRestore(id);
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastLocalUpdateAt.current = Date.now();
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastUpdateWasSettingsOnly.current = false;
       if (opts?.immediate) pendingImmediateWrite.current = true;
       if (!opts?.skipHistory) recordHistory(id);
@@ -6333,6 +6379,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Mirror the latest updateWidget closure into the forward-declared ref
   // so callbacks defined upstream (the drawing-subcollection migration
   // effect, etc.) can invoke it without circular `useCallback` dependencies.
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   updateWidgetRef.current = updateWidget;
 
   // Applies `transform` to every widget of `type` on every board. Returning null
@@ -6359,6 +6406,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (changedById.size === 0) return;
 
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastLocalUpdateAt.current = Date.now();
       setDashboards((prev) => prev.map((d) => changedById.get(d.id) ?? d));
 
@@ -6403,7 +6451,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     ) => {
       if (!activeIdRef.current) return;
       if (isActiveBoardReadOnlyRef.current) return;
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastLocalUpdateAt.current = Date.now();
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastUpdateWasSettingsOnly.current = false;
       if (!opts?.skipHistory)
         recordHistory(
@@ -6483,7 +6533,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
       recordHistory();
       const gid = crypto.randomUUID();
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastLocalUpdateAt.current = Date.now();
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastUpdateWasSettingsOnly.current = false;
       const idSet = new Set(eligible);
       setDashboards((prev) =>
@@ -6505,7 +6557,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     (groupId: string) => {
       if (!activeIdRef.current) return;
       if (isActiveBoardReadOnlyRef.current) return;
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastLocalUpdateAt.current = Date.now();
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastUpdateWasSettingsOnly.current = false;
       recordHistory();
       setDashboards((prev) =>
@@ -6673,7 +6727,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!current) return;
     // Nothing to minimize means nothing to record — see moveWidgetLayer.
     if (!current.widgets.some((w) => !w.minimized || w.flipped)) return;
+    // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
     lastLocalUpdateAt.current = Date.now();
+    // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
     lastUpdateWasSettingsOnly.current = false;
     recordHistory();
     setDashboards((prev) =>
@@ -6706,7 +6762,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       )
     )
       return;
+    // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
     lastLocalUpdateAt.current = Date.now();
+    // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
     lastUpdateWasSettingsOnly.current = false;
     recordHistory();
     setDashboards((prev) =>
@@ -6727,7 +6785,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const deleteAllWidgets = useCallback(() => {
     if (!activeId) return;
     if (isActiveBoardReadOnlyRef.current) return;
+    // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
     lastLocalUpdateAt.current = Date.now();
+    // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
     lastUpdateWasSettingsOnly.current = false;
     recordHistory();
     setDashboards((prev) =>
@@ -6743,7 +6803,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     (id: string) => {
       if (!activeId) return;
       if (isActiveBoardReadOnlyRef.current) return;
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastLocalUpdateAt.current = Date.now();
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastUpdateWasSettingsOnly.current = false;
       recordHistory();
       setDashboards((prev) =>
@@ -6770,7 +6832,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const setBackground = useCallback((bg: string) => {
     if (!activeIdRef.current) return;
     if (isActiveBoardReadOnlyRef.current) return;
+    // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
     lastLocalUpdateAt.current = Date.now();
+    // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
       prev.map((d) =>
@@ -6793,7 +6857,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     ) => {
       if (!activeIdRef.current) return;
       if (isActiveBoardReadOnlyRef.current) return;
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastLocalUpdateAt.current = Date.now();
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastUpdateWasSettingsOnly.current = true;
       if (opts?.immediate) pendingImmediateWrite.current = true;
       setDashboards((prev) =>
@@ -6824,7 +6890,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       );
       if (!onlyLinkFields) return;
     }
+    // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
     lastLocalUpdateAt.current = Date.now();
+    // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
       prev.map((d) => (d.id === activeIdRef.current ? { ...d, ...updates } : d))
@@ -6834,7 +6902,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const setGlobalStyle = useCallback((style: Partial<GlobalStyle>) => {
     if (!activeIdRef.current) return;
     if (isActiveBoardReadOnlyRef.current) return;
+    // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
     lastLocalUpdateAt.current = Date.now();
+    // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
       prev.map((d) =>
@@ -6942,7 +7012,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               typeof window === 'undefined' ? 1280 : window.innerWidth,
               typeof window === 'undefined' ? 720 : window.innerHeight
             ));
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastLocalUpdateAt.current = Date.now();
+      // eslint-disable-next-line react-hooks/immutability -- ref mutation outside render
       lastUpdateWasSettingsOnly.current = false;
       setDashboards((prev) =>
         prev.map((d) =>
@@ -7075,6 +7147,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   >([]);
   // Expose the setter to `addAnnotationObject` via the forward-declared ref
   // so a fresh stroke can drop the redo branch without circular hook deps.
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   annotationRedoSetterRef.current = setAnnotationRedoStack;
 
   const undoAnnotation = useCallback(() => {
@@ -7188,6 +7261,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Undo is session-scoped and per-author, so "there is ink" is not enough —
   // mirror `undoAnnotation`'s scan so the button disables when it is a no-op.
+  // eslint-disable-next-line react-hooks/refs -- ref read during render is intentional here
   const canUndoAnnotation = useMemo(() => {
     if (!annotationActive) return false;
     const sessionIds = annotationSessionIdsRef.current;
@@ -7234,6 +7308,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     setTourTransientSpawns,
   };
   const liveActionsRef = useRef(liveActions);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   liveActionsRef.current = liveActions;
   // Empty deps is the point: identity fixed for the provider's lifetime.
   const stableActions = useMemo<DashboardActions>(

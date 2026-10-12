@@ -32,21 +32,12 @@ import type {
   AssessmentDataCard,
   SharedDataTeamMember,
 } from '@/components/plc/sharedData/sharedDataSelectors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { MEETING_STEP_ORDER, type MeetingStep } from './meetingSteps';
 
 // ---------------------------------------------------------------------------
 // Step model + rail
 // ---------------------------------------------------------------------------
-
-/** The five guided steps, in order (PRD §6.2). */
-export type MeetingStep = 'pick' | 'review' | 'decide' | 'act' | 'save';
-
-export const MEETING_STEP_ORDER: readonly MeetingStep[] = [
-  'pick',
-  'review',
-  'decide',
-  'act',
-  'save',
-] as const;
 
 interface StepRailProps {
   current: MeetingStep;
@@ -94,6 +85,7 @@ export const MeetingStepRail: React.FC<StepRailProps> = ({
           return (
             <li key={step} className="flex items-center gap-1 sm:gap-2">
               <button
+                {...tourFieldAttr('plc-meeting.step', 'plc', step)}
                 type="button"
                 onClick={() => reached && onStep(step)}
                 disabled={!reached}
@@ -208,6 +200,11 @@ export const PlcMeetingPickStep: React.FC<PickStepProps> = ({
                 }`}
               >
                 <button
+                  {...tourFieldAttr(
+                    'plc-meeting.review-toggle',
+                    'plc',
+                    card.assessmentId
+                  )}
                   type="button"
                   onClick={() => onToggle(card.assessmentId)}
                   aria-pressed={selected}
@@ -323,6 +320,7 @@ export const PlcMeetingDecideStep: React.FC<DecideStepProps> = ({
             })}
           </label>
           <textarea
+            {...tourAttr('plc-meeting.decision-input')}
             id={inputId}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -341,6 +339,7 @@ export const PlcMeetingDecideStep: React.FC<DecideStepProps> = ({
           />
           <div className="flex justify-end">
             <button
+              {...tourAttr('plc-meeting.decision-add')}
               type="button"
               onClick={addDecision}
               disabled={draft.trim().length === 0}
@@ -397,6 +396,11 @@ export const PlcMeetingDecideStep: React.FC<DecideStepProps> = ({
                 </div>
                 {canEdit && (
                   <button
+                    {...tourFieldAttr(
+                      'plc-meeting.decision-remove',
+                      'plc',
+                      d.id
+                    )}
                     type="button"
                     onClick={() => removeDecision(d.id)}
                     className="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-brand-red-primary hover:bg-brand-red-primary/5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-red-primary/40"
@@ -498,6 +502,7 @@ export const PlcMeetingActStep: React.FC<ActStepProps> = ({
             })}
           </label>
           <input
+            {...tourAttr('plc-meeting.action-input')}
             id={actionInputId}
             type="text"
             value={draft}
@@ -524,6 +529,7 @@ export const PlcMeetingActStep: React.FC<ActStepProps> = ({
                 })}
               </label>
               <select
+                {...tourAttr('plc-meeting.action-owner')}
                 id={assigneeId}
                 value={draftAssignee}
                 onChange={(e) => setDraftAssignee(e.target.value)}
@@ -549,6 +555,7 @@ export const PlcMeetingActStep: React.FC<ActStepProps> = ({
                 {t('plcDashboard.meeting.act.due', { defaultValue: 'Due' })}
               </label>
               <input
+                {...tourAttr('plc-meeting.action-due')}
                 id={dueId}
                 type="date"
                 value={draftDue}
@@ -557,6 +564,7 @@ export const PlcMeetingActStep: React.FC<ActStepProps> = ({
               />
             </div>
             <button
+              {...tourAttr('plc-meeting.action-add')}
               type="button"
               onClick={addItem}
               disabled={draft.trim().length === 0}
@@ -622,6 +630,11 @@ export const PlcMeetingActStep: React.FC<ActStepProps> = ({
               </div>
               {canEdit && !item.todoId && (
                 <button
+                  {...tourFieldAttr(
+                    'plc-meeting.action-remove',
+                    'plc',
+                    item.id
+                  )}
                   type="button"
                   onClick={() => removeItem(item.id)}
                   className="shrink-0 inline-flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-brand-red-primary hover:bg-brand-red-primary/5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-red-primary/40"

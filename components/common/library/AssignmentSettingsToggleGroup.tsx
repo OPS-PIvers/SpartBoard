@@ -14,10 +14,12 @@
  */
 
 import React from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { Lock } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
 import { CollapsibleSection } from './CollapsibleSection';
 import type { BaseSessionOptions } from '@/types';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 /* ─── AttemptLimitRow ─────────────────────────────────────────────────────── */
 
@@ -74,6 +76,11 @@ export const AttemptLimitRow: React.FC<AttemptLimitRowProps> = ({
               type="button"
               aria-pressed={active}
               onClick={() => onChange(opt.value)}
+              {...tourFieldAttr(
+                'assign-settings.attempts',
+                'assign',
+                opt.label
+              )}
               className={
                 'px-3 py-1.5 text-xs font-bold transition ' +
                 (active
@@ -112,6 +119,7 @@ export interface ToggleRowProps {
    * Switch Detection) use the default bold-dark label.
    */
   compact?: boolean;
+  anchor?: TourAnchorAttrs;
 }
 
 export const ToggleRow: React.FC<ToggleRowProps> = ({
@@ -121,6 +129,7 @@ export const ToggleRow: React.FC<ToggleRowProps> = ({
   hint,
   disabled,
   compact = false,
+  anchor,
 }) => (
   <div className={disabled ? 'opacity-40' : ''}>
     <div className="flex items-center justify-between">
@@ -152,6 +161,7 @@ export const ToggleRow: React.FC<ToggleRowProps> = ({
         showLabels
         label={label}
         disabled={disabled}
+        anchor={anchor}
       />
     </div>
     {hint && <p className="text-xxs text-slate-500 mt-0.5">{hint}</p>}
@@ -161,9 +171,7 @@ export const ToggleRow: React.FC<ToggleRowProps> = ({
 /* ─── Toggle group ────────────────────────────────────────────────────────── */
 
 export type AssignmentSettingsSection =
-  | 'integrity'
-  | 'randomization'
-  | 'feedback';
+  'integrity' | 'randomization' | 'feedback';
 
 export interface AssignmentSettingsToggleGroupProps {
   options: BaseSessionOptions;
@@ -230,6 +238,12 @@ export interface AssignmentSettingsToggleGroupProps {
    * and `ToggleRow` to match the visual style.
    */
   trailingSlot?: React.ReactNode;
+  anchors?: {
+    focusMode?: TourAnchorAttrs;
+    copyPaste?: TourAnchorAttrs;
+    shuffleQuestions?: TourAnchorAttrs;
+    shuffleAnswerOptions?: TourAnchorAttrs;
+  };
 }
 
 export const AssignmentSettingsToggleGroup: React.FC<
@@ -252,6 +266,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
   showLearningTargetsToggle = false,
   feedbackLeadingSlot,
   afterTabWarningsSlot,
+  anchors,
 }) => {
   const update = <K extends keyof BaseSessionOptions>(
     key: K,
@@ -290,6 +305,10 @@ export const AssignmentSettingsToggleGroup: React.FC<
             label="Focus mode"
             checked={options.tabWarningsEnabled ?? true}
             onChange={(v) => update('tabWarningsEnabled', v)}
+            anchor={
+              anchors?.focusMode ??
+              tourFieldAttr('assign-settings.toggle', 'assign', 'focus-mode')
+            }
           />
           {afterTabWarningsSlot}
           {showCopyPasteToggle && (
@@ -297,19 +316,42 @@ export const AssignmentSettingsToggleGroup: React.FC<
               label="Block Copy & Paste"
               checked={options.blockCopyPaste ?? false}
               onChange={(v) => update('blockCopyPaste', v)}
+              anchor={
+                anchors?.copyPaste ??
+                tourFieldAttr(
+                  'assign-settings.toggle',
+                  'assign',
+                  'block-copy-paste'
+                )
+              }
             />
           )}
         </>
       )}
 
       {showSection('randomization') && (
-        <CollapsibleSection label="Question Randomization">
+        <CollapsibleSection
+          label="Question Randomization"
+          anchor={tourFieldAttr(
+            'assign-settings.section',
+            'assign',
+            'randomization'
+          )}
+        >
           {!hideShuffleQuestions && (
             <ToggleRow
               compact
               label="Shuffle Questions"
               checked={options.shuffleQuestions ?? false}
               onChange={(v) => update('shuffleQuestions', v)}
+              anchor={
+                anchors?.shuffleQuestions ??
+                tourFieldAttr(
+                  'assign-settings.toggle',
+                  'assign',
+                  'shuffle-questions'
+                )
+              }
               disabled={!shuffleQuestionsAvailable}
               hint={
                 shuffleQuestionsAvailable ? undefined : shuffleQuestionsHint
@@ -321,22 +363,47 @@ export const AssignmentSettingsToggleGroup: React.FC<
             label="Shuffle Answer Options"
             checked={options.shuffleAnswerOptions ?? true}
             onChange={(v) => update('shuffleAnswerOptions', v)}
+            anchor={
+              anchors?.shuffleAnswerOptions ??
+              tourFieldAttr(
+                'assign-settings.toggle',
+                'assign',
+                'shuffle-answers'
+              )
+            }
           />
         </CollapsibleSection>
       )}
 
       {showSection('feedback') && (
-        <CollapsibleSection label="Answer Feedback">
+        <CollapsibleSection
+          label="Answer Feedback"
+          anchor={tourFieldAttr(
+            'assign-settings.section',
+            'assign',
+            'feedback'
+          )}
+        >
           {feedbackLeadingSlot}
           <ToggleRow
             compact
             label="Show right/wrong to students"
+            anchor={tourFieldAttr(
+              'assign-settings.toggle',
+              'assign',
+              'show-right-wrong'
+            )}
             checked={options.showResultToStudent ?? false}
             onChange={(v) => update('showResultToStudent', v)}
           />
           <ToggleRow
             compact
             label="Reveal correct answer to students"
+            anchor={tourFieldAttr(
+              'assign-settings.toggle',
+              'assign',
+              'reveal-correct'
+            )}
             checked={options.showCorrectAnswerToStudent ?? false}
             onChange={(v) => update('showCorrectAnswerToStudent', v)}
             disabled={!options.showResultToStudent}
@@ -345,6 +412,11 @@ export const AssignmentSettingsToggleGroup: React.FC<
             <ToggleRow
               compact
               label="Show correct answer on board"
+              anchor={tourFieldAttr(
+                'assign-settings.toggle',
+                'assign',
+                'correct-on-board'
+              )}
               checked={options.showCorrectOnBoard ?? false}
               onChange={(v) => update('showCorrectOnBoard', v)}
             />
@@ -353,6 +425,11 @@ export const AssignmentSettingsToggleGroup: React.FC<
             <ToggleRow
               compact
               label="Group results by learning target"
+              anchor={tourFieldAttr(
+                'assign-settings.toggle',
+                'assign',
+                'learning-targets'
+              )}
               checked={options.showLearningTargets ?? false}
               onChange={(v) => update('showLearningTargets', v)}
             />

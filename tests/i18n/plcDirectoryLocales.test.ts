@@ -53,8 +53,7 @@ describe.each([
 
   it(`${code}: has all required plcDirectory keys`, () => {
     const ns = (locale as Record<string, unknown>).plcDirectory as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     for (const key of REQUIRED_KEYS) {
       expect(ns, `${code}.plcDirectory.${key} is missing`).toHaveProperty(key);
     }

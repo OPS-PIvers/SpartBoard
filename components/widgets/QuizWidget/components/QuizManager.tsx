@@ -25,7 +25,7 @@ import React, {
 } from 'react';
 import { useQuizTranslations } from '@/hooks/useQuizTranslations';
 import { useTranslation } from 'react-i18next';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import {
   Plus,
   PencilLine,
@@ -131,7 +131,6 @@ import {
   type BulkAction,
   type LibraryMenuAction,
   type LibrarySortOption,
-  type LibrarySortDir,
   type AssignmentStatusBadge,
   type LibraryBadgeTone,
   type LibrarySelectionApi,
@@ -584,7 +583,7 @@ function resolveStatus(
 /* ─── Helpers for library sort ────────────────────────────────────────────── */
 
 const SORT_OPTIONS: LibrarySortOption[] = [
-  { key: 'manual', label: 'Manual', defaultDir: 'asc' as LibrarySortDir },
+  { key: 'manual', label: 'Manual', defaultDir: 'asc' },
   { key: 'updated', label: 'Last updated', defaultDir: 'desc' },
   { key: 'created', label: 'Date created', defaultDir: 'desc' },
   { key: 'title', label: 'Title', defaultDir: 'asc' },
@@ -856,9 +855,13 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           setViewOnlyShareTarget(quiz);
           setViewOnlyShareLink(null);
           setViewOnlyShareError(null);
-        } else if (schoologyToolColumns && !canAssignToClassroom) {
-          // SpartBoard is the only destination left, so skip the chooser.
+        } else if (
+          stepperOn ||
+          (schoologyToolColumns && !canAssignToClassroom)
+        ) {
+          // Stepper (Classroom posts from the assignment's menu) or no other destination: skip the chooser.
           setAssignDestination('spartboard');
+          // eslint-disable-next-line react-hooks/immutability -- stable state setter referenced before its declaration
           setAssignBehavior(seedBehavior(quiz));
           setAssignTarget(quiz);
         } else {
@@ -873,6 +876,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       claudeReview,
       isReview,
       onStartReview,
+      stepperOn,
       schoologyToolColumns,
       canAssignToClassroom,
       seedBehavior,
@@ -997,6 +1001,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           manualAvailable: manualStartAvailable(periodAccess?.bellWindow),
         })
       );
+      // eslint-disable-next-line react-hooks/refs -- reset with the adjust-state-while-rendering block
       loadedAssignQuizDataForRef.current = null;
       setAssignOptions(
         buildDefaultAssignOptions(
@@ -2182,6 +2187,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             icon: Combine,
             onClick: () => void handleBulkMerge(),
             disabled: selection.count < 2,
+            anchor: tourTypeAttr('quiz-library.bulk-merge', 'quiz'),
           },
         ]
       : []),
@@ -2192,6 +2198,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             label: 'Share with PLC',
             icon: Users2,
             onClick: handleBulkSharePlc,
+            anchor: tourTypeAttr('quiz-library.bulk-share-plc', 'quiz'),
           },
         ]
       : []),
@@ -2247,6 +2254,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         onDeleteFolder={folderState.deleteFolder}
         {...folderView}
         enableDrop
+        anchors={{
+          newFolder: tourTypeAttr('quiz-library.folder-new', 'quiz'),
+          root: tourTypeAttr('quiz-library.folder-root', 'quiz'),
+          newFolderInput: tourTypeAttr('quiz-library.folder-name', 'quiz'),
+        }}
       />
     ) : undefined;
 
@@ -2579,6 +2591,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           }}
           onClose={() => setFolderPickerTarget(null)}
           title={`Move "${folderPickerTarget.title}" to…`}
+          rootAnchor={tourTypeAttr('quiz-library.folder-picker-root', 'quiz')}
+          rowAnchor={(id) =>
+            tourFieldAttr('quiz-library.folder-picker-folder', 'quiz', id)
+          }
         />
       )}
 
@@ -2914,6 +2930,7 @@ const LibraryTabContent: React.FC<{
           <button
             type="button"
             onClick={onImport}
+            {...tourTypeAttr('quiz-library.empty-import', tourWidgetType)}
             className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-2xl transition-all shadow-md active:scale-95"
             style={{
               gap: 'min(8px, 2cqmin)',
@@ -3037,6 +3054,7 @@ const LibraryTabContent: React.FC<{
         <LibraryPreviewPane
           isOpen={true}
           onClose={() => onPreviewQuiz(null)}
+          closeAnchor={tourTypeAttr('quiz-library.preview-close', 'quiz')}
           title={previewQuiz.title}
           subtitle={
             <>
@@ -3050,6 +3068,7 @@ const LibraryTabContent: React.FC<{
           primaryAction={{
             label: 'Open editor',
             icon: Edit2,
+            anchor: tourTypeAttr('quiz-library.preview-open-editor', 'quiz'),
             onClick: () => {
               const q = previewQuiz;
               onPreviewQuiz(null);
@@ -3060,6 +3079,10 @@ const LibraryTabContent: React.FC<{
             {
               label: 'Check answers',
               icon: Eye,
+              anchor: tourTypeAttr(
+                'quiz-library.preview-check-answers',
+                'quiz'
+              ),
               onClick: () => {
                 const q = previewQuiz;
                 onPreviewQuiz(null);

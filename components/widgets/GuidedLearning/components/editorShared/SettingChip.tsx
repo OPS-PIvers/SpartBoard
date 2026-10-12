@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { createPortal } from 'react-dom';
 import { ChevronDown, type LucideIcon } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
@@ -24,6 +25,8 @@ interface SettingChipProps<T extends string> {
   value: T;
   options: SettingChipOption<T>[];
   onChange: (next: T) => void;
+  anchor?: TourAnchorAttrs;
+  optionAnchor?: (value: T) => TourAnchorAttrs;
 }
 
 /**
@@ -40,6 +43,8 @@ export function SettingChip<T extends string>({
   value,
   options,
   onChange,
+  anchor,
+  optionAnchor,
 }: SettingChipProps<T>) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -56,6 +61,7 @@ export function SettingChip<T extends string>({
   return (
     <div ref={containerRef} className="relative shrink-0">
       <button
+        {...anchor}
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -110,6 +116,7 @@ export function SettingChip<T extends string>({
               const isCurrent = opt.value === value;
               return (
                 <button
+                  {...optionAnchor?.(opt.value)}
                   key={opt.value}
                   role="menuitem"
                   type="button"

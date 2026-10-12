@@ -29,6 +29,7 @@ import { PlcPresenceStrip } from './presence/PlcPresenceStrip';
 import { PlcSearchBox } from './search/PlcSearchBox';
 import { TeamDashboard } from './teams/shell/TeamDashboard';
 import { LegacyUpdatesBody } from './teams/updates/LegacyUpdatesBody';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcDashboardProps {
   plc: Plc;
@@ -284,6 +285,7 @@ const LegacyPlcDashboard: React.FC<PlcDashboardProps> = ({
           <div className="flex items-center gap-2 overflow-hidden w-full md:w-auto">
             {!showMobileMenu && (
               <button
+                {...tourAttr('plc-dashboard.back')}
                 type="button"
                 onClick={handleBackToMenu}
                 className="md:hidden p-2 hover:bg-white/20 rounded-lg transition-colors shrink-0 -ml-2"
@@ -312,6 +314,7 @@ const LegacyPlcDashboard: React.FC<PlcDashboardProps> = ({
             <PlcSearchBox plcId={plc.id} onNavigate={handleNavigateSection} />
           </div>
           <button
+            {...tourAttr('plc-dashboard.close')}
             type="button"
             onClick={onClose}
             className="p-2 md:p-1.5 hover:bg-white/20 rounded-lg transition-colors shrink-0 ml-2 -mr-2 md:mr-0"
@@ -371,6 +374,11 @@ const LegacyPlcDashboard: React.FC<PlcDashboardProps> = ({
               <div className="flex flex-col py-2">
                 {visibleSections.map((section) => (
                   <button
+                    {...tourFieldAttr(
+                      'plc-dashboard.section-row',
+                      'plc',
+                      section.id
+                    )}
                     key={section.id}
                     onClick={() => handleNavigateSection(section.id)}
                     className="flex items-center justify-between p-4 min-h-[60px] hover:bg-slate-100 active:bg-slate-200 transition-colors border-b border-slate-100 last:border-b-0 w-full text-left"

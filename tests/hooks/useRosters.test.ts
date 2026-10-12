@@ -852,6 +852,35 @@ describe('useRosters — setAbsentStudents', () => {
     // Reverted to the prior (undefined) absent value.
     expect(result.current.rosters[0].absent).toBeUndefined();
   });
+
+  it('does not clobber a later successful toggle when an earlier write fails', async () => {
+    currentDriveService = null;
+    let rejectFirst: (e: Error) => void = () => undefined;
+    mockUpdateDoc.mockImplementationOnce(
+      () =>
+        new Promise((_res, rej) => {
+          rejectFirst = rej;
+        })
+    );
+    const { result } = renderHook(() => useRosters(mockUser));
+    emitSnapshot(0, [metaDoc('r1')]);
+    await waitFor(() => expect(result.current.rosters).toHaveLength(1));
+
+    let first: Promise<void> = Promise.resolve();
+    act(() => {
+      first = result.current.setAbsentStudents('r1', ['s1']);
+      first.catch(() => undefined);
+    });
+    await act(async () => {
+      await result.current.setAbsentStudents('r1', ['s1', 's2']);
+    });
+    await act(async () => {
+      rejectFirst(new Error('write denied'));
+      await expect(first).rejects.toThrow('write denied');
+    });
+
+    expect(result.current.rosters[0].absent?.studentIds).toEqual(['s1', 's2']);
+  });
 });
 
 // ─── deleteRoster + setActiveRoster ─────────────────────────────────────────────

@@ -87,8 +87,7 @@ const materializeTestClassStudents = (emails: string[]): Student[] =>
   }));
 
 export type ClassLinkDialogMode =
-  | { kind: 'new' }
-  | { kind: 'merge'; rosterId: string; rosterName: string };
+  { kind: 'new' } | { kind: 'merge'; rosterId: string; rosterName: string };
 
 interface ClassLinkImportDialogProps {
   isOpen: boolean;
@@ -115,6 +114,7 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
   const { user, userRoles, orgId, roleId } = useAuth();
   const bellOptions = useTeacherBellPeriodOptions();
   const backfillRef = useRef({ rosters, updateRoster, bellOptions });
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   backfillRef.current = { rosters, updateRoster, bellOptions };
 
   const canReadTestClassesForOrg = useMemo(
@@ -139,6 +139,7 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets state before the ClassLink fetch
     setLoading(true);
     setError(null);
     setClasses([]);
@@ -185,12 +186,12 @@ export const ClassLinkImportDialog: React.FC<ClassLinkImportDialogProps> = ({
                 }
                 return {
                   extraClasses: [] as ClassLinkClass[],
-                  extraEmails: {} as Record<string, string[]>,
+                  extraEmails: {},
                 };
               })
           : Promise.resolve({
               extraClasses: [] as ClassLinkClass[],
-              extraEmails: {} as Record<string, string[]>,
+              extraEmails: {},
             });
 
       try {

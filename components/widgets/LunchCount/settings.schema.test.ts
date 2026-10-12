@@ -21,7 +21,7 @@ const gradeCtx = (schoolSite: LunchCountSchoolSite): FieldCtx => ({
   widget: { id: 'w1', type: 'lunchCount' } as WidgetData,
   isAdmin: false,
   canAccessFeature: () => true,
-  t: ((key: string) => key) as FieldCtx['t'],
+  t: (key: string) => key,
 });
 
 describe('lunchCount settings schema', () => {
@@ -85,7 +85,7 @@ describe('lunchCount config migration', () => {
       gradeLevel: '3',
       cardColor: '#ffffff',
       cardOpacity: 1,
-    } as unknown as LunchCountConfig,
+    },
   };
 
   it('is a no-op besides stamping configVersion', () => {
@@ -117,7 +117,7 @@ describe('lunchCount config migration', () => {
       cardColor: '#f8fafc',
       cardOpacity: 0.5,
       cachedMenu: null,
-    } as Partial<LunchCountConfig>);
+    });
     const migrated = migrateWidget({ ...fixture, config: merged });
 
     const frontFaceReadKeys: (keyof LunchCountConfig)[] = [

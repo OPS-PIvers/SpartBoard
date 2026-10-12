@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import type { WidgetType } from '@/types';
 
 export type ChangelogHighlightType = 'feature' | 'improvement' | 'fix';
 
@@ -31,6 +32,12 @@ export interface ChangelogThemedSection {
   items: ChangelogBullet[];
 }
 
+/** A one- or two-sentence note shown under widgets of this type after their look changes. */
+export interface ChangelogWidgetNote {
+  widget: WidgetType;
+  text: string;
+}
+
 export interface ChangelogEntry {
   version: string;
   date: string;
@@ -39,6 +46,7 @@ export interface ChangelogEntry {
   details: ChangelogHighlight[];
   /** Building Guided Learning set whose live tour the entry's "Show me" starts. */
   tourSetId?: string;
+  widgetNotes?: ChangelogWidgetNote[];
 }
 
 interface ChangelogFile {

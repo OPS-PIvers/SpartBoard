@@ -3,6 +3,7 @@
  * Adapted from QuizResults. Shows per-student scores and per-question accuracy.
  */
 
+import { tourAttr } from '@/config/tourAnchors';
 import React, { useId, useMemo, useState } from 'react';
 import {
   Download,
@@ -60,6 +61,7 @@ import {
   type LtiPushGradesData,
 } from '@/utils/ltiGradePush';
 import { functions } from '@/config/firebase';
+import { tourFieldAttr } from '@/config/tourAnchors';
 import { httpsCallable } from 'firebase/functions';
 import {
   useAssignmentPseudonymsMulti,
@@ -371,10 +373,9 @@ export const Results: React.FC<ResultsProps> = ({
         // to empty string so the export shape stays string-typed.
         pin: r.pin ?? '',
         joinedAt: r.joinedAt,
-        status: (r.completedAt ? 'completed' : 'in-progress') as
-          | 'completed'
-          | 'in-progress'
-          | 'joined',
+        status: r.completedAt
+          ? ('completed' as const)
+          : ('in-progress' as const),
         answers: r.answers.map((a) => ({
           questionId: a.questionId,
           answer: a.answer,
@@ -406,9 +407,7 @@ export const Results: React.FC<ResultsProps> = ({
       const url = await drive.exportResultsToSheet(
         session.assignmentName,
         quizResponses,
-        questions as unknown as Parameters<
-          typeof drive.exportResultsToSheet
-        >[2],
+        questions,
         {
           byStudentUid,
           gradeFn:
@@ -658,6 +657,7 @@ export const Results: React.FC<ResultsProps> = ({
       {/* Header */}
       <SessionViewHeader
         onBack={onBack}
+        backAnchor={tourAttr('video-activity.results-back')}
         status={session.status === 'ended' ? 'ended' : 'live'}
         title={session.assignmentName}
         subtitle={session.activityTitle}
@@ -671,6 +671,7 @@ export const Results: React.FC<ResultsProps> = ({
               <ActionButton
                 variant="primary"
                 label="Push Grades"
+                anchor={tourAttr('video-activity.results-push-classroom')}
                 icon={GraduationCap}
                 loading={pushingGrades}
                 onClick={() => void handlePushGrades()}
@@ -685,6 +686,7 @@ export const Results: React.FC<ResultsProps> = ({
               <ActionButton
                 variant="primary"
                 label="Push to Schoology"
+                anchor={tourAttr('video-activity.results-push-schoology')}
                 icon={Send}
                 loading={pushingSchoology || toolColumnPush.busy}
                 onClick={() =>
@@ -701,11 +703,18 @@ export const Results: React.FC<ResultsProps> = ({
               <ActionButton
                 variant="secondary"
                 label="Assign make-up (self-paced)"
+                anchor={tourAttr('video-activity.results-assign-makeup')}
                 icon={UserPlus}
                 onClick={handleAssignMakeUp}
               />
             )}
-            {overflowItems.length > 0 && <OverflowMenu items={overflowItems} />}
+            {overflowItems.length > 0 && (
+              <OverflowMenu
+                items={overflowItems}
+                tourId="video-activity.results-more-item"
+                tourScope="video-activity"
+              />
+            )}
           </>
         }
       />
@@ -748,6 +757,8 @@ export const Results: React.FC<ResultsProps> = ({
         style={{ padding: 'min(8px, 2cqmin) min(16px, 4cqmin)' }}
       >
         <SegmentedTabs
+          tourId="video-activity.results-tab"
+          tourScope="video-activity"
           ariaLabel="Video activity results sections"
           panelIdPrefix={tabPanelId}
           value={activeTab}
@@ -852,6 +863,11 @@ export const Results: React.FC<ResultsProps> = ({
                 return (
                   <SessionRow
                     key={q.id}
+                    anchor={tourFieldAttr(
+                      'video-activity.results-question-row',
+                      'video-activity',
+                      q.id
+                    )}
                     trailing={
                       skipped ? (
                         <SessionBadge tone="neutral" label="Not asked" />
@@ -970,6 +986,11 @@ export const Results: React.FC<ResultsProps> = ({
                   return (
                     <SessionRow
                       key={r._responseKey ?? r.studentUid ?? r.pin}
+                      anchor={tourFieldAttr(
+                        'video-activity.results-student-row',
+                        'video-activity',
+                        r.studentUid
+                      )}
                       trailing={
                         <>
                           <div

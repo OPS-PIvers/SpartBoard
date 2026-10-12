@@ -12,6 +12,7 @@ import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import { RosterGroupSelect } from '@/components/common/RosterGroupSelect';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { rosterGroupMemberIds } from '@/utils/rosterGroups';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const NEXTUP_FOLDER_NAME = 'NextUp';
 const SESSIONS_COLLECTION = 'nextup_sessions';
@@ -266,6 +267,11 @@ export const NextUpSessionField: React.FC<{ ctx: CustomRenderCtx }> = ({
         <div className="grid grid-cols-2 gap-2">
           <button
             type="button"
+            {...tourAttr(
+              'widget-settings.next-up.new-queue',
+              ctx.widget.id,
+              ctx.widget.type
+            )}
             onClick={() => void startSession('new')}
             className="flex flex-col items-center justify-center rounded-xl border-2 border-emerald-100 bg-emerald-50 p-3 text-xs font-bold text-emerald-700 hover:bg-emerald-100"
           >
@@ -276,6 +282,11 @@ export const NextUpSessionField: React.FC<{ ctx: CustomRenderCtx }> = ({
             <RefreshCcw className="mb-1 h-5 w-5" />
             {ctx.t('widgetSettings.nextUp.loadExisting')}
             <select
+              {...tourAttr(
+                'widget-settings.next-up.load-existing',
+                ctx.widget.id,
+                ctx.widget.type
+              )}
               aria-label={ctx.t('widgetSettings.nextUp.loadExisting')}
               disabled={loadingFiles || existingFiles.length === 0}
               defaultValue=""
@@ -308,6 +319,11 @@ export const NextUpSessionField: React.FC<{ ctx: CustomRenderCtx }> = ({
             </div>
             <button
               type="button"
+              {...tourAttr(
+                'widget-settings.next-up.copy-link',
+                ctx.widget.id,
+                ctx.widget.type
+              )}
               onClick={copyLink}
               title={ctx.t('widgetSettings.nextUp.copyStudentLink')}
               className="rounded-lg border border-emerald-100 bg-white p-2 text-emerald-700 hover:bg-emerald-100"
@@ -330,6 +346,11 @@ export const NextUpSessionField: React.FC<{ ctx: CustomRenderCtx }> = ({
           )}
           <button
             type="button"
+            {...tourAttr(
+              'widget-settings.next-up.import-class',
+              ctx.widget.id,
+              ctx.widget.type
+            )}
             onClick={() => void importRoster()}
             className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-indigo-100 bg-indigo-50 p-3 text-xs font-bold text-indigo-700 hover:bg-indigo-100"
           >
@@ -339,6 +360,11 @@ export const NextUpSessionField: React.FC<{ ctx: CustomRenderCtx }> = ({
           <div className="grid grid-cols-2 gap-2">
             <button
               type="button"
+              {...tourAttr(
+                'widget-settings.next-up.end-and-save',
+                ctx.widget.id,
+                ctx.widget.type
+              )}
               onClick={() => void endSession(true)}
               className="rounded-xl border-2 border-slate-100 bg-white p-3 text-xs font-bold text-slate-700 hover:bg-slate-50"
             >
@@ -346,6 +372,11 @@ export const NextUpSessionField: React.FC<{ ctx: CustomRenderCtx }> = ({
             </button>
             <button
               type="button"
+              {...tourAttr(
+                'widget-settings.next-up.discard',
+                ctx.widget.id,
+                ctx.widget.type
+              )}
               onClick={() => void endSession(false)}
               className="flex items-center justify-center gap-2 rounded-xl border-2 border-red-100 bg-red-50 p-3 text-xs font-bold text-red-700 hover:bg-red-100"
             >
@@ -391,6 +422,11 @@ export const NextUpThemeField: React.FC<{ ctx: CustomRenderCtx }> = ({
           key={color.value}
           type="button"
           role="radio"
+          {...tourFieldAttr(
+            'widget-settings.next-up.theme-color',
+            ctx.widget.type,
+            color.value
+          )}
           aria-checked={selected === color.value}
           tabIndex={
             selected === color.value || (selectedIndex < 0 && index === 0)

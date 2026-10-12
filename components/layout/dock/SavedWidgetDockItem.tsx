@@ -5,6 +5,7 @@ import { getCustomWidgetIcon } from '@/config/customWidgetIcons';
 import { useLongPress } from '@/hooks/useLongPress';
 import { DockIcon } from './DockIcon';
 import { DockLabel } from './DockLabel';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface SavedWidgetDockItemProps {
   widget: SavedWidget;
@@ -57,6 +58,7 @@ export const SavedWidgetDockItem: React.FC<SavedWidgetDockItemProps> = ({
               e.stopPropagation();
               onDelete();
             }}
+            {...tourFieldAttr('dock.saved-delete', 'saved', widget.id)}
             className="absolute -top-2 -left-2 z-controls bg-slate-700 hover:bg-slate-900 text-white rounded-full p-1 shadow-md hover:scale-110 transition-transform animate-in zoom-in duration-200"
             aria-label="Delete saved widget"
             title="Delete saved widget (permanent)"
@@ -72,6 +74,7 @@ export const SavedWidgetDockItem: React.FC<SavedWidgetDockItemProps> = ({
               e.stopPropagation();
               onUnpin();
             }}
+            {...tourFieldAttr('dock.saved-remove', 'saved', widget.id)}
             className="absolute -top-2 -right-2 z-controls bg-red-500 text-white rounded-full p-1 shadow-md hover:scale-110 transition-transform animate-in zoom-in duration-200"
             aria-label="Remove from Dock"
             title="Remove from Dock"
@@ -87,6 +90,7 @@ export const SavedWidgetDockItem: React.FC<SavedWidgetDockItemProps> = ({
           onPointerMove={longPress.onPointerMove}
           onPointerCancel={longPress.onPointerCancel}
           onClick={handleClick}
+          {...tourFieldAttr('dock.saved-item', 'saved', widget.id)}
           className={`group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 relative ${
             isEditMode
               ? 'cursor-default touch-none'

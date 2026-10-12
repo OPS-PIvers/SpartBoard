@@ -28,6 +28,7 @@ import {
 import { useAudioPeaks } from '@/hooks/useAudioPeaks';
 import { nextSpeechStart } from '@/utils/audioSilence';
 import { WaveformScrubber } from '@/components/quiz/recording/WaveformScrubber';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { RubricStrandChips } from './RubricStrandChips';
 import { toggleStrandTag } from '@/utils/rubricStrandTags';
 
@@ -185,6 +186,7 @@ export const AudioAnnotatedResponseView: React.FC<
           <button
             type="button"
             onClick={onRetryLoad}
+            {...tourTypeAttr('quiz-grading.audio-retry', 'quiz')}
             className="mt-3 inline-flex items-center gap-2 rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 transition hover:bg-amber-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             <RotateCcw aria-hidden className="h-3.5 w-3.5" />
@@ -213,6 +215,7 @@ export const AudioAnnotatedResponseView: React.FC<
         <button
           type="button"
           onClick={toggle}
+          {...tourTypeAttr('quiz-grading.audio-play', 'quiz')}
           aria-label={
             playing
               ? t('quizMediaResponse.grading.player.pause')
@@ -231,6 +234,7 @@ export const AudioAnnotatedResponseView: React.FC<
           <button
             type="button"
             onClick={skipToSpeech}
+            {...tourTypeAttr('quiz-grading.audio-skip-silence', 'quiz')}
             aria-label={t('quizMediaResponse.grading.player.skipToSpeech')}
             title={t('quizMediaResponse.grading.player.skipToSpeech')}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue-primary"
@@ -272,6 +276,7 @@ export const AudioAnnotatedResponseView: React.FC<
                 step={100}
                 value={Math.min(elapsedMs, totalMs)}
                 onChange={(e) => seekTo(Number(e.target.value))}
+                {...tourTypeAttr('quiz-grading.audio-scrubber', 'quiz')}
                 aria-label={t('quizMediaResponse.grading.player.scrubber')}
                 aria-valuetext={t(
                   'quizMediaResponse.grading.player.valueText',
@@ -315,6 +320,7 @@ export const AudioAnnotatedResponseView: React.FC<
         <button
           type="button"
           onClick={addAtCursor}
+          {...tourTypeAttr('quiz-grading.audio-add-comment', 'quiz')}
           disabled={disabled}
           className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-bold text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
         >
@@ -329,7 +335,7 @@ export const AudioAnnotatedResponseView: React.FC<
             {t('quizMediaResponse.grading.player.noComments')}
           </li>
         )}
-        {sorted.map((a) => (
+        {sorted.map((a, index) => (
           <li
             key={a.id}
             className={`rounded-lg border p-2 transition-colors ${
@@ -345,6 +351,11 @@ export const AudioAnnotatedResponseView: React.FC<
                   onActiveIdChange(a.id);
                   seekTo(a.from);
                 }}
+                {...tourFieldAttr(
+                  'quiz-grading.audio-note-seek',
+                  'quiz',
+                  String(index)
+                )}
                 className="rounded bg-slate-200 px-1.5 py-0.5 font-mono text-xs tabular-nums text-slate-700 transition hover:bg-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                 aria-label={t('quizMediaResponse.grading.player.seekTo', {
                   time: formatTimecode(a.from),
@@ -359,6 +370,11 @@ export const AudioAnnotatedResponseView: React.FC<
                   onChange(annotations.filter((x) => x.id !== a.id));
                   if (activeId === a.id) onActiveIdChange(null);
                 }}
+                {...tourFieldAttr(
+                  'quiz-grading.audio-note-remove',
+                  'quiz',
+                  String(index)
+                )}
                 className="ml-auto rounded p-1 text-slate-500 transition hover:bg-slate-200 hover:text-brand-red-primary disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
                 aria-label={t(
                   'quizMediaResponse.grading.player.removeComment',
@@ -409,6 +425,11 @@ export const AudioAnnotatedResponseView: React.FC<
                   'quizMediaResponse.grading.player.commentPlaceholder'
                 )}
                 onFocus={() => onActiveIdChange(a.id)}
+                {...tourFieldAttr(
+                  'quiz-grading.audio-note-comment',
+                  'quiz',
+                  String(index)
+                )}
                 onChange={(e) =>
                   onChange(
                     annotations.map((x) =>

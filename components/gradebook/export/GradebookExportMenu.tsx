@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { ExternalLink, FileSpreadsheet, FileText } from 'lucide-react';
 import { CellPopover } from '@/components/admin/Organization/components/primitives';
 import { useAuth } from '@/context/useAuth';
+import { tourAttr } from '@/config/tourAnchors';
 import { useGradebook } from '../GradebookContext';
 import { buildGradebookExportRows, exportTitle } from './gradebookExport';
 import {
@@ -81,6 +82,7 @@ export const GradebookExportMenu: React.FC<GradebookExportMenuProps> = ({
         <button
           type="button"
           role="menuitem"
+          {...tourAttr('gradebook.export.csv')}
           className={itemClass}
           onClick={toCsv}
         >
@@ -91,6 +93,7 @@ export const GradebookExportMenu: React.FC<GradebookExportMenuProps> = ({
           <a
             role="menuitem"
             href={sheetUrl}
+            {...tourAttr('gradebook.export.open-sheet')}
             target="_blank"
             rel="noopener noreferrer"
             className={`${itemClass} font-semibold text-brand-blue-primary`}
@@ -103,6 +106,7 @@ export const GradebookExportMenu: React.FC<GradebookExportMenuProps> = ({
           <button
             type="button"
             role="menuitem"
+            {...tourAttr('gradebook.export.sheet')}
             className={itemClass}
             disabled={busy}
             onClick={() => void toSheet()}

@@ -10,7 +10,7 @@ import { importPKCS8, SignJWT } from 'jose';
 import { randomBytes } from 'node:crypto';
 import { TOOL_SIGNING_KID } from './toolJwks';
 
-// jose's importPKCS8 returns a KeyLike; cache by PEM so we don't re-import per call.
+// jose's importPKCS8 returns a CryptoKey; cache by PEM so we don't re-import per call.
 let cached: {
   pem: string;
   key: Awaited<ReturnType<typeof importPKCS8>>;

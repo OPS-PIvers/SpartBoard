@@ -31,8 +31,11 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const diceCountRef = useRef(diceCount);
   const configRef = useRef(config);
   const widgetIdRef = useRef(widget.id);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read by the roll interval
   diceCountRef.current = diceCount;
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read by the roll interval
   configRef.current = config;
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read by the roll interval
   widgetIdRef.current = widget.id;
 
   const rollingRef = useRef(false);
@@ -89,7 +92,7 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         );
         setAnimatedValues(finalValues);
         updateWidget(currentWidgetId, {
-          config: { ...currentConfig, lastRoll: finalValues } as DiceConfig,
+          config: { ...currentConfig, lastRoll: finalValues },
         });
         rollingRef.current = false;
         setIsRolling(false);
@@ -100,6 +103,7 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   if (diceCount !== prevDiceCount || animatedValues.length !== diceCount) {
     if (diceCount !== prevDiceCount) setPrevDiceCount(diceCount);
     setAnimatedValues(
+      // eslint-disable-next-line react-hooks/purity -- fresh faces when the dice count changes
       Array.from({ length: diceCount }, () => Math.floor(Math.random() * 6) + 1)
     );
   }

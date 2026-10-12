@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { X, Check, Folder } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import { tourAttr } from '@/config/tourAnchors';
 
 // Curated 10-color palette for Collection accents. Anchored on the SpartBoard
 // brand pair (blue + red) plus 8 Tailwind-600 shades chosen for good
@@ -108,6 +109,7 @@ export const CollectionColorPicker: React.FC<CollectionColorPickerProps> = ({
             type="button"
             onClick={onClose}
             aria-label={t('common.close', { defaultValue: 'Close' })}
+            {...tourAttr('boards-modal.color-close')}
             className="p-1 rounded text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
           >
             <X className="w-4 h-4" />
@@ -146,6 +148,7 @@ export const CollectionColorPicker: React.FC<CollectionColorPickerProps> = ({
                     style={{ backgroundColor: swatch.hex }}
                     aria-label={`Set color to ${swatch.name}`}
                     aria-pressed={isActive}
+                    {...tourAttr('boards-modal.color-swatch')}
                   >
                     {isActive && <Check className="w-4 h-4 text-white" />}
                   </button>
@@ -169,10 +172,12 @@ export const CollectionColorPicker: React.FC<CollectionColorPickerProps> = ({
                     : 'border-slate-200'
                 }`}
                 aria-label="Custom color"
+                {...tourAttr('boards-modal.color-custom')}
               />
               <button
                 type="button"
                 onClick={() => onSelect(customColor)}
+                {...tourAttr('boards-modal.color-apply-custom')}
                 className="flex-1 px-3 py-2 text-xxs font-black uppercase tracking-widest text-white bg-brand-blue-primary hover:bg-brand-blue-dark rounded-lg transition-colors"
               >
                 {t('boardsModal.colorPicker.applyCustom', {
@@ -187,6 +192,7 @@ export const CollectionColorPicker: React.FC<CollectionColorPickerProps> = ({
           <button
             type="button"
             onClick={onClose}
+            {...tourAttr('boards-modal.color-done')}
             className="text-xs font-bold text-slate-600 hover:text-slate-800"
           >
             {t('common.done', { defaultValue: 'Done' })}

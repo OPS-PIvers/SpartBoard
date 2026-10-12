@@ -3,6 +3,7 @@ import { useGradebook } from '@/components/gradebook/GradebookContext';
 import { Private } from '@/components/gradebook/Private';
 import { GRADEBOOK_KIND_META } from '@/components/gradebook/kindMeta';
 import { cellAnchorId } from '@/components/gradebook/cellFormat';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   BarList,
   DistributionStrip,
@@ -126,6 +127,7 @@ export const PerformanceCard: React.FC<StudentCardProps> = ({
           </label>
           <input
             id="gb-whatif"
+            {...tourAttr('gradebook.student.what-if')}
             type="number"
             min={0}
             max={whatIfMax}
@@ -290,6 +292,11 @@ export const StandardsCard: React.FC<{
                         <button
                           type="button"
                           aria-expanded={open === r.targetId}
+                          {...tourFieldAttr(
+                            'gradebook.student.evidence',
+                            'gradebook',
+                            r.targetId
+                          )}
                           onClick={() =>
                             setOpen(open === r.targetId ? null : r.targetId)
                           }
@@ -466,6 +473,11 @@ export const AssignmentsCard: React.FC<{ studentUid: string }> = ({
                   <button
                     type="button"
                     data-gb-cell={cellAnchorId(col.sessionId, studentUid)}
+                    {...tourFieldAttr(
+                      'gradebook.student.edit-cell',
+                      'gradebook',
+                      col.sessionId
+                    )}
                     onClick={() => gb.openCell(col.sessionId, studentUid)}
                     className="rounded-md px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
                   >

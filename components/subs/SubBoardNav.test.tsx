@@ -41,10 +41,7 @@ describe('SubBoardNav', () => {
 
   // Nowhere to go, so the cluster would only be chrome in the sub's way.
   it('renders nothing for a share with one board', () => {
-    const one = buildSubShareNav(
-      { boardIds: ['b1'] } as Parameters<typeof buildSubShareNav>[0],
-      label
-    );
+    const one = buildSubShareNav({ boardIds: ['b1'] }, label);
     const { container } = render(
       <SubBoardNav nav={one} currentBoardId="b1" onPickBoard={onPick} />
     );
@@ -167,10 +164,7 @@ describe('SubBoardNav', () => {
 
   // A pre-v2 share has no section names, so it must not render empty headings.
   it('renders a pre-v2 share as one flat list', () => {
-    const flat = buildSubShareNav(
-      { boardIds: ['x1', 'x2'] } as Parameters<typeof buildSubShareNav>[0],
-      label
-    );
+    const flat = buildSubShareNav({ boardIds: ['x1', 'x2'] }, label);
     render(<SubBoardNav nav={flat} currentBoardId="x1" onPickBoard={onPick} />);
     fireEvent.click(
       screen.getByRole('button', { name: "This teacher's boards" })

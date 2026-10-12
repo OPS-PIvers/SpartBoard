@@ -38,11 +38,7 @@ export function artifactCountsAsTake(
 
 /** What the student sees instead of a player when a take can't be played. */
 export type ArtifactPlaybackState =
-  | 'playable'
-  | 'archiving'
-  | 'failed'
-  | 'lost'
-  | 'deleted';
+  'playable' | 'archiving' | 'failed' | 'lost' | 'deleted';
 
 /**
  * Client twin of the playback callable's own check. Every archive status other

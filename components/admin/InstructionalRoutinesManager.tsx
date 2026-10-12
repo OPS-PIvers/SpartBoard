@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { X, Plus, Edit, Trash2, Sparkles } from 'lucide-react';
 import { useInstructionalRoutines } from '@/hooks/useInstructionalRoutines';
 import { LibraryManager } from '@/components/widgets/InstructionalRoutines/LibraryManager';
@@ -32,6 +33,7 @@ export const InstructionalRoutinesManager: React.FC<
             Instructional Routines Library
           </h3>
           <button
+            {...tourAttr('admin.routines.close')}
             onClick={onClose}
             className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
             aria-label="Close"
@@ -43,6 +45,7 @@ export const InstructionalRoutinesManager: React.FC<
         <div className="flex-1 overflow-y-auto p-6 bg-slate-50 custom-scrollbar">
           <div className="flex justify-end mb-6">
             <button
+              {...tourAttr('admin.routines.new-routine')}
               onClick={() =>
                 setEditingRoutine({
                   id: crypto.randomUUID(),
@@ -96,6 +99,11 @@ export const InstructionalRoutinesManager: React.FC<
                   </div>
                   <div className="flex items-center gap-1 sm:gap-2">
                     <button
+                      {...tourFieldAttr(
+                        'admin.routines.edit',
+                        'admin',
+                        routine.id
+                      )}
                       onClick={() => setEditingRoutine(routine)}
                       className="p-2 hover:bg-blue-50 rounded-xl text-slate-400 hover:text-brand-blue-primary transition-colors flex items-center gap-1.5 text-xxs font-black uppercase tracking-wider"
                       title="Edit Routine"
@@ -104,6 +112,11 @@ export const InstructionalRoutinesManager: React.FC<
                       <span className="hidden sm:inline">Edit</span>
                     </button>
                     <button
+                      {...tourFieldAttr(
+                        'admin.routines.delete',
+                        'admin',
+                        routine.id
+                      )}
                       onClick={() => {
                         setDeleteConfirm({
                           routineId: routine.id,

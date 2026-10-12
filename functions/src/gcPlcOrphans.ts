@@ -243,7 +243,7 @@ export function isEmptyGroup(group: { participants?: unknown }): boolean {
   ) {
     return true;
   }
-  return Object.keys(participants as Record<string, unknown>).length === 0;
+  return Object.keys(participants).length === 0;
 }
 
 // ───────────────────────── sweep helpers (I/O) ─────────────────────────────
@@ -308,7 +308,7 @@ async function sweepEmptyGroups(db: Firestore): Promise<number> {
       const reapable: admin.firestore.DocumentReference[] = [];
       for (const doc of page.docs) {
         visited += 1;
-        if (isEmptyGroup(doc.data() as { participants?: unknown })) {
+        if (isEmptyGroup(doc.data())) {
           reapable.push(doc.ref);
         }
       }

@@ -1,10 +1,7 @@
 // Server twin of `utils/quizResultsVisibility.ts`: what one student may see of their published results.
 
 export type ServerScoreVisibility =
-  | 'none'
-  | 'score-only'
-  | 'score-and-responses'
-  | 'score-responses-and-answers';
+  'none' | 'score-only' | 'score-and-responses' | 'score-responses-and-answers';
 
 const LEVELS: ReadonlySet<string> = new Set<ServerScoreVisibility>([
   'none',

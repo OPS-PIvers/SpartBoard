@@ -1,4 +1,5 @@
 import React from 'react';
+import { tourAttr } from '@/config/tourAnchors';
 import type { UserTier } from '@/types';
 
 /**
@@ -34,6 +35,7 @@ export const MinTierSelect: React.FC<MinTierSelectProps> = ({
     </label>
     <select
       value={value ?? ''}
+      {...tourAttr('admin.access.min-tier')}
       title="Users below this tier are denied (free < org < internal). Admins always bypass."
       onChange={(e) =>
         onChange(

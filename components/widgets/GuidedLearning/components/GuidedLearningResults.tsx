@@ -66,6 +66,7 @@ import {
 } from '@/utils/studentResultsPublish';
 import { ViewAsStudentButton } from '@/components/viewAs/ViewAsStudentButton';
 import { focusRing, iconBtn } from '@/components/common/lightChrome';
+import { tourAttr } from '@/config/tourAnchors';
 
 type PeriodSession = PeriodAccessSessionFields & {
   id: string;
@@ -234,10 +235,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
     return onSnapshot(
       doc(db, 'guided_learning_sessions', sessionId),
       (snap) => {
-        const next = toPeriodSession(
-          sessionId,
-          snap.data() as PeriodAccessSessionFields & { teacherUid?: string }
-        );
+        const next = toPeriodSession(sessionId, snap.data());
         if (next) setPeriodSession(next);
       },
       (err) => logError('GuidedLearningResults.periodListener', err)
@@ -447,7 +445,12 @@ export const GuidedLearningResults: React.FC<Props> = ({
           padding: 'min(8px, 1.5cqmin) min(12px, 2.5cqmin)',
         }}
       >
-        <button onClick={onClose} className={iconBtn} aria-label="Back">
+        <button
+          onClick={onClose}
+          className={iconBtn}
+          {...tourAttr('gl-results.back')}
+          aria-label="Back"
+        >
           <X
             style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}
           />
@@ -464,6 +467,7 @@ export const GuidedLearningResults: React.FC<Props> = ({
         </span>
         {!viewOnly && (
           <button
+            {...tourAttr('gl-results.export')}
             onClick={handleExport}
             disabled={responses.length === 0}
             className={`flex items-center disabled:opacity-40 border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 rounded-lg transition-colors ${focusRing}`}
@@ -510,6 +514,9 @@ export const GuidedLearningResults: React.FC<Props> = ({
             <button
               key={label}
               type="button"
+              {...(label === 'Start all'
+                ? tourAttr('gl-results.period-start-all')
+                : tourAttr('gl-results.period-pause-all'))}
               onClick={() => void runPeriod(fn)}
               className={`flex items-center border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 rounded-lg transition-colors ${focusRing}`}
               style={{

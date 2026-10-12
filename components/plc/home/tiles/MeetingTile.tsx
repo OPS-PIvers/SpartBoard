@@ -23,6 +23,7 @@ import {
   pickLastCompletedMeeting,
 } from './meetingSelectors';
 import type { PlcHomeTileProps } from './tileTypes';
+import { tourAttr } from '@/config/tourAnchors';
 
 const HERO_LIST_LIMIT = 6;
 
@@ -170,6 +171,7 @@ const NextMeetingControls: React.FC<{
             })}
           </span>
           <input
+            {...tourAttr('plc-home.meeting-move-date')}
             type="date"
             value={moveTo}
             onChange={(e) => setMoveTo(e.target.value)}
@@ -178,6 +180,7 @@ const NextMeetingControls: React.FC<{
           />
         </label>
         <button
+          {...tourAttr('plc-home.meeting-move-save')}
           type="submit"
           disabled={busy || !moveTo}
           className={smallButton}
@@ -185,6 +188,7 @@ const NextMeetingControls: React.FC<{
           {t('plcDashboard.home.meeting.saveMove', { defaultValue: 'Move' })}
         </button>
         <button
+          {...tourAttr('plc-home.meeting-move-cancel')}
           type="button"
           onClick={() => setMoving(false)}
           className={smallButton}
@@ -197,6 +201,7 @@ const NextMeetingControls: React.FC<{
   return (
     <div className="flex flex-wrap gap-2">
       <button
+        {...tourAttr('plc-home.meeting-move')}
         type="button"
         disabled={busy}
         onClick={() => {
@@ -208,6 +213,7 @@ const NextMeetingControls: React.FC<{
         {t('plcDashboard.home.meeting.moveNext', { defaultValue: 'Move' })}
       </button>
       <button
+        {...tourAttr('plc-home.meeting-skip')}
         type="button"
         disabled={busy}
         onClick={() => void write(skipOccurrence(cadence, occurrence))}
@@ -307,6 +313,7 @@ export const MeetingTile: React.FC<PlcHomeTileProps> = ({
             )}
           </div>
           <button
+            {...tourAttr('plc-home.meeting-open')}
             type="button"
             onClick={openMeeting}
             className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-bold text-white hover:bg-brand-blue-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/50 focus-visible:ring-offset-2"

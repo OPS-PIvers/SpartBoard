@@ -30,7 +30,7 @@ function makeStore(initial: Record<string, string> = {}): Storage {
     get length() {
       return map.size;
     },
-  } as Storage;
+  };
 }
 
 const UID = 'user-1';

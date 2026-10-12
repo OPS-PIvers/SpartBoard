@@ -1,5 +1,6 @@
 import React, { useCallback, useRef } from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface BuildingSelectorProps {
   selectedId: string;
@@ -59,6 +60,7 @@ export const BuildingSelector: React.FC<BuildingSelectorProps> = ({
       className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar"
       role="tablist"
       aria-label={ariaLabel}
+      {...tourAttr('admin.widget-config.building-selector')}
     >
       {buildings.map((building, index) => (
         <button
@@ -68,6 +70,11 @@ export const BuildingSelector: React.FC<BuildingSelectorProps> = ({
           }}
           type="button"
           role="tab"
+          {...tourFieldAttr(
+            'admin.widget-config.building-tab',
+            'admin',
+            building.id
+          )}
           id={idPrefix ? `${idPrefix}-tab-${building.id}` : undefined}
           aria-selected={selectedId === building.id}
           tabIndex={index === rovingIndex ? 0 : -1}

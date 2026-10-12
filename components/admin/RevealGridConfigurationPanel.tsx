@@ -7,6 +7,7 @@ import {
 } from '@/config/buildings';
 import { BuildingSelector } from './BuildingSelector';
 import { RevealGridGlobalConfig, GlobalFontFamily } from '@/types';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface RevealGridConfigurationPanelProps {
   config: Record<string, unknown>;
@@ -70,6 +71,11 @@ export const RevealGridConfigurationPanel: React.FC<
             {([2, 3, 4, 5] as const).map((n) => (
               <button
                 key={n}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'reveal-grid',
+                  `columns-${n}`
+                )}
                 type="button"
                 onClick={() => updateBuildingDefaults({ columns: n })}
                 className={`flex-1 py-1.5 text-xs font-black rounded-lg transition-all ${
@@ -93,6 +99,11 @@ export const RevealGridConfigurationPanel: React.FC<
             {(['flip', 'fade'] as const).map((mode) => (
               <button
                 key={mode}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'reveal-grid',
+                  `revealMode-${mode}`
+                )}
                 type="button"
                 onClick={() => updateBuildingDefaults({ revealMode: mode })}
                 className={`flex-1 py-1.5 text-xs font-black uppercase rounded-lg transition-all ${
@@ -121,6 +132,11 @@ export const RevealGridConfigurationPanel: React.FC<
             ).map(({ value, label }) => (
               <button
                 key={label}
+                {...tourFieldAttr(
+                  'admin.widget-config.field',
+                  'reveal-grid',
+                  `gameMode-${label}`
+                )}
                 type="button"
                 onClick={() => updateBuildingDefaults({ isMemoryMode: value })}
                 className={`flex-1 py-1.5 text-xs font-black uppercase rounded-lg transition-all ${
@@ -141,6 +157,11 @@ export const RevealGridConfigurationPanel: React.FC<
             Font Family
           </label>
           <select
+            {...tourFieldAttr(
+              'admin.widget-config.field',
+              'reveal-grid',
+              'fontFamily'
+            )}
             value={currentDefaults.fontFamily ?? 'global'}
             onChange={(e) =>
               updateBuildingDefaults({
@@ -181,6 +202,11 @@ export const RevealGridConfigurationPanel: React.FC<
               </span>
             </div>
             <input
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'reveal-grid',
+                'defaultCardColor'
+              )}
               type="color"
               value={currentDefaults.defaultCardColor ?? DEFAULT_CARD_COLOR}
               onChange={(e) =>
@@ -207,6 +233,11 @@ export const RevealGridConfigurationPanel: React.FC<
               </span>
             </div>
             <input
+              {...tourFieldAttr(
+                'admin.widget-config.field',
+                'reveal-grid',
+                'defaultCardBackColor'
+              )}
               type="color"
               value={
                 currentDefaults.defaultCardBackColor ?? DEFAULT_CARD_BACK_COLOR

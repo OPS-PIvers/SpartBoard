@@ -49,10 +49,7 @@ not 2.1 (2.1 explicitly scopes `takeIndex` out — it belongs to 3.2).
 
 ```ts
 export type UnrespondedReason =
-  | 'passed'
-  | 'expired'
-  | 'abandoned'
-  | 'capture-unavailable';
+  'passed' | 'expired' | 'abandoned' | 'capture-unavailable';
 ```
 
 `QuizResponseAnswer.unresponded?: UnrespondedReason` — absent means the
@@ -171,10 +168,7 @@ neither rescues a `'failed'` upload. The admin console's own
 
 ```ts
 export type RecordingPrepExpiry =
-  | 'auto-start'
-  | 'auto-advance'
-  | 'armed'
-  | 'unanswered';
+  'auto-start' | 'auto-advance' | 'armed' | 'unanswered';
 
 export interface RecordingConfig {
   prepSeconds: number; // default 30

@@ -11,6 +11,7 @@ import { MenuSelect } from '@/components/plc/redesignMockup/ui';
 import { useTeamNav } from '@/components/plc/teams/TeamNavContext';
 import type { TeamPageProps } from '@/components/plc/teams/types';
 import { teamShowsSharedBoards } from '@/utils/teamLayout';
+import { tourAttr } from '@/config/tourAnchors';
 
 const BODY = 'p-4 md:p-6';
 
@@ -104,6 +105,7 @@ export const TeamResourcesPage: React.FC<TeamPageProps> = ({ plc }) => {
           label={t('teams.resources.filter', { defaultValue: 'Filter' })}
           value={filter}
           options={options}
+          anchor={tourAttr('teams.resources.filter')}
           onChange={(v) => setFilter(v as ResourceFilter)}
         />
       </div>

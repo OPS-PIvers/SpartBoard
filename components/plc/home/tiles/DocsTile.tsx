@@ -12,6 +12,7 @@ import { formatActivityRelativeTime } from '@/components/plc/activity/activityDe
 import { TileEmpty, TileFrame } from './TileFrame';
 import { selectRecentDocs, type RecentDocItem } from './docsSelectors';
 import type { PlcHomeTileProps } from './tileTypes';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 const COMPACT_LIMIT = 3;
 const HERO_LIMIT = 8;
@@ -45,6 +46,7 @@ const DocRow: React.FC<{
   return (
     <li>
       <button
+        {...tourFieldAttr('plc-home.doc-open', 'plc', item.id)}
         type="button"
         onClick={onOpen}
         className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"

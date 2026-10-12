@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import type { Plc, PlcGoal } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { GoalEditorModal } from '@/components/plc/goals/GoalEditorModal';
+import { useGoalGradeLevels } from '@/components/plc/goals/routineOptions';
 import { Section } from '@/components/plc/redesignMockup/ui';
 import { logError } from '@/utils/logError';
 import { AssessmentHeroView, NoResults } from './DataOverviewSections';
@@ -139,6 +140,7 @@ export const GoalSection: React.FC<{
 }> = ({ plc, isLead, goalId, hero = false, pinned = false, pinnedBy }) => {
   const { goals, saveGoal, deleteGoal, routines, practicesFor, coach } =
     useGoals(plc);
+  const gradeLevels = useGoalGradeLevels(plc);
   const [editing, setEditing] = useState<PlcGoal | 'new' | null>(null);
   const goal =
     (goalId ? goals.find((g) => g.id === goalId) : undefined) ??
@@ -163,6 +165,7 @@ export const GoalSection: React.FC<{
           showProgress
           nextOrder={goals.length}
           routines={routines}
+          gradeLevels={gradeLevels}
           onSave={async (draft) => {
             await saveGoal(draft);
           }}

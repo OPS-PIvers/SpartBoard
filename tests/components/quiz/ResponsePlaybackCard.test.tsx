@@ -345,7 +345,7 @@ describe('ResponsePlaybackCard', () => {
     unmount();
 
     renderCard({
-      'artifact-1': { archiveStatus: 'lost' as 'failed' },
+      'artifact-1': { archiveStatus: 'lost' },
     });
     expect(
       screen.getByText('quizMediaResponse.playback.lost')

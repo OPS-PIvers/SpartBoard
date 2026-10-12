@@ -71,6 +71,10 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'assign-stepper',
   'team-email-suggest',
   'schoology-tool-columns',
+  'widget-whats-new',
+  'gl-welcome-card',
+  'mini-app-results',
+  'quiz-monitor-declutter',
 ];
 
 /** Plan D7: admins pass a default-off flag (preview, or admin-default like `guided-learning-ai`) that has no saved doc yet. */

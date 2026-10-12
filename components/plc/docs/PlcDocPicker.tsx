@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, Check, X, Pencil } from 'lucide-react';
 import type { PlcDoc } from '@/types';
 import { useAuth } from '@/context/useAuth';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 /** Imperative handle exposed to parents so the Docs empty-state CTA can
  *  focus this picker's add-title input without a brittle DOM query. */
@@ -158,6 +159,7 @@ export const PlcDocPicker = forwardRef<PlcDocPickerHandle, PlcDocPickerProps>(
                 {isRenaming ? (
                   <>
                     <input
+                      {...tourAttr('plc-docs.rename-input')}
                       autoFocus
                       value={renameValue}
                       onChange={(e) => setRenameValue(e.target.value)}
@@ -169,6 +171,11 @@ export const PlcDocPicker = forwardRef<PlcDocPickerHandle, PlcDocPickerProps>(
                       className="flex-1 min-w-0 bg-white border border-brand-blue-primary/50 rounded px-2 py-0.5 text-sm text-slate-900 focus:outline-none focus:ring-1 focus:ring-brand-blue-primary/50"
                     />
                     <button
+                      {...tourFieldAttr(
+                        'plc-docs.rename-confirm',
+                        'plc',
+                        doc.id
+                      )}
                       onClick={(e) => {
                         e.stopPropagation();
                         void handleConfirmRename(doc.id);
@@ -181,6 +188,11 @@ export const PlcDocPicker = forwardRef<PlcDocPickerHandle, PlcDocPickerProps>(
                       <Check className="w-3.5 h-3.5" />
                     </button>
                     <button
+                      {...tourFieldAttr(
+                        'plc-docs.rename-cancel',
+                        'plc',
+                        doc.id
+                      )}
                       onClick={(e) => {
                         e.stopPropagation();
                         handleCancelRename();
@@ -203,6 +215,7 @@ export const PlcDocPicker = forwardRef<PlcDocPickerHandle, PlcDocPickerProps>(
                     {canEdit && (
                       <>
                         <button
+                          {...tourFieldAttr('plc-docs.rename', 'plc', doc.id)}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleStartRename(doc);
@@ -215,6 +228,7 @@ export const PlcDocPicker = forwardRef<PlcDocPickerHandle, PlcDocPickerProps>(
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
                         <button
+                          {...tourFieldAttr('plc-docs.remove', 'plc', doc.id)}
                           onClick={(e) => {
                             e.stopPropagation();
                             void handleDelete(doc.id);
@@ -239,6 +253,7 @@ export const PlcDocPicker = forwardRef<PlcDocPickerHandle, PlcDocPickerProps>(
         {canEdit && (
           <div className="shrink-0 border-t border-slate-200 pt-3 mt-2 flex flex-col gap-2">
             <input
+              {...tourAttr('plc-docs.new-title')}
               ref={addTitleRef}
               type="text"
               value={addTitle}
@@ -253,6 +268,7 @@ export const PlcDocPicker = forwardRef<PlcDocPickerHandle, PlcDocPickerProps>(
               disabled={adding}
             />
             <input
+              {...tourAttr('plc-docs.new-url')}
               type="url"
               value={addUrl}
               onChange={(e) => setAddUrl(e.target.value)}
@@ -272,6 +288,7 @@ export const PlcDocPicker = forwardRef<PlcDocPickerHandle, PlcDocPickerProps>(
               disabled={adding}
             />
             <button
+              {...tourAttr('plc-docs.new-add')}
               onClick={handleAdd}
               disabled={adding || !addTitle.trim() || !addUrl.trim()}
               className="flex items-center justify-center gap-1.5 bg-brand-blue-primary text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-brand-blue-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"

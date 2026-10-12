@@ -12,8 +12,7 @@ import type { AssignPeriodAccessContext } from '@/components/common/library/Assi
 
 /** The teacher's bell periods for the per-period pickers, or undefined while the flag is off. */
 export function useTeacherBellPeriodOptions():
-  | BuildingBellPeriodOption[]
-  | undefined {
+  BuildingBellPeriodOption[] | undefined {
   const { selectedBuildings, canAccessFeature, featurePermissions } = useAuth();
   const buildings = useAdminBuildings();
   const enabled = canAccessFeature('per-period-access');

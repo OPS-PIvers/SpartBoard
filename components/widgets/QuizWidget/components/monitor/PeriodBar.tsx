@@ -1,14 +1,15 @@
 import React, { useRef, useState } from 'react';
 import { ChevronDown, Loader2, Pause, Play } from 'lucide-react';
 import type { PeriodAccess } from '@/types';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useServerNow } from '@/hooks/useServerNow';
 import { Z_INDEX } from '@/config/zIndex';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import {
   effectivePeriodState,
   type EffectivePeriodState,
 } from '@/utils/periodAccess';
-import { shortPeriodLabels } from './monitorUtils';
 
 const STATE_LABEL: Record<EffectivePeriodState, string> = {
   open: 'Live',
@@ -34,25 +35,31 @@ export interface PeriodBarProps {
   /** The period key the monitor shows, or '' for every class. */
   selected: string;
   onSelect: (key: string) => void;
-  onStart: (keys: string[]) => Promise<void>;
-  onPause: (keys: string[]) => Promise<void>;
+  onStart: (key: string) => Promise<void>;
+  onPause: (key: string) => Promise<void>;
   onExtend: (key: string, by: number | null) => Promise<void>;
   extendMs: number;
+  /** Live-tour anchors for the bar's controls. */
+  anchors?: {
+    select?: TourAnchorAttrs;
+    start?: TourAnchorAttrs;
+    pause?: TourAnchorAttrs;
+    moreTime?: TourAnchorAttrs;
+    extend?: TourAnchorAttrs;
+  };
 }
 
 function useEntries(periodAccess: Record<string, PeriodAccess>) {
   const entries = Object.entries(periodAccess).sort(([, a], [, b]) =>
     a.label.localeCompare(b.label, undefined, { numeric: true })
   );
-  const short = shortPeriodLabels(entries.map(([, a]) => a.label));
   const ticking = entries.some(
     ([, a]) => a.closeAt != null || a.openAt != null
   );
   const now = useServerNow(ticking ? 1000 : 30_000);
-  return entries.map(([key, access], i) => ({
+  return entries.map(([key, access]) => ({
     key,
     access,
-    label: short[i],
     state: effectivePeriodState(access, now),
   }));
 }
@@ -66,85 +73,58 @@ const statusText = (access: PeriodAccess, state: EffectivePeriodState) => {
   return `${STATE_LABEL[state]}${pin}`;
 };
 
-/** Class picker and the picked class's status, for the start of the monitor bar. */
 type Row = ReturnType<typeof useEntries>[number];
 
+/** Class picker; each option carries its class's state, so the picked one reads at a glance. */
 const PeriodPicker: React.FC<
-  Pick<PeriodBarProps, 'selected' | 'onSelect'> & { rows: Row[] }
-> = ({ rows, selected, onSelect }) => {
+  Pick<PeriodBarProps, 'selected' | 'onSelect' | 'anchors'> & { rows: Row[] }
+> = ({ rows, selected, onSelect, anchors }) => {
   const current = rows.find((r) => r.key === selected);
   const liveCount = rows.filter((r) => r.state === 'open').length;
-  const text = { fontSize: 'min(13px, 4.5cqmin)' };
+  const text = { fontSize: 'min(16px, 5.5cqmin)' };
 
   return (
     <div
-      className="flex items-center min-w-0"
-      style={{ gap: 'min(8px, 2cqmin)' }}
+      className="flex flex-wrap items-center min-w-0"
+      style={{ gap: 'min(10px, 2.5cqmin)' }}
     >
       <select
+        {...anchors?.select}
         aria-label="Class"
+        {...tourTypeAttr('quiz-monitor.period-class-picker', 'quiz')}
         value={selected}
         onChange={(e) => onSelect(e.target.value)}
-        className="shrink-0 rounded-md border border-brand-blue-primary/30 bg-white font-sans font-bold text-brand-blue-dark"
-        style={{ ...text, padding: 'min(4px, 1cqmin) min(8px, 2cqmin)' }}
+        className="min-w-0 max-w-full rounded-md border border-brand-gray-lighter bg-white font-sans font-bold text-brand-blue-dark"
+        style={{ ...text, padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)' }}
       >
         <option value="">All classes</option>
         {rows.map((r) => (
           <option key={r.key} value={r.key}>
-            {r.access.label}
+            {r.access.label} · {statusText(r.access, r.state)}
           </option>
         ))}
       </select>
-      <span
-        className="whitespace-nowrap font-sans font-semibold text-brand-gray-dark"
-        style={text}
-      >
-        {current
-          ? statusText(current.access, current.state)
-          : `${liveCount} of ${rows.length} live`}
-      </span>
-    </div>
-  );
-};
-
-/** The classes not on screen, each with its state; tap one to show it. */
-const PeriodOthers: React.FC<
-  Pick<PeriodBarProps, 'selected' | 'onSelect'> & { rows: Row[] }
-> = ({ rows: all, selected, onSelect }) => {
-  const rows = all.filter((r) => r.key !== selected);
-  return (
-    <div
-      role="group"
-      aria-label="Other classes"
-      className="flex flex-wrap items-center"
-      style={{ columnGap: 'min(12px, 3cqmin)', rowGap: 'min(2px, 0.5cqmin)' }}
-    >
-      {rows.map((r) => (
-        <button
-          key={r.key}
-          onClick={() => onSelect(r.key)}
-          title={r.access.label}
-          className="font-sans text-brand-gray-primary hover:text-brand-blue-dark hover:underline"
-          style={{ fontSize: 'min(12px, 4cqmin)' }}
+      {!current && (
+        <span
+          className="whitespace-nowrap font-sans font-bold text-brand-blue-dark"
+          style={text}
         >
-          <span className="font-semibold">{r.label}</span>{' '}
-          {statusText(r.access, r.state)}
-        </button>
-      ))}
+          {liveCount} of {rows.length} live
+        </span>
+      )}
     </div>
   );
 };
 
-/** Start or Pause for the picked class, or every class under All classes. */
+/** Start or Pause for the picked class, plus More time while it has a close time. */
 const PeriodAction: React.FC<
   Omit<PeriodBarProps, 'onSelect' | 'periodAccess'> & { rows: Row[] }
-> = ({ rows, selected, onStart, onPause, onExtend, extendMs }) => {
+> = ({ rows, selected, onStart, onPause, onExtend, extendMs, anchors }) => {
   const [busy, setBusy] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   useClickOutside(menuRef, () => setMenuOpen(false));
   const current = rows.find((r) => r.key === selected);
-  const keys = rows.map((r) => r.key);
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -159,9 +139,11 @@ const PeriodAction: React.FC<
     label: string,
     icon: React.ReactNode,
     onClick: () => void,
-    primary: boolean
+    primary: boolean,
+    anchor?: TourAnchorAttrs
   ) => (
     <button
+      {...anchor}
       key={label}
       onClick={onClick}
       disabled={busy}
@@ -181,28 +163,7 @@ const PeriodAction: React.FC<
     </button>
   );
 
-  if (!current) {
-    const anyLive = rows.some((r) => r.state === 'open');
-    const anyIdle = rows.some((r) => r.state !== 'open');
-    return (
-      <div className="flex shrink-0" style={{ gap: 'min(6px, 1.5cqmin)' }}>
-        {anyLive &&
-          button(
-            'Pause all',
-            <Pause style={iconStyle} />,
-            () => void run(() => onPause(keys)),
-            !anyIdle
-          )}
-        {anyIdle &&
-          button(
-            'Start all',
-            <Play style={iconStyle} />,
-            () => void run(() => onStart(keys)),
-            true
-          )}
-      </div>
-    );
-  }
+  if (!current) return null;
 
   const live = current.state === 'open';
   return (
@@ -211,11 +172,13 @@ const PeriodAction: React.FC<
       className="relative flex shrink-0"
       style={{ gap: 'min(6px, 1.5cqmin)' }}
     >
-      {live && (
+      {live && current.access.closeAt != null && (
         <button
+          {...anchors?.moreTime}
           onClick={() => setMenuOpen((v) => !v)}
           aria-label={`More time for ${current.access.label}`}
           aria-expanded={menuOpen}
+          {...tourTypeAttr('quiz-monitor.period-more-time', 'quiz')}
           className="inline-flex items-center rounded-md border border-brand-blue-primary/40 bg-white font-sans font-semibold text-brand-blue-dark hover:bg-brand-blue-lighter"
           style={{
             gap: 'min(4px, 1cqmin)',
@@ -231,14 +194,16 @@ const PeriodAction: React.FC<
         ? button(
             'Pause',
             <Pause style={iconStyle} />,
-            () => void run(() => onPause([current.key])),
-            false
+            () => void run(() => onPause(current.key)),
+            false,
+            anchors?.pause
           )
         : button(
             'Start',
             <Play style={iconStyle} />,
-            () => void run(() => onStart([current.key])),
-            true
+            () => void run(() => onStart(current.key)),
+            true,
+            anchors?.start
           )}
       {menuOpen && (
         <div
@@ -254,6 +219,7 @@ const PeriodAction: React.FC<
             { label: 'Until I pause', by: null },
           ].map((item) => (
             <button
+              {...anchors?.extend}
               key={item.label}
               onClick={() => {
                 setMenuOpen(false);
@@ -274,22 +240,19 @@ const PeriodAction: React.FC<
   );
 };
 
-/** Class picker with its Start/Pause, then the other classes, for the top of the monitor bar. */
+/** Class picker and status with the picked class's Start or Pause, in one row. */
 export const PeriodBar: React.FC<PeriodBarProps> = ({
   periodAccess,
   ...props
 }) => {
   const rows = useEntries(periodAccess);
   return (
-    <div className="flex flex-col" style={{ gap: 'min(6px, 1.5cqmin)' }}>
-      <div
-        className="flex flex-wrap items-center justify-between"
-        style={{ gap: 'min(8px, 2cqmin)' }}
-      >
-        <PeriodPicker rows={rows} {...props} />
-        <PeriodAction rows={rows} {...props} />
-      </div>
-      <PeriodOthers rows={rows} {...props} />
+    <div
+      className="flex flex-wrap items-center justify-between"
+      style={{ gap: 'min(8px, 2cqmin)' }}
+    >
+      <PeriodPicker rows={rows} {...props} />
+      <PeriodAction rows={rows} {...props} />
     </div>
   );
 };

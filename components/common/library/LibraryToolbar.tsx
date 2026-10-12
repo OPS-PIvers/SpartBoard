@@ -60,6 +60,7 @@ const SortDropdown: React.FC<{
         <button
           type="button"
           onClick={toggleDir}
+          {...tourTypeAttr('library-shell.sort-direction', widgetType)}
           aria-label={sort.dir === 'asc' ? 'Sort ascending' : 'Sort descending'}
           title={sort.dir === 'asc' ? 'Ascending' : 'Descending'}
           className="inline-flex items-center justify-center border-l border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
@@ -86,6 +87,11 @@ const SortDropdown: React.FC<{
                 type="button"
                 role="option"
                 aria-selected={selected}
+                {...tourFieldAttr(
+                  'library-shell.sort-option',
+                  widgetType,
+                  opt.key
+                )}
                 onClick={() => {
                   const nextDir: LibrarySortDir =
                     opt.key === sort.key ? sort.dir : (opt.defaultDir ?? 'asc');

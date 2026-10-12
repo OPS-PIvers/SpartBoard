@@ -52,6 +52,7 @@ export const PollVoteApp: React.FC = () => {
   // are external-system calls — the correct use of an effect.
   useEffect(() => {
     if (!code) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- state synced from an external system or reset on open
       setStatus('error');
       return;
     }
@@ -148,6 +149,7 @@ export const PollVoteApp: React.FC = () => {
         {
           questionIndex,
           optionIndex: index,
+          // eslint-disable-next-line react-hooks/purity -- runs in the vote click handler, not render
           votedAt: Date.now(),
         }
       );

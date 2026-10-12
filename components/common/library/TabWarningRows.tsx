@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { Minus, Plus } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
@@ -14,12 +15,14 @@ import {
   TAB_AWAY_LIMIT_PRESETS,
   clampTabAwaySeconds,
 } from '@/utils/tabAwayLimit';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 /** During-taking tab-switch auto-submit threshold (M17 B4), for Quiz and Video Activity. */
 export const TabWarningThresholdRow: React.FC<{
   value: number | 'off' | undefined;
   onChange: (next: number | 'off') => void;
-}> = ({ value, onChange }) => {
+  anchors?: { toggle?: TourAnchorAttrs; count?: TourAnchorAttrs };
+}> = ({ value, onChange, anchors }) => {
   const effective = value ?? DEFAULT_TAB_WARNING_THRESHOLD;
   const enabled = effective !== 'off';
   const [inputValue, setInputValue] = useState<string>(
@@ -62,6 +65,9 @@ export const TabWarningThresholdRow: React.FC<{
           onChange={handleToggle}
           size="sm"
           label="Auto-submit after repeated tab switches"
+          anchor={
+            anchors?.toggle ?? tourAttr('assign-tab-warning.threshold-toggle')
+          }
         />
       </label>
       {enabled && (
@@ -70,12 +76,14 @@ export const TabWarningThresholdRow: React.FC<{
             Warnings before auto-submit
           </span>
           <input
+            {...anchors?.count}
             type="number"
             min={TAB_WARNING_THRESHOLD_MIN}
             max={TAB_WARNING_THRESHOLD_MAX}
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onBlur={handleBlur}
+            {...tourAttr('assign-tab-warning.threshold')}
             className="w-16 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
           />
         </label>
@@ -128,6 +136,7 @@ export const TabAwayLimitRow: React.FC<{
           }
           size="sm"
           label="Auto-submit if away too long"
+          anchor={tourAttr('assign-tab-warning.away-toggle')}
         />
       </label>
       {enabled && (
@@ -152,6 +161,11 @@ export const TabAwayLimitRow: React.FC<{
                     checked || (!hasPresetMatch && index === 0) ? 0 : -1
                   }
                   onClick={() => set(preset)}
+                  {...tourFieldAttr(
+                    'assign-tab-warning.away-preset',
+                    'assign',
+                    String(preset)
+                  )}
                   className={
                     'px-2.5 py-1 text-xs font-bold transition ' +
                     (checked
@@ -170,6 +184,7 @@ export const TabAwayLimitRow: React.FC<{
               aria-label="Less time"
               disabled={current <= TAB_AWAY_LIMIT_MIN_SECONDS}
               onClick={() => set(current - (current <= 60 ? 5 : 15))}
+              {...tourAttr('assign-tab-warning.away-less')}
               className="rounded-md border border-slate-200 bg-white p-1 text-slate-600 hover:bg-slate-50 disabled:opacity-40"
             >
               <Minus size={12} />
@@ -185,6 +200,7 @@ export const TabAwayLimitRow: React.FC<{
               aria-label="More time"
               disabled={current >= TAB_AWAY_LIMIT_MAX_SECONDS}
               onClick={() => set(current + step)}
+              {...tourAttr('assign-tab-warning.away-more')}
               className="rounded-md border border-slate-200 bg-white p-1 text-slate-600 hover:bg-slate-50 disabled:opacity-40"
             >
               <Plus size={12} />

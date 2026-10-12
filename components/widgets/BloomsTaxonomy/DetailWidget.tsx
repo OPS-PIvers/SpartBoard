@@ -22,8 +22,7 @@ import {
 } from './constants';
 
 type DetailView =
-  | { view: 'categories' }
-  | { view: 'content'; category: ContentCategory };
+  { view: 'categories' } | { view: 'content'; category: ContentCategory };
 
 export const BloomsDetailWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -40,8 +39,7 @@ export const BloomsDetailWidget: React.FC<{ widget: WidgetData }> = ({
     (p) => p.widgetType === 'blooms-taxonomy'
   );
   const globalConfig = bloomsPerm?.config as
-    | BloomsTaxonomyGlobalConfig
-    | undefined;
+    BloomsTaxonomyGlobalConfig | undefined;
   const buildingConfig: BloomsTaxonomyBuildingConfig =
     globalConfig?.buildingDefaults?.[buildingId] ?? {};
   const { availableCategories, contentOverrides, defaultEnabledCategories } =

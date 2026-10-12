@@ -465,7 +465,7 @@ describe('PlcHomeV2 meeting cadence', () => {
   });
 
   it('hides Move and Skip from members', () => {
-    const memberView = { ...cadencePlc, leadUid: 'uid-b' } as Plc;
+    const memberView = { ...cadencePlc, leadUid: 'uid-b' };
     render(
       <PlcHomeV2 plc={memberView} onNavigate={vi.fn()} onOpenDoc={vi.fn()} />
     );

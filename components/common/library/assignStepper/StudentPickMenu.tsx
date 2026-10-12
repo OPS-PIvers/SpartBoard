@@ -1,4 +1,5 @@
 import React, { useId, useState } from 'react';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { ChevronDown, Search, User, Users } from 'lucide-react';
 import type { ClassRoster, StudentTargetRef } from '@/types';
 import { studentTargetRefKey } from '@/utils/studentTargetRef';
@@ -13,6 +14,7 @@ import {
   rosterGroupMembers,
   useRosterStudentRows,
 } from './useRosterStudentRows';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 const NO_SIGN_IN_TITLE = 'Individual assignment needs a school sign-in';
 
@@ -20,6 +22,8 @@ export interface StudentPickMenuProps {
   rosters: ClassRoster[];
   value: AssignClassesValue;
   onChange: (next: AssignClassesValue) => void;
+  /** Live-tour anchor for one class's student menu button, keyed by class id. */
+  rowAnchor?: (classId: string) => TourAnchorAttrs;
 }
 
 /** Under the class picker, one "All students" menu per picked class (D5a). */
@@ -27,6 +31,7 @@ export const StudentPickMenu: React.FC<StudentPickMenuProps> = ({
   rosters,
   value,
   onChange,
+  rowAnchor,
 }) => {
   const picked = rosters.filter((r) => value.classIds.includes(r.id));
   if (picked.length === 0) return null;
@@ -36,6 +41,7 @@ export const StudentPickMenu: React.FC<StudentPickMenuProps> = ({
         <ClassStudentRow
           key={roster.id}
           roster={roster}
+          anchor={rowAnchor?.(roster.id)}
           refs={value.studentsByClass[roster.id] ?? null}
           onChange={(refs) =>
             onChange(withClassStudents(value, roster.id, refs))
@@ -50,7 +56,8 @@ const ClassStudentRow: React.FC<{
   roster: ClassRoster;
   refs: StudentTargetRef[] | null;
   onChange: (refs: StudentTargetRef[] | null) => void;
-}> = ({ roster, refs, onChange }) => {
+  anchor?: TourAnchorAttrs;
+}> = ({ roster, refs, onChange, anchor }) => {
   const { open, setOpen, rootRef, onKeyDown } = usePickMenu();
   const menuId = useId();
   const narrowed = !!refs && refs.length > 0;
@@ -66,11 +73,13 @@ const ClassStudentRow: React.FC<{
         onKeyDown={onKeyDown}
       >
         <button
+          {...anchor}
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-controls={open ? menuId : undefined}
+          {...tourFieldAttr('assign-students.trigger', 'assign', roster.id)}
           aria-label={`${roster.name}: ${narrowed ? studentCountLabel(refs.length) : 'All students'}`}
           className={`flex h-8 w-full items-center gap-2 rounded-lg border px-2.5 text-sm hover:border-slate-400 ${
             narrowed
@@ -140,6 +149,7 @@ const StudentMenu: React.FC<{
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search students"
           aria-label="Search students"
+          {...tourAttr('assign-students.search')}
           className="min-w-0 flex-1 bg-transparent text-sm focus:outline-none"
         />
       </div>
@@ -162,6 +172,7 @@ const StudentMenu: React.FC<{
                 disabled={targetable.length === 0}
                 title={targetable.length === 0 ? NO_SIGN_IN_TITLE : undefined}
                 aria-pressed={added}
+                {...tourFieldAttr('assign-students.group', 'assign', group.id)}
                 onClick={() => {
                   if (added) {
                     const drop = new Set(
@@ -214,6 +225,11 @@ const StudentMenu: React.FC<{
                 type="checkbox"
                 checked={pickedKeys.has(studentTargetRefKey(row.ref))}
                 onChange={() => toggleStudent(row.ref)}
+                {...tourFieldAttr(
+                  'assign-students.option',
+                  'assign',
+                  row.studentId
+                )}
                 className="h-4 w-4 rounded accent-brand-blue-primary"
               />
               <span className="min-w-0 flex-1 truncate">{row.name}</span>
@@ -245,6 +261,7 @@ const StudentMenu: React.FC<{
         <button
           type="button"
           onClick={onAllStudents}
+          {...tourAttr('assign-students.all')}
           className="text-xs font-bold text-brand-blue-primary hover:underline"
         >
           All students
@@ -252,6 +269,7 @@ const StudentMenu: React.FC<{
         <button
           type="button"
           onClick={() => onChange(null)}
+          {...tourAttr('assign-students.clear')}
           className="text-xs font-bold text-slate-500 hover:underline"
         >
           Clear

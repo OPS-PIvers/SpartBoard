@@ -30,17 +30,14 @@ const makeSet = (slides: number): GuidedLearningSet => ({
   schemaVersion: 3,
   title: 'Slides',
   imageUrls: Array.from({ length: slides }, (_, i) => url(i)),
-  steps: Array.from(
-    { length: slides },
-    (_, i): GuidedLearningStep => ({
-      id: `s${i}`,
-      xPct: 50,
-      yPct: 50,
-      imageIndex: i,
-      interactionType: 'tooltip',
-      text: `Step ${i}`,
-    })
-  ),
+  steps: Array.from({ length: slides }, (_, i): GuidedLearningStep => ({
+    id: `s${i}`,
+    xPct: 50,
+    yPct: 50,
+    imageIndex: i,
+    interactionType: 'tooltip',
+    text: `Step ${i}`,
+  })),
   mode: 'structured',
   createdAt: 0,
   updatedAt: 0,

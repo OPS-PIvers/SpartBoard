@@ -26,6 +26,7 @@ import {
   HeroHead,
 } from '@/components/plc/redesignMockup/DepartmentHubMock';
 import { AgendaRow } from '@/components/plc/teams/notes/NoteBlockViews';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 export interface HubHero {
   title: string;
@@ -95,7 +96,8 @@ const LinkRow: React.FC<{
   meta?: string;
   trailing?: React.ReactNode;
   onOpen?: () => void;
-}> = ({ icon: Icon, title, meta, trailing, onOpen }) => {
+  tourProps?: Record<string, string>;
+}> = ({ icon: Icon, title, meta, trailing, onOpen, tourProps }) => {
   const body = (
     <>
       {Icon && (
@@ -117,6 +119,7 @@ const LinkRow: React.FC<{
         <button
           type="button"
           onClick={onOpen}
+          {...tourProps}
           className="flex min-w-0 flex-1 items-center gap-3 rounded text-left hover:text-brand-blue-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
         >
           {body}
@@ -137,6 +140,11 @@ const HubActionItem: React.FC<{ item: HubActionItemModel }> = ({ item }) => (
       aria-checked={item.done}
       aria-label={item.title}
       disabled={!item.onToggle}
+      {...tourFieldAttr(
+        'teams.department.item-check',
+        'teams-department',
+        item.key
+      )}
       onClick={item.onToggle}
       className={`shrink-0 rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60 disabled:cursor-default ${
         item.done
@@ -154,6 +162,11 @@ const HubActionItem: React.FC<{ item: HubActionItemModel }> = ({ item }) => (
       type="button"
       onClick={item.onOpen}
       disabled={!item.onOpen}
+      {...tourFieldAttr(
+        'teams.department.item-open',
+        'teams-department',
+        item.key
+      )}
       className="min-w-0 flex-1 rounded text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 enabled:hover:text-brand-blue-primary"
     >
       <span
@@ -201,9 +214,16 @@ const AgendaAdd: React.FC<{
         onChange={(e) => setText(e.target.value)}
         placeholder={label}
         aria-label={label}
+        {...tourAttr('teams.department.agenda-text')}
         className={`${INPUT} min-w-0 flex-1 py-1.5`}
       />
-      <Button variant="secondary" size="sm" type="submit" disabled={busy}>
+      <Button
+        variant="secondary"
+        size="sm"
+        type="submit"
+        disabled={busy}
+        {...tourAttr('teams.department.agenda-add')}
+      >
         {t('teams.hub.add', { defaultValue: 'Add' })}
       </Button>
     </form>
@@ -268,6 +288,7 @@ export const DepartmentHubView: React.FC<DepartmentHubViewProps> = ({
                   href={hero.docUrl}
                   target="_blank"
                   rel="noopener noreferrer"
+                  {...tourAttr('teams.department.open-hero-doc')}
                   className="flex items-center justify-center gap-2 rounded-lg bg-slate-200 px-3 py-1.5 text-xxs font-black uppercase tracking-widest text-slate-600 transition hover:bg-slate-300"
                 >
                   <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
@@ -276,7 +297,10 @@ export const DepartmentHubView: React.FC<DepartmentHubViewProps> = ({
                   })}
                 </a>
               ) : hero.onOpenNote ? (
-                <TextLink onClick={hero.onOpenNote}>
+                <TextLink
+                  onClick={hero.onOpenNote}
+                  {...tourAttr('teams.hero.open-note')}
+                >
                   {t('teams.hub.openNote', { defaultValue: 'Open note' })}
                 </TextLink>
               ) : null
@@ -303,7 +327,10 @@ export const DepartmentHubView: React.FC<DepartmentHubViewProps> = ({
                   meta={nextMeeting?.dateLabel}
                 >
                   {nextMeeting && (
-                    <TextLink onClick={nextMeeting.onOpenNote}>
+                    <TextLink
+                      onClick={nextMeeting.onOpenNote}
+                      {...tourAttr('teams.department.open-meeting-note')}
+                    >
                       {t('teams.hub.openNote', { defaultValue: 'Open note' })}
                     </TextLink>
                   )}
@@ -324,6 +351,7 @@ export const DepartmentHubView: React.FC<DepartmentHubViewProps> = ({
                             key={a.id}
                             text={a.text}
                             who={a.who}
+                            anchorKey={a.id}
                             onRemove={a.onRemove}
                           />
                         ))}
@@ -335,7 +363,10 @@ export const DepartmentHubView: React.FC<DepartmentHubViewProps> = ({
                   </>
                 ) : (
                   onNewMeetingNote && (
-                    <TextLink onClick={onNewMeetingNote}>
+                    <TextLink
+                      onClick={onNewMeetingNote}
+                      {...tourAttr('teams.department.new-meeting-note')}
+                    >
                       {t('plcDashboard.notes.meeting.newMeetingNote', {
                         defaultValue: 'New meeting note',
                       })}
@@ -360,6 +391,11 @@ export const DepartmentHubView: React.FC<DepartmentHubViewProps> = ({
                         title={d.title}
                         meta={d.meta}
                         onOpen={d.onOpen}
+                        tourProps={tourFieldAttr(
+                          'teams.department.decision-open',
+                          'teams-department',
+                          d.key
+                        )}
                       />
                     ))}
                   {cards.openItems &&
@@ -388,7 +424,10 @@ export const DepartmentHubView: React.FC<DepartmentHubViewProps> = ({
                     defaultValue: 'Recently updated docs',
                   })}
                 >
-                  <TextLink onClick={onOpenNotes}>
+                  <TextLink
+                    onClick={onOpenNotes}
+                    {...tourAttr('teams.department.all-notes')}
+                  >
                     {t('plcDashboard.tabs.docs', {
                       defaultValue: 'Notes & Docs',
                     })}
@@ -402,6 +441,11 @@ export const DepartmentHubView: React.FC<DepartmentHubViewProps> = ({
                       title={d.title}
                       meta={d.meta}
                       onOpen={d.onOpen}
+                      tourProps={tourFieldAttr(
+                        'teams.department.doc-open',
+                        'teams-department',
+                        d.key
+                      )}
                       trailing={<span className={META}>{d.date}</span>}
                     />
                   ))}
@@ -415,7 +459,10 @@ export const DepartmentHubView: React.FC<DepartmentHubViewProps> = ({
                     defaultValue: 'Newly shared materials',
                   })}
                 >
-                  <TextLink onClick={onOpenResources}>
+                  <TextLink
+                    onClick={onOpenResources}
+                    {...tourAttr('teams.department.all-resources')}
+                  >
                     {t('plcDashboard.tabs.resources', {
                       defaultValue: 'Resources',
                     })}
@@ -429,9 +476,21 @@ export const DepartmentHubView: React.FC<DepartmentHubViewProps> = ({
                       title={m.title}
                       meta={m.meta}
                       onOpen={m.onOpen}
+                      tourProps={tourFieldAttr(
+                        'teams.department.material-open',
+                        'teams-department',
+                        m.key
+                      )}
                       trailing={
                         m.onCopy ? (
-                          <TextLink onClick={m.onCopy}>
+                          <TextLink
+                            onClick={m.onCopy}
+                            {...tourFieldAttr(
+                              'teams.department.material-copy',
+                              'teams-department',
+                              m.key
+                            )}
+                          >
                             {t('teams.hub.copy', {
                               defaultValue: 'Copy to my library',
                             })}

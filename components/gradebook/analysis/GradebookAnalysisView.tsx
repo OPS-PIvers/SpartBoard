@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
+import { tourAttr } from '@/config/tourAnchors';
 import { CellPopover } from '@/components/admin/Organization/components/primitives';
 import { Private } from '@/components/gradebook/Private';
 import {
@@ -175,6 +176,7 @@ export const GradebookAnalysisView: React.FC<GradebookAnalysisViewProps> = ({
           type="button"
           aria-haspopup="true"
           aria-expanded={menuOpen}
+          {...tourAttr('gradebook.analysis.filters')}
           onClick={() => setMenuOpen((o) => !o)}
           className={`inline-flex h-[34px] items-center gap-1.5 rounded-lg border px-3.5 text-[13px] font-semibold shadow-sm ${menuOpen ? 'border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}
         >
@@ -189,6 +191,7 @@ export const GradebookAnalysisView: React.FC<GradebookAnalysisViewProps> = ({
         {activeCount > 0 && (
           <button
             type="button"
+            {...tourAttr('gradebook.analysis.clear-filters')}
             onClick={() => setFilter(EMPTY_ANALYSIS_FILTER)}
             className="text-xs font-semibold text-brand-blue-primary hover:underline"
           >
@@ -205,12 +208,14 @@ export const GradebookAnalysisView: React.FC<GradebookAnalysisViewProps> = ({
                 checked={compare.on}
                 onChange={compare.setOn}
                 label={`Compare with ${compare.label}`}
+                anchor={tourAttr('gradebook.analysis.compare')}
               />
               {compare.options && compare.options.length > 1 ? (
                 <>
                   <span>Compare with</span>
                   <AnalysisSelect
                     aria-label="Class to compare"
+                    {...tourAttr('gradebook.analysis.compare-class')}
                     value={compare.selectedId}
                     onChange={(e) => compare.onSelect?.(e.target.value)}
                     className="h-8 text-[13px]"
@@ -225,6 +230,7 @@ export const GradebookAnalysisView: React.FC<GradebookAnalysisViewProps> = ({
               ) : (
                 <button
                   type="button"
+                  {...tourAttr('gradebook.analysis.compare-link')}
                   onClick={() => compare.setOn(!compare.on)}
                 >
                   Compare with {compare.label}
@@ -252,6 +258,7 @@ export const GradebookAnalysisView: React.FC<GradebookAnalysisViewProps> = ({
               wrapClassName="w-full"
               className={selectCls}
               value={filter.category}
+              {...tourAttr('gradebook.analysis.filter-category')}
               onChange={(e) => set({ category: e.target.value })}
             >
               <option value="all">All</option>
@@ -268,6 +275,7 @@ export const GradebookAnalysisView: React.FC<GradebookAnalysisViewProps> = ({
               wrapClassName="w-full"
               className={selectCls}
               value={filter.kind}
+              {...tourAttr('gradebook.analysis.filter-activity-type')}
               onChange={(e) => set({ kind: e.target.value })}
             >
               <option value="all">All</option>
@@ -284,6 +292,7 @@ export const GradebookAnalysisView: React.FC<GradebookAnalysisViewProps> = ({
               wrapClassName="w-full"
               className={selectCls}
               value={filter.target}
+              {...tourAttr('gradebook.analysis.filter-target')}
               onChange={(e) => set({ target: e.target.value })}
             >
               <option value="all">All</option>
@@ -300,6 +309,7 @@ export const GradebookAnalysisView: React.FC<GradebookAnalysisViewProps> = ({
               wrapClassName="w-full"
               className={selectCls}
               value={filter.group}
+              {...tourAttr('gradebook.analysis.filter-group')}
               onChange={(e) => set({ group: e.target.value })}
             >
               <option value="all">All</option>
@@ -316,6 +326,7 @@ export const GradebookAnalysisView: React.FC<GradebookAnalysisViewProps> = ({
               wrapClassName="w-full"
               className={selectCls}
               value={filter.flag}
+              {...tourAttr('gradebook.analysis.filter-flag')}
               onChange={(e) => set({ flag: e.target.value })}
             >
               <option value="all">Any</option>
@@ -333,6 +344,7 @@ export const GradebookAnalysisView: React.FC<GradebookAnalysisViewProps> = ({
                 wrapClassName="w-full"
                 className={selectCls}
                 title="Screen only. Never exported."
+                {...tourAttr('gradebook.analysis.filter-accommodations')}
                 value={filter.accommodation}
                 onChange={(e) =>
                   set({
@@ -457,6 +469,7 @@ export const GradebookAnalysisView: React.FC<GradebookAnalysisViewProps> = ({
               <span className="flex-1" />
               <AnalysisSelect
                 aria-label="Metric"
+                {...tourAttr('gradebook.analysis.explore-metric')}
                 value={metric}
                 onChange={(e) => setMetric(e.target.value as ExploreMetric)}
                 className="h-[30px] text-xs font-semibold"
@@ -467,6 +480,7 @@ export const GradebookAnalysisView: React.FC<GradebookAnalysisViewProps> = ({
               </AnalysisSelect>
               <AnalysisSelect
                 aria-label="Group by"
+                {...tourAttr('gradebook.analysis.explore-group-by')}
                 value={by}
                 onChange={(e) => setBy(e.target.value as ExploreBy)}
                 className="h-[30px] text-xs font-semibold"

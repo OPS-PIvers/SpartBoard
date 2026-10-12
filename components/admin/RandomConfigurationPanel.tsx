@@ -9,6 +9,7 @@ import { BuildingSelector } from './BuildingSelector';
 import { RandomGlobalConfig, BuildingRandomDefaults } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
 import { Card } from '@/components/common/Card';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface RandomConfigurationPanelProps {
   config: RandomGlobalConfig;
@@ -82,6 +83,11 @@ export const RandomConfigurationPanel: React.FC<
               return (
                 <button
                   key={opt.value}
+                  {...tourFieldAttr(
+                    'admin.widget-config.field',
+                    'random',
+                    `visualStyle-${opt.value}`
+                  )}
                   onClick={() =>
                     handleUpdateBuilding({ visualStyle: opt.value })
                   }
@@ -113,6 +119,11 @@ export const RandomConfigurationPanel: React.FC<
             Sound Effects
           </span>
           <Toggle
+            anchor={tourFieldAttr(
+              'admin.widget-config.field',
+              'random',
+              'soundEnabled'
+            )}
             label="Sound Effects"
             checked={currentBuildingConfig.soundEnabled ?? true}
             onChange={(checked) =>

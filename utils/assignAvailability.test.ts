@@ -6,6 +6,7 @@ import {
   availabilityFromStored,
   changedWindow,
   closesBeforeOpens,
+  closesInPast,
   defaultAvailability,
   manualStartAvailable,
   periodAccessWindowEdits,
@@ -65,6 +66,73 @@ describe('defaultAvailability', () => {
       opens: { day: '2026-10-02', time: '13:05' },
       closes: { day: '2026-10-02', time: '23:59' },
     });
+  });
+});
+
+describe('defaultAvailability after the bell', () => {
+  it('keeps the bells while every checked class is still ahead', () => {
+    const av = defaultAvailability(
+      new Date(2026, 9, 2, 8, 0),
+      true,
+      undefined,
+      {
+        rosters: [p3, p5],
+        bellWindow,
+      }
+    );
+    expect(av.all.closes.time).toBe('bell');
+  });
+
+  it('opens now until 11:59 PM once a checked class has ended', () => {
+    const av = defaultAvailability(
+      new Date(2026, 9, 2, 13, 33),
+      true,
+      undefined,
+      { rosters: [p3], bellWindow }
+    );
+    expect(av.all).toEqual({
+      opens: { day: '2026-10-02', time: '13:30' },
+      closes: { day: '2026-10-02', time: '23:59' },
+    });
+  });
+
+  it('never saves an untouched window that has already closed', () => {
+    const now = new Date(2026, 9, 2, 13, 33);
+    const { targeting } = applyAvailability(EMPTY_ASSIGN_TARGETING_VALUE, {
+      enabled: true,
+      rosters: [p3],
+      bellWindow,
+      now,
+    });
+    expect(targeting.closeAt).toBe(at('2026-10-02', '23:59'));
+    expect(targeting.closeAt).toBeGreaterThan(now.getTime());
+  });
+});
+
+describe('closesInPast', () => {
+  const now = at('2026-10-02', '13:33');
+
+  it('flags a bell close that already rang today', () => {
+    expect(
+      closesInPast(bellToBell('2026-10-02').all, [p3], bellWindow, now)
+    ).toBe(true);
+  });
+
+  it('passes a close later today or on a later day', () => {
+    expect(
+      closesInPast(
+        {
+          opens: { day: '2026-10-02', time: '08:00' },
+          closes: { day: '2026-10-02', time: '23:59' },
+        },
+        [p3],
+        bellWindow,
+        now
+      )
+    ).toBe(false);
+    expect(
+      closesInPast(bellToBell('2026-10-03').all, [p3], bellWindow, now)
+    ).toBe(false);
   });
 });
 

@@ -11,6 +11,7 @@ import type { AssignPeriodAccessContext } from '@/components/common/library/Assi
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import type { AssignClassPickerValue } from '@/components/common/AssignClassPicker.helpers';
 import { Toggle } from '@/components/common/Toggle';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { AuthContext } from '@/context/AuthContextValue';
 import {
   applyAvailability,
@@ -60,6 +61,7 @@ interface SegmentedProps<T extends string | number> {
   options: Array<{ value: T; label: string }>;
   value: T;
   onChange: (value: T) => void;
+  anchor?: Record<string, string>;
 }
 
 function Segmented<T extends string | number>({
@@ -68,9 +70,10 @@ function Segmented<T extends string | number>({
   options,
   value,
   onChange,
+  anchor,
 }: SegmentedProps<T>): React.ReactElement {
   return (
-    <fieldset>
+    <fieldset {...anchor}>
       <legend className={LABEL_CLASS}>{label}</legend>
       <div className="flex gap-1 rounded-xl bg-slate-100 p-1">
         {options.map((option) => {
@@ -182,6 +185,7 @@ export const LegacyFlashcardAssignModal: React.FC<
           <Toggle
             size="sm"
             label="Collect a submission"
+            anchor={tourTypeAttr('flashcards.collect-submission', 'flashcards')}
             checked={form.collectSubmission}
             onChange={(checked) => update({ collectSubmission: checked })}
           />
@@ -201,6 +205,7 @@ export const LegacyFlashcardAssignModal: React.FC<
             options={MODE_OPTIONS}
             value={form.checkMode}
             onChange={(checkMode) => update({ checkMode })}
+            anchor={tourTypeAttr('flashcards.check-mode', 'flashcards')}
           />
           <Segmented
             name="flashcard-assign-show-first"
@@ -208,6 +213,7 @@ export const LegacyFlashcardAssignModal: React.FC<
             options={SIDE_OPTIONS}
             value={form.showFirst}
             onChange={(showFirst) => update({ showFirst })}
+            anchor={tourTypeAttr('flashcards.show-first', 'flashcards')}
           />
 
           {form.checkMode !== 'flashcards' && (
@@ -221,6 +227,7 @@ export const LegacyFlashcardAssignModal: React.FC<
               <Toggle
                 size="sm"
                 label="Strict mode"
+                anchor={tourTypeAttr('flashcards.strict-mode', 'flashcards')}
                 checked={form.strict}
                 onChange={(strict) => update({ strict })}
               />
@@ -247,6 +254,11 @@ export const LegacyFlashcardAssignModal: React.FC<
                           type="checkbox"
                           className="h-4 w-4 rounded border-slate-300 accent-brand-blue-primary"
                           disabled={disabled}
+                          {...tourFieldAttr(
+                            'flashcards.question-type',
+                            'flashcards',
+                            option.value
+                          )}
                           checked={
                             !disabled && form.testTypes.includes(option.value)
                           }
@@ -282,6 +294,7 @@ export const LegacyFlashcardAssignModal: React.FC<
                 </label>
                 <select
                   id="flashcard-assign-test-count"
+                  {...tourTypeAttr('flashcards.question-count', 'flashcards')}
                   value={String(testCount)}
                   onChange={(event) =>
                     update({
@@ -311,6 +324,10 @@ export const LegacyFlashcardAssignModal: React.FC<
                 options={THRESHOLD_OPTIONS}
                 value={form.masteryThreshold}
                 onChange={(masteryThreshold) => update({ masteryThreshold })}
+                anchor={tourTypeAttr(
+                  'flashcards.mastery-threshold',
+                  'flashcards'
+                )}
               />
               <p className="mt-1 text-xs text-slate-500">
                 Correct answers in a row before a card counts as mastered.
@@ -327,6 +344,7 @@ export const LegacyFlashcardAssignModal: React.FC<
             </label>
             <select
               id="flashcard-assign-score-visibility"
+              {...tourTypeAttr('flashcards.score-visibility', 'flashcards')}
               value={form.scoreVisibility}
               onChange={(event) =>
                 update({
@@ -376,6 +394,7 @@ export const LegacyFlashcardAssignModal: React.FC<
       options={form}
       onOptionsChange={setForm}
       extraSlot={extraSlot}
+      confirmTourAttrs={tourTypeAttr('flashcards.assign-confirm', 'flashcards')}
       // Flashcards is opened maximized from the dashboard; the default
       // z-modal (10000) sits below a maximized widget (z-maximized, 10500),
       // so the modal renders invisibly behind it. Same fix as

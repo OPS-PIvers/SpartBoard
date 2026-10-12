@@ -1,5 +1,6 @@
 import React from 'react';
 import { BlendingBoardGlobalConfig } from '@/types';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 interface BlendingBoardConfigurationPanelProps {
   config: BlendingBoardGlobalConfig;
@@ -20,6 +21,11 @@ export const BlendingBoardConfigurationPanel: React.FC<
         </label>
         <input
           id="blending-board-url"
+          {...tourFieldAttr(
+            'admin.widget-config.field',
+            'blending-board',
+            'url'
+          )}
           type="url"
           value={config.url ?? ''}
           onChange={(e) => onChange({ ...config, url: e.target.value })}

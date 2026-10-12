@@ -271,7 +271,7 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
       .then(
         (result) => ({
           isCorrect: result.isCorrect,
-          key: result.correctAnswer as string | null,
+          key: result.correctAnswer,
         }),
         // Any failed check (network or server refusal) must not strand the class: keep the answer, skip feedback.
         (err: unknown) => {

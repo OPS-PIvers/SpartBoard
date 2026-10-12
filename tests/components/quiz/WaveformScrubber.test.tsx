@@ -28,7 +28,7 @@ function renderScrubber(currentMs = 10_000, onSeek = vi.fn()) {
     width: 400,
     height: 48,
     toJSON: () => ({}),
-  } as DOMRect);
+  });
   return { ...utils, slider, onSeek };
 }
 
