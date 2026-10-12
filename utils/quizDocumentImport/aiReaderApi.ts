@@ -9,7 +9,8 @@ import type { AiExtractFn, AiExtractedQuiz } from './aiReader';
 export const extractQuizFromDocument: AiExtractFn = async (input) => {
   const callable = httpsCallable<typeof input, AiExtractedQuiz>(
     functions,
-    'extractQuizFromDocumentV1'
+    'extractQuizFromDocumentV1',
+    { timeout: 130_000 }
   );
   return (await callable(input)).data;
 };
