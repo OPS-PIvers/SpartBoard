@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-10-05_
+_Last audited: 2026-10-12_
 _Last action: 2026-08-30 (starterPacks `notDeactivated()` gate, via nightly debugger routine)_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-10-12: Weekly rules audit (Monday), after merging `origin/dev-paul` @ `c7605470` (`firestore.rules` +25 lines from #4087, Mini App attempts). Re-ran the collection cross-reference over `components/`, `context/`, `hooks/`, `utils/`, `functions/src/`: every client-side name has a matching rule path; the only names without a `match` block are Admin SDK subcollections/collection-group names (`notesJobs`, `student_sections`, plus the already-tracked `contributions`, `mcp_oauth_codes`), all covered by the default deny. 0 new issues._
 
 _2026-10-05: Weekly rules audit (Monday). Read `firestore.rules` (catch-all deny at the end). Every `collection()`/`collectionGroup()` segment in `components/`, `context/`, `hooks/`, `utils/`, `config/` has a matching rule path: 0 client-side gaps. Server-only (Admin SDK, rules-bypassing) names without explicit match blocks, all already covered by the catch-all: `mcp_oauth_codes`, `contributions`, `grade_index_sessions`, `notesJobs`, `contexts`, `answers`, `cards`, `questions`, `steps` (subcollections). 0 new HIGH items._
 
