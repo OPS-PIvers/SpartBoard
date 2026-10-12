@@ -27,6 +27,13 @@ describe('WIDGET_ENVELOPES', () => {
     }
   });
 
+  it('falls back to the generic min size for a stored type with no envelope', () => {
+    expect(getWidgetMinSize('remote' as WidgetType)).toEqual({
+      w: 150,
+      h: 100,
+    });
+  });
+
   it('flags explicit floors only for types that had an override', () => {
     const explicit = ALL_TYPES.filter(hasExplicitMinSize).sort();
     expect(explicit).toEqual(['blooms-taxonomy', 'url']);

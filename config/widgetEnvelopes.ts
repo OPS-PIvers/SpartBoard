@@ -49,8 +49,10 @@ export const WIDGET_ENVELOPES: Record<WidgetType, WidgetEnvelope> =
     ])
   ) as Record<WidgetType, WidgetEnvelope>;
 
+// Falls back for a stored type with no envelope (e.g. an internal tool saved as a widget), so it can't crash the board.
 export const getWidgetMinSize = (type: WidgetType): { w: number; h: number } =>
-  WIDGET_ENVELOPES[type].minSize;
+  (WIDGET_ENVELOPES as Partial<Record<string, WidgetEnvelope>>)[type]
+    ?.minSize ?? GENERIC_MIN_SIZE;
 
 export const hasExplicitMinSize = (type: WidgetType): boolean =>
   WIDGET_TYPES_WITH_EXPLICIT_MIN.has(type);
