@@ -14,7 +14,7 @@ import {
   Clock,
   MousePointerClick,
   X,
-  CirclePlay,
+  Youtube,
 } from 'lucide-react';
 import { VideoActivityQuestion } from '@/types';
 import { SortableList } from '@/components/common/SortableList';
@@ -85,7 +85,7 @@ export const VideoActivityEditorContextPane = React.memo(
         {/* Settings strip */}
         <div className="px-5 py-4 border-b border-slate-200 space-y-3 bg-white shrink-0">
           <div className="relative">
-            <CirclePlay className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
+            <Youtube className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
             <input
               {...tourAttr('video-activity.editor-youtube-url')}
               type="url"
@@ -119,7 +119,7 @@ export const VideoActivityEditorContextPane = React.memo(
             />
           ) : (
             <div className="aspect-video w-full max-h-full rounded-xl border-2 border-dashed border-slate-300 bg-white flex flex-col items-center justify-center text-center text-slate-500 px-4">
-              <CirclePlay className="w-8 h-8 text-red-400 mb-2" />
+              <Youtube className="w-8 h-8 text-red-400 mb-2" />
               <p className="text-sm font-bold text-slate-700">
                 Paste a YouTube URL above
               </p>
@@ -258,7 +258,7 @@ const QuestionPill = React.memo(function QuestionPill({
         className={`flex items-center rounded-r-md pl-1 pr-1.5 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-brand-red-primary ${
           isSelected
             ? 'text-white/70 hover:text-white hover:bg-white/15'
-            : 'text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 touch:opacity-100 group-focus-within:opacity-100'
+            : 'text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100'
         }`}
       >
         <X className="w-3.5 h-3.5" />

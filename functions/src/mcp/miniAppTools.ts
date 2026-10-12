@@ -173,7 +173,7 @@ function summarize(id: string, data: Record<string, unknown>) {
       ? { size_kb: Math.round(data.html.length / 102.4) / 10 }
       : {}),
     folder_id: data.folderId ?? null,
-    collects_results: data.collectsResults === true,
+    ...(data.collectsResults === true ? { collects_results: true } : {}),
     created_at: iso(data.createdAt),
   };
 }
@@ -364,7 +364,7 @@ export function registerMiniAppTools(
     'create_mini_app',
     {
       title: 'Create a mini-app',
-      description: `Saves a single-file HTML app (inline CSS and JS, no server) to the Mini App library. Runs sandboxed on the classroom board. Up to ${MAX_HTML / 1000}k characters. Call get_mini_app_spec first.`,
+      description: `Saves a single-file HTML app (inline CSS and JS, no server) to the Mini App library. Runs sandboxed on the classroom board. Up to ${MAX_HTML / 1000}k characters.`,
       inputSchema: {
         title: z.string().trim().min(1).max(MAX_TITLE),
         html: z.string().min(1),

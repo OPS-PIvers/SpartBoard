@@ -40,7 +40,7 @@ type Firestore = admin.firestore.Firestore;
 export const QUIZ_TRANSLATION_SETTINGS_DOC = 'quiz_translation';
 const DEFAULT_STANDARD_MODEL = 'gemini-3.5-flash-lite';
 // Mirrors aiGeneration.ts DEFAULT_ADVANCED_MODEL.
-const DEFAULT_ADVANCED_MODEL = 'gemini-3.8-flash';
+const DEFAULT_ADVANCED_MODEL = 'gemini-3.7-flash';
 const VERTEX_LOCATION = 'global';
 
 // Mirrors config/quizTranslation.ts; functions cannot import the root package.

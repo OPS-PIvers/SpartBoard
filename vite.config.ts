@@ -115,24 +115,37 @@ export default defineConfig({
     chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
-        manualChunks(id: string) {
-          if (!id.includes('node_modules')) return undefined;
-          if (/[\\/]node_modules[\\/](react|react-dom)[\\/]/.test(id)) {
-            return 'react-vendor';
-          }
-          const firebase = id.match(
-            /[\\/]node_modules[\\/]firebase[\\/](app|auth|firestore|storage|functions)[\\/]/
-          );
-          if (firebase) return `firebase-${firebase[1]}`;
-          if (/[\\/]node_modules[\\/]@dnd-kit[\\/]/.test(id)) return 'dnd-kit';
-          if (
-            /[\\/]node_modules[\\/]@imgly[\\/]background-removal[\\/]/.test(id)
-          ) {
-            return 'imgly-bg-removal';
-          }
-          if (/[\\/]node_modules[\\/](html-to-image|jszip)[\\/]/.test(id))
-            return 'utils';
-          return undefined;
+        // Same vendor chunks as before Vite 8, plus one chunk for the rest of the startup code.
+        codeSplitting: {
+          groups: [
+            {
+              name: 'react-vendor',
+              test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+              priority: 20,
+            },
+            {
+              name: (id: string) =>
+                `firebase-${/[\\/]node_modules[\\/]@?firebase[\\/](app|auth|firestore|storage|functions)/.exec(id)?.[1] ?? 'core'}`,
+              test: /[\\/]node_modules[\\/]@?firebase[\\/]/,
+              priority: 20,
+            },
+            {
+              name: 'dnd-kit',
+              test: /[\\/]node_modules[\\/]@dnd-kit[\\/]/,
+              priority: 20,
+            },
+            {
+              name: 'imgly-bg-removal',
+              test: /[\\/]node_modules[\\/]@imgly[\\/]background-removal[\\/]/,
+              priority: 20,
+            },
+            {
+              name: 'utils',
+              test: /[\\/]node_modules[\\/](html-to-image|jszip)[\\/]/,
+              priority: 20,
+            },
+            { name: 'startup', tags: ['$initial'], priority: 10 },
+          ],
         },
       },
     },
