@@ -83,6 +83,7 @@ import {
 import type { BankSource } from '@/hooks/useBankSources';
 import { QuizBanksTab } from './QuizBanksTab';
 import { useBankMenuActions } from './useBankMenuActions';
+import { LibraryKindIcon } from './LibraryKindIcon';
 import { visibleTeammateBanks } from './teammateBankRows';
 import type { LibraryLocation } from '@/components/common/library/folderView';
 import { useCopyBankFoldersToLibrary } from './useCopyBankFoldersToLibrary';
@@ -2402,6 +2403,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       key={bank.id}
       id={bank.id}
       title={bank.title}
+      thumbnail={<LibraryKindIcon kind="bank" />}
       subtitle={
         <span>
           Question bank · {bank.questionCount} question
@@ -2625,6 +2627,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       <LibraryItemCard<QuizMetadata>
         id={quiz.id}
         title={quiz.title}
+        thumbnail={banksInLibrary ? <LibraryKindIcon kind="quiz" /> : undefined}
         subtitle={renderQuizSubtitle(quiz)}
         primaryAction={{
           label: primaryActionLabel,
@@ -2675,6 +2678,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onImport={onImport}
           totalCount={quizzes.length}
           trailingRows={bankRows}
+          showKindIcon={banksInLibrary}
           reorderLocked={libraryView.reorderLocked}
           reorderLockedReason={libraryView.reorderLockedReason}
           enableCardDrag={
@@ -3061,6 +3065,7 @@ const LibraryTabContent: React.FC<{
   totalCount: number;
   /** Question banks filed in the open folder, listed after its quizzes. */
   trailingRows?: React.ReactNode[];
+  showKindIcon?: boolean;
   reorderLocked: boolean;
   reorderLockedReason: string | undefined;
   /**
@@ -3106,6 +3111,7 @@ const LibraryTabContent: React.FC<{
   extraBulkActions,
   totalCount,
   trailingRows,
+  showKindIcon,
   reorderLocked,
   reorderLockedReason,
   enableCardDrag,
@@ -3225,6 +3231,9 @@ const LibraryTabContent: React.FC<{
               key={quiz.id}
               id={quiz.id}
               title={quiz.title}
+              thumbnail={
+                showKindIcon ? <LibraryKindIcon kind="quiz" /> : undefined
+              }
               tourIndex={index}
               tourWidgetType={tourWidgetType}
               subtitle={renderSubtitle(quiz)}

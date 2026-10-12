@@ -43,6 +43,7 @@ import { isSourceFolderId } from '@/components/common/library/sourceFolders';
 import { visibleTeammateBanks } from './teammateBankRows';
 import { placementSourceKey } from '@/hooks/useLibraryPlacements';
 import { useBankMenuActions } from './useBankMenuActions';
+import { LibraryKindIcon } from './LibraryKindIcon';
 
 /** Banks filed in the Quiz library's folders, listed flat beside the Quiz sidebar. */
 export interface BankLibraryFolders {
@@ -431,6 +432,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
       key={bank.id}
       id={bank.id}
       title={bank.title}
+      thumbnail={libraryFolders ? <LibraryKindIcon kind="bank" /> : undefined}
       subtitle={renderSubtitle(bank)}
       badges={buildBadges(bank)}
       primaryAction={{
