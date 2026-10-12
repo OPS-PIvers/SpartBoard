@@ -8,6 +8,7 @@ import { LibraryGridLockContext } from './LibraryGridLockContext';
 import { crumbDroppableId, folderRowDroppableId } from './folderDropTargets';
 import type { LibraryViewMode } from './types';
 import { folderColorSwatch } from './folderColors';
+import { useCompactListRow } from './LibraryRowWidthContext';
 import {
   breadcrumbEntries,
   folderPath,
@@ -172,6 +173,7 @@ export const FolderRowButton: React.FC<{
   const swatch = folderColorSwatch(row.folder.color);
   const drag = useLibraryDrag();
   const lock = useContext(LibraryGridLockContext);
+  const compactRow = useCompactListRow(isList);
   const { setNodeRef, isOver } = useDroppable({
     id: folderRowDroppableId(row.folder.id),
     data: { type: 'folder', folderId: row.folder.id },
@@ -189,7 +191,7 @@ export const FolderRowButton: React.FC<{
   const content = (
     <>
       {/* Lines the folder icon up with item rows, which keep room for a drag grip. */}
-      {isList && !lock.dragDisabled && (
+      {isList && !lock.dragDisabled && !compactRow && (
         <span aria-hidden className="h-8 w-6 shrink-0" />
       )}
       <span

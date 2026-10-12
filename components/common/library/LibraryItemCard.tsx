@@ -41,8 +41,8 @@ import { Z_INDEX } from '@/config/zIndex';
 import { LibraryGridLockContext } from './LibraryGridLockContext';
 import {
   LibraryRowWidthContext,
-  ROW_COMPACT_BELOW_PX,
   ROW_TIGHT_BELOW_PX,
+  useCompactListRow,
 } from './LibraryRowWidthContext';
 import { useLibraryFolderView } from './LibraryFolderViewContext';
 import { useLibraryDrag } from './LibraryDragContext';
@@ -460,8 +460,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
   const isList = viewMode === 'list';
   // Grid cards render as before (the old @[280px] labels never compiled); list rows drop labels as the column narrows.
   const rowWidth = useContext(LibraryRowWidthContext);
-  const rowCompact =
-    isList && rowWidth != null && rowWidth < ROW_COMPACT_BELOW_PX;
+  const rowCompact = useCompactListRow(isList);
   const rowTight =
     !isList || (rowWidth != null && rowWidth < ROW_TIGHT_BELOW_PX);
   const tourRowKey = tourIndex != null ? `row-${tourIndex + 1}` : undefined;
