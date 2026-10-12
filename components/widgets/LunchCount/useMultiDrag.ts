@@ -106,6 +106,10 @@ export function useMultiDrag(
       onPointerCancel: (e: React.PointerEvent<HTMLElement>) => {
         finish(e.pointerId);
       },
+      // A chip that unmounts mid-drag loses capture with no pointerup.
+      onLostPointerCapture: (e: React.PointerEvent<HTMLElement>) => {
+        if (pendingRef.current.has(e.pointerId)) finish(e.pointerId);
+      },
       onClick: (e: React.MouseEvent<HTMLElement>) => {
         const { id } = chipOf(e);
         if (justDroppedRef.current.delete(id)) return;
