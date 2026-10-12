@@ -202,7 +202,7 @@ if (isMain) {
   const diff = git(
     'diff',
     '--unified=0',
-    '--diff-filter=AM',
+    '--diff-filter=AMR',
     `${mergeBase}...HEAD`,
     '--',
     'components',
