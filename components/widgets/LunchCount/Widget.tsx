@@ -3,22 +3,11 @@ import React, {
   useMemo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import {
-  DndContext,
-  DragEndEvent,
-  DragOverlay,
-  DragStartEvent,
-  useSensor,
-  useSensors,
-  defaultDropAnimationSideEffects,
-  MouseSensor,
-  TouchSensor,
-  pointerWithin,
-} from '@dnd-kit/core';
-import { snapCenterToCursor } from '@dnd-kit/modifiers';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useSubShareHost } from '@/context/SubShareHostContextValue';
@@ -39,9 +28,8 @@ import { SubmitReportModal } from './SubmitReportModal';
 import { MissingInfoModal } from './MissingInfoModal';
 import type { LunchInfo } from './MissingInfoModal';
 import { useNutrislice } from './useNutrislice';
-import { DraggableStudent } from './components/DraggableStudent';
-import { DroppableZone } from './components/DroppableZone';
-import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
+import { DragChip } from './components/DragChip';
+import { useMultiDrag } from './useMultiDrag';
 import { logError } from '@/utils/logError';
 import { toLunchCountSchoolSite } from '@/config/buildings';
 
@@ -286,7 +274,6 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [peekedItem, setPeekedItem] = useState<LunchMenuItem | null>(null);
   const peekTriggerRef = useRef<HTMLElement | null>(null);
   const peekCloseButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -338,20 +325,6 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
       peekCloseButtonRef.current?.focus();
     },
     []
-  );
-
-  const sensors = useSensors(
-    useSensor(MouseSensor, {
-      activationConstraint: {
-        distance: 10,
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 250,
-        tolerance: 5,
-      },
-    })
   );
 
   // Each entry pairs a stable identity (`id`) with the display `name`.
@@ -472,9 +445,15 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     [widget.id, config, updateWidget]
   );
 
+  // Several drops can land before a re-render, so each builds on the last write.
+  const assignmentsRef = useRef(assignments);
+  useLayoutEffect(() => {
+    assignmentsRef.current = assignments;
+  }, [assignments]);
+
   const updateAssignment = useCallback(
     (student: string, type: 'hot' | 'bento' | 'home' | null) => {
-      const newAssignments = { ...assignments };
+      const newAssignments = { ...assignmentsRef.current };
       // Always clear a legacy name-keyed entry for this student — otherwise
       // it either keeps re-surfacing via the read-path fallback after an
       // unassign, or lingers as orphaned data after a direct reassignment.
@@ -485,43 +464,43 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
       } else {
         newAssignments[student] = type;
       }
-      updateWidget(widget.id, {
-        config: { ...config, assignments: newAssignments },
-      });
+      assignmentsRef.current = newAssignments;
+      updateWidget(widget.id, { config: { assignments: newAssignments } });
     },
-    [widget.id, config, assignments, updateWidget, activeRoster]
+    [widget.id, updateWidget, activeRoster]
   );
 
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    beginWidgetDrag();
-    setActiveId(event.active.id as string);
-  }, []);
-
-  const handleDragEnd = useCallback(
-    (event: DragEndEvent) => {
-      endWidgetDrag();
-      const { active, over } = event;
-      setActiveId(null);
-
-      const student = active.id as string;
+  const handleDrop = useCallback(
+    (student: string, zone: string | null) => {
+      const current = assignmentsRef.current;
       const legacyName = activeRoster.find((s) => s.id === student)?.name;
       const isCurrentlyAssigned =
-        !!assignments[student] || (!!legacyName && !!assignments[legacyName]);
+        !!current[student] || (!!legacyName && !!current[legacyName]);
 
-      if (over?.id === 'hot' || over?.id === 'bento' || over?.id === 'home') {
-        updateAssignment(student, over.id);
+      if (zone === 'hot' || zone === 'bento' || zone === 'home') {
+        updateAssignment(student, zone);
       } else if (isCurrentlyAssigned) {
         // Dropped in 'unassigned' zone or outside all zones — only write if currently assigned
         updateAssignment(student, null);
       }
     },
-    [assignments, activeRoster, updateAssignment]
+    [activeRoster, updateAssignment]
   );
 
-  const handleDragCancel = useCallback(() => {
-    endWidgetDrag();
-    setActiveId(null);
-  }, []);
+  const handleTap = useCallback(
+    (student: string) => {
+      const current = assignmentsRef.current;
+      const legacyName = activeRoster.find((s) => s.id === student)?.name;
+      if (current[student] || (legacyName && current[legacyName])) {
+        updateAssignment(student, null);
+      }
+    },
+    [activeRoster, updateAssignment]
+  );
+
+  const { drags, handlers: dragHandlers } = useMultiDrag(handleDrop, handleTap);
+  const overZones = new Set(drags.map((d) => d.over));
+  const draggingIds = new Set(drags.map((d) => d.id));
 
   const handleSubmitReport = async (notes: string, extraPizza?: number) => {
     const { submissionUrl, schumannSheetId, intermediateSheetId } =
@@ -637,16 +616,6 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
     setIsModalOpen(true);
   };
 
-  const dropAnimation = {
-    sideEffects: defaultDropAnimationSideEffects({
-      styles: {
-        active: {
-          opacity: '0.5',
-        },
-      },
-    }),
-  };
-
   const studentItemClass =
     'bg-white border-b-2 border-slate-200 rounded-xl font-black text-slate-700 shadow-sm hover:border-brand-blue-primary hover:-translate-y-0.5 transition-all active:scale-90';
 
@@ -752,13 +721,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
   const cardOpacity = config.cardOpacity ?? 0.5;
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={pointerWithin}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
-    >
+    <>
       <WidgetLayout
         padding="p-0"
         header={
@@ -930,12 +893,11 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
               style={{ gap: 'min(10px, 2cqmin)', minHeight: 0 }}
             >
               {/* Hot Lunch Drop Zone */}
-              <DroppableZone
-                id="hot"
+              <div
+                data-drop-zone="hot"
                 data-testid="hot-zone"
-                className="bg-brand-red-lighter/10 border-2 border-dashed border-brand-red-lighter rounded-2xl flex flex-col transition-all group"
+                className={`bg-brand-red-lighter/10 border-2 border-dashed border-brand-red-lighter rounded-2xl flex flex-col transition-all group ${overZones.has('hot') ? 'border-solid border-brand-red-primary bg-brand-red-lighter/30 scale-[1.02]' : ''}`}
                 style={{ padding: 'min(10px, 2cqmin)' }}
-                activeClassName="border-solid border-brand-red-primary bg-brand-red-lighter/30 scale-[1.02]"
               >
                 <div
                   className="flex justify-between items-start"
@@ -982,25 +944,26 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                   }}
                 >
                   {groupedStudents.hot.map((student) => (
-                    <DraggableStudent
+                    <DragChip
                       key={student.id}
-                      id={student.id}
                       name={student.name}
-                      onClick={() => updateAssignment(student.id, null)}
+                      isDragging={draggingIds.has(student.id)}
+                      data-student-id={student.id}
+                      data-student-name={student.name}
+                      {...dragHandlers}
                       className={studentItemClass}
                       style={studentItemStyle}
                     />
                   ))}
                 </div>
-              </DroppableZone>
+              </div>
 
               {/* Bento Box Drop Zone */}
-              <DroppableZone
-                id="bento"
+              <div
+                data-drop-zone="bento"
                 data-testid="bento-zone"
-                className="bg-emerald-50 border-2 border-dashed border-emerald-300 rounded-2xl flex flex-col transition-all group"
+                className={`bg-emerald-50 border-2 border-dashed border-emerald-300 rounded-2xl flex flex-col transition-all group ${overZones.has('bento') ? 'border-solid border-emerald-500 bg-emerald-100/50 scale-[1.02]' : ''}`}
                 style={{ padding: 'min(10px, 2cqmin)' }}
-                activeClassName="border-solid border-emerald-500 bg-emerald-100/50 scale-[1.02]"
               >
                 <div
                   className="flex justify-between items-start"
@@ -1046,25 +1009,26 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                   }}
                 >
                   {groupedStudents.bento.map((student) => (
-                    <DraggableStudent
+                    <DragChip
                       key={student.id}
-                      id={student.id}
                       name={student.name}
-                      onClick={() => updateAssignment(student.id, null)}
+                      isDragging={draggingIds.has(student.id)}
+                      data-student-id={student.id}
+                      data-student-name={student.name}
+                      {...dragHandlers}
                       className={studentItemClass}
                       style={studentItemStyle}
                     />
                   ))}
                 </div>
-              </DroppableZone>
+              </div>
 
               {/* Home Lunch Drop Zone */}
-              <DroppableZone
-                id="home"
+              <div
+                data-drop-zone="home"
                 data-testid="home-zone"
-                className="bg-brand-blue-lighter/20 border-2 border-dashed border-brand-blue-lighter rounded-2xl flex flex-col transition-all group"
+                className={`bg-brand-blue-lighter/20 border-2 border-dashed border-brand-blue-lighter rounded-2xl flex flex-col transition-all group ${overZones.has('home') ? 'border-solid border-brand-blue-primary bg-brand-blue-lighter/40 scale-[1.02]' : ''}`}
                 style={{ padding: 'min(10px, 2cqmin)' }}
-                activeClassName="border-solid border-brand-blue-primary bg-brand-blue-lighter/40 scale-[1.02]"
               >
                 <div
                   className="flex justify-between items-start"
@@ -1112,17 +1076,19 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                   }}
                 >
                   {groupedStudents.home.map((student) => (
-                    <DraggableStudent
+                    <DragChip
                       key={student.id}
-                      id={student.id}
                       name={student.name}
-                      onClick={() => updateAssignment(student.id, null)}
+                      isDragging={draggingIds.has(student.id)}
+                      data-student-id={student.id}
+                      data-student-name={student.name}
+                      {...dragHandlers}
                       className={studentItemClass}
                       style={studentItemStyle}
                     />
                   ))}
                 </div>
-              </DroppableZone>
+              </div>
             </div>
 
             {/* Bottom Area: All Unassigned Students */}
@@ -1130,15 +1096,14 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
               className="flex flex-col transition-all duration-300"
               style={{ maxHeight: '45cqh' }}
             >
-              <DroppableZone
-                id="unassigned"
-                className={`${stats.remaining > 0 ? 'flex-1' : 'flex-none'} border-2 border-dashed border-slate-200 rounded-3xl overflow-y-auto custom-scrollbar shadow-inner`}
+              <div
+                data-drop-zone="unassigned"
+                className={`${stats.remaining > 0 ? 'flex-1' : 'flex-none'} border-2 border-dashed border-slate-200 rounded-3xl overflow-y-auto custom-scrollbar shadow-inner ${overZones.has('unassigned') ? 'bg-slate-100 border-brand-blue-primary ring-4 ring-brand-blue-lighter/20' : ''}`}
                 style={{
                   backgroundColor: hexToRgba(cardColor, cardOpacity),
                   padding: 'min(12px, 2.5cqmin)',
                   minHeight: 'min(56px, 10cqmin)',
                 }}
-                activeClassName="bg-slate-100 border-brand-blue-primary ring-4 ring-brand-blue-lighter/20"
               >
                 <div
                   className={`flex flex-col items-center ${stats.remaining > 0 ? 'min-h-full' : ''}`}
@@ -1173,17 +1138,20 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                     style={{ gap: 'min(6px, 1.5cqmin)' }}
                   >
                     {groupedStudents.unassigned.map((student) => (
-                      <DraggableStudent
+                      <DragChip
                         key={student.id}
-                        id={student.id}
                         name={student.name}
+                        isDragging={draggingIds.has(student.id)}
+                        data-student-id={student.id}
+                        data-student-name={student.name}
+                        {...dragHandlers}
                         className={studentItemClass}
                         style={studentItemStyle}
                       />
                     ))}
                   </div>
                 </div>
-              </DroppableZone>
+              </div>
             </div>
           </div>
         }
@@ -1285,23 +1253,26 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
           </div>
         </div>
       </Modal>
-      <DragOverlay
-        dropAnimation={dropAnimation}
-        modifiers={[snapCenterToCursor]}
-      >
-        {activeId ? (
-          <div
-            data-no-drag="true"
-            className="bg-brand-blue-primary border-b-4 border-brand-blue-dark rounded-2xl font-black text-white shadow-2xl scale-110 opacity-95 cursor-grabbing pointer-events-none"
-            style={{
-              padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',
-              fontSize: 'min(14px, 6cqmin)',
-            }}
-          >
-            {activeRoster.find((s) => s.id === activeId)?.name ?? activeId}
-          </div>
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+      {drags.length > 0 &&
+        createPortal(
+          drags.map((drag) => (
+            <div
+              key={drag.pointerId}
+              data-no-drag="true"
+              className="fixed z-[10000] bg-brand-blue-primary border-b-4 border-brand-blue-dark rounded-2xl font-black text-white shadow-2xl opacity-95 cursor-grabbing pointer-events-none whitespace-nowrap"
+              style={{
+                left: drag.x,
+                top: drag.y,
+                transform: 'translate(-50%, -50%) scale(1.1)',
+                padding: '8px 16px',
+                fontSize: '14px',
+              }}
+            >
+              {drag.name}
+            </div>
+          )),
+          document.body
+        )}
+    </>
   );
 };
