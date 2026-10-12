@@ -2925,10 +2925,20 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       {/* Maximized top bar: restore + a kebab with the actions still useful
           full-screen. It slides down near the top edge so content stays full-bleed. */}
       {isMaximized && !maxBarVisible && !showMaxMenu && (
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-1.5 z-widget-control mx-auto h-1 w-10 rounded-full bg-slate-400/60"
-        />
+        // Tappable handle: touches on full-bleed content (iframes) never reach the window listener.
+        <button
+          type="button"
+          aria-label={t('widgetWindow.showControls')}
+          data-max-bar-handle=""
+          className="absolute inset-x-0 top-0 z-widget-control mx-auto flex h-11 w-24 cursor-pointer justify-center pt-1.5 [-webkit-tap-highlight-color:transparent]"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            setMaxBarShown(true);
+          }}
+        >
+          <span className="h-1 w-10 rounded-full bg-slate-400/60" />
+        </button>
       )}
       {isMaximized && (
         <div
