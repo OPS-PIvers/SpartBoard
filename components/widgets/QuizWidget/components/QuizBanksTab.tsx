@@ -70,6 +70,8 @@ export interface QuizBanksTabProps {
     | 'widgetType'
   >;
   onNewBank: () => void;
+  /** Replaces the New bank and Import buttons when banks share the Quiz library header. */
+  headerAction?: LibraryShellProps['primaryAction'];
   /** Opens the CSV / Google Sheet import wizard for a new bank. */
   onImportBank?: () => void;
   onEditBank: (meta: QuestionBankMetadata) => void;
@@ -144,6 +146,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   plcs,
   shell,
   onNewBank,
+  headerAction,
   onImportBank,
   onEditBank,
   onDuplicateBank,
@@ -650,9 +653,11 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
     <LibraryShell
       {...shell}
       widgetType="quiz"
-      primaryAction={{ label: 'New bank', icon: Plus, onClick: onNewBank }}
+      primaryAction={
+        headerAction ?? { label: 'New bank', icon: Plus, onClick: onNewBank }
+      }
       secondaryActions={
-        onImportBank
+        onImportBank && !headerAction
           ? [{ label: 'Import', icon: FileUp, onClick: onImportBank }]
           : undefined
       }
