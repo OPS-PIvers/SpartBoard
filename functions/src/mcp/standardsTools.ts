@@ -55,7 +55,8 @@ async function subjectRows(db: admin.firestore.Firestore, subject: string) {
     .where('subject', '==', subject)
     .get();
   const rows = snap.docs.map(toRow);
-  cache.set(subject, { at: Date.now(), rows });
+  // An empty subject isn't cached, so a seed shows up on the next search.
+  if (rows.length > 0) cache.set(subject, { at: Date.now(), rows });
   return rows;
 }
 
@@ -68,6 +69,9 @@ export function gradeCovers(grade: string, asked: string): boolean {
   const n = gradeNum(asked);
   return n >= gradeNum(band[1]) && n <= gradeNum(band[2]);
 }
+
+export const notLoadedNote = (subject: string) =>
+  `SpartBoard has no ${subject} standards loaded yet, so none can be tagged. Tell the teacher an admin loads them in Admin Settings > Standards.`;
 
 const looksLikeCode = (q: string) => /\d+(?:\.\w+){2,}/.test(q);
 
@@ -142,6 +146,12 @@ export function registerStandardsTools(
                   .get()
               ).docs;
           const rows = snaps.map(toRow);
+          if (rows.length === 0) {
+            return {
+              standards: [],
+              note: 'No benchmark has that code. Search by subject and grade instead.',
+            };
+          }
           return {
             standards: rows.map((r) => ({
               code: rows.length > 1 ? r.id : r.code,
@@ -157,6 +167,9 @@ export function registerStandardsTools(
           );
         }
         const all = await subjectRows(ctx.db, subject);
+        if (all.length === 0) {
+          return { standards: [], total: 0, note: notLoadedNote(subject) };
+        }
         const hits = filterRows(all, { query, grade });
         return {
           standards: present(hits.slice(0, max), all),

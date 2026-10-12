@@ -28,7 +28,7 @@ export const targetInputFields = {
     .max(MAX_LEARNING_TARGETS_PER_QUESTION)
     .optional()
     .describe(
-      "Also saved in the Learning Targets field: the teacher's own or PLC targets, such as \"I can cite evidence from the text\", matched to an existing target by its code or wording (case-insensitive). Wording that matches none is added to the teacher's My targets. Replaces the question's PLC and personal targets; omit to keep them, [] clears them. Never put targets in the question text."
+      "Optional, only when the teacher gives targets; standards come first. Also saved in the Learning Targets field: the teacher's own or PLC targets, such as \"I can cite evidence from the text\", matched to an existing target by its code or wording (case-insensitive). Wording that matches none is added to the teacher's My targets. Replaces the question's PLC and personal targets; omit to keep them, [] clears them. Never put targets in the question text."
     ),
 };
 

@@ -168,7 +168,7 @@ export function applyStandards(
       const hits = catalog.get(ref) ?? [];
       if (hits.length === 0) {
         throw new ToolError(
-          `Question ${n}: "${raw}" is not a Minnesota standards benchmark in SpartBoard. Use a benchmark code like 6.1.2.1, or leave standards off.`
+          `Question ${n}: "${raw}" is not a Minnesota standards benchmark in SpartBoard. Check it with search_standards; if its subject returns nothing, those standards aren't loaded yet, so save without them and tell the teacher.`
         );
       }
       if (hits.length > 1) {

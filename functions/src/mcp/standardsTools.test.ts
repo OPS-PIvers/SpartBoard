@@ -164,6 +164,24 @@ describe('search_standards', () => {
     expect(out.note).toMatch(/narrow/);
   });
 
+  it('says when a subject has no standards loaded, and rereads it next time', async () => {
+    const { db, reads } = fakeDb();
+    const call = await connect(db);
+    const out = await call({ subject: 'science', grade: '6' });
+    expect(out.standards).toEqual([]);
+    expect(out.note).toMatch(/no science standards loaded/);
+    await call({ subject: 'science' });
+    expect(reads.filter((r) => r === 'subject=science')).toHaveLength(2);
+  });
+
+  it('notes an unknown code', async () => {
+    const { db } = fakeDb();
+    const call = await connect(db);
+    const out = await call({ query: '6E.3.1.1.1' });
+    expect(out.standards).toEqual([]);
+    expect(out.note).toMatch(/No benchmark has that code/);
+  });
+
   it('needs a subject without a code', async () => {
     const { db } = fakeDb();
     const call = await connect(db);

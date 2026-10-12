@@ -67,7 +67,7 @@ export const SERVER_INSTRUCTIONS = [
   'No student-level data is available through this connector; results summaries are class-level and hidden for fewer than 5 students.',
   "Quizzes, question banks and video activities are saved in the teacher's Google Drive; items shared with a PLC can only be edited in SpartBoard.",
   "Meeting notes are saved as a draft that a group editor reviews in SpartBoard; Claude never edits a group's notes directly.",
-  "Quiz, question bank, video and Guided Learning questions have a Learning Targets field: find Minnesota codes with search_standards and save them in each question's standards, and the teacher's own targets in learning_targets.",
+  "Quiz, question bank, video and Guided Learning questions have a Learning Targets field. Tag Minnesota standards first: find codes with search_standards and save them in each question's standards. Use learning_targets only when the teacher gives their own or PLC targets.",
 ].join(' ');
 
 function summarizeSet(set: FlashcardSet) {
