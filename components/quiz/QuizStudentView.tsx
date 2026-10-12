@@ -35,6 +35,7 @@ interface QuizStudentViewProps {
   behavior: QuizBehaviorSettings;
   /** Mirrors Assign: the away limit exists only with the tab-away-timer flag. */
   tabAwayTimerOn: boolean;
+  hideRubricUnlessShown?: boolean;
   onExit: () => void;
 }
 
@@ -59,14 +60,21 @@ export const QuizStudentView: React.FC<QuizStudentViewProps> = ({
   quiz,
   behavior,
   tabAwayTimerOn,
+  hideRubricUnlessShown = false,
   onExit,
 }) => {
   const saved = useMemo(() => focusSettingsFrom(behavior), [behavior]);
   const [focus, setFocus] = useState<StudentViewFocusSettings>(saved);
   const [run, setRun] = useState(0);
   const base = useMemo(
-    () => buildStudentViewSession(quiz, behavior, tabAwayTimerOn),
-    [quiz, behavior, tabAwayTimerOn]
+    () =>
+      buildStudentViewSession(
+        quiz,
+        behavior,
+        tabAwayTimerOn,
+        hideRubricUnlessShown
+      ),
+    [quiz, behavior, tabAwayTimerOn, hideRubricUnlessShown]
   );
   const session = useMemo(
     () => withFocusSettings(base, focus, tabAwayTimerOn),

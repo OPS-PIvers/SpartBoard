@@ -4176,6 +4176,8 @@ export interface QuizQuestion {
    * When present, the rubric's criteria max-sum is the question's `points`.
    */
   rubricSnapshot?: Rubric;
+  /** Free Response only. Students see the attached rubric while answering; hidden unless true when `quiz-rubric-visibility` is on. */
+  rubricVisibleToStudents?: boolean;
   /**
    * Ids of `QuizData.stimuli` entries shown alongside this question.
    * Empty/missing = no stimuli. The shared-pointer array is the grouping:
@@ -4788,6 +4790,8 @@ export interface QuizPublicQuestion {
    * so it's safe to expose to students while answering and in results.
    */
   rubricSnapshot?: Rubric;
+  /** Free Response only. The teacher hid the rubric while answering; the snapshot carries only what scored results show. */
+  rubricHidden?: boolean;
   /** Ids into `QuizSession.stimuli` shown alongside this question. */
   stimulusIds?: string[];
   /**
@@ -9869,6 +9873,8 @@ export type GlobalFeature =
   | 'quiz-student-view'
   /** Quiz setting that shows students their score as soon as they submit. */
   | 'quiz-score-on-submit'
+  /** Quiz rubrics are hidden from students unless the teacher shows them per question. */
+  | 'quiz-rubric-visibility'
   /** Projects board: tapping a group name opens that group's student view. */
   | 'projects-group-view'
   /** Quiz assign/edit: a separate due date per selected class. */

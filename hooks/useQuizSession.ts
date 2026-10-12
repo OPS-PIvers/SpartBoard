@@ -41,6 +41,7 @@ import {
   QuizResponse,
   QuizResponseAnswer,
   QuizQuestion,
+  Rubric,
   QuizPublicQuestion,
   QuestionTranslation,
   LocalizedQuestionStrings,
@@ -407,9 +408,29 @@ function carriesDelimiter(
  * reviewed + hash-fresh locales; never spread a `QuestionTranslation` into a
  * `localized` entry — that would re-expose `matchingDistractors` (§4.1, §4.2).
  */
+/** Only what scored results render: criterion names, level labels and points. */
+function rubricForScoredResults(rubric: Rubric): Rubric {
+  return {
+    id: rubric.id,
+    title: rubric.title,
+    createdAt: rubric.createdAt,
+    updatedAt: rubric.updatedAt,
+    criteria: (rubric.criteria ?? []).map((c) => ({
+      id: c.id,
+      name: c.name,
+      levels: (c.levels ?? []).map((l) => ({
+        id: l.id,
+        label: l.label,
+        points: l.points,
+      })),
+    })),
+  };
+}
+
 export function toPublicQuestion(
   q: QuizQuestion,
-  translations?: Record<string, QuestionTranslation>
+  translations?: Record<string, QuestionTranslation>,
+  options?: { hideRubricUnlessShown?: boolean }
 ): QuizPublicQuestion {
   // Every type is translatable now; the guard stays so a future exclusion holds.
   const entries = isTranslatableQuestionType(q.type)
@@ -522,12 +543,22 @@ export function toPublicQuestion(
       base.enforceWordLimit = true;
     }
     if (q.points && q.points > 0) base.points = q.points;
-    if (q.rubricSnapshot) base.rubricSnapshot = q.rubricSnapshot;
+    const hideRubric =
+      options?.hideRubricUnlessShown === true &&
+      q.rubricVisibleToStudents !== true;
+    if (q.rubricSnapshot) {
+      base.rubricSnapshot = hideRubric
+        ? rubricForScoredResults(q.rubricSnapshot)
+        : q.rubricSnapshot;
+      if (hideRubric) base.rubricHidden = true;
+    }
     for (const [loc, tr] of entries) {
       if (base.placeholder && tr.placeholder)
         localized[loc].placeholder = tr.placeholder;
       if (base.rubricSnapshot && tr.rubricSnapshot)
-        localized[loc].rubricSnapshot = tr.rubricSnapshot;
+        localized[loc].rubricSnapshot = hideRubric
+          ? rubricForScoredResults(tr.rubricSnapshot)
+          : tr.rubricSnapshot;
     }
   }
   if (isMultiBlank(q)) base.blankCount = fibBlankCount(q);
