@@ -2427,18 +2427,50 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 
   // ─── Shell header actions ─────────────────────────────────────────────────
   // New Quiz always opens a menu so every create path starts in one place.
+  // Item ids keep the old positional tour keys so saved live tours still find them.
   const primaryAction =
     managerTab === 'library'
       ? {
-          label: 'New Quiz',
+          label: banksInLibrary ? 'New' : 'New Quiz',
           icon: Plus,
           onClick: onNew,
           menuItems: [
-            { label: 'Create', icon: PencilLine, onClick: onNew },
-            { label: 'Import', icon: FileUp, onClick: onImport },
+            {
+              id: 'item-1',
+              label: banksInLibrary ? 'Create quiz' : 'Create',
+              icon: PencilLine,
+              onClick: onNew,
+            },
+            ...(banksInLibrary && onNewBank
+              ? [
+                  {
+                    id: 'create-bank',
+                    label: 'Create bank',
+                    icon: Library,
+                    onClick: onNewBank,
+                  },
+                ]
+              : []),
+            {
+              id: 'item-2',
+              label: banksInLibrary ? 'Import test' : 'Import',
+              icon: FileUp,
+              onClick: onImport,
+            },
+            ...(banksInLibrary && onImportBank
+              ? [
+                  {
+                    id: 'import-bank',
+                    label: 'Import bank',
+                    icon: FileUp,
+                    onClick: onImportBank,
+                  },
+                ]
+              : []),
             ...(onNewPaperTest
               ? [
                   {
+                    id: 'item-3',
                     label: 'Paper test',
                     icon: Printer,
                     onClick: onNewPaperTest,

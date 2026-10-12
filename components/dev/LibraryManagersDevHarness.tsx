@@ -277,6 +277,8 @@ const QuizView: React.FC<{ variant?: 'quiz' | 'review' }> = ({ variant }) => {
       banksLoading={false}
       sharedBankSources={[]}
       onNewBank={noop}
+      onImportBank={noop}
+      onNewPaperTest={noop}
       onEditBank={noop}
       onDuplicateBank={noop}
       onDeleteBank={noop}
