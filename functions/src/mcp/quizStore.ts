@@ -136,6 +136,7 @@ const TYPE_BOUND_EXTRAS = [
   'recording',
   'rubricId',
   'rubricSnapshot',
+  'rubricVisibleToStudents',
   'enforceWordLimit',
   'paperBoxSize',
 ] as const;

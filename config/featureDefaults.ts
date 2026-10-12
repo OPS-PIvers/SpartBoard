@@ -1057,6 +1057,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Rubrics hidden from students unless shown per question. Admin-only until Paul has used it.
+  'quiz-rubric-visibility': {
+    label: 'Rubric visibility for students',
+    icon: Eye,
+    description: 'Rubrics stay hidden unless a question shows them.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Per-widget AI switches: hide and meter each widget's AI; `gemini-functions` is the hard server gate.
   quiz: {
     label: 'Quiz: AI',

@@ -842,6 +842,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   const mediaResponseAllowed = canAccessQuizMediaResponse();
   const choiceEditor = canAccessFeature('quiz-choice-editor');
   const multiBlankAllowed = canAccessFeature('quiz-fib-multi-blank');
+  const rubricVisibilityOn = canAccessFeature('quiz-rubric-visibility');
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const readPrompt = useCallback(() => promptRef.current?.value, []);
   const targetsRef = useRef(selectedQuestion?.targets);
@@ -903,6 +904,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     updateQuestion(selectedQuestionId, {
       rubricId: undefined,
       rubricSnapshot: undefined,
+      rubricVisibleToStudents: undefined,
       points: stashed ?? selectedQuestion?.points ?? 1,
     });
     manualPointsByQuestion.current.delete(selectedQuestionId);
@@ -1107,6 +1109,9 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   maxWords: isWritten ? q.maxWords : undefined,
                   rubricId: isWritten ? q.rubricId : undefined,
                   rubricSnapshot: isWritten ? q.rubricSnapshot : undefined,
+                  rubricVisibleToStudents: isWritten
+                    ? q.rubricVisibleToStudents
+                    : undefined,
                   ...(droppingRubric
                     ? { points: stashedPoints ?? q.points ?? 1 }
                     : {}),
@@ -1378,6 +1383,29 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   >
                     Detach
                   </button>
+                  {rubricVisibilityOn && (
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={q.rubricVisibleToStudents === true}
+                        onChange={(e) =>
+                          updateQuestion(q.id, {
+                            rubricVisibleToStudents: e.target.checked
+                              ? true
+                              : undefined,
+                          })
+                        }
+                        className="w-4 h-4 accent-brand-blue-primary"
+                        {...tourTypeAttr(
+                          'quiz-editor.rubric-show-students',
+                          'quiz'
+                        )}
+                      />
+                      <span className="font-bold text-xs text-slate-700 whitespace-nowrap">
+                        Show to students
+                      </span>
+                    </label>
+                  )}
                 </div>
               ) : (
                 <button

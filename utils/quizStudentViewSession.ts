@@ -42,12 +42,19 @@ export function focusSettingsFrom(
 export function buildStudentViewSession(
   quiz: QuizData,
   behavior: QuizBehaviorSettings,
-  tabAwayTimerOn: boolean
+  tabAwayTimerOn: boolean,
+  hideRubricUnlessShown = false
 ): QuizSession {
   const opts = behavior.sessionOptions;
   const questions = dedupeQuestionsById(quiz.questions);
   const publicQuestions = questions.map((q) => {
-    const { targets, recording: _recording, ...rest } = toPublicQuestion(q);
+    const {
+      targets,
+      recording: _recording,
+      ...rest
+    } = toPublicQuestion(q, undefined, {
+      hideRubricUnlessShown,
+    });
     return opts.showLearningTargets && targets ? { ...rest, targets } : rest;
   });
   const stimuli = projectSessionStimuli({ questions, stimuli: quiz.stimuli });

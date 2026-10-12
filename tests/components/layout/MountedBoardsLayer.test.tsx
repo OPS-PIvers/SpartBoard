@@ -104,3 +104,32 @@ describe('MountedBoardsLayer', () => {
     );
   });
 });
+
+describe('MountedBoardsLayer board switching', () => {
+  it('never moves a mounted Board in the DOM, so its embeds do not reload', () => {
+    const dashboards = [board('a'), board('b')];
+    const { container, rerender } = render(
+      <MountedBoardsLayer activeId="a" dashboards={dashboards} {...noopProps} />
+    );
+    rerender(
+      <MountedBoardsLayer activeId="b" dashboards={dashboards} {...noopProps} />
+    );
+    const layer = container.firstElementChild as HTMLElement;
+    const removed: Node[] = [];
+    const observer = new MutationObserver((records) => {
+      for (const r of records) removed.push(...Array.from(r.removedNodes));
+    });
+    observer.observe(layer, { childList: true });
+    rerender(
+      <MountedBoardsLayer activeId="a" dashboards={dashboards} {...noopProps} />
+    );
+    rerender(
+      <MountedBoardsLayer activeId="b" dashboards={dashboards} {...noopProps} />
+    );
+    observer
+      .takeRecords()
+      .forEach((r) => removed.push(...Array.from(r.removedNodes)));
+    observer.disconnect();
+    expect(removed).toHaveLength(0);
+  });
+});
