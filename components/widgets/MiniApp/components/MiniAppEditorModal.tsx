@@ -189,6 +189,18 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
     if (!app) return;
     setSaving(true);
     try {
+      const writesKey = resultsOn && collectsResults;
+      // Never save questions without their key: a failed key read blocks the save so it retries.
+      if (writesKey && keyStatus !== 'ready')
+        throw new Error('The answer key has not loaded.');
+      const keyJson = JSON.stringify(draft.key);
+      if (writesKey && user && keyJson !== savedKeyJson) {
+        await setDoc(doc(db, 'users', user.uid, 'mini_app_keys', app.id), {
+          questions: draft.key.questions,
+        });
+        setSavedKeyJson(keyJson);
+        setLoadedKey(draft.key);
+      }
       await onSave({
         ...app,
         title: title.trim(),
@@ -200,20 +212,6 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
             }
           : {}),
       });
-      const keyJson = JSON.stringify(draft.key);
-      if (
-        resultsOn &&
-        collectsResults &&
-        user &&
-        keyStatus === 'ready' &&
-        keyJson !== savedKeyJson
-      ) {
-        await setDoc(doc(db, 'users', user.uid, 'mini_app_keys', app.id), {
-          questions: draft.key.questions,
-        });
-        setSavedKeyJson(keyJson);
-        setLoadedKey(draft.key);
-      }
     } finally {
       setSaving(false);
     }
