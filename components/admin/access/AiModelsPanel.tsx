@@ -11,6 +11,15 @@ import {
   providerOf,
 } from '@/config/aiModels';
 import { AI_INTEGRATIONS, type AiIntegration } from '@/config/aiIntegrations';
+import {
+  CLAUDE_OUTPUT_TOKENS_DEFAULTS,
+  MAX_INPUT_CHARS,
+  MAX_OUTPUT_TOKENS,
+  MIN_INPUT_CHARS,
+  MIN_OUTPUT_TOKENS,
+  PROMPT_LIMITED_INTEGRATIONS,
+  defaultInputChars,
+} from '@/config/aiLimits';
 import { ChecklistSelect } from '@/components/gradebook/settings/ChecklistSelect';
 import { useGlobalPermissionsEditor } from './useGlobalPermissionsEditor';
 import {
@@ -31,6 +40,57 @@ const formatCount = (n: number): string =>
     : n >= 1_000
       ? `${(n / 1_000).toFixed(1)}K`
       : String(n);
+
+interface IntegrationLimits {
+  maxInputChars?: number;
+  maxOutputTokens?: number;
+}
+
+const LimitField: React.FC<{
+  label: string;
+  feature: string;
+  unit: string;
+  value?: number;
+  placeholder: string;
+  min: number;
+  max: number;
+  anchor: ReturnType<typeof tourFieldAttr>;
+  onChange: (value: number | undefined) => void;
+}> = ({
+  label,
+  feature,
+  unit,
+  value,
+  placeholder,
+  min,
+  max,
+  anchor,
+  onChange,
+}) => (
+  <label className="flex items-center gap-2 text-xs text-slate-600">
+    <span className="font-semibold text-slate-700">{label}</span>
+    <input
+      type="number"
+      aria-label={`${label} for ${feature}`}
+      inputMode="numeric"
+      min={min}
+      max={max}
+      step={1000}
+      value={value ?? ''}
+      placeholder={placeholder}
+      onChange={(e) =>
+        onChange(e.target.value === '' ? undefined : Number(e.target.value))
+      }
+      onBlur={() => {
+        if (value !== undefined)
+          onChange(Math.min(max, Math.max(min, Math.round(value))));
+      }}
+      {...anchor}
+      className={`${FIELD} h-8 w-32 px-2 text-right`}
+    />
+    <span>{unit}</span>
+  </label>
+);
 
 const UsageCell: React.FC<{ usage?: AiIntegrationUsage }> = ({ usage }) => {
   if (!usage || usage.calls === 0)
@@ -65,7 +125,18 @@ const IntegrationRow: React.FC<{
   allowed: readonly string[];
   usage?: AiIntegrationUsage;
   onChange: (model: string) => void;
-}> = ({ integration, value, tierModel, allowed, usage, onChange }) => {
+  limits: IntegrationLimits;
+  onLimitsChange: (limits: IntegrationLimits) => void;
+}> = ({
+  integration,
+  value,
+  tierModel,
+  allowed,
+  usage,
+  onChange,
+  limits,
+  onLimitsChange,
+}) => {
   const options = AI_MODEL_OPTIONS.filter(
     (m) =>
       (allowed.includes(m.id) || m.id === value) &&
@@ -73,6 +144,10 @@ const IntegrationRow: React.FC<{
   );
   const unreadable =
     value !== '' && !modelReadsInputs(value, integration.inputs);
+  const outputDefault =
+    providerOf(value || tierModel) === 'claude'
+      ? CLAUDE_OUTPUT_TOKENS_DEFAULTS[integration.tier].toLocaleString('en-US')
+      : 'Model max';
   return (
     <div className="grid grid-cols-1 gap-2 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_16rem] sm:items-center">
       <div className="min-w-0">
@@ -100,11 +175,47 @@ const IntegrationRow: React.FC<{
           </option>
         ))}
       </select>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 sm:col-span-2">
+        {PROMPT_LIMITED_INTEGRATIONS.includes(integration.id) && (
+          <LimitField
+            label="Input limit"
+            feature={integration.label}
+            unit="characters"
+            value={limits.maxInputChars}
+            placeholder={defaultInputChars(integration.id).toLocaleString(
+              'en-US'
+            )}
+            min={MIN_INPUT_CHARS}
+            max={MAX_INPUT_CHARS}
+            anchor={tourFieldAttr(
+              'admin.ai.input-limit',
+              'admin',
+              integration.id
+            )}
+            onChange={(n) => onLimitsChange({ ...limits, maxInputChars: n })}
+          />
+        )}
+        <LimitField
+          label="Output limit"
+          feature={integration.label}
+          unit="tokens"
+          value={limits.maxOutputTokens}
+          placeholder={outputDefault}
+          min={MIN_OUTPUT_TOKENS}
+          max={MAX_OUTPUT_TOKENS}
+          anchor={tourFieldAttr(
+            'admin.ai.output-limit',
+            'admin',
+            integration.id
+          )}
+          onChange={(n) => onLimitsChange({ ...limits, maxOutputTokens: n })}
+        />
+      </div>
     </div>
   );
 };
 
-/** Admin Settings > Access > AI: allowed models, tier defaults and a model per AI feature. */
+/** Admin Settings > Access > AI: allowed models, tier defaults, and a model and limits per AI feature. */
 export const AiModelsPanel: React.FC = () => {
   const editor = useGlobalPermissionsEditor();
   const { usage, claudeConfigured } = useAiUsageLog();
@@ -132,6 +243,10 @@ export const AiModelsPanel: React.FC = () => {
     config.integrationModels && typeof config.integrationModels === 'object'
       ? (config.integrationModels as Record<string, string>)
       : {};
+  const integrationLimits =
+    config.integrationLimits && typeof config.integrationLimits === 'object'
+      ? (config.integrationLimits as Record<string, IntegrationLimits>)
+      : {};
 
   const setConfig = (patch: Record<string, unknown>) =>
     editor.updatePermission('gemini-functions', {
@@ -143,6 +258,16 @@ export const AiModelsPanel: React.FC = () => {
     if (model) next[id] = model;
     else delete next[id];
     setConfig({ integrationModels: next });
+  };
+
+  const setIntegrationLimits = (id: string, limits: IntegrationLimits) => {
+    const kept = Object.fromEntries(
+      Object.entries(limits).filter(([, n]) => typeof n === 'number')
+    );
+    const next = { ...integrationLimits };
+    if (Object.keys(kept).length > 0) next[id] = kept;
+    else delete next[id];
+    setConfig({ integrationLimits: next });
   };
 
   const toggleAllowed = (id: string, checked: boolean) => {
@@ -275,13 +400,16 @@ export const AiModelsPanel: React.FC = () => {
                 allowed={allowed}
                 usage={usage[i.id]}
                 onChange={(model) => setIntegrationModel(i.id, model)}
+                limits={integrationLimits[i.id] ?? {}}
+                onLimitsChange={(limits) => setIntegrationLimits(i.id, limits)}
               />
             ))}
           </div>
         </section>
       ))}
       <p className="text-xs text-slate-500">
-        Usage covers the last {USAGE_WINDOW_DAYS} days.
+        Usage covers the last {USAGE_WINDOW_DAYS} days. A token is about 4
+        characters; a blank limit uses the default shown.
       </p>
     </div>
   );

@@ -4,6 +4,7 @@ import type { GoogleGenAIOptions } from '@google/genai';
 import { normalizeModelName } from './shared';
 import { normalizeAiModelId } from './aiModels';
 import { isAiIntegrationId, type AiIntegrationId } from './aiIntegrations';
+import { parseIntegrationLimits, type AiIntegrationLimits } from './aiLimits';
 
 export const DEFAULT_ADVANCED_MODEL = 'gemini-3.7-flash';
 export const DEFAULT_STANDARD_MODEL = 'gemini-3.5-flash-lite';
@@ -47,6 +48,8 @@ export interface AiModelConfig {
   standardModel: string;
   /** Per-integration model chosen on the Admin Settings AI tab. */
   integrationModels: Partial<Record<AiIntegrationId, string>>;
+  /** Per-integration input and output limits set on the Admin Settings AI tab. */
+  integrationLimits: Partial<Record<AiIntegrationId, AiIntegrationLimits>>;
   /** True when the Firestore read failed and defaults are in use. */
   usedFallback: boolean;
 }
@@ -56,6 +59,7 @@ interface StoredConfig {
   standardModel?: unknown;
   integrationModels?: unknown;
   allowedModels?: unknown;
+  integrationLimits?: unknown;
 }
 
 // 5-minute cache on warm instances; admin changes propagate within that window.
@@ -106,6 +110,7 @@ export async function getAiModelConfig(
         cfg.integrationModels,
         cfg.allowedModels
       ),
+      integrationLimits: parseIntegrationLimits(cfg.integrationLimits),
       usedFallback: false,
     };
     cached = { value, cachedAt: now };
@@ -120,6 +125,7 @@ export async function getAiModelConfig(
       advancedModel: DEFAULT_ADVANCED_MODEL,
       standardModel: DEFAULT_STANDARD_MODEL,
       integrationModels: {},
+      integrationLimits: {},
       usedFallback: true,
     };
   }

@@ -1,5 +1,6 @@
 import React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
+import '@testing-library/jest-dom/vitest';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GlobalFeaturePermission } from '@/types';
 
@@ -115,6 +116,68 @@ describe('AiModelsPanel', () => {
         allowedModels: ['gemini-3.8-flash'],
         integrationModels: {},
       }) as unknown,
+    });
+  });
+
+  it('shows each feature its limits and their defaults', () => {
+    config = {
+      ...config,
+      integrationLimits: { 'mini-app': { maxOutputTokens: 48_000 } },
+    };
+    render(<AiModelsPanel />);
+    const input = screen.getByRole('spinbutton', {
+      name: 'Input limit for Mini apps',
+    });
+    expect(input).toHaveValue(null);
+    expect(input).toHaveAttribute('placeholder', '200,000');
+    expect(
+      screen.getByRole('spinbutton', { name: 'Output limit for Mini apps' })
+    ).toHaveValue(48_000);
+    expect(
+      screen.getByRole('spinbutton', {
+        name: 'Output limit for Quiz generation',
+      })
+    ).toHaveAttribute('placeholder', '16,000');
+    expect(
+      screen.queryByRole('spinbutton', {
+        name: 'Input limit for PLC meeting notes',
+      })
+    ).toBeNull();
+  });
+
+  it('saves a typed limit', () => {
+    render(<AiModelsPanel />);
+    fireEvent.change(
+      screen.getByRole('spinbutton', {
+        name: 'Input limit for Quiz generation',
+      }),
+      { target: { value: '80000' } }
+    );
+    expect(updatePermission).toHaveBeenLastCalledWith('gemini-functions', {
+      config: expect.objectContaining({
+        integrationLimits: { quiz: { maxInputChars: 80_000 } },
+      }) as unknown,
+    });
+  });
+
+  it('clamps a saved limit on blur and clears it back to the default', () => {
+    config = {
+      ...config,
+      integrationLimits: { quiz: { maxInputChars: 2_000_000 } },
+    };
+    render(<AiModelsPanel />);
+    const input = screen.getByRole('spinbutton', {
+      name: 'Input limit for Quiz generation',
+    });
+    fireEvent.blur(input);
+    expect(updatePermission).toHaveBeenLastCalledWith('gemini-functions', {
+      config: expect.objectContaining({
+        integrationLimits: { quiz: { maxInputChars: 1_000_000 } },
+      }) as unknown,
+    });
+    fireEvent.change(input, { target: { value: '' } });
+    expect(updatePermission).toHaveBeenLastCalledWith('gemini-functions', {
+      config: expect.objectContaining({ integrationLimits: {} }) as unknown,
     });
   });
 });

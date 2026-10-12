@@ -50,6 +50,7 @@ const config = (
   advancedModel: 'gemini-3.8-flash',
   standardModel: 'gemini-3.5-flash-lite',
   integrationModels,
+  integrationLimits: {},
   usedFallback: false,
 });
 
@@ -381,5 +382,40 @@ describe('model call boundary', () => {
         );
       });
     expect(offenders).toEqual([]);
+  });
+});
+
+describe('output limits', () => {
+  it('gives Claude a token budget by tier', async () => {
+    secretValue.current = 'sk-ant-test';
+    claudeStreamMock.mockReturnValue(claudeOk());
+    await generateAi(
+      fakeDb({ integrationModels: { 'mini-app': 'claude-opus-5-5' } }),
+      { integration: 'mini-app', parts: [{ text: 'hi' }] }
+    );
+    expect(claudeStreamMock.mock.calls[0][0]).toMatchObject({
+      max_tokens: 32_000,
+    });
+  });
+
+  it('uses the admin output limit on Claude and Gemini', async () => {
+    secretValue.current = 'sk-ant-test';
+    claudeStreamMock.mockReturnValue(claudeOk());
+    generateContentMock.mockResolvedValue(geminiOk());
+    const db = fakeDb({
+      integrationModels: { 'mini-app': 'claude-opus-5-5' },
+      integrationLimits: {
+        'mini-app': { maxOutputTokens: 48_000 },
+        poll: { maxOutputTokens: 2_000 },
+      },
+    });
+    await generateAi(db, { integration: 'mini-app', parts: [{ text: 'hi' }] });
+    await generateAi(db, { integration: 'poll', parts: [{ text: 'hi' }] });
+    expect(claudeStreamMock.mock.calls[0][0]).toMatchObject({
+      max_tokens: 48_000,
+    });
+    expect(generateContentMock.mock.calls[0][0]).toMatchObject({
+      config: { maxOutputTokens: 2_000 },
+    });
   });
 });

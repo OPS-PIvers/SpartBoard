@@ -19,11 +19,14 @@ import { GlobalPermission, GlobalPermConfig } from './shared';
 import { assertViewAsAllowed } from './viewAsGuard';
 import {
   VERTEX_LOCATION,
+  getAiModelConfig,
   getGeminiModelConfig,
   resetAiModelConfigCache,
   vertexClientOptions,
 } from './aiModelConfig';
 import { generateAi, type AiPart } from './aiRouter';
+import { isAiIntegrationId } from './aiIntegrations';
+import { DEFAULT_MAX_INPUT_CHARS, maxInputCharsFor } from './aiLimits';
 
 interface AIData {
   type:
@@ -789,15 +792,19 @@ export const generateWithAI = onCall(
     }
 
     // Read model config from Firestore (for both admins and non-admins)
-    const geminiConfig = await getGeminiModelConfig(db);
+    const aiConfig = await getAiModelConfig(db);
+    const geminiConfig = aiConfig;
 
     try {
       // `genType` is already computed above (feature-permission gate); reuse it.
       // Input size guards
-      if (data?.prompt && String(data.prompt).length > 10000) {
+      const maxInputChars = isAiIntegrationId(genType)
+        ? maxInputCharsFor(genType, aiConfig.integrationLimits)
+        : DEFAULT_MAX_INPUT_CHARS;
+      if (data?.prompt && String(data.prompt).length > maxInputChars) {
         throw new HttpsError(
           'invalid-argument',
-          'Prompt exceeds maximum length of 10,000 characters.'
+          `Prompt exceeds maximum length of ${maxInputChars.toLocaleString('en-US')} characters.`
         );
       }
       if (data?.image && String(data.image).length > 5 * 1024 * 1024) {
