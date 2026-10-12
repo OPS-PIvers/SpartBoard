@@ -4,6 +4,10 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { Type, Schema } from '@google/genai';
 import { sanitizePrompt } from './sanitize';
+import {
+  buildMiniAppEditPrompt,
+  readMiniAppEditHtml,
+} from './miniAppEditPrompt';
 import { parseGeminiJson } from './parseGeminiJson';
 import { adminPassesMissingDoc } from './featureMissingDoc';
 import {
@@ -50,6 +54,8 @@ interface AIData {
   typeCounts?: Partial<Record<QuizGenType, number>>;
   /** Calling widget for shared types (`mini-app`, `ocr`), so each widget has its own admin switch. */
   source?: string;
+  /** `mini-app` only: the current code, which turns the request into an edit of it. */
+  html?: string;
 }
 
 type QuizGenType = 'MC' | 'FIB' | 'Matching' | 'Ordering' | 'MA';
@@ -815,6 +821,14 @@ export const generateWithAI = onCall(
       }
 
       const sanitizedUserInput = sanitizePrompt(data?.prompt);
+      const miniAppEditHtml =
+        genType === 'mini-app'
+          ? readMiniAppEditHtml(
+              data?.html,
+              String(data?.prompt ?? '').length,
+              maxInputChars
+            )
+          : null;
 
       const promptMap: Record<
         string,
@@ -1110,7 +1124,13 @@ Output JSON ONLY in this exact shape:
         );
       }
 
-      const { systemPrompt, userPrompt } = promptDataFn();
+      const { systemPrompt, userPrompt } = miniAppEditHtml
+        ? buildMiniAppEditPrompt(
+            promptDataFn().systemPrompt,
+            miniAppEditHtml,
+            sanitizedUserInput
+          )
+        : promptDataFn();
 
       const parts: AiPart[] = [{ text: systemPrompt + '\n\n' + userPrompt }];
       // Add image if provided (for OCR or multi-modal prompts)

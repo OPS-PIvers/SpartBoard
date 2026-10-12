@@ -12271,6 +12271,24 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     panel: true,
   },
   {
+    id: 'mini-app.ai-mode',
+    label: 'Change this app or Start over switch in the Mini App AI box',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'mini-app.undo-ai',
+    label: 'Undo AI change button in the Mini App editor',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'mini-app.view-toggle',
+    label: 'Preview or Code switch in the Mini App editor',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
     id: 'mini-app.import-from-notes',
     label: 'Import from Notes button in the Mini App AI drafter',
     scope: 'widget type',

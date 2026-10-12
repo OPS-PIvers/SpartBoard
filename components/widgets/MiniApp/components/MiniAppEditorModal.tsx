@@ -6,7 +6,15 @@
  */
 
 import React, { useEffect, useId, useMemo, useState } from 'react';
-import { Code2, Eye, FileText, Play, Sparkles } from 'lucide-react';
+import {
+  Code2,
+  Eye,
+  FileText,
+  Play,
+  Sparkles,
+  Undo2,
+  Wand2,
+} from 'lucide-react';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { injectMiniAppHelper } from '@/utils/miniAppHelper';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -33,7 +41,11 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
 import { AIGeneratorOverlay } from '@/components/common/AIGeneratorOverlay';
-import { generateMiniAppCode, buildPromptWithFileContext } from '@/utils/ai';
+import {
+  generateMiniAppCode,
+  editMiniAppCode,
+  buildPromptWithFileContext,
+} from '@/utils/ai';
 import { tourTypeAttr } from '@/config/tourAnchors';
 
 interface MiniAppEditorModalProps {
@@ -45,7 +57,7 @@ interface MiniAppEditorModalProps {
   folders?: LibraryFolder[];
   folderId?: string | null;
   onFolderChange?: (folderId: string | null) => void;
-  /** Results v2 is on: shows the answer key panel and Try as student. */
+  /** Results v2 is on (flag plus submissions mode): shows the answer key panel. */
   resultsOn?: boolean;
 }
 
@@ -62,6 +74,11 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
   const { canAccessFeature, user } = useAuth();
   const { addToast, activeDashboard } = useDashboard();
   const htmlFieldId = useId();
+  // Preview/Code, the light code box and Try as student need only the flag.
+  const editorOn = resultsOn || canAccessFeature('mini-app-results');
+  const aiOn =
+    canAccessFeature('gemini-functions') && canAccessFeature('mini-app-ai');
+  const aiEditOn = aiOn && canAccessFeature('mini-app-ai-edit');
 
   // --- Snapshot originals ---
   const originalTitle = app?.title ?? '';
@@ -94,6 +111,11 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [fileContext, setFileContext] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [aiMode, setAiMode] = useState<'edit' | 'draft'>('edit');
+  // The code before the last AI change, until the teacher types or undoes it.
+  const [beforeAi, setBeforeAi] = useState<string | null>(null);
+  const canEditWithAi = aiEditOn && html.trim() !== '';
+  const editing = canEditWithAi && aiMode === 'edit';
 
   // --- Reset state when app prop identity changes ---
   const [prevApp, setPrevApp] = useState<MiniAppItem | null>(app);
@@ -112,6 +134,8 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
     setPrompt('');
     setShowPromptInput(false);
     setIsGenerating(false);
+    setAiMode('edit');
+    setBeforeAi(null);
     setFileContext(null);
     setFileName(null);
   }
@@ -227,12 +251,19 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
         fileContext,
         fileName
       );
-      const result = await generateMiniAppCode(fullPrompt, 'mini-app');
-      setTitle(result.title);
+      const result = editing
+        ? await editMiniAppCode(html, fullPrompt)
+        : await generateMiniAppCode(fullPrompt, 'mini-app');
+      if (!editing || !title.trim()) setTitle(result.title);
+      setBeforeAi(html);
       setHtml(result.html);
+      if (editorOn) setView('preview');
       setShowPromptInput(false);
       setPrompt('');
-      addToast('App generated successfully!', 'success');
+      addToast(
+        editing ? 'App updated.' : 'App generated successfully!',
+        'success'
+      );
     } catch (err) {
       addToast(
         err instanceof Error ? err.message : 'Failed to generate app',
@@ -319,7 +350,21 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
       saveLabel="Save App"
       footerExtras={
         <>
-          {resultsOn && (
+          {beforeAi !== null && (
+            <button
+              type="button"
+              onClick={() => {
+                setHtml(beforeAi);
+                setBeforeAi(null);
+              }}
+              className="h-[36px] px-3 bg-white border border-slate-200 hover:border-brand-blue-light text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2"
+              {...tourTypeAttr('mini-app.undo-ai', 'miniApp')}
+            >
+              <Undo2 className="w-4 h-4" />
+              Undo AI change
+            </button>
+          )}
+          {editorOn && (
             <button
               type="button"
               onClick={() => setTrying(true)}
@@ -330,16 +375,24 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
               Try as student
             </button>
           )}
-          {canAccessFeature('gemini-functions') &&
-          canAccessFeature('mini-app-ai') ? (
+          {aiOn ? (
             <button
-              onClick={() => setShowPromptInput(true)}
+              onClick={() => {
+                setAiMode('edit');
+                setShowPromptInput(true);
+              }}
               className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
-              title="Generate with AI"
+              title={
+                canEditWithAi ? 'Change this app with AI' : 'Generate with AI'
+              }
               {...tourTypeAttr('mini-app.draft-with-ai', 'miniApp')}
             >
-              <Sparkles className="w-4 h-4" />
-              Draft with AI
+              {canEditWithAi ? (
+                <Wand2 className="w-4 h-4" />
+              ) : (
+                <Sparkles className="w-4 h-4" />
+              )}
+              {canEditWithAi ? 'Edit with AI' : 'Draft with AI'}
             </button>
           ) : null}
         </>
@@ -353,8 +406,12 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
         <AIGeneratorOverlay
           open={showPromptInput}
           onClose={() => setShowPromptInput(false)}
-          title="Draft with AI"
-          description="Describe the mini-app you want to build."
+          title={editing ? 'Edit with AI' : 'Draft with AI'}
+          description={
+            editing
+              ? 'Describe what to change. Everything else stays the same.'
+              : 'Describe the mini-app you want to build.'
+          }
           headerExtras={
             <button
               onClick={importFromNotes}
@@ -368,17 +425,37 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
           generating={isGenerating}
           canGenerate={!!prompt.trim()}
           onGenerate={() => void handleGenerate()}
-          generateLabel="Generate Code"
+          generateLabel={editing ? 'Apply changes' : 'Generate Code'}
           closeAnchor={tourTypeAttr('mini-app.ai-close', 'miniApp')}
           generateAnchor={tourTypeAttr('mini-app.ai-generate', 'miniApp')}
         >
+          {canEditWithAi && (
+            <SegmentedControl
+              value={aiMode}
+              onChange={setAiMode}
+              ariaLabel="Change this app or start over"
+              role="radiogroup"
+              fullWidth
+              anchor={tourTypeAttr('mini-app.ai-mode', 'miniApp')}
+              options={[
+                { value: 'edit', label: 'Change this app', icon: Wand2 },
+                { value: 'draft', label: 'Start over', icon: Sparkles },
+              ]}
+            />
+          )}
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
-            placeholder="e.g. A team randomizer for 5 groups with a spinning wheel animation and confetti effect."
+            placeholder={
+              editing
+                ? 'e.g. Make the buttons bigger and add a timer at the top.'
+                : 'e.g. A team randomizer for 5 groups with a spinning wheel animation and confetti effect.'
+            }
             className="w-full h-32 p-4 bg-white border-2 border-indigo-100 rounded-2xl text-sm text-indigo-900 placeholder-indigo-300 focus:outline-none focus:border-indigo-500 resize-none shadow-inner"
             autoFocus
-            aria-label="Describe your mini-app"
+            aria-label={
+              editing ? 'Describe the change' : 'Describe your mini-app'
+            }
             {...tourTypeAttr('mini-app.ai-prompt', 'miniApp')}
           />
           {canAccessFeature('ai-file-context') && (
@@ -397,8 +474,12 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
           <MiniAppTryAsStudent
             title={title || 'Mini app'}
             html={html}
-            manifest={collectsResults ? draft.manifest : { questions: [] }}
-            answerKey={collectsResults ? draft.key : { questions: {} }}
+            manifest={
+              resultsOn && collectsResults ? draft.manifest : { questions: [] }
+            }
+            answerKey={
+              resultsOn && collectsResults ? draft.key : { questions: {} }
+            }
             onClose={() => setTrying(false)}
           />
         )}
@@ -408,12 +489,13 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
         >
           {/* HTML Code textarea */}
           <div className="flex-1 flex flex-col min-h-[250px]">
-            {resultsOn ? (
+            {editorOn ? (
               <div className="mb-2">
                 <SegmentedControl
                   value={view}
                   onChange={setView}
                   ariaLabel="Show the app or its code"
+                  anchor={tourTypeAttr('mini-app.view-toggle', 'miniApp')}
                   options={[
                     { value: 'preview', label: 'Preview', icon: Eye },
                     { value: 'code', label: 'Code', icon: Code2 },
@@ -423,7 +505,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
             ) : (
               <SettingsLabel htmlFor={htmlFieldId}>HTML Code</SettingsLabel>
             )}
-            {resultsOn && view === 'preview' ? (
+            {editorOn && view === 'preview' ? (
               <iframe
                 srcDoc={previewDoc}
                 title={`${title || 'Mini app'} preview`}
@@ -434,9 +516,12 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
               <textarea
                 id={htmlFieldId}
                 value={html}
-                onChange={(e) => setHtml(e.target.value)}
+                onChange={(e) => {
+                  setHtml(e.target.value);
+                  setBeforeAi(null);
+                }}
                 className={
-                  resultsOn
+                  editorOn
                     ? 'flex-1 w-full p-4 bg-white border border-slate-200 text-slate-700 placeholder-slate-400 font-mono text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 resize-none leading-relaxed custom-scrollbar'
                     : 'flex-1 w-full p-4 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none leading-relaxed custom-scrollbar shadow-inner'
                 }
