@@ -52,6 +52,7 @@ import {
 } from '@/utils/viewAsBoards';
 import {
   DASHBOARD_FIELDS,
+  mergeConfigByKey,
   serializeDashboardField,
   type MergedDashboardField,
   type SaveBaseline,
@@ -106,6 +107,7 @@ import {
   extractDashboardPII,
   mergeDashboardPII,
   dashboardHasPII,
+  PII_WIDGET_FIELDS,
   type DashboardPiiSupplement,
 } from '@/utils/dashboardPII';
 import { migrateBoardForCollections } from '@/utils/collectionsMigration';
@@ -340,6 +342,12 @@ const stripDerivedPixels = (w: WidgetData) => {
 };
 
 const isSavedWidget = (w: WidgetData) => !w.transient;
+
+// Firestore never stores these, so a server copy missing one says nothing about a local edit.
+const PII_CONFIG_KEYS: ReadonlySet<string> = new Set([
+  ...PII_WIDGET_FIELDS,
+  'assignments',
+]);
 
 // Live-tour widgets stay in memory until the teacher keeps them.
 const withoutTransient = (d: Dashboard): Dashboard =>
@@ -2357,6 +2365,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   ({
                     sw,
                     lw,
+                    saved,
                     keepLocalConfig,
                     keepLocalLayout,
                     keepLocalStyle,
@@ -2368,7 +2377,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                     return {
                       ...sw,
                       version: keepLocalConfig ? lw.version : sw.version,
-                      config: keepLocalConfig ? lw.config : sw.config,
+                      config:
+                        keepLocalConfig && saved
+                          ? mergeConfigByKey(
+                              lw.config,
+                              sw.config,
+                              saved.config,
+                              PII_CONFIG_KEYS
+                            ).config
+                          : sw.config,
                       configVersion: keepLocalConfig
                         ? lw.configVersion
                         : sw.configVersion,
@@ -2498,7 +2515,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   return {
                     ...sw,
                     version: keepLocalConfig ? saved.version : sw.version,
-                    config: keepLocalConfig ? saved.config : sw.config,
+                    config: keepLocalConfig
+                      ? mergeConfigByKey(
+                          lw.config,
+                          sw.config,
+                          saved.config,
+                          PII_CONFIG_KEYS
+                        ).baseline
+                      : sw.config,
                     configVersion: keepLocalConfig
                       ? saved.configVersion
                       : sw.configVersion,

@@ -1298,7 +1298,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
               fontSize: 'min(14px, 6cqmin)',
             }}
           >
-            {activeId}
+            {activeRoster.find((s) => s.id === activeId)?.name ?? activeId}
           </div>
         ) : null}
       </DragOverlay>

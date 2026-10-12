@@ -150,6 +150,20 @@ describe('LunchCountWidget', () => {
     // without more setup, but we've verified the refactor structure.
   });
 
+  it('shows the student name, not their id, while dragging', async () => {
+    render(<LunchCountWidget widget={createWidget()} />);
+
+    const chip = await screen.findByText('John Doe');
+    fireEvent.mouseDown(chip, { button: 0, clientX: 0, clientY: 0 });
+    fireEvent.mouseMove(document, { clientX: 40, clientY: 40 });
+
+    await waitFor(() =>
+      expect(screen.getAllByText('John Doe')).toHaveLength(2)
+    );
+    expect(screen.queryByText('s1')).not.toBeInTheDocument();
+    fireEvent.mouseUp(document);
+  });
+
   it('keeps two same-name students independently assigned (no name-collision)', async () => {
     // Regression test: assignments must be keyed by the roster student `id`,
     // not the display name. Two students who share a name (e.g. two "Emma

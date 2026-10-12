@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   DASHBOARD_FIELDS,
+  mergeConfigByKey,
   mergeDashboardForSave,
   serializeDashboardField,
   type SaveBaseline,
@@ -296,5 +297,61 @@ describe('configVersion travels with config', () => {
 
     expect(textOf(merged.widgets[0])).toBe('local');
     expect(merged.widgets[0].configVersion).toBe(1);
+  });
+});
+
+describe('config merges per key', () => {
+  const lunch = (version: number, config: Record<string, unknown>) =>
+    ({
+      ...widget('w1', ''),
+      type: 'lunchCount',
+      version,
+      config,
+    }) as WidgetData;
+
+  it('keeps names moved on another device when this one only refreshed the menu', () => {
+    const base = board([lunch(3, { assignments: {} })]);
+    const local = board([lunch(4, { assignments: {}, cachedMenu: 'today' })]);
+    const server = board([
+      lunch(8, { assignments: { s1: 'hot', s2: 'home' } }),
+    ]);
+
+    const merged = mergeDashboardForSave(local, server, baselineOf(base));
+
+    expect(merged.widgets[0].config).toEqual({
+      assignments: { s1: 'hot', s2: 'home' },
+      cachedMenu: 'today',
+    });
+  });
+
+  it('keeps a local removal of a key', () => {
+    const { config } = mergeConfigByKey(
+      { b: 2 },
+      { a: 1, b: 1, c: 3 },
+      { a: 1, b: 1 }
+    );
+
+    expect(config).toEqual({ b: 2, c: 3 });
+  });
+
+  it('returns a baseline that only holds back the locally changed keys', () => {
+    const { baseline } = mergeConfigByKey(
+      { a: 'local', b: 1 },
+      { a: 'server', b: 'server' },
+      { a: 'old', b: 1 }
+    );
+
+    expect(baseline).toEqual({ a: 'old', b: 'server' });
+  });
+
+  it('keeps a local PII key the server copy never holds', () => {
+    const { config } = mergeConfigByKey(
+      { firstNames: 'Ann', mode: 'pick' },
+      { mode: 'groups' },
+      { firstNames: 'Ann', mode: 'pick' },
+      new Set(['firstNames'])
+    );
+
+    expect(config).toEqual({ firstNames: 'Ann', mode: 'groups' });
   });
 });
