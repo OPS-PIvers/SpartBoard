@@ -409,7 +409,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
                 id={htmlFieldId}
                 value={html}
                 onChange={(e) => setHtml(e.target.value)}
-                className="flex-1 w-full p-4 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none leading-relaxed custom-scrollbar shadow-inner"
+                className="flex-1 w-full p-4 bg-white border border-slate-200 text-slate-700 placeholder-slate-400 font-mono text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 resize-none leading-relaxed custom-scrollbar"
                 spellCheck={false}
                 {...tourTypeAttr('mini-app.html-code', 'miniApp')}
                 placeholder="Paste your HTML, CSS, and JS here..."
