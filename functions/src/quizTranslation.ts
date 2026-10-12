@@ -148,7 +148,7 @@ export async function loadTranslationSettings(
       .collection('admin_settings')
       .doc(QUIZ_TRANSLATION_SETTINGS_DOC)
       .get();
-    raw = snap.exists ? (snap.data() as Record<string, unknown>) : undefined;
+    raw = snap.exists ? snap.data() : undefined;
   } catch {
     raw = undefined;
   }
@@ -364,7 +364,7 @@ export async function assertQuizTranslationFeature(
       .collection('global_permissions')
       .doc('quiz-translation')
       .get();
-    raw = snap.exists ? (snap.data() as Record<string, unknown>) : undefined;
+    raw = snap.exists ? snap.data() : undefined;
   } catch {
     raw = undefined;
   }
@@ -653,7 +653,7 @@ export function buildQuizTranslationResponseSchema(): Schema {
         },
       },
     },
-  } as Schema;
+  };
 }
 
 /** Per-language conventions appended to the system instruction. */
@@ -1038,7 +1038,7 @@ export async function translateResponse(
         type: Type.OBJECT,
         required: ['text'],
         properties: { text: { type: Type.STRING } },
-      } as Schema,
+      },
       maxOutputTokens: 2048,
     });
     outputTokens = result.outputTokens;
