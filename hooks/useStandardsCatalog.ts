@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { StandardBenchmark } from '@/types';
+import { normalizeStandardCode } from '@/utils/standardsInText';
 
 const CATALOG_COLLECTION = 'standards_catalog';
 
@@ -50,6 +51,10 @@ export function loadCatalog(): Promise<StandardBenchmark[]> {
     });
   return catalogPromise;
 }
+
+/** Every catalog code, normalized, for spotting real codes in imported text. */
+export const loadCatalogCodes = async (): Promise<ReadonlySet<string>> =>
+  new Set((await loadCatalog()).map((b) => normalizeStandardCode(b.code)));
 
 interface UseStandardsCatalogResult {
   benchmarks: StandardBenchmark[];

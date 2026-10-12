@@ -24,7 +24,8 @@ interface Patch {
 /** Moves standard codes typed in a question prompt into its Learning targets when the prompt loses focus. */
 export function useStandardsFromPrompt(
   updateQuestion: (id: string, patch: Patch) => void,
-  currentText: () => string | undefined
+  currentText: () => string | undefined,
+  currentTargets: () => QuestionTargetTag[] | undefined
 ) {
   const { canAccessFeature, subjectsTaught, effectiveGrades } = useAuth();
   const enabled = canAccessFeature('standards-from-question-text');
@@ -45,7 +46,7 @@ export function useStandardsFromPrompt(
         return;
       }
       // The teacher typed again or moved on while the catalog loaded.
-      if (currentText() !== text) return;
+      if (currentText() !== text || currentTargets() !== targets) return;
       const out = takeStandardsFromText(text, indexByCode(benchmarks), {
         subjects: subjectsTaught,
         grades: effectiveGrades,
@@ -65,7 +66,14 @@ export function useStandardsFromPrompt(
         before: { text, targets },
       });
     },
-    [enabled, currentText, subjectsTaught, effectiveGrades, updateQuestion]
+    [
+      enabled,
+      currentText,
+      currentTargets,
+      subjectsTaught,
+      effectiveGrades,
+      updateQuestion,
+    ]
   );
 
   const undo = useCallback(() => {

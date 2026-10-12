@@ -6,7 +6,13 @@
  * through the controller object the modal hands them.
  */
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertCircle,
@@ -838,7 +844,16 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   const multiBlankAllowed = canAccessFeature('quiz-fib-multi-blank');
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const readPrompt = useCallback(() => promptRef.current?.value, []);
-  const promptStandards = useStandardsFromPrompt(updateQuestion, readPrompt);
+  const targetsRef = useRef(selectedQuestion?.targets);
+  useLayoutEffect(() => {
+    targetsRef.current = selectedQuestion?.targets;
+  });
+  const readTargets = useCallback(() => targetsRef.current, []);
+  const promptStandards = useStandardsFromPrompt(
+    updateQuestion,
+    readPrompt,
+    readTargets
+  );
   const paperWrittenAllowed =
     canAccessFeature(PAPER_HANDWRITTEN_FEATURE) &&
     canAccessFeature('paper-answer-sheets');

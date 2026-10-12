@@ -253,3 +253,29 @@ describe('extractedToQuizData — reliability fields (R9, R23, R25)', () => {
     expect(reviewExtrasFor(edited)?.suggestedTargets.size).toBe(1);
   });
 });
+
+describe('extractedToQuizData — standards in the stem', () => {
+  const stems = quiz({
+    questions: [
+      question({ text: 'Which detail supports the claim? (MN 7.4.1.1)' }),
+      question({ number: 2, text: 'What changed in Version 1.2.3.4' }),
+    ],
+  });
+
+  it('moves a known code to the row and leaves an unknown one in the text', () => {
+    const data = extractedToQuizData(stems, {
+      standardsFromText: new Set(['7.4.1.1']),
+    });
+    const [a, b] = data.questions;
+    expect(a.text).toBe('Which detail supports the claim?');
+    expect(b.text).toBe('What changed in Version 1.2.3.4');
+    const codes = reviewExtrasFor(data)?.standardCodes;
+    expect(codes?.get(a.id)).toEqual(['7.4.1.1']);
+    expect(codes?.has(b.id)).toBe(false);
+  });
+
+  it('touches nothing without the catalog', () => {
+    const data = extractedToQuizData(stems);
+    expect(data.questions[0].text).toContain('(MN 7.4.1.1)');
+  });
+});

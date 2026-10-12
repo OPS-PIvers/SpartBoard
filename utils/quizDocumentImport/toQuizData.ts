@@ -7,7 +7,11 @@
  * Assign stays shut until a teacher fills them in.
  */
 
-import { findStandardRuns, removeRuns } from '@/utils/standardsInText';
+import {
+  findStandardRuns,
+  normalizeStandardCode,
+  removeRuns,
+} from '@/utils/standardsInText';
 import type {
   QuizData,
   QuizOrderEntry,
@@ -144,8 +148,8 @@ export function extractedToQuizData(
     title?: string;
     now?: number;
     sections?: boolean;
-    /** Lifts standard codes printed beside a stem into `standardCodes`. */
-    standardsFromText?: boolean;
+    /** Known catalog codes; printed codes beside a stem move to `standardCodes` only when every one is known. */
+    standardsFromText?: ReadonlySet<string>;
   } = {}
 ): QuizData {
   const now = options.now ?? Date.now();
@@ -185,8 +189,11 @@ export function extractedToQuizData(
       leadIn && read.text.startsWith(leadIn)
         ? { ...read, text: read.text.slice(leadIn.length).trim() }
         : read;
-    const runs = options.standardsFromText
-      ? findStandardRuns(trimmed.text)
+    const known = options.standardsFromText;
+    const runs = known
+      ? findStandardRuns(trimmed.text).filter((r) =>
+          r.codes.every((c) => known.has(normalizeStandardCode(c)))
+        )
       : [];
     const q =
       runs.length > 0

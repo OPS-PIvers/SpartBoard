@@ -31,6 +31,7 @@ import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useQuiz, SyncedQuizVersionConflictError } from '@/hooks/useQuiz';
 import { useBankSources } from '@/hooks/useBankSources';
+import { loadCatalogCodes } from '@/hooks/useStandardsCatalog';
 import { useQuestionBanks } from '@/hooks/useQuestionBanks';
 import {
   BankSlotResolutionError,
@@ -1718,9 +1719,9 @@ const TeacherQuizWidget: React.FC<{
       canImportDocuments,
       canSuggestTargets: canAccessFeature('quiz-import-suggested-targets'),
       canUseSections: canAccessFeature('quiz-sections'),
-      canTakeStandardsFromText: canAccessFeature(
-        'standards-from-question-text'
-      ),
+      ...(canAccessFeature('standards-from-question-text')
+        ? { loadStandardCodes: loadCatalogCodes }
+        : {}),
       canFindPassages: canAccessFeature('quiz-import-passages'),
       pickDocument,
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
