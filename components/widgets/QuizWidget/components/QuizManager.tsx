@@ -64,6 +64,7 @@ import {
   ScanLine,
   ScanText,
   ClipboardCheck,
+  Library,
 } from 'lucide-react';
 import {
   AssignmentMode,
@@ -81,6 +82,11 @@ import {
 } from '@/types';
 import type { BankSource } from '@/hooks/useBankSources';
 import { QuizBanksTab } from './QuizBanksTab';
+import { useBankMenuActions } from './useBankMenuActions';
+import { LibraryKindIcon } from './LibraryKindIcon';
+import { visibleTeammateBanks } from './teammateBankRows';
+import type { LibraryLocation } from '@/components/common/library/folderView';
+import { useCopyBankFoldersToLibrary } from './useCopyBankFoldersToLibrary';
 import { Toggle } from '@/components/common/Toggle';
 import {
   classStudentRows,
@@ -454,6 +460,11 @@ interface QuizManagerProps {
   onDuplicateBank?: (meta: QuestionBankMetadata) => void | Promise<void>;
   onDeleteBank?: (meta: QuestionBankMetadata) => void | Promise<void>;
   onReorderBanks?: (orderedIds: string[]) => Promise<void> | void;
+  /** Files a bank in a Quiz folder once banks share the Quiz library's folders. */
+  onMoveBankToLibraryFolder?: (
+    bankId: string,
+    folderId: string | null
+  ) => Promise<void>;
   /** Opens the widget's PLC picker for a bank. */
   onShareBankWithPlc?: (meta: QuestionBankMetadata) => void;
   onUnshareBankFromPlc?: (
@@ -616,6 +627,7 @@ const LIBRARY_INITIAL_SORT = { key: 'updated', dir: 'desc' as const };
 
 const QUIZ_GET_ID = (q: QuizMetadata): string => q.id;
 const QUIZ_NOUN = ['quiz', 'quizzes'] as const;
+const MIXED_NOUN = ['item', 'items'] as const;
 
 // Exported so tests exercise the real comparator rather than a re-declared
 // lambda. Constant export on a component file is intentional here.
@@ -705,6 +717,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onDuplicateBank,
   onDeleteBank,
   onReorderBanks,
+  onMoveBankToLibraryFolder,
   onShareBankWithPlc,
   onUnshareBankFromPlc,
   onPreviewSharedBank,
@@ -746,6 +759,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // Plan D16/D12: the stepper replaces the assign dialog and always prefills last-used rules.
   const stepperOn = !isReview && canAccessFeature('assign-stepper');
   const schoologyToolColumns = canAccessFeature('schoology-tool-columns');
+  // Banks open from the Library sidebar instead of their own tab; Archive reads Completed.
+  const banksInLibrary =
+    !isReview &&
+    Boolean(banks && onNewBank && onEditBank) &&
+    canAccessFeature('quiz-banks-in-library');
   const prefillLastUsed = assessmentOnly || stepperOn;
   const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
     userId,
@@ -1053,6 +1071,62 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 
   // ─── Folder navigation (Wave 3-B-3) ───────────────────────────────────────
   const folderState = useFolders(userId, 'quiz');
+  const bankFolderState = useFolders(
+    banksInLibrary ? userId : undefined,
+    'question_bank'
+  );
+  useCopyBankFoldersToLibrary({
+    enabled: banksInLibrary,
+    userId,
+    banks: banks ?? [],
+    banksLoading,
+    bankFolders: bankFolderState,
+    quizFolders: folderState,
+    move: onMoveBankToLibraryFolder,
+  });
+  // Banks sit beside quizzes in the Quiz folders; a missing folder means the top level.
+  const libraryBanks = useMemo(
+    () => (banksInLibrary ? (banks ?? []) : []),
+    [banksInLibrary, banks]
+  );
+  const quizFolderIds = useMemo(
+    () => new Set(folderState.folders.map((f) => f.id)),
+    [folderState.folders]
+  );
+  const bankFolderOf = useCallback(
+    (bank: QuestionBankMetadata): string | null =>
+      bank.libraryFolderId && quizFolderIds.has(bank.libraryFolderId)
+        ? bank.libraryFolderId
+        : null,
+    [quizFolderIds]
+  );
+  const bankById = useMemo(
+    () => new Map(libraryBanks.map((b) => [b.id, b])),
+    [libraryBanks]
+  );
+  const bankFolderIds = useMemo(
+    () => (banksInLibrary ? libraryBanks.map(bankFolderOf) : undefined),
+    [banksInLibrary, libraryBanks, bankFolderOf]
+  );
+  const bankFolderIdOf = useCallback(
+    (id: string): string | null => {
+      const bank = bankById.get(id);
+      return bank ? bankFolderOf(bank) : null;
+    },
+    [bankById, bankFolderOf]
+  );
+  const [bankPickerTarget, setBankPickerTarget] =
+    useState<QuestionBankMetadata | null>(null);
+  const { buildActions: buildBankActions } = useBankMenuActions({
+    userId,
+    plcs,
+    onEditBank: onEditBank ?? noop,
+    onDuplicateBank: onDuplicateBank ?? noop,
+    onDeleteBank: onDeleteBank ?? noop,
+    onShareBankWithPlc,
+    onUnshareBankFromPlc,
+  });
+  const banksOpen = banksInLibrary && managerTab === 'banks';
   // Quiz whose "Move to folder…" picker is open (null = picker closed).
   const [folderPickerTarget, setFolderPickerTarget] =
     useState<QuizMetadata | null>(null);
@@ -1111,7 +1185,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       foldersLoading: folderState.loading,
       getId: QUIZ_GET_ID,
       getRecentAt: quizRecentAt,
-      itemNoun: QUIZ_NOUN,
+      itemNoun: banksInLibrary ? MIXED_NOUN : QUIZ_NOUN,
+      extraItemFolderIds: bankFolderIds,
+      extraFolderIdOf: banksInLibrary ? bankFolderIdOf : undefined,
     },
     initialSort: LIBRARY_INITIAL_SORT,
     // Phase 2 redesign: the library is list-only (monitor row idiom).
@@ -2057,13 +2133,21 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const handleDropOnFolder = useCallback(
     async (itemId: string, folderId: string | null): Promise<void> => {
       if (!userId) return;
+      if (bankById.has(itemId)) {
+        try {
+          await onMoveBankToLibraryFolder?.(itemId, folderId);
+        } catch {
+          onError?.('That question bank could not be moved.');
+        }
+        return;
+      }
       try {
         await moveItem(itemId, folderId);
       } catch {
         onError?.('That quiz could not be moved.');
       }
     },
-    [userId, moveItem, onError]
+    [userId, moveItem, onError, bankById, onMoveBankToLibraryFolder]
   );
 
   // ─── Card-to-card reorder drop handler ───────────────────────────────────
@@ -2237,23 +2321,53 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   };
 
   // ─── Folder sidebar (Library tab only) ────────────────────────────────────
+  // With banks in the library, the Question banks list keeps this sidebar; picking a place leaves it.
+  const quizFolderView = libraryView.folderView;
+  const sidebarFolderView =
+    banksOpen && quizFolderView
+      ? {
+          ...quizFolderView,
+          navigate: (location: LibraryLocation) => {
+            onTabChange?.('library');
+            quizFolderView.navigate(location);
+          },
+        }
+      : quizFolderView;
   const folderSidebarSlot =
-    managerTab === 'library' && userId ? (
+    (managerTab === 'library' || banksOpen) && userId ? (
       <FolderSidebar
         widget="quiz"
         folders={folderState.folders}
         loading={folderState.loading}
         error={folderState.error}
         selectedFolderId={libraryView.selectedFolderId}
-        onSelectFolder={libraryView.onSelectFolder}
+        onSelectFolder={(folderId) => {
+          if (banksOpen) onTabChange?.('library');
+          libraryView.onSelectFolder(folderId);
+        }}
         itemCounts={folderItemCounts}
-        folderView={libraryView.folderView}
+        folderView={sidebarFolderView}
         onCreateFolder={folderState.createFolder}
         onRenameFolder={folderState.renameFolder}
         onMoveFolder={folderState.moveFolder}
         onDeleteFolder={folderState.deleteFolder}
         {...folderView}
         enableDrop
+        extraNav={
+          banksInLibrary
+            ? [
+                {
+                  id: 'banks',
+                  icon: Library,
+                  label: 'Question banks',
+                  count: libraryBanks.length,
+                  selected: banksOpen,
+                  onClick: () => onTabChange?.('banks'),
+                  anchor: tourTypeAttr('quiz-library.banks-link', 'quiz'),
+                },
+              ]
+            : undefined
+        }
         anchors={{
           newFolder: tourTypeAttr('quiz-library.folder-new', 'quiz'),
           root: tourTypeAttr('quiz-library.folder-root', 'quiz'),
@@ -2261,6 +2375,55 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         }}
       />
     ) : undefined;
+
+  // ─── Banks filed beside quizzes ───────────────────────────────────────────
+  const visibleBanks = ((): QuestionBankMetadata[] => {
+    if (!banksInLibrary || managerTab !== 'library') return [];
+    if (quizFolderView) {
+      return visibleTeammateBanks(
+        libraryBanks.map((bank) => ({ key: bank.id, title: bank.title, bank })),
+        quizFolderView,
+        libraryView.state.search,
+        bankFolderIdOf
+      ).map((row) => row.bank);
+    }
+    const query = libraryView.state.search.trim().toLowerCase();
+    const folderId = libraryView.selectedFolderId;
+    return libraryBanks.filter(
+      (bank) =>
+        bank.title.toLowerCase().includes(query) &&
+        (folderId === null || bankFolderOf(bank) === folderId)
+    );
+  })();
+  const renderBankRow = (
+    bank: QuestionBankMetadata,
+    overlay = false
+  ): React.ReactElement => (
+    <LibraryItemCard<QuestionBankMetadata>
+      key={bank.id}
+      id={bank.id}
+      title={bank.title}
+      thumbnail={<LibraryKindIcon kind="bank" />}
+      subtitle={
+        <span>
+          Question bank · {bank.questionCount} question
+          {bank.questionCount === 1 ? '' : 's'}
+        </span>
+      }
+      primaryAction={{
+        label: 'Edit',
+        icon: Edit2,
+        onClick: () => onEditBank?.(bank),
+      }}
+      secondaryActions={buildBankActions(bank, () => setBankPickerTarget(bank))}
+      onDoubleClick={() => onEditBank?.(bank)}
+      viewMode="list"
+      sortable={!overlay && Boolean(userId) && !selectionMode}
+      isDragOverlay={overlay}
+      meta={bank}
+    />
+  );
+  const bankRows = visibleBanks.map((bank) => renderBankRow(bank));
 
   // ─── Shell header actions ─────────────────────────────────────────────────
   // New Quiz always opens a menu so every create path starts in one place.
@@ -2365,11 +2528,17 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // ─── Shared tab chrome ────────────────────────────────────────────────────
   const tabCounts = {
     library: quizzes.length,
-    ...(banks ? { banks: banks.length } : {}),
+    ...(banks && !banksInLibrary ? { banks: banks.length } : {}),
     active: activeAssignments.length,
     archive: inactiveAssignments.length,
   };
-  const tabLabels = isViewOnly ? { active: 'Shared' } : undefined;
+  const tabLabels =
+    isViewOnly || banksInLibrary
+      ? {
+          ...(isViewOnly ? { active: 'Shared' } : {}),
+          ...(banksInLibrary ? { archive: 'Completed' } : {}),
+        }
+      : undefined;
 
   if (managerTab === 'banks' && banks && onNewBank && onEditBank) {
     return (
@@ -2382,11 +2551,23 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         shell={{
           widgetLabel: 'Quiz',
           widgetType: 'quiz',
-          tab: managerTab,
+          tab: banksInLibrary ? 'library' : managerTab,
           onTabChange: (t) => onTabChange?.(t),
           counts: tabCounts,
           tabLabels,
         }}
+        libraryFolders={
+          banksInLibrary
+            ? {
+                state: folderState,
+                folderOf: bankFolderOf,
+                move: async (bankId, folderId) => {
+                  await onMoveBankToLibraryFolder?.(bankId, folderId);
+                },
+                sidebar: folderSidebarSlot,
+              }
+            : undefined
+        }
         onNewBank={onNewBank}
         onImportBank={onImportBank}
         onEditBank={onEditBank}
@@ -2438,12 +2619,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // ─── Ordered ids for LibraryDndContext (for overlay + reorder routing) ───
   const orderedIds = reorder.orderedItems.map(QUIZ_GET_ID);
   const renderDragOverlay = (activeId: string): React.ReactNode => {
+    const draggedBank = bankById.get(activeId);
+    if (draggedBank) return renderBankRow(draggedBank, true);
     const quiz = reorder.orderedItems.find((q) => q.id === activeId);
     if (!quiz) return null;
     return (
       <LibraryItemCard<QuizMetadata>
         id={quiz.id}
         title={quiz.title}
+        thumbnail={banksInLibrary ? <LibraryKindIcon kind="quiz" /> : undefined}
         subtitle={renderQuizSubtitle(quiz)}
         primaryAction={{
           label: primaryActionLabel,
@@ -2493,6 +2677,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onEdit={onEdit}
           onImport={onImport}
           totalCount={quizzes.length}
+          trailingRows={bankRows}
+          showKindIcon={banksInLibrary}
           reorderLocked={libraryView.reorderLocked}
           reorderLockedReason={libraryView.reorderLockedReason}
           enableCardDrag={
@@ -2550,7 +2736,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           buildActions={buildArchiveActions}
           syncedGroups={syncedGroups}
           emptyTitle={
-            isViewOnly ? 'No archived shares' : 'No archived assignments'
+            isViewOnly
+              ? 'No archived shares'
+              : banksInLibrary
+                ? 'No completed assignments'
+                : 'No archived assignments'
           }
           tourWidgetType={isReview ? 'review' : 'quiz'}
           emptySub={
@@ -2591,6 +2781,23 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           }}
           onClose={() => setFolderPickerTarget(null)}
           title={`Move "${folderPickerTarget.title}" to…`}
+          rootAnchor={tourTypeAttr('quiz-library.folder-picker-root', 'quiz')}
+          rowAnchor={(id) =>
+            tourFieldAttr('quiz-library.folder-picker-folder', 'quiz', id)
+          }
+        />
+      )}
+
+      {bankPickerTarget && (
+        <FolderPickerPopover
+          variant="dialog"
+          folders={folderState.folders}
+          selectedFolderId={bankFolderOf(bankPickerTarget)}
+          onSelect={(folderId) => {
+            void handleDropOnFolder(bankPickerTarget.id, folderId);
+          }}
+          onClose={() => setBankPickerTarget(null)}
+          title={`Move "${bankPickerTarget.title}" to…`}
           rootAnchor={tourTypeAttr('quiz-library.folder-picker-root', 'quiz')}
           rowAnchor={(id) =>
             tourFieldAttr('quiz-library.folder-picker-folder', 'quiz', id)
@@ -2856,6 +3063,9 @@ const LibraryTabContent: React.FC<{
   /** Extra bulk-bar actions (Merge, Share with PLC) rendered before Move/Delete. */
   extraBulkActions: BulkAction[];
   totalCount: number;
+  /** Question banks filed in the open folder, listed after its quizzes. */
+  trailingRows?: React.ReactNode[];
+  showKindIcon?: boolean;
   reorderLocked: boolean;
   reorderLockedReason: string | undefined;
   /**
@@ -2900,6 +3110,8 @@ const LibraryTabContent: React.FC<{
   renderSubtitle,
   extraBulkActions,
   totalCount,
+  trailingRows,
+  showKindIcon,
   reorderLocked,
   reorderLockedReason,
   enableCardDrag,
@@ -3013,11 +3225,15 @@ const LibraryTabContent: React.FC<{
           layout={viewMode}
           emptyState={emptyState}
           useExternalDndContext={enableCardDrag}
+          trailingRows={trailingRows}
           renderCard={(quiz, index) => (
             <LibraryItemCard<QuizMetadata>
               key={quiz.id}
               id={quiz.id}
               title={quiz.title}
+              thumbnail={
+                showKindIcon ? <LibraryKindIcon kind="quiz" /> : undefined
+              }
               tourIndex={index}
               tourWidgetType={tourWidgetType}
               subtitle={renderSubtitle(quiz)}

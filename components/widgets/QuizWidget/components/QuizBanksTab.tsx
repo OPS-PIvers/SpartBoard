@@ -7,9 +7,6 @@ import {
   Library,
   Loader2,
   Plus,
-  Trash2,
-  Users2,
-  UserMinus,
   FolderMinus,
 } from 'lucide-react';
 import type { Plc, QuestionBankMetadata } from '@/types';
@@ -24,7 +21,6 @@ import {
   FolderPickerPopover,
   LibraryDndContext,
   buildMoveToFolderAction,
-  buildDuplicateAction,
   useFolderLibraryView,
   useLibrarySelection,
   useSortableReorder,
@@ -37,8 +33,7 @@ import {
   useLibraryDeleteConfirm,
 } from '@/components/common/library';
 import { countItemsByFolder } from '@/components/common/library/folderFilters';
-import { useFolders } from '@/hooks/useFolders';
-import { useDialog } from '@/context/useDialog';
+import { useFolders, type UseFoldersResult } from '@/hooks/useFolders';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
@@ -47,6 +42,16 @@ import { useSourceFolders } from '@/components/common/library/useSourceFolders';
 import { isSourceFolderId } from '@/components/common/library/sourceFolders';
 import { visibleTeammateBanks } from './teammateBankRows';
 import { placementSourceKey } from '@/hooks/useLibraryPlacements';
+import { useBankMenuActions } from './useBankMenuActions';
+import { LibraryKindIcon } from './LibraryKindIcon';
+
+/** Banks filed in the Quiz library's folders, listed flat beside the Quiz sidebar. */
+export interface BankLibraryFolders {
+  state: UseFoldersResult;
+  folderOf: (bank: QuestionBankMetadata) => string | null;
+  move: (bankId: string, folderId: string | null) => Promise<void>;
+  sidebar: React.ReactNode;
+}
 
 export interface QuizBanksTabProps {
   userId?: string;
@@ -82,6 +87,8 @@ export interface QuizBanksTabProps {
   onPreviewSharedBank?: (source: BankSource) => void;
   /** Surfaces a failed folder move (drag or bulk) as a toast. */
   onError?: (message: string) => void;
+  /** Set when banks share the Quiz library's folders. */
+  libraryFolders?: BankLibraryFolders;
 }
 
 const SORT_OPTIONS: LibrarySortOption[] = [
@@ -147,22 +154,31 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   onUnshareBankFromPlc,
   onPreviewSharedBank,
   onError,
+  libraryFolders,
 }) => {
-  const { showConfirm } = useDialog();
   const confirmDelete = useLibraryDeleteConfirm();
-  const plcNameById = useMemo(
-    () => new Map(plcs.map((p) => [p.id, p.name])),
-    [plcs]
-  );
+  const { plcNameById, buildActions } = useBankMenuActions({
+    userId,
+    plcs,
+    onEditBank,
+    onDuplicateBank,
+    onDeleteBank,
+    onShareBankWithPlc,
+    onUnshareBankFromPlc,
+  });
 
   // ─── Folders ─────────────────────────────────────────────────────────────
-  const folderState = useFolders(userId, 'question_bank');
+  const bankFolderState = useFolders(
+    libraryFolders ? undefined : userId,
+    'question_bank'
+  );
+  const folderState = libraryFolders?.state ?? bankFolderState;
   const [folderPickerTarget, setFolderPickerTarget] =
     useState<QuestionBankMetadata | null>(null);
   const folderItemCounts = useMemo(() => countItemsByFolder(banks), [banks]);
 
   // Teammates' banks live in "From your PLCs" until filed (D21-D24).
-  const folderViewEnabled = useLibraryFolderViewEnabled();
+  const folderViewEnabled = useLibraryFolderViewEnabled() && !libraryFolders;
   const teammateBanks = useMemo(
     () =>
       sharedBankSources.flatMap((source) =>
@@ -231,6 +247,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
       getId: GET_ID,
       itemNoun: BANK_NOUN,
       extraItemFolderIds: teammateFolderIds,
+      ...(libraryFolders ? { enabled: false } : {}),
     },
     initialSort: INITIAL_SORT,
     initialViewMode: 'list',
@@ -249,7 +266,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
     onCommit: onReorderCommit,
   });
 
-  const { moveItem } = folderState;
+  const moveItem = libraryFolders?.move ?? folderState.moveItem;
   const handleDropOnFolder = useCallback(
     async (itemId: string, folderId: string | null): Promise<void> => {
       if (!userId || isSourceFolderId(folderId)) return;
@@ -332,74 +349,25 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
     </span>
   );
 
-  const buildBadges = (bank: QuestionBankMetadata): LibraryBadge[] =>
-    (bank.sync?.plcIds ?? []).map((plcId) => ({
+  const folderNameById = useMemo(
+    () => new Map(folderState.folders.map((f) => [f.id, f.name])),
+    [folderState.folders]
+  );
+  const buildBadges = (bank: QuestionBankMetadata): LibraryBadge[] => {
+    const badges: LibraryBadge[] = (bank.sync?.plcIds ?? []).map((plcId) => ({
       label: `Shared · ${plcNameById.get(plcId) ?? 'PLC'}`,
       tone: 'info' as const,
     }));
+    const folderId = libraryFolders?.folderOf(bank);
+    const folderName = folderId ? folderNameById.get(folderId) : undefined;
+    if (folderName) badges.push({ label: folderName, tone: 'neutral' });
+    return badges;
+  };
 
   const buildSecondaryActions = (
     bank: QuestionBankMetadata
-  ): LibraryMenuAction[] => {
-    const actions: LibraryMenuAction[] = [
-      {
-        id: 'edit',
-        label: 'Edit',
-        icon: Edit2,
-        onClick: () => onEditBank(bank),
-      },
-      buildDuplicateAction(bank, () => void onDuplicateBank(bank)),
-    ];
-    if (onShareBankWithPlc && plcs.length > 0) {
-      actions.push({
-        id: 'share-with-plc',
-        label: 'Share with PLC…',
-        icon: Users2,
-        onClick: () => onShareBankWithPlc(bank),
-      });
-    }
-    if (onUnshareBankFromPlc) {
-      for (const plcId of bank.sync?.plcIds ?? []) {
-        actions.push({
-          id: `unshare-${plcId}`,
-          label: `Stop sharing (${plcNameById.get(plcId) ?? 'PLC'})`,
-          icon: UserMinus,
-          onClick: async () => {
-            const ok = await showConfirm(
-              `Stop sharing "${bank.title}" with ${plcNameById.get(plcId) ?? 'this PLC'}? Teammates' quizzes that draw from it will stop resolving.`,
-              {
-                title: 'Stop Sharing',
-                variant: 'warning',
-                confirmLabel: 'Stop Sharing',
-              }
-            );
-            if (ok) await onUnshareBankFromPlc(bank, plcId);
-          },
-        });
-      }
-    }
-    actions.push(
-      buildMoveToFolderAction({
-        onOpenPicker: () => setFolderPickerTarget(bank),
-        disabled: !userId,
-      })
-    );
-    actions.push({
-      id: 'delete',
-      label: 'Delete',
-      icon: Trash2,
-      destructive: true,
-      onClick: async () => {
-        const ok = await confirmDelete({
-          titles: [bank.title],
-          noun: LIBRARY_ITEM_NOUNS.bank,
-          detail: 'Quizzes that draw from it will stop resolving.',
-        });
-        if (ok) await onDeleteBank(bank);
-      },
-    });
-    return actions;
-  };
+  ): LibraryMenuAction[] =>
+    buildActions(bank, () => setFolderPickerTarget(bank));
 
   const renderSharedRow = (
     source: BankSource,
@@ -467,6 +435,7 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
       key={bank.id}
       id={bank.id}
       title={bank.title}
+      thumbnail={libraryFolders ? <LibraryKindIcon kind="bank" /> : undefined}
       subtitle={renderSubtitle(bank)}
       badges={buildBadges(bank)}
       primaryAction={{
@@ -493,7 +462,9 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   const orderedIds = reorder.orderedItems.map(GET_ID);
 
   // ─── Shell slots ──────────────────────────────────────────────────────────
-  const folderSidebarSlot = userId ? (
+  const folderSidebarSlot = libraryFolders ? (
+    libraryFolders.sidebar
+  ) : userId ? (
     <FolderSidebar
       widget="question_bank"
       folders={sourceFolders.folders}
@@ -734,7 +705,11 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
         <FolderPickerPopover
           variant="dialog"
           folders={folderState.folders}
-          selectedFolderId={folderPickerTarget.folderId ?? null}
+          selectedFolderId={
+            libraryFolders
+              ? libraryFolders.folderOf(folderPickerTarget)
+              : (folderPickerTarget.folderId ?? null)
+          }
           onSelect={(folderId) => {
             void handleDropOnFolder(folderPickerTarget.id, folderId);
           }}

@@ -17560,6 +17560,12 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     panel: true,
   },
   {
+    id: 'quiz-library.banks-link',
+    label: 'Question banks link in the Quiz library sidebar',
+    scope: 'board',
+    panel: true,
+  },
+  {
     id: 'quiz-banks.folder-root',
     label: 'Library root folder in the Question banks library',
     scope: 'board',
