@@ -72,7 +72,7 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 import * as firestore from 'firebase/firestore';
-import { QuizLiveMonitor } from '@/components/widgets/QuizWidget/components/QuizLiveMonitor';
+import { MonitorShell as QuizLiveMonitor } from '@/components/widgets/QuizWidget/components/monitor/MonitorShell';
 import { QuestionDetail } from '@/components/widgets/QuizWidget/components/monitor/QuestionResults';
 
 // ─── Fixture helpers ────────────────────────────────────────────────────────
