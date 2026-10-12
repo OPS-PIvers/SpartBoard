@@ -6,7 +6,6 @@ import {
   Library,
   ChevronsLeft,
   ChevronsRight,
-  ChevronDown,
 } from 'lucide-react';
 import { OverflowMenu } from '@/components/common/sessionViews/OverflowMenu';
 import { tourAttr, tourTypeAttr, tourFieldAttr } from '@/config/tourAnchors';
@@ -21,32 +20,17 @@ import {
   type FolderPanelMode,
 } from './LibraryFolderPanelContext';
 import { LibraryPreviewSlotContext } from './LibraryPreviewSlotContext';
+import { LibraryRowWidthContext } from './LibraryRowWidthContext';
 import { SegmentedTabs } from '@/components/common/sessionViews/SegmentedTabs';
 import { TOOLS } from '@/config/tools';
 import { LIBRARY_HEADER_ACCENTS } from './libraryAccents';
 import { LibraryFolderViewContext } from './LibraryFolderViewContext';
 import { FolderViewHeader } from './FolderViewHeader';
-
-/**
- * Widget-width breakpoints (px) for auto-collapsing the folder panel. Below
- * `HIDE_BELOW_PX` the panel is not rendered (caller surfaces a picker
- * elsewhere); below `RAIL_BELOW_PX` the panel shrinks to an icon rail.
- */
-const HIDE_BELOW_PX = 360;
-const RAIL_BELOW_PX = 560;
-
-const resolveFolderPanelMode = (
-  setting: LibraryFolderPanelSetting,
-  widthPx: number | null
-): FolderPanelMode => {
-  if (setting === 'full' || setting === 'rail' || setting === 'hidden') {
-    return setting;
-  }
-  if (widthPx == null) return 'full';
-  if (widthPx < HIDE_BELOW_PX) return 'hidden';
-  if (widthPx < RAIL_BELOW_PX) return 'rail';
-  return 'full';
-};
+import {
+  autoFolderPanelMode,
+  resolveFolderPanelMode,
+  resolveHeaderLabels,
+} from './libraryShellLayout';
 
 const cycleFolderPanelSetting = (
   current: FolderPanelMode
@@ -230,21 +214,47 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-  const buttonCount = (primaryAction ? 1 : 0) + (secondaryActions?.length ?? 0);
-  // Tabs and header actions share one bar, so labels collapse in two stages
-  // as the widget narrows: action buttons go icon-only first (~110px → ~36px
-  // each), then tab labels follow. Tab labels win the tie — they're the
-  // primary navigation and the actions keep tooltips.
-  const tabCount = tabs.length;
-  const labelsHidden =
-    rootWidth != null && rootWidth < 60 + tabCount * 110 + buttonCount * 110;
-  const tabLabelsHidden =
-    rootWidth != null && rootWidth < 60 + tabCount * 110 + buttonCount * 44;
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  const [rowWidth, setRowWidth] = useState<number | null>(null);
+  useEffect(() => {
+    if (!scrollEl || typeof ResizeObserver === 'undefined') return undefined;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setRowWidth(Math.round(entry.contentRect.width));
+    });
+    observer.observe(scrollEl);
+    return () => observer.disconnect();
+  }, [scrollEl]);
+  const actionLabels = [
+    ...(secondaryActions ?? []).map((action) => action.label),
+    ...(primaryAction ? [primaryAction.label] : []),
+  ];
+  const { actionLabelsHidden: labelsHidden, tabLabelsHidden } =
+    resolveHeaderLabels(rootWidth, tabs, actionLabels);
 
-  const effectiveFolderPanelMode: FolderPanelMode = useMemo(
-    () => resolveFolderPanelMode(folderPanelSetting, rootWidth),
-    [folderPanelSetting, rootWidth]
+  // The auto band a toggled setting was chosen in; 'expired' once the widget leaves it.
+  const autoMode = autoFolderPanelMode(rootWidth);
+  const [choiceBand, setChoiceBand] = useState<
+    FolderPanelMode | 'expired' | null
+  >(null);
+  if (rootWidth != null && choiceBand === null) {
+    setChoiceBand(autoMode);
+  } else if (
+    choiceBand !== null &&
+    choiceBand !== 'expired' &&
+    choiceBand !== autoMode
+  ) {
+    setChoiceBand('expired');
+  }
+  const effectiveFolderPanelMode = resolveFolderPanelMode(
+    folderPanelSetting,
+    rootWidth,
+    choiceBand === null || choiceBand === autoMode
   );
+  const chooseFolderPanelSetting = (next: LibraryFolderPanelSetting): void => {
+    setFolderPanelSetting(next);
+    setChoiceBand(autoMode);
+  };
   const folderPanelContextValue = useMemo(
     () => ({ mode: effectiveFolderPanelMode }),
     [effectiveFolderPanelMode]
@@ -336,7 +346,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
                         : 'bg-white hover:bg-brand-blue-lighter text-brand-blue-primary'
                     }`}
                     triggerStyle={{
-                      paddingInline: labelsHidden ? '0' : 'min(12px, 2.6cqmin)',
+                      paddingInline: labelsHidden ? '0' : 'min(14px, 3cqmin)',
                       paddingBlock: 'min(8px, 1.8cqmin)',
                       fontSize: 'min(14px, 4cqmin)',
                       minWidth: labelsHidden ? 'min(36px, 10cqmin)' : undefined,
@@ -354,19 +364,9 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
                           />
                         )}
                         {!labelsHidden && (
-                          <>
-                            <span className="truncate">
-                              {primaryAction.label}
-                            </span>
-                            <ChevronDown
-                              aria-hidden
-                              className="shrink-0 opacity-70"
-                              style={{
-                                width: 'min(14px, 4cqmin)',
-                                height: 'min(14px, 4cqmin)',
-                              }}
-                            />
-                          </>
+                          <span className="truncate">
+                            {primaryAction.label}
+                          </span>
                         )}
                       </>
                     }
@@ -431,7 +431,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
                 <button
                   type="button"
                   onClick={() =>
-                    setFolderPanelSetting(
+                    chooseFolderPanelSetting(
                       cycleFolderPanelSetting(effectiveFolderPanelMode)
                     )
                   }
@@ -477,7 +477,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
           >
             <button
               type="button"
-              onClick={() => setFolderPanelSetting('full')}
+              onClick={() => chooseFolderPanelSetting('full')}
               className="inline-flex items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-brand-blue-lighter/40 hover:text-brand-blue-primary"
               style={{
                 width: 'min(28px, 7cqmin)',
@@ -505,6 +505,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
           className="flex flex-1 min-w-0 min-h-0"
         >
           <div
+            ref={setScrollEl}
             className="flex-1 min-w-0 overflow-y-auto"
             style={{
               paddingInline: 'min(16px, 3.5cqmin)',
@@ -513,16 +514,18 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
             data-testid="library-scroll"
           >
             <LibraryPreviewSlotContext.Provider value={previewSlot}>
-              <LibraryFolderViewContext.Provider value={activeFolderView}>
-                {activeFolderView && (
-                  <FolderViewHeader
-                    model={activeFolderView}
-                    viewMode={folderViewMode}
-                    includeRows={false}
-                  />
-                )}
-                {children}
-              </LibraryFolderViewContext.Provider>
+              <LibraryRowWidthContext.Provider value={rowWidth}>
+                <LibraryFolderViewContext.Provider value={activeFolderView}>
+                  {activeFolderView && (
+                    <FolderViewHeader
+                      model={activeFolderView}
+                      viewMode={folderViewMode}
+                      includeRows={false}
+                    />
+                  )}
+                  {children}
+                </LibraryFolderViewContext.Provider>
+              </LibraryRowWidthContext.Provider>
             </LibraryPreviewSlotContext.Provider>
           </div>
           {/* Preview panes portal here so they sit outside the scroller at full height. */}

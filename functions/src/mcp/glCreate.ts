@@ -53,6 +53,7 @@ export const SLIDE_STEP_FIELDS = [
   'calloutWidthPct',
   'calloutScale',
   'calloutTone',
+  'calloutAlign',
   'calloutBox',
 ] as const;
 type SlideStepField = (typeof SLIDE_STEP_FIELDS)[number];

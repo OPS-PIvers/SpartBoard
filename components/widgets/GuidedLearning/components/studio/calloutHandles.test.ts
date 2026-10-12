@@ -4,6 +4,7 @@ import {
   CALLOUT_HANDLES,
   CALLOUT_MIN_PX,
   containerRectToBox,
+  isCornerHandle,
   isTooltipCallout,
   leaderEnd,
   resizeCalloutBox,
@@ -112,6 +113,29 @@ describe('callout handle maths', () => {
     );
     // The larger of 0.5× and 2× wins.
     expect(corner).toEqual({ x: 600, y: 400, w: 200, h: 120 });
+  });
+
+  it('scales an aspect-locked corner freely but keeps it on the stage', () => {
+    const locked = { ...plain, keepAspect: true };
+    expect(size('se', { x: 620, y: 412 }, locked)).toEqual({
+      x: 600,
+      y: 400,
+      w: 20,
+      h: 12,
+    });
+    const big = size('se', { x: 5000, y: 5000 }, locked);
+    expect(big.w / big.h).toBeCloseTo(100 / 60);
+    expect(big.w).toBeLessThanOrEqual(container.w);
+    expect(big.h).toBeLessThanOrEqual(container.h);
+  });
+
+  it('treats only the four corners as corner handles', () => {
+    expect(CALLOUT_HANDLES.filter(isCornerHandle).sort()).toEqual([
+      'ne',
+      'nw',
+      'se',
+      'sw',
+    ]);
   });
 
   it('never shrinks below the minimum or leaves the stage', () => {

@@ -78,12 +78,12 @@ describe('TextPopoverInteraction explicit box', () => {
     container.querySelector('[data-gl-callout="p1"]') as HTMLElement;
 
   // Height grows 10px per body px, so a 100px box needs a 10px body: below the floor.
-  const stubHeight = () =>
+  const stubHeight = (padding = 0) =>
     vi
       .spyOn(HTMLElement.prototype, 'offsetHeight', 'get')
       .mockImplementation(function (this: HTMLElement) {
         const px = parseFloat(this.style.getPropertyValue('--gl-fit-body'));
-        return Number.isFinite(px) ? px * 10 : 0;
+        return Number.isFinite(px) ? px * 10 + padding : 0;
       });
 
   it('renders at the box and fits the text', () => {
@@ -107,7 +107,7 @@ describe('TextPopoverInteraction explicit box', () => {
   });
 
   it('grows at the floor and outlines only when showFit is on', () => {
-    const spy = stubHeight();
+    const spy = stubHeight(110);
     const box = { x: 100, y: 50, w: 300, h: 100 };
     const { container, rerender } = render(
       <TextPopoverInteraction

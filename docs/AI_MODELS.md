@@ -29,5 +29,9 @@ Moved from the retired GEMINI.md. Code comments in `config/geminiModels.ts` and 
   the Gemini response schema. A missing or placeholder key (anything not starting `sk-ant-`), an
   input Claude can't read (audio, video, YouTube links, Word files), or any Claude failure runs the
   call on the tier's Gemini model instead.
+- **Limits.** The AI tab also stores `integrationLimits` (`maxInputChars`, `maxOutputTokens` per
+  integration) on the same config. Defaults and bounds live in `functions/src/aiLimits.ts`, mirrored in
+  `config/aiLimits.ts`. The input limit applies to the typed prompt of `generateWithAI` types; the output
+  limit, when set, replaces the call's own token budget on Claude and Gemini.
 - **Monitoring.** Each call increments `ai_call_log/{date}__{integration}__{model}` (calls, tokens,
   fallbacks, errors), which the AI tab shows for the last 30 days. Quotas still live in `ai_usage`.

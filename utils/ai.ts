@@ -137,6 +137,8 @@ async function callAI(
     typeCounts?: QuizTypeCounts;
     /** Calling widget for shared types, so the server charges that widget's AI switch. */
     source?: AISource;
+    /** `mini-app` only: the current code to revise. */
+    html?: string;
   },
   baseErrorMessage: string
 ): Promise<AIResponseData> {
@@ -148,6 +150,7 @@ async function callAI(
         image?: string;
         typeCounts?: QuizTypeCounts;
         source?: AISource;
+        html?: string;
       },
       AIResponseData
     >(functions, 'generateWithAI', { timeout: 310_000 });
@@ -220,6 +223,23 @@ export async function generateMiniAppCode(
     title: data.title,
     html: data.html,
   };
+}
+
+/** Revises an existing mini app's code from an instruction. */
+export async function editMiniAppCode(
+  html: string,
+  instruction: string
+): Promise<GeneratedMiniApp> {
+  const data = await callAI(
+    { type: 'mini-app', prompt: instruction, source: 'mini-app', html },
+    'Failed to edit the app. Please try again with a different instruction.'
+  );
+
+  if (!data.html) {
+    throw new Error('Invalid response format from AI');
+  }
+
+  return { title: data.title ?? '', html: data.html };
 }
 
 export interface GeneratedPoll {

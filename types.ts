@@ -8019,6 +8019,8 @@ export interface GuidedLearningStep {
   calloutScale?: number;
   /** Callout colour preset. Absent = 'dark'. */
   calloutTone?: GuidedLearningCalloutTone;
+  /** Callout text alignment. Absent = 'left'. */
+  calloutAlign?: GuidedLearningCalloutAlign;
   /** Explicit callout box in image-%, top-left origin; overrides pin, width, scale and tooltip position. */
   calloutBox?: GuidedLearningCalloutBox;
   /** Watch-mode demonstration override; absent = cursor goes to region centre. */
@@ -8057,6 +8059,8 @@ export interface GuidedLearningCalloutBox {
 
 /** Callout colour presets; stored as an enum, never a free colour. */
 export type GuidedLearningCalloutTone = 'dark' | 'light' | 'accent';
+
+export type GuidedLearningCalloutAlign = 'left' | 'center' | 'right';
 
 export interface GuidedLearningStepCursor {
   hide?: boolean;
@@ -8361,6 +8365,7 @@ export interface GuidedLearningPublicStep {
   calloutWidthPct?: number;
   calloutScale?: number;
   calloutTone?: GuidedLearningCalloutTone;
+  calloutAlign?: GuidedLearningCalloutAlign;
   calloutBox?: GuidedLearningCalloutBox;
   cursor?: GuidedLearningStepCursor;
   narration?: GuidedLearningPublicNarration;
@@ -9948,6 +9953,8 @@ export type GlobalFeature =
   | 'gl-welcome-card'
   /** Mini App results: helper, server grading, attempts and results table (docs/plans/MINI_APP_RESULTS.md). */
   | 'mini-app-results'
+  /** Mini App editor: Edit with AI revises the current app's code from an instruction. */
+  | 'mini-app-ai-edit'
   /** Quiz live monitor declutter (#4023): footer buttons, Close all, no More actions menu for assessments. */
   | 'quiz-monitor-declutter'
   | 'quiz-banks-in-library';

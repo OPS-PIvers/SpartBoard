@@ -4,6 +4,10 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { Type, Schema } from '@google/genai';
 import { sanitizePrompt } from './sanitize';
+import {
+  buildMiniAppEditPrompt,
+  readMiniAppEditHtml,
+} from './miniAppEditPrompt';
 import { parseGeminiJson } from './parseGeminiJson';
 import { adminPassesMissingDoc } from './featureMissingDoc';
 import {
@@ -19,11 +23,14 @@ import { GlobalPermission, GlobalPermConfig } from './shared';
 import { assertViewAsAllowed } from './viewAsGuard';
 import {
   VERTEX_LOCATION,
+  getAiModelConfig,
   getGeminiModelConfig,
   resetAiModelConfigCache,
   vertexClientOptions,
 } from './aiModelConfig';
 import { generateAi, type AiPart } from './aiRouter';
+import { isAiIntegrationId } from './aiIntegrations';
+import { DEFAULT_MAX_INPUT_CHARS, maxInputCharsFor } from './aiLimits';
 
 interface AIData {
   type:
@@ -47,6 +54,8 @@ interface AIData {
   typeCounts?: Partial<Record<QuizGenType, number>>;
   /** Calling widget for shared types (`mini-app`, `ocr`), so each widget has its own admin switch. */
   source?: string;
+  /** `mini-app` only: the current code, which turns the request into an edit of it. */
+  html?: string;
 }
 
 type QuizGenType = 'MC' | 'FIB' | 'Matching' | 'Ordering' | 'MA';
@@ -620,6 +629,34 @@ export const generateWithAI = onCall(
       .trim();
     const specificFeatureId = specificFeatureIdFor(genType, data?.source);
 
+    // Edit with AI on a Mini App also needs its own preview flag.
+    if (
+      !isAdmin &&
+      genType === 'mini-app' &&
+      typeof data?.html === 'string' &&
+      data.html.trim()
+    ) {
+      const editDoc = await db
+        .collection('global_permissions')
+        .doc('mini-app-ai-edit')
+        .get();
+      const adminOnly =
+        'Edit with AI is currently restricted to administrators.';
+      if (editDoc.exists) {
+        assertPermissionAllows(
+          editDoc.data() as GlobalPermission,
+          callerToken,
+          {
+            disabled: 'Edit with AI is currently disabled by an administrator.',
+            adminOnly,
+            notBeta: 'You do not have access to Edit with AI.',
+          }
+        );
+      } else if (missingDocDeniesNonAdmin('mini-app-ai-edit')) {
+        throw new HttpsError('permission-denied', adminOnly);
+      }
+    }
+
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
     try {
@@ -789,15 +826,19 @@ export const generateWithAI = onCall(
     }
 
     // Read model config from Firestore (for both admins and non-admins)
-    const geminiConfig = await getGeminiModelConfig(db);
+    const aiConfig = await getAiModelConfig(db);
+    const geminiConfig = aiConfig;
 
     try {
       // `genType` is already computed above (feature-permission gate); reuse it.
       // Input size guards
-      if (data?.prompt && String(data.prompt).length > 10000) {
+      const maxInputChars = isAiIntegrationId(genType)
+        ? maxInputCharsFor(genType, aiConfig.integrationLimits)
+        : DEFAULT_MAX_INPUT_CHARS;
+      if (data?.prompt && String(data.prompt).length > maxInputChars) {
         throw new HttpsError(
           'invalid-argument',
-          'Prompt exceeds maximum length of 10,000 characters.'
+          `Prompt exceeds maximum length of ${maxInputChars.toLocaleString('en-US')} characters.`
         );
       }
       if (data?.image && String(data.image).length > 5 * 1024 * 1024) {
@@ -808,6 +849,14 @@ export const generateWithAI = onCall(
       }
 
       const sanitizedUserInput = sanitizePrompt(data?.prompt);
+      const miniAppEditHtml =
+        genType === 'mini-app'
+          ? readMiniAppEditHtml(
+              data?.html,
+              String(data?.prompt ?? '').length,
+              maxInputChars
+            )
+          : null;
 
       const promptMap: Record<
         string,
@@ -1103,7 +1152,13 @@ Output JSON ONLY in this exact shape:
         );
       }
 
-      const { systemPrompt, userPrompt } = promptDataFn();
+      const { systemPrompt, userPrompt } = miniAppEditHtml
+        ? buildMiniAppEditPrompt(
+            promptDataFn().systemPrompt,
+            miniAppEditHtml,
+            sanitizedUserInput
+          )
+        : promptDataFn();
 
       const parts: AiPart[] = [{ text: systemPrompt + '\n\n' + userPrompt }];
       // Add image if provided (for OCR or multi-modal prompts)

@@ -30,19 +30,20 @@ describe('fitCalloutText', () => {
   });
 
   it('stops at the cap when the text is short', () => {
-    const fit = fitCalloutText({ boxH: 1000, measure: linear(2) });
+    const boxH = CALLOUT_TEXT_CAP_PX * 3;
+    const fit = fitCalloutText({ boxH, measure: linear(2) });
     expect(fit).toEqual({
       bodyPx: CALLOUT_TEXT_CAP_PX,
-      heightPx: 1000,
+      heightPx: boxH,
       overflow: false,
     });
   });
 
   it('grows the box at the floor when the text cannot fit', () => {
-    const fit = fitCalloutText({ boxH: 50, measure: linear(10) });
+    const fit = fitCalloutText({ boxH: 50, measure: linear(10, 60) });
     expect(fit).toEqual({
       bodyPx: CALLOUT_TEXT_FLOOR_PX,
-      heightPx: CALLOUT_TEXT_FLOOR_PX * 10,
+      heightPx: CALLOUT_TEXT_FLOOR_PX * 10 + 60,
       overflow: true,
     });
   });

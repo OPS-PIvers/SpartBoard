@@ -70,6 +70,42 @@ const configChanged = (a: WidgetData, b: WidgetData) =>
     ? a.version !== b.version
     : stableStringify(a.config) !== stableStringify(b.config);
 
+type Config = Record<string, unknown>;
+
+const sameValue = (a: unknown, b: unknown) =>
+  stableStringify(a ?? null) === stableStringify(b ?? null);
+
+const setOrDelete = (target: Config, key: string, value: unknown) => {
+  if (value === undefined) delete target[key];
+  else target[key] = value;
+};
+
+// Per-key three-way merge: locally changed keys win, the rest take the server's; also returns the matching baseline.
+export function mergeConfigByKey(
+  local: WidgetData['config'],
+  server: WidgetData['config'],
+  base: WidgetData['config'],
+  keepLocalIfServerLacks: ReadonlySet<string> = new Set()
+): { config: WidgetData['config']; baseline: WidgetData['config'] } {
+  const l = local as Config;
+  const s = server as Config;
+  const b = base as Config;
+  const config: Config = { ...s };
+  const baseline: Config = { ...s };
+  for (const key of new Set([...Object.keys(l), ...Object.keys(b)])) {
+    const keepLocal =
+      !sameValue(l[key], b[key]) ||
+      (keepLocalIfServerLacks.has(key) && s[key] === undefined);
+    if (!keepLocal) continue;
+    setOrDelete(config, key, l[key]);
+    setOrDelete(baseline, key, b[key]);
+  }
+  return {
+    config: config,
+    baseline: baseline,
+  };
+}
+
 const pick = (w: WidgetData, fields: readonly MergeFieldKey[]) => {
   const out: Record<string, unknown> = {};
   for (const f of fields) out[f] = w[f];
@@ -83,7 +119,10 @@ const mergeWidget = (
 ): WidgetData => ({
   ...local,
   ...(configChanged(local, base)
-    ? {}
+    ? {
+        config: mergeConfigByKey(local.config, server.config, base.config)
+          .config,
+      }
     : {
         config: server.config,
         version: server.version,

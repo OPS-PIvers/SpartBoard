@@ -76,6 +76,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'widget-whats-new',
   'gl-welcome-card',
   'mini-app-results',
+  'mini-app-ai-edit',
   'quiz-monitor-declutter',
   'quiz-banks-in-library',
 ];

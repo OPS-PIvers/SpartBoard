@@ -39,6 +39,11 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { Z_INDEX } from '@/config/zIndex';
 import { LibraryGridLockContext } from './LibraryGridLockContext';
+import {
+  LibraryRowWidthContext,
+  ROW_TIGHT_BELOW_PX,
+  useCompactListRow,
+} from './LibraryRowWidthContext';
 import { useLibraryFolderView } from './LibraryFolderViewContext';
 import { useLibraryDrag } from './LibraryDragContext';
 import { itemMergeDroppableId } from './folderDropTargets';
@@ -323,7 +328,7 @@ const BadgeChip: React.FC<{ badge: LibraryBadge }> = ({ badge }) => {
   // Container-query units cap at the original pixel sizes so badges look
   // identical on default-size widgets but scale down with the rest of the
   // card chrome (kebab button, icon-action buttons) on smaller widgets.
-  const baseClasses = `inline-flex items-center rounded-full font-bold uppercase tracking-wider ${tone.bg} ${tone.fg}`;
+  const baseClasses = `inline-flex items-center whitespace-nowrap rounded-full font-bold uppercase tracking-wider ${tone.bg} ${tone.fg}`;
   const baseStyle: React.CSSProperties = {
     fontSize: 'min(11px, 4cqmin)',
     paddingInline: 'min(8px, 2.5cqmin)',
@@ -453,6 +458,11 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
   const PrimaryIcon = primaryAction?.icon;
   const SecondaryPrimaryIcon = secondaryPrimaryAction?.icon;
   const isList = viewMode === 'list';
+  // Grid cards render as before (the old @[280px] labels never compiled); list rows drop labels as the column narrows.
+  const rowWidth = useContext(LibraryRowWidthContext);
+  const rowCompact = useCompactListRow(isList);
+  const rowTight =
+    !isList || (rowWidth != null && rowWidth < ROW_TIGHT_BELOW_PX);
   const tourRowKey = tourIndex != null ? `row-${tourIndex + 1}` : undefined;
   const tourWidgetTypeResolved = tourWidgetType ?? 'library';
 
@@ -511,13 +521,9 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
           )
         : {})}
       className={[
-        // `@container` makes the card itself the query target so the action
-        // buttons can collapse their text labels at narrow widths via
-        // `@[Npx]:` Tailwind variants below.
-        //
         // Monitor row idiom: both surfaces are opaque white with a hairline
         // border — list rows are slim bordered rows, grid keeps the card box.
-        '@container group relative flex text-slate-700',
+        'group relative flex text-slate-700',
         // List rows sit between hairline dividers drawn by LibraryGrid; grid keeps the card box.
         isList
           ? 'flex-row items-center transition-colors'
@@ -588,7 +594,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
       )}
 
       {/* Drag handle (left edge) — hidden in selection mode */}
-      {!selectionMode && dragHandle}
+      {!selectionMode && !rowCompact && dragHandle}
 
       {/* Thumbnail */}
       {thumbnail && (
@@ -688,8 +694,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
               : {})}
             // Same outer shape/size as `primaryAction` but inverted palette:
             // white surface with brand-blue border so it reads as the
-            // secondary CTA. Label collapses to icon-only below ~280px
-            // card width (the @container threshold).
+            // secondary CTA. Icon-only on grid cards and tight list rows.
             className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-brand-blue-primary/30 bg-white font-bold text-brand-blue-dark shadow-sm transition-all hover:bg-brand-blue-lighter/30 hover:border-brand-blue-primary/60 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
             style={{
               paddingInline: 'min(14px, 3.2cqmin)',
@@ -705,9 +710,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
                 }}
               />
             )}
-            <span className="hidden @[280px]:inline">
-              {secondaryPrimaryAction.label}
-            </span>
+            {!rowTight && <span>{secondaryPrimaryAction.label}</span>}
           </button>
         )}
         {primaryAction && (
@@ -746,16 +749,9 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
                 }}
               />
             )}
-            {/* When a secondaryPrimaryAction is also rendered we collapse
-                this label too at narrow widths, since the row gets crowded.
-                Solo primary keeps its label always visible (current
-                behavior — no callers depend on icon-only). */}
-            {secondaryPrimaryAction ? (
-              <span className="hidden @[280px]:inline">
-                {primaryAction.label}
-              </span>
-            ) : (
-              primaryAction.label
+            {/* Goes icon-only on narrow rows; a second CTA beside it collapses sooner. */}
+            {!(secondaryPrimaryAction ? rowTight : rowCompact) && (
+              <span>{primaryAction.label}</span>
             )}
           </button>
         )}

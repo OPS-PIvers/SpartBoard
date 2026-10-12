@@ -52,6 +52,7 @@ import {
 } from '@/utils/viewAsBoards';
 import {
   DASHBOARD_FIELDS,
+  mergeConfigByKey,
   serializeDashboardField,
   type MergedDashboardField,
   type SaveBaseline,
@@ -106,6 +107,7 @@ import {
   extractDashboardPII,
   mergeDashboardPII,
   dashboardHasPII,
+  PII_WIDGET_FIELDS,
   type DashboardPiiSupplement,
 } from '@/utils/dashboardPII';
 import { migrateBoardForCollections } from '@/utils/collectionsMigration';
@@ -341,6 +343,12 @@ const stripDerivedPixels = (w: WidgetData) => {
 
 const isSavedWidget = (w: WidgetData) => !w.transient;
 
+// Firestore never stores these, so a server copy missing one says nothing about a local edit.
+const PII_CONFIG_KEYS: ReadonlySet<string> = new Set([
+  ...PII_WIDGET_FIELDS,
+  'assignments',
+]);
+
 // Live-tour widgets stay in memory until the teacher keeps them.
 const withoutTransient = (d: Dashboard): Dashboard =>
   d.widgets.some((w) => w.transient)
@@ -349,6 +357,8 @@ const withoutTransient = (d: Dashboard): Dashboard =>
 
 // Ceiling on how long an edit may sit unsaved while edits keep arriving.
 const MAX_UNSAVED_EDIT_AGE_MS = 3000;
+// Longest a debounced save waits for the one ahead of it.
+const SAVE_CHAIN_MAX_WAIT_MS = 15000;
 // Ink-only edits rewrite the whole board document, so sustained drawing gets a
 // longer ceiling than a widget edit — but the teardown flush (beforeunload,
 // pagehide, visibilitychange) is unreliable on iPadOS, so this bounds the
@@ -2357,6 +2367,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   ({
                     sw,
                     lw,
+                    saved,
                     keepLocalConfig,
                     keepLocalLayout,
                     keepLocalStyle,
@@ -2368,7 +2379,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                     return {
                       ...sw,
                       version: keepLocalConfig ? lw.version : sw.version,
-                      config: keepLocalConfig ? lw.config : sw.config,
+                      config:
+                        keepLocalConfig && saved
+                          ? mergeConfigByKey(
+                              lw.config,
+                              sw.config,
+                              saved.config,
+                              PII_CONFIG_KEYS
+                            ).config
+                          : sw.config,
                       configVersion: keepLocalConfig
                         ? lw.configVersion
                         : sw.configVersion,
@@ -2498,7 +2517,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                   return {
                     ...sw,
                     version: keepLocalConfig ? saved.version : sw.version,
-                    config: keepLocalConfig ? saved.config : sw.config,
+                    config: keepLocalConfig
+                      ? mergeConfigByKey(
+                          lw.config,
+                          sw.config,
+                          saved.config,
+                          PII_CONFIG_KEYS
+                        ).baseline
+                      : sw.config,
                     configVersion: keepLocalConfig
                       ? saved.configVersion
                       : sw.configVersion,
@@ -2897,6 +2923,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // next transaction read those adopted values as local edits and clobber the
   // remote copy.
   const baselineGenerationRef = useRef(0);
+  // Tail of the debounced saves, which run one after another.
+  const saveChainRef = useRef<Promise<unknown>>(Promise.resolve());
   const buildSaveBaseline = useCallback(
     (dashboardId: string): SaveBaseline | undefined => {
       if (lastSavedDashboardIdRef.current !== dashboardId) return undefined;
@@ -3085,8 +3113,29 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       };
       pendingSaveCountRef.current++;
       lastWidgetCountRef.current = active.widgets.filter(isSavedWidget).length;
-      const baselineGenerationAtSave = baselineGenerationRef.current;
-      saveDashboard(active, buildSaveBaseline(active.id))
+      let baselineGenerationAtSave = baselineGenerationRef.current;
+      // One save at a time: an older transaction retried after a newer one landed rewrites the older state.
+      const previous = saveChainRef.current.catch(() => undefined);
+      let chainTimer: ReturnType<typeof setTimeout> | undefined;
+      const write = Promise.race([
+        previous,
+        // A save that never settles must not hold every later one forever.
+        new Promise((resolve) => {
+          chainTimer = setTimeout(resolve, SAVE_CHAIN_MAX_WAIT_MS);
+        }),
+      ]).then(() => {
+        clearTimeout(chainTimer);
+        // A snapshot merge while queued moved the baseline, so save the merged copy, not the pre-merge one.
+        const merged =
+          baselineGenerationRef.current !== baselineGenerationAtSave;
+        baselineGenerationAtSave = baselineGenerationRef.current;
+        const toSave = merged
+          ? (dashboardsRef.current.find((d) => d.id === active.id) ?? active)
+          : active;
+        return saveDashboard(toSave, buildSaveBaseline(active.id));
+      });
+      saveChainRef.current = write;
+      write
         .then(() => {
           // Skip when a snapshot merge landed mid-flight: it already advanced
           // the baseline to the server values it adopted into local state, and

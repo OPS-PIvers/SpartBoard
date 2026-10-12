@@ -150,6 +150,60 @@ describe('LunchCountWidget', () => {
     // without more setup, but we've verified the refactor structure.
   });
 
+  const pointer = (pointerId: number, x: number, y: number) => ({
+    pointerId,
+    pointerType: 'touch',
+    clientX: x,
+    clientY: y,
+  });
+
+  it('shows the student name, not their id, while dragging', async () => {
+    render(<LunchCountWidget widget={createWidget()} />);
+
+    const chip = await screen.findByText('John Doe');
+    fireEvent.pointerDown(chip, pointer(1, 0, 0));
+    fireEvent.pointerMove(chip, pointer(1, 40, 40));
+
+    expect(screen.getAllByText('John Doe')).toHaveLength(2);
+    expect(screen.queryByText('s1')).not.toBeInTheDocument();
+    fireEvent.pointerCancel(chip, pointer(1, 40, 40));
+  });
+
+  it('lets two students drag and drop their names at the same time', async () => {
+    const zones: Record<string, string> = {};
+    const elementFromPoint = vi.fn(
+      (x: number) => screen.getByTestId(zones[String(x)]) as Element
+    );
+    // jsdom has no elementFromPoint.
+    Object.defineProperty(document, 'elementFromPoint', {
+      value: elementFromPoint,
+      configurable: true,
+    });
+    zones['100'] = 'hot-zone';
+    zones['200'] = 'home-zone';
+    render(<LunchCountWidget widget={createWidget()} />);
+
+    const john = await screen.findByText('John Doe');
+    const jane = screen.getByText('Jane Smith');
+    fireEvent.pointerDown(john, pointer(1, 0, 0));
+    fireEvent.pointerDown(jane, pointer(2, 0, 0));
+    fireEvent.pointerMove(john, pointer(1, 100, 0));
+    fireEvent.pointerMove(jane, pointer(2, 200, 0));
+
+    expect(screen.getAllByText('John Doe')).toHaveLength(2);
+    expect(screen.getAllByText('Jane Smith')).toHaveLength(2);
+
+    fireEvent.pointerUp(john, pointer(1, 100, 0));
+    fireEvent.pointerUp(jane, pointer(2, 200, 0));
+
+    const calls = mockDashboardContext.updateWidget.mock.calls;
+    expect(calls.at(-1)).toEqual([
+      'lunch-1',
+      { config: { assignments: { s1: 'hot', s2: 'home' } } },
+    ]);
+    Reflect.deleteProperty(document, 'elementFromPoint');
+  });
+
   it('keeps two same-name students independently assigned (no name-collision)', async () => {
     // Regression test: assignments must be keyed by the roster student `id`,
     // not the display name. Two students who share a name (e.g. two "Emma

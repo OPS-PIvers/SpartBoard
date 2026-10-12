@@ -6773,6 +6773,16 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'admin.ai.input-limit': {
+    label: 'AI feature input limit',
+    perField: true,
+    panel: true,
+  },
+  'admin.ai.output-limit': {
+    label: 'AI feature output limit',
+    perField: true,
+    panel: true,
+  },
   'admin.gemini.save': {
     label: 'Save Gemini models button',
     persists: true,
@@ -9557,6 +9567,21 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'mini-app.ai-mode': {
+    label: 'Change this app or Start over switch in the Mini App AI box',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.undo-ai': {
+    label: 'Undo AI change button in the Mini App editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'mini-app.view-toggle': {
+    label: 'Preview or Code switch in the Mini App editor',
+    perWidgetType: true,
+    panel: true,
+  },
   'mini-app.import-from-notes': {
     label: 'Import from Notes button in the Mini App AI drafter',
     perWidgetType: true,
@@ -10221,6 +10246,10 @@ export const TOUR_ANCHORS = {
   },
   'studio.callout-kind': { label: 'Toggle callout kind button', panel: true },
   'studio.callout-tone': { label: 'Callout colour option', panel: true },
+  'studio.callout-align': {
+    label: 'Callout text alignment button',
+    panel: true,
+  },
   'studio.callout-delete': {
     label: 'Delete callout step button',
     destructive: true,

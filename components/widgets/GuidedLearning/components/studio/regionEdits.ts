@@ -14,6 +14,8 @@ import {
   clampCalloutBox,
   clampCalloutScale,
   clampCalloutWidthPct,
+  CALLOUT_ALIGNS,
+  calloutAlignOf,
   isCalloutTone,
 } from '../../utils/calloutStyle';
 
@@ -338,6 +340,18 @@ export function setCalloutTone(
   const next = { ...step };
   if (tone === 'dark' || !isCalloutTone(tone)) delete next.calloutTone;
   else next.calloutTone = tone;
+  return next;
+}
+
+/** Left, then centre, then right, then left again; 'left' is the default, so it is stored as absent. */
+export function cycleCalloutAlign(
+  step: GuidedLearningStep
+): GuidedLearningStep {
+  const i = CALLOUT_ALIGNS.indexOf(calloutAlignOf(step));
+  const align = CALLOUT_ALIGNS[(i + 1) % CALLOUT_ALIGNS.length];
+  const next = { ...step };
+  if (align === 'left') delete next.calloutAlign;
+  else next.calloutAlign = align;
   return next;
 }
 

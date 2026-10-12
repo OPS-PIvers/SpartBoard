@@ -2,6 +2,7 @@ import { calloutArrowPaths } from '../interactions/CalloutArrow';
 import {
   FIT_BODY_VAR,
   measureCalloutFit,
+  measureCalloutHeight,
 } from '../interactions/useFitCalloutText';
 import { connectorFor } from '../../utils/calloutPlacement';
 import type { PxRect } from '../../types/stage';
@@ -10,8 +11,12 @@ import type { PxRect } from '../../types/stage';
 export interface GesturePreview {
   /** Moves the followed elements by container px (the CSS `translate` property). */
   shift: (dx: number, dy: number) => void;
-  /** Resizes the callout card, in container px, refitting its text each frame. */
-  size: (w: number, h: number) => void;
+  /** Resizes the callout card, in container px, refitting its text each frame; returns the drawn height. */
+  size: (w: number, h: number) => number;
+  /** The callout card's body text size in px, or null without a card. */
+  bodyPx: () => number | null;
+  /** The callout card's height at w px wide with its body text held at bodyPx. */
+  heightAt: (w: number, bodyPx: number) => number | null;
   /** Redraws the spotlight hole and rim of a drawn region. */
   shape: (d: string) => void;
   /** Moves the anchor dot by container px when the callout stays put. */
@@ -95,7 +100,8 @@ export function createGesturePreview(
       const value = dx === 0 && dy === 0 ? '' : `${dx}px ${dy}px`;
       shifted.forEach((el) => (el.style.translate = value));
     },
-    size: (w, h) =>
+    size: (w, h) => {
+      let drawn = h;
       cards.forEach((el) => {
         el.setAttribute('data-gl-previewing', '');
         const fit = measureCalloutFit(el as HTMLElement, w, h);
@@ -103,7 +109,18 @@ export function createGesturePreview(
         el.style.width = `${w}px`;
         el.style.minHeight = `${fit.heightPx}px`;
         el.style.maxWidth = 'none';
-      }),
+        drawn = Math.max(drawn, fit.heightPx);
+      });
+      return drawn;
+    },
+    bodyPx: () => {
+      const px = cards[0] && parseFloat(getComputedStyle(cards[0]).fontSize);
+      return px && Number.isFinite(px) ? px : null;
+    },
+    heightAt: (w, bodyPx) =>
+      cards[0]
+        ? measureCalloutHeight(cards[0] as HTMLElement, w, bodyPx)
+        : null,
     shape: (d) => shapes.forEach((el) => el.setAttribute('d', d)),
     anchor: (dx, dy) => {
       const value = dx === 0 && dy === 0 ? '' : `${dx}px ${dy}px`;

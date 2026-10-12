@@ -264,7 +264,7 @@ export const RecessGearWidget: React.FC<{ widget: WidgetData }> = ({
         >
           {gearList.length > 0 ? (
             <div
-              className="grid grid-cols-1 @[240px]:grid-cols-2"
+              className="grid grid-cols-1 [@container(min-width:260px)]:grid-cols-2"
               style={{ gap: 'min(10px, 2.5cqmin)' }}
             >
               {gearList.map((item, idx) => (

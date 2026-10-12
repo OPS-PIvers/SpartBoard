@@ -696,8 +696,13 @@ export const Dock: React.FC = () => {
   }, [showRosterMenu]);
 
   const handleToggleRemoteMenu = useCallback(() => {
-    if (!showRemoteMenu && remoteButtonRef.current) {
-      setRemoteAnchorRect(remoteButtonRef.current.getBoundingClientRect());
+    // Opened from the library, a folder or quick access, the dock button may not exist.
+    const anchor =
+      remoteButtonRef.current ??
+      moreButtonRef.current ??
+      dockContainerRef.current;
+    if (!showRemoteMenu && anchor) {
+      setRemoteAnchorRect(anchor.getBoundingClientRect());
     }
     setShowRemoteMenu(!showRemoteMenu);
   }, [showRemoteMenu]);
@@ -1106,6 +1111,9 @@ export const Dock: React.FC = () => {
               onToggle={(type) => {
                 if (isEditMode) {
                   toggleToolVisibility(type);
+                } else if (type === 'remote') {
+                  setShowMoreMenu(false);
+                  handleToggleRemoteMenu();
                 } else {
                   addWidget(
                     type as WidgetType,
@@ -1388,10 +1396,12 @@ export const Dock: React.FC = () => {
                                 else void startRecording();
                               } else if (type === 'magic') {
                                 setShowMagicLayout(true);
+                              } else if (type === 'remote') {
+                                handleToggleRemoteMenu();
                               } else {
                                 addWidget(
-                                  type as WidgetType,
-                                  getBuildingAwareOverrides(type as WidgetType)
+                                  type,
+                                  getBuildingAwareOverrides(type)
                                 );
                               }
                             }}
@@ -1653,11 +1663,10 @@ export const Dock: React.FC = () => {
                     else void startRecording();
                   } else if (type === 'magic') {
                     setShowMagicLayout(true);
+                  } else if (type === 'remote') {
+                    handleToggleRemoteMenu();
                   } else {
-                    addWidget(
-                      type as WidgetType,
-                      getBuildingAwareOverrides(type as WidgetType)
-                    );
+                    addWidget(type, getBuildingAwareOverrides(type));
                   }
                 }}
               />
@@ -1693,11 +1702,10 @@ export const Dock: React.FC = () => {
                     else void startRecording();
                   } else if (type === 'magic') {
                     setShowMagicLayout(true);
+                  } else if (type === 'remote') {
+                    handleToggleRemoteMenu();
                   } else {
-                    addWidget(
-                      type as WidgetType,
-                      getBuildingAwareOverrides(type as WidgetType)
-                    );
+                    addWidget(type, getBuildingAwareOverrides(type));
                   }
                 }}
               />
