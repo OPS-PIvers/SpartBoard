@@ -187,7 +187,7 @@ export function registerTools(server: McpServer, ctx: ToolContext): void {
             'create',
             'edit',
             'undo edits',
-            'class-level quiz and video activity results',
+            'class-level quiz, video activity and mini-app results',
           ],
           cannot: ['delete', 'assign to students', 'share', 'see student data'],
           daily_change_limit: DAILY_WRITE_LIMIT,

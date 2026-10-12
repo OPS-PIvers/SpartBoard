@@ -5,6 +5,8 @@ import { z } from 'zod';
 import { ToolError, type ToolContext } from './activity';
 import { driveTokenFor, readDriveJson } from './drive';
 import { READ_ONLY, iso, run } from './toolKit';
+import { bucketScores } from '../plcAssessmentMath';
+import { readManifest, type ManifestQuestion } from '../miniAppGrading';
 import type {
   AggregatePayload,
   CompletedResponse,
@@ -291,6 +293,102 @@ async function videoSessionSummary(
   };
 }
 
+const isNum = (v: unknown): v is number =>
+  typeof v === 'number' && Number.isFinite(v);
+
+/** D15: a Mini App assignment's class-level summary from each student's best attempt. */
+export function summarizeMiniAppSubmissions(
+  questions: ManifestQuestion[],
+  submissions: Data[]
+) {
+  const percents: number[] = [];
+  const marks = new Map<
+    string,
+    { graded: number; correct: number; byApp: boolean }
+  >();
+  let attempts = 0;
+  for (const sub of submissions) {
+    if (isNum(sub.attemptCount)) attempts += sub.attemptCount;
+    const best = (sub.best ?? null) as Data | null;
+    if (!best) continue;
+    if (isNum(best.score) && isNum(best.maxScore) && best.maxScore > 0)
+      percents.push((best.score / best.maxScore) * 100);
+    for (const item of asArray(best.items)) {
+      const r = (item ?? {}) as Data;
+      if (typeof r.id !== 'string') continue;
+      const m = marks.get(r.id) ?? { graded: 0, correct: 0, byApp: false };
+      m.graded++;
+      if (r.correct === true) m.correct++;
+      if (r.by === 'app') m.byApp = true;
+      marks.set(r.id, m);
+    }
+  }
+  const pct = (n: number, d: number) => Math.round((n / d) * 100);
+  return {
+    completed_responses: submissions.length,
+    scored_responses: percents.length,
+    average_percent:
+      percents.length > 0
+        ? Math.round(percents.reduce((a, b) => a + b, 0) / percents.length)
+        : null,
+    average_attempts:
+      submissions.length > 0
+        ? Math.round((attempts / submissions.length) * 10) / 10
+        : null,
+    score_bands: bucketScores(percents).map((b) => ({
+      percent: `${b.min}-${b.max}`,
+      students: b.count,
+    })),
+    questions: questions.map((q, i) => {
+      const m = marks.get(q.id);
+      return {
+        number: i + 1,
+        question_id: q.id,
+        text: clip(q.prompt),
+        type: q.type,
+        points: q.points ?? 1,
+        graded: m?.graded ?? 0,
+        percent_correct: m && m.graded > 0 ? pct(m.correct, m.graded) : null,
+        ...(m?.byApp ? { scored_by: 'app' } : {}),
+      };
+    }),
+  };
+}
+
+async function miniAppSessionSummary(
+  sessionDoc: admin.firestore.DocumentSnapshot
+) {
+  const s: Data = sessionDoc.data() ?? {};
+  const header = {
+    assignment_id: sessionDoc.id,
+    assignment_name: s.assignmentName ?? null,
+    status: s.status ?? null,
+    created_at: iso(s.createdAt),
+    ended_at: iso(s.endedAt),
+  };
+  if (s.resultsVersion !== 2) {
+    return {
+      ...header,
+      note: 'This assignment was made before Mini App results were scored, so it has no summary.',
+    };
+  }
+  const subs = await sessionDoc.ref.collection('submissions').get();
+  const finished = subs.docs
+    .map((d) => d.data())
+    .filter(
+      (d) =>
+        (isNum(d.attemptCount) && d.attemptCount > 0) ||
+        ((d.payload ?? {}) as Data).completed === true
+    );
+  if (finished.length < MIN_RESPONSES) {
+    return { ...header, ...suppressed(finished.length) };
+  }
+  return {
+    ...header,
+    ...summarizeMiniAppSubmissions(readManifest(s.manifest), finished),
+  };
+}
+
 const sessionTime = (d: admin.firestore.DocumentSnapshot): number =>
   Number(d.get('endedAt') ?? d.get('startedAt') ?? d.get('createdAt') ?? 0);
 
@@ -407,6 +505,55 @@ export function registerResultsTools(
           assignments,
           ...(assignments.length === 0
             ? { note: 'This video activity has not been assigned yet.' }
+            : {}),
+          privacy: PRIVACY,
+        };
+      })
+  );
+
+  server.registerTool(
+    'get_mini_app_results_summary',
+    {
+      title: 'Summarize mini-app results',
+      description: `Class-level results for the newest ${MAX_SESSIONS} assignments of a mini-app that collects results: average best score, score bands, attempts and percent correct per question. Hidden under ${MIN_RESPONSES} students.`,
+      inputSchema: {
+        app_id: z.string().min(1).describe('From list_mini_apps.'),
+        assignment_id: z.string().optional().describe('Omit for the newest.'),
+      },
+      annotations: READ_ONLY,
+    },
+    ({ app_id, assignment_id }) =>
+      run('get_mini_app_results_summary', ctx, async () => {
+        let sessions: admin.firestore.DocumentSnapshot[];
+        if (assignment_id) {
+          const snap = await ownSession(
+            ctx,
+            'mini_app_sessions',
+            assignment_id
+          );
+          if (snap.get('appId') !== app_id) {
+            throw new ToolError('That assignment is for a different mini-app.');
+          }
+          sessions = [snap];
+        } else {
+          const snap = await ctx.db
+            .collection('mini_app_sessions')
+            .where('appId', '==', app_id)
+            .where('teacherUid', '==', ctx.uid)
+            .orderBy('createdAt', 'desc')
+            .limit(MAX_SESSIONS)
+            .get();
+          sessions = snap.docs;
+        }
+        const assignments = [];
+        for (const doc of sessions) {
+          assignments.push(await miniAppSessionSummary(doc));
+        }
+        return {
+          app_id,
+          assignments,
+          ...(assignments.length === 0
+            ? { note: 'This mini-app has not been assigned yet.' }
             : {}),
           privacy: PRIVACY,
         };
