@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { StandardBenchmark } from '@/types';
+import { normalizeStandardCode } from '@/utils/standardsInText';
 
 const CATALOG_COLLECTION = 'standards_catalog';
 
@@ -26,7 +27,7 @@ export function filterBenchmarks(
 
 let catalogPromise: Promise<StandardBenchmark[]> | null = null;
 
-function loadCatalog(): Promise<StandardBenchmark[]> {
+export function loadCatalog(): Promise<StandardBenchmark[]> {
   catalogPromise ??= getDocs(collection(db, CATALOG_COLLECTION))
     .then((snap) => {
       const list: StandardBenchmark[] = [];
@@ -50,6 +51,10 @@ function loadCatalog(): Promise<StandardBenchmark[]> {
     });
   return catalogPromise;
 }
+
+/** Every catalog code, normalized, for spotting real codes in imported text. */
+export const loadCatalogCodes = async (): Promise<ReadonlySet<string>> =>
+  new Set((await loadCatalog()).map((b) => normalizeStandardCode(b.code)));
 
 interface UseStandardsCatalogResult {
   benchmarks: StandardBenchmark[];

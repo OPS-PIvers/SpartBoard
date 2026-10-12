@@ -30,3 +30,5 @@ export const TOUR_ANCHOR_API_TOKEN = defineSecret('TOUR_ANCHOR_API_TOKEN');
 export const CLAUDE_TOUR_ROUTINE_TRIGGER_TOKEN = defineSecret(
   'CLAUDE_TOUR_ROUTINE_TRIGGER_TOKEN'
 );
+// Claude through the Anthropic API; a placeholder value keeps every AI call on Gemini (aiRouter.ts).
+export const ANTHROPIC_API_KEY = defineSecret('ANTHROPIC_API_KEY');

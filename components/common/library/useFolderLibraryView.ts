@@ -54,6 +54,8 @@ export interface FolderViewOptions<TItem> {
   legacyFilter?: (items: TItem[], selectedFolderId: string | null) => TItem[];
   /** Folders of items listed outside `items` (e.g. teammates' banks), counted in folder totals. */
   extraItemFolderIds?: readonly (string | null)[];
+  /** Folder of an item listed outside `items`, for drag moves and Undo. */
+  extraFolderIdOf?: (itemId: string) => string | null;
   /** Overrides the feature flag (tests and fixtures). */
   enabled?: boolean;
 }
@@ -97,6 +99,7 @@ export function useFolderLibraryView<TItem>(
     getFolderId = defaultFolderId,
     getRecentAt = defaultRecentAt,
     extraItemFolderIds,
+    extraFolderIdOf,
     legacyFilter = filterByFolder as (
       list: TItem[],
       selected: string | null
@@ -297,7 +300,8 @@ export function useFolderLibraryView<TItem>(
       searchScope,
       setSearchScope,
       pathByItemId,
-      folderIdOf: (itemId) => folderIdById.get(itemId) ?? null,
+      folderIdOf: (itemId) =>
+        folderIdById.get(itemId) ?? extraFolderIdOf?.(itemId) ?? null,
       emptyFolder:
         showRows &&
         openFolderId != null &&
@@ -320,6 +324,7 @@ export function useFolderLibraryView<TItem>(
     navigate,
     searchScope,
     folderIdById,
+    extraFolderIdOf,
   ]);
 
   const resetToTopLevel = useCallback(() => {

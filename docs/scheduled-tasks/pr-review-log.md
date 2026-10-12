@@ -4687,3 +4687,20 @@ rather than "no data") is also still open.
 - Notes:
   - `gh` is unavailable, so GitHub access went through MCP.
   - #4073's log says `pnpm run validate` was run, which CLAUDE.md forbids unless asked.
+
+## 2026-10-12
+- PRs reviewed:
+  - #4096 test(mcp): cover quizTools and restoreQuizRevision
+  - #4094 Release: promote dev-paul to main (2026-10-12)
+  - #4091 docs(unifier): run 114 log — aligned
+  - #4062 Route every AI call through one helper, with an admin AI tab and Claude support
+- Comments processed: 0 needing action — 0 fixed, 0 explained. No inline review threads. Every bot summary on #4062 and #4094 already had an author reply, and #4096's bot comment was an LGTM.
+- Fixes pushed: none
+- Reviews posted: 4
+- Merge readiness:
+  - Ready: #4096, #4091.
+  - Ready with minor notes:
+    - #4094: the release checklist was answered by the owner. #4062 is not part of this release.
+    - #4062: both blockers from 2026-10-11 are fixed (streamed reply aborts at the timeout; client callables have a 10 s margin). `extractQuizFromDocumentV1` still uses the 70 s client default against a 110 s server deadline with a 45 s Claude window. The branch is behind `dev-paul`.
+- Notes:
+  - `gh` is unavailable, so GitHub access went through MCP.

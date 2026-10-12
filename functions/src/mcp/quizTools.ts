@@ -33,12 +33,7 @@ import {
   type QuizKind,
   type StoredQuestion,
 } from './quizStore';
-import {
-  MAX_STANDARDS_PER_QUESTION,
-  applyStandards,
-  loadBenchmarks,
-  normalizeStandardRef,
-} from './standards';
+import { prepareTargets, targetInputFields } from './targets';
 import {
   CREATES,
   OVERWRITES,
@@ -134,17 +129,11 @@ const questionSchema = z.object({
     .describe('free_response hint text.'),
   min_words: z.number().int().min(0).max(5000).optional(),
   max_words: z.number().int().min(1).max(5000).optional(),
-  standards: z
-    .array(z.string().max(40))
-    .max(MAX_STANDARDS_PER_QUESTION)
-    .optional()
-    .describe(
-      "Minnesota benchmark codes (ELA, Social Studies, Math, Science, Physical Education or Arts), e.g. 6.1.2.1 or 7L.3.1.1.1, or World Language Can-Do codes like WL.3.2.1 (level.mode.indicator). A code in more than one set needs the full id, e.g. mn-math-2022:6.1.2.1. Replaces the question's standards; omit to keep them."
-    ),
+  ...targetInputFields,
 });
 
 const QUESTION_HELP =
-  'Types: multiple_choice (correct_answer + 1-4 incorrect_answers), choose_all (correct_answers + incorrect_answers), fill_in_blank (correct_answer + accepted_alternates, or blanks when the text has several ___), matching (pairs + extra_matches), ordering (items_in_order), free_response (no key). Plain text.';
+  "Types: multiple_choice (correct_answer + 1-4 incorrect_answers), choose_all (correct_answers + incorrect_answers), fill_in_blank (correct_answer + accepted_alternates, or blanks when the text has several ___), matching (pairs + extra_matches), ordering (items_in_order), free_response (no key). Plain text. Put standards and learning targets in standards and learning_targets, which fill the editor's Learning Targets field.";
 
 const toolNames = (kind: QuizKind) =>
   kind === 'quiz'
@@ -180,10 +169,11 @@ async function buildQuestions(
 ): Promise<StoredQuestion[]> {
   const byId = new Map(previous.map((q) => [q.id, q]));
   const used = new Set<string>();
-  const refs = inputs
-    .flatMap((q) => q.standards ?? [])
-    .map(normalizeStandardRef);
-  const catalog = await loadBenchmarks(ctx.db, [...new Set(refs)]);
+  const applyTargets = await prepareTargets(
+    ctx,
+    inputs,
+    previous.flatMap((q) => q.targets ?? [])
+  );
   return inputs.map((input, i) => {
     const existing =
       input.id && byId.has(input.id) && !used.has(input.id)
@@ -191,16 +181,9 @@ async function buildQuestions(
         : undefined;
     const q = toStoredQuestion(input, i + 1, existing, randomUUID);
     used.add(q.id);
-    if (input.standards !== undefined) {
-      const targets = applyStandards(
-        i + 1,
-        q.targets,
-        input.standards,
-        catalog
-      );
-      if (targets.length > 0) q.targets = targets;
-      else delete q.targets;
-    }
+    const targets = applyTargets(i + 1, q.targets, input);
+    if (targets) q.targets = targets;
+    else delete q.targets;
     return q;
   });
 }

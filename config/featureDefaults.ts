@@ -55,6 +55,7 @@ import {
   Volume2,
   Wand2,
   Zap,
+  BookMarked,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -746,6 +747,16 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  'standards-from-question-text': {
+    label: 'Standards typed in questions',
+    icon: BookMarked,
+    description: 'Codes in question text become Learning targets.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Full-screen toggle on large pop-ups. Admin-only until Paul has tried it on a Chromebook.
   'modal-fullscreen': {
     label: 'Full screen for large pop-ups',
@@ -1354,6 +1365,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Quiz live monitor cleanup',
     icon: LayoutDashboard,
     description: 'Simpler Quiz live monitor with Close all and footer buttons.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'quiz-banks-in-library': {
+    label: 'Question banks in Quiz library',
+    icon: Library,
+    description: 'Question banks open from the Quiz library sidebar.',
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'quiz',

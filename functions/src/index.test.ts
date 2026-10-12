@@ -1410,6 +1410,30 @@ describe('adminAnalytics', () => {
     expect(result.api.totalCalls).toBe(3);
   });
 
+  it('leaves read-aloud text-to-speech out of AI usage', async () => {
+    mockFirestoreState.users = [
+      {
+        id: 'uid1',
+        data: {
+          email: 'teacher@district.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+    ];
+    mockFirestoreState.dashboards = [];
+    mockFirestoreState.aiUsage = [
+      { id: 'uid1_2026-06-10', data: { count: 2 } },
+      { id: 'uid1_tts_2026-06-10', data: { count: 40, chars: 9000 } },
+      { id: 'global_tts_2026-06', data: { neural2Chars: 9000 } },
+    ];
+
+    const result = await computeAnalyticsForOrg('orono');
+
+    expect(result.api.byFeature['tts']).toBeUndefined();
+    expect(result.api.totalCalls).toBe(2);
+  });
+
   it('adds paper and translation counts to the totals, which have no overall doc', async () => {
     mockFirestoreState.users = [
       {
@@ -2302,6 +2326,13 @@ describe('recomputeAdminAnalytics (scheduled)', () => {
     mockFirestoreState.activityDays = new Map();
     mockFirestoreState.studentSections = [];
     mockFirestoreState.studentResponses = [];
+    // The 5 AM CDT run; midday runs skip saving the day.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(Date.UTC(2026, 9, 2, 10, 0, 30));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('records student days and estimates past ones from assignment opens', async () => {
@@ -2382,6 +2413,48 @@ describe('recomputeAdminAnalytics (scheduled)', () => {
     expect(snapshot.payload.history?.days.at(-1)).toEqual(
       expect.objectContaining({ dau: 1, mau: 2, estimated: false })
     );
+  });
+
+  it('refreshes KPIs at midday without saving a day or running the estimate', async () => {
+    vi.setSystemTime(Date.UTC(2026, 9, 2, 17, 0, 30));
+    mockFirestoreState.organizations = [{ id: 'orono', status: 'active' }];
+    mockFirestoreState.users = [
+      {
+        id: 'uid-1',
+        data: { email: 'a@orono.k12.mn.us', lastLogin: Date.now() },
+      },
+    ];
+    mockFirestoreState.studentSections = [
+      { id: 'stu-1', orgId: 'orono', updatedAt: Date.now() - 60 * 1000 },
+    ];
+    mockFirestoreState.activityDays.set(
+      'organizations/orono/analytics_days/2026-10-01',
+      { activeUids: ['uid-1'], estimated: false }
+    );
+    await (recomputeAdminAnalytics as unknown as () => Promise<void>)();
+
+    expect([...mockFirestoreState.activityDays.keys()]).toEqual([
+      'organizations/orono/analytics_days/2026-10-01',
+    ]);
+    expect(
+      mockFirestoreState.docs.get(
+        'organizations/orono/analytics/history_estimate'
+      )
+    ).toBeUndefined();
+    expect(
+      mockFirestoreState.docs.get(
+        'organizations/orono/analytics/student_history_estimate'
+      )
+    ).toBeUndefined();
+    const snapshot = mockFirestoreState.docs.get(
+      'organizations/orono/analytics/snapshot'
+    ) as unknown as AnalyticsSnapshotDoc;
+    expect(snapshot.payload.users.total).toBe(1);
+    expect(snapshot.payload.history?.days.at(-1)).toEqual(
+      expect.objectContaining({ date: '2026-10-01', dau: 1 })
+    );
+    // Next run is 3 PM CDT.
+    expect(snapshot.nextRecomputeAt).toBe(Date.UTC(2026, 9, 2, 20));
   });
 
   it('still writes the KPI snapshot when history fails', async () => {
@@ -2499,17 +2572,15 @@ describe('recomputeAdminAnalytics (scheduled)', () => {
       )
     ).toBeUndefined();
 
-    // Snapshot shape: schemaVersion + computedAt + nextRecomputeAt (24h
-    // delta) + payload. Lock in the contract the reader at
+    // Snapshot shape: schemaVersion + computedAt + nextRecomputeAt (the
+    // noon run) + payload. Lock in the contract the reader at
     // `readAnalyticsSnapshot` enforces.
     const written = mockFirestoreState.docs.get(
       'organizations/orono/analytics/snapshot'
     ) as unknown as AnalyticsSnapshotDoc;
     expect(written.schemaVersion).toBe(SNAPSHOT_SCHEMA_VERSION);
     expect(typeof written.computedAt).toBe('number');
-    expect(written.nextRecomputeAt).toBe(
-      written.computedAt + 24 * 60 * 60 * 1000
-    );
+    expect(written.nextRecomputeAt).toBe(Date.UTC(2026, 9, 2, 17));
     expect(written.payload.users.total).toBe(1);
   });
 
@@ -3560,6 +3631,7 @@ describe('index barrel — deployed export set', () => {
     'translateQuizV1',
     'translateResponseV1',
     'generateGuidedLearning',
+    'getAiProviderStatusV1',
     'draftGuidedLearningStepTextV1',
     'validateAndBucketVideoQuestions',
     'validateAndBucketQuizQuestions',

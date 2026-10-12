@@ -10,7 +10,7 @@ import { buildQuizSearchText } from '@/utils/quizSearchText';
 
 /** Fields preserved across saves so the editor can't drop them. */
 export type PreservedBankMetadata = Partial<
-  Pick<QuestionBankMetadata, 'folderId' | 'order' | 'sync'>
+  Pick<QuestionBankMetadata, 'folderId' | 'libraryFolderId' | 'order' | 'sync'>
 > | null;
 
 /** Firestore rejects `undefined`; drop those keys before any write. */
@@ -40,6 +40,7 @@ export function buildBankMetadata(
     createdAt: bank.createdAt,
     updatedAt: bank.updatedAt,
     folderId: preserved?.folderId,
+    libraryFolderId: preserved?.libraryFolderId,
     order: preserved?.order,
     sync: preserved?.sync ? cloneSync(preserved.sync) : undefined,
   });

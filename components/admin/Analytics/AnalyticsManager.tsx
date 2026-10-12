@@ -47,6 +47,7 @@ import { LinksPanel } from './LinksPanel';
 import { ActiveStudentsModal } from './ActiveStudentsModal';
 import { type StudentKpiCategory } from './activeStudents';
 import { AI_FEATURE_LABELS } from './aiFeatureLabels';
+import { AiModelSpendPanel } from './AiModelSpendPanel';
 import { WIDGET_LABELS } from './widgetLabels';
 import {
   type AnalyticsHistory,
@@ -918,6 +919,8 @@ const AiPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
           value={data.api.avgDailyCallsPerUser.toFixed(1)}
         />
       </div>
+
+      <AiModelSpendPanel />
 
       <PanelCard title="AI Feature Breakdown">
         {featureRows.length === 0 ? (

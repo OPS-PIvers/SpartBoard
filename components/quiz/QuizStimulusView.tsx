@@ -505,10 +505,14 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
       } catch (err) {
         if (cancelled) return;
         console.warn('[PdfStimulus] pdf.js render failed:', err);
-        onLoadErrorRef.current?.(stimulus.id);
         // Drive-hosted PDFs degrade to the preview iframe so students are
         // never stranded; pasted non-Drive URLs show the error card.
-        setState(stimulus.driveFileId ? 'fallback' : 'error');
+        if (stimulus.driveFileId) {
+          setState('fallback');
+        } else {
+          onLoadErrorRef.current?.(stimulus.id);
+          setState('error');
+        }
       }
     };
     void run();

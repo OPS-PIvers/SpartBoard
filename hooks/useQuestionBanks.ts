@@ -63,6 +63,11 @@ export interface UseQuestionBanksResult {
   /** Private fork: new id + Drive file, never inherits `sync`. */
   duplicateBank: (meta: QuestionBankMetadata) => Promise<QuestionBankMetadata>;
   reorderBanks: (orderedIds: string[]) => Promise<void>;
+  /** Files a bank in a Quiz library folder (null = the top level). */
+  moveBankToLibraryFolder: (
+    bankId: string,
+    folderId: string | null
+  ) => Promise<void>;
   shareBankWithPlc: (
     meta: QuestionBankMetadata,
     plcId: string
@@ -307,6 +312,7 @@ export const useQuestionBanks = (
         createdDriveFileId = await drive.saveBank(fresh);
         const metadata = buildBankMetadata(fresh, createdDriveFileId, {
           folderId: meta.folderId,
+          libraryFolderId: meta.libraryFolderId,
         });
         await setDoc(bankMetaRef(userId, fresh.id), metadata);
         return metadata;
@@ -335,6 +341,16 @@ export const useQuestionBanks = (
         batch.update(bankMetaRef(userId, id), { order: index });
       });
       await batch.commit();
+    },
+    [userId]
+  );
+
+  const moveBankToLibraryFolder = useCallback(
+    async (bankId: string, folderId: string | null): Promise<void> => {
+      if (!userId) throw new Error('Not authenticated');
+      await updateDoc(bankMetaRef(userId, bankId), {
+        libraryFolderId: folderId,
+      });
     },
     [userId]
   );
@@ -448,6 +464,7 @@ export const useQuestionBanks = (
     deleteBank,
     duplicateBank,
     reorderBanks,
+    moveBankToLibraryFolder,
     shareBankWithPlc,
     unshareBankFromPlc,
     appendQuestionsToBank,

@@ -26,6 +26,8 @@ export interface VideoFriendlyQuestion {
   points?: number;
   time_limit_seconds?: number;
   partial_credit?: boolean;
+  standards?: string[];
+  learning_targets?: string[];
 }
 
 export interface VideoQuestion extends StoredQuestion {

@@ -240,6 +240,15 @@ const PERIOD_ACCESS: AssignPeriodAccessContext = {
 const QuizView: React.FC<{ variant?: 'quiz' | 'review' }> = ({ variant }) => {
   const [tab, setTab] = useState<QuizManagerTab>('library');
   const [quizzes, setQuizzes] = useState(QUIZZES);
+  const [banks, setBanks] = useState(BANKS);
+  const moveBank = (bankId: string, folderId: string | null): Promise<void> => {
+    setBanks((prev) =>
+      prev.map((b) =>
+        b.id === bankId ? { ...b, libraryFolderId: folderId } : b
+      )
+    );
+    return Promise.resolve();
+  };
   const reorderQuizzes = (ids: string[]): void =>
     setQuizzes((prev) => prev.map((q) => ({ ...q, order: ids.indexOf(q.id) })));
   return (
@@ -263,10 +272,13 @@ const QuizView: React.FC<{ variant?: 'quiz' | 'review' }> = ({ variant }) => {
       config={QUIZ_CONFIG}
       managerTab={tab}
       onTabChange={setTab}
-      banks={BANKS}
+      banks={banks}
+      onMoveBankToLibraryFolder={moveBank}
       banksLoading={false}
       sharedBankSources={[]}
       onNewBank={noop}
+      onImportBank={noop}
+      onNewPaperTest={noop}
       onEditBank={noop}
       onDuplicateBank={noop}
       onDeleteBank={noop}

@@ -70,6 +70,17 @@ export type FolderDeleteActions = Pick<
   'deleteItems' | 'isBlocked' | 'blockedReason'
 >;
 
+export interface FolderSidebarExtraNav {
+  id: string;
+  icon: LucideIcon;
+  label: string;
+  count?: number;
+  /** When set, nothing else in the sidebar shows as selected. */
+  selected?: boolean;
+  onClick: () => void;
+  anchor?: TourAnchorAttrs;
+}
+
 export interface FolderSidebarProps {
   /** Which widget's folder tree to render. Reserved for future use. */
   widget: LibraryFolderWidget;
@@ -117,6 +128,8 @@ export interface FolderSidebarProps {
   /** Folder view model; when set the panel navigates places instead of filtering. */
   folderView?: LibraryFolderViewModel | null;
 
+  /** Links to another library (e.g. Quiz to Question banks), below a divider. */
+  extraNav?: FolderSidebarExtraNav[];
   anchors?: {
     newFolder?: TourAnchorAttrs;
     root?: TourAnchorAttrs;
@@ -142,6 +155,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
   error = null,
   enableDrop = false,
   folderView = null,
+  extraNav,
   anchors,
 }) => {
   const rootDropData = useMemo<FolderDropData>(
@@ -368,13 +382,18 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
     for (const [id, t] of folderView.totals) out[id] = t.items;
     return out;
   }, [folderView, itemCounts]);
+  const extraSelected = extraNav?.some((nav) => nav.selected) ?? false;
   const isAt = (target: LibraryLocation): boolean =>
-    folderView != null && sameLocation(folderView.location, target);
-  const treeSelectedId = folderView
-    ? folderView.location.kind === 'folder'
-      ? folderView.location.folderId
-      : NO_FOLDER_SELECTED
-    : selectedFolderId;
+    !extraSelected &&
+    folderView != null &&
+    sameLocation(folderView.location, target);
+  const treeSelectedId = extraSelected
+    ? NO_FOLDER_SELECTED
+    : folderView
+      ? folderView.location.kind === 'folder'
+        ? folderView.location.folderId
+        : NO_FOLDER_SELECTED
+      : selectedFolderId;
   const selectFolder = (folderId: string | null): void => {
     if (folderView) folderView.navigate({ kind: 'folder', folderId });
     else onSelectFolder(folderId);
@@ -435,7 +454,7 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
         selected={
           folderView
             ? isAt({ kind: 'folder', folderId: null })
-            : selectedFolderId === null
+            : !extraSelected && selectedFolderId === null
         }
         count={folderView ? undefined : totalItemCount}
         onClick={() => selectFolder(null)}
@@ -557,6 +576,28 @@ export const FolderSidebar: React.FC<FolderSidebarProps> = ({
             onClick={() => folderView.navigate({ kind: 'recent' })}
             tourId="library-shell.folder-view-recent"
           />
+        </>
+      )}
+
+      {extraNav && extraNav.length > 0 && (
+        <>
+          <div
+            className="border-t border-brand-gray-lightest"
+            style={{ marginBlock: 'min(6px, 1.5cqmin)' }}
+            role="separator"
+          />
+          {extraNav.map((nav) => (
+            <SidebarNavButton
+              key={nav.id}
+              anchor={nav.anchor}
+              isRail={isRail}
+              icon={nav.icon}
+              label={nav.label}
+              selected={nav.selected ?? false}
+              count={nav.count}
+              onClick={nav.onClick}
+            />
+          ))}
         </>
       )}
 

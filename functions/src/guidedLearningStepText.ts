@@ -1,6 +1,7 @@
 // Recorder step-text drafting (docs/plans/shipped/GUIDED_LEARNING_STUDIO.md P3-3): request parsing, prompt and output clamping.
 import { HttpsError } from 'firebase-functions/v2/https';
 import { sanitizePrompt } from './sanitize';
+import type { AiPart } from './aiRouter';
 
 export const STEP_TEXT_MAX_STEPS = 20;
 export const STEP_TEXT_MAX_LABEL_WORDS = 4;
@@ -91,10 +92,8 @@ Rules:
 - Plain words. No "Let's", "Simply", "Just", "Now", "Great", "Notice", "explore", "journey", no exclamation marks, no em-dashes, no questions.
 - Never mention the screenshot, the tour or step numbers.`;
 
-type Part = { text?: string; inlineData?: { mimeType: string; data: string } };
-
-export function buildStepTextParts(request: StepTextRequest): Part[] {
-  const parts: Part[] = [
+export function buildStepTextParts(request: StepTextRequest): AiPart[] {
+  const parts: AiPart[] = [
     {
       text: request.goal
         ? `Goal of the walkthrough: ${sanitizePrompt(request.goal)}`
