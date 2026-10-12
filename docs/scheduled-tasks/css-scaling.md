@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-11_
+_Last audited: 2026-10-12_
 _Last action: 2026-09-24 — MEDIUM `QuizStimulusView.tsx` zero-`cqmin` blocker resolved: added an optional `cqScaled?: boolean` prop (default `false`) threaded through every subcomponent in the file, applying `min(Xpx, Ycqmin)` inline styles only when set, so the two CQ-container consumers (`CurrentQuestionCard.tsx`, `QuizPreview.tsx`) now scale while the two non-CQ consumers (`QuizStudentApp.tsx`, `FreeResponseGrader.tsx`) keep today's fixed styling untouched — the same `cqScaled` pattern proven on `AssignTargetingSection.tsx`. 1250/1250 relevant tests pass. Item moved to Completed. PR opened against dev-paul._
 
 _2026-10-11: Daily audit (Sunday). Scan of `components/widgets/**/Widget.tsx` for `max-[hw]-[Npx]` and large fixed `w/h-[Npx]` found only two fixed-position DrawingWidget popovers (`min-w-[200px]`, `w-[260px]`, lines ~1300/1390), which are portaled overlays and not content-area caps. 0 new issues; existing Open items unchanged._
@@ -49,6 +49,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-10-12: Daily audit (Monday). 0 `max-[Npx]`/`max-w-[Npx]` classes in any `Widget.tsx`; the merge diff of `origin/dev-paul` added no new hardcoded width/height or fixed `w-N h-N` lines to any `Widget.tsx`. Existing Open items not re-verified line by line this cycle. 0 new issues._
 
 _2026-10-11 action: Sunday daily run. Nothing In Progress. No HIGH/MEDIUM Open items in widget-registry or css-scaling (typescript-eslint has none); picked css-scaling's first LOW (GL callout title margins). Recency check clean (last touch `ac84a8f9`, not in the branch's 5 latest commits). Fixed both files; moved to Completed._
 

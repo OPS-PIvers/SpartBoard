@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-11_
+_Last audited: 2026-10-12_
 _Last action: 2026-10-07 — LOW `projects` scaling base updated to 620×560 to match its spawn size. Prior: 2026-09-26 — LOW `WIDGET_DEFAULTS` `as XConfig` trio resolved for `specialist-schedule`/`graphic-organizer`/`reveal-grid`: changed all three from `as` to `satisfies` per the skill's Step 5 guidance, with no field changes needed since every required field was already present. Moved to Completed._
 
 _2026-10-10: Daily audit (Saturday). `WidgetType` 68, 0 duplicates. Scripted cross-reference: `WIDGET_COMPONENTS` 67/68 (only `sticker`, documented), `WIDGET_SCALING_CONFIG` 68/68, `WIDGET_DEFAULTS`/`WIDGET_GRADE_LEVELS` complete, `config/tools.ts` gaps exactly the 7 documented exclusions (0 orphans beyond `magic`/`record`/`remote`), `WIDGET_SETTINGS_SCHEMAS` 64/68 (missing `blooms-detail`/`onboarding`/`sticker` documented plus `routineGuide`, already tracked). Legacy settings/appearance maps empty. All 65 `lazyNamed()` calls resolve to real exports. 0 new issues._
@@ -39,6 +39,8 @@ _Nothing currently in progress._
 _2026-09-26 action: Item selection ran across today's reading list (the three dailies only — no weekly journal carries a Saturday cadence). Nothing In Progress anywhere. All Open items across all three dailies were LOW severity (widget-registry's 3, css-scaling's 17, typescript-eslint's 0 structured items), so priority fell to journal order among dailies (widget-registry > css-scaling > typescript-eslint) and then document order within this journal: the `as XConfig` trio, first of this journal's 3 Open items. File-recency check passed: `git log --oneline -10 -- config/widgetDefaults.ts` returned `88a00fe`/`8f90d50`, neither among `scheduled-tasks`' 10 most recent commits, so the file wasn't touched by another agent in the last 5 commits. Changed `as SpecialistScheduleConfig`/`as GraphicOrganizerConfig`/`as RevealGridConfig` to `satisfies` on all three (no field changes needed — this journal's own prior audits had already confirmed every required field present on all three literals). `pnpm exec vitest related --run config/widgetDefaults.ts` — 301 test files / 3114 tests, all passed. PR opened to `dev-paul`. Moved to Completed._
 
 ## Open
+
+_2026-10-12: Daily audit (Monday), after merging `origin/dev-paul` @ `c7605470`. Scripted cross-reference: `WidgetType` 68, 0 duplicates; `WIDGET_COMPONENTS` 67/68 (`sticker`, documented); `WIDGET_SCALING_CONFIG` 68/68; `WIDGET_DEFAULTS` 68/68; `WIDGET_GRADE_LEVELS` 71 = 68 + `magic`/`record`/`remote`; `config/tools.ts` 64 types, gaps exactly the 7 documented exclusions; legacy settings/appearance maps still empty (documented migration). 0 new issues; existing Open items unchanged._
 
 _2026-10-08: Thursday daily audit (merged `origin/dev-paul` @ `5b543ff2` first). `WidgetType` now 68 members. `WIDGET_COMPONENTS` 67/68 (`sticker` absent, documented), `WIDGET_SCALING_CONFIG` 68/68, `WIDGET_DEFAULTS` and `WIDGET_GRADE_LEVELS` cover every type with 0 orphans, `config/tools.ts` gaps are exactly the 7 documented exclusions. `WIDGET_SETTINGS_COMPONENTS` and `WIDGET_APPEARANCE_COMPONENTS` are now empty `{}` (all settings schema-driven), so per-type presence checks no longer apply. `pnpm type-check` clean, which type-checks every `lazyNamed()` import. 0 new issues; existing Open items not re-diffed this cycle._
 
