@@ -125,14 +125,38 @@ async function readKey(
   return snap.exists ? (snap.data() as MiniAppAnswerKey) : null;
 }
 
-/** D12: refuses a results app that would not work, only for teachers with results on. */
-async function assertResultsApp(
+interface ResultsInput {
+  collects_results?: boolean;
+  manifest?: MiniAppManifest;
+  answer_key?: MiniAppAnswerKey;
+}
+
+const RESULTS_OFF_NOTE =
+  "Results scoring isn't on for this teacher, so collects_results, manifest and answer_key were not saved.";
+
+/** Results fields only count for teachers with results on; for everyone else they are dropped. */
+async function resultsInput(
   ctx: ToolContext,
-  html: string,
-  manifest: unknown,
-  key: unknown
-): Promise<void> {
-  if (!(await miniAppResultsOn(ctx))) return;
+  input: ResultsInput
+): Promise<ResultsInput & { ignored: boolean }> {
+  const sent =
+    input.collects_results !== undefined ||
+    input.manifest !== undefined ||
+    input.answer_key !== undefined;
+  if (!sent) return { ignored: false };
+  if (await miniAppResultsOn(ctx)) {
+    return {
+      collects_results: input.collects_results,
+      manifest: input.manifest,
+      answer_key: input.answer_key,
+      ignored: false,
+    };
+  }
+  return { ignored: true };
+}
+
+/** D12: refuses a results app that would not work. */
+function assertResultsApp(html: string, manifest: unknown, key: unknown): void {
   const problems = checkMiniAppSource(html, manifest, key);
   if (problems.length > 0) {
     throw new ToolError(
@@ -356,9 +380,10 @@ export function registerMiniAppTools(
       run('create_mini_app', ctx, async () => {
         const html = assertHtml(input.html);
         await assertFolder(ctx, 'mini_apps', input.folder_id);
-        const collects = input.collects_results === true;
+        const results = await resultsInput(ctx, input);
+        const collects = results.collects_results === true;
         if (collects)
-          await assertResultsApp(ctx, html, input.manifest, input.answer_key);
+          assertResultsApp(html, results.manifest, results.answer_key);
         await reserveWrite(ctx);
         const col = ctx.db.collection(`users/${ctx.uid}/${COLLECTION}`);
         // New apps land first: order = min(existing) - 1, as handleCreate does.
@@ -377,16 +402,16 @@ export function registerMiniAppTools(
           claudeCreatedAt: now,
           [REVIEW_MARK]: now,
           ...(input.folder_id ? { folderId: input.folder_id } : {}),
-          ...(input.collects_results !== undefined
+          ...(results.collects_results !== undefined
             ? { collectsResults: collects }
             : {}),
-          ...(input.manifest ? { manifest: input.manifest } : {}),
+          ...(results.manifest ? { manifest: results.manifest } : {}),
         };
         const batch = ctx.db.batch();
         batch.set(col.doc(app.id), app);
-        if (input.answer_key)
+        if (results.answer_key)
           batch.set(ctx.db.doc(keyPath(ctx.uid, app.id)), {
-            questions: input.answer_key.questions,
+            questions: results.answer_key.questions,
           });
         logActivity(ctx, batch, {
           action: 'create',
@@ -398,6 +423,7 @@ export function registerMiniAppTools(
         return {
           ...summarize(app.id, app),
           where_to_find_it: 'SpartBoard > Mini App widget > library',
+          ...(results.ignored ? { note: RESULTS_OFF_NOTE } : {}),
         };
       })
   );
@@ -434,22 +460,22 @@ export function registerMiniAppTools(
           );
         }
         const existingKey = await readKey(ctx, input.app_id);
+        const results = await resultsInput(ctx, input);
         const collects =
-          input.collects_results ?? existing.collectsResults === true;
+          results.collects_results ?? existing.collectsResults === true;
         const touchesResults =
           html !== undefined ||
-          input.collects_results !== undefined ||
-          input.manifest !== undefined ||
-          input.answer_key !== undefined;
-        if (collects && touchesResults)
-          await assertResultsApp(
-            ctx,
+          results.collects_results !== undefined ||
+          results.manifest !== undefined ||
+          results.answer_key !== undefined;
+        if (collects && touchesResults && (await miniAppResultsOn(ctx)))
+          assertResultsApp(
             html ?? existing.html,
-            input.manifest ?? existing.manifest,
-            input.answer_key ?? existingKey
+            results.manifest ?? existing.manifest,
+            results.answer_key ?? existingKey
           );
         await reserveWrite(ctx);
-        return saveEdit(
+        const saved = await saveEdit(
           ctx,
           existing,
           {
@@ -459,17 +485,20 @@ export function registerMiniAppTools(
             ...(input.folder_id === undefined
               ? {}
               : { folderId: input.folder_id }),
-            ...(input.collects_results === undefined
+            ...(results.collects_results === undefined
               ? {}
-              : { collectsResults: input.collects_results }),
-            ...(input.manifest ? { manifest: input.manifest } : {}),
+              : { collectsResults: results.collects_results }),
+            ...(results.manifest ? { manifest: results.manifest } : {}),
           },
           'update',
           {
             previous: existingKey,
-            ...(input.answer_key ? { next: input.answer_key } : {}),
+            ...(results.answer_key ? { next: results.answer_key } : {}),
           }
         );
+        return results.ignored
+          ? { ...saved, note: `${saved.note} ${RESULTS_OFF_NOTE}` }
+          : saved;
       })
   );
 }

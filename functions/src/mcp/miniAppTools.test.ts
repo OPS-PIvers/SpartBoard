@@ -238,17 +238,33 @@ describe('create_mini_app with results', () => {
     });
   });
 
-  it('skips the check when results are off for the teacher', async () => {
+  it('drops results fields when results are off for the teacher', async () => {
     flag.granted = false;
-    const { db } = fakeDb();
+    const { db, docs } = fakeDb();
     const call = await connect(db);
     const res = await call('create_mini_app', {
       title: 'Inert',
       html: '<p>hi</p>',
       collects_results: true,
       manifest: MANIFEST,
+      answer_key: KEY,
     });
-    expect(res.error).toBeUndefined();
+    expect(res.note).toMatch(/Results scoring isn't on/);
+    const id = String(res.app_id);
+    const app = docs.get(`users/u1/miniapps/${id}`);
+    expect(app).not.toHaveProperty('collectsResults');
+    expect(app).not.toHaveProperty('manifest');
+    expect(docs.has(`users/u1/mini_app_keys/${id}`)).toBe(false);
+    const upd = await call('update_mini_app', {
+      app_id: id,
+      collects_results: true,
+      answer_key: KEY,
+    });
+    expect(upd.note).toMatch(/Results scoring isn't on/);
+    expect(docs.get(`users/u1/miniapps/${id}`)).not.toHaveProperty(
+      'collectsResults'
+    );
+    expect(docs.has(`users/u1/mini_app_keys/${id}`)).toBe(false);
   });
 
   it('leaves a plain app without results fields', async () => {
