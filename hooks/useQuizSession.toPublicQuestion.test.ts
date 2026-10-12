@@ -252,4 +252,87 @@ describe('toPublicQuestion', () => {
     });
     expect(projected.localized?.es.choices).toBeUndefined();
   });
+
+  describe('rubric visibility', () => {
+    const rubric = {
+      id: 'r1',
+      title: 'Planets',
+      description: 'How the answer is scored',
+      createdAt: 1,
+      updatedAt: 2,
+      criteria: [
+        {
+          id: 'c1',
+          name: 'Evidence',
+          description: 'Mentions the greenhouse effect',
+          levels: [
+            {
+              id: 'l1',
+              label: 'Beginning',
+              points: 1,
+              description: 'One idea',
+            },
+            {
+              id: 'l2',
+              label: 'Proficient',
+              points: 2,
+              description: 'Two ideas',
+            },
+          ],
+        },
+      ],
+    };
+    const fr: QuizQuestion = {
+      id: 'q-fr',
+      timeLimit: 0,
+      type: 'free-response',
+      text: 'Explain.',
+      correctAnswer: '',
+      incorrectAnswers: [],
+      rubricSnapshot: rubric,
+    };
+
+    it('projects the full rubric when the gate is off', () => {
+      const projected = toPublicQuestion(fr);
+      expect(projected.rubricSnapshot).toEqual(rubric);
+      expect(projected).not.toHaveProperty('rubricHidden');
+    });
+
+    it('hides the rubric by default when the gate is on, keeping only scored-results fields', () => {
+      const projected = toPublicQuestion(
+        fr,
+        { es: { text: 'Explica.', rubricSnapshot: rubric } },
+        { hideRubricUnlessShown: true }
+      );
+      expect(projected.rubricHidden).toBe(true);
+      const expected = {
+        id: 'r1',
+        title: 'Planets',
+        createdAt: 1,
+        updatedAt: 2,
+        criteria: [
+          {
+            id: 'c1',
+            name: 'Evidence',
+            levels: [
+              { id: 'l1', label: 'Beginning', points: 1 },
+              { id: 'l2', label: 'Proficient', points: 2 },
+            ],
+          },
+        ],
+      };
+      expect(projected.rubricSnapshot).toEqual(expected);
+      expect(projected.localized?.es.rubricSnapshot).toEqual(expected);
+    });
+
+    it('projects the full rubric when the teacher shows it to students', () => {
+      const projected = toPublicQuestion(
+        { ...fr, rubricVisibleToStudents: true },
+        undefined,
+        { hideRubricUnlessShown: true }
+      );
+      expect(projected.rubricSnapshot).toEqual(rubric);
+      expect(projected).not.toHaveProperty('rubricHidden');
+    });
+  });
 });

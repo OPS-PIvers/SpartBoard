@@ -191,6 +191,8 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
       (qa.stimulusIds ?? []).join('|') !== (qb.stimulusIds ?? []).join('|') ||
       targetIdsKey(qa.targets) !== targetIdsKey(qb.targets) ||
       (qa.rubricId ?? '') !== (qb.rubricId ?? '') ||
+      (qa.rubricVisibleToStudents === true) !==
+        (qb.rubricVisibleToStudents === true) ||
       recordingKey(qa.recording) !== recordingKey(qb.recording) ||
       rubricSnapshotKey(qa.rubricSnapshot) !==
         rubricSnapshotKey(qb.rubricSnapshot)

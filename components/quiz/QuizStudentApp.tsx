@@ -4147,12 +4147,13 @@ export const ActiveQuiz: React.FC<{
 
               {!recordingConfig && isFreeResponseType(currentQuestion.type) && (
                 <div className="space-y-4">
-                  {displayQuestion.rubricSnapshot && (
-                    <CollapsibleRubric
-                      rubric={displayQuestion.rubricSnapshot}
-                      light={light}
-                    />
-                  )}
+                  {displayQuestion.rubricSnapshot &&
+                    !currentQuestion.rubricHidden && (
+                      <CollapsibleRubric
+                        rubric={displayQuestion.rubricSnapshot}
+                        light={light}
+                      />
+                    )}
                   <React.Suspense
                     fallback={
                       <div

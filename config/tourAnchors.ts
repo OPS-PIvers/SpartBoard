@@ -1359,6 +1359,11 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
+  'quiz-editor.rubric-show-students': {
+    label: 'Rubric: Show to students checkbox in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-editor.rubric-attach': {
     label: 'Attach rubric in the Quiz editor',
     perWidgetType: true,

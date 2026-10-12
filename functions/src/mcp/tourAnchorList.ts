@@ -1880,6 +1880,12 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     destructive: true,
   },
   {
+    id: 'quiz-editor.rubric-show-students',
+    label: 'Rubric: Show to students checkbox in the Quiz editor',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
     id: 'quiz-editor.rubric-attach',
     label: 'Attach rubric in the Quiz editor',
     scope: 'widget type',
