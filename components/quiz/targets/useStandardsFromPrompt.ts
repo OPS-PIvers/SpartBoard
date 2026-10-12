@@ -13,7 +13,8 @@ import {
 interface Taken {
   questionId: string;
   codes: string[];
-  before: { text: string; targets: QuestionTargetTag[] | undefined };
+  before: Patch;
+  after: Patch;
 }
 
 interface Patch {
@@ -56,14 +57,16 @@ export function useStandardsFromPrompt(
       const added = out.matched
         .map(tagFromBenchmark)
         .filter((tag) => !have.some((t) => t.id === tag.id));
-      updateQuestion(questionId, {
+      const after = {
         text: out.text,
         targets: [...have, ...added].length ? [...have, ...added] : undefined,
-      });
+      };
+      updateQuestion(questionId, after);
       setTaken({
         questionId,
         codes: out.matched.map((b) => b.code),
         before: { text, targets },
+        after,
       });
     },
     [
@@ -76,11 +79,31 @@ export function useStandardsFromPrompt(
     ]
   );
 
+  /** Undo is offered only while the question is exactly as tagging left it. */
+  const isCurrent = (
+    questionId: string,
+    text: string,
+    targets: QuestionTargetTag[] | undefined
+  ) =>
+    taken?.questionId === questionId &&
+    taken.after.text === text &&
+    JSON.stringify(taken.after.targets) === JSON.stringify(targets);
+
   const undo = useCallback(() => {
     if (!taken) return;
-    updateQuestion(taken.questionId, taken.before);
+    if (
+      currentText() === taken.after.text &&
+      JSON.stringify(currentTargets()) === JSON.stringify(taken.after.targets)
+    )
+      updateQuestion(taken.questionId, taken.before);
     setTaken(null);
-  }, [taken, updateQuestion]);
+  }, [taken, currentText, currentTargets, updateQuestion]);
 
-  return { taken, onPromptBlur, undo, dismiss: () => setTaken(null) };
+  return {
+    taken,
+    isCurrent,
+    onPromptBlur,
+    undo,
+    dismiss: () => setTaken(null),
+  };
 }

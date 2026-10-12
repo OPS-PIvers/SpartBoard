@@ -1037,9 +1037,9 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           ) : (
             <p className="text-xs text-slate-500">No targets.</p>
           )}
-          {promptStandards.taken?.questionId === q.id && (
+          {promptStandards.isCurrent(q.id, q.text, q.targets) && (
             <p className="mt-1 text-xs text-slate-500" role="status">
-              {`Tagged ${promptStandards.taken.codes.join(', ')} from the question.`}{' '}
+              {`Tagged ${promptStandards.taken?.codes.join(', ')} from the question.`}{' '}
               <button
                 type="button"
                 onClick={promptStandards.undo}
