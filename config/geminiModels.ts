@@ -1,4 +1,4 @@
-// Keep in sync with DEFAULT_ADVANCED_MODEL / DEFAULT_STANDARD_MODEL in aiGeneration.ts — this picker writes to global_permissions/gemini-functions.
+// Keep in sync with DEFAULT_ADVANCED_MODEL / DEFAULT_STANDARD_MODEL in functions/src/aiModelConfig.ts; the AI tab writes to global_permissions/gemini-functions.
 export const KNOWN_GEMINI_MODELS = [
   {
     value: 'gemini-3.8-flash',

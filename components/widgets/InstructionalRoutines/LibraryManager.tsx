@@ -73,7 +73,9 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
   const handleMagicDesign = async (prompt: string) => {
     setIsGenerating(true);
     try {
-      const generate = httpsCallable(functions, 'generateWithAI');
+      const generate = httpsCallable(functions, 'generateWithAI', {
+        timeout: 310_000,
+      });
       const result = await generate({
         type: 'instructional-routine',
         prompt,

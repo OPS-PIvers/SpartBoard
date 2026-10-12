@@ -48,7 +48,7 @@ async function callGemini(
   const generate = httpsCallable<
     { type: string; prompt: string },
     { result: string; _modelConfigUsedFallback?: boolean }
-  >(functions, 'generateWithAI');
+  >(functions, 'generateWithAI', { timeout: 310_000 });
   const response = await generate({ type, prompt });
   reportAiModelConfigFallback(response.data._modelConfigUsedFallback);
   return response.data.result;

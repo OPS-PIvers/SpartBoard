@@ -3560,6 +3560,7 @@ describe('index barrel — deployed export set', () => {
     'translateQuizV1',
     'translateResponseV1',
     'generateGuidedLearning',
+    'getAiProviderStatusV1',
     'draftGuidedLearningStepTextV1',
     'validateAndBucketVideoQuestions',
     'validateAndBucketQuizQuestions',

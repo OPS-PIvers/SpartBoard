@@ -109,10 +109,7 @@ const rowsFor = (
   graduated: GraduatedSet
 ): Record<AccessTabId, readonly (readonly (string | undefined)[])[]> => ({
   widgets: TOOLS.map((t) => widgetSearchFields(t, undefined, graduated)),
-  features: [
-    ...featuresTabFeatures(graduated).map(featureSearchFields),
-    ['Gemini models', 'model overrides', 'AI'],
-  ],
+  features: featuresTabFeatures(graduated).map(featureSearchFields),
   previews: [
     ...previewFeatures(graduated).map(featureSearchFields),
     ...ROLLOUT_ONLY_SWITCHES.map(rolloutSearchFields),

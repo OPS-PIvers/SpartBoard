@@ -12,25 +12,11 @@ import {
   buildTranscribeResponseSchema,
   cropMimeType,
   locateUncertainSpans,
-  modelForTier,
   parseTranscribeResponse,
   transcribePaperPage,
   transcriptToHtml,
   type PaperTranscribeDeps,
 } from './paperTranscribe';
-
-const MODELS = { standardModel: 'std-model', advancedModel: 'adv-model' };
-
-describe('modelForTier', () => {
-  it('defaults to the standard model', () => {
-    expect(modelForTier(undefined, MODELS)).toBe('std-model');
-    expect(modelForTier('standard', MODELS)).toBe('std-model');
-    expect(modelForTier('bogus', MODELS)).toBe('std-model');
-  });
-  it('uses the advanced model only when asked', () => {
-    expect(modelForTier('advanced', MODELS)).toBe('adv-model');
-  });
-});
 
 describe('transcriptToHtml', () => {
   it('makes one paragraph per blank-line break and joins wrapped lines', () => {
@@ -212,8 +198,9 @@ describe('buildTranscribeParts and schema', () => {
 describe('transcribePaperPage', () => {
   it('makes one model call for the whole page with the tier’s model', async () => {
     const generate = vi.fn<PaperTranscribeDeps['generate']>(() =>
-      Promise.resolve(
-        JSON.stringify({
+      Promise.resolve({
+        model: 'std-model',
+        text: JSON.stringify({
           boxes: [
             {
               questionId: 'q1',
@@ -228,15 +215,12 @@ describe('transcribePaperPage', () => {
               illegible: false,
             },
           ],
-        })
-      )
+        }),
+      })
     );
     const deps: PaperTranscribeDeps = {
       loadCrop: vi.fn((path: string) =>
         Promise.resolve({ data: Buffer.from(path), mimeType: 'image/webp' })
-      ),
-      resolveModel: vi.fn((tier) =>
-        Promise.resolve(modelForTier(tier, MODELS))
       ),
       generate,
     };
@@ -249,7 +233,7 @@ describe('transcribePaperPage', () => {
       deps
     );
     expect(generate).toHaveBeenCalledTimes(1);
-    expect(generate.mock.calls[0][0].model).toBe('std-model');
+    expect(generate.mock.calls[0][0].tier).toBe('standard');
     expect(generate.mock.calls[0][0].parts).toHaveLength(5);
     expect(out.model).toBe('std-model');
     expect(out.boxes.map((b) => b.ok)).toEqual([true, true]);
@@ -259,7 +243,6 @@ describe('transcribePaperPage', () => {
     const deps: PaperTranscribeDeps = {
       loadCrop: () =>
         Promise.resolve({ data: Buffer.from(''), mimeType: 'image/webp' }),
-      resolveModel: () => Promise.resolve('std-model'),
       generate: () => Promise.reject(new Error('503')),
     };
     await expect(

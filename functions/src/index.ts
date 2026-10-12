@@ -37,6 +37,7 @@ export {
   __resolveCallerIsAdmin,
   __isVerifiedBetaMember,
 } from './aiGeneration';
+export { getAiProviderStatusV1 } from './aiProviderStatus';
 
 // ── External-content proxy + iframe embeddability check ────────────────────
 export { fetchExternalProxy, checkUrlCompatibility } from './embedProxy';

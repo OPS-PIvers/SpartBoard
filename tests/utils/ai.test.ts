@@ -500,6 +500,12 @@ describe('recommendVideoForActivity', () => {
 
   it('routes through the generic generateWithAI function', async () => {
     await recommendVideoForActivity('photosynthesis 6th grade');
-    expect(vi.mocked(httpsCallable)).toHaveBeenCalledWith({}, 'generateWithAI');
+    expect(vi.mocked(httpsCallable)).toHaveBeenCalledWith(
+      {},
+      'generateWithAI',
+      {
+        timeout: 310_000,
+      }
+    );
   });
 });

@@ -14,6 +14,7 @@ are in [docs/ONBOARDING.md](docs/ONBOARDING.md).
 - **No `src/` directory.** All code lives in root-level directories (`components/`, `context/`, `hooks/`, `config/`, `utils/`, `functions/`). The `@/` alias maps to the repo root, not `src/`.
 - **No react-router.** `App.tsx` switches on `window.location.pathname` and mounts only the providers each route needs, so anonymous/student routes don't boot teacher Firestore listeners.
 - A widget type is registered in several places: `types.ts` `WidgetType`, `config/tools.ts`, `config/widgetDefaults.ts`, `config/widgetGradeLevels.ts`, and `components/widgets/WidgetRegistry.ts`. Use the `new-widget` skill.
+- Every AI model call goes through `generateAi` in `functions/src/aiRouter.ts` with an integration id registered in `functions/src/aiIntegrations.ts` and `config/aiIntegrations.ts`; admins pick each one's model (Gemini or Claude) on Admin Settings > Access > AI. See `docs/AI_MODELS.md`.
 - Live-tour anchors are `data-tour` ids from the typed registry in `config/tourAnchors.ts`; tag with `tourAttr`, and `tests/tourAnchors.test.ts` fails on a registered id that is no longer rendered or an unregistered one.
 
 ## Commands
