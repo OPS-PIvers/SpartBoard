@@ -8639,6 +8639,18 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     panel: true,
   },
   {
+    id: 'admin.ai.input-limit',
+    label: 'AI feature input limit',
+    scope: 'field',
+    panel: true,
+  },
+  {
+    id: 'admin.ai.output-limit',
+    label: 'AI feature output limit',
+    scope: 'field',
+    panel: true,
+  },
+  {
     id: 'admin.gemini.save',
     label: 'Save Gemini models button',
     scope: 'board',
