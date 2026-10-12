@@ -158,6 +158,8 @@ export const tourStep = stepInput
     calloutScale: true,
     calloutTone: true,
     calloutBox: true,
+    standards: true,
+    learning_targets: true,
   })
   .extend({ tour: stepInput.shape.tour.unwrap() });
 
