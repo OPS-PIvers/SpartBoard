@@ -1238,6 +1238,7 @@
     "annotate": "Annoter",
     "duplicate": "Dupliquer",
     "moreActions": "Plus d'actions",
+    "showControls": "Afficher les commandes de la fenêtre",
     "recordScreen": "Enregistrer l'écran",
     "stopRecording": "Arrêter l'enregistrement",
     "restore": "Restaurer",

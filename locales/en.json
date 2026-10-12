@@ -2357,6 +2357,7 @@
     "annotate": "Annotate",
     "duplicate": "Duplicate",
     "moreActions": "More actions",
+    "showControls": "Show window controls",
     "recordScreen": "Record screen",
     "stopRecording": "Stop recording",
     "restore": "Restore",
