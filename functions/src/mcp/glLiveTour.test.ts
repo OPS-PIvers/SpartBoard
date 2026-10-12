@@ -110,11 +110,18 @@ describe('live tour tools', () => {
   });
 
   it('hides the admin tools from everyone but admins', async () => {
-    expect(await hiddenToolsFor(ctxFor(true))).toEqual(new Set());
-    expect(await hiddenToolsFor(ctxFor(false))).toBe(ADMIN_ONLY_TOOLS);
-    expect(await hiddenToolsFor(ctxFor(new Error('down')))).toBe(
-      ADMIN_ONLY_TOOLS
-    );
+    const admin = await hiddenToolsFor(ctxFor(true));
+    for (const t of ADMIN_ONLY_TOOLS) expect(admin.has(t)).toBe(false);
+    for (const ctx of [ctxFor(false), ctxFor(new Error('down'))]) {
+      const hidden = await hiddenToolsFor(ctx);
+      for (const t of ADMIN_ONLY_TOOLS) expect(hidden.has(t)).toBe(true);
+    }
+  });
+
+  it('hides the Mini App results tools while results are off', async () => {
+    const hidden = await hiddenToolsFor(ctxFor(false));
+    expect(hidden.has('get_mini_app_spec')).toBe(true);
+    expect(hidden.has('get_mini_app_results_summary')).toBe(true);
   });
 });
 
