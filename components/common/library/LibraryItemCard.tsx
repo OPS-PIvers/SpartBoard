@@ -458,7 +458,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
   const PrimaryIcon = primaryAction?.icon;
   const SecondaryPrimaryIcon = secondaryPrimaryAction?.icon;
   const isList = viewMode === 'list';
-  // Grid cards keep their old fixed labels; list rows drop labels as the column narrows.
+  // Grid cards render as before (the old @[280px] labels never compiled); list rows drop labels as the column narrows.
   const rowWidth = useContext(LibraryRowWidthContext);
   const rowCompact =
     isList && rowWidth != null && rowWidth < ROW_COMPACT_BELOW_PX;
