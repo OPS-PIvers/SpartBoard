@@ -6,6 +6,7 @@ import {
   chicagoDateKey,
   estimateActivityDays,
   measuredDateKey,
+  nextChicagoHourMs,
 } from './adminAnalyticsHistory';
 
 describe('adminAnalyticsHistory', () => {
@@ -14,6 +15,22 @@ describe('adminAnalyticsHistory', () => {
     expect(chicagoDateKey(Date.UTC(2026, 2, 3, 2))).toBe('2026-03-02');
     // 5 AM CDT on Oct 2 = 10:00 UTC.
     expect(measuredDateKey(Date.UTC(2026, 9, 2, 10))).toBe('2026-10-01');
+  });
+
+  it('finds the next 5 AM, 12 PM or 3 PM run in Central time', () => {
+    const hours = [5, 12, 15];
+    // 5:00:30 AM CDT -> noon CDT.
+    expect(nextChicagoHourMs(Date.UTC(2026, 9, 2, 10, 0, 30), hours)).toBe(
+      Date.UTC(2026, 9, 2, 17)
+    );
+    // 3 PM CDT -> 5 AM CDT next day.
+    expect(nextChicagoHourMs(Date.UTC(2026, 9, 2, 20, 1), hours)).toBe(
+      Date.UTC(2026, 9, 3, 10)
+    );
+    // 3 PM CST in January -> 5 AM CST = 11:00 UTC.
+    expect(nextChicagoHourMs(Date.UTC(2026, 0, 15, 21, 1), hours)).toBe(
+      Date.UTC(2026, 0, 16, 11)
+    );
   });
 
   it('fills gaps and computes a trailing 30-day MAU', () => {

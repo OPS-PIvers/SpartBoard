@@ -65,6 +65,30 @@ export function measuredDateKey(runMs: number): string {
   return chicagoDateKey(runMs - 6 * 60 * 60 * 1000);
 }
 
+const CHICAGO_HOUR = new Intl.DateTimeFormat('en-US', {
+  timeZone: 'America/Chicago',
+  hour: 'numeric',
+  hourCycle: 'h23',
+});
+
+export function chicagoHour(ms: number): number {
+  return Number(CHICAGO_HOUR.format(new Date(ms)));
+}
+
+const ONE_HOUR_MS = 60 * 60 * 1000;
+
+/** Next top of an hour after `ms` whose district-time hour is in `hours`. */
+export function nextChicagoHourMs(
+  ms: number,
+  hours: readonly number[]
+): number {
+  let t = Math.floor(ms / ONE_HOUR_MS) * ONE_HOUR_MS + ONE_HOUR_MS;
+  for (let i = 0; i < 48; i++, t += ONE_HOUR_MS) {
+    if (hours.includes(chicagoHour(t))) return t;
+  }
+  return ms + 24 * ONE_HOUR_MS;
+}
+
 const addDays = (date: string, n: number): string => {
   const d = new Date(`${date}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
