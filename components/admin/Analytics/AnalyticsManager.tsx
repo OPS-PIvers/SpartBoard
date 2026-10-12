@@ -47,6 +47,7 @@ import { LinksPanel } from './LinksPanel';
 import { ActiveStudentsModal } from './ActiveStudentsModal';
 import { type StudentKpiCategory } from './activeStudents';
 import { AI_FEATURE_LABELS } from './aiFeatureLabels';
+import { AiModelSpendPanel } from './AiModelSpendPanel';
 import { WIDGET_LABELS } from './widgetLabels';
 import {
   type AnalyticsHistory,
@@ -81,7 +82,10 @@ interface KpiUser {
 }
 
 type KpiCategory =
-  'registered' | 'withDashboards' | 'monthlyActive' | 'dailyActive';
+  | 'registered'
+  | 'withDashboards'
+  | 'monthlyActive'
+  | 'dailyActive';
 
 const KPI_TITLES: Record<KpiCategory, string> = {
   registered: 'Registered Users',
@@ -146,7 +150,8 @@ interface AnalyticsData {
  * real error and renders as a red banner.
  */
 type AnalyticsErrorState =
-  { kind: 'cold-start'; message: string } | { kind: 'fatal'; message: string };
+  | { kind: 'cold-start'; message: string }
+  | { kind: 'fatal'; message: string };
 
 type AnalyticsTab = 'overview' | 'widgets' | 'ai' | 'users' | 'links';
 
@@ -919,6 +924,8 @@ const AiPanel: React.FC<{ data: AnalyticsData }> = ({ data }) => {
         />
       </div>
 
+      <AiModelSpendPanel />
+
       <PanelCard title="AI Feature Breakdown">
         {featureRows.length === 0 ? (
           <p className="text-sm text-slate-500">
@@ -1655,7 +1662,6 @@ export const AnalyticsManager: React.FC = () => {
   }, [orgId]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount/org change; loading state follows the request
     void fetchAnalytics();
   }, [fetchAnalytics]);
 
