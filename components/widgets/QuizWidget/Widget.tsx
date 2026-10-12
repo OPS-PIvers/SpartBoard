@@ -1718,6 +1718,9 @@ const TeacherQuizWidget: React.FC<{
       canImportDocuments,
       canSuggestTargets: canAccessFeature('quiz-import-suggested-targets'),
       canUseSections: canAccessFeature('quiz-sections'),
+      canTakeStandardsFromText: canAccessFeature(
+        'standards-from-question-text'
+      ),
       canFindPassages: canAccessFeature('quiz-import-passages'),
       pickDocument,
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),

@@ -26,7 +26,7 @@ export function filterBenchmarks(
 
 let catalogPromise: Promise<StandardBenchmark[]> | null = null;
 
-function loadCatalog(): Promise<StandardBenchmark[]> {
+export function loadCatalog(): Promise<StandardBenchmark[]> {
   catalogPromise ??= getDocs(collection(db, CATALOG_COLLECTION))
     .then((snap) => {
       const list: StandardBenchmark[] = [];

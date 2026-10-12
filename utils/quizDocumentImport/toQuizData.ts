@@ -7,6 +7,7 @@
  * Assign stays shut until a teacher fills them in.
  */
 
+import { findStandardRuns, removeRuns } from '@/utils/standardsInText';
 import type {
   QuizData,
   QuizOrderEntry,
@@ -139,7 +140,13 @@ export const reviewExtrasFor = (data: QuizData): ReviewExtras | undefined =>
 export function extractedToQuizData(
   extracted: ExtractedQuiz,
   /** `sections` turns printed headings into quiz sections (E16). */
-  options: { title?: string; now?: number; sections?: boolean } = {}
+  options: {
+    title?: string;
+    now?: number;
+    sections?: boolean;
+    /** Lifts standard codes printed beside a stem into `standardCodes`. */
+    standardsFromText?: boolean;
+  } = {}
 ): QuizData {
   const now = options.now ?? Date.now();
   const stimulusIdByText = new Map<string, string>();
@@ -174,10 +181,26 @@ export function extractedToQuizData(
   const allQuestions = extracted.questions.map((read, index) => {
     // The section shows its directions, so the first stem gives them back.
     const leadIn = opens.get(index)?.directions ? read.directionsLeadIn : '';
-    const q =
+    const trimmed =
       leadIn && read.text.startsWith(leadIn)
         ? { ...read, text: read.text.slice(leadIn.length).trim() }
         : read;
+    const runs = options.standardsFromText
+      ? findStandardRuns(trimmed.text)
+      : [];
+    const q =
+      runs.length > 0
+        ? {
+            ...trimmed,
+            text: removeRuns(trimmed.text, runs),
+            standardCodes: [
+              ...new Set([
+                ...(trimmed.standardCodes ?? []),
+                ...runs.flatMap((r) => r.codes),
+              ]),
+            ],
+          }
+        : trimmed;
     const built = toQuizQuestion(q);
     const shared = q.sharedTextId
       ? stimulusIdByText.get(q.sharedTextId)

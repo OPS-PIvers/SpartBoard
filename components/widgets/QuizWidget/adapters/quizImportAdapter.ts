@@ -95,6 +95,8 @@ export interface QuizImportAdapterDeps {
   canSuggestTargets?: boolean;
   /** Turn printed section headings into quiz sections (QUIZ_EXAMVIEW_IMPORT E16). */
   canUseSections?: boolean;
+  /** Lift standard codes printed beside a question into its review row (`standards-from-question-text`). */
+  canTakeStandardsFromText?: boolean;
   /** Turn a test's case studies and passages into stimuli (`quiz-import-passages`). */
   canFindPassages?: boolean;
   /**
@@ -467,6 +469,7 @@ export function createQuizImportAdapter(
         return {
           data: extractedToQuizData(extracted, {
             sections: deps.canUseSections === true,
+            standardsFromText: deps.canTakeStandardsFromText === true,
           }),
           // Row notes ride the wizard's own warnings list, numbered so they
           // line up with the review rows (D10).
