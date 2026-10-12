@@ -64,6 +64,12 @@ describe('checkMiniApp', () => {
     ]);
   });
 
+  it('flags a key for a question the app does not have', () => {
+    expect(
+      checkMiniApp(ok, manifest, { questions: { q9: { correct: 'x' } } })
+    ).toEqual(['The answer key has q9, which is not a question.']);
+  });
+
   it('flags an answer written into the code, not a listed choice', () => {
     const k = { questions: { q4: { accepted: ['numerator'] } } };
     expect(

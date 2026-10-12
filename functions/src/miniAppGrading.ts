@@ -374,3 +374,49 @@ export function gradeMiniAppResult(
     };
   return { items: graded, score: null, maxScore: null, gradedBy: null };
 }
+
+const escapeRegExp = (s: string): string =>
+  s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const leaksAnswer = (html: string, value: string): boolean =>
+  new RegExp(
+    `(correct|answer|solution)\\w*['"]?\\s*[:=]\\s*\\[?\\s*['"]${escapeRegExp(value)}['"]`,
+    'i'
+  ).test(html);
+
+/** D12 static check for an app that collects results; each problem is one short sentence. */
+export function checkMiniAppSource(
+  html: string,
+  rawManifest: unknown,
+  rawKey: unknown
+): string[] {
+  const problems: string[] = [];
+  if (!/SpartBoard\.submit\s*\(/.test(html))
+    problems.push('The app never sends results to SpartBoard.');
+  if (!/data-spart-submit/.test(html))
+    problems.push('The app has no Submit button for SpartBoard to show.');
+  const questions =
+    isRecord(rawManifest) && Array.isArray(rawManifest.questions)
+      ? (rawManifest.questions as unknown[])
+      : [];
+  const seen = new Set<string>();
+  for (const q of questions) {
+    const id = isRecord(q) && typeof q.id === 'string' ? q.id.trim() : '';
+    if (!id) problems.push('Every question needs an ID.');
+    else if (seen.has(id)) problems.push(`Two questions use the ID ${id}.`);
+    seen.add(id);
+  }
+  for (const [id, entry] of readAnswerKey(rawKey)) {
+    if (!seen.has(id))
+      problems.push(`The answer key has ${id}, which is not a question.`);
+    const values = [
+      ...(Array.isArray(entry.correct)
+        ? (entry.correct as unknown[])
+        : [entry.correct]),
+      ...(entry.accepted ?? []),
+    ].filter((v): v is string => typeof v === 'string' && v.length > 1);
+    if (values.some((v) => leaksAnswer(html, v)))
+      problems.push(`The app shows the answer to ${id} in its code.`);
+  }
+  return [...new Set(problems)];
+}
