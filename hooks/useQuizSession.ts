@@ -400,14 +400,6 @@ function carriesDelimiter(
   return !!labels && labels.some((s) => [...chars].some((c) => s.includes(c)));
 }
 
-/**
- * Convert a full QuizQuestion (with correctAnswer) to a student-safe
- * QuizPublicQuestion. Each shuffle permutation is computed ONCE and applied to
- * the English array and to every locale's array, so locale strings ride
- * alongside English in the same order. `translations` is pre-filtered to
- * reviewed + hash-fresh locales; never spread a `QuestionTranslation` into a
- * `localized` entry — that would re-expose `matchingDistractors` (§4.1, §4.2).
- */
 /** Only what scored results render: criterion names, level labels and points. */
 function rubricForScoredResults(rubric: Rubric): Rubric {
   return {
@@ -427,6 +419,14 @@ function rubricForScoredResults(rubric: Rubric): Rubric {
   };
 }
 
+/**
+ * Convert a full QuizQuestion (with correctAnswer) to a student-safe
+ * QuizPublicQuestion. Each shuffle permutation is computed ONCE and applied to
+ * the English array and to every locale's array, so locale strings ride
+ * alongside English in the same order. `translations` is pre-filtered to
+ * reviewed + hash-fresh locales; never spread a `QuestionTranslation` into a
+ * `localized` entry — that would re-expose `matchingDistractors` (§4.1, §4.2).
+ */
 export function toPublicQuestion(
   q: QuizQuestion,
   translations?: Record<string, QuestionTranslation>,
