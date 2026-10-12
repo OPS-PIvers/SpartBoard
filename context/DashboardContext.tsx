@@ -2921,6 +2921,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // next transaction read those adopted values as local edits and clobber the
   // remote copy.
   const baselineGenerationRef = useRef(0);
+  // Tail of the debounced saves, which run one after another.
+  const saveChainRef = useRef<Promise<unknown>>(Promise.resolve());
   const buildSaveBaseline = useCallback(
     (dashboardId: string): SaveBaseline | undefined => {
       if (lastSavedDashboardIdRef.current !== dashboardId) return undefined;
@@ -3109,8 +3111,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       };
       pendingSaveCountRef.current++;
       lastWidgetCountRef.current = active.widgets.filter(isSavedWidget).length;
-      const baselineGenerationAtSave = baselineGenerationRef.current;
-      saveDashboard(active, buildSaveBaseline(active.id))
+      let baselineGenerationAtSave = baselineGenerationRef.current;
+      // One save at a time: an older transaction retried after a newer one landed rewrites the older state.
+      const write = saveChainRef.current
+        .catch(() => undefined)
+        .then(() => {
+          baselineGenerationAtSave = baselineGenerationRef.current;
+          return saveDashboard(active, buildSaveBaseline(active.id));
+        });
+      saveChainRef.current = write;
+      write
         .then(() => {
           // Skip when a snapshot merge landed mid-flight: it already advanced
           // the baseline to the server values it adopted into local state, and

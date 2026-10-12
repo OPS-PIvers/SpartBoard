@@ -273,7 +273,8 @@ function fakeServer(initial: Dashboard, readMs: number, commitMs: number) {
         const updatedAt = ++state.ts;
         state.board = clone({ ...toWrite, updatedAt });
         state.rev++;
-        capturedSnapshotCb?.([clone(state.board)], false);
+        const echo = clone(state.board);
+        setTimeout(() => capturedSnapshotCb?.([echo], false), 0);
         return updatedAt;
       }
     }
@@ -311,11 +312,11 @@ describe('Lunch Count moves survive concurrent saves', () => {
   });
 
   it('keeps every move when saves overlap on a slow connection', async () => {
-    const server = fakeServer(lunchBoard(1), 1500, 1500);
+    const server = fakeServer(lunchBoard(1), 400, 1500);
     const stateRef = setup();
     await settleSnapshot(stateRef, [clone(server.board)]);
 
-    await moveStudents(stateRef, 8, 400);
+    await moveStudents(stateRef, 8, 900);
     await act(async () => {
       await vi.advanceTimersByTimeAsync(20000);
     });
