@@ -53,7 +53,7 @@ interface AIData {
 
 type QuizGenType = 'MC' | 'FIB' | 'Matching' | 'Ordering' | 'MA';
 
-const DEFAULT_ADVANCED_MODEL = 'gemini-3.8-flash';
+const DEFAULT_ADVANCED_MODEL = 'gemini-3.7-flash';
 const DEFAULT_STANDARD_MODEL = 'gemini-3.5-flash-lite';
 
 // Gemini 3.x models are global-endpoint only on Vertex; us-central1 returns model-not-found.
