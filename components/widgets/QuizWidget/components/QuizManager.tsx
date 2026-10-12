@@ -2430,12 +2430,26 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const primaryAction =
     managerTab === 'library'
       ? {
-          label: 'New Quiz',
+          label: banksInLibrary ? 'New' : 'New Quiz',
           icon: Plus,
           onClick: onNew,
           menuItems: [
-            { label: 'Create', icon: PencilLine, onClick: onNew },
-            { label: 'Import', icon: FileUp, onClick: onImport },
+            {
+              label: banksInLibrary ? 'Create quiz' : 'Create',
+              icon: PencilLine,
+              onClick: onNew,
+            },
+            ...(banksInLibrary && onNewBank
+              ? [{ label: 'Create bank', icon: Library, onClick: onNewBank }]
+              : []),
+            {
+              label: banksInLibrary ? 'Import test' : 'Import',
+              icon: FileUp,
+              onClick: onImport,
+            },
+            ...(banksInLibrary && onImportBank
+              ? [{ label: 'Import bank', icon: FileUp, onClick: onImportBank }]
+              : []),
             ...(onNewPaperTest
               ? [
                   {
