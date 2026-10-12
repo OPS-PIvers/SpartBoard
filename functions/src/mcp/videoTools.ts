@@ -14,6 +14,7 @@ import {
 } from './activity';
 import { driveTokenFor, readDriveJson, saveQuizJson } from './drive';
 import { MA_MAX_OPTIONS, MC_MAX_WRONG } from './quizStore';
+import { prepareTargets, targetInputFields } from './targets';
 import {
   MAX_VIDEO_QUESTIONS,
   assertYouTubeUrl,
@@ -85,10 +86,11 @@ const questionSchema = z.object({
     .optional()
     .describe('Defaults to 30 for a new question; 0 means no limit.'),
   partial_credit: z.boolean().optional().describe('choose_all only.'),
+  ...targetInputFields,
 });
 
 const QUESTION_HELP =
-  'Types: multiple_choice (correct_answer + 1-4 incorrect_answers), choose_all (correct_answers + incorrect_answers), fill_in_blank (correct_answer + accepted_alternates). Only use timestamps you know are inside the video.';
+  "Types: multiple_choice (correct_answer + 1-4 incorrect_answers), choose_all (correct_answers + incorrect_answers), fill_in_blank (correct_answer + accepted_alternates). Only use timestamps you know are inside the video. Put standards and learning targets in standards and learning_targets, which fill the editor's Learning Targets field.";
 
 function summarize(id: string, data: Record<string, unknown>) {
   return {
@@ -110,12 +112,18 @@ function assertNotSynced(meta: Record<string, unknown>): void {
   }
 }
 
-function buildQuestions(
+async function buildQuestions(
+  ctx: ToolContext,
   inputs: VideoFriendlyQuestion[],
   previous: VideoQuestion[]
-): VideoQuestion[] {
+): Promise<VideoQuestion[]> {
   const byId = new Map(previous.map((q) => [q.id, q]));
   const used = new Set<string>();
+  const applyTargets = await prepareTargets(
+    ctx,
+    inputs,
+    previous.flatMap((q) => q.targets ?? [])
+  );
   const out = inputs.map((input, i) => {
     const existing =
       input.id && byId.has(input.id) && !used.has(input.id)
@@ -123,6 +131,9 @@ function buildQuestions(
         : undefined;
     const q = toStoredVideoQuestion(input, i + 1, existing, randomUUID);
     used.add(q.id);
+    const targets = applyTargets(i + 1, q.targets, input);
+    if (targets) q.targets = targets;
+    else delete q.targets;
     return q;
   });
   return orderByTimestamp(out);
@@ -290,7 +301,7 @@ export function registerVideoTools(server: McpServer, ctx: ToolContext): void {
       run('create_video_activity', ctx, async () => {
         const youtubeUrl = assertYouTubeUrl(input.youtube_url);
         await assertFolder(ctx, 'video_activities', input.folder_id);
-        const questions = buildQuestions(input.questions, []);
+        const questions = await buildQuestions(ctx, input.questions, []);
         const token = await driveTokenFor(ctx.uid);
         await reserveWrite(ctx);
         const now = Date.now();
@@ -354,7 +365,7 @@ export function registerVideoTools(server: McpServer, ctx: ToolContext): void {
         );
         assertNotSynced(meta);
         const questions = input.questions
-          ? buildQuestions(input.questions, content.questions)
+          ? await buildQuestions(ctx, input.questions, content.questions)
           : content.questions;
         await reserveWrite(ctx);
         return saveActivity(

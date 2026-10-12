@@ -27,6 +27,13 @@ import {
   type MissingAnchorNote,
 } from './glAnchorRequests';
 import { OVERWRITES, READ_ONLY, iso, run } from './toolKit';
+import { standardCodes, type TargetTag } from './standards';
+import {
+  learningTargetLabels,
+  prepareTargets,
+  targetInputFields,
+  type TargetInput,
+} from './targets';
 
 const KNOWN_ANCHORS = new Set(TOUR_ANCHOR_LIST.map((a) => a.id));
 
@@ -211,6 +218,7 @@ export const stepInput = z
         'Building sets only, with tour.anchor "": where the control is and what it does, so a developer can add an anchor. Not saved on the step.'
       ),
     aiDraft: z.boolean().optional(),
+    ...targetInputFields,
     has_narration: z
       .boolean()
       .optional()
@@ -355,9 +363,18 @@ export function mergeSteps(
         `${at}.tour.anchor "${anchorId}" is not a SpartBoard tour anchor. Use list_tour_anchors, or an empty anchor with a fallback.`
       );
     }
+    if (
+      (s.standards !== undefined || s.learning_targets !== undefined) &&
+      s.interactionType !== 'question'
+    )
+      throw new ToolError(
+        `${at}: standards and learning_targets go on question steps only.`
+      );
     const merged: Step = { ...s };
     delete merged.has_narration;
     delete merged.missing_anchor;
+    delete merged.standards;
+    delete merged.learning_targets;
     for (const key of ['audioUrl', 'videoUrl'] as const) {
       const url = s[key];
       if (url && isStorageUrl(url) && url !== prior?.[key]) {
@@ -390,12 +407,40 @@ const usesSpotlight = (s: Step) =>
   s.interactionType === 'spotlight' ||
   s.interactionType === 'pan-zoom-spotlight';
 
+/** Fills question steps' Learning Targets field from the standards and learning_targets each input step sent. */
+export async function applyStepTargets(
+  ctx: ToolContext,
+  steps: Step[],
+  inputs: readonly TargetInput[],
+  previous: readonly Step[] = []
+): Promise<void> {
+  const tagsOf = (s: Step) => (s.targets as TargetTag[] | undefined) ?? [];
+  const applyTargets = await prepareTargets(
+    ctx,
+    [...inputs],
+    previous.flatMap(tagsOf)
+  );
+  steps.forEach((step, i) => {
+    const input = inputs[i];
+    if (input?.standards === undefined && input?.learning_targets === undefined)
+      return;
+    const targets = applyTargets(i + 1, step.targets as TargetTag[], input);
+    if (targets) step.targets = targets;
+    else delete step.targets;
+  });
+}
+
 /** Steps as Claude sees them: the files a step owns stay server-side. */
 export function publicStep(step: Step) {
   const out: Record<string, unknown> = { ...step };
   delete out.audioStoragePath;
   delete out.videoStoragePath;
   delete out.targets;
+  const tags = step.targets as TargetTag[] | undefined;
+  const standards = standardCodes(tags);
+  if (standards.length > 0) out.standards = standards;
+  const learningTargets = learningTargetLabels(tags);
+  if (learningTargets.length > 0) out.learning_targets = learningTargets;
   delete out.narration;
   if (step.narration) out.has_narration = true;
   return out;
@@ -976,6 +1021,13 @@ export function registerGuidedLearningTools(
         await assertAccess(ctx, source);
         const loaded = await loadSet(ctx, source, set_id);
         const next = applyEdit(loaded, input);
+        if (input.steps)
+          await applyStepTargets(
+            ctx,
+            next.steps,
+            input.steps,
+            loaded.set.steps
+          );
         let requests: AnchorRequest[] = [];
         if (loaded.source === 'building' && input.steps) {
           const notes = new Map<string, MissingAnchorNote>();

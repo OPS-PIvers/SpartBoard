@@ -17,6 +17,7 @@ import {
   MAX_STEPS,
   PERSONAL,
   assertAccess,
+  applyStepTargets,
   mergeSteps,
   requiredSchemaVersion,
   stepInput,
@@ -240,6 +241,7 @@ export async function saveNewSet(
   const source = createSource(input);
   await assertAccess(ctx, source);
   const steps = validateCreate(input);
+  await applyStepTargets(ctx, steps, input.steps);
   let requests: AnchorRequest[] = [];
   let planned = steps;
   if (source === 'building') {
