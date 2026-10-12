@@ -1,5 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { StimulusRenderer } from './QuizStimulusView';
 import type { QuizStimulus } from '@/types';
 
@@ -130,5 +130,47 @@ describe('StimulusRenderer text passage (D16)', () => {
     expect(
       container.querySelector('[data-stimulus-id="stim-text"]')
     ).toBeTruthy();
+  });
+});
+
+describe('StimulusRenderer pdf fallback', () => {
+  const pdf = (overrides: Partial<QuizStimulus> = {}): QuizStimulus => ({
+    id: 'stim-pdf',
+    type: 'pdf',
+    url: 'https://example.com/source.pdf',
+    label: 'Source',
+    ...overrides,
+  });
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('shows the Drive preview without a warning when pdf.js cannot load a Drive file', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 403 })
+    );
+    const onLoadError = vi.fn();
+    const { container } = render(
+      <StimulusRenderer
+        stimulus={pdf({ driveFileId: 'drive-1' })}
+        onLoadError={onLoadError}
+      />
+    );
+    await waitFor(() =>
+      expect(container.querySelector('iframe')).not.toBeNull()
+    );
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(onLoadError).not.toHaveBeenCalled();
+  });
+
+  it('still warns when a pasted PDF link has no fallback', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 404 })
+    );
+    const onLoadError = vi.fn();
+    render(<StimulusRenderer stimulus={pdf()} onLoadError={onLoadError} />);
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(onLoadError).toHaveBeenCalledWith('stim-pdf');
   });
 });
