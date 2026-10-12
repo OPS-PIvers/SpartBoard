@@ -2311,7 +2311,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           {new Date(quiz.updatedAt || quiz.createdAt).toLocaleDateString()}
         </span>
         {lastAssignedAt > 0 && (
-          <span className="hidden @[360px]:inline">
+          <span className="hidden [@container(min-width:600px)]:inline">
             · {isViewOnly ? 'Last shared' : 'Last assigned'}{' '}
             {new Date(lastAssignedAt).toLocaleDateString()}
           </span>
