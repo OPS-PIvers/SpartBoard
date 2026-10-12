@@ -9843,6 +9843,8 @@ export type GlobalFeature =
   | 'quiz-fib-alternates'
   /** One answer box per blank on fill-in-the-blank quiz questions. */
   | 'quiz-fib-multi-blank'
+  /** Standard codes typed in or imported with a question text become Learning targets tags. */
+  | 'standards-from-question-text'
   /** "View full screen" toggle on large pop-ups (editors, graders). */
   | 'modal-fullscreen'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */

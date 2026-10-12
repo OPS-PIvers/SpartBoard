@@ -6,7 +6,13 @@
  * through the controller object the modal hands them.
  */
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AlertCircle,
@@ -76,6 +82,7 @@ import {
 import { ChoiceOptionsEditor } from './ChoiceOptionsEditor';
 import { TargetChips } from '@/components/quiz/targets/TargetChips';
 import { TargetPicker } from '@/components/quiz/targets/TargetPicker';
+import { useStandardsFromPrompt } from '@/components/quiz/targets/useStandardsFromPrompt';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
 import {
   countQuestionsNeedingKey,
@@ -836,6 +843,17 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   const choiceEditor = canAccessFeature('quiz-choice-editor');
   const multiBlankAllowed = canAccessFeature('quiz-fib-multi-blank');
   const promptRef = useRef<HTMLTextAreaElement>(null);
+  const readPrompt = useCallback(() => promptRef.current?.value, []);
+  const targetsRef = useRef(selectedQuestion?.targets);
+  useLayoutEffect(() => {
+    targetsRef.current = selectedQuestion?.targets;
+  });
+  const readTargets = useCallback(() => targetsRef.current, []);
+  const promptStandards = useStandardsFromPrompt(
+    updateQuestion,
+    readPrompt,
+    readTargets
+  );
   const paperWrittenAllowed =
     canAccessFeature(PAPER_HANDWRITTEN_FEATURE) &&
     canAccessFeature('paper-answer-sheets');
@@ -982,6 +1000,9 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 fibPromptUpdate(q, e.target.value, multiBlankAllowed)
               )
             }
+            onBlur={() =>
+              void promptStandards.onPromptBlur(q.id, q.text, q.targets)
+            }
             rows={3}
             placeholder="e.g. What is the capital of France?"
             className={`${inputClass} resize-none`}
@@ -1015,6 +1036,18 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             />
           ) : (
             <p className="text-xs text-slate-500">No targets.</p>
+          )}
+          {promptStandards.isCurrent(q.id, q.text, q.targets) && (
+            <p className="mt-1 text-xs text-slate-500" role="status">
+              {`Tagged ${promptStandards.taken?.codes.join(', ')} from the question.`}{' '}
+              <button
+                type="button"
+                onClick={promptStandards.undo}
+                className="font-semibold text-brand-blue-primary hover:underline"
+              >
+                Undo
+              </button>
+            </p>
           )}
           {pickerOpen && (
             <TargetPicker

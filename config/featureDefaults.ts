@@ -55,6 +55,7 @@ import {
   Volume2,
   Wand2,
   Zap,
+  BookMarked,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -740,6 +741,16 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Several blanks in fill in the blank',
     icon: TextCursorInput,
     description: 'An answer box for each blank.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'standards-from-question-text': {
+    label: 'Standards typed in questions',
+    icon: BookMarked,
+    description: 'Codes in question text become Learning targets.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
