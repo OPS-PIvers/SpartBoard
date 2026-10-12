@@ -357,6 +357,8 @@ const withoutTransient = (d: Dashboard): Dashboard =>
 
 // Ceiling on how long an edit may sit unsaved while edits keep arriving.
 const MAX_UNSAVED_EDIT_AGE_MS = 3000;
+// Longest a debounced save waits for the one ahead of it.
+const SAVE_CHAIN_MAX_WAIT_MS = 15000;
 // Ink-only edits rewrite the whole board document, so sustained drawing gets a
 // longer ceiling than a widget edit — but the teardown flush (beforeunload,
 // pagehide, visibilitychange) is unreliable on iPadOS, so this bounds the
@@ -3113,12 +3115,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       lastWidgetCountRef.current = active.widgets.filter(isSavedWidget).length;
       let baselineGenerationAtSave = baselineGenerationRef.current;
       // One save at a time: an older transaction retried after a newer one landed rewrites the older state.
-      const write = saveChainRef.current
-        .catch(() => undefined)
-        .then(() => {
-          baselineGenerationAtSave = baselineGenerationRef.current;
-          return saveDashboard(active, buildSaveBaseline(active.id));
-        });
+      const previous = saveChainRef.current.catch(() => undefined);
+      const write = Promise.race([
+        previous,
+        // A save that never settles must not hold every later one forever.
+        new Promise((resolve) => setTimeout(resolve, SAVE_CHAIN_MAX_WAIT_MS)),
+      ]).then(() => {
+        baselineGenerationAtSave = baselineGenerationRef.current;
+        return saveDashboard(active, buildSaveBaseline(active.id));
+      });
       saveChainRef.current = write;
       write
         .then(() => {

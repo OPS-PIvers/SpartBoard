@@ -8,7 +8,7 @@ interface DragChipProps extends React.HTMLAttributes<HTMLDivElement> {
 export const DragChip: React.FC<DragChipProps> = ({
   name,
   isDragging,
-  className,
+  className = '',
   ...props
 }) => (
   <div
