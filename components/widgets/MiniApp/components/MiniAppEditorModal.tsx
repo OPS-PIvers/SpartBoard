@@ -9,7 +9,7 @@ import React, { useEffect, useId, useMemo, useState } from 'react';
 import { Code2, Eye, FileText, Play, Sparkles } from 'lucide-react';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { injectMiniAppHelper } from '@/utils/miniAppHelper';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import {
   LibraryFolder,
   MiniAppAnswerKey,
@@ -17,7 +17,7 @@ import {
   TextConfig,
 } from '@/types';
 import { db } from '@/config/firebase';
-import { loadMiniAppKey } from '@/utils/miniAppResults';
+import { logError } from '@/utils/logError';
 import {
   checkMiniApp,
   fromDrafts,
@@ -78,6 +78,11 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
     toDrafts(app?.manifest, null)
   );
   const [loadedKey, setLoadedKey] = useState<MiniAppAnswerKey | null>(null);
+  // The key is written only after its read succeeds, so a slow or failed read never blanks it.
+  const [keyStatus, setKeyStatus] = useState<'loading' | 'ready' | 'failed'>(
+    'loading'
+  );
+  const [savedKeyJson, setSavedKeyJson] = useState<string | null>(null);
   const [trying, setTrying] = useState(false);
   const [view, setView] = useState<'preview' | 'code'>(
     app?.html.trim() ? 'preview' : 'code'
@@ -99,6 +104,8 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
     setCollectsResults(app?.collectsResults ?? false);
     setRows(toDrafts(app?.manifest, null));
     setLoadedKey(null);
+    setKeyStatus('loading');
+    setSavedKeyJson(null);
     setTrying(false);
     setView(app?.html.trim() ? 'preview' : 'code');
     setSaving(false);
@@ -115,21 +122,32 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
   useEffect(() => {
     if (!resultsOn || !uid || !appId) return;
     let live = true;
-    void loadMiniAppKey(uid, appId).then((key) => {
-      if (!live || !key) return;
-      setLoadedKey(key);
-      setRows((current) =>
-        current.map((row) => {
-          const filled = toDrafts(
-            { questions: [{ id: row.id, type: row.type, prompt: '' }] },
-            key
-          )[0];
-          return row.answer || row.tolerance
-            ? row
-            : { ...row, answer: filled.answer, tolerance: filled.tolerance };
-        })
-      );
-    });
+    getDoc(doc(db, 'users', uid, 'mini_app_keys', appId)).then(
+      (snap) => {
+        if (!live) return;
+        const key = snap.exists() ? (snap.data() as MiniAppAnswerKey) : null;
+        setSavedKeyJson(JSON.stringify(key ?? { questions: {} }));
+        setKeyStatus('ready');
+        if (!key) return;
+        setLoadedKey(key);
+        setRows((current) =>
+          current.map((row) => {
+            const filled = toDrafts(
+              { questions: [{ id: row.id, type: row.type, prompt: '' }] },
+              key
+            )[0];
+            return row.answer || row.tolerance
+              ? row
+              : { ...row, answer: filled.answer, tolerance: filled.tolerance };
+          })
+        );
+      },
+      (err: unknown) => {
+        if (!live) return;
+        logError('MiniAppEditorModal.loadKey', err, { appId });
+        setKeyStatus('failed');
+      }
+    );
     return () => {
       live = false;
     };
@@ -182,10 +200,19 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
             }
           : {}),
       });
-      if (resultsOn && collectsResults && user)
+      const keyJson = JSON.stringify(draft.key);
+      if (
+        resultsOn &&
+        collectsResults &&
+        user &&
+        keyStatus === 'ready' &&
+        keyJson !== savedKeyJson
+      ) {
         await setDoc(doc(db, 'users', user.uid, 'mini_app_keys', app.id), {
           questions: draft.key.questions,
         });
+        setSavedKeyJson(keyJson);
+      }
     } finally {
       setSaving(false);
     }
