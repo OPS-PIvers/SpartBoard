@@ -515,6 +515,7 @@ export function buildMetadata(
       ...bankTargetIndex(content),
       createdAt: content.createdAt,
       updatedAt: content.updatedAt,
+      libraryFolderId: existing?.libraryFolderId,
       ...preserved,
     });
   }

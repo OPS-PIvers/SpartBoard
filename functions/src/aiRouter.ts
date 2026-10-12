@@ -1,5 +1,5 @@
 import * as admin from 'firebase-admin';
-import Anthropic from '@anthropic-ai/sdk';
+import type Anthropic from '@anthropic-ai/sdk';
 import {
   FinishReason,
   GoogleGenAI,
@@ -180,7 +180,9 @@ async function callClaude(
   req: AiRequest
 ): Promise<Omit<AiResult, 'fellBack' | 'usedFallbackConfig'>> {
   const timeoutMs = req.claudeTimeoutMs ?? 60_000;
-  const client = new Anthropic({
+  // Loaded on first Claude call so every function's cold start skips the SDK.
+  const { default: AnthropicClient } = await import('@anthropic-ai/sdk');
+  const client = new AnthropicClient({
     apiKey: claudeApiKey(),
     maxRetries: 0,
     timeout: timeoutMs,

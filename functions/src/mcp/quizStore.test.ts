@@ -281,6 +281,17 @@ describe('metadata mirrors', () => {
     expect('sync' in meta).toBe(false);
   });
 
+  it('keeps a bank filed in its Quiz library folder', () => {
+    const meta = buildMetadata(
+      'bank',
+      { id: 'b', title: 'B', questions: [q('1')], createdAt: 1, updatedAt: 2 },
+      'file-1',
+      { folderId: 'old', libraryFolderId: 'lib-1' },
+      {}
+    );
+    expect(meta).toMatchObject({ folderId: 'old', libraryFolderId: 'lib-1' });
+  });
+
   it('indexes bank targets with bank-level tags inherited once per question', () => {
     const index = bankTargetIndex({
       questions: [
