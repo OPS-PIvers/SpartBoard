@@ -6,7 +6,9 @@
  */
 
 import React, { useEffect, useId, useMemo, useState } from 'react';
-import { Code2, FileText, Play, Sparkles } from 'lucide-react';
+import { Code2, Eye, FileText, Play, Sparkles } from 'lucide-react';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
+import { injectMiniAppHelper } from '@/utils/miniAppHelper';
 import { doc, setDoc } from 'firebase/firestore';
 import {
   LibraryFolder,
@@ -77,6 +79,9 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
   );
   const [loadedKey, setLoadedKey] = useState<MiniAppAnswerKey | null>(null);
   const [trying, setTrying] = useState(false);
+  const [view, setView] = useState<'preview' | 'code'>(
+    app?.html.trim() ? 'preview' : 'code'
+  );
 
   // AI generator state
   const [prompt, setPrompt] = useState('');
@@ -95,6 +100,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
     setRows(toDrafts(app?.manifest, null));
     setLoadedKey(null);
     setTrying(false);
+    setView(app?.html.trim() ? 'preview' : 'code');
     setSaving(false);
     setPrompt('');
     setShowPromptInput(false);
@@ -130,6 +136,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
   }, [resultsOn, uid, appId]);
 
   const draft = useMemo(() => fromDrafts(rows), [rows]);
+  const previewDoc = useMemo(() => injectMiniAppHelper(html), [html]);
   const originalDraft = useMemo(
     () => fromDrafts(toDrafts(app?.manifest, loadedKey)),
     [app?.manifest, loadedKey]
@@ -375,16 +382,39 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
         >
           {/* HTML Code textarea */}
           <div className="flex-1 flex flex-col min-h-[250px]">
-            <SettingsLabel htmlFor={htmlFieldId}>HTML Code</SettingsLabel>
-            <textarea
-              id={htmlFieldId}
-              value={html}
-              onChange={(e) => setHtml(e.target.value)}
-              className="flex-1 w-full p-4 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none leading-relaxed custom-scrollbar shadow-inner"
-              spellCheck={false}
-              {...tourTypeAttr('mini-app.html-code', 'miniApp')}
-              placeholder="Paste your HTML, CSS, and JS here..."
-            />
+            {resultsOn ? (
+              <div className="mb-2">
+                <SegmentedControl
+                  value={view}
+                  onChange={setView}
+                  ariaLabel="Show the app or its code"
+                  options={[
+                    { value: 'preview', label: 'Preview', icon: Eye },
+                    { value: 'code', label: 'Code', icon: Code2 },
+                  ]}
+                />
+              </div>
+            ) : (
+              <SettingsLabel htmlFor={htmlFieldId}>HTML Code</SettingsLabel>
+            )}
+            {resultsOn && view === 'preview' ? (
+              <iframe
+                srcDoc={previewDoc}
+                title={`${title || 'Mini app'} preview`}
+                sandbox="allow-scripts allow-forms allow-modals"
+                className="flex-1 w-full rounded-xl border border-slate-200 bg-white"
+              />
+            ) : (
+              <textarea
+                id={htmlFieldId}
+                value={html}
+                onChange={(e) => setHtml(e.target.value)}
+                className="flex-1 w-full p-4 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none leading-relaxed custom-scrollbar shadow-inner"
+                spellCheck={false}
+                {...tourTypeAttr('mini-app.html-code', 'miniApp')}
+                placeholder="Paste your HTML, CSS, and JS here..."
+              />
+            )}
           </div>
           {resultsOn && (
             <div className="lg:w-[380px] shrink-0 flex flex-col min-h-0 lg:border-l lg:border-slate-200 lg:pl-5">
