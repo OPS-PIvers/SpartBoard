@@ -21,7 +21,7 @@ export const targetInputFields = {
     .max(MAX_STANDARDS_PER_QUESTION)
     .optional()
     .describe(
-      "Saved in the question's Learning Targets field. Minnesota benchmark codes (ELA, Social Studies, Math, Science, Physical Education or Arts), e.g. 6.1.2.1 or 7L.3.1.1.1, or World Language Can-Do codes like WL.3.2.1 (level.mode.indicator). A code in more than one set needs the full id, e.g. mn-math-2022:6.1.2.1. Replaces the question's standards; omit to keep them, [] clears them."
+      "Saved in the question's Learning Targets field. Minnesota benchmark codes (ELA, Social Studies, Math, Science, Physical Education or Arts), e.g. 6.1.2.1 or 7L.3.1.1.1, or World Language Can-Do codes like WL.3.2.1 (level.mode.indicator). A code in more than one set needs the full id, e.g. mn-math-2022:6.1.2.1. Find codes with search_standards. Replaces the question's standards; omit to keep them, [] clears them."
     ),
   learning_targets: z
     .array(z.string().trim().min(1).max(300))
