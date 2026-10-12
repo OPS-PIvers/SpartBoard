@@ -67,7 +67,7 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     startDate: toDateStr(new Date()),
     schoolDays: [],
     dayLabel: 'Day',
-    customDayNames: {} as Record<number, string>,
+    customDayNames: {},
     blocks: [],
   };
 
@@ -77,7 +77,7 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     startDate = '',
     schoolDays = [],
     dayLabel = 'Day',
-    customDayNames = {} as Record<number, string>,
+    customDayNames = {},
     blocks = [],
   } = buildingConfig;
 

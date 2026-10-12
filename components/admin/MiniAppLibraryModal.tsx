@@ -69,6 +69,7 @@ export const MiniAppLibraryModal: React.FC<MiniAppLibraryModalProps> = ({
   // Real-time listener for global apps
   useEffect(() => {
     if (isAuthBypass) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- state synced from an external system or reset on open
       setLoading(false);
       return;
     }

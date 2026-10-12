@@ -523,9 +523,7 @@ export async function handleCreateTeammatePaperBatch(
     const snap = await db.collection('synced_quizzes').doc(groupId).get();
     if (!snap.exists)
       throw new HttpsError('not-found', 'Synced quiz group not found.');
-    canonicalContent = toQuizContent(
-      (snap.data() ?? {}) as Record<string, unknown>
-    );
+    canonicalContent = toQuizContent(snap.data() ?? {});
     return canonicalContent;
   };
 

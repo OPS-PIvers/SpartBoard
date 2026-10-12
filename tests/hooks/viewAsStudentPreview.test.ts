@@ -33,12 +33,7 @@ import {
   PostSubmitError,
 } from '@/components/activityWall/submission/submitPost';
 import { updateViewAsTabState } from '@/utils/viewAsTab';
-import type {
-  ActivityWallSession,
-  GuidedLearningResponse,
-  QuizSession,
-  VideoActivitySession,
-} from '@/types';
+import type { ActivityWallSession, GuidedLearningResponse } from '@/types';
 
 vi.mock('firebase/firestore', () => ({
   addDoc: vi.fn(),
@@ -93,12 +88,10 @@ beforeEach(() => {
     getIdTokenResult: () =>
       Promise.resolve({ claims: { studentRole: true, classIds: ['c1'] } }),
   };
-  (doc as Mock).mockImplementation(
-    (_db: unknown, ...segs: string[]): Ref => ({
-      path: segs.join('/'),
-      id: segs[segs.length - 1],
-    })
-  );
+  (doc as Mock).mockImplementation((_db: unknown, ...segs: string[]): Ref => ({
+    path: segs.join('/'),
+    id: segs[segs.length - 1],
+  }));
   (getDoc as Mock).mockImplementation((ref: Ref) =>
     Promise.resolve({
       id: ref.id,
@@ -131,7 +124,7 @@ describe('Video activity preview', () => {
       teacherUid: 't1',
       status: 'active',
       questions: [],
-    } as unknown as VideoActivitySession;
+    };
     const { result } = renderHook(() => useVideoActivitySessionStudent());
     await act(async () => {
       await result.current.previewResponse('s1', 'stu-1');
@@ -190,7 +183,7 @@ describe('Quiz preview', () => {
   it('never asks the server to score a previewed submission', () => {
     renderHook(() =>
       useQuizScoreOnSubmit(
-        { id: 's1', showScoreOnSubmit: true } as QuizSession,
+        { id: 's1', showScoreOnSubmit: true },
         { status: 'completed', score: null, completedAttempts: 1 }
       )
     );

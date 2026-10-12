@@ -4,7 +4,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const editor = vi.hoisted(() => ({
   loading: false,
   gradesOn: true,
-  isAdmin: true as boolean | null,
+  isAdmin: true,
 }));
 
 vi.mock('@/context/useAuth', () => ({

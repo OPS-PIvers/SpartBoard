@@ -345,10 +345,7 @@ export function usePlcAggregate(plcId: string | null): UsePlcAggregatesResult {
       (snap) => {
         const list: PlcAssessmentAggregate[] = [];
         snap.forEach((d) => {
-          const parsed = parsePlcAggregate(
-            d.id,
-            d.data() as Record<string, unknown>
-          );
+          const parsed = parsePlcAggregate(d.id, d.data());
           if (parsed) list.push(parsed);
         });
         setAggregates(sortAggregates(list));

@@ -84,6 +84,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
   // Real-time listener for global PDFs
   useEffect(() => {
     if (isAuthBypass) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- auth-bypass path of the Firestore listener
       setLoading(false);
       return;
     }
@@ -131,7 +132,7 @@ export const PdfLibraryModal: React.FC<PdfLibraryModalProps> = ({
         if (snap.exists()) {
           const data = snap.data() as FeaturePermission;
           if (data.config) {
-            setGlobalConfig(data.config as unknown as PdfGlobalConfig);
+            setGlobalConfig(data.config);
           }
         }
       } catch (err) {

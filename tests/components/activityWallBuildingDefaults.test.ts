@@ -9,7 +9,7 @@ const makePerm = (
   accessLevel: 'public',
   betaUsers: [],
   enabled: true,
-  config: { buildingDefaults } as FeaturePermission['config'],
+  config: { buildingDefaults },
 });
 
 describe('resolveActivityWallBuildingDefaults', () => {

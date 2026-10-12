@@ -19,18 +19,17 @@ export interface StageLayoutHandle {
 
 type Observed = { cb: ResizeObserverCallback; ro: ResizeObserver; el: Element };
 
-export const rect = (x: number, y: number, w: number, h: number): DOMRect =>
-  ({
-    x,
-    y,
-    left: x,
-    top: y,
-    width: w,
-    height: h,
-    right: x + w,
-    bottom: y + h,
-    toJSON: () => ({}),
-  }) as DOMRect;
+export const rect = (x: number, y: number, w: number, h: number): DOMRect => ({
+  x,
+  y,
+  left: x,
+  top: y,
+  width: w,
+  height: h,
+  right: x + w,
+  bottom: y + h,
+  toJSON: () => ({}),
+});
 
 /** Reads `scale(s) translate(xpx, ypx)` from the pan-zoom layer, if any. */
 function panZoomOf(el: Element): { s: number; x: number; y: number } {
@@ -62,7 +61,7 @@ export function mockStageLayout(opts: StageLayoutOptions): StageLayoutHandle {
     observe(el: Element) {
       observed.push({
         cb: this.cb,
-        ro: this as unknown as ResizeObserver,
+        ro: this,
         el,
       });
     }

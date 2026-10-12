@@ -2,11 +2,7 @@ import type { FlashcardCard } from '@/types';
 import DOMPurify from 'dompurify';
 
 export type FlashcardImportSeparator =
-  | 'auto'
-  | 'tab'
-  | 'comma'
-  | 'dash'
-  | 'custom';
+  'auto' | 'tab' | 'comma' | 'dash' | 'custom';
 
 export interface FlashcardImportResult {
   cards: FlashcardCard[];

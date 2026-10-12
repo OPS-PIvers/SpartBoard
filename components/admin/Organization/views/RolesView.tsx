@@ -305,7 +305,7 @@ export const RolesView: React.FC<Props> = ({
               perms: Object.fromEntries(
                 CAPABILITY_GROUPS.flatMap((g) => g.capabilities).map((c) => [
                   c.id,
-                  'none' as CapabilityAccess,
+                  'none',
                 ])
               ) as Record<CapabilityId, CapabilityAccess>,
             },

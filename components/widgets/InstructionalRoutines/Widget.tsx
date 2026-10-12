@@ -304,7 +304,7 @@ const RoutineStepItem: React.FC<RoutineStepItemProps> = ({
           <button
             onClick={() =>
               onStepClick(
-                step.icon as string,
+                step.icon,
                 step.color ?? 'blue',
                 step.label,
                 step.stickerUrl

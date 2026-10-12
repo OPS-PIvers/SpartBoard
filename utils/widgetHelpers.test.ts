@@ -14,9 +14,6 @@ import {
   FeaturePermission,
   WidgetLayout,
   WidgetOutput,
-  CatalystInstructionConfig,
-  CatalystVisualConfig,
-  QuizConfig,
 } from '@/types';
 
 describe('widgetHelpers', () => {
@@ -40,8 +37,8 @@ describe('widgetHelpers', () => {
     });
 
     it('returns false for null/undefined/string', () => {
-      expect(isWidgetLayout(null as unknown as WidgetOutput)).toBe(false);
-      expect(isWidgetLayout('string' as unknown as WidgetOutput)).toBe(false);
+      expect(isWidgetLayout(null)).toBe(false);
+      expect(isWidgetLayout('string')).toBe(false);
     });
 
     it('returns false for an object without content property', () => {
@@ -118,13 +115,13 @@ describe('widgetHelpers', () => {
     it('returns correct title for catalyst-instruction widget', () => {
       const widget1 = {
         type: 'catalyst-instruction',
-        config: { title: 'My Guide' } as CatalystInstructionConfig,
+        config: { title: 'My Guide' },
       } as WidgetData;
       expect(getTitle(widget1)).toBe('Guide: My Guide');
 
       const widget2 = {
         type: 'catalyst-instruction',
-        config: {} as CatalystInstructionConfig,
+        config: {},
       } as WidgetData;
       expect(getTitle(widget2)).toBe('Guide: Instruction Guide');
     });
@@ -132,13 +129,13 @@ describe('widgetHelpers', () => {
     it('returns correct title for catalyst-visual widget', () => {
       const widget1 = {
         type: 'catalyst-visual',
-        config: { title: 'My Anchor' } as CatalystVisualConfig,
+        config: { title: 'My Anchor' },
       } as WidgetData;
       expect(getTitle(widget1)).toBe('My Anchor');
 
       const widget2 = {
         type: 'catalyst-visual',
-        config: {} as CatalystVisualConfig,
+        config: {},
       } as WidgetData;
       expect(getTitle(widget2)).toBe('Visual Anchor');
     });
@@ -146,11 +143,11 @@ describe('widgetHelpers', () => {
     it('returns correct title for quiz widget', () => {
       const widget1 = {
         type: 'quiz',
-        config: { selectedQuizTitle: 'Math 101' } as QuizConfig,
+        config: { selectedQuizTitle: 'Math 101' },
       } as WidgetData;
       expect(getTitle(widget1)).toBe('Quiz: Math 101');
 
-      const widget2 = { type: 'quiz', config: {} as QuizConfig } as WidgetData;
+      const widget2 = { type: 'quiz', config: {} } as WidgetData;
       expect(getTitle(widget2)).toBe('Quiz');
     });
 

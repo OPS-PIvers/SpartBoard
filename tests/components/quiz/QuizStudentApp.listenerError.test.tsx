@@ -5,19 +5,22 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import type { QuizSession, QuizResponse } from '@/types';
 
-const { mockAuth, hookState, mockJoin } = vi.hoisted(() => ({
-  mockJoin: vi.fn(),
-  mockAuth: {
-    onAuthStateChanged: vi.fn(),
-    authStateReady: vi.fn().mockResolvedValue(undefined),
-    currentUser: null as unknown,
-  },
-  hookState: {
-    session: null as QuizSession | null,
-    myResponse: null as QuizResponse | null,
-    error: null as string | null,
-  },
-}));
+const { mockAuth, hookState, mockJoin } = vi.hoisted(() => {
+  const currentUser: unknown = null;
+  return {
+    mockJoin: vi.fn(),
+    mockAuth: {
+      onAuthStateChanged: vi.fn(),
+      authStateReady: vi.fn().mockResolvedValue(undefined),
+      currentUser,
+    },
+    hookState: {
+      session: null as QuizSession | null,
+      myResponse: null as QuizResponse | null,
+      error: null as string | null,
+    },
+  };
+});
 
 vi.mock('@/hooks/useStudentAssignmentPointer', () => ({
   useStudentAssignmentPointer: () => null,
@@ -94,7 +97,7 @@ function buildSession(): QuizSession {
     publicQuestions: [
       { id: 'q1', type: 'MC', text: 'Pick one', timeLimit: 0, choices: ['a'] },
     ],
-  } as QuizSession;
+  };
 }
 
 describe('QuizStudentApp — listener error after join', () => {

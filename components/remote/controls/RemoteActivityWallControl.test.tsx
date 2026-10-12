@@ -98,7 +98,7 @@ const baseWidget: WidgetData = {
   config: {
     activeActivityId: 'activity-1',
   },
-} as WidgetData;
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -279,7 +279,7 @@ describe('RemoteActivityWallControl', () => {
   it('selects and opens the newest wall on the first tap when none is active', async () => {
     render(
       <RemoteActivityWallControl
-        widget={{ ...baseWidget, config: {} } as unknown as typeof baseWidget}
+        widget={{ ...baseWidget, config: {} }}
         updateWidget={mockUpdateWidget}
       />
     );

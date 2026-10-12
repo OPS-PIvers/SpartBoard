@@ -58,6 +58,7 @@ export const StockPhotoPicker: React.FC<StockPhotoPickerProps> = ({
 
   useEffect(() => {
     if (!isOpen) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets paging alongside the Pexels fetch
     setPage(1);
     void fetchPhotos(debouncedQuery, 1, false);
   }, [debouncedQuery, isOpen, fetchPhotos]);

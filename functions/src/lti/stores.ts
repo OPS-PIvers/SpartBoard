@@ -115,8 +115,7 @@ export async function consumeLaunchCode(
     const snap = await tx.get(ref);
     if (!snap.exists) return null;
     const data = snap.data() as
-      | (StoredLaunch & { expiresAtMs?: number })
-      | undefined;
+      (StoredLaunch & { expiresAtMs?: number }) | undefined;
     tx.delete(ref);
     if (!data || isExpired(data)) return null;
     // Return only the StoredLaunch fields (drop expiresAt*/createdAt bookkeeping).

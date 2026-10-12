@@ -1984,8 +1984,7 @@ describe('adminAnalytics', () => {
     // correlation id so Cloud Logging alerts can be pivoted back to the
     // exact client-visible response.
     const jsonCall = jsonSpy.mock.calls[0]?.[0] as
-      | { error?: string; requestId?: string }
-      | undefined;
+      { error?: string; requestId?: string } | undefined;
     expect(jsonCall?.error).toBe('invalid-argument');
     expect(typeof jsonCall?.requestId).toBe('string');
     expect(jsonCall?.requestId?.length ?? 0).toBeGreaterThan(0);
@@ -2023,8 +2022,7 @@ describe('adminAnalytics', () => {
 
     expect(statusSpy).toHaveBeenCalledWith(403);
     const jsonCall = jsonSpy.mock.calls[0]?.[0] as
-      | { error?: string; requestId?: string }
-      | undefined;
+      { error?: string; requestId?: string } | undefined;
     expect(jsonCall?.error).toBe('permission-denied');
     expect(typeof jsonCall?.requestId).toBe('string');
     expect(jsonCall?.requestId?.length ?? 0).toBeGreaterThan(0);
@@ -2121,8 +2119,7 @@ describe('adminAnalytics', () => {
       // Forbidden: alice is not a member of org-b and not a super admin.
       expect(statusSpy).toHaveBeenCalledWith(403);
       const jsonCall = jsonSpy.mock.calls[0]?.[0] as
-        | { error?: string }
-        | undefined;
+        { error?: string } | undefined;
       expect(jsonCall?.error).toBe('permission-denied');
 
       // Tenant isolation: the auth gate must run BEFORE any reads against
@@ -2195,8 +2192,7 @@ describe('adminAnalytics', () => {
 
     expect(statusSpy).toHaveBeenCalledWith(503);
     const jsonCall = jsonSpy.mock.calls[0]?.[0] as
-      | { error?: string; message?: string }
-      | undefined;
+      { error?: string; message?: string } | undefined;
     expect(jsonCall?.error).toBe('not-yet-computed');
     expect(jsonCall?.message ?? '').toMatch(/scheduled refresh/i);
 
@@ -2553,12 +2549,11 @@ describe('recomputeAdminAnalytics (scheduled)', () => {
           get: vi.fn(() =>
             Promise.reject(new Error('synthetic failure: roster read'))
           ),
-        } as unknown as ReturnType<typeof originalCollection>;
+        };
       }
       return originalCollection(name);
     });
-    mockFirestore.collection =
-      wrappedCollection as unknown as typeof originalCollection;
+    mockFirestore.collection = wrappedCollection;
 
     try {
       // The test mock for `firebase-functions/v2/scheduler` returns the inner
@@ -2603,12 +2598,11 @@ describe('recomputeAdminAnalytics (scheduled)', () => {
           get: vi.fn(() =>
             Promise.reject(new Error('synthetic failure: roster read'))
           ),
-        } as unknown as ReturnType<typeof originalCollection>;
+        };
       }
       return originalCollection(name);
     });
-    mockFirestore.collection =
-      wrappedCollection as unknown as typeof originalCollection;
+    mockFirestore.collection = wrappedCollection;
 
     try {
       await expect(
@@ -3636,6 +3630,7 @@ describe('index barrel — deployed export set', () => {
     'launchSubAssignmentV1',
     // Flashcards Check submission
     'submitFlashcardCheckV1',
+    'submitMiniAppResultV1',
     'resolveFlashcardFlagV1',
     // Video Activity answer key
     'checkVideoActivityAnswerV1',
@@ -3884,12 +3879,11 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
     // Arrange: global permission restricts Gemini to admins only.
     geminiConfigDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({
-          enabled: true,
-          accessLevel: 'admin',
-          betaUsers: [],
-        }) as Record<string, unknown>,
+      data: () => ({
+        enabled: true,
+        accessLevel: 'admin',
+        betaUsers: [],
+      }),
     });
 
     // Act / Assert: non-admin teacher must be rejected.
@@ -3904,12 +3898,11 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
     // Arrange: global permission restricts Gemini to beta users.
     geminiConfigDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({
-          enabled: true,
-          accessLevel: 'beta',
-          betaUsers: ['beta@school.org'],
-        }) as Record<string, unknown>,
+      data: () => ({
+        enabled: true,
+        accessLevel: 'beta',
+        betaUsers: ['beta@school.org'],
+      }),
     });
 
     // teacher@school.org is NOT in betaUsers → must be rejected.
@@ -3924,12 +3917,11 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
     // Arrange: caller is in betaUsers — should pass the accessLevel gate.
     geminiConfigDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({
-          enabled: true,
-          accessLevel: 'beta',
-          betaUsers: ['teacher@school.org'],
-        }) as Record<string, unknown>,
+      data: () => ({
+        enabled: true,
+        accessLevel: 'beta',
+        betaUsers: ['teacher@school.org'],
+      }),
     });
 
     // The mocked Gemini call rejects afterwards; what matters is that the gate let it through.
@@ -3948,12 +3940,11 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
     mockFirestoreState.admins.add('teacher@school.org');
     geminiConfigDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({
-          enabled: true,
-          accessLevel: 'admin',
-          betaUsers: [],
-        }) as Record<string, unknown>,
+      data: () => ({
+        enabled: true,
+        accessLevel: 'admin',
+        betaUsers: [],
+      }),
     });
 
     await handler(VALID_DATA, { auth: NON_ADMIN_AUTH }).catch(() => undefined);
@@ -3985,12 +3976,11 @@ describe('generateVideoActivity — accessLevel enforcement', () => {
     mockFirestoreState.admins.add('admin@school.org');
     geminiConfigDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({
-          enabled: true,
-          accessLevel: 'admin',
-          betaUsers: [],
-        }) as Record<string, unknown>,
+      data: () => ({
+        enabled: true,
+        accessLevel: 'admin',
+        betaUsers: [],
+      }),
     });
 
     await expect(
@@ -4272,12 +4262,11 @@ describe('transcribeVideoWithGemini', () => {
     mockFirestoreState.admins.add('admin@school.org');
     audioTranscriptionPermDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({ enabled: true, accessLevel: 'public' }) as Record<string, unknown>,
+      data: () => ({ enabled: true, accessLevel: 'public' }),
     });
     geminiConfigDocGet.mockResolvedValue({
       exists: true,
-      data: () => ({ enabled: false }) as Record<string, unknown>,
+      data: () => ({ enabled: false }),
     });
     await expect(handler(VALID_DATA, { auth: ADMIN_AUTH })).rejects.toThrow(
       'Gemini functions are currently disabled by an administrator.'
@@ -4289,8 +4278,7 @@ describe('transcribeVideoWithGemini', () => {
     mockFirestoreState.admins.add('admin@school.org');
     audioTranscriptionPermDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({ enabled: true, accessLevel: 'admin' }) as Record<string, unknown>,
+      data: () => ({ enabled: true, accessLevel: 'admin' }),
     });
     await handler(VALID_DATA, { auth: ADMIN_AUTH }).catch(() => undefined);
     const today = new Date().toISOString().split('T')[0];
@@ -4305,11 +4293,10 @@ describe('transcribeVideoWithGemini', () => {
   it('throws permission-denied when the feature is disabled', async () => {
     audioTranscriptionPermDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({
-          enabled: false,
-          accessLevel: 'all',
-        }) as Record<string, unknown>,
+      data: () => ({
+        enabled: false,
+        accessLevel: 'all',
+      }),
     });
 
     await expect(handler(VALID_DATA, { auth: NON_ADMIN_AUTH })).rejects.toThrow(
@@ -4321,12 +4308,11 @@ describe('transcribeVideoWithGemini', () => {
   it('throws permission-denied for a non-admin when accessLevel is "admin"', async () => {
     audioTranscriptionPermDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({
-          enabled: true,
-          accessLevel: 'admin',
-          betaUsers: [],
-        }) as Record<string, unknown>,
+      data: () => ({
+        enabled: true,
+        accessLevel: 'admin',
+        betaUsers: [],
+      }),
     });
 
     await expect(handler(VALID_DATA, { auth: NON_ADMIN_AUTH })).rejects.toThrow(
@@ -4338,12 +4324,11 @@ describe('transcribeVideoWithGemini', () => {
   it('throws permission-denied for a non-beta user when accessLevel is "beta"', async () => {
     audioTranscriptionPermDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({
-          enabled: true,
-          accessLevel: 'beta',
-          betaUsers: ['beta@school.org'],
-        }) as Record<string, unknown>,
+      data: () => ({
+        enabled: true,
+        accessLevel: 'beta',
+        betaUsers: ['beta@school.org'],
+      }),
     });
 
     await expect(handler(VALID_DATA, { auth: NON_ADMIN_AUTH })).rejects.toThrow(
@@ -4356,12 +4341,11 @@ describe('transcribeVideoWithGemini', () => {
     mockFirestoreState.admins.add('admin@school.org');
     audioTranscriptionPermDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({
-          enabled: true,
-          accessLevel: 'admin',
-          betaUsers: [],
-        }) as Record<string, unknown>,
+      data: () => ({
+        enabled: true,
+        accessLevel: 'admin',
+        betaUsers: [],
+      }),
     });
 
     // Admins skip the rate-limit transaction entirely, so this reaches the
@@ -4392,12 +4376,11 @@ describe('transcribeVideoWithGemini', () => {
     mockFirestoreState.admins.add('admin@school.org');
     audioTranscriptionPermDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({
-          enabled: true,
-          accessLevel: 'admin',
-          betaUsers: [],
-        }) as Record<string, unknown>,
+      data: () => ({
+        enabled: true,
+        accessLevel: 'admin',
+        betaUsers: [],
+      }),
     });
 
     await expect(
@@ -4417,12 +4400,11 @@ describe('transcribeVideoWithGemini', () => {
     mockFirestoreState.admins.add('admin@school.org');
     audioTranscriptionPermDocGet.mockResolvedValue({
       exists: true,
-      data: () =>
-        ({
-          enabled: true,
-          accessLevel: 'admin',
-          betaUsers: [],
-        }) as Record<string, unknown>,
+      data: () => ({
+        enabled: true,
+        accessLevel: 'admin',
+        betaUsers: [],
+      }),
     });
 
     await expect(
@@ -4549,7 +4531,7 @@ describe('generateGuidedLearning', () => {
         contents: { role: string; parts: unknown[] }[];
       },
     ];
-    expect(call.model).toBe('gemini-3.8-flash');
+    expect(call.model).toBe('gemini-3.7-flash');
     expect(call.contents[0].parts[2]).toEqual({
       inlineData: {
         mimeType: VALID_IMAGE.mimeType,
@@ -4695,7 +4677,7 @@ describe('draftGuidedLearningStepTextV1', () => {
     const [call] = generateContentMock.mock.calls[0] as unknown as [
       { model: string; contents: { parts: unknown[] }[] },
     ];
-    expect(call.model).toBe('gemini-3.8-flash');
+    expect(call.model).toBe('gemini-3.7-flash');
     expect(call.contents[0].parts[2]).toEqual({
       inlineData: { mimeType: 'image/png', data: 'AAAA' },
     });

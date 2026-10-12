@@ -173,8 +173,7 @@ describe('useNotebookSharing — objectLinks roundtrip', () => {
       /^https:\/\/spartboard\.test\/share\/notebook\/share-1$/
     );
     const sharedDoc = firestoreHelpers.docs.get('shared_notebooks/share-1') as
-      | { objectLinks?: NotebookObjectLink[] }
-      | undefined;
+      { objectLinks?: NotebookObjectLink[] } | undefined;
     expect(sharedDoc?.objectLinks).toEqual(OBJECT_LINKS);
   });
 
@@ -212,8 +211,7 @@ describe('useNotebookSharing — objectLinks roundtrip', () => {
     });
 
     const sharedDoc = firestoreHelpers.docs.get('shared_notebooks/share-1') as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     expect(sharedDoc).toBeDefined();
     expect('objectLinks' in (sharedDoc as Record<string, unknown>)).toBe(false);
   });

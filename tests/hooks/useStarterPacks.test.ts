@@ -71,9 +71,9 @@ let handlers: Handler[] = [];
 const baseWidget = (
   overrides: Partial<WidgetData> = {}
 ): Omit<WidgetData, 'id'> => {
-  const { id: _id, ...rest } = {
+  const seed: WidgetData = {
     id: 'seed',
-    type: 'clock' as WidgetType,
+    type: 'clock',
     x: 0,
     y: 0,
     w: 100,
@@ -82,7 +82,8 @@ const baseWidget = (
     flipped: false,
     config: { label: 'A' },
     ...overrides,
-  } as WidgetData;
+  };
+  const { id: _id, ...rest } = seed;
   return rest;
 };
 
@@ -376,9 +377,10 @@ describe('useStarterPacks — executePack', () => {
 
 describe('useStarterPacks — userId transitions', () => {
   it('clears userPacks and returns to loading when the user signs out', () => {
+    const userProps: { uid: string | undefined } = { uid: USER_UID };
     const { result, rerender } = renderHook(
       ({ uid }: { uid: string | undefined }) => useStarterPacks(uid),
-      { initialProps: { uid: USER_UID as string | undefined } }
+      { initialProps: userProps }
     );
 
     act(() => {

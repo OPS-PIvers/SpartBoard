@@ -17,29 +17,28 @@ const UID = 'teacher-1';
 const GROUP_ID = 'group-1';
 const QUIZ_ID = 'reserved-quiz-id';
 
-const pendingBatch = (overrides: Partial<PaperBatch> = {}): PaperBatch =>
-  ({
-    id: 'batch-1',
-    quizId: QUIZ_ID,
-    rosterIds: ['r1'],
-    questionCount: 3,
-    choiceCount: 4,
-    seats: {},
-    spareSeats: [1, 2],
-    pagesPerSheet: 1,
-    createdAt: 10,
-    printedByUid: 'peer-1',
-    printedByName: 'Sarah Cole',
-    pendingQuizCopy: {
-      groupId: GROUP_ID,
-      plcId: 'plc-1',
-      plcQuizId: 'plc-quiz-1',
-      title: 'Vocab Formative Check',
-      requestedByName: 'Sarah Cole',
-      requestedAt: 10,
-    },
-    ...overrides,
-  }) as PaperBatch;
+const pendingBatch = (overrides: Partial<PaperBatch> = {}): PaperBatch => ({
+  id: 'batch-1',
+  quizId: QUIZ_ID,
+  rosterIds: ['r1'],
+  questionCount: 3,
+  choiceCount: 4,
+  seats: {},
+  spareSeats: [1, 2],
+  pagesPerSheet: 1,
+  createdAt: 10,
+  printedByUid: 'peer-1',
+  printedByName: 'Sarah Cole',
+  pendingQuizCopy: {
+    groupId: GROUP_ID,
+    plcId: 'plc-1',
+    plcQuizId: 'plc-quiz-1',
+    title: 'Vocab Formative Check',
+    requestedByName: 'Sarah Cole',
+    requestedAt: 10,
+  },
+  ...overrides,
+});
 
 const drive = (): QuizReplicaWriter & {
   saveQuiz: ReturnType<typeof vi.fn>;

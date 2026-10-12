@@ -10232,6 +10232,10 @@ export const TOUR_ANCHORS = {
     label: 'Keyboard shortcuts button in the Studio top bar',
     panel: true,
   },
+  'studio.copy-for-claude': {
+    label: 'Copy for Claude button in the Studio top bar',
+    panel: true,
+  },
   'studio.properties': {
     label: 'Properties panel toggle in the Studio top bar',
     panel: true,
@@ -10391,6 +10395,27 @@ export const TOUR_ANCHORS = {
   },
   'studio.props-welcome-message': {
     label: 'Welcome message box in the Studio properties panel',
+    panel: true,
+  },
+  'studio.props-welcome-image': {
+    label: 'Add or replace welcome image button in the Studio properties panel',
+    panel: true,
+  },
+  'studio.props-welcome-image-remove': {
+    label: 'Remove welcome image button in the Studio properties panel',
+    destructive: true,
+    panel: true,
+  },
+  'studio.props-welcome-image-alt': {
+    label: 'Welcome image alt text box in the Studio properties panel',
+    panel: true,
+  },
+  'studio.welcome-card': {
+    label: 'Pinned Welcome card at the top of the Studio filmstrip',
+    panel: true,
+  },
+  'studio.welcome-toggle': {
+    label: 'Welcome screen on/off switch on the Studio Welcome card',
     panel: true,
   },
   'studio.props-edit-on-board': {

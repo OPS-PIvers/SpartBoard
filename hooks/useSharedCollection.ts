@@ -443,8 +443,7 @@ export const useSharedCollection = () => {
                 fileId: string
               ): Promise<VideoActivityData> => {
                 const raw = (await quizDrive.loadQuiz(fileId)) as unknown as
-                  | VideoActivityData
-                  | undefined;
+                  VideoActivityData | undefined;
                 if (!raw) throw new Error('video activity file was empty');
                 // An older client may have written questions with no `type`.
                 return {

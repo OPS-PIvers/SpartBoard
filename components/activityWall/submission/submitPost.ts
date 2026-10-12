@@ -275,9 +275,9 @@ export const createPost = async ({
     if (videoId) {
       linkPreview = { domain: 'youtube.com', title: `YouTube ${videoId}` };
     } else {
-      linkPreview =
-        (await fetchPreview(content)) ??
-        ({ domain: domainOf(content) } as ActivityWallLinkPreview);
+      linkPreview = (await fetchPreview(content)) ?? {
+        domain: domainOf(content),
+      };
     }
   } else if (type === 'word') {
     content = draft.word.trim();

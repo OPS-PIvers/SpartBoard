@@ -51,8 +51,7 @@ const QUESTION_TYPES = [
 /** Choose all that apply; only offered when the request asks for it. */
 const MULTI_ANSWER_TYPE = 'MA';
 export type QuestionType =
-  | (typeof QUESTION_TYPES)[number]
-  | typeof MULTI_ANSWER_TYPE;
+  (typeof QUESTION_TYPES)[number] | typeof MULTI_ANSWER_TYPE;
 
 export interface ExtractDocumentRequest {
   fileName: string;

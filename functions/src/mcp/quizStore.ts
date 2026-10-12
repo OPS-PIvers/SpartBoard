@@ -7,12 +7,7 @@ import { standardCodes, type TargetTag } from './standards';
 type Firestore = admin.firestore.Firestore;
 
 export type StoredQuestionType =
-  | 'MC'
-  | 'FIB'
-  | 'Matching'
-  | 'Ordering'
-  | 'MA'
-  | 'free-response';
+  'MC' | 'FIB' | 'Matching' | 'Ordering' | 'MA' | 'free-response';
 
 /** Mirrors QuizQuestion in types.ts; unknown fields ride along untouched. */
 export interface StoredQuestion {
@@ -531,8 +526,7 @@ export function buildMetadata(
     behavior: existing?.behavior,
     translations: recomputeTranslationIndex(
       existing?.translations as
-        | Record<string, TranslationIndexEntry>
-        | undefined,
+        Record<string, TranslationIndexEntry> | undefined,
       content.questions
     ),
     language: content.language,
@@ -571,5 +565,5 @@ export function normalizeContent(raw: unknown, id: string): QuizContent {
     questions,
     createdAt: data.createdAt ?? Date.now(),
     updatedAt: data.updatedAt ?? Date.now(),
-  } as QuizContent;
+  };
 }

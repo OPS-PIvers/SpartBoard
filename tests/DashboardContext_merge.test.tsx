@@ -225,7 +225,7 @@ function makeWidget(id: string, configValue: unknown): WidgetData {
     h: 100,
     z: 1,
     flipped: false,
-    config: { text: configValue } as WidgetData['config'],
+    config: { text: configValue },
   };
 }
 
@@ -291,7 +291,7 @@ describe('DashboardContext per-widget merge', () => {
     // Local drift on widget A (e.g. a running timer) forces the merge path.
     await act(async () => {
       stateRef.current?.updateWidget('wA', {
-        config: { text: 'local-A' } as WidgetData['config'],
+        config: { text: 'local-A' },
       });
       await Promise.resolve();
     });
@@ -335,7 +335,7 @@ describe('DashboardContext per-widget merge', () => {
     // --- Step 3: local edit on widget A ---
     await act(async () => {
       stateRef.current?.updateWidget('wA', {
-        config: { text: 'local-A' } as WidgetData['config'],
+        config: { text: 'local-A' },
       });
       await Promise.resolve();
     });
@@ -384,7 +384,7 @@ describe('DashboardContext per-widget merge', () => {
     // Local edit on widget A bumps its local configVersion.
     await act(async () => {
       stateRef.current?.updateWidget('wA', {
-        config: { text: 'local-A' } as WidgetData['config'],
+        config: { text: 'local-A' },
         configVersion: 2,
       });
       await Promise.resolve();
@@ -433,7 +433,7 @@ describe('DashboardContext per-widget merge', () => {
     // Local edit on widget A so the merge path is taken
     await act(async () => {
       stateRef.current?.updateWidget('wA', {
-        config: { text: 'local-A' } as WidgetData['config'],
+        config: { text: 'local-A' },
       });
       await Promise.resolve();
     });
@@ -646,8 +646,7 @@ describe('DashboardContext per-widget merge', () => {
       timeout: 3000,
     });
     const baseline = mockSaveDashboard.mock.calls[0][1] as
-      | { dashboardFields?: Record<string, string> }
-      | undefined;
+      { dashboardFields?: Record<string, string> } | undefined;
     // The true prior baseline is "no globalStyle was ever synced from this
     // device" (serializes to the string "null"). If the incoming snapshot's
     // matching value had advanced it instead, a later save racing a
@@ -749,7 +748,7 @@ describe('DashboardContext per-widget merge', () => {
     // No `version` field, so the merge falls back to the JSON.stringify(config) path.
     const widgetA: WidgetData = {
       ...makeWidget('wA', 'unused'),
-      config: { text: 'a', color: 'red' } as WidgetData['config'],
+      config: { text: 'a', color: 'red' },
     };
     const initialDashboard = makeDashboard([widgetA]);
 
@@ -776,7 +775,7 @@ describe('DashboardContext per-widget merge', () => {
         ...makeDashboard([
           {
             ...widgetA,
-            config: { text: 'a', color: 'blue' } as WidgetData['config'],
+            config: { text: 'a', color: 'blue' },
           },
         ]),
         updatedAt: 2000,
@@ -886,7 +885,7 @@ describe('DashboardContext per-widget merge', () => {
       config: {
         text: 'original',
         style: { color: 'red', size: 12 },
-      } as unknown as WidgetData['config'],
+      },
       version: 1,
     };
     const initialDashboard = makeDashboard([widgetA]);
@@ -903,7 +902,7 @@ describe('DashboardContext per-widget merge', () => {
       stateRef.current?.updateWidget('wA', {
         config: {
           style: { size: 12, color: 'red' },
-        } as unknown as WidgetData['config'],
+        },
       });
       await Promise.resolve();
     });
@@ -917,7 +916,7 @@ describe('DashboardContext per-widget merge', () => {
             config: {
               text: 'remote-edit',
               style: { color: 'red', size: 12 },
-            } as unknown as WidgetData['config'],
+            },
             version: 2,
           },
         ]),

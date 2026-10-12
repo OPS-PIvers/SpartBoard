@@ -27,19 +27,19 @@ vi.mock('@/context/useAuth', () => ({
 const { translationsApi } = vi.hoisted(() => ({
   translationsApi: {
     translatableIds: ['q1'],
-    byLocale: {} as Record<string, unknown>,
-    loading: {} as Record<string, boolean>,
+    byLocale: {},
+    loading: {},
     load: vi.fn(),
     generate: vi.fn(),
     editQuestion: vi.fn(),
     setReviewed: vi.fn(),
     save: vi.fn(),
     saveAll: vi.fn((): Promise<void> => Promise.resolve()),
-    hasUnsavedChanges: false as boolean,
+    hasUnsavedChanges: false,
     staleIds: () => [] as string[],
     cap: null,
     error: null as string | null,
-    loadFailed: {} as Record<string, boolean>,
+    loadFailed: {},
     needsLoad: vi.fn((_locale: string) => false),
   },
 }));

@@ -29,6 +29,7 @@ vi.mock('firebase-functions/v2/https', () => ({
 
 import {
   findAnswerField,
+  glSessionPresentation,
   handleLaunchSubAssignment,
   publicQuestionFromKey,
   publicQuestionsFromKey,
@@ -1581,5 +1582,39 @@ describe('launching a flashcard set', () => {
     await expect(launchFc({ fc: null }).run()).rejects.toThrow(
       'no longer in the teacher'
     );
+  });
+});
+
+describe('glSessionPresentation welcome', () => {
+  const IMG = 'https://example.com/hello.webp';
+
+  it('mirrors the welcome image and alt text, with or without a message', () => {
+    expect(
+      glSessionPresentation({
+        welcomeEnabled: true,
+        welcomeImageUrl: IMG,
+        welcomeImageAlt: 'A cell',
+      })
+    ).toMatchObject({
+      welcomeEnabled: true,
+      welcomeImageUrl: IMG,
+      welcomeImageAlt: 'A cell',
+    });
+    expect(
+      glSessionPresentation({
+        welcomeEnabled: true,
+        welcomeMessage: 'Hi',
+        welcomeImageUrl: IMG,
+      })
+    ).not.toHaveProperty('welcomeImageAlt');
+  });
+
+  it('carries nothing while the welcome is off', () => {
+    const out = glSessionPresentation({
+      welcomeMessage: 'Hi',
+      welcomeImageUrl: IMG,
+    });
+    expect(out).not.toHaveProperty('welcomeEnabled');
+    expect(out).not.toHaveProperty('welcomeImageUrl');
   });
 });

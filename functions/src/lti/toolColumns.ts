@@ -155,11 +155,7 @@ export interface TargetSection {
 }
 
 export type SectionStatus =
-  | 'pushed'
-  | 'needs-category'
-  | 'no-column'
-  | 'busy'
-  | 'failed';
+  'pushed' | 'needs-category' | 'no-column' | 'busy' | 'failed';
 
 export interface SectionOutcome {
   contextId: string;

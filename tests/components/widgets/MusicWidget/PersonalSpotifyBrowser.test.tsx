@@ -29,7 +29,9 @@ vi.mock('@/hooks/useSpotifyAuth', () => ({
 // here: the component is already imported and cached above, so without
 // vi.resetModules the re-import returns the cached module still bound to this
 // hoisted mock — the dynamic deviceId never reaches the component.)
-const playbackState = vi.hoisted(() => ({ deviceId: 'dev1' as string | null }));
+const playbackState = vi.hoisted((): { deviceId: string | null } => ({
+  deviceId: 'dev1',
+}));
 vi.mock('@/hooks/useSpotifyWebPlayback', () => ({
   useSpotifyWebPlayback: () => ({
     deviceId: playbackState.deviceId,

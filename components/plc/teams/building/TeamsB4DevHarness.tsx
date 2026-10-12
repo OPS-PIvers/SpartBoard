@@ -143,10 +143,10 @@ const calendarFixture = (
 
 type Screen = 'bldg' | 'updates';
 
-function readParams() {
+function readParams(): { screen: Screen; lead: boolean; capture: boolean } {
   const params = new URLSearchParams(window.location.search);
   return {
-    screen: (params.get('screen') === 'updates' ? 'updates' : 'bldg') as Screen,
+    screen: params.get('screen') === 'updates' ? 'updates' : 'bldg',
     lead: params.get('role') !== 'member',
     capture: params.get('capture') === '1',
   };

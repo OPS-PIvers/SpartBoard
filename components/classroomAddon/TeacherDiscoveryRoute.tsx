@@ -354,8 +354,10 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     setPrevSelectionKey(selectionKey);
     setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
     setTargetingQuizData(
+      // eslint-disable-next-line react-hooks/refs -- reads a fetch cache while adjusting state on selection change
       targetingQuizCacheRef.current.get(selectedQuizId) ?? null
     );
+    // eslint-disable-next-line react-hooks/refs -- clears the loaded marker while adjusting state on selection change
     loadedTargetingForRef.current = null;
   }
 
@@ -443,6 +445,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   // roster fields stay empty — an unlinked course has no SpartBoard roster.
   // Shared by both the quiz and video-activity attach paths.
   const resolveClassTargeting =
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps narrowed to user?.uid on purpose
     useCallback(async (): Promise<ResolvedTargeting> => {
       const targeting: ResolvedTargeting = {
         classIds: [`classroom:${courseId}`],

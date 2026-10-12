@@ -40,6 +40,7 @@ import {
   setHelpCenterFlag,
   useGuidedLearning,
 } from '@/hooks/useGuidedLearning';
+import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { useGuidedLearningSessionTeacher } from '@/hooks/useGuidedLearningSession';
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
 import { useFolders } from '@/hooks/useFolders';
@@ -261,9 +262,11 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     saveBuildingSet,
     deleteBuildingSet,
     duplicateBuildingSet,
+    watchSetRevision,
   } = useGuidedLearning(user?.uid);
 
   const { createSession } = useGuidedLearningSessionTeacher(user?.uid);
+  const claudeReview = useClaudeReview('guided_learning');
 
   const {
     assignments,
@@ -292,6 +295,15 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   // Session whose set couldn't be loaded, so Results shows an error instead of a stale set.
   const [resultsLoadError, setResultsLoadError] = useState<string | null>(null);
   const [editingSet, setEditingSet] = useState<GuidedLearningSet | null>(null);
+  const editingSetId = editingSet?.id;
+  const editingBuilding = editingSet?.isBuilding === true;
+  const editingRevisionWatch = useMemo(
+    () =>
+      editingSetId
+        ? watchSetRevision(editingSetId, editingBuilding)
+        : undefined,
+    [watchSetRevision, editingSetId, editingBuilding]
+  );
   const [editingMeta, setEditingMeta] =
     useState<GuidedLearningSetMetadata | null>(null);
   // The Studio is admin-only until P1-10 retires the classic editor.
@@ -369,7 +381,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const setView = useCallback(
     (view: GuidedLearningConfig['view']) => {
       updateWidget(widget.id, {
-        config: { ...config, view } as GuidedLearningConfig,
+        config: { ...config, view },
       });
     },
     [updateWidget, widget.id, config]
@@ -506,6 +518,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         ([, sid]) => sid === sessionId
       )?.[0];
     if (!setId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- records a failed rehydrate lookup
       setResultsLoadError(sessionId);
       return;
     }
@@ -545,7 +558,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         ...config,
         view: 'player',
         playerSetId: setId,
-      } as GuidedLearningConfig,
+      },
     });
   };
 
@@ -735,6 +748,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   // link inline). Throws on failure so callers can surface their own error
   // path; non-silent callers swallow + toast.
   const performAssign = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps kept as written
     async (
       data: GuidedLearningSet,
       source: 'personal' | 'building',
@@ -876,7 +890,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
           config: {
             ...config,
             lastRosterIdsBySetId: nextMap,
-          } as GuidedLearningConfig,
+          },
         });
         if (!silent) {
           await navigator.clipboard.writeText(url);
@@ -1044,7 +1058,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         ...config,
         view: 'results',
         resultsSessionId: sessionId,
-      } as GuidedLearningConfig,
+      },
     });
   };
 
@@ -1065,7 +1079,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         ...config,
         view: 'results',
         resultsSessionId: assignment.sessionId,
-      } as GuidedLearningConfig,
+      },
     });
   };
 
@@ -1156,6 +1170,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   // Persist a new ordering of personal sets. We write `order` onto each
   // metadata doc in a single batch — the Drive blob is untouched.
   const handleReorderPersonal = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps kept as written
     async (orderedIds: string[]) => {
       if (!user?.uid || isTourSandboxActive()) return;
       const batch = writeBatch(db);
@@ -1271,6 +1286,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
 
   // Recreated per render on purpose — the wizard holds its own parsed state,
   // and useStorage's function identities change every render anyway.
+  // eslint-disable-next-line react-hooks/refs -- adapter reads refs only when the wizard calls it
   const importAdapter = createGuidedLearningImportAdapter({
     save: async (set, title) => {
       if (!user?.uid) throw new Error('Not authenticated');
@@ -1465,11 +1481,22 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                   onPlay={(setId, driveFileId, buildingEntry) => {
                     void handlePlay(setId, driveFileId, buildingEntry);
                   }}
+                  reviewBadge={claudeReview.badge}
                   onEdit={(setId, driveFileId, buildingEntry) => {
+                    const meta = buildingEntry
+                      ? undefined
+                      : sets.find((s) => s.id === setId);
+                    if (meta) claudeReview.markReviewed(meta);
                     void handleEdit(setId, driveFileId, buildingEntry);
                   }}
                   onAssign={(setId, driveFileId, buildingEntry) => {
-                    void handleAssign(setId, driveFileId, buildingEntry);
+                    const meta = buildingEntry
+                      ? undefined
+                      : sets.find((s) => s.id === setId);
+                    const go = () =>
+                      void handleAssign(setId, driveFileId, buildingEntry);
+                    if (meta) claudeReview.whenReviewed(meta, go);
+                    else go();
                   }}
                   folderDeleteActions={{
                     isBlocked: (id) => openAssignmentIdsFor(id).length > 0,
@@ -1651,7 +1678,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                         ...config,
                         view: 'library',
                         playerSetId: null,
-                      } as GuidedLearningConfig,
+                      },
                     })
                   }
                   teacherMode={!playerV2}
@@ -1683,7 +1710,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                             ...config,
                             view: 'library',
                             resultsSessionId: null,
-                          } as GuidedLearningConfig,
+                          },
                         });
                       }}
                       className="inline-flex items-center rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-sm transition-colors"
@@ -1712,7 +1739,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                       ...config,
                       view: 'library',
                       resultsSessionId: null,
-                    } as GuidedLearningConfig,
+                    },
                   });
                 const isViewOnlyResults =
                   resultsAssignment?.assignmentMode === 'view-only';
@@ -1796,6 +1823,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
               onClose={closeEditor}
               onSave={handleSave}
               onImport={isDriveConnected ? openImportWizard : undefined}
+              watchRevision={editingRevisionWatch}
               onOpenClassic={(latest) => {
                 setEditingSet(latest);
                 setClassicEditor(true);

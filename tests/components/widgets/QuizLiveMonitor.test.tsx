@@ -72,7 +72,7 @@ vi.mock('firebase/firestore', () => ({
 }));
 
 import * as firestore from 'firebase/firestore';
-import { QuizLiveMonitor } from '@/components/widgets/QuizWidget/components/QuizLiveMonitor';
+import { MonitorShell as QuizLiveMonitor } from '@/components/widgets/QuizWidget/components/monitor/MonitorShell';
 import { QuestionDetail } from '@/components/widgets/QuizWidget/components/monitor/QuestionResults';
 
 // ─── Fixture helpers ────────────────────────────────────────────────────────
@@ -161,7 +161,7 @@ function makeRoster(name: string): ClassRoster {
     studentCount: 0,
     createdAt: 1,
     students: [],
-  } as unknown as ClassRoster;
+  };
 }
 
 const noopAsync = () => Promise.resolve();

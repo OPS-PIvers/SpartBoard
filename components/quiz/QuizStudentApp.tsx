@@ -2280,6 +2280,7 @@ export const ActiveQuiz: React.FC<{
   // persisted draft — almost always benign because most diffs are nonzero,
   // but a flush-after-no-edit would still spuriously re-write.
   const savedAnswerForCurrentRef = useRef<string | null>(null);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   savedAnswerForCurrentRef.current = savedAnswerForCurrent;
 
   // Reset `selectedAnswer` on question change. The per-type live values
@@ -2314,12 +2315,14 @@ export const ActiveQuiz: React.FC<{
   if (
     currentQuestion?.id &&
     savedAnswerForCurrent !== null &&
+    // eslint-disable-next-line react-hooks/refs -- seed-once guard while adjusting state
     !touchedQuestionsRef.current.has(currentQuestion.id) &&
     answerCache[currentQuestion.id] !== savedAnswerForCurrent
   ) {
     const qid = currentQuestion.id;
     // Mark as seeded BEFORE the setState so the editor questionKey (read
     // later in this same render pass) sees the right state on this commit.
+    // eslint-disable-next-line react-hooks/refs -- seed-once guard while adjusting state
     seededQuestionsRef.current.add(qid);
     setAnswerCache((prev) => {
       const fresh = savedAnswerForCurrentRef.current;
@@ -2366,6 +2369,7 @@ export const ActiveQuiz: React.FC<{
     // pre-flip value with no way to reconcile on the next non-flight render —
     // because `prevAlreadyAnswered` would already match. Keeping them in
     // lockstep means the next non-flight render still has a chance to sync.
+    // eslint-disable-next-line react-hooks/refs -- in-flight advance guard while adjusting state
     if (!submitting && !advancingRef.current) {
       setPrevAlreadyAnswered(alreadyAnswered);
       setSubmitted(alreadyAnswered);
@@ -2402,18 +2406,22 @@ export const ActiveQuiz: React.FC<{
   // same commit (visibility flush, structured input change) would see
   // the previous render's value.
   const currentQuestionRef = useRef(currentQuestion);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   currentQuestionRef.current = currentQuestion;
   const selectedAnswerRef = useRef(selectedAnswer);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   selectedAnswerRef.current = selectedAnswer;
   // `locale` is per-call (D18): stamped only while a localized rendering is on screen.
   const answerLocaleRef = useRef<{ qid: string | null; locale?: string }>({
     qid: null,
   });
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   answerLocaleRef.current = {
     qid: currentQidForLocale,
     locale: localizedStrings ? activeLocale : undefined,
   };
   const onAnswerRef = useRef(onAnswer);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   onAnswerRef.current = (qId, answer, speedBonus, opts) => {
     const stamp =
       answerLocaleRef.current.qid === qId
@@ -2434,11 +2442,13 @@ export const ActiveQuiz: React.FC<{
   // response from `'completed'` back to `'in-progress'` and silently
   // breaking the teacher's "Finished" counter.
   const myResponseStatusRef = useRef(myResponse?.status);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   myResponseStatusRef.current = myResponse?.status;
   // Mirror of the per-question `submitted` state for the imperative
   // paths (flush handler, structured-input change callbacks) that can't
   // read state directly.
   const submittedRef = useRef(false);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   submittedRef.current = submitted;
   // Pending draft tracker for question-change flushes. The state-driven
   // autosave effect populates this when it schedules a write; a watcher
@@ -2473,10 +2483,12 @@ export const ActiveQuiz: React.FC<{
 
   // Same last-question rule as handleSubmit, read by the timeout effect below.
   const timeoutFinishesQuizRef = useRef(false);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   timeoutFinishesQuizRef.current =
     currentIndex >= effectiveTotalQuestions - 1 &&
     myResponse?.status !== 'completed';
   const onCompleteRef = useRef(onComplete);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   onCompleteRef.current = onComplete;
   // Synced below once openRecordingQuestions is computed.
   const openRecordingCountRef = useRef(0);
@@ -2572,6 +2584,7 @@ export const ActiveQuiz: React.FC<{
   // imperative readers (auto-submit, flush). `cachedDraft` is null when the
   // question has no cache entry; store `undefined` to preserve the old
   // per-key lookup semantics (`record[qid]` was `undefined` when absent).
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   currentAnswerRef.current = {
     qid: currentQid,
     value: cachedDraft ?? undefined,
@@ -2633,6 +2646,7 @@ export const ActiveQuiz: React.FC<{
     // with the explicit Submit/Next button still bypasses the guard
     // and lets them persist an empty answer if that's really intended.
     if (cachedDraft === '' && (savedAnswerForCurrent ?? '') !== '') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- guard message for the debounced draft flush
       setSaveError(
         'Your previously-saved answer is still on file. Click Submit to clear it.'
       );
@@ -2990,6 +3004,7 @@ export const ActiveQuiz: React.FC<{
   const openRecordingQuestions = recordingQuestionEntries
     .filter(({ q }) => openRecordingIds.has(q.id))
     .map(({ q, index }) => ({ id: q.id, index, text: q.text }));
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   openRecordingCountRef.current = openRecordingQuestions.length;
 
   const jumpToOpenRecording = (index: number) => {
@@ -4164,6 +4179,7 @@ export const ActiveQuiz: React.FC<{
                       // keystroke also populates `answerCache`, and keying on that
                       // remounted the editor mid-type, stealing focus and the caret.
                       questionKey={`${currentQuestion.id}:${
+                        // eslint-disable-next-line react-hooks/refs -- seeded set keys the editor remount
                         seededQuestionsRef.current.has(currentQuestion.id)
                           ? 'seeded'
                           : 'init'

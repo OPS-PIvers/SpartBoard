@@ -290,10 +290,7 @@ export function registerVideoTools(server: McpServer, ctx: ToolContext): void {
       run('create_video_activity', ctx, async () => {
         const youtubeUrl = assertYouTubeUrl(input.youtube_url);
         await assertFolder(ctx, 'video_activities', input.folder_id);
-        const questions = buildQuestions(
-          input.questions as VideoFriendlyQuestion[],
-          []
-        );
+        const questions = buildQuestions(input.questions, []);
         const token = await driveTokenFor(ctx.uid);
         await reserveWrite(ctx);
         const now = Date.now();
@@ -357,10 +354,7 @@ export function registerVideoTools(server: McpServer, ctx: ToolContext): void {
         );
         assertNotSynced(meta);
         const questions = input.questions
-          ? buildQuestions(
-              input.questions as VideoFriendlyQuestion[],
-              content.questions
-            )
+          ? buildQuestions(input.questions, content.questions)
           : content.questions;
         await reserveWrite(ctx);
         return saveActivity(

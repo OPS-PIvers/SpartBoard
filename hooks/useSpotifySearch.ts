@@ -27,6 +27,7 @@ export function useSpotifySearch(query: string): UseSpotifySearchReturn {
   useEffect(() => {
     const trimmed = query.trim();
     if (!trimmed) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clears results before the debounced Spotify fetch
       setResults([]);
       setSearchError(null);
       setIsSearching(false);

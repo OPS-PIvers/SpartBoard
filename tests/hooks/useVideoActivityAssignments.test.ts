@@ -116,7 +116,7 @@ function makeSettings(
       allowSkipping: false,
     },
     ...overrides,
-  } as VideoActivityAssignmentSettings;
+  };
 }
 
 describe('useVideoActivityAssignments — createAssignment persists sessionOptions', () => {

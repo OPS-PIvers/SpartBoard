@@ -536,7 +536,7 @@ describe('createTeammatePaperBatchV1 — no personal copy yet (D9)', () => {
         ];
         return Promise.resolve('new-drive-file');
       }),
-    } as Partial<TeammatePrintWriteDeps>);
+    });
     const { run, writes } = create(state, d);
     const result = await run();
 

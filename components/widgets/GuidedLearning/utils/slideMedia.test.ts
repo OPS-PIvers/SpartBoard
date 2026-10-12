@@ -10,6 +10,25 @@ const storageUrl = (path: string) =>
   `https://firebasestorage.googleapis.com/v0/b/bkt/o/${encodeURIComponent(path)}?alt=media&token=t`;
 
 describe('withSlideFileRefs', () => {
+  it('lists the welcome image from Storage or Drive', () => {
+    const fromStorage = withSlideFileRefs({
+      imageUrls: [],
+      imagePaths: [] as string[],
+      driveFileIds: [] as string[],
+      welcomeImageUrl: storageUrl('users/u/hotspot_images/hello.webp'),
+    });
+    expect(fromStorage.imagePaths).toEqual([
+      'users/u/hotspot_images/hello.webp',
+    ]);
+    const fromDrive = withSlideFileRefs({
+      imageUrls: [],
+      imagePaths: [] as string[],
+      driveFileIds: [] as string[],
+      welcomeImageUrl: 'https://lh3.googleusercontent.com/d/drive-w',
+    });
+    expect(fromDrive.driveFileIds).toEqual(['drive-w']);
+  });
+
   it('lists Storage paths, keeps already-listed ones, and skips the TTS cache', () => {
     const out = withSlideFileRefs({
       imageUrls: [

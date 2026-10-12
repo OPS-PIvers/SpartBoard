@@ -96,7 +96,7 @@ const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
   routineGuide:
     RoutineGuideConfigurationPanel as unknown as BuildingConfigPanel,
   lunchCount: LunchCountBuildingConfigPanel,
-  url: UrlConfigurationPanel as unknown as BuildingConfigPanel,
+  url: UrlConfigurationPanel,
   soundboard: SoundboardConfigurationPanel as unknown as BuildingConfigPanel,
   schedule: ScheduleConfigurationPanel as unknown as BuildingConfigPanel,
   clock: ClockConfigurationPanel as unknown as BuildingConfigPanel,
@@ -110,32 +110,29 @@ const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
   scoreboard: ScoreboardConfigurationPanel as unknown as BuildingConfigPanel,
   drawing: DrawingConfigurationPanel as unknown as BuildingConfigPanel,
   materials: MaterialsConfigurationPanel as unknown as BuildingConfigPanel,
-  mathTools: MathToolsConfigurationPanel as unknown as BuildingConfigPanel,
+  mathTools: MathToolsConfigurationPanel,
   nextUp: NextUpConfigurationPanel as unknown as BuildingConfigPanel,
   'car-rider-pro': CarRiderConfigurationPanel as unknown as BuildingConfigPanel,
   'blending-board':
     BlendingBoardConfigurationPanel as unknown as BuildingConfigPanel,
   poll: PollConfigurationPanel as unknown as BuildingConfigPanel,
-  'activity-wall':
-    ActivityWallConfigurationPanel as unknown as BuildingConfigPanel,
+  'activity-wall': ActivityWallConfigurationPanel,
   qr: QRConfigurationPanel as unknown as BuildingConfigPanel,
   embed: EmbedConfigurationPanel as unknown as BuildingConfigPanel,
   breathing: BreathingConfigurationPanel as unknown as BuildingConfigPanel,
   numberLine: NumberLineConfigurationPanel as unknown as BuildingConfigPanel,
   'hotspot-image':
     HotspotImageConfigurationPanel as unknown as BuildingConfigPanel,
-  'concept-web': ConceptWebConfigurationPanel as unknown as BuildingConfigPanel,
+  'concept-web': ConceptWebConfigurationPanel,
   'syntax-framer':
     SyntaxFramerConfigurationPanel as unknown as BuildingConfigPanel,
-  'seating-chart':
-    SeatingChartConfigurationPanel as unknown as BuildingConfigPanel,
-  'reveal-grid': RevealGridConfigurationPanel as unknown as BuildingConfigPanel,
-  recessGear: RecessGearConfigurationPanel as unknown as BuildingConfigPanel,
+  'seating-chart': SeatingChartConfigurationPanel,
+  'reveal-grid': RevealGridConfigurationPanel,
+  recessGear: RecessGearConfigurationPanel,
   classes: ClassesConfigurationPanel as unknown as BuildingConfigPanel,
   smartNotebook:
     SmartNotebookConfigurationPanel as unknown as BuildingConfigPanel,
-  'guided-learning':
-    GuidedLearningConfigurationPanel as unknown as BuildingConfigPanel,
+  'guided-learning': GuidedLearningConfigurationPanel,
   countdown: CountdownConfigurationPanel as unknown as BuildingConfigPanel,
   'first-5': First5ConfigurationPanel as unknown as BuildingConfigPanel,
   'need-do-put-then':

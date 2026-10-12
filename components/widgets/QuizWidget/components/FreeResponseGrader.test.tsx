@@ -287,11 +287,7 @@ describe('FreeResponseGrader take pinning', () => {
     fireEvent.keyDown(pts, { key: 'Enter' });
 
     await waitFor(() => expect(onSave).toHaveBeenCalled());
-    const [, key, grade] = onSave.mock.calls[0] as [
-      string,
-      string,
-      WrittenAnswerGrade,
-    ];
+    const [, key, grade] = onSave.mock.calls[0];
     expect(key).toBe('q1');
     expect(grade.gradedTakeIndex).toBe(1);
     expect(grade.pointsAwarded).toBe(3);

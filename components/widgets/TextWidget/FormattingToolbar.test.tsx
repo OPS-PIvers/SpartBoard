@@ -22,7 +22,7 @@ describe('FormattingToolbar', () => {
         unobserve: vi.fn(),
         disconnect: vi.fn(),
       };
-    }) as unknown as typeof ResizeObserver;
+    });
   });
 
   const mockEditorRef = {
@@ -752,8 +752,7 @@ describe('FormattingToolbar', () => {
     const queryCommandStateMock = vi.fn(
       (cmd: string) => cmd === 'insertUnorderedList'
     );
-    document.queryCommandState =
-      queryCommandStateMock as unknown as typeof document.queryCommandState;
+    document.queryCommandState = queryCommandStateMock;
 
     // Capture-selection runs on selectionchange; fire one with a real range
     // inside an editor element so the toolbar reads queryCommandState.

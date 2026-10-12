@@ -86,8 +86,7 @@ export function sortGroupsForBoard<
 /** D6 — no ClassLink or test class means `local:<rosterId>`, which no student claim matches. */
 export function projectClassIdFor(
   roster:
-    | { id: string; classlinkClassId?: string; testClassId?: string }
-    | undefined
+    { id: string; classlinkClassId?: string; testClassId?: string } | undefined
 ): string | null {
   if (!roster) return null;
   // Empty string, not just undefined: that is the shape a hand-built roster has.

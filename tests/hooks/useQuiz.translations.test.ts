@@ -88,18 +88,17 @@ const entry = (
 const metaWith = (
   sourceHashes: Record<string, string>,
   extra: Partial<QuizMetadata> = {}
-): QuizMetadata =>
-  ({
-    id: QUIZ_DATA.id,
-    title: QUIZ_DATA.title,
-    driveFileId: 'drive-file-tr',
-    questionCount: 1,
-    createdAt: 1_000_000,
-    updatedAt: 1_000_000,
-    translations: { es: entry(sourceHashes) },
-    language: 'en-US',
-    ...extra,
-  }) as QuizMetadata;
+): QuizMetadata => ({
+  id: QUIZ_DATA.id,
+  title: QUIZ_DATA.title,
+  driveFileId: 'drive-file-tr',
+  questionCount: 1,
+  createdAt: 1_000_000,
+  updatedAt: 1_000_000,
+  translations: { es: entry(sourceHashes) },
+  language: 'en-US',
+  ...extra,
+});
 
 function captureSetDocPayloads(): Array<Record<string, unknown>> {
   const payloads: Array<Record<string, unknown>> = [];

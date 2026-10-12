@@ -178,9 +178,7 @@ describe('useFirestore – saveDashboard transaction', () => {
   it('does not treat a permission-denied failure as offline just because the browser is', async () => {
     // navigator.onLine is a hint, not a verdict: a blind setDoc fallback here
     // would queue an overwrite of the server copy the rules just refused.
-    const onLine = vi
-      .spyOn(navigator, 'onLine', 'get')
-      .mockReturnValue(false as unknown as boolean);
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     (firestore.runTransaction as unknown as Fn).mockRejectedValue(
       Object.assign(new Error('nope'), { code: 'permission-denied' })
     );
@@ -233,7 +231,7 @@ describe('useFirestore – saveDashboard transaction', () => {
       ...widget('a', 'a0'),
       w: 200,
       h: 100,
-    } as WidgetData;
+    };
     const tx = mockTransaction(board([legacyWidget]));
 
     // Layout untouched locally (local === baseline), so the merge adopts the

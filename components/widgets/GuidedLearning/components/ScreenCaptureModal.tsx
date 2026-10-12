@@ -109,6 +109,7 @@ export const ScreenCaptureModal: React.FC<Props> = ({
   const onCloseRef = useRef(onClose);
   // Keep the ref in sync with the prop in the render body (per repo convention)
   // rather than in an effect, so the keydown handler never reads a stale closure.
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   onCloseRef.current = onClose;
 
   // Ref to our own portal root div so the Escape guard below can distinguish

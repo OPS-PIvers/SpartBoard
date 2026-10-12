@@ -63,13 +63,13 @@ External widens _who may consent_; it does not alter _what Orono consents to_.
   is only selectable because the project is org-owned; External is therefore a
   reversible toggle on the same project.
 - **Login scopes** (`config/firebase.ts`, `GOOGLE_OAUTH_SCOPES`):
-  | Scope | Tier | Verification impact when External |
-  |---|---|---|
-  | `https://www.googleapis.com/auth/drive.file` | **unrestricted** | none — no review even when External |
-  | `https://www.googleapis.com/auth/spreadsheets` | **sensitive** | one-time free verification |
-  | `https://www.googleapis.com/auth/calendar.readonly` | **sensitive** | one-time free verification |
-  Plus the standard `openid` / `userinfo.email` / `userinfo.profile`, which are
-  not sensitive.
+  | Scope                                                                         | Tier             | Verification impact when External   |
+  | ----------------------------------------------------------------------------- | ---------------- | ----------------------------------- |
+  | `https://www.googleapis.com/auth/drive.file`                                  | **unrestricted** | none — no review even when External |
+  | `https://www.googleapis.com/auth/spreadsheets`                                | **sensitive**    | one-time free verification          |
+  | `https://www.googleapis.com/auth/calendar.readonly`                           | **sensitive**    | one-time free verification          |
+  | Plus the standard `openid` / `userinfo.email` / `userinfo.profile`, which are |
+  | not sensitive.                                                                |
 - **Restricted Classroom scope is separate from login.** The restricted
   `classroom.coursework.students` scope lives only in
   `components/classroomAddon/gisOAuth.ts` (on-demand GIS popups), never in the

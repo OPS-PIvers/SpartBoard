@@ -74,8 +74,7 @@ export type BackendRefreshOutcome =
  * needs-consent UX silently, so the test suite locks the literal values.
  */
 type RefreshErrorDetails =
-  | { reason: 'needs-consent'; cause: string }
-  | { reason: 'transient' };
+  { reason: 'needs-consent'; cause: string } | { reason: 'transient' };
 
 /**
  * The redirect_uri Google uses internally for `ux_mode: 'popup'` is its own
@@ -226,7 +225,7 @@ export const requestAndExchangeAuthCode = async (
       }
       // `requestCode` is on the code-client surface but isn't typed in older
       // GIS @types — cast to a structural shape that exposes it.
-      (codeClient as unknown as { requestCode: () => void }).requestCode();
+      codeClient.requestCode();
     } catch (err) {
       resolve({
         kind: 'error',

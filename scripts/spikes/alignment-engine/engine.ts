@@ -13,10 +13,7 @@
 
 /** Status of a single aligned position. */
 export type AlignmentStatus =
-  | 'correct'
-  | 'substituted'
-  | 'omitted'
-  | 'inserted';
+  'correct' | 'substituted' | 'omitted' | 'inserted';
 
 /**
  * One entry in the alignment breakdown.

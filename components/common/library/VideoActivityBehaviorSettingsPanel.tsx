@@ -39,7 +39,7 @@ const SCORE_VISIBILITY_OPTIONS: {
 }[] = [
   { value: 'none', label: 'Hidden' },
   ...PUBLISH_LEVEL_OPTIONS.map((opt) => ({
-    value: opt.id as VideoActivityScoreVisibility,
+    value: opt.id,
     label: opt.title,
   })),
 ];

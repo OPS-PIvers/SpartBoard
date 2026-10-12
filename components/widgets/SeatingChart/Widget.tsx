@@ -897,6 +897,7 @@ export const SeatingChartWidget: React.FC<{ widget: WidgetData }> = ({
         mode={mode}
         setMode={setMode}
         pickRandom={pickRandom}
+        // eslint-disable-next-line react-hooks/refs -- existing render-time read of the picking interval
         isPickingRandom={!!animationIntervalRef.current}
         multiSelected={multiSelected}
         selectedCount={selectedIds.size}

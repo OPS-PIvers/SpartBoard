@@ -39,8 +39,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
     (p) => p.widgetType === 'expectations'
   );
   const globalConfig = expectationsPermission?.config as
-    | ExpectationsGlobalConfig
-    | undefined;
+    ExpectationsGlobalConfig | undefined;
 
   // Get current building's config
   const buildingConfig = buildingId

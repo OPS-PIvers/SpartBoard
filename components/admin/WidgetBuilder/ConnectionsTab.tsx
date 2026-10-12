@@ -400,10 +400,7 @@ export const ConnectionsTab: React.FC<ConnectionsTabProps> = ({
                       setForm((p) => ({
                         ...p,
                         conditionOperator: e.target.value as
-                          | 'gte'
-                          | 'lte'
-                          | 'eq'
-                          | 'neq',
+                          'gte' | 'lte' | 'eq' | 'neq',
                       }))
                     }
                     className="w-24 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-slate-200 focus:outline-none focus:border-blue-500"

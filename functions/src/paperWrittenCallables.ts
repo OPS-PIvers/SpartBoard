@@ -31,12 +31,7 @@ export const MAX_CROP_BYTES = 3 * 1024 * 1024;
 export type CropMimeType = 'image/webp' | 'image/png';
 
 export type CropUnavailableReason =
-  | 'no-crop'
-  | 'missing'
-  | 'archiving'
-  | 'deleted'
-  | 'failed'
-  | 'too-large';
+  'no-crop' | 'missing' | 'archiving' | 'deleted' | 'failed' | 'too-large';
 
 export type CropResult =
   | {
@@ -493,7 +488,7 @@ async function queueBoxJob(
   return {
     jobId,
     write: () => {
-      tx.create(nextRef, fresh as unknown as Rec);
+      tx.create(nextRef, fresh);
       if (open && latestRef) {
         tx.update(latestRef, {
           status: 'superseded',

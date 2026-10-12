@@ -10,7 +10,6 @@ import { useDashboard } from '@/context/useDashboard';
 import {
   WidgetData,
   RandomConfig,
-  WidgetConfig,
   TimeToolConfig,
   RandomGroup,
   SharedGroup,
@@ -195,7 +194,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       raw[0] !== null &&
       'names' in raw[0]
     ) {
-      return raw as RandomGroup[];
+      return raw;
     }
     return (raw as string | string[] | string[][]) ?? '';
   };
@@ -218,6 +217,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // this ref instead of the closure-captured `soundEnabled` ensures the callback
   // always sees the current value even if the teacher toggles sound mid-spin.
   const soundEnabledRef = useRef(soundEnabled);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in timers/handlers
   soundEnabledRef.current = soundEnabled;
 
   // Ref kept in sync with the latest `activeDashboard` value on every render.
@@ -228,6 +228,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // wrong time-tool widget. Reading from this ref instead guarantees we always
   // act on the current dashboard state when performUpdate fires.
   const activeDashboardRef = useRef(activeDashboard);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in timers/handlers
   activeDashboardRef.current = activeDashboard;
 
   // Sync displayResult when config.lastResult changes (e.g. mode switch clears
@@ -320,7 +321,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           lockedNames: [],
           unassignedNames: [],
         };
-        updateWidget(widget.id, { config: update as WidgetConfig });
+        updateWidget(widget.id, { config: update });
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- clears local jigsaw state when the roster changes
         setLocalJigsaw(null);
       }
     }
@@ -399,6 +401,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // diceCountRef/configRef fix in PR #1749). `soundEnabledRef` is declared
   // above and already mirrors `soundEnabled` for the same reason.
   const studentsRef = useRef(students);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in timers/handlers
   studentsRef.current = students;
 
   // Inline stepper display: mirror the call-site default so the on-widget
@@ -436,29 +439,29 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     // updateWidget merges partial config into existing state — don't spread
     // ...config here, since it's a closure-captured snapshot that may be stale.
     updateWidget(widget.id, {
-      config: { groupSize: next } as WidgetConfig,
+      config: { groupSize: next },
     });
   };
   const setNumExpertGroups = (next: number) => {
     updateWidget(widget.id, {
-      config: { numExpertGroups: next } as WidgetConfig,
+      config: { numExpertGroups: next },
     });
   };
   const setNumHomeGroups = (next: number) => {
     updateWidget(widget.id, {
-      config: { numHomeGroups: next } as WidgetConfig,
+      config: { numHomeGroups: next },
     });
   };
   const setNumGroups = (next: number) => {
     updateWidget(widget.id, {
-      config: { numGroups: next } as WidgetConfig,
+      config: { numGroups: next },
     });
   };
   // Seed the incoming control from the outgoing one so the group cards on
   // screen stay put when the teacher switches what the stepper means.
   const toggleGroupingMode = () => {
     updateWidget(widget.id, {
-      config: (groupCountMode
+      config: groupCountMode
         ? {
             groupingMode: 'size',
             // Floor of 2 matches the stepper's min so the control can never
@@ -473,7 +476,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             // Seed from what size mode is showing right now, not from a
             // numGroups left behind by an earlier count-mode session.
             numGroups: Math.max(2, estimatedHomeGroupCount),
-          }) as WidgetConfig,
+          },
     });
   };
 
@@ -538,7 +541,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const handleSelectPoolGroup = useCallback(
     (groupId: string | null) => {
       updateWidget(widget.id, {
-        config: { rosterPoolGroupId: groupId } as WidgetConfig,
+        config: { rosterPoolGroupId: groupId },
       });
     },
     [updateWidget, widget.id]
@@ -555,7 +558,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       lockedNames: [],
       unassignedNames: [],
     };
-    updateWidget(widget.id, { config: update as WidgetConfig });
+    updateWidget(widget.id, { config: update });
     setLocalJigsaw(null);
     setDisplayResult('');
     setRotation(0);
@@ -581,7 +584,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       lockedNames: [],
       unassignedNames: [],
     };
-    updateWidget(widget.id, { config: update as WidgetConfig });
+    updateWidget(widget.id, { config: update });
     setLocalJigsaw(null);
   };
 
@@ -682,7 +685,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           setLocalJigsaw({ home: nextGroups, expert: [] });
         }
       }
-      updateWidget(widget.id, { config: update as WidgetConfig });
+      updateWidget(widget.id, { config: update });
     },
     [mode, jigsawView, updateWidget, widget.id]
   );
@@ -691,7 +694,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     (name: string) => {
       const next = toggleLockedName(lockedNames, name);
       updateWidget(widget.id, {
-        config: { lockedNames: next } as WidgetConfig,
+        config: { lockedNames: next },
       });
     },
     [lockedNames, updateWidget, widget.id]
@@ -703,7 +706,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         ? doneNames.filter((n) => n !== name)
         : [...doneNames, name];
       updateWidget(widget.id, {
-        config: { doneNames: next } as WidgetConfig,
+        config: { doneNames: next },
       });
     },
     [doneNames, updateWidget, widget.id]
@@ -821,8 +824,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       const { active, over } = event;
       if (!over) return;
       const data = active.data.current as
-        | { name?: string; sourceZoneId?: string }
-        | undefined;
+        { name?: string; sourceZoneId?: string } | undefined;
       const name = data?.name;
       const sourceZoneId = data?.sourceZoneId;
       if (!name || !sourceZoneId) return;
@@ -876,7 +878,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         updateWidget(widget.id, {
           config: {
             lastResult: nextShuffle,
-          } as WidgetConfig,
+          },
         });
         return;
       }
@@ -1085,7 +1087,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           updates.unassignedNames = nextUnassignedNames;
         }
 
-        updateWidget(widget.id, { config: updates as WidgetConfig });
+        updateWidget(widget.id, { config: updates });
 
         // Nexus: Auto-Start Timer Logic
         // Read from activeDashboardRef so we always act on the current
@@ -1105,7 +1107,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   ...timeConfig,
                   isRunning: true,
                   startTime: Date.now(),
-                } as WidgetConfig,
+                },
               });
             }
           }
@@ -1389,7 +1391,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             // are now expressed via roster absence, not widget state.
             unassignedNames: [],
           };
-          updateWidget(widget.id, { config: update as WidgetConfig });
+          updateWidget(widget.id, { config: update });
         } catch (err) {
           logError('RandomWidget.jigsawSync', err, { widgetId: widget.id });
         }
@@ -1561,6 +1563,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   };
 
   const handlePickRef = useRef(handlePick);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   handlePickRef.current = handlePick;
 
   useEffect(() => {

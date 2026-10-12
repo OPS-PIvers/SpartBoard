@@ -58,31 +58,30 @@ vi.mock('firebase/firestore', () => ({
   onSnapshot: () => () => undefined,
 }));
 
-const buildWidget = (config: Partial<NextUpConfig>): WidgetData =>
-  ({
-    id: 'nextup-widget',
-    type: 'nextUp',
-    x: 0,
-    y: 0,
-    w: 350,
-    h: 500,
-    z: 1,
-    flipped: false,
-    config: {
-      activeDriveFileId: null,
-      sessionName: 'Help Queue',
-      isActive: false,
-      createdAt: 0,
-      lastUpdated: 0,
-      displayCount: 3,
-      styling: {
-        fontFamily: 'lexend',
-        themeColor: '#2d3f89',
-        animation: 'slide',
-      },
-      ...config,
-    } satisfies NextUpConfig,
-  }) as WidgetData;
+const buildWidget = (config: Partial<NextUpConfig>): WidgetData => ({
+  id: 'nextup-widget',
+  type: 'nextUp',
+  x: 0,
+  y: 0,
+  w: 350,
+  h: 500,
+  z: 1,
+  flipped: false,
+  config: {
+    activeDriveFileId: null,
+    sessionName: 'Help Queue',
+    isActive: false,
+    createdAt: 0,
+    lastUpdated: 0,
+    displayCount: 3,
+    styling: {
+      fontFamily: 'lexend',
+      themeColor: '#2d3f89',
+      animation: 'slide',
+    },
+    ...config,
+  } satisfies NextUpConfig,
+});
 
 describe('NextUpWidget auto-expiry', () => {
   beforeEach(() => {

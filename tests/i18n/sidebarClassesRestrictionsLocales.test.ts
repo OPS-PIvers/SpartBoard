@@ -80,8 +80,7 @@ describe.each([
 
     it(`${code}: has all required sidebar.classes restrictions keys`, () => {
       const classes = (locale.sidebar as Record<string, unknown>).classes as
-        | Record<string, unknown>
-        | undefined;
+        Record<string, unknown> | undefined;
       for (const key of REQUIRED_RESTRICTIONS_KEYS) {
         expect(
           classes,

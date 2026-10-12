@@ -333,8 +333,8 @@ export function markToTiming(
 ): ReadAloudTiming {
   const [kind, idx] = markName.split(':');
   const index = idx === undefined ? undefined : Number.parseInt(idx, 10);
-  return Number.isFinite(index as number)
-    ? { kind, index: index as number, startMs }
+  return Number.isFinite(index)
+    ? { kind, index: index, startMs }
     : { kind, startMs };
 }
 
@@ -464,7 +464,7 @@ export function voicedSessionLocales(
   for (const q of questions) {
     const map = q?.localized;
     if (typeof map !== 'object' || map === null) continue;
-    for (const locale of Object.keys(map as Record<string, unknown>)) {
+    for (const locale of Object.keys(map)) {
       if (ttsLanguageForTranslationLocale(locale)) out.add(locale);
     }
   }

@@ -5,9 +5,27 @@
  * editors (Quiz, Video Activity, Guided Learning).
  */
 
-import React, { useId, useMemo, useState } from 'react';
-import { Code2, FileText, Sparkles } from 'lucide-react';
-import { LibraryFolder, MiniAppItem, TextConfig } from '@/types';
+import React, { useEffect, useId, useMemo, useState } from 'react';
+import { Code2, Eye, FileText, Play, Sparkles } from 'lucide-react';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
+import { injectMiniAppHelper } from '@/utils/miniAppHelper';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import {
+  LibraryFolder,
+  MiniAppAnswerKey,
+  MiniAppItem,
+  TextConfig,
+} from '@/types';
+import { db } from '@/config/firebase';
+import { logError } from '@/utils/logError';
+import {
+  checkMiniApp,
+  fromDrafts,
+  toDrafts,
+  type MiniAppQuestionDraft,
+} from '@/utils/miniAppEditorDraft';
+import { MiniAppKeyPanel } from './MiniAppKeyPanel';
+import { MiniAppTryAsStudent } from './MiniAppTryAsStudent';
 import { EditorModalShell } from '@/components/common/EditorModalShell';
 import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
@@ -27,6 +45,8 @@ interface MiniAppEditorModalProps {
   folders?: LibraryFolder[];
   folderId?: string | null;
   onFolderChange?: (folderId: string | null) => void;
+  /** Results v2 is on: shows the answer key panel and Try as student. */
+  resultsOn?: boolean;
 }
 
 export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
@@ -37,8 +57,9 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
   folders,
   folderId,
   onFolderChange,
+  resultsOn = false,
 }) => {
-  const { canAccessFeature } = useAuth();
+  const { canAccessFeature, user } = useAuth();
   const { addToast, activeDashboard } = useDashboard();
   const htmlFieldId = useId();
 
@@ -50,6 +71,22 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
   const [title, setTitle] = useState(originalTitle);
   const [html, setHtml] = useState(originalHtml);
   const [saving, setSaving] = useState(false);
+  const [collectsResults, setCollectsResults] = useState(
+    app?.collectsResults ?? false
+  );
+  const [rows, setRows] = useState<MiniAppQuestionDraft[]>(() =>
+    toDrafts(app?.manifest, null)
+  );
+  const [loadedKey, setLoadedKey] = useState<MiniAppAnswerKey | null>(null);
+  // The key is written only after its read succeeds, so a slow or failed read never blanks it.
+  const [keyStatus, setKeyStatus] = useState<'loading' | 'ready' | 'failed'>(
+    'loading'
+  );
+  const [savedKeyJson, setSavedKeyJson] = useState<string | null>(null);
+  const [trying, setTrying] = useState(false);
+  const [view, setView] = useState<'preview' | 'code'>(
+    app?.html.trim() ? 'preview' : 'code'
+  );
 
   // AI generator state
   const [prompt, setPrompt] = useState('');
@@ -64,6 +101,13 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
     setPrevApp(app);
     setTitle(app?.title ?? '');
     setHtml(app?.html ?? '');
+    setCollectsResults(app?.collectsResults ?? false);
+    setRows(toDrafts(app?.manifest, null));
+    setLoadedKey(null);
+    setKeyStatus('loading');
+    setSavedKeyJson(null);
+    setTrying(false);
+    setView(app?.html.trim() ? 'preview' : 'code');
     setSaving(false);
     setPrompt('');
     setShowPromptInput(false);
@@ -72,15 +116,71 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
     setFileName(null);
   }
 
-  // --- Dirty check ---
-  const isDirty = useMemo(
-    () => title !== originalTitle || html !== originalHtml,
-    [title, originalTitle, html, originalHtml]
+  const appId = app?.id;
+  const uid = user?.uid;
+  // The key lives outside the app doc, so it loads after open and fills the answers in.
+  useEffect(() => {
+    if (!resultsOn || !uid || !appId) return;
+    let live = true;
+    getDoc(doc(db, 'users', uid, 'mini_app_keys', appId)).then(
+      (snap) => {
+        if (!live) return;
+        const key = snap.exists() ? (snap.data() as MiniAppAnswerKey) : null;
+        setSavedKeyJson(JSON.stringify(key ?? { questions: {} }));
+        setKeyStatus('ready');
+        if (!key) return;
+        setLoadedKey(key);
+        setRows((current) =>
+          current.map((row) => {
+            const filled = toDrafts(
+              { questions: [{ id: row.id, type: row.type, prompt: '' }] },
+              key
+            )[0];
+            return row.answer || row.tolerance
+              ? row
+              : { ...row, answer: filled.answer, tolerance: filled.tolerance };
+          })
+        );
+      },
+      (err: unknown) => {
+        if (!live) return;
+        logError('MiniAppEditorModal.loadKey', err, { appId });
+        setKeyStatus('failed');
+      }
+    );
+    return () => {
+      live = false;
+    };
+  }, [resultsOn, uid, appId]);
+
+  const draft = useMemo(() => fromDrafts(rows), [rows]);
+  const previewDoc = useMemo(() => injectMiniAppHelper(html), [html]);
+  const originalDraft = useMemo(
+    () => fromDrafts(toDrafts(app?.manifest, loadedKey)),
+    [app?.manifest, loadedKey]
   );
+  const resultsDirty =
+    resultsOn &&
+    (collectsResults !== (app?.collectsResults ?? false) ||
+      JSON.stringify(draft) !== JSON.stringify(originalDraft));
+  const problems = useMemo(
+    () =>
+      resultsOn && collectsResults
+        ? checkMiniApp(html, draft.manifest, draft.key)
+        : [],
+    [resultsOn, collectsResults, html, draft]
+  );
+
+  // --- Dirty check ---
+  const isDirty =
+    title !== originalTitle || html !== originalHtml || resultsDirty;
 
   // --- Save ---
   // New identity on every draft edit — the autosave quiet period restarts on it.
-  const draftToken = useMemo(() => [title, html], [title, html]);
+  const draftToken = useMemo(
+    () => [title, html, collectsResults, draft],
+    [title, html, collectsResults, draft]
+  );
 
   const incompleteNotice = title.trim() ? null : 'App title is required';
 
@@ -89,10 +189,28 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
     if (!app) return;
     setSaving(true);
     try {
+      const writesKey = resultsOn && collectsResults;
+      // Never save questions without their key: a failed key read blocks the save so it retries.
+      if (writesKey && keyStatus !== 'ready')
+        throw new Error('The answer key has not loaded.');
+      const keyJson = JSON.stringify(draft.key);
+      if (writesKey && user && keyJson !== savedKeyJson) {
+        await setDoc(doc(db, 'users', user.uid, 'mini_app_keys', app.id), {
+          questions: draft.key.questions,
+        });
+        setSavedKeyJson(keyJson);
+        setLoadedKey(draft.key);
+      }
       await onSave({
         ...app,
         title: title.trim(),
         html,
+        ...(resultsOn
+          ? {
+              collectsResults,
+              manifest: collectsResults ? draft.manifest : app.manifest,
+            }
+          : {}),
       });
     } finally {
       setSaving(false);
@@ -200,18 +318,31 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
       onClose={onClose}
       saveLabel="Save App"
       footerExtras={
-        canAccessFeature('gemini-functions') &&
-        canAccessFeature('mini-app-ai') ? (
-          <button
-            onClick={() => setShowPromptInput(true)}
-            className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
-            title="Generate with AI"
-            {...tourTypeAttr('mini-app.draft-with-ai', 'miniApp')}
-          >
-            <Sparkles className="w-4 h-4" />
-            Draft with AI
-          </button>
-        ) : undefined
+        <>
+          {resultsOn && (
+            <button
+              type="button"
+              onClick={() => setTrying(true)}
+              disabled={!html.trim()}
+              className="h-[36px] px-3 bg-white border border-slate-200 hover:border-brand-blue-light text-brand-blue-primary rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 disabled:opacity-50"
+            >
+              <Play className="w-4 h-4" />
+              Try as student
+            </button>
+          )}
+          {canAccessFeature('gemini-functions') &&
+          canAccessFeature('mini-app-ai') ? (
+            <button
+              onClick={() => setShowPromptInput(true)}
+              className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
+              title="Generate with AI"
+              {...tourTypeAttr('mini-app.draft-with-ai', 'miniApp')}
+            >
+              <Sparkles className="w-4 h-4" />
+              Draft with AI
+            </button>
+          ) : null}
+        </>
       }
       saveDisabled={!title.trim()}
       saveErrorMessage={false}
@@ -262,18 +393,70 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
           )}
         </AIGeneratorOverlay>
 
-        {/* HTML Code textarea */}
-        <div className="flex-1 flex flex-col min-h-[250px]">
-          <SettingsLabel htmlFor={htmlFieldId}>HTML Code</SettingsLabel>
-          <textarea
-            id={htmlFieldId}
-            value={html}
-            onChange={(e) => setHtml(e.target.value)}
-            className="flex-1 w-full p-4 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none leading-relaxed custom-scrollbar shadow-inner"
-            spellCheck={false}
-            {...tourTypeAttr('mini-app.html-code', 'miniApp')}
-            placeholder="Paste your HTML, CSS, and JS here..."
+        {trying && (
+          <MiniAppTryAsStudent
+            title={title || 'Mini app'}
+            html={html}
+            manifest={collectsResults ? draft.manifest : { questions: [] }}
+            answerKey={collectsResults ? draft.key : { questions: {} }}
+            onClose={() => setTrying(false)}
           />
+        )}
+
+        <div
+          className={`flex-1 flex min-h-[250px] ${resultsOn ? 'flex-col lg:flex-row gap-5' : 'flex-col'}`}
+        >
+          {/* HTML Code textarea */}
+          <div className="flex-1 flex flex-col min-h-[250px]">
+            {resultsOn ? (
+              <div className="mb-2">
+                <SegmentedControl
+                  value={view}
+                  onChange={setView}
+                  ariaLabel="Show the app or its code"
+                  options={[
+                    { value: 'preview', label: 'Preview', icon: Eye },
+                    { value: 'code', label: 'Code', icon: Code2 },
+                  ]}
+                />
+              </div>
+            ) : (
+              <SettingsLabel htmlFor={htmlFieldId}>HTML Code</SettingsLabel>
+            )}
+            {resultsOn && view === 'preview' ? (
+              <iframe
+                srcDoc={previewDoc}
+                title={`${title || 'Mini app'} preview`}
+                sandbox="allow-scripts allow-forms allow-modals"
+                className="flex-1 w-full rounded-xl border border-slate-200 bg-white"
+              />
+            ) : (
+              <textarea
+                id={htmlFieldId}
+                value={html}
+                onChange={(e) => setHtml(e.target.value)}
+                className={
+                  resultsOn
+                    ? 'flex-1 w-full p-4 bg-white border border-slate-200 text-slate-700 placeholder-slate-400 font-mono text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 resize-none leading-relaxed custom-scrollbar'
+                    : 'flex-1 w-full p-4 bg-slate-900 text-emerald-400 font-mono text-xs rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none leading-relaxed custom-scrollbar shadow-inner'
+                }
+                spellCheck={false}
+                {...tourTypeAttr('mini-app.html-code', 'miniApp')}
+                placeholder="Paste your HTML, CSS, and JS here..."
+              />
+            )}
+          </div>
+          {resultsOn && (
+            <div className="lg:w-[380px] shrink-0 flex flex-col min-h-0 lg:border-l lg:border-slate-200 lg:pl-5">
+              <MiniAppKeyPanel
+                collectsResults={collectsResults}
+                onCollectsResultsChange={setCollectsResults}
+                rows={rows}
+                onRowsChange={setRows}
+                problems={problems}
+              />
+            </div>
+          )}
         </div>
       </div>
     </EditorModalShell>

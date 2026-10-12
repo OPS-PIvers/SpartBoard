@@ -1,11 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { translateHiddenOptionIdsToText } from './quizHiddenOptions';
 import { applyHiddenOptions } from './quizOverrideServing';
-import type {
-  QuizPublicQuestion,
-  QuizQuestion,
-  StudentOverride,
-} from '@/types';
+import type { QuizQuestion, StudentOverride } from '@/types';
 
 const QUESTIONS: QuizQuestion[] = [
   {
@@ -91,7 +87,7 @@ describe('translateHiddenOptionIdsToText', () => {
         text: 'Capital of France?',
         timeLimit: 0,
         choices: ['London', 'Paris', 'Berlin', 'Madrid'],
-      } as QuizPublicQuestion,
+      },
       overridesByKey.s1.hiddenOptionIdsByQuestion
     );
     expect(served.choices).toEqual(['Paris', 'Berlin', 'Madrid']);

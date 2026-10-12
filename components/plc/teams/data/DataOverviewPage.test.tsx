@@ -15,7 +15,9 @@ vi.mock('@/hooks/useLearningTargets', () => ({
   usePlcLearningTargets: vi.fn(),
 }));
 vi.mock('./ManageTargetsModal', () => ({ ManageTargetsModal: () => null }));
-const mockModel = vi.hoisted(() => ({ featured: {} as object | null }));
+const mockModel = vi.hoisted(
+  (): { featured: object | null } => ({ featured: {} })
+);
 vi.mock('./useDataOverview', () => ({
   useDataOverviewModel: () => ({ model: mockModel, input: {} }),
   useMeetingStrip: () => ({ nextMeeting: null, openItems: null }),

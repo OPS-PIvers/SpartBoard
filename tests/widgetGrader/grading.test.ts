@@ -405,7 +405,7 @@ describe('calibration check (R22)', () => {
     criteria.map((c, i) => ({
       widgetType: w,
       criterionId: c,
-      paul: (i === 0 && w === 'a' ? 0 : 3) as Level,
+      paul: i === 0 && w === 'a' ? 0 : 3,
       judge: null,
       script: null,
       rubricVersion: '1.0.0',

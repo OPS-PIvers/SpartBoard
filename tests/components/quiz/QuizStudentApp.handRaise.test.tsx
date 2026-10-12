@@ -135,7 +135,7 @@ beforeEach(() => {
     classId: 'class-1',
     createdAt: Date.now(),
     updatedAt: Date.now(),
-  } as StudentAssignmentPointer;
+  };
   mockAuth.currentUser = {
     uid: 'sso-uid-1',
     isAnonymous: false,

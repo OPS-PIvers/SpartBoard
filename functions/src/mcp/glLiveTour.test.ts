@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { ToolContext } from './activity';
 import {
   ADMIN_ONLY_TOOLS,
@@ -14,6 +14,12 @@ import {
 } from './glLiveTour';
 import type { Step } from './glTools';
 import { hiddenToolsFor } from './tools';
+
+const resultsOn = vi.hoisted(() => ({ value: false }));
+vi.mock('./miniAppTools', async (importActual) => ({
+  ...(await importActual<typeof import('./miniAppTools')>()),
+  miniAppResultsOn: () => Promise.resolve(resultsOn.value),
+}));
 
 const ctxFor = (exists: boolean | Error): ToolContext =>
   ({
@@ -110,11 +116,23 @@ describe('live tour tools', () => {
   });
 
   it('hides the admin tools from everyone but admins', async () => {
-    expect(await hiddenToolsFor(ctxFor(true))).toEqual(new Set());
-    expect(await hiddenToolsFor(ctxFor(false))).toBe(ADMIN_ONLY_TOOLS);
-    expect(await hiddenToolsFor(ctxFor(new Error('down')))).toBe(
-      ADMIN_ONLY_TOOLS
-    );
+    const admin = await hiddenToolsFor(ctxFor(true));
+    for (const t of ADMIN_ONLY_TOOLS) expect(admin.has(t)).toBe(false);
+    for (const ctx of [ctxFor(false), ctxFor(new Error('down'))]) {
+      const hidden = await hiddenToolsFor(ctx);
+      for (const t of ADMIN_ONLY_TOOLS) expect(hidden.has(t)).toBe(true);
+    }
+  });
+
+  it('hides the Mini App results tools while results are off', async () => {
+    const hidden = await hiddenToolsFor(ctxFor(false));
+    expect(hidden.has('get_mini_app_spec')).toBe(true);
+    expect(hidden.has('get_mini_app_results_summary')).toBe(true);
+    resultsOn.value = true;
+    const shown = await hiddenToolsFor(ctxFor(false));
+    resultsOn.value = false;
+    expect(shown.has('get_mini_app_spec')).toBe(false);
+    expect(shown.has('get_mini_app_results_summary')).toBe(false);
   });
 });
 

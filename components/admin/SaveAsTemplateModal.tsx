@@ -88,6 +88,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
           ? isCollectionTemplate(t)
           : !isCollectionTemplate(t)
       );
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mock-store path of the Firestore subscription
       setTemplates(filtered);
       setLoadingTemplates(false);
       return;
@@ -131,6 +132,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
   // Reset state when modal closes
   useEffect(() => {
     if (!isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resets form state when the modal closes
       setSelectedTemplateId('');
       setNewName('');
       setNewBuildings([]);
@@ -199,7 +201,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
               ...existing,
               ...captureBoardForBoardTemplate(target.dashboard),
               updatedAt: Date.now(),
-            } as AnyTemplate);
+            });
           } else {
             mockTemplateStore.save({
               ...existing,
@@ -265,8 +267,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
     try {
       const now = Date.now();
       let payload:
-        | Omit<DashboardTemplate, 'id'>
-        | Omit<CollectionTemplate, 'id'>;
+        Omit<DashboardTemplate, 'id'> | Omit<CollectionTemplate, 'id'>;
       if (target.kind === 'board') {
         payload = {
           type: 'board',
@@ -311,7 +312,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
         // In auth-bypass / E2E mode, write to the in-memory mock store
         // instead of Firestore (db is a {} stub; addDoc would throw).
         const id = crypto.randomUUID();
-        mockTemplateStore.save({ ...payload, id } as AnyTemplate);
+        mockTemplateStore.save({ ...payload, id });
       } else {
         await addDoc(collection(db, TEMPLATES_COLLECTION), payload);
       }

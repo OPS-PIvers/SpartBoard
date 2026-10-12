@@ -127,6 +127,14 @@ export interface GuidedLearningEditorController extends EditorHistoryApi {
   setWelcomeEnabled: (next: boolean) => void;
   welcomeMessage: string;
   setWelcomeMessage: (next: string) => void;
+  /** '' when the welcome screen has no image. */
+  welcomeImageUrl: string;
+  welcomeImageAlt: string;
+  setWelcomeImageAlt: (next: string) => void;
+  /** Uploads the welcome image; a replaced one is queued for deletion on close. */
+  setWelcomeImageFromFile: (file: File) => Promise<boolean>;
+  removeWelcomeImage: () => void;
+  welcomeImageUploading: boolean;
   /** Watch-mode pacing; undefined = standard. */
   watchPace: GuidedLearningWatchPace | undefined;
   setWatchPace: (next: GuidedLearningWatchPace | undefined) => void;
@@ -259,6 +267,7 @@ export function useGuidedLearningEditorState({
 }: UseGuidedLearningEditorStateProps): GuidedLearningEditorController {
   const { user } = useAuth();
   const onUploadIssuesRef = useRef(onUploadIssues);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   onUploadIssuesRef.current = onUploadIssues;
   const {
     uploading,
@@ -274,6 +283,7 @@ export function useGuidedLearningEditorState({
     (set) => initialHistory(documentFromSet(set))
   );
   const historyRef = useRef(history);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   historyRef.current = history;
   const {
     title,
@@ -287,6 +297,8 @@ export function useGuidedLearningEditorState({
     imageTransition,
     welcomeEnabled,
     welcomeMessage,
+    welcomeImageUrl,
+    welcomeImageAlt,
     watchPace,
     tourSetupWidgets,
     tourSetupLayouts,
@@ -341,6 +353,10 @@ export function useGuidedLearningEditorState({
     (next: string) => setField('welcomeMessage', next, 'welcomeMessage'),
     [setField]
   );
+  const setWelcomeImageAlt = useCallback(
+    (next: string) => setField('welcomeImageAlt', next, 'welcomeImageAlt'),
+    [setField]
+  );
   const setWatchPace = useCallback(
     (next: GuidedLearningWatchPace | undefined) => setField('watchPace', next),
     [setField]
@@ -370,6 +386,7 @@ export function useGuidedLearningEditorState({
 
   const [rawImageIndex, setCurrentImageIndex] = useState(0);
   const rawImageIndexRef = useRef(rawImageIndex);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   rawImageIndexRef.current = rawImageIndex;
   // Undo can remove the slide being shown, so clamp on read.
   const currentImageIndex = Math.max(
@@ -390,6 +407,7 @@ export function useGuidedLearningEditorState({
     Record<string, string>
   >(() => existingSet?.slideThumbnails ?? {});
   const slideThumbnailsRef = useRef(slideThumbnails);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   slideThumbnailsRef.current = slideThumbnails;
   const mediaHome: GuidedLearningMediaHome =
     existingSet?.isBuilding || existingSet?.helpCenter ? 'storage' : 'drive';
@@ -403,6 +421,7 @@ export function useGuidedLearningEditorState({
   if (currentSetId !== prevSetId) {
     setPrevSetId(currentSetId);
     dispatch({ type: 'reset', doc: documentFromSet(existingSet) });
+    // eslint-disable-next-line react-hooks/refs -- cleared with the rest of the draft when the set changes
     flushedMediaRef.current = new Set();
     setCurrentImageIndex(0);
     setSelectedStepId(null);
@@ -417,6 +436,7 @@ export function useGuidedLearningEditorState({
   // (which awaits between appends, letting renders flush) can compute the
   // new last index without putting a side effect inside a state updater.
   const slideCountRef = useRef(imageUrls.length);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   slideCountRef.current = imageUrls.length;
 
   const appendSlides = useCallback(
@@ -721,6 +741,69 @@ export function useGuidedLearningEditorState({
     },
     [replaceSlideImage]
   );
+
+  const [welcomeImageUploading, setWelcomeImageUploading] = useState(false);
+  const queueWelcomeImageDeletion = useCallback((url: string) => {
+    const ref = url ? slideMediaRef(url) : null;
+    if (ref) dispatch({ type: 'queueMedia', ref });
+  }, []);
+  const setWelcomeImageFromFile = useCallback(
+    async (file: File): Promise<boolean> => {
+      if (!user) return false;
+      setImageError('');
+      const error =
+        validateSlideFile(file) ??
+        (getMediaKind(file) === 'image'
+          ? null
+          : `"${file.name}" is not an image.`);
+      if (error) {
+        setImageError(error);
+        return false;
+      }
+      setWelcomeImageUploading(true);
+      try {
+        const prepared = await prepareImageForUpload(file);
+        const { url, thumbnailUrl: thumb } = await uploadGuidedLearningImage(
+          user.uid,
+          prepared,
+          prepared.name.replace(/[^\w.-]+/g, '_'),
+          mediaHome
+        );
+        // The welcome card shows the full image, so its thumbnail is never used.
+        if (thumb) {
+          const ref = slideMediaRef(thumb);
+          if (ref && 'storagePath' in ref)
+            void deleteStorageFile(ref.storagePath).catch(() => undefined);
+        }
+        if (discardIfAbandoned(url)) return false;
+        const old = historyRef.current.present.welcomeImageUrl;
+        applyDoc((doc) => ({ ...doc, welcomeImageUrl: url }));
+        queueWelcomeImageDeletion(old);
+        return true;
+      } catch (err) {
+        console.error('[GuidedLearningEditor] Welcome image failed:', err);
+        setImageError(`"${file.name}" failed to upload.`);
+        return false;
+      } finally {
+        setWelcomeImageUploading(false);
+      }
+    },
+    [
+      user,
+      uploadGuidedLearningImage,
+      mediaHome,
+      deleteStorageFile,
+      discardIfAbandoned,
+      applyDoc,
+      queueWelcomeImageDeletion,
+    ]
+  );
+  const removeWelcomeImage = useCallback(() => {
+    const old = historyRef.current.present.welcomeImageUrl;
+    if (!old) return;
+    applyDoc((doc) => ({ ...doc, welcomeImageUrl: '', welcomeImageAlt: '' }));
+    queueWelcomeImageDeletion(old);
+  }, [applyDoc, queueWelcomeImageDeletion]);
 
   const recaptureStep = useCallback(
     (capture: StepRecapture): boolean => {
@@ -1189,6 +1272,7 @@ export function useGuidedLearningEditorState({
     const present = historyRef.current.present;
     const inUse = fileRefsIn([
       present.imageUrls,
+      present.welcomeImageUrl,
       present.steps,
       present.imageUrls.map((url) => slideThumbnailsRef.current[url]),
     ]);
@@ -1260,6 +1344,12 @@ export function useGuidedLearningEditorState({
     setWelcomeEnabled,
     welcomeMessage,
     setWelcomeMessage,
+    welcomeImageUrl,
+    welcomeImageAlt,
+    setWelcomeImageAlt,
+    setWelcomeImageFromFile,
+    removeWelcomeImage,
+    welcomeImageUploading,
     watchPace,
     setWatchPace,
     tourSetupWidgets,

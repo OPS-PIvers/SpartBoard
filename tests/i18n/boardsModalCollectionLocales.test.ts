@@ -238,7 +238,7 @@ describe.each(NON_EN)(
     for (const [keyPath, enValue] of BOARDS_MODAL_TRANSLATED_KEYS) {
       const dotted = keyPath.join('.');
       it(`${code}: ${dotted} is not the English placeholder`, () => {
-        const val = get(locale as unknown as Record<string, unknown>, keyPath);
+        const val = get(locale, keyPath);
         expect(
           val,
           `${code}.${dotted} is missing — key must be present in non-EN locale`
@@ -262,7 +262,7 @@ describe.each(NON_EN)(
     for (const [keyPath, enValue] of SHARE_COLLECTION_TRANSLATED_KEYS) {
       const dotted = keyPath.join('.');
       it(`${code}: ${dotted} is not the English placeholder`, () => {
-        const val = get(locale as unknown as Record<string, unknown>, keyPath);
+        const val = get(locale, keyPath);
         expect(
           val,
           `${code}.${dotted} is missing — key must be present in non-EN locale`
@@ -286,7 +286,7 @@ describe.each(NON_EN)(
     for (const [keyPath, enValue] of IMPORT_SHARED_COLLECTION_TRANSLATED_KEYS) {
       const dotted = keyPath.join('.');
       it(`${code}: ${dotted} is not the English placeholder`, () => {
-        const val = get(locale as unknown as Record<string, unknown>, keyPath);
+        const val = get(locale, keyPath);
         expect(
           val,
           `${code}.${dotted} is missing — key must be present in non-EN locale`
@@ -310,7 +310,7 @@ describe.each(NON_EN)(
     for (const [keyPath, enValue] of QUICK_ACCESS_TRANSLATED_KEYS) {
       const dotted = keyPath.join('.');
       it(`${code}: ${dotted} is not the English placeholder`, () => {
-        const val = get(locale as unknown as Record<string, unknown>, keyPath);
+        const val = get(locale, keyPath);
         expect(
           val,
           `${code}.${dotted} is missing — key must be present in non-EN locale`
@@ -334,7 +334,7 @@ describe.each(NON_EN)(
     for (const [keyPath, enValue] of COLLECTION_MENU_TRANSLATED_KEYS) {
       const dotted = keyPath.join('.');
       it(`${code}: ${dotted} is not the English placeholder`, () => {
-        const val = get(locale as unknown as Record<string, unknown>, keyPath);
+        const val = get(locale, keyPath);
         expect(
           val,
           `${code}.${dotted} is missing — key must be present in non-EN locale`
@@ -358,7 +358,7 @@ describe.each(NON_EN)(
     for (const [keyPath, enValue] of SUB_COLLECTIONS_TRANSLATED_KEYS) {
       const dotted = keyPath.join('.');
       it(`${code}: ${dotted} is not the English placeholder`, () => {
-        const val = get(locale as unknown as Record<string, unknown>, keyPath);
+        const val = get(locale, keyPath);
         expect(
           val,
           `${code}.${dotted} is missing — key must be present in non-EN locale`
@@ -382,7 +382,7 @@ describe.each(NON_EN)(
     for (const [keyPath, enValue] of TEMPLATE_PICKER_TRANSLATED_KEYS) {
       const dotted = keyPath.join('.');
       it(`${code}: ${dotted} is not the English placeholder`, () => {
-        const val = get(locale as unknown as Record<string, unknown>, keyPath);
+        const val = get(locale, keyPath);
         expect(
           val,
           `${code}.${dotted} is missing — key must be present in non-EN locale`
@@ -406,7 +406,7 @@ describe.each(NON_EN)(
     for (const [keyPath, enValue] of SIDEBAR_BOARDS_TRANSLATED_KEYS) {
       const dotted = keyPath.join('.');
       it(`${code}: ${dotted} is not the English placeholder`, () => {
-        const val = get(locale as unknown as Record<string, unknown>, keyPath);
+        const val = get(locale, keyPath);
         expect(
           val,
           `${code}.${dotted} is missing — key must be present in non-EN locale`

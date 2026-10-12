@@ -248,7 +248,7 @@ describe('generateAi', () => {
     );
     expect(result).toMatchObject({
       provider: 'gemini',
-      model: 'gemini-3.8-flash',
+      model: 'gemini-3.7-flash',
       fellBack: true,
     });
     expect(logSets[0]).toMatchObject({
@@ -256,7 +256,7 @@ describe('generateAi', () => {
       data: { provider: 'claude', errors: { inc: 1 } },
     });
     expect(logSets[1]).toMatchObject({
-      id: expect.stringMatching(/__mini-app__gemini-3_8-flash$/) as unknown,
+      id: expect.stringMatching(/__mini-app__gemini-3_7-flash$/) as unknown,
       data: { fallbacks: { inc: 1 }, errors: { inc: 0 } },
     });
   });

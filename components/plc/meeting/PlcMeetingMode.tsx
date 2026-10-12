@@ -75,13 +75,12 @@ import {
 } from '@/utils/plcMeetingExport';
 import type { PlcSectionId } from '@/components/plc/sections';
 import { PlcMeetingReviewCard } from './PlcMeetingReviewCard';
+import { MEETING_STEP_ORDER, type MeetingStep } from './meetingSteps';
 import {
   MeetingStepRail,
-  MEETING_STEP_ORDER,
   PlcMeetingActStep,
   PlcMeetingDecideStep,
   PlcMeetingPickStep,
-  type MeetingStep,
 } from './PlcMeetingSteps';
 import { PlcMeetingRecordView } from './PlcMeetingRecordView';
 import { pickInProgressMeeting } from '@/components/plc/home/cards/commonAssessmentBannerSelectors';
@@ -366,6 +365,7 @@ const PlcMeetingLiveFlow: React.FC<{
     if (idx > 0) goToStep(MEETING_STEP_ORDER[idx - 1]);
   }, [step, goToStep]);
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- depends on user?.uid, not the whole user object
   const handleSave = useCallback(async () => {
     const id = meetingDocId ?? (await ensureMeetingDoc());
     if (!id) return;

@@ -50,6 +50,8 @@ const editorFor = (
     imageTransition: set.imageTransition ?? 'none',
     welcomeEnabled: Boolean(set.welcomeEnabled),
     welcomeMessage: set.welcomeMessage ?? '',
+    welcomeImageUrl: set.welcomeImageUrl ?? '',
+    welcomeImageAlt: set.welcomeImageAlt ?? '',
     imageUrls: set.imageUrls,
     imageKinds: set.imageUrls.map(() => 'image'),
     videoTrims: set.imageUrls.map(() => null),
@@ -82,6 +84,49 @@ const build = (
   ).result.current.buildSavedSet();
 
 describe('useSetDraftPersistence.buildSavedSet', () => {
+  it('saves the welcome image and its alt text, and an image-only welcome stays on', () => {
+    const saved = build(buildSet(), {
+      welcomeEnabled: true,
+      welcomeImageUrl: 'https://example.com/hello.webp',
+      welcomeImageAlt: 'A plant cell',
+    });
+    expect(saved).toMatchObject({
+      welcomeEnabled: true,
+      welcomeImageUrl: 'https://example.com/hello.webp',
+      welcomeImageAlt: 'A plant cell',
+    });
+    expect(saved).not.toHaveProperty('welcomeMessage');
+  });
+
+  it('keeps the welcome message and image while the welcome is off', () => {
+    const saved = build(buildSet(), {
+      welcomeEnabled: false,
+      welcomeMessage: 'Hello',
+      welcomeImageUrl: 'https://example.com/hello.webp',
+      welcomeImageAlt: '  ',
+    });
+    expect(saved).not.toHaveProperty('welcomeEnabled');
+    expect(saved).not.toHaveProperty('welcomeImageAlt');
+    expect(saved).toMatchObject({
+      welcomeMessage: 'Hello',
+      welcomeImageUrl: 'https://example.com/hello.webp',
+    });
+  });
+
+  it('drops the welcome image once removed', () => {
+    const saved = build(
+      buildSet({
+        welcomeEnabled: true,
+        welcomeImageUrl: 'https://example.com/hello.webp',
+        welcomeImageAlt: 'Old',
+      }),
+      { welcomeImageUrl: '', welcomeImageAlt: '' }
+    );
+    expect(saved).not.toHaveProperty('welcomeImageUrl');
+    expect(saved).not.toHaveProperty('welcomeImageAlt');
+    expect(saved).not.toHaveProperty('welcomeEnabled');
+  });
+
   it('keeps imagePaths when an imported set is edited', () => {
     const saved = build(buildSet(), { title: 'Cells, revised' });
     expect(saved?.title).toBe('Cells, revised');

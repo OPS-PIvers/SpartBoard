@@ -183,7 +183,7 @@ vi.mock('firebase/firestore', async (importOriginal) => {
 // signed-in teacher route mounts cleanly. Non-teacher routes ignore them.
 const { dashboardViewAuthValue } = vi.hoisted(() => ({
   dashboardViewAuthValue: {
-    user: null as unknown,
+    user: null,
     isAdmin: false,
     loading: false,
     roleResolved: true,

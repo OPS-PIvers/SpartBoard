@@ -71,6 +71,7 @@ export const BankPickerModal: React.FC<BankPickerModalProps> = ({
   useEffect(() => {
     if (!source) return;
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading state for an external fetch
     setLoad({ status: 'loading' });
     bankApi
       .loadBankContent(source)

@@ -618,6 +618,7 @@ export const useRosters = (user: User | null) => {
   // Keep a ref in sync with the latest rosters so handlers can read the
   // current value without adding `rosters` to their dependency arrays.
   const rostersRef = useRef<ClassRoster[]>(rosters);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers
   rostersRef.current = rosters;
   const { driveService } = useGoogleDrive();
   const [activeRosterId, setActiveRosterIdState] = useState<string | null>(() =>
@@ -1295,9 +1296,12 @@ export const useRosters = (user: User | null) => {
         );
       } catch (err) {
         console.error('Failed to persist absent list:', err);
+        // Only revert if no later toggle has replaced our optimistic value.
         setRosters((prev) =>
           prev.map((r) =>
-            r.id === rosterId ? { ...r, absent: previousAbsent } : r
+            r.id === rosterId && r.absent === payload
+              ? { ...r, absent: previousAbsent }
+              : r
           )
         );
         throw err;

@@ -97,7 +97,7 @@ describe('migrateDrawingConfig', () => {
       paths: [legacyPath()],
       mode: 'overlay' as const,
     };
-    const out = migrateDrawingConfig(input as DrawingConfig);
+    const out = migrateDrawingConfig(input);
     expect(out).not.toHaveProperty('paths');
     expect(out).not.toHaveProperty('mode');
     expect(out.pages[0].objects).toHaveLength(1);
@@ -115,7 +115,7 @@ describe('migrateDrawingConfig', () => {
       ],
     };
 
-    const out = migrateDrawingConfig(input as DrawingConfig);
+    const out = migrateDrawingConfig(input);
     const objs = out.pages[0].objects;
     expect(objs).toHaveLength(3);
     objs.forEach((o, i) => {

@@ -657,8 +657,7 @@ const QuestionRow = React.memo(function QuestionRow({
         {...dragHandleAttributes}
         onPointerDown={
           dragHandleListeners?.onPointerDown as
-            | React.PointerEventHandler<HTMLButtonElement>
-            | undefined
+            React.PointerEventHandler<HTMLButtonElement> | undefined
         }
         onClick={(e) => e.stopPropagation()}
         aria-label="Drag to reorder"

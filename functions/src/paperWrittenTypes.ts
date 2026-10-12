@@ -40,11 +40,7 @@ export interface PaperPageMap {
 export type PaperBoxSize = 'S' | 'M' | 'L' | 'full';
 export type PaperTranscriptState = 'pending' | 'done' | 'blank';
 export type PaperPrivateStatus =
-  | 'pending'
-  | 'done'
-  | 'failed'
-  | 'blank'
-  | 'over-quota';
+  'pending' | 'done' | 'failed' | 'blank' | 'over-quota';
 export type WrittenReturnMode = 'handwriting' | 'typed' | 'both';
 
 export interface PaperPrivateAnswer {
@@ -64,12 +60,7 @@ export interface PaperPrivateAnswer {
 }
 
 export type PaperTranscriptionJobStatus =
-  | 'queued'
-  | 'running'
-  | 'done'
-  | 'failed'
-  | 'over-quota'
-  | 'superseded';
+  'queued' | 'running' | 'done' | 'failed' | 'over-quota' | 'superseded';
 
 export interface PaperTranscriptionJob {
   sessionId: string;

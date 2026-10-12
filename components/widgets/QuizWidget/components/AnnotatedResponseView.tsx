@@ -258,7 +258,6 @@ const ReadOnlyView: React.FC<ReadProps> = ({
   // there's no external system to synchronize, so the lint rule fires
   // a false positive here.
   useLayoutEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     recomputePinnedTops();
   }, [recomputePinnedTops, tree]);
 

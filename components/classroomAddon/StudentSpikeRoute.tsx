@@ -186,6 +186,7 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
   const studentUid = session?.studentRole ? session.uid : null;
   useEffect(() => {
     // Reset so the label recomputes cleanly when the session/code change.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets before the async results check
     setResultsReady(false);
     // Quiz only — the VA completion screen surfaces its own published score.
     if (isVideoActivity || !code || !studentUid) return;

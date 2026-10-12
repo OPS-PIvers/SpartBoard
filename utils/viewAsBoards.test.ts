@@ -11,34 +11,32 @@ import {
   resetViewAsWorkingCopy,
 } from './viewAsBoards';
 
-const widget = (over: Partial<WidgetData> = {}): WidgetData =>
-  ({
-    id: 'w1',
-    type: 'clock',
-    x: 100,
-    y: 100,
-    w: 200,
-    h: 200,
-    xProp: 0.1,
-    yProp: 0.1,
-    wProp: 0.2,
-    hProp: 0.2,
-    z: 1,
-    flipped: false,
-    version: 1,
-    config: { format24: false },
-    ...over,
-  }) as WidgetData;
+const widget = (over: Partial<WidgetData> = {}): WidgetData => ({
+  id: 'w1',
+  type: 'clock',
+  x: 100,
+  y: 100,
+  w: 200,
+  h: 200,
+  xProp: 0.1,
+  yProp: 0.1,
+  wProp: 0.2,
+  hProp: 0.2,
+  z: 1,
+  flipped: false,
+  version: 1,
+  config: { format24: false },
+  ...over,
+});
 
-const board = (widgets: WidgetData[], over: Partial<Dashboard> = {}) =>
-  ({
-    id: 'b1',
-    name: 'Period 1',
-    background: 'bg-slate-100',
-    widgets,
-    createdAt: 1,
-    ...over,
-  }) as Dashboard;
+const board = (widgets: WidgetData[], over: Partial<Dashboard> = {}) => ({
+  id: 'b1',
+  name: 'Period 1',
+  background: 'bg-slate-100',
+  widgets,
+  createdAt: 1,
+  ...over,
+});
 
 const edit = (d: Dashboard, patch: Partial<WidgetData>, id = 'w1') => ({
   ...d,

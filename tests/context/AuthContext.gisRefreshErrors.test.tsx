@@ -92,7 +92,7 @@ function buildFakeUser(email: string): User {
     isAnonymous: false,
     providerData: [],
     refreshToken: '',
-    metadata: {} as User['metadata'],
+    metadata: {},
     providerId: 'firebase',
     tenantId: null,
     delete: vi.fn(),
@@ -109,7 +109,7 @@ function buildFakeUser(email: string): User {
     reload: vi.fn(),
     toJSON: () => ({}),
     phoneNumber: null,
-  } as unknown as User;
+  };
 }
 
 /**

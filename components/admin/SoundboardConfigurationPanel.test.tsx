@@ -32,9 +32,7 @@ vi.mock('@/utils/soundboardAudioUrl', async (importOriginal) => {
 
 const FAKE_BLOB_URL = 'blob:http://localhost/fake-audio';
 
-const mockPlay = vi
-  .fn<() => Promise<void>>()
-  .mockResolvedValue(undefined as unknown as void);
+const mockPlay = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
 
 const mockPause = vi.fn<() => void>();
 const mockAudioConstructor = vi.fn<(src?: string) => void>();

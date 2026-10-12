@@ -7,14 +7,13 @@ import {
 } from './quizOverrideServing';
 import type { QuizPublicQuestion } from '@/types';
 
-const q = (id: string, choices?: string[]): QuizPublicQuestion =>
-  ({
-    id,
-    type: 'MC',
-    text: `Q ${id}`,
-    timeLimit: 30,
-    choices,
-  }) as QuizPublicQuestion;
+const q = (id: string, choices?: string[]): QuizPublicQuestion => ({
+  id,
+  type: 'MC',
+  text: `Q ${id}`,
+  timeLimit: 30,
+  choices,
+});
 
 describe('serveQuestionSubset', () => {
   it('returns the full array unchanged when questionIds is undefined', () => {
@@ -155,10 +154,7 @@ describe('serveLocalizedQuestion', () => {
 
   it('serves a FIB stem now that FIB is translatable (PR4)', () => {
     expect(
-      serveLocalizedQuestion(
-        { ...q('a'), type: 'FIB', localized } as QuizPublicQuestion,
-        'es'
-      )
+      serveLocalizedQuestion({ ...q('a'), type: 'FIB', localized }, 'es')
     ).toEqual(localized.es);
   });
 
@@ -189,7 +185,7 @@ describe('serveLocalizedQuestion', () => {
           type: 'Ordering',
           orderingItems: ['one', 'two'],
           localized,
-        } as QuizPublicQuestion,
+        },
         'es'
       )
     ).toBeNull();

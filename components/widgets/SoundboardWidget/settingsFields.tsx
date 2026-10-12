@@ -3,7 +3,7 @@ import { Toggle } from '@/components/common/Toggle';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import { useAuth } from '@/context/useAuth';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
-import type { SoundboardConfig, SoundboardGlobalConfig } from '@/types';
+import type { SoundboardConfig } from '@/types';
 import { getAvailableSoundboardSounds } from '@/utils/soundboardConfig';
 import { tourFieldAttr } from '@/config/tourAnchors';
 
@@ -19,7 +19,7 @@ export const SoundboardSoundPickerField: React.FC<{
     const permission = featurePermissions.find(
       (candidate) => candidate.widgetType === 'soundboard'
     );
-    return permission?.config as SoundboardGlobalConfig | undefined;
+    return permission?.config;
   }, [featurePermissions]);
   const availableSounds = useMemo(
     () => getAvailableSoundboardSounds(globalConfig, buildingId),

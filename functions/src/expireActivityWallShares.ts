@@ -167,7 +167,7 @@ export async function runExpireActivityWallShares(
 
   const sessionIds = new Set<string>();
   for (const doc of lapsedById.values()) {
-    const sessionId = sessionIdOf(doc.data() as SharedActivityWallData);
+    const sessionId = sessionIdOf(doc.data());
     if (sessionId) sessionIds.add(sessionId);
   }
 
@@ -178,7 +178,7 @@ export async function runExpireActivityWallShares(
       .where('sessionId', '==', sessionId)
       .get();
     const stillLive = allSharesSnap.docs.some(
-      (doc) => !isLapsedShare(doc.data() as SharedActivityWallData, now)
+      (doc) => !isLapsedShare(doc.data(), now)
     );
     if (stillLive) continue;
 

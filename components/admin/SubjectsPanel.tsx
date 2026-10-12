@@ -37,6 +37,7 @@ export const SubjectsPanel: React.FC = () => {
     try {
       await setDoc(doc(db, 'admin_settings', SUBJECTS_DOC), {
         subjects: next,
+        // eslint-disable-next-line react-hooks/purity -- runs in an async save handler, not render
         updatedAt: Date.now(),
       });
     } catch (err) {

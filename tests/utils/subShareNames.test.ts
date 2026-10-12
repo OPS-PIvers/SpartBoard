@@ -34,7 +34,7 @@ function drive(
     listFilePermissions: vi.fn().mockResolvedValue([]),
     grantUserReaderPermission: vi.fn().mockResolvedValue('perm-1'),
     ...overrides,
-  } as DriveMocks & NamesFileDrive;
+  };
 }
 
 // jsdom's Blob has no text(); read it the way the roster suite does.
@@ -346,7 +346,7 @@ describe('driveQueueReader', () => {
       text: () => Promise.resolve('[{"id":"q1","name":"Ada"}]'),
     });
 
-    const read = driveQueueReader({ downloadFile } as never);
+    const read = driveQueueReader({ downloadFile });
 
     expect(await read?.('queue-file')).toEqual([{ id: 'q1', name: 'Ada' }]);
   });

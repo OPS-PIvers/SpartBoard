@@ -28,18 +28,17 @@ const RECORDING = {
   takeLimit: null,
 };
 
-const question = (over: Partial<QuizQuestion> = {}): QuizQuestion =>
-  ({
-    id: 'q1',
-    text: 'Say it out loud',
-    type: 'free-response',
-    correctAnswer: '',
-    incorrectAnswers: [],
-    timeLimit: 0,
-    points: 4,
-    recording: RECORDING,
-    ...over,
-  }) as QuizQuestion;
+const question = (over: Partial<QuizQuestion> = {}): QuizQuestion => ({
+  id: 'q1',
+  text: 'Say it out loud',
+  type: 'free-response',
+  correctAnswer: '',
+  incorrectAnswers: [],
+  timeLimit: 0,
+  points: 4,
+  recording: RECORDING,
+  ...over,
+});
 
 const audio = (
   id: string,

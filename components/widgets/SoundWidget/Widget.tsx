@@ -4,7 +4,6 @@ import {
   WidgetData,
   SoundConfig,
   TrafficConfig,
-  WidgetConfig,
   ExpectationsConfig,
 } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
@@ -85,7 +84,7 @@ export const SoundWidget: React.FC<{
         config: {
           ...widget.config,
           sensitivity: targetSensitivity,
-        } as SoundConfig,
+        },
       });
     }
   }, [
@@ -274,7 +273,7 @@ export const SoundWidget: React.FC<{
       // Only update if state is different to avoid spamming Firestore
       if (trafficConfig.active !== desiredState) {
         updateWidget(trafficLight.id, {
-          config: { ...trafficConfig, active: desiredState } as WidgetConfig,
+          config: { ...trafficConfig, active: desiredState },
         });
       }
     }, 1000);

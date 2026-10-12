@@ -110,5 +110,5 @@ export async function readStudentResponseDoc(
       docId
     )
   );
-  return snap.exists() ? (snap.data() as Record<string, unknown>) : null;
+  return snap.exists() ? snap.data() : null;
 }

@@ -36,8 +36,7 @@ export const SectionRow: React.FC<SectionRowProps> = ({
         {...dragHandleAttributes}
         onPointerDown={
           dragHandleListeners?.onPointerDown as
-            | React.PointerEventHandler<HTMLButtonElement>
-            | undefined
+            React.PointerEventHandler<HTMLButtonElement> | undefined
         }
         aria-label="Drag to reorder"
         {...tourTypeAttr('quiz-editor.section-drag', 'quiz')}

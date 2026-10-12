@@ -58,7 +58,7 @@ export function useFilesDrop(
         e.dataTransfer.dropEffect = disabled ? 'none' : 'copy';
       },
       onDragLeave: (e) => {
-        if (!hasFiles(e) || disabled) return;
+        if (!hasFiles(e)) return;
         e.preventDefault();
         depth.current = Math.max(0, depth.current - 1);
         if (depth.current === 0) setDragging(false);

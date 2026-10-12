@@ -101,12 +101,15 @@ export const useAutosave = ({
   if (!Object.is(resetKey, prevResetKey)) {
     setPrevResetKey(resetKey);
     setSavedToken(draftToken);
+    // eslint-disable-next-line react-hooks/refs -- reset alongside state when the record changes
     savedTokenRef.current = draftToken;
     // A different record starts clean, so the previous one's failure must not
     // follow it here and leave it reading "Couldn't save" untouched.
     setStatus('idle');
     setError(null);
+    // eslint-disable-next-line react-hooks/refs -- reset alongside state when the record changes
     lastWriteOkRef.current = true;
+    // eslint-disable-next-line react-hooks/refs -- reset alongside state when the record changes
     settledStatusRef.current = 'idle';
   }
 

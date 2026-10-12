@@ -2,14 +2,12 @@ import React from 'react';
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import '@/i18n';
+import { RecordingControlsDevView } from './RecordingControlsDevView';
 import {
-  RecordingControlsDevView,
   RECORDING_CONTROL_STATES,
-} from './RecordingControlsDevView';
-import {
   AUDIO_CAPTURE_STATES,
   AUDIO_CAPTURE_DARK_STATES,
-} from './AudioCaptureDevView';
+} from './devViewStates';
 
 const EXPECTED: Record<string, RegExp> = {
   'rc-typed': /^Format$/,

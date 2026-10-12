@@ -55,9 +55,9 @@ type BackgroundsNs = (typeof en)['backgrounds'];
 type LocaleWithBackgrounds = { backgrounds: Record<string, string> };
 
 describe.each([
-  { code: 'de', locale: de as unknown as LocaleWithBackgrounds },
-  { code: 'es', locale: es as unknown as LocaleWithBackgrounds },
-  { code: 'fr', locale: fr as unknown as LocaleWithBackgrounds },
+  { code: 'de', locale: de },
+  { code: 'es', locale: es },
+  { code: 'fr', locale: fr },
 ])(
   '$code locale — backgrounds keys must not be verbatim English',
   ({ code, locale }) => {

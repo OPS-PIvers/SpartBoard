@@ -20,17 +20,16 @@ const q = (
   type: QuizQuestion['type'],
   correctAnswer: string,
   extra: Partial<QuizQuestion> = {}
-): QuizQuestion =>
-  ({
-    id,
-    type,
-    text: `Question ${id}`,
-    correctAnswer,
-    incorrectAnswers: [],
-    timeLimit: 0,
-    points: 1,
-    ...extra,
-  }) as unknown as QuizQuestion;
+): QuizQuestion => ({
+  id,
+  type,
+  text: `Question ${id}`,
+  correctAnswer,
+  incorrectAnswers: [],
+  timeLimit: 0,
+  points: 1,
+  ...extra,
+});
 
 const response = (
   answers: Record<string, string>,
@@ -272,11 +271,14 @@ describe('buildResultsPrintHtml — written answers', () => {
   const graded = (grade: Record<string, unknown>) =>
     student(
       {
-        r: response({ w: '<p>My essay</p>' }, {
-          grading: {
-            w: { pointsAwarded: 3, gradedAt: 1, gradedBy: 't', ...grade },
-          },
-        } as Partial<QuizResponse>),
+        r: response(
+          { w: '<p>My essay</p>' },
+          {
+            grading: {
+              w: { pointsAwarded: 3, gradedAt: 1, gradedBy: 't', ...grade },
+            },
+          }
+        ),
       },
       [written]
     );
@@ -352,16 +354,24 @@ describe('buildResultsPrintHtml — handwritten paper answers', () => {
   ) =>
     student(
       {
-        r: response({ w: answer.answer }, {
-          paperBatchId: 'b',
-          ...(grade
-            ? {
-                grading: {
-                  w: { pointsAwarded: 3, gradedAt: 1, gradedBy: 't', ...grade },
-                },
-              }
-            : {}),
-        } as Partial<QuizResponse>),
+        r: response(
+          { w: answer.answer },
+          {
+            paperBatchId: 'b',
+            ...(grade
+              ? {
+                  grading: {
+                    w: {
+                      pointsAwarded: 3,
+                      gradedAt: 1,
+                      gradedBy: 't',
+                      ...grade,
+                    },
+                  },
+                }
+              : {}),
+          }
+        ),
         paperWritten: {
           w: {
             answer: { ...answer, artifacts: [crop] } as never,

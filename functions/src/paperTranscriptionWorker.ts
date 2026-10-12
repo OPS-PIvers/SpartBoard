@@ -52,12 +52,7 @@ export const MAX_RETRY_JOBS = 500;
 const MAX_ERROR_CHARS = 300;
 
 export type JobOutcome =
-  | 'missing'
-  | 'not-claimed'
-  | 'superseded'
-  | 'over-quota'
-  | 'failed'
-  | 'done';
+  'missing' | 'not-claimed' | 'superseded' | 'over-quota' | 'failed' | 'done';
 
 export interface WorkerDeps {
   db: Firestore;
@@ -651,7 +646,7 @@ export async function requeuePaperJob(
       createdAt: opts.now,
       updatedAt: opts.now,
     };
-    tx.create(nextRef, fresh as unknown as Record<string, unknown>);
+    tx.create(nextRef, fresh);
     for (const box of live) {
       tx.set(
         privateRefFor(responseRef, box.questionId),

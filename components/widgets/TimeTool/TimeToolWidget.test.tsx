@@ -13,7 +13,6 @@ import { useGlobalStyle } from '@/context/dashboardCanvasStore';
 import { WidgetData, TimeToolConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { TimeToolWidget } from './TimeToolWidget';
 import { useTimeTool } from './useTimeTool';
-import { DashboardContextValue } from '@/context/DashboardContextValue';
 
 // useTimeTool still reads the legacy context (updateWidget + activeDashboard);
 // TimeToolWidget itself now reads globalStyle from the mount-stable store.
@@ -49,9 +48,7 @@ const renderWidget = (widget: WidgetData) => {
 describe('TimeToolWidget', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    (useDashboard as Mock).mockReturnValue(
-      mockDashboardContext as unknown as DashboardContextValue
-    );
+    (useDashboard as Mock).mockReturnValue(mockDashboardContext);
     vi.mocked(useGlobalStyle).mockReturnValue(DEFAULT_GLOBAL_STYLE);
   });
 

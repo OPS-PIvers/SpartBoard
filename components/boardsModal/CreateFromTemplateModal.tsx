@@ -46,6 +46,7 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
       // In auth-bypass / E2E mode, read from the in-memory mock store.
       // Defensive filter matches production: only show enabled templates.
       const all = mockTemplateStore.getAll().filter((tpl) => tpl.enabled);
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mock-store path of the Firestore subscription
       setTemplates(all);
       setLoading(false);
       return;
@@ -58,9 +59,10 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const all = snap.docs.map(
-          (d) => ({ ...(d.data() as AnyTemplate), id: d.id }) as AnyTemplate
-        );
+        const all = snap.docs.map((d) => ({
+          ...(d.data() as AnyTemplate),
+          id: d.id,
+        }));
         // Defensive: drop any docs that snuck through with enabled:false
         // (rule changes, race conditions) so we never instantiate a
         // disabled template.

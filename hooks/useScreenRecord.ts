@@ -1,4 +1,10 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import {
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+} from 'react';
 
 interface ScreenRecordOptions {
   onSuccess?: (blob: Blob) => void;
@@ -24,13 +30,15 @@ export const useScreenRecord = (options: ScreenRecordOptions = {}) => {
   const timerRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Render-body ref sync: callbacks are stored in refs so startRecording's
+  // Latest-value refs: callbacks are stored in refs so startRecording's
   // useCallback dep array can omit `options` entirely, making startRecording
   // unconditionally stable regardless of callback identity changes.
   const onSuccessRef = useRef(options.onSuccess);
-  onSuccessRef.current = options.onSuccess;
   const onErrorRef = useRef(options.onError);
-  onErrorRef.current = options.onError;
+  useLayoutEffect(() => {
+    onSuccessRef.current = options.onSuccess;
+    onErrorRef.current = options.onError;
+  });
 
   const stopRecording = useCallback(() => {
     if (

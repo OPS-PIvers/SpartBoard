@@ -53,6 +53,7 @@ const handoff = (session: unknown, source: unknown = window) => {
 
 describe('ViewAsGate', () => {
   let postSpy: ReturnType<typeof vi.spyOn>;
+  let closeSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(async () => {
     vi.resetModules();
@@ -70,7 +71,7 @@ describe('ViewAsGate', () => {
     postSpy = vi
       .spyOn(window, 'postMessage')
       .mockImplementation(() => undefined);
-    vi.spyOn(window, 'close').mockImplementation(() => undefined);
+    closeSpy = vi.spyOn(window, 'close').mockImplementation(() => undefined);
     Object.defineProperty(window, 'opener', {
       value: window,
       configurable: true,
@@ -165,7 +166,7 @@ describe('ViewAsGate', () => {
     });
     expect(updateMock).toHaveBeenCalledWith({ action: 'end' });
     expect(signOutMock).toHaveBeenCalled();
-    expect(window.close).toHaveBeenCalled();
+    expect(closeSpy).toHaveBeenCalled();
     expect(screen.getByText('View as ended')).toBeInTheDocument();
   });
 });

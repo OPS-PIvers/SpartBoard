@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { GuidedLearningSet } from '@/types';
 
 // In-memory Firestore: paths are joined segments, queries filter on one equality.
 const store = vi.hoisted(() => ({
@@ -97,7 +96,7 @@ describe('unreferencedDriveIds', () => {
     setDoc('users/t1/guided_learning/old', { driveFileId: 'json-1' });
     const loadSet = vi.fn().mockResolvedValue({
       imageUrls: [lh3('a')],
-    } as Partial<GuidedLearningSet>);
+    });
     expect(
       await unreferencedDriveIds({
         uid: 't1',

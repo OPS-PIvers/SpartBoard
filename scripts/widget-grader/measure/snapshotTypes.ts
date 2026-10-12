@@ -9,11 +9,7 @@ export interface Box {
 
 /** How a control's centre resolved under elementsFromPoint. */
 export type CenterHit =
-  | 'self'
-  | 'covered'
-  | 'clipped'
-  | 'scrolled'
-  | 'offscreen';
+  'self' | 'covered' | 'clipped' | 'scrolled' | 'offscreen';
 
 export interface ControlInfo {
   path: string;

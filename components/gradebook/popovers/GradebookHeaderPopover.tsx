@@ -69,7 +69,7 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
   const ids = useId();
   const markWrites = useGradebookMarkWrites(ctx.rosterId, ctx.settings.flags);
   const { saveColumn, setHidden } = useGradebookColumnWrites();
-  const completion = isCompletionOnly(column.kind);
+  const completion = column.completionOnly ?? isCompletionOnly(column.kind);
   const config = column.config;
 
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -326,27 +326,32 @@ export const GradebookHeaderPopover: React.FC<GradebookHeaderPopoverProps> = ({
               if (e.key === 'Enter') saveMax();
             }}
           />
-          <label
-            htmlFor={`${ids}-policy`}
-            className={LABEL}
-            title="Which score counts when a student retakes it"
-          >
-            Retakes
-          </label>
-          <Select
-            id={`${ids}-policy`}
-            {...tourAttr('gradebook.column.retakes')}
-            value={config?.attemptPolicy ?? 'latest'}
-            onChange={(e) =>
-              saveColumn(column, {
-                attemptPolicy: e.target.value as AttemptPolicy,
-              }).catch(fail)
-            }
-          >
-            <option value="latest">Use latest</option>
-            <option value="highest">Use highest</option>
-            <option value="average">Average them</option>
-          </Select>
+          {/* Mini Apps always count each student's best attempt (MINI_APP_RESULTS.md D8). */}
+          {column.kind !== 'mini-app' && (
+            <>
+              <label
+                htmlFor={`${ids}-policy`}
+                className={LABEL}
+                title="Which score counts when a student retakes it"
+              >
+                Retakes
+              </label>
+              <Select
+                id={`${ids}-policy`}
+                {...tourAttr('gradebook.column.retakes')}
+                value={config?.attemptPolicy ?? 'latest'}
+                onChange={(e) =>
+                  saveColumn(column, {
+                    attemptPolicy: e.target.value as AttemptPolicy,
+                  }).catch(fail)
+                }
+              >
+                <option value="latest">Use latest</option>
+                <option value="highest">Use highest</option>
+                <option value="average">Average them</option>
+              </Select>
+            </>
+          )}
           {standardsControl && (
             <>
               <span className={LABEL}>Standards</span>

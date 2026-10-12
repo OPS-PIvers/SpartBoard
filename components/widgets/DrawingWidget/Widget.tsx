@@ -329,7 +329,7 @@ export const DrawingWidget: React.FC<{
         i === currentPage ? { ...p, objects: next } : p
       );
       updateWidget(widget.id, {
-        config: { ...config, pages: nextPages } as DrawingConfig,
+        config: { ...config, pages: nextPages },
       });
     },
     [
@@ -352,7 +352,7 @@ export const DrawingWidget: React.FC<{
   const updateConfig = useCallback(
     (partial: Partial<DrawingConfig>) => {
       updateWidget(widget.id, {
-        config: { ...config, ...partial } as DrawingConfig,
+        config: { ...config, ...partial },
       });
     },
     [updateWidget, widget.id, config]
@@ -635,12 +635,12 @@ export const DrawingWidget: React.FC<{
     // Eraser sub-modes (object / lasso) bypass the legacy pixel-stroke
     // path entirely — they operate on object identity, not canvas pixels.
     if (activeTool === 'eraser' && eraserMode === 'object') {
-      (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+      e.currentTarget.setPointerCapture?.(e.pointerId);
       handleObjectErasePointerDown(getCanvasPos(e));
       return;
     }
     if (activeTool === 'eraser' && eraserMode === 'lasso') {
-      (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+      e.currentTarget.setPointerCapture?.(e.pointerId);
       handleLassoPointerDown(getCanvasPos(e));
       return;
     }
@@ -1063,7 +1063,7 @@ export const DrawingWidget: React.FC<{
     // useEffect needed because the event already knows the new tool.
     if (tool !== 'select') clearSelection();
     updateWidget(widget.id, {
-      config: { ...config, activeTool: tool } as DrawingConfig,
+      config: { ...config, activeTool: tool },
     });
   };
 
@@ -1095,19 +1095,19 @@ export const DrawingWidget: React.FC<{
 
   const setColor = (next: string) => {
     updateWidget(widget.id, {
-      config: { ...config, color: next } as DrawingConfig,
+      config: { ...config, color: next },
     });
   };
 
   const setWidth = (px: number) => {
     updateWidget(widget.id, {
-      config: { ...config, width: px } as DrawingConfig,
+      config: { ...config, width: px },
     });
   };
 
   const setEraserMode = (mode: EraserMode) => {
     updateWidget(widget.id, {
-      config: { ...config, eraserMode: mode } as DrawingConfig,
+      config: { ...config, eraserMode: mode },
     });
   };
 

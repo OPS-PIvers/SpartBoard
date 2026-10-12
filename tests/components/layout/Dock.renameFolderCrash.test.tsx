@@ -168,8 +168,7 @@ import { useNotebookSharing } from '@/hooks/useNotebookSharing';
 import type { DockFolder } from '@/types';
 
 type MockDockItem =
-  | { type: 'tool'; toolType: string }
-  | { type: 'folder'; folder: DockFolder };
+  { type: 'tool'; toolType: string } | { type: 'folder'; folder: DockFolder };
 
 /** Wire up all required hook mocks; `dockItems` is the only thing this test varies. */
 function setupMocks(dockItems: MockDockItem[]) {

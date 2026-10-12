@@ -30,24 +30,23 @@ const dashboard = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-const ctx = (config: Partial<RandomConfig>): CustomRenderCtx =>
-  ({
-    config: {
-      rosterMode: 'class',
-      lastResult: [
-        { id: GROUP_A, names: ['Ann', 'Bo'], studentIds: ['s1', 's2'] },
-        { id: GROUP_B, names: ['Cy'], studentIds: ['s3'] },
-      ],
-      ...config,
-    } as unknown as Record<string, unknown>,
-    widget: { id: 'random-1' } as WidgetData,
-    isAdmin: false,
-    canAccessFeature: () => true,
-    t: (key: string) => key,
-    updateConfig: vi.fn(),
-    id: 'field',
-    labelId: 'field-label',
-  }) as unknown as CustomRenderCtx;
+const ctx = (config: Partial<RandomConfig>): CustomRenderCtx => ({
+  config: {
+    rosterMode: 'class',
+    lastResult: [
+      { id: GROUP_A, names: ['Ann', 'Bo'], studentIds: ['s1', 's2'] },
+      { id: GROUP_B, names: ['Cy'], studentIds: ['s3'] },
+    ],
+    ...config,
+  },
+  widget: { id: 'random-1' } as WidgetData,
+  isAdmin: false,
+  canAccessFeature: () => true,
+  t: (key: string) => key,
+  updateConfig: vi.fn(),
+  id: 'field',
+  labelId: 'field-label',
+});
 
 describe('RandomSendToProjectsField', () => {
   beforeEach(() => {

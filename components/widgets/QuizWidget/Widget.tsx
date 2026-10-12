@@ -743,7 +743,7 @@ const TeacherQuizWidget: React.FC<{
 
   const setView = useCallback(
     (view: QuizConfig['view']) => {
-      updateWidget(widget.id, { config: { ...config, view } as QuizConfig });
+      updateWidget(widget.id, { config: { ...config, view } });
     },
     [updateWidget, widget.id, config]
   );
@@ -765,7 +765,7 @@ const TeacherQuizWidget: React.FC<{
         setLoadingQuizData(false);
       }
     },
-    [loadQuizData, addToast]
+    [loadQuizData, addToast, setLoadedQuizData]
   );
 
   // A live tour can open one of the teacher's quizzes in the editor.
@@ -864,7 +864,7 @@ const TeacherQuizWidget: React.FC<{
             activeAssignmentId: assignmentId,
             activeLiveSessionCode: code,
             lastRosterIdsByQuizId: nextMap,
-          } as QuizConfig,
+          },
         });
       })();
     },
@@ -1103,7 +1103,14 @@ const TeacherQuizWidget: React.FC<{
         return false;
       }
     },
-    [loadQuizData, saveQuiz, showConfirm, addToast]
+    [
+      loadQuizData,
+      saveQuiz,
+      showConfirm,
+      addToast,
+      setEditingQuiz,
+      setEditingMeta,
+    ]
   );
 
   // Drop any pending import-setup prompt when the QuizWidget unmounts.
@@ -1129,6 +1136,7 @@ const TeacherQuizWidget: React.FC<{
     if (!pendingAssignmentEditId) return;
     const target = assignments.find((a) => a.id === pendingAssignmentEditId);
     if (!target) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- opens the editor for an assignment requested from outside the widget
     setEditingAssignment(target);
     clearPendingAssignmentEdit();
   }, [pendingAssignmentEditId, assignments, clearPendingAssignmentEdit]);
@@ -1146,6 +1154,7 @@ const TeacherQuizWidget: React.FC<{
       // Prioritize the quiz from the live session document itself
       const meta = quizzes.find((q) => q.id === liveSession.quizId);
       if (meta) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- loads the live session's quiz from Drive
         void loadQuiz(
           answerKeyMeta(
             meta,
@@ -1192,8 +1201,10 @@ const TeacherQuizWidget: React.FC<{
   // - configRef: avoids re-triggering when unrelated config fields change
   // - widgetsRef: avoids re-triggering when the scoreboard widget we just wrote is updated
   const configRef = useRef(config);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in effects
   configRef.current = config;
   const widgetsRef = useRef(activeDashboard?.widgets);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in effects
   widgetsRef.current = activeDashboard?.widgets;
 
   // ClassLink name lookup for SSO `studentRole` joiners. The live scoreboard
@@ -1212,12 +1223,14 @@ const TeacherQuizWidget: React.FC<{
     orgId
   );
   const byStudentUidRef = useRef(byStudentUid);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   byStudentUidRef.current = byStudentUid;
   // Translated FIB answer keys + served-locale overrides for the live assignment.
   const liveAssignment = config.activeAssignmentId
     ? assignments.find((a) => a.id === config.activeAssignmentId)
     : undefined;
   const fibGradingRef = useRef<FibGradingContext>({});
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   fibGradingRef.current = {
     answers: liveAssignment?.localizedFibAnswers ?? null,
     overridesByStudentUid: liveAssignment?.overridesByStudentUid ?? null,
@@ -1230,7 +1243,7 @@ const TeacherQuizWidget: React.FC<{
   const handleUpdateQuizConfig = useCallback(
     (updates: Partial<QuizConfig>) => {
       updateWidget(widget.id, {
-        config: { ...configRef.current, ...updates } as QuizConfig,
+        config: { ...configRef.current, ...updates },
       });
     },
     [updateWidget, widget.id]
@@ -1371,7 +1384,7 @@ const TeacherQuizWidget: React.FC<{
               config: {
                 ...currentConfig,
                 liveScoreboardWidgetId: existingScoreboard.id,
-              } as QuizConfig,
+              },
             });
           }
           creatingScoreboardRef.current = false;
@@ -1493,6 +1506,7 @@ const TeacherQuizWidget: React.FC<{
   // doc in a single batch — the Drive blob is untouched. Declared before the
   // early returns below so the hook runs on every render (rules-of-hooks).
   const handleReorderQuizzes = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps narrowed to user?.uid on purpose
     async (orderedIds: string[]) => {
       if (!user?.uid || isTourSandboxActive()) return;
       const batch = writeBatch(db);
@@ -1786,7 +1800,7 @@ const TeacherQuizWidget: React.FC<{
           // active assignment doc so other consumers (assignment list,
           // settings modal, copy-to-clipboard menu) see the live URL.
           updateWidget(widget.id, {
-            config: { ...config, plcSheetUrl: newUrl } as QuizConfig,
+            config: { ...config, plcSheetUrl: newUrl },
           });
           if (config.activeAssignmentId && activeAssignment?.plc) {
             try {
@@ -1887,7 +1901,7 @@ const TeacherQuizWidget: React.FC<{
                   ...config,
                   view: 'manager',
                   managerTab: 'active',
-                } as QuizConfig,
+                },
               })
             }
             className="inline-flex items-center rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold shadow-sm transition-colors"
@@ -1945,7 +1959,7 @@ const TeacherQuizWidget: React.FC<{
               ...config,
               view: 'manager',
               managerTab: 'archive',
-            } as QuizConfig,
+            },
           });
         }}
         onPause={
@@ -1986,7 +2000,7 @@ const TeacherQuizWidget: React.FC<{
               ...config,
               view: 'manager',
               managerTab: 'active',
-            } as QuizConfig,
+            },
           });
         }}
         overridesBySourcedId={
@@ -2594,7 +2608,7 @@ const TeacherQuizWidget: React.FC<{
                   plcOptions.periodNames?.[0] ?? plcOptions.periodName ?? '',
                 periodNames: plcOptions.periodNames ?? [],
                 lastRosterIdsByQuizId: nextMap,
-              } as QuizConfig,
+              },
             });
             // Library-row chooser → Google Classroom: the SpartBoard assignment
             // now exists (we have its id + join code), so hand it straight to the
@@ -3009,7 +3023,7 @@ const TeacherQuizWidget: React.FC<{
               teacherName: a.teacherName ?? '',
               plcMode: !!a.plc,
               plcSheetUrl: a.plc?.sheetUrl ?? '',
-            } as QuizConfig,
+            },
           });
         }}
         onArchiveStart={async (a) => {
@@ -3056,7 +3070,7 @@ const TeacherQuizWidget: React.FC<{
               teacherName: a.teacherName ?? '',
               plcMode: !!a.plc,
               plcSheetUrl: a.plc?.sheetUrl ?? '',
-            } as QuizConfig,
+            },
           });
         }}
         onArchiveResults={async (a) => {
@@ -3080,7 +3094,7 @@ const TeacherQuizWidget: React.FC<{
               periodName: a.periodName ?? '',
               periodNames: a.periodNames ?? [],
               teacherName: a.teacherName ?? '',
-            } as QuizConfig,
+            },
           });
         }}
         onArchiveEditSettings={

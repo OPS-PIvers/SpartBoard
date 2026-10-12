@@ -836,8 +836,7 @@ export async function archiveQuizArtifactCore(
 
   if (kind === 'handwriting') {
     const answer = answers.find((a) => a?.questionId === questionId) as
-      | { paperScanId?: unknown }
-      | undefined;
+      { paperScanId?: unknown } | undefined;
     const liveScanId = answer?.paperScanId;
     // A superseded rescan's crop must never archive under the live answer.
     if (

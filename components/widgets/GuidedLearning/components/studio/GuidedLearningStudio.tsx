@@ -11,6 +11,7 @@ import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import {
   AlertTriangle,
+  ClipboardCopy,
   Folder as FolderIcon,
   History,
   Inbox,
@@ -56,9 +57,16 @@ import { ScreenCaptureModal } from '../ScreenCaptureModal';
 import { useSetDraftPersistence } from '../useSetDraftPersistence';
 import type {
   GuidedLearningLatestSet,
+  GuidedLearningRevisionWatch,
   GuidedLearningSaveGuard,
+  GuidedLearningStoredRevision,
 } from '../../utils/saveConflict';
 import type { DevicePreset } from '../../types/stage';
+import {
+  buildClaudePrompt,
+  isDevProject,
+  type ClaudePromptTarget,
+} from '../../utils/claudePrompt';
 import { StudioCanvas } from './StudioCanvas';
 import { StudioStartHub } from './StudioStartHub';
 import { useFileDrop } from './useFileDrop';
@@ -68,6 +76,7 @@ import { StudioPlayMode } from './StudioPlayMode';
 import { StudioFilmstrip } from './StudioFilmstrip';
 import { StudioTimeline } from './StudioTimeline';
 import { StudioPropertiesPanel } from './StudioPropertiesPanel';
+import { StudioWelcomePreview } from './StudioWelcomePreview';
 import { DevicePresetPicker } from './DevicePresetPicker';
 import { loadDevicePreset, saveDevicePreset } from './devicePresets';
 import {
@@ -125,6 +134,8 @@ export interface GuidedLearningStudioProps {
   initialStepId?: string;
   /** Closes the Studio and opens the .gl.json import; offered on an empty set. */
   onImport?: () => void;
+  /** Reports the set's stored revision live, so a Claude edit shows up while open. */
+  watchRevision?: GuidedLearningRevisionWatch;
 }
 
 /** Full-screen Guided Learning editor whose canvas is the real player stage. */
@@ -137,6 +148,8 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = (
     latest: GuidedLearningLatestSet;
     count: number;
   } | null>(null);
+  // Revisions an Undo wrote, kept across reloads so the watch never reports them back.
+  const [restoredRevisions] = useState(() => new Set<number>());
   // A different set from the parent drops a reloaded copy.
   const current = reloaded?.from === props.set ? reloaded : null;
   return (
@@ -147,6 +160,7 @@ export const GuidedLearningStudio: React.FC<GuidedLearningStudioProps> = (
       loadedUpdatedAt={
         current ? current.latest.updatedAt : props.meta?.updatedAt
       }
+      restoredRevisions={restoredRevisions}
       onReloaded={(latest) =>
         setReloaded((prev) => ({
           from: props.set,
@@ -162,6 +176,7 @@ const StudioSession: React.FC<
   GuidedLearningStudioProps & {
     loadedUpdatedAt?: number;
     onReloaded: (latest: GuidedLearningLatestSet) => void;
+    restoredRevisions: Set<number>;
   }
 > = ({
   set,
@@ -174,8 +189,10 @@ const StudioSession: React.FC<
   onFolderChange,
   initialStepId,
   onImport,
+  watchRevision,
   loadedUpdatedAt,
   onReloaded,
+  restoredRevisions,
 }) => {
   const { t } = useTranslation();
   const { isAdmin, canAccessFeature } = useAuth();
@@ -230,9 +247,11 @@ const StudioSession: React.FC<
     persistDraft,
     buildSavedSet,
     closeEditor,
-    conflict,
+    conflict: saveConflict,
     armOverwrite,
     readOnly,
+    isOwnRevision,
+    readDraftToken,
   } = useSetDraftPersistence({
     isOpen: true,
     set,
@@ -242,6 +261,12 @@ const StudioSession: React.FC<
     loadedUpdatedAt,
     onClose,
   });
+  // A newer stored revision that arrived while this draft had unsaved edits.
+  const [external, setExternal] = useState<GuidedLearningStoredRevision | null>(
+    null
+  );
+  const [claudeWrote, setClaudeWrote] = useState(false);
+  const conflict = saveConflict ?? external;
 
   const autosave = useAutosave({
     draftToken,
@@ -282,10 +307,83 @@ const StudioSession: React.FC<
   }, [conflict, onReloaded, addToast, t]);
   const overwrite = useCallback(async () => {
     armOverwrite();
+    setExternal(null);
     setResolving(true);
     await autosave.flush({ force: true });
     setResolving(false);
   }, [armOverwrite, autosave]);
+
+  const driveFileId = meta?.driveFileId;
+  // Puts back the draft an automatic reload replaced, saved over the revision it loaded.
+  const restoreReplaced = useCallback(
+    async (previous: GuidedLearningSet, base: number) => {
+      const updatedAt = Math.max(Date.now(), base + 1);
+      const restored = { ...previous, updatedAt };
+      restoredRevisions.add(updatedAt);
+      try {
+        await onSave(restored, driveFileId, { expectedUpdatedAt: base });
+      } catch {
+        addToast?.(t('glStudio.undoClaudeFailed'), 'error');
+        return;
+      }
+      onReloaded({ set: restored, updatedAt });
+    },
+    [restoredRevisions, onSave, driveFileId, onReloaded, addToast, t]
+  );
+
+  const loadStoredRevision = async (revision: GuidedLearningStoredRevision) => {
+    const startToken = readDraftToken();
+    const previous = buildSavedSet();
+    let latest: GuidedLearningLatestSet;
+    try {
+      latest = await revision.loadLatest();
+    } catch {
+      setExternal(revision);
+      return;
+    }
+    // An edit made while it loaded must not be thrown away.
+    if (readDraftToken() !== startToken) {
+      setExternal(revision);
+      return;
+    }
+    onReloaded(latest);
+    addToast?.(
+      t(
+        revision.byClaude
+          ? 'glStudio.claudeChangesLoaded'
+          : 'glStudio.externalChangesLoaded'
+      ),
+      'info',
+      previous && !readOnly
+        ? {
+            label: t('glStudio.undoClaudeChanges'),
+            onClick: () => void restoreReplaced(previous, latest.updatedAt),
+          }
+        : undefined
+    );
+  };
+  const onStoredRevision = useEffectEvent(
+    (revision: GuidedLearningStoredRevision) => {
+      if (
+        isOwnRevision(revision.updatedAt) ||
+        restoredRevisions.has(revision.updatedAt)
+      )
+        return;
+      setClaudeWrote(revision.byClaude);
+      if (saveConflict) return;
+      const busy =
+        autosave.hasUnsavedWork ||
+        autosave.status === 'saving' ||
+        editorState.uploading ||
+        editorState.gestureOpen;
+      if (external || busy) setExternal(revision);
+      else void loadStoredRevision(revision);
+    }
+  );
+  useEffect(
+    () => watchRevision?.((revision) => onStoredRevision(revision)),
+    [watchRevision]
+  );
 
   // Resolves true once the Studio has closed.
   const requestClose = useCallback(async (): Promise<boolean> => {
@@ -398,6 +496,35 @@ const StudioSession: React.FC<
     }
   }
 
+  const welcomeCard = canAccessFeature('gl-welcome-card');
+  const [welcomeOpen, setWelcomeOpen] = useState(false);
+  // Picking a step or moving to another slide leaves the Welcome card.
+  const [welcomeFrom, setWelcomeFrom] = useState({
+    step: selectedStepId,
+    slide: currentImageIndex,
+  });
+  if (
+    welcomeFrom.step !== selectedStepId ||
+    welcomeFrom.slide !== currentImageIndex
+  ) {
+    setWelcomeFrom({ step: selectedStepId, slide: currentImageIndex });
+    if (selectedStepId !== null || welcomeFrom.slide !== currentImageIndex)
+      setWelcomeOpen(false);
+  }
+  const welcomeShown = welcomeCard && welcomeOpen && selectedStepId === null;
+  const selectWelcome = useCallback(() => {
+    setSelectedStepId(null);
+    setWelcomeOpen(true);
+    setPropertiesOpen(true);
+  }, [setSelectedStepId]);
+  const selectSlide = useCallback(
+    (index: number) => {
+      setWelcomeOpen(false);
+      setCurrentImageIndex(index);
+    },
+    [setCurrentImageIndex]
+  );
+
   // Every delete is undoable from its toast; none asks first.
   const toastUndoFor = useCallback(
     (tag: object) => () => {
@@ -463,6 +590,53 @@ const StudioSession: React.FC<
       if (count > 0) addToast?.(t('glStudio.stepsCopied', { count }), 'info');
     },
     [copySteps, addToast, t]
+  );
+
+  const canCopyForClaude =
+    canAccessFeature('claude-connector') &&
+    canAccessFeature('claude-connector-guided-learning');
+  // Saves first so Claude reads exactly what the teacher sees.
+  const copyForClaude = useCallback(
+    async (target: ClaudePromptTarget) => {
+      const unsavable =
+        conflict !== null ||
+        readOnly ||
+        editorState.uploading ||
+        (editorState.imageUrls.length === 0 && editorState.mode !== 'tour');
+      const saved = !unsavable && (await autosave.flush());
+      const latest = saved ? buildSavedSet() : null;
+      if (!latest) {
+        addToast?.(t('glStudio.copyForClaudeFailed'), 'error');
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(
+          buildClaudePrompt(latest, target, { dev: isDevProject() })
+        );
+        addToast?.(t('glStudio.copiedForClaude'), 'success');
+      } catch {
+        addToast?.(t('glStudio.clipboardFailed'), 'error');
+      }
+    },
+    [
+      conflict,
+      readOnly,
+      editorState.uploading,
+      editorState.imageUrls.length,
+      editorState.mode,
+      autosave,
+      buildSavedSet,
+      addToast,
+      t,
+    ]
+  );
+  const copySlideForClaude = useCallback(
+    (slideIndex: number) => void copyForClaude({ kind: 'slide', slideIndex }),
+    [copyForClaude]
+  );
+  const copyStepForClaude = useCallback(
+    (stepId: string) => void copyForClaude({ kind: 'step', stepId }),
+    [copyForClaude]
   );
 
   const [playing, setPlaying] = useState<{
@@ -680,6 +854,16 @@ const StudioSession: React.FC<
               },
             ]
           : []),
+        ...(canCopyForClaude
+          ? [
+              {
+                id: 'copy-for-claude',
+                label: t('glStudio.copyForClaude'),
+                icon: ClipboardCopy,
+                onSelect: () => void copyForClaude({ kind: 'activity' }),
+              },
+            ]
+          : []),
         {
           id: 'shortcuts',
           label: t('glStudio.shortcutsOpen'),
@@ -782,6 +966,19 @@ const StudioSession: React.FC<
               onChange={choosePreset}
               compact={compact}
             />
+            {canCopyForClaude && !compact && (
+              <button
+                type="button"
+                {...tourAttr('studio.copy-for-claude')}
+                onClick={() => void copyForClaude({ kind: 'activity' })}
+                aria-label={t('glStudio.copyForClaude')}
+                title={t('glStudio.copyForClaude')}
+                data-testid="gl-studio-copy-for-claude"
+                className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+              >
+                <ClipboardCopy className="h-5 w-5" aria-hidden="true" />
+              </button>
+            )}
             {!compact && (
               <button
                 type="button"
@@ -852,8 +1049,18 @@ const StudioSession: React.FC<
         >
           <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden="true" />
           <p className="min-w-0 flex-1">
-            <strong className="font-bold">{t('glStudio.conflictTitle')}</strong>{' '}
-            {t('glStudio.conflictBody')}
+            <strong className="font-bold">
+              {t(
+                claudeWrote
+                  ? 'glStudio.claudeConflictTitle'
+                  : 'glStudio.conflictTitle'
+              )}
+            </strong>{' '}
+            {t(
+              claudeWrote
+                ? 'glStudio.claudeConflictBody'
+                : 'glStudio.conflictBody'
+            )}
           </p>
           <button
             type="button"
@@ -862,7 +1069,11 @@ const StudioSession: React.FC<
             disabled={resolving}
             className="rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 disabled:opacity-50"
           >
-            {t('glStudio.conflictReload')}
+            {t(
+              claudeWrote
+                ? 'glStudio.claudeConflictLoad'
+                : 'glStudio.conflictReload'
+            )}
           </button>
           <button
             type="button"
@@ -871,7 +1082,11 @@ const StudioSession: React.FC<
             disabled={resolving}
             className="rounded-lg border border-amber-400 bg-white px-3 py-1.5 text-xs font-bold text-amber-900 hover:bg-amber-100 disabled:opacity-50"
           >
-            {t('glStudio.conflictOverwrite')}
+            {t(
+              claudeWrote
+                ? 'glStudio.claudeConflictKeep'
+                : 'glStudio.conflictOverwrite'
+            )}
           </button>
         </div>
       )}
@@ -921,6 +1136,10 @@ const StudioSession: React.FC<
           onDeleteSlide={deleteSlideWithUndo}
           collapsed={filmstripCollapsed}
           onToggleCollapsed={() => setFilmstripCollapsed((v) => !v)}
+          onCopyForClaude={canCopyForClaude ? copySlideForClaude : undefined}
+          onSelectSlide={welcomeCard ? selectSlide : undefined}
+          onSelectWelcome={welcomeCard ? selectWelcome : undefined}
+          welcomeSelected={welcomeShown}
         />
         <div className="flex min-h-0 min-w-0 flex-col">
           <main
@@ -939,6 +1158,14 @@ const StudioSession: React.FC<
                   lastPlayedRef.current = id;
                 }}
                 onExit={exitPlay}
+              />
+            ) : welcomeShown ? (
+              <StudioWelcomePreview
+                title={editorState.title}
+                enabled={editorState.welcomeEnabled}
+                message={editorState.welcomeMessage}
+                imageUrl={editorState.welcomeImageUrl}
+                imageAlt={editorState.welcomeImageAlt}
               />
             ) : imageUrls.length === 0 ? (
               <StudioStartHub
@@ -973,7 +1200,11 @@ const StudioSession: React.FC<
               </div>
             )}
           </main>
-          <StudioTimeline state={editorState} onCopyStep={copyStepWithToast} />
+          <StudioTimeline
+            state={editorState}
+            onCopyStep={copyStepWithToast}
+            onCopyForClaude={canCopyForClaude ? copyStepForClaude : undefined}
+          />
         </div>
         {propertiesOpen && (
           <button
@@ -999,6 +1230,8 @@ const StudioSession: React.FC<
             onDeleteStep={deleteStepWithUndo}
             canvasRef={canvasRef}
             calloutEditing={calloutEditing}
+            welcomeCard={welcomeCard}
+            welcomeSelected={welcomeShown}
             onEditOnBoard={
               liveTours && isAdmin === true && !readOnly
                 ? () => void editOnBoard()

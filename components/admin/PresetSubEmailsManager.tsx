@@ -169,6 +169,7 @@ const BuildingPresetEditor: React.FC<{ buildingId: string }> = ({
   // don't overwrite local edits.
   if (snapshot.loaded && draftSeededAt === null) {
     setDraftEmails(snapshot.emails);
+    // eslint-disable-next-line react-hooks/purity -- seed timestamp set once while adjusting state during render
     setDraftSeededAt(Date.now());
   }
 

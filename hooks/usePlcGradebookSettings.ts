@@ -69,8 +69,7 @@ export function usePlcGradebookSettings(plcId: string, plcName: string) {
       doc(db, 'plcs', plcId, 'meta', 'learningTargets'),
       (snap) => {
         const mc = snap.data()?.masteryCutoffs as
-          | Record<string, unknown>
-          | undefined;
+          Record<string, unknown> | undefined;
         const cutoffs =
           typeof mc?.proficient === 'number' &&
           typeof mc?.approaching === 'number'

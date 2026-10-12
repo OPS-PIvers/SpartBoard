@@ -194,10 +194,7 @@ export const usePlcBuildingDirectory = (
       (snap) => {
         const list: PlcDirectoryEntry[] = [];
         snap.forEach((d) => {
-          const parsed = parseDirectoryEntry(
-            d.id,
-            d.data() as Record<string, unknown>
-          );
+          const parsed = parseDirectoryEntry(d.id, d.data());
           // Exclude PLCs the user already belongs to — those live in the
           // "Your PLCs" section. The membership check is on the raw doc's
           // `memberUids` so it works even if the parsed entry omits it.

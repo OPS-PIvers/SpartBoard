@@ -181,10 +181,7 @@ export const usePlcRubrics = (plcId: string | null): UsePlcRubricsResult => {
       (snap) => {
         const list: PlcRubricEntry[] = [];
         snap.forEach((d) => {
-          const parsed = parsePlcRubricEntry(
-            d.id,
-            d.data() as Record<string, unknown>
-          );
+          const parsed = parsePlcRubricEntry(d.id, d.data());
           if (parsed && parsed.deletedAt == null) list.push(parsed);
         });
         setRubrics(list);

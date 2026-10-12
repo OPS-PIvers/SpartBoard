@@ -488,7 +488,7 @@ describe('SmartNotebookWidget', () => {
             value={subShareContextValue({
               shareId: 'share-1',
               version: 0,
-              load: load as never,
+              load: load,
               loadKey: noSubShareKey,
             })}
           >

@@ -37,7 +37,7 @@ export const MathToolsConfigurationPanel: React.FC<
 
   const getToolGrades = (type: MathToolType): GradeLevel[] => {
     if (toolGradeLevels[type] !== undefined) {
-      return toolGradeLevels[type] as GradeLevel[];
+      return toolGradeLevels[type];
     }
     return (
       MATH_TOOL_META.find((m) => m.type === type)?.defaultGradeLevels ??
@@ -253,7 +253,7 @@ export const MathToolsConfigurationPanel: React.FC<
               onChange({
                 ...mathConfig,
                 toolGradeLevels: all,
-              } as unknown as Record<string, unknown>);
+              });
             }}
             className="text-xxs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded-lg font-black uppercase tracking-wider transition-colors"
             {...tourFieldAttr(
@@ -269,7 +269,7 @@ export const MathToolsConfigurationPanel: React.FC<
               onChange({
                 ...mathConfig,
                 toolGradeLevels: undefined,
-              } as unknown as Record<string, unknown>);
+              });
             }}
             className="text-xxs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded-lg font-black uppercase tracking-wider transition-colors"
             {...tourFieldAttr(

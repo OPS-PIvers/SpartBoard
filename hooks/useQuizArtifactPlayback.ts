@@ -14,11 +14,7 @@ import { functions } from '@/config/firebase';
 import type { ArtifactSlot } from '@/types';
 
 export type PlaybackUnavailableReason =
-  | 'archiving'
-  | 'failed'
-  | 'deleted'
-  | 'no-recording'
-  | 'too-large';
+  'archiving' | 'failed' | 'deleted' | 'no-recording' | 'too-large';
 
 export interface PlaybackRequest {
   sessionId: string;
@@ -83,6 +79,7 @@ export function useQuizArtifactPlayback(
   // The teacher can re-pin the graded take live; the cached bytes are stale.
   if (artifactId !== loadedArtifactId) {
     setLoadedArtifactId(artifactId);
+    // eslint-disable-next-line react-hooks/refs -- invalidates in-flight fetches while adjusting state on artifact change
     generationRef.current += 1;
     setState({ phase: 'idle' });
   }

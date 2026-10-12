@@ -89,7 +89,7 @@ function setup(rosterIds: string[]) {
     unsubscribeFromAppSessions: vi.fn(),
     renameSession: vi.fn(),
     endSession: vi.fn(),
-  } as unknown as ReturnType<typeof useMiniAppSessionTeacher>);
+  });
   vi.mocked(useMiniAppAssignments).mockReturnValue({
     assignments: [],
     loading: false,
@@ -103,7 +103,7 @@ function setup(rosterIds: string[]) {
   vi.mocked(useMiniAppSync).mockReturnValue({
     library: [],
     globalLibrary: [],
-  } as unknown as ReturnType<typeof useMiniAppSync>);
+  });
   const widget = {
     id: 'widget-1',
     type: 'miniApp',

@@ -22,6 +22,8 @@ export interface GradebookColumnRef {
   closeAt: number | null;
   /** The `gradebook_columns` doc, or null before the teacher saves one. */
   config: GradebookColumnConfig | null;
+  /** False for a Mini App column with scores; defaults to the kind's rule. */
+  completionOnly?: boolean;
 }
 
 export interface GradebookCellData {

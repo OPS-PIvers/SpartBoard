@@ -125,7 +125,7 @@ describe('a student’s score', () => {
             ['q2', 'an answer'],
             ['q4', 'another'],
           ],
-          { q2: grade(3), q4: grade(3) } as QuizResponse['grading']
+          { q2: grade(3), q4: grade(3) }
         ),
       ],
       [pickTwo]

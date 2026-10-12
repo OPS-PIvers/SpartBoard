@@ -38,10 +38,7 @@ export interface StartViewAsSessionResponse {
 }
 
 export type StudentPreviewKind =
-  | 'quiz'
-  | 'video-activity'
-  | 'guided-learning'
-  | 'activity-wall';
+  'quiz' | 'video-activity' | 'guided-learning' | 'activity-wall';
 
 export interface StudentPreviewHandoff {
   sid: string;

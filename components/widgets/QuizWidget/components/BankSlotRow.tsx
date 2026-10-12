@@ -57,8 +57,7 @@ export const BankSlotRow = React.memo(function BankSlotRow({
         {...dragHandleAttributes}
         onPointerDown={
           dragHandleListeners?.onPointerDown as
-            | React.PointerEventHandler<HTMLButtonElement>
-            | undefined
+            React.PointerEventHandler<HTMLButtonElement> | undefined
         }
         onClick={(e) => e.stopPropagation()}
         aria-label="Drag to reorder"
@@ -128,6 +127,7 @@ export const BankSlotDetail: React.FC<BankSlotDetailProps> = ({
   useEffect(() => {
     if (!bankApi || !source) return;
     let cancelled = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading state for the bank fetch
     setLoad({ status: 'loading' });
     bankApi
       .loadBankContent(source)

@@ -92,7 +92,7 @@ describe('ConceptWebWidget — node bounds clamping', () => {
       nodes: [],
       edges: [],
       ...config,
-    } as ConceptWebConfig,
+    },
   });
 
   it('clamps a dragged node so it cannot be moved past the container edge', () => {

@@ -19,7 +19,7 @@ export function seedMaterialsConfig(
   if (typeof preferences.title === 'string') seed.title = preferences.title;
   if (typeof preferences.titleFont === 'string')
     seed.titleFont = preferences.titleFont;
-  return seed as Partial<WidgetConfig>;
+  return seed;
 }
 
 /** Captures the parts of a widget config that should seed future Materials widgets. */

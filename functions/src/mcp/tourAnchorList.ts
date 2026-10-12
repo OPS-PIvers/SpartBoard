@@ -13319,6 +13319,12 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     panel: true,
   },
   {
+    id: 'studio.copy-for-claude',
+    label: 'Copy for Claude button in the Studio top bar',
+    scope: 'board',
+    panel: true,
+  },
+  {
     id: 'studio.properties',
     label: 'Properties panel toggle in the Studio top bar',
     scope: 'board',
@@ -13549,6 +13555,37 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
   {
     id: 'studio.props-welcome-message',
     label: 'Welcome message box in the Studio properties panel',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'studio.props-welcome-image',
+    label: 'Add or replace welcome image button in the Studio properties panel',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'studio.props-welcome-image-remove',
+    label: 'Remove welcome image button in the Studio properties panel',
+    scope: 'board',
+    panel: true,
+    destructive: true,
+  },
+  {
+    id: 'studio.props-welcome-image-alt',
+    label: 'Welcome image alt text box in the Studio properties panel',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'studio.welcome-card',
+    label: 'Pinned Welcome card at the top of the Studio filmstrip',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'studio.welcome-toggle',
+    label: 'Welcome screen on/off switch on the Studio Welcome card',
     scope: 'board',
     panel: true,
   },

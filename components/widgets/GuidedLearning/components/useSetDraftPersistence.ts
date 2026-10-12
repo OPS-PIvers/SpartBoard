@@ -205,6 +205,10 @@ export interface SetDraftPersistence {
   armOverwrite: () => void;
   /** A newer client wrote this set, so every save is refused. */
   readOnly: boolean;
+  /** True for the loaded revision or one this editor wrote. */
+  isOwnRevision: (updatedAt: number) => boolean;
+  /** The current draft token, read after an await. */
+  readDraftToken: () => unknown[];
 }
 
 /** Dirty tracking, legacy radius conversion, save payload and close flush for a GL editor. */
@@ -226,6 +230,8 @@ export function useSetDraftPersistence({
     loadedUpdatedAt ?? set?.updatedAt
   );
   const overwriteRef = useRef(false);
+  // Every revision this editor started writing, so its own saves never read as someone else's.
+  const writtenRef = useRef(new Set<number>());
   const readOnly = isNewerSchema(set);
 
   // Snapshot originals when `set` identity changes
@@ -238,6 +244,8 @@ export function useSetDraftPersistence({
     set?.imageTransition ?? 'none';
   const originalWelcomeEnabled = Boolean(set?.welcomeEnabled);
   const originalWelcomeMessage = set?.welcomeMessage ?? '';
+  const originalWelcomeImageUrl = set?.welcomeImageUrl ?? '';
+  const originalWelcomeImageAlt = set?.welcomeImageAlt ?? '';
   const originalImageUrls = useMemo(
     () => (set ? [...set.imageUrls] : []),
     [set]
@@ -275,12 +283,15 @@ export function useSetDraftPersistence({
     setSaving(false);
     setOriginalSteps(set ? structuredClone(set.steps) : []);
     setConflict(null);
+    // eslint-disable-next-line react-hooks/refs -- reset alongside state when the set changes
     revisionRef.current = loadedUpdatedAt ?? set?.updatedAt;
+    // eslint-disable-next-line react-hooks/refs -- reset alongside state when the set changes
     overwriteRef.current = false;
   }
 
   // Mid-drag, dirty tracking and the autosave token hold the pre-gesture draft until endGesture.
   const trackedRef = useRef(editorState);
+  // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
   if (!editorState.gestureOpen) trackedRef.current = editorState;
   const tracked = trackedRef.current;
 
@@ -293,20 +304,39 @@ export function useSetDraftPersistence({
 
   const isDirty = useMemo(() => {
     return (
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.title !== originalTitle ||
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.description !== originalDescription ||
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.mode !== originalMode ||
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.hotspotPulse !== originalHotspotPulse ||
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.imageTransition !== originalImageTransition ||
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.welcomeEnabled !== originalWelcomeEnabled ||
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.welcomeMessage !== originalWelcomeMessage ||
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
+      tracked.welcomeImageUrl !== originalWelcomeImageUrl ||
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
+      tracked.welcomeImageAlt !== originalWelcomeImageAlt ||
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       !arraysEqual(tracked.imageUrls, originalImageUrls) ||
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       !arraysEqual(tracked.imageKinds, originalImageKinds) ||
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       !trimsEqual(tracked.videoTrims, originalVideoTrims) ||
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       !stepsEqual(tracked.steps, originalSteps) ||
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.watchPace !== originalWatchPace ||
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       !arraysEqual(tracked.tourSetupWidgets, originalTourSetup) ||
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       JSON.stringify(tracked.tourSetupLayouts) !== originalTourLayouts ||
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.tourUseTeacherBoard !== originalUseTeacherBoard
     );
   }, [
@@ -317,6 +347,8 @@ export function useSetDraftPersistence({
     tracked.imageTransition,
     tracked.welcomeEnabled,
     tracked.welcomeMessage,
+    tracked.welcomeImageUrl,
+    tracked.welcomeImageAlt,
     tracked.imageUrls,
     tracked.imageKinds,
     tracked.videoTrims,
@@ -332,6 +364,8 @@ export function useSetDraftPersistence({
     originalImageTransition,
     originalWelcomeEnabled,
     originalWelcomeMessage,
+    originalWelcomeImageUrl,
+    originalWelcomeImageAlt,
     originalImageUrls,
     originalImageKinds,
     originalVideoTrims,
@@ -433,20 +467,39 @@ export function useSetDraftPersistence({
   // New identity on every draft edit — the autosave quiet period restarts on it.
   const draftToken = useMemo(
     () => [
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.title,
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.description,
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.mode,
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.hotspotPulse,
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.imageTransition,
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.welcomeEnabled,
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.welcomeMessage,
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
+      tracked.welcomeImageUrl,
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
+      tracked.welcomeImageAlt,
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.imageUrls,
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.imageKinds,
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.videoTrims,
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.steps,
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.watchPace,
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.tourSetupWidgets,
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.tourSetupLayouts,
+      // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
       tracked.tourUseTeacherBoard,
     ],
     [
@@ -457,6 +510,8 @@ export function useSetDraftPersistence({
       tracked.imageTransition,
       tracked.welcomeEnabled,
       tracked.welcomeMessage,
+      tracked.welcomeImageUrl,
+      tracked.welcomeImageAlt,
       tracked.imageUrls,
       tracked.imageKinds,
       tracked.videoTrims,
@@ -467,7 +522,9 @@ export function useSetDraftPersistence({
       tracked.tourUseTeacherBoard,
     ]
   );
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   const draftTokenRef = useRef(draftToken);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   draftTokenRef.current = draftToken;
   // Token of the last draft that saved; queued deletions run only if nothing changed since.
   const savedTokenRef = useRef<unknown[] | null>(null);
@@ -495,6 +552,8 @@ export function useSetDraftPersistence({
       imageTransition: _imageTransition,
       welcomeEnabled: _welcomeEnabled,
       welcomeMessage: _welcomeMessage,
+      welcomeImageUrl: _welcomeImageUrl,
+      welcomeImageAlt: _welcomeImageAlt,
       watchPace: _watchPace,
       hasLiveTour: _hasLiveTour,
       slideThumbnails: _slideThumbnails,
@@ -547,10 +606,20 @@ export function useSetDraftPersistence({
       // Toggle-on-but-empty falls back to default behavior at render time
       // anyway, so don't write the field; this also avoids cluttering
       // legacy sets that have never touched welcome settings.
-      ...(editorState.welcomeEnabled && editorState.welcomeMessage.trim()
+      ...(editorState.welcomeEnabled &&
+      (editorState.welcomeMessage.trim() || editorState.welcomeImageUrl)
+        ? { welcomeEnabled: true }
+        : {}),
+      // Message and image are kept while the welcome is off, so switching it back on restores them.
+      ...(editorState.welcomeMessage.trim()
+        ? { welcomeMessage: editorState.welcomeMessage }
+        : {}),
+      ...(editorState.welcomeImageUrl
         ? {
-            welcomeEnabled: true,
-            welcomeMessage: editorState.welcomeMessage,
+            welcomeImageUrl: editorState.welcomeImageUrl,
+            ...(editorState.welcomeImageAlt.trim()
+              ? { welcomeImageAlt: editorState.welcomeImageAlt }
+              : {}),
           }
         : {}),
       ...(editorState.watchPace ? { watchPace: editorState.watchPace } : {}),
@@ -589,6 +658,7 @@ export function useSetDraftPersistence({
     const guard: GuidedLearningSaveGuard = {
       expectedUpdatedAt: overwriteRef.current ? undefined : base,
     };
+    writtenRef.current.add(updatedAt);
     setSaving(true);
     try {
       await onSave({ ...builtSet, updatedAt }, driveFileId, guard);
@@ -608,6 +678,14 @@ export function useSetDraftPersistence({
     overwriteRef.current = true;
   }, []);
 
+  const readDraftToken = useCallback(() => draftTokenRef.current, []);
+
+  const isOwnRevision = useCallback(
+    (updatedAt: number) =>
+      updatedAt === revisionRef.current || writtenRef.current.has(updatedAt),
+    []
+  );
+
   const { flushMediaDeletions } = editorState;
   const setId = set?.id;
   const building = set?.isBuilding === true || set?.helpCenter === true;
@@ -626,9 +704,11 @@ export function useSetDraftPersistence({
     onClose,
   ]);
 
+  // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
   return {
     saving,
     isDirty,
+    // eslint-disable-next-line react-hooks/refs -- mid-gesture snapshot held in a ref until endGesture
     draftToken,
     incompleteNotice,
     persistDraft,
@@ -637,5 +717,7 @@ export function useSetDraftPersistence({
     conflict,
     armOverwrite,
     readOnly,
+    isOwnRevision,
+    readDraftToken,
   };
 }

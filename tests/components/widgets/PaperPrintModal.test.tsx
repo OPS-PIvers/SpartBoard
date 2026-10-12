@@ -196,7 +196,7 @@ describe('PaperPrintModal', () => {
     const print = vi.fn(() => {
       order.push('print');
     });
-    setup({ onSaveBatch, print: print as never });
+    setup({ onSaveBatch, print: print });
     selectWholeClass();
     fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
     await waitFor(() => expect(print).toHaveBeenCalled());

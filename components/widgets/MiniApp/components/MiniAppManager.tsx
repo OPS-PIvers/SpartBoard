@@ -1579,7 +1579,7 @@ const MiniAppPreviewPane: React.FC<{
               onClick: () => {
                 const a = app;
                 onClose();
-                onEdit(a as MiniAppItem);
+                onEdit(a);
               },
             }
           : !isPersonal

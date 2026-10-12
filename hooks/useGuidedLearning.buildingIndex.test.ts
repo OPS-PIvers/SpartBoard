@@ -7,13 +7,16 @@ import type {
 
 type Emit = (docs: { id: string; data: unknown }[]) => void;
 
-const fs = vi.hoisted(() => ({
-  listened: [] as string[],
-  emit: {} as Record<string, Emit>,
-  emitMeta: null as null | ((exists: boolean) => void),
-  getDoc: vi.fn(),
-  setDoc: vi.fn(() => Promise.resolve()),
-}));
+const fs = vi.hoisted(() => {
+  const emit: Record<string, Emit> = {};
+  return {
+    listened: [] as string[],
+    emit,
+    emitMeta: null as null | ((exists: boolean) => void),
+    getDoc: vi.fn(),
+    setDoc: vi.fn(() => Promise.resolve()),
+  };
+});
 
 vi.mock('firebase/firestore', () => ({
   collection: (_db: unknown, ...segments: string[]) => segments.join('/'),

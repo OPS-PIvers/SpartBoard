@@ -63,6 +63,7 @@ export const DriveOfflineGrantCard: React.FC = () => {
     !user ||
     !googleAccessToken ||
     !offlineGrantMissing ||
+    // eslint-disable-next-line react-hooks/purity -- deliberately re-read on each render
     dismissedUntil > Date.now()
   )
     return null;

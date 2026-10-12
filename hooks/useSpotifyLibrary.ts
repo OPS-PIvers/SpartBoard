@@ -41,8 +41,7 @@ function toLibraryError(err: unknown): SpotifyLibraryError {
 }
 
 export type SpotifyLibraryError =
-  | { kind: 'scope' }
-  | { kind: 'generic'; message: string };
+  { kind: 'scope' } | { kind: 'generic'; message: string };
 
 export interface UseSpotifyLibraryReturn {
   playlists: SpotifyPlaylist[];
@@ -54,6 +53,7 @@ export interface UseSpotifyLibraryReturn {
 
 export function useSpotifyLibrary(): UseSpotifyLibraryReturn {
   const { getAccessToken, isConnected } = useSpotifyAuth();
+  // eslint-disable-next-line react-hooks/purity -- TTL check against a module cache must use the current time
   const hasFresh = cache !== null && Date.now() - cache.fetchedAt < TTL_MS;
   const [isLoading, setIsLoading] = useState(!hasFresh);
   const [, forceTick] = useState(0);
@@ -113,6 +113,7 @@ export function useSpotifyLibrary(): UseSpotifyLibraryReturn {
     const rerender = () => forceTick((n) => n + 1);
     subscribers.add(rerender);
     if (!fresh) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- loads from the Spotify API when the module cache is stale
       void load();
     }
     return () => {

@@ -78,10 +78,7 @@ interface GameAnswerResult {
 }
 
 type GameRefusal =
-  | 'game-not-started'
-  | 'game-paused'
-  | 'game-over'
-  | 'same-question-twice';
+  'game-not-started' | 'game-paused' | 'game-over' | 'same-question-twice';
 
 const checkAnswer = (input: {
   sessionId: string;

@@ -59,6 +59,7 @@ export const WebcamWidget: React.FC<{
         existing.getTracks().forEach((track) => track.stop());
         if (videoRef.current) videoRef.current.srcObject = null;
       }
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clears state after releasing the camera
       setStream(null);
       return;
     }

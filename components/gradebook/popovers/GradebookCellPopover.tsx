@@ -61,7 +61,7 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
   const ids = useId();
   const writes = useGradebookMarkWrites(ctx.rosterId, ctx.settings.flags);
   const { row, mark, final, student } = cell;
-  const completion = isCompletionOnly(column.kind);
+  const completion = column.completionOnly ?? isCompletionOnly(column.kind);
   const notAssigned = final.status === 'not-assigned';
   const max = final.max ?? column.config?.maxPointsOverride ?? row?.max ?? null;
   const initialScore = final.status === 'scored' ? fmtPoints(final.points) : '';
@@ -146,6 +146,8 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
       due !== null && due > ctx.now ? `Due ${fmtDate(due)}` : 'No submission'
     );
   }
+  if (row?.gradedBy === 'app' && final.source === 'raw')
+    statusParts.push('Scored by the app');
   const published = row ? isPublishedFor(row, mark) : null;
   const showUnpublished = !completion && !notAssigned && published === false;
 

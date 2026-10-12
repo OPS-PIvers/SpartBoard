@@ -66,12 +66,7 @@ import type {
 
 export type FeatureStage = 'preview' | 'permanent';
 export type FeatureCategory =
-  | 'ai'
-  | 'sharing'
-  | 'integrations'
-  | 'students'
-  | 'groups'
-  | 'look';
+  'ai' | 'sharing' | 'integrations' | 'students' | 'groups' | 'look';
 
 export const FEATURE_CATEGORY_LABELS: Record<FeatureCategory, string> = {
   ai: 'AI',
@@ -1328,6 +1323,40 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     description: "A What's new button under a widget after its look changes.",
     stage: 'preview',
     afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Pinned Welcome card in the Guided Learning Studio slide strip, plus a welcome image.
+  'gl-welcome-card': {
+    label: 'Guided Learning welcome card',
+    icon: Sparkles,
+    description: 'A pinned welcome card and image in the Studio.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Inert while Mini App assignments are view-only in Organization settings.
+  'mini-app-results': {
+    label: 'Mini App results',
+    icon: ListChecks,
+    description: 'Graded mini app submissions with attempt limits.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'miniApp',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'quiz-monitor-declutter': {
+    label: 'Quiz live monitor cleanup',
+    icon: LayoutDashboard,
+    description: 'Simpler Quiz live monitor with Close all and footer buttons.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

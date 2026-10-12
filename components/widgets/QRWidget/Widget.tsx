@@ -24,8 +24,7 @@ export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   }, [subscribeToPermission]);
 
   const globalConfig = permission?.config as unknown as
-    | QRGlobalConfig
-    | undefined;
+    QRGlobalConfig | undefined;
   const defaults =
     globalConfig && buildingId
       ? globalConfig.buildingDefaults?.[buildingId]

@@ -178,7 +178,7 @@ function makeWidget(
     z: 1,
     flipped: false,
     groupId,
-    config: config ?? ({ text: 'test' } as WidgetData['config']),
+    config: config ?? { text: 'test' },
   };
 }
 
@@ -342,7 +342,7 @@ describe('DashboardContext removeWidgets regression tests', () => {
     const detail = makeWidget(
       'detail-1',
       undefined,
-      { parentWidgetId: 'pyramid-1' } as unknown as WidgetData['config'],
+      { parentWidgetId: 'pyramid-1' },
       'blooms-detail'
     );
     await pushSnapshot([makeDashboard([pyramid, detail])]);
@@ -365,7 +365,7 @@ describe('DashboardContext removeWidgets regression tests', () => {
       undefined,
       {
         parentWidgetId: 'some-other-widget',
-      } as unknown as WidgetData['config'],
+      },
       'blooms-detail'
     );
     await pushSnapshot([makeDashboard([pyramid, unrelated])]);
@@ -389,7 +389,7 @@ describe('DashboardContext removeWidgets regression tests', () => {
     const pyramid = makeWidget('pyramid-1');
     const lookalike = makeWidget('other-1', undefined, {
       parentWidgetId: 'pyramid-1',
-    } as unknown as WidgetData['config']);
+    });
     await pushSnapshot([makeDashboard([pyramid, lookalike])]);
 
     act(() => {
@@ -409,7 +409,7 @@ describe('DashboardContext removeWidgets regression tests', () => {
     const detail = makeWidget(
       'detail-1',
       undefined,
-      { parentWidgetId: 'pyramid-1' } as unknown as WidgetData['config'],
+      { parentWidgetId: 'pyramid-1' },
       'blooms-detail'
     );
     const other = makeWidget('other-1');

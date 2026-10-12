@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import type { WidgetData } from '@/types';
 import { migrateBoardWidgets, migrateWidget } from '@/utils/migration';
 import { migrateSavedWidgetConfigs } from '@/utils/widgetConfigPersistence';
-import type { SavedWidgetConfigMap } from '@/utils/widgetConfigPersistence';
 import sharedFixture from '@/tests/fixtures/boards/shared.json';
 import driveFixture from '@/tests/fixtures/boards/drive.json';
 import starterPackFixture from '@/tests/fixtures/boards/starterPack.json';
@@ -93,7 +92,7 @@ describe('board load-path characterization', () => {
 
   it('saved widget configs: appearance keys survive, content keys are dropped', () => {
     const { cleaned, needsMigration } = migrateSavedWidgetConfigs(
-      clone(savedConfigsFixture) as SavedWidgetConfigMap
+      clone(savedConfigsFixture)
     );
 
     expect(needsMigration).toBe(true);

@@ -4,7 +4,6 @@ import {
   WidgetConfig,
   WidgetData,
   WidgetType,
-  TimeToolConfig,
   TextConfig,
   PollConfig,
   PollOption,
@@ -65,7 +64,7 @@ const applyLegacyRewrites = (widget: WidgetData): WidgetData => {
         config: {
           ...config,
           content: sanitizeHtml(config.content),
-        } as TextConfig,
+        },
       };
     }
   }
@@ -94,7 +93,7 @@ const applyLegacyRewrites = (widget: WidgetData): WidgetData => {
         // (no extra classes) — identical to 'modern', which is now the
         // canonical value in the narrowed TimeToolConfig.clockStyle union.
         clockStyle: 'modern',
-      } as TimeToolConfig,
+      },
     };
   }
 
@@ -187,7 +186,7 @@ export const renameKeyStep =
   (config) => {
     const c = config as Record<string, unknown>;
     if (!(oldKey in c) || c[newKey] !== undefined) return config;
-    return { ...c, [newKey]: c[oldKey] } as WidgetConfig;
+    return { ...c, [newKey]: c[oldKey] };
   };
 
 /** Step N+1: re-apply the copy first (self-healing), then drop the old key. */
@@ -199,7 +198,7 @@ export const deleteKeyStep =
     const next = { ...c };
     if (next[newKey] === undefined) next[newKey] = next[oldKey];
     delete next[oldKey];
-    return next as WidgetConfig;
+    return next;
   };
 
 export const migrateWidget = (widget: WidgetData): WidgetData => {

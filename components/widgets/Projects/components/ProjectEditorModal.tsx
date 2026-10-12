@@ -379,8 +379,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
                   {...handle.attributes}
                   onPointerDown={
                     handle.listeners?.onPointerDown as
-                      | React.PointerEventHandler<HTMLButtonElement>
-                      | undefined
+                      React.PointerEventHandler<HTMLButtonElement> | undefined
                   }
                   aria-label={`Reorder ${step.title || `step ${index + 1}`}`}
                   {...tourAttr('projects-editor.step-reorder')}

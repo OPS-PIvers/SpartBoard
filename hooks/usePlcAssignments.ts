@@ -166,10 +166,7 @@ export const usePlcAssignments = (
       (snap) => {
         const list: PlcAssignmentTemplate[] = [];
         snap.forEach((d) => {
-          const parsed = parseTemplate(
-            d.id,
-            d.data() as Record<string, unknown>
-          );
+          const parsed = parseTemplate(d.id, d.data());
           if (parsed) list.push(parsed);
         });
         setTemplates(list);

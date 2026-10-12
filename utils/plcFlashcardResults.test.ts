@@ -7,20 +7,19 @@ const cards = [
   { id: 'b', term: 'Ribosome', definition: 'Makes protein' },
 ];
 
-const session = (kind: 'check' | 'study'): FlashcardSession =>
-  ({
-    id: 's1',
-    teacherUid: 't1',
-    setId: 'set1',
-    title: 'Cells',
-    kind,
-    termLanguage: 'en-US',
-    definitionLanguage: 'en-US',
-    cards,
-    classIds: [],
-    status: 'active',
-    createdAt: 1,
-  }) as FlashcardSession;
+const session = (kind: 'check' | 'study'): FlashcardSession => ({
+  id: 's1',
+  teacherUid: 't1',
+  setId: 'set1',
+  title: 'Cells',
+  kind,
+  termLanguage: 'en-US',
+  definitionLanguage: 'en-US',
+  cards,
+  classIds: [],
+  status: 'active',
+  createdAt: 1,
+});
 
 describe('buildPlcFlashcardResultSummary', () => {
   it('summarizes a check without student ids', () => {

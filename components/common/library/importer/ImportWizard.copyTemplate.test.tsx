@@ -10,7 +10,7 @@ const makeAdapter = (
   supportedSources: ['csv', 'sheet'],
   templateHelper: { createTemplate, instructions: 'help' },
   parse: () => Promise.reject(new Error('unused')),
-  validate: () => ({ ok: true, errors: [] }) as never,
+  validate: () => ({ ok: true, errors: [] }),
   renderPreview: () => null,
   save: () => Promise.resolve(),
 });

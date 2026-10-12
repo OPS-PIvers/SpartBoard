@@ -34,18 +34,17 @@ vi.mock('@/context/useAuth', () => ({
   }),
 }));
 
-const makeWidget = (config: Partial<RoutineGuideConfig> = {}): WidgetData =>
-  ({
-    id: 'rg-1',
-    type: 'routineGuide',
-    x: 0,
-    y: 0,
-    w: 420,
-    h: 480,
-    z: 1,
-    flipped: false,
-    config: { selectedRoutineId: null, stepIndex: 0, view: 'step', ...config },
-  }) as WidgetData;
+const makeWidget = (config: Partial<RoutineGuideConfig> = {}): WidgetData => ({
+  id: 'rg-1',
+  type: 'routineGuide',
+  x: 0,
+  y: 0,
+  w: 420,
+  h: 480,
+  z: 1,
+  flipped: false,
+  config: { selectedRoutineId: null, stepIndex: 0, view: 'step', ...config },
+});
 
 const adminLibrary = {
   widgetType: 'routineGuide',

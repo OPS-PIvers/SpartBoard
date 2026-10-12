@@ -127,7 +127,7 @@ export const SmartNotebookWidget: React.FC<{
           sections: data.sections as NotebookSection[] | undefined,
           objectLinks: data.objectLinks as NotebookObjectLink[] | undefined,
           hiddenPages: data.hiddenPages as number[] | undefined,
-        } as NotebookItem;
+        };
       });
       setNotebooks(items);
     });
@@ -177,9 +177,13 @@ export const SmartNotebookWidget: React.FC<{
     // Switching notebooks must drop in-memory edits for the previous one and
     // land in edit mode again — anything else either leaks edits across
     // notebooks or surprises the teacher with "present" on a fresh open.
+    // eslint-disable-next-line react-hooks/refs -- drops edits while adjusting state on notebook switch
     editedSvgsRef.current = new Map();
+    // eslint-disable-next-line react-hooks/refs -- drops edits while adjusting state on notebook switch
     if (autosaveTimerRef.current) {
+      // eslint-disable-next-line react-hooks/refs -- drops edits while adjusting state on notebook switch
       clearTimeout(autosaveTimerRef.current);
+      // eslint-disable-next-line react-hooks/refs -- drops edits while adjusting state on notebook switch
       autosaveTimerRef.current = null;
     }
     if (savingPages.size > 0) setSavingPages(new Set());
@@ -633,6 +637,7 @@ export const SmartNotebookWidget: React.FC<{
   // Assigned in the render body — same pattern as updateWidgetRef in
   // DashboardContext (no effect, no staleness window).
   const widgetRef = useRef(widget);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   widgetRef.current = widget;
   const liveConfig = (): SmartNotebookConfig =>
     widgetRef.current.config as SmartNotebookConfig;
@@ -948,6 +953,7 @@ export const SmartNotebookWidget: React.FC<{
         title={activeNotebook.title}
         activeNotebookId={activeNotebook.id}
         pageUrls={activeNotebook.pageUrls}
+        // eslint-disable-next-line react-hooks/refs -- existing render-time read of edited page SVGs
         cachedSvg={editedSvgsRef.current.get(currentPage) ?? null}
         currentPage={currentPage}
         sections={activeNotebook.sections}

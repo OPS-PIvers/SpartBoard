@@ -12,9 +12,7 @@ export const MAX_VIDEO_QUESTIONS = 100;
 const DEFAULT_TIME_LIMIT = 30;
 
 export type VideoFriendlyType =
-  | 'multiple_choice'
-  | 'choose_all'
-  | 'fill_in_blank';
+  'multiple_choice' | 'choose_all' | 'fill_in_blank';
 
 export interface VideoFriendlyQuestion {
   id?: string;

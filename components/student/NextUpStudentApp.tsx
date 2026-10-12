@@ -52,6 +52,7 @@ export const NextUpStudentApp: React.FC = () => {
 
   useEffect(() => {
     if (!widgetId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- guards the session subscription on a missing id
       setError('Missing session ID');
       setLoading(false);
       return;

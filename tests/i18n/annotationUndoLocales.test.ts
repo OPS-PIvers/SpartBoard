@@ -58,9 +58,9 @@ describe.each(LOCALES)(
 
 describe('non-EN annotation strings are actually translated', () => {
   it.each([
-    { code: 'de', locale: de as unknown as Record<string, unknown> },
-    { code: 'es', locale: es as unknown as Record<string, unknown> },
-    { code: 'fr', locale: fr as unknown as Record<string, unknown> },
+    { code: 'de', locale: de },
+    { code: 'es', locale: es },
+    { code: 'fr', locale: fr },
   ])('$code: does not copy the EN clear-all confirm', ({ locale }) => {
     expect(at(locale, 'annotation.clearConfirmBody')).not.toBe(
       at(

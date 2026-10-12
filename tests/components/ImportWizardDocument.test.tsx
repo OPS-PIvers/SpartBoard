@@ -73,7 +73,7 @@ function makeAdapter(
     supportedSources: opts.supportedSources ?? ['csv', 'document'],
     pickDocument: opts.pickDocument,
     ...(opts.supportsKeyFile ? { supportsKeyFile: true } : {}),
-    parse: parseSpy as unknown as ImportAdapter<FakeData>['parse'],
+    parse: parseSpy,
     validate: () => ({ ok: true, errors: [] }),
     renderPreview: (data) => (
       <div data-testid="preview">rows: {data.rows.join(', ')}</div>
@@ -93,7 +93,7 @@ function makeAdapter(
           ),
         }
       : {}),
-    save: saveSpy as unknown as ImportAdapter<FakeData>['save'],
+    save: saveSpy,
   };
   return { adapter, parseSpy, saveSpy };
 }
@@ -251,10 +251,10 @@ describe('ImportWizard — busy state', () => {
       release?: (v: { data: FakeData; warnings: string[] }) => void;
     } = {};
     const { adapter } = makeAdapter();
-    adapter.parse = (() =>
+    adapter.parse = () =>
       new Promise<{ data: FakeData; warnings: string[] }>((resolve) => {
         deferred.release = resolve;
-      })) as unknown as ImportAdapter<FakeData>['parse'];
+      });
     renderWizard(adapter);
 
     await readTest(PDF_BYTES);

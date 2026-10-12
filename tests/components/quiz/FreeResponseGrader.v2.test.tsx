@@ -121,7 +121,7 @@ const oneStrand: Rubric = {
       levels: [{ id: 'l1', label: 'Good', points: 4 }],
     },
   ],
-} as unknown as Rubric;
+};
 
 const twoStrands: Rubric = {
   ...oneStrand,
@@ -133,7 +133,7 @@ const twoStrands: Rubric = {
       levels: [{ id: 'l2', label: 'Good', points: 4 }],
     },
   ],
-} as unknown as Rubric;
+};
 
 const highlight = (rubric: Rubric): WrittenAnswerAnnotation => {
   const onChange = vi.fn<(next: WrittenAnswerAnnotation[]) => void>();

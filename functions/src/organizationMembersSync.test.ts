@@ -292,7 +292,7 @@ describe('computeAdminAction', () => {
   it('additional: missing roleId (defensive) is treated as non-admin', () => {
     const action = computeAdminAction(
       null,
-      { status: 'active' } as MemberDocFields,
+      { status: 'active' },
       null,
       ORG_ID,
       EMAIL,

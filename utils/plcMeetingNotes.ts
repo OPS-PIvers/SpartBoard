@@ -38,12 +38,7 @@ export function applyDraftToActionItems(
 }
 
 export type MeetingNotesState =
-  | 'none'
-  | 'generate'
-  | 'working'
-  | 'ready'
-  | 'failed'
-  | 'resolved';
+  'none' | 'generate' | 'working' | 'ready' | 'failed' | 'resolved';
 
 /** What the notes row shows for one recording. */
 export function meetingNotesState(

@@ -122,7 +122,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
           item.id === idOrName ? { ...item, completed: !item.completed } : item
         );
         updateWidget(widgetId, {
-          config: { ...config, items: newItems } as ChecklistConfig,
+          config: { ...config, items: newItems },
         });
       } else {
         const isCompleted = completedNames.includes(idOrName);
@@ -133,7 +133,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
           config: {
             ...config,
             completedNames: nextCompleted,
-          } as ChecklistConfig,
+          },
         });
       }
     },

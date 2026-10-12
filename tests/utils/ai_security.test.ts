@@ -1,13 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { validateGridConfig, sanitizeAIConfig } from '@/utils/ai_security';
 import {
-  WidgetType,
   GridPosition,
   MiniAppConfig,
   EmbedConfig,
   TextConfig,
   PollConfig,
-  WidgetConfig,
   ScoreboardConfig,
   RandomConfig,
 } from '@/types';
@@ -20,10 +18,7 @@ describe('DashboardContext AI Security Helpers', () => {
         activeApp: { html: 'malicious' },
         title: 'Safe Title',
       };
-      const sanitized = sanitizeAIConfig(
-        'miniApp' as WidgetType,
-        config as unknown as Partial<WidgetConfig>
-      ) as MiniAppConfig;
+      const sanitized = sanitizeAIConfig('miniApp', config) as MiniAppConfig;
       expect(
         (sanitized as unknown as Record<string, unknown>).html
       ).toBeUndefined();
@@ -35,10 +30,7 @@ describe('DashboardContext AI Security Helpers', () => {
         html: '<iframe src="malicious"></iframe>',
         url: 'https://example.com',
       };
-      const sanitized = sanitizeAIConfig(
-        'embed' as WidgetType,
-        config as unknown as Partial<WidgetConfig>
-      ) as EmbedConfig;
+      const sanitized = sanitizeAIConfig('embed', config) as EmbedConfig;
       expect(
         (sanitized as unknown as Record<string, unknown>).html
       ).toBeUndefined();
@@ -46,48 +38,33 @@ describe('DashboardContext AI Security Helpers', () => {
     });
 
     it('validates URLs in embed and qr widgets', () => {
-      const maliciousEmbed = sanitizeAIConfig(
-        'embed' as WidgetType,
-        {
-          url: 'javascript:alert(1)',
-        } as unknown as Partial<WidgetConfig>
-      ) as EmbedConfig;
+      const maliciousEmbed = sanitizeAIConfig('embed', {
+        url: 'javascript:alert(1)',
+      }) as EmbedConfig;
       expect(maliciousEmbed.url).toBe('');
 
-      const safeEmbed = sanitizeAIConfig(
-        'embed' as WidgetType,
-        {
-          url: 'https://google.com',
-        } as unknown as Partial<WidgetConfig>
-      ) as EmbedConfig;
+      const safeEmbed = sanitizeAIConfig('embed', {
+        url: 'https://google.com',
+      }) as EmbedConfig;
       expect(safeEmbed.url).toBe('https://google.com/');
 
-      const maliciousQR = sanitizeAIConfig(
-        'qr' as WidgetType,
-        {
-          url: 'data:text/html,xss',
-        } as unknown as Partial<WidgetConfig>
-      ) as unknown as Record<string, unknown>;
+      const maliciousQR = sanitizeAIConfig('qr', {
+        url: 'data:text/html,xss',
+      }) as unknown as Record<string, unknown>;
       expect(maliciousQR.url).toBe('');
     });
 
     it('clamps fontSize in text widget', () => {
-      const tooSmall = sanitizeAIConfig(
-        'text' as WidgetType,
-        {
-          content: 'hi',
-          fontSize: 2,
-        } as unknown as Partial<WidgetConfig>
-      ) as TextConfig;
+      const tooSmall = sanitizeAIConfig('text', {
+        content: 'hi',
+        fontSize: 2,
+      }) as TextConfig;
       expect(tooSmall.fontSize).toBe(8);
 
-      const tooLarge = sanitizeAIConfig(
-        'text' as WidgetType,
-        {
-          content: 'hi',
-          fontSize: 500,
-        } as unknown as Partial<WidgetConfig>
-      ) as TextConfig;
+      const tooLarge = sanitizeAIConfig('text', {
+        content: 'hi',
+        fontSize: 500,
+      }) as TextConfig;
       expect(tooLarge.fontSize).toBe(120);
     });
 
@@ -96,10 +73,7 @@ describe('DashboardContext AI Security Helpers', () => {
         question: '?',
         options: [{ label: 'Good', votes: 100 }, 'Bad', { label: 123 }],
       };
-      const sanitized = sanitizeAIConfig(
-        'poll' as WidgetType,
-        config as unknown as Partial<WidgetConfig>
-      ) as PollConfig;
+      const sanitized = sanitizeAIConfig('poll', config) as PollConfig;
       const sanitizedOptions = sanitized.options ?? [];
       expect(sanitizedOptions[0]).toEqual(
         expect.objectContaining({ label: 'Good', votes: 0 })
@@ -120,8 +94,8 @@ describe('DashboardContext AI Security Helpers', () => {
         teams: ['Eagles', { name: 'Tigers', score: 50, color: '#f00' }, 123],
       };
       const sanitizedArray = sanitizeAIConfig(
-        'scoreboard' as WidgetType,
-        configWithArray as unknown as Partial<WidgetConfig>
+        'scoreboard',
+        configWithArray
       ) as ScoreboardConfig;
 
       const teams = sanitizedArray.teams ?? [];
@@ -141,8 +115,8 @@ describe('DashboardContext AI Security Helpers', () => {
         teams: 'Not an array',
       };
       const sanitizedNonArray = sanitizeAIConfig(
-        'scoreboard' as WidgetType,
-        configWithNonArray as unknown as Partial<WidgetConfig>
+        'scoreboard',
+        configWithNonArray
       ) as Record<string, unknown>;
       expect(sanitizedNonArray.teams).toBeUndefined();
     });
@@ -153,8 +127,8 @@ describe('DashboardContext AI Security Helpers', () => {
         remainingStudents: ['Alice', 'Bob'],
       };
       const sanitizedValid = sanitizeAIConfig(
-        'random' as WidgetType,
-        configWithValidTypes as unknown as Partial<WidgetConfig>
+        'random',
+        configWithValidTypes
       ) as RandomConfig;
       expect(sanitizedValid.lastResult).toBe('Winner');
       expect(sanitizedValid.remainingStudents).toEqual(['Alice', 'Bob']);
@@ -164,8 +138,8 @@ describe('DashboardContext AI Security Helpers', () => {
         remainingStudents: 'Not an array',
       };
       const sanitizedInvalid = sanitizeAIConfig(
-        'random' as WidgetType,
-        configWithInvalidTypes as unknown as Partial<WidgetConfig>
+        'random',
+        configWithInvalidTypes
       ) as Record<string, unknown>;
       expect(sanitizedInvalid.lastResult).toBeUndefined();
       expect(sanitizedInvalid.remainingStudents).toBeUndefined();
@@ -175,8 +149,8 @@ describe('DashboardContext AI Security Helpers', () => {
         remainingStudents: ['Alice', 456, 'Bob', null],
       };
       const sanitizedMixedArray = sanitizeAIConfig(
-        'random' as WidgetType,
-        configWithMixedArrayTypes as unknown as Partial<WidgetConfig>
+        'random',
+        configWithMixedArrayTypes
       ) as RandomConfig;
       expect(sanitizedMixedArray.lastResult).toEqual(['Winner 1', 'Winner 2']);
       expect(sanitizedMixedArray.remainingStudents).toEqual(['Alice', 'Bob']);

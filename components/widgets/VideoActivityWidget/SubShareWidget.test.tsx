@@ -44,7 +44,7 @@ const inShare = (
         value={subShareContextValue({
           shareId: 'share-1',
           version: 0,
-          load: (() => Promise.resolve(null)) as never,
+          load: () => Promise.resolve(null),
           loadKey,
         })}
       >

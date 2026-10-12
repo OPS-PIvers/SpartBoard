@@ -306,7 +306,7 @@ export const PlcAssignmentConfigModal: React.FC<
           // branch preserves correct behavior for any future caller that
           // opens this modal for a quiz without providing quizBehavior.
           effectiveSessionMode = quizMode;
-          effectiveSessionOptions = { ...quizOptions } as QuizSessionOptions;
+          effectiveSessionOptions = { ...quizOptions };
           effectiveAttemptLimit = attemptLimit;
         }
 
@@ -399,7 +399,7 @@ export const PlcAssignmentConfigModal: React.FC<
             ...(parsedDueAt != null
               ? { dueAt: parsedDueAt, dueAtHasTime: true }
               : {}),
-          } as VideoActivitySessionOptions;
+          };
         }
 
         const vaSettings: VideoActivityAssignmentSettings = {

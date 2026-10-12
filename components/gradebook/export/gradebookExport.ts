@@ -38,7 +38,12 @@ export interface GradebookExportColumn {
   kind: GradebookKind;
   /** Points the column is out of, for the header in points mode. */
   max: number | null;
+  /** False for a Mini App column with scores; defaults to the kind's rule. */
+  completionOnly?: boolean;
 }
+
+const completionColumn = (c: GradebookExportColumn): boolean =>
+  c.completionOnly ?? isCompletionOnly(c.kind);
 
 /** The grid's current view: filtered, visible students and columns in display order. */
 export interface GradebookExportView {
@@ -56,10 +61,10 @@ const round1 = (n: number): number => Math.round(n * 10) / 10;
 
 function scoreText(
   final: FinalScore,
-  kind: GradebookKind,
+  completion: boolean,
   format: CellFormat
 ): ExportCell {
-  if (isCompletionOnly(kind)) return final.status === 'complete' ? 'Done' : '';
+  if (completion) return final.status === 'complete' ? 'Done' : '';
   switch (final.status) {
     case 'scored':
       if (format === 'points')
@@ -88,7 +93,7 @@ function withFlags(
 }
 
 function columnHeader(c: GradebookExportColumn, format: CellFormat): string {
-  if (isCompletionOnly(c.kind)) return c.title;
+  if (completionColumn(c)) return c.title;
   if (format === 'points')
     return c.max !== null ? `${c.title} (${round1(c.max)})` : c.title;
   return `${c.title} (%)`;
@@ -120,7 +125,7 @@ export function buildGradebookExportRows(
     studentName(s, options.nameFormat),
     ...view.columns.map((c) => {
       const final = view.cell(s.uid, c.sessionId);
-      const value = scoreText(final, c.kind, options.scoreFormat);
+      const value = scoreText(final, completionColumn(c), options.scoreFormat);
       return options.flagsAsCodes ? withFlags(value, final, codes) : value;
     }),
     overallCell(view.overall(s.uid), options.scoreFormat),

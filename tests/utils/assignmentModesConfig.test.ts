@@ -16,11 +16,7 @@ describe('parseAssignmentModesConfig', () => {
   let warnSpy: MockInstance<(...args: unknown[]) => void>;
 
   beforeEach(() => {
-    warnSpy = vi
-      .spyOn(console, 'warn')
-      .mockImplementation(() => undefined) as unknown as MockInstance<
-      (...args: unknown[]) => void
-    >;
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     // Module-level drift-warn dedupe set persists across tests in the same
     // process; reset it so each test sees a fresh "first warn" surface.
     _resetAssignmentModesWarnings();

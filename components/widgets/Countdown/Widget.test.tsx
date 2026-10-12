@@ -15,26 +15,25 @@ vi.mock('../WidgetLayout', () => ({
 
 vi.mock('@/context/dashboardCanvasStore');
 
-const buildWidget = (config: Partial<CountdownConfig>): WidgetData =>
-  ({
-    id: 'countdown-widget',
-    type: 'countdown',
-    x: 0,
-    y: 0,
-    w: 300,
-    h: 250,
-    z: 1,
-    flipped: false,
-    config: {
-      title: 'Field Trip',
-      startDate: '2026-04-03T12:00:00.000Z',
-      eventDate: '2026-04-06T12:00:00.000Z',
-      includeWeekends: true,
-      countToday: true,
-      viewMode: 'number',
-      ...config,
-    } satisfies CountdownConfig,
-  }) as WidgetData;
+const buildWidget = (config: Partial<CountdownConfig>): WidgetData => ({
+  id: 'countdown-widget',
+  type: 'countdown',
+  x: 0,
+  y: 0,
+  w: 300,
+  h: 250,
+  z: 1,
+  flipped: false,
+  config: {
+    title: 'Field Trip',
+    startDate: '2026-04-03T12:00:00.000Z',
+    eventDate: '2026-04-06T12:00:00.000Z',
+    includeWeekends: true,
+    countToday: true,
+    viewMode: 'number',
+    ...config,
+  } satisfies CountdownConfig,
+});
 
 describe('CountdownWidget', () => {
   beforeEach(() => {

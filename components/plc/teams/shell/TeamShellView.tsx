@@ -26,12 +26,7 @@ export interface TeamRailItem {
 }
 
 export type TeamOverlay =
-  | 'gear'
-  | 'whatsnew'
-  | 'myitems'
-  | 'members'
-  | 'search'
-  | null;
+  'gear' | 'whatsnew' | 'myitems' | 'members' | 'search' | null;
 
 const HEADER_BTN =
   'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70';

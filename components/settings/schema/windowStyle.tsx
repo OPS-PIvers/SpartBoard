@@ -10,14 +10,6 @@ import { StepSlider } from '@/components/common/StepSlider';
 import type { AppearanceKey, TranslateFn } from './types';
 import { contentTierOverrides } from './styleKeys';
 
-// The four Window-tier labels the find-a-setting filter indexes; i18n leaves under `widgetSettings.common.*`, not schema fields.
-export const WINDOW_STYLE_LABELS = [
-  'style.windowBackground',
-  'style.windowTransparency',
-  'style.windowFont',
-  'style.windowTextSize',
-] as const;
-
 type BaseTextSize = NonNullable<WidgetData['baseTextSize']>;
 
 const WINDOW_TEXT_SIZES: ReadonlyArray<{ value: BaseTextSize; label: string }> =

@@ -310,11 +310,11 @@ they are needed; register them in `config/tourAnchors.ts`.
 ### 4.2 Building-assignable citation stems (Phase 3)
 
 - `AiResponsibleUseBuildingConfig.citationStems` is admin-edited per building. Defaults:
-  - "I used AI to **_ by prompting _**."
-  - "AI helped me with **_; the ideas and final decisions were my own because _**."
+  - "I used AI to **\_ by prompting _**."
+  - "AI helped me with **\_; the ideas and final decisions were my own because _**."
   - "I checked the AI's information by \_\_\_."
   - "I changed the AI's output by \_\_\_ so that it sounds like me."
-  - "I did not use AI for **_ because _**."
+  - "I did not use AI for **\_ because _**."
 - The main widget has a **Citation** strip under Today's Level (Enhanced/Empowered by default,
   admin-configurable) with a "Send to Syntax Framer" / "Send to Talking Tool" action that
   spawns a pre-filled widget with `addWidget`.

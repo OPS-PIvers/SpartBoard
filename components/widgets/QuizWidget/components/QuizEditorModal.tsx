@@ -299,7 +299,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
   const handRaiseMode = useQuizHandRaiseMode();
   const [targetPickerOpen, setTargetPickerOpen] = useState(false);
   const [keyFillOpen, setKeyFillOpen] = useState(false);
-  const openKeyFill = useCallback(() => setKeyFillOpen(true), []);
+  const openKeyFill = useCallback(() => setKeyFillOpen(true), [setKeyFillOpen]);
 
   const editorState = useQuizEditorState({
     quiz,

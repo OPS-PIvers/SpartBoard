@@ -107,14 +107,14 @@ function fieldAnchors(type: string, schema: WidgetSettingsSchema) {
     const label = englishLabel(type, field.label);
     const id = field.type === 'toggle' ? 'settings.toggle' : 'settings.field';
     add(`${id}:${type}#${field.key}`, label);
-    if (field.type === 'partnerWidget') addField(field.control as Field);
+    if (field.type === 'partnerWidget') addField(field.control);
   };
   for (const group of schema.groups) {
     add(
       `settings.group:${type}#${group.id}`,
       englishLabel(type, group.title ?? `group.${group.id}`)
     );
-    group.fields.forEach((field) => addField(field as Field));
+    group.fields.forEach((field) => addField(field));
   }
   return [...out].map(([anchor, label]) => ({ anchor, label }));
 }
@@ -124,10 +124,7 @@ describe('connector settings field list', () => {
     const list: Record<string, Array<{ anchor: string; label: string }>> = {};
     for (const [type, load] of Object.entries(WIDGET_SETTINGS_SCHEMAS)) {
       if (!load) continue;
-      list[type] = fieldAnchors(
-        type,
-        (await load()) as unknown as WidgetSettingsSchema
-      );
+      list[type] = fieldAnchors(type, await load());
     }
     if (process.env.UPDATE_TOUR_ANCHOR_LIST) {
       writeFileSync(
