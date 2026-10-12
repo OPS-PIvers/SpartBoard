@@ -606,7 +606,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       (snap) => {
         const list: Plc[] = [];
         snap.forEach((d) => {
-          const parsed = parsePlc(d.id, d.data() as Record<string, unknown>);
+          const parsed = parsePlc(d.id, d.data());
           if (parsed) list.push(parsed);
         });
         list.sort((a, b) => a.name.localeCompare(b.name));

@@ -195,7 +195,7 @@ function makeWidget(id: string): WidgetData {
     h: 1,
     z: 1,
     flipped: false,
-    config: { text: 'test' } as WidgetData['config'],
+    config: { text: 'test' },
   };
 }
 
@@ -262,7 +262,7 @@ describe('DashboardContext auto-save starvation ceiling', () => {
     for (let i = 0; i < count; i++) {
       act(() => {
         stateRef.current?.updateWidget('w1', {
-          config: { text: `keystroke-${i}` } as WidgetData['config'],
+          config: { text: `keystroke-${i}` },
         });
       });
       await act(async () => {
@@ -303,7 +303,7 @@ describe('DashboardContext auto-save starvation ceiling', () => {
 
     act(() => {
       stateRef.current?.updateWidget('w1', {
-        config: { text: 'once' } as WidgetData['config'],
+        config: { text: 'once' },
       });
     });
 
@@ -336,7 +336,7 @@ describe('DashboardContext auto-save starvation ceiling', () => {
 
     act(() => {
       stateRef.current?.updateWidget('w1', {
-        config: { text: 'after-idle' } as WidgetData['config'],
+        config: { text: 'after-idle' },
       });
     });
     // If the window were never reset, this would flush instantly at 0ms.
@@ -359,7 +359,7 @@ describe('DashboardContext auto-save starvation ceiling', () => {
 
     act(() => {
       stateRef.current?.updateWidget('w1', {
-        config: { text: 'unsaved' } as WidgetData['config'],
+        config: { text: 'unsaved' },
       });
     });
     await act(async () => {
@@ -386,7 +386,7 @@ describe('DashboardContext auto-save starvation ceiling', () => {
 
     act(() => {
       stateRef.current?.updateWidget('w1', {
-        config: { text: 'a' } as WidgetData['config'],
+        config: { text: 'a' },
       });
     });
     await act(async () => {
@@ -398,7 +398,7 @@ describe('DashboardContext auto-save starvation ceiling', () => {
     saveDashboardMock.mockClear();
     act(() => {
       stateRef.current?.updateWidget('w1', {
-        config: { text: 'ab' } as WidgetData['config'],
+        config: { text: 'ab' },
       });
     });
     // The normal 800 ms debounce has elapsed, but the 2 s backoff has not.
@@ -422,7 +422,7 @@ describe('DashboardContext auto-save starvation ceiling', () => {
 
     act(() => {
       stateRef.current?.updateWidget('w1', {
-        config: { text: 'typed-then-switched' } as WidgetData['config'],
+        config: { text: 'typed-then-switched' },
       });
     });
     await act(async () => {

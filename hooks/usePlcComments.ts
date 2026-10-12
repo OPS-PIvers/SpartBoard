@@ -241,10 +241,7 @@ export function usePlcComments(
       (snap) => {
         const list: PlcComment[] = [];
         snap.forEach((d) => {
-          const parsed = parseComment(
-            d.id,
-            d.data() as Record<string, unknown>
-          );
+          const parsed = parseComment(d.id, d.data());
           // Hide soft-deleted comments from the thread.
           if (parsed && parsed.deletedAt == null) list.push(parsed);
         });

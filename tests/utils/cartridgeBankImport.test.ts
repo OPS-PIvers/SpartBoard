@@ -38,18 +38,17 @@ const bank = (
   })),
 });
 
-const meta = (title: string, folderId?: string): QuestionBankMetadata =>
-  ({
-    id: title,
-    title,
-    driveFileId: 'd',
-    questionCount: 1,
-    targetIds: [],
-    targetCounts: {},
-    createdAt: 0,
-    updatedAt: 0,
-    ...(folderId ? { folderId } : {}),
-  }) as QuestionBankMetadata;
+const meta = (title: string, folderId?: string): QuestionBankMetadata => ({
+  id: title,
+  title,
+  driveFileId: 'd',
+  questionCount: 1,
+  targetIds: [],
+  targetCounts: {},
+  createdAt: 0,
+  updatedAt: 0,
+  ...(folderId ? { folderId } : {}),
+});
 
 const FOLDERS = [
   folder('root', 'World History Tests', null),

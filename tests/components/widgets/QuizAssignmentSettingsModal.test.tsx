@@ -44,7 +44,7 @@ function makeRoster(overrides: Partial<ClassRoster> = {}): ClassRoster {
     createdAt: 1,
     students: [],
     ...overrides,
-  } as ClassRoster;
+  };
 }
 
 describe('QuizAssignmentSettingsModal — behavior editable on a live assignment', () => {

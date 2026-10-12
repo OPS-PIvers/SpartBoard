@@ -119,8 +119,10 @@ export function useAudioRecording(
   const takeUrlRef = useRef<string | null>(null);
 
   const onPrepExpiredRef = useRef(options.onPrepExpired);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in timers/handlers
   onPrepExpiredRef.current = options.onPrepExpired;
   const onCaptureUnavailableRef = useRef(options.onCaptureUnavailable);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in timers/handlers
   onCaptureUnavailableRef.current = options.onCaptureUnavailable;
 
   const clearPrepTimer = () => {
@@ -222,6 +224,7 @@ export function useAudioRecording(
   }, []);
 
   const startRef = useRef(start);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in effects
   startRef.current = start;
 
   // Prep countdown. `performance`-independent: a client interval over
@@ -230,6 +233,7 @@ export function useAudioRecording(
     if (!enabled) return;
     if (phase !== 'prep') return;
     if (config.prepSeconds <= 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- zero-length prep skips straight to armed
       setPhase('armed');
       return;
     }

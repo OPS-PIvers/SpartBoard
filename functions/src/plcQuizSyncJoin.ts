@@ -84,8 +84,7 @@ export async function handleJoinPlcQuizSyncGroup(
       throw new HttpsError('not-found', 'PLC quiz not found.');
     }
     const plcQuizData = plcQuizSnap.data() as
-      | { syncGroupId?: unknown }
-      | undefined;
+      { syncGroupId?: unknown } | undefined;
     const groupId = plcQuizData?.syncGroupId;
     if (typeof groupId !== 'string' || groupId.length === 0) {
       throw new HttpsError(

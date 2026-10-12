@@ -48,10 +48,10 @@ function trackPaths<T extends Record<Writer, unknown>>(
 ): void {
   for (const name of WRITERS) {
     const original = target[name] as (ref: Ref, ...rest: unknown[]) => T;
-    target[name] = ((ref: Ref, ...rest: unknown[]) => {
+    target[name] = (ref: Ref, ...rest: unknown[]) => {
       onWrite(ref.path);
       return original.call(target, ref, ...rest);
-    }) as T[Writer];
+    };
   }
 }
 

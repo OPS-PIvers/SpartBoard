@@ -29,7 +29,7 @@ describe('normalizeVideoActivityQuestion', () => {
       correctAnswer: 'a',
       incorrectAnswers: [],
       // points intentionally omitted
-    } as VideoActivityQuestion);
+    });
     expect(result.points).toBe(1);
   });
 

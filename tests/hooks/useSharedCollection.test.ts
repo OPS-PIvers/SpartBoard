@@ -616,7 +616,7 @@ describe('useSharedCollection', () => {
         expiresAt: 9999999999999,
         buildingId: 'middle-school',
         ...tree(),
-        ...(onBundle ? { onBundle: onBundle as never } : {}),
+        ...(onBundle ? { onBundle: onBundle } : {}),
       });
       return { shareId, api: result.current };
     };

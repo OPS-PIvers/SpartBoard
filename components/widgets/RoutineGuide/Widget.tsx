@@ -365,8 +365,7 @@ export const RoutineGuideWidget: React.FC<WidgetComponentProps> = ({
   const [infoOpen, setInfoOpen] = useState(false);
   const config = widget.config as RoutineGuideConfig;
   const prefs = savedWidgetPresets.routineGuide as
-    | Partial<RoutineGuideConfig>
-    | undefined;
+    Partial<RoutineGuideConfig> | undefined;
   const favorites = useMemo(() => prefs?.favorites ?? [], [prefs?.favorites]);
   const savedFilter: RoutineGuideFilter = prefs?.libraryFilter ?? 'grade';
   const groupScope = useRoutineGuideGroups(savedFilter);

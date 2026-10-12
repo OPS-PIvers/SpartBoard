@@ -88,6 +88,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   const resolveRef = React.useRef(resolveCrop);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in effects
   resolveRef.current = resolveCrop;
   const cropKey = [
     sessionId,
@@ -103,6 +104,7 @@ export const PaperCropPanel: React.FC<PaperCropPanelProps> = ({
   useEffect(() => {
     let cancelled = false;
     let created: string | null = null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets to loading before an async crop fetch
     setCrop({ kind: 'loading' });
     resolveRef
       .current({ sessionId, responseKey, questionId, artifact, archive })

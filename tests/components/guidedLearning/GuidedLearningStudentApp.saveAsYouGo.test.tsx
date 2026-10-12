@@ -18,7 +18,7 @@ const { mockAuth, hookState, submitResponse, listener, playerProps } =
   vi.hoisted(() => ({
     mockAuth: {
       authStateReady: vi.fn().mockResolvedValue(undefined),
-      currentUser: { uid: 'stu-1', isAnonymous: true } as unknown,
+      currentUser: { uid: 'stu-1', isAnonymous: true },
     },
     hookState: {
       session: null as import('@/types').GuidedLearningSession | null,
@@ -269,8 +269,7 @@ describe('GuidedLearningStudentApp — honest submit', () => {
       await screen.findByText('Your responses have been submitted.')
     ).toBeInTheDocument();
     const last = submitResponse.mock.calls.at(-1)?.[0] as
-      | GuidedLearningResponse
-      | undefined;
+      GuidedLearningResponse | undefined;
     expect(typeof last?.completedAt).toBe('number');
   });
 

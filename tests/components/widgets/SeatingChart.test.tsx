@@ -66,7 +66,7 @@ const makeWidget = (
     gridSize: 20,
     template: 'freeform',
     ...overrides,
-  } as SeatingChartConfig,
+  },
 });
 
 describe('SeatingChartWidget empty states', () => {

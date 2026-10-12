@@ -185,7 +185,7 @@ function makeWidget(id: string, configValue: unknown): WidgetData {
     h: 100,
     z: 1,
     flipped: false,
-    config: { text: configValue } as WidgetData['config'],
+    config: { text: configValue },
   };
 }
 

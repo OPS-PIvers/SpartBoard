@@ -462,13 +462,10 @@ export const useVideoActivitySessionTeacher =
           // live monitor can target the actual response doc when invoking
           // teacher actions (e.g. unlock) — for PIN joiners the key is
           // `pin-{period}-{pin}` and differs from `studentUid`.
-          const list = snap.docs.map(
-            (d) =>
-              ({
-                ...(d.data() as VideoActivityResponse),
-                _responseKey: d.id,
-              }) as VideoActivityResponse
-          );
+          const list = snap.docs.map((d) => ({
+            ...(d.data() as VideoActivityResponse),
+            _responseKey: d.id,
+          }));
           throttle.push(list);
           setLoading(false);
         },
@@ -500,12 +497,7 @@ export const useVideoActivitySessionTeacher =
         doc(db, SESSIONS_COLLECTION, sessionId),
         (snap) => {
           if (snap.exists()) {
-            setLiveSession(
-              normalizeVideoActivitySession(
-                snap.id,
-                snap.data() as Partial<VideoActivitySession>
-              )
-            );
+            setLiveSession(normalizeVideoActivitySession(snap.id, snap.data()));
           } else {
             setLiveSession(null);
           }
@@ -640,12 +632,7 @@ export const useVideoActivitySessionTeacher =
 // ---------------------------------------------------------------------------
 
 export type StudentJoinStatus =
-  | 'idle'
-  | 'loading'
-  | 'joined'
-  | 'error'
-  | 'not-found'
-  | 'pin-rejected';
+  'idle' | 'loading' | 'joined' | 'error' | 'not-found' | 'pin-rejected';
 
 export interface UseVideoActivitySessionStudentResult {
   session: VideoActivitySession | null;
@@ -855,8 +842,7 @@ export const useVideoActivitySessionStudent =
           QUIZ_CONTENT_DOC
         ),
         (snap) => {
-          if (snap.exists())
-            setContent(snap.data() as VideoActivitySessionContent);
+          if (snap.exists()) setContent(snap.data());
         },
         (err) => {
           if ((err as { code?: string }).code !== 'permission-denied') {
@@ -1220,14 +1206,10 @@ export const useVideoActivitySessionStudent =
               videoActivityLedgerKey(targetSessionId, currentUser.uid)
             );
             const ledgerSnap = await getDoc(ledgerRef).catch((err: unknown) => {
-              logError(
-                'useVideoActivitySessionStudent.ledgerRead',
-                err as Error,
-                {
-                  sessionId: targetSessionId,
-                  studentUid: currentUser.uid,
-                }
-              );
+              logError('useVideoActivitySessionStudent.ledgerRead', err, {
+                sessionId: targetSessionId,
+                studentUid: currentUser.uid,
+              });
               return null;
             });
             if (ledgerSnap?.exists()) {
@@ -1532,13 +1514,16 @@ export const useVideoActivitySessionStudent =
     // read the current counter without re-binding (and re-attaching the
     // visibility listener on every snapshot).
     const myResponseRef = useRef<VideoActivityResponse | null>(null);
+    // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers
     myResponseRef.current = myResponse;
     const warningCountRef = useRef(0);
     // Server-side counter is the source of truth; clamp to the higher
     // of the two so a stale snapshot in flight doesn't roll back the
     // local view briefly. Idempotent across re-renders, so we mutate the
     // ref directly in the render body instead of paying for an effect.
+    // eslint-disable-next-line react-hooks/refs -- monotonic counter mirror, read only in handlers
     warningCountRef.current = Math.max(
+      // eslint-disable-next-line react-hooks/refs -- monotonic counter mirror, read only in handlers
       warningCountRef.current,
       myResponse?.tabSwitchWarnings ?? 0
     );

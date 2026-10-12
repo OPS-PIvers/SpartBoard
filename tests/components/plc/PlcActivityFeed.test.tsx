@@ -97,7 +97,7 @@ vi.mock('@/context/usePlcContext', async (importActual) => {
 // markSeen-on-mount without Firebase.
 const mockMarkSeen = vi.fn(() => Promise.resolve());
 const mockUsePlcUnread = vi.fn(() => ({
-  lastSeenAt: 1000 as number | null,
+  lastSeenAt: 1000,
   unreadCount: 0,
   markSeen: mockMarkSeen,
   loading: false,

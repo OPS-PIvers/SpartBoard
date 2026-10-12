@@ -145,6 +145,7 @@ const ListImpl: React.FC<ListImplProps> = ({
           renderItem={(item, dragHandle, index) => row(item, index, dragHandle)}
         />
       ) : (
+        // eslint-disable-next-line react-hooks/refs -- row ids are minted and cached in a ref
         rows.map((r, index) => <div key={getRowId(r)}>{row(r, index)}</div>)
       )}
       <button

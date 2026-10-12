@@ -31,7 +31,7 @@ const liveObjects: DrawableObject[] = [
     points: [{ x: 1, y: 1 }],
     color: '#111111',
     width: 4,
-  } as DrawableObject,
+  },
 ];
 
 const page2Objects: DrawableObject[] = [
@@ -42,7 +42,7 @@ const page2Objects: DrawableObject[] = [
     points: [{ x: 2, y: 2 }],
     color: '#222222',
     width: 4,
-  } as DrawableObject,
+  },
 ];
 
 const addToast = vi.fn();
@@ -219,7 +219,7 @@ describe('DrawingWidget export — subcollection-migrated widgets', () => {
         points: [{ x: 3, y: 3 }],
         color: '#333333',
         width: 4,
-      } as DrawableObject,
+      },
     ];
     const config = {
       currentPage: 0,

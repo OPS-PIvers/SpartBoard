@@ -195,7 +195,7 @@ const WALLS: ActivityWallLibraryEntry[] = range((i) => ({
   updatedAt: NOW - i * 3600_000,
 }));
 
-export const LIBRARY_HARNESS_VIEWS = [
+const LIBRARY_HARNESS_VIEWS = [
   'quiz',
   'video-activity',
   'guided-learning',

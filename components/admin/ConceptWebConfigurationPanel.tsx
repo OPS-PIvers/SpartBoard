@@ -44,7 +44,7 @@ export const ConceptWebConfigurationPanel: React.FC<Props> = ({
           ...updates,
         },
       },
-    } as unknown as Record<string, unknown>);
+    });
   };
 
   return (

@@ -71,7 +71,7 @@ export const ActivityWallConfigurationPanel: React.FC<
           ...updates,
         },
       },
-    } as unknown as Record<string, unknown>);
+    });
   };
 
   const IDENTIFICATION_OPTIONS: ActivityWallIdentificationMode[] = [

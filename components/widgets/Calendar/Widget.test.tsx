@@ -53,23 +53,22 @@ vi.mock('@/utils/googleCalendarService', () => ({
   },
 }));
 
-const buildWidget = (config: Partial<CalendarConfig>): WidgetData =>
-  ({
-    id: 'calendar-widget',
-    type: 'calendar',
-    x: 0,
-    y: 0,
-    w: 400,
-    h: 300,
-    z: 1,
-    flipped: false,
-    config: {
-      events: [],
-      isBuildingSyncEnabled: false,
-      daysVisible: 5,
-      ...config,
-    } satisfies CalendarConfig,
-  }) as WidgetData;
+const buildWidget = (config: Partial<CalendarConfig>): WidgetData => ({
+  id: 'calendar-widget',
+  type: 'calendar',
+  x: 0,
+  y: 0,
+  w: 400,
+  h: 300,
+  z: 1,
+  flipped: false,
+  config: {
+    events: [],
+    isBuildingSyncEnabled: false,
+    daysVisible: 5,
+    ...config,
+  } satisfies CalendarConfig,
+});
 
 describe('CalendarWidget', () => {
   beforeEach(() => {

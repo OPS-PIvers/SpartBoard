@@ -139,7 +139,7 @@ describe('quizAudio — sound synthesis', () => {
     async ({ fn, oscillators: expected }) => {
       const mod = await loadModule({ audioContext: MockAudioContext });
 
-      (mod[fn] as () => void)();
+      mod[fn]();
 
       expect(oscillators).toHaveLength(expected);
       expect(gains).toHaveLength(expected);

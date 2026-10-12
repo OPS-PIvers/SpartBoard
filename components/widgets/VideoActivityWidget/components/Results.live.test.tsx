@@ -78,27 +78,26 @@ import { Results } from './Results';
 
 const session = (
   over: Partial<VideoActivitySession> = {}
-): VideoActivitySession =>
-  ({
-    id: 's1',
-    activityId: 'va-1',
-    activityTitle: 'Photosynthesis',
-    assignmentName: 'Period 1',
-    teacherUid: 'teacher-1',
-    youtubeUrl: 'https://youtu.be/abc',
-    questions: [],
-    status: 'ended',
-    allowedPins: [],
-    createdAt: 1,
-    rosterIds: ['r1'],
-    sessionMode: 'teacher',
-    live: {
-      ...initialVideoActivityLiveState(0),
-      askedQuestionIds: ['q1', 'q3'],
-      skippedQuestionIds: ['q2'],
-    },
-    ...over,
-  }) as VideoActivitySession;
+): VideoActivitySession => ({
+  id: 's1',
+  activityId: 'va-1',
+  activityTitle: 'Photosynthesis',
+  assignmentName: 'Period 1',
+  teacherUid: 'teacher-1',
+  youtubeUrl: 'https://youtu.be/abc',
+  questions: [],
+  status: 'ended',
+  allowedPins: [],
+  createdAt: 1,
+  rosterIds: ['r1'],
+  sessionMode: 'teacher',
+  live: {
+    ...initialVideoActivityLiveState(0),
+    askedQuestionIds: ['q1', 'q3'],
+    skippedQuestionIds: ['q2'],
+  },
+  ...over,
+});
 
 const response: VideoActivityResponse = {
   studentUid: 'u-a',

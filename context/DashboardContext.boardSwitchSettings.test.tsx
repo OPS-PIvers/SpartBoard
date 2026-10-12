@@ -160,7 +160,7 @@ function makeWidget(id: string, extra: Partial<WidgetData> = {}): WidgetData {
     h: 1,
     z: 1,
     flipped: false,
-    config: { text: 'test' } as WidgetData['config'],
+    config: { text: 'test' },
     ...extra,
   };
 }

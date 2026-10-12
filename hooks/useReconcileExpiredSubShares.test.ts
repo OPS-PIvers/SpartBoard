@@ -31,13 +31,13 @@ function makeShareSnap(share: FakeShare) {
 }
 
 function makeDriveService() {
-  return {
-    deletePermission: vi.fn().mockResolvedValue(undefined),
-    trashFile: vi.fn().mockResolvedValue(undefined),
-  } as unknown as GoogleDriveService & {
-    deletePermission: ReturnType<typeof vi.fn>;
-    trashFile: ReturnType<typeof vi.fn>;
-  };
+  const deletePermission = vi.fn().mockResolvedValue(undefined);
+  const trashFile = vi.fn().mockResolvedValue(undefined);
+  const driveService = {
+    deletePermission,
+    trashFile,
+  } as unknown as GoogleDriveService;
+  return { driveService, deletePermission, trashFile };
 }
 
 describe('useReconcileExpiredSubShares', () => {
@@ -66,7 +66,7 @@ describe('useReconcileExpiredSubShares', () => {
     renderHook(() =>
       useReconcileExpiredSubShares({
         uid: 'teacher-1',
-        driveService: makeDriveService(),
+        driveService: makeDriveService().driveService,
       })
     );
 
@@ -95,23 +95,17 @@ describe('useReconcileExpiredSubShares', () => {
     (paging.readAllDocsPaged as unknown as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce([expired, active]) // /shared_boards
       .mockResolvedValueOnce([]); // /shared_collections
-    const driveService = makeDriveService();
+    const { driveService, deletePermission } = makeDriveService();
 
     renderHook(() =>
       useReconcileExpiredSubShares({ uid: 'teacher-1', driveService })
     );
 
     await waitFor(() =>
-      expect(driveService.deletePermission).toHaveBeenCalledWith(
-        'file-1',
-        'perm-1'
-      )
+      expect(deletePermission).toHaveBeenCalledWith('file-1', 'perm-1')
     );
     // Active share's permission is never revoked.
-    expect(driveService.deletePermission).not.toHaveBeenCalledWith(
-      'file-2',
-      'perm-2'
-    );
+    expect(deletePermission).not.toHaveBeenCalledWith('file-2', 'perm-2');
     // Only the expired share doc is deleted.
     expect(firestore.deleteDoc).toHaveBeenCalledTimes(1);
     expect(firestore.deleteDoc).toHaveBeenCalledWith(expired.ref);
@@ -134,16 +128,16 @@ describe('useReconcileExpiredSubShares', () => {
     (paging.readAllDocsPaged as unknown as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce([expired, active])
       .mockResolvedValueOnce([]);
-    const driveService = makeDriveService();
+    const { driveService, trashFile } = makeDriveService();
 
     renderHook(() =>
       useReconcileExpiredSubShares({ uid: 'teacher-1', driveService })
     );
 
     await waitFor(() =>
-      expect(driveService.trashFile).toHaveBeenCalledWith('names-expired')
+      expect(trashFile).toHaveBeenCalledWith('names-expired')
     );
-    expect(driveService.trashFile).not.toHaveBeenCalledWith('names-active');
+    expect(trashFile).not.toHaveBeenCalledWith('names-active');
     expect(firestore.deleteDoc).toHaveBeenCalledWith(expired.ref);
   });
 
@@ -158,15 +152,15 @@ describe('useReconcileExpiredSubShares', () => {
     (paging.readAllDocsPaged as unknown as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce([expired])
       .mockResolvedValueOnce([]);
-    const driveService = makeDriveService();
-    driveService.trashFile.mockRejectedValue(new Error('drive down'));
+    const { driveService, trashFile } = makeDriveService();
+    trashFile.mockRejectedValue(new Error('drive down'));
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
 
     renderHook(() =>
       useReconcileExpiredSubShares({ uid: 'teacher-1', driveService })
     );
 
-    await waitFor(() => expect(driveService.trashFile).toHaveBeenCalled());
+    await waitFor(() => expect(trashFile).toHaveBeenCalled());
     expect(firestore.deleteDoc).not.toHaveBeenCalled();
   });
 
@@ -190,7 +184,7 @@ describe('useReconcileExpiredSubShares', () => {
     (paging.readAllDocsPaged as unknown as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce([expired, active]) // /shared_boards
       .mockResolvedValueOnce([]); // /shared_collections
-    const driveService = makeDriveService();
+    const { driveService, deletePermission } = makeDriveService();
 
     renderHook(() =>
       useReconcileExpiredSubShares({ uid: 'teacher-1', driveService })
@@ -199,7 +193,7 @@ describe('useReconcileExpiredSubShares', () => {
     // Wait for the sweep to finish (expired doc deleted) — the shared
     // permission must be skipped because an active share still references it.
     await waitFor(() => expect(firestore.deleteDoc).toHaveBeenCalledTimes(1));
-    expect(driveService.deletePermission).not.toHaveBeenCalled();
+    expect(deletePermission).not.toHaveBeenCalled();
   });
 
   it('reaps a Collection share boards/ subcollection before deleting the parent, and refcounts grants across both surfaces', async () => {
@@ -245,7 +239,7 @@ describe('useReconcileExpiredSubShares', () => {
       firestore.getDocs as unknown as ReturnType<typeof vi.fn>
     ).mockResolvedValue({ docs: boardDocRefs.map((ref) => ({ ref })) });
 
-    const driveService = makeDriveService();
+    const { driveService, deletePermission } = makeDriveService();
     renderHook(() =>
       useReconcileExpiredSubShares({ uid: 'teacher-1', driveService })
     );
@@ -255,7 +249,7 @@ describe('useReconcileExpiredSubShares', () => {
       expect(firestore.deleteDoc).toHaveBeenCalledWith(collectionRef)
     );
     // Shared permission must NOT be revoked — an active board share still holds it.
-    expect(driveService.deletePermission).not.toHaveBeenCalled();
+    expect(deletePermission).not.toHaveBeenCalled();
     // Both board sub-docs were deleted before the parent.
     expect(firestore.deleteDoc).toHaveBeenCalledWith(boardDocRefs[0]);
     expect(firestore.deleteDoc).toHaveBeenCalledWith(boardDocRefs[1]);
@@ -293,7 +287,7 @@ describe('useReconcileExpiredSubShares', () => {
     renderHook(() =>
       useReconcileExpiredSubShares({
         uid: 'teacher-1',
-        driveService: makeDriveService(),
+        driveService: makeDriveService().driveService,
       })
     );
 
@@ -314,7 +308,7 @@ describe('useReconcileExpiredSubShares', () => {
     renderHook(() =>
       useReconcileExpiredSubShares({
         uid: 'teacher-1',
-        driveService: makeDriveService(),
+        driveService: makeDriveService().driveService,
       })
     );
 

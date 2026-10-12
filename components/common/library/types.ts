@@ -41,11 +41,7 @@ export type LibrarySortDir = 'asc' | 'desc';
  * if needed.
  */
 export type LibraryBadgeTone =
-  | 'neutral'
-  | 'info'
-  | 'warn'
-  | 'success'
-  | 'danger';
+  'neutral' | 'info' | 'warn' | 'success' | 'danger';
 
 /** Assignment lifecycle status. Mirrors `QuizAssignmentStatus` in `types.ts`. */
 export type LibraryAssignmentStatus = 'active' | 'paused' | 'inactive';

@@ -45,6 +45,7 @@ import { useServerNow } from '@/hooks/useServerNow';
 import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
 import { resolveResultsVisibility } from '@/utils/quizResultsVisibility';
 import { ResultsProtectionGate } from '@/components/student/ResultsProtectionGate';
+import { GuidedLearningWelcomeImage } from './GuidedLearningWelcomeImage';
 import {
   GuidedLearningPeriodLockedScreen,
   GuidedLearningPeriodPausedOverlay,
@@ -860,8 +861,10 @@ const StartScreen: React.FC<{
   // content. Toggle-on-with-empty-message falls through to the default
   // mode/step subtitle so we never render an empty card.
   const welcomeMessage = session.welcomeMessage?.trim() ?? '';
+  const welcomeImage = session.welcomeEnabled ? session.welcomeImageUrl : '';
   const showWelcome =
-    Boolean(session.welcomeEnabled) && welcomeMessage.length > 0;
+    Boolean(session.welcomeEnabled) &&
+    (welcomeMessage.length > 0 || Boolean(welcomeImage));
 
   return (
     <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-950">
@@ -869,17 +872,29 @@ const StartScreen: React.FC<{
         <div
           className={`bg-slate-900 border border-white/10 rounded-2xl p-8 ${showWelcome ? 'max-w-md' : 'max-w-sm'} w-full text-center shadow-2xl`}
         >
-          <BookOpen
-            className="w-10 h-10 text-indigo-400 mx-auto mb-3"
-            aria-hidden="true"
-          />
+          {welcomeImage ? (
+            <GuidedLearningWelcomeImage
+              url={welcomeImage}
+              alt={session.welcomeImageAlt}
+              className="mb-4"
+            />
+          ) : (
+            <BookOpen
+              className="w-10 h-10 text-indigo-400 mx-auto mb-3"
+              aria-hidden="true"
+            />
+          )}
           <h1 className="text-white font-bold text-xl mb-1">{session.title}</h1>
           {showWelcome ? (
-            <div className="mt-3 mb-6 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left">
-              <p className="text-slate-200 text-sm whitespace-pre-wrap leading-relaxed">
-                {welcomeMessage}
-              </p>
-            </div>
+            welcomeMessage ? (
+              <div className="mt-3 mb-6 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left">
+                <p className="text-slate-200 text-sm whitespace-pre-wrap leading-relaxed">
+                  {welcomeMessage}
+                </p>
+              </div>
+            ) : (
+              <div className="mb-6" />
+            )
           ) : (
             <p
               className={`text-slate-300 text-sm mb-6 ${session.playerV2 ? '' : 'capitalize'}`}

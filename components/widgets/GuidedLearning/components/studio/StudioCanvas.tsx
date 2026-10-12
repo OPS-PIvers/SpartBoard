@@ -295,7 +295,7 @@ export const StudioCanvas: React.FC<StudioCanvasProps> = ({
           >
             <GuidedLearningStage
               set={set}
-              steps={steps as unknown as GuidedLearningPublicStep[]}
+              steps={steps}
               imageIndex={currentImageIndex}
               activeStepId={shownStepId}
               authorMode="explore"

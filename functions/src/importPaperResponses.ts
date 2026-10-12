@@ -150,7 +150,7 @@ function parseAnswer(raw: unknown): ImportPaperAnswer {
   if (raw.unresponded !== undefined) {
     if (raw.unresponded !== 'passed' && raw.unresponded !== 'paper-unclear')
       invalid('Unknown unresponded reason.');
-    parsed.unresponded = raw.unresponded as PaperUnresponded;
+    parsed.unresponded = raw.unresponded;
   }
   return parsed;
 }

@@ -70,3 +70,11 @@ export function resolveStyleFields(
     .map((key) => UNIVERSAL_STYLE_FIELDS[key])
     .filter((field): field is Field => field !== undefined);
 }
+
+// The four Window-tier labels the find-a-setting filter indexes; i18n leaves under `widgetSettings.common.*`, not schema fields.
+export const WINDOW_STYLE_LABELS = [
+  'style.windowBackground',
+  'style.windowTransparency',
+  'style.windowFont',
+  'style.windowTextSize',
+] as const;

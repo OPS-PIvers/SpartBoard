@@ -19,7 +19,7 @@ const baseWidget: WidgetData = {
     url: 'https://docs.google.com/presentation/d/abc123/preview',
     mode: 'url',
   },
-} as WidgetData;
+};
 
 beforeEach(() => {
   vi.clearAllMocks();

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_GRADEBOOK_SETTINGS,
+  resolveFinalScore,
   type GradebookColumnConfig,
   type GradebookMark,
   type GradeIndexRow,
@@ -201,5 +202,55 @@ describe('display helpers', () => {
     >[0];
     expect(formatScore(final, 'percent')).toBe('85%');
     expect(formatScore(final, 'points')).toBe('8.5/10');
+  });
+});
+
+describe('Mini App results columns (MINI_APP_RESULTS.md D13)', () => {
+  const completion = row({
+    kind: 'mini-app',
+    sessionId: 'm1',
+    rawPct: null,
+    points: null,
+    max: null,
+  });
+  const scored = row({
+    kind: 'mini-app',
+    sessionId: 'm1',
+    studentUid: 'u2',
+    rawPct: 75,
+    points: 3,
+    max: 4,
+    gradedBy: 'app',
+  });
+  const ctx = {
+    flagDefs: DEFAULT_GRADEBOOK_SETTINGS.flags,
+    autoFlags: false,
+    now: 10,
+  };
+  const columnFor = (rows: GradeIndexRow[]) =>
+    buildColumns(
+      rows,
+      new Map(),
+      new Map(),
+      'r1',
+      DEFAULT_GRADEBOOK_SETTINGS
+    )[0];
+
+  it('stays completion only until a student has a score', () => {
+    expect(columnFor([completion]).completionOnly).toBe(true);
+    expect(columnFor([completion, scored]).completionOnly).toBe(false);
+  });
+
+  it('counts a scored row and keeps the rest as complete', () => {
+    expect(resolveFinalScore(scored, null, null, ctx)).toMatchObject({
+      status: 'scored',
+      points: 3,
+      max: 4,
+      counts: true,
+    });
+    expect(resolveFinalScore(completion, null, null, ctx)).toMatchObject({
+      status: 'complete',
+      counts: false,
+    });
   });
 });

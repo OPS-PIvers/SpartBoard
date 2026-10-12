@@ -225,7 +225,7 @@ describe('mirrorPlcIndex handler — lead-email resolution for orgId forgery gua
         leadIsMember: true,
         captured,
         queriedPaths,
-      }) as unknown as ReturnType<typeof admin.firestore>
+      })
     );
   });
 
@@ -296,7 +296,7 @@ describe('mirrorPlcIndex handler — lead-email resolution for orgId forgery gua
         leadIsMember: false,
         captured,
         queriedPaths,
-      }) as unknown as ReturnType<typeof admin.firestore>
+      })
     );
 
     const event = makeEvent('plc-3', {

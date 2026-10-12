@@ -96,7 +96,7 @@ export function normalizeValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(normalizeValue);
   if (typeof value === 'object') {
     const out: FieldMap = {};
-    for (const key of Object.keys(value as FieldMap).sort()) {
+    for (const key of Object.keys(value).sort()) {
       const v = (value as FieldMap)[key];
       if (v !== undefined) out[key] = normalizeValue(v);
     }
@@ -198,7 +198,7 @@ export async function revertViewAsChange(
 ): Promise<RevertResult> {
   const logRef = db.collection('admin_audit_log').doc(input.logId);
   const logSnap = await logRef.get();
-  const entry = logSnap.exists ? ((logSnap.data() ?? {}) as FieldMap) : null;
+  const entry = logSnap.exists ? (logSnap.data() ?? {}) : null;
   if (!entry || !REVERTABLE_ACTIONS.includes(entry.action as string)) {
     throw new HttpsError('not-found', 'No change to revert.');
   }

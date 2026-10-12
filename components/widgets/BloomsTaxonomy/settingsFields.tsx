@@ -20,8 +20,7 @@ export const BloomsCategoriesField: React.FC<{ ctx: CustomRenderCtx }> = ({
     (permission) => permission.widgetType === 'blooms-taxonomy'
   );
   const globalConfig = bloomsPermission?.config as
-    | BloomsTaxonomyGlobalConfig
-    | undefined;
+    BloomsTaxonomyGlobalConfig | undefined;
   const buildingConfig: BloomsTaxonomyBuildingConfig =
     globalConfig?.buildingDefaults?.[buildingId] ?? {};
   const { availableCategories, defaultEnabledCategories } = buildingConfig;

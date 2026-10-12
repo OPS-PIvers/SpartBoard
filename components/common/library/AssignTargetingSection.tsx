@@ -95,11 +95,7 @@ export type { AssignTargetingValue } from '@/utils/studentTargetRef';
 export { EMPTY_ASSIGN_TARGETING_VALUE } from '@/utils/studentTargetRef';
 
 export type AssignTargetingKind =
-  | 'quiz'
-  | 'video-activity'
-  | 'guided-learning'
-  | 'mini-app'
-  | 'flashcards';
+  'quiz' | 'video-activity' | 'guided-learning' | 'mini-app' | 'flashcards';
 
 export interface AssignTargetingQuizContext {
   questions: OverrideEditorQuestion[];

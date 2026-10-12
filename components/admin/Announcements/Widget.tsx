@@ -36,7 +36,6 @@ import {
   AnnouncementDismissalType,
   WidgetType,
   WidgetData,
-  WidgetConfig,
   PollConfig,
 } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
@@ -283,6 +282,7 @@ const GenericConfigEditor: React.FC<{
   const [jsonError, setJsonError] = useState<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- re-syncs editor text when the config prop changes
     setJsonStr(JSON.stringify(config, null, 2));
   }, [config]);
 
@@ -342,9 +342,7 @@ function renderConfigEditor(
       return (
         <TextConfigEditor
           config={form.widgetConfig}
-          onChange={(config) =>
-            handleConfigChange(config as Record<string, unknown>)
-          }
+          onChange={(config) => handleConfigChange(config)}
         />
       );
     case 'embed':
@@ -352,9 +350,7 @@ function renderConfigEditor(
         <EmbedConfigEditor
           config={form.widgetConfig}
           label={form.name}
-          onChange={(config) =>
-            handleConfigChange(config as Record<string, unknown>)
-          }
+          onChange={(config) => handleConfigChange(config)}
         />
       );
     case 'qr':
@@ -495,7 +491,7 @@ const AnnouncementPreview: React.FC<{
     flipped: false,
     minimized: false,
     maximized: false,
-    config: widgetConfig as WidgetConfig,
+    config: widgetConfig,
   };
 
   return (
@@ -980,7 +976,9 @@ export const AnnouncementsManager: React.FC = () => {
     try {
       await updateDoc(doc(db, 'announcements', a.id), {
         isActive: newActive,
+        // eslint-disable-next-line react-hooks/purity -- runs in an async click handler, not render
         activatedAt: newActive ? Date.now() : a.activatedAt,
+        // eslint-disable-next-line react-hooks/purity -- runs in an async click handler, not render
         updatedAt: Date.now(),
       });
     } catch (err) {
@@ -1589,8 +1587,7 @@ export const AnnouncementsManager: React.FC = () => {
                         setForm((f) => ({
                           ...f,
                           dismissalDurationUnit: e.target.value as
-                            | 'seconds'
-                            | 'minutes',
+                            'seconds' | 'minutes',
                         }))
                       }
                       className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"

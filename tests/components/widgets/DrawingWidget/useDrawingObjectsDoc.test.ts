@@ -200,6 +200,7 @@ describe('useDrawingObjectsDoc', () => {
   });
 
   it('signs out (uid/dashboardId/pageId missing) by resetting to empty + loading=false', () => {
+    const pageProps: { pageId: string | null } = { pageId: 'pA' };
     const { result, rerender } = renderHook(
       ({ pageId }: { pageId: string | null }) =>
         useDrawingObjectsDoc({
@@ -207,7 +208,7 @@ describe('useDrawingObjectsDoc', () => {
           widgetId: 'w-out-1',
           pageId,
         }),
-      { initialProps: { pageId: 'pA' as string | null } }
+      { initialProps: pageProps }
     );
     act(() => {
       emitSnapshot(colPath('u1', 'd1', 'w-out-1', 'pA'), [

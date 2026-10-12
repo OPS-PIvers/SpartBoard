@@ -121,9 +121,7 @@ function useLearningTargetDoc(path: string[] | null): UseLearningTargetsResult {
       (snap) => {
         setState({
           key,
-          list: parseLearningTargetList(
-            snap.data() as Record<string, unknown> | undefined
-          ),
+          list: parseLearningTargetList(snap.data()),
         });
       },
       (err) => {
@@ -206,9 +204,7 @@ export function useLearningTargetSources(): UseLearningTargetSourcesResult {
       onSnapshot(
         doc(db, PLCS_COLLECTION, plcId, 'meta', 'learningTargets'),
         (snap) => {
-          const list = parseLearningTargetList(
-            snap.data() as Record<string, unknown> | undefined
-          );
+          const list = parseLearningTargetList(snap.data());
           setPlcLists((prev) => ({ ...prev, [plcId]: list }));
         },
         (err) => {

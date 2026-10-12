@@ -39,8 +39,7 @@ export const STYLE_FIELDS = [
 export const INSTANCE_FIELDS = ['customTitle', 'isPinned'] as const;
 
 export type MergeFieldKey =
-  | (typeof LAYOUT_FIELDS)[number]
-  | (typeof STYLE_FIELDS)[number];
+  (typeof LAYOUT_FIELDS)[number] | (typeof STYLE_FIELDS)[number];
 
 /** True when any of `fields` differs between the two widgets. */
 export const anyFieldChanged = (

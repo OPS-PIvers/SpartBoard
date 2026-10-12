@@ -101,8 +101,7 @@ export async function handleDetachPlcSyncLinkage(
       throw new HttpsError('not-found', 'PLC not found.');
     }
     const plcData = plcSnap.data() as
-      | { members?: Record<string, unknown>; memberUids?: unknown }
-      | undefined;
+      { members?: Record<string, unknown>; memberUids?: unknown } | undefined;
     // Prefer the canonical `members` map (Decision 1.2); fall back to the
     // denormalized `memberUids` index. (memberUids is kept active-only in
     // lockstep post-migration, but checking the map first matches how the rest
@@ -110,8 +109,7 @@ export async function handleDetachPlcSyncLinkage(
     // Must require an ACTIVE entry — the map keeps `status: 'removed'` records
     // for audit, and a removed member must NOT be able to detach.
     const memberEntry = (plcData?.members ?? {})[uid] as
-      | { status?: unknown }
-      | undefined;
+      { status?: unknown } | undefined;
     const inMembersMap =
       memberEntry != null && memberEntry.status !== 'removed';
     const memberUids = Array.isArray(plcData?.memberUids)
@@ -130,8 +128,7 @@ export async function handleDetachPlcSyncLinkage(
       throw new HttpsError('not-found', 'PLC content entry not found.');
     }
     const headerData = headerSnap.data() as
-      | { syncGroupId?: unknown }
-      | undefined;
+      { syncGroupId?: unknown } | undefined;
     const groupId = headerData?.syncGroupId;
     if (typeof groupId !== 'string' || groupId.length === 0) {
       throw new HttpsError(
@@ -146,8 +143,7 @@ export async function handleDetachPlcSyncLinkage(
       throw new HttpsError('not-found', 'Synced group not found.');
     }
     const groupData = groupSnap.data() as
-      | { participants?: Record<string, unknown> }
-      | undefined;
+      { participants?: Record<string, unknown> } | undefined;
     const participants = { ...(groupData?.participants ?? {}) };
     const wasParticipant = Object.prototype.hasOwnProperty.call(
       participants,

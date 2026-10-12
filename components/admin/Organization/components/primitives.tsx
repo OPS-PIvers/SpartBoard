@@ -152,12 +152,7 @@ export const ViewHeader: React.FC<{
 // Button ------------------------------------------------------------
 
 type BtnVariant =
-  | 'primary'
-  | 'secondary'
-  | 'tertiary'
-  | 'ghost'
-  | 'danger'
-  | 'dangerGhost';
+  'primary' | 'secondary' | 'tertiary' | 'ghost' | 'danger' | 'dangerGhost';
 
 const BTN_VARIANT: Record<BtnVariant, string> = {
   primary:

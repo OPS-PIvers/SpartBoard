@@ -174,7 +174,7 @@ function makeWidget(
     h: 1,
     z,
     flipped: false,
-    config: { text: 'test' } as WidgetData['config'],
+    config: { text: 'test' },
     ...extra,
   };
 }

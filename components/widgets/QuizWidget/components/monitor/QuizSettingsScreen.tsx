@@ -184,8 +184,7 @@ export const QuizSettingsScreen: React.FC<QuizSettingsScreenProps> = ({
               onChange={(e) =>
                 onUpdateConfig({
                   liveScoreboardScoring: e.target.value as
-                    | 'completion'
-                    | 'per-question',
+                    'completion' | 'per-question',
                 })
               }
               aria-label="Scoreboard scoring"

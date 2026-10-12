@@ -20,7 +20,7 @@ const readBackground = (ctx: FieldCtx) => {
 
 const writeBackground = (value: unknown, ctx: FieldCtx) => {
   const next = value as DrawingBackground;
-  const migrated = migrateDrawingConfig(ctx.config as DrawingConfig);
+  const migrated = migrateDrawingConfig(ctx.config);
   const targetIndex = Math.max(
     0,
     Math.min(migrated.currentPage, migrated.pages.length - 1)

@@ -15,16 +15,7 @@ import type {
   QuizResponseAnswer,
   QuizSession,
 } from '@/types';
-
-export const RESULTS_PLAYBACK_STATES = [
-  'playable',
-  'archiving',
-  'failed',
-  'deleted',
-  'provisional',
-] as const;
-
-export type ResultsPlaybackStateKey = (typeof RESULTS_PLAYBACK_STATES)[number];
+import { type ResultsPlaybackStateKey } from './devViewStates';
 
 /** A one-second 440 Hz WAV, so the fixture player actually plays something. */
 function toneWavBase64(): string {

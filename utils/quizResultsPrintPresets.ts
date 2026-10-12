@@ -141,8 +141,7 @@ export function loadResultsPrintChoice(
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as Partial<SavedResultsPrintChoice> | null;
     const saved = parsed?.options as
-      | Partial<QuizResultsPrintOptions>
-      | undefined;
+      Partial<QuizResultsPrintOptions> | undefined;
     if (!saved || typeof saved !== 'object') return fallback;
     const options = { ...fallback.options };
     for (const key of BOOLEAN_KEYS) {

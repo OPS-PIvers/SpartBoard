@@ -18,7 +18,7 @@ export const TrafficLightWidget: React.FC<{ widget: WidgetData }> = ({
       config: {
         ...config,
         active: current === light ? 'none' : light,
-      } as TrafficConfig,
+      },
     });
   };
 

@@ -22,9 +22,7 @@ export const RATE_STORAGE_KEY = 'quiz_read_aloud_rate';
 export const AUTO_STORAGE_KEY = 'quiz_read_aloud_auto';
 
 export type ReadAloudItemKind =
-  | 'matchingLeft'
-  | 'matchingRight'
-  | 'orderingItem';
+  'matchingLeft' | 'matchingRight' | 'orderingItem';
 export type ReadAloudStatus = 'idle' | 'loading' | 'playing';
 export type ReadAloudError = 'load' | 'unavailable' | null;
 
@@ -108,7 +106,7 @@ export function questionPartKeys(q: QuizPublicQuestion): string[] {
   const keys = [readAloudPartKey(q.id, { kind: 'question' })];
   const listed = (kind: 'choice' | ReadAloudItemKind, items?: string[]) =>
     (items ?? []).forEach((_t, index) =>
-      keys.push(readAloudPartKey(q.id, { kind, index } as QuizReadAloudPart))
+      keys.push(readAloudPartKey(q.id, { kind, index }))
     );
   if (q.type === 'MC' || q.type === 'MA') listed('choice', q.choices);
   if (q.type === 'Matching') {

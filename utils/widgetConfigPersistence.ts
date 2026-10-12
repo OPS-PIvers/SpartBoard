@@ -64,7 +64,7 @@ export function pickAppearanceKeys(
 ): Partial<WidgetConfig> {
   return Object.fromEntries(
     Object.entries(config).filter(([key]) => APPEARANCE_CONFIG_KEYS.has(key))
-  ) as Partial<WidgetConfig>;
+  );
 }
 
 /**
@@ -133,7 +133,7 @@ export function migrateSavedWidgetConfigs(
       widgetType,
       config as Record<string, unknown>
     );
-    const appearance = pickAppearanceKeys(stored as Partial<WidgetConfig>);
+    const appearance = pickAppearanceKeys(stored);
     if (Object.keys(appearance).length > 0) cleaned[widgetType] = appearance;
 
     for (const [key, value] of Object.entries(stored)) {

@@ -485,10 +485,7 @@ export function selectRepresentativeAnswers(
 }
 
 export type LocalGradeState =
-  | 'scored'
-  | 'not-attempted'
-  | 'awaiting-grade'
-  | 'no-key';
+  'scored' | 'not-attempted' | 'awaiting-grade' | 'no-key';
 
 export interface LocalGrade {
   isCorrect: boolean;

@@ -32,8 +32,8 @@ vi.mock('@/config/firebase', () => ({
   isAuthBypass: false,
 }));
 
-const mockUpdateDoc = vi.fn(
-  (..._args: unknown[]): Promise<void> => Promise.resolve()
+const mockUpdateDoc = vi.fn((..._args: unknown[]): Promise<void> =>
+  Promise.resolve()
 );
 vi.mock('firebase/firestore', () => ({
   doc: vi.fn((..._args: unknown[]) => ({ __mockDocRefArgs: _args })),
@@ -129,6 +129,7 @@ vi.mock('@/hooks/useGuidedLearning', () => ({
     duplicateSet: vi.fn(),
     saveBuildingSet: vi.fn(),
     deleteBuildingSet: vi.fn(),
+    watchSetRevision: () => () => () => undefined,
     duplicateBuildingSet: vi.fn(),
   }),
 }));
@@ -183,7 +184,7 @@ function makeWidget(config: Partial<GuidedLearningConfig> = {}): WidgetData {
     w: 400,
     h: 300,
     z: 1,
-    config: { view: 'library', ...config } as GuidedLearningConfig,
+    config: { view: 'library', ...config },
   } as unknown as WidgetData;
 }
 

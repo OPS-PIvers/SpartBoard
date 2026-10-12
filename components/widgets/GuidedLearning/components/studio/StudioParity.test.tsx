@@ -22,7 +22,7 @@ const NEW_URL = 'https://lh3.googleusercontent.com/d/new-slide';
 
 const auth = vi.hoisted(() => ({
   user: { uid: 'test-user' },
-  isAdmin: true as boolean,
+  isAdmin: true,
   canAccessFeature: (id: string) =>
     id === 'gemini-functions' || id === 'guided-learning-ai',
 }));

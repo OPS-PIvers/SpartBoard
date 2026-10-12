@@ -169,7 +169,7 @@ async function loadOwnedSession(
     .collection(sessionCollection(kind))
     .doc(sessionId)
     .get();
-  const s = snap.data() as Record<string, unknown> | undefined;
+  const s = snap.data();
   if (!snap.exists || !s || s.teacherUid !== uid) {
     throw new HttpsError(
       'permission-denied',

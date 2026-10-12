@@ -79,6 +79,7 @@ export const RemoteDiceControl: React.FC<RemoteDiceControlProps> = ({
       setValues(config.lastRoll);
     } else {
       setValues(
+        // eslint-disable-next-line react-hooks/purity -- random faces only when the roll changes
         Array.from({ length: count }, () => Math.ceil(Math.random() * 6))
       );
     }

@@ -272,7 +272,7 @@ function makeWidget(id: string, z: number): WidgetData {
     h: 1,
     z,
     flipped: false,
-    config: { text: 'test' } as WidgetData['config'],
+    config: { text: 'test' },
   };
 }
 
@@ -437,7 +437,7 @@ describe('canvas isolation — useToolVisibility() consumers stay put', () => {
     const baseline = probeCount('toolVis');
     act(() => {
       getDashboard().updateWidget('w-1', {
-        config: { text: 'edited' } as WidgetData['config'],
+        config: { text: 'edited' },
       });
     });
 

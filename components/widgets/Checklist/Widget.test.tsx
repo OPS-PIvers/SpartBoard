@@ -6,11 +6,7 @@ import { ChecklistImportActionsField } from './settingsFields';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import { useDashboard } from '@/context/useDashboard';
 import { DashboardContextValue } from '@/context/DashboardContextValue';
-import {
-  InstructionalRoutinesConfig,
-  WidgetData,
-  ChecklistConfig,
-} from '@/types';
+import { WidgetData, ChecklistConfig } from '@/types';
 
 // Mock dependencies
 vi.mock('@/context/useDashboard');
@@ -90,7 +86,7 @@ const mockWidget: WidgetData = {
     items: [],
     mode: 'manual',
     scaleMultiplier: 1,
-  } as ChecklistConfig,
+  },
 };
 
 const mockRoutineWidget: WidgetData = {
@@ -108,7 +104,7 @@ const mockRoutineWidget: WidgetData = {
       { id: 'step-1', text: 'Step 1' },
       { id: 'step-2', text: 'Step 2' },
     ],
-  } as InstructionalRoutinesConfig,
+  },
 };
 
 const defaultContext: Partial<DashboardContextValue> = {
@@ -493,7 +489,7 @@ describe('ChecklistWidget — class group pool', () => {
       mode: 'roster',
       rosterMode: 'class',
       ...config,
-    } as ChecklistConfig,
+    },
   });
 
   beforeEach(() => {
@@ -535,7 +531,7 @@ describe('ChecklistWidget lines style', () => {
       addToast: mockAddToast,
       rosters: [],
       activeRosterId: null,
-    } as unknown as DashboardContextValue);
+    });
   });
 
   const lineWidget = (rowStyle: 'cards' | 'lines'): WidgetData => ({
@@ -549,7 +545,7 @@ describe('ChecklistWidget lines style', () => {
         { id: '2', text: 'Second', completed: false },
       ],
       rowStyle,
-    } as ChecklistConfig,
+    },
   });
 
   it('draws hairline rows instead of cards when Lines is chosen', () => {

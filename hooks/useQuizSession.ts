@@ -1253,13 +1253,10 @@ export const useQuizSessionTeacher = (
         // Carry the doc id through as `_responseKey` so the live monitor
         // can remove/delete by the actual Firestore key rather than the
         // `studentUid` field, which may differ for PIN-authed joiners.
-        const list = snap.docs.map(
-          (d) =>
-            ({
-              ...(d.data() as QuizResponse),
-              _responseKey: d.id,
-            }) as QuizResponse
-        );
+        const list = snap.docs.map((d) => ({
+          ...(d.data() as QuizResponse),
+          _responseKey: d.id,
+        }));
         throttle.push(list);
       },
       (err) => {
@@ -1980,11 +1977,13 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   const isAnonymousRef = useRef<boolean | null>(null);
   // Keep a ref to current answers to avoid stale closure issues
   const myResponseRef = useRef<QuizResponse | null>(null);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   myResponseRef.current = myResponse;
 
   // The teacher-side media gate, carried on the session doc. `/quiz` mounts no
   // AuthProvider, so this marker is the only thing that can authorise a take.
   const mediaResponseEnabledRef = useRef(false);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   mediaResponseEnabledRef.current = session?.mediaResponseEnabled === true;
 
   // Per-questionId timestamp of the most recent history snapshot write.

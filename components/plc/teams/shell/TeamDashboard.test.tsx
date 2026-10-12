@@ -2,7 +2,6 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import type { Plc } from '@/types';
-import type { TeamTypeDefaultsState } from '@/hooks/useTeamLayout';
 import { BUILT_IN_TEAM_TYPE_PRESETS } from '@/config/teamTypePresets';
 import { TeamDashboard } from './TeamDashboard';
 
@@ -10,7 +9,7 @@ const mocks = vi.hoisted(() => ({
   defaults: {
     defaults: { types: {} },
     failed: false,
-  } as TeamTypeDefaultsState,
+  },
   saveTeamLayout: vi.fn(() => Promise.resolve()),
   spaReplace: vi.fn(),
   spaNavigate: vi.fn(),
@@ -160,12 +159,10 @@ describe('TeamDashboard', () => {
   it('sends targets home on a team without quizzes or videos', () => {
     render(
       <TeamDashboard
-        plc={
-          {
-            ...plc(),
-            features: { quizzes: false, videoActivities: false },
-          } as Plc
-        }
+        plc={{
+          ...plc(),
+          features: { quizzes: false, videoActivities: false },
+        }}
         activeSection="targets"
         {...props}
       />

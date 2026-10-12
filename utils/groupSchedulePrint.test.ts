@@ -25,8 +25,12 @@ const reminder = (
   ...patch,
 });
 
-const student = (id: string, firstName: string, lastName: string): Student =>
-  ({ id, firstName, lastName, pin: '' }) as Student;
+const student = (id: string, firstName: string, lastName: string): Student => ({
+  id,
+  firstName,
+  lastName,
+  pin: '',
+});
 
 const students = [
   student('s1', 'Zoe', 'Adams'),

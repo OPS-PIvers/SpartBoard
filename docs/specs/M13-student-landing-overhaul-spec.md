@@ -8,19 +8,19 @@ The 9-phase plan was written before significant implementation work landed. Seve
 
 ### Fully Shipped — Do Not Reimplement
 
-| Plan Item                                                                                                                   | Actual Status     | Evidence                                                                                                                                                         |
+| Plan Item | Actual Status | Evidence |
 | --------------------------------------------------------------------------------------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- |
-| `useStudentAssignments` hook                                                                                                | Shipped           | `hooks/useStudentAssignments.ts` — full dual-query, 5-kind, deduped subscription                                                                                 |
-| `MyAssignmentsPage` refactor (slide-out sidebar layout)                                                                     | Shipped           | `components/student/MyAssignmentsPage.tsx` — sidebar+main layout, filter persistence                                                                             |
-| `useStudentClassDirectory` hook                                                                                             | Shipped           | `hooks/useStudentClassDirectory.ts`                                                                                                                              |
-| `StudentSidebar`, `StudentOverview`, `StudentClassView`, `AssignmentSections`, `AssignmentListItem`, `AssignmentFilterTabs` | Shipped           | All present in `components/student/`                                                                                                                             |
-| `useOrgStudentPage` hook                                                                                                    | Shipped           | `hooks/useOrgStudentPage.ts` — subscribes to `organizations/{orgId}/studentPageConfig/default`                                                                   |
-| `StudentPageConfig` in `types/organization.ts`                                                                              | Partially shipped | Fields `showAnnouncements`, `showTeacherDirectory`, `showLunchMenu`, `accentColor`, `heroText` exist. **Missing**: `sectionOrder`, `assignmentsDefaultFilter`    |
-| `StudentPageView.tsx` admin UI                                                                                              | Shipped           | `components/admin/Organization/views/StudentPageView.tsx` — hero text, color picker, section toggles                                                             |
-| `gradingState` on `AssignmentSummary`                                                                                       | Shipped           | `hooks/useStudentAssignments.ts:82` — `gradingState: 'not-graded'                                                                                                | 'graded'` |
-| `showResultToStudent` on `BaseSessionOptions`                                                                               | Shipped           | `types.ts:3099` — in `BaseSessionOptions`, flows into `QuizSession:3235` and `VideoActivitySession` via `VideoActivitySessionOptions extends BaseSessionOptions` |
-| `VideoActivityBehaviorSettingsPanel` with `showResultToStudent` toggle                                                      | Shipped           | `components/common/library/VideoActivityBehaviorSettingsPanel.tsx:157`                                                                                           |
-| `AssignmentSettingsToggleGroup` shared toggle surface                                                                       | Shipped           | `components/common/library/AssignmentSettingsToggleGroup.tsx`                                                                                                    |
+| `useStudentAssignments` hook | Shipped | `hooks/useStudentAssignments.ts` — full dual-query, 5-kind, deduped subscription |
+| `MyAssignmentsPage` refactor (slide-out sidebar layout) | Shipped | `components/student/MyAssignmentsPage.tsx` — sidebar+main layout, filter persistence |
+| `useStudentClassDirectory` hook | Shipped | `hooks/useStudentClassDirectory.ts` |
+| `StudentSidebar`, `StudentOverview`, `StudentClassView`, `AssignmentSections`, `AssignmentListItem`, `AssignmentFilterTabs` | Shipped | All present in `components/student/` |
+| `useOrgStudentPage` hook | Shipped | `hooks/useOrgStudentPage.ts` — subscribes to `organizations/{orgId}/studentPageConfig/default` |
+| `StudentPageConfig` in `types/organization.ts` | Partially shipped | Fields `showAnnouncements`, `showTeacherDirectory`, `showLunchMenu`, `accentColor`, `heroText` exist. **Missing**: `sectionOrder`, `assignmentsDefaultFilter` |
+| `StudentPageView.tsx` admin UI | Shipped | `components/admin/Organization/views/StudentPageView.tsx` — hero text, color picker, section toggles |
+| `gradingState` on `AssignmentSummary` | Shipped | `hooks/useStudentAssignments.ts:82` — `gradingState: 'not-graded'                                                                                                | 'graded'` |
+| `showResultToStudent` on `BaseSessionOptions` | Shipped | `types.ts:3099` — in `BaseSessionOptions`, flows into `QuizSession:3235` and `VideoActivitySession` via `VideoActivitySessionOptions extends BaseSessionOptions` |
+| `VideoActivityBehaviorSettingsPanel` with `showResultToStudent` toggle | Shipped | `components/common/library/VideoActivityBehaviorSettingsPanel.tsx:157` |
+| `AssignmentSettingsToggleGroup` shared toggle surface | Shipped | `components/common/library/AssignmentSettingsToggleGroup.tsx` |
 
 ### Partially Shipped
 
@@ -118,9 +118,7 @@ Extend `StudentPageConfig` at `/types/organization.ts:155`:
 
 ```typescript
 export type StudentPageSection =
-  | 'announcements'
-  | 'assignments'
-  | 'teacherDirectory';
+  'announcements' | 'assignments' | 'teacherDirectory';
 
 export interface StudentPageConfig {
   orgId: string;
@@ -207,22 +205,22 @@ If Decision A = Option 3 (recommended), no token changes needed. If Option 1 or 
 
 ## 6. Files to Modify
 
-| File                                                      | Change                                                                                                                                                     |
+| File | Change |
 | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `types/organization.ts`                                   | Add `StudentPageSection`, extend `StudentPageConfig`, add `TeacherDirectoryEntry`                                                                          |
-| `types.ts`                                                | Add `showResultToStudent?: boolean` to `ActivityWallSession`, `MiniAppSession`, `GuidedLearningSession`                                                    |
-| `hooks/useStudentAssignments.ts`                          | Add `showResultToStudent` to `AssignmentSummary`; add `showResultToStudentFrom` to `KindConfig` with per-kind defaults; thread into `docToSummary`         |
-| `hooks/useOrgStudentPage.ts`                              | Already reads `StudentPageConfig`; no code change needed if type change is backward-compatible                                                             |
-| `components/student/MyAssignmentsPage.tsx`                | Pass `studentPage` config to `StudentOverview` and `StudentClassView`; subscribe to org config via `useOrgStudentPage` using `orgId` from `useStudentAuth` |
-| `components/student/StudentOverview.tsx`                  | Accept `studentPage?: StudentPageConfig                                                                                                                    | null`prop; compose`AnnouncementsSection`, assignments block, `TeacherDirectorySection`in`sectionOrder` order |
-| `components/student/StudentClassView.tsx`                 | Same `studentPage` prop; same composition pattern                                                                                                          |
-| `components/student/AssignmentListItem.tsx`               | Add "View results" CTA on completed rows when `assignment.showResultToStudent === true`; open `ResultsModal`                                               |
-| `components/admin/Organization/views/StudentPageView.tsx` | Add section-order reorder controls (up/down buttons); persist to `sectionOrder` on `StudentPageConfig`                                                     |
-| `functions/src/index.ts`                                  | Re-export `projectTeacherDirectoryV1` trigger                                                                                                              |
-| `firestore.rules`                                         | Add `teacherDirectory` read rule; add `showResultToStudent` gate on response reads per-kind (see Phase 2 details)                                          |
-| `firestore.indexes.json`                                  | Add composite index for `teacherDirectory`                                                                                                                 |
-| `locales/en.json`                                         | Add i18n keys for new student-surface strings                                                                                                              |
-| `locales/de.json`, `locales/es.json`, `locales/fr.json`   | Mirror new keys                                                                                                                                            |
+| `types/organization.ts` | Add `StudentPageSection`, extend `StudentPageConfig`, add `TeacherDirectoryEntry` |
+| `types.ts` | Add `showResultToStudent?: boolean` to `ActivityWallSession`, `MiniAppSession`, `GuidedLearningSession` |
+| `hooks/useStudentAssignments.ts` | Add `showResultToStudent` to `AssignmentSummary`; add `showResultToStudentFrom` to `KindConfig` with per-kind defaults; thread into `docToSummary` |
+| `hooks/useOrgStudentPage.ts` | Already reads `StudentPageConfig`; no code change needed if type change is backward-compatible |
+| `components/student/MyAssignmentsPage.tsx` | Pass `studentPage` config to `StudentOverview` and `StudentClassView`; subscribe to org config via `useOrgStudentPage` using `orgId` from `useStudentAuth` |
+| `components/student/StudentOverview.tsx` | Accept `studentPage?: StudentPageConfig                                                                                                                    | null`prop; compose`AnnouncementsSection`, assignments block, `TeacherDirectorySection`in`sectionOrder` order |
+| `components/student/StudentClassView.tsx` | Same `studentPage` prop; same composition pattern |
+| `components/student/AssignmentListItem.tsx` | Add "View results" CTA on completed rows when `assignment.showResultToStudent === true`; open `ResultsModal` |
+| `components/admin/Organization/views/StudentPageView.tsx` | Add section-order reorder controls (up/down buttons); persist to `sectionOrder` on `StudentPageConfig` |
+| `functions/src/index.ts` | Re-export `projectTeacherDirectoryV1` trigger |
+| `firestore.rules` | Add `teacherDirectory` read rule; add `showResultToStudent` gate on response reads per-kind (see Phase 2 details) |
+| `firestore.indexes.json` | Add composite index for `teacherDirectory` |
+| `locales/en.json` | Add i18n keys for new student-surface strings |
+| `locales/de.json`, `locales/es.json`, `locales/fr.json` | Mirror new keys |
 
 ---
 

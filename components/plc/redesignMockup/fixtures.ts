@@ -106,9 +106,11 @@ export const BLDG_TEAM: MockTeam = {
   members: [
     { name: 'Erin Walsh', role: 'Lead', online: true },
     { name: 'Mark Johnson', role: 'Co-lead', online: false },
-    ...STAFF.slice(4, 10).map(
-      (name): MockMember => ({ name, role: 'Member', online: false })
-    ),
+    ...STAFF.slice(4, 10).map((name): MockMember => ({
+      name,
+      role: 'Member',
+      online: false,
+    })),
   ],
 };
 

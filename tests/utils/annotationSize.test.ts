@@ -95,7 +95,7 @@ describe('estimateWidgetBytes', () => {
     h: 100,
     z: 1,
     flipped: false,
-    config: config as WidgetData['config'],
+    config: config,
   });
 
   // Regression: the budget was measured against the in-memory widgets, which

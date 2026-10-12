@@ -164,15 +164,14 @@ const makeSession = (
 const response = (
   pin: string,
   answers: { questionId: string; answer: string }[]
-): VideoActivityResponse =>
-  ({
-    pin,
-    studentUid: `u-${pin}`,
-    joinedAt: 0,
-    answers: answers.map((a) => ({ ...a, answeredAt: 1 })),
-    completedAt: null,
-    score: null,
-  }) as unknown as VideoActivityResponse;
+): VideoActivityResponse => ({
+  pin,
+  studentUid: `u-${pin}`,
+  joinedAt: 0,
+  answers: answers.map((a) => ({ ...a, answeredAt: 1 })),
+  completedAt: null,
+  score: null,
+});
 
 const renderPlayer = (
   session: VideoActivitySession,

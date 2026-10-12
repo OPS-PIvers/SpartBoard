@@ -45,8 +45,7 @@ export const RecessGearWidget: React.FC<{ widget: WidgetData }> = ({
   }, [subscribeToPermission]);
 
   const adminConfig = adminPermission?.config as
-    | RecessGearGlobalConfig
-    | undefined;
+    RecessGearGlobalConfig | undefined;
 
   // If using admin proxy, fetch the shared weather data
   useEffect(() => {
@@ -88,8 +87,7 @@ export const RecessGearWidget: React.FC<{ widget: WidgetData }> = ({
   }, [widgets, config.linkedWeatherWidgetId]);
 
   const localWeatherConfig = localWeatherWidget?.config as
-    | WeatherConfig
-    | undefined;
+    WeatherConfig | undefined;
 
   // Determine which weather data to use
   const activeWeatherConfig =

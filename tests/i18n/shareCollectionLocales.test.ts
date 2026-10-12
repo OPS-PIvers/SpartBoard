@@ -114,9 +114,9 @@ describe('EN locale — shareCollection baseline', () => {
 // ─── DE / ES / FR parity ────────────────────────────────────────────────────
 
 describe.each([
-  { code: 'de', locale: de as unknown as LocaleWithShareCollection },
-  { code: 'es', locale: es as unknown as LocaleWithShareCollection },
-  { code: 'fr', locale: fr as unknown as LocaleWithShareCollection },
+  { code: 'de', locale: de },
+  { code: 'es', locale: es },
+  { code: 'fr', locale: fr },
 ])('$code locale — shareCollection parity with EN', ({ code, locale }) => {
   const sc = getShareCollection(locale);
   const enSc = en.shareCollection;

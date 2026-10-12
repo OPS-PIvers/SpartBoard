@@ -33,21 +33,11 @@ import type {
   SharedDataTeamMember,
 } from '@/components/plc/sharedData/sharedDataSelectors';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { MEETING_STEP_ORDER, type MeetingStep } from './meetingSteps';
 
 // ---------------------------------------------------------------------------
 // Step model + rail
 // ---------------------------------------------------------------------------
-
-/** The five guided steps, in order (PRD §6.2). */
-export type MeetingStep = 'pick' | 'review' | 'decide' | 'act' | 'save';
-
-export const MEETING_STEP_ORDER: readonly MeetingStep[] = [
-  'pick',
-  'review',
-  'decide',
-  'act',
-  'save',
-] as const;
 
 interface StepRailProps {
   current: MeetingStep;

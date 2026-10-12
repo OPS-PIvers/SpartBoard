@@ -356,7 +356,7 @@ export const QuizLanguagesDetailPane: React.FC<QuizLanguagesPaneProps> = ({
   ) => {
     const next = [...(entry?.[field] ?? [])];
     next[index] = value;
-    edit({ [field]: next } as Partial<QuestionTranslation>);
+    edit({ [field]: next });
   };
 
   const englishChoices =

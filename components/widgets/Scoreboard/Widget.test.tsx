@@ -10,14 +10,7 @@ import {
 } from '@/context/dashboardCanvasStore';
 import { vi, describe, it, expect, beforeEach, Mock } from 'vitest';
 import * as ScoreboardItemModule from './components/ScoreboardItem';
-import {
-  WidgetData,
-  ScoreboardConfig,
-  RandomConfig,
-  WidgetType,
-  ScoreboardTeam,
-  DEFAULT_GLOBAL_STYLE,
-} from '@/types';
+import { WidgetData, ScoreboardTeam, DEFAULT_GLOBAL_STYLE } from '@/types';
 
 // ScoreboardSettings still consumes the legacy context; ScoreboardWidget reads
 // the mount-stable store surfaces.
@@ -100,7 +93,7 @@ describe('ScoreboardWidget', () => {
         scoreB: 3,
         teamA: 'Alphas',
         teamB: 'Betas',
-      } as ScoreboardConfig,
+      },
       x: 0,
       y: 0,
       w: 100,
@@ -133,7 +126,7 @@ describe('ScoreboardWidget', () => {
           { id: '1', name: 'Team One', score: 10, color: 'bg-blue-500' },
           { id: '2', name: 'Team Two', score: 20, color: 'bg-red-500' },
         ],
-      } as ScoreboardConfig,
+      },
       x: 0,
       y: 0,
       w: 100,
@@ -168,7 +161,7 @@ describe('ScoreboardWidget', () => {
       type: 'scoreboard',
       config: {
         teams,
-      } as ScoreboardConfig,
+      },
       x: 0,
       y: 0,
       w: 100,
@@ -195,7 +188,7 @@ describe('ScoreboardWidget', () => {
           { ...teams[0], score: 11 }, // Changed (new object)
           teams[1], // Unchanged (same reference)
         ],
-      } as ScoreboardConfig,
+      },
     };
 
     rerender(<ScoreboardWidget widget={updatedWidget} />);
@@ -218,7 +211,7 @@ describe('ScoreboardWidget', () => {
       type: 'scoreboard',
       config: {
         // Omitting teams completely
-      } as ScoreboardConfig,
+      },
       x: 0,
       y: 0,
       w: 100,
@@ -256,7 +249,7 @@ describe('ScoreboardWidget', () => {
     const widget: WidgetData = {
       id: 'test-id',
       type: 'scoreboard',
-      config: { teams } as ScoreboardConfig,
+      config: { teams },
       x: 0,
       y: 0,
       w: 100,
@@ -314,7 +307,7 @@ describe('ScoreboardWidget', () => {
     const widget: WidgetData = {
       id: 'test-id',
       type: 'scoreboard',
-      config: { teams: initialTeams } as ScoreboardConfig,
+      config: { teams: initialTeams },
       x: 0,
       y: 0,
       w: 100,
@@ -331,7 +324,7 @@ describe('ScoreboardWidget', () => {
     ];
     const updatedWidget: WidgetData = {
       ...widget,
-      config: { teams: externalPushTeams } as ScoreboardConfig,
+      config: { teams: externalPushTeams },
     };
 
     // rerender() internally wraps in act(), flushing all pending effects —
@@ -365,7 +358,7 @@ describe('ScoreboardWidget', () => {
     const widget: WidgetData = {
       id: 'scoreboard-id',
       type: 'scoreboard',
-      config: { teams } as ScoreboardConfig,
+      config: { teams },
       x: 0,
       y: 0,
       w: 100,
@@ -418,7 +411,7 @@ describe('ScoreboardSettings', () => {
     const widget: WidgetData = {
       id: 'scoreboard-id',
       type: 'scoreboard',
-      config: { teams: [] } as ScoreboardConfig,
+      config: { teams: [] },
       x: 0,
       y: 0,
       w: 100,
@@ -436,7 +429,7 @@ describe('ScoreboardSettings', () => {
     const widget: WidgetData = {
       id: 'scoreboard-id',
       type: 'scoreboard',
-      config: { teams: [] } as ScoreboardConfig,
+      config: { teams: [] },
       x: 0,
       y: 0,
       w: 100,
@@ -447,13 +440,13 @@ describe('ScoreboardSettings', () => {
 
     const randomWidget: WidgetData = {
       id: 'random-id',
-      type: 'random' as WidgetType,
+      type: 'random',
       config: {
         lastResult: [
           { id: 'group-1', names: ['Alice', 'Bob'] },
           { id: 'group-2', names: ['Charlie', 'Dave'] },
         ],
-      } as RandomConfig,
+      },
       x: 0,
       y: 0,
       w: 100,
@@ -499,7 +492,7 @@ describe('ScoreboardSettings', () => {
     const widget: WidgetData = {
       id: 'scoreboard-id',
       type: 'scoreboard',
-      config: { teams: [] } as ScoreboardConfig,
+      config: { teams: [] },
       x: 0,
       y: 0,
       w: 100,
@@ -536,7 +529,7 @@ describe('ScoreboardSettings', () => {
           score: 0,
           color: 'bg-blue-500',
         })),
-      } as ScoreboardConfig,
+      },
       x: 0,
       y: 0,
       w: 100,
@@ -582,7 +575,7 @@ it('handles empty random result', () => {
   const widget: WidgetData = {
     id: 'scoreboard-id',
     type: 'scoreboard',
-    config: { teams: [] } as ScoreboardConfig,
+    config: { teams: [] },
     x: 0,
     y: 0,
     w: 100,
@@ -593,10 +586,10 @@ it('handles empty random result', () => {
 
   const randomWidget: WidgetData = {
     id: 'random-id',
-    type: 'random' as WidgetType,
+    type: 'random',
     config: {
       lastResult: null,
-    } as RandomConfig,
+    },
     x: 0,
     y: 0,
     w: 100,
@@ -629,7 +622,7 @@ it('removes a team', () => {
   const widget: WidgetData = {
     id: 'scoreboard-id',
     type: 'scoreboard',
-    config: { teams } as ScoreboardConfig,
+    config: { teams },
     x: 0,
     y: 0,
     w: 100,
@@ -659,7 +652,7 @@ it('cancels reset scores', () => {
   const widget: WidgetData = {
     id: 'scoreboard-id',
     type: 'scoreboard',
-    config: { teams } as ScoreboardConfig,
+    config: { teams },
     x: 0,
     y: 0,
     w: 100,
@@ -707,7 +700,7 @@ it('updates team name', () => {
   const widget: WidgetData = {
     id: 'scoreboard-id',
     type: 'scoreboard',
-    config: { teams } as ScoreboardConfig,
+    config: { teams },
     x: 0,
     y: 0,
     w: 100,
@@ -760,7 +753,7 @@ it('shows error if no random widget on import', () => {
   const widget: WidgetData = {
     id: 'scoreboard-id',
     type: 'scoreboard',
-    config: { teams: [] } as ScoreboardConfig,
+    config: { teams: [] },
     x: 0,
     y: 0,
     w: 100,
@@ -799,7 +792,7 @@ it('handles missing sharedGroups gracefully when updating team name', () => {
   const widget: WidgetData = {
     id: 'scoreboard-id',
     type: 'scoreboard',
-    config: { teams } as ScoreboardConfig,
+    config: { teams },
     x: 0,
     y: 0,
     w: 100,

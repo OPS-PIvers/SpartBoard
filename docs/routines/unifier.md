@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 112_
-_Last run: 2026-10-10_
+_Run count: 113_
+_Last run: 2026-10-11_
 _Base branch: dev-paul_
 
 ---
@@ -573,6 +573,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date | Branch | Dimension | Action | PR |
 | ---------- | ------------------------------------------------- | --------------------- | --- | --- |
+| 2026-10-11 | `nightly/unifier-log-2026-10-11` | D1/D2/D3/D4/D5 | Aligned (run 113) — baseline `pnpm run validate` green (27 min). Light probe of 12 commits since run 112 (`5cf46fda..5e029a37`: touch-hover styles, AbsentStudentsModal save handling, Gemini model labels, SSRF guard): diff-scoped greps for added `'../` imports, `<Toast>`/local toast state, inline-style hex/rgb colors and hand-rolled `text-xxs font-black/bold uppercase` labels all returned zero hits. No subagents dispatched, no conversion shipped. | — |
 | 2026-10-10 | `nightly/unifier-log-2026-10-10` | D1/D2/D3/D4/D5 | Aligned (run 112) — light probe of ~670 source files changed across 54 commits since run 111 (dev-paul `e02708a8`: tour-anchor rollouts, admin analytics). D2/D4/D5/D1: no new hits. D3: `components/admin/Analytics/OverviewCharts.tsx` has 2 new exclusive-choice `role="group"` + `aria-pressed` button rows (range ~166, heatmap group ~355) with no keyboard model; logged LOW in D3 backlog, not converted because `SegmentedControl` would restyle the compact pills (visual-risk). No code shipped; full `validate` not run (CLAUDE.md forbids it). Doc-only PR. | — |
 | 2026-10-09 | `claude/kind-johnson-x74hs4` | D1/D2/D3/D4/D5 | Aligned (run 111) — light probe of ~200 source files changed since run 110 (dev-paul `c92f9d03`: assign stepper slices 13-15, library folders/DnD, `SegmentedControl`/`radioGroupKeyNav`). D2: no `#2d3f89`/`#ad2122` added. D4: new `components/common/library/assignStepper/**` files import parent-dir peers via `'../'` (`AssignPeriodAccessSection`, `AssignTargetingSection`, `OverrideEditorRow`, etc.) — single-level within-feature, D4-E2 gray zone, not changed. D5: only `import type { Toast }` from `@/types`, no `<Toast>` component. D3: `FolderColorPicker.tsx` `role="group"` wraps `menuitemradio` swatches inside a menu (already radio semantics, not the aria-pressed pattern); `HelpItemForm.tsx` group was removed. D1: no new widget empty states. No code shipped; full `validate` not run (CLAUDE.md forbids it; sandbox is Node 22 vs required 24). Doc-only PR. | — |
 | 2026-10-08 | `nightly/unifier-log-2026-10-08` | D1/D2/D3/D4/D5 | Aligned (run 110) — light probe of ~300 source files changed across 83 commits since run 109 (dev-paul `5b543ff2`: PLC Teams redesign, admin analytics, tours editor, `lightChrome`). D2: one new arbitrary-shadow hit logged LOW in D2 backlog; `lightChrome.ts` is NOT aligned (static `brand-blue-*` classes, hardcoded in `tailwind.config.js`), the theme-tracking precedent is `GuidedLearning/utils/calloutStyle.ts:227`. D4: new single-level peer imports in `plc/teams/**` logged as needs-human-decision. D5: no `<Toast>` imports. D1: new 'No … yet' strings are text lines/`ScaledEmptyState` titles inside PLC panels, not widget front-face. D3: no `role="group"` pickers or hand-rolled label classes added. No code shipped; full `validate` not run (CLAUDE.md forbids it; sandbox is Node 22 vs required 24). Doc-only PR. | — |

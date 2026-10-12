@@ -127,8 +127,7 @@ describe.each([
 
   it(`${code}: has all required whatsNew keys`, () => {
     const whatsNew = (locale as Record<string, unknown>).whatsNew as
-      | Record<string, unknown>
-      | undefined;
+      Record<string, unknown> | undefined;
     for (const key of REQUIRED_WHATS_NEW_KEYS) {
       expect(whatsNew, `${code}.whatsNew.${key} is missing`).toHaveProperty(
         key
@@ -138,8 +137,7 @@ describe.each([
 
   it(`${code}: has all required whatsNew.groups keys`, () => {
     const whatsNew = (locale as Record<string, unknown>).whatsNew as
-      | Record<string, Record<string, unknown>>
-      | undefined;
+      Record<string, Record<string, unknown>> | undefined;
     const groups = whatsNew?.groups;
     for (const key of REQUIRED_WHATS_NEW_GROUP_KEYS) {
       expect(

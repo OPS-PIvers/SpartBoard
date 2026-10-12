@@ -92,7 +92,7 @@ export const trimBuildingBlocks = <
         ? { ...b, blocks: normalizeBlocks(b.blocks, b.cycleLength) }
         : b,
     ])
-  ) as Record<string, T>;
+  );
 
 /** Returns a blocks array padded/trimmed to exactly `length` entries. */
 export const normalizeBlocks = (

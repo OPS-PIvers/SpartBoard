@@ -220,7 +220,7 @@ function makeWidget(id: string, z = 1): WidgetData {
     h: 1,
     z,
     flipped: false,
-    config: { text: 'test' } as WidgetData['config'],
+    config: { text: 'test' },
   };
 }
 
@@ -318,7 +318,7 @@ describe('DashboardContext widget undo/redo', () => {
     }
     act(() => {
       stateRef.current?.updateWidget('w1', {
-        config: { text: 'edited' } as WidgetData['config'],
+        config: { text: 'edited' },
       });
     });
     expect(stateRef.current?.activeDashboard?.widgets[0].x).toBe(300);
@@ -462,7 +462,7 @@ describe('DashboardContext appearance defaults', () => {
   const editFontColor = (stateRef: { current: ContextSnapshot | null }) =>
     act(() =>
       stateRef.current?.updateWidget('w1', {
-        config: { fontColor: '#ffffff' } as WidgetData['config'],
+        config: { fontColor: '#ffffff' },
       })
     );
 

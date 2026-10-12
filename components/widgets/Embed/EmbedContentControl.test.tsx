@@ -53,7 +53,7 @@ const widget: WidgetData = {
   z: 1,
   flipped: false,
   config: {},
-} as WidgetData;
+};
 
 const baseProps = {
   widget,

@@ -160,7 +160,7 @@ const baseWidget: WidgetData = {
   z: 1,
   flipped: false,
   config: { activeActivityId: 'wall-1' },
-} as WidgetData;
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -465,11 +465,11 @@ describe('ActivityWallWidget inside a sub share', () => {
           shareId: 'share-1',
           version: 0,
           loadKey: noSubShareKey,
-          load: (() =>
+          load: () =>
             Promise.resolve({
               entry: makeEntry({ title: 'Exit tickets' }),
               hostUid: 'teacher-1',
-            })) as never,
+            }),
         })}
       >
         {children}
@@ -585,9 +585,7 @@ describe('ActivityWallWidget inside a sub share', () => {
 
   it('says so when no wall came along with the share', async () => {
     const { findByText } = render(
-      <ActivityWallWidget
-        widget={{ ...baseWidget, config: {} } as WidgetData}
-      />,
+      <ActivityWallWidget widget={{ ...baseWidget, config: {} }} />,
       { wrapper: InShare }
     );
 

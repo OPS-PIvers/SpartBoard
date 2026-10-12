@@ -109,7 +109,7 @@ function scrollers(el: Element): HTMLElement[] {
   const view = el.ownerDocument.defaultView;
   const body = el.ownerDocument.body;
   const out: HTMLElement[] = [];
-  for (let n: Element | null = el; n && n !== body; ) {
+  for (let n: Element | null = el; n && n !== body;) {
     if (view?.getComputedStyle(n).position === 'fixed') break;
     n = n.parentElement;
     if (!(n instanceof HTMLElement) || n === body) break;

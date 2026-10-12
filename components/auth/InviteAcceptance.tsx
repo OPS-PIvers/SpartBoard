@@ -258,7 +258,7 @@ const getErrorCodeFromUnknown = (error: unknown): string => {
     typeof error === 'object' &&
     error !== null &&
     'code' in error &&
-    typeof (error as { code: unknown }).code === 'string'
+    typeof error.code === 'string'
   ) {
     const raw = (error as { code: string }).code;
     // Firebase callable errors come through as `functions/<code>` — normalize.
@@ -294,6 +294,7 @@ export const InviteAcceptance: React.FC = () => {
     if (status.kind !== 'idle') return;
 
     claimRanRef.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- marks the one-shot async claim as started
     setStatus({ kind: 'claiming' });
 
     const run = async () => {

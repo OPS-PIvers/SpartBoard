@@ -230,10 +230,7 @@ export type PartnerWidgetField<K extends string> = FieldBase<K> & {
 };
 
 export type Field<K extends string = string, Row = Record<string, unknown>> =
-  | RowField<K>
-  | ListField<K, Row>
-  | CustomField<K>
-  | PartnerWidgetField<K>;
+  RowField<K> | ListField<K, Row> | CustomField<K> | PartnerWidgetField<K>;
 
 /** `visibleWhen` plus the partner-permission gate, so every renderer and the filter agree. */
 export function isFieldVisible(field: Field, ctx: FieldCtx): boolean {

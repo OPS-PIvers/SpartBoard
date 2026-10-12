@@ -105,10 +105,7 @@ export interface PaperQuestionPlan {
 }
 
 export type PaperExclusionReason =
-  | 'question-type'
-  | 'bank-slot'
-  | 'recording'
-  | 'choose-section';
+  'question-type' | 'bank-slot' | 'recording' | 'choose-section';
 
 /** A question the teacher authored that cannot be answered on paper (plan Q5). */
 export interface PaperExclusion {

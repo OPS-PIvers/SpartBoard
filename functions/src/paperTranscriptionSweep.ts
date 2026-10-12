@@ -402,8 +402,7 @@ export async function runPaperCropSweep(
       : [];
     const answer = answers.find((a) => a?.questionId === c.questionId);
     const newerScan = privateDoc.data()?.newerScan as
-      | { scanId?: unknown }
-      | undefined;
+      { scanId?: unknown } | undefined;
     const referenced =
       answer?.paperScanId === c.scanId || newerScan?.scanId === c.scanId;
     if (!referenced) {

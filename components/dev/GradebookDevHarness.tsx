@@ -51,6 +51,7 @@ const ASSIGN: {
   due: number;
   max: number;
   published: boolean;
+  gradedBy?: 'server' | 'app';
 }[] = [
   {
     id: 'a1',
@@ -115,6 +116,15 @@ const ASSIGN: {
     due: day(9, 22),
     max: 0,
     published: true,
+  },
+  {
+    id: 'a12',
+    title: 'Fraction Pizza',
+    kind: 'mini-app',
+    due: day(9, 23),
+    max: 4,
+    published: true,
+    gradedBy: 'app',
   },
   {
     id: 'a9',
@@ -203,6 +213,7 @@ function buildRows(): GradeIndexRow[] {
               })),
         published: a.published,
         assigned,
+        ...(a.gradedBy && !missing ? { gradedBy: a.gradedBy } : {}),
         updatedAt: NOW,
       });
     });

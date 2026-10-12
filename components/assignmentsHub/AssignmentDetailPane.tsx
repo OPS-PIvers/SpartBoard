@@ -298,6 +298,7 @@ export const AssignmentDetailPane: React.FC<{
     matchedRosters.length > 0 &&
     matchedRosters.length === (effectiveRosterIds ?? []).length;
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- existing deps kept to preserve callback identity
   const classContext = useMemo(
     () =>
       rostersFullyResolved
@@ -498,6 +499,7 @@ export const AssignmentDetailPane: React.FC<{
                 type="button"
                 onClick={handleCloseNow}
                 disabled={
+                  // eslint-disable-next-line react-hooks/purity -- deliberately re-read on each render
                   saving || (row.closeAt != null && row.closeAt <= Date.now())
                 }
                 className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-brand-red-primary transition-colors disabled:opacity-40 disabled:hover:text-slate-500"

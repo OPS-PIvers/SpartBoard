@@ -10,10 +10,7 @@ export type GradeKind = GradebookKind;
 
 /** Builder state; `in-progress` is stored as `not-attempted` (or the previous attempt during a retake). */
 export type BuildState =
-  | 'scored'
-  | 'awaiting-grade'
-  | 'not-attempted'
-  | 'in-progress';
+  'scored' | 'awaiting-grade' | 'not-attempted' | 'in-progress';
 
 /** A stored attempt, numbered so a regrade replaces the same attempt. */
 export interface IndexAttempt extends GradeAttempt {
@@ -44,6 +41,8 @@ export interface RowScore {
   classId: string | null;
   /** Current attempt number when the kind counts attempts; null otherwise. */
   attemptNumber: number | null;
+  /** Mini App results v2 only: who scored the best attempt. */
+  gradedBy?: 'server' | 'app';
 }
 
 export interface SessionMeta {

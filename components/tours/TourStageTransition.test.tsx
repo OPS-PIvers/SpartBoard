@@ -20,19 +20,18 @@ interface Call {
   options: KeyframeAnimationOptions;
 }
 
-const widget = (id: string, extra: Partial<WidgetData> = {}): WidgetData =>
-  ({
-    id,
-    type: 'clock',
-    x: 0,
-    y: 0,
-    w: 200,
-    h: 100,
-    z: 1,
-    flipped: false,
-    config: {},
-    ...extra,
-  }) as WidgetData;
+const widget = (id: string, extra: Partial<WidgetData> = {}): WidgetData => ({
+  id,
+  type: 'clock',
+  x: 0,
+  y: 0,
+  w: 200,
+  h: 100,
+  z: 1,
+  flipped: false,
+  config: {},
+  ...extra,
+});
 
 const board = (widgets: WidgetData[]) =>
   ({ id: 'b', widgets }) as unknown as Dashboard;
@@ -58,7 +57,7 @@ describe('TourStageTransition', () => {
     ) {
       calls.push({ id: this.dataset.widgetId ?? '', frames, options });
       return { cancel: vi.fn() } as unknown as Animation;
-    } as typeof HTMLElement.prototype.animate;
+    };
   });
   afterEach(() => {
     act(() => clearTourHidden());

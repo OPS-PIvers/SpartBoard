@@ -452,6 +452,7 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
   const [pageCount, setPageCount] = useState(0);
   const pagesHostRef = useRef<HTMLDivElement | null>(null);
   const onLoadErrorRef = useRef(onLoadError);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   onLoadErrorRef.current = onLoadError;
   const zoom = PDF_ZOOM_STEPS[zoomIdx];
 

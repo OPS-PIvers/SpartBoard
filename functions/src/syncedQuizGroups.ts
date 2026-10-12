@@ -152,8 +152,7 @@ export async function handleLeaveSyncedQuizGroup(
       throw new HttpsError('not-found', 'Synced group not found.');
     }
     const groupData = groupSnap.data() as
-      | { participants?: Record<string, SyncedParticipant> }
-      | undefined;
+      { participants?: Record<string, SyncedParticipant> } | undefined;
     const participants = { ...(groupData?.participants ?? {}) };
     if (Object.prototype.hasOwnProperty.call(participants, uid)) {
       delete participants[uid];

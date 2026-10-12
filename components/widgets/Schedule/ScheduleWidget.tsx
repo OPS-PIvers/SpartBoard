@@ -135,7 +135,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                 ...config,
                 items: defaults.items,
                 lastSyncedBuildingId: buildingId,
-              } as ScheduleConfig,
+              },
             });
           }
         }
@@ -297,7 +297,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
           config: {
             ...currentConfig,
             items: applyToggle(legacyItems),
-          } as ScheduleConfig,
+          },
         });
       } else {
         const newSchedules = schedules.map((s) =>
@@ -309,7 +309,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
           config: {
             ...currentConfig,
             schedules: newSchedules,
-          } as ScheduleConfig,
+          },
         });
       }
     },
@@ -517,7 +517,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
       if (active.isLegacy) {
         updateWidget(
           widget.id,
-          { config: { ...currentConfig, items: newItems } as ScheduleConfig },
+          { config: { ...currentConfig, items: newItems } },
           { skipHistory: true }
         );
       } else {
@@ -530,7 +530,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
             config: {
               ...currentConfig,
               schedules: newSchedules,
-            } as ScheduleConfig,
+            },
           },
           { skipHistory: true }
         );

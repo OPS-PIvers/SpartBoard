@@ -452,13 +452,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Refs that always hold the latest list values so rapid callbacks don't close over stale state
   const favoritesRef = useRef<string[]>([]);
   const recentsRef = useRef<string[]>([]);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers
   favoritesRef.current = favoriteBackgrounds;
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers
   recentsRef.current = recentBackgrounds;
   // Tracks the latest setSelectedBuildings / setLanguage call to detect and suppress stale writes
   const writeTokenRef = useRef(0);
   const widgetConfigTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingConfigTypesRef = useRef<Set<WidgetType>>(new Set());
   const savedWidgetConfigsRef = useRef(savedWidgetConfigs);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/timers
   savedWidgetConfigsRef.current = savedWidgetConfigs;
   const materialsPrefsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const penColorsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -472,7 +475,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const backendConsentLatchRef = useRef<BackendConsentLatch>(
     newBackendConsentLatch(null)
   );
+  // eslint-disable-next-line react-hooks/refs -- resets the per-user latch when the uid changes
   if (backendConsentLatchRef.current.uid !== (user?.uid ?? null)) {
+    // eslint-disable-next-line react-hooks/refs -- resets the per-user latch when the uid changes
     backendConsentLatchRef.current = newBackendConsentLatch(user?.uid ?? null);
   }
   // Prevents duplicate root-doc syncs within the same session
@@ -521,6 +526,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     i18n.on('languageChanged', handleLanguageChange);
     // Catch cases where detection finished before this effect mounted
     if (i18n.language && i18n.language !== language) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs with i18next detection that finished before mount
       setLanguageState(i18n.language);
     }
     return () => {
@@ -623,8 +629,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       };
 
       const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
-        | string
-        | undefined;
+        string | undefined;
       const email = user?.email;
 
       const runRefreshChain = async (): Promise<string | null> => {
@@ -794,8 +799,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           // through to Firebase popup" — common in dev/test where the
           // GIS code-flow client isn't configured.
           const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
-            | string
-            | undefined;
+            string | undefined;
           if (clientId) {
             const exchanged = await requestAndExchangeAuthCode(
               clientId,
@@ -910,8 +914,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const captureOfflineGrant = useCallback(async (): Promise<boolean> => {
     if (isAuthBypass || isViewAsTab) return false;
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
-      | string
-      | undefined;
+      string | undefined;
     if (!clientId) return false;
 
     const outcome = await requestAndExchangeAuthCode(
@@ -963,8 +966,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (isAuthBypass || isViewAsTab || !user || !googleAccessToken) return;
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
-      | string
-      | undefined;
+      string | undefined;
     if (!clientId) return;
 
     try {
@@ -1037,8 +1039,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (isViewAsTab) return null;
 
       const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
-        | string
-        | undefined;
+        string | undefined;
       const email = user?.email;
       if (!clientId || !email || typeof window.google === 'undefined') {
         // No GIS client/identity available — cannot acquire on demand. The
@@ -1219,13 +1220,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     if (isAuthBypass || !user) return;
     // View as fetches the target's token from the server, so it needs no GIS.
     if (isViewAsTab) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- refreshes the Google token from the server for View as
       void refreshGoogleToken(true);
       return;
     }
 
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
-      | string
-      | undefined;
+      string | undefined;
     if (!clientId) return;
 
     const stored = localStorage.getItem(GOOGLE_ACCESS_TOKEN_KEY);
@@ -1400,6 +1401,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (isAuthBypass) return;
     if (!user || isAdmin !== true) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clears admin config when the Firestore listener is not needed
       setUserRoles(null);
       setAppSettings(null);
       return;
@@ -1447,6 +1449,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // settings listener effect (gated on isAdmin === true) doesn't act on
     // stale admin status from a previous user during a sign-out → sign-in
     // transition while AuthContext stays mounted.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resets admin status before the new user's Firestore check
     setIsAdmin(null);
 
     const checkAdminStatus = async () => {
@@ -1480,6 +1483,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (isAuthBypass) return;
     if (!user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clears role state when there is no user to subscribe for
       setIsStudentRole(false);
       // No user means there's nothing to resolve — keep `roleResolved`
       // accurate for the signed-out state so the LoginScreen/redirect
@@ -1526,6 +1530,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // rather than preserving stale state from a previous session.
     everResolvedOrgIdRef.current = false;
     if (!user?.email) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clears org state when there is no user to subscribe for
       setOrgId(null);
       setRoleId(null);
       setBuildingIds([]);
@@ -1726,6 +1731,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (isAuthBypass) return;
     if (!user || !orgId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clears buildings when there is no org to subscribe to
       setOrgBuildings([]);
       setOrgBuildingsLoaded(true);
       return;
@@ -2758,6 +2764,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const RECENT_CAP = 12;
 
   const toggleFavoriteBackground = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps narrowed to user?.uid on purpose
     async (backgroundId: string) => {
       if (!user?.uid) return;
       const current = favoritesRef.current;
@@ -2785,6 +2792,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const recordRecentBackground = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps narrowed to user?.uid on purpose
     async (backgroundId: string) => {
       if (!user?.uid) return;
       const current = recentsRef.current;
@@ -3077,8 +3085,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // and skip the gate, letting users pick widgets they'd then lose
       // access to the moment setup completed.
       const rawDockDefaults = permission.config?.dockDefaults as
-        | Record<string, boolean>
-        | undefined;
+        Record<string, boolean> | undefined;
       const checkBuildings = customBuildings ?? selectedBuildings;
       if (rawDockDefaults && checkBuildings.length > 0) {
         const dockDefaults = canonicalizeBuildingKeyedRecord(rawDockDefaults);

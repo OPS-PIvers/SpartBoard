@@ -134,10 +134,8 @@ describe('TypographySettings', () => {
  * even with the fix in place.
  */
 describe('TypographySettings — decorative glyphs excluded from accessible names', () => {
-  type Cfg = { fontFamily?: string; fontColor?: string };
-
   it('names each font option by its label alone, with no glyph', () => {
-    render(<TypographySettings config={{} as Cfg} updateConfig={vi.fn()} />);
+    render(<TypographySettings config={{}} updateConfig={vi.fn()} />);
 
     // Exact-string role queries match against the accessible name, so these
     // only resolve when the glyph is excluded from it. 'School' carries the
@@ -151,7 +149,7 @@ describe('TypographySettings — decorative glyphs excluded from accessible name
   });
 
   it('marks the glyph span aria-hidden on every font option', () => {
-    render(<TypographySettings config={{} as Cfg} updateConfig={vi.fn()} />);
+    render(<TypographySettings config={{}} updateConfig={vi.fn()} />);
 
     // Every font option must carry exactly one aria-hidden descendant (the
     // glyph). Scoped per-button so a stray aria-hidden elsewhere in the tree

@@ -108,7 +108,7 @@ function arrange(opts: { flag: boolean; playerV2: boolean }) {
     saveEdit: vi.fn(),
     closeNow: vi.fn(),
     toTargetingValue: vi.fn(),
-  } as unknown as ReturnType<typeof useAssignmentDetailActions>);
+  });
   vi.mocked(useGuidedLearningSessionShape).mockImplementation((_id, enabled) =>
     enabled ? { playerV2: opts.playerV2, stepCount: 12 } : null
   );

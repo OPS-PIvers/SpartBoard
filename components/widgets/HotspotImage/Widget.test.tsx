@@ -34,7 +34,7 @@ const createWidget = (
       },
     ],
     ...config,
-  } as HotspotImageConfig,
+  },
 });
 
 describe('HotspotImageWidget', () => {

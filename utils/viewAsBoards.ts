@@ -213,7 +213,7 @@ export function markViewAsChangeApproved(change: PendingChange): void {
   baselines.set(change.boardId, {
     ...base,
     widgets: base.widgets.map((w) =>
-      w.id === change.widgetId ? ({ ...w, ...patch } as WidgetData) : w
+      w.id === change.widgetId ? { ...w, ...patch } : w
     ),
   });
   emit({ ...state, baselines });

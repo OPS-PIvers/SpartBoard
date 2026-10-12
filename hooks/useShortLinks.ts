@@ -71,12 +71,10 @@ interface UpdateShortLinkInput {
 }
 
 export type CreateResult =
-  | { ok: true; link: ShortLink }
-  | { ok: false; reason: string };
+  { ok: true; link: ShortLink } | { ok: false; reason: string };
 
 export type UpdateResult =
-  | { ok: true; link: ShortLink }
-  | { ok: false; reason: string };
+  { ok: true; link: ShortLink } | { ok: false; reason: string };
 
 interface UseShortLinksResult {
   links: ShortLink[];
@@ -235,6 +233,7 @@ export const useShortLinks = (): UseShortLinksResult => {
 
   useEffect(() => {
     if (!isAdmin) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clears admin-only Firestore data when admin access drops
       setLinks([]);
       setLoading(false);
       // Clear any stale admin-only error so it doesn't linger after a

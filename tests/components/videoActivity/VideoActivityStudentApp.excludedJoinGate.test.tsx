@@ -17,7 +17,7 @@ const { mockAuth, mockJoinSession, mockLookupSession, mockUsePointer } =
         isAnonymous: false,
         getIdTokenResult: () =>
           Promise.resolve({ claims: { studentRole: true, classIds: [] } }),
-      } as unknown,
+      },
     },
     mockJoinSession: vi.fn(),
     mockLookupSession: vi.fn(),

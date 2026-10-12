@@ -103,6 +103,7 @@ export const CalendarConfigurationModal: React.FC<
 
   useEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- state synced from an external system or reset on open
       void fetchConfig();
     }
   }, [isOpen, fetchConfig]);
@@ -114,6 +115,7 @@ export const CalendarConfigurationModal: React.FC<
     if (!isOpen) {
       // Reset on close so a reopen never shows a stale "connected" status
       // before the probe re-resolves (null = hidden until the probe resolves).
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- state synced from an external system or reset on open
       setIsCalendarConnected(null);
       return;
     }
@@ -139,10 +141,7 @@ export const CalendarConfigurationModal: React.FC<
         docRef,
         {
           type: 'calendar',
-          config: (updatedConfig ?? config) as unknown as Record<
-            string,
-            unknown
-          >,
+          config: updatedConfig ?? config,
           updatedAt: Date.now(),
         },
         { merge: true }

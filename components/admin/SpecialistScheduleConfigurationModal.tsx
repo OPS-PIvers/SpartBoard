@@ -110,6 +110,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
 
   useEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- fetches config from Firestore when the modal opens
       void fetchConfig();
     }
   }, [isOpen, fetchConfig]);
@@ -128,7 +129,7 @@ export const SpecialistScheduleConfigurationModal: React.FC<
         docRef,
         {
           type: 'specialist-schedule',
-          config: toSave as unknown as Record<string, unknown>,
+          config: toSave,
           updatedAt: Date.now(),
         },
         { merge: true }

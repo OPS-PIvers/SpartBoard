@@ -22,7 +22,7 @@ import {
 } from './stepClipboard';
 
 const auth = vi.hoisted(() => ({
-  isAdmin: true as boolean | null,
+  isAdmin: true,
   features: new Set<string>(),
 }));
 vi.mock('@/context/useAuth', () => ({

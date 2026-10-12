@@ -161,7 +161,7 @@ function makeRoster(name: string): ClassRoster {
     studentCount: 0,
     createdAt: 1,
     students: [],
-  } as unknown as ClassRoster;
+  };
 }
 
 const noopAsync = () => Promise.resolve();

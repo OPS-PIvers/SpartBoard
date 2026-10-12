@@ -29,10 +29,7 @@ const ALLOWED_CONTENT_TYPES = new Set([
 ]);
 
 export type ImportImageContentType =
-  | 'image/png'
-  | 'image/jpeg'
-  | 'image/gif'
-  | 'image/webp';
+  'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp';
 
 export interface FetchImportImageResult {
   contentType: ImportImageContentType;

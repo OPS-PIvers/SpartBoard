@@ -19,15 +19,14 @@ const { hydrateDrawingPagesFromSubcollection } =
 
 const db = {} as Firestore;
 
-const obj = (id: string, z: number): DrawableObject =>
-  ({
-    id,
-    kind: 'path',
-    z,
-    points: [{ x: 0, y: 0 }],
-    color: '#000',
-    width: 2,
-  }) as DrawableObject;
+const obj = (id: string, z: number): DrawableObject => ({
+  id,
+  kind: 'path',
+  z,
+  points: [{ x: 0, y: 0 }],
+  color: '#000',
+  width: 2,
+});
 
 const snapshotOf = (objects: DrawableObject[]) => ({
   docs: objects.map((o) => ({ data: () => o })),

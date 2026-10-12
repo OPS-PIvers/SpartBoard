@@ -16,8 +16,7 @@ import type { QuizMetadata } from '@/types';
 // The function accepts `unknown`; build minimal raw docs and cast at the
 // call boundary the same way real read sites hand Firestore data in.
 type RawDoc = Record<string, unknown>;
-const migrate = (raw: RawDoc): QuizMetadata =>
-  migrateQuizMetadataShape(raw as unknown);
+const migrate = (raw: RawDoc): QuizMetadata => migrateQuizMetadataShape(raw);
 
 describe('migrateQuizMetadataShape', () => {
   describe('branch 1 — already well-formed sync sub-object', () => {

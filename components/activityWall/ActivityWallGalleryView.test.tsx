@@ -30,10 +30,7 @@ const {
   mockCollection: vi.fn(),
   mockDoc: vi.fn(),
   mockAuth: {
-    currentUser: { uid: 'viewer-1', isAnonymous: false } as {
-      uid: string;
-      isAnonymous: boolean;
-    } | null,
+    currentUser: { uid: 'viewer-1', isAnonymous: false },
   },
 }));
 

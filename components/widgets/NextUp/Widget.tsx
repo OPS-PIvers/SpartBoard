@@ -114,6 +114,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
       };
       void loadQueue();
     } else if (!config.isActive) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- clears the queue alongside the Drive load
       setQueue([]);
     }
     return () => {
@@ -128,6 +129,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   ]);
 
   const queueRef = React.useRef(queue);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   queueRef.current = queue;
 
   const lastExternalTriggerRef = React.useRef(config.externalTrigger ?? 0);

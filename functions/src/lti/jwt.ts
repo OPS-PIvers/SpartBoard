@@ -10,7 +10,6 @@ import {
   jwtVerify,
   type JWTPayload,
   type JWTVerifyGetKey,
-  type KeyLike,
 } from 'jose';
 import {
   LTI,
@@ -53,9 +52,9 @@ export interface LtiLaunchClaims {
   name: string | null;
 }
 
-// jose accepts either a key (KeyLike/Uint8Array) or a key-getter (JWTVerifyGetKey,
+// jose accepts either a key (CryptoKey/Uint8Array) or a key-getter (JWTVerifyGetKey,
 // e.g. a remote JWKS) as the 2nd arg to jwtVerify.
-type KeyInput = KeyLike | Uint8Array | JWTVerifyGetKey;
+type KeyInput = CryptoKey | Uint8Array | JWTVerifyGetKey;
 
 let cachedRemoteJwks: JWTVerifyGetKey | null = null;
 function remoteJwks(): JWTVerifyGetKey {

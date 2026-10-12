@@ -76,6 +76,7 @@ export const useGlobalPermissionsEditor = () => {
 
   useEffect(() => {
     if (isAuthBypass) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- auth-bypass path of the Firestore load
       setLoading(false);
       return;
     }

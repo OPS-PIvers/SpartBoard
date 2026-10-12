@@ -289,8 +289,10 @@ const NotesBodyInner: React.FC<
   // Which note the editor is actually showing when a save resolves.
   const selectedIdRef = useRef(selectedId);
 
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   selectedIdRef.current = selectedId;
 
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   draftRef.current = {
     title: draftTitle,
     body: draftBody,
@@ -298,9 +300,12 @@ const NotesBodyInner: React.FC<
   };
 
   const draftIsClean =
+    // eslint-disable-next-line react-hooks/refs -- clean baseline is set together with the draft state
     draftTitle === cleanBaselineRef.current.title &&
+    // eslint-disable-next-line react-hooks/refs -- clean baseline is set together with the draft state
     draftBody === cleanBaselineRef.current.body &&
     actionItemsSignature(draftActionItems) ===
+      // eslint-disable-next-line react-hooks/refs -- clean baseline is set together with the draft state
       actionItemsSignature(cleanBaselineRef.current.actionItems);
 
   // Auto-select the most-recent note once data lands.
@@ -310,6 +315,7 @@ const NotesBodyInner: React.FC<
     const first = notes[0];
     if (first) {
       setSelectedId(first.id);
+      // eslint-disable-next-line react-hooks/refs -- seedDraft resets the baseline while adjusting state
       seedDraft(first);
       setBodyMode(openModeFor(first.body));
     }
@@ -329,6 +335,7 @@ const NotesBodyInner: React.FC<
     if (note) {
       setSelectedDocId(null);
       setSelectedId(note.id);
+      // eslint-disable-next-line react-hooks/refs -- seedDraft resets the baseline while adjusting state
       seedDraft(note);
       setBodyMode(openModeFor(note.body));
       setOpenPanel('actions');
@@ -427,6 +434,7 @@ const NotesBodyInner: React.FC<
       lastEditedAt: selectedNote.lastEditedAt,
       version: selectedNote.version,
     });
+    // eslint-disable-next-line react-hooks/refs -- seedDraft resets the baseline while adjusting state
     seedDraft(selectedNote);
   } else if (
     selectedNote &&
@@ -440,6 +448,7 @@ const NotesBodyInner: React.FC<
       lastEditedAt: selectedNote.lastEditedAt,
       version: selectedNote.version,
     });
+    // eslint-disable-next-line react-hooks/refs -- seedDraft resets the baseline while adjusting state
     seedDraft(selectedNote);
   }
 
@@ -466,6 +475,7 @@ const NotesBodyInner: React.FC<
   // render, no effect — same posture as `usePlcs`/`PlcContext`).
   const reloadRef = useRef(reloadCanonical);
 
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   reloadRef.current = reloadCanonical;
 
   const flushPendingSave = useCallback(() => {
@@ -791,22 +801,18 @@ const NotesBodyInner: React.FC<
   };
 
   const listEntries: NotesListEntry[] = [
-    ...notes.map(
-      (note): NotesListEntry => ({
-        type: 'note',
-        id: note.id,
-        at: note.lastEditedAt,
-        note,
-      })
-    ),
-    ...(unified ? docs : []).map(
-      (doc): NotesListEntry => ({
-        type: 'doc',
-        id: doc.id,
-        at: doc.updatedAt,
-        doc,
-      })
-    ),
+    ...notes.map((note): NotesListEntry => ({
+      type: 'note',
+      id: note.id,
+      at: note.lastEditedAt,
+      note,
+    })),
+    ...(unified ? docs : []).map((doc): NotesListEntry => ({
+      type: 'doc',
+      id: doc.id,
+      at: doc.updatedAt,
+      doc,
+    })),
   ].sort((a, b) => b.at - a.at);
 
   if (loading) {
@@ -1001,6 +1007,32 @@ const NotesBodyInner: React.FC<
   );
   const listOpen = !sidePanels || openPanel === 'list';
 
+  const newMenuItems = [
+    {
+      id: 'meeting',
+      icon: CalendarClock,
+      label: t('plcDashboard.notes.newMenu.meeting', {
+        defaultValue: 'Meeting note',
+      }),
+      run: () => void handleCreate('meeting'),
+    },
+    {
+      id: 'note',
+      icon: StickyNote,
+      label: t('plcDashboard.notes.newMenu.note', {
+        defaultValue: 'Blank note',
+      }),
+      run: () => void handleCreate('freeform'),
+    },
+    {
+      id: 'doc',
+      icon: FileText,
+      label: t('plcDashboard.notes.newMenu.googleDoc', {
+        defaultValue: 'Link a Google Doc',
+      }),
+      run: () => setAddDocOpen(true),
+    },
+  ] as const;
   const notesList = (
     <aside
       className={`flex flex-col overflow-hidden ${
@@ -1081,34 +1113,8 @@ const NotesBodyInner: React.FC<
                 role="menu"
                 className="absolute right-0 top-full mt-1 z-20 w-48 py-1 bg-white border border-slate-200 rounded-xl shadow-lg"
               >
-                {(
-                  [
-                    {
-                      id: 'meeting',
-                      icon: CalendarClock,
-                      label: t('plcDashboard.notes.newMenu.meeting', {
-                        defaultValue: 'Meeting note',
-                      }),
-                      run: () => void handleCreate('meeting'),
-                    },
-                    {
-                      id: 'note',
-                      icon: StickyNote,
-                      label: t('plcDashboard.notes.newMenu.note', {
-                        defaultValue: 'Blank note',
-                      }),
-                      run: () => void handleCreate('freeform'),
-                    },
-                    {
-                      id: 'doc',
-                      icon: FileText,
-                      label: t('plcDashboard.notes.newMenu.googleDoc', {
-                        defaultValue: 'Link a Google Doc',
-                      }),
-                      run: () => setAddDocOpen(true),
-                    },
-                  ] as const
-                ).map(({ id, icon: Icon, label, run }) => (
+                {/* eslint-disable-next-line react-hooks/refs -- menu run() callbacks only fire on click */}
+                {newMenuItems.map(({ id, icon: Icon, label, run }) => (
                   <button
                     {...tourFieldAttr('plc-notes.new-menu-item', 'plc', id)}
                     key={id}

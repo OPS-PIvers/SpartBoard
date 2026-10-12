@@ -3,12 +3,7 @@
 import type { PlcActionItem } from '@/types';
 
 export type ActionItemSort =
-  | 'manual'
-  | 'status'
-  | 'due'
-  | 'assignee'
-  | 'created'
-  | 'text';
+  'manual' | 'status' | 'due' | 'assignee' | 'created' | 'text';
 
 export type ActionItemStatusFilter = 'all' | 'open' | 'done';
 

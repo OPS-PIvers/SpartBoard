@@ -64,21 +64,20 @@ const roster: ClassRoster = {
   ],
 };
 
-const row = (): UnifiedAssignmentRow =>
-  ({
-    id: 'assign-1',
-    kind: 'quiz',
-    title: 'Fractions Quiz',
-    className: 'Period 2',
-    status: 'active',
-    targetMode: 'students',
-    targetSkippedCount: 0,
-    createdAt: 0,
-    sessionId: 'assign-1',
-    rosterIds: ['roster-1'],
-    targetStudents: [{ kind: 'classlink', sourcedId: 'SID-1' }],
-    overridesBySourcedId: { 'classlink:SID-1': { language: 'so' } },
-  }) as UnifiedAssignmentRow;
+const row = (): UnifiedAssignmentRow => ({
+  id: 'assign-1',
+  kind: 'quiz',
+  title: 'Fractions Quiz',
+  className: 'Period 2',
+  status: 'active',
+  targetMode: 'students',
+  targetSkippedCount: 0,
+  createdAt: 0,
+  sessionId: 'assign-1',
+  rosterIds: ['roster-1'],
+  targetStudents: [{ kind: 'classlink', sourcedId: 'SID-1' }],
+  overridesBySourcedId: { 'classlink:SID-1': { language: 'so' } },
+});
 
 const setFeatures = (allowed: string[]) =>
   (useAuth as unknown as ReturnType<typeof vi.fn>).mockReturnValue({

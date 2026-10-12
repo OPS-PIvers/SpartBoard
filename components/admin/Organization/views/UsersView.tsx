@@ -91,10 +91,7 @@ interface Props {
 
 type StatusFilter = 'all' | UserStatus;
 type SortKey =
-  | 'name_asc'
-  | 'name_desc'
-  | 'recently_active'
-  | 'recently_invited';
+  'name_asc' | 'name_desc' | 'recently_active' | 'recently_invited';
 
 const STATUS_META: Record<UserStatus, { label: string; description: string }> =
   {

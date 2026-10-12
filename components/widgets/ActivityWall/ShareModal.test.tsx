@@ -250,9 +250,10 @@ describe('ActivityWallShareModal gallery link creation', () => {
       publiclyShared: true,
       latestShareId: shareId,
     });
+    const anyCode: unknown = expect.any(String);
     expect(mockSetDoc).toHaveBeenCalledWith(
       sessionRef,
-      { latestShareCode: expect.any(String) as unknown as string },
+      { latestShareCode: anyCode },
       { merge: true }
     );
   });

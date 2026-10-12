@@ -45,11 +45,7 @@ export interface PlaybackRequest {
 
 /** `'not-available'` is an answer, not a failure — a mid-archive take is normal. */
 export type PlaybackUnavailableReason =
-  | 'archiving'
-  | 'failed'
-  | 'deleted'
-  | 'no-recording'
-  | 'too-large';
+  'archiving' | 'failed' | 'deleted' | 'no-recording' | 'too-large';
 
 export type PlaybackResult =
   | {
@@ -179,18 +175,30 @@ export function parsePlaybackRequest(raw: unknown): PlaybackRequest {
 
 // ── Default dependency implementations ─────────────────────────────────────
 
+export const DRIVE_DOWNLOAD_TIMEOUT_MS = 45_000;
+
 export async function downloadDriveFileById(
   accessToken: string,
   fileId: string
 ): Promise<Buffer> {
-  const response = await fetch(
-    `${DRIVE_API_URL}/files/${encodeURIComponent(fileId)}?alt=media`,
-    { headers: { Authorization: `Bearer ${accessToken}` } }
-  );
-  if (!response.ok) {
-    throw new Error(`Drive responded ${response.status}`);
+  // One deadline covers headers and body so a stalled stream cannot outlive the function.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DRIVE_DOWNLOAD_TIMEOUT_MS);
+  try {
+    const response = await fetch(
+      `${DRIVE_API_URL}/files/${encodeURIComponent(fileId)}?alt=media`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+        signal: controller.signal,
+      }
+    );
+    if (!response.ok) {
+      throw new Error(`Drive responded ${response.status}`);
+    }
+    return Buffer.from(await response.arrayBuffer());
+  } finally {
+    clearTimeout(timer);
   }
-  return Buffer.from(await response.arrayBuffer());
 }
 
 export function buildDefaultPlaybackDeps(): PlaybackDeps {
@@ -278,8 +286,7 @@ export async function resolveArtifactPlayback(
     : [];
   const grading = (response.grading ?? {}) as Record<string, unknown>;
   const gradeEntry = grading[gradingKeyFor(questionId, slot)] as
-    | { gradedTakeIndex?: unknown }
-    | undefined;
+    { gradedTakeIndex?: unknown } | undefined;
   const gradedTakeIndex =
     typeof gradeEntry?.gradedTakeIndex === 'number'
       ? gradeEntry.gradedTakeIndex

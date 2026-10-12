@@ -9,6 +9,7 @@ import React, {
 import { useTranslation } from 'react-i18next';
 import {
   Clipboard,
+  ClipboardCopy,
   ClipboardPaste,
   Copy,
   Film,
@@ -36,6 +37,7 @@ import { StudioMenu } from './StudioMenu';
 import { modShortcutLabel } from './useStudioShortcuts';
 import { useFileDrop } from './useFileDrop';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { StudioWelcomeCard } from './StudioWelcomeCard';
 
 interface SlideItem {
   id: string;
@@ -60,6 +62,8 @@ interface SlideThumbProps {
   onDuplicate: (index: number) => void;
   onPaste: (index: number) => void;
   onReplace: (index: number) => void;
+  /** Copies a Claude starter prompt for the slide; absent without connector access. */
+  onCopyForClaude?: (index: number) => void;
   /** Steps waiting on the clipboard. */
   pasteCount: number;
 }
@@ -72,6 +76,7 @@ const SlideThumbBody = React.memo(function SlideThumbBody({
   onDuplicate,
   onPaste,
   onReplace,
+  onCopyForClaude,
   pasteCount,
   current,
   count,
@@ -85,8 +90,7 @@ const SlideThumbBody = React.memo(function SlideThumbBody({
         {...handle.attributes}
         onPointerDown={
           handle.listeners?.onPointerDown as
-            | React.PointerEventHandler<HTMLButtonElement>
-            | undefined
+            React.PointerEventHandler<HTMLButtonElement> | undefined
         }
         {...tourAttr('studio.slide-thumb')}
         onClick={() => onSelect(slide.index)}
@@ -170,6 +174,16 @@ const SlideThumbBody = React.memo(function SlideThumbBody({
               icon: ImageUp,
               onSelect: () => onReplace(slide.index),
             },
+            ...(onCopyForClaude
+              ? [
+                  {
+                    id: 'copy-for-claude',
+                    label: t('glStudio.copyForClaude'),
+                    icon: ClipboardCopy,
+                    onSelect: () => onCopyForClaude(slide.index),
+                  },
+                ]
+              : []),
           ]}
         />
       </div>
@@ -226,6 +240,9 @@ type FilmstripState = Pick<
   | 'replaceSlideFromFile'
   | 'uploadFromClipboard'
   | 'addCapturedMedia'
+  | 'welcomeEnabled'
+  | 'setWelcomeEnabled'
+  | 'welcomeImageUrl'
 >;
 
 interface FilmstripBodyProps extends FilmstripState {
@@ -234,6 +251,11 @@ interface FilmstripBodyProps extends FilmstripState {
   onReorderSlides: (order: number[], moved: number) => void;
   collapsed: boolean;
   onToggleCollapsed?: () => void;
+  onCopyForClaude?: (index: number) => void;
+  /** `gl-welcome-card`: the pinned Welcome card is shown, and whether it is selected. */
+  welcomeCard: boolean;
+  welcomeSelected: boolean;
+  onSelectWelcome?: () => void;
 }
 
 const sameProps = (a: FilmstripBodyProps, b: FilmstripBodyProps) =>
@@ -265,6 +287,13 @@ const FilmstripBody = React.memo(function FilmstripBody({
   stepCounts,
   collapsed,
   onToggleCollapsed,
+  onCopyForClaude,
+  welcomeEnabled,
+  setWelcomeEnabled,
+  welcomeImageUrl,
+  welcomeCard,
+  welcomeSelected,
+  onSelectWelcome,
 }: FilmstripBodyProps) {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -290,8 +319,11 @@ const FilmstripBody = React.memo(function FilmstripBody({
     [imageUrls, imageKinds, slideThumbnails]
   );
   const currentSlide = useMemo(
-    () => ({ index: currentImageIndex, counts: stepCounts }),
-    [currentImageIndex, stepCounts]
+    () => ({
+      index: welcomeSelected ? -1 : currentImageIndex,
+      counts: stepCounts,
+    }),
+    [welcomeSelected, currentImageIndex, stepCounts]
   );
   const onReorder = useCallback(
     (next: SlideItem[], movedId: string) => {
@@ -314,6 +346,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
         onDuplicate={duplicateSlide}
         onPaste={pasteSteps}
         onReplace={onReplace}
+        onCopyForClaude={onCopyForClaude}
         pasteCount={clipboardStepCount}
       />
     ),
@@ -323,6 +356,7 @@ const FilmstripBody = React.memo(function FilmstripBody({
       duplicateSlide,
       pasteSteps,
       onReplace,
+      onCopyForClaude,
       clipboardStepCount,
     ]
   );
@@ -444,6 +478,15 @@ const FilmstripBody = React.memo(function FilmstripBody({
         )}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-3 pb-3 custom-scrollbar">
+        {welcomeCard && onSelectWelcome && (
+          <StudioWelcomeCard
+            enabled={welcomeEnabled}
+            imageUrl={welcomeImageUrl}
+            selected={welcomeSelected}
+            onSelect={onSelectWelcome}
+            onEnabledChange={setWelcomeEnabled}
+          />
+        )}
         {slides.length === 0 && !uploading && (
           <p className="rounded-lg border-2 border-dashed border-slate-200 px-3 py-6 text-center text-xs text-slate-500">
             {t('glStudio.filmstripEmpty')}
@@ -534,6 +577,12 @@ interface StudioFilmstripProps {
   /** Folded to a narrow rail that shows only the current slide. */
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
+  onCopyForClaude?: (index: number) => void;
+  /** Picks a slide; the Studio passes one that also leaves the Welcome card. */
+  onSelectSlide?: (index: number) => void;
+  /** Shows the pinned Welcome card; absent without `gl-welcome-card`. */
+  onSelectWelcome?: () => void;
+  welcomeSelected?: boolean;
 }
 
 /** Left column: slide thumbnails to pick, reorder, add, replace and delete. */
@@ -542,6 +591,10 @@ export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({
   onDeleteSlide,
   collapsed = false,
   onToggleCollapsed,
+  onCopyForClaude,
+  onSelectSlide,
+  onSelectWelcome,
+  welcomeSelected = false,
 }) => {
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
@@ -575,7 +628,7 @@ export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({
       imageKinds={state.imageKinds}
       slideThumbnails={state.slideThumbnails}
       currentImageIndex={state.currentImageIndex}
-      setCurrentImageIndex={state.setCurrentImageIndex}
+      setCurrentImageIndex={onSelectSlide ?? state.setCurrentImageIndex}
       onReorderSlides={onReorderSlides}
       deleteImage={onDeleteSlide ?? state.deleteImage}
       duplicateSlide={state.duplicateSlide}
@@ -590,6 +643,13 @@ export const StudioFilmstrip: React.FC<StudioFilmstripProps> = ({
       stepCounts={stepCounts}
       collapsed={collapsed}
       onToggleCollapsed={onToggleCollapsed}
+      onCopyForClaude={onCopyForClaude}
+      welcomeEnabled={state.welcomeEnabled}
+      setWelcomeEnabled={state.setWelcomeEnabled}
+      welcomeImageUrl={state.welcomeImageUrl}
+      welcomeCard={!!onSelectWelcome}
+      welcomeSelected={welcomeSelected}
+      onSelectWelcome={onSelectWelcome}
     />
   );
 };

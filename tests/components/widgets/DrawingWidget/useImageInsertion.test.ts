@@ -60,7 +60,7 @@ const makeCanvas = (
     y: 0,
     toJSON: () => ({}),
     ...rect,
-  } as DOMRect);
+  });
   return canvas;
 };
 
@@ -263,10 +263,7 @@ describe('useImageInsertion', () => {
     // Attach the ref to a real input to mirror how the consumer renders it.
     const input = document.createElement('input');
     // Force the ref to point at our input so click is observable.
-    (
-      result.current.fileInputProps
-        .ref as React.MutableRefObject<HTMLInputElement | null>
-    ).current = input;
+    result.current.fileInputProps.ref.current = input;
     act(() => result.current.openPicker());
     expect(clickSpy).toHaveBeenCalled();
   });

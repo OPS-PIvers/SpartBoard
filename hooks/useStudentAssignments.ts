@@ -478,13 +478,11 @@ function buildAssignmentSummary(
         : undefined,
     workKind: resolveWorkKind(kind, record),
     live: isLiveSession(kind, channel, record) ? true : undefined,
-    periodGate: hasPeriodAccess(record as PeriodAccessSessionFields)
+    periodGate: hasPeriodAccess(record)
       ? {
           periodAccess: (record as PeriodAccessSessionFields).periodAccess,
           studentAccess: (record as PeriodAccessSessionFields).studentAccess,
-          periodKeys: studentPeriodKeys(record as PeriodAccessSessionFields, [
-            ...studentClassIds,
-          ]),
+          periodKeys: studentPeriodKeys(record, [...studentClassIds]),
         }
       : undefined,
   };

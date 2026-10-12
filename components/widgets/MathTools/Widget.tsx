@@ -31,9 +31,9 @@ export const MathToolsWidget: React.FC<{ widget: WidgetData }> = ({
   const [gradeFilter, setGradeFilter] = useState<GradeLevel | 'all'>('all');
 
   // Read per-tool grade levels from admin global config
-  const globalConfig = useMemo(() => {
+  const globalConfig = useMemo((): MathToolsGlobalConfig => {
     const perm = featurePermissions.find((p) => p.widgetType === 'mathTools');
-    return (perm?.config ?? {}) as MathToolsGlobalConfig;
+    return perm?.config ?? {};
   }, [featurePermissions]);
 
   // Enrich MATH_TOOL_META with resolved grade levels

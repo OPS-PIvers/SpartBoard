@@ -120,10 +120,7 @@ describe.each([
     });
 
     it(`${code}: every admin.mediaReview.status string differs from the EN string`, () => {
-      const status = (locale.admin.mediaReview as MediaReview).status as Record<
-        string,
-        unknown
-      >;
+      const status = locale.admin.mediaReview.status as Record<string, unknown>;
       for (const key of TRANSLATABLE_STATUS_KEYS) {
         const enValue = en.admin.mediaReview.status[key];
         expect(

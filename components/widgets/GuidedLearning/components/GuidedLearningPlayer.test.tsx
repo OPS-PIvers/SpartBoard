@@ -22,8 +22,7 @@ vi.mock('./interactions/TooltipInteraction', () => ({
 }));
 
 let mockQuestionOnAnswer:
-  | ((answer: string, isCorrect: boolean | null) => void)
-  | null = null;
+  ((answer: string, isCorrect: boolean | null) => void) | null = null;
 vi.mock('./interactions/QuestionInteraction', () => ({
   QuestionInteraction: ({
     onAnswer,
@@ -78,7 +77,7 @@ class ResizeObserverMock {
           },
         } as ResizeObserverEntry,
       ],
-      this as unknown as ResizeObserver
+      this
     );
   }
 

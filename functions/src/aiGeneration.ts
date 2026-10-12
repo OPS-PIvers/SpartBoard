@@ -2127,8 +2127,7 @@ export const transcribeVideoWithGemini = onCall(
             db.collection('global_permissions').doc('gemini-functions')
           );
           const globalPerm = globalPermDoc.data() as
-            | GlobalPermission
-            | undefined;
+            GlobalPermission | undefined;
           const overallLimitEnabled =
             globalPerm?.config?.dailyLimitEnabled !== false;
           // W7: external callers get the lower external cap; org/internal

@@ -150,6 +150,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   // `react-hooks/set-state-in-effect` rule's complaint is a false positive
   // for this case.
   useLayoutEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- DOM measurement in a layout effect
     updatePosition();
   }, [updatePosition, viewport, zoom]);
 

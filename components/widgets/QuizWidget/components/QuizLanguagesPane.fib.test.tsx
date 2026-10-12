@@ -39,37 +39,36 @@ const quiz = {
 
 const editQuestion = vi.fn();
 
-const api = (): UseQuizTranslations =>
-  ({
-    translatableIds: ['q2'],
-    byLocale: {
-      es: {
-        locale: 'es',
-        title: 'Números',
-        questions: {
-          q2: { text: 'La capital de Francia es ____.', answer: 'París' },
-        },
-        sourceHashes: { q2: 'h' },
-        reviewedQuestionIds: [],
-        model: 'm',
-        generatedAt: 1,
-        updatedAt: 1,
+const api = (): UseQuizTranslations => ({
+  translatableIds: ['q2'],
+  byLocale: {
+    es: {
+      locale: 'es',
+      title: 'Números',
+      questions: {
+        q2: { text: 'La capital de Francia es ____.', answer: 'París' },
       },
+      sourceHashes: { q2: 'h' },
+      reviewedQuestionIds: [],
+      model: 'm',
+      generatedAt: 1,
+      updatedAt: 1,
     },
-    loading: {},
-    load: vi.fn(),
-    generate: vi.fn(),
-    editQuestion,
-    setReviewed: vi.fn(),
-    save: vi.fn(),
-    saveAll: vi.fn(() => Promise.resolve()),
-    hasUnsavedChanges: false,
-    staleIds: () => [],
-    cap: null,
-    error: null,
-    loadFailed: {},
-    needsLoad: () => false,
-  }) as unknown as UseQuizTranslations;
+  },
+  loading: {},
+  load: vi.fn(),
+  generate: vi.fn(),
+  editQuestion,
+  setReviewed: vi.fn(),
+  save: vi.fn(),
+  saveAll: vi.fn(() => Promise.resolve()),
+  hasUnsavedChanges: false,
+  staleIds: () => [],
+  cap: null,
+  error: null,
+  loadFailed: {},
+  needsLoad: () => false,
+});
 
 const renderPane = () =>
   render(

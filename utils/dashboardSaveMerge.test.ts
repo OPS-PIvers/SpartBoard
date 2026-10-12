@@ -23,15 +23,14 @@ const widget = (id: string, text: string, extra: Partial<WidgetData> = {}) =>
     ...extra,
   }) as WidgetData;
 
-const board = (widgets: WidgetData[], extra: Partial<Dashboard> = {}) =>
-  ({
-    id: 'd1',
-    name: 'Board',
-    background: 'bg-slate-900',
-    widgets,
-    createdAt: 1,
-    ...extra,
-  }) as Dashboard;
+const board = (widgets: WidgetData[], extra: Partial<Dashboard> = {}) => ({
+  id: 'd1',
+  name: 'Board',
+  background: 'bg-slate-900',
+  widgets,
+  createdAt: 1,
+  ...extra,
+});
 
 const baselineOf = (d: Dashboard): SaveBaseline => ({
   widgets: JSON.parse(JSON.stringify(d.widgets)) as WidgetData[],
@@ -255,19 +254,19 @@ describe('mergeDashboardForSave', () => {
       settings: {
         disableCloseConfirmation: true,
         remoteControlEnabled: false,
-      } as never,
+      },
     });
     const local = board([], {
       settings: {
         remoteControlEnabled: false,
         disableCloseConfirmation: true,
-      } as never,
+      },
     });
     const server = board([], {
       settings: {
         disableCloseConfirmation: true,
         remoteControlEnabled: true,
-      } as never,
+      },
     });
 
     const merged = mergeDashboardForSave(local, server, baselineOf(base));

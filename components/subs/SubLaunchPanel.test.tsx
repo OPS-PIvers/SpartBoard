@@ -35,8 +35,11 @@ import { SubShareContentContext } from '@/context/SubShareContentContextValue';
 import { subShareContextValue } from '@/tests/helpers/subShareContext';
 import type { SubstituteShareRoster } from '@/types';
 
-const roster = (id: string, name: string) =>
-  ({ id, name, driveFileId: `d-${id}` }) as SubstituteShareRoster;
+const roster = (id: string, name: string) => ({
+  id,
+  name,
+  driveFileId: `d-${id}`,
+});
 
 const show = (
   rosters: SubstituteShareRoster[],

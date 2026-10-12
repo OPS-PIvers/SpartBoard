@@ -119,7 +119,7 @@ function mockHooks() {
     deleteSet: vi.fn(),
     publishSet: vi.fn(),
     revokeShare: vi.fn(),
-  } as unknown as ReturnType<typeof useFlashcardSets>);
+  });
   vi.mocked(useFlashcardAssignments).mockReturnValue({
     assignments: [],
     loading: false,

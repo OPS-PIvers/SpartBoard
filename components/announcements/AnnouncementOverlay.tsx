@@ -148,11 +148,11 @@ const AnnouncementWidgetContent: React.FC<{ announcement: Announcement }> = ({
   // the config so they can write responses to the correct Firestore path.
   const injectedConfig: WidgetConfig =
     announcement.widgetType === 'poll'
-      ? ({
+      ? {
           ...announcement.widgetConfig,
           _announcementId: announcement.id,
-        } as WidgetConfig)
-      : (announcement.widgetConfig as WidgetConfig);
+        }
+      : announcement.widgetConfig;
 
   const fakeWidget: WidgetData = {
     id: `announcement-${announcement.id}`,

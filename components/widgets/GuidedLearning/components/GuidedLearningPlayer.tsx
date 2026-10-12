@@ -162,8 +162,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     () => (revealMode ? answerKeysOf(set.steps) : undefined),
     [revealMode, set.steps]
   );
-  const steps =
-    publicSteps ?? (set.steps as unknown as GuidedLearningPublicStep[]);
+  const steps: GuidedLearningPublicStep[] = publicSteps ?? set.steps;
   const startIdx = Math.max(
     0,
     steps.findIndex((s) => s.id === startStepId)
@@ -585,6 +584,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
     autoAdvance && playing && !watchGlide && !resumeOffer && !isHeld;
   useEffect(() => {
     if (timerRuns) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- starts an interval timer
       startTimer();
     } else {
       // Pause freezes in-step progress; resume restarts the step's timer.

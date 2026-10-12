@@ -74,7 +74,7 @@ function buildFakeUser(uid = 'test-uid', email = 'teacher@example.com'): User {
     isAnonymous: false,
     providerData: [],
     refreshToken: '',
-    metadata: {} as User['metadata'],
+    metadata: {},
     providerId: 'firebase',
     tenantId: null,
     delete: vi.fn(),
@@ -91,7 +91,7 @@ function buildFakeUser(uid = 'test-uid', email = 'teacher@example.com'): User {
     reload: vi.fn(),
     toJSON: () => ({}),
     phoneNumber: null,
-  } as unknown as User;
+  };
 }
 
 type DocSnap = Awaited<ReturnType<typeof firestore.getDoc>>;

@@ -18,11 +18,7 @@ import {
 export type AssessmentRowStatus = 'notStarted' | 'inProgress' | 'scored';
 
 export type AssessmentListFilter =
-  | 'all'
-  | 'notStarted'
-  | 'inProgress'
-  | 'scored'
-  | 'archived';
+  'all' | 'notStarted' | 'inProgress' | 'scored' | 'archived';
 
 export interface AssessmentListRow {
   /** Assessment id, or `library:<syncGroupId>` for a library-only row. */

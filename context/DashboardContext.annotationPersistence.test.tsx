@@ -227,18 +227,17 @@ const board = (
 
 /** A widget measuring exactly `bytes` once serialized (padding is 1 byte/char). */
 const widgetSizedTo = (bytes: number): WidgetData => {
-  const make = (len: number): WidgetData =>
-    ({
-      id: 'w-fat',
-      type: 'text',
-      x: 0,
-      y: 0,
-      w: 100,
-      h: 100,
-      z: 1,
-      flipped: false,
-      config: { text: 'x'.repeat(len) },
-    }) as WidgetData;
+  const make = (len: number): WidgetData => ({
+    id: 'w-fat',
+    type: 'text',
+    x: 0,
+    y: 0,
+    w: 100,
+    h: 100,
+    z: 1,
+    flipped: false,
+    config: { text: 'x'.repeat(len) },
+  });
   return make(Math.max(0, bytes - estimateWidgetBytes([make(0)])));
 };
 

@@ -37,7 +37,7 @@ const widget: WidgetData = {
   flipped: true,
   transparency: 1,
   config: {},
-} as WidgetData;
+};
 
 const globalStyle = {
   fontFamily: 'sans',
@@ -119,12 +119,10 @@ describe('settings surface exclusivity (§4.5)', () => {
   it('exposes the gear button as the drawer opener target', () => {
     render(
       <DashboardContext.Provider
-        value={
-          {
-            ...context,
-            selectedWidgetId: 'w1',
-          } as unknown as DashboardContextValue
-        }
+        value={{
+          ...context,
+          selectedWidgetId: 'w1',
+        }}
       >
         <DraggableWindow
           widget={{ ...widget, flipped: false }}

@@ -73,20 +73,19 @@ const response = (
   id: string,
   answers: [string, string][],
   completedAt: number | null = 5
-): GuidedLearningResponse =>
-  ({
-    sessionId: 's1',
-    studentAnonymousId: id,
-    pin: id,
-    answers: answers.map(([stepId, answer]) => ({
-      stepId,
-      answer,
-      isCorrect: null,
-    })),
-    startedAt: 1,
-    completedAt,
-    score: null,
-  }) as GuidedLearningResponse;
+): GuidedLearningResponse => ({
+  sessionId: 's1',
+  studentAnonymousId: id,
+  pin: id,
+  answers: answers.map(([stepId, answer]) => ({
+    stepId,
+    answer,
+    isCorrect: null,
+  })),
+  startedAt: 1,
+  completedAt,
+  score: null,
+});
 
 const ASSIGNED = [mc('q1', 'a'), mc('q2', 'b'), mc('q3', 'a')];
 

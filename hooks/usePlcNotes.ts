@@ -248,7 +248,7 @@ export const usePlcNotes = (plcId: string | null): UsePlcNotesResult => {
       (snap) => {
         const list: PlcNote[] = [];
         snap.forEach((d) => {
-          const parsed = parseNote(d.id, d.data() as Record<string, unknown>);
+          const parsed = parseNote(d.id, d.data());
           // Soft-deleted notes (Decision 3.1) drop out of the live list — they
           // live in Trash until restored or GC'd.
           if (parsed && parsed.deletedAt == null) list.push(parsed);
@@ -451,7 +451,7 @@ function normalizeNoteWriteError(
   if (err instanceof PlcNoteVersionConflictError) return err;
   const code =
     typeof err === 'object' && err !== null && 'code' in err
-      ? String((err as { code: unknown }).code)
+      ? String(err.code)
       : '';
   if (code === 'permission-denied' || code === 'failed-precondition') {
     return new PlcNoteVersionConflictError(noteId, expectedVersion, null);

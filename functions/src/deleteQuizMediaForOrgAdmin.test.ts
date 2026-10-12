@@ -443,7 +443,7 @@ describe('listOrgQuizMedia scan caps', () => {
         if (path === 'quiz_sessions') sessionQueries++;
         return db.collection(path);
       },
-    } as unknown as FakeStore;
+    };
 
     const { rows, truncated } = await listOrgQuizMedia(
       { orgId: ORG },

@@ -124,7 +124,7 @@ describe('WallEditorModal', () => {
       createdAt: 0,
       updatedAt: 0,
       layout: 'wall',
-    } as ActivityWallLibraryEntry);
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Change layout' }));
 
     expect(
@@ -164,7 +164,7 @@ describe('WallEditorModal', () => {
       createdAt: 0,
       updatedAt: 0,
       layout: 'wall',
-    } as ActivityWallLibraryEntry);
+    });
 
     fireEvent.click(screen.getByRole('button', { name: 'Change layout' }));
     expect(screen.getByText(/keeps every existing post/i)).toBeInTheDocument();
@@ -267,7 +267,7 @@ describe('WallEditorModal', () => {
       updatedAt: 0,
       layout: 'wall',
       classId: 'class-1',
-    } as ActivityWallLibraryEntry);
+    });
 
     fireEvent.click(screen.getByRole('button', { name: 'Save wall' }));
 
@@ -331,7 +331,7 @@ describe('WallEditorModal', () => {
       allowLikes: false,
       allowComments: true,
       allowCommentResponses: true,
-    } as ActivityWallLibraryEntry);
+    });
 
     fireEvent.click(screen.getByRole('button', { name: 'Engagement' }));
     const replies = screen.getByRole('checkbox', {

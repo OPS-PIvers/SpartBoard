@@ -131,7 +131,7 @@ export const usePlcDocs = (plcId: string | null): UsePlcDocsResult => {
       (snap) => {
         const list: PlcDoc[] = [];
         snap.forEach((d) => {
-          const parsed = parseDoc(d.id, d.data() as Record<string, unknown>);
+          const parsed = parseDoc(d.id, d.data());
           // Soft-deleted docs (Decision 3.1) drop out of the live list — they
           // live in Trash until restored or GC'd.
           if (parsed && parsed.deletedAt == null) list.push(parsed);

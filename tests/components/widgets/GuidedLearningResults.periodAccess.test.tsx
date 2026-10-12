@@ -16,7 +16,7 @@ import { GuidedLearningResults } from '@/components/widgets/GuidedLearning/compo
 const NOW = new Date(2026, 8, 29, 10, 50).getTime();
 
 const { sessionData, batchUpdate, batchCommit } = vi.hoisted(() => ({
-  sessionData: { current: {} as Record<string, unknown> },
+  sessionData: { current: {} },
   batchUpdate: vi.fn(),
   batchCommit: vi.fn(() => Promise.resolve()),
 }));

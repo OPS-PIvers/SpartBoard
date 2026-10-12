@@ -53,9 +53,7 @@ import {
 const PROGRESS_SUBCOLLECTION = 'progress';
 
 type Loadable<T> =
-  | { kind: 'loading' }
-  | { kind: 'unavailable' }
-  | { kind: 'ready'; value: T };
+  { kind: 'loading' } | { kind: 'unavailable' } | { kind: 'ready'; value: T };
 
 const getAssignmentId = (): string | null => {
   const match = window.location.pathname.match(

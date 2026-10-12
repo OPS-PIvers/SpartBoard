@@ -3,25 +3,23 @@ import type { QuizData, QuizQuestion } from '@/types';
 import type { BankContent } from '@/utils/questionBanks';
 import { resolveQuizAssignContent } from '@/utils/quizAssignBankDraw';
 
-const q = (id: string): QuizQuestion =>
-  ({
-    id,
-    type: 'MC',
-    text: id,
-    timeLimit: 0,
-    correctAnswer: 'a',
-    incorrectAnswers: ['b'],
-  }) as QuizQuestion;
+const q = (id: string): QuizQuestion => ({
+  id,
+  type: 'MC',
+  text: id,
+  timeLimit: 0,
+  correctAnswer: 'a',
+  incorrectAnswers: ['b'],
+});
 
-const baseQuiz = (over: Partial<QuizData> = {}): QuizData =>
-  ({
-    id: 'quiz-1',
-    title: 'Vocab',
-    questions: [],
-    createdAt: 0,
-    updatedAt: 0,
-    ...over,
-  }) as QuizData;
+const baseQuiz = (over: Partial<QuizData> = {}): QuizData => ({
+  id: 'quiz-1',
+  title: 'Vocab',
+  questions: [],
+  createdAt: 0,
+  updatedAt: 0,
+  ...over,
+});
 
 describe('resolveQuizAssignContent', () => {
   it('passes a plain quiz through untouched', async () => {
@@ -48,7 +46,7 @@ describe('resolveQuizAssignContent', () => {
           count: 2,
         },
       ],
-    } as Partial<QuizData>);
+    });
     const bank = {
       questions: [q('b1'), q('b2'), q('b3')],
     } as unknown as BankContent;

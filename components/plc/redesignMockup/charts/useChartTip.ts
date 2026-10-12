@@ -26,15 +26,15 @@ export function useChartTip() {
   const bind = (content: TipContent) => ({
     tabIndex: 0,
     onPointerMove: (e: React.PointerEvent<Element>) => {
-      const host = (e.currentTarget as Element).closest('[data-chart]');
+      const host = e.currentTarget.closest('[data-chart]');
       const box = host?.getBoundingClientRect();
       if (!box) return;
       setTip({ x: e.clientX - box.left, y: e.clientY - box.top, content });
     },
     onFocus: (e: React.FocusEvent<Element>) => {
-      const host = (e.currentTarget as Element).closest('[data-chart]');
+      const host = e.currentTarget.closest('[data-chart]');
       const box = host?.getBoundingClientRect();
-      const mark = (e.currentTarget as Element).getBoundingClientRect();
+      const mark = e.currentTarget.getBoundingClientRect();
       if (!box) return;
       setTip({
         x: mark.left - box.left + mark.width / 2,

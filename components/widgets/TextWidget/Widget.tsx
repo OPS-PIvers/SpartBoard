@@ -214,7 +214,7 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       config: {
         ...config,
         content,
-      } as TextConfig,
+      },
     });
   }, [widget.id, config, updateWidget, readEditorContent]);
 
@@ -241,7 +241,7 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       config: {
         ...config,
         content,
-      } as TextConfig,
+      },
     });
   }, [widget.id, config, updateWidget, readEditorContent]);
 
@@ -253,7 +253,7 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       config: {
         ...config,
         content,
-      } as TextConfig,
+      },
     });
   }, [widget.id, config, updateWidget, readEditorContent]);
 
@@ -362,12 +362,12 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                             config: {
                               ...config,
                               verticalAlign: value,
-                            } as TextConfig,
+                            },
                           }),
                         bgColor,
                         onBgColorChange: (color: string) =>
                           updateWidget(widget.id, {
-                            config: { ...config, bgColor: color } as TextConfig,
+                            config: { ...config, bgColor: color },
                           }),
                       })}
                 />

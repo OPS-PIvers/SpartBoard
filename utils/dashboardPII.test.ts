@@ -5,7 +5,7 @@ import {
   mergeDashboardPII,
   dashboardHasPII,
 } from './dashboardPII';
-import { Dashboard, WidgetConfig } from '@/types';
+import { Dashboard } from '@/types';
 
 describe('dashboardPII', () => {
   const mockDashboardNoPii: Dashboard = {
@@ -25,7 +25,7 @@ describe('dashboardPII', () => {
         flipped: false,
         config: {
           style: 'analog',
-        } as unknown as WidgetConfig,
+        },
       },
     ],
   };
@@ -50,7 +50,7 @@ describe('dashboardPII', () => {
           firstNames: 'Alice\nBob',
           lastNames: 'Smith\nJones',
           remainingStudents: ['Alice', 'Bob'],
-        } as unknown as WidgetConfig,
+        },
       },
       {
         id: 'widget-2',
@@ -64,7 +64,7 @@ describe('dashboardPII', () => {
         config: {
           layout: 'grid',
           names: ['Alice Smith', 'Bob Jones'],
-        } as unknown as WidgetConfig,
+        },
       },
       {
         id: 'widget-3',
@@ -77,7 +77,7 @@ describe('dashboardPII', () => {
         flipped: false,
         config: {
           style: 'digital',
-        } as unknown as WidgetConfig,
+        },
       },
       {
         id: 'widget-4',
@@ -99,7 +99,7 @@ describe('dashboardPII', () => {
           // student names, same PII shape as the flat lists above.
           jigsawHomeGroups: [{ id: 'g1', names: ['Alice Smith'] }],
           jigsawExpertGroups: [{ id: 'g2', names: ['Bob Jones'] }],
-        } as unknown as WidgetConfig,
+        },
       },
       {
         id: 'widget-5',
@@ -118,7 +118,7 @@ describe('dashboardPII', () => {
           assignments: { 'Dana White': 'station-1' },
           rosterMode: 'custom',
           customRoster: ['Dana White'],
-        } as unknown as WidgetConfig,
+        },
       },
       {
         id: 'widget-6',
@@ -133,7 +133,7 @@ describe('dashboardPII', () => {
           roster: ['Eve Adams'],
           assignments: { 'Eve Adams': 'hot' },
           rosterMode: 'custom',
-        } as unknown as WidgetConfig,
+        },
       },
       {
         id: 'widget-7',
@@ -150,7 +150,7 @@ describe('dashboardPII', () => {
           // this field must NOT be scrubbed/extracted.
           assignments: { 'roster-student-id-123': 'station-1' },
           rosterMode: 'class',
-        } as unknown as WidgetConfig,
+        },
       },
     ],
   };

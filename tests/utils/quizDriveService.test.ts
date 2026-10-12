@@ -757,7 +757,7 @@ describe('QuizDriveService.exportResultsToSheet — column shape', () => {
               answer: '',
               answeredAt: 0,
               unresponded: 'passed',
-            } as QuizResponseAnswer,
+            },
           ],
         }),
       ],
@@ -790,13 +790,13 @@ describe('QuizDriveService.exportResultsToSheet — column shape', () => {
               answer: 'B',
               answeredAt: 0,
               takeIndex: 0,
-            } as QuizResponseAnswer, // wrong, earlier take
+            }, // wrong, earlier take
             {
               questionId: 'q1',
               answer: 'A',
               answeredAt: 1,
               takeIndex: 1,
-            } as QuizResponseAnswer, // correct, later take — wins
+            }, // correct, later take — wins
           ],
         }),
       ],

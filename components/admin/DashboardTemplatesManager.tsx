@@ -97,6 +97,7 @@ export const DashboardTemplatesManager: React.FC = () => {
   // Subscribe to templates collection
   useEffect(() => {
     if (isAuthBypass) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- state synced from an external system or reset on open
       setLoading(false);
       return;
     }
@@ -155,7 +156,7 @@ export const DashboardTemplatesManager: React.FC = () => {
       setLocalTemplates((prev) => {
         const current = prev.get(id);
         if (!current) return prev;
-        return new Map(prev).set(id, { ...current, ...updates } as AnyTemplate);
+        return new Map(prev).set(id, { ...current, ...updates });
       });
       setUnsavedIds((prev) => new Set(prev).add(id));
     },

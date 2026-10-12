@@ -9,9 +9,7 @@ import {
   makeTimedQuizSession,
   makeTimedStudentResponse,
 } from './sessionViewsMocks';
-
-export const STUDENT_QUIZ_STATES = ['sq-timed', 'sq-last-minute'] as const;
-export type StudentQuizStateKey = (typeof STUDENT_QUIZ_STATES)[number];
+import { type StudentQuizStateKey } from './devViewStates';
 
 const noop = (): Promise<void> => Promise.resolve();
 

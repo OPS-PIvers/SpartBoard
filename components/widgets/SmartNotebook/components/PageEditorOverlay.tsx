@@ -791,12 +791,7 @@ const Toolbar: React.FC<{
   // state covers both "this tool is currently selected" and (for Shapes)
   // "the active tool is one of my sub-tools".
   type ToolButtonKey =
-    | 'select'
-    | 'pen'
-    | 'highlighter'
-    | 'eraser'
-    | 'text'
-    | 'shapes';
+    'select' | 'pen' | 'highlighter' | 'eraser' | 'text' | 'shapes';
   const renderToolButton = (
     keyId: ToolButtonKey,
     Icon: React.ComponentType<{ className?: string }>,

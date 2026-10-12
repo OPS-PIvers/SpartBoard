@@ -81,7 +81,7 @@ function mockHooks() {
     unsubscribeFromAppSessions: vi.fn(),
     renameSession: vi.fn(),
     endSession: vi.fn(),
-  } as unknown as ReturnType<typeof useMiniAppSessionTeacher>);
+  });
   vi.mocked(useMiniAppAssignments).mockReturnValue({
     assignments: [],
     loading: false,
@@ -99,7 +99,7 @@ function mockHooks() {
   vi.mocked(useMiniAppSync).mockReturnValue({
     library: [],
     globalLibrary: [],
-  } as unknown as ReturnType<typeof useMiniAppSync>);
+  });
 }
 
 describe('MiniAppWidget — runtime iframe sandbox', () => {
@@ -138,7 +138,7 @@ describe('MiniAppWidget — inside a sub share', () => {
           shareId: 'share-1',
           version: 0,
           loadKey: noSubShareKey,
-          load: (() => Promise.resolve(null)) as never,
+          load: () => Promise.resolve(null),
         })}
       >
         {/* The toolbar only renders once it finds its widget's chrome. */}
@@ -198,9 +198,7 @@ describe('MiniAppWidget — inside a sub share', () => {
     selected();
     render(
       <InShare>
-        <MiniAppWidget
-          widget={{ ...widget, config: {} } as unknown as WidgetData}
-        />
+        <MiniAppWidget widget={{ ...widget, config: {} }} />
       </InShare>
     );
 

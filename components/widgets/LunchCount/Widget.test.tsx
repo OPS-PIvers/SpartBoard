@@ -296,7 +296,7 @@ describe('LunchCountWidget — class group pool', () => {
         date: new Date().toISOString(),
       },
       lastSyncDate: new Date().toISOString(),
-    } as unknown as LunchCountConfig,
+    },
   });
 
   beforeEach(() => {
@@ -401,7 +401,7 @@ describe('LunchCountWidget — class group pool', () => {
         gradeLevel: '1',
         lunchTimeHour: '11',
         lunchTimeMinute: '30',
-      } as LunchCountConfig,
+      },
     };
 
     it('labels the report with the teacher who shared the board', async () => {

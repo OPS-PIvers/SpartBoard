@@ -60,39 +60,39 @@ const quiz: QuizData = {
   updatedAt: 1,
 };
 
-const translation = (overrides: Partial<QuizTranslation> = {}) =>
-  ({
-    locale: 'es',
-    title: 'Números',
-    questions: { q1: { text: '¿Cuál es primo?', choices: ['Siete', 'Ocho'] } },
-    sourceHashes: { q1: 'stale-hash' },
-    reviewedQuestionIds: ['q1'],
-    model: 'gemini-3.5-flash-lite',
-    generatedAt: 1,
-    updatedAt: 1,
-    ...overrides,
-  }) as QuizTranslation;
+const translation = (overrides: Partial<QuizTranslation> = {}) => ({
+  locale: 'es',
+  title: 'Números',
+  questions: { q1: { text: '¿Cuál es primo?', choices: ['Siete', 'Ocho'] } },
+  sourceHashes: { q1: 'stale-hash' },
+  reviewedQuestionIds: ['q1'],
+  model: 'gemini-3.5-flash-lite',
+  generatedAt: 1,
+  updatedAt: 1,
+  ...overrides,
+});
 
-const metadata = (entryOverrides: Record<string, unknown> = {}): QuizMetadata =>
-  ({
-    id: 'quiz-1',
-    title: 'Numbers',
-    driveFileId: 'drive-quiz',
-    questionCount: 1,
-    createdAt: 1,
-    updatedAt: 1,
-    translations: {
-      es: {
-        driveFileId: 'file-es',
-        reviewedCount: 1,
-        staleCount: 0,
-        questionCount: 1,
-        sourceHashes: { q1: 'stale-hash' },
-        updatedAt: 1,
-        ...entryOverrides,
-      },
+const metadata = (
+  entryOverrides: Record<string, unknown> = {}
+): QuizMetadata => ({
+  id: 'quiz-1',
+  title: 'Numbers',
+  driveFileId: 'drive-quiz',
+  questionCount: 1,
+  createdAt: 1,
+  updatedAt: 1,
+  translations: {
+    es: {
+      driveFileId: 'file-es',
+      reviewedCount: 1,
+      staleCount: 0,
+      questionCount: 1,
+      sourceHashes: { q1: 'stale-hash' },
+      updatedAt: 1,
+      ...entryOverrides,
     },
-  }) as QuizMetadata;
+  },
+});
 
 // The hook reads auth via context, so a provider-less host must not throw.
 const wrapper = ({ children }: { children: ReactNode }) =>

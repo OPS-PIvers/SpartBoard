@@ -7,11 +7,11 @@ const makePerm = (
   buildingDefaults: Record<string, Record<string, unknown>>,
   extraConfig: Record<string, unknown> = {}
 ): FeaturePermission => ({
-  widgetType: widgetType as FeaturePermission['widgetType'],
+  widgetType: widgetType,
   accessLevel: 'public',
   betaUsers: [],
   enabled: true,
-  config: { buildingDefaults, ...extraConfig } as FeaturePermission['config'],
+  config: { buildingDefaults, ...extraConfig },
 });
 
 describe('getAdminBuildingConfig', () => {

@@ -84,7 +84,7 @@ describe('renameKeyStep / deleteKeyStep', () => {
   const remove = deleteKeyStep('oldKey', 'newKey');
 
   it('rename copies old to new and keeps old (dual-write)', () => {
-    const out = rename({ oldKey: 7 } as unknown as WidgetConfig);
+    const out = rename({ oldKey: 7 });
     expect(out).toEqual({ oldKey: 7, newKey: 7 });
   });
 
@@ -95,12 +95,12 @@ describe('renameKeyStep / deleteKeyStep', () => {
 
   it('delete step self-heals an old-shape config carrying a wrong stamp', () => {
     // configVersion said the rename ran, but only the old key is present.
-    const out = remove({ oldKey: 7 } as unknown as WidgetConfig);
+    const out = remove({ oldKey: 7 });
     expect(out).toEqual({ newKey: 7 });
   });
 
   it('delete step drops old once new is already present', () => {
-    const out = remove({ oldKey: 7, newKey: 9 } as unknown as WidgetConfig);
+    const out = remove({ oldKey: 7, newKey: 9 });
     expect(out).toEqual({ newKey: 9 });
   });
 });

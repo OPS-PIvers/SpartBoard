@@ -109,8 +109,7 @@ export function matchesFilter(
 /** False when a building-restricted join-code permission leaves out every building the teacher picked, admins included. */
 export const joinCodesAllowedForBuildings = (
   permission:
-    | Pick<GlobalFeaturePermission, 'enabled' | 'buildings'>
-    | undefined,
+    Pick<GlobalFeaturePermission, 'enabled' | 'buildings'> | undefined,
   selectedBuildings: readonly string[]
 ): boolean => {
   if (!permission) return true;

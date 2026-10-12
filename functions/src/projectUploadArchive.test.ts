@@ -187,7 +187,7 @@ function makeDeps(
     setDrivePermission: vi.fn(() => Promise.resolve()),
     now: () => NOW,
     ...overrides,
-  } as WallArchiveDeps;
+  };
 }
 
 const firebaseUpload = (overrides: Bag = {}): Bag => ({

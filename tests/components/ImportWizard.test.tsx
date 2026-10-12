@@ -63,12 +63,12 @@ function makeAdapter(opts: MakeAdapterOptions = {}): {
     widgetLabel: 'Quiz',
     supportedSources: opts.supportedSources ?? ['sheet', 'csv', 'json'],
     templateHelper: opts.templateHelper,
-    parse: parseSpy as unknown as ImportAdapter<FakeData>['parse'],
-    validate: validateSpy as unknown as ImportAdapter<FakeData>['validate'],
+    parse: parseSpy,
+    validate: validateSpy,
     renderPreview: (data) => (
       <div data-testid="preview">rows: {data.rows.join(', ')}</div>
     ),
-    save: saveSpy as unknown as ImportAdapter<FakeData>['save'],
+    save: saveSpy,
     aiAssist,
     suggestTitle: opts.suggestTitle,
   };
@@ -542,8 +542,7 @@ describe('ImportWizard', () => {
   it('does not let a stale in-flight parse from before a close/reopen clobber the freshly-reset state', async () => {
     // Deferred promise lets the test control exactly when adapter.parse resolves.
     let resolveParse:
-      | ((v: { data: FakeData; warnings: string[] }) => void)
-      | null = null;
+      ((v: { data: FakeData; warnings: string[] }) => void) | null = null;
     const parsePromise = new Promise<{ data: FakeData; warnings: string[] }>(
       (resolve) => {
         resolveParse = resolve;

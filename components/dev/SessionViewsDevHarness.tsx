@@ -29,37 +29,12 @@ import { QuizResults } from '@/components/widgets/QuizWidget/components/QuizResu
 import { VideoActivityLiveMonitor } from '@/components/widgets/VideoActivityWidget/components/VideoActivityLiveMonitor';
 import { Results as VideoActivityResults } from '@/components/widgets/VideoActivityWidget/components/Results';
 import { PresentScreen } from '@/components/widgets/QuizWidget/components/present/PresentScreen';
-import {
-  AudioCaptureDevView,
-  AUDIO_CAPTURE_STATES,
-  AUDIO_CAPTURE_DARK_STATES,
-  type AudioCaptureStateKey,
-} from './AudioCaptureDevView';
-import {
-  RecordingControlsDevView,
-  RECORDING_CONTROL_STATES,
-  type RecordingControlStateKey,
-} from './RecordingControlsDevView';
-import {
-  QuizEditorDevView,
-  QUIZ_EDITOR_STATES,
-  type QuizEditorStateKey,
-} from './QuizEditorDevView';
-import {
-  MediaGradingDevView,
-  MEDIA_GRADING_STATES,
-  type MediaGradingStateKey,
-} from './MediaGradingDevView';
-import {
-  ResultsPlaybackDevView,
-  RESULTS_PLAYBACK_STATES,
-  type ResultsPlaybackStateKey,
-} from './ResultsPlaybackDevView';
-import {
-  StudentQuizDevView,
-  STUDENT_QUIZ_STATES,
-  type StudentQuizStateKey,
-} from './StudentQuizDevView';
+import { AudioCaptureDevView } from './AudioCaptureDevView';
+import { RecordingControlsDevView } from './RecordingControlsDevView';
+import { QuizEditorDevView } from './QuizEditorDevView';
+import { MediaGradingDevView } from './MediaGradingDevView';
+import { ResultsPlaybackDevView } from './ResultsPlaybackDevView';
+import { StudentQuizDevView } from './StudentQuizDevView';
 import {
   VIEWS,
   STATES,
@@ -79,6 +54,21 @@ import {
   makeVaSession,
   makeVaResponses,
 } from './sessionViewsMocks';
+import {
+  AUDIO_CAPTURE_STATES,
+  AUDIO_CAPTURE_DARK_STATES,
+  type AudioCaptureStateKey,
+  RECORDING_CONTROL_STATES,
+  type RecordingControlStateKey,
+  QUIZ_EDITOR_STATES,
+  type QuizEditorStateKey,
+  MEDIA_GRADING_STATES,
+  type MediaGradingStateKey,
+  RESULTS_PLAYBACK_STATES,
+  type ResultsPlaybackStateKey,
+  STUDENT_QUIZ_STATES,
+  type StudentQuizStateKey,
+} from './devViewStates';
 
 // Picking a view moves the State select onto a key that view actually reads.
 const DEFAULT_STATE_FOR_VIEW: Record<ViewKey, StateKey> = {

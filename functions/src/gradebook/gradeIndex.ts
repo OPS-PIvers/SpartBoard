@@ -14,6 +14,7 @@ import {
   parseSessionMeta,
   rowId,
   scoreCompletion,
+  scoreMiniAppBest,
   scoreFlashcardProgress,
   scoreGuidedLearningResponse,
   scoreProjectMember,
@@ -183,11 +184,14 @@ export async function loadSessionContext(
       s.kind === 'check' ? scoreFlashcardProgress(s, progress) : null,
     // Project rows are built from the group grade in `projectRows`.
     projects: () => null,
-    'mini-app': (_uid, submission) =>
-      scoreCompletion(
-        toMillis(submission.submittedAt),
-        meta.classIds.length === 1 ? meta.classIds[0] : null
-      ),
+    'mini-app': (_uid, submission) => {
+      const classId = meta.classIds.length === 1 ? meta.classIds[0] : null;
+      return (
+        (s.resultsVersion === 2
+          ? scoreMiniAppBest(submission, classId)
+          : null) ?? scoreCompletion(toMillis(submission.submittedAt), classId)
+      );
+    },
     'activity-wall': (_uid, submission) =>
       scoreCompletion(
         toMillis(submission.submittedAt),
@@ -430,7 +434,7 @@ const WATCHED: Record<GradeKind, string[]> = {
   'guided-learning': ['score', 'completedAt', 'resultsOverride', 'classId'],
   flashcards: ['score', 'total', 'submittedAt', 'classId'],
   projects: ['points', 'maxPoints', 'overridesByUid', 'released', 'gradedAt'],
-  'mini-app': ['submittedAt', 'studentUid'],
+  'mini-app': ['submittedAt', 'studentUid', 'best'],
   'activity-wall': ['submittedAt', 'authorUid'],
 };
 

@@ -117,8 +117,8 @@ describe('EditorModalShell autosave', () => {
 
   it('asks before closing when the last write failed', async () => {
     const onClose = vi.fn();
-    const onSave = vi.fn(
-      (): Promise<void> => Promise.reject(new Error('offline'))
+    const onSave = vi.fn((): Promise<void> =>
+      Promise.reject(new Error('offline'))
     );
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const { edit } = renderShell({ onSave, onClose });

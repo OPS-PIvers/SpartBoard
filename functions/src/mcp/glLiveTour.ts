@@ -285,9 +285,7 @@ interface TourThumbnail {
 }
 const thumbnailOf = (step: Step): TourThumbnail | undefined => {
   const thumb = (step.tour as { thumbnail?: unknown } | undefined)?.thumbnail;
-  return thumb && typeof thumb === 'object'
-    ? (thumb as TourThumbnail)
-    : undefined;
+  return thumb && typeof thumb === 'object' ? thumb : undefined;
 };
 
 /** A tour step as Claude sees it: no slide placement, the thumbnail as a flag. */

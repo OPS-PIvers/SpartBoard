@@ -37,7 +37,7 @@ const mockWidget: WidgetData = {
     workMode: 'individual',
     interactionMode: 'productive',
     layout: 'secondary',
-  } as ExpectationsConfig,
+  },
 };
 
 describe('ExpectationsWidget', () => {

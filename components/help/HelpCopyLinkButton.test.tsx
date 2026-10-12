@@ -8,7 +8,7 @@ import type { CreateResult } from '@/hooks/useShortLinks';
 import { HelpCopyLinkButton } from './HelpCopyLinkButton';
 import { helpShortLinkCode, parseHelpItemPath } from './helpCenterState';
 
-const authValue = vi.hoisted(() => ({ isAdmin: true as boolean | null }));
+const authValue = vi.hoisted(() => ({ isAdmin: true }));
 vi.mock('@/context/useAuth', () => ({ useAuth: () => authValue }));
 
 const mocks = vi.hoisted(() => ({
