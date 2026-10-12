@@ -168,7 +168,10 @@ export const QuizBanksTab: React.FC<QuizBanksTabProps> = ({
   });
 
   // ─── Folders ─────────────────────────────────────────────────────────────
-  const bankFolderState = useFolders(userId, 'question_bank');
+  const bankFolderState = useFolders(
+    libraryFolders ? undefined : userId,
+    'question_bank'
+  );
   const folderState = libraryFolders?.state ?? bankFolderState;
   const [folderPickerTarget, setFolderPickerTarget] =
     useState<QuestionBankMetadata | null>(null);
