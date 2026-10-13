@@ -185,8 +185,8 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
     if (memberEmailsLower.has(trimmed)) {
       setInviteError(
         t('plcDashboard.members.groupAlreadyMember', {
-              defaultValue: 'That email is already a member of this team.',
-            })
+          defaultValue: 'That email is already a member of this team.',
+        })
       );
       return;
     }
@@ -257,10 +257,10 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
   const handleTransferLead = async (member: PlcMember) => {
     const confirmed = await showConfirm(
       t('plcDashboard.members.groupConfirmTransfer', {
-            defaultValue:
-              'Make {{email}} the lead of this team? You will become a regular member.',
-            email: member.email || member.uid,
-          }),
+        defaultValue:
+          'Make {{email}} the lead of this team? You will become a regular member.',
+        email: member.email || member.uid,
+      }),
       {
         title: t('plcDashboard.members.confirmTransferTitle', {
           defaultValue: 'Transfer lead',
@@ -290,9 +290,9 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
   const handleRemoveMember = async (member: PlcMember) => {
     const confirmed = await showConfirm(
       t('plcDashboard.members.groupConfirmRemove', {
-            defaultValue: 'Remove {{email}} from this team?',
-            email: member.email || member.uid,
-          }),
+        defaultValue: 'Remove {{email}} from this team?',
+        email: member.email || member.uid,
+      }),
       {
         title: t('plcDashboard.members.confirmRemoveTitle', {
           defaultValue: 'Remove member',
@@ -322,13 +322,13 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
   const handleLeave = async () => {
     const confirmed = await showConfirm(
       t('plcDashboard.members.groupConfirmLeave', {
-            defaultValue:
-              'Leave this team? You will lose access to shared assignment results.',
-          }),
+        defaultValue:
+          'Leave this team? You will lose access to shared assignment results.',
+      }),
       {
         title: t('plcDashboard.members.groupConfirmLeaveTitle', {
-              defaultValue: 'Leave team',
-            }),
+          defaultValue: 'Leave team',
+        }),
         variant: 'danger',
         confirmLabel: t('plcDashboard.members.leave', {
           defaultValue: 'Leave',
@@ -720,8 +720,8 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
           >
             <UserMinus aria-hidden="true" className="w-3.5 h-3.5" />
             {t('plcDashboard.members.groupLeavePlc', {
-                  defaultValue: 'Leave this team',
-                })}
+              defaultValue: 'Leave this team',
+            })}
           </button>
         </section>
       )}

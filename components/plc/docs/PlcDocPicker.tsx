@@ -270,11 +270,9 @@ export const PlcDocPicker = forwardRef<PlcDocPickerHandle, PlcDocPickerProps>(
               type="url"
               value={addUrl}
               onChange={(e) => setAddUrl(e.target.value)}
-              placeholder={
-                t('plcDashboard.docs.groupUrlPlaceholder', {
-                      defaultValue: 'Paste a link',
-                    })
-              }
+              placeholder={t('plcDashboard.docs.groupUrlPlaceholder', {
+                defaultValue: 'Paste a link',
+              })}
               className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-blue-primary/50 focus:border-brand-blue-primary/50"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') void handleAdd();

@@ -186,16 +186,12 @@ export const PlcSearchBox: React.FC<PlcSearchBoxProps> = ({
               ? optionId(clampedActiveIndex)
               : undefined
           }
-          aria-label={
-            t('plcDashboard.search.groupAriaLabel', {
-                  defaultValue: 'Search this team',
-                })
-          }
-          placeholder={
-            t('plcDashboard.search.groupPlaceholder', {
-                  defaultValue: 'Search this team…',
-                })
-          }
+          aria-label={t('plcDashboard.search.groupAriaLabel', {
+            defaultValue: 'Search this team',
+          })}
+          placeholder={t('plcDashboard.search.groupPlaceholder', {
+            defaultValue: 'Search this team…',
+          })}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);

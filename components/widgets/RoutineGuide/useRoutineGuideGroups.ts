@@ -20,8 +20,8 @@ export function useRoutineGuideGroups(filter: string) {
   const groups = useMemo(
     () =>
       plcs
-            .map((p) => ({ id: p.id, name: p.name }))
-            .sort((a, b) => a.name.localeCompare(b.name)),
+        .map((p) => ({ id: p.id, name: p.name }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
     [plcs]
   );
 

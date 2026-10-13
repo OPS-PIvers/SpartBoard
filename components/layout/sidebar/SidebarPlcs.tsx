@@ -310,8 +310,8 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
       }),
       {
         title: t('sidebar.groups.confirmLeaveTitle', {
-              defaultValue: 'Leave team',
-            }),
+          defaultValue: 'Leave team',
+        }),
         variant: 'danger',
         confirmLabel: t('sidebar.plcs.leave', { defaultValue: 'Leave' }),
       }
@@ -324,13 +324,13 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
   const handleDelete = async (plc: Plc) => {
     const confirmed = await showConfirm(
       t('sidebar.groups.confirmDelete', {
-            defaultValue: `Delete "${plc.name}"? This will remove the group for everyone.`,
-            name: plc.name,
-          }),
+        defaultValue: `Delete "${plc.name}"? This will remove the group for everyone.`,
+        name: plc.name,
+      }),
       {
         title: t('sidebar.groups.confirmDeleteTitle', {
-              defaultValue: 'Delete team',
-            }),
+          defaultValue: 'Delete team',
+        }),
         variant: 'danger',
         confirmLabel: t('common.delete', { defaultValue: 'Delete' }),
       }
@@ -406,8 +406,8 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                 <div className="text-center">
                   <p className="text-sm font-bold text-slate-600">
                     {t('sidebar.groups.emptyTitle', {
-                          defaultValue: 'No teams yet',
-                        })}
+                      defaultValue: 'No teams yet',
+                    })}
                   </p>
                   <p className="text-xs text-slate-400 mt-0.5">
                     {pendingInvites.length > 0
@@ -416,9 +416,9 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                             'You have pending invitations — accept one to get started.',
                         })
                       : t('sidebar.groups.emptySubtitle', {
-                            defaultValue:
-                              'Create a team and invite your colleagues by email.',
-                          })}
+                          defaultValue:
+                            'Create a team and invite your colleagues by email.',
+                        })}
                   </p>
                 </div>
                 <button
@@ -427,16 +427,16 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                   className="mt-2 px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xxs font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors"
                 >
                   {t('sidebar.groups.createNew', {
-                        defaultValue: 'Create a team',
-                      })}
+                    defaultValue: 'Create a team',
+                  })}
                 </button>
               </div>
             ) : (
               <div className="space-y-3">
                 <h3 className="text-xxs font-bold text-slate-400 uppercase tracking-widest px-1">
                   {t('sidebar.groups.yours', {
-                        defaultValue: 'Your teams',
-                      })}
+                    defaultValue: 'Your teams',
+                  })}
                 </h3>
                 <div
                   className="flex flex-col gap-2"

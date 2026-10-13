@@ -69,11 +69,9 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
     <Modal
       isOpen
       onClose={submitting ? () => undefined : onClose}
-      ariaLabel={
-        t('plcDashboard.shareTargetModal.groupAriaLabel', {
-              defaultValue: 'Pick a team to share with',
-            })
-      }
+      ariaLabel={t('plcDashboard.shareTargetModal.groupAriaLabel', {
+        defaultValue: 'Pick a team to share with',
+      })}
       maxWidth="max-w-md"
       contentClassName=""
       customHeader={
@@ -85,8 +83,8 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
             <div>
               <h2 className="text-base font-bold text-slate-900">
                 {t('plcDashboard.shareTargetModal.groupTitle', {
-                      defaultValue: 'Share with team',
-                    })}
+                  defaultValue: 'Share with team',
+                })}
               </h2>
               <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[20rem]">
                 {quizTitle}

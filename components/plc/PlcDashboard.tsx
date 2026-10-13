@@ -188,11 +188,9 @@ const LegacyPlcDashboard: React.FC<PlcDashboardProps> = ({
             <div className="flex justify-center py-16">
               <Loader2
                 className="h-8 w-8 animate-spin text-brand-blue-primary"
-                aria-label={
-                  t('plcRoute.groupLoading', {
-                        defaultValue: 'Loading team…',
-                      })
-                }
+                aria-label={t('plcRoute.groupLoading', {
+                  defaultValue: 'Loading team…',
+                })}
               />
             </div>
           );

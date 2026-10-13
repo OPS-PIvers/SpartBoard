@@ -506,11 +506,11 @@ export const PlcNewQuizAssignmentModal: React.FC<
         const createdKey = gated ? 'StepperCreated' : 'Created';
         addToast(
           t(`plcDashboard.newAssignment.quiz.group${createdKey}`, {
-                title: pickedQuiz.title,
-                defaultValue: gated
-                  ? '"{{title}}" created and shared with this group.'
-                  : '"{{title}}" created (paused) and shared with this group.',
-              }),
+            title: pickedQuiz.title,
+            defaultValue: gated
+              ? '"{{title}}" created and shared with this group.'
+              : '"{{title}}" created (paused) and shared with this group.',
+          }),
           'success'
         );
         onCreated?.({ assignmentId, quizTitle: pickedQuiz.title });
@@ -542,8 +542,8 @@ export const PlcNewQuizAssignmentModal: React.FC<
           err instanceof Error
             ? err.message
             : t('plcDashboard.newAssignment.quiz.groupCreateFailed', {
-                  defaultValue: 'Failed to create the team assignment.',
-                }),
+                defaultValue: 'Failed to create the team assignment.',
+              }),
           'error'
         );
       } finally {
@@ -586,11 +586,9 @@ export const PlcNewQuizAssignmentModal: React.FC<
   if (step === 'pick') {
     return (
       <PlcSharePickerModal
-        title={
-          t('plcDashboard.newAssignment.quiz.groupPickTitle', {
-                defaultValue: 'New Team Quiz Assignment',
-              })
-        }
+        title={t('plcDashboard.newAssignment.quiz.groupPickTitle', {
+          defaultValue: 'New Team Quiz Assignment',
+        })}
         subtitle={t('plcDashboard.newAssignment.quiz.pickSubtitle', {
           name: plc.name,
           defaultValue: 'Shared with {{name}}',

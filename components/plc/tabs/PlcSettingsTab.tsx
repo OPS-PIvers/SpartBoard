@@ -190,9 +190,9 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
           </h3>
           <p className="text-xs text-slate-500 mt-1 leading-relaxed">
             {t('plcDashboard.settings.groupDescription', {
-                  defaultValue:
-                    "Choose which sections appear on this team's page. Any member can update these.",
-                })}
+              defaultValue:
+                "Choose which sections appear on this team's page. Any member can update these.",
+            })}
           </p>
         </div>
       )}
@@ -288,8 +288,8 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
         </h3>
         <p className="text-xs text-slate-500 mt-1 leading-relaxed">
           {t('plcDashboard.settings.digest.groupDescription', {
-                defaultValue: 'Control how this team stays in the loop.',
-              })}
+            defaultValue: 'Control how this team stays in the loop.',
+          })}
         </p>
         <button
           {...tourAttr('plc-settings.digest')}
@@ -321,9 +321,9 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
             </div>
             <div className="text-xxs text-slate-500 leading-relaxed mt-0.5">
               {t('plcDashboard.settings.digest.groupOptInDescription', {
-                    defaultValue:
-                      'Send every member one weekly email summarizing what happened in the team. Off by default; any member can change this.',
-                  })}
+                defaultValue:
+                  'Send every member one weekly email summarizing what happened in the team. Off by default; any member can change this.',
+              })}
             </div>
           </div>
           <div

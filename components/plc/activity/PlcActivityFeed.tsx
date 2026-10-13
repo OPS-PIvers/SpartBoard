@@ -146,11 +146,9 @@ export const PlcActivityFeed: React.FC<PlcActivityFeedProps> = ({
         ) : (
           <ul
             className="space-y-0.5"
-            aria-label={
-              t('plcDashboard.activity.groupFeedAria', {
-                    defaultValue: 'Recent team activity',
-                  })
-            }
+            aria-label={t('plcDashboard.activity.groupFeedAria', {
+              defaultValue: 'Recent team activity',
+            })}
           >
             {visible.map((event) => (
               <PlcActivityRow key={event.id} event={event} selfUid={selfUid} />

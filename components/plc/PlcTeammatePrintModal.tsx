@@ -311,8 +311,8 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
       {sortedTeammates.length === 0 ? (
         <p className="text-sm text-slate-500">
           {t('plcDashboard.teammatePrint.groupNoTeammates', {
-                defaultValue: 'This team has no other members yet.',
-              })}
+            defaultValue: 'This team has no other members yet.',
+          })}
         </p>
       ) : (
         <ul className="flex flex-col gap-2">

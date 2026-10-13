@@ -294,9 +294,9 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
       if (!isDriveConnected) {
         addToast(
           t('plcDashboard.videoActivities.groupDriveRequired', {
-                defaultValue:
-                  'Connect Google Drive in your account to import team video activities.',
-              }),
+            defaultValue:
+              'Connect Google Drive in your account to import team video activities.',
+          }),
           'error'
         );
         return;
@@ -426,9 +426,9 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
       if (!isDriveConnected) {
         addToast(
           t('plcDashboard.videoActivities.groupDriveRequiredForEdit', {
-                defaultValue:
-                  'Connect Google Drive in your account to edit team video activities.',
-              }),
+            defaultValue:
+              'Connect Google Drive in your account to edit team video activities.',
+          }),
           'error'
         );
         return;
@@ -631,13 +631,12 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
         if (meta.sync?.groupId && plcSyncGroupIds.has(meta.sync.groupId)) {
           addToast(
             t(
-                  'plcDashboard.videoActivities.sharePicker.groupAlreadySharedToast',
-                  {
-                    title: meta.title,
-                    defaultValue:
-                      '"{{title}}" is already shared with this group.',
-                  }
-                ),
+              'plcDashboard.videoActivities.sharePicker.groupAlreadySharedToast',
+              {
+                title: meta.title,
+                defaultValue: '"{{title}}" is already shared with this group.',
+              }
+            ),
             'info'
           );
           setSharePickerOpen(false);
@@ -694,9 +693,9 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
 
         addToast(
           t('plcDashboard.videoActivities.sharePicker.groupSharedToast', {
-                title: meta.title,
-                defaultValue: '"{{title}}" shared with this group.',
-              }),
+            title: meta.title,
+            defaultValue: '"{{title}}" shared with this group.',
+          }),
           'success'
         );
         setSharePickerOpen(false);
@@ -715,9 +714,8 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
           err instanceof Error
             ? err.message
             : t('plcDashboard.videoActivities.sharePicker.groupShareFailed', {
-                  defaultValue:
-                    'Failed to share video activity with this team.',
-                }),
+                defaultValue: 'Failed to share video activity with this team.',
+              }),
           'error'
         );
       }
@@ -738,10 +736,10 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
     async (plcVideoActivityId: string, title: string) => {
       const confirmed = await showConfirm(
         t('plcDashboard.videoActivities.groupUnshareConfirm', {
-              title,
-              defaultValue:
-                'Remove "{{title}}" from this group? Other teammates will lose access to the shared library entry. Their personal copies (if any) keep working.',
-            }),
+          title,
+          defaultValue:
+            'Remove "{{title}}" from this group? Other teammates will lose access to the shared library entry. Their personal copies (if any) keep working.',
+        }),
         {
           title: t('plcDashboard.videoActivities.unshareTitle', {
             defaultValue: 'Unshare video activity',
@@ -853,9 +851,9 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
                 defaultValue: 'No personal video activities to share yet.',
               })
             : t('plcDashboard.videoActivities.shareCta.groupTooltip', {
-                  defaultValue:
-                    'Pick a video activity from your personal library to share with this team.',
-                })
+                defaultValue:
+                  'Pick a video activity from your personal library to share with this team.',
+              })
       }
       className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue-primary text-white text-xs font-bold hover:bg-brand-blue-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
     >
@@ -868,11 +866,9 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
 
   const sharePickerModal = sharePickerOpen ? (
     <PlcSharePickerModal
-      title={
-        t('plcDashboard.videoActivities.sharePicker.groupTitle', {
-              defaultValue: 'Share a video activity with this team',
-            })
-      }
+      title={t('plcDashboard.videoActivities.sharePicker.groupTitle', {
+        defaultValue: 'Share a video activity with this team',
+      })}
       subtitle={plc.name}
       emptyMessage={t('plcDashboard.videoActivities.sharePicker.empty', {
         defaultValue:
@@ -1107,19 +1103,16 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
                     )}
                     title={
                       isMine
-                        ? t(
-                              'plcDashboard.videoActivities.groupUnshareYours',
-                              {
-                                defaultValue: 'Unshare from team',
-                              }
-                            )
+                        ? t('plcDashboard.videoActivities.groupUnshareYours', {
+                            defaultValue: 'Unshare from team',
+                          })
                         : t(
-                              'plcDashboard.videoActivities.groupUnshareTeammate',
-                              {
-                                defaultValue:
-                                  'Unshare from team (any member can remove)',
-                              }
-                            )
+                            'plcDashboard.videoActivities.groupUnshareTeammate',
+                            {
+                              defaultValue:
+                                'Unshare from team (any member can remove)',
+                            }
+                          )
                     }
                     className="p-1.5 rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-40"
                   >

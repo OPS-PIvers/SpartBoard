@@ -89,9 +89,9 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
         await shareBankWithPlc(meta, plc.id);
         addToast(
           t('plcDashboard.bankLibrary.groupSharedToast', {
-                title: meta.title,
-                defaultValue: '"{{title}}" shared with this group.',
-              }),
+            title: meta.title,
+            defaultValue: '"{{title}}" shared with this group.',
+          }),
           'success'
         );
         setSharePickerOpen(false);
@@ -99,8 +99,8 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
         logError('PlcQuestionBanksBody.share', err, { plcId: plc.id, bankId });
         addToast(
           t('plcDashboard.bankLibrary.groupShareFailed', {
-                defaultValue: 'Failed to share question bank with this team.',
-              }),
+            defaultValue: 'Failed to share question bank with this team.',
+          }),
           'error'
         );
       }
@@ -163,10 +163,10 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
       }
       const confirmed = await showConfirm(
         t('plcDashboard.bankLibrary.groupUnshareConfirm', {
-              title: entry.title,
-              defaultValue:
-                'Stop sharing "{{title}}" with this group? Teammates’ quizzes that draw from it will stop resolving; copies in their libraries keep working.',
-            }),
+          title: entry.title,
+          defaultValue:
+            'Stop sharing "{{title}}" with this group? Teammates’ quizzes that draw from it will stop resolving; copies in their libraries keep working.',
+        }),
         {
           title: t('plcDashboard.bankLibrary.unshareTitle', {
             defaultValue: 'Stop sharing bank',
@@ -409,11 +409,9 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
 
       {sharePickerOpen && (
         <PlcSharePickerModal
-          title={
-            t('plcDashboard.bankLibrary.groupSharePickerTitle', {
-                  defaultValue: 'Share a question bank with this team',
-                })
-          }
+          title={t('plcDashboard.bankLibrary.groupSharePickerTitle', {
+            defaultValue: 'Share a question bank with this team',
+          })}
           subtitle={plc.name}
           emptyMessage={t('plcDashboard.bankLibrary.sharePickerEmpty', {
             defaultValue:

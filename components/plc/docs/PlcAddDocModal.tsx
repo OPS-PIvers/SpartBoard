@@ -62,9 +62,9 @@ export const PlcAddDocModal: React.FC<PlcAddDocModalProps> = ({
       const docId = await createDoc({ title: trimmedTitle, url: trimmedUrl });
       addToast(
         t('plcDashboard.home.quickCreate.docModal.groupCreated', {
-              title: trimmedTitle,
-              defaultValue: '"{{title}}" added to this group.',
-            }),
+          title: trimmedTitle,
+          defaultValue: '"{{title}}" added to this group.',
+        }),
         'success'
       );
       onCreated?.(docId);
@@ -159,8 +159,8 @@ export const PlcAddDocModal: React.FC<PlcAddDocModalProps> = ({
               className="mb-1 block text-sm font-medium text-slate-700"
             >
               {t('plcDashboard.home.quickCreate.docModal.groupUrlLabel', {
-                    defaultValue: 'Link',
-                  })}
+                defaultValue: 'Link',
+              })}
             </label>
             <input
               {...tourAttr('plc-docs.add-url')}
@@ -172,11 +172,9 @@ export const PlcAddDocModal: React.FC<PlcAddDocModalProps> = ({
                 if (e.key === 'Enter') void handleSubmit();
               }}
               disabled={submitting}
-              placeholder={
-                t('plcDashboard.docs.groupUrlPlaceholder', {
-                      defaultValue: 'Paste a link',
-                    })
-              }
+              placeholder={t('plcDashboard.docs.groupUrlPlaceholder', {
+                defaultValue: 'Paste a link',
+              })}
               className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-brand-blue-primary/50 focus:outline-none focus:ring-1 focus:ring-brand-blue-primary/50"
             />
           </div>

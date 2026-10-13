@@ -76,9 +76,9 @@ export const PlcRouteHost: React.FC<PlcRouteHostProps> = ({ parsed }) => {
       <FullScreenSurface>
         <Loader2
           className="w-10 h-10 text-brand-blue-primary animate-spin"
-          aria-label={
-            t('plcRoute.groupLoading', { defaultValue: 'Loading team…' })
-          }
+          aria-label={t('plcRoute.groupLoading', {
+            defaultValue: 'Loading team…',
+          })}
         />
       </FullScreenSurface>
     );
@@ -94,8 +94,8 @@ export const PlcRouteHost: React.FC<PlcRouteHostProps> = ({ parsed }) => {
           </div>
           <h1 className="text-lg font-bold text-slate-800">
             {t('plcRoute.groupNotFoundTitle', {
-                  defaultValue: 'Team not found',
-                })}
+              defaultValue: 'Team not found',
+            })}
           </h1>
           <p className="text-sm text-slate-500 mt-2">
             {t('plcRoute.notFoundBody', {

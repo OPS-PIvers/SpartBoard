@@ -69,11 +69,9 @@ export const PlcInvitesModal: React.FC<PlcInvitesModalProps> = ({
       isOpen={isOpen}
       onClose={onClose}
       maxWidth="max-w-md"
-      title={
-        t('sidebar.plcs.groupInvitesTitle', {
-              defaultValue: 'Pending Team Invitations',
-            })
-      }
+      title={t('sidebar.plcs.groupInvitesTitle', {
+        defaultValue: 'Pending Team Invitations',
+      })}
       contentClassName="px-6 pb-6"
     >
       {pendingInvites.length === 0 ? (

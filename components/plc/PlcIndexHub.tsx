@@ -91,8 +91,8 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
             </div>
             <p className="text-sm font-bold text-slate-600">
               {t('plcRoute.groupsHubEmptyTitle', {
-                    defaultValue: 'No teams yet',
-                  })}
+                defaultValue: 'No teams yet',
+              })}
             </p>
             <p className="text-xs text-slate-500">
               {t('plcRoute.hubEmptySubtitle', {
@@ -171,8 +171,8 @@ const PlcBuildingDirectorySection: React.FC<{
         <Building2 className="w-4 h-4 text-slate-400" aria-hidden="true" />
         <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500">
           {t('plcDirectory.groupHeading', {
-                defaultValue: 'Teams in my building',
-              })}
+            defaultValue: 'Teams in my building',
+          })}
         </h2>
       </div>
 
@@ -191,11 +191,9 @@ const PlcBuildingDirectorySection: React.FC<{
         </div>
       ) : entries.length === 0 ? (
         <DirectoryNotice
-          title={
-            t('plcDirectory.groupEmptyTitle', {
-                  defaultValue: 'No other teams to show',
-                })
-          }
+          title={t('plcDirectory.groupEmptyTitle', {
+            defaultValue: 'No other teams to show',
+          })}
         />
       ) : (
         <ul className="flex flex-col gap-2">

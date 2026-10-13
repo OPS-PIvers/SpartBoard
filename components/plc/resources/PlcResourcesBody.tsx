@@ -192,9 +192,9 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
       markUsed(res.id);
       addToast(
         t('plcDashboard.resources.groupUseSuccess', {
-              title: res.title,
-              defaultValue: '"{{title}}" added to this group.',
-            }),
+          title: res.title,
+          defaultValue: '"{{title}}" added to this group.',
+        }),
         'success'
       );
     } catch (err) {
@@ -324,8 +324,8 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
                         <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
                           <Check className="w-3 h-3" />
                           {t('plcDashboard.resources.groupUsedStatus', {
-                                defaultValue: 'Added to your team',
-                              })}
+                            defaultValue: 'Added to your team',
+                          })}
                         </p>
                       )}
                     </div>
@@ -337,13 +337,13 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
                       aria-label={
                         isDeepLink
                           ? t('plcDashboard.resources.groupOpenAction', {
-                                title: res.title,
-                                defaultValue: `Open ${res.title} in this group`,
-                              })
+                              title: res.title,
+                              defaultValue: `Open ${res.title} in this group`,
+                            })
                           : t('plcDashboard.resources.groupUseAction', {
-                                title: res.title,
-                                defaultValue: `Use ${res.title} in this group`,
-                              })
+                              title: res.title,
+                              defaultValue: `Use ${res.title} in this group`,
+                            })
                       }
                     >
                       {isPending ? (

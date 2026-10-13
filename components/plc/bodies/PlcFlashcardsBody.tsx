@@ -356,9 +356,9 @@ export const PlcFlashcardsBody: React.FC<PlcFlashcardsBodyProps> = ({
     async (entryId: string, title: string) => {
       const confirmed = await showConfirm(
         t('plcDashboard.flashcards.groupUnshareConfirm', {
-              title,
-              defaultValue: 'Remove "{{title}}" from this group?',
-            }),
+          title,
+          defaultValue: 'Remove "{{title}}" from this group?',
+        }),
         {
           title: t('plcDashboard.flashcards.unshareTitle', {
             defaultValue: 'Unshare set',

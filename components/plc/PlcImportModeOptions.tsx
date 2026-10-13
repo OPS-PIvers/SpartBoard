@@ -64,11 +64,12 @@ export const PlcImportModeOptions: React.FC<{
             'Stays linked. Edits by anyone on the team, you included, reach everyone.',
         })}
         Icon={Cloud}
-        recommendedLabel={
-          t('plcDashboard.quizImportModal.groupRecommendedLabel', {
-                defaultValue: 'Recommended for teams',
-              })
-        }
+        recommendedLabel={t(
+          'plcDashboard.quizImportModal.groupRecommendedLabel',
+          {
+            defaultValue: 'Recommended for teams',
+          }
+        )}
         onPick={onPick}
       />
       <ModeOption

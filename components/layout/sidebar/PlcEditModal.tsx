@@ -58,8 +58,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
   const initialType = plc ? getPlcGroupType(plc) : 'plc';
   const [groupType, setGroupType] = useState<PlcGroupType>(initialType);
   // Building groups are admin-made; their type can't be picked or changed here.
-  const typeEditable =
-    (isCreate || isLead) && initialType !== 'building';
+  const typeEditable = (isCreate || isLead) && initialType !== 'building';
   const [inviteEmail, setInviteEmail] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -191,10 +190,10 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
   };
 
   const title = isCreate
-      ? t('sidebar.groups.newTitle', { defaultValue: 'New team' })
-      : isLead
-        ? t('sidebar.groups.editTitle', { defaultValue: 'Edit team' })
-        : t('sidebar.groups.viewTitle', { defaultValue: 'Team details' });
+    ? t('sidebar.groups.newTitle', { defaultValue: 'New team' })
+    : isLead
+      ? t('sidebar.groups.editTitle', { defaultValue: 'Edit team' })
+      : t('sidebar.groups.viewTitle', { defaultValue: 'Team details' });
 
   return (
     <Modal
@@ -363,9 +362,9 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
             </form>
             <p className="text-xxs text-slate-400 mt-1.5 leading-relaxed">
               {t('sidebar.groups.inviteHelp', {
-                    defaultValue:
-                      "They'll see the invite under My Teams in their sidebar.",
-                  })}
+                defaultValue:
+                  "They'll see the invite under My Teams in their sidebar.",
+              })}
             </p>
           </div>
         )}
@@ -431,8 +430,8 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
               <Save className="w-4 h-4" />
               {isCreate
                 ? t('sidebar.groups.create', {
-                      defaultValue: 'Create team',
-                    })
+                    defaultValue: 'Create team',
+                  })
                 : t('common.save', { defaultValue: 'Save' })}
             </button>
           </div>

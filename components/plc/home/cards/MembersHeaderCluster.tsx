@@ -73,11 +73,9 @@ export const MembersHeaderCluster: React.FC<MembersHeaderClusterProps> = ({
       <div
         className="flex items-center -space-x-2"
         role="list"
-        aria-label={
-          t('plcDashboard.home.members.groupListAriaLabel', {
-                defaultValue: 'Team members',
-              })
-        }
+        aria-label={t('plcDashboard.home.members.groupListAriaLabel', {
+          defaultValue: 'Team members',
+        })}
       >
         {visible.map((m) => {
           const ariaLabel = `${m.email || m.uid}${m.isLead ? ', lead' : ''}`;

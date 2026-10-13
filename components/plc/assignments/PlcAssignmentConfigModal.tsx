@@ -345,10 +345,10 @@ export const PlcAssignmentConfigModal: React.FC<
 
         addToast(
           t('plcDashboard.assignmentConfig.groupQuizCreated', {
-                title: quizRef.title,
-                defaultValue:
-                  '"{{title}}" created (paused) and shared with this group.',
-              }),
+            title: quizRef.title,
+            defaultValue:
+              '"{{title}}" created (paused) and shared with this group.',
+          }),
           'success'
         );
       } else {
@@ -433,10 +433,10 @@ export const PlcAssignmentConfigModal: React.FC<
 
         addToast(
           t('plcDashboard.assignmentConfig.groupVideoCreated', {
-                title: activityRef.title,
-                defaultValue:
-                  '"{{title}}" created (paused) and shared with this group.',
-              }),
+            title: activityRef.title,
+            defaultValue:
+              '"{{title}}" created (paused) and shared with this group.',
+          }),
           'success'
         );
       }
@@ -452,8 +452,8 @@ export const PlcAssignmentConfigModal: React.FC<
         err instanceof Error
           ? err.message
           : t('plcDashboard.assignmentConfig.groupCreateFailed', {
-                defaultValue: 'Failed to create the team assignment.',
-              }),
+              defaultValue: 'Failed to create the team assignment.',
+            }),
         'error'
       );
     } finally {

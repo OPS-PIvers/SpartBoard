@@ -114,24 +114,22 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
         if (outcome === 'already-shared') {
           addToast(
             t('plcDashboard.rubricLibrary.groupAlreadySharedToast', {
-                  title: rubric.title,
-                  defaultValue:
-                    '"{{title}}" is already shared with this group.',
-                }),
+              title: rubric.title,
+              defaultValue: '"{{title}}" is already shared with this group.',
+            }),
             'info'
           );
         } else {
           addToast(
             outcome === 'restored'
               ? t('plcDashboard.rubricLibrary.groupResharedToast', {
-                    title: rubric.title,
-                    defaultValue:
-                      '"{{title}}" is shared with this group again.',
-                  })
+                  title: rubric.title,
+                  defaultValue: '"{{title}}" is shared with this group again.',
+                })
               : t('plcDashboard.rubricLibrary.groupSharedToast', {
-                    title: rubric.title,
-                    defaultValue: '"{{title}}" shared with this group.',
-                  }),
+                  title: rubric.title,
+                  defaultValue: '"{{title}}" shared with this group.',
+                }),
             'success'
           );
         }
@@ -143,8 +141,8 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
         });
         addToast(
           t('plcDashboard.rubricLibrary.groupShareFailed', {
-                defaultValue: 'Failed to share rubric with this team.',
-              }),
+            defaultValue: 'Failed to share rubric with this team.',
+          }),
           'error'
         );
       }
@@ -194,10 +192,10 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
     async (entryId: string, title: string) => {
       const confirmed = await showConfirm(
         t('plcDashboard.rubricLibrary.groupUnshareConfirm', {
-              title,
-              defaultValue:
-                'Remove "{{title}}" from this group? Teammates lose access to the shared entry; copies already in their libraries keep working.',
-            }),
+          title,
+          defaultValue:
+            'Remove "{{title}}" from this group? Teammates lose access to the shared entry; copies already in their libraries keep working.',
+        }),
         {
           title: t('plcDashboard.rubricLibrary.unshareTitle', {
             defaultValue: 'Unshare rubric',
@@ -406,11 +404,9 @@ export const PlcRubricLibraryBody: React.FC<PlcRubricLibraryBodyProps> = ({
 
       {sharePickerOpen && (
         <PlcSharePickerModal
-          title={
-            t('plcDashboard.rubricLibrary.groupSharePickerTitle', {
-                  defaultValue: 'Share a rubric with this team',
-                })
-          }
+          title={t('plcDashboard.rubricLibrary.groupSharePickerTitle', {
+            defaultValue: 'Share a rubric with this team',
+          })}
           subtitle={plc.name}
           emptyMessage={t('plcDashboard.rubricLibrary.sharePickerEmpty', {
             defaultValue:

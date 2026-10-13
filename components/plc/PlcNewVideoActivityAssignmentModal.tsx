@@ -279,12 +279,12 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
             err instanceof Error && err.message
               ? err.message
               : t(
-                    'plcDashboard.newAssignment.video.groupSheetAutoCreateFailed',
-                    {
-                      defaultValue:
-                        'Could not create the shared team sheet. The assignment will be created without one.',
-                    }
-                  ),
+                  'plcDashboard.newAssignment.video.groupSheetAutoCreateFailed',
+                  {
+                    defaultValue:
+                      'Could not create the shared team sheet. The assignment will be created without one.',
+                  }
+                ),
             'error'
           );
         }
@@ -428,10 +428,10 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
         stepperOn
           ? 'Assignment created.'
           : t('plcDashboard.newAssignment.video.groupCreated', {
-                title: pickedActivity.title,
-                defaultValue:
-                  '"{{title}}" created (paused) and shared with this group.',
-              }),
+              title: pickedActivity.title,
+              defaultValue:
+                '"{{title}}" created (paused) and shared with this group.',
+            }),
         'success'
       );
       onCreated?.({ assignmentId, activityTitle: pickedActivity.title });
@@ -459,8 +459,8 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
         err instanceof Error
           ? err.message
           : t('plcDashboard.newAssignment.video.groupCreateFailed', {
-                defaultValue: 'Failed to create the team assignment.',
-              }),
+              defaultValue: 'Failed to create the team assignment.',
+            }),
         'error'
       );
     } finally {
@@ -491,11 +491,9 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
   if (step === 'pick') {
     return (
       <PlcSharePickerModal
-        title={
-          t('plcDashboard.newAssignment.video.groupPickTitle', {
-                defaultValue: 'New Team Video Activity Assignment',
-              })
-        }
+        title={t('plcDashboard.newAssignment.video.groupPickTitle', {
+          defaultValue: 'New Team Video Activity Assignment',
+        })}
         subtitle={t('plcDashboard.newAssignment.video.pickSubtitle', {
           name: plc.name,
           defaultValue: 'Shared with {{name}}',
