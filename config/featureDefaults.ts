@@ -569,17 +569,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Guided Learning player v2. Admin-only until Paul has played a set end to end on dev.
-  'gl-player-v2': {
-    label: 'Guided Learning: calmer player',
-    icon: MousePointerClick,
-    description: 'Calmer Guided Learning playback.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Tab-away clock and exit log. Admin-only until Paul has tested it in prod.
   'tab-away-timer': {
     label: 'Tab-away timer',

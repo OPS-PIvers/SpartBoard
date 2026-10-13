@@ -24,7 +24,6 @@ import { logError } from '@/utils/logError';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { SubLaunchPanel } from '@/components/subs/SubLaunchPanel';
 import { useShareKey } from '@/hooks/useShareContent';
-import { useAuth } from '@/context/useAuth';
 import { normalizeGuidedLearningSet } from './utils/setMigration';
 import type {
   GuidedLearningConfig,
@@ -97,7 +96,6 @@ export const SubShareGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const config = widget.config as GuidedLearningConfig;
-  const { canAccessFeature } = useAuth();
   const { status, payload } = useShareKey<SubShareGuidedLearningPayload>(
     'guidedLearning',
     config.playerSetId
@@ -118,9 +116,8 @@ export const SubShareGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
           <Suspense fallback={<LazySpinner />}>
             <GuidedLearningPlayer
               set={set as GuidedLearningSet}
-              teacherMode={!canAccessFeature('gl-player-v2')}
               revealAnswers
-              playerV2={canAccessFeature('gl-player-v2')}
+              playerV2
             />
           </Suspense>
         </div>
