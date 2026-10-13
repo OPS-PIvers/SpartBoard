@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Plus, Printer, Shuffle } from 'lucide-react';
 import type { RosterGroup, Student } from '@/types';
+import { tourAttr } from '@/config/tourAnchors';
 import { makeRestrictedGroupsByCount } from '@/components/widgets/random/groupMaker';
 
 interface SplitClassFooterProps {
@@ -72,6 +73,7 @@ export const SplitClassFooter: React.FC<SplitClassFooterProps> = ({
               value={splitCount}
               onChange={(e) => setSplitCount(Number(e.target.value))}
               onKeyDown={(e) => e.key === 'Enter' && runSplit()}
+              {...tourAttr('roster-groups.split-count')}
               className="w-16 px-2 py-1 text-sm rounded-md border border-slate-300 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
             />
             <input
@@ -81,18 +83,21 @@ export const SplitClassFooter: React.FC<SplitClassFooterProps> = ({
               value={splitName}
               onChange={(e) => setSplitName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && runSplit()}
+              {...tourAttr('roster-groups.split-name')}
               className="flex-1 min-w-0 px-2 py-1 text-sm rounded-md border border-slate-300 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
             />
           </div>
           <div className="flex gap-2">
             <button
               onClick={() => setSplitOpen(false)}
+              {...tourAttr('roster-groups.split-cancel')}
               className="flex-1 px-3 py-2 text-sm font-bold text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
             >
               {t('common.cancel', { defaultValue: 'Cancel' })}
             </button>
             <button
               onClick={runSplit}
+              {...tourAttr('roster-groups.split-create')}
               className="flex-1 px-3 py-2 text-sm font-bold text-white bg-brand-blue-primary rounded-lg hover:bg-brand-blue-dark transition-colors"
             >
               {t('sidebar.classes.splitConfirm', {
@@ -106,6 +111,7 @@ export const SplitClassFooter: React.FC<SplitClassFooterProps> = ({
           {onNewGroup && (
             <button
               onClick={onNewGroup}
+              {...tourAttr('roster-groups.new')}
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-bold text-brand-blue-primary bg-white border border-dashed border-slate-300 rounded-lg hover:border-brand-blue-primary hover:bg-brand-blue-lighter transition-colors"
             >
               <Plus size={16} />
@@ -115,6 +121,7 @@ export const SplitClassFooter: React.FC<SplitClassFooterProps> = ({
           <button
             onClick={openSplit}
             disabled={students.length < 2}
+            {...tourAttr('roster-groups.split')}
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-bold text-brand-blue-primary bg-white border border-dashed border-slate-300 rounded-lg hover:border-brand-blue-primary hover:bg-brand-blue-lighter transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-slate-300 disabled:hover:bg-white"
           >
             <Shuffle size={16} />
@@ -125,6 +132,7 @@ export const SplitClassFooter: React.FC<SplitClassFooterProps> = ({
           {onPrint && (
             <button
               onClick={onPrint}
+              {...tourAttr('roster-groups.print')}
               className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-bold text-brand-blue-primary bg-white border border-dashed border-slate-300 rounded-lg hover:border-brand-blue-primary hover:bg-brand-blue-lighter transition-colors"
             >
               <Printer size={16} />

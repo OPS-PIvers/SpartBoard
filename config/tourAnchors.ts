@@ -3925,6 +3925,200 @@ export const TOUR_ANCHORS = {
     panel: true,
     destructive: true,
   },
+  'roster-editor.tab': {
+    label: 'Students, Groups or Accommodations tab in the roster editor',
+    perField: true,
+    panel: true,
+  },
+  'roster-groups.list': {
+    label: 'List of groups on the Groups tab',
+    panel: true,
+  },
+  'roster-groups.row': {
+    label: 'A group row on the Groups tab',
+    perField: true,
+    panel: true,
+  },
+  'roster-groups.edit': {
+    label: 'Edit button on a group row',
+    perField: true,
+    panel: true,
+  },
+  'roster-groups.remove': {
+    label: 'Remove group button on a group row',
+    perField: true,
+    panel: true,
+    destructive: true,
+  },
+  'roster-groups.new-empty': {
+    label: 'New group button in the empty Groups tab',
+    panel: true,
+  },
+  'roster-groups.new': {
+    label: 'New group button at the bottom of the Groups tab',
+    panel: true,
+  },
+  'roster-groups.split': {
+    label: 'Split class button at the bottom of the Groups tab',
+    panel: true,
+  },
+  'roster-groups.print': {
+    label: 'Print schedule button at the bottom of the Groups tab',
+    panel: true,
+  },
+  'roster-groups.split-count': {
+    label: 'Number of groups box in the Split class form',
+    panel: true,
+  },
+  'roster-groups.split-name': {
+    label: 'Group name box in the Split class form',
+    panel: true,
+  },
+  'roster-groups.split-cancel': {
+    label: 'Cancel button in the Split class form',
+    panel: true,
+  },
+  'roster-groups.split-create': {
+    label: 'Create groups button in the Split class form',
+    panel: true,
+  },
+  'group-wizard.steps': {
+    label: 'Step list at the top of the group wizard',
+    panel: true,
+  },
+  'group-wizard.step': {
+    label:
+      'Students, Symbol, Schedule or Alerts step button in the group wizard',
+    perField: true,
+    panel: true,
+  },
+  'group-wizard.student-search': {
+    label: 'Search students box in the group wizard',
+    panel: true,
+  },
+  'group-wizard.student': {
+    label: 'Student checkbox in the group wizard',
+    perField: true,
+    panel: true,
+  },
+  'group-wizard.name': {
+    label: 'Group name box in the group wizard',
+    panel: true,
+  },
+  'group-wizard.icon-search': {
+    label: 'Search icons box in the group wizard',
+    panel: true,
+  },
+  'group-wizard.icon': {
+    label: 'Icon button in the group wizard',
+    perField: true,
+    panel: true,
+  },
+  'group-wizard.color': {
+    label: 'Color swatch in the group wizard',
+    perField: true,
+    panel: true,
+  },
+  'group-wizard.preview': {
+    label: 'Reminder preview in the group wizard',
+    panel: true,
+  },
+  'group-wizard.day': {
+    label: 'Weekday button in the group wizard Schedule step',
+    perField: true,
+    panel: true,
+  },
+  'group-wizard.alert-time': {
+    label: 'Alert time box in the group wizard Schedule step',
+    perField: true,
+    panel: true,
+  },
+  'group-wizard.alert-lead': {
+    label: 'Show reminder dropdown in the group wizard Schedule step',
+    perField: true,
+    panel: true,
+  },
+  'group-wizard.alert-remove': {
+    label: 'Remove alert button in the group wizard Schedule step',
+    perField: true,
+    panel: true,
+  },
+  'group-wizard.add-alert': {
+    label: 'Add another alert button in the group wizard Schedule step',
+    panel: true,
+  },
+  'group-wizard.repeat': {
+    label: 'Repeats dropdown in the group wizard Schedule step',
+    panel: true,
+  },
+  'group-wizard.start-date': {
+    label: 'Starting date box in the group wizard Schedule step',
+    panel: true,
+  },
+  'group-wizard.on-board': {
+    label: 'Reminder on the board switch in the group wizard Alerts step',
+    panel: true,
+  },
+  'group-wizard.sound': {
+    label: 'Sound dropdown in the group wizard Alerts step',
+    panel: true,
+  },
+  'group-wizard.play-sound': {
+    label: 'Play sound button in the group wizard Alerts step',
+    panel: true,
+  },
+  'group-wizard.snooze': {
+    label: 'Snooze dropdown in the group wizard Alerts step',
+    panel: true,
+  },
+  'group-wizard.show-name': {
+    label: 'Show group name switch in the group wizard Alerts step',
+    panel: true,
+  },
+  'group-wizard.show-time': {
+    label: 'Show time switch in the group wizard Alerts step',
+    panel: true,
+  },
+  'group-wizard.show-message': {
+    label: 'Show a message switch in the group wizard Alerts step',
+    panel: true,
+  },
+  'group-wizard.message': {
+    label: 'Message box in the group wizard Alerts step',
+    panel: true,
+  },
+  'group-wizard.email-alert': {
+    label: 'Email alert switch in the group wizard Alerts step',
+    panel: true,
+  },
+  'group-wizard.email-message': {
+    label: 'Email message box in the group wizard Alerts step',
+    panel: true,
+  },
+  'group-wizard.group-maker': {
+    label: 'Enable in Group Maker switch in the group wizard Alerts step',
+    panel: true,
+  },
+  'group-wizard.cancel': {
+    label: 'Cancel button on the first step of the group wizard',
+    panel: true,
+  },
+  'group-wizard.back': {
+    label: 'Back button in the group wizard',
+    panel: true,
+  },
+  'group-wizard.next': {
+    label: 'Next button in the group wizard',
+    panel: true,
+  },
+  'group-wizard.save-now': {
+    label: 'Save group button on a middle step when editing a group',
+    panel: true,
+  },
+  'group-wizard.finish': {
+    label: 'Save group button on the last step of the group wizard',
+    panel: true,
+  },
   'classlink-import.class-row': {
     label: 'A ClassLink class row in the ClassLink import dialog',
     perField: true,
@@ -7978,284 +8172,6 @@ export const TOUR_ANCHORS = {
   },
   'admin.view-as-log.toggle-changes': {
     label: 'Show or hide changes button in a View as log entry',
-    panel: true,
-  },
-  'admin.widget-builder.ai-add': {
-    label: 'Add feature button in the Widget builder AI panel',
-    panel: true,
-  },
-  'admin.widget-builder.ai-explain': {
-    label: 'Explain button in the Widget builder AI panel',
-    panel: true,
-  },
-  'admin.widget-builder.ai-fix': {
-    label: 'Fix errors button in the Widget builder AI panel',
-    panel: true,
-  },
-  'admin.widget-builder.ai-generate': {
-    label: 'Generate button in the Widget builder AI panel',
-    panel: true,
-  },
-  'admin.widget-builder.ai-prompt': {
-    label: 'Description field in the Widget builder AI panel',
-    panel: true,
-  },
-  'admin.widget-builder.back': {
-    label: 'Back button in Widget builder',
-    panel: true,
-  },
-  'admin.widget-builder.build-step': {
-    label: 'Build step buttons in Widget builder',
-    perField: true,
-    panel: true,
-  },
-  'admin.widget-builder.cell-add-block': {
-    label: 'Add block button in the cell editor',
-    perField: true,
-    panel: true,
-  },
-  'admin.widget-builder.cell-close': {
-    label: 'Close button in the cell editor',
-    panel: true,
-  },
-  'admin.widget-builder.cell-config': {
-    label: 'Block setting field in the cell editor',
-    perField: true,
-    panel: true,
-  },
-  'admin.widget-builder.cell-remove-block': {
-    label: 'Remove block button in the cell editor',
-    destructive: true,
-    panel: true,
-  },
-  'admin.widget-builder.close': {
-    label: 'Close button in Widget builder',
-    panel: true,
-  },
-  'admin.widget-builder.connection-action': {
-    label: 'Action dropdown in a connection rule',
-    panel: true,
-  },
-  'admin.widget-builder.connection-cancel': {
-    label: 'Cancel button in a new connection rule',
-    panel: true,
-  },
-  'admin.widget-builder.connection-condition-block': {
-    label: 'Condition block dropdown in a connection rule',
-    panel: true,
-  },
-  'admin.widget-builder.connection-condition-operator': {
-    label: 'Condition operator dropdown in a connection rule',
-    panel: true,
-  },
-  'admin.widget-builder.connection-condition-value': {
-    label: 'Condition value field in a connection rule',
-    panel: true,
-  },
-  'admin.widget-builder.connection-delete': {
-    label: 'Delete button in a connection row',
-    perField: true,
-    destructive: true,
-    panel: true,
-  },
-  'admin.widget-builder.connection-event': {
-    label: 'Event dropdown in a connection rule',
-    panel: true,
-  },
-  'admin.widget-builder.connection-event-count': {
-    label: 'Event count field in a connection rule',
-    panel: true,
-  },
-  'admin.widget-builder.connection-has-condition': {
-    label: 'Add condition checkbox in a connection rule',
-    panel: true,
-  },
-  'admin.widget-builder.connection-new': {
-    label: 'New rule button in Connections',
-    panel: true,
-  },
-  'admin.widget-builder.connection-payload': {
-    label: 'Action text field in a connection rule',
-    panel: true,
-  },
-  'admin.widget-builder.connection-save': {
-    label: 'Save rule button in Connections',
-    panel: true,
-  },
-  'admin.widget-builder.connection-source': {
-    label: 'Source block dropdown in a connection rule',
-    panel: true,
-  },
-  'admin.widget-builder.connection-target': {
-    label: 'Target block dropdown in a connection rule',
-    panel: true,
-  },
-  'admin.widget-builder.connection-value': {
-    label: 'Action value field in a connection rule',
-    panel: true,
-  },
-  'admin.widget-builder.delete': {
-    label: 'Delete button in a custom widget row',
-    perField: true,
-    destructive: true,
-    panel: true,
-  },
-  'admin.widget-builder.edit': {
-    label: 'Edit button in a custom widget row',
-    perField: true,
-    panel: true,
-  },
-  'admin.widget-builder.grid-columns-less': {
-    label: 'Fewer columns button in the builder grid',
-    panel: true,
-  },
-  'admin.widget-builder.grid-columns-more': {
-    label: 'More columns button in the builder grid',
-    panel: true,
-  },
-  'admin.widget-builder.grid-merge': {
-    label: 'Merge selected cells button in the builder grid',
-    panel: true,
-  },
-  'admin.widget-builder.grid-rows-less': {
-    label: 'Fewer rows button in the builder grid',
-    panel: true,
-  },
-  'admin.widget-builder.grid-rows-more': {
-    label: 'More rows button in the builder grid',
-    panel: true,
-  },
-  'admin.widget-builder.grid-split': {
-    label: 'Split cell button in the builder grid',
-    panel: true,
-  },
-  'admin.widget-builder.meta-access-level': {
-    label: 'Access level buttons in Widget builder details',
-    perField: true,
-    panel: true,
-  },
-  'admin.widget-builder.meta-beta-users': {
-    label: 'Beta users field in Widget builder details',
-    panel: true,
-  },
-  'admin.widget-builder.meta-building': {
-    label: 'Building checkboxes in Widget builder details',
-    perField: true,
-    panel: true,
-  },
-  'admin.widget-builder.meta-color': {
-    label: 'Color buttons in Widget builder details',
-    perField: true,
-    panel: true,
-  },
-  'admin.widget-builder.meta-description': {
-    label: 'Description field in Widget builder details',
-    panel: true,
-  },
-  'admin.widget-builder.meta-height': {
-    label: 'Default height field in Widget builder details',
-    panel: true,
-  },
-  'admin.widget-builder.meta-icon': {
-    label: 'Icon buttons in Widget builder details',
-    perField: true,
-    panel: true,
-  },
-  'admin.widget-builder.meta-slug': {
-    label: 'Slug field in Widget builder details',
-    panel: true,
-  },
-  'admin.widget-builder.meta-title': {
-    label: 'Title field in Widget builder details',
-    panel: true,
-  },
-  'admin.widget-builder.meta-width': {
-    label: 'Default width field in Widget builder details',
-    panel: true,
-  },
-  'admin.widget-builder.mode-card': {
-    label: 'Build mode cards in Widget builder',
-    perField: true,
-    panel: true,
-  },
-  'admin.widget-builder.new-widget': {
-    label: 'New widget button in Widget builder',
-    panel: true,
-  },
-  'admin.widget-builder.next': {
-    label: 'Next button in Widget builder',
-    panel: true,
-  },
-  'admin.widget-builder.palette-block': {
-    label: 'Block buttons in the Widget builder palette',
-    perField: true,
-    panel: true,
-  },
-  'admin.widget-builder.preview-height': {
-    label: 'Preview height slider in Widget builder',
-    panel: true,
-  },
-  'admin.widget-builder.preview-width': {
-    label: 'Preview width slider in Widget builder',
-    panel: true,
-  },
-  'admin.widget-builder.publish': {
-    label: 'Publish or unpublish button in a custom widget row',
-    perField: true,
-    persists: true,
-    panel: true,
-  },
-  'admin.widget-builder.publish-widget': {
-    label: 'Publish widget button in Widget builder',
-    persists: true,
-    panel: true,
-  },
-  'admin.widget-builder.refresh-preview': {
-    label: 'Refresh preview button in Widget builder',
-    panel: true,
-  },
-  'admin.widget-builder.save-draft': {
-    label: 'Save as draft button in Widget builder',
-    persists: true,
-    panel: true,
-  },
-  'admin.widget-builder.setting-add': {
-    label: 'Add setting button in Widget builder settings',
-    panel: true,
-  },
-  'admin.widget-builder.setting-cancel': {
-    label: 'Cancel button in the new setting form',
-    panel: true,
-  },
-  'admin.widget-builder.setting-default': {
-    label: 'Setting default value control in Widget builder settings',
-    panel: true,
-  },
-  'admin.widget-builder.setting-delete': {
-    label: 'Delete button in a setting row',
-    perField: true,
-    destructive: true,
-    panel: true,
-  },
-  'admin.widget-builder.setting-key': {
-    label: 'Setting key field in Widget builder settings',
-    panel: true,
-  },
-  'admin.widget-builder.setting-label': {
-    label: 'Setting label field in Widget builder settings',
-    panel: true,
-  },
-  'admin.widget-builder.setting-options': {
-    label: 'Setting options field in Widget builder settings',
-    panel: true,
-  },
-  'admin.widget-builder.setting-save': {
-    label: 'Add setting button in the new setting form',
-    panel: true,
-  },
-  'admin.widget-builder.setting-type': {
-    label: 'Setting type buttons in Widget builder settings',
-    perField: true,
     panel: true,
   },
   'admin.widgets.configure': {

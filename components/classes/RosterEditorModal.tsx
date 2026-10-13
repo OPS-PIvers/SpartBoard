@@ -302,6 +302,11 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
               options={[
                 {
                   value: 'students',
+                  anchor: tourFieldAttr(
+                    'roster-editor.tab',
+                    'roster-editor',
+                    'students'
+                  ),
                   label: t('sidebar.classes.studentsTabCount', {
                     defaultValue: 'Students ({{count}})',
                     count: validStudents.length,
@@ -309,6 +314,11 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                 },
                 {
                   value: 'groups',
+                  anchor: tourFieldAttr(
+                    'roster-editor.tab',
+                    'roster-editor',
+                    'groups'
+                  ),
                   label: t('sidebar.classes.groupsTab', {
                     defaultValue: 'Groups ({{count}})',
                     count: groups.length,
@@ -316,6 +326,11 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                 },
                 {
                   value: 'accommodations',
+                  anchor: tourFieldAttr(
+                    'roster-editor.tab',
+                    'roster-editor',
+                    'accommodations'
+                  ),
                   label: t('sidebar.classes.accommodationsTab', {
                     defaultValue: 'Accommodations ({{count}})',
                     count: Object.keys(defaultOverrides).length,

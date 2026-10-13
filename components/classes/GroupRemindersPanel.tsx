@@ -9,6 +9,7 @@ import type {
   Student,
 } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { GroupSymbol } from '@/components/groupReminders/GroupSymbol';
 import { searchGroupIcons } from '@/components/groupReminders/groupIcons';
 import { GroupReminderCard } from '@/components/groupReminders/GroupReminderCard';
@@ -153,6 +154,7 @@ export const GroupRemindersPanel: React.FC<GroupRemindersPanelProps> = ({
           </p>
           <button
             onClick={openNew}
+            {...tourAttr('roster-groups.new-empty')}
             className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-brand-blue-primary rounded-lg hover:bg-brand-blue-dark transition-colors"
           >
             <Plus size={16} />
@@ -182,8 +184,11 @@ export const GroupRemindersPanel: React.FC<GroupRemindersPanelProps> = ({
             </span>
             <span />
           </div>
-          <ul className="divide-y divide-slate-100">
-            {groups.map((group) => {
+          <ul
+            className="divide-y divide-slate-100"
+            {...tourAttr('roster-groups.list')}
+          >
+            {groups.map((group, index) => {
               const count = group.studentIds.filter((id) =>
                 studentIds.has(id)
               ).length;
@@ -196,9 +201,15 @@ export const GroupRemindersPanel: React.FC<GroupRemindersPanelProps> = ({
                   : t('groupReminders.reminderNone', { defaultValue: 'None' });
               const scheduled = !!r?.enabled && r.days.length > 0;
               const inMaker = group.inGroupMaker !== false;
+              const rowKey = `group-${index + 1}`;
               return (
                 <li
                   key={group.id}
+                  {...tourFieldAttr(
+                    'roster-groups.row',
+                    'roster-groups',
+                    rowKey
+                  )}
                   className="grid items-center gap-4 px-4 py-3 hover:bg-slate-50 transition-colors"
                   style={{ gridTemplateColumns: GRID }}
                 >
@@ -232,6 +243,11 @@ export const GroupRemindersPanel: React.FC<GroupRemindersPanelProps> = ({
                   <span className="flex items-center justify-end gap-1">
                     <button
                       onClick={() => openEdit(group)}
+                      {...tourFieldAttr(
+                        'roster-groups.edit',
+                        'roster-groups',
+                        rowKey
+                      )}
                       className="px-2 py-1 text-sm font-semibold text-slate-500 hover:text-brand-blue-primary rounded-md transition-colors"
                     >
                       {t('common.edit', { defaultValue: 'Edit' })}
@@ -246,6 +262,11 @@ export const GroupRemindersPanel: React.FC<GroupRemindersPanelProps> = ({
                       title={t('sidebar.classes.removeGroup', {
                         defaultValue: 'Remove group',
                       })}
+                      {...tourFieldAttr(
+                        'roster-groups.remove',
+                        'roster-groups',
+                        rowKey
+                      )}
                       className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
                     >
                       <X size={16} />
@@ -318,7 +339,10 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
   const canSave = group.studentIds.length > 0;
 
   const preview = (
-    <div className="hidden lg:flex w-[360px] shrink-0 border-l border-slate-200 bg-slate-100 rounded-r-xl items-end justify-end p-5">
+    <div
+      className="hidden lg:flex w-[360px] shrink-0 border-l border-slate-200 bg-slate-100 rounded-r-xl items-end justify-end p-5"
+      {...tourAttr('group-wizard.preview')}
+    >
       <GroupReminderCard
         symbol={symbol}
         message={
@@ -350,7 +374,10 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
             ? t('groupReminders.newGroup', { defaultValue: 'New group' })
             : t('groupReminders.editGroup', { defaultValue: 'Edit group' })}
         </span>
-        <ol className="flex flex-wrap items-center gap-5 text-xs font-semibold">
+        <ol
+          className="flex flex-wrap items-center gap-5 text-xs font-semibold"
+          {...tourAttr('group-wizard.steps')}
+        >
           {stepLabels.map((label, i) => {
             const done = i < step;
             const current = i === step;
@@ -362,6 +389,11 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
                   disabled={!reachable}
                   onClick={() => setStep(i)}
                   aria-current={current ? 'step' : undefined}
+                  {...tourFieldAttr(
+                    'group-wizard.step',
+                    'group-wizard',
+                    STEPS[i]
+                  )}
                   className={`flex items-center gap-1.5 ${current ? 'text-slate-900' : done ? 'text-slate-500' : 'text-slate-400'} disabled:cursor-default`}
                 >
                   <span
@@ -422,6 +454,9 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
         <button
           type="button"
           onClick={() => (step === 0 ? onCancel() : setStep(step - 1))}
+          {...(step === 0
+            ? tourAttr('group-wizard.cancel')
+            : tourAttr('group-wizard.back'))}
           className="px-4 py-2 text-sm font-bold text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors"
         >
           {step === 0
@@ -434,6 +469,7 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
               type="button"
               disabled={!canSave}
               onClick={() => onSave(group)}
+              {...tourAttr('group-wizard.save-now')}
               className="px-4 py-2 text-sm font-bold text-brand-blue-primary bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
             >
               {t('groupReminders.saveGroup', { defaultValue: 'Save group' })}
@@ -443,6 +479,9 @@ const GroupWizard: React.FC<GroupWizardProps> = ({
             type="button"
             disabled={(step === 0 || last) && !canSave}
             onClick={() => (last ? onSave(group) : setStep(step + 1))}
+            {...(last
+              ? tourAttr('group-wizard.finish')
+              : tourAttr('group-wizard.next'))}
             className="px-5 py-2 text-sm font-bold text-white bg-brand-blue-primary rounded-lg hover:bg-brand-blue-dark transition-colors disabled:opacity-50"
           >
             {last
@@ -482,6 +521,7 @@ const SymbolStep: React.FC<{
         </label>
         <input
           id="group-wizard-name"
+          {...tourAttr('group-wizard.name')}
           value={name}
           onChange={(e) => onName(e.target.value)}
           className="px-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
@@ -500,6 +540,7 @@ const SymbolStep: React.FC<{
             onChange={(e) => setQuery(e.target.value)}
             placeholder={searchLabel}
             aria-label={searchLabel}
+            {...tourAttr('group-wizard.icon-search')}
             className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
           />
         </div>
@@ -514,6 +555,7 @@ const SymbolStep: React.FC<{
                 title={id.replace(/-/g, ' ')}
                 aria-pressed={on}
                 onClick={() => onSymbol({ icon: id })}
+                {...tourFieldAttr('group-wizard.icon', 'group-wizard', id)}
                 className={`h-11 rounded-lg flex items-center justify-center transition-colors ${
                   on
                     ? 'ring-2 ring-brand-blue-primary bg-brand-blue-lighter'
@@ -547,6 +589,7 @@ const SymbolStep: React.FC<{
               aria-label={color}
               aria-pressed={symbol.color === color}
               onClick={() => onSymbol({ color })}
+              {...tourFieldAttr('group-wizard.color', 'group-wizard', color)}
               className={`w-8 h-8 rounded-full ${
                 symbol.color === color
                   ? 'ring-2 ring-offset-2 ring-brand-blue-primary'
@@ -623,6 +666,7 @@ const AlertsStep: React.FC<{
           checked={reminder.enabled}
           onChange={(enabled) => onChange({ enabled })}
           label={labels.onBoard}
+          anchor={tourAttr('group-wizard.on-board')}
         />
       </SettingRow>
       {reminder.enabled && (
@@ -631,6 +675,7 @@ const AlertsStep: React.FC<{
             <div className="flex items-center gap-1">
               <select
                 aria-label={labels.sound}
+                {...tourAttr('group-wizard.sound')}
                 value={reminder.sound}
                 onChange={(e) => {
                   const sound =
@@ -652,6 +697,7 @@ const AlertsStep: React.FC<{
                 onClick={() => playReminderSound(reminder.sound)}
                 aria-label={labels.play}
                 title={labels.play}
+                {...tourAttr('group-wizard.play-sound')}
                 className="p-2 rounded-lg text-slate-500 hover:text-brand-blue-primary hover:bg-slate-100 transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-slate-500"
               >
                 <Play size={16} />
@@ -661,6 +707,7 @@ const AlertsStep: React.FC<{
           <SettingRow label={labels.snooze}>
             <select
               aria-label={labels.snooze}
+              {...tourAttr('group-wizard.snooze')}
               value={reminder.snoozeMinutes}
               onChange={(e) =>
                 onChange({ snoozeMinutes: Number(e.target.value) })
@@ -683,6 +730,7 @@ const AlertsStep: React.FC<{
                 checked={reminder.showName}
                 onChange={(showName) => onChange({ showName })}
                 label={labels.showName}
+                anchor={tourAttr('group-wizard.show-name')}
               />
             </SettingRow>
             <SettingRow label={labels.showTime}>
@@ -690,6 +738,7 @@ const AlertsStep: React.FC<{
                 checked={reminder.showTime}
                 onChange={(showTime) => onChange({ showTime })}
                 label={labels.showTime}
+                anchor={tourAttr('group-wizard.show-time')}
               />
             </SettingRow>
             <SettingRow label={labels.showMessage}>
@@ -697,11 +746,13 @@ const AlertsStep: React.FC<{
                 checked={reminder.showMessage}
                 onChange={(showMessage) => onChange({ showMessage })}
                 label={labels.showMessage}
+                anchor={tourAttr('group-wizard.show-message')}
               />
             </SettingRow>
             {reminder.showMessage && (
               <input
                 aria-label={labels.message}
+                {...tourAttr('group-wizard.message')}
                 value={reminder.message}
                 maxLength={80}
                 onChange={(e) => onChange({ message: e.target.value })}
@@ -721,11 +772,13 @@ const AlertsStep: React.FC<{
               checked={reminder.emailAlert}
               onChange={(emailAlert) => onChange({ emailAlert })}
               label={labels.email}
+              anchor={tourAttr('group-wizard.email-alert')}
             />
           </SettingRow>
           {reminder.emailAlert && (
             <textarea
               aria-label={labels.emailMessage}
+              {...tourAttr('group-wizard.email-message')}
               placeholder={labels.emailMessage}
               value={reminder.emailMessage}
               maxLength={EMAIL_MESSAGE_MAX}
@@ -742,6 +795,7 @@ const AlertsStep: React.FC<{
             checked={inGroupMaker}
             onChange={onGroupMaker}
             label={labels.groupMaker}
+            anchor={tourAttr('group-wizard.group-maker')}
           />
         </SettingRow>
       </div>
@@ -788,6 +842,7 @@ const StudentsStep: React.FC<{
           aria-label={t('groupReminders.searchStudents', {
             defaultValue: 'Search students',
           })}
+          {...tourAttr('group-wizard.student-search')}
           className="flex-1 px-3 py-1.5 text-sm rounded-md border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none"
         />
         <span className="text-xs font-semibold text-slate-600 shrink-0">
@@ -807,6 +862,11 @@ const StudentsStep: React.FC<{
               type="checkbox"
               checked={picked.has(s.id)}
               onChange={() => toggle(s.id)}
+              {...tourFieldAttr(
+                'group-wizard.student',
+                'group-wizard',
+                `student-${students.indexOf(s) + 1}`
+              )}
               className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
             />
             <span className="truncate">{studentName(s)}</span>
@@ -858,6 +918,11 @@ const ScheduleStep: React.FC<{
                 aria-label={date.toLocaleDateString(undefined, {
                   weekday: 'long',
                 })}
+                {...tourFieldAttr(
+                  'group-wizard.day',
+                  'group-wizard',
+                  `day-${d}`
+                )}
                 onClick={() => toggleDay(d)}
                 className={`w-10 h-10 rounded-full text-sm font-bold transition-colors ${
                   on
@@ -884,6 +949,11 @@ const ScheduleStep: React.FC<{
             <input
               type="time"
               aria-label={timeLabel}
+              {...tourFieldAttr(
+                'group-wizard.alert-time',
+                'group-wizard',
+                `alert-${i + 1}`
+              )}
               value={alert.time}
               onChange={(e) =>
                 e.target.value && setAlert(i, { time: e.target.value })
@@ -892,6 +962,11 @@ const ScheduleStep: React.FC<{
             />
             <select
               aria-label={leadLabel}
+              {...tourFieldAttr(
+                'group-wizard.alert-lead',
+                'group-wizard',
+                `alert-${i + 1}`
+              )}
               value={alert.leadMinutes}
               onChange={(e) =>
                 setAlert(i, { leadMinutes: Number(e.target.value) })
@@ -921,6 +996,11 @@ const ScheduleStep: React.FC<{
                 }
                 aria-label={removeLabel}
                 title={removeLabel}
+                {...tourFieldAttr(
+                  'group-wizard.alert-remove',
+                  'group-wizard',
+                  `alert-${i + 1}`
+                )}
                 className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors"
               >
                 <X size={16} />
@@ -931,6 +1011,7 @@ const ScheduleStep: React.FC<{
         {reminder.alerts.length < MAX_ALERTS && (
           <button
             type="button"
+            {...tourAttr('group-wizard.add-alert')}
             onClick={() =>
               onChange({
                 alerts: [
@@ -961,6 +1042,7 @@ const ScheduleStep: React.FC<{
           </label>
           <select
             id="group-wizard-repeat"
+            {...tourAttr('group-wizard.repeat')}
             value={reminder.repeat}
             onChange={(e) =>
               onChange({
@@ -989,6 +1071,7 @@ const ScheduleStep: React.FC<{
             </label>
             <input
               id="group-wizard-start"
+              {...tourAttr('group-wizard.start-date')}
               type="date"
               value={reminder.startDate}
               onChange={(e) =>

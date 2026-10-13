@@ -3,13 +3,11 @@ import type { AiInputKind, AiTier } from './aiModels';
 // Every model call names one of these. Mirrored with labels in config/aiIntegrations.ts (aiIntegrationsParity test).
 export const AI_INTEGRATIONS = {
   'mini-app': { tier: 'advanced', inputs: ['text'] },
-  'widget-builder': { tier: 'advanced', inputs: ['text'] },
   poll: { tier: 'standard', inputs: ['text'] },
   'dashboard-layout': { tier: 'standard', inputs: ['text'] },
   'instructional-routine': { tier: 'standard', inputs: ['text'] },
   quiz: { tier: 'standard', inputs: ['text'] },
   ocr: { tier: 'standard', inputs: ['image'] },
-  'widget-explainer': { tier: 'standard', inputs: ['text'] },
   'blooms-ai': { tier: 'standard', inputs: ['text'] },
   'video-activity-recommend': { tier: 'standard', inputs: ['text'] },
   'video-activity': { tier: 'standard', inputs: ['video'] },
