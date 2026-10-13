@@ -113,10 +113,10 @@ export const CARD_ROWS: Record<PlcGroupType, readonly CardRowDef[]> = {
   ],
   building: [
     row('Quick links', 'quickLinks'),
+    row('Goals', 'goals'),
     row('Latest updates', 'latestUpdates'),
     row('Resources by category', 'resourcesByCategory'),
     row('Calendar', 'calendar'),
-    row('Goals', 'goals'),
   ],
   mentoring: [
     row('Your next task', 'nextTask'),
