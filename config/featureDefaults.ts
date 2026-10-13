@@ -569,8 +569,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Share a board or a collection with a substitute, and the manager for live
-  // shares. Admin-only until Paul has run a day's cover on it in prod.
   // Guided Learning player v2. Admin-only until Paul has played a set end to end on dev.
   'gl-player-v2': {
     label: 'Guided Learning: calmer player',
