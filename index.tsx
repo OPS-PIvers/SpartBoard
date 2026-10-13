@@ -6,6 +6,7 @@ import App from './App';
 import './index.css';
 import './i18n';
 import { attemptChunkReload } from './utils/chunkLoadError';
+import { installTranslateDomGuard } from './utils/translateDomGuard';
 import { LocalProdBanner } from './components/common/LocalProdBanner';
 
 // Vite v5+ fires `vite:preloadError` when a <link rel="modulepreload"> fails —
@@ -16,6 +17,8 @@ window.addEventListener('vite:preloadError', (event) => {
   event.preventDefault();
   attemptChunkReload();
 });
+
+installTranslateDomGuard();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) throw new Error('Could not find root element');
