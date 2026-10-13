@@ -22,6 +22,7 @@ import {
   keepableSandboxItems,
   keepSandboxItem,
   startTourSandbox,
+  useTourSandbox,
 } from '@/utils/tourSandbox';
 import {
   checkpointAt,
@@ -1260,6 +1261,9 @@ export const LiveTourRunner: React.FC = () => {
     };
   }, [anchor.element, acted, action, stepValue, stepIndex]);
 
+  const sandbox = useTourSandbox();
+  // A teacher's own picked item takes real writes, so only a run without one autopilots sandboxed saves.
+  const inSandbox = !!tour?.sandboxed && sandbox.passthrough.size === 0;
   const running = tour?.phase === 'running';
   const offeringResume =
     !tour &&
@@ -1517,8 +1521,8 @@ export const LiveTourRunner: React.FC = () => {
     const clickAll = !!tour.edit && !!tour.sandboxed && jumping;
     const gate = canPerform(binding)
       ? clickAll
-        ? replayGate(binding, tour.policy)
-        : autopilotGate(binding, tour.policy)
+        ? replayGate(binding, tour.policy, inSandbox)
+        : autopilotGate(binding, tour.policy, inSandbox)
       : 'teacher';
     if (gate === 'teacher' || (gate === 'confirm' && !consented)) {
       setAuto({ key: stepKey, stage: gate === 'teacher' ? 'blocked' : gate });
@@ -2031,7 +2035,7 @@ export const LiveTourRunner: React.FC = () => {
       !!binding &&
       binding.action !== 'observe' &&
       canPerform(binding) &&
-      autopilotGate(binding, tour.policy) !== 'teacher' &&
+      autopilotGate(binding, tour.policy, inSandbox) !== 'teacher' &&
       !autoBusy &&
       autoStage !== 'blocked' &&
       (!autoOn || autoStage === 'fallback');

@@ -72,6 +72,8 @@ export interface CreateInput {
   tour_widgets?: string[];
   autopilot?: boolean;
   help_center?: HelpCenterPlacement;
+  /** create_live_tour's full setup; replaces tour_widgets and autopilot. */
+  tour_setup?: GlSet['tourSetup'];
   folder_id?: string;
   steps: CreateStepInput[];
 }
@@ -174,7 +176,7 @@ export function buildNewSet(
   }
   if (input.help_center) set.helpCenter = true;
   if (input.kind === 'live_tour')
-    set.tourSetup = {
+    set.tourSetup = input.tour_setup ?? {
       widgets: [...new Set(input.tour_widgets ?? [])],
       ...(input.autopilot ? { autopilot: true } : {}),
     };
