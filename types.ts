@@ -9930,7 +9930,6 @@ export type GlobalFeature =
   | 'drawing-ai'
   | 'webcam-ai'
   | 'blooms-ai'
-  | 'my-groups'
   /** Ctrl+V of a two-column list on the board opens a new flashcard set in the editor. */
   | 'flashcard-smart-paste'
   /** Assign modals: Availability & Due Date (opens, closes, late work) replaces the Schedule and period-mode toggle. */

@@ -93,7 +93,6 @@ const LegacyPlcDashboard: React.FC<PlcDashboardProps> = ({
   const { t } = useTranslation();
   const { user, canAccessFeature, globalPermissionsLoaded, isAdmin } =
     useAuth();
-  const groupWording = canAccessFeature('my-groups');
   useGoogleTasksPull(plc.id, canAccessFeature('google-tasks-sync'));
   // On mobile, deep-linking straight to a section (anything but `home`) should
   // open that section, not the drill-in menu; landing on home shows the menu.
@@ -190,12 +189,8 @@ const LegacyPlcDashboard: React.FC<PlcDashboardProps> = ({
               <Loader2
                 className="h-8 w-8 animate-spin text-brand-blue-primary"
                 aria-label={
-                  groupWording
-                    ? t('plcRoute.groupLoading', {
+                  t('plcRoute.groupLoading', {
                         defaultValue: 'Loading team…',
-                      })
-                    : t('plcRoute.loading', {
-                        defaultValue: 'Loading PLC…',
                       })
                 }
               />

@@ -14,7 +14,6 @@ import { Crown } from 'lucide-react';
 import type { Plc } from '@/types';
 import { getPlcMembers } from '@/utils/plc';
 import type { PlcSectionId } from '@/components/plc/sections';
-import { useAuth } from '@/context/useAuth';
 import { tourAttr } from '@/config/tourAnchors';
 
 interface MembersHeaderClusterProps {
@@ -41,7 +40,6 @@ export const MembersHeaderCluster: React.FC<MembersHeaderClusterProps> = ({
   onNavigate,
 }) => {
   const { t } = useTranslation();
-  const groupWording = useAuth().canAccessFeature('my-groups');
 
   const members = useMemo(
     () =>
@@ -76,12 +74,8 @@ export const MembersHeaderCluster: React.FC<MembersHeaderClusterProps> = ({
         className="flex items-center -space-x-2"
         role="list"
         aria-label={
-          groupWording
-            ? t('plcDashboard.home.members.groupListAriaLabel', {
+          t('plcDashboard.home.members.groupListAriaLabel', {
                 defaultValue: 'Team members',
-              })
-            : t('plcDashboard.home.members.listAriaLabel', {
-                defaultValue: 'PLC members',
               })
         }
       >

@@ -370,8 +370,7 @@ export const RoutineGuideWidget: React.FC<WidgetComponentProps> = ({
   const savedFilter: RoutineGuideFilter = prefs?.libraryFilter ?? 'grade';
   const groupScope = useRoutineGuideGroups(savedFilter);
   const filter: RoutineGuideFilter =
-    savedFilter.startsWith(GROUP_FILTER_PREFIX) &&
-    (!groupScope.enabled || groupScope.missing)
+    savedFilter.startsWith(GROUP_FILTER_PREFIX) && groupScope.missing
       ? 'grade'
       : savedFilter;
 

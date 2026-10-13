@@ -138,7 +138,6 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
   const { t } = useTranslation();
   const { user, googleAccessToken, ensureGoogleScope, canAccessFeature } =
     useAuth();
-  const groupWording = canAccessFeature('my-groups');
   const stepperOn = canAccessFeature('assign-stepper');
   const { addToast, rosters } = useDashboard();
   const { activities, loadActivityData, attachSyncLinkage, isDriveConnected } =
@@ -279,18 +278,13 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
           addToast(
             err instanceof Error && err.message
               ? err.message
-              : groupWording
-                ? t(
+              : t(
                     'plcDashboard.newAssignment.video.groupSheetAutoCreateFailed',
                     {
                       defaultValue:
                         'Could not create the shared team sheet. The assignment will be created without one.',
                     }
-                  )
-                : t('plcDashboard.newAssignment.video.sheetAutoCreateFailed', {
-                    defaultValue:
-                      'Could not create the shared PLC sheet. The assignment will be created without one.',
-                  }),
+                  ),
             'error'
           );
         }
@@ -433,16 +427,10 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
       addToast(
         stepperOn
           ? 'Assignment created.'
-          : groupWording
-            ? t('plcDashboard.newAssignment.video.groupCreated', {
+          : t('plcDashboard.newAssignment.video.groupCreated', {
                 title: pickedActivity.title,
                 defaultValue:
                   '"{{title}}" created (paused) and shared with this group.',
-              })
-            : t('plcDashboard.newAssignment.video.created', {
-                title: pickedActivity.title,
-                defaultValue:
-                  '"{{title}}" created (paused) and shared with this PLC.',
               }),
         'success'
       );
@@ -470,12 +458,8 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
       addToast(
         err instanceof Error
           ? err.message
-          : groupWording
-            ? t('plcDashboard.newAssignment.video.groupCreateFailed', {
+          : t('plcDashboard.newAssignment.video.groupCreateFailed', {
                 defaultValue: 'Failed to create the team assignment.',
-              })
-            : t('plcDashboard.newAssignment.video.createFailed', {
-                defaultValue: 'Failed to create the PLC assignment.',
               }),
         'error'
       );
@@ -486,7 +470,6 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
     classes,
     stepperOn,
     when,
-    groupWording,
     addToast,
     assignmentMode,
     attachSyncLinkage,
@@ -509,12 +492,8 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
     return (
       <PlcSharePickerModal
         title={
-          groupWording
-            ? t('plcDashboard.newAssignment.video.groupPickTitle', {
+          t('plcDashboard.newAssignment.video.groupPickTitle', {
                 defaultValue: 'New Team Video Activity Assignment',
-              })
-            : t('plcDashboard.newAssignment.video.pickTitle', {
-                defaultValue: 'New PLC Video Activity Assignment',
               })
         }
         subtitle={t('plcDashboard.newAssignment.video.pickSubtitle', {

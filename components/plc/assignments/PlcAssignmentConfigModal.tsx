@@ -175,7 +175,6 @@ export const PlcAssignmentConfigModal: React.FC<
 }) => {
   const { t } = useTranslation();
   const { user, getAssignmentMode, canAccessFeature } = useAuth();
-  const groupWording = canAccessFeature('my-groups');
   // D12: with the split on, settings come from the teacher's last-used, editable inline.
   const reviewSplit = kind === 'quiz' && canAccessFeature('quiz-review-split');
   const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
@@ -345,16 +344,10 @@ export const PlcAssignmentConfigModal: React.FC<
         });
 
         addToast(
-          groupWording
-            ? t('plcDashboard.assignmentConfig.groupQuizCreated', {
+          t('plcDashboard.assignmentConfig.groupQuizCreated', {
                 title: quizRef.title,
                 defaultValue:
                   '"{{title}}" created (paused) and shared with this group.',
-              })
-            : t('plcDashboard.assignmentConfig.quizCreated', {
-                title: quizRef.title,
-                defaultValue:
-                  '"{{title}}" created (paused) and shared with this PLC.',
               }),
           'success'
         );
@@ -439,16 +432,10 @@ export const PlcAssignmentConfigModal: React.FC<
         });
 
         addToast(
-          groupWording
-            ? t('plcDashboard.assignmentConfig.groupVideoCreated', {
+          t('plcDashboard.assignmentConfig.groupVideoCreated', {
                 title: activityRef.title,
                 defaultValue:
                   '"{{title}}" created (paused) and shared with this group.',
-              })
-            : t('plcDashboard.assignmentConfig.videoCreated', {
-                title: activityRef.title,
-                defaultValue:
-                  '"{{title}}" created (paused) and shared with this PLC.',
               }),
           'success'
         );
@@ -464,12 +451,8 @@ export const PlcAssignmentConfigModal: React.FC<
       addToast(
         err instanceof Error
           ? err.message
-          : groupWording
-            ? t('plcDashboard.assignmentConfig.groupCreateFailed', {
+          : t('plcDashboard.assignmentConfig.groupCreateFailed', {
                 defaultValue: 'Failed to create the team assignment.',
-              })
-            : t('plcDashboard.assignmentConfig.createFailed', {
-                defaultValue: 'Failed to create the PLC assignment.',
               }),
         'error'
       );
@@ -478,7 +461,6 @@ export const PlcAssignmentConfigModal: React.FC<
       setSubmitting(false);
     }
   }, [
-    groupWording,
     user,
     onQuizSyncGroupCreated,
     rosters,

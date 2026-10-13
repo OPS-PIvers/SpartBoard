@@ -11,11 +11,10 @@ let presets: Record<string, unknown> = {};
 let featurePermissions: unknown[] = [];
 
 let groupScope: {
-  enabled: boolean;
   groups: { id: string; name: string }[];
   missing: boolean;
   routineIds: Set<string>;
-} = { enabled: false, groups: [], missing: false, routineIds: new Set() };
+} = { groups: [], missing: false, routineIds: new Set() };
 vi.mock('./useRoutineGuideGroups', () => ({
   GROUP_FILTER_PREFIX: 'group:',
   useRoutineGuideGroups: () => groupScope,
@@ -86,7 +85,6 @@ describe('RoutineGuideWidget', () => {
     presets = {};
     featurePermissions = [];
     groupScope = {
-      enabled: false,
       groups: [],
       missing: false,
       routineIds: new Set(),
@@ -96,7 +94,6 @@ describe('RoutineGuideWidget', () => {
   it('lists a group under Show and narrows to its goal routines', () => {
     featurePermissions = [adminLibrary];
     groupScope = {
-      enabled: true,
       groups: [{ id: 'g1', name: 'Grade 6 ELA' }],
       missing: false,
       routineIds: new Set(['r2']),
@@ -111,7 +108,6 @@ describe('RoutineGuideWidget', () => {
   it('falls back to My grades when the saved group is gone', () => {
     featurePermissions = [adminLibrary];
     groupScope = {
-      enabled: true,
       groups: [],
       missing: true,
       routineIds: new Set(),

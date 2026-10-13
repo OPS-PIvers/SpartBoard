@@ -19,7 +19,6 @@ import React, {
 import { useTranslation } from 'react-i18next';
 import { Plus, Trash2, Check, X, Pencil } from 'lucide-react';
 import type { PlcDoc } from '@/types';
-import { useAuth } from '@/context/useAuth';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 /** Imperative handle exposed to parents so the Docs empty-state CTA can
@@ -65,7 +64,6 @@ export const PlcDocPicker = forwardRef<PlcDocPickerHandle, PlcDocPickerProps>(
     },
     ref
   ) {
-    const groupWording = useAuth().canAccessFeature('my-groups');
     const { t } = useTranslation();
 
     // Add form state
@@ -273,12 +271,8 @@ export const PlcDocPicker = forwardRef<PlcDocPickerHandle, PlcDocPickerProps>(
               value={addUrl}
               onChange={(e) => setAddUrl(e.target.value)}
               placeholder={
-                groupWording
-                  ? t('plcDashboard.docs.groupUrlPlaceholder', {
+                t('plcDashboard.docs.groupUrlPlaceholder', {
                       defaultValue: 'Paste a link',
-                    })
-                  : t('plcDashboard.docs.urlPlaceholder', {
-                      defaultValue: 'Paste Google Doc URL',
                     })
               }
               className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-blue-primary/50 focus:border-brand-blue-primary/50"

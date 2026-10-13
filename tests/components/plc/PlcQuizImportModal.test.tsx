@@ -3,7 +3,7 @@
  *
  * PlcQuizImportModal is the import-mode picker shown when a teacher adds a PLC
  * quiz to their personal library. It renders two ModeOption buttons (Synced /
- * Make a copy) inside the shared Modal primitive, with a "Recommended for PLCs"
+ * Make a copy) inside the shared Modal primitive, with a "Recommended for teams"
  * pill on the sync option and an optional "shared by {{name}}" subtitle.
  *
  * The Modal primitive renders to the DOM (portal) in jsdom, so we render the
@@ -11,7 +11,7 @@
  * {{title}}/{{name}} interpolation, which keeps the subtitle assertable.
  *
  * Coverage:
- *   (1) renders the two ModeOption buttons + the "Recommended for PLCs" pill
+ *   (1) renders the two ModeOption buttons + the "Recommended for teams" pill
  *       on the sync option only
  *   (2) shows quizTitle and the "shared by {{name}}" subtitle when sharedByName
  *       is provided
@@ -79,7 +79,7 @@ describe('PlcQuizImportModal', () => {
     expect(copy).toBeInTheDocument();
 
     // The recommended pill lives inside the Synced option, not the copy option.
-    const pill = screen.getByText('Recommended for PLCs');
+    const pill = screen.getByText('Recommended for teams');
     expect(pill).toBeInTheDocument();
     expect(sync).toContainElement(pill);
     expect(copy).not.toContainElement(pill);

@@ -26,7 +26,6 @@ import {
 } from 'lucide-react';
 
 import { getPlcGroupType, type Plc } from '@/types';
-import { useAuth } from '@/context/useAuth';
 import { groupTypeLabel } from './groupTypes';
 import { usePlcBuildingDirectory } from '@/hooks/usePlcBuildingDirectory';
 import { getPlcMembers, getPlcRole } from '@/utils/plc';
@@ -57,7 +56,6 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const groups = useAuth().canAccessFeature('my-groups');
 
   return (
     <div className="fixed inset-0 z-modal bg-slate-50 overflow-y-auto overscroll-none">
@@ -77,9 +75,7 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
             <Users2 className="w-5 h-5 text-brand-blue-primary" />
           </div>
           <h1 className="text-xl font-bold text-slate-800">
-            {groups
-              ? t('plcRoute.groupsHubTitle', { defaultValue: 'My Teams' })
-              : t('plcRoute.hubTitle', { defaultValue: 'My PLCs' })}
+            {t('plcRoute.groupsHubTitle', { defaultValue: 'My Teams' })}
           </h1>
         </div>
 
@@ -94,11 +90,9 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
               <Users2 className="w-6 h-6 text-slate-300" aria-hidden="true" />
             </div>
             <p className="text-sm font-bold text-slate-600">
-              {groups
-                ? t('plcRoute.groupsHubEmptyTitle', {
+              {t('plcRoute.groupsHubEmptyTitle', {
                     defaultValue: 'No teams yet',
-                  })
-                : t('plcRoute.hubEmptyTitle', { defaultValue: 'No PLCs yet' })}
+                  })}
             </p>
             <p className="text-xs text-slate-500">
               {t('plcRoute.hubEmptySubtitle', {
@@ -135,8 +129,7 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
                         )}
                       </div>
                       <div className="text-xxs font-semibold text-slate-500 uppercase tracking-widest mt-0.5">
-                        {groups &&
-                          `${groupTypeLabel(t, getPlcGroupType(plc))} · `}
+                        {`${groupTypeLabel(t, getPlcGroupType(plc))} · `}
                         {t('plcRoute.memberCount', {
                           count: getPlcMembers(plc).length,
                           defaultValue: '{{count}} Member',
@@ -156,7 +149,7 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
         )}
 
         {/* --- Section 2: PLCs in my building --- */}
-        <PlcBuildingDirectorySection userEmail={userEmail} groups={groups} />
+        <PlcBuildingDirectorySection userEmail={userEmail} />
       </div>
     </div>
   );
@@ -168,8 +161,7 @@ export const PlcIndexHub: React.FC<PlcIndexHubProps> = ({
 
 const PlcBuildingDirectorySection: React.FC<{
   userEmail: string | null;
-  groups: boolean;
-}> = ({ userEmail, groups }) => {
+}> = ({ userEmail }) => {
   const { t } = useTranslation();
   const { entries, loading, orgId } = usePlcBuildingDirectory();
 
@@ -178,12 +170,8 @@ const PlcBuildingDirectorySection: React.FC<{
       <div className="flex items-center gap-2 mb-4">
         <Building2 className="w-4 h-4 text-slate-400" aria-hidden="true" />
         <h2 className="text-sm font-bold uppercase tracking-widest text-slate-500">
-          {groups
-            ? t('plcDirectory.groupHeading', {
+          {t('plcDirectory.groupHeading', {
                 defaultValue: 'Teams in my building',
-              })
-            : t('plcDirectory.heading', {
-                defaultValue: 'PLCs in my building',
               })}
         </h2>
       </div>
@@ -204,12 +192,8 @@ const PlcBuildingDirectorySection: React.FC<{
       ) : entries.length === 0 ? (
         <DirectoryNotice
           title={
-            groups
-              ? t('plcDirectory.groupEmptyTitle', {
+            t('plcDirectory.groupEmptyTitle', {
                   defaultValue: 'No other teams to show',
-                })
-              : t('plcDirectory.emptyTitle', {
-                  defaultValue: 'No other PLCs to show',
                 })
           }
         />

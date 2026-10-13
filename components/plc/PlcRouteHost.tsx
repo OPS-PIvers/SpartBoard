@@ -42,8 +42,7 @@ const FullScreenSurface: React.FC<{ children: React.ReactNode }> = ({
 
 export const PlcRouteHost: React.FC<PlcRouteHostProps> = ({ parsed }) => {
   const { t } = useTranslation();
-  const { user, canAccessFeature } = useAuth();
-  const groupWording = canAccessFeature('my-groups');
+  const { user } = useAuth();
   const userEmail = user?.email ?? null;
   // The PLC list listener must be active while any /plc route is mounted so a
   // feature toggle / removal by another member is reflected immediately.
@@ -78,9 +77,7 @@ export const PlcRouteHost: React.FC<PlcRouteHostProps> = ({ parsed }) => {
         <Loader2
           className="w-10 h-10 text-brand-blue-primary animate-spin"
           aria-label={
-            groupWording
-              ? t('plcRoute.groupLoading', { defaultValue: 'Loading team…' })
-              : t('plcRoute.loading', { defaultValue: 'Loading PLC…' })
+            t('plcRoute.groupLoading', { defaultValue: 'Loading team…' })
           }
         />
       </FullScreenSurface>
@@ -96,11 +93,9 @@ export const PlcRouteHost: React.FC<PlcRouteHostProps> = ({ parsed }) => {
             <Users2 className="w-7 h-7 text-slate-300" aria-hidden="true" />
           </div>
           <h1 className="text-lg font-bold text-slate-800">
-            {groupWording
-              ? t('plcRoute.groupNotFoundTitle', {
+            {t('plcRoute.groupNotFoundTitle', {
                   defaultValue: 'Team not found',
-                })
-              : t('plcRoute.notFoundTitle', { defaultValue: 'PLC not found' })}
+                })}
           </h1>
           <p className="text-sm text-slate-500 mt-2">
             {t('plcRoute.notFoundBody', {

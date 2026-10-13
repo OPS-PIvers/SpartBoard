@@ -225,7 +225,7 @@ describe('PlcRubricLibraryBody', () => {
     );
     await waitFor(() =>
       expect(addToast).toHaveBeenCalledWith(
-        expect.stringContaining('shared with this PLC again'),
+        expect.stringContaining('shared with this group again'),
         'success'
       )
     );
@@ -240,7 +240,7 @@ describe('PlcRubricLibraryBody', () => {
     );
     await waitFor(() =>
       expect(addToast).toHaveBeenCalledWith(
-        expect.stringContaining('is already shared with this PLC'),
+        expect.stringContaining('is already shared with this group'),
         'info'
       )
     );

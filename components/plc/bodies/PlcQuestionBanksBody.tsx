@@ -44,8 +44,7 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
   plc,
 }) => {
   const { t } = useTranslation();
-  const { user, canAccessFeature } = useAuth();
-  const groupWording = canAccessFeature('my-groups');
+  const { user } = useAuth();
   const { addToast } = useDashboard();
   const { showConfirm } = useDialog();
   const canEdit = useCanEditPlcContent();
@@ -89,14 +88,9 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
       try {
         await shareBankWithPlc(meta, plc.id);
         addToast(
-          groupWording
-            ? t('plcDashboard.bankLibrary.groupSharedToast', {
+          t('plcDashboard.bankLibrary.groupSharedToast', {
                 title: meta.title,
                 defaultValue: '"{{title}}" shared with this group.',
-              })
-            : t('plcDashboard.bankLibrary.sharedToast', {
-                title: meta.title,
-                defaultValue: '"{{title}}" shared with this PLC.',
               }),
           'success'
         );
@@ -104,18 +98,14 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
       } catch (err) {
         logError('PlcQuestionBanksBody.share', err, { plcId: plc.id, bankId });
         addToast(
-          groupWording
-            ? t('plcDashboard.bankLibrary.groupShareFailed', {
+          t('plcDashboard.bankLibrary.groupShareFailed', {
                 defaultValue: 'Failed to share question bank with this team.',
-              })
-            : t('plcDashboard.bankLibrary.shareFailed', {
-                defaultValue: 'Failed to share question bank with this PLC.',
               }),
           'error'
         );
       }
     },
-    [addToast, groupWording, banks, plc.id, shareBankWithPlc, t]
+    [addToast, banks, plc.id, shareBankWithPlc, t]
   );
 
   const handleImport = useCallback(
@@ -172,16 +162,10 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
         return;
       }
       const confirmed = await showConfirm(
-        groupWording
-          ? t('plcDashboard.bankLibrary.groupUnshareConfirm', {
+        t('plcDashboard.bankLibrary.groupUnshareConfirm', {
               title: entry.title,
               defaultValue:
                 'Stop sharing "{{title}}" with this group? Teammates’ quizzes that draw from it will stop resolving; copies in their libraries keep working.',
-            })
-          : t('plcDashboard.bankLibrary.unshareConfirm', {
-              title: entry.title,
-              defaultValue:
-                'Stop sharing "{{title}}" with this PLC? Teammates’ quizzes that draw from it will stop resolving; copies in their libraries keep working.',
             }),
         {
           title: t('plcDashboard.bankLibrary.unshareTitle', {
@@ -212,7 +196,7 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
         setBusyRowId(null);
       }
     },
-    [addToast, banks, groupWording, plc.id, showConfirm, t, unshareBankFromPlc]
+    [addToast, banks, plc.id, showConfirm, t, unshareBankFromPlc]
   );
 
   if (loading) {
@@ -426,12 +410,8 @@ export const PlcQuestionBanksBody: React.FC<PlcQuestionBanksBodyProps> = ({
       {sharePickerOpen && (
         <PlcSharePickerModal
           title={
-            groupWording
-              ? t('plcDashboard.bankLibrary.groupSharePickerTitle', {
+            t('plcDashboard.bankLibrary.groupSharePickerTitle', {
                   defaultValue: 'Share a question bank with this team',
-                })
-              : t('plcDashboard.bankLibrary.sharePickerTitle', {
-                  defaultValue: 'Share a question bank with this PLC',
                 })
           }
           subtitle={plc.name}

@@ -1,7 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Cloud, Copy } from 'lucide-react';
-import { useAuth } from '@/context/useAuth';
 import { tourFieldAttr } from '@/config/tourAnchors';
 
 export type PlcImportMode = 'sync' | 'copy';
@@ -53,7 +52,6 @@ export const PlcImportModeOptions: React.FC<{
   onPick: (mode: PlcImportMode) => void;
 }> = ({ onPick }) => {
   const { t } = useTranslation();
-  const groupWording = useAuth().canAccessFeature('my-groups');
   return (
     <>
       <ModeOption
@@ -67,12 +65,8 @@ export const PlcImportModeOptions: React.FC<{
         })}
         Icon={Cloud}
         recommendedLabel={
-          groupWording
-            ? t('plcDashboard.quizImportModal.groupRecommendedLabel', {
+          t('plcDashboard.quizImportModal.groupRecommendedLabel', {
                 defaultValue: 'Recommended for teams',
-              })
-            : t('plcDashboard.quizImportModal.recommendedLabel', {
-                defaultValue: 'Recommended for PLCs',
               })
         }
         onPick={onPick}

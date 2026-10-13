@@ -16,7 +16,6 @@ import { Modal } from '@/components/common/Modal';
 import { Plc } from '@/types';
 import { getPlcMembers } from '@/utils/plc';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
-import { useAuth } from '@/context/useAuth';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface PlcShareTargetModalProps {
@@ -35,7 +34,6 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const groupWording = useAuth().canAccessFeature('my-groups');
   const initialSelected = plcs.length === 1 ? plcs[0].id : '';
   const [selectedId, setSelectedId] = useState<string>(initialSelected);
   const [submitting, setSubmitting] = useState(false);
@@ -72,12 +70,8 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
       isOpen
       onClose={submitting ? () => undefined : onClose}
       ariaLabel={
-        groupWording
-          ? t('plcDashboard.shareTargetModal.groupAriaLabel', {
+        t('plcDashboard.shareTargetModal.groupAriaLabel', {
               defaultValue: 'Pick a team to share with',
-            })
-          : t('plcDashboard.shareTargetModal.ariaLabel', {
-              defaultValue: 'Pick a PLC to share with',
             })
       }
       maxWidth="max-w-md"
@@ -90,12 +84,8 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900">
-                {groupWording
-                  ? t('plcDashboard.shareTargetModal.groupTitle', {
+                {t('plcDashboard.shareTargetModal.groupTitle', {
                       defaultValue: 'Share with team',
-                    })
-                  : t('plcDashboard.shareTargetModal.title', {
-                      defaultValue: 'Share with PLC',
                     })}
               </h2>
               <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[20rem]">

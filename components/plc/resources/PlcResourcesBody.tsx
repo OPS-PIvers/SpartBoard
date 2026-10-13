@@ -6,7 +6,6 @@ import {
   ClipboardList,
   FileText,
   LayoutPanelLeft,
-  Sparkles,
   Check,
   Loader2,
   ArrowRight,
@@ -23,7 +22,6 @@ import { quizServedQuestionCount } from '@/utils/questionBanks';
 import { pullSyncedVideoActivityContent } from '@/hooks/useSyncedVideoActivityGroups';
 import { logError } from '@/utils/logError';
 import { getPlcMemberEmail } from '@/utils/plc';
-import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import type { PlcSectionId } from '@/components/plc/sections';
 import { PlcGroupLinks } from './PlcGroupLinks';
 import { tourFieldAttr } from '@/config/tourAnchors';
@@ -109,8 +107,7 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
   kinds,
 }) => {
   const { t } = useTranslation();
-  const { user, canAccessFeature } = useAuth();
-  const groupWording = canAccessFeature('my-groups');
+  const { user } = useAuth();
   const { addToast } = useDashboard();
   const {
     resources: allResources,
@@ -194,14 +191,9 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
       await importOneClick(res);
       markUsed(res.id);
       addToast(
-        groupWording
-          ? t('plcDashboard.resources.groupUseSuccess', {
+        t('plcDashboard.resources.groupUseSuccess', {
               title: res.title,
               defaultValue: '"{{title}}" added to this group.',
-            })
-          : t('plcDashboard.resources.useSuccess', {
-              title: res.title,
-              defaultValue: '"{{title}}" added to this PLC.',
             }),
         'success'
       );
@@ -251,20 +243,6 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
 
   if (embedded && resources.length === 0) return null;
 
-  if (resources.length === 0 && !groupWording) {
-    return (
-      <ScaledEmptyState
-        icon={Sparkles}
-        title={t('plcDashboard.resources.emptyTitle', {
-          defaultValue: 'No Resources Yet',
-        })}
-        subtitle={t('plcDashboard.resources.emptySubtitle', {
-          defaultValue: 'Your admin hasn’t added any yet.',
-        })}
-      />
-    );
-  }
-
   // Group by kind in defined order
   const grouped = KIND_ORDER.reduce<Record<PlcResourceKind, PlcResource[]>>(
     (acc, kind) => {
@@ -283,18 +261,11 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
               defaultValue: 'Resources',
             })}
           </h2>
-          {!groupWording && (
-            <p className="text-sm text-slate-500 mt-0.5">
-              {t('plcDashboard.resources.inboxSubtitle', {
-                defaultValue: 'From your admin.',
-              })}
-            </p>
-          )}
         </div>
       )}
 
-      {groupWording && !embedded && <PlcGroupLinks plc={plc} />}
-      {groupWording && resources.length > 0 && (
+      {!embedded && <PlcGroupLinks plc={plc} />}
+      {resources.length > 0 && (
         <h3 className="text-base font-bold text-slate-800 pt-2">
           {t('plcDashboard.resources.groupFromAdmin', {
             defaultValue: 'From your admin',
@@ -352,12 +323,8 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
                       {isDone && (
                         <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
                           <Check className="w-3 h-3" />
-                          {groupWording
-                            ? t('plcDashboard.resources.groupUsedStatus', {
+                          {t('plcDashboard.resources.groupUsedStatus', {
                                 defaultValue: 'Added to your team',
-                              })
-                            : t('plcDashboard.resources.usedStatus', {
-                                defaultValue: 'Added to your PLC',
                               })}
                         </p>
                       )}
@@ -369,23 +336,13 @@ export const PlcResourcesBody: React.FC<PlcResourcesBodyProps> = ({
                       className="shrink-0 flex items-center gap-1.5 text-sm font-semibold text-brand-blue-primary hover:text-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed transition-colors px-3 py-1.5 rounded-lg hover:bg-brand-blue-primary/10"
                       aria-label={
                         isDeepLink
-                          ? groupWording
-                            ? t('plcDashboard.resources.groupOpenAction', {
+                          ? t('plcDashboard.resources.groupOpenAction', {
                                 title: res.title,
                                 defaultValue: `Open ${res.title} in this group`,
                               })
-                            : t('plcDashboard.resources.openAction', {
-                                title: res.title,
-                                defaultValue: `Open ${res.title} in this PLC`,
-                              })
-                          : groupWording
-                            ? t('plcDashboard.resources.groupUseAction', {
+                          : t('plcDashboard.resources.groupUseAction', {
                                 title: res.title,
                                 defaultValue: `Use ${res.title} in this group`,
-                              })
-                            : t('plcDashboard.resources.useAction', {
-                                title: res.title,
-                                defaultValue: `Use ${res.title} in this PLC`,
                               })
                       }
                     >

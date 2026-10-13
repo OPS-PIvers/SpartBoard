@@ -1187,17 +1187,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // My PLCs becomes My Groups with group types (docs/plans/MY_GROUPS.md).
-  'my-groups': {
-    label: 'My Teams',
-    icon: UsersRound,
-    description: 'PLC, department and mentoring groups.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'flashcard-smart-paste': {
     label: 'Flashcards: Smart Paste',
     icon: ClipboardCheck,
