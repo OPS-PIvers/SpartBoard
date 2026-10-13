@@ -56,6 +56,7 @@ export function parseRevertPath(
   const segments = docPath.split('/');
   const valid =
     rest.length === 0 &&
+    segments.length >= 4 &&
     segments.length % 2 === 0 &&
     segments.every((s) => s.length > 0 && s !== '.' && s !== '..') &&
     segments[0] === 'users' &&

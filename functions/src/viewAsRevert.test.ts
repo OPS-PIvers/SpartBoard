@@ -182,6 +182,7 @@ describe('parseRevertPath', () => {
     'users/other/quizzes/q',
     'admin_settings/view_as',
     'users/u/private/google',
+    'users/u',
     'users/u/quizzes',
     'users/u/quizzes/q#widgets/w',
     'users/u/dashboards/b#widgets/w#x',
