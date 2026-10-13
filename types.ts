@@ -9862,8 +9862,6 @@ export type GlobalFeature =
   | 'plc-flashcards'
   /** Quiz multiple choice editor as one option list with a correct-answer marker per option. */
   | 'quiz-choice-editor'
-  /** Section headings in the quiz editor, with "students answer any N of these M". */
-  | 'quiz-sections'
   /** Standard codes typed in or imported with a question text become Learning targets tags. */
   | 'standards-from-question-text'
   /** "View full screen" toggle on large pop-ups (editors, graders). */
