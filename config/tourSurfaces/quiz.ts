@@ -19,6 +19,12 @@ export const SURFACES: TourSurfaceMap = {
         'library-shell.card-open:quiz#row-1',
       'library-shell.new-menu-item': 'library-shell.new:quiz',
       'library-shell.archive-primary-action': 'library-shell.tab:quiz#archive',
+      'quiz-library.import-responses': 'library-shell.card-menu:quiz#row-1',
+      'quiz-library.import-questions': 'library-shell.card-menu:quiz#row-1',
+      'quiz-library.archive-monitor': 'library-shell.archive-menu:quiz#row-1',
+      'quiz-library.archive-settings': 'library-shell.archive-menu:quiz#row-1',
+      'quiz-library.archive-plc-results':
+        'library-shell.archive-menu:quiz#row-1',
     },
   },
   // Review widget shares the Quiz folder; this hook file is the only Review-only file.
@@ -133,8 +139,7 @@ export const SURFACES: TourSurfaceMap = {
   'quiz.import.cartridge': {
     label: 'Schoology export import dialog',
     kind: 'modal',
-    openerMissing:
-      'Schoology export (.imscc) file tile in the Import wizard (components/common/library/importer/ImportWizard.tsx)',
+    opensWith: 'import-wizard.bulk-file',
     parent: 'quiz.import',
     files: [`${C}CartridgeBankImportModal.tsx`],
   },
@@ -180,8 +185,7 @@ export const SURFACES: TourSurfaceMap = {
   'quiz.paper-import': {
     label: 'Import paper responses dialog',
     kind: 'modal',
-    openerMissing:
-      'Import responses item in a quiz card kebab menu (buildQuizSecondaryActions in components/widgets/QuizWidget/components/QuizManager.tsx)',
+    opensWith: 'quiz-library.import-responses:quiz',
     parent: 'quiz.face',
     needs: ['library-item'],
     files: [`${C}PaperImportModal.tsx`],
@@ -189,8 +193,7 @@ export const SURFACES: TourSurfaceMap = {
   'quiz.paper-question-text': {
     label: 'Import paper questions dialog',
     kind: 'modal',
-    openerMissing:
-      'Import questions item in a quiz card kebab menu (buildQuizSecondaryActions in components/widgets/QuizWidget/components/QuizManager.tsx)',
+    opensWith: 'quiz-library.import-questions:quiz',
     parent: 'quiz.face',
     needs: ['library-item'],
     files: [`${C}PaperQuestionTextModal.tsx`],
@@ -280,6 +283,22 @@ export const SURFACES: TourSurfaceMap = {
         'quiz-results.student-results-menu:quiz',
     },
   },
+  'quiz.assignment-settings': {
+    label: 'Quiz assignment Settings dialog',
+    kind: 'modal',
+    opensWith: 'quiz-library.archive-settings:quiz',
+    parent: 'library.assignments',
+    needs: ['widget-on-stage', 'library-item'],
+    files: [`${C}QuizAssignmentSettingsModal.tsx`],
+  },
+  'quiz.share-plc-results': {
+    label: 'Share results with PLC dialog',
+    kind: 'modal',
+    opensWith: 'quiz-library.archive-plc-results:quiz',
+    parent: 'library.assignments',
+    needs: ['widget-on-stage', 'library-item', 'plc'],
+    files: [`${C}SharePlcResultsModal.tsx`],
+  },
   'quiz.student-answer-line': {
     label: 'Student answer line',
     kind: 'shared',
@@ -288,10 +307,10 @@ export const SURFACES: TourSurfaceMap = {
   'quiz.monitor': {
     label: 'Quiz live monitor',
     kind: 'panel',
-    openerMissing:
-      'Monitor button on a live row of the In Progress tab (library-shell.tab:quiz#active, then library-shell.archive-primary-action:quiz#row-1, which is Results on the Completed tab)',
-    parent: 'quiz.face',
-    needs: ['library-item', 'live-session'],
+    // On the In Progress tab a live row's primary action is Monitor.
+    opensWith: 'library-shell.archive-primary-action:quiz#row-1',
+    parent: 'library.assignments',
+    needs: ['widget-on-stage', 'library-item', 'live-session'],
     files: [`${C}QuizLiveMonitor.tsx`, `${C}monitor/`],
     inner: {
       'quiz-monitor.menu-present': 'quiz.more-actions',

@@ -66,6 +66,11 @@ Amendment, 2026-10-13 (building PR 3):
 - **D6a.** The dry run duplicates the checks it needs rather than sharing `tourHealth.ts`, and it errors only on what breaks playback: an unknown anchor, a bad suffix, an unopened surface, an unstaged widget. Run over the six building tours on prod, three rules raised false alarms and became warnings: a `slot` nothing binds (the runner falls back to the first widget of the type), a `type` or `select` step with no value (the runner hands it to the teacher, right for a calendar ID), and positions in fixed menus and Help Center rows (only `row-N` in a teacher's own list warns).
 - **D8a.** Materials are `created`, `sample` (a copy of one of the admin's items by `from_id`) or `teacher` (the teacher picks; the admin's copy is the fallback). Anchors whose saves the tour sandbox absorbs carry `sandboxed: true` in `config/tourAnchors.ts`, and Autopilot performs those when the run is sandboxed. The shared assign buttons (`assign-stepper.submit`, `assign-modal.confirm`) stay unmarked because Flashcards and the PLC assign dialog use them outside the sandbox; a follow-up splits them.
 
+Amendment, 2026-10-13 (building PR 4):
+
+- **D7a.** No separate `/live-tour-run-dev` page: the runner needs the real board's providers, and the board already runs on `vite-verify`. A DEV-only hook (`components/tours/tourTestRun.ts`, `window.__liveTourRun`) hands the runner the tour instead of a Firestore read and records each step. A test run performs every step it can whatever the anchor's risk, skips a control that never shows, moves on from a step with no value, and gives class-based widgets a made-up class when none is active. The script refuses a server whose Firebase project isn't `dummy`.
+- **D12a.** Pictures don't go through a connector tool as base64: Claude would have to write every byte out. `start_live_tour_picture_upload` returns a ticket good for 30 minutes (only its hash is stored, in `mcp_tour_picture_tickets`), and the script posts the PNGs to `/mcp/tour-pictures` on the connector function, eight at a time. The pictures are the editor's own crop (`captureStepSnapshot`), stored as Guided Learning media.
+
 ## Benchmark workflows
 
 1. Create a quiz from scratch

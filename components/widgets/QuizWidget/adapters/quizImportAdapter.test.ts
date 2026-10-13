@@ -170,27 +170,9 @@ describe('createQuizImportAdapter — drive.file token threading', () => {
       ],
     };
 
-    it('leaves them out with a note when the feature is off', async () => {
+    it('keeps them', async () => {
       const deps = makeDeps({
         importFromCSV: vi.fn().mockResolvedValue(WITH_MA),
-        importFromSheet: vi.fn().mockResolvedValue(WITH_MA),
-      });
-      const adapter = createQuizImportAdapter(deps);
-
-      for (const source of [
-        { kind: 'csv' as const, text: 'a,b,c' },
-        { kind: 'sheet' as const, url: PICKED_SHEET_URL },
-      ]) {
-        const result = await adapter.parse(source);
-        expect(result.data.questions.map((q) => q.type)).toEqual(['MC']);
-        expect(result.warnings).toHaveLength(1);
-      }
-    });
-
-    it('keeps them when the feature is on', async () => {
-      const deps = makeDeps({
-        importFromCSV: vi.fn().mockResolvedValue(WITH_MA),
-        canUseChooseAll: true,
       });
       const result = await createQuizImportAdapter(deps).parse({
         kind: 'csv',
@@ -392,6 +374,7 @@ describe('createQuizImportAdapter — test document source', () => {
     expect(browserPdfDeps).not.toHaveBeenCalled();
     expect(readQuizDocument).toHaveBeenCalledWith(file, {
       fileName: 'Unit 3 Test.docx',
+      multiAnswer: true,
     });
   });
 

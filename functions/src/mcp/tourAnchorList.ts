@@ -2541,7 +2541,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "widgets.random.face",
         "kind": "widget",
         "widget_type": "random",
-        "path": [],
+        "path": [
+          "random.class-context"
+        ],
+        "reveal": "random.class-context",
         "needs": [
           "widget-on-stage"
         ]
@@ -2755,7 +2758,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -2767,7 +2779,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -2780,7 +2801,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -2792,7 +2822,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -2803,7 +2842,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -2817,7 +2865,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "quiz.monitor",
         "kind": "panel",
-        "reveal": "quiz.more-actions"
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz.more-actions"
+        ],
+        "reveal": "quiz.more-actions",
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -4858,7 +4916,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -4870,7 +4937,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -4882,7 +4958,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -4894,7 +4979,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -4906,7 +5000,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -7119,7 +7222,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.import.cartridge",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-2",
+          "import-wizard.bulk-file"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7134,7 +7245,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.import.cartridge",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-2",
+          "import-wizard.bulk-file"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7149,7 +7268,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.import.cartridge",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-2",
+          "import-wizard.bulk-file"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7164,7 +7291,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.import.cartridge",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-2",
+          "import-wizard.bulk-file"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7176,7 +7311,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.import.cartridge",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-2",
+          "import-wizard.bulk-file"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7188,7 +7331,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.import.cartridge",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-2",
+          "import-wizard.bulk-file"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7203,7 +7354,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.import.cartridge",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-2",
+          "import-wizard.bulk-file"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7218,7 +7377,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.import.cartridge",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-2",
+          "import-wizard.bulk-file"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7234,7 +7401,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.import.cartridge",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-2",
+          "import-wizard.bulk-file"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7250,7 +7425,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.import.cartridge",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-2",
+          "import-wizard.bulk-file"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7265,7 +7448,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-import",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7280,7 +7471,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-import",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7295,7 +7494,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-import",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7310,7 +7517,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-import",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7326,7 +7541,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-import",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7342,7 +7565,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-import",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7357,7 +7588,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-import",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7369,7 +7608,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-import",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7384,7 +7631,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-import",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7399,7 +7654,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-import",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7411,7 +7674,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-import",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7423,7 +7694,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-import",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7435,7 +7714,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-import",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7447,7 +7734,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-import",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7462,7 +7757,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-import",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7474,7 +7777,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-import",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7490,7 +7801,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-import",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7505,7 +7824,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-import",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7521,7 +7848,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-import",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7536,7 +7871,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-import",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-responses:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7551,7 +7894,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-question-text",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-questions:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7566,7 +7917,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-question-text",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-questions:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7581,7 +7940,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-question-text",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-questions:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7593,7 +7960,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-question-text",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-questions:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7605,7 +7980,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-question-text",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-questions:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7620,7 +8003,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-question-text",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-questions:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7636,7 +8027,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-question-text",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-questions:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7651,7 +8050,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-question-text",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-questions:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7667,7 +8074,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-question-text",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-questions:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -7682,7 +8097,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-question-text",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-questions:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -12732,7 +13155,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -12743,7 +13175,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -12756,7 +13197,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "quiz.monitor",
         "kind": "panel",
-        "reveal": "quiz.more-actions"
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz.more-actions"
+        ],
+        "reveal": "quiz.more-actions",
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -12769,7 +13220,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "quiz.monitor",
         "kind": "panel",
-        "reveal": "quiz.more-actions"
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz.more-actions"
+        ],
+        "reveal": "quiz.more-actions",
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -12780,7 +13241,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -12791,7 +13261,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -12802,7 +13281,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -12813,7 +13301,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -12830,7 +13327,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "quiz.monitor",
         "kind": "panel",
-        "reveal": "quiz-monitor.roster-row-actions:quiz"
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.roster-row-actions:quiz"
+        ],
+        "reveal": "quiz-monitor.roster-row-actions:quiz",
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -12847,7 +13354,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "quiz.monitor",
         "kind": "panel",
-        "reveal": "quiz-monitor.roster-row-actions:quiz"
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.roster-row-actions:quiz"
+        ],
+        "reveal": "quiz-monitor.roster-row-actions:quiz",
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -12864,7 +13381,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "quiz.monitor",
         "kind": "panel",
-        "reveal": "quiz-monitor.roster-row-actions:quiz"
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.roster-row-actions:quiz"
+        ],
+        "reveal": "quiz-monitor.roster-row-actions:quiz",
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -12881,7 +13408,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "quiz.monitor",
         "kind": "panel",
-        "reveal": "quiz-monitor.roster-row-actions:quiz"
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.roster-row-actions:quiz"
+        ],
+        "reveal": "quiz-monitor.roster-row-actions:quiz",
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -12895,7 +13432,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -12909,7 +13455,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -12920,7 +13475,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -12934,7 +13498,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -12948,7 +13521,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13001,7 +13583,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor.settings",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.menu-settings"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13015,7 +13607,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor.settings",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.menu-settings"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13026,7 +13628,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13038,7 +13649,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "quiz.monitor",
         "kind": "panel",
-        "reveal": "quiz-monitor.menu-question-results"
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.menu-question-results"
+        ],
+        "reveal": "quiz-monitor.menu-question-results",
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13053,7 +13674,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "quiz.monitor",
         "kind": "panel",
-        "reveal": "quiz-monitor.menu-show-join-code"
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.menu-show-join-code"
+        ],
+        "reveal": "quiz-monitor.menu-show-join-code",
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13068,7 +13699,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "quiz.monitor",
         "kind": "panel",
-        "reveal": "quiz-monitor.menu-show-join-code"
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.menu-show-join-code"
+        ],
+        "reveal": "quiz-monitor.menu-show-join-code",
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13082,7 +13723,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.present",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz.more-actions",
+          "quiz-monitor.menu-present"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13096,7 +13748,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.present",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz.more-actions",
+          "quiz-monitor.menu-present"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13110,7 +13773,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.present",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz.more-actions",
+          "quiz-monitor.menu-present"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13124,7 +13798,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.present",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz.more-actions",
+          "quiz-monitor.menu-present"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13138,7 +13823,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.present",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz.more-actions",
+          "quiz-monitor.menu-present"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13152,7 +13848,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13166,7 +13871,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13180,7 +13894,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13194,7 +13917,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor.settings",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.menu-settings"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13208,7 +13941,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor.settings",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.menu-settings"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13222,7 +13965,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor.settings",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.menu-settings"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13236,7 +13989,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor.settings",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.menu-settings"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13250,7 +14013,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor.settings",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.menu-settings"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13265,7 +14038,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13280,7 +14062,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13296,7 +14087,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
       }
     ]
   },
@@ -13399,7 +14199,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.paper-question-text",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "library-shell.card-menu:quiz#row-1",
+          "quiz-library.import-questions:quiz"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -20123,9 +20931,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "persists": true,
     "keys": [
-      "plc#freeform",
       "plc#freeform-empty",
-      "plc#meeting",
       "plc#meeting-empty"
     ],
     "routes": [
@@ -20374,26 +21180,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "plc-notes.rollup-toggle",
     "label": "Rollup toggle button in the PLC notes tab",
     "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.notes",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#docs"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-notes.docs-tab",
-    "label": "Docs tab button in the PLC notes tab",
-    "scope": "field",
     "routes": [
       {
         "surface": "plc.notes",
@@ -21058,222 +21844,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "plcs.open-plc",
           "plc-dashboard.section-tab:plc#home",
           "plc-home.quick-create:plc#doc"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-docs.rename-input",
-    "label": "Rename input field in the PLC docs tab",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.docs",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#docs",
-          "plc-notes.docs-tab:plc#docs"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-docs.rename-confirm",
-    "label": "Rename confirm button in the PLC docs tab",
-    "scope": "field",
-    "persists": true,
-    "routes": [
-      {
-        "surface": "plc.docs",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#docs",
-          "plc-notes.docs-tab:plc#docs"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-docs.rename-cancel",
-    "label": "Rename cancel button in the PLC docs tab",
-    "scope": "field",
-    "routes": [
-      {
-        "surface": "plc.docs",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#docs",
-          "plc-notes.docs-tab:plc#docs"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-docs.rename",
-    "label": "Rename button in the PLC docs tab",
-    "scope": "field",
-    "persists": true,
-    "routes": [
-      {
-        "surface": "plc.docs",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#docs",
-          "plc-notes.docs-tab:plc#docs"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-docs.remove",
-    "label": "Remove button in the PLC docs tab",
-    "scope": "field",
-    "destructive": true,
-    "routes": [
-      {
-        "surface": "plc.docs",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#docs",
-          "plc-notes.docs-tab:plc#docs"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-docs.new-title",
-    "label": "New title field in the PLC docs tab",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.docs",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#docs",
-          "plc-notes.docs-tab:plc#docs"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-docs.new-url",
-    "label": "New url field in the PLC docs tab",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.docs",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#docs",
-          "plc-notes.docs-tab:plc#docs"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-docs.new-add",
-    "label": "New add button in the PLC docs tab",
-    "scope": "board",
-    "persists": true,
-    "routes": [
-      {
-        "surface": "plc.docs",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#docs",
-          "plc-notes.docs-tab:plc#docs"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-docs.add-doc",
-    "label": "Add doc button in the PLC docs tab",
-    "scope": "board",
-    "panel": true,
-    "persists": true,
-    "routes": [
-      {
-        "surface": "plc.docs",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#docs",
-          "plc-notes.docs-tab:plc#docs"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-docs.open-doc",
-    "label": "Open doc link in the PLC docs tab",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.docs",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#docs",
-          "plc-notes.docs-tab:plc#docs"
         ],
         "needs": [
           "plc"
@@ -35321,7 +35891,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "admin.save-as-template",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.board-edit",
+          "boards-modal.board-menu-template"
+        ],
+        "needs": [
+          "admin"
+        ]
       }
     ]
   },
@@ -35333,7 +35912,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "admin.save-as-template",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.board-edit",
+          "boards-modal.board-menu-template"
+        ],
+        "needs": [
+          "admin"
+        ]
       }
     ]
   },
@@ -35345,7 +35933,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "admin.save-as-template",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.board-edit",
+          "boards-modal.board-menu-template"
+        ],
+        "needs": [
+          "admin"
+        ]
       }
     ]
   },
@@ -35358,7 +35955,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "admin.save-as-template",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.board-edit",
+          "boards-modal.board-menu-template"
+        ],
+        "needs": [
+          "admin"
+        ]
       }
     ]
   },
@@ -35371,7 +35977,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "admin.save-as-template",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.board-edit",
+          "boards-modal.board-menu-template"
+        ],
+        "needs": [
+          "admin"
+        ]
       }
     ]
   },
@@ -49866,7 +50481,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.boards-color",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-edit",
+          "boards-modal.collection-menu-color"
+        ],
+        "needs": [
+          "library-item"
+        ]
       }
     ]
   },
@@ -49878,7 +50502,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.boards-color",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-edit",
+          "boards-modal.collection-menu-color"
+        ],
+        "needs": [
+          "library-item"
+        ]
       }
     ]
   },
@@ -49890,7 +50523,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.boards-color",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-edit",
+          "boards-modal.collection-menu-color"
+        ],
+        "needs": [
+          "library-item"
+        ]
       }
     ]
   },
@@ -49902,7 +50544,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.boards-color",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-edit",
+          "boards-modal.collection-menu-color"
+        ],
+        "needs": [
+          "library-item"
+        ]
       }
     ]
   },
@@ -49914,7 +50565,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.boards-color",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-edit",
+          "boards-modal.collection-menu-color"
+        ],
+        "needs": [
+          "library-item"
+        ]
       }
     ]
   },
@@ -50144,23 +50804,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "share-link.mode-substitute",
-    "label": "Substitute option in the share dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.share-link",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards.share-board"
-        ]
-      }
-    ]
-  },
-  {
     "id": "share-link.close",
     "label": "Close button in the share dialog",
     "scope": "board",
@@ -50231,120 +50874,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "share-link.create"
         ],
         "reveal": "share-link.create"
-      }
-    ]
-  },
-  {
-    "id": "share-link.sub-expires",
-    "label": "Expiry date box for a sub share in the share dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.share-link",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards.share-board",
-          "share-link.mode-substitute"
-        ],
-        "reveal": "share-link.mode-substitute"
-      }
-    ]
-  },
-  {
-    "id": "share-link.sub-building",
-    "label": "Building picker for a sub share in the share dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.share-link",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards.share-board",
-          "share-link.mode-substitute"
-        ],
-        "reveal": "share-link.mode-substitute"
-      }
-    ]
-  },
-  {
-    "id": "share-link.sub-preset-email",
-    "label": "Saved sub email button in the share dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.share-link",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards.share-board",
-          "share-link.mode-substitute"
-        ],
-        "reveal": "share-link.mode-substitute"
-      }
-    ]
-  },
-  {
-    "id": "share-link.sub-remove-email",
-    "label": "Remove sub email button in the share dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.share-link",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards.share-board",
-          "share-link.mode-substitute"
-        ],
-        "reveal": "share-link.mode-substitute"
-      }
-    ]
-  },
-  {
-    "id": "share-link.sub-email-input",
-    "label": "Sub email box in the share dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.share-link",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards.share-board",
-          "share-link.mode-substitute"
-        ],
-        "reveal": "share-link.mode-substitute"
-      }
-    ]
-  },
-  {
-    "id": "share-link.add-sub-email",
-    "label": "Add sub email button in the share dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.share-link",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards.share-board",
-          "share-link.mode-substitute"
-        ],
-        "reveal": "share-link.mode-substitute"
       }
     ]
   },
@@ -50509,178 +51038,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.boards",
           "boards-modal.collection-share"
         ],
-        "needs": [
-          "library-item"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "share-collection.mode-copy",
-    "label": "Copy mode in the collection share dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.share-collection",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.collection-share"
-        ],
-        "needs": [
-          "library-item"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "share-collection.mode-substitute",
-    "label": "Substitute mode in the collection share dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.share-collection",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.collection-share"
-        ],
-        "needs": [
-          "library-item"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "share-collection.ttl",
-    "label": "Expires in button in the collection share dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.share-collection",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.collection-share",
-          "share-collection.mode-substitute"
-        ],
-        "reveal": "share-collection.mode-substitute",
-        "needs": [
-          "library-item"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "share-collection.building",
-    "label": "Building picker in the collection share dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.share-collection",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.collection-share",
-          "share-collection.mode-substitute"
-        ],
-        "reveal": "share-collection.mode-substitute",
-        "needs": [
-          "library-item"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "share-collection.preset-email",
-    "label": "Saved sub email button in the collection share dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.share-collection",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.collection-share",
-          "share-collection.mode-substitute"
-        ],
-        "reveal": "share-collection.mode-substitute",
-        "needs": [
-          "library-item"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "share-collection.remove-email",
-    "label": "Remove sub email button in the collection share dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.share-collection",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.collection-share",
-          "share-collection.mode-substitute"
-        ],
-        "reveal": "share-collection.mode-substitute",
-        "needs": [
-          "library-item"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "share-collection.email-input",
-    "label": "Sub email box in the collection share dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.share-collection",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.collection-share",
-          "share-collection.mode-substitute"
-        ],
-        "reveal": "share-collection.mode-substitute",
-        "needs": [
-          "library-item"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "share-collection.add-email",
-    "label": "Add sub email button in the collection share dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "board.share-collection",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.boards",
-          "boards-modal.collection-share",
-          "share-collection.mode-substitute"
-        ],
-        "reveal": "share-collection.mode-substitute",
         "needs": [
           "library-item"
         ]
@@ -55312,7 +55669,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "widgets.smart-notebook.link-picker",
         "kind": "modal",
-        "widget_type": "smartNotebook"
+        "widget_type": "smartNotebook",
+        "path": [
+          "smart-notebook.open:smartNotebook",
+          "smart-notebook.object-link:smartNotebook"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -55328,7 +55693,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "widgets.smart-notebook.link-picker",
         "kind": "modal",
-        "widget_type": "smartNotebook"
+        "widget_type": "smartNotebook",
+        "path": [
+          "smart-notebook.open:smartNotebook",
+          "smart-notebook.object-link:smartNotebook"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -55344,7 +55717,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "widgets.smart-notebook.link-picker",
         "kind": "modal",
-        "widget_type": "smartNotebook"
+        "widget_type": "smartNotebook",
+        "path": [
+          "smart-notebook.open:smartNotebook",
+          "smart-notebook.object-link:smartNotebook"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -55360,7 +55741,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "widgets.smart-notebook.link-picker",
         "kind": "modal",
-        "widget_type": "smartNotebook"
+        "widget_type": "smartNotebook",
+        "path": [
+          "smart-notebook.open:smartNotebook",
+          "smart-notebook.object-link:smartNotebook"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
+        ]
       }
     ]
   },
@@ -55875,7 +56264,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.absent-students",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "random.class-context",
+          "random.mark-absent"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "class"
+        ]
       }
     ]
   },
@@ -55887,7 +56284,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.absent-students",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "random.class-context",
+          "random.mark-absent"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "class"
+        ]
       }
     ]
   },
@@ -55899,7 +56304,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "board.absent-students",
-        "kind": "modal"
+        "kind": "modal",
+        "path": [
+          "random.class-context",
+          "random.mark-absent"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "class"
+        ]
       }
     ]
   },
@@ -55911,6 +56324,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "persists": true,
     "sandboxed": true,
     "keys": [
+      "quiz",
       "video-activity"
     ],
     "routes": [
@@ -55919,6 +56333,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "editor",
         "path": [
           "library-shell.new:video-activity"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      },
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
         ],
         "needs": [
           "widget-on-stage"
@@ -58649,7 +59074,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analysis",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.gradebook",
+          "gradebook.tab#analysis"
+        ],
+        "needs": [
+          "class",
+          "student-data"
+        ]
       }
     ]
   },
@@ -58661,7 +59095,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analysis",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.gradebook",
+          "gradebook.tab#analysis"
+        ],
+        "needs": [
+          "class",
+          "student-data"
+        ]
       }
     ]
   },
@@ -58672,7 +59115,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analysis",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.gradebook",
+          "gradebook.tab#analysis"
+        ],
+        "needs": [
+          "class",
+          "student-data"
+        ]
       }
     ]
   },
@@ -58683,7 +59135,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analysis",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.gradebook",
+          "gradebook.tab#analysis"
+        ],
+        "needs": [
+          "class",
+          "student-data"
+        ]
       }
     ]
   },
@@ -58694,7 +59155,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analysis",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.gradebook",
+          "gradebook.tab#analysis"
+        ],
+        "needs": [
+          "class",
+          "student-data"
+        ]
       }
     ]
   },
@@ -58707,7 +59177,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "guidedLearning.gradebook.analysis",
         "kind": "panel",
-        "reveal": "gradebook.analysis.filters"
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.gradebook",
+          "gradebook.tab#analysis",
+          "gradebook.analysis.filters"
+        ],
+        "reveal": "gradebook.analysis.filters",
+        "needs": [
+          "class",
+          "student-data"
+        ]
       }
     ]
   },
@@ -58720,7 +59200,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "guidedLearning.gradebook.analysis",
         "kind": "panel",
-        "reveal": "gradebook.analysis.filters"
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.gradebook",
+          "gradebook.tab#analysis",
+          "gradebook.analysis.filters"
+        ],
+        "reveal": "gradebook.analysis.filters",
+        "needs": [
+          "class",
+          "student-data"
+        ]
       }
     ]
   },
@@ -58733,7 +59223,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "guidedLearning.gradebook.analysis",
         "kind": "panel",
-        "reveal": "gradebook.analysis.filters"
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.gradebook",
+          "gradebook.tab#analysis",
+          "gradebook.analysis.filters"
+        ],
+        "reveal": "gradebook.analysis.filters",
+        "needs": [
+          "class",
+          "student-data"
+        ]
       }
     ]
   },
@@ -58746,7 +59246,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "guidedLearning.gradebook.analysis",
         "kind": "panel",
-        "reveal": "gradebook.analysis.filters"
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.gradebook",
+          "gradebook.tab#analysis",
+          "gradebook.analysis.filters"
+        ],
+        "reveal": "gradebook.analysis.filters",
+        "needs": [
+          "class",
+          "student-data"
+        ]
       }
     ]
   },
@@ -58759,7 +59269,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "guidedLearning.gradebook.analysis",
         "kind": "panel",
-        "reveal": "gradebook.analysis.filters"
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.gradebook",
+          "gradebook.tab#analysis",
+          "gradebook.analysis.filters"
+        ],
+        "reveal": "gradebook.analysis.filters",
+        "needs": [
+          "class",
+          "student-data"
+        ]
       }
     ]
   },
@@ -58772,7 +59292,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "guidedLearning.gradebook.analysis",
         "kind": "panel",
-        "reveal": "gradebook.analysis.filters"
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.gradebook",
+          "gradebook.tab#analysis",
+          "gradebook.analysis.filters"
+        ],
+        "reveal": "gradebook.analysis.filters",
+        "needs": [
+          "class",
+          "student-data"
+        ]
       }
     ]
   },
@@ -58783,7 +59313,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analysis",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.gradebook",
+          "gradebook.tab#analysis"
+        ],
+        "needs": [
+          "class",
+          "student-data"
+        ]
       }
     ]
   },
@@ -58794,7 +59333,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analysis",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.gradebook",
+          "gradebook.tab#analysis"
+        ],
+        "needs": [
+          "class",
+          "student-data"
+        ]
       }
     ]
   },
@@ -58805,7 +59353,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analysis",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.gradebook",
+          "gradebook.tab#analysis"
+        ],
+        "needs": [
+          "class",
+          "student-data"
+        ]
       }
     ]
   },
@@ -58816,7 +59373,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analysis",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.gradebook",
+          "gradebook.tab#analysis"
+        ],
+        "needs": [
+          "class",
+          "student-data"
+        ]
       }
     ]
   },
@@ -58827,7 +59393,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analysis",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.gradebook",
+          "gradebook.tab#analysis"
+        ],
+        "needs": [
+          "class",
+          "student-data"
+        ]
       }
     ]
   },
@@ -58838,7 +59413,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analysis",
-        "kind": "panel"
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.gradebook",
+          "gradebook.tab#analysis"
+        ],
+        "needs": [
+          "class",
+          "student-data"
+        ]
       }
     ]
   },
@@ -60952,6 +61536,2697 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sidebar.open-menu",
           "sidebar.boards"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "text-toolbar.font-menu",
+    "label": "Font family menu button in the Text formatting toolbar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "text"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.text.face",
+        "kind": "widget",
+        "widget_type": "text",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "text-toolbar.font",
+    "label": "Font choice in the Text toolbar font menu, by font id",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.text.face",
+        "kind": "widget",
+        "widget_type": "text",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "text-toolbar.font-size-down",
+    "label": "Decrease font size button in the Text formatting toolbar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "text"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.text.face",
+        "kind": "widget",
+        "widget_type": "text",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "text-toolbar.font-size",
+    "label": "Font size box in the Text formatting toolbar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "text"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.text.face",
+        "kind": "widget",
+        "widget_type": "text",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "text-toolbar.font-size-up",
+    "label": "Increase font size button in the Text formatting toolbar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "text"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.text.face",
+        "kind": "widget",
+        "widget_type": "text",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "text-toolbar.style",
+    "label": "Bold, Italic or Underline button in the Text formatting toolbar",
+    "scope": "field",
+    "panel": true,
+    "keys": [
+      "text#bold",
+      "text#italic",
+      "text#underline"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.text.face",
+        "kind": "widget",
+        "widget_type": "text",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "text-toolbar.list",
+    "label": "Bulleted or Numbered list button in the Text formatting toolbar",
+    "scope": "field",
+    "panel": true,
+    "keys": [
+      "text#bulleted",
+      "text#numbered"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.text.face",
+        "kind": "widget",
+        "widget_type": "text",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "text-toolbar.align-menu",
+    "label": "Alignment and layout menu button in the Text formatting toolbar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "text"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.text.face",
+        "kind": "widget",
+        "widget_type": "text",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "text-toolbar.align",
+    "label": "Alignment button in the Text toolbar alignment menu (left, center, right, top, middle, bottom)",
+    "scope": "field",
+    "panel": true,
+    "keys": [
+      "text#bottom",
+      "text#center",
+      "text#left",
+      "text#middle",
+      "text#right",
+      "text#top"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.text.face",
+        "kind": "widget",
+        "widget_type": "text",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "text-toolbar.indent",
+    "label": "Decrease or Increase indent button in the Text toolbar alignment menu",
+    "scope": "field",
+    "panel": true,
+    "keys": [
+      "text#decrease",
+      "text#increase"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.text.face",
+        "kind": "widget",
+        "widget_type": "text",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "text-toolbar.colors-menu",
+    "label": "Colors menu button in the Text formatting toolbar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "text"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.text.face",
+        "kind": "widget",
+        "widget_type": "text",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "text-toolbar.swatch",
+    "label": "Color swatch in the Text toolbar colors menu, keyed section-color (font-, highlight-, background-)",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.text.face",
+        "kind": "widget",
+        "widget_type": "text",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "text-toolbar.no-color",
+    "label": "No highlight swatch in the Text toolbar colors menu",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.text.face",
+        "kind": "widget",
+        "widget_type": "text",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "text-toolbar.custom-color",
+    "label": "Custom color picker in the Text toolbar colors menu, by section (font, highlight, background)",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.text.face",
+        "kind": "widget",
+        "widget_type": "text",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "text-toolbar.link",
+    "label": "Hyperlink button in the Text formatting toolbar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "text"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.text.face",
+        "kind": "widget",
+        "widget_type": "text",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "text-toolbar.more",
+    "label": "More options button in a narrow Text formatting toolbar",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "text"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.text.face",
+        "kind": "widget",
+        "widget_type": "text",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "text-toolbar.more-item",
+    "label": "Formatting button in the Text toolbar More options menu, by action (bold, bulleted, align-left, indent-increase, link)",
+    "scope": "field",
+    "panel": true,
+    "keys": [
+      "text#align-bottom",
+      "text#align-center",
+      "text#align-left",
+      "text#align-middle",
+      "text#align-right",
+      "text#align-top",
+      "text#bold",
+      "text#bulleted",
+      "text#indent-decrease",
+      "text#indent-increase",
+      "text#italic",
+      "text#link",
+      "text#numbered",
+      "text#underline"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.text.face",
+        "kind": "widget",
+        "widget_type": "text",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.close",
+    "label": "Close button in the Import wizard",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.bulk-file",
+    "label": "Choose file button on the bulk export tile in the Import wizard (Schoology .imscc)",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.pick-sheet",
+    "label": "Choose Google Sheet button in the Import wizard",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.choose-file",
+    "label": "Choose file button in the Import wizard",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.format-help",
+    "label": "Template and format help link in the Import wizard",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.create-template",
+    "label": "Create template button in the Import wizard format help",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.copy-template-url",
+    "label": "Copy template URL button in the Import wizard format help",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.sheet-url",
+    "label": "Google Sheet URL box in the Import wizard",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.sheet-url-submit",
+    "label": "Import from Google Sheet URL button in the Import wizard",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.paste-json",
+    "label": "Paste JSON box in the Import wizard",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.paste-json-submit",
+    "label": "Import pasted JSON button in the Import wizard",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.ai-assist",
+    "label": "Draft with AI button in the Import wizard",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.ai-close",
+    "label": "Close button in the Import wizard Draft with AI panel",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.ai-prompt",
+    "label": "Prompt box in the Import wizard Draft with AI panel",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.ai-generate",
+    "label": "Generate button in the Import wizard Draft with AI panel",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.title",
+    "label": "Title box on the Import wizard confirm step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.cancel",
+    "label": "Cancel button in the Import wizard",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.back",
+    "label": "Back button in the Import wizard",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.continue",
+    "label": "Continue button on the Import wizard preview step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.save",
+    "label": "Save to library button on the Import wizard confirm step",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "admin.routines.editor-back",
+    "label": "Back button in the routine template editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.template-editor",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#instructionalRoutines",
+          "admin.routines.new-routine"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.routines.editor-ai",
+    "label": "Draft with AI button in the routine template editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.template-editor",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#instructionalRoutines",
+          "admin.routines.new-routine"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.routines.editor-save",
+    "label": "Save to Library button in the routine template editor",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.template-editor",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#instructionalRoutines",
+          "admin.routines.new-routine"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.routines.editor-name",
+    "label": "Routine name box in the routine template editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.template-editor",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#instructionalRoutines",
+          "admin.routines.new-routine"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.routines.editor-icon",
+    "label": "Main icon picker in the routine template editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.template-editor",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#instructionalRoutines",
+          "admin.routines.new-routine"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.routines.editor-color",
+    "label": "Main color menu in the routine template editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.template-editor",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#instructionalRoutines",
+          "admin.routines.new-routine"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.routines.editor-structure",
+    "label": "Structure menu in the routine template editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.template-editor",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#instructionalRoutines",
+          "admin.routines.new-routine"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.routines.editor-audience",
+    "label": "Audience menu in the routine template editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.template-editor",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#instructionalRoutines",
+          "admin.routines.new-routine"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.routines.editor-layout",
+    "label": "Layout menu in the routine template editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.template-editor",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#instructionalRoutines",
+          "admin.routines.new-routine"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.routines.editor-grade",
+    "label": "Grade level chip in the routine template editor, by grade level",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.template-editor",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#instructionalRoutines",
+          "admin.routines.new-routine"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.routines.editor-step-icon",
+    "label": "Step icon picker in the routine template editor, keyed step-N",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.template-editor",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#instructionalRoutines",
+          "admin.routines.new-routine"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.routines.editor-step-sticker",
+    "label": "Upload sticker button on a step in the routine template editor",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.template-editor",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#instructionalRoutines",
+          "admin.routines.new-routine"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.routines.editor-step-sticker-remove",
+    "label": "Remove sticker button on a step in the routine template editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.template-editor",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#instructionalRoutines",
+          "admin.routines.new-routine"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.routines.editor-step-image",
+    "label": "Upload display image button on a step in the routine template editor",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.template-editor",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#instructionalRoutines",
+          "admin.routines.new-routine"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.routines.editor-step-image-remove",
+    "label": "Remove display image button on a step in the routine template editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.template-editor",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#instructionalRoutines",
+          "admin.routines.new-routine"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.routines.editor-step-label",
+    "label": "Step label box in the routine template editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.template-editor",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#instructionalRoutines",
+          "admin.routines.new-routine"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.routines.editor-step-color",
+    "label": "Step color menu in the routine template editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.template-editor",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#instructionalRoutines",
+          "admin.routines.new-routine"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.routines.editor-step-text",
+    "label": "Step instruction text box in the routine template editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.template-editor",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#instructionalRoutines",
+          "admin.routines.new-routine"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.routines.editor-step-widget",
+    "label": "Connect widget menu on a step in the routine template editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.template-editor",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#instructionalRoutines",
+          "admin.routines.new-routine"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.routines.editor-step-remove",
+    "label": "Remove step button in the routine template editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.template-editor",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#instructionalRoutines",
+          "admin.routines.new-routine"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "admin.routines.editor-add-step",
+    "label": "Add Template Step button in the routine template editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.instructional-routines.template-editor",
+        "kind": "panel",
+        "path": [
+          "sidebar.admin-settings",
+          "admin.settings.tab:admin#widgets",
+          "admin.widgets.configure:admin#instructionalRoutines",
+          "admin.routines.new-routine"
+        ],
+        "needs": [
+          "admin"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.bell-period",
+    "label": "Bell period menu in the roster editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.columns",
+    "label": "Columns menu on the roster editor Students tab",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.show-pins",
+    "label": "Show PINs button in the duplicate PIN warning of the roster editor",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.pin",
+    "label": "Quiz PIN box on a roster editor row",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.first-name",
+    "label": "First name (or full name) box on a roster editor row",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.last-name",
+    "label": "Last name box on a roster editor row",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.email",
+    "label": "Email box on a roster editor row",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.add-group",
+    "label": "New Group button on the empty roster editor Groups tab",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.group-members",
+    "label": "Edit group members button on a roster editor group, keyed group-N",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.group-name",
+    "label": "Group name box on a roster editor group",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.group-remove",
+    "label": "Remove group button on a roster editor group",
+    "scope": "field",
+    "panel": true,
+    "destructive": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roster-editor.accommodations-add-student",
+    "label": "Add Student button on the empty roster editor Accommodations tab",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.roster-editor",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.classes",
+          "classes.edit-roster"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.import-responses",
+    "label": "Import responses item in a quiz card menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.card-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.card-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.import-questions",
+    "label": "Import questions item in a quiz card menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.card-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.card-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.archive-monitor",
+    "label": "Monitor item in a quiz assignment row menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.archive-settings",
+    "label": "Settings item in a quiz assignment row menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-library.archive-plc-results",
+    "label": "Share results with PLC item in a quiz assignment row menu",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.face",
+        "kind": "widget",
+        "widget_type": "quiz",
+        "path": [
+          "library-shell.archive-menu:quiz#row-1"
+        ],
+        "reveal": "library-shell.archive-menu:quiz#row-1",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-settings-modal.due-date",
+    "label": "Due date box in the quiz assignment Settings dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.assignment-settings",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-menu",
+          "quiz-library.archive-settings:quiz"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-settings-modal.due-time",
+    "label": "Due time box in the quiz assignment Settings dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.assignment-settings",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-menu",
+          "quiz-library.archive-settings:quiz"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-settings-modal.plc-results",
+    "label": "Share results with PLC button in the quiz assignment Settings dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.assignment-settings",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-menu",
+          "quiz-library.archive-settings:quiz"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-settings-modal.stop-plc",
+    "label": "Stop sharing with PLC button in the quiz assignment Settings dialog",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.assignment-settings",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-menu",
+          "quiz-library.archive-settings:quiz"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "plc-results-pool.close",
+    "label": "Close button in the Share results with PLC dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.share-plc-results",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-menu",
+          "quiz-library.archive-plc-results:quiz"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "plc"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "plc-results-pool.plc",
+    "label": "PLC choice in the Share results with PLC dialog, keyed plc-N",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.share-plc-results",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-menu",
+          "quiz-library.archive-plc-results:quiz"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "plc"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "plc-results-pool.next",
+    "label": "Next button in the Share results with PLC dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.share-plc-results",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-menu",
+          "quiz-library.archive-plc-results:quiz"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "plc"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "plc-results-pool.pool",
+    "label": "Existing pool choice in the Share results with PLC dialog, keyed pool-N",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.share-plc-results",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-menu",
+          "quiz-library.archive-plc-results:quiz"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "plc"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "plc-results-pool.new-pool",
+    "label": "Create new pool choice in the Share results with PLC dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.share-plc-results",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-menu",
+          "quiz-library.archive-plc-results:quiz"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "plc"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "plc-results-pool.back",
+    "label": "Back button in the Share results with PLC dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.share-plc-results",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-menu",
+          "quiz-library.archive-plc-results:quiz"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "plc"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "plc-results-pool.cancel",
+    "label": "Cancel button in the Share results with PLC dialog",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.share-plc-results",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-menu",
+          "quiz-library.archive-plc-results:quiz"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "plc"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "plc-results-pool.submit",
+    "label": "Share button in the Share results with PLC dialog",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.share-plc-results",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-menu",
+          "quiz-library.archive-plc-results:quiz"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "plc"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "assignments-hub.close",
+    "label": "Close button in the Assignments hub",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.assignments-hub",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.assignments"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "assignments-hub.search",
+    "label": "Search box in the Assignments hub",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.assignments-hub",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.assignments"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "assignments-hub.filter",
+    "label": "Filter menu in the Assignments hub (type, status, class)",
+    "scope": "field",
+    "panel": true,
+    "keys": [
+      "assignments-hub#class",
+      "assignments-hub#status",
+      "assignments-hub#type"
+    ],
+    "routes": [
+      {
+        "surface": "board.assignments-hub",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.assignments"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "assignments-hub.clear-filters",
+    "label": "Clear filters button in the Assignments hub",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.assignments-hub",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.assignments"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "assignments-hub.row",
+    "label": "Assignment row in the Assignments hub list, keyed row-N",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.assignments-hub",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.assignments"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "assignments-hub.go-create",
+    "label": "Go create one button in the empty Assignments hub",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.assignments-hub",
+        "kind": "modal",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.assignments"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "assignments-hub.close-now",
+    "label": "Close now button in the Assignments hub detail pane",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.assignment-detail",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.assignments",
+          "assignments-hub.row#row-1"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "assignments-hub.edit",
+    "label": "Edit button in the Assignments hub detail pane",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.assignment-detail",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.assignments",
+          "assignments-hub.row#row-1"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "assignments-hub.stop-plc",
+    "label": "Stop sharing with PLC button in the Assignments hub detail pane",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.assignment-detail",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.assignments",
+          "assignments-hub.row#row-1"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "assignments-hub.plc-results",
+    "label": "Share results with PLC button in the Assignments hub detail pane",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.assignment-detail",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.assignments",
+          "assignments-hub.row#row-1"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "assignments-hub.names-retry",
+    "label": "Retry loading student names button in the Assignments hub detail pane",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.assignment-detail",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.assignments",
+          "assignments-hub.row#row-1"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "assignments-hub.edit-cancel",
+    "label": "Cancel button while editing in the Assignments hub detail pane",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.assignment-detail",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.assignments",
+          "assignments-hub.row#row-1"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "assignments-hub.save",
+    "label": "Save button while editing in the Assignments hub detail pane",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.assignment-detail",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.assignments",
+          "assignments-hub.row#row-1"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "assignments-hub.add-students",
+    "label": "Add students button for an empty roster in the Assignments hub detail pane",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.assignment-detail",
+        "kind": "panel",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.assignments",
+          "assignments-hub.row#row-1"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "sub-launch.start",
+    "label": "Start button in the substitute launch panel",
+    "scope": "board",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.sub-launch",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "sub-launch.class",
+    "label": "Class choice in the substitute launch panel, keyed class-N",
+    "scope": "field",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.sub-launch",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "sub-launch.cancel",
+    "label": "Cancel button in the substitute launch class picker",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sub-launch",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "sub-launch.error-back",
+    "label": "Back button after a substitute launch error",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sub-launch",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "sub-launch.pause",
+    "label": "Pause or Start again button for a substitute-started run",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.sub-launch",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "sub-launch.end",
+    "label": "End button for a substitute-started run",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sub-launch",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "sub-launch.end-confirm",
+    "label": "End it now button confirming a substitute-started run should end",
+    "scope": "board",
+    "panel": true,
+    "destructive": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.sub-launch",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "sub-launch.end-cancel",
+    "label": "Cancel button when ending a substitute-started run",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.sub-launch",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "routine-guide.search",
+    "label": "Search routines box in the Routine Guide library",
+    "scope": "widget type",
+    "keys": [
+      "routineGuide"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.routine-guide.face",
+        "kind": "widget",
+        "widget_type": "routineGuide",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "routine-guide.filter",
+    "label": "Show menu (scope, category or team) in the Routine Guide library",
+    "scope": "widget type",
+    "keys": [
+      "routineGuide"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.routine-guide.face",
+        "kind": "widget",
+        "widget_type": "routineGuide",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "routine-guide.routine",
+    "label": "Routine tile in the Routine Guide library, keyed routine-N",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.routine-guide.face",
+        "kind": "widget",
+        "widget_type": "routineGuide",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "routine-guide.favorite",
+    "label": "Favorite star on a Routine Guide library tile",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.routine-guide.face",
+        "kind": "widget",
+        "widget_type": "routineGuide",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "routine-guide.back",
+    "label": "All routines (back) button in the Routine Guide",
+    "scope": "widget type",
+    "keys": [
+      "routineGuide"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.routine-guide.face",
+        "kind": "widget",
+        "widget_type": "routineGuide",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "routine-guide.info",
+    "label": "About this routine button in the Routine Guide",
+    "scope": "widget type",
+    "keys": [
+      "routineGuide"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.routine-guide.face",
+        "kind": "widget",
+        "widget_type": "routineGuide",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "routine-guide.launch",
+    "label": "Launch button that puts a routine on the board in the Routine Guide",
+    "scope": "widget type",
+    "keys": [
+      "routineGuide"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.routine-guide.face",
+        "kind": "widget",
+        "widget_type": "routineGuide",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "routine-guide.view",
+    "label": "Current step or All steps view button in a launched Routine Guide",
+    "scope": "field",
+    "keys": [
+      "routineGuide#all",
+      "routineGuide#step"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.routine-guide.face",
+        "kind": "widget",
+        "widget_type": "routineGuide",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "routine-guide.step",
+    "label": "Step in the Routine Guide step list, keyed step-N",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "widgets.routine-guide.face",
+        "kind": "widget",
+        "widget_type": "routineGuide",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "routine-guide.prev",
+    "label": "Previous step button in a launched Routine Guide",
+    "scope": "widget type",
+    "keys": [
+      "routineGuide"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.routine-guide.face",
+        "kind": "widget",
+        "widget_type": "routineGuide",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "routine-guide.next",
+    "label": "Next step button in a launched Routine Guide",
+    "scope": "widget type",
+    "keys": [
+      "routineGuide"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.routine-guide.face",
+        "kind": "widget",
+        "widget_type": "routineGuide",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "routine-guide.tool",
+    "label": "Open attached tool button on a Routine Guide step",
+    "scope": "widget type",
+    "keys": [
+      "routineGuide"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.routine-guide.face",
+        "kind": "widget",
+        "widget_type": "routineGuide",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "expectations.volume",
+    "label": "Volume category button in Expectations",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.expectations.face",
+        "kind": "widget",
+        "widget_type": "expectations",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "expectations.groups",
+    "label": "Groups (work mode) category button in Expectations",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.expectations.face",
+        "kind": "widget",
+        "widget_type": "expectations",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "expectations.interaction",
+    "label": "Interaction category button in Expectations",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.expectations.face",
+        "kind": "widget",
+        "widget_type": "expectations",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "expectations.back",
+    "label": "Back button in an Expectations category",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.expectations.face",
+        "kind": "widget",
+        "widget_type": "expectations",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "expectations.volume-option",
+    "label": "Volume level choice in Expectations, by option id",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.expectations.face",
+        "kind": "widget",
+        "widget_type": "expectations",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "expectations.group-option",
+    "label": "Work mode choice in Expectations, by option id",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.expectations.face",
+        "kind": "widget",
+        "widget_type": "expectations",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "expectations.interaction-option",
+    "label": "Interaction choice in Expectations, by option id",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.expectations.face",
+        "kind": "widget",
+        "widget_type": "expectations",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "boards-modal.board-menu-open",
+    "label": "Open item in the board card menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.boards-board-menu",
+        "kind": "menu",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.board-edit"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "boards-modal.board-menu-rename",
+    "label": "Rename item in the board card menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.boards-board-menu",
+        "kind": "menu",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.board-edit"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "boards-modal.board-menu-duplicate",
+    "label": "Duplicate item in the board card menu",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.boards-board-menu",
+        "kind": "menu",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.board-edit"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "boards-modal.board-menu-set-default",
+    "label": "Set as default in this Collection item in the board card menu",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.boards-board-menu",
+        "kind": "menu",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.board-edit"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "boards-modal.board-menu-pin",
+    "label": "Pin or Unpin item in the board card menu",
+    "scope": "board",
+    "panel": true,
+    "persists": true,
+    "routes": [
+      {
+        "surface": "board.boards-board-menu",
+        "kind": "menu",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.board-edit"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "boards-modal.board-menu-move",
+    "label": "Move to item in the board card menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.boards-board-menu",
+        "kind": "menu",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.board-edit"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "boards-modal.board-menu-template",
+    "label": "Save as Template item in the board card menu (admins)",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.boards-board-menu",
+        "kind": "menu",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.board-edit"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "boards-modal.collection-menu-open",
+    "label": "Open item in the collection card menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.boards-collection-menu",
+        "kind": "menu",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-edit"
+        ],
+        "needs": [
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "boards-modal.collection-menu-rename",
+    "label": "Rename item in the collection card menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.boards-collection-menu",
+        "kind": "menu",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-edit"
+        ],
+        "needs": [
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "boards-modal.collection-menu-move",
+    "label": "Move to item in the collection card menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.boards-collection-menu",
+        "kind": "menu",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-edit"
+        ],
+        "needs": [
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "boards-modal.collection-menu-color",
+    "label": "Set color item in the collection card menu",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.boards-collection-menu",
+        "kind": "menu",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-edit"
+        ],
+        "needs": [
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "boards-modal.collection-menu-template",
+    "label": "Save as Template item in the collection card menu (admins)",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "board.boards-collection-menu",
+        "kind": "menu",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.boards",
+          "boards-modal.collection-edit"
+        ],
+        "needs": [
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "stations.absent",
+    "label": "Mark absent students button in Stations",
+    "scope": "widget",
+    "routes": [
+      {
+        "surface": "widgets.stations.face",
+        "kind": "widget",
+        "widget_type": "stations",
+        "path": [],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "gradebook.tab",
+    "label": "Grades or Data analysis tab in the gradebook header",
+    "scope": "field",
+    "routes": [
+      {
+        "surface": "guidedLearning.gradebook",
+        "kind": "page",
+        "path": [
+          "sidebar.open-menu",
+          "sidebar.gradebook"
+        ],
+        "needs": [
+          "class"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "smart-notebook.object-link",
+    "label": "Link badge on a selected object in the Smart Notebook page editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "smartNotebook"
+    ],
+    "routes": [
+      {
+        "surface": "widgets.smart-notebook.editor",
+        "kind": "editor",
+        "widget_type": "smartNotebook",
+        "path": [
+          "smart-notebook.open:smartNotebook"
+        ],
+        "needs": [
+          "library-item",
+          "widget-on-stage"
         ]
       }
     ]

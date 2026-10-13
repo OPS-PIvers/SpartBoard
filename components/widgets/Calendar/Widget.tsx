@@ -54,8 +54,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   // a token and the fetch proceeds exactly as before; for never-granted users
   // it returns null and we render a "Connect Google Calendar" CTA whose click
   // (a user gesture) re-requests the scope interactively.
-  const { ensureGoogleScope, canAccessFeature } = useAuth();
-  const dayView = canAccessFeature('calendar-day-view');
+  const { ensureGoogleScope } = useAuth();
   const globalStyle = useGlobalStyle();
   const config = widget.config as CalendarConfig;
   const localEvents = useMemo(() => config.events ?? [], [config.events]);
@@ -173,7 +172,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
         ).toISOString();
 
         const allPromises = personalIds.map((id) =>
-          calendarService.getEvents(id, timeMin, timeMax, { details: dayView })
+          calendarService.getEvents(id, timeMin, timeMax, { details: true })
         );
         const results = await Promise.all(allPromises);
         if (!cancelled) setPersonalEvents(results.flat());
@@ -197,7 +196,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
     return () => {
       cancelled = true;
     };
-  }, [calendarService, personalIds, dayView]);
+  }, [calendarService, personalIds]);
 
   // Connect CTA handler — INTERACTIVE (driven by a user click), so a popup is
   // allowed. On success we store the token, which triggers the fetch effect.
@@ -376,7 +375,7 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
   const showConnectCalendar =
     personalIds.length > 0 && calendarNeedsConnect && !isCalendarConnected;
 
-  if (dayView && !showConnectCalendar && displayEvents.length > 0) {
+  if (!showConnectCalendar && displayEvents.length > 0) {
     return (
       <WidgetLayout
         padding="p-0"

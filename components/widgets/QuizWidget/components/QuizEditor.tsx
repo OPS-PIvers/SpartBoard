@@ -1276,7 +1276,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             <ChoiceOptionsEditor
               key={q.id}
               question={q}
-              allowMulti={canAccessFeature('quiz-choose-all')}
               onChange={(updates) => updateQuestion(q.id, updates)}
             />
             {questionNeedsKey(q) && (
@@ -1429,18 +1428,16 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 No answer imported. Add one before assigning.
               </p>
             )}
-            {q.type === 'FIB' &&
-              ((q.alternateAnswers?.length ?? 0) > 0 ||
-                canAccessFeature('quiz-fib-alternates')) && (
-                <AlternateAnswersEditor
-                  alternates={q.alternateAnswers ?? []}
-                  onChange={(next) =>
-                    updateQuestion(q.id, {
-                      alternateAnswers: next.length > 0 ? next : undefined,
-                    })
-                  }
-                />
-              )}
+            {q.type === 'FIB' && (
+              <AlternateAnswersEditor
+                alternates={q.alternateAnswers ?? []}
+                onChange={(next) =>
+                  updateQuestion(q.id, {
+                    alternateAnswers: next.length > 0 ? next : undefined,
+                  })
+                }
+              />
+            )}
           </div>
         )}
 
@@ -1528,9 +1525,7 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
           <span>Total: {aiTotalCount}</span>
         </div>
         <ul className="divide-y divide-slate-100 border-y border-slate-200">
-          {QUIZ_TYPE_STEPPER_ROWS.filter(
-            (row) => row.type !== 'MA' || canAccessFeature('quiz-choose-all')
-          ).map((row) => {
+          {QUIZ_TYPE_STEPPER_ROWS.map((row) => {
             const value = aiTypeCounts[row.type];
             return (
               <li key={row.type} className="flex items-center gap-3 py-2">
