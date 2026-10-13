@@ -54,7 +54,7 @@ Both widgets work from the same quiz library, so a teacher writes a quiz once an
 - **Launched assignments are editable (#3636).** The In Progress dialog (`QuizAssignmentSettingsModal.tsx`) renders `QuizBehaviorSettingsPanel` with `hideModeSelector` and edits attempts, shuffles, integrity, feedback and gamification in place. Only edited options are mirrored to the live session; the session mode never changes. The same PR adds per-class due dates (`dueAtByRosterId` on the assignment, `dueAtByClassId` on the session, flag `quiz-per-class-due-dates`).
 - **Per-class monitor controls (#3603, #3612).** Multi-class assigns now default to an in-class assessment with period access. The monitor's `PeriodBar` (class picker, Start/Pause, extend) renders only when the session has `periodAccess`, and times against the server clock with `useServerNow`.
 - **New Quiz menu (#3618).** The library's New button opens Create / Import / Paper test.
-- **Multi-blank fill-in-the-blank (#3621, flag `quiz-fib-multi-blank`).** Each blank has its own accepted answers and optional partial credit. The client grader, `plcAssessmentMath` and the score-on-submit key all handle it, so it counts as auto-scored.
+- **Multi-blank fill-in-the-blank (#3621).** Each blank has its own accepted answers and optional partial credit. The client grader, `plcAssessmentMath` and the score-on-submit key all handle it, so it counts as auto-scored.
 - **Gradebook plan (#3623, not built).** `docs/plans/GRADEBOOK.md` D6/D10 turns every quiz session into a scored gradebook column through a server-built `grade_index`.
 - **Sizes.** `QuizStudentApp.tsx` is ~5.9k lines, `QuizWidget/Widget.tsx` ~3.9k, `QuizManager.tsx` ~3.4k and `QuizResults.tsx` ~4k.
 

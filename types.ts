@@ -9872,8 +9872,6 @@ export type GlobalFeature =
   | 'quiz-sections'
   /** "Also accept" alternate answers on fill-in-the-blank quiz questions. */
   | 'quiz-fib-alternates'
-  /** One answer box per blank on fill-in-the-blank quiz questions. */
-  | 'quiz-fib-multi-blank'
   /** Standard codes typed in or imported with a question text become Learning targets tags. */
   | 'standards-from-question-text'
   /** "View full screen" toggle on large pop-ups (editors, graders). */
