@@ -1174,17 +1174,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'flashcard-smart-paste': {
-    label: 'Flashcards: Smart Paste',
-    icon: ClipboardCheck,
-    description: 'Paste a two-column list to make a flashcard set.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'flashcards',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'plc-meeting-recording': {
     label: 'Meeting recording',
     icon: Mic,

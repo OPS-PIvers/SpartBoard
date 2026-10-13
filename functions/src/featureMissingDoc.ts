@@ -54,7 +54,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'routine-guide',
   'blooms-ai',
   'my-groups',
-  'flashcard-smart-paste',
   'plc-meeting-recording',
   'plc-meeting-ai-notes',
   'assign-availability',
