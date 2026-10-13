@@ -435,6 +435,19 @@ describe('usePlcQuizzes - parseEntry run-settings (via snapshot)', () => {
     expect(entry.quizId).toBe('src-quiz-1');
   });
 
+  it('keeps a stored config whose only run-setting turns passage quotes off', () => {
+    const result = renderWithSnapshot([
+      {
+        id: 'a',
+        data: { ...baseEntry, sessionOptions: { allowStimulusQuotes: false } },
+      },
+    ]);
+
+    expect(result.current.quizzes[0].sessionOptions).toEqual({
+      allowStimulusQuotes: false,
+    });
+  });
+
   it('drops an unrecognized sessionMode while keeping the rest of the entry', () => {
     const result = renderWithSnapshot([
       { id: 'a', data: { ...baseEntry, sessionMode: 'bogus-mode' } },

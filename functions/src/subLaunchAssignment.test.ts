@@ -358,17 +358,19 @@ const deps = {
   now: () => NOW,
   newId: () => 'new-session-id',
   newCode: () => 'AB12CD',
+  hostHasFeature: () => Promise.resolve(false),
 };
 
 const launch = (
   state: StubState = {},
   caller: SubLaunchCaller | null = SUB,
-  data: unknown = input()
+  data: unknown = input(),
+  runDeps: typeof deps = deps
 ) => {
   const { db, written } = stubDb(state);
   return {
     written,
-    run: () => handleLaunchSubAssignment(db, caller, data, deps),
+    run: () => handleLaunchSubAssignment(db, caller, data, runDeps),
   };
 };
 
@@ -627,6 +629,7 @@ describe('the payload allowlist', () => {
     'protection',
     'mediaResponseEnabled',
     'showLearningTargets',
+    'allowStimulusQuotes',
     'liveLeaderboard',
     'classPeriodByClassId',
   ];
@@ -964,6 +967,31 @@ describe('the content the session carries', () => {
 
     expect(written[0].data.mediaResponseEnabled).toBe(false);
     expect(written[0].data.showLearningTargets).toBe(false);
+  });
+
+  it('lets students quote from passages when the host has the flag', async () => {
+    const hostHasFeature = vi.fn(() => Promise.resolve(true));
+    const { run, written } = launch({}, SUB, input(), {
+      ...deps,
+      hostHasFeature,
+    });
+
+    await run();
+
+    expect(hostHasFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      HOST,
+      'quiz-stimulus-quotes'
+    );
+    expect(written[0].data.allowStimulusQuotes).toBe(true);
+  });
+
+  it('leaves passage quotes unstamped without the host’s flag', async () => {
+    const { run, written } = launch();
+
+    await run();
+
+    expect(written[0].data).not.toHaveProperty('allowStimulusQuotes');
   });
 
   it('refuses a key whose quiz has no questions', async () => {

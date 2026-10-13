@@ -3022,6 +3022,50 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     expect(findSessionSet()).toMatchObject({ blockCopyPaste: false });
   });
 
+  const quotesWrapper = (granted: boolean) =>
+    gateWrapper(
+      gateAuth('teacher-choice', {
+        canAccessFeature: (id: string) =>
+          id === 'quiz-stimulus-quotes' ? granted : false,
+      })
+    );
+
+  it('stamps allowStimulusQuotes on a PLC session when the flag is on', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
+      wrapper: quotesWrapper(true),
+    });
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, plcSettings());
+    });
+    expect(findSessionSet()).toMatchObject({ allowStimulusQuotes: true });
+  });
+
+  it('keeps a PLC config that turned passage quotes off', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
+      wrapper: quotesWrapper(true),
+    });
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, {
+        ...plcSettings(),
+        sessionOptions: { allowStimulusQuotes: false },
+      });
+    });
+    expect(findSessionSet()).toMatchObject({ allowStimulusQuotes: false });
+  });
+
+  it('leaves allowStimulusQuotes off a PLC session without the flag', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID), {
+      wrapper: quotesWrapper(false),
+    });
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, {
+        ...plcSettings(),
+        sessionOptions: { allowStimulusQuotes: true },
+      });
+    });
+    expect(findSessionSet()).not.toHaveProperty('allowStimulusQuotes');
+  });
+
   it('mirrors showLearningTargets and only projects tags when it is enabled', async () => {
     const taggedQuiz = {
       ...QUIZ,
