@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Quote } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -41,10 +41,13 @@ export const StimulusQuotePopover: React.FC<{
 }> = ({ onQuote }) => {
   const { t } = useTranslation();
   const [target, setTarget] = useState<QuoteTarget | null>(null);
+  // Touch browsers may clear the selection mid-tap; hold the button until the press ends.
+  const pressingRef = useRef(false);
 
   useEffect(() => {
     let frame = 0;
     const update = () => {
+      if (pressingRef.current) return;
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(() => setTarget(readQuoteTarget()));
     };
@@ -84,9 +87,19 @@ export const StimulusQuotePopover: React.FC<{
       style={{ top, left }}
       className="fixed z-[1000] -translate-x-1/2 inline-flex items-center gap-1.5 h-11 px-4 rounded-full bg-brand-blue-primary text-white text-sm font-bold shadow-lg ring-1 ring-black/10 hover:bg-brand-blue-dark focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white [-webkit-tap-highlight-color:transparent]"
       // Keep the passage selection alive through the press.
-      onPointerDown={(e) => e.preventDefault()}
+      onPointerDown={(e) => {
+        e.preventDefault();
+        pressingRef.current = true;
+      }}
+      onPointerCancel={() => {
+        pressingRef.current = false;
+      }}
+      onPointerLeave={() => {
+        pressingRef.current = false;
+      }}
       onMouseDown={(e) => e.preventDefault()}
       onClick={() => {
+        pressingRef.current = false;
         // Clear the passage selection first; inserting the quote places the caret.
         document.getSelection()?.removeAllRanges();
         setTarget(null);
