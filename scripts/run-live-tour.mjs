@@ -145,11 +145,20 @@ if (upload) {
       h: r.h,
     }));
   report.upload = { saved: [], skipped: [] };
-  for (let i = 0; i < pictures.length; i += 8) {
+  // Up to 8 pictures and about 6 MB per request, well under the function's body limit.
+  const batches = [];
+  for (const p of pictures) {
+    const last = batches.at(-1);
+    const size = last?.reduce((n, q) => n + q.image.length, 0) ?? Infinity;
+    if (!last || last.length >= 8 || size + p.image.length > 6_000_000)
+      batches.push([p]);
+    else last.push(p);
+  }
+  for (const batch of batches) {
     const res = await fetch(upload, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ticket, pictures: pictures.slice(i, i + 8) }),
+      body: JSON.stringify({ ticket, pictures: batch }),
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
