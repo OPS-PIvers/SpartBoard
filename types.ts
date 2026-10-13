@@ -9866,8 +9866,6 @@ export type GlobalFeature =
   | 'plc-flashcards'
   /** Choose-all-that-apply quiz questions in the quiz editor and AI drafting. */
   | 'quiz-choose-all'
-  /** Quiz multiple choice editor as one option list with a correct-answer marker per option. */
-  | 'quiz-choice-editor'
   /** Section headings in the quiz editor, with "students answer any N of these M". */
   | 'quiz-sections'
   /** "Also accept" alternate answers on fill-in-the-blank quiz questions. */

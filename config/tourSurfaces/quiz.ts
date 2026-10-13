@@ -50,7 +50,7 @@ export const SURFACES: TourSurfaceMap = {
       `${C}ChoiceOptionsEditor.tsx`,
       `${C}FibBlanksEditor.tsx`,
       `${C}MatchingOrderingEditor.tsx`,
-      `${C}MultiAnswerEditor.tsx`,
+      `${C}AlternateAnswersEditor.tsx`,
       `${C}SectionRow.tsx`,
       `${C}BankSlotRow.tsx`,
       `${C}BankTargetFilter.tsx`,
