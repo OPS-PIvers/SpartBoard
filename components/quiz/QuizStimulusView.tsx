@@ -515,6 +515,7 @@ type PdfPageSlot = {
   scale: number;
   canvas: HTMLCanvasElement | null;
   task: RenderTask | null;
+  text: { cancel: () => void };
   visible: boolean;
 };
 
@@ -602,7 +603,10 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
 
   useEffect(
     () => () => {
-      for (const slot of slotsRef.current) slot.task?.cancel();
+      for (const slot of slotsRef.current) {
+        slot.task?.cancel();
+        slot.text.cancel();
+      }
       void loadingTaskRef.current?.destroy();
     },
     []
@@ -631,7 +635,10 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
           void loadingTask.destroy();
           return;
         }
-        for (const slot of slotsRef.current) slot.task?.cancel();
+        for (const slot of slotsRef.current) {
+          slot.task?.cancel();
+          slot.text.cancel();
+        }
         void loadingTaskRef.current?.destroy();
         loadingTaskRef.current = loadingTask;
         setPageCount(doc.numPages);
@@ -646,13 +653,12 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
           const textLayer = document.createElement('div');
           textLayer.className = 'textLayer';
           wrapper.append(textLayer);
-          void new pdfjs.TextLayer({
+          const text = new pdfjs.TextLayer({
             textContentSource: page.streamTextContent(),
             container: textLayer,
             viewport: page.getViewport({ scale: 1 }),
-          })
-            .render()
-            .catch(() => undefined);
+          });
+          void text.render().catch(() => undefined);
           slots.push({
             page,
             wrapper,
@@ -661,6 +667,7 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
             scale: 0,
             canvas: null,
             task: null,
+            text,
             visible: true,
           });
         }
