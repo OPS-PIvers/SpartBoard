@@ -88,7 +88,12 @@ function makeRes(): {
   return { out, res };
 }
 
-type Req = { method: string; headers: Record<string, string>; body?: unknown };
+type Req = {
+  method: string;
+  path?: string;
+  headers: Record<string, string>;
+  body?: unknown;
+};
 const handler = mcpServer as unknown as (
   req: Req,
   res: FakeRes
