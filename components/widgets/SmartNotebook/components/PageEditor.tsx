@@ -14,6 +14,7 @@ import {
   EditableObjectInfo,
 } from '@/utils/notebookSvgEdit';
 import { PEN_COLORS, PEN_WIDTHS, Tool, isShapeTool } from './pageEditorTypes';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import {
   NotebookZoom,
   useNotebookZoom,
@@ -780,6 +781,10 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     const linkGroup = document.createElementNS(SVG_NS, 'g');
     linkGroup.setAttribute(EDIT_OVERLAY_ATTR, '1');
     linkGroup.setAttribute(HANDLE_ATTR, 'link');
+    for (const [attr, value] of Object.entries(
+      tourTypeAttr('smart-notebook.object-link', 'smartNotebook')
+    ))
+      linkGroup.setAttribute(attr, value);
     linkGroup.style.cursor = 'pointer';
     linkGroup.style.display = 'none';
     const linkBg = document.createElementNS(SVG_NS, 'circle');

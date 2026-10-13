@@ -4,6 +4,7 @@ import { UserX } from 'lucide-react';
 import type { ClassRoster } from '@/types';
 import { getLocalIsoDate } from '@/utils/localDate';
 import { AbsentStudentsModal } from '@/components/common/AbsentStudentsModal';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 
 interface AbsentButtonProps {
   /**
@@ -20,6 +21,7 @@ interface AbsentButtonProps {
    * When omitted, the button is fully self-contained.
    */
   onClick?: () => void;
+  anchor?: TourAnchorAttrs;
 }
 
 /**
@@ -35,6 +37,7 @@ export const AbsentButton: React.FC<AbsentButtonProps> = ({
   roster,
   className,
   onClick,
+  anchor,
 }) => {
   const { t } = useTranslation();
   const [internalOpen, setInternalOpen] = useState(false);
@@ -54,6 +57,7 @@ export const AbsentButton: React.FC<AbsentButtonProps> = ({
       <button
         type="button"
         onClick={handleClick}
+        {...anchor}
         title={t('widgets.random.absent.buttonLabel', {
           defaultValue: 'Mark absent students',
         })}

@@ -4242,6 +4242,13 @@ Three consequences for this ticket:
 
 ## B. Whiteboard & audio
 
+> **Refreshed 2026-10-13 →
+> [`plans/QUIZ_WHITEBOARD_RESPONSE.md`](plans/QUIZ_WHITEBOARD_RESPONSE.md).**
+> The tickets below are the decision record; that plan audits them against
+> current code (the undo cap from #4142 breaks the "capture log is the undo
+> stack" claim, the shipped archive is one file per artifact, there is no
+> persisted mode set) and holds the open questions.
+
 ### RR-B1 — Can `DrawingWidget` be the student whiteboard substrate?
 
 **Type:** research (AFK, local codebase) · **Status:** ✅ **Closed 2026-08-04** · **Blocks (now unblocked):** RR-B2

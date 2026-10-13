@@ -31,6 +31,7 @@ import {
   sortRoutinesForLibrary,
 } from '@/config/routineGuide';
 import { RoutineIcon } from './RoutineIcon';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { AllSteps } from './AllSteps';
 import { RoutineInfoModal } from './RoutineInfoModal';
 import {
@@ -66,6 +67,7 @@ const ToolLaunchButton: React.FC<{ step: RoutineGuideStep; lg?: boolean }> = ({
         e.stopPropagation();
         addWidget(tool.type, tool.config ? { config: tool.config } : {});
       }}
+      {...tourTypeAttr('routine-guide.tool', 'routineGuide')}
       className="inline-flex items-center shrink-0 rounded-lg border border-slate-300 bg-white text-slate-700 font-bold hover:bg-slate-50 transition-colors"
       style={{
         gap: 'min(6px, 1.5cqmin)',
@@ -157,6 +159,7 @@ const RoutineLibrary: React.FC<{
           <input
             type="search"
             aria-label="Search routines"
+            {...tourTypeAttr('routine-guide.search', 'routineGuide')}
             placeholder="Search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -166,6 +169,7 @@ const RoutineLibrary: React.FC<{
         </label>
         <select
           aria-label="Show"
+          {...tourTypeAttr('routine-guide.filter', 'routineGuide')}
           value={filter}
           onChange={(e) => onFilter(e.target.value)}
           className="shrink-0 rounded-lg border border-slate-300 bg-white text-slate-800 font-semibold"
@@ -228,7 +232,7 @@ const RoutineLibrary: React.FC<{
                 'min(10px, 2.5cqmin) min(10px, 2.5cqmin) min(16px, 4cqmin)',
             }}
           >
-            {shown.map((r) => {
+            {shown.map((r, routineIndex) => {
               const color = getRoutineGuideColor(r.color);
               const fav = favorites.includes(r.id);
               return (
@@ -236,6 +240,11 @@ const RoutineLibrary: React.FC<{
                   <button
                     type="button"
                     onClick={() => onSelect(r)}
+                    {...tourFieldAttr(
+                      'routine-guide.routine',
+                      'routineGuide',
+                      `routine-${routineIndex + 1}`
+                    )}
                     className="relative h-full w-full overflow-hidden flex items-center justify-center text-center rounded-xl text-white hover:brightness-110 transition"
                     style={{ backgroundColor: color.ink, padding: '12%' }}
                   >
@@ -259,6 +268,11 @@ const RoutineLibrary: React.FC<{
                     }
                     aria-pressed={fav}
                     onClick={() => onToggleFavorite(r.id)}
+                    {...tourFieldAttr(
+                      'routine-guide.favorite',
+                      'routineGuide',
+                      `routine-${routineIndex + 1}`
+                    )}
                     className={`absolute top-0 right-0 text-white transition-opacity ${
                       fav ? 'opacity-100' : 'opacity-50 hover:opacity-90'
                     }`}
@@ -324,6 +338,7 @@ const StepView: React.FC<{
         <button
           type="button"
           aria-label="Previous step"
+          {...tourTypeAttr('routine-guide.prev', 'routineGuide')}
           disabled={index === 0}
           onClick={() => onMove(index - 1)}
           className={navBtn}
@@ -340,6 +355,7 @@ const StepView: React.FC<{
         <button
           type="button"
           aria-label="Next step"
+          {...tourTypeAttr('routine-guide.next', 'routineGuide')}
           disabled={index >= total - 1}
           onClick={() => onMove(index + 1)}
           className={navBtn}
@@ -472,6 +488,7 @@ export const RoutineGuideWidget: React.FC<WidgetComponentProps> = ({
               <button
                 type="button"
                 aria-label="All routines"
+                {...tourTypeAttr('routine-guide.back', 'routineGuide')}
                 onClick={() =>
                   update({ selectedRoutineId: null, stepIndex: 0 })
                 }
@@ -496,6 +513,7 @@ export const RoutineGuideWidget: React.FC<WidgetComponentProps> = ({
               <button
                 type="button"
                 aria-label={`About ${routine.name}`}
+                {...tourTypeAttr('routine-guide.info', 'routineGuide')}
                 onClick={() => setInfoOpen(true)}
                 className={iconBtn}
                 style={{ padding: 'min(6px, 1.5cqmin)' }}
@@ -516,6 +534,11 @@ export const RoutineGuideWidget: React.FC<WidgetComponentProps> = ({
                 <button
                   type="button"
                   aria-label="Current step"
+                  {...tourFieldAttr(
+                    'routine-guide.view',
+                    'routineGuide',
+                    'step'
+                  )}
                   aria-pressed={view === 'step'}
                   onClick={() => update({ view: 'step' })}
                   className={viewBtn(view === 'step')}
@@ -526,6 +549,11 @@ export const RoutineGuideWidget: React.FC<WidgetComponentProps> = ({
                 <button
                   type="button"
                   aria-label="All steps"
+                  {...tourFieldAttr(
+                    'routine-guide.view',
+                    'routineGuide',
+                    'all'
+                  )}
                   aria-pressed={view === 'all'}
                   onClick={() => update({ view: 'all' })}
                   className={viewBtn(view === 'all')}
@@ -549,6 +577,7 @@ export const RoutineGuideWidget: React.FC<WidgetComponentProps> = ({
                     },
                   })
                 }
+                {...tourTypeAttr('routine-guide.launch', 'routineGuide')}
                 className="shrink-0 inline-flex items-center rounded-lg bg-slate-800 text-white font-bold hover:bg-slate-900 transition-colors"
                 style={{
                   gap: 'min(6px, 1.5cqmin)',

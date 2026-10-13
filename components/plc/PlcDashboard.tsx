@@ -268,9 +268,7 @@ const LegacyPlcDashboard: React.FC<PlcDashboardProps> = ({
   const activeSectionDef = visibleSections.find((s) => s.id === activeSection);
   // Notes & Docs side panels run edge to edge.
   const notesSidePanels =
-    activeSection === 'docs' &&
-    canAccessFeature('plc-notes-unified') &&
-    canAccessFeature('plc-notes-side-panels');
+    activeSection === 'docs' && canAccessFeature('plc-notes-side-panels');
 
   return (
     <div

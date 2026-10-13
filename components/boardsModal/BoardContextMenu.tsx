@@ -1,4 +1,4 @@
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCardMenu } from './useCardMenu';
@@ -30,7 +30,6 @@ interface BoardContextMenuProps {
   onTogglePin: () => void;
   onMove: () => void;
   onShare: () => void;
-  canShareWithSub: boolean;
   onShareWithSub: () => void;
   /** When this board/collection is already shared with a sub: its end time. */
   subShareEndsAt?: number | null;
@@ -51,7 +50,6 @@ export const BoardContextMenu: React.FC<BoardContextMenuProps> = ({
   onTogglePin,
   onMove,
   onShare,
-  canShareWithSub,
   onShareWithSub,
   subShareEndsAt,
   onSaveAsTemplate,
@@ -65,6 +63,7 @@ export const BoardContextMenu: React.FC<BoardContextMenuProps> = ({
     icon: typeof ExternalLink;
     action: () => void;
     danger?: boolean;
+    anchor?: TourAnchorAttrs;
   };
 
   const items: Item[] = [
@@ -72,11 +71,13 @@ export const BoardContextMenu: React.FC<BoardContextMenuProps> = ({
       label: t('boardsModal.menu.open', { defaultValue: 'Open' }),
       icon: ExternalLink,
       action: onOpen,
+      anchor: tourAttr('boards-modal.board-menu-open'),
     },
     {
       label: t('boardsModal.menu.rename', { defaultValue: 'Rename' }),
       icon: Pencil,
       action: onRename,
+      anchor: tourAttr('boards-modal.board-menu-rename'),
     },
     {
       label: t('boardsModal.menu.duplicate', {
@@ -84,6 +85,7 @@ export const BoardContextMenu: React.FC<BoardContextMenuProps> = ({
       }),
       icon: Copy,
       action: onDuplicate,
+      anchor: tourAttr('boards-modal.board-menu-duplicate'),
     },
     {
       label: t('boardsModal.menu.setDefault', {
@@ -91,6 +93,7 @@ export const BoardContextMenu: React.FC<BoardContextMenuProps> = ({
       }),
       icon: Star,
       action: onSetDefault,
+      anchor: tourAttr('boards-modal.board-menu-set-default'),
     },
     {
       label: board.isPinned
@@ -98,11 +101,13 @@ export const BoardContextMenu: React.FC<BoardContextMenuProps> = ({
         : t('boardsModal.menu.pin', { defaultValue: 'Pin' }),
       icon: board.isPinned ? PinOff : Pin,
       action: onTogglePin,
+      anchor: tourAttr('boards-modal.board-menu-pin'),
     },
     {
       label: t('boardsModal.menu.move', { defaultValue: 'Move to…' }),
       icon: FolderInput,
       action: onMove,
+      anchor: tourAttr('boards-modal.board-menu-move'),
     },
   ];
 
@@ -112,9 +117,6 @@ export const BoardContextMenu: React.FC<BoardContextMenuProps> = ({
       icon: Share2,
       action: onShare,
     });
-  }
-
-  if (canShareWithSub) {
     items.push({
       label: subShareEndsAt
         ? t('subShare.menu.update', { defaultValue: 'Update sub share…' })
@@ -131,6 +133,7 @@ export const BoardContextMenu: React.FC<BoardContextMenuProps> = ({
       }),
       icon: LayoutTemplate,
       action: onSaveAsTemplate,
+      anchor: tourAttr('boards-modal.board-menu-template'),
     });
   }
 
@@ -164,7 +167,8 @@ export const BoardContextMenu: React.FC<BoardContextMenuProps> = ({
                 : 'text-slate-700 hover:bg-slate-100 focus-visible:bg-slate-100'
             }`}
             role="menuitem"
-            {...(item.danger ? tourAttr('boards-modal.board-delete') : {})}
+            {...(item.anchor ??
+              (item.danger ? tourAttr('boards-modal.board-delete') : {}))}
           >
             <Icon className="w-4 h-4" />
             {item.label}
