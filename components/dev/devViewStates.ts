@@ -62,5 +62,9 @@ export const RESULTS_PLAYBACK_STATES = [
 ] as const;
 export type ResultsPlaybackStateKey = (typeof RESULTS_PLAYBACK_STATES)[number];
 
-export const STUDENT_QUIZ_STATES = ['sq-timed', 'sq-last-minute'] as const;
+export const STUDENT_QUIZ_STATES = [
+  'sq-timed',
+  'sq-last-minute',
+  'sq-stimuli',
+] as const;
 export type StudentQuizStateKey = (typeof STUDENT_QUIZ_STATES)[number];

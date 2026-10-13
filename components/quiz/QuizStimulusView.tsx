@@ -19,6 +19,7 @@
 import React, {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -30,11 +31,14 @@ import {
   ChevronRight,
   FileText,
   Loader2,
-  Minus,
   Paperclip,
-  Plus,
   RefreshCw,
 } from 'lucide-react';
+import type {
+  PDFDocumentLoadingTask,
+  PDFPageProxy,
+  RenderTask,
+} from 'pdfjs-dist';
 import type { QuizStimulus } from '@/types';
 import {
   drivePreviewUrl,
@@ -46,6 +50,8 @@ import { chunkReadAloudText } from '@/utils/quizReadAloudApi';
 import { ReadAloudButton } from './readAloud/ReadAloudButton';
 import type { ReadAloudStatus } from './readAloud/useQuizReadAloud';
 import { READ_ALOUD_HIGHLIGHT_CLASS } from './readAloud/readAloudHighlight';
+import { StimulusZoomBar } from './StimulusZoomBar';
+import { useStimulusZoom } from './useStimulusZoom';
 import {
   YT_PLAYER_STATE,
   extractYouTubeId,
@@ -188,27 +194,91 @@ const PlaysRemainingNote: React.FC<{
 
 const ImageStimulus: React.FC<
   StimulusRendererProps & { retryNonce: number }
-> = ({ stimulus, onLoadError, retryNonce, cqScaled }) => {
+> = ({ stimulus, onLoadError, retryNonce, cqScaled, light = false }) => {
   const [failed, setFailed] = useState(false);
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
+  const [box, setBox] = useState<{ w: number; maxH: number } | null>(null);
+  const { zoom, scrollerRef, scroller, zoomIn, zoomOut, resetZoom } =
+    useStimulusZoom({ dragPan: true });
   // Reset failure state when a retry remounts the element.
   const [prevNonce, setPrevNonce] = useState(retryNonce);
   if (prevNonce !== retryNonce) {
     setPrevNonce(retryNonce);
     setFailed(false);
   }
+
+  useEffect(() => {
+    if (!scroller) return;
+    const measure = () => {
+      const maxH = parseFloat(getComputedStyle(scroller).maxHeight);
+      setBox({
+        w: scroller.clientWidth,
+        maxH: Number.isFinite(maxH) ? maxH : window.innerHeight / 2,
+      });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(scroller);
+    return () => ro.disconnect();
+  }, [scroller]);
+
   if (failed) return null;
+
+  // The fitted size at 100%, scaled by zoom; never upscales past the file at 100%.
+  const fit =
+    natural && natural.w > 0 && natural.h > 0 && box && box.w > 0
+      ? Math.min(1, box.w / natural.w, box.maxH / natural.h)
+      : null;
+  const size =
+    natural && fit !== null
+      ? { width: natural.w * fit * zoom, height: natural.h * fit * zoom }
+      : null;
+
   return (
-    <img
-      key={retryNonce}
-      src={stimulusMediaUrl(stimulus)}
-      alt="Question stimulus"
-      className={`max-w-full rounded-xl object-contain ${cqScaled ? '' : 'max-h-[50vh]'}`}
-      style={cqScaled ? { maxHeight: 'min(50vh, 60cqh)' } : undefined}
-      onError={() => {
-        setFailed(true);
-        onLoadError?.(stimulus.id);
-      }}
-    />
+    <div
+      className={`flex flex-col w-full rounded-xl overflow-hidden ${surfaceCls(light)}`}
+    >
+      <StimulusZoomBar
+        zoom={zoom}
+        onZoomIn={zoomIn}
+        onZoomOut={zoomOut}
+        onReset={resetZoom}
+        light={light}
+        cqScaled={cqScaled}
+      />
+      <div
+        ref={scrollerRef}
+        data-testid="image-stimulus-viewport"
+        className={`overflow-auto ${cqScaled ? '' : 'max-h-[50vh]'}`}
+        style={{
+          touchAction: 'pan-x pan-y',
+          ...(cqScaled ? { maxHeight: 'min(50vh, 60cqh)' } : undefined),
+        }}
+      >
+        <img
+          key={retryNonce}
+          src={stimulusMediaUrl(stimulus)}
+          alt="Question stimulus"
+          draggable={false}
+          className={`block mx-auto object-contain ${
+            size ? 'max-w-none' : `max-w-full ${cqScaled ? '' : 'max-h-[50vh]'}`
+          }`}
+          style={
+            size ?? (cqScaled ? { maxHeight: 'min(50vh, 60cqh)' } : undefined)
+          }
+          onLoad={(e) =>
+            setNatural({
+              w: e.currentTarget.naturalWidth,
+              h: e.currentTarget.naturalHeight,
+            })
+          }
+          onError={() => {
+            setFailed(true);
+            onLoadError?.(stimulus.id);
+          }}
+        />
+      </div>
+    </div>
   );
 };
 
@@ -434,9 +504,53 @@ const TextStimulus: React.FC<StimulusRendererProps> = ({
 
 // ─── PDF (pdf.js with Drive-preview fallback) ────────────────────────────────
 
-type PdfPageRender = { pageNumber: number; canvas: HTMLCanvasElement };
+/** One page: a stable wrapper sized by CSS, holding the latest canvas render. */
+type PdfPageSlot = {
+  page: PDFPageProxy;
+  wrapper: HTMLDivElement;
+  /** Page size in CSS px at scale 1. */
+  width: number;
+  height: number;
+  /** Scale of the canvas currently shown; 0 before the first render. */
+  scale: number;
+  task: RenderTask | null;
+  visible: boolean;
+};
 
-const PDF_ZOOM_STEPS = [0.6, 0.8, 1, 1.25, 1.5, 2];
+// About 32 MB of pixels per page; keeps a 400% zoom inside Chromebook memory.
+const PDF_MAX_CANVAS_PIXELS = 8_000_000;
+// Pages scrolled out of view drop back to this scale to free memory.
+const PDF_OFFSCREEN_SCALE = 1.5;
+
+const pdfTargetScale = (slot: PdfPageSlot, cssWidth: number) => {
+  const dpr = window.devicePixelRatio || 1;
+  const wanted = (cssWidth / slot.width) * dpr;
+  const cap = Math.sqrt(PDF_MAX_CANVAS_PIXELS / (slot.width * slot.height));
+  return Math.max(0.5, Math.min(wanted, cap));
+};
+
+async function renderPdfSlot(slot: PdfPageSlot, scale: number) {
+  slot.task?.cancel();
+  const viewport = slot.page.getViewport({ scale });
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.floor(viewport.width);
+  canvas.height = Math.floor(viewport.height);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const task = slot.page.render({ canvasContext: ctx, canvas, viewport });
+  slot.task = task;
+  try {
+    await task.promise;
+  } catch {
+    // Cancelled by a newer render of the same page.
+    return;
+  }
+  if (slot.task !== task) return;
+  slot.task = null;
+  slot.scale = scale;
+  // Swap only once drawn, so a zoom never flashes a blank page.
+  slot.wrapper.replaceChildren(canvas);
+}
 
 const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
   stimulus,
@@ -448,19 +562,36 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
   const [state, setState] = useState<
     'loading' | 'ready' | 'fallback' | 'error'
   >('loading');
-  const [zoomIdx, setZoomIdx] = useState(2);
   const [pageCount, setPageCount] = useState(0);
+  const { zoom, scrollerRef, scroller, zoomIn, zoomOut, resetZoom } =
+    useStimulusZoom();
   const pagesHostRef = useRef<HTMLDivElement | null>(null);
+  const slotsRef = useRef<PdfPageSlot[]>([]);
+  const loadingTaskRef = useRef<PDFDocumentLoadingTask | null>(null);
+  const zoomRef = useRef(zoom);
+  const scheduleSyncRef = useRef<(() => void) | null>(null);
   const onLoadErrorRef = useRef(onLoadError);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   onLoadErrorRef.current = onLoadError;
-  const zoom = PDF_ZOOM_STEPS[zoomIdx];
 
   const [prevNonce, setPrevNonce] = useState(retryNonce);
   if (prevNonce !== retryNonce) {
     setPrevNonce(retryNonce);
     setState('loading');
   }
+
+  useLayoutEffect(() => {
+    zoomRef.current = zoom;
+    scheduleSyncRef.current?.();
+  }, [zoom]);
+
+  useEffect(
+    () => () => {
+      for (const slot of slotsRef.current) slot.task?.cancel();
+      void loadingTaskRef.current?.destroy();
+    },
+    []
+  );
 
   useEffect(() => {
     if (state !== 'loading') return;
@@ -479,28 +610,47 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
           'pdfjs-dist/build/pdf.worker.min.mjs',
           import.meta.url
         ).toString();
-        const doc = await pdfjs.getDocument({ data: bytes }).promise;
-        if (cancelled) return;
+        const loadingTask = pdfjs.getDocument({ data: bytes });
+        const doc = await loadingTask.promise;
+        if (cancelled) {
+          void loadingTask.destroy();
+          return;
+        }
+        for (const slot of slotsRef.current) slot.task?.cancel();
+        void loadingTaskRef.current?.destroy();
+        loadingTaskRef.current = loadingTask;
         setPageCount(doc.numPages);
-        const renders: PdfPageRender[] = [];
+        const slots: PdfPageSlot[] = [];
         for (let n = 1; n <= doc.numPages; n++) {
           const page = await doc.getPage(n);
           if (cancelled) return;
-          const viewport = page.getViewport({ scale: 1.5 });
-          const canvas = document.createElement('canvas');
-          canvas.width = viewport.width;
-          canvas.height = viewport.height;
-          canvas.className = 'quiz-pdf-page';
-          const ctx = canvas.getContext('2d');
-          if (!ctx) continue;
-          await page.render({ canvasContext: ctx, canvas, viewport }).promise;
-          renders.push({ pageNumber: n, canvas });
+          const { width, height } = page.getViewport({ scale: 1 });
+          const wrapper = document.createElement('div');
+          wrapper.className = 'quiz-pdf-page';
+          wrapper.style.aspectRatio = `${width} / ${height}`;
+          slots.push({
+            page,
+            wrapper,
+            width,
+            height,
+            scale: 0,
+            task: null,
+            visible: true,
+          });
+        }
+        const host = pagesHostRef.current;
+        if (!host) return;
+        host.replaceChildren(...slots.map((s) => s.wrapper));
+        slotsRef.current = slots;
+        const cssWidth = (host.clientWidth || 600) * zoomRef.current;
+        for (const slot of slots) {
+          if (cancelled) return;
+          await renderPdfSlot(
+            slot,
+            Math.min(pdfTargetScale(slot, cssWidth), 2.5)
+          );
         }
         if (cancelled) return;
-        const host = pagesHostRef.current;
-        if (host) {
-          host.replaceChildren(...renders.map((r) => r.canvas));
-        }
         setState('ready');
       } catch (err) {
         if (cancelled) return;
@@ -521,6 +671,55 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
     };
   }, [state, stimulus.id, stimulus.driveFileId, stimulus.url]);
 
+  // Re-render pages near the viewport at the zoomed size once zooming settles.
+  useEffect(() => {
+    const host = pagesHostRef.current;
+    if (state !== 'ready' || !host || !scroller) return;
+    const slots = slotsRef.current;
+    let timer = 0;
+    const sync = () => {
+      const cssWidth = host.clientWidth * zoomRef.current;
+      if (cssWidth <= 0) return;
+      for (const slot of slots) {
+        const target = pdfTargetScale(slot, cssWidth);
+        if (slot.visible) {
+          if (Math.abs(slot.scale - target) / target > 0.15) {
+            void renderPdfSlot(slot, target);
+          }
+        } else if (slot.scale > PDF_OFFSCREEN_SCALE * 1.2) {
+          void renderPdfSlot(slot, Math.min(target, PDF_OFFSCREEN_SCALE));
+        }
+      }
+    };
+    const schedule = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(sync, 150);
+    };
+    const io =
+      typeof IntersectionObserver === 'undefined'
+        ? null
+        : new IntersectionObserver(
+            (entries) => {
+              for (const entry of entries) {
+                const slot = slots.find((s) => s.wrapper === entry.target);
+                if (slot) slot.visible = entry.isIntersecting;
+              }
+              schedule();
+            },
+            { root: scroller, rootMargin: '50% 0px' }
+          );
+    for (const slot of slots) io?.observe(slot.wrapper);
+    const ro = new ResizeObserver(schedule);
+    ro.observe(host);
+    scheduleSyncRef.current = schedule;
+    return () => {
+      window.clearTimeout(timer);
+      io?.disconnect();
+      ro.disconnect();
+      scheduleSyncRef.current = null;
+    };
+  }, [state, scroller]);
+
   if (state === 'fallback' && stimulus.driveFileId) {
     return (
       <iframe
@@ -539,72 +738,32 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
       className={`flex flex-col h-full rounded-xl overflow-hidden ${cqScaled ? '' : 'min-h-[320px]'} ${surfaceCls(light)}`}
       style={cqScaled ? { minHeight: mm(320, 60) } : undefined}
     >
-      <div
-        className={`flex items-center border-b font-bold ${
-          cqScaled ? '' : 'gap-2 px-3 py-1.5 text-xs'
-        } ${light ? 'border-slate-200 text-slate-600' : 'border-slate-700 text-slate-300'}`}
-        style={
-          cqScaled
-            ? {
-                gap: mm(8, 2),
-                padding: `${mm(6, 1.5)} ${mm(12, 3)}`,
-                fontSize: mm(11, 4),
-              }
-            : undefined
-        }
+      <StimulusZoomBar
+        zoom={zoom}
+        onZoomIn={zoomIn}
+        onZoomOut={zoomOut}
+        onReset={resetZoom}
+        light={light}
+        cqScaled={cqScaled}
       >
         <FileText
-          className={cqScaled ? undefined : 'w-3.5 h-3.5'}
+          className={cqScaled ? 'shrink-0' : 'w-3.5 h-3.5 shrink-0'}
           style={
             cqScaled ? { width: mm(14, 3.5), height: mm(14, 3.5) } : undefined
           }
           aria-hidden
         />
-        <span className="flex-1 truncate">
+        <span className="truncate">
           PDF{pageCount > 0 ? ` · ${pageCount} pages` : ''}
         </span>
-        <button
-          type="button"
-          aria-label="Zoom out"
-          disabled={zoomIdx === 0}
-          onClick={() => setZoomIdx((i) => Math.max(0, i - 1))}
-          className={`rounded hover:bg-slate-500/20 disabled:opacity-30 ${cqScaled ? '' : 'p-1'}`}
-          style={cqScaled ? { padding: mm(4, 1) } : undefined}
-        >
-          <Minus
-            className={cqScaled ? undefined : 'w-3.5 h-3.5'}
-            style={
-              cqScaled ? { width: mm(14, 3.5), height: mm(14, 3.5) } : undefined
-            }
-          />
-        </button>
-        <span
-          className={`tabular-nums text-center ${cqScaled ? '' : 'w-10'}`}
-          style={cqScaled ? { width: mm(40, 10) } : undefined}
-        >
-          {Math.round(zoom * 100)}%
-        </span>
-        <button
-          type="button"
-          aria-label="Zoom in"
-          disabled={zoomIdx === PDF_ZOOM_STEPS.length - 1}
-          onClick={() =>
-            setZoomIdx((i) => Math.min(PDF_ZOOM_STEPS.length - 1, i + 1))
-          }
-          className={`rounded hover:bg-slate-500/20 disabled:opacity-30 ${cqScaled ? '' : 'p-1'}`}
-          style={cqScaled ? { padding: mm(4, 1) } : undefined}
-        >
-          <Plus
-            className={cqScaled ? undefined : 'w-3.5 h-3.5'}
-            style={
-              cqScaled ? { width: mm(14, 3.5), height: mm(14, 3.5) } : undefined
-            }
-          />
-        </button>
-      </div>
+      </StimulusZoomBar>
       <div
+        ref={scrollerRef}
         className={`relative flex-1 overflow-auto bg-slate-500/10 ${cqScaled ? '' : 'p-2'}`}
-        style={cqScaled ? { padding: mm(8, 2) } : undefined}
+        style={{
+          touchAction: 'pan-x pan-y',
+          ...(cqScaled ? { padding: mm(8, 2) } : undefined),
+        }}
       >
         {state === 'loading' && (
           <div
@@ -621,15 +780,12 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
         )}
         <div
           ref={pagesHostRef}
-          className={`quiz-pdf-pages flex flex-col items-center ${cqScaled ? '' : 'gap-2'}`}
+          className={`quiz-pdf-pages flex flex-col ${cqScaled ? '' : 'gap-2'}`}
           style={{
             ['--pdf-zoom' as string]: zoom,
             ...(cqScaled ? { gap: mm(8, 2) } : undefined),
           }}
         />
-        {/* Page canvases are appended imperatively; scale via CSS so zoom
-            doesn't force a re-render of every page. */}
-        <style>{`.quiz-pdf-pages .quiz-pdf-page { width: calc(100% * var(--pdf-zoom, 1)); max-width: none; height: auto; background: white; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }`}</style>
       </div>
     </div>
   );
