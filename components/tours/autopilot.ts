@@ -13,6 +13,8 @@ export const AUTO_LEAD_MIN_MS = 800;
 const AUTO_GLIDE_BUDGET_MS = 1500;
 /** How often autopilot looks for the next step's anchor after clicking. */
 export const AUTO_POLL_MS = 100;
+/** Longest autopilot waits for the next step's anchor before handing the step back. */
+export const AUTO_NEXT_WAIT_MS = 10_000;
 
 /** Reading time for an observe step before autopilot moves on. */
 export const autoObserveMs = (
@@ -94,6 +96,18 @@ export function waitFor(
     };
     // Give the app a beat to respond before the first look.
     setTimeout(tick, AUTO_POLL_MS);
+  });
+}
+
+/** True once no finite transition or animation is running on `el` or an ancestor. */
+export function isSettled(el: Element): boolean {
+  const all = el.ownerDocument.getAnimations?.() ?? [];
+  return !all.some((a) => {
+    if (a.playState !== 'running') return false;
+    const target = (a.effect as KeyframeEffect | null)?.target;
+    if (!target || !(target === el || target.contains(el))) return false;
+    // A looping animation (a pulse, a spinner) never settles, so it never blocks.
+    return Number.isFinite(a.effect?.getComputedTiming().endTime ?? Infinity);
   });
 }
 
