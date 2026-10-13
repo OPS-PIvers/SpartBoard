@@ -1,10 +1,8 @@
 /**
  * PlcAddDocModal — a focused modal for adding a shared Google Doc to a PLC.
  *
- * The Docs section adds docs via an inline form inside `PlcDocPicker`; this
- * modal is the same write path (`usePlcDocs().createDoc`) packaged as a
- * standalone dialog so the Home QuickCreateBar can create a doc in one step
- * without navigating into the Docs section first (PRD §6.3, Decision 4.2).
+ * Wraps `usePlcDocs().createDoc` in a standalone dialog, used by the Notes &
+ * Docs list and the Home QuickCreateBar (PRD §6.3, Decision 4.2).
  *
  * On success it fires `onCreated(docId)` and closes; the caller surfaces any
  * follow-up (toast / navigation). Modal chrome — normal Tailwind sizing.

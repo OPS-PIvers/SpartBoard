@@ -164,6 +164,8 @@ vi.mock('@/context/useDashboard', () => ({
     return {
       ...h.actions,
       isActiveBoardReadOnly: h.board.readOnly,
+      rosters: [],
+      activeRosterId: 'class-1',
       selectedWidgetId: h.board.selectedWidgetId,
       activeDashboard: { id: h.board.id, widgets: h.board.widgets },
     };
@@ -176,6 +178,11 @@ vi.mock('@/hooks/useGuidedLearning', () => ({
 
 vi.mock('./publishedTours', () => ({
   loadRunnableTour: h.loadTour,
+}));
+
+// jsdom can't picture the board; a test run moves on without one.
+vi.mock('./stepSnapshot', () => ({
+  captureStepSnapshot: () => Promise.resolve(null),
 }));
 
 vi.mock('./settingsTab', () => ({
@@ -3273,5 +3280,79 @@ describe('LiveTourRunner with Sparty', () => {
     await frames();
     fireEvent.click(barButton('Done'));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
+describe('LiveTourRunner DEV browser run', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('refuses to start on a real Firebase project', () => {
+    vi.stubEnv('VITE_FIREBASE_PROJECT_ID', 'spartboard-dev');
+    render(<LiveTourRunner />);
+    expect(() =>
+      window.__liveTourRun?.start({ set_id: 'run-0', steps: [] })
+    ).toThrow(/dummy/);
+    expect(window.__liveTourRun?.state()).not.toMatchObject({
+      setId: 'run-0',
+    });
+  });
+
+  it('performs every step it can, records each one and moves past a missing control', async () => {
+    vi.stubEnv('VITE_FIREBASE_PROJECT_ID', 'dummy');
+    h.board.widgets = [{ id: 'mine', type: 'dice' }];
+    const closed: string[] = [];
+    render(
+      <>
+        <Fixture />
+        <LiveTourRunner />
+      </>
+    );
+    screen
+      .getByRole('button', { name: 'Close mine' })
+      .addEventListener('click', () => closed.push('mine'));
+    act(() => {
+      window.__liveTourRun?.start({
+        set_id: 'run-1',
+        steps: [
+          {
+            id: 'a',
+            text: 'Boards',
+            tour: { anchor: 'sidebar.boards', action: 'click' },
+          },
+          {
+            id: 'b',
+            text: 'Search',
+            tour: { anchor: 'library.search', action: 'observe' },
+          },
+          {
+            id: 'c',
+            text: 'Close',
+            tour: { anchor: 'widget.close', action: 'click' },
+          },
+          {
+            id: 'd',
+            text: 'Type',
+            tour: { anchor: 'sidebar.boards', action: 'type', value: '' },
+          },
+        ],
+        use_teacher_board: true,
+      });
+    });
+    for (let i = 0; i < 1200 && !window.__liveTourRun?.state()?.done; i++)
+      await frames(50);
+    const state = window.__liveTourRun?.state();
+    expect(state?.done).toBe(true);
+    expect(state?.finished).toBe(true);
+    expect(
+      state?.results.map((r) => [r.stepId, r.status, !!r.handedBack])
+    ).toEqual([
+      ['a', 'found', false],
+      ['b', 'missing', false],
+      ['c', 'found', false],
+      ['d', 'found', true],
+    ]);
+    // A destructive click a teacher run leaves alone; the test run performs it.
+    expect(closed).toEqual(['mine']);
+    expect(h.loadTour).not.toHaveBeenCalled();
   });
 });

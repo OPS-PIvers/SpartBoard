@@ -11,9 +11,7 @@ export default function TeamNotesDocsPage({ plc }: TeamPageProps) {
   const { canAccessFeature } = useAuth();
   const { docId: routeDocId } = useTeamNav();
   const [pending] = useState(() => takePendingNotesItem(plc.id));
-  const sidePanels =
-    canAccessFeature('plc-notes-unified') &&
-    canAccessFeature('plc-notes-side-panels');
+  const sidePanels = canAccessFeature('plc-notes-side-panels');
   return (
     <div
       className={sidePanels ? 'h-full' : 'h-full overflow-y-auto p-4 md:p-6'}

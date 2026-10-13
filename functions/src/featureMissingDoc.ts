@@ -62,7 +62,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'sparty',
   'calendar-day-view',
   'list-line-style',
-  'plc-notes-unified',
   'plc-notes-side-panels',
   'google-tasks-sync',
   'teams-redesign',

@@ -926,8 +926,7 @@ export const SURFACES: TourSurfaceMap = {
     label: 'Save board or collection as template',
     kind: 'modal',
     files: ['components/admin/SaveAsTemplateModal.tsx'],
-    openerMissing:
-      'Save as Template… item in the board and collection context menus (components/boardsModal/BoardContextMenu.tsx, CollectionContextMenu.tsx)',
+    opensWith: 'boards-modal.board-menu-template',
     parent: 'board.boards-board-menu',
     needs: ['admin'],
   },

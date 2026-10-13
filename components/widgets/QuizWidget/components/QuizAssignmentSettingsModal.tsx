@@ -52,6 +52,7 @@ import { quizRuleStepDefs } from '@/components/common/library/assignStepper/quiz
 import { useTranslation } from 'react-i18next';
 import { getAssignmentWidgetKind } from '@/utils/quizWidgetKind';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import {
   DEFAULT_DUE_TIME,
   dueInputsToEpoch,
@@ -381,6 +382,7 @@ export const QuizAssignmentSettingsModal: React.FC<
                   <button
                     type="button"
                     onClick={() => void onStopSharing?.()}
+                    {...tourTypeAttr('quiz-settings-modal.stop-plc', 'quiz')}
                     disabled={!onStopSharing}
                     className="shrink-0 px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-brand-red-primary hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40"
                   >
@@ -391,6 +393,7 @@ export const QuizAssignmentSettingsModal: React.FC<
                 <button
                   type="button"
                   onClick={onShareResults}
+                  {...tourTypeAttr('quiz-settings-modal.plc-results', 'quiz')}
                   disabled={!onShareResults}
                   className="px-3 py-1.5 text-xs font-bold text-brand-blue-primary hover:bg-brand-blue-lighter/40 rounded-lg transition-colors disabled:opacity-40"
                 >
@@ -480,6 +483,7 @@ export const QuizAssignmentSettingsModal: React.FC<
                     id="assignment-settings-due-date"
                     type="date"
                     data-testid="assignment-due-date"
+                    {...tourTypeAttr('quiz-settings-modal.due-date', 'quiz')}
                     value={options.dueDate}
                     onChange={(e) =>
                       setOptions((p) => ({ ...p, dueDate: e.target.value }))
@@ -489,6 +493,7 @@ export const QuizAssignmentSettingsModal: React.FC<
                   <input
                     type="time"
                     data-testid="assignment-due-time"
+                    {...tourTypeAttr('quiz-settings-modal.due-time', 'quiz')}
                     aria-label="Due time"
                     value={options.dueTime}
                     disabled={!options.dueDate}
@@ -541,6 +546,7 @@ export const QuizAssignmentSettingsModal: React.FC<
               <button
                 type="button"
                 onClick={() => void onStopSharing?.()}
+                {...tourTypeAttr('quiz-settings-modal.stop-plc', 'quiz')}
                 disabled={!onStopSharing}
                 className="shrink-0 px-3 py-1.5 text-xs font-bold text-slate-600 hover:text-brand-red-primary hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40"
               >
@@ -550,6 +556,7 @@ export const QuizAssignmentSettingsModal: React.FC<
               <button
                 type="button"
                 onClick={onShareResults}
+                {...tourTypeAttr('quiz-settings-modal.plc-results', 'quiz')}
                 disabled={!onShareResults}
                 className="shrink-0 px-3 py-1.5 text-xs font-bold text-brand-blue-primary hover:bg-brand-blue-lighter/40 rounded-lg transition-colors disabled:opacity-40"
               >
