@@ -736,10 +736,17 @@ export function registerLiveTourTools(
           }
         );
         const voiced = await narrate(ctx, saved.set.steps);
-        if (voiced.steps.some((s, i) => s !== saved.set.steps[i]))
+        const changed = voiced.steps.filter((s, i) => s !== saved.set.steps[i]);
+        if (changed.length) {
+          // The tour is already saved, so a failed audio write is reported, not thrown.
           await ctx.db
             .doc(`${BUILDING}/${saved.set.id}`)
-            .update({ steps: voiced.steps });
+            .update({ steps: voiced.steps })
+            .catch((err: unknown) => {
+              console.warn('[live tour] narration write failed', err);
+              voiced.failed.push(...changed.map((s) => s.id));
+            });
+        }
         return {
           ...savedSummary(saved),
           ...needsAnchors(saved.set.steps),
