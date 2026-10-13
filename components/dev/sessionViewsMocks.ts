@@ -535,7 +535,7 @@ function finePrintImageDataUrl(): string {
   return canvas.toDataURL('image/png');
 }
 
-/** Self-paced session whose first question carries an image and a PDF stimulus. */
+/** Self-paced written question with image, passage and PDF stimuli, quoting on. */
 export function makeStimulusQuizSession(): QuizSession {
   const base = makeTimedQuizSession('active');
   const [first, ...rest] = base.publicQuestions;
@@ -549,14 +549,29 @@ export function makeStimulusQuizSession(): QuizSession {
         label: 'Fine print image',
       },
       {
+        id: 'dev-stim-passage',
+        type: 'text',
+        url: '',
+        label: 'Passage',
+        text: 'Researchers pooled results from many studies of group therapy for chronic pain. The difference in the means between the group that received group therapy and the group that did not was not large.',
+      },
+      {
         id: 'dev-stim-pdf',
         type: 'pdf',
         url: smallPrintPdfDataUrl(),
         label: 'Small print PDF',
       },
     ],
+    allowStimulusQuotes: true,
     publicQuestions: [
-      { ...first, stimulusIds: ['dev-stim-image', 'dev-stim-pdf'] },
+      {
+        ...first,
+        type: 'free-response',
+        timeLimit: 0,
+        text: 'Describe the effect size reported in the study. Quote the passage.',
+        choices: undefined,
+        stimulusIds: ['dev-stim-image', 'dev-stim-passage', 'dev-stim-pdf'],
+      },
       ...rest,
     ],
   };

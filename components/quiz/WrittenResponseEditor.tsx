@@ -15,7 +15,7 @@
  * key prop to force a fresh editor instance.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useImperativeHandle, useRef, useState } from 'react';
 import {
   Bold,
   GripHorizontal,
@@ -33,6 +33,7 @@ import {
 import { toggleList } from '@/utils/contentEditableLists';
 import { installDragSelectEnhancer } from '@/utils/contentEditableDragSelect';
 import { countWords } from '@/utils/wordCount';
+import { QUOTE_ATTR, buildQuoteNodes } from '@/utils/quizQuotes';
 import { wordCounterLabel, wordLimitStatus } from '@/utils/wordLimit';
 
 interface WrittenResponseEditorProps {
@@ -68,6 +69,12 @@ interface WrittenResponseEditorProps {
    * to the dark teacher-paced treatment so existing call sites are unchanged.
    */
   light?: boolean;
+  ref?: React.Ref<WrittenResponseEditorHandle>;
+}
+
+export interface WrittenResponseEditorHandle {
+  /** Inserts a passage quote at the student's last cursor spot, or at the end. */
+  insertQuote: (quote: { stimulusId: string; text: string }) => void;
 }
 
 const ESSAY_MIN_HEIGHT_PX = 352; // ~22rem — comfortable on a laptop
@@ -86,8 +93,10 @@ const WrittenResponseEditorInner: React.FC<
   disabled,
   blockClipboard,
   light = false,
+  ref,
 }) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
+  const savedRangeRef = useRef<Range | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [wordCount, setWordCount] = useState(() => countWords(value));
   const [isEmpty, setIsEmpty] = useState(() => !value.trim());
@@ -210,6 +219,22 @@ const WrittenResponseEditorInner: React.FC<
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Remember the caret so a quote picked from the passage lands where the student left off.
+  useEffect(() => {
+    const onSelectionChange = () => {
+      const sel = document.getSelection();
+      const el = editorRef.current;
+      if (!sel || sel.rangeCount === 0 || !el) return;
+      const range = sel.getRangeAt(0);
+      if (el.contains(range.commonAncestorContainer)) {
+        savedRangeRef.current = range.cloneRange();
+      }
+    };
+    document.addEventListener('selectionchange', onSelectionChange);
+    return () =>
+      document.removeEventListener('selectionchange', onSelectionChange);
+  }, []);
+
   const handleInput = () => {
     if (!editorRef.current) return;
     // Normalize the live editor structure before reading innerHTML.
@@ -231,6 +256,63 @@ const WrittenResponseEditorInner: React.FC<
     setIsEmpty(!editorRef.current.textContent?.trim());
     onChange(clean);
   };
+
+  useImperativeHandle(ref, () => ({
+    insertQuote: (quote) => {
+      const el = editorRef.current;
+      if (!el || disabled || !quote.text) return;
+      let range = savedRangeRef.current;
+      if (!range || !el.contains(range.commonAncestorContainer)) {
+        const block =
+          el.lastElementChild ?? el.appendChild(document.createElement('p'));
+        range = document.createRange();
+        range.selectNodeContents(block);
+        range.collapse(false);
+      }
+      // Paragraph tidying can leave the saved caret on the editor itself; move it into the paragraph beside it.
+      if (range.startContainer === el) {
+        const prev = el.childNodes[range.startOffset - 1];
+        const next = el.childNodes[range.startOffset];
+        const block = prev ?? next;
+        if (block instanceof Element) {
+          range = document.createRange();
+          range.selectNodeContents(block);
+          range.collapse(block !== prev);
+        }
+      }
+      const startEl =
+        range.startContainer instanceof Element
+          ? range.startContainer
+          : range.startContainer.parentElement;
+      const insideQuote = startEl?.closest(`span[${QUOTE_ATTR}]`);
+      if (insideQuote && el.contains(insideQuote)) {
+        range.setStartAfter(insideQuote);
+        range.collapse(true);
+      }
+      range.deleteContents();
+      const nodes = buildQuoteNodes(document, quote);
+      const { startContainer, startOffset } = range;
+      const before =
+        startContainer.nodeType === Node.TEXT_NODE
+          ? (startContainer.textContent ?? '').slice(0, startOffset)
+          : (startContainer.childNodes[startOffset - 1]?.textContent ?? '');
+      if (before && !/\s$/.test(before)) {
+        nodes.unshift(document.createTextNode(' '));
+      }
+      const fragment = document.createDocumentFragment();
+      fragment.append(...nodes);
+      range.insertNode(fragment);
+      el.focus();
+      const caret = document.createRange();
+      caret.setStartAfter(nodes[nodes.length - 1]);
+      caret.collapse(true);
+      const sel = document.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(caret);
+      savedRangeRef.current = caret.cloneRange();
+      handleInput();
+    },
+  }));
 
   // Strip formatting from pasted content so students can't inject styled
   // HTML by copy/pasting from rich sources. We only allow plain text on

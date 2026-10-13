@@ -253,7 +253,7 @@ function makeResponses(state: MediaGradingStateKey): QuizResponse[] {
     return [
       typed(
         'r-ada',
-        '<p>The experiment failed because the control group was contaminated before the second trial. Without a clean baseline, none of the later measurements could be trusted, so the team had to discard the run and start again with fresh samples.</p>',
+        '<p>The experiment failed because the passage says the control group was “<span data-quote="stim-1" data-quote-text="contaminated before the second trial">contaminated before the second trial</span>.” Without a clean baseline, “<span data-quote="stim-1" data-quote-text="none of the later measurements could be trusted">none of the later measurements could be trusted</span>,” so the team had to “<span data-quote="stim-1" data-quote-text="discard the run and start again with fresh samples">discard the run and start again</span>.”</p>',
         true
       ),
       typed('r-grace', '<p>It failed because we ran out of time.</p>', false),
