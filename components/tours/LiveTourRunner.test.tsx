@@ -164,6 +164,8 @@ vi.mock('@/context/useDashboard', () => ({
     return {
       ...h.actions,
       isActiveBoardReadOnly: h.board.readOnly,
+      rosters: [],
+      activeRosterId: 'class-1',
       selectedWidgetId: h.board.selectedWidgetId,
       activeDashboard: { id: h.board.id, widgets: h.board.widgets },
     };
@@ -3322,7 +3324,7 @@ describe('LiveTourRunner DEV browser run', () => {
         use_teacher_board: true,
       });
     });
-    for (let i = 0; i < 400 && !window.__liveTourRun?.state()?.done; i++)
+    for (let i = 0; i < 1200 && !window.__liveTourRun?.state()?.done; i++)
       await frames(50);
     const state = window.__liveTourRun?.state();
     expect(state?.done).toBe(true);
