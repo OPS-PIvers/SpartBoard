@@ -404,6 +404,18 @@ export const WriteMode: React.FC<WriteModeProps> = ({
                 fontSize: 'min(16px, 4cqmin)',
               }}
             />
+            <div style={{ marginTop: 'min(9px, 2cqmin)' }}>
+              <CharacterBar
+                characters={characters}
+                inputRef={retypeRef}
+                value={retype}
+                onChange={(value) => {
+                  setRetype(value);
+                  setRetypeError(false);
+                }}
+                dark={dark}
+              />
+            </div>
             {retypeError && (
               <p
                 role="alert"

@@ -11,6 +11,7 @@ import { LocalFlashcardAdapter, MemoryFlashcardAdapter } from './adapters';
 import { FlashcardPlayer } from './FlashcardPlayer';
 import { FlashcardShareModal } from './FlashcardShareModal';
 import { TestMode } from './TestMode';
+import { WriteMode } from './WriteMode';
 
 const cards: FlashcardCard[] = [
   { id: 'one', term: 'uno', definition: 'one' },
@@ -424,5 +425,45 @@ describe('FlashcardShareModal', () => {
     expect(onPublish).toHaveBeenCalledWith(
       expect.objectContaining({ publicShareId: null })
     );
+  });
+});
+
+describe('WriteMode retype', () => {
+  it('keeps the accent letters under the retype box', async () => {
+    const user = userEvent.setup();
+    const onRecord = vi.fn();
+    render(
+      <WriteMode
+        cards={[{ id: 'year', term: 'año', definition: 'year' }]}
+        round={1}
+        showFirst="definition"
+        termLanguage="es-US"
+        definitionLanguage="en-US"
+        strict
+        starred={[]}
+        showMarks={false}
+        dark={false}
+        onRecord={onRecord}
+        onStar={vi.fn()}
+        onNextRound={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole('button', { name: 'Insert ñ' })).toBeTruthy();
+    const answer = screen.getByPlaceholderText('Type your answer');
+    fireEvent.change(answer, { target: { value: 'ano' } });
+    const form = answer.closest('form');
+    if (!form) throw new Error('missing form');
+    fireEvent.submit(form);
+
+    const retype = screen.getByLabelText('Retype the correct answer');
+    await user.type(retype, 'a');
+    await user.click(screen.getByRole('button', { name: 'Insert ñ' }));
+    await user.type(retype, 'o');
+    expect((retype as HTMLInputElement).value).toBe('año');
+    const retypeForm = retype.closest('form');
+    if (!retypeForm) throw new Error('missing retype form');
+    fireEvent.submit(retypeForm);
+    expect(onRecord).toHaveBeenCalledWith('year', false);
   });
 });
