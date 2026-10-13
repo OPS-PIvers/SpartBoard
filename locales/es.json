@@ -3979,6 +3979,10 @@
     "dismiss": "Descartar",
     "gotIt": "Entendido"
   },
+  "rubricGuide": {
+    "examples": "Respuestas de ejemplo",
+    "or": "o"
+  },
   "quizQuotes": {
     "addToResponse": "Añadir a la respuesta",
     "showQuotes": "Mostrar citas",

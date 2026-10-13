@@ -31,6 +31,7 @@ import { rubricMaxPoints } from '@/utils/rubricPoints';
 import { RubricBuilderPanel } from '@/components/widgets/QuizWidget/components/RubricBuilderPanel';
 import { MAX_STEPS, parseStepLines } from '../projectSteps';
 import { tourAttr } from '@/config/tourAnchors';
+import { stripRubricExamples } from '@/utils/rubricGuide';
 
 /** ms epoch <-> `<input type="datetime-local">` value (local time, no seconds). */
 const msToLocalInputValue = (ms: number | undefined): string => {
@@ -559,7 +560,8 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
             existingSnapshot={draft.rubric}
             attachLabel="Use for project"
             onAttach={(rubric) => {
-              setRubric(rubric);
+              // Students can open a project's rubric, so example responses stay behind.
+              setRubric(stripRubricExamples(rubric));
               setRubricBuilderOpen(false);
             }}
             onDetach={() => {

@@ -125,6 +125,7 @@ import {
   type ResponseArtifact,
   type UnrespondedReason,
   type ResultsProtection,
+  type RevealedRubricExamples,
 } from '@/types';
 import {
   countCommittedTakes,
@@ -141,6 +142,7 @@ import {
   enqueueQuizMediaUpload,
 } from '@/utils/quizMediaUpload';
 import { sanitizeQuizResponse } from '@/utils/security';
+import { RubricGuideExamples } from './RubricGuideExamples';
 import type { WrittenResponseEditorHandle } from './WrittenResponseEditor';
 import { StimulusQuotePopover } from './StimulusQuotePopover';
 import { countWords } from '@/utils/wordCount';
@@ -1389,6 +1391,7 @@ const QuizJoinFlow: React.FC<{
           myResponse={myResponse}
           visibility={published.visibility}
           revealedAnswers={published.revealedAnswers}
+          revealedRubricExamples={published.revealedRubricExamples}
           publishedAt={published.publishedAt}
           protection={published.protection}
           pin={pin}
@@ -4808,6 +4811,7 @@ const ResultsScreen: React.FC<{
         myResponse={myResponse}
         visibility={published.visibility}
         revealedAnswers={published.revealedAnswers}
+        revealedRubricExamples={published.revealedRubricExamples}
         publishedAt={published.publishedAt}
         protection={published.protection}
         pin={pin}
@@ -4891,6 +4895,8 @@ export const PublishedScoreReview: React.FC<{
   visibility: NonNullable<QuizSession['scoreVisibility']>;
   /** Answer key for this student; falls back to the legacy session copy. */
   revealedAnswers?: Record<string, string>;
+  /** Scoring-guide example responses, published with the answer key. */
+  revealedRubricExamples?: RevealedRubricExamples;
   /** Publish time for the watermark; falls back to the session's. */
   publishedAt?: number;
   /** This student's results protection; falls back to the session's. */
@@ -4918,6 +4924,7 @@ export const PublishedScoreReview: React.FC<{
   myResponse,
   visibility,
   revealedAnswers,
+  revealedRubricExamples,
   publishedAt: publishedAtProp,
   protection: protectionProp,
   pin,
@@ -5407,6 +5414,7 @@ export const PublishedScoreReview: React.FC<{
                               showResponse={showResponses}
                               maxPoints={q.points ?? 1}
                               rubricSnapshot={q.rubricSnapshot}
+                              rubricExamples={revealedRubricExamples?.[q.id]}
                               light={light}
                               hideEmptyResponse={hasRecordedTake}
                               paper={paperReviewFor(ans, idx + 1)}
@@ -5585,8 +5593,9 @@ export const CollapsibleRubric: React.FC<{
 const ScoredRubricDisplay: React.FC<{
   rubric: Rubric;
   scores: import('@/types').WrittenAnswerRubricScore[];
+  examples?: Record<string, string[]>;
   light?: boolean;
-}> = ({ rubric, scores, light = false }) => {
+}> = ({ rubric, scores, examples, light = false }) => {
   const headingCls = light ? 'text-slate-900' : 'text-slate-100';
   const bodyCls = light ? 'text-slate-600' : 'text-slate-300';
   const labelCls = light ? 'text-slate-500' : 'text-slate-300';
@@ -5624,18 +5633,23 @@ const ScoredRubricDisplay: React.FC<{
           ? criterion.levels.find((l) => l.id === score.levelId)
           : undefined;
         return (
-          <div
-            key={criterion.id}
-            className="flex items-baseline justify-between gap-2 text-xs"
-          >
-            <span className={bodyCls}>{criterion.name}</span>
-            <span className={`font-mono font-semibold ${headingCls}`}>
-              {level && score ? (
-                `${level.label} — ${score.points} pt${score.points === 1 ? '' : 's'}`
-              ) : (
-                <span className={`italic ${bodyCls}`}>not yet scored</span>
-              )}
-            </span>
+          <div key={criterion.id}>
+            <div className="flex items-baseline justify-between gap-2 text-xs">
+              <span className={bodyCls}>{criterion.name}</span>
+              <span className={`font-mono font-semibold ${headingCls}`}>
+                {level && score ? (
+                  `${level.label} — ${score.points} pt${score.points === 1 ? '' : 's'}`
+                ) : (
+                  <span className={`italic ${bodyCls}`}>not yet scored</span>
+                )}
+              </span>
+            </div>
+            {examples?.[criterion.id] && (
+              <RubricGuideExamples
+                examples={examples[criterion.id]}
+                light={light}
+              />
+            )}
           </div>
         );
       })}
@@ -5746,6 +5760,8 @@ export const WrittenAnswerReview: React.FC<{
   maxPoints: number;
   /** Frozen rubric snapshot for this question, if one was attached. */
   rubricSnapshot?: Rubric;
+  /** Scoring-guide example responses by criterion, once published with answers. */
+  rubricExamples?: Record<string, string[]>;
   /** LIGHT for the async/self-paced review; dark for a live-ended quiz. */
   light?: boolean;
   /** Set when a recorded take is the response, so "no response" would lie. */
@@ -5758,6 +5774,7 @@ export const WrittenAnswerReview: React.FC<{
   showResponse,
   maxPoints,
   rubricSnapshot,
+  rubricExamples,
   light = false,
   hideEmptyResponse = false,
   paper,
@@ -5839,6 +5856,7 @@ export const WrittenAnswerReview: React.FC<{
               <ScoredRubricDisplay
                 rubric={rubricSnapshot}
                 scores={grade.rubricScores}
+                examples={rubricExamples}
                 light={light}
               />
             )}

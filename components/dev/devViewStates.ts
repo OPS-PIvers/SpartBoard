@@ -27,6 +27,7 @@ export type AudioCaptureStateKey =
 export const MEDIA_GRADING_STATES = [
   'queue',
   'typed',
+  'typed-guide',
   'playing',
   'provisional',
   'capture-unavailable',

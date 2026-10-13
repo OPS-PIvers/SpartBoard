@@ -3050,6 +3050,36 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-rubric.template': {
+    label: 'Levels or Scoring guide switch on the Quiz rubric builder',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-rubric.guide-guidelines': {
+    label: 'Scoring guidelines textarea on the Quiz rubric builder, by part',
+    perField: true,
+    panel: true,
+  },
+  'quiz-rubric.guide-example': {
+    label: 'Example response textarea on the Quiz rubric builder, by example',
+    perField: true,
+    panel: true,
+  },
+  'quiz-rubric.guide-example-add': {
+    label: 'Add example response on the Quiz rubric builder, by part',
+    perField: true,
+    panel: true,
+  },
+  'quiz-rubric.guide-example-remove': {
+    label: 'Remove example response on the Quiz rubric builder, by example',
+    perField: true,
+    panel: true,
+  },
+  'quiz-rubric.guide-points': {
+    label: 'Point max input on the Quiz rubric builder, by part',
+    perField: true,
+    panel: true,
+  },
   'quiz-rubric.csv-import': {
     label: 'Import CSV on the Quiz rubric builder',
     perWidgetType: true,

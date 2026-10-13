@@ -90,12 +90,24 @@ function parseCriteria(raw: unknown): RubricCriterion[] | null {
     if (typeof rec.id !== 'string' || typeof rec.name !== 'string' || !levels) {
       return null;
     }
+    const guide = rec.guide as { examples?: unknown } | null | undefined;
     criteria.push({
       id: rec.id,
       name: rec.name,
       levels,
       ...(typeof rec.description === 'string'
         ? { description: rec.description }
+        : {}),
+      ...(guide && typeof guide === 'object'
+        ? {
+            guide: {
+              examples: Array.isArray(guide.examples)
+                ? guide.examples.filter(
+                    (e): e is string => typeof e === 'string'
+                  )
+                : [],
+            },
+          }
         : {}),
     });
   }

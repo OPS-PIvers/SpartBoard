@@ -2438,7 +2438,10 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
     expect(batchCommit).toHaveBeenCalledTimes(1);
     expect(
       batchUpdate.mock.calls.find(([ref]) => ref === refKeyed)?.[1]
-    ).toEqual({ revealedAnswers: DELETE_FIELD_SENTINEL });
+    ).toEqual({
+      revealedAnswers: DELETE_FIELD_SENTINEL,
+      revealedRubricExamples: DELETE_FIELD_SENTINEL,
+    });
     expect(
       batchUpdate.mock.calls.find(([ref]) => ref === refPlain)
     ).toBeUndefined();

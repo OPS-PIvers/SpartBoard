@@ -5029,6 +5029,10 @@
     "dismiss": "Dismiss",
     "gotIt": "Got it"
   },
+  "rubricGuide": {
+    "examples": "Example responses",
+    "or": "or"
+  },
   "quizQuotes": {
     "addToResponse": "Add to response",
     "showQuotes": "Show quotes",

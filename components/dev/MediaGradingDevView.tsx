@@ -80,6 +80,43 @@ const TYPED_QUESTION = {
   },
 };
 
+const GUIDE_RUBRIC = {
+  id: 'dev-guide',
+  title: 'Pain study scoring guide',
+  createdAt: 0,
+  updatedAt: 0,
+  criteria: [
+    {
+      id: 'g1',
+      name: '(A) Research method',
+      description:
+        'Identifies the research method as a meta-analysis.\nDo not accept "experiment".',
+      levels: [
+        { id: 'g1l0', label: 'Not earned', points: 0 },
+        { id: 'g1l1', label: 'Earned', points: 1 },
+      ],
+      guide: {
+        examples: [
+          'The researchers used a meta-analysis.',
+          'They combined the results of many earlier studies.',
+        ],
+      },
+    },
+    {
+      id: 'g2',
+      name: '(B) Operational definition',
+      description:
+        'Defines pain intensity as the self-reported 0 to 10 rating.',
+      levels: [
+        { id: 'g2l0', label: '0 of 2', points: 0 },
+        { id: 'g2l1', label: '1 of 2', points: 1 },
+        { id: 'g2l2', label: '2 of 2', points: 2 },
+      ],
+      guide: { examples: ['Pain was measured on a 0 to 10 scale.'] },
+    },
+  ],
+};
+
 function makeQuestions(state: MediaGradingStateKey): QuizQuestion[] {
   const spoken = [
     {
@@ -104,6 +141,12 @@ function makeQuestions(state: MediaGradingStateKey): QuizQuestion[] {
       stimulusIds: [DEV_STIMULUS.id],
     },
   ];
+  if (state === 'typed-guide') {
+    return [
+      { ...TYPED_QUESTION, points: 3, rubricSnapshot: GUIDE_RUBRIC },
+      ...spoken,
+    ] as unknown as QuizQuestion[];
+  }
   return (state === 'typed'
     ? [TYPED_QUESTION, ...spoken]
     : [...spoken, TYPED_QUESTION]) as unknown as QuizQuestion[];
@@ -187,7 +230,7 @@ function makeResponses(state: MediaGradingStateKey): QuizResponse[] {
     artifactArchive: { 'kath-take1': archived('drive-kath-1') },
   } as unknown as QuizResponse;
 
-  if (state === 'typed') {
+  if (state === 'typed' || state === 'typed-guide') {
     const typed = (key: string, text: string, graded: boolean) =>
       ({
         _responseKey: key,
@@ -198,7 +241,13 @@ function makeResponses(state: MediaGradingStateKey): QuizResponse[] {
           { questionId: 'q3', answer: text, answeredAt: 1_700_000_000_000 },
         ],
         grading: graded
-          ? { q3: { pointsAwarded: 4, gradedBy: 'teacher', gradedAt: 1 } }
+          ? {
+              q3: {
+                pointsAwarded: state === 'typed-guide' ? 3 : 4,
+                gradedBy: 'teacher',
+                gradedAt: 1,
+              },
+            }
           : {},
       }) as unknown as QuizResponse;
     return [

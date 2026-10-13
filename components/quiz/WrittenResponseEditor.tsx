@@ -289,7 +289,8 @@ const WrittenResponseEditorInner: React.FC<
         range.setStartAfter(insideQuote);
         range.collapse(true);
       }
-      range.deleteContents();
+      // Insert after a highlighted passage of the student's own writing rather than replacing it.
+      range.collapse(false);
       const nodes = buildQuoteNodes(document, quote);
       const { startContainer, startOffset } = range;
       const before =

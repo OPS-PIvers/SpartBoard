@@ -7,6 +7,7 @@
  * useQuizSessionStudent — Student joins and submits answers.
  */
 
+import { stripRubricExamples } from '@/utils/rubricGuide';
 import {
   useState,
   useEffect,
@@ -547,9 +548,10 @@ export function toPublicQuestion(
       options?.hideRubricUnlessShown === true &&
       q.rubricVisibleToStudents !== true;
     if (q.rubricSnapshot) {
+      // Example responses are an answer key; they reach students only through published results.
       base.rubricSnapshot = hideRubric
         ? rubricForScoredResults(q.rubricSnapshot)
-        : q.rubricSnapshot;
+        : stripRubricExamples(q.rubricSnapshot);
       if (hideRubric) base.rubricHidden = true;
     }
     for (const [loc, tr] of entries) {
@@ -558,7 +560,7 @@ export function toPublicQuestion(
       if (base.rubricSnapshot && tr.rubricSnapshot)
         localized[loc].rubricSnapshot = hideRubric
           ? rubricForScoredResults(tr.rubricSnapshot)
-          : tr.rubricSnapshot;
+          : stripRubricExamples(tr.rubricSnapshot);
     }
   }
   if (isMultiBlank(q)) base.blankCount = fibBlankCount(q);

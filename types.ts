@@ -5738,6 +5738,8 @@ export interface QuizResponse {
    * prefers it over the legacy `QuizSession.revealedAnswers`.
    */
   revealedAnswers?: Record<string, string>;
+  /** Scoring-guide example responses by question then criterion, published with the answer key. */
+  revealedRubricExamples?: RevealedRubricExamples;
   /**
    * Per-student results publication, independent of the class setting.
    * Absent = follows the class. Teacher-written only.
@@ -5755,6 +5757,8 @@ export type QuizResultsOverride =
       expiresAt?: number | null;
       /** Answer key, present only at the `score-responses-and-answers` level. */
       revealedAnswers?: Record<string, string>;
+      /** Scoring-guide example responses, at the same level as `revealedAnswers`. */
+      revealedRubricExamples?: RevealedRubricExamples;
       /** Protection for this student; absent on older overrides, which use the class one. */
       protection?: ResultsProtection;
     }
@@ -6058,6 +6062,16 @@ export interface RubricCriterion {
   description?: string;
   /** 2–6 levels, ordered low → high. */
   levels: RubricLevel[];
+  /** Set on scoring-guide rows: `description` holds the guidelines and levels run 0..max points. */
+  guide?: RubricGuideRow;
+}
+
+/** `{ questionId: { criterionId: examples } }` published to a student with the answer key. */
+export type RevealedRubricExamples = Record<string, Record<string, string[]>>;
+
+/** Scoring-guide extras for one row; examples are teacher-only until results are published with answers. */
+export interface RubricGuideRow {
+  examples?: string[];
 }
 
 /**
@@ -9886,6 +9900,8 @@ export type GlobalFeature =
   | 'quiz-score-on-submit'
   /** Quiz rubrics are hidden from students unless the teacher shows them per question. */
   | 'quiz-rubric-visibility'
+  /** AP-style scoring-guide rubrics with example responses, beside levels rubrics. */
+  | 'rubric-scoring-guides'
   /** Projects board: tapping a group name opens that group's student view. */
   | 'projects-group-view'
   /** Quiz assign/edit: a separate due date per selected class. */
