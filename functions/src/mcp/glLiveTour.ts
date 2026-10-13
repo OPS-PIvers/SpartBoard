@@ -6,7 +6,12 @@ import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { ToolError, reserveWrite, type ToolContext } from './activity';
 import { isStrictSuperAdmin } from '../authz';
-import { saveNewSet, savedSummary, type HelpCenterPlacement } from './glCreate';
+import {
+  saveNewSet,
+  savedSummary,
+  validateCreate,
+  type HelpCenterPlacement,
+} from './glCreate';
 import {
   MAX_SLIDE_BYTES,
   MAX_STEPS,
@@ -18,10 +23,8 @@ import {
   requiredSchemaVersion,
   saveSet,
   slideBytes,
-  stepInput,
   type GlSet,
   type Step,
-  type StepInput,
 } from './glTools';
 import {
   planAnchorRequests,
@@ -29,6 +32,21 @@ import {
   type MissingAnchorNote,
 } from './glAnchorRequests';
 import { TOUR_ANCHOR_LIST } from './tourAnchorList';
+import { WIDGET_TYPE_LIST } from './widgetTypeList';
+import { LIVE_TOUR_GUIDE } from './liveTourGuide';
+import { dryRunTour, type DryRunReport, type DryRunStep } from './tourDryRun';
+import {
+  buildMaterials,
+  buildTourSetup,
+  liveTourStep,
+  publicMaterial,
+  toStepInput,
+  tourLayout,
+  tourMaterialInput,
+  type LiveTourStep,
+  type StoredMaterial,
+  type StoredTourSetup,
+} from './tourSetup';
 import { TOUR_ANCHOR_QUEUE } from '../tourAnchorQueue';
 import { CREATES, OVERWRITES, READ_ONLY, iso, run } from './toolKit';
 
@@ -39,6 +57,7 @@ export const ADMIN_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'update_live_tour',
   'get_live_tour_step_picture',
   'list_help_center_categories',
+  'get_live_tour_guide',
 ]);
 export const GL_TOURS = 'building_guided_learning_tours';
 
@@ -146,23 +165,8 @@ async function nextOrder(
   }, 0);
 }
 
-// Tour steps point at live controls, so they carry no slide placement.
-export const tourStep = stepInput
-  .omit({
-    imageIndex: true,
-    xPct: true,
-    yPct: true,
-    region: true,
-    calloutPin: true,
-    calloutWidthPct: true,
-    calloutScale: true,
-    calloutTone: true,
-    calloutAlign: true,
-    calloutBox: true,
-    standards: true,
-    learning_targets: true,
-  })
-  .extend({ tour: stepInput.shape.tour.unwrap() });
+// Tour steps point at live controls: a binding plus words, no slides, overlays, questions or media.
+export const tourStep = liveTourStep;
 
 // Slide placement a tour step no longer edits; kept from the stored step until the conversion script drops it.
 const SLIDE_FIELDS = [
@@ -182,26 +186,20 @@ const SLIDE_FIELDS = [
   'spotlightRadius',
 ] as const;
 
-const editStep = tourStep
-  .omit({
-    tooltipPosition: true,
-    tooltipOffset: true,
-    panZoomScale: true,
-    spotlightRadius: true,
-  })
-  .extend({
-    has_thumbnail: z
-      .boolean()
-      .optional()
-      .describe('Read only. The picture is kept and retaken in SpartBoard.'),
-    thumbnail_stale: z.boolean().optional().describe('Read only.'),
-    anchor_ready: z
-      .string()
-      .optional()
-      .describe('Read only. Copy it into tour.anchor to bind the step.'),
-  });
+const editStep = tourStep.extend({
+  has_thumbnail: z
+    .boolean()
+    .optional()
+    .describe('Read only. The picture is kept and retaken in SpartBoard.'),
+  thumbnail_stale: z.boolean().optional().describe('Read only.'),
+  anchor_ready: z
+    .string()
+    .optional()
+    .describe('Read only. Copy it into tour.anchor to bind the step.'),
+});
 type EditStep = z.infer<typeof editStep>;
 
+const WIDGET_TYPES = new Set(WIDGET_TYPE_LIST);
 const KNOWN_ANCHORS = new Set(TOUR_ANCHOR_LIST.map((a) => a.id));
 const SCOPE_OF = new Map(TOUR_ANCHOR_LIST.map((a) => [a.id, a.scope]));
 
@@ -295,7 +293,9 @@ const thumbnailOf = (step: Step): TourThumbnail | undefined => {
 /** A tour step as Claude sees it: no slide placement, the thumbnail as a flag. */
 export function publicTourStep(step: Step): Record<string, unknown> {
   const out = publicStep(step);
-  for (const key of SLIDE_FIELDS) delete out[key];
+  // Only what update_live_tour takes back, so a step can be returned unchanged.
+  for (const key of Object.keys(out))
+    if (!(key in editStep.shape)) delete out[key];
   const tour = step.tour as Record<string, unknown> | undefined;
   const thumb = thumbnailOf(step);
   if (tour) {
@@ -334,10 +334,7 @@ export function liveTourView(
     const id = typeof anchor === 'string' ? anchor.split(/[:#]/)[0] : '';
     return id && !KNOWN_ANCHORS.has(id) ? [s.id] : [];
   });
-  const setup = (set.tourSetup ?? {}) as {
-    widgets?: unknown;
-    autopilot?: unknown;
-  };
+  const setup = (set.tourSetup ?? {}) as Partial<StoredTourSetup>;
   return {
     set_id: set.id,
     title: set.title,
@@ -346,7 +343,12 @@ export function liveTourView(
     welcome_enabled: set.welcomeEnabled === true,
     welcome_message: set.welcomeMessage ?? '',
     tour_widgets: Array.isArray(setup.widgets) ? setup.widgets : [],
+    ...(setup.layouts?.length ? { layouts: setup.layouts } : {}),
+    use_teacher_board: setup.useTeacherBoard === true,
     autopilot: setup.autopilot === true,
+    ...(setup.materials?.length
+      ? { materials: setup.materials.map(publicMaterial) }
+      : {}),
     publish_state: state,
     published_at: publishedAt === null ? null : iso(publishedAt),
     updated_at: iso(set.updatedAt),
@@ -366,15 +368,15 @@ export function mergeTourSteps(
   existing: readonly Step[],
   input: readonly EditStep[]
 ): Step[] {
+  const byId = new Map(existing.map((s) => [s.id, s]));
   const stripped = input.map((s) => {
     const out: Record<string, unknown> = { ...s };
     delete out.has_thumbnail;
     delete out.thumbnail_stale;
     delete out.anchor_ready;
-    return out as unknown as StepInput;
+    return toStepInput(out as unknown as LiveTourStep, byId.get(s.id));
   });
   const merged = mergeSteps(existing, stripped, 0);
-  const byId = new Map(existing.map((s) => [s.id, s]));
   return merged.map((step) => {
     const prior = byId.get(step.id);
     if (!prior) return step;
@@ -420,10 +422,183 @@ async function publishedAtOf(
   return typeof at === 'number' ? at : 0;
 }
 
+const setupInputs = {
+  tour_widgets: z
+    .array(z.string().max(60))
+    .max(12)
+    .optional()
+    .describe(
+      'Widget types on the board when the tour starts, e.g. "clock". Replaces the stored list.'
+    ),
+  layouts: z
+    .array(tourLayout)
+    .max(12)
+    .optional()
+    .describe(
+      "Where each tour widget sits. Leave out and SpartBoard places them. A layout's type joins tour_widgets."
+    ),
+  materials: z
+    .array(tourMaterialInput)
+    .max(6)
+    .optional()
+    .describe(
+      "Library items the tour works on. With any material the tour runs in a sandbox: what it saves, assigns or starts stays out of the teacher's real library unless they keep it. Replaces the stored list."
+    ),
+  use_teacher_board: z
+    .boolean()
+    .optional()
+    .describe(
+      "true: play on the teacher's board as it is. Leave out to clear the stage and add the tour's widgets."
+    ),
+  autopilot: z
+    .boolean()
+    .optional()
+    .describe(
+      'Start with Autopilot on, so the tour performs each step while the teacher watches.'
+    ),
+};
+
+const helpCenterInput = z
+  .object({
+    category_id: z.string().min(1).max(100),
+    widget_types: z
+      .array(z.string().max(60))
+      .max(12)
+      .optional()
+      .describe('Widgets whose ? button offers this tour, e.g. "clock".'),
+  })
+  .strict()
+  .optional()
+  .describe(
+    'File it in the Help Center under a category from list_help_center_categories, hidden until an admin shows it.'
+  );
+
+const dryRunInput = z
+  .boolean()
+  .optional()
+  .describe(
+    'Check the tour the way playback will meet it and return errors and warnings, without saving.'
+  );
+
+function validateWidgetTypes(field: string, list: readonly string[]) {
+  const unknown = list.find((t) => !WIDGET_TYPES.has(t));
+  if (unknown)
+    throw new ToolError(
+      `${field}: "${unknown}" is not a widget type. Use one of: ${WIDGET_TYPE_LIST.join(', ')}.`
+    );
+}
+
+/** Runs the playback check on stored steps. */
+export function checkTour(
+  steps: readonly Step[],
+  setup: StoredTourSetup
+): DryRunReport {
+  return dryRunTour(
+    steps.map((s) => ({
+      id: s.id,
+      label: typeof s.label === 'string' ? s.label : undefined,
+      text: typeof s.text === 'string' ? s.text : undefined,
+      tour: s.tour as DryRunStep['tour'],
+    })),
+    {
+      widgets: setup.widgets,
+      layouts: setup.layouts,
+      materials: setup.materials,
+      useTeacherBoard: setup.useTeacherBoard === true,
+    }
+  );
+}
+
+const dryRunResult = (report: DryRunReport) => ({
+  dry_run: true,
+  would_save: report.errors.length === 0,
+  errors: report.errors,
+  warnings: report.warnings,
+});
+
+/** Refuses a save that would break playback, listing every problem at once. */
+export function assertPlays(report: DryRunReport): void {
+  if (report.errors.length === 0) return;
+  throw new ToolError(
+    `Not saved: the tour would break when it plays.\n${report.errors
+      .map((e) => `- ${e.message}`)
+      .join('\n')}\nFix these and save again; dry_run checks without saving.`
+  );
+}
+
+/** Checks the category and works out who a new Help Center item is shown to and where it goes. */
+async function helpPlacement(ctx: ToolContext, placement: HelpCenterPlacement) {
+  const [categories, scope, order] = await Promise.all([
+    loadCategories(ctx),
+    helpCenterScope(ctx),
+    nextOrder(ctx.db, placement.category_id),
+  ]);
+  if (!categories.some((c) => c.id === placement.category_id))
+    throw new ToolError(
+      `help_center.category_id "${placement.category_id}" is not a Help Center category. Use one of: ${categories.map((c) => c.id).join(', ')}.`
+    );
+  return { ...scope, order };
+}
+
+/** Moves the tour's Help Center item to the new placement, or adds a hidden one. */
+async function helpItemWrite(
+  ctx: ToolContext,
+  set: GlSet,
+  placement: HelpCenterPlacement
+): Promise<(batch: admin.firestore.WriteBatch, saved: GlSet) => void> {
+  const help = await helpPlacement(ctx, placement);
+  const found = await ctx.db
+    .collection(HELP_RESOURCES)
+    .where('setId', '==', set.id)
+    .limit(1)
+    .get();
+  const now = Date.now();
+  if (!found.empty) {
+    const ref = found.docs[0].ref;
+    const moved = found.docs[0].get('categoryId') !== placement.category_id;
+    return (batch) =>
+      batch.update(ref, {
+        categoryId: placement.category_id,
+        widgetTypes: [...new Set(placement.widget_types ?? [])],
+        ...(moved ? { order: help.order } : {}),
+        updatedAt: now,
+      });
+  }
+  const id = randomUUID();
+  return (batch, saved) =>
+    batch.create(
+      ctx.db.doc(`${HELP_RESOURCES}/${id}`),
+      buildHelpItem(placement, saved, {
+        id,
+        uid: ctx.uid,
+        email: ctx.email,
+        orgId: help.orgId,
+        order: help.order,
+        now,
+      })
+    );
+}
+
 export function registerLiveTourTools(
   server: McpServer,
   ctx: ToolContext
 ): void {
+  server.registerTool(
+    'get_live_tour_guide',
+    {
+      title: 'Read the live tour guide',
+      description:
+        'Admins only. How to write a live tour that needs no editing: finding the path to each control, staging, Autopilot, voice, checks and the hand-back. Read it before create_live_tour or update_live_tour.',
+      inputSchema: {},
+      annotations: READ_ONLY,
+    },
+    () =>
+      run('get_live_tour_guide', ctx, async () => {
+        await assertAccess(ctx, 'building');
+        return { guide: LIVE_TOUR_GUIDE };
+      })
+  );
+
   server.registerTool(
     'list_help_center_categories',
     {
@@ -449,46 +624,37 @@ export function registerLiveTourTools(
     {
       title: 'Create a live tour',
       description:
-        'Admins only. Creates a live tour that walks a teacher through the real SpartBoard board, one step per control. Every step needs a tour binding (list_tour_anchors); a narration step observes the control it describes, an opening or closing step observes "board.whole", and welcome_message opens the tour. Steps have no slides, screenshots or positions. Saved as an unpublished draft: pass help_center to also add it to the Help Center, hidden until an admin test-runs it, publishes it in the Studio and shows the item in Admin Settings > Help Center.',
+        'Admins only. Creates a live tour that walks a teacher through the real SpartBoard board, one step per control. Read get_live_tour_guide first. Every step needs a tour binding (list_tour_anchors); an opening or closing step observes "board.whole". The tour is checked the way playback will meet it: problems that would break it refuse the save, others come back as warnings; pass dry_run to check without saving. Saved as an unpublished draft: pass help_center to also add it to the Help Center, hidden until an admin test-runs it, publishes it in the Studio and shows the item in Admin Settings > Help Center.',
       inputSchema: {
         title: z.string().trim().min(1).max(200),
         description: z.string().max(1000).optional(),
         welcome_enabled: z.boolean().optional(),
         welcome_message: z.string().max(300).optional(),
-        autopilot: z
-          .boolean()
-          .optional()
-          .describe(
-            'Start the tour with Autopilot on, so it performs each step while the teacher watches.'
-          ),
-        tour_widgets: z
-          .array(z.string().max(60))
-          .max(12)
-          .optional()
-          .describe(
-            'Widget types added to the board before the tour starts, e.g. "clock".'
-          ),
-        help_center: z
-          .object({
-            category_id: z.string().min(1).max(100),
-            widget_types: z
-              .array(z.string().max(60))
-              .max(12)
-              .optional()
-              .describe(
-                'Widgets whose ? button offers this tour, e.g. "clock".'
-              ),
-          })
-          .strict()
-          .optional()
-          .describe('A category id from list_help_center_categories.'),
+        ...setupInputs,
+        help_center: helpCenterInput,
         steps: z.array(tourStep).min(1).max(MAX_STEPS),
+        dry_run: dryRunInput,
       },
       annotations: CREATES,
     },
     (input) =>
       run('create_live_tour', ctx, async () => {
         const placement = input.help_center;
+        const steps = input.steps.map((s) => toStepInput(s));
+        const materialsDraft = (input.materials ?? []).map((m) => ({
+          ...m,
+          id: m.id ?? '',
+        }));
+        const draftSetup = buildTourSetup(
+          input,
+          materialsDraft.length ? materialsDraft : undefined
+        );
+        const report = checkTour(
+          validateCreate({ ...input, kind: 'live_tour', steps }),
+          draftSetup
+        );
+        if (input.dry_run) return dryRunResult(report);
+        assertPlays(report);
         let help: {
           orgId: string | null;
           label: string;
@@ -496,24 +662,20 @@ export function registerLiveTourTools(
         } | null = null;
         if (placement) {
           await assertAccess(ctx, 'help_center');
-          const [categories, scope, order] = await Promise.all([
-            loadCategories(ctx),
-            helpCenterScope(ctx),
-            nextOrder(ctx.db, placement.category_id),
-          ]);
-          if (!categories.some((c) => c.id === placement.category_id))
-            throw new ToolError(
-              `help_center.category_id "${placement.category_id}" is not a Help Center category. Use one of: ${categories.map((c) => c.id).join(', ')}.`
-            );
-          help = { ...scope, order };
+          help = await helpPlacement(ctx, placement);
         }
+        const materials = input.materials
+          ? await buildMaterials(ctx, input.materials)
+          : undefined;
         const helpItemId = randomUUID();
         const saved = await saveNewSet(
           ctx,
           {
             ...input,
+            steps,
             kind: 'live_tour',
             source: 'building',
+            tour_setup: buildTourSetup(input, materials),
           },
           (batch, set) => {
             if (!placement || !help) return;
@@ -538,6 +700,7 @@ export function registerLiveTourTools(
           ...(help
             ? { help_item_id: helpItemId, help_item_shown_to: help.label }
             : {}),
+          ...(report.warnings.length ? { warnings: report.warnings } : {}),
           note: help
             ? 'Saved as a hidden draft. In Admin Settings > Help Center, open the item and edit its activity to run it live and publish it in the Studio, then make the item visible.'
             : 'Saved as a draft. Try it with Run live on my board (draft) in the library; teachers see it after it is published in the Studio.',
@@ -571,13 +734,15 @@ export function registerLiveTourTools(
     {
       title: 'Edit a live tour',
       description:
-        'Admins only. Edits a live tour; only passed fields change. To change only wording, pass step_text, which leaves every other step and field as stored. `steps` replaces the whole list in play order: send every step to keep, with its id, as get_live_tour returned it; use it to add, remove, reorder or rebind steps. Anchors are checked like create_live_tour. Thumbnails and narration are kept. Saves the draft only: teachers keep the published tour until an admin opens the tour in SpartBoard and publishes the changes.',
+        'Admins only. Edits a live tour; only passed fields change. To change only wording, pass step_text, which leaves every other step and field as stored. `steps` replaces the whole list in play order: send every step to keep, with its id, as get_live_tour returned it; use it to add, remove, reorder or rebind steps. The result is checked like create_live_tour: problems that would break playback refuse the save, others come back as warnings; dry_run checks without saving. Thumbnails and narration are kept. Saves the draft only: teachers keep the published tour until an admin opens the tour in SpartBoard and publishes the changes.',
       inputSchema: {
         set_id: z.string().min(1),
         title: z.string().trim().min(1).max(200).optional(),
         description: z.string().max(1000).optional(),
         welcome_enabled: z.boolean().optional(),
         welcome_message: z.string().max(300).optional(),
+        ...setupInputs,
+        help_center: helpCenterInput,
         steps: z.array(editStep).min(1).max(MAX_STEPS).optional(),
         step_text: z
           .array(
@@ -595,6 +760,7 @@ export function registerLiveTourTools(
           .describe(
             'New label or text for the named steps, by id; "" clears it. Not with steps.'
           ),
+        dry_run: dryRunInput,
       },
       annotations: OVERWRITES,
     },
@@ -633,10 +799,49 @@ export function registerLiveTourTools(
           );
           requests = planned.requests;
         }
+        const prior = (set.tourSetup ?? {}) as Partial<StoredTourSetup>;
+        if (input.tour_widgets)
+          validateWidgetTypes('tour_widgets', input.tour_widgets);
+        if (input.help_center?.widget_types)
+          validateWidgetTypes(
+            'help_center.widget_types',
+            input.help_center.widget_types
+          );
+        const draftMaterials = input.materials?.map((m): StoredMaterial => ({
+          ...m,
+          id: m.id ?? '',
+        }));
+        const report = checkTour(
+          next.steps,
+          buildTourSetup(input, draftMaterials, prior)
+        );
+        if (input.dry_run) return dryRunResult(report);
+        assertPlays(report);
+        const materials = input.materials
+          ? await buildMaterials(ctx, input.materials, prior.materials)
+          : undefined;
+        next.tourSetup = buildTourSetup(input, materials, prior);
+        const placement = input.help_center;
+        let stageHelp:
+          | ((batch: admin.firestore.WriteBatch, saved: GlSet) => void)
+          | undefined;
+        if (placement) {
+          await assertAccess(ctx, 'help_center');
+          stageHelp = await helpItemWrite(ctx, set, placement);
+          next.helpCenter = true;
+        }
         await reserveWrite(ctx);
-        const saved = await saveSet(ctx, loaded, next, 'update', requests);
+        const saved = await saveSet(
+          ctx,
+          loaded,
+          next,
+          'update',
+          requests,
+          stageHelp
+        );
         return {
           ...saved,
+          ...(report.warnings.length ? { warnings: report.warnings } : {}),
           note: 'Saved as a draft. Teachers keep the published tour until an admin opens it in SpartBoard (Guided Learning library > Edit) and publishes the changes.',
         };
       })

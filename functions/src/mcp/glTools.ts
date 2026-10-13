@@ -27,6 +27,7 @@ import {
   type MissingAnchorNote,
 } from './glAnchorRequests';
 import { OVERWRITES, READ_ONLY, iso, run } from './toolKit';
+import { queryTourAnchors } from './tourAnchorQuery';
 import { standardCodes, type TargetTag } from './standards';
 import {
   learningTargetLabels,
@@ -576,6 +577,8 @@ const EDITABLE = [
   'welcomeImageAlt',
   'steps',
   'schemaVersion',
+  'tourSetup',
+  'helpCenter',
 ] as const;
 
 const CONFLICT =
@@ -586,7 +589,8 @@ export async function saveSet(
   loaded: Loaded,
   next: GlSet,
   action: 'update' | 'restore',
-  anchorRequests: readonly AnchorRequest[] = []
+  anchorRequests: readonly AnchorRequest[] = [],
+  stage?: (batch: admin.firestore.WriteBatch, saved: GlSet) => void
 ) {
   const now = Date.now();
   const saved: GlSet = { ...next, updatedAt: now, claudeEditedAt: now };
@@ -623,6 +627,7 @@ export async function saveSet(
       saved.id,
       anchorRequests
     );
+    stage?.(batch, saved);
     // Fails if the set changed since it was read, so a Studio save in between is never overwritten.
     batch.update(ctx.db.doc(`${BUILDING}/${saved.id}`), changed, {
       lastUpdateTime: loaded.updateTime,
@@ -888,35 +893,53 @@ export function registerGuidedLearningTools(
     {
       title: 'List live tour anchors',
       description:
-        'Lists the SpartBoard controls a live tour step can point at (tour.anchor). Scope "widget type" refs add ":<widgetType>" (dock.item:clock); "field" refs add ":<widgetType>#<fieldKey>". panel anchors appear only once a menu or panel is open, so an earlier step must open it: each anchor\'s routes name the surface it sits on and its path, the anchors to click in order from the board to show it (a route with no path is not mapped yet; needs lists what must exist first, like an open library item). persists marks a click whose effect outlives the tour. A control not listed can use anchor "" with a fallback role and accessible name, which works in English only. In a building set, saving that step also asks a developer to add an anchor; describe the control in the step\'s missing_anchor. Pass widget_type to also get that widget\'s settings drawer refs (switches, fields and section headings) with their English labels.',
+        'Lists the SpartBoard controls a live tour step can point at (tour.anchor). With no filter it returns each namespace and its count; pass namespace, surface, search, scope or widget_type for the anchors, 100 at a time (next_cursor). Scope "widget type" refs add ":<type>" (dock.item:clock), "field" refs add ":<type>#<key>"; keys lists every valid suffix when the app spells them all out. routes give the surface each anchor sits on and its path: the anchors to click, in order, from the board to show it (no path means the way in is not mapped yet; reveal is a tab or menu inside the surface; needs lists what must exist first). persists marks a click that changes the teacher\'s real account; sandboxed marks one a tour with materials keeps in its sandbox. A control not listed can use anchor "" with a fallback role and accessible name, English only; describe it in the step\'s missing_anchor so a developer adds an anchor. widget_type also returns that widget\'s settings drawer refs with their English labels.',
       inputSchema: {
         search: z
           .string()
           .max(100)
           .optional()
           .describe('Matches the id or label, e.g. "assign" or "quiz".'),
+        namespace: z
+          .string()
+          .max(60)
+          .optional()
+          .describe('An id prefix before the first dot, e.g. "quiz-editor".'),
+        surface: z
+          .string()
+          .max(100)
+          .optional()
+          .describe(
+            'A route surface, e.g. "quiz.editor"; also matches surfaces under it.'
+          ),
+        scope: z.enum(['board', 'widget', 'widget type', 'field']).optional(),
         widget_type: z
           .string()
           .max(60)
           .optional()
           .describe(
-            'Adds this widget\'s settings drawer refs, e.g. "schedule".'
+            'Anchors on this widget, plus its settings drawer refs, e.g. "schedule".'
           ),
+        cursor: z.string().max(20).optional(),
       },
       annotations: READ_ONLY,
     },
-    ({ search, widget_type }) =>
+    (query) =>
       run('list_tour_anchors', ctx, async () => {
         await assertAccess(ctx, 'mine');
-        const words = (search ?? '').toLowerCase().split(/\s+/).filter(Boolean);
-        const anchors = TOUR_ANCHOR_LIST.filter((a) =>
-          words.every((w) => `${a.id} ${a.label}`.toLowerCase().includes(w))
+        const result = queryTourAnchors(query);
+        if (!query.widget_type) return result;
+        const words = (query.search ?? '')
+          .toLowerCase()
+          .split(/\s+/)
+          .filter(Boolean);
+        const settings_fields = settingsFieldsOf(query.widget_type).filter(
+          (f) =>
+            words.every((w) =>
+              `${f.anchor} ${f.label}`.toLowerCase().includes(w)
+            )
         );
-        if (!widget_type) return { count: anchors.length, anchors };
-        const settings_fields = settingsFieldsOf(widget_type).filter((f) =>
-          words.every((w) => `${f.anchor} ${f.label}`.toLowerCase().includes(w))
-        );
-        return { count: anchors.length, anchors, settings_fields };
+        return { ...result, settings_fields };
       })
   );
 

@@ -12,6 +12,8 @@ export interface TourAnchorDef {
   destructive?: true;
   /** Its effect outlives the tour: assigns, shares, publishes, starts a live session or changes account settings. */
   persists?: true;
+  /** Its persists effect goes through the tour sandbox, so a tour with materials can autopilot it. */
+  sandboxed?: true;
   /** Shown only once a menu, the dock or another panel is open. */
   panel?: true;
   /** State the runner sets up before it looks for the anchor. */
@@ -486,6 +488,7 @@ export const TOUR_ANCHORS = {
   'activity-wall.toggle-open': {
     label: 'Open/Closed toggle in Activity Wall',
     persists: true,
+    sandboxed: true,
     perWidget: true,
   },
   'activity-wall.moderate': {
@@ -595,6 +598,7 @@ export const TOUR_ANCHORS = {
   'quiz.pause-resume': {
     label: 'Pause or resume button in the Quiz monitor',
     persists: true,
+    sandboxed: true,
     perWidget: true,
   },
   'quiz.end-quiz': {
@@ -3340,6 +3344,7 @@ export const TOUR_ANCHORS = {
     label: 'Merge button in the Quiz library bulk action bar',
     perWidgetType: true,
     persists: true,
+    sandboxed: true,
   },
   'quiz-library.bulk-share-plc': {
     label: 'Share with PLC button in the Quiz library bulk action bar',
@@ -4319,6 +4324,7 @@ export const TOUR_ANCHORS = {
   'activity-wall-editor.save': {
     label: 'Save wall button in the Activity Wall editor',
     persists: true,
+    sandboxed: true,
     perWidget: true,
     panel: true,
   },
@@ -8784,6 +8790,7 @@ export const TOUR_ANCHORS = {
     label: 'Visible/Hidden posts toggle in Activity Wall',
     perWidget: true,
     persists: true,
+    sandboxed: true,
   },
   'activity-wall.more-actions': {
     label: 'More wall actions button in Activity Wall',
@@ -8905,6 +8912,7 @@ export const TOUR_ANCHORS = {
     label: 'Create gallery link button in the Activity Wall share dialog',
     perWidgetType: true,
     persists: true,
+    sandboxed: true,
     panel: true,
   },
   'activity-wall-link.done': {
@@ -9497,6 +9505,7 @@ export const TOUR_ANCHORS = {
     label: 'Assign or Create share link button in the Mini App assign dialog',
     perWidgetType: true,
     persists: true,
+    sandboxed: true,
     panel: true,
   },
   'mini-app.toolbar-student-link': {
@@ -9516,6 +9525,7 @@ export const TOUR_ANCHORS = {
     label: 'QR Share button in the running Mini App toolbar',
     perWidgetType: true,
     persists: true,
+    sandboxed: true,
   },
   'mini-app.toolbar-save-as-widget': {
     label: 'Save as Widget button in the running Mini App toolbar',
@@ -9540,6 +9550,7 @@ export const TOUR_ANCHORS = {
     label: 'Save App button in the Mini App save to library form',
     perWidgetType: true,
     persists: true,
+    sandboxed: true,
     panel: true,
   },
   'mini-app.select-mode': {
@@ -9699,6 +9710,7 @@ export const TOUR_ANCHORS = {
   'video-activity.creator-source-manual': {
     label: 'Create manually choice in the creator',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.creator-ai-count': {
     label: 'Question count slider in the creator AI step',
@@ -9729,6 +9741,7 @@ export const TOUR_ANCHORS = {
   'video-activity.editor-youtube-url': {
     label: 'YouTube URL box in the video activity editor',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-question-pill': {
     label: 'Question button in the editor question list',
@@ -9739,27 +9752,33 @@ export const TOUR_ANCHORS = {
     perField: true,
     destructive: true,
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-question-text': {
     label: 'Question prompt box in the video activity editor',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-question-type': {
     label: 'Question type button in the video activity editor',
     perField: true,
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-question-timestamp': {
     label: 'Question timestamp box in the video activity editor',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-question-time-limit': {
     label: 'Question time limit box in the video activity editor',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-question-points': {
     label: 'Question points box in the video activity editor',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.ai-count-decrement': {
     label: 'Fewer questions button for a type in the AI drafter',
@@ -9772,33 +9791,40 @@ export const TOUR_ANCHORS = {
   'video-activity.editor-correct-answer': {
     label: 'Correct answer box for a multiple choice question',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-incorrect-answer': {
     label: 'Incorrect answer box for a multiple choice question',
     perField: true,
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-fib-answer': {
     label: 'Canonical answer box for a fill in the blank question',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-fib-variants': {
     label: 'Acceptable variants box for a fill in the blank question',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-option-correct': {
     label: 'Correct toggle on a multi-answer option',
     perField: true,
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-option-text': {
     label: 'Text box on a multi-answer option',
     perField: true,
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-partial-credit': {
     label: 'Allow partial credit checkbox in the video activity editor',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-draft-ai': {
     label: 'Draft with AI button in the video activity editor footer',
@@ -9861,10 +9887,12 @@ export const TOUR_ANCHORS = {
     label: 'Question marker on the editor video timeline',
     perField: true,
     persists: true,
+    sandboxed: true,
   },
   'video-activity.timeline-add': {
     label: 'Add question at playhead button under the editor timeline',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.empty-create': {
     label: 'Create Activity button in the empty video activity library',
@@ -9885,6 +9913,7 @@ export const TOUR_ANCHORS = {
     label: 'Score visibility option in video activity behavior settings',
     perField: true,
     persists: true,
+    sandboxed: true,
   },
   'video-activity.admin-tab': {
     label: 'List and Settings tabs in the video activity admin modal',
@@ -10271,6 +10300,7 @@ export const TOUR_ANCHORS = {
     label: 'Overwrite button in the Studio conflict banner',
     destructive: true,
     persists: true,
+    sandboxed: true,
     panel: true,
   },
   'studio.dismiss-note': {
@@ -10401,6 +10431,7 @@ export const TOUR_ANCHORS = {
   'studio.props-mark-reviewed': {
     label: 'Mark reviewed button in the Studio properties panel',
     persists: true,
+    sandboxed: true,
     panel: true,
   },
   'studio.props-description': {
@@ -11453,6 +11484,7 @@ export const TOUR_ANCHORS = {
     label: 'Unpublish button in the publish scores dialog',
     panel: true,
     persists: true,
+    sandboxed: true,
   },
   'publish-scores.cancel': {
     label: 'Cancel button in the publish scores dialog',
@@ -12578,6 +12610,7 @@ export const TOUR_ANCHORS = {
     label: 'Save button in an editor dialog footer',
     perWidgetType: true,
     persists: true,
+    sandboxed: true,
     panel: true,
   },
   'video-activity.assign-pacing': {
@@ -12613,11 +12646,13 @@ export const TOUR_ANCHORS = {
   'video-activity.monitor-pause-toggle': {
     label: 'Pause or Resume button in the video activity monitor',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.monitor-end': {
     label: 'End button in the video activity monitor',
     destructive: true,
     persists: true,
+    sandboxed: true,
   },
   'video-activity.results-back': {
     label: 'Back button in video activity results',
@@ -12747,6 +12782,7 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     destructive: true,
     persists: true,
+    sandboxed: true,
     panel: true,
   },
   'mini-app.editor-save': {
@@ -13516,6 +13552,7 @@ export const TOUR_ANCHORS = {
   'mini-app.preview-save-library': {
     label: 'Save to my library button in the Mini App preview',
     persists: true,
+    sandboxed: true,
     panel: true,
   },
   'quiz-library.preview-close': {
@@ -13594,6 +13631,7 @@ export const TOUR_ANCHORS = {
     label: 'Save to my library item in a Mini App card menu',
     perWidgetType: true,
     persists: true,
+    sandboxed: true,
     panel: true,
   },
   'video-activity.editor-folder': {
@@ -13810,4 +13848,12 @@ export const isPersistsAnchor = (ref: string): boolean => {
   if (!isTourAnchorId(id)) return false;
   const def: TourAnchorDef = TOUR_ANCHORS[id];
   return !!def.persists;
+};
+
+/** Whether a step's anchor is a persists click that the tour sandbox absorbs. */
+export const isSandboxedAnchor = (ref: string): boolean => {
+  const { id } = parseTourAnchorRef(ref);
+  if (!isTourAnchorId(id)) return false;
+  const def: TourAnchorDef = TOUR_ANCHORS[id];
+  return !!def.sandboxed;
 };

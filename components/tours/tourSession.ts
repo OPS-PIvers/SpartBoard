@@ -6,6 +6,7 @@ import {
 import {
   isDestructiveAnchor,
   isPersistsAnchor,
+  isSandboxedAnchor,
   isTourAnchorId,
   parseTourAnchorRef,
   WHOLE_BOARD_ANCHOR,
@@ -236,14 +237,19 @@ export const resolveTourAutopilotPolicy = (
   return AUTOPILOT_POLICIES.find((p) => p === value) ?? 'tour-safe';
 };
 
+/** A click that outlives the tour, unless the tour's sandbox keeps it (LIVE_TOUR_ONE_SHOT.md D8). */
+const isRisky = (anchor: string, inSandbox: boolean): boolean =>
+  isDestructiveAnchor(anchor) ||
+  (isPersistsAnchor(anchor) && !(inSandbox && isSandboxedAnchor(anchor)));
+
 /** What Autopilot does on a step under the policy: click it, ask the teacher first, or leave it to them. */
 export const autopilotGate = (
   binding: Pick<GuidedLearningTourBinding, 'anchor' | 'teacherMustClick'>,
-  policy: TourAutopilotPolicy
+  policy: TourAutopilotPolicy,
+  inSandbox = false
 ): 'perform' | 'confirm' | 'teacher' => {
   const fallbackOnly = !isTourAnchorId(parseTourAnchorRef(binding.anchor).id);
-  const risky =
-    isDestructiveAnchor(binding.anchor) || isPersistsAnchor(binding.anchor);
+  const risky = isRisky(binding.anchor, inSandbox);
   if (policy === 'tour-safe')
     return fallbackOnly || risky || binding.teacherMustClick === true
       ? 'teacher'
@@ -261,12 +267,11 @@ export const autopilotGate = (
 /** A sandboxed editor replay clicks through, but a real write never runs without the author. */
 export const replayGate = (
   binding: Pick<GuidedLearningTourBinding, 'anchor' | 'teacherMustClick'>,
-  policy: TourAutopilotPolicy
+  policy: TourAutopilotPolicy,
+  inSandbox = false
 ): 'perform' | 'confirm' | 'teacher' => {
-  const risky =
-    isDestructiveAnchor(binding.anchor) || isPersistsAnchor(binding.anchor);
-  if (!risky) return 'perform';
-  const gate = autopilotGate(binding, policy);
+  if (!isRisky(binding.anchor, inSandbox)) return 'perform';
+  const gate = autopilotGate(binding, policy, inSandbox);
   return gate === 'perform' ? 'confirm' : gate;
 };
 

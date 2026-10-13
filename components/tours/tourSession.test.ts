@@ -201,3 +201,21 @@ describe('resolveTourAutopilotPolicy', () => {
     ).toBe('tour-safe');
   });
 });
+
+describe('sandboxed persists anchors', () => {
+  it('autopilots a save the tour sandbox keeps, but only inside the sandbox', () => {
+    const save = { anchor: 'activity-wall-editor.save' };
+    expect(autopilotGate(save, 'tour-safe')).toBe('teacher');
+    expect(autopilotGate(save, 'tour-safe', true)).toBe('perform');
+    expect(replayGate(save, 'tour-safe', true)).toBe('perform');
+    expect(
+      autopilotGate({ ...save, teacherMustClick: true }, 'tour-safe', true)
+    ).toBe('teacher');
+  });
+
+  it('still leaves real-account clicks to the teacher in the sandbox', () => {
+    expect(
+      autopilotGate({ anchor: 'assign-modal.confirm' }, 'tour-safe', true)
+    ).toBe('teacher');
+  });
+});

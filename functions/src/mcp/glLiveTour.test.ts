@@ -3,7 +3,9 @@ import type { ToolContext } from './activity';
 import {
   ADMIN_ONLY_TOOLS,
   applyStepText,
+  assertPlays,
   buildHelpItem,
+  checkTour,
   liveTourView,
   mergeTourSteps,
   parseCategories,
@@ -13,6 +15,7 @@ import {
   tourPublishState,
 } from './glLiveTour';
 import type { Step } from './glTools';
+import { buildTourSetup } from './tourSetup';
 import { hiddenToolsFor } from './tools';
 
 const resultsOn = vi.hoisted(() => ({ value: false }));
@@ -95,10 +98,9 @@ describe('live tour tools', () => {
     });
   });
 
-  it('takes tour steps without slide placement and refuses it', () => {
+  it('takes a binding plus words, and refuses slide, overlay, question and media fields', () => {
     const base = {
       id: 's1',
-      interactionType: 'tooltip',
       text: 'Open the dock.',
       tour: { anchor: 'dock.open-tools', action: 'click' },
     };
@@ -108,6 +110,11 @@ describe('live tour tools', () => {
       { xPct: 50, yPct: 50 },
       { region: { shape: 'rect', wPct: 10, hPct: 10 } },
       { calloutTone: 'light' },
+      { interactionType: 'tooltip' },
+      { showOverlay: 'banner' },
+      { audioUrl: 'https://example.com/a.mp3' },
+      { question: { type: 'multiple-choice', text: 'Q?' } },
+      { panZoomScale: 2 },
     ])
       expect(tourStep.safeParse({ ...base, ...extra }).success).toBe(false);
     expect(tourStep.safeParse({ ...base, tour: undefined }).success).toBe(
@@ -159,7 +166,6 @@ describe('get_live_tour and update_live_tour', () => {
   it('shows a step without slide placement and with the thumbnail as a flag', () => {
     expect(publicTourStep(stored())).toEqual({
       id: 's1',
-      interactionType: 'tooltip',
       text: 'Open the dock.',
       has_narration: true,
       tour: { anchor: 'dock.open-tools', action: 'click' },
@@ -211,7 +217,6 @@ describe('get_live_tour and update_live_tour', () => {
         { ...shown, text: 'Open the dock now.' },
         {
           id: 'new',
-          interactionType: 'tooltip',
           text: 'The whole board.',
           tour: { anchor: 'board.whole', action: 'observe' },
         },
@@ -235,7 +240,6 @@ describe('get_live_tour and update_live_tour', () => {
         [
           {
             id: 'a',
-            interactionType: 'tooltip',
             tour: { anchor: 'not.real', action: 'click' },
           },
         ]
@@ -353,5 +357,107 @@ describe('get_live_tour and update_live_tour', () => {
     expect(kept.tour).toMatchObject({
       anchor: 'connected-apps.google-tasks-sync',
     });
+  });
+});
+
+describe('connector v2 setup and checks', () => {
+  const step = (id: string, anchor: string, action = 'observe'): Step => ({
+    id,
+    imageIndex: 0,
+    interactionType: 'tooltip',
+    text: 'Look here.',
+    tour: { anchor, action },
+  });
+
+  it('refuses a save that would break playback, listing every problem', () => {
+    const report = checkTour(
+      [
+        step('a', 'board.whole'),
+        step('b', 'sidebar.classes', 'click'),
+        step('c', 'dock.item', 'click'),
+      ],
+      { widgets: [] }
+    );
+    expect(report.errors).toHaveLength(2);
+    expect(() => assertPlays(report)).toThrow(
+      /Not saved[\s\S]*sidebar\.open-menu[\s\S]*dock\.item:<type>/
+    );
+    expect(() => assertPlays({ errors: [], warnings: [] })).not.toThrow();
+  });
+
+  it('builds the setup from passed fields over the stored ones', () => {
+    const layout = {
+      slot: 0,
+      type: 'time-tool',
+      xProp: 0.1,
+      yProp: 0.1,
+      wProp: 0.3,
+      hProp: 0.3,
+    };
+    expect(
+      buildTourSetup(
+        { tour_widgets: ['clock'], layouts: [layout], autopilot: true },
+        undefined
+      )
+    ).toEqual({
+      widgets: ['clock', 'time-tool'],
+      layouts: [layout],
+      autopilot: true,
+    });
+    expect(
+      buildTourSetup({ use_teacher_board: true }, undefined, {
+        widgets: ['clock'],
+        autopilot: true,
+      })
+    ).toEqual({ widgets: ['clock'], useTeacherBoard: true, autopilot: true });
+    expect(() =>
+      buildTourSetup(
+        { layouts: [layout, { ...layout, type: 'clock' }] },
+        undefined
+      )
+    ).toThrow('slot 0 is used twice');
+  });
+
+  it('shows the full setup and only the fields update_live_tour takes back', () => {
+    const view = liveTourView(
+      {
+        id: 't',
+        title: 'Tour',
+        imageUrls: [],
+        mode: 'tour',
+        updatedAt: 1,
+        steps: [step('a', 'board.whole')],
+        tourSetup: {
+          widgets: ['clock'],
+          useTeacherBoard: true,
+          materials: [
+            {
+              id: 'm1',
+              kind: 'quiz',
+              source: 'sample',
+              label: 'A quiz',
+              sample: { meta: {}, data: {}, fromId: 'q1', title: 'Fractions' },
+            },
+          ],
+        },
+      },
+      null
+    );
+    expect(view).toMatchObject({
+      tour_widgets: ['clock'],
+      use_teacher_board: true,
+      materials: [
+        {
+          id: 'm1',
+          kind: 'quiz',
+          source: 'sample',
+          label: 'A quiz',
+          from_id: 'q1',
+          from_title: 'Fractions',
+        },
+      ],
+    });
+    expect(view.steps[0]).not.toHaveProperty('interactionType');
+    expect(view.steps[0]).not.toHaveProperty('imageIndex');
   });
 });

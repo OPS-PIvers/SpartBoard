@@ -6,13 +6,16 @@ export interface TourAnchorEntry {
   panel?: true;
   destructive?: true;
   persists?: true;
+  sandboxed?: true;
   requires?: string;
+  keys?: readonly string[];
   routes?: ReadonlyArray<{
     surface: string;
     kind: string;
     widget_type?: string;
     url?: string;
     path?: readonly string[];
+    reveal?: string;
     needs?: readonly string[];
   }>;
 }
@@ -63,7 +66,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "dock.open-tools"
-        ]
+        ],
+        "reveal": "dock.open-tools"
       }
     ]
   },
@@ -304,6 +308,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "widget.maximize"
         ],
+        "reveal": "widget.maximize",
         "needs": [
           "widget-on-stage"
         ]
@@ -321,6 +326,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "widget.maximize"
         ],
+        "reveal": "widget.maximize",
         "needs": [
           "widget-on-stage"
         ]
@@ -452,6 +458,174 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "requires": "settings-open",
+    "keys": [
+      "activity-wall#managedNotice",
+      "blending-board#managedNotice",
+      "blooms-taxonomy#enabledCategories",
+      "breathing#color",
+      "breathing#pattern",
+      "breathing#visual",
+      "calendar#daysVisible",
+      "calendar#events",
+      "calendar#headerColor",
+      "calendar#isBuildingSyncEnabled",
+      "calendar#pastEvents",
+      "calendar#personalCalendarIds",
+      "car-rider-pro#iframeUrl",
+      "catalyst#managedNotice",
+      "checklist#completedNames",
+      "checklist#firstNames",
+      "checklist#items",
+      "checklist#lastNames",
+      "checklist#mode",
+      "checklist#rosterMode",
+      "checklist#rosterPoolGroupId",
+      "checklist#rowStyle",
+      "clock#clockStyle",
+      "clock#dateColor",
+      "clock#themeColor",
+      "concept-web#defaultNodeHeight",
+      "concept-web#defaultNodeWidth",
+      "concept-web#nodes",
+      "countdown#eventColor",
+      "countdown#eventDate",
+      "countdown#startDate",
+      "countdown#title",
+      "countdown#viewMode",
+      "custom-widget#adminSettings",
+      "dice#count",
+      "dice#diceColor",
+      "dice#dotColor",
+      "drawing#background",
+      "drawing#width",
+      "embed#mode",
+      "embed#refreshInterval",
+      "expectations#syncSoundWidget",
+      "first-5#__brand",
+      "flashcards#presentShowFirst",
+      "graphic-organizer#templateType",
+      "guided-learning#view",
+      "hotspot-image#baseImageUrl",
+      "hotspot-image#hotspots",
+      "hotspot-image#popoverTheme",
+      "instructionalRoutines#customSteps",
+      "instructionalRoutines#selectedRoutineId",
+      "lunchCount#gradeLevel",
+      "lunchCount#lunchTimeHour",
+      "lunchCount#manualBentoBox",
+      "lunchCount#manualHotLunch",
+      "lunchCount#roster",
+      "lunchCount#rosterMode",
+      "lunchCount#schoolSite",
+      "materials#selectedItems",
+      "materials#title",
+      "materials#titleFont",
+      "mathTool#numberLineMax",
+      "mathTool#numberLineMin",
+      "mathTool#numberLineMode",
+      "mathTool#pixelsPerInch",
+      "mathTool#rotation",
+      "mathTool#rulerUnits",
+      "mathTool#toolType",
+      "mathTools#dpiCalibration",
+      "miniApp#manageNotice",
+      "music#bgColor",
+      "music#layout",
+      "music#personalSpotifyUrl",
+      "music#source",
+      "music#stationId",
+      "music#syncWithTimeTool",
+      "music#textColor",
+      "need-do-put-then#doItems",
+      "need-do-put-then#needItems",
+      "need-do-put-then#putItems",
+      "need-do-put-then#thenItems",
+      "nextUp#activeDriveFileId",
+      "nextUp#autoStartTimer",
+      "nextUp#displayCount",
+      "nextUp#styling",
+      "numberLine#displayMode",
+      "numberLine#jumps",
+      "numberLine#markers",
+      "numberLine#max",
+      "numberLine#min",
+      "numberLine#step",
+      "pdf#activePdfId",
+      "poll#activePollSessionId",
+      "poll#questions",
+      "projects#cardColor",
+      "projects#view",
+      "qr#syncWithTextWidget",
+      "qr#url",
+      "quiz#view",
+      "random#autoStartTimer",
+      "random#firstNames",
+      "random#groupSize",
+      "random#groupingMode",
+      "random#lastNames",
+      "random#lastResult",
+      "random#lockedRosterGroupIds",
+      "random#mode",
+      "random#numExpertGroups",
+      "random#numGroups",
+      "random#numHomeGroups",
+      "random#remainingStudents",
+      "random#rosterMode",
+      "random#visualStyle",
+      "recessGear#linkedWeatherWidgetId",
+      "reveal-grid#cards",
+      "reveal-grid#columns",
+      "reveal-grid#defaultCardBackColor",
+      "reveal-grid#defaultCardColor",
+      "reveal-grid#revealMode",
+      "reveal-grid#setName",
+      "review#view",
+      "schedule#rowStyle",
+      "schedule#schedules",
+      "scoreboard#layout",
+      "scoreboard#teams",
+      "seating-chart#furniture",
+      "seating-chart#names",
+      "seating-chart#rosterMode",
+      "sound#autoTrafficLight",
+      "sound#sensitivity",
+      "sound#syncExpectations",
+      "sound#trafficLightThreshold",
+      "sound#visual",
+      "soundboard#selectedSoundIds",
+      "specialist-schedule#cycleDays",
+      "specialist-schedule#recurringItems",
+      "starter-pack#packName",
+      "stations#stations",
+      "stickers#managedNotice",
+      "syntax-framer#alignment",
+      "syntax-framer#mode",
+      "syntax-framer#tokens",
+      "talking-tool#managedNotice",
+      "text#bgColor",
+      "text#content",
+      "text#verticalAlign",
+      "time-tool#adjustStepSeconds",
+      "time-tool#clockStyle",
+      "time-tool#mode",
+      "time-tool#selectedSound",
+      "time-tool#themeColor",
+      "time-tool#timerEndTrafficColor",
+      "time-tool#timerEndTriggerNextUp",
+      "time-tool#timerEndTriggerRandom",
+      "time-tool#timerEndTriggerStationsRotate",
+      "time-tool#timerEndVoiceLevel",
+      "time-tool#visualType",
+      "url#urls",
+      "weather#cardColor",
+      "weather#condition",
+      "weather#isAuto",
+      "weather#lastSync",
+      "weather#secondaryColor",
+      "weather#showFeelsLike",
+      "weather#temp",
+      "work-symbols#titlePosition"
+    ],
     "routes": [
       {
         "surface": "board.settings-drawer",
@@ -471,6 +645,39 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "requires": "settings-open",
+    "keys": [
+      "clock#format24",
+      "clock#glow",
+      "clock#showSeconds",
+      "countdown#countToday",
+      "countdown#includeWeekends",
+      "drawing#shapeFill",
+      "flashcards#presentShuffle",
+      "lunchCount#isManualMode",
+      "nextUp#autoStartTimer",
+      "numberLine#showArrows",
+      "qr#showUrl",
+      "random#autoStartTimer",
+      "random#soundEnabled",
+      "recessGear#useFeelsLike",
+      "reveal-grid#isMemoryMode",
+      "schedule#autoProgress",
+      "schedule#autoScroll",
+      "schedule#expandActiveItem",
+      "schedule#isBuildingSyncEnabled",
+      "sound#autoTrafficLight",
+      "sound#syncExpectations",
+      "time-tool#glow",
+      "time-tool#timerEndTriggerNextUp",
+      "time-tool#timerEndTriggerRandom",
+      "time-tool#timerEndTriggerStationsRotate",
+      "video-activity#allowSkipping",
+      "video-activity#autoPlay",
+      "video-activity#requireCorrectAnswer",
+      "weather#hideClothing",
+      "weather#syncBackground",
+      "webcam#autoSendToNotes"
+    ],
     "routes": [
       {
         "surface": "board.settings-drawer",
@@ -490,6 +697,103 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "requires": "settings-open",
+    "keys": [
+      "activity-wall#content",
+      "blending-board#content",
+      "blooms-taxonomy#content",
+      "breathing#content",
+      "breathing#display",
+      "calendar#behavior",
+      "calendar#content",
+      "calendar#display",
+      "car-rider-pro#content",
+      "catalyst#content",
+      "checklist#content",
+      "checklist#display",
+      "clock#behavior",
+      "clock#display",
+      "concept-web#content",
+      "countdown#behavior",
+      "countdown#content",
+      "countdown#display",
+      "custom-widget#content",
+      "dice#behavior",
+      "dice#display",
+      "drawing#display",
+      "embed#behavior",
+      "embed#content",
+      "expectations#behavior",
+      "first-5#content",
+      "flashcards#behavior",
+      "graphic-organizer#content",
+      "guided-learning#behavior",
+      "hotspot-image#content",
+      "hotspot-image#display",
+      "instructionalRoutines#content",
+      "lunchCount#behavior",
+      "lunchCount#content",
+      "materials#content",
+      "materials#display",
+      "mathTool#behavior",
+      "mathTool#content",
+      "mathTool#display",
+      "mathTools#behavior",
+      "miniApp#content",
+      "music#behavior",
+      "music#content",
+      "music#display",
+      "need-do-put-then#content",
+      "nextUp#behavior",
+      "nextUp#content",
+      "nextUp#display",
+      "numberLine#behavior",
+      "numberLine#content",
+      "pdf#content",
+      "poll#behavior",
+      "poll#content",
+      "projects#behavior",
+      "projects#display",
+      "qr#behavior",
+      "qr#content",
+      "qr#display",
+      "quiz#content",
+      "random#behavior",
+      "random#content",
+      "recessGear#behavior",
+      "reveal-grid#behavior",
+      "reveal-grid#content",
+      "reveal-grid#display",
+      "review#content",
+      "schedule#behavior",
+      "schedule#content",
+      "schedule#display",
+      "scoreboard#content",
+      "scoreboard#display",
+      "seating-chart#content",
+      "sound#behavior",
+      "sound#display",
+      "soundboard#content",
+      "specialist-schedule#content",
+      "starter-pack#content",
+      "stations#behavior",
+      "stations#content",
+      "stickers#content",
+      "syntax-framer#behavior",
+      "syntax-framer#content",
+      "talking-tool#content",
+      "text#content",
+      "text#display",
+      "time-tool#behavior",
+      "time-tool#content",
+      "time-tool#display",
+      "url#content",
+      "video-activity#behavior",
+      "weather#behavior",
+      "weather#content",
+      "weather#display",
+      "webcam#behavior",
+      "work-symbols#display"
+    ],
     "routes": [
       {
         "surface": "board.settings-drawer",
@@ -575,7 +879,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "sidebar.open-menu"
-        ]
+        ],
+        "reveal": "sidebar.open-menu"
       }
     ]
   },
@@ -590,7 +895,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "sidebar.open-menu"
-        ]
+        ],
+        "reveal": "sidebar.open-menu"
       }
     ]
   },
@@ -605,7 +911,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "sidebar.open-menu"
-        ]
+        ],
+        "reveal": "sidebar.open-menu"
       }
     ]
   },
@@ -620,7 +927,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "sidebar.open-menu"
-        ]
+        ],
+        "reveal": "sidebar.open-menu"
       }
     ]
   },
@@ -635,7 +943,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "sidebar.open-menu"
-        ]
+        ],
+        "reveal": "sidebar.open-menu"
       }
     ]
   },
@@ -650,7 +959,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "sidebar.open-menu"
-        ]
+        ],
+        "reveal": "sidebar.open-menu"
       }
     ]
   },
@@ -665,7 +975,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "sidebar.open-menu"
-        ]
+        ],
+        "reveal": "sidebar.open-menu"
       }
     ]
   },
@@ -680,7 +991,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "sidebar.open-menu"
-        ]
+        ],
+        "reveal": "sidebar.open-menu"
       }
     ]
   },
@@ -695,7 +1007,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "sidebar.open-menu"
-        ]
+        ],
+        "reveal": "sidebar.open-menu"
       }
     ]
   },
@@ -759,7 +1072,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "board-nav.select-board"
-        ]
+        ],
+        "reveal": "board-nav.select-board"
       }
     ]
   },
@@ -774,7 +1088,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "board-nav.select-board"
-        ]
+        ],
+        "reveal": "board-nav.select-board"
       }
     ]
   },
@@ -969,7 +1284,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "boards.share-board",
           "share-link.share-with-sub",
           "sub-share.save"
-        ]
+        ],
+        "reveal": "sub-share.save"
       }
     ]
   },
@@ -1667,7 +1983,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.classes",
           "classes.link-classroom"
-        ]
+        ],
+        "reveal": "classes.link-classroom"
       }
     ]
   },
@@ -1684,7 +2001,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.classes",
           "classes.link-classroom"
-        ]
+        ],
+        "reveal": "classes.link-classroom"
       }
     ]
   },
@@ -1702,7 +2020,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.classes",
           "classes.link-classroom"
-        ]
+        ],
+        "reveal": "classes.link-classroom"
       }
     ]
   },
@@ -1719,7 +2038,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.classes",
           "classes.link-classroom"
-        ]
+        ],
+        "reveal": "classes.link-classroom"
       }
     ]
   },
@@ -2036,6 +2356,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Open/Closed toggle in Activity Wall",
     "scope": "widget",
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.activity-wall",
@@ -2455,6 +2776,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Pause or resume button in the Quiz monitor",
     "scope": "widget",
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "quiz.monitor",
@@ -2494,7 +2816,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "reveal": "quiz.more-actions"
       }
     ]
   },
@@ -2751,6 +3074,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-primary-action:flashcards#row-1",
           "assign-step.check"
         ],
+        "reveal": "assign-step.check",
         "needs": [
           "library-item",
           "class",
@@ -2772,6 +3096,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-primary-action:flashcards#row-1",
           "assign-step.check"
         ],
+        "reveal": "assign-step.check",
         "needs": [
           "library-item",
           "class",
@@ -2798,13 +3123,18 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Manual or Scheduled option in the Assign dialog",
     "scope": "field",
     "panel": true,
+    "keys": [
+      "assign#manual",
+      "assign#scheduled"
+    ],
     "routes": [
       {
         "surface": "library.assign-stepper",
         "kind": "shared",
         "path": [
           "assign-step.when"
-        ]
+        ],
+        "reveal": "assign-step.when"
       }
     ]
   },
@@ -2813,6 +3143,23 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Setting switch in the Assign dialog quiz steps",
     "scope": "field",
     "panel": true,
+    "keys": [
+      "assign#away-auto-submit",
+      "assign#block-copy-paste",
+      "assign#focus-mode",
+      "assign#learning-targets",
+      "assign#mini-app-show-results",
+      "assign#raise-hand",
+      "assign#read-aloud",
+      "assign#reveal-correct",
+      "assign#score-on-submit",
+      "assign#show-right-wrong",
+      "assign#shuffle-answers",
+      "assign#shuffle-questions",
+      "assign#stimulus-quotes",
+      "assign#tab-switch-auto-submit",
+      "assign#time-limit"
+    ],
     "routes": [
       {
         "surface": "library.assign-stepper",
@@ -2838,6 +3185,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Setting number box in the Assign dialog quiz steps",
     "scope": "field",
     "panel": true,
+    "keys": [
+      "assign#away-seconds",
+      "assign#tab-switch-threshold",
+      "assign#time-limit"
+    ],
     "routes": [
       {
         "surface": "library.assign-stepper",
@@ -2851,6 +3203,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Setting switch in the Assign window",
     "scope": "field",
     "panel": true,
+    "keys": [
+      "assign#block-copy-paste",
+      "assign#correct-on-board",
+      "assign#focus-mode",
+      "assign#learning-targets",
+      "assign#reveal-correct",
+      "assign#show-right-wrong",
+      "assign#shuffle-answers",
+      "assign#shuffle-questions"
+    ],
     "routes": [
       {
         "surface": "library.assign-behavior",
@@ -2864,6 +3226,14 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Setting switch in the Quiz assign settings",
     "scope": "field",
     "panel": true,
+    "keys": [
+      "assign#podium",
+      "assign#raise-hand",
+      "assign#read-aloud",
+      "assign#score-on-submit",
+      "assign#speed-bonus",
+      "assign#streak-bonus"
+    ],
     "routes": [
       {
         "surface": "library.assign-behavior",
@@ -2896,7 +3266,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-step.when"
-        ]
+        ],
+        "reveal": "assign-step.when"
       }
     ]
   },
@@ -2911,7 +3282,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-step.when"
-        ]
+        ],
+        "reveal": "assign-step.when"
       }
     ]
   },
@@ -2926,7 +3298,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-step.when"
-        ]
+        ],
+        "reveal": "assign-step.when"
       }
     ]
   },
@@ -2967,7 +3340,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-classes.trigger"
-        ]
+        ],
+        "reveal": "assign-classes.trigger"
       }
     ]
   },
@@ -2982,7 +3356,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-classes.trigger"
-        ]
+        ],
+        "reveal": "assign-classes.trigger"
       }
     ]
   },
@@ -2997,7 +3372,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-classes.trigger"
-        ]
+        ],
+        "reveal": "assign-classes.trigger"
       }
     ]
   },
@@ -3025,7 +3401,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-students.trigger"
-        ]
+        ],
+        "reveal": "assign-students.trigger"
       }
     ]
   },
@@ -3040,7 +3417,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-students.trigger"
-        ]
+        ],
+        "reveal": "assign-students.trigger"
       }
     ]
   },
@@ -3055,7 +3433,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-students.trigger"
-        ]
+        ],
+        "reveal": "assign-students.trigger"
       }
     ]
   },
@@ -3070,7 +3449,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-students.trigger"
-        ]
+        ],
+        "reveal": "assign-students.trigger"
       }
     ]
   },
@@ -3085,7 +3465,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-students.trigger"
-        ]
+        ],
+        "reveal": "assign-students.trigger"
       }
     ]
   },
@@ -3100,7 +3481,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-step.sharing"
-        ]
+        ],
+        "reveal": "assign-step.sharing"
       }
     ]
   },
@@ -3115,7 +3497,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-step.sharing"
-        ]
+        ],
+        "reveal": "assign-step.sharing"
       }
     ]
   },
@@ -3132,6 +3515,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-primary-action:flashcards#row-1",
           "assign-step.check"
         ],
+        "reveal": "assign-step.check",
         "needs": [
           "library-item",
           "class",
@@ -3153,6 +3537,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-primary-action:flashcards#row-1",
           "assign-step.check"
         ],
+        "reveal": "assign-step.check",
         "needs": [
           "library-item",
           "class",
@@ -3174,6 +3559,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-primary-action:flashcards#row-1",
           "assign-step.check"
         ],
+        "reveal": "assign-step.check",
         "needs": [
           "library-item",
           "class",
@@ -3195,6 +3581,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-primary-action:flashcards#row-1",
           "assign-step.check"
         ],
+        "reveal": "assign-step.check",
         "needs": [
           "library-item",
           "class",
@@ -3216,6 +3603,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-primary-action:flashcards#row-1",
           "assign-step.check"
         ],
+        "reveal": "assign-step.check",
         "needs": [
           "library-item",
           "class",
@@ -3248,7 +3636,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-mods.open"
-        ]
+        ],
+        "reveal": "assign-mods.open"
       }
     ]
   },
@@ -3264,7 +3653,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-mods.open"
-        ]
+        ],
+        "reveal": "assign-mods.open"
       }
     ]
   },
@@ -3279,7 +3669,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-mods.open"
-        ]
+        ],
+        "reveal": "assign-mods.open"
       }
     ]
   },
@@ -3294,7 +3685,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-mods.open"
-        ]
+        ],
+        "reveal": "assign-mods.open"
       }
     ]
   },
@@ -3309,7 +3701,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-mods.open"
-        ]
+        ],
+        "reveal": "assign-mods.open"
       }
     ]
   },
@@ -3324,7 +3717,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-mods.open"
-        ]
+        ],
+        "reveal": "assign-mods.open"
       }
     ]
   },
@@ -3340,7 +3734,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-mods.open"
-        ]
+        ],
+        "reveal": "assign-mods.open"
       }
     ]
   },
@@ -3355,7 +3750,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-mods.open"
-        ]
+        ],
+        "reveal": "assign-mods.open"
       }
     ]
   },
@@ -3659,6 +4055,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Opens, Closes or Due date box in the Assign window schedule",
     "scope": "field",
     "panel": true,
+    "keys": [
+      "assign#closes",
+      "assign#due",
+      "assign#opens"
+    ],
     "routes": [
       {
         "surface": "library.assign-modal",
@@ -3692,7 +4093,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-targeting.open"
-        ]
+        ],
+        "reveal": "assign-targeting.open"
       }
     ]
   },
@@ -3707,7 +4109,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "assign-targeting.open"
-        ]
+        ],
+        "reveal": "assign-targeting.open"
       }
     ]
   },
@@ -3990,6 +4393,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Question Randomization or Answer Feedback section header in the Assign window",
     "scope": "field",
     "panel": true,
+    "keys": [
+      "assign#feedback",
+      "assign#randomization"
+    ],
     "routes": [
       {
         "surface": "library.assign-behavior",
@@ -4180,6 +4587,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:video-activity",
           "video-activity.editor-tab:video-activity#settings"
         ],
+        "reveal": "video-activity.editor-tab:video-activity#settings",
         "needs": [
           "widget-on-stage"
         ]
@@ -4199,6 +4607,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:video-activity",
           "video-activity.editor-tab:video-activity#settings"
         ],
+        "reveal": "video-activity.editor-tab:video-activity#settings",
         "needs": [
           "widget-on-stage"
         ]
@@ -4581,6 +4990,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Add question button in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -4600,6 +5012,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "More ways to add arrow in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -4619,6 +5034,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Question prompt box in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -4638,6 +5056,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Question type list in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -4695,6 +5116,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Add answer key in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -4714,6 +5138,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Dismiss bank notice (×) in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -4733,6 +5160,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Tag (bulk, selected questions) in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -4742,6 +5172,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.question-select:quiz"
         ],
+        "reveal": "quiz-editor.question-select:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -4754,6 +5185,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -4763,6 +5197,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.question-select:quiz"
         ],
+        "reveal": "quiz-editor.question-select:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -4775,6 +5210,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "destructive": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -4784,6 +5222,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.question-select:quiz"
         ],
+        "reveal": "quiz-editor.question-select:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -4795,6 +5234,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Clear (selection) in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -4804,6 +5246,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.question-select:quiz"
         ],
+        "reveal": "quiz-editor.question-select:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -4815,6 +5258,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Draft with AI (list header) in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -4834,6 +5280,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Add-menu item: Blank question in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -4843,6 +5292,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.add-menu:quiz"
         ],
+        "reveal": "quiz-editor.add-menu:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -4854,6 +5304,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Add-menu item: Section in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -4863,6 +5316,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.add-menu:quiz"
         ],
+        "reveal": "quiz-editor.add-menu:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -4874,6 +5328,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Add-menu item: From question bank… in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -4883,6 +5340,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.add-menu:quiz"
         ],
+        "reveal": "quiz-editor.add-menu:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -4990,6 +5448,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Blank (insert ___ in FIB prompt) in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5009,6 +5470,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Learning targets Add/Edit in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5028,6 +5492,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Time limit input in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5047,6 +5514,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Points input in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5066,6 +5536,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Printed number input in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5085,6 +5558,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Partial credit checkbox (matching, ordering) in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5104,6 +5580,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Placeholder input (FRQ) in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5123,6 +5602,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Rubric: Edit in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5143,6 +5625,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "destructive": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5162,6 +5647,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Rubric: Show to students checkbox in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5181,6 +5669,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Attach rubric in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5200,6 +5691,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Correct answer input (FIB / short answer) in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5257,6 +5751,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Add choice in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5276,6 +5773,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "AI describe-your-quiz textarea in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5285,6 +5785,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.draft-ai:quiz"
         ],
+        "reveal": "quiz-editor.draft-ai:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -5305,6 +5806,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.draft-ai:quiz"
         ],
+        "reveal": "quiz-editor.draft-ai:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -5325,6 +5827,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.draft-ai:quiz"
         ],
+        "reveal": "quiz-editor.draft-ai:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -5336,6 +5839,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Draft with AI (modal footer) in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5355,6 +5861,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Bank targets: Add in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5374,6 +5883,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Questions editor tab in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5393,6 +5905,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Stimuli editor tab in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5412,6 +5927,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Settings editor tab in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5431,6 +5949,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Languages editor tab in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5469,6 +5990,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Add option in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5488,6 +6012,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Multiple correct answers checkbox in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5507,6 +6034,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Partial credit checkbox (multi-answer) in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5736,6 +6266,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Add pair in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5793,6 +6326,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Add distractor in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5908,6 +6444,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Add ordering item in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5927,6 +6466,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Prep seconds input (spoken response) in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5946,6 +6488,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Time limit seconds input (spoken response) in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5965,6 +6510,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Clamp-to-ceiling link (shown when clamped) in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -6003,6 +6551,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Minimum words input in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -6022,6 +6573,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Maximum words input in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -6041,6 +6595,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Enforce limit toggle in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -6060,6 +6617,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Drag handle, section in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -6079,6 +6639,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Section title input in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -6098,6 +6661,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Section directions textarea in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -6117,6 +6683,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "\"Students answer … of these N\" select in the Quiz editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -6137,6 +6706,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "destructive": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -6198,6 +6770,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Back to banks in Quiz banks",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor.bank-picker",
@@ -6219,6 +6794,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close in Quiz banks",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor.bank-picker",
@@ -6240,6 +6818,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Search banks input in Quiz banks",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor.bank-picker",
@@ -6261,6 +6842,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Search questions input in Quiz banks",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor.bank-picker",
@@ -6282,6 +6866,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Select all or Clear questions in Quiz banks",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor.bank-picker",
@@ -6324,6 +6911,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Questions per attempt input in Quiz banks",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor.bank-picker",
@@ -6345,6 +6935,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Points each input in Quiz banks",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor.bank-picker",
@@ -6366,6 +6959,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel in Quiz banks",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor.bank-picker",
@@ -6387,6 +6983,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Add questions or Add random draw in Quiz banks",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor.bank-picker",
@@ -6466,6 +7065,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Questions per attempt input in Quiz banks",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -6485,6 +7087,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Points input in Quiz banks",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -6505,6 +7110,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "destructive": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -6543,6 +7151,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Clear target filter in Quiz banks",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -6562,6 +7173,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.import.cartridge",
@@ -6574,6 +7188,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Folder name input in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.import.cartridge",
@@ -6586,6 +7203,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Select all in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.import.cartridge",
@@ -6598,6 +7218,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Select none in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.import.cartridge",
@@ -6634,6 +7257,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Share pictures checkbox in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.import.cartridge",
@@ -6646,6 +7272,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel or Done in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.import.cartridge",
@@ -6659,6 +7288,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.import.cartridge",
@@ -6672,6 +7304,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.import.cartridge",
@@ -6684,6 +7319,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-import",
@@ -6696,6 +7334,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Batch select in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-import",
@@ -6708,6 +7349,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Assignment select (new administration or existing) in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-import",
@@ -6720,6 +7364,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Resume review in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-import",
@@ -6733,6 +7380,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "destructive": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-import",
@@ -6746,6 +7396,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-import",
@@ -6758,6 +7411,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Pick scan from Drive in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-import",
@@ -6782,6 +7438,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Key confirmed checkbox in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-import",
@@ -6794,6 +7453,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Tag all questions in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-import",
@@ -6854,6 +7516,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Retry failed uploads in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-import",
@@ -6879,6 +7544,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-import",
@@ -6891,6 +7559,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Back in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-import",
@@ -6904,6 +7575,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-import",
@@ -6916,6 +7590,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Done in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-import",
@@ -6928,6 +7605,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-question-text",
@@ -6940,6 +7620,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Upload file dropzone in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-question-text",
@@ -6952,6 +7635,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Pick from Drive in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-question-text",
@@ -6988,6 +7674,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Back (key-fill step) in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-question-text",
@@ -7001,6 +7690,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-question-text",
@@ -7013,6 +7705,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Back (review step) in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-question-text",
@@ -7026,6 +7721,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-question-text",
@@ -7038,6 +7736,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-question-text",
@@ -7050,6 +7751,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Select or Cancel selection-mode toggle in Quiz banks",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.banks",
@@ -7068,6 +7772,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "New bank empty-state button in Quiz banks",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.banks",
@@ -7104,6 +7811,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Show only flagged rows in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.import",
@@ -7238,6 +7948,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Add N standards (all key standards) in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.import",
@@ -7277,6 +7990,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.import",
@@ -7296,6 +8012,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "New targets go in destination select in Quiz import",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.import",
@@ -7335,6 +8054,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close in Quiz banks",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor.save-to-bank",
@@ -7356,6 +8078,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Target bank select in Quiz banks",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor.save-to-bank",
@@ -7377,6 +8102,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "New bank title input in Quiz banks",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor.save-to-bank",
@@ -7398,6 +8126,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel in Quiz banks",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor.save-to-bank",
@@ -7420,6 +8151,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor.save-to-bank",
@@ -7441,6 +8175,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Back-translate in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -7479,6 +8216,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Generate translations in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -7488,6 +8228,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.tab-languages:quiz"
         ],
+        "reveal": "quiz-editor.tab-languages:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -7508,6 +8249,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.tab-languages:quiz"
         ],
+        "reveal": "quiz-editor.tab-languages:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -7528,6 +8270,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.tab-languages:quiz"
         ],
+        "reveal": "quiz-editor.tab-languages:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -7539,6 +8282,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Read-aloud language select in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -7558,6 +8304,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Regenerate stale in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -7567,6 +8316,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.tab-languages:quiz"
         ],
+        "reveal": "quiz-editor.tab-languages:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -7587,6 +8337,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.tab-languages:quiz"
         ],
+        "reveal": "quiz-editor.tab-languages:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -7599,6 +8350,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -7608,6 +8362,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.tab-languages:quiz"
         ],
+        "reveal": "quiz-editor.tab-languages:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -7619,6 +8374,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Other language tag input in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -7647,6 +8405,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.tab-languages:quiz"
         ],
+        "reveal": "quiz-editor.tab-languages:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -7658,6 +8417,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Back arrow (header) in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.preview",
@@ -7698,6 +8460,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Check Answer (multi-answer) in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.preview",
@@ -7738,6 +8503,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Go Back (empty state) in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.preview",
@@ -7798,6 +8566,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "NEXT in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.preview",
@@ -7818,6 +8589,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "PREV in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.preview",
@@ -7838,6 +8612,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Reset question in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.preview",
@@ -7858,6 +8635,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Reveal Correct Answer (fill-in) in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.preview",
@@ -7878,6 +8658,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Reveal Sequence in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.preview",
@@ -7898,6 +8681,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Print sheets Cancel in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -7917,6 +8703,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Print sheets close (×) in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -7937,6 +8726,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "destructive": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -7956,6 +8748,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Include answer key sheet toggle in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -7975,6 +8770,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Include question text toggle in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -7994,6 +8792,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "PDF page Add page in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -8013,6 +8814,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "PDF page picker Cancel in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -8032,6 +8836,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "PDF page number input in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -8052,6 +8859,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -8072,6 +8882,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -8091,6 +8904,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Print results Cancel in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results.print",
@@ -8113,6 +8929,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Print results close (×) in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results.print",
@@ -8179,6 +8998,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "More print options disclosure in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results.print",
@@ -8246,6 +9068,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results.print",
@@ -8290,6 +9115,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Select all / Select none in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results.print",
@@ -8395,6 +9223,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -8415,6 +9246,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -8434,6 +9268,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Drive image (icon) in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -8453,6 +9290,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "From this quiz picker toggle in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -8491,6 +9331,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Template picker toggle in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -8529,6 +9372,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Section disclosure in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -8548,6 +9394,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Upload image (icon) in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -8662,6 +9511,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Quadrants select in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -8701,6 +9553,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Template field checkbox-or-number input in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -8720,6 +9575,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Printed batch Done in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -8739,6 +9597,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Spare sheets count input in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -8758,6 +9619,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Stub Choices per question select in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -8777,6 +9641,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Stub Questions count input in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -8796,6 +9663,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Stub paper Title input in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -8834,6 +9704,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Written answers Add in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -8872,6 +9745,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Written answers question-number input in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -8930,6 +9806,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Add a passage in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -8939,6 +9818,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.tab-stimuli:quiz"
         ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -8959,6 +9839,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.tab-stimuli:quiz"
         ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -8979,6 +9860,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.tab-stimuli:quiz"
         ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -8999,6 +9881,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.tab-stimuli:quiz"
         ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -9019,6 +9902,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-stimuli.attach-toggle:quiz"
         ],
+        "reveal": "quiz-stimuli.attach-toggle:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -9030,6 +9914,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Attach section Stimuli disclosure in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -9059,6 +9946,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.tab-stimuli:quiz"
         ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -9079,6 +9967,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.tab-stimuli:quiz"
         ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -9099,6 +9988,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.tab-stimuli:quiz"
         ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -9110,6 +10000,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Choose from Drive in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -9129,6 +10022,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Choose file in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -9157,6 +10053,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.tab-stimuli:quiz"
         ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -9177,6 +10074,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.tab-stimuli:quiz"
         ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -9189,6 +10087,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "destructive": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -9198,6 +10099,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.tab-stimuli:quiz"
         ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -9209,6 +10111,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Extract text in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -9218,6 +10123,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.tab-stimuli:quiz"
         ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -9229,6 +10135,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Read-aloud text textarea in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -9238,6 +10147,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.tab-stimuli:quiz"
         ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -9249,6 +10159,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Read-aloud text disclosure in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -9258,6 +10171,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.tab-stimuli:quiz"
         ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -9269,6 +10183,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "URL Add in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -9278,6 +10195,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.tab-stimuli:quiz"
         ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -9289,6 +10207,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Paste a link input in the Quiz widget",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -9298,6 +10219,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.tab-stimuli:quiz"
         ],
+        "reveal": "quiz-editor.tab-stimuli:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -9308,6 +10230,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.back",
     "label": "Back button in Quiz results",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -9328,6 +10253,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.print",
     "label": "Print results button in Quiz results",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -9348,6 +10276,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.hide-names",
     "label": "Hide student names toggle in Quiz results",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -9369,6 +10300,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Export to my own sheet button in Quiz results",
     "scope": "widget type",
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -9409,6 +10343,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.drill-questions",
     "label": "Questions drill row in Quiz results",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -9429,6 +10366,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.drill-targets",
     "label": "Targets drill row in Quiz results",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -9449,6 +10389,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.drill-students",
     "label": "Students drill row in Quiz results",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -9469,6 +10412,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-grading.open",
     "label": "Grade button in Quiz results",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -9490,6 +10436,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Push Grades in Quiz results",
     "scope": "widget type",
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -9511,6 +10460,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Push to Schoology in Quiz results",
     "scope": "widget type",
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -9531,6 +10483,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.scoreboard",
     "label": "Send to Scoreboard in Quiz results",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -9552,6 +10507,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Refresh linked sheet in Quiz results",
     "scope": "widget type",
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -9573,6 +10531,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Export to Sheets in Quiz results",
     "scope": "widget type",
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -9595,6 +10556,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -9604,6 +10568,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.scoreboard:quiz"
         ],
+        "reveal": "quiz-results.scoreboard:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -9618,6 +10583,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -9627,6 +10595,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.scoreboard:quiz"
         ],
+        "reveal": "quiz-results.scoreboard:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -9639,6 +10608,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.select-students",
     "label": "Select these students button in Quiz results",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -9648,6 +10620,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-questions:quiz"
         ],
+        "reveal": "quiz-results.drill-questions:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -9669,6 +10642,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-questions:quiz"
         ],
+        "reveal": "quiz-results.drill-questions:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -9690,6 +10664,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-questions:quiz"
         ],
+        "reveal": "quiz-results.drill-questions:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -9711,6 +10686,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-questions:quiz"
         ],
+        "reveal": "quiz-results.drill-questions:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -9724,6 +10700,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Include correct answers checkbox in a student report in Quiz results",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -9733,6 +10712,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-students:quiz"
         ],
+        "reveal": "quiz-results.drill-students:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -9746,6 +10726,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Print report button in a student report in Quiz results",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -9755,6 +10738,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-students:quiz"
         ],
+        "reveal": "quiz-results.drill-students:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -9767,6 +10751,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.students-select-all",
     "label": "Select all students checkbox in Quiz results",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -9776,6 +10763,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-students:quiz"
         ],
+        "reveal": "quiz-results.drill-students:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -9797,6 +10785,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-students:quiz"
         ],
+        "reveal": "quiz-results.drill-students:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -9818,6 +10807,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-students:quiz"
         ],
+        "reveal": "quiz-results.drill-students:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -9832,6 +10822,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "destructive": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -9841,6 +10834,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-students:quiz"
         ],
+        "reveal": "quiz-results.drill-students:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -9854,6 +10848,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel button in the delete submission confirm in Quiz results",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -9863,6 +10860,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-students:quiz"
         ],
+        "reveal": "quiz-results.drill-students:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -9884,6 +10882,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-students:quiz"
         ],
+        "reveal": "quiz-results.drill-students:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -9905,6 +10904,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-students:quiz"
         ],
+        "reveal": "quiz-results.drill-students:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -9927,6 +10927,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-students:quiz"
         ],
+        "reveal": "quiz-results.drill-students:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -9949,6 +10950,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-students:quiz"
         ],
+        "reveal": "quiz-results.drill-students:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -9982,7 +10984,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "quiz-results.student-results-menu:quiz"
-        ]
+        ],
+        "reveal": "quiz-results.student-results-menu:quiz"
       }
     ]
   },
@@ -9998,7 +11001,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "quiz-results.student-results-menu:quiz"
-        ]
+        ],
+        "reveal": "quiz-results.student-results-menu:quiz"
       }
     ]
   },
@@ -10014,7 +11018,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "quiz-results.student-results-menu:quiz"
-        ]
+        ],
+        "reveal": "quiz-results.student-results-menu:quiz"
       }
     ]
   },
@@ -10024,6 +11029,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -10033,6 +11041,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-students:quiz"
         ],
+        "reveal": "quiz-results.drill-students:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -10047,6 +11056,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -10056,6 +11068,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-students:quiz"
         ],
+        "reveal": "quiz-results.drill-students:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -10070,6 +11083,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -10079,6 +11095,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-students:quiz"
         ],
+        "reveal": "quiz-results.drill-students:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -10092,6 +11109,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Copy names in Quiz results",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -10101,6 +11121,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-students:quiz"
         ],
+        "reveal": "quiz-results.drill-students:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -10114,6 +11135,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Print selected in Quiz results",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -10123,6 +11147,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-students:quiz"
         ],
+        "reveal": "quiz-results.drill-students:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -10137,6 +11162,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -10146,6 +11174,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-students:quiz"
         ],
+        "reveal": "quiz-results.drill-students:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -10159,6 +11188,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Clear selection in Quiz results",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -10168,6 +11200,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-students:quiz"
         ],
+        "reveal": "quiz-results.drill-students:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -10207,6 +11240,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel button in the Show results dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.student-results-control",
@@ -10221,6 +11257,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.student-results-control",
@@ -10254,6 +11293,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-questions:quiz"
         ],
+        "reveal": "quiz-results.drill-questions:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -10275,6 +11315,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-targets:quiz"
         ],
+        "reveal": "quiz-results.drill-targets:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -10287,6 +11328,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.targets-export-csv",
     "label": "Export CSV in Quiz results",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -10296,6 +11340,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-targets:quiz"
         ],
+        "reveal": "quiz-results.drill-targets:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -10308,6 +11353,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.targets-sort-student",
     "label": "Sort by Student in Quiz results",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.results",
@@ -10317,6 +11365,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-targets:quiz"
         ],
+        "reveal": "quiz-results.drill-targets:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -10338,6 +11387,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-targets:quiz"
         ],
+        "reveal": "quiz-results.drill-targets:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -10351,6 +11401,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Annotatable response text in the Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -10396,6 +11449,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "destructive": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -10418,6 +11474,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close annotation editor in the Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -10440,6 +11499,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Margin comment textarea in the Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -10462,6 +11524,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Retry load in the Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -10484,6 +11549,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Play / pause in the Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -10506,6 +11574,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Skip to speech in the Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -10528,6 +11599,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Recording scrubber in the Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -10550,6 +11624,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Add comment at playhead in the Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -10639,6 +11716,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button in the empty Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -10662,6 +11742,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -10706,6 +11789,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Auto-advance switch in the Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -10728,6 +11814,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Previous response in the Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -10750,6 +11839,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Next response in the Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -10772,6 +11864,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Expand student list in the Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -10794,6 +11889,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Collapse student list in the Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -10816,6 +11914,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Previous student in the Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -10838,6 +11939,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Next student in the Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -10882,6 +11986,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Previous question in the Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -10904,6 +12011,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Next question in the Quiz grader",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -10971,6 +12081,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -10994,6 +12107,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -11039,6 +12155,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "destructive": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.grader",
@@ -11179,6 +12298,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Resize handle on the Quiz rubric builder",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -11192,6 +12314,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button on the Quiz rubric builder",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -11205,6 +12330,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Library select on the Quiz rubric builder",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -11218,6 +12346,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Share code or link input on the Quiz rubric builder",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -11231,6 +12362,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Import shared rubric on the Quiz rubric builder",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -11244,6 +12378,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Rubric title input on the Quiz rubric builder",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -11376,6 +12513,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Add criterion on the Quiz rubric builder",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -11389,6 +12529,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Levels or Scoring guide switch on the Quiz rubric builder",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -11467,6 +12610,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Import CSV on the Quiz rubric builder",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -11480,6 +12626,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Export CSV on the Quiz rubric builder",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -11494,6 +12643,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -11507,6 +12659,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Rubric share link field on the Quiz rubric builder",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -11520,6 +12675,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Copy rubric share link on the Quiz rubric builder",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -11534,6 +12692,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -11548,6 +12709,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -11562,6 +12726,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "destructive": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -11575,6 +12742,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button on the CSV import help in the Quiz rubric builder",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -11588,6 +12758,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Download template CSV on the Quiz rubric builder",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -11601,6 +12774,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "CSV drop zone on the Quiz rubric builder",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -11639,7 +12815,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "reveal": "quiz.more-actions"
       }
     ]
   },
@@ -11651,7 +12828,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "reveal": "quiz.more-actions"
       }
     ]
   },
@@ -11705,10 +12883,14 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "reveal": "quiz-monitor.roster-row-actions:quiz"
       }
     ]
   },
@@ -11718,10 +12900,14 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "reveal": "quiz-monitor.roster-row-actions:quiz"
       }
     ]
   },
@@ -11731,10 +12917,14 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "reveal": "quiz-monitor.roster-row-actions:quiz"
       }
     ]
   },
@@ -11744,10 +12934,14 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "destructive": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "reveal": "quiz-monitor.roster-row-actions:quiz"
       }
     ]
   },
@@ -11755,6 +12949,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-monitor.roster-sort",
     "label": "Sort students select in the Quiz monitor roster",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor",
@@ -11766,6 +12963,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-monitor.roster-filter",
     "label": "Filter students select in the Quiz monitor roster",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor",
@@ -11788,6 +12988,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-monitor.period-class-picker",
     "label": "Class picker select in the Quiz monitor",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor",
@@ -11799,6 +13002,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-monitor.period-more-time",
     "label": "More time button in the Quiz monitor",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor",
@@ -11849,6 +13055,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-monitor.settings-scoreboard-display",
     "label": "Scoreboard display select in the Quiz monitor settings",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor.settings",
@@ -11860,6 +13069,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-monitor.settings-scoreboard-scoring",
     "label": "Scoreboard scoring select in the Quiz monitor settings",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor.settings",
@@ -11885,7 +13097,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "reveal": "quiz-monitor.menu-question-results"
       }
     ]
   },
@@ -11893,10 +13106,14 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-monitor.copy-join-link",
     "label": "Copy join link button in the Quiz monitor",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "reveal": "quiz-monitor.menu-show-join-code"
       }
     ]
   },
@@ -11904,10 +13121,14 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-monitor.open-join-link",
     "label": "Preview join link in the Quiz monitor",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor",
-        "kind": "panel"
+        "kind": "panel",
+        "reveal": "quiz-monitor.menu-show-join-code"
       }
     ]
   },
@@ -11915,6 +13136,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-present.names",
     "label": "Names toggle in the Quiz presentation controls",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.present",
@@ -11926,6 +13150,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-present.play-media",
     "label": "Play media button in the Quiz presentation controls",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.present",
@@ -11937,6 +13164,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-present.pause-media",
     "label": "Pause media button in the Quiz presentation controls",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.present",
@@ -11948,6 +13178,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-present.close",
     "label": "Close presentation button in the Quiz presentation controls",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.present",
@@ -11959,6 +13192,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-present.pause-message",
     "label": "Pause message input in the Quiz presentation controls",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.present",
@@ -11970,6 +13206,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-monitor.roster-scores",
     "label": "Scores toggle chip in the Quiz monitor roster",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor",
@@ -11981,6 +13220,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-monitor.roster-tab-warnings",
     "label": "Tab warnings toggle chip in the Quiz monitor roster",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor",
@@ -11992,6 +13234,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-monitor.roster-proficiency",
     "label": "Proficiency colors toggle chip in the Quiz monitor roster",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor",
@@ -12003,6 +13248,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-monitor.settings-board-view",
     "label": "Board view switch in the Quiz monitor settings",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor.settings",
@@ -12014,6 +13262,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-monitor.settings-tab-warnings",
     "label": "Tab warnings switch in the Quiz monitor settings",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor.settings",
@@ -12025,6 +13276,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-monitor.settings-podium",
     "label": "Podium between questions switch in the Quiz monitor settings",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor.settings",
@@ -12036,6 +13290,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-monitor.settings-answer-reveal",
     "label": "Answer reveal on board switch in the Quiz monitor settings",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor.settings",
@@ -12047,6 +13304,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-monitor.settings-scoreboard-sync",
     "label": "Sync to scoreboard widget switch in the Quiz monitor settings",
     "scope": "widget type",
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor.settings",
@@ -12059,6 +13319,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Start button for the picked class in the Quiz monitor",
     "scope": "widget type",
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor",
@@ -12071,6 +13334,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Pause button for the picked class in the Quiz monitor",
     "scope": "widget type",
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor",
@@ -12084,6 +13350,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.monitor",
@@ -12115,6 +13384,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Merge button in the Quiz library bulk action bar",
     "scope": "widget type",
     "persists": true,
+    "sandboxed": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.face",
@@ -12123,6 +13396,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "quiz.select-mode"
         ],
+        "reveal": "quiz.select-mode",
         "needs": [
           "widget-on-stage"
         ]
@@ -12134,6 +13408,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Share with PLC button in the Quiz library bulk action bar",
     "scope": "widget type",
     "persists": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.face",
@@ -12142,6 +13419,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "quiz.select-mode"
         ],
+        "reveal": "quiz.select-mode",
         "needs": [
           "widget-on-stage"
         ]
@@ -12153,6 +13431,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "AI reader toggle in the Quiz print import dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -12172,6 +13453,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "AI reader toggle in the Quiz paper question text dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-question-text",
@@ -12192,6 +13476,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.archive-primary-action:quiz#row-1",
           "quiz-results.drill-students:quiz"
         ],
+        "reveal": "quiz-results.drill-students:quiz",
         "needs": [
           "library-item",
           "student-data",
@@ -12205,6 +13490,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Open editor button in the Quiz library preview pane",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.face",
@@ -12213,6 +13501,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:quiz#row-1"
         ],
+        "reveal": "library-shell.card-open:quiz#row-1",
         "needs": [
           "widget-on-stage"
         ]
@@ -12224,6 +13513,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Check answers button in the Quiz library preview pane",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.face",
@@ -12232,6 +13524,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:quiz#row-1"
         ],
+        "reveal": "library-shell.card-open:quiz#row-1",
         "needs": [
           "widget-on-stage"
         ]
@@ -12243,6 +13536,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Preview voice button in the Quiz language settings",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -12262,6 +13558,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Import questions uploader in the Quiz print dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.paper-print",
@@ -12281,6 +13580,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Focus mode toggle in the Quiz assignment settings",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "library.assign-behavior",
@@ -12294,6 +13596,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Block copy and paste toggle in the Quiz assignment settings",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "library.assign-behavior",
@@ -12307,6 +13612,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Shuffle questions toggle in the Quiz assignment settings",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "library.assign-behavior",
@@ -12320,6 +13628,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Shuffle answer options toggle in the Quiz assignment settings",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "library.assign-behavior",
@@ -14284,6 +15595,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Students, Groups or Accommodations tab in the roster editor",
     "scope": "field",
     "panel": true,
+    "keys": [
+      "roster-editor#accommodations",
+      "roster-editor#groups",
+      "roster-editor#students"
+    ],
     "routes": [
       {
         "surface": "board.roster-editor",
@@ -14484,6 +15800,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.split"
         ],
+        "reveal": "roster-groups.split",
         "needs": [
           "class"
         ]
@@ -14506,6 +15823,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.split"
         ],
+        "reveal": "roster-groups.split",
         "needs": [
           "class"
         ]
@@ -14528,6 +15846,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.split"
         ],
+        "reveal": "roster-groups.split",
         "needs": [
           "class"
         ]
@@ -14550,6 +15869,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.split"
         ],
+        "reveal": "roster-groups.split",
         "needs": [
           "class"
         ]
@@ -14572,6 +15892,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -14594,6 +15915,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -14616,6 +15938,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -14638,6 +15961,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -14660,6 +15984,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -14682,6 +16007,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -14704,6 +16030,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -14726,6 +16053,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -14748,6 +16076,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -14770,6 +16099,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -14792,6 +16122,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -14814,6 +16145,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -14836,6 +16168,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -14858,6 +16191,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -14880,6 +16214,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -14902,6 +16237,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -14924,6 +16260,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -14946,6 +16283,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -14968,6 +16306,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -14990,6 +16329,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -15012,6 +16352,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -15034,6 +16375,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -15056,6 +16398,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -15078,6 +16421,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -15100,6 +16444,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -15122,6 +16467,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -15144,6 +16490,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -15166,6 +16513,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -15188,6 +16536,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -15210,6 +16559,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -15232,6 +16582,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -15254,6 +16605,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "roster-editor.tab:roster-editor#groups",
           "roster-groups.new"
         ],
+        "reveal": "roster-groups.new",
         "needs": [
           "class"
         ]
@@ -15785,6 +17137,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:activity-wall",
           "activity-wall-editor.section:activity-wall#appearance"
         ],
+        "reveal": "activity-wall-editor.section:activity-wall#appearance",
         "needs": [
           "widget-on-stage"
         ]
@@ -15805,6 +17158,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:activity-wall",
           "activity-wall-editor.section:activity-wall#moderation"
         ],
+        "reveal": "activity-wall-editor.section:activity-wall#moderation",
         "needs": [
           "widget-on-stage"
         ]
@@ -15825,6 +17179,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:activity-wall",
           "activity-wall-editor.section:activity-wall#moderation"
         ],
+        "reveal": "activity-wall-editor.section:activity-wall#moderation",
         "needs": [
           "widget-on-stage"
         ]
@@ -15845,6 +17200,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:activity-wall",
           "activity-wall-editor.section:activity-wall#moderation"
         ],
+        "reveal": "activity-wall-editor.section:activity-wall#moderation",
         "needs": [
           "widget-on-stage"
         ]
@@ -15865,6 +17221,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:activity-wall",
           "activity-wall-editor.section:activity-wall#moderation"
         ],
+        "reveal": "activity-wall-editor.section:activity-wall#moderation",
         "needs": [
           "widget-on-stage"
         ]
@@ -15885,6 +17242,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:activity-wall",
           "activity-wall-editor.section:activity-wall#engagement"
         ],
+        "reveal": "activity-wall-editor.section:activity-wall#engagement",
         "needs": [
           "widget-on-stage"
         ]
@@ -15905,6 +17263,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:activity-wall",
           "activity-wall-editor.section:activity-wall#engagement"
         ],
+        "reveal": "activity-wall-editor.section:activity-wall#engagement",
         "needs": [
           "widget-on-stage"
         ]
@@ -15925,6 +17284,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:activity-wall",
           "activity-wall-editor.section:activity-wall#engagement"
         ],
+        "reveal": "activity-wall-editor.section:activity-wall#engagement",
         "needs": [
           "widget-on-stage"
         ]
@@ -15945,6 +17305,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:activity-wall",
           "activity-wall-editor.section:activity-wall#limits"
         ],
+        "reveal": "activity-wall-editor.section:activity-wall#limits",
         "needs": [
           "widget-on-stage"
         ]
@@ -15965,6 +17326,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:activity-wall",
           "activity-wall-editor.section:activity-wall#limits"
         ],
+        "reveal": "activity-wall-editor.section:activity-wall#limits",
         "needs": [
           "widget-on-stage"
         ]
@@ -15985,6 +17347,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:activity-wall",
           "activity-wall-editor.section:activity-wall#limits"
         ],
+        "reveal": "activity-wall-editor.section:activity-wall#limits",
         "needs": [
           "widget-on-stage"
         ]
@@ -15997,6 +17360,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget",
     "panel": true,
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.activity-wall.editor",
@@ -16165,7 +17529,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "library-shell.card-menu"
-        ]
+        ],
+        "reveal": "library-shell.card-menu"
       }
     ]
   },
@@ -16211,7 +17576,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.tab#active",
           "library-shell.archive-menu"
-        ]
+        ],
+        "reveal": "library-shell.archive-menu"
       }
     ]
   },
@@ -16618,7 +17984,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.classes",
           "classes.link-classroom"
-        ]
+        ],
+        "reveal": "classes.link-classroom"
       }
     ]
   },
@@ -16667,7 +18034,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.actions-menu"
-        ]
+        ],
+        "reveal": "plcs.actions-menu"
       }
     ]
   },
@@ -16685,7 +18053,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.actions-menu"
-        ]
+        ],
+        "reveal": "plcs.actions-menu"
       }
     ]
   },
@@ -16703,7 +18072,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.actions-menu"
-        ]
+        ],
+        "reveal": "plcs.actions-menu"
       }
     ]
   },
@@ -16797,6 +18167,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Option switch in the PLC assign dialog",
     "scope": "field",
     "panel": true,
+    "keys": [
+      "plc#copy-paste",
+      "plc#focus-mode",
+      "plc#shuffle-answers",
+      "plc#shuffle-questions"
+    ],
     "routes": [
       {
         "surface": "plc.assignment-config",
@@ -16972,6 +18348,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Group field field in the PLC admin tools",
     "scope": "field",
     "panel": true,
+    "keys": [
+      "plc#auto-roster",
+      "plc#building",
+      "plc#coleads",
+      "plc#lead",
+      "plc#name"
+    ],
     "routes": [
       {
         "surface": "admin.building-groups",
@@ -16981,6 +18364,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#building-groups",
           "admin-plc.group-new"
         ],
+        "reveal": "admin-plc.group-new",
         "needs": [
           "admin"
         ]
@@ -17002,6 +18386,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#building-groups",
           "admin-plc.group-new"
         ],
+        "reveal": "admin-plc.group-new",
         "needs": [
           "admin"
         ]
@@ -17023,6 +18408,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#building-groups",
           "admin-plc.group-new"
         ],
+        "reveal": "admin-plc.group-new",
         "needs": [
           "admin"
         ]
@@ -17329,6 +18715,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#plc-resources",
           "admin-plc.recovery-reassign"
         ],
+        "reveal": "admin-plc.recovery-reassign",
         "needs": [
           "admin"
         ]
@@ -17350,6 +18737,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#plc-resources",
           "admin-plc.recovery-reassign"
         ],
+        "reveal": "admin-plc.recovery-reassign",
         "needs": [
           "admin"
         ]
@@ -17370,6 +18758,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#plc-resources",
           "admin-plc.recovery-reassign"
         ],
+        "reveal": "admin-plc.recovery-reassign",
         "needs": [
           "admin"
         ]
@@ -17409,6 +18798,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#plc-resources",
           "admin-plc.resource-new"
         ],
+        "reveal": "admin-plc.resource-new",
         "needs": [
           "admin"
         ]
@@ -17420,6 +18810,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Resource field field in the PLC admin tools",
     "scope": "field",
     "panel": true,
+    "keys": [
+      "plc#description",
+      "plc#kind",
+      "plc#reference",
+      "plc#title"
+    ],
     "routes": [
       {
         "surface": "admin.plc-resources",
@@ -17429,6 +18825,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#plc-resources",
           "admin-plc.resource-new"
         ],
+        "reveal": "admin-plc.resource-new",
         "needs": [
           "admin"
         ]
@@ -17450,6 +18847,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#plc-resources",
           "admin-plc.resource-new"
         ],
+        "reveal": "admin-plc.resource-new",
         "needs": [
           "admin"
         ]
@@ -17470,6 +18868,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#plc-resources",
           "admin-plc.resource-new"
         ],
+        "reveal": "admin-plc.resource-new",
         "needs": [
           "admin"
         ]
@@ -17517,6 +18916,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "admin-plc.target-scope",
     "label": "Target scope field in the PLC admin tools",
     "scope": "field",
+    "keys": [
+      "plc#all",
+      "plc#selected"
+    ],
     "routes": [
       {
         "surface": "admin.plc-resources",
@@ -17526,6 +18929,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#plc-resources",
           "admin-plc.resource-new"
         ],
+        "reveal": "admin-plc.resource-new",
         "needs": [
           "admin"
         ]
@@ -17545,6 +18949,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#plc-resources",
           "admin-plc.resource-new"
         ],
+        "reveal": "admin-plc.resource-new",
         "needs": [
           "admin"
         ]
@@ -18264,6 +19669,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "plc-assessments.detail-expand",
     "label": "Detail expand button in the PLC assessments tab",
     "scope": "field",
+    "keys": [
+      "plc#section",
+      "plc#summary"
+    ],
     "routes": [
       {
         "surface": "plc.assessments.detail",
@@ -18433,6 +19842,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Menu item button in the PLC assessments tab",
     "scope": "field",
     "panel": true,
+    "keys": [
+      "plc#edit",
+      "plc#import",
+      "plc#move-to-folder",
+      "plc#no-folder",
+      "plc#print-teammate",
+      "plc#rename",
+      "plc#restore",
+      "plc#version-history"
+    ],
     "routes": [
       {
         "surface": "plc.assessments",
@@ -18444,6 +19863,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.menu"
         ],
+        "reveal": "plc-assessments.menu",
         "needs": [
           "plc"
         ]
@@ -18466,6 +19886,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.menu"
         ],
+        "reveal": "plc-assessments.menu",
         "needs": [
           "plc"
         ]
@@ -18489,6 +19910,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "plc-dashboard.section-tab:plc#assessments",
           "plc-assessments.menu"
         ],
+        "reveal": "plc-assessments.menu",
         "needs": [
           "plc"
         ]
@@ -18760,6 +20182,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "New note button in the PLC notes tab",
     "scope": "field",
     "persists": true,
+    "keys": [
+      "plc#freeform",
+      "plc#freeform-empty",
+      "plc#meeting",
+      "plc#meeting-empty"
+    ],
     "routes": [
       {
         "surface": "plc.notes",
@@ -18812,6 +20240,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "plc-dashboard.section-tab:plc#docs",
           "plc-notes.new-menu"
         ],
+        "reveal": "plc-notes.new-menu",
         "needs": [
           "plc"
         ]
@@ -20279,6 +21708,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "plc-dashboard.section-tab:plc#home",
           "plc-home.customize-open"
         ],
+        "reveal": "plc-home.customize-open",
         "needs": [
           "plc"
         ]
@@ -20330,6 +21760,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "plc-home.card-link",
     "label": "Card link button in the PLC home",
     "scope": "field",
+    "keys": [
+      "plc#actions-all",
+      "plc#attention-assessments",
+      "plc#attention-footer",
+      "plc#attention-sheet",
+      "plc#banner-assessments",
+      "plc#banner-meeting",
+      "plc#recent-doc-open",
+      "plc#recent-docs-all",
+      "plc#results-sheet"
+    ],
     "routes": [
       {
         "surface": "plc.home",
@@ -20526,6 +21967,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "plc-dashboard.section-tab:plc#home",
           "plc-home.meeting-move"
         ],
+        "reveal": "plc-home.meeting-move",
         "needs": [
           "plc"
         ]
@@ -20549,6 +21991,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "plc-dashboard.section-tab:plc#home",
           "plc-home.meeting-move"
         ],
+        "reveal": "plc-home.meeting-move",
         "needs": [
           "plc"
         ]
@@ -20571,6 +22014,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "plc-dashboard.section-tab:plc#home",
           "plc-home.meeting-move"
         ],
+        "reveal": "plc-home.meeting-move",
         "needs": [
           "plc"
         ]
@@ -20824,6 +22268,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Export button in the PLC meeting mode",
     "scope": "field",
     "persists": true,
+    "keys": [
+      "plc#pdf",
+      "plc#sheet"
+    ],
     "routes": [
       {
         "surface": "plc.meeting",
@@ -21433,6 +22881,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "plc-notes.toolbar-select",
     "label": "Toolbar select select in the PLC notes tab",
     "scope": "field",
+    "keys": [
+      "plc#assignee",
+      "plc#due",
+      "plc#sort",
+      "plc#status"
+    ],
     "routes": [
       {
         "surface": "plc.notes",
@@ -21916,6 +23370,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Link field field in the PLC resources tab",
     "scope": "field",
     "panel": true,
+    "keys": [
+      "plc#note",
+      "plc#title",
+      "plc#url"
+    ],
     "routes": [
       {
         "surface": "plc.resources",
@@ -21927,6 +23386,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "plc-dashboard.section-tab:plc#resources",
           "plc-resources.add-link"
         ],
+        "reveal": "plc-resources.add-link",
         "needs": [
           "plc"
         ]
@@ -21949,6 +23409,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "plc-dashboard.section-tab:plc#resources",
           "plc-resources.add-link"
         ],
+        "reveal": "plc-resources.add-link",
         "needs": [
           "plc"
         ]
@@ -21972,6 +23433,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "plc-dashboard.section-tab:plc#resources",
           "plc-resources.add-link"
         ],
+        "reveal": "plc-resources.add-link",
         "needs": [
           "plc"
         ]
@@ -22482,6 +23944,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cutoff input field in the PLC settings tab",
     "scope": "field",
     "panel": true,
+    "keys": [
+      "plc#approaching",
+      "plc#proficient"
+    ],
     "routes": [
       {
         "surface": "plc.targets",
@@ -22781,6 +24247,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "plc-dashboard.section-tab:plc#settings",
           "plc-settings.trash-toggle"
         ],
+        "reveal": "plc-settings.trash-toggle",
         "needs": [
           "plc"
         ]
@@ -23057,6 +24524,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "teams.tracker.open-workspace",
           "teams.workspace.add-doc"
         ],
+        "reveal": "teams.workspace.add-doc",
         "needs": [
           "plc"
         ]
@@ -23152,6 +24620,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "teams.tracker.open-workspace",
           "teams.workspace.new-check-in"
         ],
+        "reveal": "teams.workspace.new-check-in",
         "needs": [
           "plc"
         ]
@@ -23182,6 +24651,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "teams.data.table-toggle",
     "label": "Table or Chart button beside a data chart",
     "scope": "field",
+    "keys": [
+      "teams-data#distribution",
+      "teams-data#items",
+      "teams-data#mastery",
+      "teams-data#participation",
+      "teams-data#trend"
+    ],
     "routes": [
       {
         "surface": "plc.teams.data",
@@ -23203,6 +24679,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Tab button in the team What's new and My items drawer",
     "scope": "field",
     "panel": true,
+    "keys": [
+      "teams-shell#myitems",
+      "teams-shell#whatsnew"
+    ],
     "routes": [
       {
         "surface": "plc.teams.header-panels",
@@ -23214,6 +24694,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "teams.shell.team-menu",
           "teams.shell.whats-new"
         ],
+        "reveal": "teams.shell.whats-new",
         "needs": [
           "plc"
         ]
@@ -23563,6 +25044,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "teams.tracker.open-workspace",
           "teams.workspace.add-doc"
         ],
+        "reveal": "teams.workspace.add-doc",
         "needs": [
           "plc"
         ]
@@ -23586,6 +25068,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "teams.tracker.open-workspace",
           "teams.workspace.add-doc"
         ],
+        "reveal": "teams.workspace.add-doc",
         "needs": [
           "plc"
         ]
@@ -23610,6 +25093,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "teams.tracker.open-workspace",
           "teams.workspace.add-doc"
         ],
+        "reveal": "teams.workspace.add-doc",
         "needs": [
           "plc"
         ]
@@ -23633,6 +25117,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "teams.tracker.open-workspace",
           "teams.workspace.add-doc"
         ],
+        "reveal": "teams.workspace.add-doc",
         "needs": [
           "plc"
         ]
@@ -24076,6 +25561,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "teams.tracker.open-workspace",
           "teams.workspace.new-check-in"
         ],
+        "reveal": "teams.workspace.new-check-in",
         "needs": [
           "plc"
         ]
@@ -24099,6 +25585,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "teams.tracker.open-workspace",
           "teams.workspace.new-check-in"
         ],
+        "reveal": "teams.workspace.new-check-in",
         "needs": [
           "plc"
         ]
@@ -24123,6 +25610,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "teams.tracker.open-workspace",
           "teams.workspace.new-check-in"
         ],
+        "reveal": "teams.workspace.new-check-in",
         "needs": [
           "plc"
         ]
@@ -24146,6 +25634,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "teams.tracker.open-workspace",
           "teams.workspace.new-check-in"
         ],
+        "reveal": "teams.workspace.new-check-in",
         "needs": [
           "plc"
         ]
@@ -24635,6 +26124,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "teams.shell.team-menu",
           "teams.shell.whats-new"
         ],
+        "reveal": "teams.shell.whats-new",
         "needs": [
           "plc"
         ]
@@ -24658,6 +26148,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "teams.shell.team-menu",
           "teams.shell.whats-new"
         ],
+        "reveal": "teams.shell.whats-new",
         "needs": [
           "plc"
         ]
@@ -24966,6 +26457,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "teams.menu.edit-layout",
           "teams.layout.reset-to-default"
         ],
+        "reveal": "teams.layout.reset-to-default",
         "needs": [
           "plc"
         ]
@@ -24990,6 +26482,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "teams.menu.edit-layout",
           "teams.layout.reset-to-default"
         ],
+        "reveal": "teams.layout.reset-to-default",
         "needs": [
           "plc"
         ]
@@ -25077,6 +26570,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "teams.shell.team-menu",
           "plc-home.members-avatars"
         ],
+        "reveal": "plc-home.members-avatars",
         "needs": [
           "plc"
         ]
@@ -25236,6 +26730,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "teams.shell.team-menu",
           "teams.shell.my-items"
         ],
+        "reveal": "teams.shell.my-items",
         "needs": [
           "plc"
         ]
@@ -26809,6 +28304,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "teams.tracker.open-workspace",
           "teams.workspace.add-action-item"
         ],
+        "reveal": "teams.workspace.add-action-item",
         "needs": [
           "plc"
         ]
@@ -26831,6 +28327,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "teams.tracker.open-workspace",
           "teams.workspace.add-action-item"
         ],
+        "reveal": "teams.workspace.add-action-item",
         "needs": [
           "plc"
         ]
@@ -26854,6 +28351,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "teams.tracker.open-workspace",
           "teams.workspace.add-action-item"
         ],
+        "reveal": "teams.workspace.add-action-item",
         "needs": [
           "plc"
         ]
@@ -26876,6 +28374,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "teams.tracker.open-workspace",
           "teams.workspace.add-action-item"
         ],
+        "reveal": "teams.workspace.add-action-item",
         "needs": [
           "plc"
         ]
@@ -27084,6 +28583,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "widget.close"
         ],
+        "reveal": "widget.close",
         "needs": [
           "widget-on-stage"
         ]
@@ -27103,6 +28603,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "widget.close"
         ],
+        "reveal": "widget.close",
         "needs": [
           "widget-on-stage"
         ]
@@ -27121,6 +28622,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "widget.annotate"
         ],
+        "reveal": "widget.annotate",
         "needs": [
           "widget-on-stage"
         ]
@@ -27139,6 +28641,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "widget.annotate"
         ],
+        "reveal": "widget.annotate",
         "needs": [
           "widget-on-stage"
         ]
@@ -27158,6 +28661,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "widget.annotate"
         ],
+        "reveal": "widget.annotate",
         "needs": [
           "widget-on-stage"
         ]
@@ -27176,6 +28680,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "widget.annotate"
         ],
+        "reveal": "widget.annotate",
         "needs": [
           "widget-on-stage"
         ]
@@ -27194,6 +28699,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "widget.more-actions"
         ],
+        "reveal": "widget.more-actions",
         "needs": [
           "widget-on-stage"
         ]
@@ -27212,6 +28718,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "widget.more-actions"
         ],
+        "reveal": "widget.more-actions",
         "needs": [
           "widget-on-stage"
         ]
@@ -27230,6 +28737,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "widget.more-actions"
         ],
+        "reveal": "widget.more-actions",
         "needs": [
           "widget-on-stage"
         ]
@@ -27247,6 +28755,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "widget.title"
         ],
+        "reveal": "widget.title",
         "needs": [
           "widget-on-stage"
         ]
@@ -27310,6 +28819,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "widget.snap-layout"
         ],
+        "reveal": "widget.snap-layout",
         "needs": [
           "widget-on-stage"
         ]
@@ -27328,6 +28838,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "widget.snap-layout"
         ],
+        "reveal": "widget.snap-layout",
         "needs": [
           "widget-on-stage"
         ]
@@ -27474,7 +28985,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "library-shell.new"
-        ]
+        ],
+        "reveal": "library-shell.new"
       }
     ]
   },
@@ -27491,6 +29003,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "widget.settings-opener",
           "settings.help"
         ],
+        "reveal": "settings.help",
         "needs": [
           "widget-on-stage"
         ]
@@ -27510,6 +29023,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "widget.settings-opener",
           "settings.help"
         ],
+        "reveal": "settings.help",
         "needs": [
           "widget-on-stage"
         ]
@@ -29524,6 +31038,23 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Add button in a widget admin configuration panel",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "checklist",
+      "embed",
+      "graphic-organizer",
+      "materials",
+      "poll",
+      "recessGear",
+      "routineGuide",
+      "schedule",
+      "scoreboard",
+      "soundboard",
+      "specialist-schedule",
+      "starter-pack",
+      "talking-tool",
+      "url",
+      "weather"
+    ],
     "routes": [
       {
         "surface": "admin.widgets.config.checklist",
@@ -29713,6 +31244,15 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "destructive": true,
+    "keys": [
+      "breathing",
+      "clock",
+      "graphic-organizer",
+      "poll",
+      "schedule",
+      "scoreboard",
+      "weather"
+    ],
     "routes": [
       {
         "surface": "admin.widgets.config.breathing",
@@ -29923,6 +31463,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -29944,6 +31485,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -29984,6 +31526,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.delete"
         ],
+        "reveal": "admin.announcements.delete",
         "needs": [
           "admin"
         ]
@@ -30006,6 +31549,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.delete"
         ],
+        "reveal": "admin.announcements.delete",
         "needs": [
           "admin"
         ]
@@ -30026,6 +31570,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30046,6 +31591,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30066,6 +31612,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30086,6 +31633,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30146,6 +31694,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30166,6 +31715,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30186,6 +31736,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30206,6 +31757,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30226,6 +31778,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30246,6 +31799,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30267,6 +31821,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30287,6 +31842,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30307,6 +31863,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30327,6 +31884,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30347,6 +31905,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30368,6 +31927,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30388,6 +31948,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30408,6 +31969,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30428,6 +31990,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30448,6 +32011,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30469,6 +32033,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30489,6 +32054,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30509,6 +32075,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30529,6 +32096,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30549,6 +32117,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30570,6 +32139,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30590,6 +32160,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30629,6 +32200,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.poll-results"
         ],
+        "reveal": "admin.announcements.poll-results",
         "needs": [
           "admin"
         ]
@@ -30668,6 +32240,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.poll-results"
         ],
+        "reveal": "admin.announcements.poll-results",
         "needs": [
           "admin"
         ]
@@ -30688,6 +32261,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30708,6 +32282,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30728,6 +32303,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30748,6 +32324,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30768,6 +32345,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30789,6 +32367,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30809,6 +32388,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30830,6 +32410,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30850,6 +32431,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30870,6 +32452,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30890,6 +32473,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30930,6 +32514,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30950,6 +32535,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30970,6 +32556,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -30990,6 +32577,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -31187,6 +32775,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#backgrounds",
           "admin.backgrounds.manage-categories"
         ],
+        "reveal": "admin.backgrounds.manage-categories",
         "needs": [
           "admin"
         ]
@@ -31208,6 +32797,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#backgrounds",
           "admin.backgrounds.manage-categories"
         ],
+        "reveal": "admin.backgrounds.manage-categories",
         "needs": [
           "admin"
         ]
@@ -31268,6 +32858,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#backgrounds",
           "admin.backgrounds.google-drive"
         ],
+        "reveal": "admin.backgrounds.google-drive",
         "needs": [
           "admin"
         ]
@@ -31289,6 +32880,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#backgrounds",
           "admin.backgrounds.google-drive"
         ],
+        "reveal": "admin.backgrounds.google-drive",
         "needs": [
           "admin"
         ]
@@ -31932,6 +33524,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#analytics",
           "admin.analytics.kpi-card:admin#Users with Dashboards"
         ],
+        "reveal": "admin.analytics.kpi-card:admin#Users with Dashboards",
         "needs": [
           "admin"
         ]
@@ -32047,6 +33640,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#analytics",
           "admin.analytics.tab:admin#users"
         ],
+        "reveal": "admin.analytics.tab:admin#users",
         "needs": [
           "admin"
         ]
@@ -32067,6 +33661,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#analytics",
           "admin.analytics.kpi-card:admin#Users with Dashboards"
         ],
+        "reveal": "admin.analytics.kpi-card:admin#Users with Dashboards",
         "needs": [
           "admin"
         ]
@@ -32078,6 +33673,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Sortable column headers in the users table",
     "scope": "field",
     "panel": true,
+    "keys": [
+      "admin#building",
+      "admin#email",
+      "admin#lastActive"
+    ],
     "routes": [
       {
         "surface": "admin.analytics",
@@ -32087,6 +33687,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#analytics",
           "admin.analytics.kpi-card:admin#Users with Dashboards"
         ],
+        "reveal": "admin.analytics.kpi-card:admin#Users with Dashboards",
         "needs": [
           "admin"
         ]
@@ -32107,6 +33708,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#analytics",
           "admin.analytics.tab:admin#widgets"
         ],
+        "reveal": "admin.analytics.tab:admin#widgets",
         "needs": [
           "admin"
         ]
@@ -32127,6 +33729,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#analytics",
           "admin.analytics.tab:admin#widgets"
         ],
+        "reveal": "admin.analytics.tab:admin#widgets",
         "needs": [
           "admin"
         ]
@@ -32147,6 +33750,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#analytics",
           "admin.analytics.tab:admin#widgets"
         ],
+        "reveal": "admin.analytics.tab:admin#widgets",
         "needs": [
           "admin"
         ]
@@ -32167,6 +33771,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#analytics",
           "admin.analytics.tab:admin#widgets"
         ],
+        "reveal": "admin.analytics.tab:admin#widgets",
         "needs": [
           "admin"
         ]
@@ -32697,6 +34302,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#links",
           "admin.links.edit"
         ],
+        "reveal": "admin.links.edit",
         "needs": [
           "admin"
         ]
@@ -32717,6 +34323,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#links",
           "admin.links.edit"
         ],
+        "reveal": "admin.links.edit",
         "needs": [
           "admin"
         ]
@@ -32737,6 +34344,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#links",
           "admin.links.edit"
         ],
+        "reveal": "admin.links.edit",
         "needs": [
           "admin"
         ]
@@ -32758,6 +34366,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#links",
           "admin.links.edit"
         ],
+        "reveal": "admin.links.edit",
         "needs": [
           "admin"
         ]
@@ -32797,6 +34406,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#links",
           "admin.links.edit"
         ],
+        "reveal": "admin.links.edit",
         "needs": [
           "admin"
         ]
@@ -32847,6 +34457,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#announcements",
           "admin.announcements.new"
         ],
+        "reveal": "admin.announcements.new",
         "needs": [
           "admin"
         ]
@@ -32887,6 +34498,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.widgets.configure:admin#miniApp",
           "admin.mini-app-library.new-app"
         ],
+        "reveal": "admin.mini-app-library.new-app",
         "needs": [
           "admin"
         ]
@@ -32908,6 +34520,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.widgets.configure:admin#miniApp",
           "admin.mini-app-library.new-app"
         ],
+        "reveal": "admin.mini-app-library.new-app",
         "needs": [
           "admin"
         ]
@@ -32970,6 +34583,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.widgets.configure:admin#miniApp",
           "admin.mini-app-library.new-app"
         ],
+        "reveal": "admin.mini-app-library.new-app",
         "needs": [
           "admin"
         ]
@@ -33052,6 +34666,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.widgets.configure:admin#miniApp",
           "admin.mini-app-library.new-app"
         ],
+        "reveal": "admin.mini-app-library.new-app",
         "needs": [
           "admin"
         ]
@@ -33073,6 +34688,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.widgets.configure:admin#miniApp",
           "admin.mini-app-library.new-app"
         ],
+        "reveal": "admin.mini-app-library.new-app",
         "needs": [
           "admin"
         ]
@@ -33114,6 +34730,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.widgets.configure:admin#music",
           "admin.music.add-station"
         ],
+        "reveal": "admin.music.add-station",
         "needs": [
           "admin"
         ]
@@ -33135,6 +34752,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.widgets.configure:admin#music",
           "admin.music.add-station"
         ],
+        "reveal": "admin.music.add-station",
         "needs": [
           "admin"
         ]
@@ -33156,6 +34774,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.widgets.configure:admin#music",
           "admin.music.add-station"
         ],
+        "reveal": "admin.music.add-station",
         "needs": [
           "admin"
         ]
@@ -33218,6 +34837,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.widgets.configure:admin#music",
           "admin.music.add-station"
         ],
+        "reveal": "admin.music.add-station",
         "needs": [
           "admin"
         ]
@@ -33280,6 +34900,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.widgets.configure:admin#music",
           "admin.music.add-station"
         ],
+        "reveal": "admin.music.add-station",
         "needs": [
           "admin"
         ]
@@ -33301,6 +34922,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.widgets.configure:admin#music",
           "admin.music.add-station"
         ],
+        "reveal": "admin.music.add-station",
         "needs": [
           "admin"
         ]
@@ -33343,6 +34965,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.widgets.configure:admin#music",
           "admin.music.add-station"
         ],
+        "reveal": "admin.music.add-station",
         "needs": [
           "admin"
         ]
@@ -33364,6 +34987,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.widgets.configure:admin#music",
           "admin.music.add-station"
         ],
+        "reveal": "admin.music.add-station",
         "needs": [
           "admin"
         ]
@@ -33385,6 +35009,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.widgets.configure:admin#music",
           "admin.music.add-station"
         ],
+        "reveal": "admin.music.add-station",
         "needs": [
           "admin"
         ]
@@ -33406,6 +35031,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.widgets.configure:admin#pdf",
           "admin.pdf-library.new-pdf"
         ],
+        "reveal": "admin.pdf-library.new-pdf",
         "needs": [
           "admin"
         ]
@@ -33427,6 +35053,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.widgets.configure:admin#pdf",
           "admin.pdf-library.new-pdf"
         ],
+        "reveal": "admin.pdf-library.new-pdf",
         "needs": [
           "admin"
         ]
@@ -33550,6 +35177,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.widgets.configure:admin#pdf",
           "admin.pdf-library.new-pdf"
         ],
+        "reveal": "admin.pdf-library.new-pdf",
         "needs": [
           "admin"
         ]
@@ -33572,6 +35200,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.widgets.configure:admin#pdf",
           "admin.pdf-library.tab-settings"
         ],
+        "reveal": "admin.pdf-library.tab-settings",
         "needs": [
           "admin"
         ]
@@ -33633,6 +35262,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.widgets.configure:admin#pdf",
           "admin.pdf-library.new-pdf"
         ],
+        "reveal": "admin.pdf-library.new-pdf",
         "needs": [
           "admin"
         ]
@@ -33655,6 +35285,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.widgets.configure:admin#pdf",
           "admin.pdf-library.new-pdf"
         ],
+        "reveal": "admin.pdf-library.new-pdf",
         "needs": [
           "admin"
         ]
@@ -34290,6 +35921,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#templates",
           "admin.templates.new-template"
         ],
+        "reveal": "admin.templates.new-template",
         "needs": [
           "admin"
         ]
@@ -34311,6 +35943,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#templates",
           "admin.templates.new-template"
         ],
+        "reveal": "admin.templates.new-template",
         "needs": [
           "admin"
         ]
@@ -34409,6 +36042,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#templates",
           "admin.templates.new-template"
         ],
+        "reveal": "admin.templates.new-template",
         "needs": [
           "admin"
         ]
@@ -34429,6 +36063,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.settings.tab:admin#templates",
           "admin.templates.new-template"
         ],
+        "reveal": "admin.templates.new-template",
         "needs": [
           "admin"
         ]
@@ -34809,6 +36444,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#domains",
           "admin.org.add-domain"
         ],
+        "reveal": "admin.org.add-domain",
         "needs": [
           "admin"
         ]
@@ -34830,6 +36466,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#domains",
           "admin.org.add-domain"
         ],
+        "reveal": "admin.org.add-domain",
         "needs": [
           "admin"
         ]
@@ -34851,6 +36488,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#domains",
           "admin.org.add-domain"
         ],
+        "reveal": "admin.org.add-domain",
         "needs": [
           "admin"
         ]
@@ -34872,6 +36510,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#domains",
           "admin.org.add-domain"
         ],
+        "reveal": "admin.org.add-domain",
         "needs": [
           "admin"
         ]
@@ -34894,6 +36533,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#domains",
           "admin.org.add-domain"
         ],
+        "reveal": "admin.org.add-domain",
         "needs": [
           "admin"
         ]
@@ -35016,6 +36656,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#buildings",
           "admin.org.add-building"
         ],
+        "reveal": "admin.org.add-building",
         "needs": [
           "admin"
         ]
@@ -35037,6 +36678,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#buildings",
           "admin.org.add-building"
         ],
+        "reveal": "admin.org.add-building",
         "needs": [
           "admin"
         ]
@@ -35058,6 +36700,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#buildings",
           "admin.org.add-building"
         ],
+        "reveal": "admin.org.add-building",
         "needs": [
           "admin"
         ]
@@ -35079,6 +36722,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#buildings",
           "admin.org.add-building"
         ],
+        "reveal": "admin.org.add-building",
         "needs": [
           "admin"
         ]
@@ -35101,6 +36745,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#buildings",
           "admin.org.add-building"
         ],
+        "reveal": "admin.org.add-building",
         "needs": [
           "admin"
         ]
@@ -35122,6 +36767,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#buildings",
           "admin.org.add-building"
         ],
+        "reveal": "admin.org.add-building",
         "needs": [
           "admin"
         ]
@@ -35143,6 +36789,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#users",
           "admin.org.bulk-move-building"
         ],
+        "reveal": "admin.org.bulk-move-building",
         "needs": [
           "admin"
         ]
@@ -35164,6 +36811,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#users",
           "admin.org.bulk-move-building"
         ],
+        "reveal": "admin.org.bulk-move-building",
         "needs": [
           "admin"
         ]
@@ -35185,6 +36833,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#users",
           "admin.org.bulk-move-building"
         ],
+        "reveal": "admin.org.bulk-move-building",
         "needs": [
           "admin"
         ]
@@ -35352,6 +37001,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#users",
           "admin.org.bulk-change-role"
         ],
+        "reveal": "admin.org.bulk-change-role",
         "needs": [
           "admin"
         ]
@@ -35373,6 +37023,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#users",
           "admin.org.bulk-change-role"
         ],
+        "reveal": "admin.org.bulk-change-role",
         "needs": [
           "admin"
         ]
@@ -35576,6 +37227,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#users",
           "admin.org.bulk-import"
         ],
+        "reveal": "admin.org.bulk-import",
         "needs": [
           "admin"
         ]
@@ -35597,6 +37249,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#users",
           "admin.org.bulk-import"
         ],
+        "reveal": "admin.org.bulk-import",
         "needs": [
           "admin"
         ]
@@ -35618,6 +37271,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#users",
           "admin.org.bulk-import"
         ],
+        "reveal": "admin.org.bulk-import",
         "needs": [
           "admin"
         ]
@@ -35639,6 +37293,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#users",
           "admin.org.bulk-import"
         ],
+        "reveal": "admin.org.bulk-import",
         "needs": [
           "admin"
         ]
@@ -35661,6 +37316,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#users",
           "admin.org.bulk-import"
         ],
+        "reveal": "admin.org.bulk-import",
         "needs": [
           "admin"
         ]
@@ -35682,6 +37338,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#users",
           "admin.org.invite-users"
         ],
+        "reveal": "admin.org.invite-users",
         "needs": [
           "admin"
         ]
@@ -35703,6 +37360,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#users",
           "admin.org.invite-users"
         ],
+        "reveal": "admin.org.invite-users",
         "needs": [
           "admin"
         ]
@@ -35724,6 +37382,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#users",
           "admin.org.invite-users"
         ],
+        "reveal": "admin.org.invite-users",
         "needs": [
           "admin"
         ]
@@ -35745,6 +37404,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#users",
           "admin.org.invite-users"
         ],
+        "reveal": "admin.org.invite-users",
         "needs": [
           "admin"
         ]
@@ -35766,6 +37426,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#users",
           "admin.org.invite-users"
         ],
+        "reveal": "admin.org.invite-users",
         "needs": [
           "admin"
         ]
@@ -35788,6 +37449,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#users",
           "admin.org.invite-users"
         ],
+        "reveal": "admin.org.invite-users",
         "needs": [
           "admin"
         ]
@@ -35889,6 +37551,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#mediaReview",
           "admin.org.media-delete-selected"
         ],
+        "reveal": "admin.org.media-delete-selected",
         "needs": [
           "admin"
         ]
@@ -35912,6 +37575,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#mediaReview",
           "admin.org.media-delete-selected"
         ],
+        "reveal": "admin.org.media-delete-selected",
         "needs": [
           "admin"
         ]
@@ -35955,6 +37619,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#mediaReview",
           "admin.org.media-delete-selected"
         ],
+        "reveal": "admin.org.media-delete-selected",
         "needs": [
           "admin"
         ]
@@ -36129,6 +37794,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#orgs",
           "admin.org.new-org"
         ],
+        "reveal": "admin.org.new-org",
         "needs": [
           "admin"
         ]
@@ -36150,6 +37816,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#orgs",
           "admin.org.new-org"
         ],
+        "reveal": "admin.org.new-org",
         "needs": [
           "admin"
         ]
@@ -36172,6 +37839,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#orgs",
           "admin.org.new-org"
         ],
+        "reveal": "admin.org.new-org",
         "needs": [
           "admin"
         ]
@@ -36193,6 +37861,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#orgs",
           "admin.org.new-org"
         ],
+        "reveal": "admin.org.new-org",
         "needs": [
           "admin"
         ]
@@ -36214,6 +37883,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#orgs",
           "admin.org.new-org"
         ],
+        "reveal": "admin.org.new-org",
         "needs": [
           "admin"
         ]
@@ -36235,6 +37905,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#orgs",
           "admin.org.new-org"
         ],
+        "reveal": "admin.org.new-org",
         "needs": [
           "admin"
         ]
@@ -36276,6 +37947,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#roles",
           "admin.org.new-role"
         ],
+        "reveal": "admin.org.new-role",
         "needs": [
           "admin"
         ]
@@ -36298,6 +37970,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#roles",
           "admin.org.new-role"
         ],
+        "reveal": "admin.org.new-role",
         "needs": [
           "admin"
         ]
@@ -36319,6 +37992,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#roles",
           "admin.org.new-role"
         ],
+        "reveal": "admin.org.new-role",
         "needs": [
           "admin"
         ]
@@ -36340,6 +38014,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#roles",
           "admin.org.new-role"
         ],
+        "reveal": "admin.org.new-role",
         "needs": [
           "admin"
         ]
@@ -36769,6 +38444,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#testClasses",
           "admin.org.new-test-class"
         ],
+        "reveal": "admin.org.new-test-class",
         "needs": [
           "admin"
         ]
@@ -36790,6 +38466,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#testClasses",
           "admin.org.new-test-class"
         ],
+        "reveal": "admin.org.new-test-class",
         "needs": [
           "admin"
         ]
@@ -36811,6 +38488,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#testClasses",
           "admin.org.new-test-class"
         ],
+        "reveal": "admin.org.new-test-class",
         "needs": [
           "admin"
         ]
@@ -36833,6 +38511,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#testClasses",
           "admin.org.new-test-class"
         ],
+        "reveal": "admin.org.new-test-class",
         "needs": [
           "admin"
         ]
@@ -36854,6 +38533,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#testClasses",
           "admin.org.new-test-class"
         ],
+        "reveal": "admin.org.new-test-class",
         "needs": [
           "admin"
         ]
@@ -36875,6 +38555,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#testClasses",
           "admin.org.new-test-class"
         ],
+        "reveal": "admin.org.new-test-class",
         "needs": [
           "admin"
         ]
@@ -36938,6 +38619,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#users",
           "admin.org.user-buildings-cell"
         ],
+        "reveal": "admin.org.user-buildings-cell",
         "needs": [
           "admin"
         ]
@@ -36959,6 +38641,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#users",
           "admin.org.user-buildings-cell"
         ],
+        "reveal": "admin.org.user-buildings-cell",
         "needs": [
           "admin"
         ]
@@ -37144,6 +38827,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#users",
           "admin.org.bulk-change-role"
         ],
+        "reveal": "admin.org.bulk-change-role",
         "needs": [
           "admin"
         ]
@@ -37166,6 +38850,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#users",
           "admin.org.user-role-cell"
         ],
+        "reveal": "admin.org.user-role-cell",
         "needs": [
           "admin"
         ]
@@ -37188,6 +38873,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "admin.org.section:admin#users",
           "admin.org.user-status-cell"
         ],
+        "reveal": "admin.org.user-status-cell",
         "needs": [
           "admin"
         ]
@@ -37351,6 +39037,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Visible/Hidden posts toggle in Activity Wall",
     "scope": "widget",
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.activity-wall",
@@ -37503,6 +39190,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Post title box in Moderate posts",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "activity-wall"
+    ],
     "routes": [
       {
         "surface": "library.activity-wall.moderation",
@@ -37511,6 +39201,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "activity-wall.moderate",
           "activity-wall-moderation.edit-start"
         ],
+        "reveal": "activity-wall-moderation.edit-start",
         "needs": [
           "library-item",
           "widget-on-stage"
@@ -37523,6 +39214,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Post text box in Moderate posts",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "activity-wall"
+    ],
     "routes": [
       {
         "surface": "library.activity-wall.moderation",
@@ -37531,6 +39225,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "activity-wall.moderate",
           "activity-wall-moderation.edit-start"
         ],
+        "reveal": "activity-wall-moderation.edit-start",
         "needs": [
           "library-item",
           "widget-on-stage"
@@ -37544,6 +39239,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "activity-wall"
+    ],
     "routes": [
       {
         "surface": "library.activity-wall.moderation",
@@ -37552,6 +39250,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "activity-wall.moderate",
           "activity-wall-moderation.edit-start"
         ],
+        "reveal": "activity-wall-moderation.edit-start",
         "needs": [
           "library-item",
           "widget-on-stage"
@@ -37564,6 +39263,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Edit post button in Moderate posts",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "activity-wall"
+    ],
     "routes": [
       {
         "surface": "library.activity-wall.moderation",
@@ -37584,6 +39286,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "activity-wall"
+    ],
     "routes": [
       {
         "surface": "library.activity-wall.moderation",
@@ -37604,6 +39309,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "activity-wall"
+    ],
     "routes": [
       {
         "surface": "library.activity-wall.moderation",
@@ -37624,6 +39332,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "activity-wall"
+    ],
     "routes": [
       {
         "surface": "library.activity-wall.moderation",
@@ -37645,6 +39356,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "destructive": true,
     "persists": true,
+    "keys": [
+      "activity-wall"
+    ],
     "routes": [
       {
         "surface": "library.activity-wall.moderation",
@@ -37664,6 +39378,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Link box in the Activity Wall share dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "activity-wall"
+    ],
     "routes": [
       {
         "surface": "library.activity-wall.share",
@@ -37683,6 +39400,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Copy link button in the Activity Wall share dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "activity-wall"
+    ],
     "routes": [
       {
         "surface": "library.activity-wall.share",
@@ -37703,6 +39423,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "activity-wall"
+    ],
     "routes": [
       {
         "surface": "library.activity-wall.share",
@@ -37722,6 +39445,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button in the Activity Wall share dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "activity-wall"
+    ],
     "routes": [
       {
         "surface": "library.activity-wall.share",
@@ -37741,6 +39467,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Set link expiration checkbox in the Activity Wall share dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "activity-wall"
+    ],
     "routes": [
       {
         "surface": "library.activity-wall.share",
@@ -37749,6 +39478,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "activity-wall.share",
           "activity-wall-link.tab:activity-wall#gallery"
         ],
+        "reveal": "activity-wall-link.tab:activity-wall#gallery",
         "needs": [
           "library-item",
           "widget-on-stage"
@@ -37761,6 +39491,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Expiration date box in the Activity Wall share dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "activity-wall"
+    ],
     "routes": [
       {
         "surface": "library.activity-wall.share",
@@ -37769,6 +39502,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "activity-wall.share",
           "activity-wall-link.tab:activity-wall#gallery"
         ],
+        "reveal": "activity-wall-link.tab:activity-wall#gallery",
         "needs": [
           "library-item",
           "widget-on-stage"
@@ -37782,6 +39516,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "sandboxed": true,
+    "keys": [
+      "activity-wall"
+    ],
     "routes": [
       {
         "surface": "library.activity-wall.share",
@@ -37790,6 +39528,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "activity-wall.share",
           "activity-wall-link.tab:activity-wall#gallery"
         ],
+        "reveal": "activity-wall-link.tab:activity-wall#gallery",
         "needs": [
           "library-item",
           "widget-on-stage"
@@ -37802,6 +39541,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Done button in the Activity Wall share dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "activity-wall"
+    ],
     "routes": [
       {
         "surface": "library.activity-wall.share",
@@ -37840,6 +39582,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "New wall button in the empty wall library",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "activity-wall"
+    ],
     "routes": [
       {
         "surface": "library.activity-wall.library",
@@ -37924,6 +39669,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:activity-wall",
           "activity-wall-editor.section:activity-wall#limits"
         ],
+        "reveal": "activity-wall-editor.section:activity-wall#limits",
         "needs": [
           "widget-on-stage"
         ]
@@ -37944,6 +39690,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:activity-wall",
           "activity-wall-editor.section:activity-wall#limits"
         ],
+        "reveal": "activity-wall-editor.section:activity-wall#limits",
         "needs": [
           "widget-on-stage"
         ]
@@ -37964,6 +39711,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:activity-wall",
           "activity-wall-editor.section:activity-wall#moderation"
         ],
+        "reveal": "activity-wall-editor.section:activity-wall#moderation",
         "needs": [
           "widget-on-stage"
         ]
@@ -38244,6 +39992,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-primary-action:projects#row-1",
           "projects.actions-menu"
         ],
+        "reveal": "projects.actions-menu",
         "needs": [
           "library-item",
           "class",
@@ -38315,6 +40064,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Group student view button on the Projects board",
     "scope": "widget type",
     "requires": "widget-restored",
+    "keys": [
+      "projects"
+    ],
     "routes": [
       {
         "surface": "widgets.projects.board",
@@ -38336,6 +40088,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Expand group button on the Projects board",
     "scope": "widget type",
     "requires": "widget-restored",
+    "keys": [
+      "projects"
+    ],
     "routes": [
       {
         "surface": "widgets.projects.board",
@@ -38357,6 +40112,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Step status cell on the Projects board",
     "scope": "widget type",
     "requires": "widget-restored",
+    "keys": [
+      "projects"
+    ],
     "routes": [
       {
         "surface": "widgets.projects.board",
@@ -38507,6 +40265,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-open:projects#row-1",
           "projects-editor.paste-steps"
         ],
+        "reveal": "projects-editor.paste-steps",
         "needs": [
           "library-item",
           "widget-on-stage"
@@ -38528,6 +40287,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-open:projects#row-1",
           "projects-editor.paste-steps"
         ],
+        "reveal": "projects-editor.paste-steps",
         "needs": [
           "library-item",
           "widget-on-stage"
@@ -38549,6 +40309,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-open:projects#row-1",
           "projects-editor.paste-steps"
         ],
+        "reveal": "projects-editor.paste-steps",
         "needs": [
           "library-item",
           "widget-on-stage"
@@ -38889,6 +40650,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "projects.manage-groups",
           "projects.group-delete"
         ],
+        "reveal": "projects.group-delete",
         "needs": [
           "class",
           "library-item",
@@ -38914,6 +40676,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "projects.manage-groups",
           "projects.group-delete"
         ],
+        "reveal": "projects.group-delete",
         "needs": [
           "class",
           "library-item",
@@ -39633,6 +41396,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Back button in the Flashcards editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.editor",
@@ -39651,6 +41417,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Paste button in the Flashcards editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.editor",
@@ -39670,6 +41439,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.editor",
@@ -39688,6 +41460,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Description box in the Flashcards editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.editor",
@@ -39706,6 +41481,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Add card button in the Flashcards editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.editor",
@@ -39760,6 +41538,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Collect a submission switch in the Flashcards assign dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.assign",
@@ -39780,6 +41561,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Mode choice in the Flashcards assign dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.assign",
@@ -39800,6 +41584,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Show first choice in the Flashcards assign dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.assign",
@@ -39820,6 +41607,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Strict mode switch in the Flashcards assign dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.assign",
@@ -39860,6 +41650,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Questions count in the Flashcards assign dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.assign",
@@ -39880,6 +41673,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Mastery threshold choice in the Flashcards assign dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.assign",
@@ -39900,6 +41696,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Score visibility picker in the Flashcards assign dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.assign",
@@ -39921,6 +41720,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.assign",
@@ -40022,6 +41824,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.results",
@@ -40043,6 +41848,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "destructive": true,
     "persists": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.results",
@@ -40063,6 +41871,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.results",
@@ -40101,6 +41912,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel button in the Flashcards publish scores dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.publish-scores",
@@ -40122,6 +41936,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.publish-scores",
@@ -40162,6 +41979,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button in the Flashcards paste drawer",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.paste",
@@ -40181,6 +42001,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Separator picker in the Flashcards paste drawer",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.paste",
@@ -40200,6 +42023,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Custom separator box in the Flashcards paste drawer",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.paste",
@@ -40219,6 +42045,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Terms and definitions box in the Flashcards paste drawer",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.paste",
@@ -40238,6 +42067,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Add cards button in the Flashcards paste drawer",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.paste",
@@ -40257,6 +42089,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button in the Mini App assign dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.running",
@@ -40266,6 +42101,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-student-link:miniApp"
         ],
+        "reveal": "mini-app.toolbar-student-link:miniApp",
         "needs": [
           "library-item"
         ]
@@ -40277,6 +42113,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Copy link button in the Mini App assign dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.running",
@@ -40286,6 +42125,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-student-link:miniApp"
         ],
+        "reveal": "mini-app.toolbar-student-link:miniApp",
         "needs": [
           "library-item"
         ]
@@ -40297,6 +42137,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Assignment name box in the Mini App assign dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.assign",
@@ -40318,6 +42161,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-student-link:miniApp"
         ],
+        "reveal": "mini-app.toolbar-student-link:miniApp",
         "needs": [
           "library-item"
         ]
@@ -40330,6 +42174,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "sandboxed": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.running",
@@ -40339,6 +42187,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-student-link:miniApp"
         ],
+        "reveal": "mini-app.toolbar-student-link:miniApp",
         "needs": [
           "library-item"
         ]
@@ -40349,6 +42198,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "mini-app.toolbar-student-link",
     "label": "Assign button in the running Mini App toolbar",
     "scope": "widget type",
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.running",
@@ -40367,6 +42219,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "mini-app.toolbar-sessions",
     "label": "Assignments button in the running Mini App toolbar",
     "scope": "widget type",
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.running",
@@ -40386,6 +42241,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Save button in the running Mini App toolbar",
     "scope": "widget type",
     "persists": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.running",
@@ -40405,6 +42263,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "QR Share button in the running Mini App toolbar",
     "scope": "widget type",
     "persists": true,
+    "sandboxed": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.running",
@@ -40424,6 +42286,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Save as Widget button in the running Mini App toolbar",
     "scope": "widget type",
     "persists": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.running",
@@ -40442,6 +42307,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "mini-app.toolbar-library",
     "label": "Library button in the running Mini App toolbar",
     "scope": "widget type",
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.running",
@@ -40461,6 +42329,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel button in the Mini App save to library form",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.running",
@@ -40470,6 +42341,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-save:miniApp"
         ],
+        "reveal": "mini-app.toolbar-save:miniApp",
         "needs": [
           "library-item"
         ]
@@ -40481,6 +42353,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "App title box in the Mini App save to library form",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.running",
@@ -40490,6 +42365,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-save:miniApp"
         ],
+        "reveal": "mini-app.toolbar-save:miniApp",
         "needs": [
           "library-item"
         ]
@@ -40502,6 +42378,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "sandboxed": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.running",
@@ -40511,6 +42391,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-menu-item:miniApp#row-1-item-1",
           "mini-app.toolbar-save:miniApp"
         ],
+        "reveal": "mini-app.toolbar-save:miniApp",
         "needs": [
           "library-item"
         ]
@@ -40521,6 +42402,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "mini-app.select-mode",
     "label": "Select button in the Mini App library toolbar",
     "scope": "widget type",
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app",
@@ -40538,6 +42422,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Draft with AI button in the Mini App editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.editor",
@@ -40556,6 +42443,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Change this app or Start over switch in the Mini App AI box",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.editor",
@@ -40564,6 +42454,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:miniApp",
           "mini-app.draft-with-ai:miniApp"
         ],
+        "reveal": "mini-app.draft-with-ai:miniApp",
         "needs": [
           "widget-on-stage"
         ]
@@ -40575,6 +42466,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Undo AI change button in the Mini App editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.editor",
@@ -40593,6 +42487,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Preview or Code switch in the Mini App editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.editor",
@@ -40611,6 +42508,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Import from Notes button in the Mini App AI drafter",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.editor",
@@ -40629,6 +42529,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Describe your mini-app box in the Mini App AI drafter",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.editor",
@@ -40637,6 +42540,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:miniApp",
           "mini-app.draft-with-ai:miniApp"
         ],
+        "reveal": "mini-app.draft-with-ai:miniApp",
         "needs": [
           "widget-on-stage"
         ]
@@ -40648,6 +42552,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "HTML Code box in the Mini App editor",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.editor",
@@ -40666,6 +42573,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button in the Mini App assignments list",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.assignments",
@@ -40696,6 +42606,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "mini-app.toolbar-sessions:miniApp",
           "mini-app.session-rename"
         ],
+        "reveal": "mini-app.session-rename",
         "needs": [
           "library-item"
         ]
@@ -40718,6 +42629,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "mini-app.toolbar-sessions:miniApp",
           "mini-app.session-rename"
         ],
+        "reveal": "mini-app.session-rename",
         "needs": [
           "library-item"
         ]
@@ -40821,6 +42733,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "mini-app.toolbar-sessions:miniApp",
           "mini-app.session-end"
         ],
+        "reveal": "mini-app.session-end",
         "needs": [
           "library-item"
         ]
@@ -40854,6 +42767,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button in the Mini App submissions list",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.submissions",
@@ -40898,6 +42814,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button in the Mini App Save as Widget dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.save-as-widget",
@@ -40918,6 +42837,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Title box in the Mini App Save as Widget dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.save-as-widget",
@@ -40978,6 +42900,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel button in the Mini App Save as Widget dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.save-as-widget",
@@ -40999,6 +42924,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.save-as-widget",
@@ -41138,6 +43066,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Create manually choice in the creator",
     "scope": "board",
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.creator",
@@ -41293,6 +43222,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "YouTube URL box in the video activity editor",
     "scope": "board",
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -41329,6 +43259,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "destructive": true,
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -41347,6 +43278,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Question prompt box in the video activity editor",
     "scope": "board",
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -41365,6 +43297,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Question type button in the video activity editor",
     "scope": "field",
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -41383,6 +43316,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Question timestamp box in the video activity editor",
     "scope": "board",
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -41401,6 +43335,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Question time limit box in the video activity editor",
     "scope": "board",
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -41419,6 +43354,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Question points box in the video activity editor",
     "scope": "board",
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -41444,6 +43380,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:video-activity",
           "video-activity.editor-draft-ai"
         ],
+        "reveal": "video-activity.editor-draft-ai",
         "needs": [
           "widget-on-stage"
         ]
@@ -41462,6 +43399,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:video-activity",
           "video-activity.editor-draft-ai"
         ],
+        "reveal": "video-activity.editor-draft-ai",
         "needs": [
           "widget-on-stage"
         ]
@@ -41473,6 +43411,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Correct answer box for a multiple choice question",
     "scope": "board",
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -41491,6 +43430,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Incorrect answer box for a multiple choice question",
     "scope": "field",
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -41509,6 +43449,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Canonical answer box for a fill in the blank question",
     "scope": "board",
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -41527,6 +43468,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Acceptable variants box for a fill in the blank question",
     "scope": "board",
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -41545,6 +43487,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Correct toggle on a multi-answer option",
     "scope": "field",
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -41563,6 +43506,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Text box on a multi-answer option",
     "scope": "field",
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -41581,6 +43525,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Allow partial credit checkbox in the video activity editor",
     "scope": "board",
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -41872,6 +43817,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Question marker on the editor video timeline",
     "scope": "field",
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -41890,6 +43836,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Add question at playhead button under the editor timeline",
     "scope": "board",
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -41949,6 +43896,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-primary-action:video-activity#row-1"
         ],
+        "reveal": "library-shell.card-primary-action:video-activity#row-1",
         "needs": [
           "widget-on-stage"
         ]
@@ -41968,6 +43916,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-primary-action:video-activity#row-1"
         ],
+        "reveal": "library-shell.card-primary-action:video-activity#row-1",
         "needs": [
           "widget-on-stage"
         ]
@@ -41979,6 +43928,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Score visibility option in video activity behavior settings",
     "scope": "field",
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -41987,6 +43937,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:video-activity",
           "video-activity.editor-tab:video-activity#settings"
         ],
+        "reveal": "video-activity.editor-tab:video-activity#settings",
         "needs": [
           "widget-on-stage"
         ]
@@ -41998,6 +43949,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "List and Settings tabs in the video activity admin modal",
     "scope": "field",
     "panel": true,
+    "keys": [
+      "video-activity#list",
+      "video-activity#settings"
+    ],
     "routes": [
       {
         "surface": "admin.widgets.config.video-activity",
@@ -42669,6 +44624,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "gl-editor.welcome"
         ],
+        "reveal": "gl-editor.welcome",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -42691,6 +44647,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "gl-editor.welcome"
         ],
+        "reveal": "gl-editor.welcome",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -42713,6 +44670,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "gl-editor.trim-toggle"
         ],
+        "reveal": "gl-editor.trim-toggle",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -42735,6 +44693,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "gl-editor.trim-toggle"
         ],
+        "reveal": "gl-editor.trim-toggle",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -43154,6 +45113,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
+        "reveal": "gl-editor.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -43177,6 +45137,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
+        "reveal": "gl-editor.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -43200,6 +45161,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
+        "reveal": "gl-editor.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -43223,6 +45185,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
+        "reveal": "gl-editor.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -43247,6 +45210,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
+        "reveal": "gl-editor.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -43270,6 +45234,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
+        "reveal": "gl-editor.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -43293,6 +45258,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
+        "reveal": "gl-editor.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -43316,6 +45282,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
+        "reveal": "gl-editor.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -43340,6 +45307,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
+        "reveal": "gl-editor.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -43363,6 +45331,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
+        "reveal": "gl-editor.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -43386,6 +45355,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
+        "reveal": "gl-editor.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -43410,6 +45380,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
+        "reveal": "gl-editor.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -43433,6 +45404,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
+        "reveal": "gl-editor.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -43452,6 +45424,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.tab:guided-learning#archive"
         ],
+        "reveal": "library-shell.tab:guided-learning#archive",
         "needs": [
           "widget-on-stage"
         ]
@@ -43486,6 +45459,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1"
         ],
+        "reveal": "library-shell.card-open:guided-learning#row-1",
         "needs": [
           "widget-on-stage"
         ]
@@ -43793,6 +45767,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-secondary-action:guided-learning#row-1",
           "gl-player.outline-open"
         ],
+        "reveal": "gl-player.outline-open",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -44317,6 +46292,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.device-size"
         ],
+        "reveal": "studio.device-size",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -44542,6 +46518,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "destructive": true,
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "guidedLearning.studio",
@@ -44594,6 +46571,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.properties"
         ],
+        "reveal": "studio.properties",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -44679,6 +46657,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.tool-blur"
         ],
+        "reveal": "studio.tool-blur",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -44702,6 +46681,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.tool-blur"
         ],
+        "reveal": "studio.tool-blur",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -44724,6 +46704,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.tool-blur"
         ],
+        "reveal": "studio.tool-blur",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -44957,6 +46938,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.narration-open-recorder"
         ],
+        "reveal": "studio.narration-open-recorder",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -44980,6 +46962,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.narration-open-recorder"
         ],
+        "reveal": "studio.narration-open-recorder",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45003,6 +46986,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.narration-open-recorder"
         ],
+        "reveal": "studio.narration-open-recorder",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45025,6 +47009,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.narration-open-recorder"
         ],
+        "reveal": "studio.narration-open-recorder",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45047,6 +47032,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.narration-open-recorder"
         ],
+        "reveal": "studio.narration-open-recorder",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45070,6 +47056,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
         ],
+        "reveal": "studio.timeline-step",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45092,6 +47079,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
         ],
+        "reveal": "studio.timeline-step",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45115,6 +47103,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
         ],
+        "reveal": "studio.timeline-step",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45204,6 +47193,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
         ],
+        "reveal": "studio.timeline-step",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45217,6 +47207,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "panel": true,
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "guidedLearning.studio",
@@ -45227,6 +47218,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
         ],
+        "reveal": "studio.timeline-step",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45312,6 +47304,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.welcome-card"
         ],
+        "reveal": "studio.welcome-card",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45335,6 +47328,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.welcome-card"
         ],
+        "reveal": "studio.welcome-card",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45357,6 +47351,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.welcome-card"
         ],
+        "reveal": "studio.welcome-card",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45443,6 +47438,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "studio.timeline-step",
           "studio.step-interaction"
         ],
+        "reveal": "studio.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45466,6 +47462,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "studio.timeline-step",
           "studio.step-interaction"
         ],
+        "reveal": "studio.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45489,6 +47486,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "studio.timeline-step",
           "studio.step-interaction"
         ],
+        "reveal": "studio.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45513,6 +47511,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "studio.timeline-step",
           "studio.step-interaction"
         ],
+        "reveal": "studio.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45536,6 +47535,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "studio.timeline-step",
           "studio.step-interaction"
         ],
+        "reveal": "studio.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45559,6 +47559,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "studio.timeline-step",
           "studio.step-interaction"
         ],
+        "reveal": "studio.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45582,6 +47583,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "studio.timeline-step",
           "studio.step-interaction"
         ],
+        "reveal": "studio.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45606,6 +47608,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "studio.timeline-step",
           "studio.step-interaction"
         ],
+        "reveal": "studio.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45629,6 +47632,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "studio.timeline-step",
           "studio.step-interaction"
         ],
+        "reveal": "studio.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45652,6 +47656,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "studio.timeline-step",
           "studio.step-interaction"
         ],
+        "reveal": "studio.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45676,6 +47681,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "studio.timeline-step",
           "studio.step-interaction"
         ],
+        "reveal": "studio.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -45699,6 +47705,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "studio.timeline-step",
           "studio.step-interaction"
         ],
+        "reveal": "studio.step-interaction",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -46147,7 +48154,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "dock.open-tools"
-        ]
+        ],
+        "reveal": "dock.open-tools"
       }
     ]
   },
@@ -46162,7 +48170,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "dock.open-tools"
-        ]
+        ],
+        "reveal": "dock.open-tools"
       }
     ]
   },
@@ -46176,7 +48185,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "dock.open-tools"
-        ]
+        ],
+        "reveal": "dock.open-tools"
       }
     ]
   },
@@ -46291,7 +48301,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "dock.open-tools",
           "dock.folder-open"
-        ]
+        ],
+        "reveal": "dock.folder-open"
       }
     ]
   },
@@ -46339,7 +48350,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "dock.open-tools",
           "dock.item"
-        ]
+        ],
+        "reveal": "dock.item"
       }
     ]
   },
@@ -46356,7 +48368,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "dock.open-tools",
           "dock.item"
-        ]
+        ],
+        "reveal": "dock.item"
       }
     ]
   },
@@ -46372,7 +48385,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "dock.open-tools",
           "dock.item"
-        ]
+        ],
+        "reveal": "dock.item"
       }
     ]
   },
@@ -46389,7 +48403,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "dock.open-tools",
           "dock.item"
-        ]
+        ],
+        "reveal": "dock.item"
       }
     ]
   },
@@ -46700,7 +48715,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "dock.open-tools",
           "dock.more-widgets",
           "library.edit"
-        ]
+        ],
+        "reveal": "library.edit"
       }
     ]
   },
@@ -46717,7 +48733,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "dock.open-tools",
           "dock.more-widgets",
           "library.edit"
-        ]
+        ],
+        "reveal": "library.edit"
       }
     ]
   },
@@ -46782,7 +48799,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "dock.open-tools",
           "dock.more-widgets",
           "library.edit"
-        ]
+        ],
+        "reveal": "library.edit"
       }
     ]
   },
@@ -46925,7 +48943,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "sidebar.open-menu"
-        ]
+        ],
+        "reveal": "sidebar.open-menu"
       }
     ]
   },
@@ -46940,7 +48959,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "sidebar.open-menu"
-        ]
+        ],
+        "reveal": "sidebar.open-menu"
       }
     ]
   },
@@ -46955,7 +48975,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "sidebar.open-menu"
-        ]
+        ],
+        "reveal": "sidebar.open-menu"
       }
     ]
   },
@@ -46971,7 +48992,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "sidebar.open-menu"
-        ]
+        ],
+        "reveal": "sidebar.open-menu"
       }
     ]
   },
@@ -47126,7 +49148,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "board-nav.select-board"
-        ]
+        ],
+        "reveal": "board-nav.select-board"
       }
     ]
   },
@@ -47141,7 +49164,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "board-nav.select-board"
-        ]
+        ],
+        "reveal": "board-nav.select-board"
       }
     ]
   },
@@ -47156,7 +49180,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "board-nav.select-board"
-        ]
+        ],
+        "reveal": "board-nav.select-board"
       }
     ]
   },
@@ -47171,7 +49196,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "board-nav.select-board"
-        ]
+        ],
+        "reveal": "board-nav.select-board"
       },
       {
         "surface": "board.collection-switcher",
@@ -47458,7 +49484,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.boards",
           "boards-modal.board-select"
-        ]
+        ],
+        "reveal": "boards-modal.board-select"
       }
     ]
   },
@@ -47476,7 +49503,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.boards",
           "boards-modal.board-select"
-        ]
+        ],
+        "reveal": "boards-modal.board-select"
       }
     ]
   },
@@ -47494,7 +49522,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.boards",
           "boards-modal.board-select"
-        ]
+        ],
+        "reveal": "boards-modal.board-select"
       }
     ]
   },
@@ -47511,7 +49540,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.boards",
           "boards-modal.board-select"
-        ]
+        ],
+        "reveal": "boards-modal.board-select"
       }
     ]
   },
@@ -47529,7 +49559,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.boards",
           "boards-modal.board-select"
-        ]
+        ],
+        "reveal": "boards-modal.board-select"
       }
     ]
   },
@@ -47958,7 +49989,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "board-actions.zoom"
-        ]
+        ],
+        "reveal": "board-actions.zoom"
       }
     ]
   },
@@ -47973,7 +50005,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "board-actions.zoom"
-        ]
+        ],
+        "reveal": "board-actions.zoom"
       }
     ]
   },
@@ -47988,7 +50021,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "board-actions.zoom"
-        ]
+        ],
+        "reveal": "board-actions.zoom"
       }
     ]
   },
@@ -48003,7 +50037,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "widget.group-with"
-        ]
+        ],
+        "reveal": "widget.group-with"
       }
     ]
   },
@@ -48018,7 +50053,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "widget.group-with"
-        ]
+        ],
+        "reveal": "widget.group-with"
       }
     ]
   },
@@ -48068,6 +50104,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "widget.settings-opener",
           "settings.tab-style"
         ],
+        "reveal": "settings.tab-style",
         "needs": [
           "widget-on-stage"
         ]
@@ -48089,6 +50126,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "widget.settings-opener",
           "settings.tab-style"
         ],
+        "reveal": "settings.tab-style",
         "needs": [
           "widget-on-stage"
         ]
@@ -48213,7 +50251,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.boards",
           "boards.share-board",
           "share-link.create"
-        ]
+        ],
+        "reveal": "share-link.create"
       }
     ]
   },
@@ -48231,7 +50270,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.boards",
           "boards.share-board",
           "share-link.create"
-        ]
+        ],
+        "reveal": "share-link.create"
       }
     ]
   },
@@ -48249,7 +50289,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.boards",
           "boards.share-board",
           "share-link.create"
-        ]
+        ],
+        "reveal": "share-link.create"
       }
     ]
   },
@@ -48267,7 +50308,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.boards",
           "boards.share-board",
           "share-link.mode-substitute"
-        ]
+        ],
+        "reveal": "share-link.mode-substitute"
       }
     ]
   },
@@ -48285,7 +50327,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.boards",
           "boards.share-board",
           "share-link.mode-substitute"
-        ]
+        ],
+        "reveal": "share-link.mode-substitute"
       }
     ]
   },
@@ -48303,7 +50346,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.boards",
           "boards.share-board",
           "share-link.mode-substitute"
-        ]
+        ],
+        "reveal": "share-link.mode-substitute"
       }
     ]
   },
@@ -48321,7 +50365,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.boards",
           "boards.share-board",
           "share-link.mode-substitute"
-        ]
+        ],
+        "reveal": "share-link.mode-substitute"
       }
     ]
   },
@@ -48339,7 +50384,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.boards",
           "boards.share-board",
           "share-link.mode-substitute"
-        ]
+        ],
+        "reveal": "share-link.mode-substitute"
       }
     ]
   },
@@ -48357,7 +50403,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.boards",
           "boards.share-board",
           "share-link.mode-substitute"
-        ]
+        ],
+        "reveal": "share-link.mode-substitute"
       }
     ]
   },
@@ -48483,7 +50530,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "boards.share-board",
           "share-link.share-with-sub",
           "sub-share.save"
-        ]
+        ],
+        "reveal": "sub-share.save"
       }
     ]
   },
@@ -48502,7 +50550,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "boards.share-board",
           "share-link.share-with-sub",
           "sub-share.save"
-        ]
+        ],
+        "reveal": "sub-share.save"
       }
     ]
   },
@@ -48581,6 +50630,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "boards-modal.collection-share",
           "share-collection.mode-substitute"
         ],
+        "reveal": "share-collection.mode-substitute",
         "needs": [
           "library-item"
         ]
@@ -48602,6 +50652,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "boards-modal.collection-share",
           "share-collection.mode-substitute"
         ],
+        "reveal": "share-collection.mode-substitute",
         "needs": [
           "library-item"
         ]
@@ -48623,6 +50674,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "boards-modal.collection-share",
           "share-collection.mode-substitute"
         ],
+        "reveal": "share-collection.mode-substitute",
         "needs": [
           "library-item"
         ]
@@ -48644,6 +50696,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "boards-modal.collection-share",
           "share-collection.mode-substitute"
         ],
+        "reveal": "share-collection.mode-substitute",
         "needs": [
           "library-item"
         ]
@@ -48665,6 +50718,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "boards-modal.collection-share",
           "share-collection.mode-substitute"
         ],
+        "reveal": "share-collection.mode-substitute",
         "needs": [
           "library-item"
         ]
@@ -48686,6 +50740,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "boards-modal.collection-share",
           "share-collection.mode-substitute"
         ],
+        "reveal": "share-collection.mode-substitute",
         "needs": [
           "library-item"
         ]
@@ -48748,6 +50803,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "boards-modal.collection-share",
           "share-collection.create"
         ],
+        "reveal": "share-collection.create",
         "needs": [
           "library-item"
         ]
@@ -48769,6 +50825,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "boards-modal.collection-share",
           "share-collection.create"
         ],
+        "reveal": "share-collection.create",
         "needs": [
           "library-item"
         ]
@@ -48790,6 +50847,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "boards-modal.collection-share",
           "share-collection.create"
         ],
+        "reveal": "share-collection.create",
         "needs": [
           "library-item"
         ]
@@ -48936,7 +50994,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "share-status.chip"
-        ]
+        ],
+        "reveal": "share-status.chip"
       }
     ]
   },
@@ -48953,7 +51012,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "board",
         "path": [
           "share-status.chip"
-        ]
+        ],
+        "reveal": "share-status.chip"
       }
     ]
   },
@@ -49004,7 +51064,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "library-shell.sort"
-        ]
+        ],
+        "reveal": "library-shell.sort"
       }
     ]
   },
@@ -49057,7 +51118,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "library-shell.new-folder"
-        ]
+        ],
+        "reveal": "library-shell.new-folder"
       }
     ]
   },
@@ -49137,7 +51199,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "library-shell.folder-menu-rename"
-        ]
+        ],
+        "reveal": "library-shell.folder-menu-rename"
       }
     ]
   },
@@ -49165,7 +51228,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "library-shell.folder-menu"
-        ]
+        ],
+        "reveal": "library-shell.folder-menu"
       }
     ]
   },
@@ -49180,7 +51244,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "library-shell.folder-menu"
-        ]
+        ],
+        "reveal": "library-shell.folder-menu"
       }
     ]
   },
@@ -49195,7 +51260,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "library-shell.folder-menu"
-        ]
+        ],
+        "reveal": "library-shell.folder-menu"
       }
     ]
   },
@@ -49211,7 +51277,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "library-shell.folder-menu"
-        ]
+        ],
+        "reveal": "library-shell.folder-menu"
       }
     ]
   },
@@ -49226,7 +51293,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "library-shell.folder-menu-delete"
-        ]
+        ],
+        "reveal": "library-shell.folder-menu-delete"
       }
     ]
   },
@@ -49242,7 +51310,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "library-shell.folder-menu-delete"
-        ]
+        ],
+        "reveal": "library-shell.folder-menu-delete"
       }
     ]
   },
@@ -49258,7 +51327,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "library-shell.folder-menu-delete"
-        ]
+        ],
+        "reveal": "library-shell.folder-menu-delete"
       }
     ]
   },
@@ -49273,7 +51343,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "kind": "shared",
         "path": [
           "library-shell.folder-menu-delete"
-        ]
+        ],
+        "reveal": "library-shell.folder-menu-delete"
       }
     ]
   },
@@ -49425,6 +51496,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "panel": true,
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.publish-scores",
@@ -50183,6 +52255,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Link shape button in the link picker",
     "scope": "field",
     "panel": true,
+    "keys": [
+      "url#circle",
+      "url#rectangle"
+    ],
     "routes": [
       {
         "surface": "widgets.url.link-style",
@@ -50196,6 +52272,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Color or image tab in the link picker",
     "scope": "field",
     "panel": true,
+    "keys": [
+      "url#color",
+      "url#image"
+    ],
     "routes": [
       {
         "surface": "widgets.url.link-style",
@@ -50222,6 +52302,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Upload image button in the link picker",
     "scope": "field",
     "panel": true,
+    "keys": [
+      "url#new",
+      "url#replace"
+    ],
     "routes": [
       {
         "surface": "widgets.url.link-style",
@@ -50236,6 +52320,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "keys": [
+      "url#image"
+    ],
     "routes": [
       {
         "surface": "widgets.url.link-style",
@@ -50379,6 +52466,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button in the Lunch Count report dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "lunchCount"
+    ],
     "routes": [
       {
         "surface": "widgets.lunch-count.report",
@@ -50398,6 +52488,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel button in the Lunch Count report dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "lunchCount"
+    ],
     "routes": [
       {
         "surface": "widgets.lunch-count.report",
@@ -50418,6 +52511,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "lunchCount"
+    ],
     "routes": [
       {
         "surface": "widgets.lunch-count.report",
@@ -50970,6 +53066,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "random.jigsaw-view",
     "label": "Expert or Home view button in the Random Picker Jigsaw footer, by view",
     "scope": "field",
+    "keys": [
+      "random#expert",
+      "random#home"
+    ],
     "routes": [
       {
         "surface": "widgets.random.face",
@@ -51051,6 +53151,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "random.chip-lock",
     "label": "Lock button on a student chip in Random Picker",
     "scope": "widget type",
+    "keys": [
+      "random"
+    ],
     "routes": [
       {
         "surface": "widgets.random.face",
@@ -51067,6 +53170,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "random.chip-done",
     "label": "Done check button on a student chip in Random Picker Shuffle mode",
     "scope": "widget type",
+    "keys": [
+      "random"
+    ],
     "routes": [
       {
         "surface": "widgets.random.face",
@@ -51084,6 +53190,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Class choice in the Randomizer class menu",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "random"
+    ],
     "routes": [
       {
         "surface": "widgets.random.face",
@@ -51149,6 +53258,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Set tile in the Catalyst dock picker",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "catalyst"
+    ],
     "routes": [
       {
         "surface": "widgets.catalyst.dock-picker",
@@ -51166,6 +53278,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Routine icon in the Catalyst dock picker",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "catalyst"
+    ],
     "routes": [
       {
         "surface": "widgets.catalyst.dock-picker",
@@ -51175,7 +53290,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "dock.open-tools",
           "dock.item:catalyst",
           "catalyst.picker-set:catalyst"
-        ]
+        ],
+        "reveal": "catalyst.picker-set:catalyst"
       }
     ]
   },
@@ -51283,6 +53399,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "drawing"
+    ],
     "routes": [
       {
         "surface": "widgets.drawing.face",
@@ -51301,6 +53420,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "drawing"
+    ],
     "routes": [
       {
         "surface": "widgets.drawing.face",
@@ -51319,6 +53441,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "drawing"
+    ],
     "routes": [
       {
         "surface": "widgets.drawing.face",
@@ -51370,6 +53495,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Stroke width slider in the Drawing tool options",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "drawing"
+    ],
     "routes": [
       {
         "surface": "widgets.drawing.face",
@@ -51386,6 +53514,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "drawing.page-prev",
     "label": "Previous page button in Drawing",
     "scope": "widget type",
+    "keys": [
+      "drawing"
+    ],
     "routes": [
       {
         "surface": "widgets.drawing.face",
@@ -51402,6 +53533,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "drawing.page-next",
     "label": "Next page button in Drawing",
     "scope": "widget type",
+    "keys": [
+      "drawing"
+    ],
     "routes": [
       {
         "surface": "widgets.drawing.face",
@@ -51418,6 +53552,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "drawing.page-manage",
     "label": "Manage pages button in Drawing",
     "scope": "widget type",
+    "keys": [
+      "drawing"
+    ],
     "routes": [
       {
         "surface": "widgets.drawing.face",
@@ -51434,6 +53571,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "drawing.page-title",
     "label": "Page title button that renames the current Drawing page",
     "scope": "widget type",
+    "keys": [
+      "drawing"
+    ],
     "routes": [
       {
         "surface": "widgets.drawing.face",
@@ -51450,6 +53590,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "drawing.add-page",
     "label": "Add page button in Drawing (single-page view)",
     "scope": "widget type",
+    "keys": [
+      "drawing"
+    ],
     "routes": [
       {
         "surface": "widgets.drawing.face",
@@ -51467,6 +53610,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Add page button in the Drawing pages menu",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "drawing"
+    ],
     "routes": [
       {
         "surface": "widgets.drawing.face",
@@ -51535,6 +53681,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "seating.mode",
     "label": "Mode button in Seating Chart (Interact, Assign, Setup)",
     "scope": "field",
+    "keys": [
+      "seating-chart#assign",
+      "seating-chart#interact",
+      "seating-chart#setup"
+    ],
     "routes": [
       {
         "surface": "widgets.seating-chart.face",
@@ -51827,6 +53978,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "music.spotify-shuffle",
     "label": "Shuffle button in the Music Spotify player",
     "scope": "widget type",
+    "keys": [
+      "music"
+    ],
     "routes": [
       {
         "surface": "widgets.music.face",
@@ -51843,6 +53997,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "music.spotify-previous",
     "label": "Previous button in the Music Spotify player",
     "scope": "widget type",
+    "keys": [
+      "music"
+    ],
     "routes": [
       {
         "surface": "widgets.music.face",
@@ -51859,6 +54016,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "music.spotify-play-pause",
     "label": "Play or pause button in the Music Spotify player",
     "scope": "widget type",
+    "keys": [
+      "music"
+    ],
     "routes": [
       {
         "surface": "widgets.music.face",
@@ -51875,6 +54035,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "music.spotify-next",
     "label": "Next button in the Music Spotify player",
     "scope": "widget type",
+    "keys": [
+      "music"
+    ],
     "routes": [
       {
         "surface": "widgets.music.face",
@@ -51891,6 +54054,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "music.spotify-repeat",
     "label": "Repeat button in the Music Spotify player",
     "scope": "widget type",
+    "keys": [
+      "music"
+    ],
     "routes": [
       {
         "surface": "widgets.music.face",
@@ -51923,6 +54089,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "music.spotify-search-open",
     "label": "Search pill in the Music Spotify player",
     "scope": "widget type",
+    "keys": [
+      "music"
+    ],
     "routes": [
       {
         "surface": "widgets.music.face",
@@ -51939,6 +54108,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "music.spotify-search",
     "label": "Search Spotify input in Music",
     "scope": "widget type",
+    "keys": [
+      "music"
+    ],
     "routes": [
       {
         "surface": "widgets.music.face",
@@ -51955,6 +54127,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "music.spotify-search-close",
     "label": "Close search button in the Music Spotify player",
     "scope": "widget type",
+    "keys": [
+      "music"
+    ],
     "routes": [
       {
         "surface": "widgets.music.face",
@@ -51971,6 +54146,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "music.spotify-result",
     "label": "Track, album or playlist row in the Music Spotify player",
     "scope": "widget type",
+    "keys": [
+      "music"
+    ],
     "routes": [
       {
         "surface": "widgets.music.face",
@@ -51987,6 +54165,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "music.spotify-refresh",
     "label": "Refresh library button in the Music Spotify player",
     "scope": "widget type",
+    "keys": [
+      "music"
+    ],
     "routes": [
       {
         "surface": "widgets.music.face",
@@ -52003,6 +54184,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "music.spotify-open-library",
     "label": "Open library button on the empty Music Spotify player",
     "scope": "widget type",
+    "keys": [
+      "music"
+    ],
     "routes": [
       {
         "surface": "widgets.music.face",
@@ -52020,6 +54204,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Reconnect Spotify button in the Music Spotify player",
     "scope": "widget type",
     "persists": true,
+    "keys": [
+      "music"
+    ],
     "routes": [
       {
         "surface": "widgets.music.face",
@@ -52160,6 +54347,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "math-tool.rotate",
     "label": "Rotation grip on a Math Tool",
     "scope": "widget type",
+    "keys": [
+      "mathTool"
+    ],
     "routes": [
       {
         "surface": "widgets.math-tool.face",
@@ -52176,6 +54366,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "smart-notebook.view-mode",
     "label": "Cards or List view button in the Smart Notebook library, by mode",
     "scope": "field",
+    "keys": [
+      "smartNotebook#cards",
+      "smartNotebook#list"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.face",
@@ -52193,6 +54387,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Import button in the Smart Notebook library",
     "scope": "widget type",
     "persists": true,
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.face",
@@ -52209,6 +54406,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "smart-notebook.open",
     "label": "Notebook card in the Smart Notebook library",
     "scope": "widget type",
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.face",
@@ -52225,6 +54425,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "smart-notebook.rename-notebook",
     "label": "Rename notebook button in the Smart Notebook library",
     "scope": "widget type",
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.face",
@@ -52242,6 +54445,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Share notebook button in Smart Notebook",
     "scope": "widget type",
     "persists": true,
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.face",
@@ -52272,6 +54478,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Delete notebook button in the Smart Notebook library",
     "scope": "widget type",
     "destructive": true,
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.face",
@@ -52288,6 +54497,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "smart-notebook.lesson-jump",
     "label": "Jump to lesson dropdown in Smart Notebook",
     "scope": "widget type",
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -52320,6 +54532,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "smart-notebook.add-page",
     "label": "Add blank page button in Smart Notebook",
     "scope": "widget type",
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -52352,6 +54567,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "smart-notebook.toggle-hidden-page",
     "label": "Hide or show page when presenting button in Smart Notebook",
     "scope": "widget type",
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -52385,6 +54603,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Remove page button in Smart Notebook",
     "scope": "widget type",
     "destructive": true,
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -52417,6 +54638,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "smart-notebook.edit-page",
     "label": "Edit page button in the Smart Notebook viewer",
     "scope": "widget type",
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.viewer",
@@ -52437,6 +54661,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "smart-notebook.toggle-assets",
     "label": "Toggle assets button in the Smart Notebook viewer",
     "scope": "widget type",
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.viewer",
@@ -52457,6 +54684,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "smart-notebook.present",
     "label": "Present button in the Smart Notebook editor",
     "scope": "widget type",
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -52476,6 +54706,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "smart-notebook.close-notebook",
     "label": "Close notebook button in Smart Notebook",
     "scope": "widget type",
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -52508,6 +54741,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "smart-notebook.page-prev",
     "label": "Previous page button in Smart Notebook",
     "scope": "widget type",
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -52540,6 +54776,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "smart-notebook.page-next",
     "label": "Next page button in Smart Notebook",
     "scope": "widget type",
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -52572,6 +54811,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "smart-notebook.page-jump",
     "label": "Jump to page button in Smart Notebook",
     "scope": "widget type",
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -52625,6 +54867,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "smart-notebook.zoom-in",
     "label": "Zoom in button in Smart Notebook",
     "scope": "widget type",
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -52644,6 +54889,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "smart-notebook.zoom-out",
     "label": "Zoom out button in Smart Notebook",
     "scope": "widget type",
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -52663,6 +54911,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "smart-notebook.zoom-reset",
     "label": "Reset zoom button in Smart Notebook",
     "scope": "widget type",
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -52682,6 +54933,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "smart-notebook.move-page-earlier",
     "label": "Move page earlier button in Smart Notebook",
     "scope": "widget type",
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -52701,6 +54955,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "smart-notebook.move-page-later",
     "label": "Move page later button in Smart Notebook",
     "scope": "widget type",
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -52720,6 +54977,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "smart-notebook.link-hotspot",
     "label": "Page link hotspot in Smart Notebook present mode",
     "scope": "widget type",
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.viewer",
@@ -52741,6 +55001,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Remove placed asset button in Smart Notebook",
     "scope": "widget type",
     "destructive": true,
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.viewer",
@@ -52819,6 +55082,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "smart-notebook.background",
     "label": "Page background button in the Smart Notebook editor",
     "scope": "widget type",
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -52839,6 +55105,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Color swatch in the Smart Notebook tool options",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -52859,6 +55128,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Custom color picker in the Smart Notebook tool options",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -52879,6 +55151,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Size slider in the Smart Notebook tool options",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -52908,6 +55183,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "smart-notebook.open:smartNotebook",
           "smart-notebook.background:smartNotebook"
         ],
+        "reveal": "smart-notebook.background:smartNotebook",
         "needs": [
           "library-item",
           "widget-on-stage"
@@ -52920,6 +55196,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Base color swatch in the Smart Notebook page background dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -52929,6 +55208,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "smart-notebook.open:smartNotebook",
           "smart-notebook.background:smartNotebook"
         ],
+        "reveal": "smart-notebook.background:smartNotebook",
         "needs": [
           "library-item",
           "widget-on-stage"
@@ -52941,6 +55221,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Custom color picker in the Smart Notebook page background dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -52950,6 +55233,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "smart-notebook.open:smartNotebook",
           "smart-notebook.background:smartNotebook"
         ],
+        "reveal": "smart-notebook.background:smartNotebook",
         "needs": [
           "library-item",
           "widget-on-stage"
@@ -52971,6 +55255,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "smart-notebook.open:smartNotebook",
           "smart-notebook.background:smartNotebook"
         ],
+        "reveal": "smart-notebook.background:smartNotebook",
         "needs": [
           "library-item",
           "widget-on-stage"
@@ -52983,6 +55268,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Choose image button in the Smart Notebook page background dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -52992,6 +55280,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "smart-notebook.open:smartNotebook",
           "smart-notebook.background:smartNotebook"
         ],
+        "reveal": "smart-notebook.background:smartNotebook",
         "needs": [
           "library-item",
           "widget-on-stage"
@@ -53004,6 +55293,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Apply button in the Smart Notebook page background dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -53013,6 +55305,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "smart-notebook.open:smartNotebook",
           "smart-notebook.background:smartNotebook"
         ],
+        "reveal": "smart-notebook.background:smartNotebook",
         "needs": [
           "library-item",
           "widget-on-stage"
@@ -53025,6 +55318,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel button in the Smart Notebook page background dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -53034,6 +55330,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "smart-notebook.open:smartNotebook",
           "smart-notebook.background:smartNotebook"
         ],
+        "reveal": "smart-notebook.background:smartNotebook",
         "needs": [
           "library-item",
           "widget-on-stage"
@@ -53046,6 +55343,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button in the Smart Notebook page background dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.editor",
@@ -53055,6 +55355,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "smart-notebook.open:smartNotebook",
           "smart-notebook.background:smartNotebook"
         ],
+        "reveal": "smart-notebook.background:smartNotebook",
         "needs": [
           "library-item",
           "widget-on-stage"
@@ -53080,6 +55381,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Go to linked page button in the Smart Notebook link picker",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.link-picker",
@@ -53093,6 +55397,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Remove link button in the Smart Notebook link picker",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.link-picker",
@@ -53106,6 +55413,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button in the Smart Notebook link picker",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "smartNotebook"
+    ],
     "routes": [
       {
         "surface": "widgets.smart-notebook.link-picker",
@@ -53118,6 +55428,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "stickers.sticker",
     "label": "Sticker tile in the Sticker Book",
     "scope": "widget type",
+    "keys": [
+      "stickers"
+    ],
     "routes": [
       {
         "surface": "widgets.stickers.face",
@@ -53134,6 +55447,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "stickers.favorite",
     "label": "Favorite heart on a sticker in the Sticker Book",
     "scope": "widget type",
+    "keys": [
+      "stickers"
+    ],
     "routes": [
       {
         "surface": "widgets.stickers.face",
@@ -53151,6 +55467,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Remove button on a custom sticker in the Sticker Book",
     "scope": "widget type",
     "destructive": true,
+    "keys": [
+      "stickers"
+    ],
     "routes": [
       {
         "surface": "widgets.stickers.face",
@@ -53218,6 +55537,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "stickers.filter",
     "label": "Filter button in the Sticker Book, by filter (all, favorites, mine)",
     "scope": "field",
+    "keys": [
+      "stickers#all",
+      "stickers#favorites",
+      "stickers#mine"
+    ],
     "routes": [
       {
         "surface": "widgets.stickers.face",
@@ -53259,6 +55583,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sticker.options"
         ],
+        "reveal": "sticker.options",
         "needs": [
           "widget-on-stage"
         ]
@@ -53278,6 +55603,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sticker.options"
         ],
+        "reveal": "sticker.options",
         "needs": [
           "widget-on-stage"
         ]
@@ -53298,6 +55624,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "sticker.options"
         ],
+        "reveal": "sticker.options",
         "needs": [
           "widget-on-stage"
         ]
@@ -53642,6 +55969,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "sandboxed": true,
+    "keys": [
+      "video-activity"
+    ],
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -53669,6 +56000,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-primary-action:video-activity#row-1"
         ],
+        "reveal": "library-shell.card-primary-action:video-activity#row-1",
         "needs": [
           "widget-on-stage"
         ]
@@ -53795,6 +56127,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Pause or Resume button in the video activity monitor",
     "scope": "board",
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.live",
@@ -53815,6 +56148,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "destructive": true,
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.video-activity.live",
@@ -53933,6 +56267,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Collapsible section header in the Activity Wall editor",
     "scope": "field",
     "panel": true,
+    "keys": [
+      "activity-wall#appearance",
+      "activity-wall#engagement",
+      "activity-wall#limits",
+      "activity-wall#moderation",
+      "activity-wall#submission-types"
+    ],
     "routes": [
       {
         "surface": "library.activity-wall.editor",
@@ -54046,6 +56387,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Class picker in the Flashcards assign dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.assign",
@@ -54106,6 +56450,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student work or Study resource switch in the Flashcards assign dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.assign",
@@ -54127,6 +56474,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.results",
@@ -54147,6 +56497,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.results",
@@ -54166,6 +56519,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Back button in Flashcards results",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "flashcards"
+    ],
     "routes": [
       {
         "surface": "library.flashcards.results",
@@ -54185,6 +56541,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Class picker in the Mini App assign dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.assign",
@@ -54245,6 +56604,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Student work or Study resource switch in the Mini App assign dialog",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.assign",
@@ -54265,6 +56627,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Clear selection button in the Mini App library bulk bar",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app",
@@ -54283,6 +56648,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app",
@@ -54302,6 +56670,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "destructive": true,
     "persists": true,
+    "sandboxed": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app",
@@ -54320,6 +56692,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.editor",
@@ -54347,6 +56722,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.gradebook",
           "gradebook.view-menu"
         ],
+        "reveal": "gradebook.view-menu",
         "needs": [
           "class"
         ]
@@ -54367,6 +56743,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.gradebook",
           "gradebook.view-menu"
         ],
+        "reveal": "gradebook.view-menu",
         "needs": [
           "class"
         ]
@@ -54387,6 +56764,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.gradebook",
           "gradebook.filter-menu"
         ],
+        "reveal": "gradebook.filter-menu",
         "needs": [
           "class"
         ]
@@ -54431,6 +56809,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gradebook.grid.cell",
           "gradebook.cell.flag"
         ],
+        "reveal": "gradebook.cell.flag",
         "needs": [
           "class",
           "student-data"
@@ -54780,6 +57159,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.gradebook",
           "gradebook.view-menu"
         ],
+        "reveal": "gradebook.view-menu",
         "needs": [
           "class"
         ]
@@ -54800,6 +57180,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.gradebook",
           "gradebook.view-menu"
         ],
+        "reveal": "gradebook.view-menu",
         "needs": [
           "class"
         ]
@@ -54820,6 +57201,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.gradebook",
           "gradebook.filter-menu"
         ],
+        "reveal": "gradebook.filter-menu",
         "needs": [
           "class"
         ]
@@ -54840,6 +57222,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.gradebook",
           "gradebook.filter-menu"
         ],
+        "reveal": "gradebook.filter-menu",
         "needs": [
           "class"
         ]
@@ -54861,6 +57244,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.gradebook",
           "gradebook.filter-menu"
         ],
+        "reveal": "gradebook.filter-menu",
         "needs": [
           "class"
         ]
@@ -55231,6 +57615,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gradebook.grid.column-header",
           "gradebook.column.delete"
         ],
+        "reveal": "gradebook.column.delete",
         "needs": [
           "class",
           "student-data"
@@ -55253,6 +57638,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gradebook.grid.column-header",
           "gradebook.column.delete"
         ],
+        "reveal": "gradebook.column.delete",
         "needs": [
           "class",
           "student-data"
@@ -55492,6 +57878,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gradebook.grid.column-header",
           "gradebook.column.standards"
         ],
+        "reveal": "gradebook.column.standards",
         "needs": [
           "class",
           "student-data"
@@ -55515,6 +57902,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gradebook.grid.column-header",
           "gradebook.column.standards"
         ],
+        "reveal": "gradebook.column.standards",
         "needs": [
           "class",
           "student-data"
@@ -55597,6 +57985,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.gradebook",
           "gradebook.settings"
         ],
+        "reveal": "gradebook.settings",
         "needs": [
           "class"
         ]
@@ -55629,6 +58018,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.gradebook",
           "gradebook.settings"
         ],
+        "reveal": "gradebook.settings",
         "needs": [
           "class"
         ]
@@ -55649,6 +58039,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.gradebook",
           "gradebook.settings"
         ],
+        "reveal": "gradebook.settings",
         "needs": [
           "class"
         ]
@@ -55669,6 +58060,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.gradebook",
           "gradebook.settings"
         ],
+        "reveal": "gradebook.settings",
         "needs": [
           "class"
         ]
@@ -55690,6 +58082,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.gradebook",
           "gradebook.settings"
         ],
+        "reveal": "gradebook.settings",
         "needs": [
           "class"
         ]
@@ -55711,6 +58104,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.gradebook",
           "gradebook.settings"
         ],
+        "reveal": "gradebook.settings",
         "needs": [
           "class"
         ]
@@ -55732,6 +58126,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.gradebook",
           "gradebook.settings"
         ],
+        "reveal": "gradebook.settings",
         "needs": [
           "class"
         ]
@@ -55753,6 +58148,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.gradebook",
           "gradebook.settings"
         ],
+        "reveal": "gradebook.settings",
         "needs": [
           "class"
         ]
@@ -55773,6 +58169,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.gradebook",
           "gradebook.settings"
         ],
+        "reveal": "gradebook.settings",
         "needs": [
           "class"
         ]
@@ -55794,6 +58191,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.gradebook",
           "gradebook.settings"
         ],
+        "reveal": "gradebook.settings",
         "needs": [
           "class"
         ]
@@ -55814,6 +58212,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.gradebook",
           "gradebook.settings"
         ],
+        "reveal": "gradebook.settings",
         "needs": [
           "class"
         ]
@@ -55835,6 +58234,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.gradebook",
           "gradebook.settings"
         ],
+        "reveal": "gradebook.settings",
         "needs": [
           "class"
         ]
@@ -55855,6 +58255,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.gradebook",
           "gradebook.settings"
         ],
+        "reveal": "gradebook.settings",
         "needs": [
           "class"
         ]
@@ -56365,7 +58766,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analysis",
-        "kind": "panel"
+        "kind": "panel",
+        "reveal": "gradebook.analysis.filters"
       }
     ]
   },
@@ -56377,7 +58779,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analysis",
-        "kind": "panel"
+        "kind": "panel",
+        "reveal": "gradebook.analysis.filters"
       }
     ]
   },
@@ -56389,7 +58792,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analysis",
-        "kind": "panel"
+        "kind": "panel",
+        "reveal": "gradebook.analysis.filters"
       }
     ]
   },
@@ -56401,7 +58805,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analysis",
-        "kind": "panel"
+        "kind": "panel",
+        "reveal": "gradebook.analysis.filters"
       }
     ]
   },
@@ -56413,7 +58818,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analysis",
-        "kind": "panel"
+        "kind": "panel",
+        "reveal": "gradebook.analysis.filters"
       }
     ]
   },
@@ -56425,7 +58831,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "routes": [
       {
         "surface": "guidedLearning.gradebook.analysis",
-        "kind": "panel"
+        "kind": "panel",
+        "reveal": "gradebook.analysis.filters"
       }
     ]
   },
@@ -56634,6 +59041,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gradebook.grid.student-name",
           "gradebook.student.customize"
         ],
+        "reveal": "gradebook.student.customize",
         "needs": [
           "class",
           "student-data"
@@ -56656,6 +59064,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gradebook.grid.student-name",
           "gradebook.student.customize"
         ],
+        "reveal": "gradebook.student.customize",
         "needs": [
           "class",
           "student-data"
@@ -56757,6 +59166,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gradebook.grid.student-name",
           "gradebook.student.preview"
         ],
+        "reveal": "gradebook.student.preview",
         "needs": [
           "class",
           "student-data"
@@ -56940,6 +59350,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "gl-capture.menu"
         ],
+        "reveal": "gl-capture.menu",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -56954,6 +59365,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "gl-capture.menu"
         ],
+        "reveal": "gl-capture.menu",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -57149,6 +59561,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "gl-manager.folder-new"
         ],
+        "reveal": "gl-manager.folder-new",
         "needs": [
           "widget-on-stage"
         ]
@@ -57168,6 +59581,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1"
         ],
+        "reveal": "library-shell.card-open:guided-learning#row-1",
         "needs": [
           "widget-on-stage"
         ]
@@ -57187,6 +59601,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1"
         ],
+        "reveal": "library-shell.card-open:guided-learning#row-1",
         "needs": [
           "widget-on-stage"
         ]
@@ -57208,6 +59623,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "gl-editor.folder"
         ],
+        "reveal": "gl-editor.folder",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -57231,6 +59647,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.folder"
         ],
+        "reveal": "studio.folder",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -57253,6 +59670,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "gl-editor.folder"
         ],
+        "reveal": "gl-editor.folder",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -57276,6 +59694,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.folder"
         ],
+        "reveal": "studio.folder",
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -57743,6 +60162,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:miniApp#row-1"
         ],
+        "reveal": "library-shell.card-open:miniApp#row-1",
         "needs": [
           "widget-on-stage"
         ]
@@ -57762,6 +60182,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:miniApp#row-1"
         ],
+        "reveal": "library-shell.card-open:miniApp#row-1",
         "needs": [
           "widget-on-stage"
         ]
@@ -57774,6 +60195,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "panel": true,
     "persists": true,
+    "sandboxed": true,
     "routes": [
       {
         "surface": "library.mini-app",
@@ -57799,6 +60221,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:quiz#row-1"
         ],
+        "reveal": "library-shell.card-open:quiz#row-1",
         "needs": [
           "widget-on-stage"
         ]
@@ -57818,6 +60241,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:video-activity#row-1"
         ],
+        "reveal": "library-shell.card-open:video-activity#row-1",
         "needs": [
           "widget-on-stage"
         ]
@@ -57837,6 +60261,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:video-activity#row-1"
         ],
+        "reveal": "library-shell.card-open:video-activity#row-1",
         "needs": [
           "widget-on-stage"
         ]
@@ -57924,6 +60349,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Folder picker in the Quiz editor header",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -57943,6 +60371,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button in the Quiz AI generator",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -57952,6 +60383,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.draft-ai:quiz"
         ],
+        "reveal": "quiz-editor.draft-ai:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -57963,6 +60395,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Generate Quiz button in the Quiz AI generator",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -57972,6 +60407,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.draft-ai:quiz"
         ],
+        "reveal": "quiz-editor.draft-ai:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -57983,6 +60419,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Attach file from Drive button in the Quiz AI generator",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -57992,6 +60431,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new-menu-item:quiz#item-1",
           "quiz-editor.draft-ai:quiz"
         ],
+        "reveal": "quiz-editor.draft-ai:quiz",
         "needs": [
           "widget-on-stage"
         ]
@@ -58003,6 +60443,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Folder picker in the Mini App editor header",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.editor",
@@ -58021,6 +60464,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button in the Mini App AI generator",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.editor",
@@ -58029,6 +60475,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:miniApp",
           "mini-app.draft-with-ai:miniApp"
         ],
+        "reveal": "mini-app.draft-with-ai:miniApp",
         "needs": [
           "widget-on-stage"
         ]
@@ -58040,6 +60487,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Generate Code button in the Mini App AI generator",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.editor",
@@ -58048,6 +60498,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:miniApp",
           "mini-app.draft-with-ai:miniApp"
         ],
+        "reveal": "mini-app.draft-with-ai:miniApp",
         "needs": [
           "widget-on-stage"
         ]
@@ -58059,6 +60510,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Attach file from Drive button in the Mini App AI generator",
     "scope": "widget type",
     "panel": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app.editor",
@@ -58067,6 +60521,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:miniApp",
           "mini-app.draft-with-ai:miniApp"
         ],
+        "reveal": "mini-app.draft-with-ai:miniApp",
         "needs": [
           "widget-on-stage"
         ]
@@ -58079,6 +60534,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget type",
     "panel": true,
     "persists": true,
+    "sandboxed": true,
+    "keys": [
+      "miniApp"
+    ],
     "routes": [
       {
         "surface": "library.mini-app",
@@ -58122,6 +60581,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:video-activity",
           "video-activity.editor-draft-ai"
         ],
+        "reveal": "video-activity.editor-draft-ai",
         "needs": [
           "widget-on-stage"
         ]
@@ -58141,6 +60601,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:video-activity",
           "video-activity.editor-draft-ai"
         ],
+        "reveal": "video-activity.editor-draft-ai",
         "needs": [
           "widget-on-stage"
         ]

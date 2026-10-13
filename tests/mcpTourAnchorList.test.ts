@@ -6,6 +6,7 @@ import { TOUR_ANCHOR_LIST } from '@/functions/src/mcp/tourAnchorList';
 import { TOUR_SURFACES } from '@/config/tourSurfaces';
 import { TOUR_ANCHOR_SURFACES } from '@/config/tourAnchorSurfaces.generated';
 import { surfacePath } from '@/config/tourAnchorRoutes';
+import { anchorKeys } from './helpers/tourAnchorSources';
 import { WIDGET_TYPE_LIST } from '@/functions/src/mcp/widgetTypeList';
 import { TOOLS } from '@/config/tools';
 import { WIDGET_SETTINGS_SCHEMAS } from '@/components/widgets/WidgetRegistry';
@@ -32,10 +33,29 @@ function expected() {
       ...(def.panel ? { panel: true } : {}),
       ...(def.destructive ? { destructive: true } : {}),
       ...(def.persists ? { persists: true } : {}),
+      ...(def.sandboxed ? { sandboxed: true } : {}),
       ...(def.requires ? { requires: def.requires } : {}),
+      ...keysOf(id, def),
       ...routesOf(id),
     })
   );
+}
+
+const SCANNED_KEYS = anchorKeys();
+const SCHEMA_KEYS = new Map<string, string[]>();
+for (const fields of Object.values(SETTINGS_FIELD_LIST))
+  for (const { anchor } of fields) {
+    const [id, key] = [anchor.split(':')[0], anchor.split(':')[1]];
+    SCHEMA_KEYS.set(id, [...(SCHEMA_KEYS.get(id) ?? []), key]);
+  }
+
+// Every valid `type` or `type#field` suffix, listed only when every tag of the anchor spells it out.
+function keysOf(id: string, def: TourAnchorDef) {
+  if (!def.perWidgetType && !def.perField) return {};
+  const schema = SCHEMA_KEYS.get(id);
+  if (schema) return { keys: [...new Set(schema)].sort() };
+  const scanned = SCANNED_KEYS.get(id);
+  return scanned?.complete && scanned.keys.length ? { keys: scanned.keys } : {};
 }
 
 // Where the anchor renders and the clicks from the board that reveal it; no path means the way in is not mapped yet.
@@ -50,6 +70,7 @@ function routesOf(id: string) {
       ...(def.widgetType ? { widget_type: def.widgetType } : {}),
       ...(def.url ? { url: def.url } : {}),
       ...(reach ? { path: inner ? [...reach.path, inner] : reach.path } : {}),
+      ...(inner ? { reveal: inner } : {}),
       ...(reach?.needs.length ? { needs: reach.needs } : {}),
     };
   });
@@ -63,7 +84,7 @@ describe('connector tour anchor list', () => {
       writeFileSync(
         FILE,
         // Parsed JSON, because an array literal this varied is too complex for the type checker to infer.
-        `// Generated from config/tourAnchors.ts by tests/mcpTourAnchorList.test.ts; rerun it with UPDATE_TOUR_ANCHOR_LIST=1.\nexport interface TourAnchorEntry {\n  id: string;\n  label: string;\n  scope: 'board' | 'widget' | 'widget type' | 'field';\n  panel?: true;\n  destructive?: true;\n  persists?: true;\n  requires?: string;\n  routes?: ReadonlyArray<{\n    surface: string;\n    kind: string;\n    widget_type?: string;\n    url?: string;\n    path?: readonly string[];\n    needs?: readonly string[];\n  }>;\n}\n\nexport const TOUR_ANCHOR_LIST = JSON.parse(String.raw\`${JSON.stringify(list, null, 2)}\`) as readonly TourAnchorEntry[];\n`
+        `// Generated from config/tourAnchors.ts by tests/mcpTourAnchorList.test.ts; rerun it with UPDATE_TOUR_ANCHOR_LIST=1.\nexport interface TourAnchorEntry {\n  id: string;\n  label: string;\n  scope: 'board' | 'widget' | 'widget type' | 'field';\n  panel?: true;\n  destructive?: true;\n  persists?: true;\n  sandboxed?: true;\n  requires?: string;\n  keys?: readonly string[];\n  routes?: ReadonlyArray<{\n    surface: string;\n    kind: string;\n    widget_type?: string;\n    url?: string;\n    path?: readonly string[];\n    reveal?: string;\n    needs?: readonly string[];\n  }>;\n}\n\nexport const TOUR_ANCHOR_LIST = JSON.parse(String.raw\`${JSON.stringify(list, null, 2)}\`) as readonly TourAnchorEntry[];\n`
       );
       return;
     }

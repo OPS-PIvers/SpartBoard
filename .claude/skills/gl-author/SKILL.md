@@ -474,8 +474,9 @@ server checks the importer's ranges, and slides can't be added or replaced
 that way. `list_tour_anchors` lists the anchors a step's `tour` can bind to.
 The server refuses an anchor it doesn't know, unless the stored step already
 had it. A new live tour is made with the admin-only `create_live_tour`, which
-can file it straight into the Help Center as a hidden draft; follow
-`skills/spartboard/references/live-tours.md` in `OPS-PIvers/claude-skills`.
+can file it straight into the Help Center as a hidden draft; read the
+connector's `get_live_tour_guide` (`docs/live-tours/AUTHORING.md`) first and
+check the tour with `dry_run` before saving.
 Edit an existing live tour with the admin-only `get_live_tour` and
 `update_live_tour`, not the Guided Learning tools: they show and take steps
 without slide placement, keep each step's thumbnail and narration, and save
