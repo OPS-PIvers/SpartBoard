@@ -84,6 +84,7 @@ skills-lock.json
 !.claude/skills/break-ui/
 !.claude/skills/animate/
 !.claude/skills/review-animations/
+!.claude/skills/verify-spartboard/
 
 # Playwright MCP scratch
 .playwright-mcp/
@@ -120,3 +121,6 @@ pr.diff
 # Widget grader output (scans, measurements, screenshots) and its build
 scripts/widget-grader/out/
 dist-grader/
+
+# verify-spartboard proof runs
+.claude/verify-runs/

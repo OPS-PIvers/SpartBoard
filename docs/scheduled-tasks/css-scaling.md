@@ -3,8 +3,11 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-12_
+_Last audited: 2026-10-13_
 _Last action: 2026-09-24 — MEDIUM `QuizStimulusView.tsx` zero-`cqmin` blocker resolved: added an optional `cqScaled?: boolean` prop (default `false`) threaded through every subcomponent in the file, applying `min(Xpx, Ycqmin)` inline styles only when set, so the two CQ-container consumers (`CurrentQuestionCard.tsx`, `QuizPreview.tsx`) now scale while the two non-CQ consumers (`QuizStudentApp.tsx`, `FreeResponseGrader.tsx`) keep today's fixed styling untouched — the same `cqScaled` pattern proven on `AssignTargetingSection.tsx`. 1250/1250 relevant tests pass. Item moved to Completed. PR opened against dev-paul._
+
+
+_2026-10-13: Daily audit (Tuesday). 0 `max-h/max-w-[Npx]` in any `Widget.tsx`; only 2 fixed px sizes (DrawingWidget portaled `fixed` popovers, exempt). Open items unchanged. 0 new issues._
 
 _2026-10-11: Daily audit (Sunday). Scan of `components/widgets/**/Widget.tsx` for `max-[hw]-[Npx]` and large fixed `w/h-[Npx]` found only two fixed-position DrawingWidget popovers (`min-w-[200px]`, `w-[260px]`, lines ~1300/1390), which are portaled overlays and not content-area caps. 0 new issues; existing Open items unchanged._
 
@@ -100,13 +103,6 @@ Re-verifying the standing `mt-0.5` badge item against `QuizResults.tsx`'s curren
 Repo-wide light full-sweep: `max-h-[Npx]`/`max-w-[Npx]` across all `Widget.tsx` and sub-component files — every hit resolves to `DrawingWidget` (`skipScaling: false`, exempt), `MaterialsWidget`'s back-face settings files, or the already-tracked `RandomClassContextButton` dropdown; numeric `size={N}` icon props — zero hits repo-wide; `QRWidget/Widget.tsx` re-confirmed the clean positive reference (19 `cqmin` sites, untouched this cycle).
 
 All 16 existing Open items individually re-verified against current file content: Webcam `w-2 h-2` dot unchanged at `:470`; Soundboard `w-2 h-2` dot unchanged at `:440`; `MiniAppAssignModal` warning `text-xs`/`mt-1` unchanged at `MiniApp/Widget.tsx:243,247` (2026-09-01 duplicate at `:242-247` likewise unchanged, same on-disk hit, left as-is per the 2026-09-10 note); `ActivityWall` dropdown `mt-1 py-1` unchanged at `Widget.tsx:528`, `dnd.tsx:7,57` and `TimelineLayout.tsx:31,73` byte-for-byte unchanged; `MusicWidget` `gap-2` unchanged at `Widget.tsx:584`; `SmartNotebook` page-counter `minWidth: '80px'` unchanged at `Viewer.tsx:422`; `QuizPreview`'s icon/padding hits unchanged at `:122,124,128,447,545`; `QuizStimulusView.tsx` still `grep -c cqmin` = 0; SmartNotebook Present-mode Assets Panel `max-w-[240px] min-w-[160px]` unchanged at `Viewer.tsx:353` (and its 2026-08-18-dated duplicate, same on-disk hit, still left as-is); the 7-file second-pass residual-spacing group all individually grepped present (`CatalystWidget.tsx:180,278,285`; `ExpectationsWidget/Widget.tsx:525,594,666`; `PollWidget/Widget.tsx:281,284`; `RevealGrid/Widget.tsx:336`; `SoundboardWidget/Widget.tsx:434`; `SpecialistScheduleWidget.tsx:346` all exact-line matches; `MaterialsWidget/index.tsx`'s four hits present with only minor line drift from the cited `:140,151,202,230`, none of these seven files touched this cycle); `EmbedWidget` `px-1` unchanged at `Widget.tsx:454`; `RandomClassContextButton`'s portaled dropdown unchanged at exactly `:349,350,355,363,398,403,440,441,448`; `ActiveClassChip.tsx`'s portaled dropdown unchanged at exactly `:313,315,316,320,339,346,351`. No item failed to reproduce — 0 moved to Completed. **Net this cycle: 1 new LOW finding, 0 resolved.**_
-
-### LOW `QuizResults` per-student results-actions row has hardcoded Tailwind padding beside `cqmin`-capped siblings
-
-- **Detected:** 2026-09-22
-- **File:** `components/widgets/QuizWidget/components/QuizResults.tsx:3758,3789,3828` (drifted from `:3520,3551,3590` — the 2026-09-24 results rebuild, `399896c7`, added ~940 net lines ahead of this row; present since before the 2026-09-21 baseline, at the then-line-numbers `:2534,2557,2586` — a previously-untracked pre-existing hit, not new code)
-- **Detail:** Rendered inline in the `quiz` widget's own CQ container (`skipScaling: true`) inside the `StudentsScreen` roster row already covered by this journal's standing `mt-0.5` badge item (same row, different elements). The un-scoreable status pill (`<div className="bg-brand-gray-lightest ... rounded px-2 py-1 tracking-tighter">`, :3758) sits right next to a correctly `fontSize: 'min(9px, 2.5cqmin)'`-capped sibling on the same element. The "Unlock results" button (`className="... rounded-md px-3 py-1.5 transition-colors flex items-center gap-1"`, :3789) sits beside its own `style={{ fontSize: 'min(11px, 3cqmin)' }}` and `cqmin`-capped `Lock`/`Loader2` icons. The delete-submission button (`className="shrink-0 p-1.5 rounded-md text-brand-red-primary/50 ..."`, :3828) sits beside the same `cqmin`-capped icon pattern. All three padding values are fixed Tailwind classes (8px/4px, 12px/6px, 6px) that won't track widget size, unlike every other size on the same elements.
-- **Fix:** `px-2 py-1` → `style={{ padding: 'min(8px, 2cqmin) min(4px, 1cqmin)' }}`; `px-3 py-1.5` → `style={{ padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)' }}` merged into the button's existing `fontSize` style object; `p-1.5` → `style={{ padding: 'min(6px, 1.5cqmin)' }}`, matching the file's own established formulas on the immediately adjacent icons/text.
 
 _2026-09-20: Full audit (Sunday daily), delegated to a dedicated sub-agent. Scope: commits touching `components/widgets/` since the 2026-09-19 baseline (`dd997b8`) — `eb5c31f`/`50be7e2`/`fb8cd90`/`cb21232`/`fdd2ec8`/`e0dd38d`/`7b455e0`/`9319eac`/`b620457`. Eight of nine are the settings-drawer-migration series, which only delete `Settings.tsx` files (back-face, no `Widget.tsx` touched). The one substantive front-face change is `fdd2ec8` ("library manager, two-pane editor and the quiz grader's chrome"), which rewrote `Projects/Widget.tsx` down to a thin orchestrator and moved all real content into five new files under `Projects/components/` — yesterday's audit had already cleared the pre-refactor `Widget.tsx`, so these five were entirely unreviewed this cycle. Found one new MEDIUM (above) in `ProjectsManager.tsx`. `ProjectBoardView.tsx` (395 lines, also newly extracted) is a clean citizen — 34 `cqmin` sites, zero hardcoded icon/text-size classes. `ProjectEditorModal.tsx`, `ProjectGrader.tsx`, and `ProjectSetupGroupsModal.tsx` have zero `cqmin` each but render exclusively through `document.body`-portaled shells, out of CQ scope — same established bucket as Quiz/Video Activity/Guided Learning/MiniApp's equivalent editor/grader modals, not flagged. Existing Open items not re-verified this cycle (none touch `Projects/` or any file in the changed-commit list); the 2026-09-19 entry already re-confirmed all of them. **Net this cycle: 1 new MEDIUM finding, 0 resolved.**_
 
@@ -494,6 +490,11 @@ _2026-09-10: Full audit (Thursday daily). `git log --oneline --since="2026-09-09
 ---
 
 ## Completed
+
+### RESOLVED 2026-10-13 `QuizResults` per-student results-actions row hardcoded padding
+
+Replaced the status pill, "Unlock results" button and delete button Tailwind padding with `min(Npx, Ncqmin)` inline padding (`QuizResults.tsx:4329,4371,4430`). Moved from Open by the Tuesday action run.
+
 
 ### LOW GL callout title elements carry a hardcoded Tailwind margin beside `calc(var(--gl-text-title...))`-scaled siblings
 

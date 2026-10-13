@@ -24,6 +24,23 @@
       "port": 56300
     },
     {
+      "name": "vite-verify",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["run", "dev", "--port", "56320", "--strictPort"],
+      "env": {
+        "VITE_AUTH_BYPASS": "true",
+        "VITE_FIREBASE_API_KEY": "dummy",
+        "VITE_FIREBASE_AUTH_DOMAIN": "dummy",
+        "VITE_FIREBASE_PROJECT_ID": "dummy",
+        "VITE_FIREBASE_STORAGE_BUCKET": "dummy",
+        "VITE_FIREBASE_MESSAGING_SENDER_ID": "dummy",
+        "VITE_FIREBASE_APP_ID": "dummy",
+        "VITE_GOOGLE_CLIENT_ID": "dummy",
+        "VITE_OPENWEATHER_API_KEY": "dummy"
+      },
+      "port": 56320
+    },
+    {
       "name": "functions-emulator",
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["-C", "functions", "run", "serve"],

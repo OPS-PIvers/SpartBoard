@@ -94,4 +94,20 @@ describe('useGlobalPermissionsEditor', () => {
     expect(current.graduated).toBe(true);
     expect(current.enabled).toBe(false);
   });
+
+  it('saves an edit made in the same tick as the save', async () => {
+    setDocMock.mockReset();
+    setDocMock.mockResolvedValue(undefined);
+    const { result } = renderHook(() => useGlobalPermissionsEditor());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      result.current.updatePermission('smart-poll', { enabled: false });
+      await result.current.savePermission('smart-poll', undefined, '');
+    });
+
+    expect(setDocMock).toHaveBeenCalledTimes(1);
+    const written = setDocMock.mock.calls[0][1] as { enabled: boolean };
+    expect(written.enabled).toBe(false);
+  });
 });

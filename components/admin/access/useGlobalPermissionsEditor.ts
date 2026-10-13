@@ -52,9 +52,27 @@ export const defaultDailyLimit = (featureId: GlobalFeature): number => {
 export const useGlobalPermissionsEditor = () => {
   const { user } = useAuth();
   const { addToast } = useDashboard();
-  const [permissions, setPermissions] = useState<
+  const [permissions, setPermissionsState] = useState<
     Map<string, GlobalFeaturePermission>
   >(new Map());
+  // Mirrors `permissions` synchronously so a save right after an edit sees it.
+  const permissionsRef = useRef<Map<string, GlobalFeaturePermission>>(
+    new Map()
+  );
+  const setPermissions = useCallback(
+    (
+      update:
+        | Map<string, GlobalFeaturePermission>
+        | ((
+            prev: Map<string, GlobalFeaturePermission>
+          ) => Map<string, GlobalFeaturePermission>)
+    ) => {
+      permissionsRef.current =
+        typeof update === 'function' ? update(permissionsRef.current) : update;
+      setPermissionsState(permissionsRef.current);
+    },
+    []
+  );
   // Last state read from or written to Firestore, for discarding unsaved edits.
   const [stored, setStored] = useState<Map<string, GlobalFeaturePermission>>(
     new Map()
@@ -103,13 +121,16 @@ export const useGlobalPermissionsEditor = () => {
     return () => {
       cancelled = true;
     };
-  }, [showMessage]);
+  }, [showMessage, setPermissions]);
 
-  const getPermission = useCallback(
-    (featureId: GlobalFeature): GlobalFeaturePermission => {
+  const resolvePermission = useCallback(
+    (
+      source: Map<string, GlobalFeaturePermission>,
+      featureId: GlobalFeature
+    ): GlobalFeaturePermission => {
       const defaults = FEATURE_DEFAULTS[featureId];
       return (
-        permissions.get(featureId) ?? {
+        source.get(featureId) ?? {
           featureId,
           accessLevel: defaults.defaultAccessLevel,
           betaUsers: [],
@@ -131,7 +152,12 @@ export const useGlobalPermissionsEditor = () => {
         }
       );
     },
-    [permissions]
+    []
+  );
+
+  const getPermission = useCallback(
+    (featureId: GlobalFeature) => resolvePermission(permissions, featureId),
+    [permissions, resolvePermission]
   );
 
   const isSaved = useCallback(
@@ -147,12 +173,13 @@ export const useGlobalPermissionsEditor = () => {
       );
       // Functional update so several changes in one tick all merge.
       setPermissions((prev) => {
-        const current = prev.get(featureId) ?? getPermission(featureId);
+        const current =
+          prev.get(featureId) ?? resolvePermission(prev, featureId);
         return new Map(prev).set(featureId, { ...current, ...updates });
       });
       setUnsavedChanges((prev) => new Set(prev).add(featureId));
     },
-    [getPermission]
+    [resolvePermission, setPermissions]
   );
 
   const graduated = useMemo(
@@ -166,22 +193,25 @@ export const useGlobalPermissionsEditor = () => {
   );
 
   /** Drop unsaved edits to these features, back to their stored state. */
-  const discardChanges = useCallback((featureIds: readonly GlobalFeature[]) => {
-    setPermissions((prev) => {
-      const next = new Map(prev);
-      for (const id of featureIds) {
-        const original = storedRef.current.get(id);
-        if (original) next.set(id, original);
-        else next.delete(id);
-      }
-      return next;
-    });
-    setUnsavedChanges((prev) => {
-      const next = new Set(prev);
-      for (const id of featureIds) next.delete(id);
-      return next;
-    });
-  }, []);
+  const discardChanges = useCallback(
+    (featureIds: readonly GlobalFeature[]) => {
+      setPermissions((prev) => {
+        const next = new Map(prev);
+        for (const id of featureIds) {
+          const original = storedRef.current.get(id);
+          if (original) next.set(id, original);
+          else next.delete(id);
+        }
+        return next;
+      });
+      setUnsavedChanges((prev) => {
+        const next = new Set(prev);
+        for (const id of featureIds) next.delete(id);
+        return next;
+      });
+    },
+    [setPermissions]
+  );
 
   const savePermission = async (
     featureId: GlobalFeature,
@@ -191,7 +221,10 @@ export const useGlobalPermissionsEditor = () => {
     try {
       setSaving((prev) => new Set(prev).add(featureId));
       const versionAtSave = editVersionsRef.current.get(featureId) ?? 0;
-      const permission = { ...getPermission(featureId), ...extra };
+      const permission = {
+        ...resolvePermission(permissionsRef.current, featureId),
+        ...extra,
+      };
       // Firestore rejects `undefined`; "no minimum tier" is an absent field.
       const { minTier, ...withoutMinTier } = permission;
       await setDoc(
