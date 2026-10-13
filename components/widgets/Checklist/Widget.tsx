@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useRef, useLayoutEffect } from 'react';
 import { useDashboard } from '@/context/useDashboard';
-import { useAuth } from '@/context/useAuth';
 import { hexToRgba } from '@/utils/styles';
 import { useRosterGroupsGate } from '@/hooks/useRosterGroupsGate';
 import { rosterGroupMemberIds } from '@/utils/rosterGroups';
@@ -19,7 +18,6 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
     useDashboard();
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
   const config = widget.config as ChecklistConfig;
-  const { canAccessFeature } = useAuth();
   const {
     items = [],
     mode = 'manual',
@@ -174,8 +172,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   const cardPadding = `clamp(10px, ${padVCqh}cqh, ${Math.round(22 * sm)}px) clamp(8px, ${padHCqw}cqw, ${Math.round(20 * sm)}px)`;
   const cardGap = `clamp(6px, ${gapCqw}cqw, 16px)`;
   const listGap = 'min(6px, 2cqmin)';
-  const lines =
-    config.rowStyle === 'lines' && canAccessFeature('list-line-style');
+  const lines = config.rowStyle === 'lines';
 
   if (!hasContent) {
     return (

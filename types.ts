@@ -9935,8 +9935,6 @@ export type GlobalFeature =
   | 'study-resources'
   /** Sparty the mascot in tours, first-time setup and the Help Center (docs/plans/shipped/SPARTY.md). */
   | 'sparty'
-  /** Schedule and To-Do "Lines" row style. */
-  | 'list-line-style'
   /** Group Notes & Docs: notes list and Action items as swapping side panels, with action items on linked Google Docs. */
   | 'plc-notes-side-panels'
   /** Group Notes & Docs: embedded Google Docs keep Google's menus and toolbar. */

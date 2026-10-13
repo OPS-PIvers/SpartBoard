@@ -1220,16 +1220,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'list-line-style': {
-    label: 'Schedule and To-Do lines',
-    icon: ListChecks,
-    description: 'A Lines option for Schedule and To-Do rows.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'embed-reload': {
     label: 'Embed: Reload button',
     icon: RefreshCw,
