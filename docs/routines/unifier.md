@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 114_
-_Last run: 2026-10-12_
+_Run count: 115_
+_Last run: 2026-10-13_
 _Base branch: dev-paul_
 
 ---
@@ -573,6 +573,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date | Branch | Dimension | Action | PR |
 | ---------- | ------------------------------------------------- | --------------------- | --- | --- |
+| 2026-10-13 | `claude/kind-johnson-hcb1ur` | D1/D2/D3/D4/D5 | Aligned (run 115) — light probe of 49 commits since run 114 (`7ac774d6..origin/dev-paul`). D4: only new `'../'` imports are GuidedLearning `studio/` -> `../../utils/calloutStyle` (D4-E3 own-widget gray zone) and Quiz `monitor/legacy/LegacyMonitorShell.tsx` -> parent `monitor/` siblings (parent-sibling gray zone, not a cross-feature escape). D5/D2/D3: diff-scoped greps for `<Toast>`, inline-style `#2d3f89`/`#ad2122` and hand-rolled `text-xxs font-black/bold uppercase` labels returned zero hits. No subagents dispatched, no code shipped; full `validate` not run (CLAUDE.md forbids it without an explicit request). Doc-only PR. | — |
 | 2026-10-12 | `nightly/unifier-log-2026-10-12` | D1/D2/D3/D4/D5 | Aligned (run 114) — light probe of 18 commits since run 113 (`5e029a37..7ac774d6`: Mini App results phase 2, Claude connector, GL studio). D4: new `'../'` imports are `functions/src/**` (separate package, no alias) and intra-GuidedLearning `studio/` peers (D4-E3 gray zone); client Mini App files use `@/utils/...`. D2: only `#2d3f89` hits are inside mini-app `srcdoc` HTML/CSS strings in `MiniAppEditor.dev.tsx` and `miniAppSpec.ts`, not inline `style` props. D5/D1/D3: no new `<Toast>`, empty states or hand-rolled label groups. No subagents dispatched, no code shipped; full `validate` not run (CLAUDE.md forbids it). Doc-only PR. | — |
 | 2026-10-11 | `nightly/unifier-log-2026-10-11` | D1/D2/D3/D4/D5 | Aligned (run 113) — baseline `pnpm run validate` green (27 min). Light probe of 12 commits since run 112 (`5cf46fda..5e029a37`: touch-hover styles, AbsentStudentsModal save handling, Gemini model labels, SSRF guard): diff-scoped greps for added `'../` imports, `<Toast>`/local toast state, inline-style hex/rgb colors and hand-rolled `text-xxs font-black/bold uppercase` labels all returned zero hits. No subagents dispatched, no conversion shipped. | — |
 | 2026-10-10 | `nightly/unifier-log-2026-10-10` | D1/D2/D3/D4/D5 | Aligned (run 112) — light probe of ~670 source files changed across 54 commits since run 111 (dev-paul `e02708a8`: tour-anchor rollouts, admin analytics). D2/D4/D5/D1: no new hits. D3: `components/admin/Analytics/OverviewCharts.tsx` has 2 new exclusive-choice `role="group"` + `aria-pressed` button rows (range ~166, heatmap group ~355) with no keyboard model; logged LOW in D3 backlog, not converted because `SegmentedControl` would restyle the compact pills (visual-risk). No code shipped; full `validate` not run (CLAUDE.md forbids it). Doc-only PR. | — |
