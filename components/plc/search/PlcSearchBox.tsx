@@ -35,7 +35,6 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
-import { useAuth } from '@/context/useAuth';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { usePlcSearch } from '@/context/usePlcContext';
@@ -88,7 +87,6 @@ export const PlcSearchBox: React.FC<PlcSearchBoxProps> = ({
   onNavigate,
 }) => {
   const { t } = useTranslation();
-  const groupWording = useAuth().canAccessFeature('my-groups');
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
@@ -188,24 +186,12 @@ export const PlcSearchBox: React.FC<PlcSearchBoxProps> = ({
               ? optionId(clampedActiveIndex)
               : undefined
           }
-          aria-label={
-            groupWording
-              ? t('plcDashboard.search.groupAriaLabel', {
-                  defaultValue: 'Search this team',
-                })
-              : t('plcDashboard.search.ariaLabel', {
-                  defaultValue: 'Search this PLC',
-                })
-          }
-          placeholder={
-            groupWording
-              ? t('plcDashboard.search.groupPlaceholder', {
-                  defaultValue: 'Search this team…',
-                })
-              : t('plcDashboard.search.placeholder', {
-                  defaultValue: 'Search this PLC…',
-                })
-          }
+          aria-label={t('plcDashboard.search.groupAriaLabel', {
+            defaultValue: 'Search this team',
+          })}
+          placeholder={t('plcDashboard.search.groupPlaceholder', {
+            defaultValue: 'Search this team…',
+          })}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);

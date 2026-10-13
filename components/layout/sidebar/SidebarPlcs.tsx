@@ -83,7 +83,6 @@ const PlcRow: React.FC<PlcRowProps> = ({
   onLeave,
 }) => {
   const { t } = useTranslation();
-  const { canAccessFeature } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const kebabRef = useRef<HTMLButtonElement>(null);
@@ -152,8 +151,7 @@ const PlcRow: React.FC<PlcRowProps> = ({
             )}
           </div>
           <div className="text-xxs font-semibold text-slate-400 uppercase tracking-widest">
-            {canAccessFeature('my-groups') &&
-              `${groupTypeLabel(t, getPlcGroupType(plc))} · `}
+            {`${groupTypeLabel(t, getPlcGroupType(plc))} · `}
             {t('sidebar.plcs.memberCount', {
               count: getPlcMembers(plc).length,
               defaultValue: '{{count}} Member',
@@ -274,7 +272,6 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
 }) => {
   const { t } = useTranslation();
   const { user, canAccessFeature } = useAuth();
-  const groups = canAccessFeature('my-groups');
   const { showConfirm } = useDialog();
   const loading = plcsLoading;
 
@@ -312,13 +309,9 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
         name: plc.name,
       }),
       {
-        title: groups
-          ? t('sidebar.groups.confirmLeaveTitle', {
-              defaultValue: 'Leave team',
-            })
-          : t('sidebar.plcs.confirmLeaveTitle', {
-              defaultValue: 'Leave PLC',
-            }),
+        title: t('sidebar.groups.confirmLeaveTitle', {
+          defaultValue: 'Leave team',
+        }),
         variant: 'danger',
         confirmLabel: t('sidebar.plcs.leave', { defaultValue: 'Leave' }),
       }
@@ -330,23 +323,14 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
 
   const handleDelete = async (plc: Plc) => {
     const confirmed = await showConfirm(
-      groups
-        ? t('sidebar.groups.confirmDelete', {
-            defaultValue: `Delete "${plc.name}"? This will remove the group for everyone.`,
-            name: plc.name,
-          })
-        : t('sidebar.plcs.confirmDelete', {
-            defaultValue: `Delete "${plc.name}"? This will remove the PLC for everyone.`,
-            name: plc.name,
-          }),
+      t('sidebar.groups.confirmDelete', {
+        defaultValue: `Delete "${plc.name}"? This will remove the group for everyone.`,
+        name: plc.name,
+      }),
       {
-        title: groups
-          ? t('sidebar.groups.confirmDeleteTitle', {
-              defaultValue: 'Delete team',
-            })
-          : t('sidebar.plcs.confirmDeleteTitle', {
-              defaultValue: 'Delete PLC',
-            }),
+        title: t('sidebar.groups.confirmDeleteTitle', {
+          defaultValue: 'Delete team',
+        }),
         variant: 'danger',
         confirmLabel: t('common.delete', { defaultValue: 'Delete' }),
       }
@@ -374,9 +358,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                   <Users2 className="w-4 h-4 text-brand-blue-primary" />
                 </div>
                 <h2 className="text-sm font-bold text-slate-800">
-                  {groups
-                    ? t('sidebar.groups.title', { defaultValue: 'My Teams' })
-                    : t('sidebar.plcs.title', { defaultValue: 'My PLCs' })}
+                  {t('sidebar.groups.title', { defaultValue: 'My Teams' })}
                 </h2>
               </div>
             </div>
@@ -390,9 +372,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
               >
                 <Plus className="w-4 h-4" />
                 <span className="text-xxs font-bold uppercase tracking-wider">
-                  {groups
-                    ? t('sidebar.groups.new', { defaultValue: 'New team' })
-                    : t('sidebar.plcs.newPlc', { defaultValue: 'New PLC' })}
+                  {t('sidebar.groups.new', { defaultValue: 'New team' })}
                 </span>
               </button>
               <button
@@ -425,13 +405,9 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                 </div>
                 <div className="text-center">
                   <p className="text-sm font-bold text-slate-600">
-                    {groups
-                      ? t('sidebar.groups.emptyTitle', {
-                          defaultValue: 'No teams yet',
-                        })
-                      : t('sidebar.plcs.emptyTitle', {
-                          defaultValue: 'No PLCs yet',
-                        })}
+                    {t('sidebar.groups.emptyTitle', {
+                      defaultValue: 'No teams yet',
+                    })}
                   </p>
                   <p className="text-xs text-slate-400 mt-0.5">
                     {pendingInvites.length > 0
@@ -439,15 +415,10 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                           defaultValue:
                             'You have pending invitations — accept one to get started.',
                         })
-                      : groups
-                        ? t('sidebar.groups.emptySubtitle', {
-                            defaultValue:
-                              'Create a team and invite your colleagues by email.',
-                          })
-                        : t('sidebar.plcs.emptySubtitle', {
-                            defaultValue:
-                              'Create a PLC and invite your colleagues by email.',
-                          })}
+                      : t('sidebar.groups.emptySubtitle', {
+                          defaultValue:
+                            'Create a team and invite your colleagues by email.',
+                        })}
                   </p>
                 </div>
                 <button
@@ -455,25 +426,17 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                   onClick={() => setIsCreating(true)}
                   className="mt-2 px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xxs font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors"
                 >
-                  {groups
-                    ? t('sidebar.groups.createNew', {
-                        defaultValue: 'Create a team',
-                      })
-                    : t('sidebar.plcs.createNewPlc', {
-                        defaultValue: 'Create New PLC',
-                      })}
+                  {t('sidebar.groups.createNew', {
+                    defaultValue: 'Create a team',
+                  })}
                 </button>
               </div>
             ) : (
               <div className="space-y-3">
                 <h3 className="text-xxs font-bold text-slate-400 uppercase tracking-widest px-1">
-                  {groups
-                    ? t('sidebar.groups.yours', {
-                        defaultValue: 'Your teams',
-                      })
-                    : t('sidebar.plcs.yourPlcs', {
-                        defaultValue: 'Your PLCs',
-                      })}
+                  {t('sidebar.groups.yours', {
+                    defaultValue: 'Your teams',
+                  })}
                 </h3>
                 <div
                   className="flex flex-col gap-2"

@@ -132,7 +132,6 @@ export const PlcNewQuizAssignmentModal: React.FC<
 > = ({ plc, assignmentMode = 'submissions', onClose, onCreated }) => {
   const { t } = useTranslation();
   const { user, canAccessFeature } = useAuth();
-  const groupWording = canAccessFeature('my-groups');
   // D12: with the split on, settings come from the teacher's last-used, editable inline.
   const reviewSplit = canAccessFeature('quiz-review-split');
   // D21: the stepper uses the Quiz steps, prefilled from and saving to last-used rules.
@@ -506,22 +505,12 @@ export const PlcNewQuizAssignmentModal: React.FC<
         const gated = !!stepperPlan?.periodGate;
         const createdKey = gated ? 'StepperCreated' : 'Created';
         addToast(
-          groupWording
-            ? t(`plcDashboard.newAssignment.quiz.group${createdKey}`, {
-                title: pickedQuiz.title,
-                defaultValue: gated
-                  ? '"{{title}}" created and shared with this group.'
-                  : '"{{title}}" created (paused) and shared with this group.',
-              })
-            : t(
-                `plcDashboard.newAssignment.quiz.${gated ? 'stepperCreated' : 'created'}`,
-                {
-                  title: pickedQuiz.title,
-                  defaultValue: gated
-                    ? '"{{title}}" created and shared with this PLC.'
-                    : '"{{title}}" created (paused) and shared with this PLC.',
-                }
-              ),
+          t(`plcDashboard.newAssignment.quiz.group${createdKey}`, {
+            title: pickedQuiz.title,
+            defaultValue: gated
+              ? '"{{title}}" created and shared with this group.'
+              : '"{{title}}" created (paused) and shared with this group.',
+          }),
           'success'
         );
         onCreated?.({ assignmentId, quizTitle: pickedQuiz.title });
@@ -552,13 +541,9 @@ export const PlcNewQuizAssignmentModal: React.FC<
         addToast(
           err instanceof Error
             ? err.message
-            : groupWording
-              ? t('plcDashboard.newAssignment.quiz.groupCreateFailed', {
-                  defaultValue: 'Failed to create the team assignment.',
-                })
-              : t('plcDashboard.newAssignment.quiz.createFailed', {
-                  defaultValue: 'Failed to create the PLC assignment.',
-                }),
+            : t('plcDashboard.newAssignment.quiz.groupCreateFailed', {
+                defaultValue: 'Failed to create the team assignment.',
+              }),
           'error'
         );
       } finally {
@@ -567,7 +552,6 @@ export const PlcNewQuizAssignmentModal: React.FC<
       }
     },
     [
-      groupWording,
       addToast,
       outward,
       assignmentMode,
@@ -602,15 +586,9 @@ export const PlcNewQuizAssignmentModal: React.FC<
   if (step === 'pick') {
     return (
       <PlcSharePickerModal
-        title={
-          groupWording
-            ? t('plcDashboard.newAssignment.quiz.groupPickTitle', {
-                defaultValue: 'New Team Quiz Assignment',
-              })
-            : t('plcDashboard.newAssignment.quiz.pickTitle', {
-                defaultValue: 'New PLC Quiz Assignment',
-              })
-        }
+        title={t('plcDashboard.newAssignment.quiz.groupPickTitle', {
+          defaultValue: 'New Team Quiz Assignment',
+        })}
         subtitle={t('plcDashboard.newAssignment.quiz.pickSubtitle', {
           name: plc.name,
           defaultValue: 'Shared with {{name}}',

@@ -92,7 +92,6 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const { canAccessFeature } = useAuth();
-  const groupWording = canAccessFeature('my-groups');
   const writtenOn = canAccessFeature(PAPER_HANDWRITTEN_FEATURE);
   const [targetUid, setTargetUid] = useState<string | null>(null);
   const [selectedRosterIds, setSelectedRosterIds] = useState<Set<string>>(
@@ -311,13 +310,9 @@ export const PlcTeammatePrintModal: React.FC<PlcTeammatePrintModalProps> = ({
       </p>
       {sortedTeammates.length === 0 ? (
         <p className="text-sm text-slate-500">
-          {groupWording
-            ? t('plcDashboard.teammatePrint.groupNoTeammates', {
-                defaultValue: 'This team has no other members yet.',
-              })
-            : t('plcDashboard.teammatePrint.noTeammates', {
-                defaultValue: 'This PLC has no other members yet.',
-              })}
+          {t('plcDashboard.teammatePrint.groupNoTeammates', {
+            defaultValue: 'This team has no other members yet.',
+          })}
         </p>
       ) : (
         <ul className="flex flex-col gap-2">

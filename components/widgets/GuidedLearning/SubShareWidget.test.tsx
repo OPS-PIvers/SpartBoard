@@ -16,10 +16,6 @@ vi.mock('firebase/firestore', () => ({
 }));
 vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
 vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
-const auth = vi.hoisted(() => ({ playerV2: false }));
-vi.mock('@/context/useAuth', () => ({
-  useAuth: () => ({ canAccessFeature: () => auth.playerV2 }),
-}));
 
 // The player is the teacher's own component; this suite is about which set a
 // substitute is handed and in which mode, not how a step draws.
@@ -89,7 +85,6 @@ const bundled = (title: string) => () =>
 const nothingBundled = () => Promise.resolve({ payload: null, denied: false });
 
 beforeEach(() => {
-  auth.playerV2 = false;
   getDoc.mockReset();
   getDoc.mockResolvedValue({ exists: () => false });
 });
@@ -107,24 +102,8 @@ describe('SubShareGuidedLearningWidget', () => {
     expect(player).toHaveTextContent('Plant cell');
   });
 
-  // The sub is covering the lesson, so they get the teacher's view of it; and
-  // with no answer or event callback the player cannot record anything.
-  it('plays it in teacher mode and records nothing', async () => {
-    render(
-      <SubShareGuidedLearningWidget
-        widget={widget({ playerSetId: 'set-1' })}
-      />,
-      { wrapper: inShare(bundled('Plant cell')) }
-    );
-
-    const player = await screen.findByTestId('gl-player');
-    expect(player).toHaveAttribute('data-teacher', 'yes');
-    expect(player).toHaveAttribute('data-records', 'no');
-  });
-
-  // Player v2: the student UI, with the key behind each question's Reveal answer.
-  it('plays without teacher mode and with Reveal answer under player v2', async () => {
-    auth.playerV2 = true;
+  // The student UI, with the key behind each question's Reveal answer, and nothing recorded.
+  it('plays without teacher mode, with Reveal answer, and records nothing', async () => {
     render(
       <SubShareGuidedLearningWidget
         widget={widget({ playerSetId: 'set-1' })}

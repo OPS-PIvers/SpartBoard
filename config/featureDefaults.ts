@@ -569,17 +569,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Guided Learning player v2. Admin-only until Paul has played a set end to end on dev.
-  'gl-player-v2': {
-    label: 'Guided Learning: calmer player',
-    icon: MousePointerClick,
-    description: 'Calmer Guided Learning playback.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Tab-away clock and exit log. Admin-only until Paul has tested it in prod.
   'tab-away-timer': {
     label: 'Tab-away timer',
@@ -693,17 +682,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Choose-all-that-apply quiz questions. Admin-only until Paul has run one with a class.
-  'quiz-choose-all': {
-    label: 'Choose-all-that-apply quiz questions',
-    icon: ListChecks,
-    description: 'Choose-all-that-apply questions.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // One-list multiple choice editor, choose-all as a setting on it. Admin-only until Paul has tried it.
   'quiz-choice-editor': {
     label: 'One-list multiple choice editor',
@@ -720,28 +698,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Quiz sections',
     icon: ListChecks,
     description: 'Section headings, and "answer any N of these".',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Alternate accepted answers on fill-in-the-blank quiz questions. Admin-only until Paul has tried it.
-  'quiz-fib-alternates': {
-    label: 'Other accepted answers for fill in the blank',
-    icon: TextCursorInput,
-    description: 'Alternate accepted answers.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // More than one blank in a fill-in-the-blank quiz question. Admin-only until Paul has tried it.
-  'quiz-fib-multi-blank': {
-    label: 'Several blanks in fill in the blank',
-    icon: TextCursorInput,
-    description: 'An answer box for each blank.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -1163,17 +1119,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // My PLCs becomes My Groups with group types (docs/plans/MY_GROUPS.md).
-  'my-groups': {
-    label: 'My Teams',
-    icon: UsersRound,
-    description: 'PLC, department and mentoring groups.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'plc-meeting-recording': {
     label: 'Meeting recording',
     icon: Mic,
@@ -1227,16 +1172,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'groups',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'list-line-style': {
-    label: 'Schedule and To-Do lines',
-    icon: ListChecks,
-    description: 'A Lines option for Schedule and To-Do rows.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
