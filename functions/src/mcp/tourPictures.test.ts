@@ -36,6 +36,7 @@ vi.mock('./glTools', () => ({
 import {
   issuePictureTicket,
   savePictures,
+  MAX_TICKET_USES,
   PICTURE_TICKET_MS,
 } from './tourPictures';
 
@@ -50,6 +51,14 @@ const docAt = (path: string) => ({
   },
   set: (data: Record<string, unknown>) => {
     h.docs.set(path, data);
+    return Promise.resolve();
+  },
+  update: (data: Record<string, unknown>) => {
+    h.docs.set(path, { ...h.docs.get(path), ...data });
+    return Promise.resolve();
+  },
+  delete: () => {
+    h.docs.delete(path);
     return Promise.resolve();
   },
 });
@@ -135,11 +144,30 @@ describe('live tour step pictures', () => {
     await expect(
       savePictures(db, body, 1000 + PICTURE_TICKET_MS + 1)
     ).rejects.toThrow(/expired/);
+    await expect(savePictures(db, body, 2000)).rejects.toThrow(/unknown/);
+    body.ticket = (await issuePictureTicket(ctx, 'tour-1', 1000)).ticket;
     h.docs.set('users/u1/mcp_grants/g1', { revokedAt: 5 });
     await expect(savePictures(db, body, 2000)).rejects.toThrow(/disconnected/);
     h.docs.set('users/u1/mcp_grants/g1', {});
     h.admin = false;
     await expect(savePictures(db, body, 2000)).rejects.toThrow(/admins/);
     expect(h.saveSet).not.toHaveBeenCalled();
+  });
+
+  it('stops honouring a ticket after its upload limit', async () => {
+    const { ticket } = await issuePictureTicket(ctx, 'tour-1', 1000);
+    const hash = createHash('sha256').update(ticket).digest('hex');
+    h.docs.set(`mcp_tour_picture_tickets/${hash}`, {
+      ...h.docs.get(`mcp_tour_picture_tickets/${hash}`),
+      uses: MAX_TICKET_USES,
+    });
+    await expect(
+      savePictures(
+        db,
+        { ticket, pictures: [{ step_id: 'a', image: png, w: 1, h: 1 }] },
+        2000
+      )
+    ).rejects.toThrow(/used up/);
+    expect(h.docs.has(`mcp_tour_picture_tickets/${hash}`)).toBe(false);
   });
 });

@@ -1,4 +1,4 @@
-// Step pictures from the browser run (LIVE_TOUR_ONE_SHOT.md D12a): a one-time ticket, then a plain POST of the PNGs.
+// Step pictures from the browser run (LIVE_TOUR_ONE_SHOT.md D12a): a 30-minute ticket, then plain POSTs of the pictures.
 import * as admin from 'firebase-admin';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { z } from 'zod';
@@ -12,6 +12,8 @@ export const PICTURE_TICKETS = 'mcp_tour_picture_tickets';
 export const PICTURE_TICKET_MS = 30 * 60 * 1000;
 export const MAX_PICTURE_BYTES = 2 * 1024 * 1024;
 const MAX_PICTURES = 40;
+// Uploads one ticket allows, so a leaked ticket can't be replayed without limit.
+export const MAX_TICKET_USES = 20;
 const DATA_URL = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/;
 
 const hashOf = (ticket: string) =>
@@ -64,7 +66,8 @@ async function readTicket(
   ticket: string,
   now: number
 ): Promise<{ ctx: ToolContext; setId: string }> {
-  const snap = await db.collection(PICTURE_TICKETS).doc(hashOf(ticket)).get();
+  const ref = db.collection(PICTURE_TICKETS).doc(hashOf(ticket));
+  const snap = await ref.get();
   const data = snap.data() as
     | {
         uid: string;
@@ -72,15 +75,20 @@ async function readTicket(
         grantId: string;
         setId: string;
         expiresAt: number;
+        uses?: number;
       }
     | undefined;
-  if (!data || data.expiresAt < now)
+  const spent = !!data && (data.uses ?? 0) >= MAX_TICKET_USES;
+  if (!data || data.expiresAt < now || spent) {
+    if (data) await ref.delete().catch(() => undefined);
     throw new ToolError(
-      'That ticket is unknown or expired. Call start_live_tour_picture_upload again.'
+      'That ticket is unknown, expired or used up. Call start_live_tour_picture_upload again.'
     );
-  const { setId, ...who } = data;
+  }
+  await ref.update({ uses: (data.uses ?? 0) + 1 });
+  const { setId, uid, email, grantId } = data;
   return {
-    ctx: { db, uid: who.uid, email: who.email, grantId: who.grantId },
+    ctx: { db, uid, email, grantId },
     setId,
   };
 }
