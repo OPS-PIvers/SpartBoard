@@ -689,7 +689,7 @@ describe('PlcNewQuizAssignmentModal with assign-stepper on (D21)', () => {
     expect(mockSetAssignmentTargets).not.toHaveBeenCalled();
     // No period gate, so it starts paused and the toast says so.
     expect(mockAddToast).toHaveBeenCalledWith(
-      '"{{title}}" created (paused) and shared with this PLC.',
+      '"{{title}}" created (paused) and shared with this group.',
       'success'
     );
   });
@@ -718,7 +718,7 @@ describe('PlcNewQuizAssignmentModal with assign-stepper on (D21)', () => {
       ];
       expect(options.initialStatus).toBe('active');
       expect(mockAddToast).toHaveBeenCalledWith(
-        '"{{title}}" created and shared with this PLC.',
+        '"{{title}}" created and shared with this group.',
         'success'
       );
     } finally {

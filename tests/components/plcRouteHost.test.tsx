@@ -280,7 +280,7 @@ describe('PlcRouteHost (Wave 1 — deep-link resolution + provider/routing wirin
 
     render(<PlcRouteHost parsed={parsed({ section: 'settings' })} />);
 
-    expect(screen.getByLabelText('Loading PLC…')).toBeInTheDocument();
+    expect(screen.getByLabelText('Loading team…')).toBeInTheDocument();
     expect(screen.queryByTestId('plc-dashboard')).not.toBeInTheDocument();
   });
 
@@ -289,7 +289,7 @@ describe('PlcRouteHost (Wave 1 — deep-link resolution + provider/routing wirin
 
     render(<PlcRouteHost parsed={parsed({ plcId: 'gone' })} />);
 
-    expect(screen.getByText('PLC not found')).toBeInTheDocument();
+    expect(screen.getByText('Team not found')).toBeInTheDocument();
     expect(screen.queryByTestId('plc-dashboard')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Back to my board'));

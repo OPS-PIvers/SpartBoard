@@ -111,7 +111,6 @@ export const PLC_HOME_TILE_DEFS: Partial<
     descriptionDefault: "The group's goals and the practices behind them",
     icon: Target,
     slices: PLC_HOME_TILE_SLICES.goals,
-    feature: 'my-groups',
     isAvailable: always,
     Component: GoalsTile,
   },

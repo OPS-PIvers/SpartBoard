@@ -323,8 +323,7 @@ export interface UseGuidedLearningSessionTeacherResult {
     /** Open/close/due window (epoch ms), spec §5 B3. Applies regardless of
      *  targeting mode — every field is optional and independently mirrored. */
     assignmentWindow?: { openAt?: number; closeAt?: number; dueAt?: number },
-    /** `playerV2`: the creator can use `gl-player-v2`, so students get it too. */
-    options?: { playerV2?: boolean; workKind?: WorkKind },
+    options?: { workKind?: WorkKind },
     /** Per-period gate; the steps and slides then move to `content/steps`. */
     periodGate?: Pick<GuidedLearningSession, 'accessMode' | 'periodAccess'>
   ) => Promise<string>;
@@ -352,7 +351,7 @@ export const useGuidedLearningSessionTeacher = (
       rosterIds: string[] = [],
       assignmentMode: AssignmentMode = 'submissions',
       assignmentWindow?: { openAt?: number; closeAt?: number; dueAt?: number },
-      options?: { playerV2?: boolean; workKind?: WorkKind },
+      options?: { workKind?: WorkKind },
       periodGate?: Pick<GuidedLearningSession, 'accessMode' | 'periodAccess'>
     ): Promise<string> => {
       if (!teacherUid) throw new Error('Not authenticated');
@@ -441,7 +440,7 @@ export const useGuidedLearningSessionTeacher = (
             }
           : {}),
         ...(set.watchPace === 'calm' ? { watchPace: set.watchPace } : {}),
-        ...(options?.playerV2 ? { playerV2: true } : {}),
+        playerV2: true,
       };
 
       const sessionRef = doc(db, GL_SESSIONS_COLLECTION, sessionId);

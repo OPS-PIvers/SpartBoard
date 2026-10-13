@@ -8473,7 +8473,7 @@ export interface GuidedLearningSession
   welcomeImageAlt?: string;
   /** Mirrors `GuidedLearningSet.watchPace`. */
   watchPace?: GuidedLearningWatchPace;
-  /** Stamped when the creator could use `gl-player-v2`; students can't evaluate the flag. */
+  /** Set on every new session; unmarked sessions predate the new player and keep the old one. */
   playerV2?: boolean;
   /**
    * Mirror of {@link GuidedLearningAssignment.scoreVisibility} for the
@@ -9838,8 +9838,6 @@ export type GlobalFeature =
   | 'quiz-document-ai-reader'
   /** Learning targets read off an imported test, offered as chips in its review. */
   | 'quiz-import-suggested-targets'
-  /** Guided Learning player v2: calm motion, learner speed, Watch/Try; stamped on sessions. */
-  | 'gl-player-v2'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */
@@ -9864,8 +9862,6 @@ export type GlobalFeature =
   | 'quiz-choice-editor'
   /** Section headings in the quiz editor, with "students answer any N of these M". */
   | 'quiz-sections'
-  /** One answer box per blank on fill-in-the-blank quiz questions. */
-  | 'quiz-fib-multi-blank'
   /** Standard codes typed in or imported with a question text become Learning targets tags. */
   | 'standards-from-question-text'
   /** "View full screen" toggle on large pop-ups (editors, graders). */
@@ -9922,7 +9918,6 @@ export type GlobalFeature =
   | 'drawing-ai'
   | 'webcam-ai'
   | 'blooms-ai'
-  | 'my-groups'
   /** Assign modals: Availability & Due Date (opens, closes, late work) replaces the Schedule and period-mode toggle. */
   | 'assign-availability'
   /** Record a group meeting on a note, with playback (docs/plans/shipped/PLC_MEETING_RECORDING.md). */
@@ -9933,8 +9928,6 @@ export type GlobalFeature =
   | 'study-resources'
   /** Sparty the mascot in tours, first-time setup and the Help Center (docs/plans/shipped/SPARTY.md). */
   | 'sparty'
-  /** Schedule and To-Do "Lines" row style. */
-  | 'list-line-style'
   /** Group Notes & Docs: notes list and Action items as swapping side panels, with action items on linked Google Docs. */
   | 'plc-notes-side-panels'
   /** Group Notes & Docs: embedded Google Docs keep Google's menus and toolbar. */
