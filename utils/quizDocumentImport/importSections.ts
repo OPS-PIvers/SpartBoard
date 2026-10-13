@@ -106,16 +106,3 @@ export function importSections(
       : s;
   });
 }
-
-/** Review notes for choose-N headings a teacher without sections can't enforce. */
-export function unenforcedChooseNotes(
-  questions: readonly ExtractedQuestion[]
-): string[] {
-  return importSections(questions).flatMap((s) =>
-    s.chooseCount
-      ? [
-          `Question ${questions[s.questionIndexes[0]].number}: Students choose ${s.chooseCount} of these ${itemCount(questions, s.questionIndexes)}; turn on sections to enforce it.`,
-        ]
-      : []
-  );
-}

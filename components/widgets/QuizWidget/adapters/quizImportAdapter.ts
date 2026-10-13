@@ -24,7 +24,6 @@ import type { QuizData, QuizQuestion } from '@/types';
 import { generateQuiz, type GeneratedQuestion } from '@/utils/ai';
 import {
   extractedToQuizData,
-  unenforcedChooseNotes,
   reviewExtrasFor,
   readByLabel,
   rowWarnings,
@@ -93,8 +92,6 @@ export interface QuizImportAdapterDeps {
   canUseAi?: boolean;
   /** Offer the test's learning-target lines as targets in review (R20, R22). */
   canSuggestTargets?: boolean;
-  /** Turn printed section headings into quiz sections (QUIZ_EXAMVIEW_IMPORT E16). */
-  canUseSections?: boolean;
   /** Catalog codes, so printed codes beside a question move to its review row (`standards-from-question-text`). */
   loadStandardCodes?: () => Promise<ReadonlySet<string>>;
   /** Turn a test's case studies and passages into stimuli (`quiz-import-passages`). */
@@ -471,18 +468,12 @@ export function createQuizImportAdapter(
           .catch(() => undefined);
         return {
           data: extractedToQuizData(extracted, {
-            sections: deps.canUseSections === true,
+            sections: true,
             ...(standardCodes ? { standardsFromText: standardCodes } : {}),
           }),
           // Row notes ride the wizard's own warnings list, numbered so they
           // line up with the review rows (D10).
-          warnings: [
-            ...extracted.warnings,
-            ...rowWarnings(extracted),
-            ...(deps.canUseSections
-              ? []
-              : unenforcedChooseNotes(extracted.questions)),
-          ],
+          warnings: [...extracted.warnings, ...rowWarnings(extracted)],
           ...(extracted.readBy ? { note: readByLabel(extracted.readBy) } : {}),
         };
       }

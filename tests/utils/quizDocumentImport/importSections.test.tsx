@@ -5,7 +5,6 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import {
   chooseCountOf,
   headingParts,
-  unenforcedChooseNotes,
 } from '@/utils/quizDocumentImport/importSections';
 import { parseDocument } from '@/utils/quizDocumentImport/parseQuestions';
 import { extractedToQuizData } from '@/utils/quizDocumentImport/toQuizData';
@@ -83,7 +82,7 @@ describe('extractedToQuizData with sections', () => {
     expect(quiz.questions[5].text).toBe('Graph the data.');
   });
 
-  it('keeps the directions in the stem and adds no sections without the flag', () => {
+  it('keeps the directions in the stem and adds no sections without the sections option', () => {
     const extracted = read(TEST);
     const quiz = extractedToQuizData(extracted);
     expect(quiz.sections).toBeUndefined();
@@ -91,9 +90,6 @@ describe('extractedToQuizData with sections', () => {
     expect(quiz.questions[5].text).toBe(
       'Use the data table below to answer. Graph the data.'
     );
-    expect(unenforcedChooseNotes(extracted.questions)).toEqual([
-      'Question 3: Students choose 2 of these 3; turn on sections to enforce it.',
-    ]);
   });
 
   it('makes no sections for a test that printed no headings', () => {

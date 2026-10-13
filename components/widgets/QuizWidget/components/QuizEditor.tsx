@@ -191,9 +191,8 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
   onAddAnswerKey,
   allowSections = true,
 }: PaneProps) {
-  const { canAccessQuizMediaResponse, canAccessFeature } = useAuth();
+  const { canAccessQuizMediaResponse } = useAuth();
   const mediaResponseAllowed = canAccessQuizMediaResponse();
-  const sectionsEnabled = allowSections && canAccessFeature('quiz-sections');
   const {
     questions,
     stimuli,
@@ -401,7 +400,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
                 Draft with AI
               </button>
             )}
-            {bankApi || sectionsEnabled ? (
+            {bankApi || allowSections ? (
               <div ref={addMenuRef} className="relative flex items-stretch">
                 <button
                   type="button"
@@ -441,7 +440,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
                       <Plus className="w-3.5 h-3.5" />
                       Blank question
                     </button>
-                    {sectionsEnabled && (
+                    {allowSections && (
                       <button
                         type="button"
                         role="menuitem"

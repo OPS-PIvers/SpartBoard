@@ -728,17 +728,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Quiz sections with "answer any N of M" in the editor. Admin-only until Paul has tried it.
-  'quiz-sections': {
-    label: 'Quiz sections',
-    icon: ListChecks,
-    description: 'Section headings, and "answer any N of these".',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Alternate accepted answers on fill-in-the-blank quiz questions. Admin-only until Paul has tried it.
   'quiz-fib-alternates': {
     label: 'Other accepted answers for fill in the blank',

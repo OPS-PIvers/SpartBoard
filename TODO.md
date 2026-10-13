@@ -135,10 +135,6 @@ Each item names the plan it came from; the plan holds the detail.
 - [ ] Check TTS cost after first Spanish class uses read-aloud. (S)
 - [ ] Flip admin_settings/feature_permissions flags to Public on prod after Paul's testing. (S)
 
-#### `docs/plans/shipped/QUIZ_EXAMVIEW_IMPORT.md`
-
-- [ ] Paul flips 'quiz-sections' flag to Public in Admin Settings after prod testing. (S)
-
 #### `docs/plans/shipped/QUIZ_IMPORT_RELIABILITY.md`
 
 - [ ] Flip feature flag to Public. (S)
@@ -471,7 +467,7 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 #### `docs/plans/QUIZ_STRUCTURED_ASSESSMENTS.md`
 
-- [ ] PR2: formatting, section extras (not-scored award, subtotals, wait-for-teacher) on top of ExamView's quiz-sections core (D8-D14). (L)
+- [ ] PR2: formatting, section extras (not-scored award, subtotals, wait-for-teacher) on top of ExamView's sections core (D8-D14). (L)
 - [ ] PR8: A&L answer-key profile in non-AI key reader (D27). (M)
 
 #### `docs/plans/shipped/WIDGET_SETTINGS_DRAWER.md`

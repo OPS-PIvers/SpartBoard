@@ -1793,7 +1793,6 @@ const TeacherQuizWidget: React.FC<{
       // tile is offered on the quiz import only.
       canImportDocuments,
       canSuggestTargets: canAccessFeature('quiz-import-suggested-targets'),
-      canUseSections: canAccessFeature('quiz-sections'),
       ...(canAccessFeature('standards-from-question-text')
         ? { loadStandardCodes: loadCatalogCodes }
         : {}),
