@@ -174,3 +174,33 @@ describe('StimulusRenderer pdf fallback', () => {
     expect(onLoadError).toHaveBeenCalledWith('stim-pdf');
   });
 });
+
+describe('StimulusRenderer image zoom', () => {
+  const image: QuizStimulus = {
+    id: 'stim-img',
+    type: 'image',
+    url: 'https://example.com/map.png',
+    label: 'Map',
+  };
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('fits the image at 100% and scales it from the original file when zoomed', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(400);
+    const { container } = render(<StimulusRenderer stimulus={image} />);
+    const img = container.querySelector('img') as HTMLImageElement;
+    Object.defineProperty(img, 'naturalWidth', { value: 1600 });
+    Object.defineProperty(img, 'naturalHeight', { value: 800 });
+    fireEvent.load(img);
+    expect(img.style.width).toBe('400px');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    expect(img.style.width).toBe('500px');
+    expect(screen.getByRole('button', { name: 'Reset zoom' }).textContent).toBe(
+      '125%'
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset zoom' }));
+    expect(img.style.width).toBe('400px');
+  });
+});
