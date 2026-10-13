@@ -113,6 +113,20 @@ export const TeamShellView: React.FC<TeamShellViewProps> = ({
             <ArrowLeft className="h-6 w-6" aria-hidden="true" />
           </button>
         )}
+        <button
+          type="button"
+          className={`${HEADER_ICON} -ml-1.5 hidden md:block`}
+          aria-label={t('teams.header.backToBoard', {
+            defaultValue: 'Back to board',
+          })}
+          title={t('teams.header.backToBoard', {
+            defaultValue: 'Back to board',
+          })}
+          {...tourAttr('teams.shell.close')}
+          onClick={onClose}
+        >
+          <ArrowLeft className="h-5 w-5" aria-hidden="true" />
+        </button>
         <Users2
           className="hidden h-4 w-4 shrink-0 text-white/70 md:block"
           aria-hidden="true"
@@ -190,10 +204,9 @@ export const TeamShellView: React.FC<TeamShellViewProps> = ({
         </button>
         <button
           type="button"
-          className={HEADER_ICON}
+          className={`${HEADER_ICON} md:hidden`}
           aria-label={t('plcDashboard.close', { defaultValue: 'Close' })}
           title={t('plcDashboard.close', { defaultValue: 'Close' })}
-          {...tourAttr('teams.shell.close')}
           onClick={onClose}
         >
           <X className="h-5 w-5" aria-hidden="true" />

@@ -47,6 +47,13 @@ export type SharedBoardImportMode = 'copy' | 'synced' | 'view-only';
  * outcome so the caller can warn the host before they hand the link to
  * a sub who won't actually have roster access.
  */
+/** Which view of a shared quiz the QuizWidget should open; widgetId null = the next quiz widget to mount. */
+export interface PendingQuizReveal {
+  syncGroupId: string;
+  target: 'monitor' | 'library';
+  widgetId: string | null;
+}
+
 export interface SubstituteShareResult {
   shareId: string;
   /**
@@ -393,6 +400,10 @@ export interface DashboardContextValue {
   pendingAssignmentEditId: string | null;
   setPendingAssignmentEdit: (assignmentId: string | null) => void;
   clearPendingAssignmentEdit: () => void;
+  /** A PLC status chip's request for the QuizWidget to show one shared quiz. */
+  pendingQuizReveal: PendingQuizReveal | null;
+  setPendingQuizReveal: (reveal: PendingQuizReveal | null) => void;
+  clearPendingQuizReveal: () => void;
 
   // Collection sharing system
   shareCollection: (input: {

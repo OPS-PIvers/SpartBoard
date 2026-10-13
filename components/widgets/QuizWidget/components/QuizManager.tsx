@@ -448,6 +448,8 @@ interface QuizManagerProps {
   config: QuizConfig;
 
   managerTab?: QuizManagerTab;
+  /** Opens the preview pane on this quiz; a new object reopens it. */
+  revealRequest?: { quizId: string } | null;
   onTabChange?: (tab: QuizManagerTab) => void;
   /** Question banks; the Banks tab renders only when this is provided. */
   banks?: QuestionBankMetadata[];
@@ -707,6 +709,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   rosters,
   config,
   managerTab = 'library',
+  revealRequest = null,
   onTabChange,
   banks,
   banksLoading = false,
@@ -1141,7 +1144,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // snapshot for the previewed quiz. Storing the object pinned the pane
   // to a stale copy and routed the "Open editor" primary action to a
   // possibly-deleted quiz id (subagent review flag on PR #1588).
-  const [previewQuizId, setPreviewQuizId] = useState<string | null>(null);
+  const [previewQuizId, setPreviewQuizId] = useState<string | null>(
+    revealRequest?.quizId ?? null
+  );
+  const [prevRevealRequest, setPrevRevealRequest] = useState(revealRequest);
+  if (prevRevealRequest !== revealRequest) {
+    setPrevRevealRequest(revealRequest);
+    if (revealRequest) setPreviewQuizId(revealRequest.quizId);
+  }
   // Exit selection mode if the user leaves the library tab
   const [prevManagerTab, setPrevManagerTab] = useState(managerTab);
   if (prevManagerTab !== managerTab) {
