@@ -5,6 +5,35 @@ import { PlcActionItem, PlcMeeting, PlcNote, PlcTodo } from '@/types';
 /** Hard cap on action items per note, mirrored in `firestore.rules`. */
 export const MAX_ACTION_ITEMS = 200;
 
+/** Days an item stays in Recently completed before it is deleted. */
+export const CLEARED_ITEM_KEEP_DAYS = 30;
+
+/** Drops items that have sat in Recently completed past the keep window. */
+export function pruneClearedActionItems(
+  items: readonly PlcActionItem[],
+  now: number
+): PlcActionItem[] {
+  const cutoff = now - CLEARED_ITEM_KEEP_DAYS * 24 * 60 * 60 * 1000;
+  return items.filter(
+    (it) =>
+      !(it.done && typeof it.clearedAt === 'number' && it.clearedAt < cutoff)
+  );
+}
+
+/** Moves every open-list done item to the end, stamped into Recently completed. */
+export function clearCompletedActionItems(
+  items: readonly PlcActionItem[],
+  now: number
+): PlcActionItem[] {
+  const moving = items.filter((it) => it.done && it.clearedAt == null);
+  if (!moving.length) return [...items];
+  const ids = new Set(moving.map((it) => it.id));
+  return [
+    ...items.filter((it) => !ids.has(it.id)),
+    ...moving.map((it) => ({ ...it, clearedAt: now })),
+  ];
+}
+
 /** Build a new action item with a fresh id. */
 export function newActionItem(
   text: string,
@@ -41,6 +70,9 @@ export function sanitizeActionItemsForWrite(
       createdBy: item.createdBy,
       createdAt: item.createdAt,
       doneAt: item.doneAt ?? null,
+      ...(typeof item.clearedAt === 'number' && item.done
+        ? { clearedAt: item.clearedAt }
+        : {}),
     });
     if (cleaned.length >= MAX_ACTION_ITEMS) break;
   }
@@ -76,6 +108,7 @@ export function parseActionItems(raw: unknown): PlcActionItem[] {
     else if (e.dueAt === null) item.dueAt = null;
     if (typeof e.doneAt === 'number') item.doneAt = e.doneAt;
     else if (e.doneAt === null) item.doneAt = null;
+    if (typeof e.clearedAt === 'number') item.clearedAt = e.clearedAt;
     items.push(item);
   }
   return items;
@@ -183,7 +216,8 @@ const sameActionItem = (a: PlcActionItem, b: PlcActionItem): boolean =>
   a.done === b.done &&
   (a.assigneeUid ?? null) === (b.assigneeUid ?? null) &&
   (a.dueAt ?? null) === (b.dueAt ?? null) &&
-  (a.doneAt ?? null) === (b.doneAt ?? null);
+  (a.doneAt ?? null) === (b.doneAt ?? null) &&
+  (a.clearedAt ?? null) === (b.clearedAt ?? null);
 
 /** Three-way merge by id: my edits since `base` applied over the saved `theirs`. */
 export function rebaseActionItems(

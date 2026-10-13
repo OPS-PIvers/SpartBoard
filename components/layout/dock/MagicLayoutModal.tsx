@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Sparkles, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
+import { AI_PROMPT_TEXTAREA_CLASS } from '@/components/common/aiPanelStyles';
 import { GlassCard } from '@/components/common/GlassCard';
 import { Modal } from '@/components/common/Modal';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
@@ -66,16 +67,9 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
       zIndex="z-critical"
     >
       <GlassCard className="w-full max-w-lg p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="p-2 bg-brand-blue-primary rounded-xl shadow-sm text-white">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-sm font-black uppercase tracking-widest text-slate-800">
-              Layout Generator
-            </h3>
-          </div>
-        </div>
+        <h3 className="text-sm font-black uppercase tracking-widest text-slate-800 mb-4">
+          Layout Generator
+        </h3>
 
         <textarea
           {...tourAttr('dock.magic-layout-input')}
@@ -83,7 +77,7 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
           onChange={(e) => setDescription(e.target.value)}
           autoFocus
           placeholder="e.g., Math rotations with 4 groups, a 15-minute timer, and a noise meter."
-          className="w-full h-32 px-4 py-3 bg-slate-100 border-none rounded-xl focus:ring-2 focus:ring-brand-blue-primary text-sm font-medium mb-4 resize-none"
+          className={`${AI_PROMPT_TEXTAREA_CLASS} mb-4`}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
@@ -111,7 +105,7 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
           <div
             role="group"
             aria-labelledby="magic-layout-suggestions-label"
-            className="flex flex-wrap gap-2"
+            className="flex flex-col items-start"
           >
             {[
               'Small group rotations with a timer',
@@ -126,7 +120,7 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
                   String(index)
                 )}
                 onClick={() => setDescription(suggestion)}
-                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-xxs font-bold text-slate-600 rounded-lg transition-colors"
+                className="py-1 text-left text-sm text-slate-600 hover:text-brand-blue-primary transition-colors"
               >
                 {suggestion}
               </button>
@@ -156,10 +150,7 @@ export const MagicLayoutModal: React.FC<MagicLayoutModalProps> = ({
                 <span>Generating...</span>
               </>
             ) : (
-              <>
-                <Sparkles className="w-4 h-4" />
-                <span>Draft with AI</span>
-              </>
+              <span>Draft with AI</span>
             )}
           </button>
         </div>

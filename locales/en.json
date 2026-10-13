@@ -3815,6 +3815,9 @@
     "playFromHere": "Play from here",
     "showAnswerKey": "Show answer key",
     "runLive": "Run live on my board",
+    "convertToLiveTour": "Convert to live tour",
+    "convertingToLiveTour": "Converting…",
+    "convertToLiveTourFailed": "Couldn't make a live tour from this activity.",
     "tourAction": "When the tour reaches this step",
     "tourWidget": "Which widget",
     "tourWidgetPick": "Choose a widget",
@@ -5028,5 +5031,14 @@
     "label": "What's new",
     "dismiss": "Dismiss",
     "gotIt": "Got it"
+  },
+  "rubricGuide": {
+    "examples": "Example responses",
+    "or": "or"
+  },
+  "quizQuotes": {
+    "addToResponse": "Add to response",
+    "showQuotes": "Show quotes",
+    "showQuotesHint": "Blue is an exact quote. Amber was changed from the passage."
   }
 }

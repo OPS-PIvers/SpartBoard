@@ -92,7 +92,7 @@ describe('MiniAppEditorModal Edit with AI', () => {
     fireEvent.change(screen.getByLabelText('Describe your mini-app'), {
       target: { value: 'a spinner' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /Generate Code/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Draft app/ }));
 
     await waitFor(() => expect(codeBox()).toHaveValue('<html>new</html>'));
     expect(screen.queryByRole('button', { name: /Undo AI change/ })).toBeNull();
@@ -133,7 +133,7 @@ describe('MiniAppEditorModal Edit with AI', () => {
     fireEvent.change(screen.getByLabelText('Describe your mini-app'), {
       target: { value: 'a spinner' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /Generate Code/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Draft app/ }));
 
     await waitFor(() => expect(codeBox()).toHaveValue('<html>new</html>'));
     expect(generateMiniAppCode).toHaveBeenCalledWith('a spinner', 'mini-app');

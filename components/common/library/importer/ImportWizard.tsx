@@ -29,10 +29,11 @@ import {
   FileUp,
   Info,
   Loader2,
-  Sparkles,
+  Wand2,
   X,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
+import { AI_PROMPT_TEXTAREA_CLASS } from '@/components/common/aiPanelStyles';
 import { useFileDrop } from '@/hooks/useFileDrop';
 import type {
   ImportAdapter,
@@ -811,7 +812,7 @@ export function ImportWizard<TData>({
           className={sourceButtonClass}
           aria-label={`AI-assist import for ${adapter.widgetLabel}`}
         >
-          <Sparkles className="h-3.5 w-3.5" />
+          <Wand2 className="h-3.5 w-3.5" />
           Draft with AI
         </button>
       )}
@@ -1089,45 +1090,45 @@ const AiAssistOverlay: React.FC<AiAssistOverlayProps> = ({
       className="absolute inset-0 z-10 bg-white/95 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200 -mx-6 -my-5"
     >
       <div className="w-full max-w-md space-y-4">
-        <div className="flex items-center justify-between">
-          <h4 className="font-black text-indigo-600 flex items-center gap-2 uppercase tracking-tight">
-            <Sparkles className="w-5 h-5" /> AI-assist
-          </h4>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h4 className="font-black text-lg text-slate-800">Draft with AI</h4>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Describe the {widgetLabel.toLowerCase()} you want to create.
+            </p>
+          </div>
           <button
             type="button"
             onClick={onCancel}
-            className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600"
+            className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors shrink-0"
             aria-label="Close AI-assist"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest opacity-70">
-          Describe the {widgetLabel.toLowerCase()} you want to create.
-        </p>
         <textarea
           value={prompt}
           onChange={(e) => onPromptChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full h-32 p-4 bg-white border-2 border-indigo-100 rounded-2xl text-sm text-indigo-900 placeholder-indigo-300 focus:outline-none focus:border-indigo-500 resize-none shadow-inner"
+          className={AI_PROMPT_TEXTAREA_CLASS}
           aria-label={`AI-assist prompt for ${widgetLabel}`}
         />
-        <button
-          type="button"
-          onClick={onGenerate}
-          disabled={isGenerating || !prompt.trim()}
-          className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" /> Generating…
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-4 h-4" /> Generate
-            </>
-          )}
-        </button>
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={onGenerate}
+            disabled={isGenerating || !prompt.trim()}
+            className="flex items-center gap-1.5 px-5 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-xl transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" /> Generating…
+              </>
+            ) : (
+              'Generate'
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );

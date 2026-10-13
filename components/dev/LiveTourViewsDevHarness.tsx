@@ -500,6 +500,7 @@ export const LiveTourViewsDevHarness: React.FC = () => {
           onClose={() => undefined}
           initialCollapsed={state === 'edit-collapsed'}
           initialSide="right"
+          onCopyForClaude={() => undefined}
         />
       )}
       {!isEdit && (

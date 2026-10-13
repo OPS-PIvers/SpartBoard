@@ -42,6 +42,7 @@ const LAUNCHABLE_KINDS = [
 type LaunchKind = (typeof LAUNCHABLE_KINDS)[number];
 
 const MAX_ROSTERS = 20;
+const STIMULUS_QUOTES_FEATURE = 'quiz-stimulus-quotes';
 /** A session doc is capped at ~1 MiB by Firestore; stay well inside it. */
 const MAX_PAYLOAD_BYTES = 700_000;
 
@@ -608,6 +609,12 @@ export interface SubLaunchDeps {
   now: () => number;
   newId: () => string;
   newCode: () => string;
+  /** Server twin of the host teacher's own canAccessFeature. */
+  hostHasFeature: (
+    db: admin.firestore.Firestore,
+    hostUid: string,
+    featureId: string
+  ) => Promise<boolean>;
 }
 
 /** The teacher client's own shape: six uppercase alphanumerics. */
@@ -619,10 +626,28 @@ function randomJoinCode(): string {
     .padEnd(6, '0');
 }
 
+async function liveHostHasFeature(
+  db: admin.firestore.Firestore,
+  hostUid: string,
+  featureId: string
+): Promise<boolean> {
+  const email = await admin
+    .auth()
+    .getUser(hostUid)
+    // An unverified email must never match admins/{email} or a beta list.
+    .then((u) => (u.emailVerified ? (u.email ?? null) : null))
+    .catch(() => null);
+  const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
+  return isGlobalFeatureGranted(db, featureId, email, hostUid).catch(
+    () => false
+  );
+}
+
 export const liveSubLaunchDeps: SubLaunchDeps = {
   now: () => Date.now(),
   newId: () => randomUUID(),
   newCode: randomJoinCode,
+  hostHasFeature: liveHostHasFeature,
 };
 
 interface VaLaunchArgs {
@@ -1137,6 +1162,12 @@ export async function handleLaunchSubAssignment(
   // Minted here, not accepted: a code is global across every teacher, so a
   // caller's own code could eclipse another teacher's live session.
   const code = await allocateJoinCode(db, deps.newCode);
+  // Same stamp the teacher's own assign writes: on by default, only with their flag.
+  const stimulusQuotesOn = await deps.hostHasFeature(
+    db,
+    hostUid,
+    STIMULUS_QUOTES_FEATURE
+  );
   const publicQuestions = publicQuestionsFromKey(keyQuiz.questions);
   const quizTitle =
     typeof keyQuiz.title === 'string' && keyQuiz.title ? keyQuiz.title : 'Quiz';
@@ -1150,6 +1181,7 @@ export async function handleLaunchSubAssignment(
     totalQuestions: publicQuestions.length,
     mediaResponseEnabled: false,
     showLearningTargets: false,
+    ...(stimulusQuotesOn ? { allowStimulusQuotes: true } : {}),
     ...(Array.isArray(keyQuiz.stimuli) ? { stimuli: keyQuiz.stimuli } : {}),
     ...(typeof keyQuiz.language === 'string'
       ? { language: keyQuiz.language }

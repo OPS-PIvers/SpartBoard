@@ -26,7 +26,7 @@ export const QuizIntegrityStep: React.FC<QuizRuleStepProps> = ({
   value,
   onChange,
 }) => {
-  const { tabAwayTimerOn } = useQuizRuleGates();
+  const { tabAwayTimerOn, stimulusQuotesOn } = useQuizRuleGates();
   const o = value.sessionOptions;
   const focus = o.tabWarningsEnabled ?? true;
   const threshold = o.tabWarningThreshold ?? DEFAULT_TAB_WARNING_THRESHOLD;
@@ -127,6 +127,18 @@ export const QuizIntegrityStep: React.FC<QuizRuleStepProps> = ({
         checked={o.blockCopyPaste ?? false}
         onChange={(blockCopyPaste) => patch({ blockCopyPaste })}
       />
+      {stimulusQuotesOn && (
+        <StepToggleRow
+          label="Let students quote from passages"
+          anchor={tourFieldAttr(
+            'assign-rule.toggle',
+            'assign',
+            'stimulus-quotes'
+          )}
+          checked={o.allowStimulusQuotes ?? true}
+          onChange={(allowStimulusQuotes) => patch({ allowStimulusQuotes })}
+        />
+      )}
     </div>
   );
 };

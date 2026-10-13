@@ -12,5 +12,6 @@ export const useQuizRuleGates = (): QuizRuleGates => {
     timeLimitOn: can(QUIZ_TIME_LIMIT_FEATURE),
     tabAwayTimerOn: can('tab-away-timer'),
     scoreOnSubmitOn: can('quiz-score-on-submit'),
+    stimulusQuotesOn: can('quiz-stimulus-quotes'),
   };
 };

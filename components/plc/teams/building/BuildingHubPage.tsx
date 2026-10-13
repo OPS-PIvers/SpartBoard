@@ -5,6 +5,7 @@ import { LATEST_UPDATES_COUNT, pickHeroUpdate } from '@/utils/teamUpdates';
 import { UpdateHeroView } from '../updates/UpdateHero';
 import { useTeamUpdatesData } from '../updates/useTeamUpdatesData';
 import type { TeamPageProps } from '@/components/plc/teams/types';
+import { BuildingGoalsCard } from './BuildingGoalsCard';
 import { BuildingHubView } from './BuildingHubView';
 import { CalendarHeroView } from './CalendarCard';
 import { useQuickLinks } from './quickLinks';
@@ -66,6 +67,7 @@ export function BuildingHubPage({
       myAcks={myAcks}
       categories={categories}
       calendarUrl={plc.calendarEmbedUrl}
+      goals={<BuildingGoalsCard plc={plc} isLead={isLead} />}
       onAllUpdates={() => onNavigate?.('updates')}
       onAllResources={() => onNavigate?.('resources')}
     />

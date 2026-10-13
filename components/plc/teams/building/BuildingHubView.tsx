@@ -24,6 +24,8 @@ export interface BuildingHubViewProps {
   categories: ResourceCategory[];
   calendarUrl: string | undefined;
   calendarEmbed?: React.ReactNode;
+  /** The goals list; shown when the layout has the goals card. */
+  goals?: React.ReactNode;
   onAllUpdates?: () => void;
   onAllResources?: () => void;
 }
@@ -41,12 +43,14 @@ export const BuildingHubView: React.FC<BuildingHubViewProps> = ({
   categories,
   calendarUrl,
   calendarEmbed,
+  goals,
   onAllUpdates,
   onAllResources,
 }) => {
   const on = (id: TeamCardId) => cards.includes(id);
   const showHero = on('hero') && !!hero;
   const showQuick = on('quickLinks') && (quickLinks.length > 0 || isLead);
+  const showGoals = on('goals') && !!goals;
   const showLatest = on('latestUpdates');
   const showResources = on('resourcesByCategory');
   const showCalendar =
@@ -72,9 +76,15 @@ export const BuildingHubView: React.FC<BuildingHubViewProps> = ({
         </Section>
       )}
 
+      {showGoals && (
+        <Section first={!showHero && !showQuick} label="Goals">
+          {goals}
+        </Section>
+      )}
+
       {(leftCol || showCalendar) && (
         <Section
-          first={!showHero && !showQuick}
+          first={!showHero && !showQuick && !showGoals}
           label="Updates, resources and calendar"
         >
           <div

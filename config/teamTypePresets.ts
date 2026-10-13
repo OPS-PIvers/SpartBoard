@@ -215,6 +215,7 @@ export const BUILT_IN_TEAM_TYPE_PRESETS: Record<PlcGroupType, TeamTypePreset> =
       cards: [
         'hero',
         'quickLinks',
+        'goals',
         'latestUpdates',
         'resourcesByCategory',
         'calendar',

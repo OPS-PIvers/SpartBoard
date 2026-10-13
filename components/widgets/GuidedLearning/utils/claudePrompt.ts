@@ -20,10 +20,12 @@ export function buildClaudePrompt(
   set: Pick<
     GuidedLearningSet,
     'id' | 'title' | 'steps' | 'isBuilding' | 'helpCenter'
-  >,
+  > &
+    Partial<Pick<GuidedLearningSet, 'mode'>>,
   target: ClaudePromptTarget,
   options: { dev?: boolean } = {}
 ): string {
+  if (set.mode === 'tour') return buildTourPrompt(set, target, options);
   const source = set.isBuilding || set.helpCenter ? 'building' : 'mine';
   const title = set.title.trim() || 'Untitled activity';
   const activity = `my SpartBoard Guided Learning activity "${title}" (set_id: ${set.id}, source: ${source})`;
@@ -63,6 +65,33 @@ export function buildClaudePrompt(
     );
   }
 
+  lines.push('', 'What I want: ');
+  return lines.join('\n');
+}
+
+// Live tours have their own connector tools and no slides.
+function buildTourPrompt(
+  set: Pick<GuidedLearningSet, 'id' | 'title' | 'steps'>,
+  target: ClaudePromptTarget,
+  options: { dev?: boolean }
+): string {
+  const title = set.title.trim() || 'Untitled tour';
+  const tour = `my SpartBoard live tour "${title}" (set_id: ${set.id})`;
+  const lines: string[] = [];
+  if (options.dev) lines.push('Use the SpartBoard-Dev connector.');
+  const index =
+    target.kind === 'step'
+      ? set.steps.findIndex((s) => s.id === target.stepId)
+      : -1;
+  const step = set.steps[index];
+  if (step) {
+    lines.push(
+      `I'm working on ${stepName(step, index + 1)} of ${tour}.`,
+      `Fetch it first with get_live_tour and find the step by its id, ${step.id}, since step numbers change when steps move.`
+    );
+  } else {
+    lines.push(`I'm working on ${tour}.`, 'Fetch it first with get_live_tour.');
+  }
   lines.push('', 'What I want: ');
   return lines.join('\n');
 }

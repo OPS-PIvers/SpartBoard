@@ -6,7 +6,7 @@ import {
   ExternalLink,
   Code,
   XCircle,
-  Sparkles,
+  Wand2,
   Loader2,
   ZoomIn,
   ZoomOut,
@@ -518,7 +518,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     )}
                     onClick={handleGenerateMiniApp}
                     disabled={isGeneratingApp}
-                    className="bg-white/80 backdrop-blur-sm hover:bg-indigo-50 text-indigo-500 shadow-sm border border-indigo-200/50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    className="bg-white/80 backdrop-blur-sm hover:bg-slate-50 text-slate-600 shadow-sm border border-slate-200 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
                     style={{ padding: 'min(8px, 1vmin)' }}
                     title="Generate Interactive Mini App"
                     aria-label="Generate Interactive Mini App"
@@ -532,7 +532,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                         }}
                       />
                     ) : (
-                      <Sparkles
+                      <Wand2
                         style={{
                           width: 'min(16px, 2vmin)',
                           height: 'min(16px, 2vmin)',

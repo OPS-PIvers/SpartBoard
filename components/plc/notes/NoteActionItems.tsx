@@ -1,8 +1,10 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
 import {
   CalendarDays,
+  ChevronDown,
+  ChevronRight,
   GripVertical,
   Plus,
   Trash2,
@@ -13,7 +15,13 @@ import {
   SortableList,
   type SortableListDragHandleProps,
 } from '@/components/common/SortableList';
-import { MAX_ACTION_ITEMS, newActionItem } from '@/utils/plcActionItems';
+import {
+  MAX_ACTION_ITEMS,
+  clearCompletedActionItems,
+  newActionItem,
+  pruneClearedActionItems,
+} from '@/utils/plcActionItems';
+import { personName } from '@/utils/personName';
 import {
   applyVisibleReorder,
   DEFAULT_ACTION_ITEM_VIEW,
@@ -31,7 +39,15 @@ interface NoteActionItemsProps {
   currentUid: string;
   /** Side panel: no heading, and assignee and due date sit under the text. */
   panel?: boolean;
+  /** Teams redesign: add row on top, Remove completed, and Recently completed. */
+  teamsLayout?: boolean;
 }
+
+const NO_HANDLE: SortableListDragHandleProps = {
+  attributes: {},
+  listeners: undefined,
+  isDragging: false,
+};
 
 /** Parse a `<input type="date">` value into ms at local midnight, or null. */
 function dateInputToMs(value: string): number | null {
@@ -137,35 +153,55 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
   onChange,
   currentUid,
   panel = false,
+  teamsLayout = false,
 }) => {
   const { t } = useTranslation();
   const [draft, setDraft] = useState('');
+  const [showCleared, setShowCleared] = useState(false);
+  const people = useMemo(
+    () =>
+      teamsLayout
+        ? members.map((m) => ({ ...m, displayName: personName(m) }))
+        : members,
+    [members, teamsLayout]
+  );
   const [view, setView] = useState<ActionItemView>(DEFAULT_ACTION_ITEM_VIEW);
   // Lazy-init so `Date.now()` isn't called impurely during render (repo
   // pattern — see `YourActionItemsCard`); overdue rows don't need
   // second-precision freshness.
   const [now] = useState(() => Date.now());
+  const emit = (next: PlcActionItem[]) =>
+    onChange(teamsLayout ? pruneClearedActionItems(next, now) : next);
 
   const nameFor = useCallback(
-    (uid: string) => members.find((m) => m.uid === uid)?.displayName ?? '',
-    [members]
+    (uid: string) => people.find((m) => m.uid === uid)?.displayName ?? '',
+    [people]
   );
 
-  const visible = visibleActionItems(items, view, now, nameFor);
+  const active = teamsLayout
+    ? items.filter((it) => it.clearedAt == null)
+    : items;
+  const cleared = teamsLayout
+    ? items
+        .filter((it) => it.clearedAt != null)
+        .sort((a, b) => (b.clearedAt ?? 0) - (a.clearedAt ?? 0))
+    : [];
+  const doneCount = active.filter((it) => it.done).length;
+  const visible = visibleActionItems(active, view, now, nameFor);
   const canDrag = canEdit && view.sort === 'manual';
 
   const updateItem = (id: string, patch: Partial<PlcActionItem>) => {
-    onChange(items.map((it) => (it.id === id ? { ...it, ...patch } : it)));
+    emit(items.map((it) => (it.id === id ? { ...it, ...patch } : it)));
   };
 
   const removeItem = (id: string) => {
-    onChange(items.filter((it) => it.id !== id));
+    emit(items.filter((it) => it.id !== id));
   };
 
   const addItem = () => {
     const text = draft.trim();
     if (!text || items.length >= MAX_ACTION_ITEMS) return;
-    onChange([...items, newActionItem(text, currentUid, Date.now())]);
+    emit([...items, newActionItem(text, currentUid, Date.now())]);
     setDraft('');
   };
 
@@ -174,10 +210,11 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
     handle: SortableListDragHandleProps
   ) => {
     const overdue = isActionItemOverdue(item, now);
+    const isCleared = item.clearedAt != null;
 
     const leadControls = (
       <>
-        {canEdit && (
+        {canEdit && !isCleared && (
           <button
             {...tourFieldAttr('plc-notes.action-drag', 'plc', item.id)}
             type="button"
@@ -212,6 +249,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
             updateItem(item.id, {
               done: e.target.checked,
               doneAt: e.target.checked ? Date.now() : null,
+              ...(e.target.checked ? {} : { clearedAt: null }),
             })
           }
           aria-label={
@@ -273,7 +311,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
                 defaultValue: 'Unassigned',
               })}
             </option>
-            {members.map((m) => (
+            {people.map((m) => (
               <option key={m.uid} value={m.uid}>
                 {m.displayName}
               </option>
@@ -331,7 +369,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
                   defaultValue: 'Unassigned',
                 })}
               </option>
-              {members.map((m) => (
+              {people.map((m) => (
                 <option key={m.uid} value={m.uid}>
                   {m.displayName}
                 </option>
@@ -384,7 +422,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
             </span>
           </div>
           <div
-            className={`flex items-center gap-4 mt-1 ${canEdit ? 'pl-11' : 'pl-6'}`}
+            className={`flex items-center gap-4 mt-1 ${canEdit && !isCleared ? 'pl-11' : 'pl-6'}`}
           >
             {panelMeta}
           </div>
@@ -400,6 +438,70 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
     );
   };
 
+  const addRow =
+    canEdit &&
+    (items.length < MAX_ACTION_ITEMS ? (
+      <div
+        className={`shrink-0 flex items-center gap-2 ${teamsLayout && panel ? 'mb-2' : 'mt-2'}`}
+      >
+        <input
+          {...tourAttr('plc-notes.action-text')}
+          type="text"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              addItem();
+            }
+          }}
+          placeholder={t('plcDashboard.notes.actionItems.addPlaceholder', {
+            defaultValue: 'What needs to happen?',
+          })}
+          className="flex-1 min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+        />
+        <button
+          {...tourAttr('plc-notes.add-action')}
+          type="button"
+          onClick={addItem}
+          aria-label={
+            panel
+              ? t('plcDashboard.notes.actionItems.add', {
+                  defaultValue: 'Add action item',
+                })
+              : undefined
+          }
+          className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xxs font-bold uppercase tracking-wider rounded-md transition-colors"
+        >
+          <Plus className={panel ? 'w-4 h-4' : 'w-3 h-3'} />
+          {!panel &&
+            t('plcDashboard.notes.actionItems.add', {
+              defaultValue: 'Add action item',
+            })}
+        </button>
+      </div>
+    ) : (
+      <p className="shrink-0 text-xxs text-slate-400 mt-2">
+        {t('plcDashboard.notes.actionItems.limitReached', {
+          defaultValue: 'Action item limit reached',
+        })}
+      </p>
+    ));
+  const addOnTop = teamsLayout && panel;
+
+  const removeCompleted = teamsLayout && canEdit && doneCount > 0 && (
+    <button
+      {...tourAttr('plc-notes.remove-completed')}
+      type="button"
+      onClick={() => emit(clearCompletedActionItems(items, Date.now()))}
+      className="inline-flex items-center px-1.5 py-1 rounded-md whitespace-nowrap text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-800 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+    >
+      {t('plcDashboard.notes.actionItems.removeCompleted', {
+        defaultValue: 'Remove completed',
+      })}
+    </button>
+  );
+
   return (
     <div
       className={`flex flex-col min-h-0 px-4 py-3 ${
@@ -413,79 +515,64 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
           })}
         </h4>
       )}
-      {items.length > 0 && (
+      {active.length > 0 && (
         <NoteActionItemsToolbar
           view={view}
           onChange={setView}
-          members={members}
+          members={people}
           visibleCount={visible.length}
-          totalCount={items.length}
+          totalCount={active.length}
           quiet={panel}
+          trailing={removeCompleted || undefined}
         />
       )}
+      {addOnTop && addRow}
       {/* Scrolls once the list outgrows the editor pane so the add row stays reachable. */}
       <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar -mx-1 px-1">
         <SortableList
           items={visible}
           getId={(item) => item.id}
-          onReorder={(next) => onChange(applyVisibleReorder(items, next))}
+          onReorder={(next) => emit(applyVisibleReorder(items, next))}
           renderItem={renderRow}
           className={panel ? 'divide-y divide-slate-100' : 'space-y-1'}
         />
-        {items.length > 0 && visible.length === 0 && (
+        {active.length > 0 && visible.length === 0 && (
           <p className="text-xxs text-slate-400 py-1">
             {t('plcDashboard.notes.actionItems.view.noMatches', {
               defaultValue: 'No action items match these filters',
             })}
           </p>
         )}
-      </div>
-      {canEdit &&
-        (items.length < MAX_ACTION_ITEMS ? (
-          <div className="shrink-0 flex items-center gap-2 mt-2">
-            <input
-              {...tourAttr('plc-notes.action-text')}
-              type="text"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addItem();
-                }
-              }}
-              placeholder={t('plcDashboard.notes.actionItems.addPlaceholder', {
-                defaultValue: 'What needs to happen?',
-              })}
-              className="flex-1 min-w-0 rounded-md border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
-            />
+        {cleared.length > 0 && (
+          <div className="mt-2 border-t border-slate-100 pt-2">
             <button
-              {...tourAttr('plc-notes.add-action')}
+              {...tourAttr('plc-notes.recently-completed')}
               type="button"
-              onClick={addItem}
-              aria-label={
-                panel
-                  ? t('plcDashboard.notes.actionItems.add', {
-                      defaultValue: 'Add action item',
-                    })
-                  : undefined
-              }
-              className="shrink-0 inline-flex items-center gap-1 px-2 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xxs font-bold uppercase tracking-wider rounded-md transition-colors"
+              aria-expanded={showCleared}
+              onClick={() => setShowCleared((v) => !v)}
+              className="inline-flex items-center gap-1 rounded-md px-1 py-1 text-xs font-semibold text-slate-500 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
             >
-              <Plus className={panel ? 'w-4 h-4' : 'w-3 h-3'} />
-              {!panel &&
-                t('plcDashboard.notes.actionItems.add', {
-                  defaultValue: 'Add action item',
-                })}
+              {showCleared ? (
+                <ChevronDown className="w-3.5 h-3.5" aria-hidden />
+              ) : (
+                <ChevronRight className="w-3.5 h-3.5" aria-hidden />
+              )}
+              {t('plcDashboard.notes.actionItems.recentlyCompleted', {
+                count: cleared.length,
+                defaultValue: 'Recently completed ({{count}})',
+              })}
             </button>
+            {showCleared && (
+              <ul className={panel ? 'divide-y divide-slate-100' : 'space-y-1'}>
+                {cleared.map((item) => (
+                  <li key={item.id}>{renderRow(item, NO_HANDLE)}</li>
+                ))}
+              </ul>
+            )}
           </div>
-        ) : (
-          <p className="shrink-0 text-xxs text-slate-400 mt-2">
-            {t('plcDashboard.notes.actionItems.limitReached', {
-              defaultValue: 'Action item limit reached',
-            })}
-          </p>
-        ))}
+        )}
+      </div>
+      {!addOnTop && addRow}
     </div>
   );
 };

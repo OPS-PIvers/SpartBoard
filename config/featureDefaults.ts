@@ -56,6 +56,7 @@ import {
   Wand2,
   Zap,
   BookMarked,
+  Quote,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -604,6 +605,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Quote from passages in written answers. Admin-only until Paul has tested it in prod.
+  'quiz-stimulus-quotes': {
+    label: 'Quote from passages',
+    icon: Quote,
+    description:
+      'Students add selected passage or PDF text to a written answer as a quote.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Guided Learning live tours that walk a teacher through the real app. Admin-only until opened up.
   'gl-live-tours': {
     label: 'Guided Learning live tours',
@@ -1062,6 +1076,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Rubric visibility for students',
     icon: Eye,
     description: 'Rubrics stay hidden unless a question shows them.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Scoring-guide rubrics. Admin-only until Paul has tested them in prod.
+  'rubric-scoring-guides': {
+    label: 'Scoring-guide rubrics',
+    icon: ListChecks,
+    description:
+      'Rubrics with parts, scoring guidelines and example responses.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

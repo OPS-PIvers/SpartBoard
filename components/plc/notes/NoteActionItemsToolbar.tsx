@@ -21,6 +21,8 @@ interface NoteActionItemsToolbarProps {
   totalCount: number;
   /** Side panel: one Sort menu and one Filter menu on a single line. */
   quiet?: boolean;
+  /** Side panel only: controls at the right end of the row. */
+  trailing?: React.ReactNode;
 }
 
 const BOXED_SELECT_CLASS =
@@ -119,6 +121,7 @@ export const NoteActionItemsToolbar: React.FC<NoteActionItemsToolbarProps> = ({
   visibleCount,
   totalCount,
   quiet = false,
+  trailing,
 }) => {
   const { t } = useTranslation();
 
@@ -304,7 +307,10 @@ export const NoteActionItemsToolbar: React.FC<NoteActionItemsToolbarProps> = ({
             },
           ]}
         />
-        <div className="ml-auto">{resetButton}</div>
+        <div className="ml-auto flex items-center gap-1">
+          {resetButton}
+          {trailing}
+        </div>
       </div>
     );
   }

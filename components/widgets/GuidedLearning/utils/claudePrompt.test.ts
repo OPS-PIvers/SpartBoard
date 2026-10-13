@@ -66,3 +66,23 @@ describe('buildClaudePrompt', () => {
     );
   });
 });
+
+describe('buildClaudePrompt for a live tour', () => {
+  const tour = { ...set, title: 'Make a quiz', mode: 'tour' as const };
+
+  it('points Claude at the live tour tools', () => {
+    const text = buildClaudePrompt(tour, { kind: 'activity' }, { dev: true });
+    expect(text).toContain('Use the SpartBoard-Dev connector.');
+    expect(text).toContain('live tour "Make a quiz" (set_id: set-1)');
+    expect(text).toContain('get_live_tour');
+    expect(text).not.toContain('get_guided_learning');
+    expect(text.endsWith('What I want: ')).toBe(true);
+  });
+
+  it('names a step by number and id', () => {
+    const text = buildClaudePrompt(tour, { kind: 'step', stepId: 'b' });
+    expect(text).toContain('step 2 ("Nucleus") of my SpartBoard live tour');
+    expect(text).toContain('its id, b,');
+    expect(text).not.toContain('slide');
+  });
+});

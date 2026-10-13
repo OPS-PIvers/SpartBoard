@@ -18,6 +18,7 @@ import React, {
   useState,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import { ResponseQuotesFrame } from './ResponseQuotesFrame';
 import {
   AlertCircle,
   Ban,
@@ -1773,18 +1774,20 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                   </div>
                 )}
                 {studentAnswer ? (
-                  <AnnotatedResponseView
-                    key={hydrateKey}
-                    mode="edit"
-                    snapshot={snapshotForList}
-                    annotations={draftAnnotations}
-                    authorUid={teacherUid}
-                    onChange={handleAnnotationsChange}
-                    activeId={activeAnnotationId}
-                    onActiveIdChange={setActiveAnnotationId}
-                    rubric={taggableRubric}
-                    autoTagSingleStrand={graderV2}
-                  />
+                  <ResponseQuotesFrame snapshot={snapshotForList}>
+                    <AnnotatedResponseView
+                      key={hydrateKey}
+                      mode="edit"
+                      snapshot={snapshotForList}
+                      annotations={draftAnnotations}
+                      authorUid={teacherUid}
+                      onChange={handleAnnotationsChange}
+                      activeId={activeAnnotationId}
+                      onActiveIdChange={setActiveAnnotationId}
+                      rubric={taggableRubric}
+                      autoTagSingleStrand={graderV2}
+                    />
+                  </ResponseQuotesFrame>
                 ) : isPaperAnswer ? null : (
                   <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm italic text-slate-500">
                     {tg('noTextAnswer')}

@@ -7,7 +7,7 @@ import {
   FileText,
   LayoutDashboard,
   Megaphone,
-  Sparkles,
+  Library,
   Users2,
 } from 'lucide-react';
 import { TeamShell, type ShellOverlay, type ShellPage } from './TeamShell';
@@ -31,23 +31,23 @@ const PLC_PAGES: ShellPage[] = [
   { id: 'data', label: 'Data overview', icon: BarChart3 },
   { id: 'assessments', label: 'Assessments', icon: ClipboardList },
   { id: 'docs', label: 'Notes & Docs', icon: FileText },
-  { id: 'resources', label: 'Resources', icon: Sparkles },
+  { id: 'resources', label: 'Resources', icon: Library },
 ];
 const DEPT_PAGES: ShellPage[] = [
   { id: 'hub', label: 'Hub', icon: LayoutDashboard },
   { id: 'docs', label: 'Notes & Docs', icon: FileText },
-  { id: 'resources', label: 'Resources', icon: Sparkles },
+  { id: 'resources', label: 'Resources', icon: Library },
 ];
 const BLDG_PAGES: ShellPage[] = [
   { id: 'hub', label: 'Hub', icon: LayoutDashboard },
-  { id: 'resources', label: 'Resources', icon: Sparkles },
+  { id: 'resources', label: 'Resources', icon: Library },
   { id: 'updates', label: 'Updates', icon: Megaphone },
 ];
 const mentPages = (lead: boolean): ShellPage[] => [
   { id: 'hub', label: 'Program Hub', icon: LayoutDashboard },
   { id: 'workspace', label: lead ? 'Workspaces' : 'Workspace', icon: Users2 },
   { id: 'updates', label: 'Updates', icon: Megaphone },
-  { id: 'resources', label: 'Resources', icon: Sparkles },
+  { id: 'resources', label: 'Resources', icon: Library },
 ];
 
 const OVERLAY_SCREENS: Partial<Record<ScreenId, ShellOverlay>> = {

@@ -1,7 +1,8 @@
-import React, { useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Bold,
+  ChevronDown,
   Heading,
   Italic,
   List,
@@ -16,8 +17,13 @@ import {
   toggleList,
 } from '@/utils/contentEditableLists';
 import { installDragSelectEnhancer } from '@/utils/contentEditableDragSelect';
+import { useClickOutside } from '@/hooks/useClickOutside';
 import { editorDomToMarkdown, markdownToEditorHtml } from './notesRichText';
-import { tourFieldAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
+import {
+  tourAttr,
+  tourFieldAttr,
+  type TourAnchorAttrs,
+} from '@/config/tourAnchors';
 
 interface PlcNoteRichEditorProps {
   /** Note body as Markdown. */
@@ -29,9 +35,25 @@ interface PlcNoteRichEditorProps {
   /** Controls at the right end of the toolbar. */
   toolbarEnd?: React.ReactNode;
   bodyAnchor?: TourAnchorAttrs;
+  /** Title, Heading and Normal text sizes in place of the Heading button. */
+  textStyles?: boolean;
 }
 
 const HEADING_TAGS = new Set(['H1', 'H2', 'H3']);
+
+type TextStyle = 'h1' | 'h2' | 'p';
+
+/** The text size of the block holding the caret, or null outside the editor. */
+function currentTextStyle(editor: HTMLElement): TextStyle | null {
+  const range = selectionRange(editor);
+  if (!range) return null;
+  let node: Node | null = range.startContainer;
+  while (node && node.parentNode !== editor) node = node.parentNode;
+  if (!(node instanceof HTMLElement)) return 'p';
+  if (node.tagName === 'H1') return 'h1';
+  if (node.tagName === 'H2' || node.tagName === 'H3') return 'h2';
+  return 'p';
+}
 
 function selectionRange(editor: HTMLElement): Range | null {
   const sel = window.getSelection();
@@ -70,9 +92,14 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
   showToolbar,
   toolbarEnd,
   bodyAnchor,
+  textStyles = false,
 }) => {
   const { t } = useTranslation();
   const editorRef = useRef<HTMLDivElement>(null);
+  const styleMenuRef = useRef<HTMLDivElement>(null);
+  const [styleOpen, setStyleOpen] = useState(false);
+  const [style, setStyle] = useState<TextStyle>('p');
+  useClickOutside(styleMenuRef, () => setStyleOpen(false));
   // The Markdown the DOM currently represents; null until first render.
   const renderedRef = useRef<string | null>(null);
 
@@ -99,6 +126,18 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
     if (!editorRef.current) return undefined;
     return installDragSelectEnhancer(editorRef.current);
   }, []);
+
+  // The size menu names the size at the caret.
+  useEffect(() => {
+    if (!textStyles) return undefined;
+    const onSelection = () => {
+      const editor = editorRef.current;
+      const next = editor ? currentTextStyle(editor) : null;
+      if (next) setStyle(next);
+    };
+    document.addEventListener('selectionchange', onSelection);
+    return () => document.removeEventListener('selectionchange', onSelection);
+  }, [textStyles]);
 
   const emit = () => {
     const editor = editorRef.current;
@@ -156,6 +195,25 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
       block.replaceWith(next);
     }
     restoreSelectionOffsets(editor, saved);
+  };
+
+  const setTextStyle = (editor: HTMLDivElement, tag: TextStyle) => {
+    ensureTopLevelBlocks(editor, { wrapTag: 'p' });
+    const range = selectionRange(editor);
+    if (!range) return;
+    const blocks = collectSelectedBlocks(editor, range).filter(
+      (b) => b.tagName !== 'LI' && b.tagName.toLowerCase() !== tag
+    );
+    if (blocks.length === 0) return;
+    const saved = saveSelectionOffsets(editor, range);
+    for (const block of blocks) {
+      const next = document.createElement(tag);
+      while (block.firstChild) next.appendChild(block.firstChild);
+      if (!next.firstChild) next.appendChild(document.createElement('br'));
+      block.replaceWith(next);
+    }
+    restoreSelectionOffsets(editor, saved);
+    setStyle(tag);
   };
 
   const toggleBullets = (editor: HTMLDivElement) => {
@@ -235,12 +293,18 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
       icon: Italic,
       run: () => document.execCommand('italic'),
     },
-    {
-      id: 'heading',
-      label: t('plcDashboard.notes.rich.heading', { defaultValue: 'Heading' }),
-      icon: Heading,
-      run: toggleHeading,
-    },
+    ...(textStyles
+      ? []
+      : [
+          {
+            id: 'heading',
+            label: t('plcDashboard.notes.rich.heading', {
+              defaultValue: 'Heading',
+            }),
+            icon: Heading,
+            run: toggleHeading,
+          },
+        ]),
     {
       id: 'bullets',
       label: t('plcDashboard.notes.rich.bullets', {
@@ -270,6 +334,76 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
     },
   ];
 
+  const styleOptions: Array<{
+    value: TextStyle;
+    label: string;
+    className: string;
+  }> = [
+    {
+      value: 'h1',
+      label: t('plcDashboard.notes.rich.styleTitle', { defaultValue: 'Title' }),
+      className: 'text-lg font-bold text-slate-900',
+    },
+    {
+      value: 'h2',
+      label: t('plcDashboard.notes.rich.styleHeading', {
+        defaultValue: 'Heading',
+      }),
+      className: 'text-base font-bold text-slate-800',
+    },
+    {
+      value: 'p',
+      label: t('plcDashboard.notes.rich.styleNormal', {
+        defaultValue: 'Normal',
+      }),
+      className: 'text-sm text-slate-700',
+    },
+  ];
+  const styleMenu = textStyles && (
+    <div ref={styleMenuRef} className="relative mr-1">
+      <button
+        {...tourAttr('plc-notes.text-style')}
+        type="button"
+        disabled={readOnly}
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={() => setStyleOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={styleOpen}
+        aria-label={t('plcDashboard.notes.rich.textSize', {
+          defaultValue: 'Text size',
+        })}
+        className="inline-flex w-24 items-center justify-between gap-1 rounded-md px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-800 disabled:opacity-40 transition-colors"
+      >
+        {styleOptions.find((o) => o.value === style)?.label}
+        <ChevronDown className="w-3.5 h-3.5 text-slate-400" aria-hidden />
+      </button>
+      {styleOpen && (
+        <div
+          role="menu"
+          className="absolute left-0 top-full z-20 mt-1 w-40 rounded-lg border border-slate-200 bg-white py-1 shadow-lg"
+        >
+          {styleOptions.map((o) => (
+            <button
+              {...tourFieldAttr('plc-notes.text-style-option', 'plc', o.value)}
+              key={o.value}
+              type="button"
+              role="menuitemradio"
+              aria-checked={style === o.value}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                setStyleOpen(false);
+                runCommand((editor) => setTextStyle(editor, o.value));
+              }}
+              className={`block w-full px-3 py-1.5 text-left hover:bg-slate-100 ${o.className} ${style === o.value ? 'bg-slate-50' : ''}`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   const isEmpty = value.trim() === '';
 
   return (
@@ -282,6 +416,7 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
           })}
           className="sticky top-0 z-10 shrink-0 flex items-center gap-0.5 px-3 py-1.5 bg-white border-b border-slate-100"
         >
+          {styleMenu}
           {tools.map((tool) => {
             const Icon = tool.icon;
             return (
@@ -328,7 +463,7 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
           onFocus={() =>
             document.execCommand('defaultParagraphSeparator', false, 'p')
           }
-          className="plc-note-rich rich-text-content min-h-full w-full p-4 text-sm text-slate-700 leading-relaxed focus:outline-none"
+          className={`plc-note-rich ${textStyles ? 'plc-note-sizes ' : ''}rich-text-content min-h-full w-full p-4 text-sm text-slate-700 leading-relaxed focus:outline-none`}
         />
         {isEmpty && !readOnly && (
           <div

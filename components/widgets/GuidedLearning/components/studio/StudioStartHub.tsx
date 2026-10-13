@@ -6,7 +6,7 @@ import {
   FileJson,
   Loader2,
   MonitorUp,
-  Sparkles,
+  Wand2,
   Upload,
   type LucideIcon,
 } from 'lucide-react';
@@ -195,7 +195,7 @@ export const StudioStartHub: React.FC<StudioStartHubProps> = ({
             <Target
               anchor={tourAttr('studio.hub-ai')}
               id="ai"
-              icon={Sparkles}
+              icon={Wand2}
               label={t('glStudio.hubAi')}
               description={t('glStudio.hubAiDesc')}
               onClick={onDraftWithAi}

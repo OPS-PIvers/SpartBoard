@@ -481,3 +481,98 @@ export function makeReviewGameResponses(): QuizResponse[] {
     reviewPlayer('1008', '3/4', '1/2', 21.05, 24),
   ];
 }
+
+/** Two-page PDF of small print, as a data URL, so zoom sharpness is easy to judge. */
+function smallPrintPdfDataUrl(): string {
+  const page = (n: number) =>
+    `BT /F1 8 Tf 72 740 Td 11 TL ${Array.from(
+      { length: 50 },
+      (_, i) =>
+        `(Page ${n}, line ${i + 1}: small print should stay sharp at 400% zoom.) '`
+    ).join(' ')} ET`;
+  const objs = [
+    '<</Type/Catalog/Pages 2 0 R>>',
+    '<</Type/Pages/Kids[3 0 R 4 0 R]/Count 2>>',
+    '<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 5 0 R/Resources<</Font<</F1 7 0 R>>>>>>',
+    '<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]/Contents 6 0 R/Resources<</Font<</F1 7 0 R>>>>>>',
+    `<</Length ${page(1).length}>>stream\n${page(1)}\nendstream`,
+    `<</Length ${page(2).length}>>stream\n${page(2)}\nendstream`,
+    '<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>',
+  ];
+  let body = '%PDF-1.4\n';
+  const offsets: number[] = [];
+  objs.forEach((o, i) => {
+    offsets.push(body.length);
+    body += `${i + 1} 0 obj${o}endobj\n`;
+  });
+  const xref = body.length;
+  const rows = offsets
+    .map((o) => `${String(o).padStart(10, '0')} 00000 n \n`)
+    .join('');
+  body += `xref\n0 ${objs.length + 1}\n0000000000 65535 f \n${rows}`;
+  body += `trailer<</Size ${objs.length + 1}/Root 1 0 R>>\nstartxref\n${xref}\n%%EOF`;
+  return `data:application/pdf;base64,${btoa(body)}`;
+}
+
+/** A 2000px-wide raster with fine print, drawn at runtime. */
+function finePrintImageDataUrl(): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = 2000;
+  canvas.height = 1200;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, 2000, 1200);
+  ctx.fillStyle = '#1e293b';
+  ctx.font = '14px sans-serif';
+  for (let y = 30; y < 1200; y += 22) {
+    ctx.fillText(
+      `Row ${Math.round(y / 22)}: fine print in a 2000px image is readable when zoomed.`,
+      30,
+      y
+    );
+  }
+  return canvas.toDataURL('image/png');
+}
+
+/** Self-paced written question with image, passage and PDF stimuli, quoting on. */
+export function makeStimulusQuizSession(): QuizSession {
+  const base = makeTimedQuizSession('active');
+  const [first, ...rest] = base.publicQuestions;
+  return {
+    ...base,
+    stimuli: [
+      {
+        id: 'dev-stim-image',
+        type: 'image',
+        url: finePrintImageDataUrl(),
+        label: 'Fine print image',
+      },
+      {
+        id: 'dev-stim-passage',
+        type: 'text',
+        url: '',
+        label: 'Passage',
+        text: 'Researchers pooled results from many studies of group therapy for chronic pain. The difference in the means between the group that received group therapy and the group that did not was not large.',
+      },
+      {
+        id: 'dev-stim-pdf',
+        type: 'pdf',
+        url: smallPrintPdfDataUrl(),
+        label: 'Small print PDF',
+      },
+    ],
+    allowStimulusQuotes: true,
+    publicQuestions: [
+      {
+        ...first,
+        type: 'free-response',
+        timeLimit: 0,
+        text: 'Describe the effect size reported in the study. Quote the passage.',
+        choices: undefined,
+        stimulusIds: ['dev-stim-image', 'dev-stim-passage', 'dev-stim-pdf'],
+      },
+      ...rest,
+    ],
+  };
+}

@@ -95,7 +95,9 @@ import type {
   SharedQuizAssignment,
   StudentOverride,
   WrittenReturnMode,
+  RevealedRubricExamples,
 } from '@/types';
+import { rubricExamplesByCriterion } from '@/utils/rubricGuide';
 import { sessionTotalQuestions } from '@/utils/quizBankDraw';
 import { notChosenQuestionIds, sessionSectionsFor } from '@/utils/quizSections';
 import {
@@ -669,7 +671,11 @@ const scoreKeyRef = (userId: string, assignmentId: string) =>
 /** Flatten session-option toggles onto the session doc's mirror fields. */
 function sessionOptionsToSessionPatch(
   o: QuizSessionOptions,
-  gates: { timeLimitOn: boolean; scoreOnSubmitOn: boolean }
+  gates: {
+    timeLimitOn: boolean;
+    scoreOnSubmitOn: boolean;
+    stimulusQuotesOn: boolean;
+  }
 ): Record<string, unknown> {
   const patch: Record<string, unknown> = {};
   if (o.tabWarningsEnabled !== undefined)
@@ -681,6 +687,8 @@ function sessionOptionsToSessionPatch(
   if (o.tabAwayAutoSubmit !== undefined)
     patch.tabAwayAutoSubmit = o.tabAwayAutoSubmit;
   if (o.blockCopyPaste !== undefined) patch.blockCopyPaste = o.blockCopyPaste;
+  if (o.allowStimulusQuotes !== undefined && gates.stimulusQuotesOn)
+    patch.allowStimulusQuotes = o.allowStimulusQuotes;
   if (o.showResultToStudent !== undefined)
     patch.showResultToStudent = o.showResultToStudent;
   if (o.showCorrectAnswerToStudent !== undefined)
@@ -929,6 +937,19 @@ export function buildRevealedAnswers(
   for (const q of dedupeQuestionsById(quizData.questions))
     revealed[q.id] = revealValueFor(q);
   return revealed;
+}
+
+/** Scoring-guide example responses by question, published with the answer key; null when there are none. */
+export function buildRevealedRubricExamples(
+  quizData: QuizData
+): RevealedRubricExamples | null {
+  const out: RevealedRubricExamples = {};
+  for (const q of dedupeQuestionsById(quizData.questions)) {
+    if (!q.rubricSnapshot) continue;
+    const examples = rubricExamplesByCriterion(q.rubricSnapshot);
+    if (Object.keys(examples).length > 0) out[q.id] = examples;
+  }
+  return Object.keys(out).length > 0 ? out : null;
 }
 
 /** Grades one response for publishing; `score` is null while a slot awaits a teacher grade. */
@@ -1186,6 +1207,8 @@ export const useQuizAssignments = (
     authContext?.canAccessFeature?.('quiz-rubric-visibility') === true;
   const timeLimitOn =
     authContext?.canAccessFeature?.(QUIZ_TIME_LIMIT_FEATURE) === true;
+  const stimulusQuotesOn =
+    authContext?.canAccessFeature?.('quiz-stimulus-quotes') === true;
   // Stamped so the student app and pinLoginV1 can honor the teacher's gate.
   const allowAnonymousJoin =
     authContext?.canAccessFeature?.('anonymous-join') !== false;
@@ -1557,6 +1580,9 @@ export const useQuizAssignments = (
           : {}),
         ...tabAwaySessionFields(tabAwayTimerOn, opts),
         blockCopyPaste: opts.blockCopyPaste ?? false,
+        ...(stimulusQuotesOn
+          ? { allowStimulusQuotes: opts.allowStimulusQuotes ?? true }
+          : {}),
         showResultToStudent: opts.showResultToStudent ?? false,
         showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,
         showCorrectOnBoard: opts.showCorrectOnBoard ?? false,
@@ -1781,6 +1807,7 @@ export const useQuizAssignments = (
       allowAnonymousJoin,
       scoreOnSubmitOn,
       timeLimitOn,
+      stimulusQuotesOn,
     ]
   );
 
@@ -2127,6 +2154,7 @@ export const useQuizAssignments = (
           sessionOptionsToSessionPatch(changed, {
             timeLimitOn,
             scoreOnSubmitOn,
+            stimulusQuotesOn,
           })
         );
       }
@@ -2172,7 +2200,13 @@ export const useQuizAssignments = (
         });
       }
     },
-    [userId, timeLimitOn, scoreOnSubmitOn, setAssignmentTargets]
+    [
+      userId,
+      timeLimitOn,
+      scoreOnSubmitOn,
+      stimulusQuotesOn,
+      setAssignmentTargets,
+    ]
   );
 
   const setAssignmentRosters = useCallback<
@@ -3022,6 +3056,7 @@ export const useQuizAssignments = (
               ...sessionOptionsToSessionPatch(behavior.sessionOptions, {
                 timeLimitOn,
                 scoreOnSubmitOn,
+                stimulusQuotesOn,
               }),
               // A mode flip restarts the cursor the way session-create would.
               ...(modeChanged
@@ -3131,7 +3166,13 @@ export const useQuizAssignments = (
         taggedResponseCount: responsesToTag.length,
       };
     },
-    [userId, projectPublicQuestionForMode, scoreOnSubmitOn, timeLimitOn]
+    [
+      userId,
+      projectPublicQuestionForMode,
+      scoreOnSubmitOn,
+      timeLimitOn,
+      stimulusQuotesOn,
+    ]
   );
 
   const unpublishAssignmentScores = useCallback<
@@ -3192,7 +3233,12 @@ export const useQuizAssignments = (
           )
         )
       )
-        .filter((d) => (d.data() as QuizResponse).revealedAnswers != null)
+        .filter((d) => {
+          const data = d.data() as QuizResponse;
+          return (
+            data.revealedAnswers != null || data.revealedRubricExamples != null
+          );
+        })
         .map((d) => d.ref);
       try {
         await commitResponsePatches(
@@ -3200,7 +3246,10 @@ export const useQuizAssignments = (
           2,
           keyedRefs.map((ref) => ({
             ref,
-            patch: { revealedAnswers: deleteField() },
+            patch: {
+              revealedAnswers: deleteField(),
+              revealedRubricExamples: deleteField(),
+            },
           }))
         );
       } catch (err) {
@@ -3273,6 +3322,10 @@ export const useQuizAssignments = (
         visibility === 'score-responses-and-answers'
           ? buildRevealedAnswers(quizData)
           : null;
+      const rubricExamples =
+        visibility === 'score-responses-and-answers'
+          ? buildRevealedRubricExamples(quizData)
+          : null;
 
       // Read responses in bounded pages (limit + documentId cursor) rather
       // than one unbounded `getDocs` so a PLC-shared assignment with
@@ -3295,6 +3348,7 @@ export const useQuizAssignments = (
           answers: graded.answers,
           // The answer key lives on each response, never the session (D4).
           revealedAnswers: answerKey ?? deleteField(),
+          revealedRubricExamples: rubricExamples ?? deleteField(),
         };
       };
       const updates: ResponsePatch[] = [];
@@ -3463,6 +3517,10 @@ export const useQuizAssignments = (
         visibility === 'score-responses-and-answers'
           ? buildRevealedAnswers(quizData)
           : undefined;
+      const revealedRubricExamples =
+        visibility === 'score-responses-and-answers'
+          ? buildRevealedRubricExamples(quizData)
+          : null;
       const snaps = await Promise.all(
         keys.map((key) =>
           getDoc(
@@ -3487,6 +3545,7 @@ export const useQuizAssignments = (
             publishedAt: now,
             expiresAt,
             ...(revealedAnswers ? { revealedAnswers } : {}),
+            ...(revealedRubricExamples ? { revealedRubricExamples } : {}),
             ...(protection ? { protection } : {}),
           },
         };

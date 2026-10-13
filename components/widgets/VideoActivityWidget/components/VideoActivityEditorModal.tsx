@@ -9,7 +9,7 @@
 
 import { tourAttr, tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import React, { useCallback, useMemo, useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import { Wand2 } from 'lucide-react';
 import {
   LibraryFolder,
   VideoActivityBehaviorSettings,
@@ -303,14 +303,14 @@ export const VideoActivityEditorModal: React.FC<
           {...tourAttr('video-activity.editor-draft-ai')}
           onClick={() => setShowAiPrompt(true)}
           disabled={!hasYoutubeUrl}
-          className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
+          className="h-[36px] px-3 bg-white border border-slate-200 hover:border-brand-blue-light text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           title={
             hasYoutubeUrl
               ? 'Generate questions with AI'
               : 'Paste a YouTube URL first'
           }
         >
-          <Sparkles className="w-4 h-4" />
+          <Wand2 className="w-4 h-4" />
           Draft with AI
         </button>
       ) : null,

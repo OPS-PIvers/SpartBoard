@@ -2682,6 +2682,9 @@
     "playFromHere": "Lire à partir d’ici",
     "showAnswerKey": "Afficher le corrigé",
     "runLive": "Lancer sur mon tableau",
+    "convertToLiveTour": "Convertir en visite en direct",
+    "convertingToLiveTour": "Conversion…",
+    "convertToLiveTourFailed": "Impossible de créer une visite en direct à partir de cette activité.",
     "tourAction": "Quand la visite atteint cette étape",
     "tourWidget": "Quel widget",
     "tourWidgetPick": "Choisir un widget",
@@ -3978,5 +3981,14 @@
     "label": "Nouveautés",
     "dismiss": "Ignorer",
     "gotIt": "Compris"
+  },
+  "rubricGuide": {
+    "examples": "Exemples de réponses",
+    "or": "ou"
+  },
+  "quizQuotes": {
+    "addToResponse": "Ajouter à la réponse",
+    "showQuotes": "Afficher les citations",
+    "showQuotesHint": "Bleu : citation exacte. Ambre : modifiée par rapport au texte."
   }
 }

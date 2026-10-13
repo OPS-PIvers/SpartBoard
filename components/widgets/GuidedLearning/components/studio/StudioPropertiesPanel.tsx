@@ -5,7 +5,7 @@ import {
   Film,
   Image as ImageIcon,
   MonitorPlay,
-  Sparkles,
+  Wand2,
   Trash2,
 } from 'lucide-react';
 import type {
@@ -174,8 +174,8 @@ const StepSection: React.FC<{
       </header>
       {step.aiDraft && (
         <div className="-mt-3 flex flex-wrap items-center gap-2">
-          <p className="flex items-center gap-1 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-bold text-violet-800">
-            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+          <p className="flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
+            <Wand2 className="h-3.5 w-3.5" aria-hidden="true" />
             {t('glRecorder.aiDraft')}
           </p>
           <button

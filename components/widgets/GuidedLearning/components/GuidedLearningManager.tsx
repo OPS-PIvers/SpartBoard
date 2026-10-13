@@ -33,7 +33,7 @@ import {
   Trash2,
   Link2,
   BarChart2,
-  Sparkles,
+  Wand2,
   Building2,
   BookOpen,
   Loader2,
@@ -49,6 +49,7 @@ import {
   Circle,
   Footprints,
   LifeBuoy,
+  MousePointerClick,
   Library,
   FolderMinus,
 } from 'lucide-react';
@@ -252,6 +253,14 @@ export interface GuidedLearningManagerProps {
   ) => void | Promise<void>;
   /** Busy-state probe for the copy-to-building kebab item. */
   isCopyingTourToBuilding?: (setId: string) => boolean;
+  /** Admin-only: drafts a new building live tour from this set and opens it on the board. */
+  onConvertToLiveTour?: (
+    setId: string,
+    driveFileId?: string,
+    buildingEntry?: GuidedLearningBuildingSetIndex
+  ) => void | Promise<void>;
+  /** Busy-state probe for the convert-to-live-tour kebab item. */
+  isConvertingToLiveTour?: (setId: string) => boolean;
   /** Admin-only: moves a building set into (true) or out of (false) the Help Center. */
   onSetBuildingHelpCenter?: (
     setId: string,
@@ -487,6 +496,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   folderDeleteActions,
   onCopyTourToBuilding,
   isCopyingTourToBuilding,
+  onConvertToLiveTour,
+  isConvertingToLiveTour,
   onSetBuildingHelpCenter,
   onExport,
   onImport,
@@ -869,7 +880,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       ? [
           {
             label: 'AI',
-            icon: Sparkles,
+            icon: Wand2,
             onClick: () =>
               onOpenAIAuthoring(isBuildingFiltered ? 'building' : 'personal'),
           },
@@ -1014,6 +1025,22 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         disabled: isCopyingTourToBuilding?.(rawId),
         disabledReason: 'Copying…',
         onClick: () => void onCopyTourToBuilding(rawId, fileId),
+      });
+    }
+
+    if (liveTours && isAdmin && entry.mode !== 'tour' && onConvertToLiveTour) {
+      secondary.push({
+        id: 'convert-to-live-tour',
+        label: t('glStudio.convertToLiveTour'),
+        icon: MousePointerClick,
+        disabled: isConvertingToLiveTour?.(rawId),
+        disabledReason: t('glStudio.convertingToLiveTour'),
+        onClick: () =>
+          void onConvertToLiveTour(
+            rawId,
+            entry.driveFileId,
+            entry.buildingEntry
+          ),
       });
     }
 

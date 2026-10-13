@@ -36,6 +36,8 @@ export interface RubricCriterion {
   name: string;
   description?: string;
   levels: RubricLevel[];
+  /** Scoring-guide row: `description` holds the guidelines. */
+  guide?: { examples?: string[] };
 }
 /** Rubric in types.ts; firestore.rules locks the doc to exactly these keys. */
 export interface Rubric {
@@ -51,6 +53,7 @@ export interface CriterionInput {
   id?: string;
   name: string;
   description?: string;
+  examples?: string[];
   levels: {
     id?: string;
     label: string;
@@ -123,6 +126,13 @@ export function buildCriteria(
     };
     const description = optionalText(input.description);
     if (description) criterion.description = description;
+    if (input.examples !== undefined) {
+      criterion.guide = {
+        examples: input.examples.map((e) => e.trim()).filter(Boolean),
+      };
+    } else if (prior?.guide) {
+      criterion.guide = prior.guide;
+    }
     return criterion;
   });
 }
@@ -221,6 +231,13 @@ const criterionSchema = z.object({
   id: z.string().optional().describe('Keep from get_rubric; omit if new.'),
   name: z.string().min(1).max(200),
   description: z.string().max(1000).optional(),
+  examples: z
+    .array(z.string().max(1000))
+    .max(10)
+    .optional()
+    .describe(
+      'Scoring-guide rows only: example responses that earn the points. Setting this makes the row a scoring-guide part, with description as its scoring guidelines and levels from 0 to its points.'
+    ),
   levels: z
     .array(
       z.object({
@@ -240,6 +257,25 @@ const criterionSchema = z.object({
       `${MIN_LEVELS}-${MAX_LEVELS} levels, each with different whole-number points.`
     ),
 });
+
+async function assertGuidesAllowed(
+  ctx: ToolContext,
+  criteria: readonly { examples?: string[] }[] | undefined
+): Promise<void> {
+  if (!criteria?.some((c) => c.examples !== undefined)) return;
+  const { isGlobalFeatureGranted } = await import('../quizMediaArchive');
+  const ok = await isGlobalFeatureGranted(
+    ctx.db,
+    'rubric-scoring-guides',
+    ctx.email,
+    ctx.uid
+  ).catch(() => false);
+  if (!ok) {
+    throw new ToolError(
+      "Scoring-guide rubrics aren't turned on for this account yet. Leave out examples."
+    );
+  }
+}
 
 export function registerRubricTools(server: McpServer, ctx: ToolContext): void {
   server.registerTool(
@@ -302,6 +338,7 @@ export function registerRubricTools(server: McpServer, ctx: ToolContext): void {
     },
     (input) =>
       run('create_rubric', ctx, async () => {
+        await assertGuidesAllowed(ctx, input.criteria);
         const criteria = buildCriteria(input.criteria, [], randomUUID);
         await reserveWrite(ctx);
         const now = Date.now();
@@ -346,6 +383,7 @@ export function registerRubricTools(server: McpServer, ctx: ToolContext): void {
     },
     (input) =>
       run('update_rubric', ctx, async () => {
+        await assertGuidesAllowed(ctx, input.criteria);
         const existing = await readRubric(ctx, input.rubric_id);
         const criteria = input.criteria
           ? buildCriteria(input.criteria, existing.criteria, randomUUID)

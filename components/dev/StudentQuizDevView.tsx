@@ -3,9 +3,10 @@
  * overall time limit clock can be checked without a live session.
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ActiveQuiz } from '@/components/quiz/QuizStudentApp';
 import {
+  makeStimulusQuizSession,
   makeTimedQuizSession,
   makeTimedStudentResponse,
 } from './sessionViewsMocks';
@@ -16,7 +17,13 @@ const noop = (): Promise<void> => Promise.resolve();
 export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
   state,
 }) => {
-  const session = makeTimedQuizSession('active');
+  const session = useMemo(
+    () =>
+      state === 'sq-stimuli'
+        ? makeStimulusQuizSession()
+        : makeTimedQuizSession('active'),
+    [state]
+  );
   const response = makeTimedStudentResponse(
     state === 'sq-last-minute' ? 48_000 : 12 * 60_000 + 34_000
   );

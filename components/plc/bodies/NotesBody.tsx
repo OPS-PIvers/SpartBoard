@@ -183,6 +183,7 @@ const NotesBodyInner: React.FC<
   const unified = canAccessFeature('plc-notes-unified');
   const sidePanels = unified && canAccessFeature('plc-notes-side-panels');
   const docsToolbar = unified && canAccessFeature('plc-docs-toolbar');
+  const teamsRedesign = canAccessFeature('teams-redesign');
   // One side panel is open at a time; opening one folds the other.
   const [openPanel, setOpenPanel] = useState<'list' | 'actions'>('list');
   const [actionPanelWidth, setActionPanelWidth] = useActionPanelWidth();
@@ -967,6 +968,7 @@ const NotesBodyInner: React.FC<
       canEdit={!editorReadOnly}
       currentUid={currentUid}
       panel={sidePanels}
+      teamsLayout={teamsRedesign}
       onChange={(next) => {
         if (collab) {
           crdt.setActionItems(next);
@@ -994,6 +996,7 @@ const NotesBodyInner: React.FC<
       canEdit={canEdit}
       currentUid={currentUid}
       panel
+      teamsLayout={teamsRedesign}
       onChange={(next) => handleDocActionItems(selectedDoc.id, next)}
     />
   ) : selectedNote ? (
@@ -1433,6 +1436,7 @@ const NotesBodyInner: React.FC<
                 readOnly={editorReadOnly}
                 showToolbar={canEdit}
                 toolbarEnd={recordControl}
+                textStyles={teamsRedesign}
               />
             ) : bodyMode === 'edit' ? (
               <textarea

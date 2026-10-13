@@ -1,7 +1,7 @@
 // The production Data overview views on mockup fixtures at /teams-plc-data-dev (auth-bypass dev builds only).
 
 import React, { useMemo, useState } from 'react';
-import { BarChart3, ClipboardList, FileText, Sparkles } from 'lucide-react';
+import { BarChart3, ClipboardList, FileText, Library } from 'lucide-react';
 import type { PlcAssessmentAggregate, PlcGoal, TeamHeroRef } from '@/types';
 import type { GoalCoachResult } from '@/config/goalCoachRubric';
 import {
@@ -38,7 +38,7 @@ const PAGES: ShellPage[] = [
   { id: 'data', label: 'Data overview', icon: BarChart3 },
   { id: 'assessments', label: 'Assessments', icon: ClipboardList },
   { id: 'docs', label: 'Notes & Docs', icon: FileText },
-  { id: 'resources', label: 'Resources', icon: Sparkles },
+  { id: 'resources', label: 'Resources', icon: Library },
 ];
 
 const TEACHERS = ['t1', 't2', 't3', 't4', 't5'];
