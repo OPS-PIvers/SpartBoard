@@ -4326,8 +4326,11 @@ const StudentsScreen: React.FC<{
                       </p>
                     ) : (
                       <div
-                        className="bg-brand-gray-lightest text-brand-gray-primary font-black uppercase rounded px-2 py-1 tracking-tighter"
-                        style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+                        className="bg-brand-gray-lightest text-brand-gray-primary font-black uppercase rounded tracking-tighter"
+                        style={{
+                          fontSize: 'min(9px, 2.5cqmin)',
+                          padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+                        }}
                       >
                         {r.status}
                       </div>
@@ -4368,8 +4371,11 @@ const StudentsScreen: React.FC<{
                         )}
                         title="Decrement warnings by 1 and reopen the results view for this student"
                         aria-label={`Unlock results for ${displayName}`}
-                        className="shrink-0 bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-slate-900 font-sans font-semibold rounded-md px-3 py-1.5 transition-colors flex items-center gap-1"
-                        style={{ fontSize: 'min(11px, 3cqmin)' }}
+                        className="shrink-0 bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-slate-900 font-sans font-semibold rounded-md transition-colors flex items-center gap-1"
+                        style={{
+                          fontSize: 'min(11px, 3cqmin)',
+                          padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+                        }}
                       >
                         {isUnlocking ? (
                           <Loader2
@@ -4428,6 +4434,7 @@ const StudentsScreen: React.FC<{
                         title="Delete this submission"
                         aria-label={`Delete ${displayName}'s submission`}
                         className="shrink-0 p-1.5 rounded-md text-brand-red-primary/50 hover:text-brand-red-primary hover:bg-brand-red-primary/10 disabled:opacity-30 transition-colors"
+                        style={{ padding: 'min(6px, 1.5cqmin)' }}
                       >
                         {isDeleting ? (
                           <Loader2

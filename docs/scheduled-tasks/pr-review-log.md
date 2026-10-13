@@ -4704,3 +4704,21 @@ rather than "no data") is also still open.
     - #4062: both blockers from 2026-10-11 are fixed (streamed reply aborts at the timeout; client callables have a 10 s margin). `extractQuizFromDocumentV1` still uses the 70 s client default against a 110 s server deadline with a 45 s Claude window. The branch is behind `dev-paul`.
 - Notes:
   - `gh` is unavailable, so GitHub access went through MCP.
+
+## 2026-10-13
+
+- PRs reviewed:
+  - #4140 fix(admin): save same-tick permission edits instead of the stale render copy
+  - #4139 fix(sub-shares): drop re-entrant End/Extend/Update clicks on a share
+  - #4138 Scale QuizResults per-student action row padding with the widget
+  - #4137 fix(functions): reject two-segment users/{uid} paths in view-as revert
+  - #4136 docs(unifier): run 115 log — all dimensions aligned
+- Comments processed: 2 — 0 fixed, 2 explained. No inline review threads. #4138's bot comment was an LGTM. #4139's bot comment suggested an optional `updateNow` double-click test; this is answered in that PR's review and left for the author.
+- Fixes pushed: none
+- Reviews posted: 5
+- Merge readiness:
+  - Ready: #4140, #4138, #4137, #4136.
+  - Ready with minor notes: #4139 (optional `updateNow` test).
+- Notes:
+  - `gh` is unavailable, so GitHub access went through MCP.
+  - CI had not reported on #4140's head when it was reviewed.
