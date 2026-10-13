@@ -96,9 +96,11 @@ import { TourDialog } from './TourDialog';
 import { useShowSparty } from '@/components/sparty/useShowSparty';
 import type { SpartyPose } from '@/components/sparty/spartyFrames';
 import {
+  AUTO_NEXT_WAIT_MS,
   autoLeadMs,
   autoObserveMs,
   canPerform,
+  isSettled,
   performStep,
   stepValueMet,
   waitFor,
@@ -231,6 +233,8 @@ type AutoStage = 'demo' | 'waiting' | 'confirm' | 'blocked' | 'fallback';
 const BOARD_WAIT_MS = 2000;
 /** How long a teacher's toggle or choice has to show the recorded value. */
 const VALUE_SETTLE_MS = 600;
+/** Pause after the last keystroke before a matching type step moves on. */
+const TYPE_SETTLE_MS = 500;
 /** How often a step re-applies its anchor's prerequisite while the anchor is missing. */
 const PREREQ_RETRY_MS = 400;
 // A board switch this soon after a step's click is that step's own navigation.
@@ -249,6 +253,12 @@ const PLAIN_SLIDE_SKIP: ReadonlySet<string> = new Set([
   'video',
 ]);
 const VIEWPORT_GUTTER = 16;
+
+/** The widget whose settings drawer holds `el`, if it sits in one. */
+const drawerWidgetOf = (el: Element | null): string | null =>
+  el
+    ?.closest('[data-tour="settings.root"]')
+    ?.getAttribute('data-tour-widget') ?? null;
 
 const nextFrame = () =>
   new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -667,16 +677,38 @@ export const LiveTourRunner: React.FC = () => {
       : null;
   const leavesDrawer = !!binding && tour?.phase === 'running';
   const drawerStep = tour?.index ?? 0;
+  // An anchor without `requires` that still sits in an open drawer keeps that drawer.
+  const anchorSettled =
+    anchor.status === 'found' || anchor.status === 'missing';
+  const holdingDrawerId =
+    anchor.status === 'found' ? drawerWidgetOf(anchor.element) : null;
+  const latestScope = useRef(anchorScope);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
+  latestScope.current = anchorScope;
   useEffect(() => {
-    if (!leavesDrawer) return;
-    const keep = drawerWidgetId ? settingsUndoKey(drawerWidgetId) : null;
+    if (!leavesDrawer || !binding) return;
+    let holder = drawerWidgetId ?? holdingDrawerId;
+    if (!holder && !anchorSettled) {
+      const now = findTourAnchor(binding, latestScope.current);
+      // Not on screen yet: decide once the search settles.
+      if (!now) return;
+      holder = drawerWidgetOf(now);
+    }
+    const keep = holder ? settingsUndoKey(holder) : null;
     for (const [key, undo] of prereqUndos.current) {
       if (key.startsWith(settingsUndoKey('')) && key !== keep) {
         prereqUndos.current.delete(key);
         undo();
       }
     }
-  }, [leavesDrawer, drawerWidgetId, drawerStep]);
+  }, [
+    leavesDrawer,
+    binding,
+    drawerWidgetId,
+    holdingDrawerId,
+    anchorSettled,
+    drawerStep,
+  ]);
   // Sets up what the anchor needs before and while it is searched for.
   // Once the anchor has shown, a teacher who undoes the setup is not overridden until Retry.
   const prereqStep = tour?.index ?? 0;
@@ -1207,7 +1239,25 @@ export const LiveTourRunner: React.FC = () => {
       });
     };
     el.addEventListener(eventName, onClick, true);
-    return () => el.removeEventListener(eventName, onClick, true);
+    // A type step with a recorded value also moves on once the field holds it, without a blur.
+    const typed =
+      action === 'type' && stepValue !== undefined && String(stepValue) !== '';
+    let typing: ReturnType<typeof setTimeout> | undefined;
+    const onInput = () => {
+      clearTimeout(typing);
+      if (autoClicking.current) return;
+      typing = setTimeout(() => {
+        const signal = clickWait.current?.signal;
+        if (!signal || signal.aborted || !el.isConnected) return;
+        if (stepValueMet(el, binding) === true) advanceFrom(stepIndex);
+      }, TYPE_SETTLE_MS);
+    };
+    if (typed) el.addEventListener('input', onInput, true);
+    return () => {
+      clearTimeout(typing);
+      el.removeEventListener(eventName, onClick, true);
+      el.removeEventListener('input', onInput, true);
+    };
   }, [anchor.element, acted, action, stepValue, stepIndex]);
 
   const running = tour?.phase === 'running';
@@ -1500,14 +1550,18 @@ export const LiveTourRunner: React.FC = () => {
           requestAnimationFrame(() => advanceRef.current(index + 1));
           return;
         }
+        // Slow saves get up to 10 s, and the next step waits for its anchor to stop moving.
         void waitFor(
-          () =>
-            !!findTourAnchor(nextBinding, {
+          () => {
+            const next = findTourAnchor(nextBinding, {
               widgetIds: latestAdded.current,
               slots: latestSlots.current,
               accept: isAnchorReachable,
-            }),
-          ANCHOR_SEARCH_MS,
+            });
+            return !!next && isSettled(next);
+          },
+          // A fast-forward moves on regardless, so it keeps the short search.
+          jumping ? ANCHOR_SEARCH_MS : AUTO_NEXT_WAIT_MS,
           ctrl.signal
         ).then((ok) => {
           if (ctrl.signal.aborted) return;
@@ -2088,25 +2142,25 @@ export const LiveTourRunner: React.FC = () => {
               <TourMiniPlayer set={tour.set} step={step} />
             </Suspense>
           )}
-          {isMissing ? (
+          {step.text && (
             <p className="text-sm text-slate-600">
+              {renderStepText(step.text)}
+            </p>
+          )}
+          {!isMissing && plain && step.question?.text.trim() && (
+            <p className="text-sm font-semibold text-slate-900">
+              {step.question.text}
+            </p>
+          )}
+          {isMissing && (
+            <p
+              data-testid="tour-anchor-missing"
+              className="text-xs font-medium text-amber-700"
+            >
               {t(
                 preview ? 'tours.anchorMissingPreview' : 'tours.anchorMissing'
               )}
             </p>
-          ) : (
-            <>
-              {step.text && (
-                <p className="text-sm text-slate-600">
-                  {renderStepText(step.text)}
-                </p>
-              )}
-              {plain && step.question?.text.trim() && (
-                <p className="text-sm font-semibold text-slate-900">
-                  {step.question.text}
-                </p>
-              )}
-            </>
           )}
         </TourTip>
         {cueShown && (

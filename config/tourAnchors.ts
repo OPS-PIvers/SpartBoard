@@ -4902,6 +4902,14 @@ export const TOUR_ANCHORS = {
     label: 'Open button in the PLC assessments tab',
     perField: true,
   },
+  'plc-assessments.status': {
+    label: 'Status chip on a PLC assessment row',
+    perField: true,
+  },
+  'plc-assessments.in-library': {
+    label: 'In your library chip on a PLC assessment row',
+    perField: true,
+  },
   'plc-assessments.assign': {
     label: 'Assign button in the PLC assessments tab',
     persists: true,
@@ -6394,7 +6402,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'teams.shell.close': {
-    label: 'Close button in the team header',
+    label: 'Back button in the team header',
   },
   'teams.shell.my-items': {
     label: 'My items button in the team header',

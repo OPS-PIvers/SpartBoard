@@ -243,6 +243,10 @@ jobs:
           echo "Live version before deploy: $version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
+      # Open tabs on an older build still lazy-load their own chunks instead of reloading mid-lesson.
+      - name: Carry recent builds' assets forward
+        run: node scripts/carryForwardAssets.mjs https://spartboard.web.app
+
       # Repo firebase-tools rather than action-hosting-deploy, whose bundled CLI hits "premature close".
       # An identical bundle is rejected as "the current active version": a no-op success.
       - name: Deploy to Firebase Hosting (Live)

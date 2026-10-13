@@ -78,6 +78,7 @@ const dashboardValue = {
   setActiveRoster: vi.fn(),
   addToast: vi.fn(),
   clearPendingAssignmentEdit: vi.fn(),
+  clearPendingQuizReveal: vi.fn(),
   clearPendingAssignmentSetup: vi.fn(),
   saveCurrentDashboard: asyncNoop,
 } as unknown as DashboardContextValue;

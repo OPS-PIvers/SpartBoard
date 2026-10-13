@@ -371,6 +371,13 @@ export const mockDashboard: DashboardContextValue = {
   clearPendingAssignmentEdit: () => {
     // No-op
   },
+  pendingQuizReveal: null,
+  setPendingQuizReveal: () => {
+    // No-op — student view has no PLC pages.
+  },
+  clearPendingQuizReveal: () => {
+    // No-op
+  },
   // Roster mocks
   rosters: [],
   activeRosterId: null,

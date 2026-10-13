@@ -1125,6 +1125,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'plc-assessments.detail-back': ['plc.assessments.detail'],
     'plc-assessments.detail-sort': ['plc.assessments.detail'],
     'plc-assessments.open': ['plc.assessments'],
+    'plc-assessments.status': ['plc.assessments'],
+    'plc-assessments.in-library': ['plc.assessments'],
     'plc-assessments.assign': ['plc.assessments'],
     'plc-assessments.menu': ['plc.assessments'],
     'plc-assessments.menu-item': ['plc.assessments'],
