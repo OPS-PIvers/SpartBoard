@@ -268,4 +268,6 @@ the step starts in:
    for an observe step, move on.
 
 Then run the validator. The last check is the real one: import the file as
-a building set on spartboard-dev and use **Run live (draft)**.
+a building set on spartboard-dev and use **Run live (draft)**, or play it on
+the dummy board with `scripts/run-live-tour.mjs` (the connector guide's
+browser run).

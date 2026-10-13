@@ -49,6 +49,7 @@ import {
 } from './tourSetup';
 import { TOUR_ANCHOR_QUEUE } from '../tourAnchorQueue';
 import { CREATES, OVERWRITES, READ_ONLY, iso, run } from './toolKit';
+import { issuePictureTicket } from './tourPictures';
 
 export const HELP_RESOURCES = 'help_resources';
 export const ADMIN_ONLY_TOOLS: ReadonlySet<string> = new Set([
@@ -58,6 +59,7 @@ export const ADMIN_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'get_live_tour_step_picture',
   'list_help_center_categories',
   'get_live_tour_guide',
+  'start_live_tour_picture_upload',
 ]);
 export const GL_TOURS = 'building_guided_learning_tours';
 
@@ -323,6 +325,20 @@ export function tourPublishState(
     : 'published';
 }
 
+/** Steps that work from their English fallback only, until a developer tags the control (D9). */
+export function needsAnchors(steps: GlSet['steps']) {
+  const ids = steps.flatMap((s) =>
+    (s.tour as { anchor?: unknown } | undefined)?.anchor === '' ? [s.id] : []
+  );
+  return ids.length
+    ? {
+        needs_anchors: ids,
+        needs_anchors_note:
+          'These steps find their control by its English name only, so they fail for teachers using another language. Name them in the hand-back; publish once the controls are tagged and the steps rebound.',
+      }
+    : {};
+}
+
 export function liveTourView(
   set: GlSet,
   publishedAt: number | null,
@@ -355,6 +371,7 @@ export function liveTourView(
     ...(unregistered.length > 0
       ? { steps_with_unregistered_anchor: unregistered }
       : {}),
+    ...needsAnchors(set.steps),
     steps: set.steps.map((s) => {
       const out = publicTourStep(s);
       const ref = ready.get(s.id);
@@ -694,6 +711,7 @@ export function registerLiveTourTools(
         );
         return {
           ...savedSummary(saved),
+          ...needsAnchors(saved.set.steps),
           where_to_find_it: help
             ? 'SpartBoard > Admin Settings > Help Center (hidden)'
             : 'SpartBoard > Guided Learning widget > library, building sets',
@@ -841,6 +859,7 @@ export function registerLiveTourTools(
         );
         return {
           ...saved,
+          ...needsAnchors(next.steps),
           ...(report.warnings.length ? { warnings: report.warnings } : {}),
           note: 'Saved as a draft. Teachers keep the published tour until an admin opens it in SpartBoard (Guided Learning library > Edit) and publishes the changes.',
         };
@@ -891,5 +910,25 @@ export function registerLiveTourTools(
         ],
       };
     }
+  );
+  server.registerTool(
+    'start_live_tour_picture_upload',
+    {
+      title: 'Upload live tour step pictures',
+      description:
+        "Admins only, Claude Code only. Returns a ticket, good for 30 minutes, for scripts/run-live-tour.mjs, which plays the tour on the dev board and posts each step's picture to upload_url as its thumbnail. Run: node scripts/run-live-tour.mjs <tour.json> --upload <upload_url> --ticket <ticket>.",
+      inputSchema: { set_id: z.string().min(1) },
+      annotations: CREATES,
+    },
+    ({ set_id }) =>
+      run('start_live_tour_picture_upload', ctx, async () => {
+        await assertAccess(ctx, 'building');
+        const { set } = await loadTour(ctx, set_id);
+        return {
+          set_id,
+          steps: set.steps.length,
+          ...(await issuePictureTicket(ctx, set_id)),
+        };
+      })
   );
 }

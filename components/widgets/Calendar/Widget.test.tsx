@@ -35,12 +35,9 @@ vi.mock('@/hooks/useWidgetBuildingId', () => ({
 // Path B: the widget acquires the calendar.readonly scope on demand via
 // useAuth().ensureGoogleScope. Tests override this per-scenario.
 const ensureGoogleScopeMock = vi.fn();
-const dayView = vi.hoisted(() => ({ enabled: false }));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     ensureGoogleScope: ensureGoogleScopeMock,
-    canAccessFeature: (id: string) =>
-      id === 'calendar-day-view' && dayView.enabled,
   }),
 }));
 
@@ -94,25 +91,13 @@ describe('CalendarWidget', () => {
     vi.restoreAllMocks();
   });
 
-  it('labels an event as Today using local date, not UTC date (regression: UTC+12 midnight)', () => {
-    // Scenario: UTC+12 user at local midnight 2026-06-15 (= 2026-06-14T12:00:00Z).
-    //
-    // Bug (old code):  new Date().toISOString().split('T')[0]
-    //   → toISOString() converts to UTC → "2026-06-14T12:00:00.000Z" → today = "2026-06-14"
-    //   → event on "2026-06-15" does NOT match → "Today" badge never shown.
-    //
-    // Fix (new code):  getFullYear/getMonth/getDate (local-time methods)
-    //   → mocked to return 2026-06-15 → today = "2026-06-15"
-    //   → event on "2026-06-15" matches → "Today" badge shown correctly.
-    //
-    // The test environment pins TZ=UTC (tests/setTz.ts), so we mock the three
-    // local-time methods on Date.prototype to simulate a UTC+12 local date.
-    // The prototype spies are restored by vi.restoreAllMocks() in afterEach.
-    vi.setSystemTime(new Date('2026-06-14T12:00:00.000Z')); // UTC epoch
+  it('groups an event under today using the local date, not the UTC date (regression: UTC+12 midnight)', () => {
+    // Simulate a UTC+12 local date while the test environment pins TZ=UTC.
+    vi.setSystemTime(new Date('2026-06-14T12:00:00.000Z'));
 
     vi.spyOn(Date.prototype, 'getFullYear').mockReturnValue(2026);
-    vi.spyOn(Date.prototype, 'getMonth').mockReturnValue(5); // June (0-indexed)
-    vi.spyOn(Date.prototype, 'getDate').mockReturnValue(15); // local day in UTC+12
+    vi.spyOn(Date.prototype, 'getMonth').mockReturnValue(5);
+    vi.spyOn(Date.prototype, 'getDate').mockReturnValue(15);
 
     const widget = buildWidget({
       events: [{ date: '2026-06-15', title: 'Class Photo Day' }],
@@ -121,10 +106,10 @@ describe('CalendarWidget', () => {
 
     render(<CalendarWidget widget={widget} />);
 
-    // With the fix: today = "2026-06-15" (local) → badge shows "Today".
-    // With the old bug: today = "2026-06-14" (UTC) → event not labeled "Today".
-    expect(screen.getByText('Today')).toBeInTheDocument();
-    expect(screen.getByText('Class Photo Day')).toBeInTheDocument();
+    // A UTC "today" would add a separate empty day ahead of the event's day.
+    const days = screen.getAllByRole('region');
+    expect(days).toHaveLength(1);
+    expect(days[0]).toHaveTextContent('Class Photo Day');
   });
 
   it('re-evaluates the date window when midnight passes without any other dep change', () => {
@@ -367,7 +352,6 @@ describe('CalendarWidget — inside a sub share', () => {
 
 describe('CalendarWidget day view', () => {
   beforeEach(() => {
-    dayView.enabled = true;
     vi.mocked(useGlobalStyle).mockReturnValue({
       ...DEFAULT_GLOBAL_STYLE,
       fontFamily: 'sans',
@@ -383,7 +367,6 @@ describe('CalendarWidget day view', () => {
   });
 
   afterEach(() => {
-    dayView.enabled = false;
     vi.useRealTimers();
     vi.restoreAllMocks();
   });

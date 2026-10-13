@@ -8,6 +8,7 @@ import {
   checkTour,
   liveTourView,
   mergeTourSteps,
+  needsAnchors,
   parseCategories,
   publicTourStep,
   readyAnchorRef,
@@ -42,6 +43,17 @@ const ctxFor = (exists: boolean | Error): ToolContext =>
   }) as unknown as ToolContext;
 
 describe('live tour tools', () => {
+  it('lists the steps that work from their English fallback only', () => {
+    expect(
+      needsAnchors([
+        { id: 'a', tour: { anchor: '', action: 'click' } },
+        { id: 'b', tour: { anchor: 'board.whole', action: 'observe' } },
+        { id: 'c' },
+      ] as unknown as Parameters<typeof needsAnchors>[0])
+    ).toMatchObject({ needs_anchors: ['a'] });
+    expect(needsAnchors([])).toEqual({});
+  });
+
   it('lists the saved categories in order, or the app defaults', () => {
     expect(
       parseCategories({

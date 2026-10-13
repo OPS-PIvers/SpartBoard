@@ -3,8 +3,10 @@
 **Status:** Source material — captured verbatim, not yet accepted
 **Author:** ops-pivers (original spec) — transcribed by Claude
 **Companion to:** [`multilingual-pronunciation-engine.md`](multilingual-pronunciation-engine.md)
-**Live plan:** [Wayfinder Map: Multilingual Pronunciation Engine](https://github.com/OPS-PIvers/SpartBoard/issues/2331)
-— where the open decisions about this spec are tracked and resolved.
+**Live plan:** [`multilingual-pronunciation-engine.md`](multilingual-pronunciation-engine.md)
+(refreshed 2026-10-13), with tickets under
+[Wayfinder Map #2331](https://github.com/OPS-PIvers/SpartBoard/issues/2331).
+Scoring behaviour is governed by `scripts/spikes/*/DECISIONS.md`, not §4–§6 below.
 
 This document preserves the original technical specification as authored, so
 the decision map beside it has something concrete to refer to. It is **source
@@ -16,8 +18,8 @@ rather than silently corrected.
 >
 > - §2.1 English G2P (CMUDict + neural fallback) — likely unnecessary; a
 >   rule-based engine reproduced both cited examples.
-> - §2.2 client-side inference — unresolved (decision D1), and the reason the
->   whole design is still blocked.
+> - §2.2 client-side inference — resolved on-device (D1, #2333), but the
+>   model is 241 MB, not 80–150 MB, and no browser run exists yet.
 > - `languageCode` as a flat 2-letter code — insufficient; dialect changes the
 >   correct answer (`es` vs `es-419`).
 > - Mandarin as a peer of es/de/en — it is a materially harder, separate

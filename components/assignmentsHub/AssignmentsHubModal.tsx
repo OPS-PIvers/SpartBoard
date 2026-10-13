@@ -19,6 +19,11 @@ import { useServerNow } from '@/hooks/useServerNow';
 import { summarizePeriods } from '@/utils/periodAccess';
 import { AssignmentDetailPane } from './AssignmentDetailPane';
 import {
+  tourAttr,
+  tourFieldAttr,
+  type TourAnchorAttrs,
+} from '@/config/tourAnchors';
+import {
   AssignmentFilterSelect,
   type AssignmentFilterOption,
 } from './AssignmentFilterSelect';
@@ -107,7 +112,8 @@ const AssignmentRow: React.FC<{
   row: UnifiedAssignmentRow;
   isSelected: boolean;
   onSelect: () => void;
-}> = ({ row, isSelected, onSelect }) => {
+  anchor?: TourAnchorAttrs;
+}> = ({ row, isSelected, onSelect, anchor }) => {
   const { t } = useTranslation();
   const meta = KIND_META[row.kind];
   const Icon = meta.icon;
@@ -120,6 +126,7 @@ const AssignmentRow: React.FC<{
       type="button"
       onClick={onSelect}
       aria-current={isSelected}
+      {...anchor}
       className={`w-full text-left px-3 py-2.5 rounded-xl border transition-colors ${
         isSelected
           ? 'border-brand-blue-primary bg-brand-blue-lighter/40'
@@ -207,6 +214,7 @@ const EmptyState: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       <button
         type="button"
         onClick={onClose}
+        {...tourAttr('assignments-hub.go-create')}
         className="rounded-lg bg-brand-blue-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-blue-dark transition-colors"
       >
         {t('assignmentsHub.emptyAction', { defaultValue: 'Go create one' })}
@@ -384,6 +392,7 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
           </div>
           <button
             onClick={onClose}
+            {...tourAttr('assignments-hub.close')}
             className="p-2 md:p-1.5 hover:bg-slate-100 rounded-lg transition-colors shrink-0 text-slate-500"
             aria-label={t('assignmentsHub.close', {
               defaultValue: 'Close assignments',
@@ -406,6 +415,7 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
                 <input
                   type="search"
                   value={search}
+                  {...tourAttr('assignments-hub.search')}
                   onChange={(e) => setSearch(e.target.value)}
                   // Escape clears the box instead of bubbling to the hub's
                   // document handler and closing the whole modal.
@@ -439,6 +449,11 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
                   options={kindOptions}
                   selected={kindFilter}
                   onChange={(next) => setKindFilter(next as AssignmentKind[])}
+                  anchor={tourFieldAttr(
+                    'assignments-hub.filter',
+                    'assignments-hub',
+                    'type'
+                  )}
                   allLabel={allTypesLabel}
                   multiple
                 />
@@ -459,6 +474,11 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
                     setStatusFilter(next as UnifiedAssignmentStatus[])
                   }
                   allLabel={anyStatusLabel}
+                  anchor={tourFieldAttr(
+                    'assignments-hub.filter',
+                    'assignments-hub',
+                    'status'
+                  )}
                 />
                 {classNames.length > 1 && (
                   <div className="col-span-2">
@@ -476,6 +496,11 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
                       options={classOptions}
                       selected={activeClassFilter}
                       onChange={setClassFilter}
+                      anchor={tourFieldAttr(
+                        'assignments-hub.filter',
+                        'assignments-hub',
+                        'class'
+                      )}
                       allLabel={allClassesLabel}
                       multiple
                     />
@@ -486,6 +511,7 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
                 <button
                   type="button"
                   onClick={clearFilters}
+                  {...tourAttr('assignments-hub.clear-filters')}
                   className="self-start text-xs font-semibold text-slate-500 hover:text-brand-blue-primary transition-colors"
                 >
                   {t('assignmentsHub.filterClear', {
@@ -520,10 +546,15 @@ export const AssignmentsHubModal: React.FC<AssignmentsHubModalProps> = ({
                 </p>
               ) : (
                 <div className="space-y-1">
-                  {filteredRows.map((row) => (
+                  {filteredRows.map((row, rowIndex) => (
                     <AssignmentRow
                       key={`${row.kind}:${row.id}`}
                       row={row}
+                      anchor={tourFieldAttr(
+                        'assignments-hub.row',
+                        'assignments-hub',
+                        `row-${rowIndex + 1}`
+                      )}
                       isSelected={selectedRow?.id === row.id}
                       onSelect={() => setSelectedId(row.id)}
                     />
