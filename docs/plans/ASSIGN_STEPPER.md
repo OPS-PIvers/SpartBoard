@@ -45,7 +45,7 @@ Assigning anything takes a few short, ordered decisions in one narrow dialog ins
   - Score visibility: Hide until I publish / Score only / Score and correct answers.
 - **Quiz has no name field**; only Video Activity and Mini App do.
 - **Individual targeting is built but hidden.** `targetMode: 'students'` with `targetStudents` still delivers through the `/student_assignments` fan-out (`setAssignmentTargetsV1`, `functions/src/studentAssignmentTargets.ts`), and `AssignStudentPicker` (search, saved-group shortcuts, disabled rows for students without a school sign-in) still exists. #3047 retired the hand-pick UI in favour of class targeting plus per-student skip, because individual targeting drops students without a ClassLink/test-class identity and has a 250-ref cap (`docs/plans/shipped/QUIZ_ACCOMMODATIONS_HANDRAISE_TTS.md`). Students without a sign-in can never be targeted or skipped one by one.
-- **Flags.** `assign-availability`, `study-resources`, `per-period-access`, `quiz-per-class-due-dates`, `video-activity-live`, `quiz-review-split`. There are no assign-modal tour anchors (`config/tourAnchors.ts`); Review's mode cards carry `review-start.mode-*`.
+- **Flags.** `study-resources`, `per-period-access`, `quiz-per-class-due-dates`, `video-activity-live`, `quiz-review-split`. There are no assign-modal tour anchors (`config/tourAnchors.ts`); Review's mode cards carry `review-start.mode-*`.
 - **Tokens.** Lexend; brand blue `#2d3f89`, dark `#1d2a5d`, lighter `#eaecf5`; slate surfaces. Modal chrome is `bg-white rounded-2xl shadow-2xl`. The `Toggle` is `size="sm"`. `SegmentedControl` is `inline-flex p-1 bg-slate-100 rounded-lg`. Labels are `text-sm font-bold text-brand-blue-dark`.
 
 ## Decisions
@@ -132,7 +132,7 @@ Assigning anything takes a few short, ordered decisions in one narrow dialog ins
 - **D16.** One preview flag, `assign-stepper` (`GlobalFeature`, `FEATURE_DEFAULTS` with `defaultAccessLevel: 'admin'`, `defaultEnabled: true`, `missingDocPublic: false`, `stage: 'preview'`, `afterLaunch: 'retire'`, group `'assigning'`, and an entry in `functions/src/featureMissingDoc.ts`). With it off, today's `AssignModal` renders unchanged.
   - Admin path: Admin Settings > Access > Previews > Assign stepper > Public.
   - Admins always pass, so "on for Paul" means Paul and the other admins.
-- **D17.** With `assign-stepper` on, the stepper uses the availability, period-access and work-kind building blocks whether or not `assign-availability` and `study-resources` are on for that user. The stepper flag is the single switch for the new flow.
+- **D17.** With `assign-stepper` on, the stepper uses the availability, period-access and work-kind building blocks whether or not `study-resources` is on for that user (Availability is on for everyone). The stepper flag is the single switch for the new flow.
 - **D18.** Removing Study resource from Quiz and Video Activity (D3) and dropping the unused Video name input (D11) ship first with no flag. Both are behind `study-resources` or unused today, so this restores intended behaviour.
 
 ### Remaining dialogs

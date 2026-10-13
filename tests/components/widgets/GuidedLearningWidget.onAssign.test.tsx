@@ -204,13 +204,6 @@ function enableIndividualTargeting(dialog: HTMLElement) {
   fireEvent.click(within(dialog).getByText(/period 1/i));
 }
 
-function setScheduleWindow(dialog: HTMLElement) {
-  fireEvent.click(within(dialog).getByText(/^schedule$/i));
-  fireEvent.change(within(dialog).getByLabelText(/opens/i), {
-    target: { value: '2026-06-01T09:00' },
-  });
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
   extraRosters.length = 0;
@@ -230,9 +223,8 @@ describe('GuidedLearningWidget onAssign — class-wide flow', () => {
     expect(httpsCallable).not.toHaveBeenCalled();
   });
 
-  it('never calls setAssignmentTargetsV1 even when a Schedule window is set', async () => {
+  it('never calls setAssignmentTargetsV1 even with the Availability window', async () => {
     const dialog = await openAssignModal();
-    setScheduleWindow(dialog);
     confirmAssign(dialog);
 
     await waitFor(() => expect(createSession).toHaveBeenCalledOnce());
@@ -279,7 +271,6 @@ describe('GuidedLearningWidget onAssign — per-period access', () => {
     const dialog = await openAssignModal({
       lastRosterIdsBySetId: { 'gl-1': ['roster-1', 'roster-2'] },
     });
-    setScheduleWindow(dialog);
     confirmAssign(dialog);
 
     await waitFor(() => expect(createSession).toHaveBeenCalledOnce());
@@ -296,13 +287,13 @@ describe('GuidedLearningWidget onAssign — per-period access', () => {
         periodAccess: Record<string, { state: string; label: string }>;
       },
     ];
-    expect(periodGate.accessMode).toBe('assessment');
+    expect(periodGate.accessMode).toBe('assignment');
     expect(Object.keys(periodGate.periodAccess).sort()).toEqual([
       'cl-3',
       'roster:roster-1',
     ]);
     expect(periodGate.periodAccess['cl-3']).toMatchObject({
-      state: 'closed',
+      state: 'open',
       label: 'Period 3',
     });
     expect(window.openAt).toBeUndefined();
@@ -329,7 +320,6 @@ describe('GuidedLearningWidget onAssign — per-period access', () => {
     const dialog = await openAssignModal({
       lastRosterIdsBySetId: { 'gl-1': ['roster-1', 'roster-2'] },
     });
-    setScheduleWindow(dialog);
     confirmAssign(dialog);
 
     await waitFor(() => expect(createSession).toHaveBeenCalledOnce());

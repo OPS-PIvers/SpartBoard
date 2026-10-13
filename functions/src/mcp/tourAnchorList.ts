@@ -3164,19 +3164,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "assign-periods.mode",
-    "label": "How periods open switch in the Assign window",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.assign-modal",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
     "id": "assign-when.mode-option",
     "label": "Manual or Scheduled option in the Assign dialog",
     "scope": "field",
@@ -4096,37 +4083,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "assign-targeting.schedule",
-    "label": "Schedule section header in the Assign window",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.assign-modal",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
-    "id": "assign-targeting.window",
-    "label": "Opens, Closes or Due date box in the Assign window schedule",
-    "scope": "field",
-    "panel": true,
-    "keys": [
-      "assign#closes",
-      "assign#due",
-      "assign#opens"
-    ],
-    "routes": [
-      {
-        "surface": "library.assign-modal",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
     "id": "assign-targeting.open",
     "label": "Edit or add modifications button in the Assign window",
     "scope": "board",
@@ -4317,45 +4273,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "assign-periods.window",
-    "label": "Window for a class dropdown in the Assign window periods",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.assign-modal",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
-    "id": "assign-periods.custom-time",
-    "label": "Custom Opens or Closes box for a class in the Assign window periods",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.assign-modal",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
-    "id": "assign-periods.customize",
-    "label": "Customize per period button in the Assign window",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.assign-modal",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
     "id": "assign-periods.selector-close",
     "label": "Close button in the Class Periods popup",
     "scope": "board",
@@ -4398,32 +4315,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "assign-periods.selector-save",
     "label": "Save button in the Class Periods popup",
     "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.assign-modal",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
-    "id": "assign-per-class.mode",
-    "label": "One date or Each class option in the Assign window due date",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.assign-modal",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
-    "id": "assign-per-class.date",
-    "label": "Due date or time box for a class in the Assign window",
-    "scope": "field",
     "panel": true,
     "routes": [
       {
@@ -44498,27 +44389,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "video-activity.assign-due-date",
-    "label": "Due date box in the video activity assign dialog",
-    "scope": "board",
-    "panel": true,
-    "persists": true,
-    "routes": [
-      {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [
-          "library-shell.card-primary-action:video-activity#row-1"
-        ],
-        "reveal": "library-shell.card-primary-action:video-activity#row-1",
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "video-activity.behavior-open-editor",
     "label": "Edit in activity link in the video activity assign dialog",
     "scope": "board",
@@ -63008,54 +62878,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "reveal": "library-shell.archive-menu:quiz#row-1",
         "needs": [
           "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-settings-modal.due-date",
-    "label": "Due date box in the quiz assignment Settings dialog",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.assignment-settings",
-        "kind": "modal",
-        "path": [
-          "library-shell.tab#active",
-          "library-shell.archive-menu",
-          "quiz-library.archive-settings:quiz"
-        ],
-        "needs": [
-          "widget-on-stage",
-          "library-item"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-settings-modal.due-time",
-    "label": "Due time box in the quiz assignment Settings dialog",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.assignment-settings",
-        "kind": "modal",
-        "path": [
-          "library-shell.tab#active",
-          "library-shell.archive-menu",
-          "quiz-library.archive-settings:quiz"
-        ],
-        "needs": [
-          "widget-on-stage",
-          "library-item"
         ]
       }
     ]

@@ -165,7 +165,6 @@ interface MiniAppAssignModalProps {
   skippedStudentNames: string[];
   /** Per-period mode and windows; undefined while the flag is off. */
   periodAccess?: AssignPeriodAccessContext;
-  availabilityEnabled: boolean;
   workKind?: WorkKindSetting;
 }
 
@@ -186,7 +185,6 @@ export const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
   onTargetingChange,
   skippedStudentNames,
   periodAccess,
-  availabilityEnabled,
   workKind,
 }) => {
   const outward = useViewAsOutward();
@@ -447,9 +445,7 @@ export const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                     value={targetingValue}
                     onChange={onTargetingChange}
                     kind="mini-app"
-                    showDueAt
                     cqScaled
-                    availabilityEnabled={availabilityEnabled}
                     workKind={workKind}
                   />
                 </>
@@ -531,7 +527,6 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   } = useDashboard();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
   const { user, getAssignmentMode, canAccessFeature } = useAuth();
-  const availabilityOn = canAccessFeature('assign-availability');
   const assignmentMode: AssignmentMode = getAssignmentMode('miniApp');
   // View-only shares a link with no classes, so it keeps its own dialog (D20).
   const stepperOn =
@@ -691,7 +686,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       const { targeting: targetingForSave } = stepperPlan
         ? { targeting: stepperPlan.targeting }
         : applyAvailability(assignTargetingValue, {
-            enabled: availabilityOn && assignmentMode === 'submissions',
+            enabled: assignmentMode === 'submissions',
             rosters: selectedRosters,
             bellWindow: assignPeriodCtx?.bellWindow,
             workKind: workKindSetting,
@@ -1512,7 +1507,6 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         onTargetingChange={setAssignTargetingValue}
         skippedStudentNames={skippedStudentNames}
         periodAccess={assignPeriodCtx}
-        availabilityEnabled={availabilityOn}
         workKind={workKindSetting}
         onConfirm={() => void handleConfirmAssign()}
         onClose={closeAssign}

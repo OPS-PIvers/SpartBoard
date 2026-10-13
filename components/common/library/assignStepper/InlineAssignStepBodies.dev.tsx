@@ -63,7 +63,6 @@ const Preview: React.FC = () => {
             selectedRosterIds={ROSTERS.map((r) => r.id)}
             value={targeting}
             onChange={setTargeting}
-            availabilityEnabled
             scheduleHidden={!before}
             kind="quiz"
           />

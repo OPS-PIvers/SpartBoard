@@ -338,7 +338,7 @@ describe('QuizManager assign modal — slimmed flow (Task 9)', () => {
     expect(calledMeta.behavior).toBeUndefined();
   });
 
-  it('renders a due-date input in the assign modal', async () => {
+  it('renders Availability & Due Date in the assign modal', async () => {
     renderManager(makeQuizMeta());
     const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
     fireEvent.click(assignBtn);
@@ -349,11 +349,7 @@ describe('QuizManager assign modal — slimmed flow (Task 9)', () => {
     );
     // Wait for the assign modal dialog to appear
     await screen.findByRole('dialog', { name: /chapter 5 review/i });
-    // The due date lives inside the Availability & Due Date section.
-    fireEvent.click(
-      screen.getByRole('button', { name: /^availability & due date/i })
-    );
-    expect(screen.getByTestId('assign-due-date')).toBeInTheDocument();
+    expect(screen.getByText('Availability & Due Date')).toBeInTheDocument();
   });
 
   it('renders the class/period picker in the assign modal', async () => {
@@ -491,7 +487,7 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
     vi.clearAllMocks();
   });
 
-  it('calls onAssign with dueAt=null when no due date is entered', async () => {
+  it('calls onAssign with the default Availability due date', async () => {
     const onAssign = vi.fn();
     const meta = makeQuizMeta(); // no behavior → DEFAULT_QUIZ_BEHAVIOR
     renderManager(meta, onAssign);
@@ -518,15 +514,15 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
     const args = onAssign.mock.calls[0];
     // Signature: (meta, behavior, plcOptions, rosterIds, dueAt, targeting)
     const dueAt = args[4];
-    expect(dueAt).toBeNull();
-    // M17 §3a-G: the unmodified class-wide flow must emit the empty/default
-    // targeting value — no individual students, no overrides.
-    expect(args[5]).toEqual({
+    expect(typeof dueAt).toBe('number');
+    // M17 §3a-G: the unmodified class-wide flow targets no individual students and no overrides.
+    expect(args[5]).toMatchObject({
       targetMode: 'class',
       targetStudents: [],
       targetGroupIds: [],
       overridesByKey: {},
       excludedStudents: [],
+      dueAt,
     });
   });
 
@@ -700,46 +696,6 @@ describe('QuizManager onAssign — behavior sourced from quiz, dueAt from input'
     await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
     const behavior = onAssign.mock.calls[0][1] as QuizBehaviorSettings;
     expect(behavior.sessionMode).toBe('student');
-  });
-
-  it('calls onAssign with dueAt as epoch ms when a date is entered', async () => {
-    const onAssign = vi.fn();
-    const meta = makeQuizMeta();
-    renderManager(meta, onAssign);
-
-    const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
-    fireEvent.click(assignBtn);
-    // Phase 2: the library-row Assign opens a destination chooser first; pick
-    // "SpartBoard Only" to continue into the standard assign modal.
-    fireEvent.click(
-      await screen.findByRole('button', { name: /SpartBoard Only/i })
-    );
-    // Wait for the assign modal dialog to appear
-    await screen.findByRole('dialog', { name: /chapter 5 review/i });
-
-    // Set a due date
-    fireEvent.click(
-      screen.getByRole('button', { name: /^availability & due date/i })
-    );
-    const dueDateInput = screen.getByTestId('assign-due-date');
-    fireEvent.change(dueDateInput, { target: { value: '2026-06-01' } });
-
-    // Find the confirm button inside the modal dialog (not the card button).
-    const dialog = screen.getByRole('dialog', { name: /chapter 5 review/i });
-    const confirmBtn = within(dialog).getByRole('button', {
-      name: /^assign$/i,
-    });
-    fireEvent.click(confirmBtn);
-
-    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
-    const args = onAssign.mock.calls[0];
-    const dueAt = args[4];
-    // Should be a positive epoch ms number
-    expect(typeof dueAt).toBe('number');
-    expect(dueAt).toBeGreaterThan(0);
-    // Pin the concrete local epoch (June 1 2026 at 23:59 local time) and
-    // explicitly rule out the old UTC-midnight value that caused off-by-one dates.
-    expect(dueAt).toBe(new Date(2026, 5, 1, 23, 59, 0, 0).getTime());
   });
 
   it('calls onAssign passing the quiz meta as first argument', async () => {
@@ -1059,7 +1015,7 @@ describe('QuizManager assign with quiz-review-split on (D11)', () => {
 
 describe('QuizManager assign — never a study resource (D3)', () => {
   beforeEach(() => {
-    mockFeatures.add('assign-availability').add('study-resources');
+    mockFeatures.add('study-resources');
   });
   afterEach(() => {
     mockFeatures.clear();
