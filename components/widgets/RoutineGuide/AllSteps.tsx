@@ -2,6 +2,7 @@ import React from 'react';
 import { RoutineGuideStep } from '@/types';
 import { getRoutineGuideColor } from '@/config/routineGuide';
 import { RoutineIcon } from './RoutineIcon';
+import { tourFieldAttr } from '@/config/tourAnchors';
 
 // Keeps corner controls clear of DraggableWindow's 24px corner resize handles.
 const CORNER_CLEARANCE = 'max(26px, 3cqmin)';
@@ -74,6 +75,11 @@ export const AllSteps: React.FC<{
           <li
             key={step.id}
             {...stepProps(i, index, onMove)}
+            {...tourFieldAttr(
+              'routine-guide.step',
+              'routineGuide',
+              `step-${i + 1}`
+            )}
             className={`flex transition-opacity ${interactive} ${
               dim(i) ? 'opacity-45' : ''
             }`}

@@ -229,10 +229,6 @@ Each item names the plan it came from; the plan holds the detail.
 - [ ] Confirm the live prod Spike A end-to-end pass (partner-first courseWork.create, due-date patch, token-less add-on attachment render+launch, grade roll-up) with the admin-only cohort. (S)
 - [ ] Flip CLASSROOM_ASSIGN_ADMIN_ONLY to false to widen the feature from admins to all Classroom-using teachers once Spike A is confirmed. (S)
 
-#### `docs/multilingual-pronunciation-engine-spec.md`
-
-- [ ] Resolve D1 (client-side vs server-side inference) — blocks the whole design. (L)
-
 #### `docs/rich-response-wayfinder.md`
 
 - [ ] Enable the `quiz-media-response` global permission to actually turn on audio capture for admin/beta testing. (S)
@@ -245,7 +241,7 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/multilingual-pronunciation-engine.md`
 
-- [ ] Resolve student voice data / consent (D2) given the human-audio fixtures raised in #2344. (M)
+- [ ] Work the open questions Q0–Q13 in the plan's §5 (D1/D4 resolved Aug 2026; D2 and D4 reopened by rich response). (M)
 
 #### `docs/gemini-api-terms-audit.md`
 
@@ -423,11 +419,10 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 - [ ] Update the doc's own status header and §7 to reflect that the scope/Marketplace step already happened and the flag is live (admin-only), since the doc text still reads as pre-flip guidance. (S)
 
-#### `docs/multilingual-pronunciation-engine-spec.md`
+#### `docs/multilingual-pronunciation-engine.md`
 
-- [ ] Build dialect surface, Firestore response shape, recording UX (issues #2338, #2354, #2351). (L)
-- [ ] Build feature code: 'Speak' quiz question type, MediaRecorder capture, teacher results UI, gating via GlobalFeature. (L)
-- [ ] Source/build per-dialect accepted stress-pattern reference data for Spanish, German, English. (M)
+- [ ] Safe-now work (plan §6): port the scoring engine (A1–A13, T1–T5, S1–S5) out of `scripts/spikes`, the espeak→model symbol tokenizer (#2383), and the Chromebook `onnxruntime-web` load/inference measurement (#2350). (L)
+- [ ] Feature build after the §5 questions resolve: spoken item type/mode, on-device scoring, teacher results UI, `GlobalFeature` gate. (L)
 
 #### `docs/rich-response-wayfinder.md`
 
@@ -436,10 +431,6 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 #### `docs/plans/shipped/rich-response/IMPLEMENTATION.md`
 
 - [ ] Verify follow-up issues #2735, #2749-#2755, #2750, #2751 (sweep retry cap, pluralisation, and integration-review fixes) actually merged, not just referenced in the doc. (S)
-
-#### `docs/multilingual-pronunciation-engine.md`
-
-- [ ] Update the doc's spike status (the D1 bias probe has run) and the stale types.ts citations. (S)
 
 #### `docs/gemini-api-terms-audit.md`
 

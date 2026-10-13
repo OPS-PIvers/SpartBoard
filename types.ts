@@ -9840,8 +9840,6 @@ export type GlobalFeature =
   | 'quiz-import-suggested-targets'
   /** Long text blocks in an imported test become passage stimuli for the questions after them. */
   | 'quiz-import-passages'
-  /** Handing a board or a collection to a substitute, and managing live shares. */
-  | 'sub-share-collections'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */
@@ -9929,8 +9927,6 @@ export type GlobalFeature =
   | 'webcam-ai'
   | 'blooms-ai'
   | 'my-groups'
-  /** Ctrl+V of a two-column list on the board opens a new flashcard set in the editor. */
-  | 'flashcard-smart-paste'
   /** Assign modals: Availability & Due Date (opens, closes, late work) replaces the Schedule and period-mode toggle. */
   | 'assign-availability'
   /** Record a group meeting on a note, with playback (docs/plans/shipped/PLC_MEETING_RECORDING.md). */
@@ -9941,12 +9937,8 @@ export type GlobalFeature =
   | 'study-resources'
   /** Sparty the mascot in tours, first-time setup and the Help Center (docs/plans/shipped/SPARTY.md). */
   | 'sparty'
-  /** Calendar widget day headers, hairline rows, past-event handling and event details. */
-  | 'calendar-day-view'
   /** Schedule and To-Do "Lines" row style. */
   | 'list-line-style'
-  /** Group Notes & Docs: notes and linked Google Docs in one list, and Open in Docs on a note. */
-  | 'plc-notes-unified'
   /** Group Notes & Docs: notes list and Action items as swapping side panels, with action items on linked Google Docs. */
   | 'plc-notes-side-panels'
   /** Group Notes & Docs: embedded Google Docs keep Google's menus and toolbar. */

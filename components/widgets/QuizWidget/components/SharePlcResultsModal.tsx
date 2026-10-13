@@ -15,6 +15,7 @@ import type { Plc, PlcCommonAssessment } from '@/types';
 import { usePlcAssessments } from '@/hooks/usePlcAssessments';
 import { getPlcMembers } from '@/utils/plc';
 import { rankPoolCandidates } from '@/utils/plcPooling';
+import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 interface SharePlcResultsModalProps {
   /** PLCs the teacher belongs to; the caller only opens this with ≥ 1. */
@@ -115,6 +116,7 @@ export const SharePlcResultsModal: React.FC<SharePlcResultsModalProps> = ({
             onClick={onClose}
             disabled={submitting}
             aria-label="Close"
+            {...tourTypeAttr('plc-results-pool.close', 'quiz')}
             className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors disabled:opacity-40"
           >
             <X className="w-5 h-5" />
@@ -129,7 +131,7 @@ export const SharePlcResultsModal: React.FC<SharePlcResultsModalProps> = ({
               No student names are shared.
             </p>
             <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar -mx-1 px-1 pb-1">
-              {plcs.map((plc) => (
+              {plcs.map((plc, plcIndex) => (
                 <label
                   key={plc.id}
                   className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 cursor-pointer transition-colors ${
@@ -146,6 +148,11 @@ export const SharePlcResultsModal: React.FC<SharePlcResultsModalProps> = ({
                     onChange={() => setPlcId(plc.id)}
                     className="h-4 w-4 accent-brand-blue-primary"
                     aria-label={plc.name}
+                    {...tourFieldAttr(
+                      'plc-results-pool.plc',
+                      'quiz',
+                      `plc-${plcIndex + 1}`
+                    )}
                   />
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-bold text-slate-800 truncate">
@@ -162,6 +169,7 @@ export const SharePlcResultsModal: React.FC<SharePlcResultsModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
+                {...tourTypeAttr('plc-results-pool.cancel', 'quiz')}
                 className="px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
               >
                 Cancel
@@ -169,6 +177,7 @@ export const SharePlcResultsModal: React.FC<SharePlcResultsModalProps> = ({
               <button
                 type="button"
                 onClick={() => setStep('pool')}
+                {...tourTypeAttr('plc-results-pool.next', 'quiz')}
                 disabled={!selectedPlc}
                 className="px-4 py-2 text-xs font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
               >
@@ -200,7 +209,7 @@ export const SharePlcResultsModal: React.FC<SharePlcResultsModalProps> = ({
                 role="radiogroup"
                 aria-label="Pool"
               >
-                {ranked.map((a) => (
+                {ranked.map((a, poolIndex) => (
                   <label
                     key={a.id}
                     className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 cursor-pointer transition-colors ${
@@ -218,6 +227,11 @@ export const SharePlcResultsModal: React.FC<SharePlcResultsModalProps> = ({
                       className="h-4 w-4 accent-brand-blue-primary"
                       disabled={submitting}
                       aria-label={a.title}
+                      {...tourFieldAttr(
+                        'plc-results-pool.pool',
+                        'quiz',
+                        `pool-${poolIndex + 1}`
+                      )}
                     />
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-bold text-slate-800 truncate">
@@ -246,6 +260,7 @@ export const SharePlcResultsModal: React.FC<SharePlcResultsModalProps> = ({
                       className="h-4 w-4 accent-brand-blue-primary"
                       disabled={submitting}
                       aria-label={`Create new pool: ${assignment.quizTitle}`}
+                      {...tourTypeAttr('plc-results-pool.new-pool', 'quiz')}
                     />
                     <Plus
                       className="w-4 h-4 text-slate-500 shrink-0"
@@ -272,6 +287,7 @@ export const SharePlcResultsModal: React.FC<SharePlcResultsModalProps> = ({
                 <button
                   type="button"
                   onClick={() => setStep('plc')}
+                  {...tourTypeAttr('plc-results-pool.back', 'quiz')}
                   disabled={submitting}
                   className="px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-40"
                 >
@@ -285,6 +301,7 @@ export const SharePlcResultsModal: React.FC<SharePlcResultsModalProps> = ({
                   type="button"
                   onClick={onClose}
                   disabled={submitting}
+                  {...tourTypeAttr('plc-results-pool.cancel', 'quiz')}
                   className="px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-40"
                 >
                   Cancel
@@ -292,6 +309,7 @@ export const SharePlcResultsModal: React.FC<SharePlcResultsModalProps> = ({
                 <button
                   type="button"
                   onClick={() => void handleSubmit()}
+                  {...tourTypeAttr('plc-results-pool.submit', 'quiz')}
                   disabled={!canSubmit}
                   className="px-4 py-2 text-xs font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center gap-2"
                 >

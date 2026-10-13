@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 
 export interface AssignmentFilterOption {
   value: string;
@@ -21,6 +22,7 @@ interface AssignmentFilterSelectProps {
   onChange: (next: string[]) => void;
   allLabel: string;
   multiple?: boolean;
+  anchor?: TourAnchorAttrs;
 }
 
 export const AssignmentFilterSelect: React.FC<AssignmentFilterSelectProps> = ({
@@ -31,6 +33,7 @@ export const AssignmentFilterSelect: React.FC<AssignmentFilterSelectProps> = ({
   onChange,
   allLabel,
   multiple = false,
+  anchor,
 }) => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -73,6 +76,7 @@ export const AssignmentFilterSelect: React.FC<AssignmentFilterSelectProps> = ({
         aria-label={label}
         aria-haspopup="listbox"
         aria-expanded={open}
+        {...anchor}
         className={`inline-flex w-full items-center justify-between gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors ${
           isFiltered
             ? 'border-brand-blue-primary/40 bg-brand-blue-lighter/30 text-brand-blue-primary'

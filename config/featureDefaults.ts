@@ -48,7 +48,6 @@ import {
   Target,
   TextCursorInput,
   Timer,
-  UserCheck,
   UserSearch,
   UsersRound,
   Video,
@@ -570,18 +569,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Share a board or a collection with a substitute, and the manager for live
-  // shares. Admin-only until Paul has run a day's cover on it in prod.
-  'sub-share-collections': {
-    label: 'Share a board or a collection with a sub',
-    icon: UserCheck,
-    description: 'Share boards or collections with a sub.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Guided Learning player v2. Admin-only until Paul has played a set end to end on dev.
   // Tab-away clock and exit log. Admin-only until Paul has tested it in prod.
   'tab-away-timer': {
@@ -821,17 +808,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'PLC notes rich text editor',
     icon: StickyNote,
     description: 'Formatting toolbar in PLC notes.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'plc-notes-unified': {
-    label: 'Notes and Docs in one list',
-    icon: StickyNote,
-    description:
-      'Group notes and linked Google Docs share one list; notes open in Docs.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -1188,17 +1164,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'flashcard-smart-paste': {
-    label: 'Flashcards: Smart Paste',
-    icon: ClipboardCheck,
-    description: 'Paste a two-column list to make a flashcard set.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'flashcards',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'plc-meeting-recording': {
     label: 'Meeting recording',
     icon: Mic,
@@ -1263,17 +1228,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'groups',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'calendar-day-view': {
-    label: 'Calendar day view',
-    icon: CalendarClock,
-    description:
-      'Calendar day headers, line dividers, past events and event details.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
