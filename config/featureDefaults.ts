@@ -1242,17 +1242,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'calendar-day-view': {
-    label: 'Calendar day view',
-    icon: CalendarClock,
-    description:
-      'Calendar day headers, line dividers, past events and event details.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'list-line-style': {
     label: 'Schedule and To-Do lines',
     icon: ListChecks,

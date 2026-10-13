@@ -59,7 +59,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'assign-availability',
   'study-resources',
   'sparty',
-  'calendar-day-view',
   'list-line-style',
   'plc-notes-side-panels',
   'google-tasks-sync',
