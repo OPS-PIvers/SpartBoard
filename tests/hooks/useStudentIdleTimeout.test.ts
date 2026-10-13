@@ -44,6 +44,7 @@ describe('useStudentIdleTimeout', () => {
     vi.useFakeTimers();
     signOutMock.mockClear();
     clearStudentFirstNameMock.mockClear();
+    localStorage.clear();
     installLocation();
   });
   afterEach(() => {
@@ -164,5 +165,45 @@ describe('useStudentIdleTimeout', () => {
     expect(assignMock).toHaveBeenCalledWith(STUDENT_LOGIN_PATH);
     // Flush the rejected promise's .catch so it doesn't leak.
     await Promise.resolve();
+  });
+  it('stays signed in while another tab is in use', () => {
+    renderHook(() => useStudentIdleTimeout(true));
+    act(() => {
+      vi.advanceTimersByTime(STUDENT_IDLE_TIMEOUT_MS - 60_000);
+      localStorage.setItem('sb_student_last_activity', String(Date.now()));
+      vi.advanceTimersByTime(60_000);
+    });
+    expect(signOutMock).not.toHaveBeenCalled();
+    act(() => {
+      vi.advanceTimersByTime(STUDENT_IDLE_TIMEOUT_MS - 60_000);
+    });
+    expect(signOutMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('stays signed in while the student works inside an embedded frame', () => {
+    const frame = document.createElement('iframe');
+    document.body.appendChild(frame);
+    frame.focus();
+    vi.spyOn(document, 'hasFocus').mockReturnValue(true);
+    renderHook(() => useStudentIdleTimeout(true));
+    act(() => {
+      vi.advanceTimersByTime(STUDENT_IDLE_TIMEOUT_MS * 3);
+    });
+    expect(signOutMock).not.toHaveBeenCalled();
+    frame.remove();
+    act(() => {
+      vi.advanceTimersByTime(STUDENT_IDLE_TIMEOUT_MS);
+    });
+    expect(signOutMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('counts scrolling as activity', () => {
+    renderHook(() => useStudentIdleTimeout(true));
+    act(() => {
+      vi.advanceTimersByTime(STUDENT_IDLE_TIMEOUT_MS - 1000);
+      window.dispatchEvent(new Event('wheel'));
+      vi.advanceTimersByTime(1000);
+    });
+    expect(signOutMock).not.toHaveBeenCalled();
   });
 });
