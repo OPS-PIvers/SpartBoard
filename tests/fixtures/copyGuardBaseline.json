@@ -36,7 +36,6 @@
     "components/admin/LunchCountConfigurationPanel.tsx::Schumann Elementary — Sheet ID",
     "components/admin/MusicManager.tsx::— No genre —",
     "components/admin/StarterPackConfigurationModal.tsx::— position selected",
-    "components/admin/WidgetBuilder/CellEditor.tsx::Cell Editor —",
     "components/assignmentsHub/AssignmentDetailPane.tsx::PIN/manual — no SSO status",
     "components/assignmentsHub/AssignmentDetailPane.tsx::Removed — work retained",
     "components/auth/InviteAcceptance.tsx::Hang tight — we&rsquo;re linking your account to",
