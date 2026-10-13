@@ -121,6 +121,7 @@ describe('quiz import reader selection', () => {
       cropper: browserPdfCropper,
       // Without it a test-bank key at the back is left to the model alone.
       readPdfLines: expect.any(Function),
+      multiAnswer: true,
     });
     expect(readQuizDocument).not.toHaveBeenCalled();
     expect(result.data.title).toBe('ai');

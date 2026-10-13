@@ -125,8 +125,6 @@ export interface QuizImportAdapterDeps {
    * the browser reader still runs, because half a quiz to fix beats an error.
    */
   aiExtract?: AiExtractFn;
-  /** Choose-all-that-apply is on for this teacher, so reads may produce it. */
-  canUseChooseAll?: boolean;
 }
 
 const DRIVE_ACCESS_ERROR =
@@ -329,36 +327,16 @@ function renderQuizPreview(data: QuizData): React.ReactNode {
 
 /* ─── Adapter factory ─────────────────────────────────────────────────────── */
 
-// Choose-all rows need the quiz-choose-all feature; without it they are left out with a note.
-function withoutChooseAll(
-  data: QuizData,
-  allowed: boolean
-): { data: QuizData; warnings: string[] } {
-  if (allowed) return { data, warnings: [] };
-  const questions = data.questions.filter((q) => q.type !== 'MA');
-  const dropped = data.questions.length - questions.length;
-  if (dropped === 0) return { data, warnings: [] };
-  return {
-    data: { ...data, questions },
-    warnings: [
-      dropped === 1
-        ? '1 choose-all-that-apply question was left out because that question type isn’t available yet.'
-        : `${dropped} choose-all-that-apply questions were left out because that question type isn’t available yet.`,
-    ],
-  };
-}
-
 /** A sheet or CSV row with no answer saves flagged, like a document import, rather than blocking the save. */
-function withKeysFlagged(result: { data: QuizData; warnings: string[] }): {
+function withKeysFlagged(data: QuizData): {
   data: QuizData;
   warnings: string[];
 } {
-  const missing = missingKeyNumbers(result.data.questions);
-  if (missing.length === 0) return result;
+  const missing = missingKeyNumbers(data.questions);
+  if (missing.length === 0) return { data, warnings: [] };
   return {
-    data: flagMissingKeys(result.data),
+    data: flagMissingKeys(data),
     warnings: [
-      ...result.warnings,
       missing.length === 1
         ? `Question ${missing[0]} has no correct answer.`
         : `Questions ${missing.join(', ')} have no correct answer.`,
@@ -369,7 +347,6 @@ function withKeysFlagged(result: { data: QuizData; warnings: string[] }): {
 export function createQuizImportAdapter(
   deps: QuizImportAdapterDeps
 ): ImportAdapter<QuizData> {
-  const multiAnswer = deps.canUseChooseAll === true;
   return {
     widgetLabel: deps.widgetLabel ?? 'Quiz',
     supportedSources: deps.canImportDocuments
@@ -439,11 +416,11 @@ export function createQuizImportAdapter(
           PLACEHOLDER_TITLE,
           token
         );
-        return withKeysFlagged(withoutChooseAll(data, multiAnswer));
+        return withKeysFlagged(data);
       }
       if (source.kind === 'csv') {
         const data = await deps.importFromCSV(source.text, PLACEHOLDER_TITLE);
-        return withKeysFlagged(withoutChooseAll(data, multiAnswer));
+        return withKeysFlagged(data);
       }
       if (source.kind === 'document') {
         const extracted = await readTestAndKey(
@@ -456,7 +433,7 @@ export function createQuizImportAdapter(
             aiExtract: deps.aiExtract,
             key: source.keyFile,
             ...(source.useAi === false ? { useAi: false } : {}),
-            ...(multiAnswer ? { multiAnswer } : {}),
+            multiAnswer: true,
             passages: true,
             ...(deps.fetchRemoteImage
               ? { fetchRemoteImage: deps.fetchRemoteImage }
