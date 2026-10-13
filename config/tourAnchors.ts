@@ -11113,10 +11113,6 @@ export const TOUR_ANCHORS = {
     label: 'Make a copy option in the share dialog',
     panel: true,
   },
-  'share-link.mode-substitute': {
-    label: 'Substitute option in the share dialog',
-    panel: true,
-  },
   'share-link.close': {
     label: 'Close button in the share dialog',
     panel: true,
@@ -11131,30 +11127,6 @@ export const TOUR_ANCHORS = {
   },
   'share-link.done': {
     label: 'Done button in the share dialog',
-    panel: true,
-  },
-  'share-link.sub-expires': {
-    label: 'Expiry date box for a sub share in the share dialog',
-    panel: true,
-  },
-  'share-link.sub-building': {
-    label: 'Building picker for a sub share in the share dialog',
-    panel: true,
-  },
-  'share-link.sub-preset-email': {
-    label: 'Saved sub email button in the share dialog',
-    panel: true,
-  },
-  'share-link.sub-remove-email': {
-    label: 'Remove sub email button in the share dialog',
-    panel: true,
-  },
-  'share-link.sub-email-input': {
-    label: 'Sub email box in the share dialog',
-    panel: true,
-  },
-  'share-link.add-sub-email': {
-    label: 'Add sub email button in the share dialog',
     panel: true,
   },
   'share-link.plc-scope': {
@@ -11192,38 +11164,6 @@ export const TOUR_ANCHORS = {
   },
   'share-collection.share-with-sub': {
     label: 'Share with a sub option in the collection share dialog',
-    panel: true,
-  },
-  'share-collection.mode-copy': {
-    label: 'Copy mode in the collection share dialog',
-    panel: true,
-  },
-  'share-collection.mode-substitute': {
-    label: 'Substitute mode in the collection share dialog',
-    panel: true,
-  },
-  'share-collection.ttl': {
-    label: 'Expires in button in the collection share dialog',
-    panel: true,
-  },
-  'share-collection.building': {
-    label: 'Building picker in the collection share dialog',
-    panel: true,
-  },
-  'share-collection.preset-email': {
-    label: 'Saved sub email button in the collection share dialog',
-    panel: true,
-  },
-  'share-collection.remove-email': {
-    label: 'Remove sub email button in the collection share dialog',
-    panel: true,
-  },
-  'share-collection.email-input': {
-    label: 'Sub email box in the collection share dialog',
-    panel: true,
-  },
-  'share-collection.add-email': {
-    label: 'Add sub email button in the collection share dialog',
     panel: true,
   },
   'share-collection.cancel': {

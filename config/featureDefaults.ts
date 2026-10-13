@@ -48,7 +48,6 @@ import {
   Target,
   TextCursorInput,
   Timer,
-  UserCheck,
   UserSearch,
   UsersRound,
   Video,
@@ -570,18 +569,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Share a board or a collection with a substitute, and the manager for live
-  // shares. Admin-only until Paul has run a day's cover on it in prod.
-  'sub-share-collections': {
-    label: 'Share a board or a collection with a sub',
-    icon: UserCheck,
-    description: 'Share boards or collections with a sub.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Guided Learning player v2. Admin-only until Paul has played a set end to end on dev.
   'gl-player-v2': {
     label: 'Guided Learning: calmer player',
@@ -733,17 +720,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Quiz sections',
     icon: ListChecks,
     description: 'Section headings, and "answer any N of these".',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Alternate accepted answers on fill-in-the-blank quiz questions. Admin-only until Paul has tried it.
-  'quiz-fib-alternates': {
-    label: 'Other accepted answers for fill in the blank',
-    icon: TextCursorInput,
-    description: 'Alternate accepted answers.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -1176,17 +1152,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'flashcard-smart-paste': {
-    label: 'Flashcards: Smart Paste',
-    icon: ClipboardCheck,
-    description: 'Paste a two-column list to make a flashcard set.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    widget: 'flashcards',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'plc-meeting-recording': {
     label: 'Meeting recording',
     icon: Mic,
@@ -1251,17 +1216,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'groups',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  'calendar-day-view': {
-    label: 'Calendar day view',
-    icon: CalendarClock,
-    description:
-      'Calendar day headers, line dividers, past events and event details.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,

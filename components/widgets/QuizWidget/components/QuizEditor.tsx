@@ -1459,18 +1459,16 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 No answer imported. Add one before assigning.
               </p>
             )}
-            {q.type === 'FIB' &&
-              ((q.alternateAnswers?.length ?? 0) > 0 ||
-                canAccessFeature('quiz-fib-alternates')) && (
-                <AlternateAnswersEditor
-                  alternates={q.alternateAnswers ?? []}
-                  onChange={(next) =>
-                    updateQuestion(q.id, {
-                      alternateAnswers: next.length > 0 ? next : undefined,
-                    })
-                  }
-                />
-              )}
+            {q.type === 'FIB' && (
+              <AlternateAnswersEditor
+                alternates={q.alternateAnswers ?? []}
+                onChange={(next) =>
+                  updateQuestion(q.id, {
+                    alternateAnswers: next.length > 0 ? next : undefined,
+                  })
+                }
+              />
+            )}
           </div>
         )}
 
