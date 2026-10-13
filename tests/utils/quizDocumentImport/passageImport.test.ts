@@ -1,5 +1,5 @@
 /**
- * Case studies and passages found by their shape, behind `quiz-import-passages`.
+ * Case studies and passages found by their shape.
  */
 import { describe, it, expect } from 'vitest';
 import { parseDocument } from '@/utils/quizDocumentImport/parseQuestions';

@@ -9838,8 +9838,6 @@ export type GlobalFeature =
   | 'quiz-document-ai-reader'
   /** Learning targets read off an imported test, offered as chips in its review. */
   | 'quiz-import-suggested-targets'
-  /** Long text blocks in an imported test become passage stimuli for the questions after them. */
-  | 'quiz-import-passages'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */

@@ -374,6 +374,7 @@ describe('createQuizImportAdapter — test document source', () => {
     expect(readQuizDocument).toHaveBeenCalledWith(file, {
       fileName: 'Unit 3 Test.docx',
       multiAnswer: true,
+      passages: true,
     });
   });
 

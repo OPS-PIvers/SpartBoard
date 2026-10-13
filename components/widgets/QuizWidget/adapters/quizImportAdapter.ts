@@ -94,8 +94,6 @@ export interface QuizImportAdapterDeps {
   canSuggestTargets?: boolean;
   /** Catalog codes, so printed codes beside a question move to its review row (`standards-from-question-text`). */
   loadStandardCodes?: () => Promise<ReadonlySet<string>>;
-  /** Turn a test's case studies and passages into stimuli (`quiz-import-passages`). */
-  canFindPassages?: boolean;
   /**
    * Uploads a read document's pictures to the teacher's Drive and links them
    * to the questions that use them (D13). Called at save, not at read, so a
@@ -433,7 +431,7 @@ export function createQuizImportAdapter(
             key: source.keyFile,
             ...(source.useAi === false ? { useAi: false } : {}),
             multiAnswer: true,
-            ...(deps.canFindPassages ? { passages: true } : {}),
+            passages: true,
             ...(deps.fetchRemoteImage
               ? { fetchRemoteImage: deps.fetchRemoteImage }
               : {}),
