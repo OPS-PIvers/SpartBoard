@@ -3408,6 +3408,11 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
+  'widget-settings.calendar.calendar-id': {
+    label: 'Calendar ID box in Calendar settings',
+    perWidget: true,
+    panel: true,
+  },
   'widget-settings.checklist.paste': {
     label: 'Add pasted tasks button in Checklist settings',
     perWidget: true,
