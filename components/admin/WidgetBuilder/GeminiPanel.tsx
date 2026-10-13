@@ -170,7 +170,7 @@ export const GeminiPanel: React.FC<GeminiPanelProps> = ({
 
         {loading && (
           <div className="flex items-center gap-2 text-xs text-slate-400">
-            <Loader2 size={14} className="animate-spin text-purple-400" />
+            <Loader2 size={14} className="animate-spin text-slate-400" />
             Thinking...
           </div>
         )}

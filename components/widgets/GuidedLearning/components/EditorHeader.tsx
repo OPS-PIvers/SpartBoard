@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { AlertCircle, Sparkles, X } from 'lucide-react';
+import { AlertCircle, Wand2, X } from 'lucide-react';
 import { AutosaveIndicator } from '@/components/common/EditorModalShell';
 import type { AutosaveStatus } from '@/hooks/useAutosave';
 import { tourAttr, tourTypeAttr } from '@/config/tourAnchors';
@@ -79,9 +79,9 @@ export const EditorHeader: React.FC<EditorHeaderProps> = ({
           type="button"
           {...tourAttr('gl-editor.draft-ai')}
           onClick={onDraftWithAi}
-          className="flex h-9 items-center gap-2 rounded-xl bg-brand-blue-primary px-3 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition-colors hover:bg-brand-blue-dark"
+          className="flex h-9 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold uppercase tracking-wider text-slate-700 shadow-sm transition-colors hover:border-brand-blue-light"
         >
-          <Sparkles className="h-4 w-4" aria-hidden="true" />
+          <Wand2 className="h-4 w-4" aria-hidden="true" />
           {t('glStudio.draftWithAi')}
         </button>
       )}

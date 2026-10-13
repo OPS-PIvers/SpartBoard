@@ -17,7 +17,7 @@ interface DriveFileAttachmentProps {
   /** Button label. Defaults to "Attach file from Drive". */
   label?: string;
   /**
-   * Color palette. `'light'` (default) is indigo-on-white for light
+   * Color palette. `'light'` (default) is slate-on-white for light
    * containers; `'dark'` is slate-on-transparent for dark overlays.
    */
   variant?: 'light' | 'dark';
@@ -131,27 +131,27 @@ export const DriveFileAttachment: React.FC<DriveFileAttachmentProps> = ({
 
   const pillClasses = isDark
     ? 'flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs'
-    : 'flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-xl text-xs';
+    : 'flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs';
 
   const iconClasses = isDark
     ? 'w-3.5 h-3.5 text-slate-300 shrink-0'
-    : 'w-3.5 h-3.5 text-indigo-500 shrink-0';
+    : 'w-3.5 h-3.5 text-slate-400 shrink-0';
 
   const fileNameClasses = isDark
     ? 'text-slate-200 font-medium truncate flex-1'
-    : 'text-indigo-700 font-medium truncate flex-1';
+    : 'text-slate-700 font-medium truncate flex-1';
 
   const removeButtonClasses = isDark
     ? 'p-0.5 hover:bg-white/10 rounded text-slate-400 hover:text-slate-200 transition-colors'
-    : 'p-0.5 hover:bg-indigo-200 rounded text-indigo-400 hover:text-indigo-600 transition-colors';
+    : 'p-0.5 hover:bg-slate-100 rounded text-slate-400 hover:text-slate-600 transition-colors';
 
   const extractingPillClasses = isDark
     ? 'flex items-center gap-2 px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-xs text-slate-300'
-    : 'flex items-center gap-2 px-3 py-2 bg-indigo-50 border border-indigo-200 rounded-xl text-xs text-indigo-500';
+    : 'flex items-center gap-2 px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs text-slate-500';
 
   const pickButtonClasses = isDark
     ? 'flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-200 hover:text-white bg-white/5 hover:bg-white/10 border border-dashed border-white/10 hover:border-white/20 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
-    : 'flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-indigo-500 hover:text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50 border border-dashed border-indigo-200 hover:border-indigo-300 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+    : 'self-start flex items-center gap-1.5 py-1 text-xs font-bold text-slate-600 hover:text-brand-blue-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
 
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>

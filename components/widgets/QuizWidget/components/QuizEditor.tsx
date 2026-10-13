@@ -26,7 +26,7 @@ import {
   MousePointerClick,
   Plus,
   Shuffle,
-  Sparkles,
+  Wand2,
   Tag,
   Trash2,
 } from 'lucide-react';
@@ -50,6 +50,7 @@ import type { QuizEditorBankApi } from './QuizEditorModal';
 import { SortableList } from '@/components/common/SortableList';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
 import { AIGeneratorOverlay } from '@/components/common/AIGeneratorOverlay';
+import { AI_PROMPT_TEXTAREA_CLASS } from '@/components/common/aiPanelStyles';
 import { useAuth } from '@/context/useAuth';
 import {
   MatchingAnswerEditor,
@@ -396,7 +397,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
                 className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 text-slate-700 rounded-lg text-xs font-bold transition-colors"
                 title="Generate questions with AI"
               >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                <Wand2 className="w-3.5 h-3.5 text-slate-500" />
                 Draft with AI
               </button>
             )}
@@ -1596,28 +1597,25 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
         value={aiPrompt}
         onChange={(e) => setAiPrompt(e.target.value)}
         placeholder="e.g. A quiz about the solar system for 3rd graders."
-        className="w-full h-24 p-4 bg-white border-2 border-indigo-100 rounded-2xl text-sm text-indigo-900 placeholder-indigo-300 focus:outline-none focus:border-indigo-500 resize-none shadow-inner"
+        className={`${AI_PROMPT_TEXTAREA_CLASS} !h-24`}
         autoFocus
         aria-label="Describe your quiz"
         {...tourTypeAttr('quiz-editor.ai-prompt', 'quiz')}
       />
-      <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 space-y-3">
-        <div className="flex items-center justify-between text-xs font-bold text-indigo-700/70 uppercase tracking-widest">
+      <div>
+        <div className="flex items-center justify-between text-xxs font-black text-slate-400 uppercase tracking-widest mb-1">
           <span>Question Mix</span>
           <span>Total: {aiTotalCount}</span>
         </div>
-        <ul className="space-y-2">
+        <ul className="divide-y divide-slate-100 border-y border-slate-200">
           {QUIZ_TYPE_STEPPER_ROWS.filter(
             (row) => row.type !== 'MA' || canAccessFeature('quiz-choose-all')
           ).map((row) => {
             const value = aiTypeCounts[row.type];
             return (
-              <li
-                key={row.type}
-                className="flex items-center gap-3 bg-white rounded-xl border border-indigo-100 px-3 py-2"
-              >
+              <li key={row.type} className="flex items-center gap-3 py-2">
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-bold text-indigo-900">
+                  <div className="text-sm font-bold text-slate-700">
                     {row.label}
                   </div>
                 </div>
@@ -1626,7 +1624,7 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
                     type="button"
                     onClick={() => setAiTypeCount(row.type, value - 1)}
                     disabled={value <= 0 || aiGenerating}
-                    className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold hover:bg-indigo-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"
                     aria-label={`Decrease ${row.label} count`}
                     {...tourFieldAttr(
                       'quiz-editor.ai-count-dec',
@@ -1636,14 +1634,14 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
                   >
                     –
                   </button>
-                  <span className="w-6 text-center text-sm font-bold text-indigo-900 tabular-nums">
+                  <span className="w-6 text-center text-sm font-bold text-slate-800 tabular-nums">
                     {value}
                   </span>
                   <button
                     type="button"
                     onClick={() => setAiTypeCount(row.type, value + 1)}
                     disabled={value >= 15 || aiGenerating}
-                    className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold hover:bg-indigo-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"
                     aria-label={`Increase ${row.label} count`}
                     {...tourFieldAttr(
                       'quiz-editor.ai-count-inc',

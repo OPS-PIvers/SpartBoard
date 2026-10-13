@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, MoreHorizontal, Pin, Sparkles } from 'lucide-react';
+import { Loader2, MoreHorizontal, Pin, Wand2 } from 'lucide-react';
 import { IconButton } from '@/components/common/IconButton';
 import type { PlcGoal } from '@/types';
 import type { GoalCoachDraft, GoalCoachResult } from '@/config/goalCoachRubric';
@@ -213,7 +213,7 @@ export const GoalView: React.FC<GoalViewProps> = ({
             {isLead && coach && (
               <TextLink
                 quiet
-                icon={checking ? undefined : Sparkles}
+                icon={checking ? undefined : Wand2}
                 disabled={!canCheck || checking}
                 {...tourAttr('teams.goal.check')}
                 onClick={() => void check()}

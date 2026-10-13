@@ -11,7 +11,7 @@
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { AlertTriangle, Plus, Sparkles, Target } from 'lucide-react';
+import { AlertTriangle, Plus, Wand2, Target } from 'lucide-react';
 import {
   LibraryFolder,
   QUESTION_BANK_SIZE_WARN,
@@ -557,10 +557,10 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
         <button
           onClick={() => setShowAiPrompt(true)}
           {...tourTypeAttr('quiz-editor.footer-draft-ai', 'quiz')}
-          className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
+          className="h-[36px] px-3 bg-white border border-slate-200 hover:border-brand-blue-light text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2"
           title="Generate with AI"
         >
-          <Sparkles className="w-4 h-4" />
+          <Wand2 className="w-4 h-4" />
           Draft with AI
         </button>
       ) : null,

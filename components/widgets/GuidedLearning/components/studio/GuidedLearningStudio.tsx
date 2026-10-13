@@ -21,7 +21,7 @@ import {
   PanelRight,
   Play,
   Redo2,
-  Sparkles,
+  Wand2,
   Undo2,
   Upload,
   X,
@@ -839,7 +839,7 @@ const StudioSession: React.FC<
               {
                 id: 'draft-ai',
                 label: t('glStudio.draftWithAi'),
-                icon: Sparkles,
+                icon: Wand2,
                 onSelect: () => setShowAiGen(true),
               },
             ]

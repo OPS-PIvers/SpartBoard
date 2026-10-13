@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Loader2, X } from 'lucide-react';
+import { Wand2, Loader2, X } from 'lucide-react';
 
 interface AiPanelProps {
   topic: string;
@@ -26,7 +26,7 @@ export const AiPanel: React.FC<AiPanelProps> = ({
           padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
         }}
       >
-        <Sparkles
+        <Wand2
           className="shrink-0 text-amber-400"
           style={{
             width: 'min(16px, 4.5cqmin)',

@@ -640,21 +640,18 @@ export const VideoActivityAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
       closeAnchor={tourAttr('video-activity.editor-ai-close')}
       generateAnchor={tourAttr('video-activity.editor-ai-generate')}
     >
-      <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 space-y-3">
-        <div className="flex items-center justify-between text-xs font-bold text-indigo-700/70 uppercase tracking-widest">
+      <div>
+        <div className="flex items-center justify-between text-xxs font-black text-slate-400 uppercase tracking-widest mb-1">
           <span>Question Mix</span>
           <span>Total: {aiTotalCount}</span>
         </div>
-        <ul className="space-y-2">
+        <ul className="divide-y divide-slate-100 border-y border-slate-200">
           {VIDEO_TYPE_STEPPER_ROWS.map((row) => {
             const value = aiTypeCounts[row.type];
             return (
-              <li
-                key={row.type}
-                className="flex items-center gap-3 bg-white rounded-xl border border-indigo-100 px-3 py-2"
-              >
+              <li key={row.type} className="flex items-center gap-3 py-2">
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-bold text-indigo-900">
+                  <div className="text-sm font-bold text-slate-700">
                     {row.label}
                   </div>
                   <div className="text-[11px] text-slate-500 truncate">
@@ -671,12 +668,12 @@ export const VideoActivityAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
                     type="button"
                     onClick={() => setAiTypeCount(row.type, value - 1)}
                     disabled={value <= 0 || aiGenerating}
-                    className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold hover:bg-indigo-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"
                     aria-label={`Decrease ${row.label} count`}
                   >
                     –
                   </button>
-                  <span className="w-6 text-center text-sm font-bold text-indigo-900 tabular-nums">
+                  <span className="w-6 text-center text-sm font-bold text-slate-800 tabular-nums">
                     {value}
                   </span>
                   <button
@@ -688,7 +685,7 @@ export const VideoActivityAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
                     type="button"
                     onClick={() => setAiTypeCount(row.type, value + 1)}
                     disabled={value >= 15 || aiGenerating}
-                    className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold hover:bg-indigo-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="w-7 h-7 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed"
                     aria-label={`Increase ${row.label} count`}
                   >
                     +

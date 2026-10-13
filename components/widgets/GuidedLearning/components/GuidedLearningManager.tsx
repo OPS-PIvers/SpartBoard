@@ -33,7 +33,7 @@ import {
   Trash2,
   Link2,
   BarChart2,
-  Sparkles,
+  Wand2,
   Building2,
   BookOpen,
   Loader2,
@@ -869,7 +869,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       ? [
           {
             label: 'AI',
-            icon: Sparkles,
+            icon: Wand2,
             onClick: () =>
               onOpenAIAuthoring(isBuildingFiltered ? 'building' : 'personal'),
           },

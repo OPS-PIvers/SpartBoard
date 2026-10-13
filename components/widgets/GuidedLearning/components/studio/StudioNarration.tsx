@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Mic, Sparkles, Square, Trash2 } from 'lucide-react';
+import { Mic, Wand2, Square, Trash2 } from 'lucide-react';
 import type { GuidedLearningNarration, GuidedLearningStep } from '@/types';
 import {
   useAudioRecording,
@@ -281,7 +281,7 @@ export const StudioNarration: React.FC<StudioNarrationProps> = ({
             title={sourceText ? undefined : t('glStudio.narrationNoText')}
             className={secondaryBtn}
           >
-            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            <Wand2 className="h-3.5 w-3.5" aria-hidden="true" />
             {generating
               ? t('glStudio.narrationGenerating')
               : narration?.source === 'generated'
@@ -381,7 +381,7 @@ export const StudioNarrationBatch: React.FC<{
         disabled={progress !== null || steps.length === 0}
         className={`${secondaryBtn} self-start`}
       >
-        <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+        <Wand2 className="h-3.5 w-3.5" aria-hidden="true" />
         {progress
           ? t('glStudio.narrationAllProgress', progress)
           : t('glStudio.narrationAll')}

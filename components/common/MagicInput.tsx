@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Loader2, AlertCircle } from 'lucide-react';
+import { Wand2, Loader2, AlertCircle } from 'lucide-react';
 import { useViewAsOutward } from '@/hooks/useViewAsOutward';
 
 interface MagicInputProps<T> {
@@ -63,8 +63,8 @@ export const MagicInput = <T,>({
   return (
     <div className="flex flex-col gap-2 w-full">
       <div className="relative flex items-center">
-        <div className="absolute left-3 text-brand-blue-primary pointer-events-none">
-          <Sparkles size={16} />
+        <div className="absolute left-3 text-slate-400 pointer-events-none">
+          <Wand2 size={16} />
         </div>
         <input
           type="text"
@@ -73,7 +73,7 @@ export const MagicInput = <T,>({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={isLoading}
-          className="w-full pl-9 pr-24 py-2.5 text-sm bg-brand-blue-lighter/50 border border-brand-blue-lighter rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/50 focus:border-brand-blue-primary transition-[border-color,box-shadow] placeholder:text-brand-blue-light text-slate-700"
+          className="w-full pl-9 pr-24 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/20 focus:border-brand-blue-primary transition-[border-color,box-shadow] placeholder:text-slate-400 text-slate-700"
         />
         <button
           onClick={handleGenerate}
