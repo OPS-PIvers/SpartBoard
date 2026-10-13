@@ -3978,5 +3978,9 @@
     "label": "Novedades",
     "dismiss": "Descartar",
     "gotIt": "Entendido"
+  },
+  "rubricGuide": {
+    "examples": "Respuestas de ejemplo",
+    "or": "o"
   }
 }

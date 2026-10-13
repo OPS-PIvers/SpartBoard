@@ -1,6 +1,12 @@
 // Rubric library + criteria/levels builder slide-over (M12 spec §6.1).
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import {
   AlertCircle,
   ArrowDown,
@@ -25,6 +31,15 @@ import { useDialog } from '@/context/useDialog';
 import { useRubrics } from '@/hooks/useRubrics';
 import { parseRubricCsv, rubricToCsv } from '@/utils/rubricCsv';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
+import {
+  GUIDE_MAX_POINTS,
+  convertRubricTemplate,
+  guideLevels,
+  guideRowMax,
+  isScoringGuide,
+  newGuideRow,
+} from '@/utils/rubricGuide';
+import { AuthContext } from '@/context/AuthContextValue';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 
 export interface RubricBuilderPanelProps {
@@ -89,6 +104,7 @@ const rubricSignature = (r: Rubric): string =>
         l.points,
         l.description?.trim() ?? '',
       ]),
+      c.guide ? (c.guide.examples ?? []).map((e) => e.trim()) : null,
     ]),
   ]);
 
@@ -120,6 +136,10 @@ const validateRubric = (rubric: Rubric): string[] => {
   if (!rubric.title.trim()) errors.push('Rubric needs a title.');
   if (rubric.criteria.length === 0) errors.push('Add at least one criterion.');
   rubric.criteria.forEach((c, i) => {
+    if (c.guide) {
+      if (!c.name.trim()) errors.push(`Part ${i + 1} needs a label.`);
+      return;
+    }
     const name = c.name.trim() || `Criterion ${i + 1}`;
     if (!c.name.trim()) errors.push(`${name} needs a name.`);
     if (c.levels.length < MIN_LEVELS || c.levels.length > MAX_LEVELS) {
@@ -141,6 +161,106 @@ const validateRubric = (rubric: Rubric): string[] => {
     });
   });
   return errors;
+};
+
+const GuideRowFields: React.FC<{
+  criterion: RubricCriterion;
+  index: number;
+  onPatch: (patch: Partial<RubricCriterion>) => void;
+}> = ({ criterion: c, index, onPatch }) => {
+  const examples = c.guide?.examples ?? [];
+  const part = String(index + 1);
+  const setExamples = (next: string[]) =>
+    onPatch({ guide: { ...c.guide, examples: next } });
+  return (
+    <div className="space-y-2">
+      <textarea
+        rows={2}
+        ref={autoGrow}
+        value={c.description ?? ''}
+        onChange={(e) => {
+          onPatch({ description: e.target.value || undefined });
+          autoGrow(e.target);
+        }}
+        placeholder="Scoring guidelines"
+        aria-label={`Part ${part} scoring guidelines`}
+        {...tourFieldAttr('quiz-rubric.guide-guidelines', 'quiz', part)}
+        className={`${inputClass} resize-y overflow-hidden min-h-[60px]`}
+      />
+      <div className="space-y-1.5">
+        <p className={labelClass}>Example responses</p>
+        {examples.map((example, ei) => (
+          <React.Fragment key={ei}>
+            {ei > 0 && (
+              <p className="text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                or
+              </p>
+            )}
+            <div className="flex items-start gap-2">
+              <textarea
+                rows={1}
+                ref={autoGrow}
+                value={example}
+                onChange={(e) => {
+                  setExamples(
+                    examples.map((x, xi) => (xi === ei ? e.target.value : x))
+                  );
+                  autoGrow(e.target);
+                }}
+                placeholder="A response that earns the point"
+                aria-label={`Part ${part} example ${ei + 1}`}
+                {...tourFieldAttr(
+                  'quiz-rubric.guide-example',
+                  'quiz',
+                  `${part}-${ei + 1}`
+                )}
+                className={`${inputClass} resize-y overflow-hidden min-h-[38px] italic`}
+              />
+              <button
+                onClick={() =>
+                  setExamples(examples.filter((_, xi) => xi !== ei))
+                }
+                aria-label={`Remove part ${part} example ${ei + 1}`}
+                {...tourFieldAttr(
+                  'quiz-rubric.guide-example-remove',
+                  'quiz',
+                  `${part}-${ei + 1}`
+                )}
+                className="p-1 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </React.Fragment>
+        ))}
+        <button
+          onClick={() => setExamples([...examples, ''])}
+          {...tourFieldAttr('quiz-rubric.guide-example-add', 'quiz', part)}
+          className="flex items-center gap-1.5 text-xs font-bold text-brand-blue-primary hover:text-brand-blue-dark transition-colors"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          Add example
+        </button>
+      </div>
+      <label className="flex items-center gap-2 text-xs font-bold text-slate-600">
+        Points
+        <input
+          type="number"
+          min={1}
+          max={GUIDE_MAX_POINTS}
+          value={guideRowMax(c)}
+          onChange={(e) =>
+            onPatch({
+              levels: guideLevels(parseInt(e.target.value, 10) || 1, c.levels),
+            })
+          }
+          aria-label={`Part ${part} points`}
+          {...tourFieldAttr('quiz-rubric.guide-points', 'quiz', part)}
+          className={`${inputClass} w-20`}
+        />
+      </label>
+    </div>
+  );
 };
 
 // Accepts a bare share id or a pasted share URL (`/share/rubric/{id}`) and
@@ -182,6 +302,9 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
   const { rubrics, saveRubric, shareRubric, importSharedRubric } =
     useRubrics(teacherUid);
   const { showConfirm } = useDialog();
+  const guidesOn =
+    useContext(AuthContext)?.canAccessFeature?.('rubric-scoring-guides') ===
+    true;
   const [draft, setDraft] = useState<Rubric>(
     () => existingSnapshot ?? blankRubric()
   );
@@ -276,6 +399,37 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
   }, []);
 
   const errors = useMemo(() => validateRubric(draft), [draft]);
+  const guide = isScoringGuide(draft);
+
+  const switchTemplate = async (toGuide: boolean) => {
+    if (toGuide === guide) return;
+    const hasLevelText = draft.criteria.some((c) =>
+      c.levels.some((l) => l.label.trim() || l.description?.trim())
+    );
+    if (toGuide && hasLevelText) {
+      const ok = await showConfirm(
+        'A scoring guide scores each part from 0 to its points, so level labels and descriptions are removed.',
+        {
+          title: 'Switch to a scoring guide?',
+          variant: 'warning',
+          confirmLabel: 'Switch',
+        }
+      );
+      if (!ok) return;
+    }
+    if (!toGuide && draft.criteria.some((c) => c.guide?.examples?.length)) {
+      const ok = await showConfirm(
+        'Levels rubrics have no example responses, so the examples are removed.',
+        {
+          title: 'Switch to levels?',
+          variant: 'warning',
+          confirmLabel: 'Switch',
+        }
+      );
+      if (!ok) return;
+    }
+    setDraft((prev) => convertRubricTemplate(prev, toGuide));
+  };
   const maxSum = rubricMaxPoints(draft);
 
   // Risk 2: attached snapshot older than the library copy it came from.
@@ -591,6 +745,35 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
           />
         </div>
 
+        {(guidesOn || guide) && (
+          <div
+            role="radiogroup"
+            aria-label="Rubric type"
+            {...tourTypeAttr('quiz-rubric.template', 'quiz')}
+            className="inline-flex rounded-lg border border-slate-300 bg-white p-0.5"
+          >
+            {[
+              { value: false, label: 'Levels' },
+              { value: true, label: 'Scoring guide' },
+            ].map((opt) => (
+              <button
+                key={opt.label}
+                type="button"
+                role="radio"
+                aria-checked={guide === opt.value}
+                onClick={() => void switchTemplate(opt.value)}
+                className={`px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
+                  guide === opt.value
+                    ? 'bg-brand-blue-primary text-white'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {draft.criteria.map((c, ci) => (
           <div
             key={c.id}
@@ -601,8 +784,14 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
                 type="text"
                 value={c.name}
                 onChange={(e) => patchCriterion(c.id, { name: e.target.value })}
-                placeholder={`Criterion ${ci + 1}`}
-                aria-label={`Criterion ${ci + 1} name`}
+                placeholder={
+                  c.guide
+                    ? `Part ${ci + 1} (e.g. A: Research method)`
+                    : `Criterion ${ci + 1}`
+                }
+                aria-label={
+                  c.guide ? `Part ${ci + 1} label` : `Criterion ${ci + 1} name`
+                }
                 {...tourFieldAttr(
                   'quiz-rubric.criterion-name',
                   'quiz',
@@ -666,103 +855,116 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
               </button>
             </div>
 
-            {c.levels.map((l, li) => (
-              <div key={l.id} className="flex items-start gap-2">
-                <textarea
-                  rows={1}
-                  ref={autoGrow}
-                  value={l.label}
-                  onChange={(e) => {
-                    patchLevel(c.id, l.id, { label: e.target.value });
-                    autoGrow(e.target);
-                  }}
-                  placeholder="Level label"
-                  aria-label={`Criterion ${ci + 1} level ${li + 1} label`}
-                  {...tourFieldAttr(
-                    'quiz-rubric.level-label',
-                    'quiz',
-                    `${ci + 1}-${li + 1}`
-                  )}
-                  className={`${inputClass} resize-y overflow-hidden min-h-[38px]`}
-                />
-                <input
-                  type="number"
-                  min={0}
-                  value={l.points}
-                  onChange={(e) =>
-                    patchLevel(c.id, l.id, {
-                      points: parseInt(e.target.value, 10) || 0,
-                    })
-                  }
-                  aria-label={`Criterion ${ci + 1} level ${li + 1} points`}
-                  {...tourFieldAttr(
-                    'quiz-rubric.level-points',
-                    'quiz',
-                    `${ci + 1}-${li + 1}`
-                  )}
-                  className={`${inputClass} w-20`}
-                />
-                <textarea
-                  rows={1}
-                  ref={autoGrow}
-                  value={l.description ?? ''}
-                  onChange={(e) => {
-                    patchLevel(c.id, l.id, {
-                      description: e.target.value || undefined,
-                    });
-                    autoGrow(e.target);
-                  }}
-                  placeholder="Description"
-                  aria-label={`Criterion ${ci + 1} level ${li + 1} description`}
-                  {...tourFieldAttr(
-                    'quiz-rubric.level-description',
-                    'quiz',
-                    `${ci + 1}-${li + 1}`
-                  )}
-                  className={`${inputClass} resize-y overflow-hidden min-h-[38px]`}
-                />
-                <button
-                  onClick={() =>
-                    patchCriterion(c.id, {
-                      levels: c.levels.filter((x) => x.id !== l.id),
-                    })
-                  }
-                  disabled={c.levels.length <= MIN_LEVELS}
-                  aria-label={`Remove criterion ${ci + 1} level ${li + 1}`}
-                  {...tourFieldAttr(
-                    'quiz-rubric.level-remove',
-                    'quiz',
-                    `${ci + 1}-${li + 1}`
-                  )}
-                  className="p-1 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            ))}
+            {c.guide ? (
+              <GuideRowFields
+                criterion={c}
+                index={ci}
+                onPatch={(patch) => patchCriterion(c.id, patch)}
+              />
+            ) : (
+              <>
+                {c.levels.map((l, li) => (
+                  <div key={l.id} className="flex items-start gap-2">
+                    <textarea
+                      rows={1}
+                      ref={autoGrow}
+                      value={l.label}
+                      onChange={(e) => {
+                        patchLevel(c.id, l.id, { label: e.target.value });
+                        autoGrow(e.target);
+                      }}
+                      placeholder="Level label"
+                      aria-label={`Criterion ${ci + 1} level ${li + 1} label`}
+                      {...tourFieldAttr(
+                        'quiz-rubric.level-label',
+                        'quiz',
+                        `${ci + 1}-${li + 1}`
+                      )}
+                      className={`${inputClass} resize-y overflow-hidden min-h-[38px]`}
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      value={l.points}
+                      onChange={(e) =>
+                        patchLevel(c.id, l.id, {
+                          points: parseInt(e.target.value, 10) || 0,
+                        })
+                      }
+                      aria-label={`Criterion ${ci + 1} level ${li + 1} points`}
+                      {...tourFieldAttr(
+                        'quiz-rubric.level-points',
+                        'quiz',
+                        `${ci + 1}-${li + 1}`
+                      )}
+                      className={`${inputClass} w-20`}
+                    />
+                    <textarea
+                      rows={1}
+                      ref={autoGrow}
+                      value={l.description ?? ''}
+                      onChange={(e) => {
+                        patchLevel(c.id, l.id, {
+                          description: e.target.value || undefined,
+                        });
+                        autoGrow(e.target);
+                      }}
+                      placeholder="Description"
+                      aria-label={`Criterion ${ci + 1} level ${li + 1} description`}
+                      {...tourFieldAttr(
+                        'quiz-rubric.level-description',
+                        'quiz',
+                        `${ci + 1}-${li + 1}`
+                      )}
+                      className={`${inputClass} resize-y overflow-hidden min-h-[38px]`}
+                    />
+                    <button
+                      onClick={() =>
+                        patchCriterion(c.id, {
+                          levels: c.levels.filter((x) => x.id !== l.id),
+                        })
+                      }
+                      disabled={c.levels.length <= MIN_LEVELS}
+                      aria-label={`Remove criterion ${ci + 1} level ${li + 1}`}
+                      {...tourFieldAttr(
+                        'quiz-rubric.level-remove',
+                        'quiz',
+                        `${ci + 1}-${li + 1}`
+                      )}
+                      className="p-1 rounded-lg text-slate-500 hover:text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
 
-            {c.levels.length < MAX_LEVELS && (
-              <button
-                onClick={() =>
-                  patchCriterion(c.id, {
-                    levels: [
-                      ...c.levels,
-                      newLevel(
-                        c.levels.reduce((m, l) => Math.max(m, l.points), -1) + 1
-                      ),
-                    ],
-                  })
-                }
-                {...tourFieldAttr(
-                  'quiz-rubric.level-add',
-                  'quiz',
-                  String(ci + 1)
+                {c.levels.length < MAX_LEVELS && (
+                  <button
+                    onClick={() =>
+                      patchCriterion(c.id, {
+                        levels: [
+                          ...c.levels,
+                          newLevel(
+                            c.levels.reduce(
+                              (m, l) => Math.max(m, l.points),
+                              -1
+                            ) + 1
+                          ),
+                        ],
+                      })
+                    }
+                    {...tourFieldAttr(
+                      'quiz-rubric.level-add',
+                      'quiz',
+                      String(ci + 1)
+                    )}
+                    className="flex items-center gap-1.5 text-xs font-bold text-brand-blue-primary hover:text-brand-blue-dark transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    Add Level
+                  </button>
                 )}
-                className="flex items-center gap-1.5 text-xs font-bold text-brand-blue-primary hover:text-brand-blue-dark transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add Level
-              </button>
+              </>
             )}
           </div>
         ))}
@@ -771,25 +973,30 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
           onClick={() =>
             setDraft((prev) => ({
               ...prev,
-              criteria: [...prev.criteria, newCriterion()],
+              criteria: [
+                ...prev.criteria,
+                guide ? newGuideRow() : newCriterion(),
+              ],
             }))
           }
           {...tourTypeAttr('quiz-rubric.criterion-add', 'quiz')}
           className="flex items-center justify-center gap-1.5 w-full py-2 border-2 border-dashed border-slate-300 hover:border-brand-blue-primary/40 hover:bg-slate-100 hover:text-brand-blue-primary rounded-lg text-slate-600 font-bold text-xs transition-all"
         >
           <Plus className="w-3.5 h-3.5" />
-          Add Criterion
+          {guide ? 'Add Part' : 'Add Criterion'}
         </button>
 
         <div className="flex gap-2">
-          <button
-            onClick={() => setShowCsvHelp(true)}
-            {...tourTypeAttr('quiz-rubric.csv-import', 'quiz')}
-            className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors"
-          >
-            <Upload className="w-3.5 h-3.5" />
-            Import CSV
-          </button>
+          {!guide && (
+            <button
+              onClick={() => setShowCsvHelp(true)}
+              {...tourTypeAttr('quiz-rubric.csv-import', 'quiz')}
+              className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              Import CSV
+            </button>
+          )}
           <input
             ref={fileRef}
             type="file"
@@ -802,14 +1009,16 @@ export const RubricBuilderPanel: React.FC<RubricBuilderPanelProps> = ({
               e.target.value = '';
             }}
           />
-          <button
-            onClick={handleExport}
-            {...tourTypeAttr('quiz-rubric.csv-export', 'quiz')}
-            className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors"
-          >
-            <Download className="w-3.5 h-3.5" />
-            Export CSV
-          </button>
+          {!guide && (
+            <button
+              onClick={handleExport}
+              {...tourTypeAttr('quiz-rubric.csv-export', 'quiz')}
+              className="flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-xs font-bold text-slate-700 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export CSV
+            </button>
+          )}
           <button
             onClick={() => void handleShare()}
             disabled={!canShare || sharing}

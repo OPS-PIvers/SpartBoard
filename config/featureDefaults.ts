@@ -1068,6 +1068,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Scoring-guide rubrics. Admin-only until Paul has tested them in prod.
+  'rubric-scoring-guides': {
+    label: 'Scoring-guide rubrics',
+    icon: ListChecks,
+    description:
+      'Rubrics with parts, scoring guidelines and example responses.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Per-widget AI switches: hide and meter each widget's AI; `gemini-functions` is the hard server gate.
   quiz: {
     label: 'Quiz: AI',

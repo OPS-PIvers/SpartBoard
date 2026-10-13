@@ -12,6 +12,7 @@ import { Rubric, RubricCriterion, RubricLevel } from '@/types';
 import type { WrittenAnswerRubricScore } from '@/types';
 import { rubricMaxPoints, sumRubricScorePoints } from '@/utils/rubricPoints';
 import { tourFieldAttr } from '@/config/tourAnchors';
+import { RubricGuideExamples } from '@/components/quiz/RubricGuideExamples';
 
 interface RubricScoringPanelProps {
   rubric: Rubric;
@@ -177,9 +178,14 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
                     {criterion.name}
                   </p>
                   {criterion.description && (
-                    <p className="text-xs text-slate-600 leading-relaxed mt-1">
+                    <p className="text-xs text-slate-600 leading-relaxed mt-1 whitespace-pre-line">
                       {criterion.description}
                     </p>
+                  )}
+                  {criterion.guide && (
+                    <RubricGuideExamples
+                      examples={criterion.guide.examples ?? []}
+                    />
                   )}
                 </div>
                 {tagCount > 0 && onJumpToTagged && (
@@ -224,7 +230,13 @@ export const RubricScoringPanel: React.FC<RubricScoringPanelProps> = ({
                 )}
               </div>
 
-              <div className="flex flex-col gap-2">
+              <div
+                className={
+                  criterion.guide
+                    ? 'flex flex-wrap gap-2'
+                    : 'flex flex-col gap-2'
+                }
+              >
                 {levels.map((level) => {
                   const isSelected = selected?.levelId === level.id;
                   return (

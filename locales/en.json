@@ -5028,5 +5028,9 @@
     "label": "What's new",
     "dismiss": "Dismiss",
     "gotIt": "Got it"
+  },
+  "rubricGuide": {
+    "examples": "Example responses",
+    "or": "or"
   }
 }
