@@ -13,7 +13,7 @@ import {
   Plus,
   Save,
   Share2,
-  Sparkles,
+  Wand2,
   Trash2,
   Upload,
 } from 'lucide-react';
@@ -378,14 +378,14 @@ export const RevealGridCardsField: React.FC<{
         <button
           type="button"
           onClick={() => addToast(t('generatorComingSoon'), 'info')}
-          className="col-span-2 flex items-center justify-center gap-2 rounded-xl bg-purple-50 py-2 text-xs font-bold text-purple-600"
+          className="col-span-2 flex items-center justify-center gap-2 rounded-xl bg-slate-100 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200 transition-colors"
           {...tourAttr(
             'widget-settings.reveal-grid.generator',
             ctx.widget.id,
             ctx.widget.type
           )}
         >
-          <Sparkles className="h-4 w-4" /> {t('generator')}
+          <Wand2 className="h-4 w-4" /> {t('generator')}
         </button>
       </div>
 

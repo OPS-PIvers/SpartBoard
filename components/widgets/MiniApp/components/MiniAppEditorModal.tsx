@@ -6,15 +6,7 @@
  */
 
 import React, { useEffect, useId, useMemo, useState } from 'react';
-import {
-  Code2,
-  Eye,
-  FileText,
-  Play,
-  Sparkles,
-  Undo2,
-  Wand2,
-} from 'lucide-react';
+import { Code2, Eye, FileText, Play, Undo2, Wand2 } from 'lucide-react';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { injectMiniAppHelper } from '@/utils/miniAppHelper';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -41,6 +33,10 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
 import { AIGeneratorOverlay } from '@/components/common/AIGeneratorOverlay';
+import {
+  AI_PANEL_LINK_CLASS,
+  AI_PROMPT_TEXTAREA_CLASS,
+} from '@/components/common/aiPanelStyles';
 import {
   generateMiniAppCode,
   editMiniAppCode,
@@ -381,17 +377,13 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
                 setAiMode('edit');
                 setShowPromptInput(true);
               }}
-              className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
+              className="h-[36px] px-3 bg-white border border-slate-200 hover:border-brand-blue-light text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2"
               title={
                 canEditWithAi ? 'Change this app with AI' : 'Generate with AI'
               }
               {...tourTypeAttr('mini-app.draft-with-ai', 'miniApp')}
             >
-              {canEditWithAi ? (
-                <Wand2 className="w-4 h-4" />
-              ) : (
-                <Sparkles className="w-4 h-4" />
-              )}
+              <Wand2 className="w-4 h-4" />
               {canEditWithAi ? 'Edit with AI' : 'Draft with AI'}
             </button>
           ) : null}
@@ -415,7 +407,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
           headerExtras={
             <button
               onClick={importFromNotes}
-              className="text-xxs font-black uppercase text-indigo-500 hover:text-indigo-600 flex items-center gap-1 transition-colors"
+              className={AI_PANEL_LINK_CLASS}
               title="Import prompt from a Notes widget on your dashboard"
               {...tourTypeAttr('mini-app.import-from-notes', 'miniApp')}
             >
@@ -438,8 +430,8 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
               fullWidth
               anchor={tourTypeAttr('mini-app.ai-mode', 'miniApp')}
               options={[
-                { value: 'edit', label: 'Change this app', icon: Wand2 },
-                { value: 'draft', label: 'Start over', icon: Sparkles },
+                { value: 'edit', label: 'Change this app' },
+                { value: 'draft', label: 'Start over' },
               ]}
             />
           )}
@@ -451,7 +443,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
                 ? 'e.g. Make the buttons bigger and add a timer at the top.'
                 : 'e.g. A team randomizer for 5 groups with a spinning wheel animation and confetti effect.'
             }
-            className="w-full h-32 p-4 bg-white border-2 border-indigo-100 rounded-2xl text-sm text-indigo-900 placeholder-indigo-300 focus:outline-none focus:border-indigo-500 resize-none shadow-inner"
+            className={AI_PROMPT_TEXTAREA_CLASS}
             autoFocus
             aria-label={
               editing ? 'Describe the change' : 'Describe your mini-app'

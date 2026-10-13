@@ -500,7 +500,7 @@ export const TOOLS: ToolMetadata[] = [
     type: 'magic',
     icon: Wand2,
     label: 'Magic',
-    color: 'bg-gradient-to-br from-indigo-500 to-purple-600',
+    color: 'bg-slate-600',
     category: 'media',
     keywords: ['magic layout', 'arrange', 'auto layout', 'organize board'],
   },

@@ -328,7 +328,7 @@ export const AiModelsPanel: React.FC = () => {
   return (
     <div className="space-y-4 pb-6">
       <div className="flex items-center gap-3">
-        <Sparkles className="h-4 w-4 text-purple-600" aria-hidden />
+        <Sparkles className="h-4 w-4 text-slate-500" aria-hidden />
         <h3 className="flex-1 text-sm font-bold text-slate-800">AI models</h3>
         {claudeAllowed && claudeConfigured === false && (
           <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">

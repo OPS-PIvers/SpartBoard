@@ -104,7 +104,7 @@ export const DriveImagePicker: React.FC<DriveImagePickerProps> = ({
 
   const buttonClasses = isDark
     ? 'flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-slate-200 hover:text-white bg-white/5 hover:bg-white/10 border border-dashed border-white/10 hover:border-white/20 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed'
-    : 'flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-indigo-500 hover:text-indigo-700 bg-indigo-50/50 hover:bg-indigo-50 border border-dashed border-indigo-200 hover:border-indigo-300 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
+    : 'self-start flex items-center gap-1.5 py-1 text-xs font-bold text-slate-600 hover:text-brand-blue-primary transition-colors disabled:opacity-50 disabled:cursor-not-allowed';
 
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>

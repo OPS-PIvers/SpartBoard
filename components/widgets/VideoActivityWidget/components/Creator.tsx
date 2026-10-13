@@ -20,7 +20,6 @@ import {
   FileSpreadsheet,
   PlusCircle,
   Search as SearchIcon,
-  Sparkles,
   Loader2,
   AlertCircle,
   Wand2,
@@ -451,46 +450,6 @@ export const Creator: React.FC<CreatorProps> = ({
 
           {step === 'source' && (
             <div className="grid gap-3 animate-in fade-in zoom-in-95 duration-300">
-              {aiEnabled && (
-                <button
-                  {...tourAttr('video-activity.creator-source-ai')}
-                  onClick={() => setStep('ai')}
-                  className="group relative p-5 bg-white border-2 border-slate-200 hover:border-indigo-500 hover:shadow-md rounded-2xl text-left transition-all overflow-hidden"
-                >
-                  <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <Sparkles
-                      className="text-indigo-600"
-                      style={{
-                        width: 'min(48px, 12cqmin)',
-                        height: 'min(48px, 12cqmin)',
-                      }}
-                    />
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-indigo-50 rounded-xl group-hover:bg-indigo-100 transition-colors">
-                      <Sparkles
-                        className="text-indigo-600"
-                        style={{
-                          width: 'min(24px, 6cqmin)',
-                          height: 'min(24px, 6cqmin)',
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-slate-800">
-                        Draft with AI
-                      </h4>
-                      <p
-                        className="text-slate-500 leading-relaxed"
-                        style={{ fontSize: 'min(12px, 3.5cqmin)' }}
-                      >
-                        AI writes questions from the video.
-                      </p>
-                    </div>
-                  </div>
-                </button>
-              )}
-
               <button
                 {...tourAttr('video-activity.creator-source-import')}
                 onClick={() => setStep('import')}
@@ -558,22 +517,55 @@ export const Creator: React.FC<CreatorProps> = ({
                   </div>
                 </div>
               </button>
+
+              {aiEnabled && (
+                <button
+                  {...tourAttr('video-activity.creator-source-ai')}
+                  onClick={() => setStep('ai')}
+                  className="group relative p-5 bg-white border-2 border-slate-200 hover:border-slate-400 hover:shadow-md rounded-2xl text-left transition-all overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <Wand2
+                      className="text-slate-600"
+                      style={{
+                        width: 'min(48px, 12cqmin)',
+                        height: 'min(48px, 12cqmin)',
+                      }}
+                    />
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-slate-100 rounded-xl group-hover:bg-slate-200 transition-colors">
+                      <Wand2
+                        className="text-slate-600"
+                        style={{
+                          width: 'min(24px, 6cqmin)',
+                          height: 'min(24px, 6cqmin)',
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-slate-800">
+                        Draft with AI
+                      </h4>
+                      <p
+                        className="text-slate-500 leading-relaxed"
+                        style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+                      >
+                        AI writes questions from the video.
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              )}
             </div>
           )}
 
           {step === 'ai' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-              <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-5 space-y-4">
+              <div className="space-y-4">
                 <div className="flex items-center gap-3">
-                  <Sparkles
-                    className="text-indigo-600"
-                    style={{
-                      width: 'min(20px, 5cqmin)',
-                      height: 'min(20px, 5cqmin)',
-                    }}
-                  />
                   <span
-                    className="font-bold text-indigo-900"
+                    className="font-bold text-slate-800"
                     style={{ fontSize: 'min(14px, 4.5cqmin)' }}
                   >
                     AI Configuration
@@ -582,7 +574,7 @@ export const Creator: React.FC<CreatorProps> = ({
 
                 <div className="space-y-2">
                   <div
-                    className="flex justify-between items-center font-bold text-indigo-700/60 uppercase"
+                    className="flex justify-between items-center font-black text-slate-400 uppercase tracking-widest"
                     style={{ fontSize: 'min(12px, 3.5cqmin)' }}
                   >
                     <span>Target Question Count</span>
@@ -595,7 +587,7 @@ export const Creator: React.FC<CreatorProps> = ({
                     max={15}
                     value={questionCount}
                     onChange={(e) => setQuestionCount(parseInt(e.target.value))}
-                    className="w-full h-2 bg-indigo-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-brand-blue-primary"
                   />
                 </div>
               </div>
@@ -620,7 +612,7 @@ export const Creator: React.FC<CreatorProps> = ({
                 {...tourAttr('video-activity.creator-ai-generate')}
                 onClick={handleAIGenerate}
                 disabled={isGenerating}
-                className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-black rounded-2xl shadow-lg shadow-indigo-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 uppercase tracking-widest"
+                className="w-full py-3 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white font-bold rounded-xl shadow-sm transition-colors flex items-center justify-center gap-2"
                 style={{ fontSize: 'min(14px, 4cqmin)' }}
               >
                 {isGenerating ? (
@@ -635,15 +627,7 @@ export const Creator: React.FC<CreatorProps> = ({
                     Generating Activity...
                   </>
                 ) : (
-                  <>
-                    <Sparkles
-                      style={{
-                        width: 'min(20px, 5cqmin)',
-                        height: 'min(20px, 5cqmin)',
-                      }}
-                    />
-                    Generate with Gemini
-                  </>
+                  'Generate with Gemini'
                 )}
               </button>
             </div>
@@ -846,7 +830,7 @@ const RecommendTab: React.FC<RecommendTabProps> = ({
         type="button"
         onClick={onSubmit}
         disabled={topic.trim().length === 0 || recommending}
-        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 shadow-sm"
+        className="w-full py-2.5 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white rounded-xl font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 shadow-sm"
         style={{ fontSize: 'min(12px, 3.5cqmin)' }}
       >
         {recommending ? (
@@ -891,7 +875,7 @@ const RecommendTab: React.FC<RecommendTabProps> = ({
           className={`p-3 bg-white border-2 rounded-xl transition-all ${
             accepted
               ? 'border-emerald-500 ring-2 ring-emerald-100'
-              : 'border-indigo-200'
+              : 'border-slate-200'
           }`}
         >
           <div className="flex gap-3">

@@ -7,7 +7,7 @@
  */
 
 import React, { useMemo, useRef, useState } from 'react';
-import { Folder as FolderIcon, Inbox, Info, Sparkles } from 'lucide-react';
+import { Folder as FolderIcon, Inbox, Info, Wand2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import {
   GuidedLearningSet,
@@ -186,10 +186,10 @@ export const GuidedLearningEditorModal: React.FC<
         <button
           {...tourAttr('gl-editor.draft-ai')}
           onClick={() => setShowAiGen(true)}
-          className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
+          className="h-[36px] px-3 bg-white border border-slate-200 hover:border-brand-blue-light text-slate-700 rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2"
           title="Generate with AI (Admin)"
         >
-          <Sparkles className="w-4 h-4" />
+          <Wand2 className="w-4 h-4" />
           Draft with AI
         </button>
       ) : null,

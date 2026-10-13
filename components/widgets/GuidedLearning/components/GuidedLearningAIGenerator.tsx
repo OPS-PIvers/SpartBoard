@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Sparkles,
   Upload,
   Loader2,
   X,
@@ -103,7 +102,7 @@ const SortableImageRow: React.FC<SortableImageRowProps> = ({
       style={style}
       className={`grid grid-cols-[auto_1fr] bg-slate-50 border rounded-xl ${
         isDragging
-          ? 'border-indigo-300 shadow-lg opacity-80'
+          ? 'border-brand-blue-light shadow-lg opacity-80'
           : 'border-slate-200'
       }`}
     >
@@ -176,7 +175,7 @@ const SortableImageRow: React.FC<SortableImageRowProps> = ({
           placeholder="Optional notes for this image…"
           rows={2}
           disabled={disabled}
-          className="w-full bg-white border border-slate-200 rounded-md text-slate-700 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none resize-none disabled:opacity-50"
+          className="w-full bg-white border border-slate-200 rounded-md text-slate-700 placeholder:text-slate-400 focus:border-brand-blue-primary focus:outline-none resize-none disabled:opacity-50"
           style={{
             padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)',
             // Editable text a teacher types into, not display text — floor
@@ -418,17 +417,14 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
         style={{ marginBottom: 'min(16px, 3.5cqmin)' }}
       >
         <h4
-          className="font-black text-indigo-600 flex items-center uppercase tracking-tight"
-          style={{ fontSize: 'min(16px, 6cqmin)', gap: 'min(8px, 2cqmin)' }}
+          className="font-black text-slate-800"
+          style={{ fontSize: 'min(18px, 6.5cqmin)' }}
         >
-          <Sparkles
-            style={{ width: 'min(20px, 5cqmin)', height: 'min(20px, 5cqmin)' }}
-          />{' '}
           Generate with AI
         </h4>
         <button
           onClick={onClose}
-          className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
+          className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600 transition-colors"
           {...tourAttr('modal.close')}
           aria-label="Close generator"
         >
@@ -448,7 +444,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
             {...tourAttr('gl-ai.add-images')}
             onClick={() => fileRef.current?.click()}
             disabled={busy}
-            className="w-full border-2 border-dashed border-slate-300 rounded-xl text-center hover:border-indigo-400 hover:bg-indigo-50/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full border-2 border-dashed border-slate-300 rounded-xl text-center hover:border-brand-blue-light hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             style={{ padding: 'min(20px, 5cqmin) 0' }}
           >
             <Upload
@@ -575,7 +571,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
             rows={3}
             {...tourAttr('gl-ai.prompt')}
             placeholder="e.g. Focus on vocabulary, include 3 questions, make it for 5th grade…"
-            className="w-full bg-white border border-slate-200 rounded-lg text-slate-800 resize-none focus:border-indigo-500 focus:outline-none placeholder:text-slate-400"
+            className="w-full bg-white border border-slate-200 rounded-lg text-slate-800 resize-none focus:border-brand-blue-primary focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/20 placeholder:text-slate-400"
             style={{
               padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
               fontSize: 'min(14px, 5.5cqmin)',
@@ -605,42 +601,38 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
         )}
       </div>
 
-      <button
-        {...tourAttr('gl-ai.generate')}
-        onClick={handleGenerate}
-        disabled={images.length === 0 || busy || outward.locked}
-        title={outward.lockedTitle}
-        className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-black uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center"
-        style={{
-          marginTop: 'min(16px, 3.5cqmin)',
-          padding: 'min(12px, 3cqmin) 0',
-          fontSize: 'min(11px, 4cqmin)',
-          gap: 'min(8px, 2cqmin)',
-        }}
+      <div
+        className="flex justify-center"
+        style={{ marginTop: 'min(16px, 3.5cqmin)' }}
       >
-        {generating ? (
-          <>
-            <Loader2
-              style={{
-                width: 'min(16px, 4.5cqmin)',
-                height: 'min(16px, 4.5cqmin)',
-              }}
-              className="animate-spin"
-            />
-            Generating…
-          </>
-        ) : (
-          <>
-            <Sparkles
-              style={{
-                width: 'min(16px, 4.5cqmin)',
-                height: 'min(16px, 4.5cqmin)',
-              }}
-            />
-            Draft with AI
-          </>
-        )}
-      </button>
+        <button
+          {...tourAttr('gl-ai.generate')}
+          onClick={handleGenerate}
+          disabled={images.length === 0 || busy || outward.locked}
+          title={outward.lockedTitle}
+          className="bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold shadow-sm transition-colors flex items-center justify-center"
+          style={{
+            padding: 'min(8px, 2cqmin) min(20px, 5cqmin)',
+            fontSize: 'min(14px, 5cqmin)',
+            gap: 'min(6px, 1.5cqmin)',
+          }}
+        >
+          {generating ? (
+            <>
+              <Loader2
+                style={{
+                  width: 'min(16px, 4.5cqmin)',
+                  height: 'min(16px, 4.5cqmin)',
+                }}
+                className="animate-spin"
+              />
+              Generating…
+            </>
+          ) : (
+            'Draft with AI'
+          )}
+        </button>
+      </div>
     </div>
   );
 };
