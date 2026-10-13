@@ -20,6 +20,7 @@ import { useSubControl } from '@/hooks/useSubControl';
 import { useSubLaunchAsTeacherSettings } from '@/hooks/useSubLaunchAsTeacherSettings';
 import { useSubShareRosters } from '@/hooks/useShareContent';
 import type { SubShareContentKind } from '@/types';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface SubLaunchPanelProps {
   kind: SubShareContentKind;
@@ -91,6 +92,7 @@ const RunControls: React.FC<{
           <button
             type="button"
             onClick={() => act('end')}
+            {...tourAttr('sub-launch.end-confirm')}
             disabled={busy}
             className="rounded-lg bg-brand-blue-primary font-semibold text-white hover:bg-brand-blue-dark disabled:opacity-60"
             style={{ padding: PAD, fontSize: NOTE }}
@@ -100,6 +102,7 @@ const RunControls: React.FC<{
           <button
             type="button"
             onClick={() => setConfirming(false)}
+            {...tourAttr('sub-launch.end-cancel')}
             className="font-medium text-slate-600 underline hover:text-slate-900"
             style={{ fontSize: NOTE }}
           >
@@ -115,6 +118,7 @@ const RunControls: React.FC<{
             <button
               type="button"
               onClick={() => act(state === 'paused' ? 'resume' : 'pause')}
+              {...tourAttr('sub-launch.pause')}
               disabled={busy}
               className="rounded-lg bg-brand-blue-primary font-semibold text-white hover:bg-brand-blue-dark disabled:opacity-60"
               style={{ padding: PAD, fontSize: NOTE }}
@@ -125,6 +129,7 @@ const RunControls: React.FC<{
           <button
             type="button"
             onClick={() => setConfirming(true)}
+            {...tourAttr('sub-launch.end')}
             disabled={busy}
             className="font-medium text-slate-600 underline hover:text-slate-900 disabled:opacity-60"
             style={{ fontSize: NOTE }}
@@ -208,6 +213,7 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
         <button
           type="button"
           onClick={reset}
+          {...tourAttr('sub-launch.error-back')}
           className="font-medium text-slate-600 underline hover:text-slate-900"
           style={{ fontSize: NOTE, marginTop: 'min(4px, 1cqmin)' }}
         >
@@ -245,6 +251,7 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
               ? void launch([rosters[0].id])
               : setPicking(true)
           }
+          {...tourAttr('sub-launch.start')}
           className="flex w-full items-center justify-center rounded-lg bg-emerald-600 font-semibold text-white hover:bg-emerald-500"
           style={{ gap: 'min(8px, 2cqmin)', padding: PAD, fontSize: BODY }}
         >
@@ -266,11 +273,16 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
         Which class?
       </p>
       <div className="flex flex-col" style={{ gap: 'min(4px, 1cqmin)' }}>
-        {rosters.map((roster) => (
+        {rosters.map((roster, rosterIndex) => (
           <button
             key={roster.id}
             type="button"
             onClick={() => void launch([roster.id])}
+            {...tourFieldAttr(
+              'sub-launch.class',
+              'sub-launch',
+              `class-${rosterIndex + 1}`
+            )}
             className="rounded-lg bg-slate-100 text-left font-medium text-slate-800 hover:bg-slate-200"
             style={{ padding: PAD, fontSize: BODY }}
           >
@@ -281,6 +293,7 @@ export const SubLaunchPanel: React.FC<SubLaunchPanelProps> = ({
       <button
         type="button"
         onClick={() => setPicking(false)}
+        {...tourAttr('sub-launch.cancel')}
         className="font-medium text-slate-600 underline hover:text-slate-900"
         style={{ fontSize: NOTE, marginTop: 'min(4px, 1cqmin)' }}
       >

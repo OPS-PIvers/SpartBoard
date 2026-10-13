@@ -325,6 +325,20 @@ export function tourPublishState(
     : 'published';
 }
 
+/** Steps that work from their English fallback only, until a developer tags the control (D9). */
+export function needsAnchors(steps: GlSet['steps']) {
+  const ids = steps.flatMap((s) =>
+    (s.tour as { anchor?: unknown } | undefined)?.anchor === '' ? [s.id] : []
+  );
+  return ids.length
+    ? {
+        needs_anchors: ids,
+        needs_anchors_note:
+          'These steps find their control by its English name only, so they fail for teachers using another language. Name them in the hand-back; publish once the controls are tagged and the steps rebound.',
+      }
+    : {};
+}
+
 export function liveTourView(
   set: GlSet,
   publishedAt: number | null,
@@ -357,6 +371,7 @@ export function liveTourView(
     ...(unregistered.length > 0
       ? { steps_with_unregistered_anchor: unregistered }
       : {}),
+    ...needsAnchors(set.steps),
     steps: set.steps.map((s) => {
       const out = publicTourStep(s);
       const ref = ready.get(s.id);
@@ -696,6 +711,7 @@ export function registerLiveTourTools(
         );
         return {
           ...savedSummary(saved),
+          ...needsAnchors(saved.set.steps),
           where_to_find_it: help
             ? 'SpartBoard > Admin Settings > Help Center (hidden)'
             : 'SpartBoard > Guided Learning widget > library, building sets',
@@ -843,6 +859,7 @@ export function registerLiveTourTools(
         );
         return {
           ...saved,
+          ...needsAnchors(next.steps),
           ...(report.warnings.length ? { warnings: report.warnings } : {}),
           note: 'Saved as a draft. Teachers keep the published tour until an admin opens it in SpartBoard (Guided Learning library > Edit) and publishes the changes.',
         };

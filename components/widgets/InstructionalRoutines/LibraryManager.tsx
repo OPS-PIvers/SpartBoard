@@ -30,6 +30,7 @@ import { removeBackground, trimImageWhitespace } from '@/utils/imageProcessing';
 import { PromptDialog } from './PromptDialog';
 import { Toast } from '@/components/common/Toast';
 import { Card } from '@/components/common/Card';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 // Derive widget types from TOOLS registry, excluding catalyst-related widgets and internal tools
 const WIDGET_TYPES: WidgetType[] = TOOLS.filter(
@@ -193,6 +194,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
       <div className="flex items-center gap-2 mb-4">
         <button
           onClick={onCancel}
+          {...tourAttr('admin.routines.editor-back')}
           className="p-1 hover:bg-slate-200 rounded-full"
         >
           <ArrowLeft size={18} />
@@ -202,6 +204,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
         </h3>
         <button
           onClick={() => setShowPromptDialog(true)}
+          {...tourAttr('admin.routines.editor-ai')}
           disabled={isGenerating}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-lg text-xxs font-black uppercase tracking-wider disabled:opacity-50 transition-colors shadow-sm"
         >
@@ -214,6 +217,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
         </button>
         <button
           onClick={onSave}
+          {...tourAttr('admin.routines.editor-save')}
           disabled={!routine.name}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xxs font-black uppercase tracking-wider hover:bg-blue-700 disabled:opacity-50"
         >
@@ -238,6 +242,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                 })
               }
               placeholder="e.g. Think-Pair-Share"
+              {...tourAttr('admin.routines.editor-name')}
               className="w-full bg-slate-50 border-none rounded-xl px-3 py-2 text-xs font-bold text-slate-700 focus:ring-2 focus:ring-blue-500"
             />
           </div>
@@ -248,6 +253,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
             <div className="flex gap-2">
               <IconPicker
                 currentIcon={routine.icon}
+                anchor={tourAttr('admin.routines.editor-icon')}
                 onSelect={(icon) =>
                   onChange({
                     ...routine,
@@ -257,6 +263,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
               />
               <select
                 value={routine.color ?? 'blue'}
+                {...tourAttr('admin.routines.editor-color')}
                 onChange={(e) =>
                   onChange({
                     ...routine,
@@ -283,6 +290,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
             <div className="flex gap-2">
               <select
                 value={routine.structure ?? 'linear'}
+                {...tourAttr('admin.routines.editor-structure')}
                 onChange={(e) =>
                   onChange({
                     ...routine,
@@ -298,6 +306,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
               </select>
               <select
                 value={routine.audience ?? 'student'}
+                {...tourAttr('admin.routines.editor-audience')}
                 onChange={(e) =>
                   onChange({
                     ...routine,
@@ -311,6 +320,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
               </select>
               <select
                 value={routine.layout ?? 'list'}
+                {...tourAttr('admin.routines.editor-layout')}
                 onChange={(e) =>
                   onChange({
                     ...routine,
@@ -335,6 +345,11 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                 return (
                   <button
                     key={level}
+                    {...tourFieldAttr(
+                      'admin.routines.editor-grade',
+                      'admin',
+                      level
+                    )}
                     onClick={() => {
                       const current = routine.gradeLevels ?? [];
                       const next = isSelected
@@ -381,6 +396,11 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                 <div className="flex items-center gap-2">
                   <IconPicker
                     currentIcon={step.icon ?? 'Zap'}
+                    anchor={tourFieldAttr(
+                      'admin.routines.editor-step-icon',
+                      'admin',
+                      `step-${i + 1}`
+                    )}
                     color={step.color}
                     onSelect={(icon) => {
                       const nextSteps = [...routine.steps];
@@ -395,6 +415,11 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                     <label
                       className="cursor-pointer p-1.5 hover:bg-slate-100 rounded-lg border border-transparent hover:border-slate-200 transition-colors relative group/upload"
                       title="Upload custom sticker (transparent background)"
+                      {...tourFieldAttr(
+                        'admin.routines.editor-step-sticker',
+                        'admin',
+                        `step-${i + 1}`
+                      )}
                     >
                       {uploadingStickerIndex === i ? (
                         <Loader2
@@ -417,6 +442,11 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                               onChange({ ...routine, steps: next });
                             }}
                             className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover/upload:opacity-100 transition-opacity"
+                            {...tourFieldAttr(
+                              'admin.routines.editor-step-sticker-remove',
+                              'admin',
+                              `step-${i + 1}`
+                            )}
                           >
                             <X size={10} />
                           </button>
@@ -445,6 +475,11 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                     <label
                       className="cursor-pointer p-1.5 hover:bg-slate-100 rounded-lg border border-transparent hover:border-slate-200 transition-colors relative group/upload-img"
                       title="Upload display image"
+                      {...tourFieldAttr(
+                        'admin.routines.editor-step-image',
+                        'admin',
+                        `step-${i + 1}`
+                      )}
                     >
                       {uploadingImageIndex === i ? (
                         <Loader2
@@ -467,6 +502,11 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                               onChange({ ...routine, steps: next });
                             }}
                             className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover/upload-img:opacity-100 transition-opacity"
+                            {...tourFieldAttr(
+                              'admin.routines.editor-step-image-remove',
+                              'admin',
+                              `step-${i + 1}`
+                            )}
                           >
                             <X size={10} />
                           </button>
@@ -495,6 +535,11 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                   <input
                     type="text"
                     value={step.label ?? ''}
+                    {...tourFieldAttr(
+                      'admin.routines.editor-step-label',
+                      'admin',
+                      `step-${i + 1}`
+                    )}
                     onChange={(e) => {
                       const nextSteps = [...routine.steps];
                       nextSteps[i] = { ...step, label: e.target.value };
@@ -508,6 +553,11 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                   />
                   <select
                     value={step.color ?? 'blue'}
+                    {...tourFieldAttr(
+                      'admin.routines.editor-step-color',
+                      'admin',
+                      `step-${i + 1}`
+                    )}
                     onChange={(e) => {
                       const nextSteps = [...routine.steps];
                       nextSteps[i] = { ...step, color: e.target.value };
@@ -527,6 +577,11 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                 </div>
                 <textarea
                   value={step.text}
+                  {...tourFieldAttr(
+                    'admin.routines.editor-step-text',
+                    'admin',
+                    `step-${i + 1}`
+                  )}
                   onChange={(e) => {
                     const nextSteps = [...routine.steps];
                     nextSteps[i] = { ...step, text: e.target.value };
@@ -545,6 +600,11 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                   </label>
                   <select
                     value={step.attachedWidget?.type ?? ''}
+                    {...tourFieldAttr(
+                      'admin.routines.editor-step-widget',
+                      'admin',
+                      `step-${i + 1}`
+                    )}
                     onChange={(e) => {
                       const nextSteps = [...routine.steps];
                       const val = e.target.value;
@@ -582,6 +642,11 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
                   });
                 }}
                 className="p-2 text-red-400 hover:bg-red-50 rounded-lg"
+                {...tourFieldAttr(
+                  'admin.routines.editor-step-remove',
+                  'admin',
+                  `step-${i + 1}`
+                )}
               >
                 <Trash2 size={14} />
               </button>
@@ -599,6 +664,7 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
               });
             }}
             className="w-full py-2 border-2 border-dashed border-slate-200 rounded-xl text-slate-400 hover:border-blue-400 hover:text-blue-600 transition-all flex items-center justify-center gap-2 text-xxs font-black uppercase"
+            {...tourAttr('admin.routines.editor-add-step')}
           >
             <PlusCircle size={14} /> Add Template Step
           </button>

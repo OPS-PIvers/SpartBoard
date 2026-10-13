@@ -320,8 +320,7 @@ export const SURFACES: TourSurfaceMap = {
   'guidedLearning.gradebook.analysis': {
     label: 'Gradebook Data analysis tab (URL /gradebook/{classId}/analysis)',
     kind: 'panel',
-    openerMissing:
-      'Data analysis tab button inside the gradebook.tabs tablist in the Gradebook header (components/gradebook/GradebookPage.tsx)',
+    opensWith: 'gradebook.tab#analysis',
     parent: 'guidedLearning.gradebook',
     needs: ['class', 'student-data'],
     files: [`${GB}analysis/`, `${GB}charts/`],

@@ -19,6 +19,7 @@ import {
 // --- Constants & Data ---
 
 import { WidgetLayout } from '../WidgetLayout';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   VOLUME_OPTIONS,
   GROUP_OPTIONS,
@@ -106,6 +107,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
     >
       <button
         onClick={() => setActiveCategory(null)}
+        {...tourAttr('expectations.back', widget.id, widget.type)}
         className="hover:bg-slate-100 rounded-lg"
         style={{
           padding: 'min(6px, 1.2cqmin)',
@@ -162,6 +164,11 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
             return (
               <button
                 key={v.id}
+                {...tourFieldAttr(
+                  'expectations.volume-option',
+                  'expectations',
+                  String(v.id)
+                )}
                 onClick={() => {
                   updateConfig({
                     voiceLevel: voiceLevel === v.id ? null : v.id,
@@ -262,6 +269,11 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
             return (
               <button
                 key={g.id}
+                {...tourFieldAttr(
+                  'expectations.group-option',
+                  'expectations',
+                  g.id ?? 'none'
+                )}
                 onClick={() => {
                   updateConfig({ workMode: workMode === g.id ? null : g.id });
                   if (workMode !== g.id) {
@@ -337,6 +349,11 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
             return (
               <button
                 key={i.id}
+                {...tourFieldAttr(
+                  'expectations.interaction-option',
+                  'expectations',
+                  i.id ?? 'none'
+                )}
                 onClick={() => {
                   updateConfig({
                     interactionMode: interactionMode === i.id ? null : i.id,
@@ -451,6 +468,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
           {showVolume && (
             <button
               onClick={() => setActiveCategory('volume')}
+              {...tourAttr('expectations.volume', widget.id, widget.type)}
               className={`flex-1 flex items-center rounded-2xl border-2 transition-all group ${
                 selectedVolume
                   ? `${selectedVolume.bg} border-current ${selectedVolume.color} shadow-sm`
@@ -539,6 +557,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
           {showGroup && (
             <button
               onClick={() => setActiveCategory('groups')}
+              {...tourAttr('expectations.groups', widget.id, widget.type)}
               className={`flex-1 flex items-center rounded-2xl border-2 transition-all group ${
                 selectedGroup
                   ? `${selectedGroup.bg} border-current ${selectedGroup.color} shadow-sm`
@@ -608,6 +627,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
           {showInteraction && (
             <button
               onClick={() => setActiveCategory('interaction')}
+              {...tourAttr('expectations.interaction', widget.id, widget.type)}
               className={`flex-1 flex items-center rounded-2xl border-2 transition-all group ${
                 selectedInteraction
                   ? `${selectedInteraction.bg} border-current ${selectedInteraction.color} shadow-sm`
