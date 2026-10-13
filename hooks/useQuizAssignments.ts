@@ -671,7 +671,11 @@ const scoreKeyRef = (userId: string, assignmentId: string) =>
 /** Flatten session-option toggles onto the session doc's mirror fields. */
 function sessionOptionsToSessionPatch(
   o: QuizSessionOptions,
-  gates: { timeLimitOn: boolean; scoreOnSubmitOn: boolean }
+  gates: {
+    timeLimitOn: boolean;
+    scoreOnSubmitOn: boolean;
+    stimulusQuotesOn: boolean;
+  }
 ): Record<string, unknown> {
   const patch: Record<string, unknown> = {};
   if (o.tabWarningsEnabled !== undefined)
@@ -683,7 +687,7 @@ function sessionOptionsToSessionPatch(
   if (o.tabAwayAutoSubmit !== undefined)
     patch.tabAwayAutoSubmit = o.tabAwayAutoSubmit;
   if (o.blockCopyPaste !== undefined) patch.blockCopyPaste = o.blockCopyPaste;
-  if (o.allowStimulusQuotes !== undefined)
+  if (o.allowStimulusQuotes !== undefined && gates.stimulusQuotesOn)
     patch.allowStimulusQuotes = o.allowStimulusQuotes;
   if (o.showResultToStudent !== undefined)
     patch.showResultToStudent = o.showResultToStudent;
@@ -2150,6 +2154,7 @@ export const useQuizAssignments = (
           sessionOptionsToSessionPatch(changed, {
             timeLimitOn,
             scoreOnSubmitOn,
+            stimulusQuotesOn,
           })
         );
       }
@@ -2195,7 +2200,13 @@ export const useQuizAssignments = (
         });
       }
     },
-    [userId, timeLimitOn, scoreOnSubmitOn, setAssignmentTargets]
+    [
+      userId,
+      timeLimitOn,
+      scoreOnSubmitOn,
+      stimulusQuotesOn,
+      setAssignmentTargets,
+    ]
   );
 
   const setAssignmentRosters = useCallback<
@@ -3045,6 +3056,7 @@ export const useQuizAssignments = (
               ...sessionOptionsToSessionPatch(behavior.sessionOptions, {
                 timeLimitOn,
                 scoreOnSubmitOn,
+                stimulusQuotesOn,
               }),
               // A mode flip restarts the cursor the way session-create would.
               ...(modeChanged
@@ -3154,7 +3166,13 @@ export const useQuizAssignments = (
         taggedResponseCount: responsesToTag.length,
       };
     },
-    [userId, projectPublicQuestionForMode, scoreOnSubmitOn, timeLimitOn]
+    [
+      userId,
+      projectPublicQuestionForMode,
+      scoreOnSubmitOn,
+      timeLimitOn,
+      stimulusQuotesOn,
+    ]
   );
 
   const unpublishAssignmentScores = useCallback<

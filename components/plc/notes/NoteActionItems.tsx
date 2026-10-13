@@ -159,8 +159,11 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
   const [draft, setDraft] = useState('');
   const [showCleared, setShowCleared] = useState(false);
   const people = useMemo(
-    () => members.map((m) => ({ ...m, displayName: personName(m) })),
-    [members]
+    () =>
+      teamsLayout
+        ? members.map((m) => ({ ...m, displayName: personName(m) }))
+        : members,
+    [members, teamsLayout]
   );
   const [view, setView] = useState<ActionItemView>(DEFAULT_ACTION_ITEM_VIEW);
   // Lazy-init so `Date.now()` isn't called impurely during render (repo

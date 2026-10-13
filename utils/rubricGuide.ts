@@ -5,7 +5,7 @@ export const GUIDE_MAX_POINTS = 5;
 
 /** A scoring guide (AP-style rows with example responses) rather than a levels rubric. */
 export const isScoringGuide = (rubric: Rubric): boolean =>
-  rubric.criteria.some((c) => c.guide !== undefined);
+  (rubric.criteria ?? []).some((c) => c.guide !== undefined);
 
 export const guideRowMax = (criterion: RubricCriterion): number =>
   criterion.levels.reduce((m, l) => Math.max(m, l.points), 0);

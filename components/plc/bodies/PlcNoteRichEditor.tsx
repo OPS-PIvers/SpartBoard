@@ -463,7 +463,7 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
           onFocus={() =>
             document.execCommand('defaultParagraphSeparator', false, 'p')
           }
-          className="plc-note-rich rich-text-content min-h-full w-full p-4 text-sm text-slate-700 leading-relaxed focus:outline-none"
+          className={`plc-note-rich ${textStyles ? 'plc-note-sizes ' : ''}rich-text-content min-h-full w-full p-4 text-sm text-slate-700 leading-relaxed focus:outline-none`}
         />
         {isEmpty && !readOnly && (
           <div
