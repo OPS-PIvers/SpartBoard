@@ -704,17 +704,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // More than one blank in a fill-in-the-blank quiz question. Admin-only until Paul has tried it.
-  'quiz-fib-multi-blank': {
-    label: 'Several blanks in fill in the blank',
-    icon: TextCursorInput,
-    description: 'An answer box for each blank.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'standards-from-question-text': {
     label: 'Standards typed in questions',
     icon: BookMarked,

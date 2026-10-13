@@ -23,7 +23,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'plc-flashcards',
   'quiz-choice-editor',
   'quiz-sections',
-  'quiz-fib-multi-blank',
   'standards-from-question-text',
   'modal-fullscreen',
   'quiz-results-tools',
