@@ -726,17 +726,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Alternate accepted answers on fill-in-the-blank quiz questions. Admin-only until Paul has tried it.
-  'quiz-fib-alternates': {
-    label: 'Other accepted answers for fill in the blank',
-    icon: TextCursorInput,
-    description: 'Alternate accepted answers.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // More than one blank in a fill-in-the-blank quiz question. Admin-only until Paul has tried it.
   'quiz-fib-multi-blank': {
     label: 'Several blanks in fill in the blank',
