@@ -837,17 +837,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'plc-notes-unified': {
-    label: 'Notes and Docs in one list',
-    icon: StickyNote,
-    description:
-      'Group notes and linked Google Docs share one list; notes open in Docs.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'plc-notes-side-panels': {
     label: 'Notes and Docs side panels',
     icon: StickyNote,
