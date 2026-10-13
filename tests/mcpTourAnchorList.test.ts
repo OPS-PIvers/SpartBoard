@@ -3,6 +3,9 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { TOUR_ANCHORS, type TourAnchorDef } from '@/config/tourAnchors';
 import { TOUR_ANCHOR_LIST } from '@/functions/src/mcp/tourAnchorList';
+import { TOUR_SURFACES } from '@/config/tourSurfaces';
+import { TOUR_ANCHOR_SURFACES } from '@/config/tourAnchorSurfaces.generated';
+import { surfacePath } from '@/config/tourAnchorRoutes';
 import { WIDGET_TYPE_LIST } from '@/functions/src/mcp/widgetTypeList';
 import { TOOLS } from '@/config/tools';
 import { WIDGET_SETTINGS_SCHEMAS } from '@/components/widgets/WidgetRegistry';
@@ -28,9 +31,29 @@ function expected() {
             : 'board',
       ...(def.panel ? { panel: true } : {}),
       ...(def.destructive ? { destructive: true } : {}),
+      ...(def.persists ? { persists: true } : {}),
       ...(def.requires ? { requires: def.requires } : {}),
+      ...routesOf(id),
     })
   );
+}
+
+// Where the anchor renders and the clicks from the board that reveal it; no path means the way in is not mapped yet.
+function routesOf(id: string) {
+  const routes = (TOUR_ANCHOR_SURFACES[id] ?? []).map((surface) => {
+    const def = TOUR_SURFACES[surface];
+    const reach = surfacePath(surface);
+    const inner = def.inner?.[id];
+    return {
+      surface,
+      kind: def.kind,
+      ...(def.widgetType ? { widget_type: def.widgetType } : {}),
+      ...(def.url ? { url: def.url } : {}),
+      ...(reach ? { path: inner ? [...reach.path, inner] : reach.path } : {}),
+      ...(reach?.needs.length ? { needs: reach.needs } : {}),
+    };
+  });
+  return routes.length ? { routes } : {};
 }
 
 describe('connector tour anchor list', () => {
@@ -39,7 +62,8 @@ describe('connector tour anchor list', () => {
     if (process.env.UPDATE_TOUR_ANCHOR_LIST) {
       writeFileSync(
         FILE,
-        `// Generated from config/tourAnchors.ts by tests/mcpTourAnchorList.test.ts; rerun it with UPDATE_TOUR_ANCHOR_LIST=1.\nexport const TOUR_ANCHOR_LIST: ReadonlyArray<{\n  id: string;\n  label: string;\n  scope: 'board' | 'widget' | 'widget type' | 'field';\n  panel?: true;\n  destructive?: true;\n  requires?: string;\n}> = ${JSON.stringify(list, null, 2)};\n`
+        // Parsed JSON, because an array literal this varied is too complex for the type checker to infer.
+        `// Generated from config/tourAnchors.ts by tests/mcpTourAnchorList.test.ts; rerun it with UPDATE_TOUR_ANCHOR_LIST=1.\nexport interface TourAnchorEntry {\n  id: string;\n  label: string;\n  scope: 'board' | 'widget' | 'widget type' | 'field';\n  panel?: true;\n  destructive?: true;\n  persists?: true;\n  requires?: string;\n  routes?: ReadonlyArray<{\n    surface: string;\n    kind: string;\n    widget_type?: string;\n    url?: string;\n    path?: readonly string[];\n    needs?: readonly string[];\n  }>;\n}\n\nexport const TOUR_ANCHOR_LIST = JSON.parse(String.raw\`${JSON.stringify(list, null, 2)}\`) as readonly TourAnchorEntry[];\n`
       );
       return;
     }

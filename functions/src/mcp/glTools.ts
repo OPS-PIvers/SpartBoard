@@ -888,7 +888,7 @@ export function registerGuidedLearningTools(
     {
       title: 'List live tour anchors',
       description:
-        'Lists the SpartBoard controls a live tour step can point at (tour.anchor). Scope "widget type" refs add ":<widgetType>" (dock.item:clock); "field" refs add ":<widgetType>#<fieldKey>". panel anchors appear only once a menu or panel is open, so an earlier step must open it. A control not listed can use anchor "" with a fallback role and accessible name, which works in English only. In a building set, saving that step also asks a developer to add an anchor; describe the control in the step\'s missing_anchor. Pass widget_type to also get that widget\'s settings drawer refs (switches, fields and section headings) with their English labels.',
+        'Lists the SpartBoard controls a live tour step can point at (tour.anchor). Scope "widget type" refs add ":<widgetType>" (dock.item:clock); "field" refs add ":<widgetType>#<fieldKey>". panel anchors appear only once a menu or panel is open, so an earlier step must open it: each anchor\'s routes name the surface it sits on and its path, the anchors to click in order from the board to show it (a route with no path is not mapped yet; needs lists what must exist first, like an open library item). persists marks a click whose effect outlives the tour. A control not listed can use anchor "" with a fallback role and accessible name, which works in English only. In a building set, saving that step also asks a developer to add an anchor; describe the control in the step\'s missing_anchor. Pass widget_type to also get that widget\'s settings drawer refs (switches, fields and section headings) with their English labels.',
       inputSchema: {
         search: z
           .string()

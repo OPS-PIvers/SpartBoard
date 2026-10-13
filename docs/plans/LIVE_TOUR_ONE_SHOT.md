@@ -57,6 +57,10 @@ Small consequences, not separate decisions:
 - The browser run reads from either connector but plays only on the dummy-backend page.
 - `list_tour_anchors` gains `surface`, `scope`, `widget_type`/`field_key` filters and paging; with no filter it returns a namespace summary, not 3,000 rows.
 
+Amendment, 2026-10-13 (building PR 2):
+
+- **D3a.** The graph is per surface, not per anchor, and it is hand-mapped from the code rather than crawled. The dummy-backend app can open the board, Dock, widgets, drawers, sidebar and Admin Settings, but not library items, Teams, the gradebook or the Studio, which together hold most of the 3,000 anchors. So `config/tourSurfaces/<area>.ts` lists about 250 surfaces, each with the files whose anchors sit on it and the anchor whose click opens it. Every anchor's surface comes from where it renders (`config/tourAnchorSurfaces.generated.ts`), and the path is the chain of openers back to the board (`config/tourAnchorRoutes.ts`). A surface whose opener has no anchor yet records `openerMissing`, and PR 7's sweep tags it. `tests/tourAnchorRoutes.test.ts` fails on an anchor-rendering file that is on no surface, an opener that is not a registered anchor, or a path that loops. The Playwright crawler becomes a follow-up check that clicks each mapped opener on `vite-verify` and confirms the surface's anchors appear.
+
 ## Benchmark workflows
 
 1. Create a quiz from scratch
