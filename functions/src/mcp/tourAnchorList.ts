@@ -3868,6 +3868,42 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     panel: true,
   },
   {
+    id: 'quiz-rubric.template',
+    label: 'Levels or Scoring guide switch on the Quiz rubric builder',
+    scope: 'widget type',
+    panel: true,
+  },
+  {
+    id: 'quiz-rubric.guide-guidelines',
+    label: 'Scoring guidelines textarea on the Quiz rubric builder, by part',
+    scope: 'field',
+    panel: true,
+  },
+  {
+    id: 'quiz-rubric.guide-example',
+    label: 'Example response textarea on the Quiz rubric builder, by example',
+    scope: 'field',
+    panel: true,
+  },
+  {
+    id: 'quiz-rubric.guide-example-add',
+    label: 'Add example response on the Quiz rubric builder, by part',
+    scope: 'field',
+    panel: true,
+  },
+  {
+    id: 'quiz-rubric.guide-example-remove',
+    label: 'Remove example response on the Quiz rubric builder, by example',
+    scope: 'field',
+    panel: true,
+  },
+  {
+    id: 'quiz-rubric.guide-points',
+    label: 'Point max input on the Quiz rubric builder, by part',
+    scope: 'field',
+    panel: true,
+  },
+  {
     id: 'quiz-rubric.csv-import',
     label: 'Import CSV on the Quiz rubric builder',
     scope: 'widget type',

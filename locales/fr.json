@@ -3978,5 +3978,9 @@
     "label": "Nouveautés",
     "dismiss": "Ignorer",
     "gotIt": "Compris"
+  },
+  "rubricGuide": {
+    "examples": "Exemples de réponses",
+    "or": "ou"
   }
 }
