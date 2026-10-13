@@ -463,6 +463,7 @@ const NotesDocsInner: React.FC<
         canEdit={canEdit}
         collab={collabSettings.enabled && canEdit}
         richEditor={canAccessFeature('plc-notes-rich-editor')}
+        textStyles={canAccessFeature('teams-redesign')}
         members={members}
         template={template.sections}
         assessments={assessments}

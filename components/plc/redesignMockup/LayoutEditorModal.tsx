@@ -11,7 +11,7 @@ import {
   Home,
   Megaphone,
   RotateCcw,
-  Sparkles,
+  Library,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -41,7 +41,7 @@ const PAGES: PageRow[] = [
   { id: 'data', label: 'Data overview', icon: BarChart3, on: true },
   { id: 'assess', label: 'Assessments', icon: ClipboardList, on: true },
   { id: 'notes', label: 'Notes & Docs', icon: FileText, on: true },
-  { id: 'res', label: 'Resources', icon: Sparkles, on: true },
+  { id: 'res', label: 'Resources', icon: Library, on: true },
   { id: 'upd', label: 'Updates', icon: Megaphone, on: false },
 ];
 

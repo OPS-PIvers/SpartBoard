@@ -58,7 +58,10 @@ export function flipActionItems(
     const done = doneById.get(item.id);
     if (done === undefined || item.done === done) return item;
     changed = true;
-    return { ...item, done, doneAt: done ? now : null };
+    // Reopening an item takes it out of Recently completed.
+    return done
+      ? { ...item, done, doneAt: now }
+      : { ...item, done, doneAt: null, clearedAt: null };
   });
   return changed ? next : null;
 }

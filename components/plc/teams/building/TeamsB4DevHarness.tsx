@@ -1,7 +1,7 @@
 // Production Building Hub and Updates views on fixtures at /teams-b4-dev (auth-bypass dev builds only), for side-by-side checks.
 
 import React, { useState } from 'react';
-import { LayoutDashboard, Megaphone, Sparkles } from 'lucide-react';
+import { LayoutDashboard, Megaphone, Library } from 'lucide-react';
 import {
   TeamShell,
   type ShellPage,
@@ -9,7 +9,9 @@ import {
 import { CalendarEmbed } from '@/components/plc/redesignMockup/BuildingMock';
 import { BLDG_TEAM, STAFF } from '@/components/plc/redesignMockup/fixtures';
 import { BUILT_IN_TEAM_TYPE_PRESETS } from '@/config/teamTypePresets';
-import type { PlcUpdate } from '@/types';
+import type { PlcGoal, PlcUpdate } from '@/types';
+import { GoalEditorModal } from '@/components/plc/goals/GoalEditorModal';
+import { BuildingGoalsView } from './BuildingGoalsCard';
 import type { AckRoster } from '@/utils/teamUpdates';
 import { UpdatesView } from '../updates/UpdatesView';
 import { UpdateHeroView } from '../updates/UpdateHero';
@@ -17,7 +19,7 @@ import { BuildingHubView } from './BuildingHubView';
 
 const BLDG_PAGES: ShellPage[] = [
   { id: 'hub', label: 'Hub', icon: LayoutDashboard },
-  { id: 'resources', label: 'Resources', icon: Sparkles },
+  { id: 'resources', label: 'Resources', icon: Library },
   { id: 'updates', label: 'Updates', icon: Megaphone },
 ];
 
@@ -143,9 +145,47 @@ const calendarFixture = (
 
 type Screen = 'bldg' | 'updates';
 
-function readParams(): { screen: Screen; lead: boolean; capture: boolean } {
+const goal = (id: string, order: number, p: Partial<PlcGoal>): PlcGoal => ({
+  id,
+  title: '',
+  practices: [],
+  order,
+  createdBy: ME,
+  createdAt: order,
+  updatedAt: order,
+  ...p,
+});
+
+const GOALS: PlcGoal[] = [
+  goal('smart', 0, {
+    title:
+      'By June 5, 2027, 85% of our students will attend at least 95% of school days, up from 78%, as measured by monthly attendance reports.',
+    dueDate: '2027-06-05',
+    students: 'our students',
+    outcome: 'attend at least 95% of school days',
+    baseline: 78,
+    current: 81,
+    target: 85,
+    measure: 'monthly attendance reports',
+  }),
+  goal('plain', 1, {
+    title:
+      'Every staff member greets students at the door during passing time.',
+  }),
+  goal('plain2', 2, {
+    title: 'Grow family attendance at conferences this fall.',
+  }),
+];
+
+function readParams(): {
+  screen: Screen;
+  lead: boolean;
+  capture: boolean;
+  goal: string | null;
+} {
   const params = new URLSearchParams(window.location.search);
   return {
+    goal: params.get('goal'),
     screen: params.get('screen') === 'updates' ? 'updates' : 'bldg',
     lead: params.get('role') !== 'member',
     capture: params.get('capture') === '1',
@@ -158,6 +198,12 @@ export const TeamsB4DevHarness: React.FC = () => {
   const [lead, setLead] = useState(initial.lead);
   const [updates, setUpdates] = useState(UPDATES);
   const [myAcks, setMyAcks] = useState<Record<string, number>>({});
+  const [goals, setGoals] = useState(GOALS);
+  const [editing, setEditing] = useState<PlcGoal | 'new' | null>(() =>
+    initial.goal === 'new'
+      ? 'new'
+      : (GOALS.find((g) => g.id === initial.goal) ?? null)
+  );
 
   const react = (id: string, reacted: boolean) =>
     setUpdates((list) =>
@@ -192,6 +238,14 @@ export const TeamsB4DevHarness: React.FC = () => {
         categories={CATEGORIES}
         calendarUrl={CALENDAR_URL}
         calendarEmbed={calendarFixture}
+        goals={
+          <BuildingGoalsView
+            goals={goals}
+            isLead={lead}
+            onAdd={() => setEditing('new')}
+            onEdit={setEditing}
+          />
+        }
         onAllUpdates={() => setScreen('updates')}
       />
     ) : (
@@ -262,6 +316,29 @@ export const TeamsB4DevHarness: React.FC = () => {
           {body}
         </TeamShell>
       </div>
+      {editing && (
+        <GoalEditorModal
+          goal={editing === 'new' ? null : editing}
+          allowPlain
+          showProgress
+          nextOrder={goals.length}
+          routines={[]}
+          onSave={(draft) => {
+            setGoals((list) => {
+              const id = draft.id ?? `g${list.length}`;
+              const next = goal(id, draft.order, {
+                title: draft.title,
+                ...(draft.measure ? { measure: draft.measure } : {}),
+              });
+              return draft.id
+                ? list.map((g) => (g.id === id ? next : g))
+                : [...list, next];
+            });
+            return Promise.resolve();
+          }}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </div>
   );
 };

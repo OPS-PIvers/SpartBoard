@@ -458,6 +458,14 @@ export const TOUR_ANCHORS = {
     label: 'Add action item button in PLC notes',
     panel: true,
   },
+  'plc-notes.remove-completed': {
+    label: 'Remove completed button in PLC note action items',
+    panel: true,
+  },
+  'plc-notes.recently-completed': {
+    label: 'Recently completed toggle in PLC note action items',
+    panel: true,
+  },
   'plc-notes.show-actions': {
     label: 'Show action items button in PLC notes',
     panel: true,
@@ -4830,6 +4838,13 @@ export const TOUR_ANCHORS = {
     label: 'Rich tool button in the PLC notes tab',
     perField: true,
   },
+  'plc-notes.text-style': {
+    label: 'Text size menu in the PLC notes formatting toolbar',
+  },
+  'plc-notes.text-style-option': {
+    label: 'Text size option in the PLC notes formatting toolbar',
+    perField: true,
+  },
   'plc-banks.share': {
     label: 'Share button in the PLC question banks tab',
     persists: true,
@@ -4984,6 +4999,14 @@ export const TOUR_ANCHORS = {
   'plc-goals.save': {
     label: 'Save button in the PLC goal editor',
     persists: true,
+    panel: true,
+  },
+  'plc-goals.kind': {
+    label: 'SMART or custom goal switch in the PLC goal editor',
+    panel: true,
+  },
+  'plc-goals.plain-text': {
+    label: 'Custom goal text field in the PLC goal editor',
     panel: true,
   },
   'plc-goals.field': {
@@ -5749,6 +5772,13 @@ export const TOUR_ANCHORS = {
   },
   'teams.admin-defaults.section-kind': {
     label: 'Block type select in the team type defaults template',
+    perField: true,
+  },
+  'teams.building.add-goal': {
+    label: 'Add goal button in the Building Hub goals',
+  },
+  'teams.building.edit-goal': {
+    label: 'Edit goal button in the Building Hub goals',
     perField: true,
   },
   'teams.building.all-resources': {

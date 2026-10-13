@@ -72,9 +72,10 @@ describe('built-in presets', () => {
     expect(off('mentoring')).toEqual([]);
   });
 
-  it('put goals on for PLC only (T21) and never as a page', () => {
+  it('put goals on for PLC and Building teams, never as a page', () => {
     expect(BUILT_IN_TEAM_TYPE_PRESETS.plc.cards).toContain('goals');
-    for (const t of ['department', 'building', 'mentoring'] as const) {
+    expect(BUILT_IN_TEAM_TYPE_PRESETS.building.cards).toContain('goals');
+    for (const t of ['department', 'mentoring'] as const) {
       expect(BUILT_IN_TEAM_TYPE_PRESETS[t].cards).not.toContain('goals');
     }
   });
