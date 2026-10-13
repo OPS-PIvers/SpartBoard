@@ -19,8 +19,9 @@ const stepName = (step: GuidedLearningStep, number: number): string =>
 export function buildClaudePrompt(
   set: Pick<
     GuidedLearningSet,
-    'id' | 'title' | 'steps' | 'isBuilding' | 'helpCenter' | 'mode'
-  >,
+    'id' | 'title' | 'steps' | 'isBuilding' | 'helpCenter'
+  > &
+    Partial<Pick<GuidedLearningSet, 'mode'>>,
   target: ClaudePromptTarget,
   options: { dev?: boolean } = {}
 ): string {
