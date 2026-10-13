@@ -116,7 +116,7 @@ const h = vi.hoisted(() => {
     board,
     actions,
     reset,
-    canAccess: vi.fn(() => true),
+    canAccess: vi.fn((_id: string) => true),
     loadTour: vi.fn(),
     loadDraft: vi.fn(),
     user: null as { uid: string } | null,
@@ -304,7 +304,8 @@ beforeEach(() => {
   h.loadDraft.mockReset();
   vi.useFakeTimers();
   h.reset();
-  h.canAccess.mockReturnValue(true);
+  // Self-heal is a preview flag; its own tests turn it on.
+  h.canAccess.mockImplementation((id: string) => id !== 'live-tour-self-heal');
   h.user = null;
   h.permissions = [];
   h.dockOpens = false;
@@ -2851,6 +2852,25 @@ describe('LiveTourRunner cleared stage', () => {
     expect(
       screen.getByText('Keep the widget from this tour?')
     ).toBeInTheDocument();
+  });
+
+  it('with self-heal on, lays out a tour with no recorded layouts around its first widget', async () => {
+    h.canAccess.mockReturnValue(true);
+    await startStage(
+      stageSet([{ ...diceStep, action: 'click' }], {
+        widgets: ['clock', 'dice'],
+      })
+    );
+    const placed = new Map(
+      h.actions.addTourWidget.mock.calls.map(([type, layout]) => [
+        type,
+        layout as { wProp: number },
+      ])
+    );
+    expect([...placed.keys()].sort()).toEqual(['clock', 'dice']);
+    expect(placed.get('dice')?.wProp).toBeGreaterThan(
+      placed.get('clock')?.wProp ?? 1
+    );
   });
 
   it('binds recorded slots only to tour widgets', async () => {

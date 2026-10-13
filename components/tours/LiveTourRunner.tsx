@@ -120,6 +120,8 @@ import {
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 import { openPopupBoxes, shieldTourUi, withNearbyPopups } from './popups';
 import { startTourRunLog, type TourRunLog } from './tourRuns';
+import { autoStage as stageTour, needsAutoStage } from './tourAutoStage';
+import { healAnchor } from './tourSelfHeal';
 import {
   endTestRun,
   installTestRunHook,
@@ -379,6 +381,9 @@ export const LiveTourRunner: React.FC = () => {
     uid: user?.uid,
     featurePermissions,
   };
+
+  // Steps of this run that self-heal already tried.
+  const healTried = useRef(new Set<number>());
 
   // Edit mode: the board editor's draft, with its selection driving playback.
   const editTarget = useTourEditTarget();
@@ -770,12 +775,20 @@ export const LiveTourRunner: React.FC = () => {
   }, [needsPrereq, prereqStep, attempt]);
 
   const runSetup = (
-    set: GuidedLearningSet,
-    steps: GuidedLearningStep[],
+    rawSet: GuidedLearningSet,
+    rawSteps: GuidedLearningStep[],
     from = 0,
     opts: LaunchOptions = {}
   ) => {
     const { dashboard: d } = latest.current;
+    // Without recorded layouts, the tour arranges its own widgets (D10).
+    const { set, steps } =
+      !opts.edit &&
+      latest.current.canAccessFeature('live-tour-self-heal') &&
+      needsAutoStage(rawSet)
+        ? stageTour(rawSet, rawSteps)
+        : { set: rawSet, steps: rawSteps };
+    healTried.current.clear();
     const v2 = opts.edit
       ? !!getTourEdit()?.v2
       : latest.current.canAccessFeature('live-tour-editing-v2');
@@ -1512,6 +1525,40 @@ export const LiveTourRunner: React.FC = () => {
           ? anchor.status
           : null
       : null;
+  // A control whose panel closed is reopened along its route, once per step (D4).
+  const healKey =
+    running &&
+    !tour?.test &&
+    !tour?.edit &&
+    anchor.status === 'missing' &&
+    !!binding?.anchor &&
+    canAccessFeature('live-tour-self-heal')
+      ? stepKey
+      : null;
+  const healAnchorScope = useEffectEvent(() => ({
+    widgetIds: added,
+    slots: tour?.slots,
+  }));
+  useEffect(() => {
+    if (!healKey || !binding || healTried.current.has(stepIndex)) return;
+    healTried.current.add(stepIndex);
+    const ctrl = new AbortController();
+    void import('@/config/tourAnchorRoutes')
+      .then(({ tourAnchorRoutes }) =>
+        healAnchor(
+          binding.anchor,
+          tourAnchorRoutes,
+          healAnchorScope(),
+          ctrl.signal
+        )
+      )
+      .then((ok) => {
+        if (ok && !ctrl.signal.aborted) setAttempt((n) => n + 1);
+      })
+      .catch((err: unknown) => console.warn('Live tour self-heal failed', err));
+    return () => ctrl.abort();
+  }, [healKey, binding, stepIndex]);
+
   useEffect(() => {
     if (!testStatus || !step) return;
     reportTestStep({
