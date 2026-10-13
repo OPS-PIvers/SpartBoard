@@ -56,6 +56,38 @@ export function takeCall(uid: string, now = Date.now()): boolean {
   return true;
 }
 
+/** The browser-run script's picture upload; the ticket in the body is its only credential. */
+async function uploadTourPictures(
+  db: Firestore,
+  method: string,
+  body: unknown,
+  res: Response
+): Promise<void> {
+  if (method !== 'POST') {
+    res.status(405).set('Allow', 'POST').json({ error: 'Use POST.' });
+    return;
+  }
+  const { pictureUpload, savePictures } = await import('./tourPictures');
+  const { ToolError } = await import('./activity');
+  const parsed = pictureUpload.safeParse(body);
+  if (!parsed.success) {
+    res.status(400).json({
+      error: 'Send { ticket, pictures: [{ step_id, image, w, h }] }.',
+    });
+    return;
+  }
+  try {
+    res.json(await savePictures(db, parsed.data));
+  } catch (err) {
+    if (err instanceof ToolError) {
+      res.status(403).json({ error: err.message });
+      return;
+    }
+    console.error('[mcpServer] tour pictures failed', err);
+    res.status(500).json({ error: 'The pictures could not be saved.' });
+  }
+}
+
 function unauthorized(res: Response, description: string): void {
   res
     .status(401)
@@ -97,6 +129,10 @@ export const mcpServer = onRequest(
     }
 
     const db = admin.firestore();
+    if ((req.path ?? '').endsWith('/tour-pictures')) {
+      await uploadTourPictures(db, req.method, req.body, res);
+      return;
+    }
     const header = req.headers.authorization ?? '';
     const token = header.startsWith('Bearer ') ? header.slice(7).trim() : '';
     if (!token) {

@@ -20,7 +20,8 @@ Don't agree an outline with the admin first. Build the tour, check it with `dry_
 3. **Follow the path.** Each anchor's `routes[].path` is the list of anchors to click, in order, from the board to where the anchor shows. Turn every path entry the tour hasn't already clicked into a `click` step, in that order. `reveal` is a tab or menu inside the surface. `needs` says what has to exist first: `widget-on-stage` (put the widget in `tour_widgets`), `library-item` (add a material), `class`, `plc`, `admin`, `live-session`, `student-data`.
 4. **Stage it.** Set `tour_widgets`, add `materials` when the tour opens, makes or assigns a library item, and decide `autopilot` (see below).
 5. **Dry-run it.** Call `create_live_tour` with `dry_run: true`. Fix every error; read every warning and fix it unless there's a reason not to.
-6. **Save and hand back.** Call it again without `dry_run`. Pass `help_center` with a category from `list_help_center_categories`.
+6. **Save.** Call it again without `dry_run`. Pass `help_center` with a category from `list_help_center_categories`.
+7. **Play it (Claude Code only).** Run the browser run below, fix what fails, and let it upload the step pictures. Then hand back.
 
 To change an existing tour, `get_live_tour`, then `update_live_tour` with `steps` (the whole list, ids kept) or `step_text` (wording only). Update takes the same setup fields and `dry_run`.
 
@@ -95,6 +96,17 @@ Write for a busy teacher reading a small card on a projected board.
 
 **Warnings save but need a look:** a step without text, a step without an anchor, a row in the teacher's own list outside a tour with materials, a click Autopilot hands back because it changes the teacher's real account, a `type` or `select` step with no `value` (fine when the answer is the teacher's own, like a calendar ID), a `slot` that no layout or earlier `spawns` binds, and a tour shorter than 3 or longer than 15 steps.
 
+## The browser run (Claude Code)
+
+The dry run reads the map; the browser run plays the tour on a real board. In Claude Code, after saving:
+
+1. Save `get_live_tour`'s result to a file, and call `start_live_tour_picture_upload` for a ticket.
+2. Start the `vite-verify` server (the dummy backend, so nothing touches an account), then run `node scripts/run-live-tour.mjs <file> --upload <upload_url> --ticket <ticket>`.
+3. Autopilot does every step it can, including ones a teacher run would leave to the teacher. Widgets that need students get a made-up class. Each step is `found`, `missing` (the control never showed) or `left to the teacher` (a step with no value).
+4. Fix every `missing` step, save, and run it again. The run uploads each step's picture as its thumbnail; look at a few with `get_live_tour_step_picture`.
+
+A tour that needs a real library item, a PLC or student work can't fully play on the dummy backend; say which steps that leaves unchecked. In claude.ai there is no browser run, so say the tour was dry-run only.
+
 ## Hand-back
 
 After saving, tell the admin in a few lines:
@@ -103,6 +115,7 @@ After saving, tell the admin in a few lines:
 - where to find it (the save result says)
 - the warnings you left in, and why
 - any controls queued for an anchor: the save's `needs_anchors` lists those steps, and the tour waits for them before it's published
+- the browser run's result, or that there wasn't one
 
 Then they run it with **Run live on my board (draft)** and publish it in the Studio.
 
