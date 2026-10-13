@@ -167,7 +167,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
                 {...tourFieldAttr(
                   'expectations.volume-option',
                   'expectations',
-                  v.id
+                  String(v.id)
                 )}
                 onClick={() => {
                   updateConfig({
@@ -272,7 +272,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
                 {...tourFieldAttr(
                   'expectations.group-option',
                   'expectations',
-                  g.id
+                  g.id ?? 'none'
                 )}
                 onClick={() => {
                   updateConfig({ workMode: workMode === g.id ? null : g.id });
@@ -352,7 +352,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
                 {...tourFieldAttr(
                   'expectations.interaction-option',
                   'expectations',
-                  i.id
+                  i.id ?? 'none'
                 )}
                 onClick={() => {
                   updateConfig({
