@@ -9945,8 +9945,6 @@ export type GlobalFeature =
   | 'sparty'
   /** Calendar widget day headers, hairline rows, past-event handling and event details. */
   | 'calendar-day-view'
-  /** Schedule and To-Do "Lines" row style. */
-  | 'list-line-style'
   /** Group Notes & Docs: notes and linked Google Docs in one list, and Open in Docs on a note. */
   | 'plc-notes-unified'
   /** Group Notes & Docs: notes list and Action items as swapping side panels, with action items on linked Google Docs. */

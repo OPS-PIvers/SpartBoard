@@ -101,7 +101,6 @@ export default defineSettings<ChecklistConfig>({
           key: 'rowStyle',
           type: 'segmented',
           label: 'rowStyle',
-          visibleWhen: (ctx) => ctx.canAccessFeature('list-line-style'),
           readValue: (ctx) => ctx.config.rowStyle ?? 'cards',
           options: [
             { value: 'cards', label: 'rowCards' },
