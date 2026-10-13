@@ -569,7 +569,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Guided Learning player v2. Admin-only until Paul has played a set end to end on dev.
   // Tab-away clock and exit log. Admin-only until Paul has tested it in prod.
   'tab-away-timer': {
     label: 'Tab-away timer',
