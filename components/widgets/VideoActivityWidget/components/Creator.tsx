@@ -563,21 +563,12 @@ export const Creator: React.FC<CreatorProps> = ({
           {step === 'ai' && (
             <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
               <div className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <span
-                    className="font-bold text-slate-800"
-                    style={{ fontSize: 'min(14px, 4.5cqmin)' }}
-                  >
-                    AI Configuration
-                  </span>
-                </div>
-
                 <div className="space-y-2">
                   <div
                     className="flex justify-between items-center font-black text-slate-400 uppercase tracking-widest"
                     style={{ fontSize: 'min(12px, 3.5cqmin)' }}
                   >
-                    <span>Target Question Count</span>
+                    <span>Questions</span>
                     <span>{questionCount}</span>
                   </div>
                   <input
@@ -627,7 +618,7 @@ export const Creator: React.FC<CreatorProps> = ({
                     Generating Activity...
                   </>
                 ) : (
-                  'Generate with Gemini'
+                  'Generate questions'
                 )}
               </button>
             </div>
@@ -842,7 +833,7 @@ const RecommendTab: React.FC<RecommendTabProps> = ({
                 height: 'min(16px, 4cqmin)',
               }}
             />{' '}
-            Asking Gemini…
+            Finding a video…
           </>
         ) : (
           <>

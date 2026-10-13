@@ -1092,7 +1092,7 @@ const AiAssistOverlay: React.FC<AiAssistOverlayProps> = ({
       <div className="w-full max-w-md space-y-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h4 className="font-black text-lg text-slate-800">AI-assist</h4>
+            <h4 className="font-black text-lg text-slate-800">Draft with AI</h4>
             <p className="text-xs text-slate-500 mt-0.5">
               Describe the {widgetLabel.toLowerCase()} you want to create.
             </p>

@@ -417,7 +417,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
           generating={isGenerating}
           canGenerate={!!prompt.trim()}
           onGenerate={() => void handleGenerate()}
-          generateLabel={editing ? 'Apply changes' : 'Generate Code'}
+          generateLabel={editing ? 'Apply changes' : 'Draft app'}
           closeAnchor={tourTypeAttr('mini-app.ai-close', 'miniApp')}
           generateAnchor={tourTypeAttr('mini-app.ai-generate', 'miniApp')}
         >

@@ -406,7 +406,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Generate with AI"
+      aria-label="Draft with AI"
       className="absolute inset-0 z-widget-internal-overlay bg-white/95 backdrop-blur-sm flex flex-col"
       style={{ padding: 'min(24px, 5cqmin)' }}
       onDragOver={(e) => e.preventDefault()}
@@ -420,7 +420,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
           className="font-black text-slate-800"
           style={{ fontSize: 'min(18px, 6.5cqmin)' }}
         >
-          Generate with AI
+          Draft with AI
         </h4>
         <button
           onClick={onClose}
