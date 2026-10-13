@@ -392,6 +392,7 @@ describe('createQuizImportAdapter — test document source', () => {
     expect(browserPdfDeps).not.toHaveBeenCalled();
     expect(readQuizDocument).toHaveBeenCalledWith(file, {
       fileName: 'Unit 3 Test.docx',
+      passages: true,
     });
   });
 

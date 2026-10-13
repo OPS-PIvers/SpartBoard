@@ -9838,8 +9838,6 @@ export type GlobalFeature =
   | 'quiz-document-ai-reader'
   /** Learning targets read off an imported test, offered as chips in its review. */
   | 'quiz-import-suggested-targets'
-  /** Long text blocks in an imported test become passage stimuli for the questions after them. */
-  | 'quiz-import-passages'
   /** Handing a board or a collection to a substitute, and managing live shares. */
   | 'sub-share-collections'
   /** Guided Learning player v2: calm motion, learner speed, Watch/Try; stamped on sessions. */
