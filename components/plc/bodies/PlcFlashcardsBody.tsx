@@ -255,8 +255,7 @@ export const PlcFlashcardsBody: React.FC<PlcFlashcardsBodyProps> = ({
   plc,
 }) => {
   const { t } = useTranslation();
-  const { user, canAccessFeature } = useAuth();
-  const groupWording = canAccessFeature('my-groups');
+  const { user } = useAuth();
   const { addToast } = useDashboard();
   const { showConfirm } = useDialog();
   const canEdit = useCanEditPlcContent();
@@ -356,15 +355,10 @@ export const PlcFlashcardsBody: React.FC<PlcFlashcardsBodyProps> = ({
   const handleUnshare = useCallback(
     async (entryId: string, title: string) => {
       const confirmed = await showConfirm(
-        groupWording
-          ? t('plcDashboard.flashcards.groupUnshareConfirm', {
-              title,
-              defaultValue: 'Remove "{{title}}" from this group?',
-            })
-          : t('plcDashboard.flashcards.unshareConfirm', {
-              title,
-              defaultValue: 'Remove "{{title}}" from this PLC?',
-            }),
+        t('plcDashboard.flashcards.groupUnshareConfirm', {
+          title,
+          defaultValue: 'Remove "{{title}}" from this group?',
+        }),
         {
           title: t('plcDashboard.flashcards.unshareTitle', {
             defaultValue: 'Unshare set',
@@ -391,7 +385,7 @@ export const PlcFlashcardsBody: React.FC<PlcFlashcardsBodyProps> = ({
         setBusyId(null);
       }
     },
-    [addToast, groupWording, plc.id, showConfirm, t, unshareSet]
+    [addToast, plc.id, showConfirm, t, unshareSet]
   );
 
   if (loading || resultsLoading) {

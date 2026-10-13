@@ -12,7 +12,7 @@ import type { Plc, PlcResource } from '@/types';
 // defaultValue regardless of whether the source actually shares a key.
 const FIXED_TRANSLATIONS: Record<string, string> = {
   'plcDashboard.resources.used': 'Added',
-  'plcDashboard.resources.usedStatus': 'Added to your PLC',
+  'plcDashboard.resources.groupUsedStatus': 'Added to your team',
 };
 
 vi.mock('react-i18next', () => ({
@@ -91,19 +91,8 @@ vi.mock('@/hooks/useSyncedVideoActivityGroups', () => ({
 
 vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
 
-vi.mock('@/components/common/ScaledEmptyState', () => ({
-  ScaledEmptyState: ({
-    title,
-    subtitle,
-  }: {
-    title: string;
-    subtitle: string;
-  }) => (
-    <div data-testid="empty-state">
-      <span>{title}</span>
-      <span>{subtitle}</span>
-    </div>
-  ),
+vi.mock('@/components/plc/resources/PlcGroupLinks', () => ({
+  PlcGroupLinks: () => <div data-testid="group-links" />,
 }));
 
 const PLC: Plc = {
@@ -152,14 +141,15 @@ beforeEach(() => {
 });
 
 describe('PlcResourcesBody', () => {
-  it('shows empty state when there are no resources', () => {
+  it('shows the team links without an admin section when there are no resources', () => {
     mockUsePlcResources.mockReturnValue({
       resources: [],
       loading: false,
       error: null,
     });
     render(<PlcResourcesBody plc={PLC} />);
-    expect(screen.getByTestId('empty-state')).toBeInTheDocument();
+    expect(screen.getByTestId('group-links')).toBeInTheDocument();
+    expect(screen.queryByText('From your admin')).not.toBeInTheDocument();
   });
 
   it('shows a loading indicator while loading', () => {
@@ -256,7 +246,7 @@ describe('PlcResourcesBody', () => {
     // resolved to a real locale value, both sites rendered the terser button
     // text and the more descriptive paragraph copy was silently lost. They
     // must use distinct keys and render distinct text.
-    expect(screen.getByText('Added to your PLC')).toBeInTheDocument();
+    expect(screen.getByText('Added to your team')).toBeInTheDocument();
   });
 
   it('one-click imports a quiz into the PLC library (pull canonical → writePlcQuizEntry)', async () => {

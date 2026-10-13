@@ -136,7 +136,7 @@ export function parsePlcHomeLayout(
   };
 }
 
-/** My Groups puts Goals first for members who never customized Home. */
+/** Goals first for members who never customized Home. */
 export const PLC_HOME_GOALS_STARTER_TILES: readonly PlcHomeTileInstance[] = [
   { id: 'starter-goals', kind: 'goals' },
   ...PLC_HOME_STARTER_TILES,

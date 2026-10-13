@@ -36,7 +36,6 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-let mockMyGroups = false;
 const mockFeaturePermissions = [
   {
     widgetType: 'routineGuide',
@@ -59,7 +58,7 @@ const mockFeaturePermissions = [
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'uid-a' },
-    canAccessFeature: (f: string) => f === 'my-groups' && mockMyGroups,
+    canAccessFeature: () => false,
     featurePermissions: mockFeaturePermissions,
   }),
 }));
@@ -198,7 +197,7 @@ describe('PlcHomeV2', () => {
     saveHomeSeenCounts.mockClear();
   });
 
-  it('renders the header and the four starter tiles with no hero', () => {
+  it('renders the header and the starter tiles with no hero', () => {
     render(<PlcHomeV2 plc={plc} onNavigate={vi.fn()} onOpenDoc={vi.fn()} />);
     expect(screen.getByRole('heading', { name: 'Grade 7 Math' })).toBeTruthy();
     for (const name of [
@@ -213,20 +212,15 @@ describe('PlcHomeV2', () => {
     expect(screen.queryByText('Your collaborative space')).toBeNull();
   });
 
-  it('leads with Goals when My Groups is on, naming linked routines', () => {
-    mockMyGroups = true;
-    try {
-      render(<PlcHomeV2 plc={plc} onNavigate={vi.fn()} onOpenDoc={vi.fn()} />);
-      const regions = screen.getAllByRole('region');
-      expect(regions[0].getAttribute('aria-label')).toBe('Goals');
-      expect(screen.getByText('Raise reading stamina')).toBeTruthy();
-      expect(screen.getByText('Chalk Talk')).toBeTruthy();
-      expect(screen.getByText('Daily reading block')).toBeTruthy();
-      fireEvent.click(screen.getByRole('button', { name: 'About Chalk Talk' }));
-      expect(screen.getByText('Every voice is heard in writing.')).toBeTruthy();
-    } finally {
-      mockMyGroups = false;
-    }
+  it('leads with Goals, naming linked routines', () => {
+    render(<PlcHomeV2 plc={plc} onNavigate={vi.fn()} onOpenDoc={vi.fn()} />);
+    const regions = screen.getAllByRole('region');
+    expect(regions[0].getAttribute('aria-label')).toBe('Goals');
+    expect(screen.getByText('Raise reading stamina')).toBeTruthy();
+    expect(screen.getByText('Chalk Talk')).toBeTruthy();
+    expect(screen.getByText('Daily reading block')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'About Chalk Talk' }));
+    expect(screen.getByText('Every voice is heard in writing.')).toBeTruthy();
   });
 
   it('marks online members in the avatar cluster and opens Members', () => {
@@ -319,6 +313,7 @@ describe('PlcHomeV2', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Done' }));
     expect(saveHomeLayout).toHaveBeenCalledWith('uid-a', 'plc-1', {
       tiles: [
+        { id: 'starter-goals', kind: 'goals' },
         { id: 'starter-results', kind: 'results' },
         { id: 'starter-actionsActivity', kind: 'actionsActivity' },
         { id: 'starter-docs', kind: 'docs' },

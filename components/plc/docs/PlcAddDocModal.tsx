@@ -15,7 +15,6 @@ import type { Plc } from '@/types';
 import { usePlcDocs } from '@/hooks/usePlcDocs';
 import { useDashboard } from '@/context/useDashboard';
 import { logError } from '@/utils/logError';
-import { useAuth } from '@/context/useAuth';
 import { tourAttr } from '@/config/tourAnchors';
 
 interface PlcAddDocModalProps {
@@ -31,7 +30,6 @@ export const PlcAddDocModal: React.FC<PlcAddDocModalProps> = ({
   onCreated,
 }) => {
   const { t } = useTranslation();
-  const groupWording = useAuth().canAccessFeature('my-groups');
   const { addToast } = useDashboard();
   const { createDoc } = usePlcDocs(plc.id);
 
@@ -61,15 +59,10 @@ export const PlcAddDocModal: React.FC<PlcAddDocModalProps> = ({
     try {
       const docId = await createDoc({ title: trimmedTitle, url: trimmedUrl });
       addToast(
-        groupWording
-          ? t('plcDashboard.home.quickCreate.docModal.groupCreated', {
-              title: trimmedTitle,
-              defaultValue: '"{{title}}" added to this group.',
-            })
-          : t('plcDashboard.home.quickCreate.docModal.created', {
-              title: trimmedTitle,
-              defaultValue: '"{{title}}" added to this PLC.',
-            }),
+        t('plcDashboard.home.quickCreate.docModal.groupCreated', {
+          title: trimmedTitle,
+          defaultValue: '"{{title}}" added to this group.',
+        }),
         'success'
       );
       onCreated?.(docId);
@@ -163,13 +156,9 @@ export const PlcAddDocModal: React.FC<PlcAddDocModalProps> = ({
               htmlFor={urlId}
               className="mb-1 block text-sm font-medium text-slate-700"
             >
-              {groupWording
-                ? t('plcDashboard.home.quickCreate.docModal.groupUrlLabel', {
-                    defaultValue: 'Link',
-                  })
-                : t('plcDashboard.home.quickCreate.docModal.urlLabel', {
-                    defaultValue: 'Google Doc URL',
-                  })}
+              {t('plcDashboard.home.quickCreate.docModal.groupUrlLabel', {
+                defaultValue: 'Link',
+              })}
             </label>
             <input
               {...tourAttr('plc-docs.add-url')}
@@ -181,15 +170,9 @@ export const PlcAddDocModal: React.FC<PlcAddDocModalProps> = ({
                 if (e.key === 'Enter') void handleSubmit();
               }}
               disabled={submitting}
-              placeholder={
-                groupWording
-                  ? t('plcDashboard.docs.groupUrlPlaceholder', {
-                      defaultValue: 'Paste a link',
-                    })
-                  : t('plcDashboard.docs.urlPlaceholder', {
-                      defaultValue: 'Paste Google Doc URL',
-                    })
-              }
+              placeholder={t('plcDashboard.docs.groupUrlPlaceholder', {
+                defaultValue: 'Paste a link',
+              })}
               className="w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-brand-blue-primary/50 focus:outline-none focus:ring-1 focus:ring-brand-blue-primary/50"
             />
           </div>

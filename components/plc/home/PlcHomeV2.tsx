@@ -25,7 +25,6 @@ import { AddTileMenu, HomeCustomizeGrid } from './HomeCustomizeGrid';
 import {
   currentScoredCounts,
   PLC_HOME_GOALS_STARTER_TILES,
-  PLC_HOME_STARTER_TILES,
   effectiveTiles as effectiveTilesFor,
   hasNewResults,
   resolveHero,
@@ -65,10 +64,7 @@ export const PlcHomeV2: React.FC<PlcHomeV2Props> = ({
 }) => {
   const { t } = useTranslation();
   const { user, canAccessFeature } = useAuth();
-  const myGroups = canAccessFeature('my-groups');
-  const starter = myGroups
-    ? PLC_HOME_GOALS_STARTER_TILES
-    : PLC_HOME_STARTER_TILES;
+  const starter = PLC_HOME_GOALS_STARTER_TILES;
   const effectiveTiles = (l: typeof layout) => effectiveTilesFor(l, starter);
   const { addToast } = useDashboard();
   const uid = user?.uid ?? null;
