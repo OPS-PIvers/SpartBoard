@@ -9870,8 +9870,6 @@ export type GlobalFeature =
   | 'quiz-choice-editor'
   /** Section headings in the quiz editor, with "students answer any N of these M". */
   | 'quiz-sections'
-  /** "Also accept" alternate answers on fill-in-the-blank quiz questions. */
-  | 'quiz-fib-alternates'
   /** One answer box per blank on fill-in-the-blank quiz questions. */
   | 'quiz-fib-multi-blank'
   /** Standard codes typed in or imported with a question text become Learning targets tags. */
