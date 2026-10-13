@@ -841,7 +841,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   // editor is pixel-identical to today for everyone else.
   const mediaResponseAllowed = canAccessQuizMediaResponse();
   const choiceEditor = canAccessFeature('quiz-choice-editor');
-  const multiBlankAllowed = canAccessFeature('quiz-fib-multi-blank');
   const rubricVisibilityOn = canAccessFeature('quiz-rubric-visibility');
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const readPrompt = useCallback(() => promptRef.current?.value, []);
@@ -968,7 +967,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         <div>
           <div className="flex items-center justify-between">
             <label className={labelClass}>Question prompt</label>
-            {q.type === 'FIB' && multiBlankAllowed && (
+            {q.type === 'FIB' && (
               <button
                 type="button"
                 onClick={() => {
@@ -978,7 +977,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   const before = q.text.slice(0, at);
                   const pad = before && !/\s$/.test(before) ? ' ' : '';
                   const text = `${before}${pad}___${q.text.slice(end)}`;
-                  updateQuestion(q.id, fibPromptUpdate(q, text, true));
+                  updateQuestion(q.id, fibPromptUpdate(q, text));
                   requestAnimationFrame(() => {
                     const caret = at + pad.length + 3;
                     el?.focus();
@@ -997,10 +996,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             ref={promptRef}
             value={q.text}
             onChange={(e) =>
-              updateQuestion(
-                q.id,
-                fibPromptUpdate(q, e.target.value, multiBlankAllowed)
-              )
+              updateQuestion(q.id, fibPromptUpdate(q, e.target.value))
             }
             onBlur={() =>
               void promptStandards.onPromptBlur(q.id, q.text, q.targets)
@@ -1098,9 +1094,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   blankAlternates: undefined,
                   optionOrder: undefined,
                   correctAnswer:
-                    nextType === 'FIB' &&
-                    multiBlankAllowed &&
-                    countTextBlanks(q.text) >= 2
+                    nextType === 'FIB' && countTextBlanks(q.text) >= 2
                       ? joinBlanks(Array(countTextBlanks(q.text)).fill(''))
                       : '',
                   matchingDistractors: undefined,
@@ -1126,10 +1120,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               className={`${inputClass} appearance-none`}
             >
               {QUESTION_TYPES.filter(
-                (t) =>
-                  t.value !== 'MA' ||
-                  (!choiceEditor &&
-                    (q.type === 'MA' || canAccessFeature('quiz-choose-all')))
+                (t) => t.value !== 'MA' || !choiceEditor
               ).map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
@@ -1288,7 +1279,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             <ChoiceOptionsEditor
               key={q.id}
               question={q}
-              allowMulti={canAccessFeature('quiz-choose-all')}
               onChange={(updates) => updateQuestion(q.id, updates)}
             />
             {questionNeedsKey(q) && (
@@ -1605,9 +1595,7 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
           <span>Total: {aiTotalCount}</span>
         </div>
         <ul className="divide-y divide-slate-100 border-y border-slate-200">
-          {QUIZ_TYPE_STEPPER_ROWS.filter(
-            (row) => row.type !== 'MA' || canAccessFeature('quiz-choose-all')
-          ).map((row) => {
+          {QUIZ_TYPE_STEPPER_ROWS.map((row) => {
             const value = aiTypeCounts[row.type];
             return (
               <li key={row.type} className="flex items-center gap-3 py-2">
@@ -1667,11 +1655,7 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
 };
 
 /** A prompt edit; a FIB key follows the blank count once it has two or more blanks. */
-function fibPromptUpdate(
-  q: QuizQuestion,
-  text: string,
-  multiBlankAllowed: boolean
-): Partial<QuizQuestion> {
+function fibPromptUpdate(q: QuizQuestion, text: string): Partial<QuizQuestion> {
   if (q.type !== 'FIB') return { text };
   const blanks = countTextBlanks(text);
   if (isMultiBlank(q)) {
@@ -1680,6 +1664,6 @@ function fibPromptUpdate(
       : { text, ...reshapeFibBlanks(q, blanks) };
   }
   const grew = blanks > countTextBlanks(q.text);
-  if (!multiBlankAllowed || blanks < 2 || !grew) return { text };
+  if (blanks < 2 || !grew) return { text };
   return { text, ...reshapeFibBlanks(q, blanks) };
 }

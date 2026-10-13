@@ -97,8 +97,8 @@ The job is one of three:
 ## How learners play it
 
 The author's `mode` picks how the set starts. Everything below describes
-the calmer player (`gl-player-v2`, admin preview today, the future
-default); the legacy player notes say what differs.
+the calmer player every new session uses; the legacy player notes say
+what differs for sessions started before it.
 
 - `guided` starts in **Watch**: the set plays itself. An animated cursor
   glides from the last target to the next before each step's zoom and

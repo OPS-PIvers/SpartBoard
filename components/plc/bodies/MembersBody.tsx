@@ -80,7 +80,6 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
 }) => {
   const { t } = useTranslation();
   const { user, canAccessFeature, orgId } = useAuth();
-  const groupWording = canAccessFeature('my-groups');
   const suggestOrgId = canAccessFeature('team-email-suggest')
     ? (plc.orgId ?? orgId)
     : null;
@@ -185,13 +184,9 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
     }
     if (memberEmailsLower.has(trimmed)) {
       setInviteError(
-        groupWording
-          ? t('plcDashboard.members.groupAlreadyMember', {
-              defaultValue: 'That email is already a member of this team.',
-            })
-          : t('plcDashboard.members.alreadyMember', {
-              defaultValue: 'That email is already a member of this PLC.',
-            })
+        t('plcDashboard.members.groupAlreadyMember', {
+          defaultValue: 'That email is already a member of this team.',
+        })
       );
       return;
     }
@@ -261,17 +256,11 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
 
   const handleTransferLead = async (member: PlcMember) => {
     const confirmed = await showConfirm(
-      groupWording
-        ? t('plcDashboard.members.groupConfirmTransfer', {
-            defaultValue:
-              'Make {{email}} the lead of this team? You will become a regular member.',
-            email: member.email || member.uid,
-          })
-        : t('plcDashboard.members.confirmTransfer', {
-            defaultValue:
-              'Make {{email}} the lead of this PLC? You will become a regular member.',
-            email: member.email || member.uid,
-          }),
+      t('plcDashboard.members.groupConfirmTransfer', {
+        defaultValue:
+          'Make {{email}} the lead of this team? You will become a regular member.',
+        email: member.email || member.uid,
+      }),
       {
         title: t('plcDashboard.members.confirmTransferTitle', {
           defaultValue: 'Transfer lead',
@@ -300,15 +289,10 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
 
   const handleRemoveMember = async (member: PlcMember) => {
     const confirmed = await showConfirm(
-      groupWording
-        ? t('plcDashboard.members.groupConfirmRemove', {
-            defaultValue: 'Remove {{email}} from this team?',
-            email: member.email || member.uid,
-          })
-        : t('plcDashboard.members.confirmRemove', {
-            defaultValue: 'Remove {{email}} from this PLC?',
-            email: member.email || member.uid,
-          }),
+      t('plcDashboard.members.groupConfirmRemove', {
+        defaultValue: 'Remove {{email}} from this team?',
+        email: member.email || member.uid,
+      }),
       {
         title: t('plcDashboard.members.confirmRemoveTitle', {
           defaultValue: 'Remove member',
@@ -337,23 +321,14 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
 
   const handleLeave = async () => {
     const confirmed = await showConfirm(
-      groupWording
-        ? t('plcDashboard.members.groupConfirmLeave', {
-            defaultValue:
-              'Leave this team? You will lose access to shared assignment results.',
-          })
-        : t('plcDashboard.members.confirmLeave', {
-            defaultValue:
-              'Leave this PLC? You will lose access to shared assignment results.',
-          }),
+      t('plcDashboard.members.groupConfirmLeave', {
+        defaultValue:
+          'Leave this team? You will lose access to shared assignment results.',
+      }),
       {
-        title: groupWording
-          ? t('plcDashboard.members.groupConfirmLeaveTitle', {
-              defaultValue: 'Leave team',
-            })
-          : t('plcDashboard.members.confirmLeaveTitle', {
-              defaultValue: 'Leave PLC',
-            }),
+        title: t('plcDashboard.members.groupConfirmLeaveTitle', {
+          defaultValue: 'Leave team',
+        }),
         variant: 'danger',
         confirmLabel: t('plcDashboard.members.leave', {
           defaultValue: 'Leave',
@@ -744,13 +719,9 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
             className="inline-flex items-center gap-1.5 px-3 py-2 text-xxs font-bold uppercase tracking-wider text-red-600 hover:bg-red-50 rounded-lg transition-colors"
           >
             <UserMinus aria-hidden="true" className="w-3.5 h-3.5" />
-            {groupWording
-              ? t('plcDashboard.members.groupLeavePlc', {
-                  defaultValue: 'Leave this team',
-                })
-              : t('plcDashboard.members.leavePlc', {
-                  defaultValue: 'Leave this PLC',
-                })}
+            {t('plcDashboard.members.groupLeavePlc', {
+              defaultValue: 'Leave this team',
+            })}
           </button>
         </section>
       )}

@@ -1700,7 +1700,6 @@ const TeacherQuizWidget: React.FC<{
         }
         canUploadPictures={!!driveService}
         fetchRemoteImage={fetchImageThroughServer}
-        multiAnswer={canAccessFeature('quiz-choose-all')}
       />
     );
   }
@@ -1736,7 +1735,6 @@ const TeacherQuizWidget: React.FC<{
         }
         canUploadPictures={!!driveService}
         fetchRemoteImage={fetchImageThroughServer}
-        multiAnswer={canAccessFeature('quiz-choose-all')}
       />
     );
   }
@@ -1799,7 +1797,6 @@ const TeacherQuizWidget: React.FC<{
       canFindPassages: canAccessFeature('quiz-import-passages'),
       pickDocument,
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
-      canUseChooseAll: canAccessFeature('quiz-choose-all'),
       onDocumentImages: (images) => {
         documentImagesRef.current = images;
       },

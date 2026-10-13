@@ -63,7 +63,6 @@ function setup(
     saveItem: vi.fn(() => Promise.resolve()),
     attachPictures: vi.fn((quiz: QuizData) => Promise.resolve(quiz)),
     canUploadPictures: true,
-    multiAnswer: false,
     ...overrides,
   };
   render(<CartridgeBankImportModal {...props} />);
