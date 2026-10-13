@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   ref,
   uploadBytes,
@@ -30,17 +30,27 @@ export interface GuidedLearningImageUpload {
 
 export const useStorage = () => {
   const [uploading, setUploading] = useState(false);
+  const activeUploadsRef = useRef(0);
+  // Count in-flight uploads so one finishing doesn't clear the flag for others.
+  const beginUpload = () => {
+    activeUploadsRef.current += 1;
+    setUploading(true);
+  };
+  const endUpload = () => {
+    activeUploadsRef.current = Math.max(0, activeUploadsRef.current - 1);
+    setUploading(activeUploadsRef.current > 0);
+  };
   const { driveService, userDomain } = useGoogleDrive();
 
   const uploadFile = async (path: string, file: File): Promise<string> => {
-    setUploading(true);
+    beginUpload();
     try {
       const storageRef = ref(storage, path);
       const snapshot = await uploadBytes(storageRef, file);
       const url = await getDownloadURL(snapshot.ref);
       return url;
     } finally {
-      setUploading(false);
+      endUpload();
     }
   };
 
@@ -52,7 +62,7 @@ export const useStorage = () => {
     file: File
   ): Promise<string> => {
     if (driveService) {
-      setUploading(true);
+      beginUpload();
       try {
         const driveFile = await driveService.uploadFile(
           file,
@@ -62,7 +72,7 @@ export const useStorage = () => {
         await driveService.makePublic(driveFile.id, userDomain);
         return `https://lh3.googleusercontent.com/d/${driveFile.id}`;
       } finally {
-        setUploading(false);
+        endUpload();
       }
     }
 
@@ -75,7 +85,7 @@ export const useStorage = () => {
 
   const uploadSticker = async (userId: string, file: File): Promise<string> => {
     if (driveService) {
-      setUploading(true);
+      beginUpload();
       try {
         const driveFile = await driveService.uploadFile(
           file,
@@ -85,7 +95,7 @@ export const useStorage = () => {
         await driveService.makePublic(driveFile.id, userDomain);
         return `https://lh3.googleusercontent.com/d/${driveFile.id}`;
       } finally {
-        setUploading(false);
+        endUpload();
       }
     }
 
@@ -101,7 +111,7 @@ export const useStorage = () => {
     file: File
   ): Promise<string> => {
     if (driveService) {
-      setUploading(true);
+      beginUpload();
       try {
         const driveFile = await driveService.uploadFile(
           file,
@@ -111,7 +121,7 @@ export const useStorage = () => {
         await driveService.makePublic(driveFile.id, userDomain);
         return `https://lh3.googleusercontent.com/d/${driveFile.id}`;
       } finally {
-        setUploading(false);
+        endUpload();
       }
     }
 
@@ -132,7 +142,7 @@ export const useStorage = () => {
     blob: Blob,
     onProgress?: (percent: number) => void
   ): Promise<string> => {
-    setUploading(true);
+    beginUpload();
     try {
       const storageRef = ref(storage, path);
       // Timestamped paths cache as immutable; the marker lets the weekly GL sweep consider the file.
@@ -158,7 +168,7 @@ export const useStorage = () => {
       });
       return await getDownloadURL(task.snapshot.ref);
     } finally {
-      setUploading(false);
+      endUpload();
     }
   };
 
@@ -188,7 +198,7 @@ export const useStorage = () => {
     home: GuidedLearningMediaHome = 'drive'
   ): Promise<GuidedLearningImageUpload> => {
     if (home === 'drive' && driveService) {
-      setUploading(true);
+      beginUpload();
       try {
         const driveFile = await driveService.uploadFile(
           blob,
@@ -202,7 +212,7 @@ export const useStorage = () => {
           driveFileId: driveFile.id,
         };
       } finally {
-        setUploading(false);
+        endUpload();
       }
     }
     const uploaded = await uploadGuidedLearningMedia(userId, blob, fileName);
@@ -261,7 +271,7 @@ export const useStorage = () => {
     file: File
   ): Promise<string> => {
     if (driveService) {
-      setUploading(true);
+      beginUpload();
       try {
         const driveFile = await driveService.uploadFile(
           file,
@@ -273,7 +283,7 @@ export const useStorage = () => {
         await driveService.makePublic(driveFile.id, undefined);
         return `https://lh3.googleusercontent.com/d/${driveFile.id}`;
       } finally {
-        setUploading(false);
+        endUpload();
       }
     }
 
@@ -289,7 +299,7 @@ export const useStorage = () => {
     blob: Blob
   ): Promise<string> => {
     if (driveService) {
-      setUploading(true);
+      beginUpload();
       try {
         const driveFile = await driveService.uploadFile(
           blob,
@@ -299,7 +309,7 @@ export const useStorage = () => {
         await driveService.makePublic(driveFile.id, userDomain);
         return `https://lh3.googleusercontent.com/d/${driveFile.id}`;
       } finally {
-        setUploading(false);
+        endUpload();
       }
     }
 
@@ -309,12 +319,12 @@ export const useStorage = () => {
       `users/${userId}/screenshots/${timestamp}.jpg`
     );
 
-    setUploading(true);
+    beginUpload();
     try {
       const snapshot = await uploadBytes(storageRef, blob);
       return await getDownloadURL(snapshot.ref);
     } finally {
-      setUploading(false);
+      endUpload();
     }
   };
 
@@ -434,7 +444,7 @@ export const useStorage = () => {
     file: File
   ): Promise<{ url: string; storagePath: string }> => {
     if (driveService) {
-      setUploading(true);
+      beginUpload();
       try {
         const driveFile = await driveService.uploadFile(
           file,
@@ -448,7 +458,7 @@ export const useStorage = () => {
           storagePath: driveFile.webViewLink ?? previewUrl,
         };
       } finally {
-        setUploading(false);
+        endUpload();
       }
     }
 
@@ -462,7 +472,7 @@ export const useStorage = () => {
     file: File
   ): Promise<{ url: string; storagePath: string }> => {
     if (driveService) {
-      setUploading(true);
+      beginUpload();
       try {
         const driveFile = await driveService.uploadFile(
           file,
@@ -476,7 +486,7 @@ export const useStorage = () => {
           storagePath: driveFile.webViewLink ?? previewUrl,
         };
       } finally {
-        setUploading(false);
+        endUpload();
       }
     }
 
