@@ -177,9 +177,7 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
     : FEATURE_ROWS.filter((row) => row.key !== 'printForTeammates');
   const rows = redesign
     ? baseRows.filter((row) => !PAGE_FEATURE_KEYS.has(row.key))
-    : canAccessFeature('my-groups') || features.meeting === false
-      ? [...baseRows, MEETING_ROW]
-      : baseRows;
+    : [...baseRows, MEETING_ROW];
 
   return (
     <div className="flex flex-col gap-4 [&>*:first-child]:border-t-0 [&>*:first-child]:pt-0">
@@ -191,15 +189,10 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
             })}
           </h3>
           <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-            {canAccessFeature('my-groups')
-              ? t('plcDashboard.settings.groupDescription', {
-                  defaultValue:
-                    "Choose which sections appear on this team's page. Any member can update these.",
-                })
-              : t('plcDashboard.settings.description', {
-                  defaultValue:
-                    "Choose which sections appear in this PLC's dashboard. Any PLC member can update these.",
-                })}
+            {t('plcDashboard.settings.groupDescription', {
+              defaultValue:
+                "Choose which sections appear on this team's page. Any member can update these.",
+            })}
           </p>
         </div>
       )}
@@ -294,13 +287,9 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
           })}
         </h3>
         <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-          {canAccessFeature('my-groups')
-            ? t('plcDashboard.settings.digest.groupDescription', {
-                defaultValue: 'Control how this team stays in the loop.',
-              })
-            : t('plcDashboard.settings.digest.description', {
-                defaultValue: 'Control how this PLC stays in the loop.',
-              })}
+          {t('plcDashboard.settings.digest.groupDescription', {
+            defaultValue: 'Control how this team stays in the loop.',
+          })}
         </p>
         <button
           {...tourAttr('plc-settings.digest')}
@@ -331,15 +320,10 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
               })}
             </div>
             <div className="text-xxs text-slate-500 leading-relaxed mt-0.5">
-              {canAccessFeature('my-groups')
-                ? t('plcDashboard.settings.digest.groupOptInDescription', {
-                    defaultValue:
-                      'Send every member one weekly email summarizing what happened in the team. Off by default; any member can change this.',
-                  })
-                : t('plcDashboard.settings.digest.optInDescription', {
-                    defaultValue:
-                      'Send every member one weekly email summarizing what happened in the PLC. Off by default; any member can change this.',
-                  })}
+              {t('plcDashboard.settings.digest.groupOptInDescription', {
+                defaultValue:
+                  'Send every member one weekly email summarizing what happened in the team. Off by default; any member can change this.',
+              })}
             </div>
           </div>
           <div

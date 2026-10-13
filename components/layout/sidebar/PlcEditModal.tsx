@@ -43,7 +43,6 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const { user, canAccessFeature, orgId } = useAuth();
-  const groups = canAccessFeature('my-groups');
   const { showConfirm, showAlert } = useDialog();
   const { renamePlc, removeMember } = usePlcs();
   const { sentInvites, sendInvite, revokeInvite } = usePlcInvitations();
@@ -59,8 +58,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
   const initialType = plc ? getPlcGroupType(plc) : 'plc';
   const [groupType, setGroupType] = useState<PlcGroupType>(initialType);
   // Building groups are admin-made; their type can't be picked or changed here.
-  const typeEditable =
-    groups && (isCreate || isLead) && initialType !== 'building';
+  const typeEditable = (isCreate || isLead) && initialType !== 'building';
   const [inviteEmail, setInviteEmail] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -84,7 +82,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
     setBusy(true);
     try {
       if (isCreate) {
-        await onCreate(trimmed, groups ? groupType : 'plc');
+        await onCreate(trimmed, groupType);
         onClose();
       } else if (
         isLead &&
@@ -191,17 +189,11 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
     }
   };
 
-  const title = groups
-    ? isCreate
-      ? t('sidebar.groups.newTitle', { defaultValue: 'New team' })
-      : isLead
-        ? t('sidebar.groups.editTitle', { defaultValue: 'Edit team' })
-        : t('sidebar.groups.viewTitle', { defaultValue: 'Team details' })
-    : isCreate
-      ? t('sidebar.plcs.newPlcTitle', { defaultValue: 'New PLC' })
-      : isLead
-        ? t('sidebar.plcs.editPlcTitle', { defaultValue: 'Edit PLC' })
-        : t('sidebar.plcs.viewPlcTitle', { defaultValue: 'PLC Details' });
+  const title = isCreate
+    ? t('sidebar.groups.newTitle', { defaultValue: 'New team' })
+    : isLead
+      ? t('sidebar.groups.editTitle', { defaultValue: 'Edit team' })
+      : t('sidebar.groups.viewTitle', { defaultValue: 'Team details' });
 
   return (
     <Modal
@@ -215,9 +207,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
         {/* Name */}
         <div>
           <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-            {groups
-              ? t('sidebar.groups.nameLabel', { defaultValue: 'Team name' })
-              : t('sidebar.plcs.nameLabel', { defaultValue: 'PLC Name' })}
+            {t('sidebar.groups.nameLabel', { defaultValue: 'Team name' })}
           </label>
           <input
             className="w-full px-3 py-2 text-base border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-blue-primary focus:border-brand-blue-primary font-bold disabled:bg-slate-50 disabled:text-slate-500"
@@ -232,7 +222,7 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
           />
         </div>
 
-        {groups && !isCreate && !typeEditable && (
+        {!isCreate && !typeEditable && (
           <div>
             <span className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1.5">
               {t('sidebar.groups.typeLabel', { defaultValue: 'Type' })}
@@ -371,15 +361,10 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
               </button>
             </form>
             <p className="text-xxs text-slate-400 mt-1.5 leading-relaxed">
-              {groups
-                ? t('sidebar.groups.inviteHelp', {
-                    defaultValue:
-                      "They'll see the invite under My Teams in their sidebar.",
-                  })
-                : t('sidebar.plcs.inviteHelp', {
-                    defaultValue:
-                      "They'll see the invite in their PLC sidebar.",
-                  })}
+              {t('sidebar.groups.inviteHelp', {
+                defaultValue:
+                  "They'll see the invite under My Teams in their sidebar.",
+              })}
             </p>
           </div>
         )}
@@ -444,13 +429,9 @@ export const PlcEditModal: React.FC<PlcEditModalProps> = ({
             >
               <Save className="w-4 h-4" />
               {isCreate
-                ? groups
-                  ? t('sidebar.groups.create', {
-                      defaultValue: 'Create team',
-                    })
-                  : t('sidebar.plcs.createPlc', {
-                      defaultValue: 'Create PLC',
-                    })
+                ? t('sidebar.groups.create', {
+                    defaultValue: 'Create team',
+                  })
                 : t('common.save', { defaultValue: 'Save' })}
             </button>
           </div>

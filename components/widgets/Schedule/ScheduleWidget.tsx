@@ -7,7 +7,6 @@ import React, {
   useLayoutEffect,
 } from 'react';
 import { useDashboard } from '@/context/useDashboard';
-import { useAuth } from '@/context/useAuth';
 import { hexToRgba } from '@/utils/styles';
 import {
   WidgetData,
@@ -45,9 +44,7 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
   const { subscribeToPermission } = useFeaturePermissions();
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
   const config = widget.config as ScheduleConfig;
-  const { canAccessFeature } = useAuth();
-  const lines =
-    config.rowStyle === 'lines' && canAccessFeature('list-line-style');
+  const lines = config.rowStyle === 'lines';
   const { schedules = [], items: legacyItems = [] } = config;
 
   // Single shared ticker for all CountdownDisplay instances in this widget.

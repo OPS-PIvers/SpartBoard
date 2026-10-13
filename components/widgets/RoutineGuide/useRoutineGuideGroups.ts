@@ -1,7 +1,6 @@
 // My Groups for the Routine Guide Show menu, and the routines a group's goals link.
 
 import { useMemo } from 'react';
-import { useAuth } from '@/context/useAuth';
 import { usePlcs } from '@/hooks/usePlcs';
 import { usePlcGoals } from '@/hooks/usePlcGoals';
 
@@ -13,21 +12,17 @@ export const groupIdFromFilter = (filter: string): string | null =>
     : null;
 
 export function useRoutineGuideGroups(filter: string) {
-  const { canAccessFeature } = useAuth();
-  const enabled = canAccessFeature('my-groups');
-  const { plcs, loading } = usePlcs({ enabled });
-  const groupId = enabled ? groupIdFromFilter(filter) : null;
+  const { plcs, loading } = usePlcs();
+  const groupId = groupIdFromFilter(filter);
   const member = !!groupId && plcs.some((p) => p.id === groupId);
   const { goals, loading: goalsLoading } = usePlcGoals(member ? groupId : null);
 
   const groups = useMemo(
     () =>
-      enabled
-        ? plcs
-            .map((p) => ({ id: p.id, name: p.name }))
-            .sort((a, b) => a.name.localeCompare(b.name))
-        : [],
-    [enabled, plcs]
+      plcs
+        .map((p) => ({ id: p.id, name: p.name }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [plcs]
   );
 
   const routineIds = useMemo(() => {
@@ -39,7 +34,6 @@ export function useRoutineGuideGroups(filter: string) {
   }, [goals]);
 
   return {
-    enabled,
     groups,
     groupId,
     /** The selected group no longer lists this teacher (left or removed). */

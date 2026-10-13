@@ -362,7 +362,7 @@ describe('PlcTeammatePrintModal', () => {
       />
     );
     expect(
-      screen.getByText('This PLC has no other members yet.')
+      screen.getByText('This team has no other members yet.')
     ).toBeInTheDocument();
   });
 });

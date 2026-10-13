@@ -838,7 +838,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   // Fail-closed: no permission record means the controls never mount, so the
   // editor is pixel-identical to today for everyone else.
   const mediaResponseAllowed = canAccessQuizMediaResponse();
-  const multiBlankAllowed = canAccessFeature('quiz-fib-multi-blank');
   const rubricVisibilityOn = canAccessFeature('quiz-rubric-visibility');
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const readPrompt = useCallback(() => promptRef.current?.value, []);
@@ -965,7 +964,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         <div>
           <div className="flex items-center justify-between">
             <label className={labelClass}>Question prompt</label>
-            {q.type === 'FIB' && multiBlankAllowed && (
+            {q.type === 'FIB' && (
               <button
                 type="button"
                 onClick={() => {
@@ -975,7 +974,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   const before = q.text.slice(0, at);
                   const pad = before && !/\s$/.test(before) ? ' ' : '';
                   const text = `${before}${pad}___${q.text.slice(end)}`;
-                  updateQuestion(q.id, fibPromptUpdate(q, text, true));
+                  updateQuestion(q.id, fibPromptUpdate(q, text));
                   requestAnimationFrame(() => {
                     const caret = at + pad.length + 3;
                     el?.focus();
@@ -994,10 +993,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             ref={promptRef}
             value={q.text}
             onChange={(e) =>
-              updateQuestion(
-                q.id,
-                fibPromptUpdate(q, e.target.value, multiBlankAllowed)
-              )
+              updateQuestion(q.id, fibPromptUpdate(q, e.target.value))
             }
             onBlur={() =>
               void promptStandards.onPromptBlur(q.id, q.text, q.targets)
@@ -1094,9 +1090,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   blankAlternates: undefined,
                   optionOrder: undefined,
                   correctAnswer:
-                    nextType === 'FIB' &&
-                    multiBlankAllowed &&
-                    countTextBlanks(q.text) >= 2
+                    nextType === 'FIB' && countTextBlanks(q.text) >= 2
                       ? joinBlanks(Array(countTextBlanks(q.text)).fill(''))
                       : '',
                   matchingDistractors: undefined,
@@ -1585,11 +1579,7 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
 };
 
 /** A prompt edit; a FIB key follows the blank count once it has two or more blanks. */
-function fibPromptUpdate(
-  q: QuizQuestion,
-  text: string,
-  multiBlankAllowed: boolean
-): Partial<QuizQuestion> {
+function fibPromptUpdate(q: QuizQuestion, text: string): Partial<QuizQuestion> {
   if (q.type !== 'FIB') return { text };
   const blanks = countTextBlanks(text);
   if (isMultiBlank(q)) {
@@ -1598,6 +1588,6 @@ function fibPromptUpdate(
       : { text, ...reshapeFibBlanks(q, blanks) };
   }
   const grew = blanks > countTextBlanks(q.text);
-  if (!multiBlankAllowed || blanks < 2 || !grew) return { text };
+  if (blanks < 2 || !grew) return { text };
   return { text, ...reshapeFibBlanks(q, blanks) };
 }

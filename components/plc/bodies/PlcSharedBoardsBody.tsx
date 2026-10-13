@@ -27,7 +27,6 @@
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '@/context/useAuth';
 import {
   Cloud,
   Copy,
@@ -100,7 +99,6 @@ export const PlcSharedBoardsBody: React.FC<PlcSharedBoardsBodyProps> = ({
   hideWhenEmpty = false,
 }) => {
   const { t } = useTranslation();
-  const groupWording = useAuth().canAccessFeature('my-groups');
   const { boards, loading } = usePlcSharedBoards(plc.id);
 
   if (loading) {
@@ -127,13 +125,9 @@ export const PlcSharedBoardsBody: React.FC<PlcSharedBoardsBodyProps> = ({
           })}
         </h3>
         <p className="text-sm text-slate-500 max-w-md leading-relaxed">
-          {groupWording
-            ? t('plcDashboard.sharedBoards.groupEmptySubtitle', {
-                defaultValue: 'Share a board to this team from its Share menu.',
-              })
-            : t('plcDashboard.sharedBoards.emptySubtitle', {
-                defaultValue: 'Share a board to this PLC from its Share menu.',
-              })}
+          {t('plcDashboard.sharedBoards.groupEmptySubtitle', {
+            defaultValue: 'Share a board to this team from its Share menu.',
+          })}
         </p>
       </div>
     );

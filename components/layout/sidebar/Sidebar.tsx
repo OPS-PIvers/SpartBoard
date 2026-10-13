@@ -91,7 +91,6 @@ const PlcsMenuButton: React.FC<PlcsMenuButtonProps> = ({
   pendingInviteCount,
 }) => {
   const { t } = useTranslation();
-  const { canAccessFeature } = useAuth();
   return (
     <button
       {...tourAttr('sidebar.plcs')}
@@ -105,9 +104,7 @@ const PlcsMenuButton: React.FC<PlcsMenuButtonProps> = ({
         )}
       </div>
       <span className="flex-grow text-[13px]">
-        {canAccessFeature('my-groups')
-          ? t('sidebar.nav.groups', { defaultValue: 'My Teams' })
-          : t('sidebar.nav.plcs', { defaultValue: 'My PLCs' })}
+        {t('sidebar.nav.groups', { defaultValue: 'My Teams' })}
       </span>
       <span className="text-xxs bg-brand-blue-lighter text-brand-blue-primary px-2 py-0.5 rounded-full font-bold">
         {plcCount}
@@ -477,7 +474,7 @@ export const Sidebar: React.FC = () => {
                 <span className="text-sm font-bold tracking-wider uppercase text-slate-500 truncate">
                   {activeSection === 'main'
                     ? t('sidebar.header.classroomManager')
-                    : activeSection === 'plcs' && canAccessFeature('my-groups')
+                    : activeSection === 'plcs'
                       ? t('sidebar.nav.groups', { defaultValue: 'My Teams' })
                       : t(`sidebar.nav.${activeSection}`, {
                           defaultValue: activeSection.replace('-', ' '),

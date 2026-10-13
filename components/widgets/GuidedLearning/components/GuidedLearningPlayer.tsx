@@ -103,7 +103,7 @@ interface Props {
   teacherMode?: boolean;
   /** Student's accommodation override (M17 C3-gl) — scales guided-mode auto-advance. */
   timeMultiplier?: StudentOverride['timeMultiplier'];
-  /** Player v2 (`gl-player-v2`): calm motion, learner speed, reading-time pacing. */
+  /** New player; false only for sessions started before the new player. */
   playerV2?: boolean;
   /** Step enter/leave/misclick/hint/complete, for progress and analytics. */
   onStepEvent?: (e: StepEvent) => void;
