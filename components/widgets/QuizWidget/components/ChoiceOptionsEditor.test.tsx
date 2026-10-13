@@ -6,16 +6,12 @@ import { ChoiceOptionsEditor } from './ChoiceOptionsEditor';
 
 const seen: { q: QuizQuestion | null } = { q: null };
 
-const Harness: React.FC<{ initial: QuizQuestion; allowMulti?: boolean }> = ({
-  initial,
-  allowMulti = true,
-}) => {
+const Harness: React.FC<{ initial: QuizQuestion }> = ({ initial }) => {
   const [q, setQ] = useState(initial);
   return (
     <ChoiceOptionsEditor
       key={q.id}
       question={q}
-      allowMulti={allowMulti}
       onChange={(u) => {
         const next = { ...q, ...u };
         seen.q = next;
@@ -57,11 +53,6 @@ describe('ChoiceOptionsEditor', () => {
     expect(seen.q?.type).toBe('MC');
     expect(seen.q?.correctAnswer).toBe('Mercury');
     expect(seen.q?.incorrectAnswers).toEqual(['Venus', 'Earth']);
-  });
-
-  it('hides the multiple answers setting when choose-all is unavailable', () => {
-    render(<Harness initial={base} allowMulti={false} />);
-    expect(screen.queryByLabelText('Multiple correct answers')).toBeNull();
   });
 
   it('opens a blank question with four empty options', () => {
