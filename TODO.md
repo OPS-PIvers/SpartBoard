@@ -228,7 +228,7 @@ Each item names the plan it came from; the plan holds the detail.
 #### `docs/rich-response-wayfinder.md`
 
 - [ ] Enable the `quiz-media-response` global permission to actually turn on audio capture for admin/beta testing. (S)
-- [ ] Run RR-B3's whiteboard grading-time prototype (30 responses, stopwatch) to validate the 180s/600s take-limit assumption before committing to the B-track grading surface. (M)
+- [x] ~~Run RR-B3's whiteboard grading-time prototype~~ — dropped 2026-10-13 (`docs/plans/QUIZ_WHITEBOARD_RESPONSE.md` D27).
 
 #### `docs/plans/shipped/rich-response/IMPLEMENTATION.md`
 
@@ -472,7 +472,7 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 #### `docs/rich-response-wayfinder.md`
 
-- [ ] Build deferred video capture (peer-mode UI, framing check, transcode runtime, district gate) and whiteboard B-track (event-log capture, page-space migration). (L)
+- [ ] Build deferred video capture (peer-mode UI, framing check, transcode runtime, district gate) and the whiteboard response — now planned in `docs/plans/QUIZ_WHITEBOARD_RESPONSE.md` (spoken-answer fixes first, D28); the drawing widget page-space migration is a separate fix (D29). (L)
 
 #### `docs/rich-response/README.md`
 

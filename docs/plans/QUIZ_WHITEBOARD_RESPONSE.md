@@ -1,47 +1,151 @@
 # Quiz whiteboard response (rich-response B track)
 
-> **Status: live plan, refreshed 2026-10-13. Nothing built yet.** The design
-> decisions were made 2026-08-04 → 08-07 in the rich-response wayfinder
+> **Status: decided 2026-10-13 (grilled with Paul). Nothing built yet.** The
+> original design came from the rich-response wayfinder, 2026-08-04 → 08-07
 > ([RR-B1](../rich-response-wayfinder.md#rr-b1--can-drawingwidget-be-the-student-whiteboard-substrate),
 > [RR-B2](../rich-response-wayfinder.md#rr-b2--is-the-audio-synchronized-to-the-strokes-or-just-attached-alongside),
-> [RR-B4](../rich-response-wayfinder.md#rr-b4--what-is-a-whiteboard-responses-canonical-coordinate-space-and-page-size);
-> [RR-B3](../rich-response-wayfinder.md#rr-b3--what-does-grading-30-whiteboard-plus-audio-responses-look-like)
-> still open). The audio track then shipped 2026-09-02
+> [RR-B4](../rich-response-wayfinder.md#rr-b4--what-is-a-whiteboard-responses-canonical-coordinate-space-and-page-size)).
+> The audio track then shipped 2026-09-02
 > ([IMPLEMENTATION.md](shipped/rich-response/IMPLEMENTATION.md)) and two months
-> of quiz work landed on top of it. This doc is the single current picture: what
-> still stands, what the shipped code changed, and what is left to decide. The
-> wayfinder stays the decision record; where this doc and the wayfinder
-> disagree, this doc is newer.
+> of quiz work landed on top of it, so the plan was audited against current code
+> (C1–C14 below) and re-decided. **This doc supersedes the wayfinder's B-track
+> tickets wherever they differ**; the wayfinder stays the record of why the
+> August decisions were made. RR-B3 (the 30-response grading stopwatch) is
+> dropped (D27).
 
-## What a whiteboard response is (the decisions that still stand)
+## What it is
 
 A per-question response mode, not a question type (RR-01). The student presses
-Record; mic and canvas arm together on one clock; the board starts blank; they
-draw and narrate; the take ends at commit or at the limit. A take is buffered in
-memory and written once at commit, exactly like an audio take.
+Record; mic and canvas arm together on one clock; the board starts from the
+teacher's starting page; they draw and narrate; the take ends at commit, at the
+limit, or at a cutoff. A take is buffered in memory (and mirrored locally for
+crash recovery) and written once at commit, exactly like an audio take.
 
-| #   | Decision                                                                                                                                    | Source        | Status today                                                                                                        |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------- |
-| W1  | Timed + narration-synced replay: a teacher scrubs a timeline and watches the work appear as the student talks                               | RR-B2 sd-1    | Stands. Capture log costs more than priced (see C1)                                                                 |
-| W2  | One armed take, blank start; no sketch-then-explain, no "continue my draft"                                                                 | RR-B2 sd-2    | Stands                                                                                                              |
-| W3  | Undo, erase and redraw are events in the log and replay to the teacher                                                                      | RR-B2 sd-3    | Stands; the student notice must say so plainly                                                                      |
-| W4  | A silent take is complete; SpartBoard never inspects a recording to decide whether a student responded                                      | RR-B2 sd-4    | Stands                                                                                                              |
-| W5  | Drive archive = a per-response folder of three files: transcoded audio, final-state PNG, event-log JSON                                     | RR-B2 sd-5    | **Collides with shipped archive shape** (C3) — reopen                                                               |
-| W6  | Mic denied → the canvas arms alone and records a silent take                                                                                | RR-B2 sd-6    | Stands, but the provenance field it relied on was never built (C6)                                                  |
-| W7  | Tools: pen, eraser, colours, typed text, shapes. No image insertion, one page                                                               | RR-B2 sd-7    | Stands. Note the pixel eraser is a `color: 'eraser'` path and the lasso eraser is a `bulkRemove`; replay needs both |
-| W8  | 180 s default, 600 s maximum per take                                                                                                       | RR-B2 sd-8    | **At risk** (C7, C8) — audio's shipped ceiling is 300 s                                                             |
-| W9  | Takes inherit audio's semantics: `takeIndex`, `takeLimit` (default unlimited), discards never written, no pause, retake starts blank        | RR-B2 derived | Stands; shipped helpers are generic (`utils/answerTakeOrdering.ts`, `commitRecordingTake`)                          |
-| W10 | Fixed logical page 1600×1200 (4:3), absolute coordinates, identical on every device                                                         | RR-B4 sd-1/2  | Stands                                                                                                              |
-| W11 | Portrait is gated ("rotate your device"), not letterboxed; the gate is absolute and the empty slot records why                              | RR-B4 sd-3/4  | Stands; check against the new stimulus layout (C9)                                                                  |
-| W12 | Fixed 2× bitmap, 3200×2400, live and archived; no `devicePixelRatio` branching                                                              | RR-B4 sd-5    | Stands                                                                                                              |
-| W13 | The teacher Drawing widget moves to the same fixed page (read-time pure migration, `pageSpaceMigrated` flag, scalars scale by the same `k`) | RR-B4 sd-6    | Stands, scope grew (C10). Lands first, own PR, before/after screenshots                                             |
+## Decisions
 
-**Moot since August:** RR-B2's RR-05 rider (transcription on the take) — AI
-transcription is not planned (Paul, 2026-09-01). RR-B2's "ships ungated as
-audio-class" — every recording mode now sits behind the fail-closed
-`quiz-media-response` flag (C11).
+Numbered for citation. "Was" names the August decision a line replaces.
 
-## What changed since 2026-08-07 (audit 2026-10-13)
+### Authoring
+
+- **D1 — Third response choice.** The per-question control becomes Typed /
+  Spoken / Whiteboard, one choice per question (`ResponseFormatSection.tsx`).
+  The mode is stored explicitly on `RecordingConfig`; a block with no mode keeps
+  meaning audio, so every saved quiz is unchanged. No "student's choice" (C5).
+- **D2 — "Students explain out loud", on by default.** Off makes the question
+  draw-only: no mic permission prompt, no voice wording in the notice, still a
+  timed replay.
+- **D3 — 180 s default, 300 s maximum** — the same ceiling as audio, one limit
+  table. _Was 180 / 600 (RR-B2 sd-8)._
+- **D4 — Think time reuses audio's controls unchanged**: prep seconds and all
+  four expiry choices. During prep the student sees the starting page and the
+  stimulus but cannot draw.
+- **D5 — "Students review before submitting", on by default, on the shared
+  recording settings** — so spoken answers get it too; saved quizzes keep
+  review on. On: final picture + replay + audio, then Commit or Discard. Off: the
+  take commits the moment it ends (a one-shot performance).
+- **D6 — Starting page = one pattern plus an optional uploaded image.**
+  _Was "blank start" (RR-B2 sd-2)._
+  - Patterns, all drawn in code so they stay sharp at 3200×2400: blank, grid,
+    lines, dots (already in `backgroundTemplates.ts`); **coordinate plane**
+    (teacher sets axis ranges); **number line** (teacher sets range and step);
+    **one shape** — triangle, rectangle, circle or regular polygon — drawn large
+    and centred. No positioning UI for any of them.
+  - The image comes from file pick or clipboard paste and reuses the shipped
+    quiz-stimulus upload, storage and student-access gate — no new storage
+    rules. It is fitted whole and centred inside 1600×1200, never cropped.
+- **D7 — The starting page is a locked background.** Students draw over it and
+  cannot move, erase or delete it. Every take and retake starts from it; it is
+  present at t=0 of the replay; it is baked into the final picture. The drawing
+  log references it by id rather than copying it.
+- **D8 — Student tools unchanged from RR-B2 sd-7**: pen, eraser (pixel, stroke,
+  lasso), colours, typed text, shapes, undo/redo. Students cannot insert images;
+  one page.
+
+### Student experience
+
+- **D9 — Full-width canvas.** During a whiteboard question the canvas takes the
+  whole answer area and the stimulus opens as a drawer (C9).
+- **D10 — Portrait is gated, absolutely** (RR-B4 sd-3/4 stand): "rotate your
+  device"; an empty slot records `device-gated` (D17).
+- **D11 — One notice per assignment.** Narrated: the existing voice notice plus
+  "Your teacher can replay how you drew, including anything you erase."
+  Draw-only: that line alone.
+- **D12 — Erased work replays** (RR-B2 sd-3 stands). A silent take is complete
+  (sd-4 stands). Mic denied → the canvas arms alone (sd-6 stands).
+- **D13 — Takes inherit audio's semantics**: `takeIndex`, `takeLimit` (default
+  unlimited), discards never written, no pause, retake restarts from the
+  starting page.
+
+### Capture and safety
+
+- **D14 — The whiteboard keeps its own drawing log**, separate from the undo
+  stack (capped at 100 since #4142, C1). Every point carries a millisecond
+  offset so replay draws strokes as they were drawn. Points under ~1 px apart
+  are dropped at capture; if the log nears 4 MB the take ends exactly as at the
+  time limit.
+- **D15 — Speech bitrate 32 kbps** (300 s ≈ 1.2 MB), applied to spoken answers
+  too; the recorder sets none today, so Chrome's ~128 kbps default puts a 300 s
+  spoken take at the 5 MB cap.
+- **D16 — Cutoffs commit first.** If tab-away auto-submit or the quiz time
+  limit fires mid-take, the take stops and commits as captured, then the rule
+  runs. Clocks never pause. Applies to spoken answers too.
+- **D17 — Crash recovery.** Audio chunks and the drawing log stream to IndexedDB
+  as the take runs. On reopening the question the captured part goes to the
+  review screen (Commit or Discard), or — with review off (D5) — commits
+  automatically. The local copy is wiped on commit, discard, quiz submit, or
+  24 hours after capture. Spoken answers get it too. _Was "a lost take is lost"._
+- **D18 — Why a take is silent or a slot empty.** The take records its mic
+  state (`on` / `denied` / `unavailable`); `UnrespondedReason` gains
+  `device-gated` for the portrait gate. Audio's `capture-unavailable` keeps
+  working; spoken takes record mic state too (C6).
+
+### Storage and access
+
+- **D19 — Three artifacts per take, flat in Drive.** The take's answer entry
+  holds three artifacts — audio (absent when draw-only), final picture, drawing
+  log — each archived as its own file in `Quiz Responses/{quiz}/`, named
+  `Last_First__Q{n}_take{k}.m4a/.png/.json`. Adding the take number also fixes
+  spoken takes colliding by name. _Was a per-response folder (RR-B2 sd-5)._
+- **D20 — The final picture is rendered in the browser at commit**, 3200×2400
+  via `exportCanvas.ts` with the 2× scale, background baked in.
+- **D21 — The admin console treats a take as one row** and deletes all of its
+  files together, from Storage and Drive.
+- **D22 — Flag: `quiz-whiteboard-response`**, admin access, `stage: 'preview'`,
+  fail-closed, `requires: 'quiz-media-response'`. The server checks it for the
+  whiteboard kind. It opens after audio. Admin path: Admin Settings > Access >
+  Previews.
+
+### Grading and results
+
+- **D23 — One take, one score**: the three files are one gradable slot, with one
+  set of time-stamped comments on the replay timeline and one pinned take.
+- **D24 — The grader opens on the full-size final picture**; Play runs the timed
+  replay with audio on the shipped `WaveformScrubber` and its ms comment
+  markers. No thumbnail grid in v1.
+- **D25 — Both graders from day one**: `FreeResponseGrader` and the Classroom
+  add-on's `TeacherReviewRoute`, sharing one replay component.
+- **D26 — Students see their own picture, replay and comments** after results
+  are published, under the same gates as spoken answers.
+- **D27 — RR-B3 is dropped.** No grading-time prototype; the 300 s ceiling (D3)
+  is the mitigation.
+
+### Scope and order
+
+- **D28 — Spoken-answer fixes ship first**, each its own PR against audio before
+  any whiteboard code: D15 bitrate, D16 commit on cutoff, D17 crash recovery,
+  D19's take-numbered filenames, D18 mic state, D5 review setting.
+- **D29 — The teacher Drawing widget's page-space migration is decoupled.**
+  _Was "lands at the track's start" (RR-B4 sd-6)._ It is a separate fix with its
+  own PR and before/after screenshots, on its own schedule; the student canvas
+  is a new component with the fixed page from day one (C2), so it does not need
+  it. The annotation overlay is not touched; it already pins its own resolution.
+
+**Unchanged from August:** fixed 1600×1200 logical page (RR-B4 sd-1/2); fixed
+2× bitmap, no `devicePixelRatio` branching (sd-5). **Moot:** RR-B2's
+transcription rider (AI transcription is not planned, Paul 2026-09-01) and its
+"ships ungated" note (D22).
+
+## Audit findings (2026-10-13) — why the August plan changed
 
 Audited against current code by three read-only sweeps. Line numbers are as of
 this date.
@@ -71,7 +175,7 @@ this date.
   `ArtifactArchiveEntry` has one `driveFileId` (`types.ts:5444`). Drive layout
   is `Quiz Responses/{quizTitle}/{Last}_{First}__Q{n}.m4a`
   (`quizMediaArchive.ts:306-319`) with no take index in the name, and no
-  per-response folder. W5's three-file folder needs either three artifacts per
+  per-response folder. RR-B2 sd-5's three-file folder needs either three artifacts per
   take or a multi-file archive entry; the delete console
   (`deleteQuizMediaForOrgAdmin.ts`), the straggler sweep and the cleanup paths
   all assume one file per artifact.
@@ -91,7 +195,7 @@ this date.
 - **C6 — The provenance field RR-B2 and RR-B4 owed RR-02 was never built.**
   `UnrespondedReason` is `passed | expired | abandoned | capture-unavailable |
 paper-unclear`. A denied mic on audio writes `capture-unavailable`. Nothing
-  separates silent-by-choice, mic-denied (W6) and portrait-gated (W11).
+  separates silent-by-choice, mic-denied (RR-B2 sd-6) and portrait-gated (RR-B4 sd-4).
 - **C7 — Audio's shipped ceiling is 300 s, and the transit path caps at 5 MB.**
   `AUDIO_LIMIT_SECONDS_MAX = 300`; `storage.rules:292-297` allows only
   `audio/.*` under 5 MB; `getQuizArtifactPlaybackUrl` caps playback at 4 MB and
@@ -108,7 +212,7 @@ paper-unclear`. A denied mic on audio writes `capture-unavailable`. Nothing
   resizable left panel (44%, min 320 px) beside a `max-w-7xl` answer column
   (`QuizStudentApp.tsx:3484-3515`). On a 1366×768 Chromebook a 4:3 canvas beside
   a stimulus is height-bound and small. RR-B4 assumed the canvas had the screen.
-- **C10 — The page-space migration (W13) now has a wider blast radius.**
+- **C10 — The page-space migration (RR-B4 sd-6) now has a wider blast radius.**
   `useDrawingCanvas` is shared with `AnnotationOverlay` (and its pure hooks
   are imported there), and `migrateDrawingConfig` has four call sites, not
   three (`Widget.tsx:115`, `settings.schema.ts:23`, `DashboardContext.tsx:5545`,
@@ -134,74 +238,35 @@ paper-unclear`. A denied mic on audio writes `capture-unavailable`. Nothing
   off the student-readable response doc into `{quiz}_sessions/{id}/grades/`.
   Unbuilt. Whiteboard grading should target wherever that lands.
 - **C14 — RR-B3 was never run.** The 30-response stopwatch prototype is still
-  the only empirical check on W8's ceiling and on RR-06's question-major queue
+  the only empirical check on RR-B2 sd-8's ceiling and on RR-06's question-major queue
   (TODO.md:239).
 
-## Where the build plugs in (sketch, not decided)
+## Build order
 
-Not an ordering — that comes after the grilling. Listed so the questions below
-can be answered against real surfaces.
+1. **Spoken-answer fixes (D28)**, one PR each, behind `quiz-media-response`.
+2. **Data model**: `RecordingConfig` mode + mic toggle + review setting +
+   starting page; mic state on the take; `device-gated`; whiteboard ceiling in
+   `RECORDING_MODE_CEILING_SECONDS`; the `quiz-whiteboard-response` flag.
+3. **Authoring**: the third choice in `ResponseFormatSection.tsx`, the starting
+   page picker (patterns, coordinate plane, number line, shape, image upload).
+4. **Student capture**: a capture hook beside `hooks/useAudioRecording.ts` that
+   owns canvas, mic and one clock; `WhiteboardResponseCapture` beside
+   `AudioResponseCapture.tsx`, composed from DrawingWidget's pure parts; the
+   full-width layout and stimulus drawer; the portrait gate; the artifact build
+   at `QuizStudentApp.tsx:952-1000` (hardcodes `kind: 'audio'`) and the
+   `artifacts[0]` read at :3135.
+5. **Transit + archive**: `storage.rules` content types (PNG, JSON);
+   `utils/quizMediaUpload.ts` (three blobs per take); the whiteboard branch in
+   `quizMediaArchive.ts` (no transcode for PNG/JSON); sweep; delete console (D21).
+6. **Grading + results**: `slotNeedsManualGrading`, the shared replay view
+   driven by `currentMs` over `applyCommand`, both graders, the playback
+   callable, the student results card. Target wherever GRADEBOOK D37 puts
+   grades if it has landed (C13).
 
-- **Types:** `RecordingConfig.modes`; whiteboard ceiling in
-  `RECORDING_MODE_CEILING_SECONDS`; provenance beside `UnrespondedReason`;
-  archive entry shape (C3).
-- **Student:** a capture hook beside `hooks/useAudioRecording.ts` that owns the
-  canvas, the mic and one clock; a `WhiteboardResponseCapture` beside
-  `AudioResponseCapture.tsx` reusing its prep/armed/review phases and notice
-  gate; the artifact build at `QuizStudentApp.tsx:952-1000` (hardcodes
-  `kind: 'audio'`) and the `artifacts[0]` read at :3135.
-- **Transit + archive:** `storage.rules` content types; `utils/quizMediaUpload.ts`
-  (one blob per job, audio extension map); `quizMediaArchive.ts` kind branch,
-  transcode skip for PNG/JSON, file naming; sweep; delete console.
-- **Teacher:** `slotNeedsManualGrading`, a replay view driven by `currentMs`
-  over `applyCommand`, `FreeResponseGrader` + `TeacherReviewRoute`, playback
-  callable, student results card.
-- **Authoring:** `ResponseFormatSection.tsx` (Typed/Spoken → a third choice),
-  `config/quizRecordingDefaults.ts` clamp.
-- **Teacher widget:** W13 migration across the four `migrateDrawingConfig`
-  sites and `exportCanvas.ts` (`ctx.scale(2, 2)`).
-
-## Open questions (agenda for the grilling)
-
-1. **Is the product still the same?** Paper handwritten responses now cover
-   "show your work on paper" for typed-answer transcription. Is the whiteboard
-   still timed + narrated (W1), or is a silent draw-only first slice the right
-   start, with narration second?
-2. **RR-B3 first, or measure in production?** Run the stopwatch prototype before
-   building the grading surface (the wayfinder's position), or ship behind the
-   flag to Paul and time real responses?
-3. **Archive shape (C3).** Three artifacts per take, or one artifact with a
-   multi-file archive entry? Per-response Drive folder (W5) or flat files with a
-   take index in the name, matching audio?
-4. **Final-state PNG:** rendered client-side at commit (a third upload) or
-   server-side from the log (a headless renderer)? Left open by RR-B2.
-5. **Capture log budget (C1).** A size cap or delta encoding for `update` and
-   `clear` snapshots; what happens when a take hits it.
-6. **Mode set (C5).** Typed / Spoken / Whiteboard as one single choice per
-   question, or can a teacher allow more than one (RR-A3's "student's choice")?
-   Does whiteboard always arm the mic, or can a teacher author it silent?
-7. **Take length (C7, W8).** Keep 180 / 600 s, or align with audio's 300 s
-   ceiling? What the 5 MB transit cap means at that length.
-8. **Takes vs tab-away and the quiz clock (C8).** Does an armed take suspend
-   tab-away auto-submit and the quiz time limit, end the take cleanly, or
-   neither? And does a 10-minute take get any local safety net (e.g. IndexedDB)
-   against a tab crash, given RR-B2 accepted "lost is lost"?
-9. **Provenance (C6).** Add the field now, separating silent-by-choice,
-   mic-denied and portrait-gated — and retrofit audio's `capture-unavailable`?
-10. **Layout (C9, W11).** Canvas beside a stimulus on a 768 px-tall Chromebook,
-    or a full-width answer view with the stimulus collapsible? Is the portrait
-    gate still absolute?
-11. **Teacher widget migration (W13, C10).** Still in scope and still first?
-    Does it include the annotation overlay, which shares the canvas hook?
-12. **Flag (C11).** Its own fail-closed `quiz-whiteboard-response` flag with
-    `requires: 'quiz-media-response'`, or ride the audio flag? A silent take
-    doesn't need the mic at all.
-13. **Grading (C12, C13).** Open on the final-state PNG or on the replay? A
-    thumbnail grid for triage (4:3 makes it uniform)? Reuse `WaveformScrubber`
-    with markers; rubric panel as shipped; both graders.
+Separately, on its own schedule: the teacher widget migration (D29).
 
 ## Out of scope
 
-Image insertion, multi-page responses, a re-do workflow over earlier work, AI
-transcription or AI grading, video capture (its own deferred track), and server
-MP4 rendering (rejected on cost in RR-B2).
+Student image insertion, multi-page responses, continuing from an earlier take,
+a thumbnail grid in the grader, AI transcription or grading, video capture (its
+own deferred track), and server-side MP4 rendering (rejected on cost in RR-B2).
