@@ -1541,8 +1541,10 @@ export const LiveTourRunner: React.FC = () => {
   }));
   useEffect(() => {
     if (!healKey || !binding || healTried.current.has(stepIndex)) return;
-    healTried.current.add(stepIndex);
+    const tried = healTried.current;
+    tried.add(stepIndex);
     const ctrl = new AbortController();
+    let settled = false;
     void import('@/config/tourAnchorRoutes')
       .then(({ tourAnchorRoutes }) =>
         healAnchor(
@@ -1553,10 +1555,18 @@ export const LiveTourRunner: React.FC = () => {
         )
       )
       .then((ok) => {
+        settled = true;
         if (ok && !ctrl.signal.aborted) setAttempt((n) => n + 1);
       })
-      .catch((err: unknown) => console.warn('Live tour self-heal failed', err));
-    return () => ctrl.abort();
+      .catch((err: unknown) => {
+        settled = true;
+        console.warn('Live tour self-heal failed', err);
+      });
+    return () => {
+      ctrl.abort();
+      // A heal cut short by a re-render hasn't had its try yet.
+      if (!settled) tried.delete(stepIndex);
+    };
   }, [healKey, binding, stepIndex]);
 
   useEffect(() => {
