@@ -4,7 +4,7 @@
  * (docs/plans/shipped/SUB_SHARE_COLLECTIONS.md §3.7).
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
@@ -54,6 +54,13 @@ export function useSubShares(enabled: boolean): SubSharesApi {
   const [shares, setShares] = useState<SharedCollection[]>([]);
   const [busyShareId, setBusyShareId] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  // Shares with an action in flight, set synchronously so a double click is dropped.
+  const inFlight = useRef(new Set<string>());
+  const guarded = useCallback((shareId: string, run: () => Promise<void>) => {
+    if (inFlight.current.has(shareId)) return;
+    inFlight.current.add(shareId);
+    void run().finally(() => inFlight.current.delete(shareId));
+  }, []);
 
   useEffect(() => {
     if (!enabled) return;
@@ -119,7 +126,7 @@ export function useSubShares(enabled: boolean): SubSharesApi {
 
   const updateNow = useCallback(
     (share: SharedCollection) => {
-      void (async () => {
+      guarded(share.shareId, async () => {
         const sourceId = share.sourceId;
         const board =
           share.kind === 'board'
@@ -213,9 +220,10 @@ export function useSubShares(enabled: boolean): SubSharesApi {
         } finally {
           setBusyShareId(null);
         }
-      })();
+      });
     },
     [
+      guarded,
       dashboards,
       collectionsApi.collections,
       rosters,
@@ -230,7 +238,7 @@ export function useSubShares(enabled: boolean): SubSharesApi {
 
   const extend = useCallback(
     (share: SharedCollection) => {
-      void (async () => {
+      guarded(share.shareId, async () => {
         const cap = Date.now() + MAX_SUB_EXPIRATION_MS;
         const next = Math.min((share.expiresAt ?? Date.now()) + WEEK_MS, cap);
         // Under an hour of extra time is not worth a write the teacher would
@@ -266,14 +274,14 @@ export function useSubShares(enabled: boolean): SubSharesApi {
         } finally {
           setBusyShareId(null);
         }
-      })();
+      });
     },
-    [extendSubstituteCollectionShare, addToast, refresh, t]
+    [guarded, extendSubstituteCollectionShare, addToast, refresh, t]
   );
 
   const end = useCallback(
     (share: SharedCollection) => {
-      void (async () => {
+      guarded(share.shareId, async () => {
         const ok = await showConfirm(
           t('subShare.panel.endConfirm', {
             name: share.collection.name,
@@ -306,9 +314,9 @@ export function useSubShares(enabled: boolean): SubSharesApi {
         } finally {
           setBusyShareId(null);
         }
-      })();
+      });
     },
-    [endSubstituteCollectionShare, showConfirm, addToast, refresh, t]
+    [guarded, endSubstituteCollectionShare, showConfirm, addToast, refresh, t]
   );
 
   return {
