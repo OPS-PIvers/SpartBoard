@@ -131,7 +131,7 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
         <GuidedLearningPlayer
           set={state.set}
           teacherMode
-          playerV2={canAccessFeature('gl-player-v2')}
+          playerV2
         />
       </Suspense>
     </div>

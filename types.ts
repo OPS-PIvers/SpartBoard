@@ -8473,7 +8473,7 @@ export interface GuidedLearningSession
   welcomeImageAlt?: string;
   /** Mirrors `GuidedLearningSet.watchPace`. */
   watchPace?: GuidedLearningWatchPace;
-  /** Stamped when the creator could use `gl-player-v2`; students can't evaluate the flag. */
+  /** Set on every new session; unmarked sessions predate the new player and keep the old one. */
   playerV2?: boolean;
   /**
    * Mirror of {@link GuidedLearningAssignment.scoreVisibility} for the
@@ -9842,8 +9842,6 @@ export type GlobalFeature =
   | 'quiz-import-passages'
   /** Handing a board or a collection to a substitute, and managing live shares. */
   | 'sub-share-collections'
-  /** Guided Learning player v2: calm motion, learner speed, Watch/Try; stamped on sessions. */
-  | 'gl-player-v2'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */

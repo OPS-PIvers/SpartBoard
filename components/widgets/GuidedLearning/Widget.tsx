@@ -226,7 +226,6 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const { user, isAdmin, getAssignmentMode, canAccessFeature, appSettings } =
     useAuth();
   const gradebookOn = canAccessFeature('gradebook');
-  const playerV2 = canAccessFeature('gl-player-v2');
   const availabilityOn = canAccessFeature('assign-availability');
   const workKindSetting = canAccessFeature('study-resources')
     ? { default: resolveWorkKind('guided-learning', null) }
@@ -798,7 +797,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
             closeAt: periodGate ? undefined : targeting.closeAt,
             dueAt: targeting.dueAt,
           },
-          { playerV2, workKind: targeting.workKind },
+          { workKind: targeting.workKind },
           periodGate
         );
         const sessionId = url.split('/').pop() ?? '';
@@ -920,7 +919,6 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       rosters,
       assignPeriodCtx,
       createSession,
-      playerV2,
       createAssignment,
       addToast,
       config,
@@ -1719,9 +1717,8 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                       },
                     })
                   }
-                  teacherMode={!playerV2}
                   revealAnswers
-                  playerV2={playerV2}
+                  playerV2
                 />
               </Suspense>
             )}
