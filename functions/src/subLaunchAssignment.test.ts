@@ -8,12 +8,19 @@
 // `doc().get()` and `batch().set()/commit()` surface the handler uses.
 
 import { describe, it, expect, vi } from 'vitest';
+import * as admin from 'firebase-admin';
 
 vi.mock('firebase-admin', () => ({
   apps: [{ name: '[DEFAULT]' }],
   initializeApp: vi.fn(),
   firestore: vi.fn(),
+  auth: vi.fn(),
 }));
+
+const { isGlobalFeatureGranted } = vi.hoisted(() => ({
+  isGlobalFeatureGranted: vi.fn(() => Promise.resolve(true)),
+}));
+vi.mock('./quizMediaArchive', () => ({ isGlobalFeatureGranted }));
 
 vi.mock('firebase-functions/v2/https', () => ({
   onCall: (_opts: unknown, handler: unknown) => handler,
@@ -31,6 +38,7 @@ import {
   findAnswerField,
   glSessionPresentation,
   handleLaunchSubAssignment,
+  liveSubLaunchDeps,
   publicQuestionFromKey,
   publicQuestionsFromKey,
   allocateJoinCode,
@@ -358,17 +366,19 @@ const deps = {
   now: () => NOW,
   newId: () => 'new-session-id',
   newCode: () => 'AB12CD',
+  hostHasFeature: () => Promise.resolve(false),
 };
 
 const launch = (
   state: StubState = {},
   caller: SubLaunchCaller | null = SUB,
-  data: unknown = input()
+  data: unknown = input(),
+  runDeps: typeof deps = deps
 ) => {
   const { db, written } = stubDb(state);
   return {
     written,
-    run: () => handleLaunchSubAssignment(db, caller, data, deps),
+    run: () => handleLaunchSubAssignment(db, caller, data, runDeps),
   };
 };
 
@@ -627,6 +637,7 @@ describe('the payload allowlist', () => {
     'protection',
     'mediaResponseEnabled',
     'showLearningTargets',
+    'allowStimulusQuotes',
     'liveLeaderboard',
     'classPeriodByClassId',
   ];
@@ -964,6 +975,31 @@ describe('the content the session carries', () => {
 
     expect(written[0].data.mediaResponseEnabled).toBe(false);
     expect(written[0].data.showLearningTargets).toBe(false);
+  });
+
+  it('lets students quote from passages when the host has the flag', async () => {
+    const hostHasFeature = vi.fn(() => Promise.resolve(true));
+    const { run, written } = launch({}, SUB, input(), {
+      ...deps,
+      hostHasFeature,
+    });
+
+    await run();
+
+    expect(hostHasFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      HOST,
+      'quiz-stimulus-quotes'
+    );
+    expect(written[0].data.allowStimulusQuotes).toBe(true);
+  });
+
+  it('leaves passage quotes unstamped without the host’s flag', async () => {
+    const { run, written } = launch();
+
+    await run();
+
+    expect(written[0].data).not.toHaveProperty('allowStimulusQuotes');
   });
 
   it('refuses a key whose quiz has no questions', async () => {
@@ -1616,5 +1652,62 @@ describe('glSessionPresentation welcome', () => {
     });
     expect(out).not.toHaveProperty('welcomeEnabled');
     expect(out).not.toHaveProperty('welcomeImageUrl');
+  });
+});
+
+describe('liveSubLaunchDeps.hostHasFeature', () => {
+  const mockUser = (user: Record<string, unknown>) => {
+    isGlobalFeatureGranted.mockClear();
+    vi.mocked(admin.auth).mockReturnValue({
+      getUser: vi.fn().mockResolvedValue(user),
+    } as never);
+  };
+
+  it('SECURITY: never passes an unverified host email to isGlobalFeatureGranted', async () => {
+    mockUser({ email: 'admin@orono.k12.mn.us', emailVerified: false });
+
+    await liveSubLaunchDeps.hostHasFeature(
+      {} as never,
+      HOST,
+      'quiz-stimulus-quotes'
+    );
+
+    expect(isGlobalFeatureGranted).toHaveBeenCalledWith(
+      {},
+      'quiz-stimulus-quotes',
+      null,
+      HOST
+    );
+  });
+
+  it('passes a verified host email through', async () => {
+    mockUser({ email: 'teacher@orono.k12.mn.us', emailVerified: true });
+
+    await expect(
+      liveSubLaunchDeps.hostHasFeature(
+        {} as never,
+        HOST,
+        'quiz-stimulus-quotes'
+      )
+    ).resolves.toBe(true);
+    expect(isGlobalFeatureGranted).toHaveBeenCalledWith(
+      {},
+      'quiz-stimulus-quotes',
+      'teacher@orono.k12.mn.us',
+      HOST
+    );
+  });
+
+  it('treats a failed permission read as no flag', async () => {
+    mockUser({ email: 'teacher@orono.k12.mn.us', emailVerified: true });
+    isGlobalFeatureGranted.mockRejectedValueOnce(new Error('unavailable'));
+
+    await expect(
+      liveSubLaunchDeps.hostHasFeature(
+        {} as never,
+        HOST,
+        'quiz-stimulus-quotes'
+      )
+    ).resolves.toBe(false);
   });
 });
