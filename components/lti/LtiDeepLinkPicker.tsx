@@ -178,31 +178,6 @@ const VA_SESSION_SETTINGS: VideoActivitySessionSettings = {
   allowSkipping: false,
 };
 
-/**
- * Parse a `<input type="date">` value (`YYYY-MM-DD`) into the epoch ms for LOCAL
- * end-of-day (23:59:59 in the browser's timezone) on that date. Returns null for
- * an empty/malformed value. Local — not UTC — so the deadline lands on the
- * picked calendar day in the teacher's zone (Central for Orono).
- */
-function localEndOfDayMs(dateValue: string): number | null {
-  const parts = dateValue.split('-').map(Number);
-  if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return null;
-  const [year, month, day] = parts;
-  return new Date(year, month - 1, day, 23, 59, 59, 0).getTime();
-}
-
-/**
- * Format an epoch (ms) as a LOCAL-timezone `YYYY-MM-DD` for `<input type="date">`.
- * Uses local date components (not `toISOString`, which is UTC and would show the
- * next day for a local-end-of-day value in US timezones).
- */
-function toLocalDateInputValue(ms: number): string {
-  const d = new Date(ms);
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${d.getFullYear()}-${mm}-${dd}`;
-}
-
 /** True when we're rendered inside a frame (the Schoology iframe), not a tab. */
 function isFramed(): boolean {
   if (typeof window === 'undefined') return false;
@@ -318,7 +293,6 @@ const LtiDeepLinkFlow: React.FC = () => {
     useAuth();
   // D12: with the split on, settings come from the teacher's last-used, editable inline.
   const reviewSplit = canAccessFeature('quiz-review-split');
-  const availabilityOn = canAccessFeature('assign-availability');
   // D22: with the stepper on, the When and Quiz rule step bodies replace the inline settings.
   const stepperOn = canAccessFeature('assign-stepper');
   const lastUsedRules = reviewSplit || stepperOn;
@@ -390,25 +364,7 @@ const LtiDeepLinkFlow: React.FC = () => {
   const [teacherName, setTeacherName] = useState('');
   const [plcShareEnabled, setPlcShareEnabled] = useState(false);
   const [selectedPlcId, setSelectedPlcId] = useState('');
-  // Optional due date (epoch ms; null = none). Stored as LOCAL end-of-day
-  // (11:59:59 PM in the teacher's timezone) on the picked date, so the deadline
-  // lands on that calendar day for both the SpartBoard assignment AND the
-  // Schoology line item (`submission.endDateTime`) — for Orono (Central) that's
-  // 11:59 PM Central. Resolving the timezone in the browser (where the picker
-  // runs) avoids any backend TZ assumption and dodges the UTC-midnight footgun
-  // (which renders as the PRIOR evening in US timezones). The teacher enters it
-  // once and it drives both sides. (Diverges intentionally from the normal
-  // assign modal's UTC-midnight convention — local end-of-day is more correct.)
-  const dueDateId = useId();
-  const [dueAt, setDueAt] = useState<number | null>(null);
-  const dueDateInputValue = dueAt ? toLocalDateInputValue(dueAt) : '';
-  const handleDueDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setDueAt(localEndOfDayMs(e.target?.value ?? ''));
-  };
-
-  // M17 individual targeting + schedule window. Default 'class' mode renders
-  // only the collapsed Schedule + "+ Individual students" affordances, so the
-  // class-wide click-count is unchanged.
+  // M17 individual targeting + Availability & Due Date.
   const [assignTargeting, setAssignTargeting] = useState<AssignTargetingValue>(
     EMPTY_ASSIGN_TARGETING_VALUE
   );
@@ -578,14 +534,14 @@ const LtiDeepLinkFlow: React.FC = () => {
     return buildPlcLinkage(selectedPlc);
   }, [plcShareEnabled, selectedPlcId, plcs, user]);
 
-  // Availability on: the section's resolved window and due replace the standalone due field.
+  // The resolved window and due date drive both SpartBoard and the Schoology item.
   const resolveWindow = useCallback((): {
     targeting: AssignTargetingValue;
     dueAt: number | null;
   } => {
     // With Schedule off the When step sets no window, so the Schoology item has no due date.
-    if (stepperOn ? !assignWindowOn : !availabilityOn)
-      return { targeting: assignTargeting, dueAt };
+    if (stepperOn && !assignWindowOn)
+      return { targeting: assignTargeting, dueAt: null };
     const { targeting } = applyAvailability(
       stepperOn
         ? { ...assignTargeting, availability: assignWhen.availability }
@@ -598,12 +554,10 @@ const LtiDeepLinkFlow: React.FC = () => {
     );
     return { targeting, dueAt: targeting.dueAt ?? null };
   }, [
-    availabilityOn,
     stepperOn,
     assignWhen,
     assignWindowOn,
     assignTargeting,
-    dueAt,
     rosters,
     ltiSelectedRosterIds,
   ]);
@@ -1272,32 +1226,7 @@ const LtiDeepLinkFlow: React.FC = () => {
                 />
               </div>
 
-              {/* Due date — set once here, applied to BOTH the SpartBoard
-                  assignment and the Schoology gradebook item (submission end
-                  date). Optional; date-only, matching the normal assign flow. */}
-              {!availabilityOn && !stepperOn && (
-                <div>
-                  <label
-                    htmlFor={dueDateId}
-                    className="mb-1.5 block text-sm font-medium text-slate-700"
-                  >
-                    Due date{' '}
-                    <span className="font-normal text-slate-500">
-                      (optional)
-                    </span>
-                  </label>
-                  <input
-                    id={dueDateId}
-                    type="date"
-                    value={dueDateInputValue}
-                    onChange={handleDueDateChange}
-                    disabled={busy}
-                    className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light disabled:cursor-not-allowed disabled:opacity-50"
-                  />
-                </div>
-              )}
-
-              {/* Schedule (or Availability & Due Date when on) + individual-student targeting. */}
+              {/* Availability & Due Date + individual-student targeting. */}
               <div className="space-y-3 border-t border-slate-200 pt-4">
                 {stepperOn && (
                   <InlineAssignStepBodies
@@ -1320,7 +1249,6 @@ const LtiDeepLinkFlow: React.FC = () => {
                   allowModifications={ltiSelectedRosterIds.length > 0}
                   value={assignTargeting}
                   onChange={setAssignTargeting}
-                  availabilityEnabled={availabilityOn}
                   scheduleHidden={stepperOn}
                   kind={kind === 'quiz' ? 'quiz' : 'video-activity'}
                   {...(kind === 'quiz'

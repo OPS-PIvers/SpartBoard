@@ -227,7 +227,6 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     useAuth();
   const gradebookOn = canAccessFeature('gradebook');
   const playerV2 = canAccessFeature('gl-player-v2');
-  const availabilityOn = canAccessFeature('assign-availability');
   const workKindSetting = canAccessFeature('study-resources')
     ? { default: resolveWorkKind('guided-learning', null) }
     : undefined;
@@ -1019,7 +1018,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     const { set, source, originSetId } = assignTarget;
     setAssignTarget(null);
     const { targeting } = applyAvailability(targetingValue, {
-      enabled: availabilityOn,
+      enabled: true,
       rosters: rosters.filter((r) => validRosterIds.includes(r.id)),
       bellWindow: assignPeriodCtx?.bellWindow,
       workKind: workKindSetting,
@@ -1917,8 +1916,6 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                 value={targetingValue}
                 onChange={setTargetingValue}
                 kind="guided-learning"
-                showDueAt
-                availabilityEnabled={availabilityOn}
                 workKind={workKindSetting}
               />
             </div>

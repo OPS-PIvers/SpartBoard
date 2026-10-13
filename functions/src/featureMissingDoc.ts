@@ -58,7 +58,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'flashcard-smart-paste',
   'plc-meeting-recording',
   'plc-meeting-ai-notes',
-  'assign-availability',
   'study-resources',
   'sparty',
   'calendar-day-view',

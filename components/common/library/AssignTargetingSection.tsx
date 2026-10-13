@@ -6,11 +6,8 @@
  *
  * TWO INDEPENDENT AFFORDANCES (F1 fix — spec Decision 5 gives windows to
  * every assignment, class-wide included):
- *   1. "Schedule" — the `openAt`/`closeAt`/`dueAt` window pickers. Always
- *      rendered, collapsed by default, and NEVER touches `targetMode`.
- *      Collapsed with a window already set shows a compact one-line summary
- *      so the state is never invisible (e.g. "Opens Mon 8:00 AM – Closes Fri
- *      3:00 PM").
+ *   1. "Availability & Due Date" — `AssignAvailabilitySection`; it NEVER
+ *      touches `targetMode`, and the host saves it through `applyAvailability`.
  *   2. "Edit or add modifications" — per-student accommodations. Default state
  *      (`targetMode: 'class'`) renders NOTHING but one collapsed
  *      "+ Individual students & overrides" affordance — class-wide assign
@@ -40,24 +37,13 @@
  * rather than hand-rolling the diff — it is the one place that translates a
  * real clear into the CF's explicit `null` (F2 fix).
  *
- * Reference cloned: `CollapsibleSection` (collapsed affordance chrome, used
- * for the Schedule affordance only — it owns no competing toggle),
- * `AssignStudentPicker` (B1), `OverrideEditorRow` (B2, including its
- * datetime-local <-> epoch-ms helpers, mirrored here for the assignment-level
- * window since B2's helpers are private to that per-student component).
+ * Reference cloned: `AssignStudentPicker` (B1), `OverrideEditorRow` (B2).
  */
 
-import React, { useId, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import type { AssignTranslationContext } from './AssignStudentPicker';
 import { useTranslation } from 'react-i18next';
-import {
-  CalendarClock,
-  ChevronRight,
-  SlidersHorizontal,
-  Users,
-} from 'lucide-react';
-import { CollapsibleSection } from './CollapsibleSection';
-import { WindowField } from './AssignWindowField';
+import { ChevronRight, SlidersHorizontal, Users } from 'lucide-react';
 import { AssignAvailabilitySection } from './AssignAvailabilitySection';
 import {
   chosenWorkKind,
@@ -65,10 +51,7 @@ import {
   type WorkKindSetting,
 } from '@/utils/assignAvailability';
 import { scaledFont } from './assignWindowUtils';
-import {
-  AssignPeriodAccessSection,
-  type AssignPeriodAccessContext,
-} from './AssignPeriodAccessSection';
+import type { AssignPeriodAccessContext } from './AssignPeriodAccessSection';
 import { AssignStudentPicker } from './AssignStudentPicker';
 import {
   OverrideEditorRow,
@@ -111,8 +94,6 @@ export interface AssignTargetingSectionProps {
   value: AssignTargetingValue;
   onChange: (next: AssignTargetingValue) => void;
   kind: AssignTargetingKind;
-  /** Guided-learning/mini-app assignment-level due date; Quiz/VA keep their legacy due-date field and omit this. */
-  showDueAt?: boolean;
   /** Present only for quiz consumers — unlocks question subset / MC hider / rubric swap in B2 rows. */
   quizContext?: AssignTargetingQuizContext;
   /** Quiz only. Host passes `canAccessFeature('quiz-read-aloud')`. */
@@ -140,18 +121,10 @@ export interface AssignTargetingSectionProps {
   cqScaled?: boolean;
   /** Per-period start and windows; the section shows once two or more classes are checked. */
   periodAccess?: AssignPeriodAccessContext;
-  /** Host field rendered inside Schedule (Quiz's due date). */
-  scheduleExtra?: React.ReactNode;
-  /** Overrides the "Schedule" header. */
-  scheduleLabel?: string;
-  /** `assign-availability` on: Availability & Due Date replaces Schedule and the period mode; the host saves through `applyAvailability`. */
-  availabilityEnabled?: boolean;
   /** False hides "All classes / Each class" where only one window can be saved. */
   availabilityEachClass?: boolean;
   /** `study-resources` on: adds the Submissions Enabled / Study Resource choice to Availability, preset to the kind's default. */
   workKind?: WorkKindSetting;
-  /** Collapsed-state summary for `scheduleExtra`. */
-  scheduleExtraSummary?: string | null;
   /** The host renders its own When step, so Schedule and Availability are hidden. */
   scheduleHidden?: boolean;
 }
@@ -190,46 +163,12 @@ function buildStudentIndex(
   return index;
 }
 
-/** Compact one-liner used as the Schedule affordance's collapsed-state summary. */
-function formatScheduleSummary(
-  value: Pick<AssignTargetingValue, 'openAt' | 'closeAt'>,
-  t: (
-    key: string,
-    defaultValue: string,
-    opts?: Record<string, unknown>
-  ) => string
-): string | null {
-  if (value.openAt == null && value.closeAt == null) return null;
-  const fmt = (ms: number) =>
-    new Date(ms).toLocaleString(undefined, {
-      weekday: 'short',
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-  if (value.openAt != null && value.closeAt != null) {
-    return t(
-      'assignTargeting.scheduleSummaryBoth',
-      'Opens {{open}} – Closes {{close}}',
-      { open: fmt(value.openAt), close: fmt(value.closeAt) }
-    );
-  }
-  if (value.openAt != null) {
-    return t('assignTargeting.scheduleSummaryOpenOnly', 'Opens {{open}}', {
-      open: fmt(value.openAt),
-    });
-  }
-  return t('assignTargeting.scheduleSummaryCloseOnly', 'Closes {{close}}', {
-    close: fmt(value.closeAt as number),
-  });
-}
-
 export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   rosters,
   selectedRosterIds,
   value,
   onChange,
   kind,
-  showDueAt = false,
   quizContext,
   readAloudAvailable = false,
   onExpand,
@@ -238,10 +177,6 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   useRosterDefaults = true,
   cqScaled = false,
   periodAccess,
-  scheduleExtra,
-  scheduleExtraSummary,
-  scheduleLabel,
-  availabilityEnabled = false,
   availabilityEachClass = true,
   workKind: workKindSetting,
   scheduleHidden = false,
@@ -251,9 +186,6 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [showAll, setShowAll] = useState(false);
-  const openAtId = useId();
-  const closeAtId = useId();
-  const dueAtId = useId();
 
   const studentIndex = useMemo(() => buildStudentIndex(rosters), [rosters]);
 
@@ -327,70 +259,6 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
       periodPlan: value.periodPlan,
       availability: value.availability,
     });
-
-  const scheduleSummary = [
-    formatScheduleSummary(value, t),
-    scheduleExtraSummary,
-  ]
-    .filter(Boolean)
-    .join(' · ');
-
-  // Schedule — always rendered regardless of targetMode (spec Decision 5:
-  // windows apply to class-wide assignments too). A single `CollapsibleSection`
-  // toggle is safe here because Schedule owns no other competing control.
-  const scheduleSection = (
-    <CollapsibleSection
-      label={scheduleLabel ?? t('assignTargeting.scheduleLabel', 'Schedule')}
-      icon={CalendarClock}
-      summary={scheduleSummary || undefined}
-      anchor={tourAttr('assign-targeting.schedule')}
-    >
-      <div className="grid grid-cols-2 gap-2">
-        <WindowField
-          id={openAtId}
-          label={t('assignTargeting.opensAt', 'Opens')}
-          value={value.openAt}
-          onChange={(ms) => patch({ openAt: ms })}
-          cqScaled={cqScaled}
-          anchor={tourFieldAttr('assign-targeting.window', 'assign', 'opens')}
-        />
-        <WindowField
-          id={closeAtId}
-          label={t('assignTargeting.closesAt', 'Closes')}
-          value={value.closeAt}
-          onChange={(ms) => patch({ closeAt: ms })}
-          cqScaled={cqScaled}
-          anchor={tourFieldAttr('assign-targeting.window', 'assign', 'closes')}
-        />
-        {showDueAt && (
-          <WindowField
-            id={dueAtId}
-            className="col-span-2"
-            label={t('assignTargeting.dueAt', 'Due')}
-            value={value.dueAt}
-            onChange={(ms) => patch({ dueAt: ms })}
-            cqScaled={cqScaled}
-            anchor={tourFieldAttr('assign-targeting.window', 'assign', 'due')}
-          />
-        )}
-      </div>
-      {scheduleExtra}
-    </CollapsibleSection>
-  );
-
-  const periodRosters = periodAccess
-    ? rosters.filter((r) => effectiveRosterIds.includes(r.id))
-    : [];
-  const periodSection =
-    periodAccess && periodRosters.length > 1 ? (
-      <AssignPeriodAccessSection
-        rosters={periodRosters}
-        plan={value.periodPlan}
-        onChange={(periodPlan) => patch({ periodPlan })}
-        context={periodAccess}
-        sharedOpenAt={value.openAt}
-      />
-    ) : null;
 
   // Individual students & overrides — a single expand/collapse control (the
   // "+ Individual…" / "Assign to whole class" pair below), never wrapped in a
@@ -675,7 +543,7 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
 
   return (
     <div className="space-y-3">
-      {scheduleHidden ? null : availabilityEnabled ? (
+      {scheduleHidden ? null : (
         <AssignAvailabilitySection
           value={
             value.availability ??
@@ -696,11 +564,6 @@ export const AssignTargetingSection: React.FC<AssignTargetingSectionProps> = ({
               : undefined
           }
         />
-      ) : (
-        <>
-          {scheduleSection}
-          {periodSection}
-        </>
       )}
       {value.targetMode === 'students' &&
       (value.excludedStudents ?? []).length === 0

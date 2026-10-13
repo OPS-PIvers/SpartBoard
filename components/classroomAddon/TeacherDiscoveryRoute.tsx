@@ -191,13 +191,12 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     useAuth();
   // D12: with the split on, settings come from the teacher's last-used, editable inline.
   const reviewSplit = canAccessFeature('quiz-review-split');
-  const availabilityOn = canAccessFeature('assign-availability');
   // D22: with the stepper on, the When and Quiz rule step bodies replace the inline settings.
   const stepperOn = canAccessFeature('assign-stepper');
   const lastUsedRules = reviewSplit || stepperOn;
   const [assignWindowOn, setAssignWindowOn] = useState(false);
   // Classroom owns the due date: the When step sets a window only with Schedule on.
-  const windowOn = stepperOn ? assignWindowOn : availabilityOn;
+  const windowOn = !stepperOn || assignWindowOn;
   const { lastUsed: lastAssignSettings, save: saveLastAssignSettings } =
     useLastQuizAssignSettings(user?.uid, lastUsedRules);
   const [assignWhen, setAssignWhen] = useState<AssignWhenValue>(() =>
@@ -273,10 +272,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     setStatusMsg(line);
   }, []);
 
-  // M17 individual targeting + schedule window. Default 'class' mode renders
-  // only the collapsed Schedule + "+ Individual students" affordances, so the
-  // class-wide click-count is unchanged. `showDueAt` stays off: the due date
-  // belongs to Classroom's own composer (see the settings note above).
+  // M17 individual targeting + Availability & Due Date.
   const [assignTargeting, setAssignTargeting] = useState<AssignTargetingValue>(
     EMPTY_ASSIGN_TARGETING_VALUE
   );
@@ -312,7 +308,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     () => ({ rosters, selectedRosterIds: addonSelectedRosterIds }),
     [rosters, addonSelectedRosterIds]
   );
-  // Availability or the When step: the resolved window and due date; off leaves the Schedule value as is.
+  // The resolved window and due date; a When step with Schedule off leaves the value as is.
   const resolveWindow = useCallback(
     (): AssignTargetingValue =>
       windowOn
@@ -1313,7 +1309,6 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                   allowModifications={addonSelectedRosterIds.length > 0}
                   value={assignTargeting}
                   onChange={setAssignTargeting}
-                  availabilityEnabled={availabilityOn}
                   scheduleHidden={stepperOn}
                   kind={kind === 'quiz' ? 'quiz' : 'video-activity'}
                   {...(kind === 'quiz'

@@ -221,7 +221,7 @@ export function applyAvailability(
     workKind: workKindSetting,
     now = new Date(),
   }: {
-    /** The host's `assign-availability` flag; off leaves the value untouched. */
+    /** False leaves the value untouched, e.g. a view-only link. */
     enabled: boolean;
     /** The checked classes. */
     rosters: readonly PeriodRoster[];

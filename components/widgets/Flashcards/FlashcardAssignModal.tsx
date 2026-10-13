@@ -133,7 +133,6 @@ export const LegacyFlashcardAssignModal: React.FC<
     rosterIds: initialRosterIds,
   });
   const auth = useContext(AuthContext);
-  const availabilityOn = auth?.canAccessFeature('assign-availability') === true;
   const workKindSetting: WorkKindSetting | undefined =
     auth?.canAccessFeature('study-resources') === true
       ? form.collectSubmission
@@ -379,8 +378,6 @@ export const LegacyFlashcardAssignModal: React.FC<
         value={targetingValue}
         onChange={setTargetingValue}
         kind="flashcards"
-        showDueAt
-        availabilityEnabled={availabilityOn}
         workKind={workKindSetting}
       />
     </div>
@@ -408,7 +405,7 @@ export const LegacyFlashcardAssignModal: React.FC<
             rosters,
             rosterIds: pickerValue.rosterIds,
             targeting: applyAvailability(targetingValue, {
-              enabled: availabilityOn,
+              enabled: true,
               rosters: rosters.filter(
                 (r) => !r.loadError && pickerValue.rosterIds.includes(r.id)
               ),

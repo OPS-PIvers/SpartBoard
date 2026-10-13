@@ -276,17 +276,6 @@ describe('VideoActivityWidget onAssign — class-wide flow (§3a-G)', () => {
     expect(httpsCallable).not.toHaveBeenCalled();
   });
 
-  it('never calls setAssignmentTargetsV1 even when a due-date (Schedule window) is set', async () => {
-    const dialog = await openAssignModal();
-    fireEvent.change(within(dialog).getByTestId('va-assign-due-date'), {
-      target: { value: '2026-06-01' },
-    });
-    confirmAssign(dialog);
-
-    await waitFor(() => expect(createSession).toHaveBeenCalledOnce());
-    expect(httpsCallable).not.toHaveBeenCalled();
-  });
-
   it('writes the assignment doc without targetMode or targetStudents', async () => {
     const dialog = await openAssignModal();
     confirmAssign(dialog);
@@ -423,18 +412,18 @@ describe('VideoActivityWidget onAssign — per-period access', () => {
       accessMode: string;
       periodAccess: Record<string, { state: string; label: string }>;
     };
-    expect(periodGate.accessMode).toBe('assessment');
+    expect(periodGate.accessMode).toBe('assignment');
     expect(Object.keys(periodGate.periodAccess).sort()).toEqual([
       'cl-3',
       'roster:r1',
     ]);
     expect(periodGate.periodAccess['cl-3']).toMatchObject({
-      state: 'closed',
+      state: 'open',
       label: 'Period 3',
     });
     await waitFor(() => expect(mockSetDoc).toHaveBeenCalled());
     expect(mockSetDoc.mock.calls[0][1]).toMatchObject({
-      accessMode: 'assessment',
+      accessMode: 'assignment',
       periodAccess: periodGate.periodAccess,
     });
   });

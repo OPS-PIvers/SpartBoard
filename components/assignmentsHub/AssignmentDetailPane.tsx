@@ -161,13 +161,10 @@ export const AssignmentDetailPane: React.FC<{
   // Edit-in-place (M17 §5 D3). "Adjusting state while rendering" (CLAUDE.md)
   // resets the draft + closes the editor whenever the selected assignment
   // changes, instead of an effect that would cause a redundant extra render.
-  const availabilityOn = canAccessFeature('assign-availability');
-  const toDraft = (r: UnifiedAssignmentRow): AssignTargetingValue => {
-    const value = assignmentRowToTargetingValue(r);
-    return availabilityOn
-      ? { ...value, availability: availabilityFromStored(r, []) }
-      : value;
-  };
+  const toDraft = (r: UnifiedAssignmentRow): AssignTargetingValue => ({
+    ...assignmentRowToTargetingValue(r),
+    availability: availabilityFromStored(r, []),
+  });
   const [prevRowId, setPrevRowId] = useState(row.id);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<AssignTargetingValue>(() => toDraft(row));
@@ -185,9 +182,7 @@ export const AssignmentDetailPane: React.FC<{
     setSaving(true);
     setSaveError(null);
     try {
-      const next = availabilityOn
-        ? applyWindowEdit(draft, row, row.kind === 'quiz')
-        : draft;
+      const next = applyWindowEdit(draft, row, row.kind === 'quiz');
       const result = await saveEdit(row, user.uid, next, classContext);
       if (result.skipped.length > 0) {
         const base = t('assignmentsHub.detail.editSkipped', {
@@ -656,8 +651,6 @@ export const AssignmentDetailPane: React.FC<{
               value={draft}
               onChange={setDraft}
               kind={row.kind}
-              showDueAt={row.kind === 'quiz'}
-              availabilityEnabled={availabilityOn}
               availabilityEachClass={false}
               readAloudAvailable={readAloudAvailable}
             />

@@ -58,7 +58,6 @@ export const SURFACES: TourSurfaceMap = {
       'components/common/library/AssignTargetingSection.tsx',
       'components/common/library/AssignAvailabilitySection.tsx',
       'components/common/library/AssignPeriodAccessSection.tsx',
-      'components/common/library/PerClassDueDates.tsx',
       'components/common/library/PeriodSelector.tsx',
     ],
     inner: {
@@ -151,8 +150,6 @@ export const SURFACES: TourSurfaceMap = {
       'video-activity.preview-open-editor':
         'library-shell.card-open:video-activity#row-1',
       'video-activity.assign-pacing':
-        'library-shell.card-primary-action:video-activity#row-1',
-      'video-activity.assign-due-date':
         'library-shell.card-primary-action:video-activity#row-1',
       'video-activity.behavior-open-editor':
         'library-shell.card-primary-action:video-activity#row-1',
