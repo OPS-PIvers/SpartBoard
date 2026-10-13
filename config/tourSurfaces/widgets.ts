@@ -204,6 +204,15 @@ export const SURFACES: TourSurfaceMap = {
     widgetType: 'instructionalRoutines',
     needs: ['widget-on-stage'],
   },
+  // Opened from the routine library in Admin Settings.
+  'widgets.instructional-routines.template-editor': {
+    label: 'Instructional routine template editor',
+    kind: 'panel',
+    files: ['components/widgets/InstructionalRoutines/LibraryManager.tsx'],
+    opensWith: 'admin.routines.new-routine',
+    parent: 'admin.widgets.config.instructionalRoutines',
+    needs: ['admin'],
+  },
   'widgets.instructional-routines.settings': {
     label: 'Instructional Routines settings',
     kind: 'settings-drawer',
@@ -638,12 +647,22 @@ export const SURFACES: TourSurfaceMap = {
     widgetType: 'work-symbols',
     needs: ['widget-on-stage'],
   },
+  'widgets.routine-guide.face': {
+    label: 'Routine Guide widget',
+    kind: 'widget',
+    files: ['components/widgets/RoutineGuide/'],
+    widgetType: 'routineGuide',
+    needs: ['widget-on-stage'],
+  },
   'widgets.random.face': {
     label: 'Random widget',
     kind: 'widget',
     files: ['components/widgets/random/'],
     widgetType: 'random',
     needs: ['widget-on-stage'],
+    inner: {
+      'random.mark-absent': 'random.class-context',
+    },
   },
   'widgets.random.settings': {
     label: 'Random settings',
@@ -808,8 +827,7 @@ export const SURFACES: TourSurfaceMap = {
     label: 'Smart Notebook link target picker',
     kind: 'modal',
     files: ['components/widgets/SmartNotebook/components/LinkTargetPicker.tsx'],
-    openerMissing:
-      'Link (chain) badge drawn on a selected object in the notebook page editor (components/widgets/SmartNotebook/components/PageEditor.tsx, onRequestLink)',
+    opensWith: 'smart-notebook.object-link:smartNotebook',
     parent: 'widgets.smart-notebook.editor',
     widgetType: 'smartNotebook',
   },

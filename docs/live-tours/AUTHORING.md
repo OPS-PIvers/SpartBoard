@@ -102,7 +102,7 @@ After saving, tell the admin in a few lines:
 - what the tour covers and how many steps it has
 - where to find it (the save result says)
 - the warnings you left in, and why
-- any controls queued for an anchor
+- any controls queued for an anchor: the save's `needs_anchors` lists those steps, and the tour waits for them before it's published
 
 Then they run it with **Run live on my board (draft)** and publish it in the Studio.
 

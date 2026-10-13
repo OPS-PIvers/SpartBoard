@@ -92,6 +92,22 @@ describe('unanchored control warning', () => {
     ]);
   });
 
+  it('flags new fields too, and skips a hidden input or a control marked no-tour-anchor', () => {
+    const text = [
+      '<input value={a} />',
+      '<input type="hidden" name="x" />',
+      '<textarea {...tourAttr("x")} />',
+      '{/* no-tour-anchor: drag handle */}',
+      '<button onClick={go}>Go</button>',
+      '<textarea /> {/* no-tour-anchor: scratch */}',
+      '<textarea />',
+    ].join('\n');
+    expect(unanchoredControls(text, new Set([1, 2, 3, 4, 5, 6, 7]))).toEqual([
+      { line: 1, tag: 'input' },
+      { line: 7, tag: 'textarea' },
+    ]);
+  });
+
   it('skips student apps, dev harnesses and tests', () => {
     expect(scansFile('components/quiz/QuizEditor.tsx')).toBe(true);
     expect(scansFile('App.tsx')).toBe(true);
