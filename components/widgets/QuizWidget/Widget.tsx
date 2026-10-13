@@ -226,6 +226,7 @@ const VIEW_ONLY_SESSION_OPTIONS: Required<
   tabAwayAutoSubmit: false,
   readAloudAll: false,
   blockCopyPaste: false,
+  allowStimulusQuotes: false,
   showResultToStudent: false,
   showCorrectAnswerToStudent: false,
   showCorrectOnBoard: false,
