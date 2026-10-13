@@ -1055,6 +1055,8 @@ export interface PlcActionItem {
   createdBy: string;
   createdAt: number;
   doneAt?: number | null;
+  /** When Remove completed moved this done item into Recently completed. */
+  clearedAt?: number | null;
 }
 
 /**

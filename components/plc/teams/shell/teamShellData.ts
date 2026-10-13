@@ -1,5 +1,6 @@
 // Pure selectors for the team header: avatars, member rows and the live meeting banner line.
 
+import { personName } from '@/utils/personName';
 import type { TFunction } from 'i18next';
 import type { PlcMeeting, PlcMember, PlcNote, PlcRole } from '@/types';
 import type { PlcPresenceEntry } from '@/context/usePlcContext';
@@ -14,7 +15,7 @@ const ROLE_ORDER: Record<PlcRole, number> = {
 };
 
 export function memberName(m: PlcMember): string {
-  return m.displayName?.trim() || m.email || m.uid;
+  return personName(m) || m.uid;
 }
 
 export function roleLabel(t: TFunction, role: PlcRole): string {

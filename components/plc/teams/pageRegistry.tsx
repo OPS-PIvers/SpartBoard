@@ -6,7 +6,7 @@ import {
   FileText,
   LayoutDashboard,
   Megaphone,
-  Sparkles,
+  Library,
   Users2,
 } from 'lucide-react';
 import { TeamLandingPage } from './landing/TeamLandingPage';
@@ -39,7 +39,7 @@ export const TEAM_PAGE_REGISTRY: TeamPageRegistry = {
   programHub: { icon: LayoutDashboard, Component: ProgramHubPage },
   assessments: { icon: ClipboardList, Component: TeamAssessmentsPage },
   docs: { icon: FileText, Component: TeamNotesDocsPage, fullBleed: true },
-  resources: { icon: Sparkles, Component: TeamResourcesPage },
+  resources: { icon: Library, Component: TeamResourcesPage },
   updates: { icon: Megaphone, Component: UpdatesPage },
   workspace: { icon: Users2, Component: WorkspacePage },
 };

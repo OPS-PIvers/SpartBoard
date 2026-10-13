@@ -69,6 +69,8 @@ export interface NoteEditorPaneProps {
   canEdit: boolean;
   collab: boolean;
   richEditor: boolean;
+  /** Title, Heading and Normal sizes in the formatting toolbar. */
+  textStyles?: boolean;
   members: PlcMember[];
   template: MeetingNoteTemplateSection[];
   assessments: PlcCommonAssessment[];
@@ -341,6 +343,7 @@ export const NoteEditorPane: React.FC<NoteEditorPaneProps> = ({
   canEdit,
   collab,
   richEditor,
+  textStyles = false,
   members,
   template,
   assessments,
@@ -549,6 +552,7 @@ export const NoteEditorPane: React.FC<NoteEditorPaneProps> = ({
             }
             readOnly={false}
             showToolbar={focused === index}
+            textStyles={textStyles}
             bodyAnchor={tourFieldAttr(
               'teams.notes.section-body',
               'teams-notes',

@@ -168,6 +168,7 @@ const ACTION_ITEM_FIELDS = [
   'createdBy',
   'createdAt',
   'doneAt',
+  'clearedAt',
 ] as const;
 
 function actionItemToMap(item: PlcActionItem): Y.Map<unknown> {
@@ -212,6 +213,8 @@ function mapToActionItem(map: Y.Map<unknown>): PlcActionItem {
     item.assigneeUid = readNullableString(map, 'assigneeUid');
   if (map.has('dueAt')) item.dueAt = readNullableNumber(map, 'dueAt');
   if (map.has('doneAt')) item.doneAt = readNullableNumber(map, 'doneAt');
+  if (map.has('clearedAt'))
+    item.clearedAt = readNullableNumber(map, 'clearedAt');
   return item;
 }
 

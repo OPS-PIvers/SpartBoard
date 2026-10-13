@@ -6,7 +6,7 @@ import {
   FileText,
   SquareSquare,
   Users2,
-  Sparkles,
+  Library,
   Presentation,
   Target,
   Settings as SettingsIcon,
@@ -190,7 +190,7 @@ export const PLC_SECTIONS: readonly PlcSectionDef[] = [
   },
   {
     id: 'resources',
-    icon: Sparkles,
+    icon: Library,
     labelKey: 'plcDashboard.tabs.resources',
     labelDefault: 'Resources',
   },

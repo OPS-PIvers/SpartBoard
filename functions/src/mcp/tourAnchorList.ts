@@ -697,6 +697,18 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     panel: true,
   },
   {
+    id: 'plc-notes.remove-completed',
+    label: 'Remove completed button in PLC note action items',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'plc-notes.recently-completed',
+    label: 'Recently completed toggle in PLC note action items',
+    scope: 'board',
+    panel: true,
+  },
+  {
     id: 'plc-notes.show-actions',
     label: 'Show action items button in PLC notes',
     scope: 'board',
@@ -6058,6 +6070,16 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     scope: 'field',
   },
   {
+    id: 'plc-notes.text-style',
+    label: 'Text size menu in the PLC notes formatting toolbar',
+    scope: 'board',
+  },
+  {
+    id: 'plc-notes.text-style-option',
+    label: 'Text size option in the PLC notes formatting toolbar',
+    scope: 'field',
+  },
+  {
     id: 'plc-banks.share',
     label: 'Share button in the PLC question banks tab',
     scope: 'board',
@@ -6249,6 +6271,18 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
   {
     id: 'plc-goals.save',
     label: 'Save button in the PLC goal editor',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'plc-goals.kind',
+    label: 'SMART or custom goal switch in the PLC goal editor',
+    scope: 'board',
+    panel: true,
+  },
+  {
+    id: 'plc-goals.plain-text',
+    label: 'Custom goal text field in the PLC goal editor',
     scope: 'board',
     panel: true,
   },
@@ -7286,6 +7320,16 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
   {
     id: 'teams.admin-defaults.section-kind',
     label: 'Block type select in the team type defaults template',
+    scope: 'field',
+  },
+  {
+    id: 'teams.building.add-goal',
+    label: 'Add goal button in the Building Hub goals',
+    scope: 'board',
+  },
+  {
+    id: 'teams.building.edit-goal',
+    label: 'Edit goal button in the Building Hub goals',
     scope: 'field',
   },
   {

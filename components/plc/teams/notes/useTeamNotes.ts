@@ -182,7 +182,9 @@ export function useTeamMyItems(plc: Pick<Plc, 'id'>): TeamMyItems {
       const flip = (list: PlcActionItem[] | undefined) =>
         (list ?? []).map((i) =>
           i.id === view.item.id
-            ? { ...i, done, doneAt: done ? Date.now() : null }
+            ? done
+              ? { ...i, done, doneAt: Date.now() }
+              : { ...i, done, doneAt: null, clearedAt: null }
             : i
         );
       try {

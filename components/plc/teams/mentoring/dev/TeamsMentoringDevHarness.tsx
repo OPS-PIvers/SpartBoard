@@ -1,7 +1,7 @@
 // Mentoring screens built from the production views on fixtures, at /teams-mentoring-dev (auth-bypass builds only).
 
 import React, { useState } from 'react';
-import { LayoutDashboard, Megaphone, Sparkles, Users2 } from 'lucide-react';
+import { LayoutDashboard, Megaphone, Library, Users2 } from 'lucide-react';
 import {
   TeamShell,
   type ShellPage,
@@ -48,7 +48,7 @@ const pages = (lead: boolean): ShellPage[] => [
   { id: 'hub', label: 'Program Hub', icon: LayoutDashboard },
   { id: 'workspace', label: lead ? 'Workspaces' : 'Workspace', icon: Users2 },
   { id: 'updates', label: 'Updates', icon: Megaphone },
-  { id: 'resources', label: 'Resources', icon: Sparkles },
+  { id: 'resources', label: 'Resources', icon: Library },
 ];
 
 /** Stand-in for slice B4's latestUpdates card. */

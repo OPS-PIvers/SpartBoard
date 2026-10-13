@@ -1,5 +1,6 @@
 // Note action items as hairline rows: complete circle, text, then assignee and due date (TEAMS_REDESIGN T14).
 
+import { personName } from '@/utils/personName';
 import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { CheckCircle2, Circle, Trash2 } from 'lucide-react';
@@ -68,7 +69,9 @@ export const TeamActionItemList: React.FC<{
   const [draft, setDraft] = useState('');
   const editable = canEdit && !!onChange;
   const nameFor = (uid: string | null | undefined) =>
-    (uid ? members.find((m) => m.uid === uid)?.displayName : undefined) ?? null;
+    (uid
+      ? personName(members.find((m) => m.uid === uid) ?? {}) || undefined
+      : undefined) ?? null;
   const update = (id: string, patch: Partial<PlcActionItem>) =>
     onChange?.(items.map((i) => (i.id === id ? { ...i, ...patch } : i)));
   const add = () => {
@@ -164,7 +167,7 @@ export const TeamActionItemList: React.FC<{
                     <option value="">{unassigned}</option>
                     {members.map((m) => (
                       <option key={m.uid} value={m.uid}>
-                        {m.displayName}
+                        {personName(m)}
                       </option>
                     ))}
                   </select>

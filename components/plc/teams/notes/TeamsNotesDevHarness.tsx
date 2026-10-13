@@ -9,11 +9,12 @@ import {
   LayoutDashboard,
   Library,
   Mic,
-  Sparkles,
   SquareSquare,
   BarChart3,
 } from 'lucide-react';
-import type { PlcActionItem } from '@/types';
+import type { PlcActionItem, PlcMember } from '@/types';
+import { NoteActionItems } from '@/components/plc/notes/NoteActionItems';
+import { PlcNoteRichEditor } from '@/components/plc/bodies/PlcNoteRichEditor';
 import { Button } from '@/components/common/Button';
 import {
   TeamShell,
@@ -38,12 +39,12 @@ const PLC_PAGES: ShellPage[] = [
   { id: 'data', label: 'Data overview', icon: BarChart3 },
   { id: 'assessments', label: 'Assessments', icon: ClipboardList },
   { id: 'docs', label: 'Notes & Docs', icon: FileText },
-  { id: 'resources', label: 'Resources', icon: Sparkles },
+  { id: 'resources', label: 'Resources', icon: Library },
 ];
 const DEPT_PAGES: ShellPage[] = [
   { id: 'hub', label: 'Hub', icon: LayoutDashboard },
   { id: 'docs', label: 'Notes & Docs', icon: FileText },
-  { id: 'resources', label: 'Resources', icon: Sparkles },
+  { id: 'resources', label: 'Resources', icon: Library },
 ];
 
 const at = (month: number, day: number, hour = 15): number =>
@@ -413,10 +414,101 @@ const DeptScreen: React.FC<{ lead: boolean }> = ({ lead }) => {
   );
 };
 
+const PANEL_MEMBERS: PlcMember[] = [
+  ['me', 'paul.ivers'],
+  ['bn', 'bailey.nett'],
+  ['sb', 'Sam Burns'],
+].map(([uid, displayName]) => ({
+  uid,
+  displayName,
+  email: `${displayName.toLowerCase().replace(' ', '.')}@orono.k12.mn.us`,
+  role: 'member',
+  joinedAt: 0,
+  status: 'active',
+}));
+
+const panelItem = (
+  id: string,
+  text: string,
+  done: boolean,
+  assigneeUid: string | null,
+  extra: Partial<PlcActionItem> = {}
+): PlcActionItem => ({
+  id,
+  text,
+  done,
+  assigneeUid,
+  dueAt: done ? new Date(2026, 8, 23).getTime() : null,
+  createdBy: 'me',
+  createdAt: 0,
+  doneAt: done ? 1 : null,
+  ...extra,
+});
+
+const PANEL_ITEMS: PlcActionItem[] = [
+  panelItem('a1', 'Rosters', true, 'me'),
+  panelItem('a2', 'Smart Paste', true, 'me'),
+  panelItem('a3', 'Lunch count (SE and IS)', false, 'bn'),
+  panelItem('a4', 'Daily Schedule (IS and SE)', false, 'bn'),
+  panelItem('a5', 'My PLC page', false, 'me'),
+  panelItem('a6', 'Sharing board (including subs)', false, null),
+  panelItem('a7', 'Annotation tools', false, null),
+  panelItem('a8', 'Timer integrations', false, 'sb'),
+  panelItem('a9', 'Group Maker', true, 'me', { clearedAt: Date.now() }),
+  panelItem('a10', 'Quiz', true, 'me', { clearedAt: Date.now() }),
+];
+
+const PANEL_BODY = `# Tech Tips Planning
+
+## Schedule
+
+Once a week on Wednesdays
+
+Use tech communication tool to send
+
+Use guided learning to create`;
+
+const PanelScreen: React.FC<{ before: boolean }> = ({ before }) => {
+  const [body, setBody] = useState(PANEL_BODY);
+  const [items, setItems] = useState(PANEL_ITEMS);
+  return (
+    <div className="grid h-full min-h-[40rem] grid-cols-[minmax(0,1fr)_28rem] divide-x divide-slate-200">
+      <PlcNoteRichEditor
+        value={body}
+        onChange={setBody}
+        readOnly={false}
+        showToolbar
+        textStyles={!before}
+      />
+      <div className="flex min-h-0 flex-col">
+        <p className="px-4 pt-3 text-xxs font-bold uppercase tracking-widest text-slate-500">
+          Open action items ({items.filter((i) => !i.done).length})
+        </p>
+        <NoteActionItems
+          items={before ? items.map((i) => ({ ...i, clearedAt: null })) : items}
+          members={PANEL_MEMBERS}
+          canEdit
+          currentUid="me"
+          panel
+          teamsLayout={!before}
+          onChange={setItems}
+        />
+      </div>
+    </div>
+  );
+};
+
 function readParams() {
   const params = new URLSearchParams(window.location.search);
+  const screenParam = params.get('screen');
   return {
-    screen: params.get('screen') === 'dept' ? 'dept' : 'note',
+    before: params.get('before') === '1',
+    screen:
+      screenParam === 'dept'
+        ? 'dept'
+        : screenParam === 'panel'
+          ? 'panel'
+          : 'note',
     lead: params.get('role') !== 'member',
     capture: params.get('capture') === '1',
   } as const;
@@ -424,7 +516,9 @@ function readParams() {
 
 export const TeamsNotesDevHarness: React.FC = () => {
   const [initial] = useState(readParams);
-  const [screen, setScreen] = useState<'note' | 'dept'>(initial.screen);
+  const [screen, setScreen] = useState<'note' | 'dept' | 'panel'>(
+    initial.screen
+  );
   const [lead, setLead] = useState(initial.lead);
   return (
     <div
@@ -439,12 +533,19 @@ export const TeamsNotesDevHarness: React.FC = () => {
           <select
             value={screen}
             onChange={(e) =>
-              setScreen(e.target.value === 'dept' ? 'dept' : 'note')
+              setScreen(
+                e.target.value === 'dept'
+                  ? 'dept'
+                  : e.target.value === 'panel'
+                    ? 'panel'
+                    : 'note'
+              )
             }
             className="rounded border border-slate-300 bg-white px-2 py-1"
           >
             <option value="note">8. PLC meeting note</option>
             <option value="dept">4. Department Hub</option>
+            <option value="panel">Note side panel</option>
           </select>
         </label>
         <label className="flex items-center gap-2">
@@ -462,7 +563,19 @@ export const TeamsNotesDevHarness: React.FC = () => {
       <div
         className={initial.capture ? 'flex flex-1 flex-col' : 'min-h-0 flex-1'}
       >
-        {screen === 'note' ? (
+        {screen === 'panel' ? (
+          <TeamShell
+            team={PLC_TEAM}
+            pages={PLC_PAGES}
+            activePage="docs"
+            overlay={null}
+            onOverlay={() => undefined}
+            isLead={lead}
+            fullBleed
+          >
+            <PanelScreen before={initial.before} />
+          </TeamShell>
+        ) : screen === 'note' ? (
           <TeamShell
             team={PLC_TEAM}
             pages={PLC_PAGES}
