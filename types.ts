@@ -9846,6 +9846,7 @@ export type GlobalFeature =
   | 'gl-live-tours'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
+  | 'live-tour-self-heal'
   /** Guided Learning Studio editor in place of the classic editor. */
   | 'gl-studio'
   /** Per-period start/pause and windows on assignments shared by several classes. */

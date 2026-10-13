@@ -605,6 +605,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Live tours reopen a closed panel and arrange their own widgets (LIVE_TOUR_ONE_SHOT.md D18).
+  'live-tour-self-heal': {
+    label: 'Live tour self-heal',
+    icon: Footprints,
+    description:
+      'Tours reopen a panel that closed mid-step and lay out their own widgets.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Guided Learning Studio editor. Admin-only until Paul has built sets with it in prod.
   'gl-studio': {
     label: 'Guided Learning Studio editor',
