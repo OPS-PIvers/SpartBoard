@@ -100,6 +100,8 @@ export function setFromConnectorView(
   };
 }
 
+export const TEST_RUN_PROJECT = 'dummy';
+
 /** Hands the runner this set instead of a Firestore read; one launch only. */
 export function takeTestTour(setId: string): GuidedLearningSet | null {
   if (!pending || pending.id !== setId) return null;
@@ -151,9 +153,19 @@ declare global {
 /** Exposes the run to scripts/run-live-tour.mjs; dev builds only. */
 export function installTestRunHook(): void {
   if (!import.meta.env.DEV || window.__liveTourRun) return;
+  const project = () => String(import.meta.env.VITE_FIREBASE_PROJECT_ID ?? '');
   window.__liveTourRun = {
-    start: startTestTour,
+    // A run clicks destructive controls and adds a class, so it never runs against a real project.
+    start: (view) => {
+      if (project() !== TEST_RUN_PROJECT)
+        throw new Error(
+          `Live tour browser runs need the ${TEST_RUN_PROJECT} Firebase project (vite-verify).`
+        );
+      startTestTour(view);
+    },
     state: () => run,
-    project: String(import.meta.env.VITE_FIREBASE_PROJECT_ID ?? ''),
+    get project() {
+      return project();
+    },
   };
 }

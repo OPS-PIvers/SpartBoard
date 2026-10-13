@@ -3284,7 +3284,21 @@ describe('LiveTourRunner with Sparty', () => {
 });
 
 describe('LiveTourRunner DEV browser run', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('refuses to start on a real Firebase project', () => {
+    vi.stubEnv('VITE_FIREBASE_PROJECT_ID', 'spartboard-dev');
+    render(<LiveTourRunner />);
+    expect(() =>
+      window.__liveTourRun?.start({ set_id: 'run-0', steps: [] })
+    ).toThrow(/dummy/);
+    expect(window.__liveTourRun?.state()).not.toMatchObject({
+      setId: 'run-0',
+    });
+  });
+
   it('performs every step it can, records each one and moves past a missing control', async () => {
+    vi.stubEnv('VITE_FIREBASE_PROJECT_ID', 'dummy');
     h.board.widgets = [{ id: 'mine', type: 'dice' }];
     const closed: string[] = [];
     render(
