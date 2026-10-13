@@ -9943,8 +9943,6 @@ export type GlobalFeature =
   | 'study-resources'
   /** Sparty the mascot in tours, first-time setup and the Help Center (docs/plans/shipped/SPARTY.md). */
   | 'sparty'
-  /** Calendar widget day headers, hairline rows, past-event handling and event details. */
-  | 'calendar-day-view'
   /** Schedule and To-Do "Lines" row style. */
   | 'list-line-style'
   /** Group Notes & Docs: notes and linked Google Docs in one list, and Open in Docs on a note. */
