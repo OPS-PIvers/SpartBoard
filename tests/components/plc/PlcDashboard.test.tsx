@@ -2,7 +2,7 @@
  * Render / smoke test for PlcDashboard (Wave 1 — T4, pathname-driven).
  *
  * PlcDashboard is the left-rail shell that mounts every PLC section body
- * (PlcHome, PlcDocsBody, PlcResourcesBody, the four tabs,
+ * (PlcHome, NotesDocsBody, PlcResourcesBody, the four tabs,
  * MembersBody, PlcSettingsTab). It is now CONTROLLED by an `activeSection`
  * prop (derived from the pathname by `PlcRouteHost`); section changes push
  * history via `spaNavigate`. Each section body pulls Firestore hooks, so to

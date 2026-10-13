@@ -211,13 +211,6 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'plc-notes.review-open',
     needs: ['plc'],
   },
-  'plc.docs': {
-    label: 'PLC Notes & Docs section (Google Docs tab)',
-    kind: 'panel',
-    files: [`${P}docs/`],
-    opensWith: 'plc-notes.docs-tab:plc#docs',
-    needs: ['plc'],
-  },
   'plc.add-doc': {
     label: 'Add a Google Doc modal',
     kind: 'modal',

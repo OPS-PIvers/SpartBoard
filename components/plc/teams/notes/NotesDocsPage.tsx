@@ -471,11 +471,7 @@ const NotesDocsInner: React.FC<
         targets={targets}
         updateNote={updateNote}
         onDelete={() => void handleDeleteNote(selectedNote)}
-        onOpenInDocs={
-          canAccessFeature('plc-notes-unified')
-            ? (content) => void handleOpenInDocs(selectedNote, content)
-            : undefined
-        }
+        onOpenInDocs={(content) => void handleOpenInDocs(selectedNote, content)}
         onOpenData={
           showData ? () => openTeamPage(plc.id, 'dataOverview') : undefined
         }

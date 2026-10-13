@@ -41,6 +41,8 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'library-shell.tab#active',
     inner: {
       'library-shell.archive-menu-item': 'library-shell.archive-menu',
+      'quiz-library.archive-settings': 'library-shell.archive-menu',
+      'quiz-library.archive-plc-results': 'library-shell.archive-menu',
     },
   },
   // Owns no anchors (library.assignments lists the card first): the Archive tab, where Results is the primary action.
@@ -49,6 +51,12 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'panel',
     files: ['components/common/library/AssignmentArchiveCard.tsx'],
     opensWith: 'library-shell.tab#archive',
+  },
+  // Shared by every library's Import wizard, so it has no single opener.
+  'library.import-wizard': {
+    label: 'Import wizard (file, Google Sheet, JSON, AI draft)',
+    kind: 'shared',
+    files: ['components/common/library/importer/'],
   },
   'library.assign-modal': {
     label: 'Assign dialog (classes, targeting, availability)',

@@ -36,6 +36,7 @@ import {
   closesBeforeOpens,
 } from '@/utils/assignAvailability';
 import { AssignmentStatusChip } from './AssignmentStatusChip';
+import { tourAttr } from '@/config/tourAnchors';
 import { StudentProgressLine } from '@/components/widgets/GuidedLearning/components/results/StudentProgressLine';
 import type { StudentProgressSummary } from '@/components/widgets/GuidedLearning/utils/progress';
 import {
@@ -493,6 +494,7 @@ export const AssignmentDetailPane: React.FC<{
               <button
                 type="button"
                 onClick={handleCloseNow}
+                {...tourAttr('assignments-hub.close-now')}
                 disabled={
                   // eslint-disable-next-line react-hooks/purity -- deliberately re-read on each render
                   saving || (row.closeAt != null && row.closeAt <= Date.now())
@@ -507,6 +509,7 @@ export const AssignmentDetailPane: React.FC<{
               <button
                 type="button"
                 onClick={() => setEditing(true)}
+                {...tourAttr('assignments-hub.edit')}
                 className="text-xs font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors"
               >
                 {t('assignmentsHub.detail.edit', { defaultValue: 'Edit' })}
@@ -532,6 +535,7 @@ export const AssignmentDetailPane: React.FC<{
                   <button
                     type="button"
                     onClick={() => void handleStopSharingPlc()}
+                    {...tourAttr('assignments-hub.stop-plc')}
                     disabled={plcBusy}
                     className="shrink-0 font-semibold text-slate-500 hover:text-brand-red-primary transition-colors disabled:opacity-40"
                   >
@@ -545,6 +549,7 @@ export const AssignmentDetailPane: React.FC<{
               <button
                 type="button"
                 onClick={() => setSharePlcOpen(true)}
+                {...tourAttr('assignments-hub.plc-results')}
                 className="font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors"
               >
                 {t('assignmentsHub.detail.sharePlc', {
@@ -611,6 +616,7 @@ export const AssignmentDetailPane: React.FC<{
             <button
               type="button"
               onClick={pseudonyms.retry}
+              {...tourAttr('assignments-hub.names-retry')}
               className="font-semibold text-brand-blue-dark hover:text-brand-blue-primary transition-colors"
             >
               {t('assignmentsHub.detail.namesRetry', {
@@ -690,6 +696,7 @@ export const AssignmentDetailPane: React.FC<{
                   setSaveError(null);
                 }}
                 disabled={saving}
+                {...tourAttr('assignments-hub.edit-cancel')}
                 className="text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors disabled:opacity-40"
               >
                 {t('assignmentsHub.detail.cancel', { defaultValue: 'Cancel' })}
@@ -697,6 +704,7 @@ export const AssignmentDetailPane: React.FC<{
               <button
                 type="button"
                 onClick={handleSave}
+                {...tourAttr('assignments-hub.save')}
                 disabled={
                   saving ||
                   (!!draft.availability &&
@@ -733,6 +741,7 @@ export const AssignmentDetailPane: React.FC<{
                 <button
                   type="button"
                   onClick={() => setEditing(true)}
+                  {...tourAttr('assignments-hub.add-students')}
                   className="rounded-md bg-brand-blue-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-blue-dark transition-colors"
                 >
                   {t('assignmentsHub.detail.emptyRosterAddStudents', {

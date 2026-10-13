@@ -1,7 +1,7 @@
 import React from 'react';
 import { ClipboardList, Loader2, X } from 'lucide-react';
 import { spaNavigate } from '@/utils/plcPath';
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   buildGradebookPath,
   type ParsedGradebookPath,
@@ -63,6 +63,7 @@ export const GradebookShell: React.FC<{
               role="tab"
               aria-selected={tab === id}
               onClick={() => spaNavigate(buildGradebookPath(rosterId, id))}
+              {...tourFieldAttr('gradebook.tab', 'gradebook', id)}
               className={`h-7 rounded-md px-3 text-[13px] font-semibold ${
                 tab === id
                   ? 'bg-white text-brand-blue-dark shadow-sm'

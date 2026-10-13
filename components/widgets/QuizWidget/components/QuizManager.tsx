@@ -1307,6 +1307,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               label: 'Import responses',
               icon: ScanLine,
               onClick: () => onImportPaperScan(quiz),
+              anchor: tourTypeAttr('quiz-library.import-responses', 'quiz'),
             },
           ]
         : []),
@@ -1317,6 +1318,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               label: 'Import questions',
               icon: ScanText,
               onClick: () => onReadPaperQuestions(quiz),
+              anchor: tourTypeAttr('quiz-library.import-questions', 'quiz'),
             },
           ]
         : []),
@@ -1507,6 +1509,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         label: 'Share results with PLC…',
         icon: Users2,
         onClick: () => onArchiveSharePlcResults(a),
+        anchor: tourTypeAttr('quiz-library.archive-plc-results', 'quiz'),
       });
     }
   };
@@ -1652,6 +1655,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           label: 'Monitor',
           icon: Monitor,
           onClick: () => void (onArchiveMonitor ?? noop)(a),
+          anchor: tourTypeAttr('quiz-library.archive-monitor', 'quiz'),
         });
       }
       secondaries.push({
@@ -1667,6 +1671,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           label: 'Settings',
           icon: SettingsIcon,
           onClick: () => onArchiveEditSettings(a),
+          anchor: tourTypeAttr('quiz-library.archive-settings', 'quiz'),
         });
       }
       secondaries.push({
@@ -1784,6 +1789,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       label: 'Monitor',
       icon: Monitor,
       onClick: () => void (onArchiveMonitor ?? noop)(a),
+      anchor: tourTypeAttr('quiz-library.archive-monitor', 'quiz'),
     });
     if (onArchiveEditSettings) {
       secondaries.push({
@@ -1791,6 +1797,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         label: 'Settings',
         icon: SettingsIcon,
         onClick: () => onArchiveEditSettings(a),
+        anchor: tourTypeAttr('quiz-library.archive-settings', 'quiz'),
       });
     }
     secondaries.push({
