@@ -288,4 +288,25 @@ describe('mcpServer handler — early-exit branches', () => {
     );
     expect(out.statusCode).toBe(429);
   });
+
+  it('takes tour pictures without a bearer token, but only a well-formed POST', async () => {
+    seedDb();
+    const get = makeRes();
+    await handler(
+      { method: 'GET', path: '/mcp/tour-pictures', headers: {} },
+      get.res
+    );
+    expect(get.out.statusCode).toBe(405);
+    const bad = makeRes();
+    await handler(
+      {
+        method: 'POST',
+        path: '/mcp/tour-pictures',
+        headers: {},
+        body: { ticket: 'x' },
+      },
+      bad.res
+    );
+    expect(bad.out.statusCode).toBe(400);
+  });
 });

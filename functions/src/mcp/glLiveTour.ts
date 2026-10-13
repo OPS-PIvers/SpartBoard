@@ -49,6 +49,7 @@ import {
 } from './tourSetup';
 import { TOUR_ANCHOR_QUEUE } from '../tourAnchorQueue';
 import { CREATES, OVERWRITES, READ_ONLY, iso, run } from './toolKit';
+import { issuePictureTicket } from './tourPictures';
 
 export const HELP_RESOURCES = 'help_resources';
 export const ADMIN_ONLY_TOOLS: ReadonlySet<string> = new Set([
@@ -58,6 +59,7 @@ export const ADMIN_ONLY_TOOLS: ReadonlySet<string> = new Set([
   'get_live_tour_step_picture',
   'list_help_center_categories',
   'get_live_tour_guide',
+  'start_live_tour_picture_upload',
 ]);
 export const GL_TOURS = 'building_guided_learning_tours';
 
@@ -891,5 +893,25 @@ export function registerLiveTourTools(
         ],
       };
     }
+  );
+  server.registerTool(
+    'start_live_tour_picture_upload',
+    {
+      title: 'Upload live tour step pictures',
+      description:
+        "Admins only, Claude Code only. Returns a ticket, good for 30 minutes, for scripts/run-live-tour.mjs, which plays the tour on the dev board and posts each step's picture to upload_url as its thumbnail. Run: node scripts/run-live-tour.mjs <tour.json> --upload <upload_url> --ticket <ticket>.",
+      inputSchema: { set_id: z.string().min(1) },
+      annotations: CREATES,
+    },
+    ({ set_id }) =>
+      run('start_live_tour_picture_upload', ctx, async () => {
+        await assertAccess(ctx, 'building');
+        const { set } = await loadTour(ctx, set_id);
+        return {
+          set_id,
+          steps: set.steps.length,
+          ...(await issuePictureTicket(ctx, set_id)),
+        };
+      })
   );
 }

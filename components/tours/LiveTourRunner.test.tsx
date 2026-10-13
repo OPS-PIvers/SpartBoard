@@ -178,6 +178,11 @@ vi.mock('./publishedTours', () => ({
   loadRunnableTour: h.loadTour,
 }));
 
+// jsdom can't picture the board; a test run moves on without one.
+vi.mock('./stepSnapshot', () => ({
+  captureStepSnapshot: () => Promise.resolve(null),
+}));
+
 vi.mock('./settingsTab', () => ({
   fieldSettingsTab: (_type: string, key: string) =>
     key === 'fontFamily' ? 'style' : 'settings',
@@ -3273,5 +3278,65 @@ describe('LiveTourRunner with Sparty', () => {
     await frames();
     fireEvent.click(barButton('Done'));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
+describe('LiveTourRunner DEV browser run', () => {
+  it('performs every step it can, records each one and moves past a missing control', async () => {
+    h.board.widgets = [{ id: 'mine', type: 'dice' }];
+    const closed: string[] = [];
+    render(
+      <>
+        <Fixture />
+        <LiveTourRunner />
+      </>
+    );
+    screen
+      .getByRole('button', { name: 'Close mine' })
+      .addEventListener('click', () => closed.push('mine'));
+    act(() => {
+      window.__liveTourRun?.start({
+        set_id: 'run-1',
+        steps: [
+          {
+            id: 'a',
+            text: 'Boards',
+            tour: { anchor: 'sidebar.boards', action: 'click' },
+          },
+          {
+            id: 'b',
+            text: 'Search',
+            tour: { anchor: 'library.search', action: 'observe' },
+          },
+          {
+            id: 'c',
+            text: 'Close',
+            tour: { anchor: 'widget.close', action: 'click' },
+          },
+          {
+            id: 'd',
+            text: 'Type',
+            tour: { anchor: 'sidebar.boards', action: 'type', value: '' },
+          },
+        ],
+        use_teacher_board: true,
+      });
+    });
+    for (let i = 0; i < 400 && !window.__liveTourRun?.state()?.done; i++)
+      await frames(50);
+    const state = window.__liveTourRun?.state();
+    expect(state?.done).toBe(true);
+    expect(state?.finished).toBe(true);
+    expect(
+      state?.results.map((r) => [r.stepId, r.status, !!r.handedBack])
+    ).toEqual([
+      ['a', 'found', false],
+      ['b', 'missing', false],
+      ['c', 'found', false],
+      ['d', 'found', true],
+    ]);
+    // A destructive click a teacher run leaves alone; the test run performs it.
+    expect(closed).toEqual(['mine']);
+    expect(h.loadTour).not.toHaveBeenCalled();
   });
 });
