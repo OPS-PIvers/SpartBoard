@@ -59,4 +59,22 @@ describe('installTranslateDomGuard', () => {
     expect(Array.from(parent.childNodes)).toEqual([b]);
     expect(parent.removeChild(a)).toBe(a);
   });
+  it('survives a label that swaps to a spinner, like the quiz SUBMIT button', () => {
+    installTranslateDomGuard();
+    const QuizSubmit = ({ submitting }: { submitting: boolean }) => (
+      <button type="button">
+        {submitting ? (
+          <svg className="spin" />
+        ) : (
+          <>
+            {'SUBMIT'} <svg className="check" />
+          </>
+        )}
+      </button>
+    );
+    const { rerender, container } = render(<QuizSubmit submitting={false} />);
+    translate(container);
+    expect(() => rerender(<QuizSubmit submitting />)).not.toThrow();
+    expect(container.querySelector('svg.spin')).not.toBeNull();
+  });
 });
