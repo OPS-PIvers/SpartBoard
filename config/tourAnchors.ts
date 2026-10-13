@@ -5045,10 +5045,6 @@ export const TOUR_ANCHORS = {
   'plc-notes.rollup-toggle': {
     label: 'Rollup toggle button in the PLC notes tab',
   },
-  'plc-notes.docs-tab': {
-    label: 'Docs tab button in the PLC notes tab',
-    perField: true,
-  },
   'plc-notes.docs-import': {
     label: 'Docs import button in the PLC notes tab',
   },
@@ -5184,46 +5180,6 @@ export const TOUR_ANCHORS = {
     label: 'Add submit button in the PLC docs tab',
     persists: true,
     panel: true,
-  },
-  'plc-docs.rename-input': {
-    label: 'Rename input field in the PLC docs tab',
-  },
-  'plc-docs.rename-confirm': {
-    label: 'Rename confirm button in the PLC docs tab',
-    persists: true,
-    perField: true,
-  },
-  'plc-docs.rename-cancel': {
-    label: 'Rename cancel button in the PLC docs tab',
-    perField: true,
-  },
-  'plc-docs.rename': {
-    label: 'Rename button in the PLC docs tab',
-    persists: true,
-    perField: true,
-  },
-  'plc-docs.remove': {
-    label: 'Remove button in the PLC docs tab',
-    perField: true,
-    destructive: true,
-  },
-  'plc-docs.new-title': {
-    label: 'New title field in the PLC docs tab',
-  },
-  'plc-docs.new-url': {
-    label: 'New url field in the PLC docs tab',
-  },
-  'plc-docs.new-add': {
-    label: 'New add button in the PLC docs tab',
-    persists: true,
-  },
-  'plc-docs.add-doc': {
-    label: 'Add doc button in the PLC docs tab',
-    persists: true,
-    panel: true,
-  },
-  'plc-docs.open-doc': {
-    label: 'Open doc link in the PLC docs tab',
   },
   'plc-goals.delete': {
     label: 'Delete button in the PLC goal editor',

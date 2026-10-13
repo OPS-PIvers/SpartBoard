@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronDown, Download, FileText, StickyNote } from 'lucide-react';
+import { ChevronDown, Download, FileText } from 'lucide-react';
 import type { Plc } from '@/types';
 import { NotesBody } from './NotesBody';
-import { PlcDocsBody } from '@/components/plc/docs/PlcDocsBody';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useCanEditPlcContent } from '@/context/usePlcContext';
@@ -22,26 +21,18 @@ import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 
 interface NotesDocsBodyProps {
   plc: Plc;
-  /** Opens the Google Docs tab on this doc. */
+  /** Opens this linked Google Doc on mount. */
   docId?: string | null;
   /** Opens this note on mount. */
   noteId?: string | null;
 }
 
-type NotesDocsTab = 'notes' | 'docs';
-
 /**
- * Combined "Notes & Docs" surface (Decisions 2.5, 6.5, 7.4). The native
- * structured meeting-notes editor (`NotesBody`) is now the live default; the
- * Google-Doc embed (`PlcDocsBody`) stays one tab away so teams that already
- * keep their agenda in a shared Google Doc aren't cut off.
+ * Combined "Notes & Docs" surface (Decisions 2.5, 6.5, 7.4): group notes and
+ * linked Google Docs share one list in `NotesBody`.
  *
  * Also hosts the cross-note open action-items rollup and the legacy to-do
  * import banner (§7.4) — the shared to-do list merged into note action items.
- *
- * Both sub-surfaces read PLC subcollections that the Docs section already gates
- * on (`notes` + `docs` in `SLICE_SECTIONS`), so switching tabs mounts no new
- * listeners — the provider already has both slices live for this section.
  *
  * Modal chrome — normal Tailwind sizing (no container-query units).
  */
@@ -54,10 +45,7 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
   const { user, canAccessFeature } = useAuth();
   const { addToast } = useDashboard();
   const canEdit = useCanEditPlcContent();
-  const unified = canAccessFeature('plc-notes-unified');
-  const sidePanels = unified && canAccessFeature('plc-notes-side-panels');
-  const [legacyTab, setTab] = useState<NotesDocsTab>(docId ? 'docs' : 'notes');
-  const tab: NotesDocsTab = unified ? 'notes' : legacyTab;
+  const sidePanels = canAccessFeature('plc-notes-side-panels');
   const [rollupOpen, setRollupOpen] = useState(false);
   const [selectNoteId, setSelectNoteId] = useState<string | null>(noteId);
   const [selectDocId, setSelectDocId] = useState<string | null>(null);
@@ -89,7 +77,6 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
   const handleSelectNote = (noteId: string) => {
     setSelectNoteId(noteId);
     setRollupOpen(false);
-    setTab('notes');
   };
 
   const handleImport = async () => {
@@ -129,7 +116,6 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
         'success'
       );
       setSelectNoteId(targetId);
-      setTab('notes');
     } catch (err) {
       logError('NotesDocsBody.importTodos', err, { plcId: plc.id });
       addToast(
@@ -142,27 +128,6 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
       setImporting(false);
     }
   };
-
-  const tabs: Array<{
-    id: NotesDocsTab;
-    label: string;
-    icon: typeof StickyNote;
-  }> = [
-    {
-      id: 'notes',
-      label: t('plcDashboard.notesDocs.notesTab', {
-        defaultValue: 'Meeting Notes',
-      }),
-      icon: StickyNote,
-    },
-    {
-      id: 'docs',
-      label: t('plcDashboard.notesDocs.docsTab', {
-        defaultValue: 'Google Docs',
-      }),
-      icon: FileText,
-    },
-  ];
 
   const rollupMenu = openCount > 0 && (
     <div className={sidePanels ? 'relative' : 'relative ml-auto'}>
@@ -244,45 +209,12 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
     <div
       className={`flex flex-col h-full overflow-hidden ${sidePanels ? '' : 'gap-4'}`}
     >
-      {/* Tab switcher + open action items rollup */}
+      {/* Open action items rollup */}
       <div
         className={`flex items-center justify-between gap-2 shrink-0 flex-wrap ${
-          sidePanels || (unified && openCount === 0) ? 'hidden' : ''
+          sidePanels || openCount === 0 ? 'hidden' : ''
         }`}
       >
-        {!unified && (
-          <div
-            className="flex items-center gap-1"
-            role="tablist"
-            aria-label={t('plcDashboard.notesDocs.tablistLabel', {
-              defaultValue: 'Notes and docs',
-            })}
-          >
-            {tabs.map(({ id, label, icon: Icon }) => {
-              const active = tab === id;
-              return (
-                <button
-                  {...tourFieldAttr('plc-notes.docs-tab', 'plc', id)}
-                  key={id}
-                  type="button"
-                  role="tab"
-                  aria-selected={active}
-                  id={`plc-notesdocs-tab-${id}`}
-                  aria-controls={`plc-notesdocs-panel-${id}`}
-                  onClick={() => setTab(id)}
-                  className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/60 ${
-                    active
-                      ? 'bg-brand-blue-primary text-white shadow-sm'
-                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-                  }`}
-                >
-                  <Icon className="w-4 h-4" />
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        )}
         {!sidePanels && rollupMenu}
       </div>
 
@@ -315,33 +247,13 @@ export const NotesDocsBody: React.FC<NotesDocsBodyProps> = ({
         </div>
       )}
 
-      {/* Active panel. Keep both mounted? No — the Docs embed iframe is heavy;
-          mount only the active tab. Switching is cheap (no extra listeners). */}
       <div className="flex-1 min-h-0 overflow-hidden">
-        {tab === 'notes' ? (
-          <div
-            role="tabpanel"
-            id="plc-notesdocs-panel-notes"
-            aria-labelledby="plc-notesdocs-tab-notes"
-            className="h-full"
-          >
-            <NotesBody
-              plc={plc}
-              selectNoteId={selectNoteId}
-              selectDocId={unified ? (selectDocId ?? docId) : null}
-              actionItemsHeading={rollupMenu || null}
-            />
-          </div>
-        ) : (
-          <div
-            role="tabpanel"
-            id="plc-notesdocs-panel-docs"
-            aria-labelledby="plc-notesdocs-tab-docs"
-            className="h-full bg-white border border-slate-200 rounded-2xl overflow-hidden"
-          >
-            <PlcDocsBody plc={plc} requestedDocId={docId} />
-          </div>
-        )}
+        <NotesBody
+          plc={plc}
+          selectNoteId={selectNoteId}
+          selectDocId={selectDocId ?? docId}
+          actionItemsHeading={rollupMenu || null}
+        />
       </div>
     </div>
   );
