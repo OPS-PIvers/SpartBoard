@@ -587,7 +587,9 @@ async function helpItemWrite(
     return (batch) =>
       batch.update(ref, {
         categoryId: placement.category_id,
-        widgetTypes: [...new Set(placement.widget_types ?? [])],
+        ...(placement.widget_types
+          ? { widgetTypes: [...new Set(placement.widget_types)] }
+          : {}),
         ...(moved ? { order: help.order } : {}),
         updatedAt: now,
       });
@@ -686,6 +688,7 @@ export function registerLiveTourTools(
     },
     (input) =>
       run('create_live_tour', ctx, async () => {
+        await assertAccess(ctx, 'building');
         const placement = input.help_center;
         const steps = input.steps.map((s) => toStepInput(s));
         const materialsDraft = (input.materials ?? []).map((m) => ({
