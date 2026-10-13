@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Plays a live tour on the dummy-backend board and reports each step (LIVE_TOUR_ONE_SHOT.md D7, D12).
 // Usage: node scripts/run-live-tour.mjs <tour.json> [--base http://localhost:56320] [--out dir]
-//        [--upload <upload_url> --ticket <ticket>]
+//        [--upload <upload_url> --ticket <ticket>] [--flags id,id]
 // <tour.json> is what get_live_tour returned. Start the server first: the vite-verify launch config.
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -52,11 +52,19 @@ const errors = [];
 page.on('pageerror', (err) => errors.push(err.message));
 
 await page.goto(base);
-await page.evaluate(() =>
-  localStorage.setItem(
-    'authBypassFeatureOverrides',
-    JSON.stringify({ 'gl-live-tours': true, 'live-tour-editing-v2': true })
-  )
+// Extra preview flags to play the tour with, such as live-tour-self-heal.
+const flags = Object.fromEntries(
+  [
+    'gl-live-tours',
+    'live-tour-editing-v2',
+    ...(flag('flags')?.split(',') ?? []),
+  ]
+    .filter(Boolean)
+    .map((id) => [id, true])
+);
+await page.evaluate(
+  (f) => localStorage.setItem('authBypassFeatureOverrides', JSON.stringify(f)),
+  flags
 );
 await page.reload();
 try {
@@ -99,7 +107,9 @@ const results = view.steps.map((step, index) => {
   const status = r?.status ?? 'not reached';
   let picture;
   if (r?.picture) {
-    picture = `step-${String(index + 1).padStart(2, '0')}-${step.id}.png`;
+    // The editor's crop: WebP where the browser can encode it, else PNG.
+    const ext = /^data:image\/(\w+);/.exec(r.picture)?.[1] ?? 'png';
+    picture = `step-${String(index + 1).padStart(2, '0')}-${step.id}.${ext}`;
     writeFileSync(
       join(out, picture),
       Buffer.from(r.picture.split(',')[1], 'base64')
@@ -130,7 +140,7 @@ if (upload) {
     .filter((r) => r.picture)
     .map((r) => ({
       step_id: r.step_id,
-      image: `data:image/png;base64,${readFileSync(join(out, r.picture)).toString('base64')}`,
+      image: `data:image/${r.picture.split('.').pop()};base64,${readFileSync(join(out, r.picture)).toString('base64')}`,
       w: r.w,
       h: r.h,
     }));

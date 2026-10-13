@@ -12,7 +12,7 @@ export const PICTURE_TICKETS = 'mcp_tour_picture_tickets';
 export const PICTURE_TICKET_MS = 30 * 60 * 1000;
 export const MAX_PICTURE_BYTES = 2 * 1024 * 1024;
 const MAX_PICTURES = 40;
-const DATA_URL = /^data:image\/(png|jpeg);base64,([A-Za-z0-9+/=]+)$/;
+const DATA_URL = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/;
 
 const hashOf = (ticket: string) =>
   createHash('sha256').update(ticket).digest('hex');
@@ -126,7 +126,7 @@ export async function savePictures(
     if (!match) {
       skipped.push({
         step_id: pic.step_id,
-        reason: 'Not a PNG or JPEG data URL.',
+        reason: 'Not a PNG, JPEG or WebP data URL.',
       });
       continue;
     }
@@ -138,7 +138,7 @@ export async function savePictures(
       });
       continue;
     }
-    const ext = match[1] === 'png' ? 'png' : 'jpg';
+    const ext = match[1] === 'jpeg' ? 'jpg' : match[1];
     const path = `users/${ctx.uid}/hotspot_images/${now}-tour-${i + 1}.${ext}`;
     const token = randomUUID();
     await bucket.file(path).save(bytes, {
