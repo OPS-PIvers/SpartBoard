@@ -451,7 +451,10 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
             >
               {config.rosterMode !== 'custom' && rosters.length > 0 && (
                 <>
-                  <AbsentButton roster={currentRoster} />
+                  <AbsentButton
+                    roster={currentRoster}
+                    anchor={tourAttr('stations.absent', widget.id, widget.type)}
+                  />
                   <ActiveClassChip
                     compact
                     {...(rosterGroupsEnabled

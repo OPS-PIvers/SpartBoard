@@ -1,4 +1,4 @@
-import { tourAttr } from '@/config/tourAnchors';
+import { tourAttr, type TourAnchorAttrs } from '@/config/tourAnchors';
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCardMenu } from './useCardMenu';
@@ -22,7 +22,6 @@ interface CollectionContextMenuProps {
   onColor: () => void;
   canShare: boolean;
   onShare: () => void;
-  canShareWithSub: boolean;
   onShareWithSub: () => void;
   /** When this board/collection is already shared with a sub: its end time. */
   subShareEndsAt?: number | null;
@@ -40,7 +39,6 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
   onColor,
   canShare,
   onShare,
-  canShareWithSub,
   onShareWithSub,
   subShareEndsAt,
   canSaveAsTemplate,
@@ -55,6 +53,7 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
     icon: typeof ExternalLink;
     action: () => void;
     danger?: boolean;
+    anchor?: TourAnchorAttrs;
   };
 
   const items: Item[] = [
@@ -62,21 +61,25 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
       label: t('boardsModal.menu.openCollection', { defaultValue: 'Open' }),
       icon: ExternalLink,
       action: onOpen,
+      anchor: tourAttr('boards-modal.collection-menu-open'),
     },
     {
       label: t('boardsModal.menu.rename', { defaultValue: 'Rename' }),
       icon: Pencil,
       action: onRename,
+      anchor: tourAttr('boards-modal.collection-menu-rename'),
     },
     {
       label: t('boardsModal.menu.move', { defaultValue: 'Move to…' }),
       icon: FolderInput,
       action: onMove,
+      anchor: tourAttr('boards-modal.collection-menu-move'),
     },
     {
       label: t('boardsModal.menu.color', { defaultValue: 'Set color' }),
       icon: Palette,
       action: onColor,
+      anchor: tourAttr('boards-modal.collection-menu-color'),
     },
   ];
 
@@ -86,9 +89,6 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
       icon: Share2,
       action: onShare,
     });
-  }
-
-  if (canShareWithSub) {
     items.push({
       label: subShareEndsAt
         ? t('subShare.menu.update', { defaultValue: 'Update sub share…' })
@@ -105,6 +105,7 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
       }),
       icon: LayoutTemplate,
       action: onSaveAsTemplate,
+      anchor: tourAttr('boards-modal.collection-menu-template'),
     });
   }
 
@@ -138,7 +139,8 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
                 : 'text-slate-700 hover:bg-slate-100 focus-visible:bg-slate-100'
             }`}
             role="menuitem"
-            {...(item.danger ? tourAttr('boards-modal.collection-delete') : {})}
+            {...(item.anchor ??
+              (item.danger ? tourAttr('boards-modal.collection-delete') : {}))}
           >
             <Icon className="w-4 h-4" />
             {item.label}

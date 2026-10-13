@@ -66,7 +66,6 @@
     "components/remote/controls/RemoteChecklistControl.tsx::No items — add them in the widget settings.",
     "components/remote/controls/RemotePollControl.tsx::No options — configure in widget settings.",
     "components/share/ShareCollectionLinkCreatorModal.tsx::Copy the link below — clipboard access was blocked.",
-    "components/share/ShareCollectionLinkCreatorModal.tsx::— Select building —",
     "components/share/ShareLinkCreatorModal.tsx::Could not copy automatically — select the link to copy manua",
     "components/share/ShareWithSubModal.tsx::Send this link to your sub — they sign in with their school ",
     "components/spotify/SpotifyPremiumDialog.tsx::If you connect a free Spotify account, the widget will fall ",

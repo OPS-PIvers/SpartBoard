@@ -495,11 +495,7 @@ export const Dock: React.FC = () => {
       }
 
       // A two-column table or tab-separated list becomes a new flashcard set.
-      if (
-        e.clipboardData &&
-        canAccessFeature('flashcard-smart-paste') &&
-        canAccessWidget('flashcards')
-      ) {
+      if (e.clipboardData && canAccessWidget('flashcards')) {
         const cards = parseFlashcardClipboard(
           e.clipboardData.getData('text/plain'),
           e.clipboardData.getData('text/html')
