@@ -76,6 +76,7 @@ import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { normalizeGuidedLearningSet } from './utils/setMigration';
 import { isLiveTourSet } from './utils/liveTour';
 import { requestEditTour } from '@/components/tours/editor/tourEditStore';
+import { glSetToLiveTour } from './utils/glToLiveTour';
 import { useStorage, type GuidedLearningMediaHome } from '@/hooks/useStorage';
 import { ImportWizard } from '@/components/common/library/importer/ImportWizard';
 import { createGuidedLearningImportAdapter } from './adapters/guidedLearningImportAdapter';
@@ -319,6 +320,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const personalDuplicateBusy = useBusyIdSet();
   const buildingDuplicateBusy = useBusyIdSet();
   const tourCopyBusy = useBusyIdSet();
+  const tourConvertBusy = useBusyIdSet();
   const [recentSessionIds, setRecentSessionIds] = useState<
     Record<string, string>
   >({});
@@ -1596,6 +1598,42 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                     });
                   }}
                   isCopyingTourToBuilding={tourCopyBusy.isBusy}
+                  onConvertToLiveTour={
+                    canEditToursOnBoard
+                      ? (setId, driveFileId, buildingEntry) => {
+                          void tourConvertBusy.run(setId, async () => {
+                            try {
+                              const source = await fetchSetCached(
+                                setId,
+                                driveFileId,
+                                buildingEntry
+                              );
+                              if (!source) throw new Error('Set not found');
+                              const tour = glSetToLiveTour(source, {
+                                id: crypto.randomUUID(),
+                                now: Date.now(),
+                                authorUid: user?.uid,
+                              });
+                              // A guard keeps tour.updatedAt, the revision the board editor saves against.
+                              await saveBuildingSet(tour, {
+                                expectedUpdatedAt: undefined,
+                              });
+                              requestEditTour({ setId: tour.id });
+                            } catch (err) {
+                              console.error(
+                                '[GuidedLearning] Convert to live tour failed:',
+                                err
+                              );
+                              addToast(
+                                t('glStudio.convertToLiveTourFailed'),
+                                'error'
+                              );
+                            }
+                          });
+                        }
+                      : undefined
+                  }
+                  isConvertingToLiveTour={tourConvertBusy.isBusy}
                   onDeleteBuilding={(setId) => {
                     void handleDeleteBuilding(setId);
                   }}
