@@ -682,17 +682,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Quiz sections with "answer any N of M" in the editor. Admin-only until Paul has tried it.
-  'quiz-sections': {
-    label: 'Quiz sections',
-    icon: ListChecks,
-    description: 'Section headings, and "answer any N of these".',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'standards-from-question-text': {
     label: 'Standards typed in questions',
     icon: BookMarked,

@@ -13,6 +13,7 @@ import {
   type HelpCenterPlacement,
 } from './glCreate';
 import {
+  BUILDING,
   MAX_SLIDE_BYTES,
   MAX_STEPS,
   assertAccess,
@@ -50,6 +51,11 @@ import {
 import { TOUR_ANCHOR_QUEUE } from '../tourAnchorQueue';
 import { CREATES, OVERWRITES, READ_ONLY, iso, run } from './toolKit';
 import { issuePictureTicket } from './tourPictures';
+import {
+  narrateTourSteps,
+  narrationDeps,
+  unnarratedIds,
+} from './tourNarration';
 
 export const HELP_RESOURCES = 'help_resources';
 export const ADMIN_ONLY_TOOLS: ReadonlySet<string> = new Set([
@@ -194,6 +200,10 @@ const editStep = tourStep.extend({
     .optional()
     .describe('Read only. The picture is kept and retaken in SpartBoard.'),
   thumbnail_stale: z.boolean().optional().describe('Read only.'),
+  has_narration: z
+    .boolean()
+    .optional()
+    .describe('Read only. Saving a step with new text narrates it again.'),
   anchor_ready: z
     .string()
     .optional()
@@ -309,6 +319,7 @@ export function publicTourStep(step: Step): Record<string, unknown> {
   }
   out.has_thumbnail = !!thumb;
   if (thumb && tour && thumb.anchor !== tour.anchor) out.thumbnail_stale = true;
+  out.has_narration = !!(step as { narration?: unknown }).narration;
   return out;
 }
 
@@ -596,6 +607,25 @@ async function helpItemWrite(
     );
 }
 
+const narrationNote = (failed: readonly string[]) =>
+  failed.length
+    ? {
+        narration_failed: failed,
+        narration_note:
+          'These steps have no new narration; saving them again retries it.',
+      }
+    : {};
+
+/** Generated narration for each step whose words changed; never fails the save. */
+async function narrate(ctx: ToolContext, steps: GlSet['steps']) {
+  try {
+    return await narrateTourSteps(steps, await narrationDeps(ctx));
+  } catch (err) {
+    console.warn('[live tour] narration unavailable', err);
+    return { steps: [...steps], failed: unnarratedIds(steps) };
+  }
+}
+
 export function registerLiveTourTools(
   server: McpServer,
   ctx: ToolContext
@@ -709,9 +739,22 @@ export function registerLiveTourTools(
             );
           }
         );
+        const voiced = await narrate(ctx, saved.set.steps);
+        const changed = voiced.steps.filter((s, i) => s !== saved.set.steps[i]);
+        if (changed.length) {
+          // The tour is already saved, so a failed audio write is reported, not thrown.
+          await ctx.db
+            .doc(`${BUILDING}/${saved.set.id}`)
+            .update({ steps: voiced.steps })
+            .catch((err: unknown) => {
+              console.warn('[live tour] narration write failed', err);
+              voiced.failed.push(...changed.map((s) => s.id));
+            });
+        }
         return {
           ...savedSummary(saved),
           ...needsAnchors(saved.set.steps),
+          ...narrationNote(voiced.failed),
           where_to_find_it: help
             ? 'SpartBoard > Admin Settings > Help Center (hidden)'
             : 'SpartBoard > Guided Learning widget > library, building sets',
@@ -849,6 +892,8 @@ export function registerLiveTourTools(
           next.helpCenter = true;
         }
         await reserveWrite(ctx);
+        const voiced = await narrate(ctx, next.steps);
+        next.steps = voiced.steps;
         const saved = await saveSet(
           ctx,
           loaded,
@@ -860,6 +905,7 @@ export function registerLiveTourTools(
         return {
           ...saved,
           ...needsAnchors(next.steps),
+          ...narrationNote(voiced.failed),
           ...(report.warnings.length ? { warnings: report.warnings } : {}),
           note: 'Saved as a draft. Teachers keep the published tour until an admin opens it in SpartBoard (Guided Learning library > Edit) and publishes the changes.',
         };

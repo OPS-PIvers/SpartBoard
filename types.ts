@@ -9860,8 +9860,6 @@ export type GlobalFeature =
   | 'plc-norming-flags'
   /** Share flashcard sets and class-level flashcard results with a PLC. */
   | 'plc-flashcards'
-  /** Section headings in the quiz editor, with "students answer any N of these M". */
-  | 'quiz-sections'
   /** Standard codes typed in or imported with a question text become Learning targets tags. */
   | 'standards-from-question-text'
   /** "View full screen" toggle on large pop-ups (editors, graders). */
