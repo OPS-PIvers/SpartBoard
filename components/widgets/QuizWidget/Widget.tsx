@@ -649,9 +649,14 @@ const TeacherQuizWidget: React.FC<{
   // `responses` — guarantees aggregate stats recompute after a mid-view
   // submission delete even if the upstream snapshot state lagged.
   const [resultsEnterToken, setResultsEnterToken] = useState(0);
+  // Library quiz the preview pane opens on, set by a PLC status chip.
+  const [revealRequest, setRevealRequest] = useState<{
+    quizId: string;
+  } | null>(null);
   const [prevView, setPrevView] = useState(config.view);
   if (config.view !== prevView) {
     setPrevView(config.view);
+    if (prevView === 'manager') setRevealRequest(null);
     if (config.view === 'results') {
       setResultsEnterToken((n) => n + 1);
     }
@@ -1145,11 +1150,6 @@ const TeacherQuizWidget: React.FC<{
     setEditingAssignment(target);
     clearPendingAssignmentEdit();
   }, [pendingAssignmentEditId, assignments, clearPendingAssignmentEdit]);
-
-  // Library quiz the preview pane opens on, set by a PLC status chip.
-  const [revealRequest, setRevealRequest] = useState<{
-    quizId: string;
-  } | null>(null);
 
   // Honor a PLC status chip: open my live monitor for that quiz, or show it in the library.
   React.useEffect(() => {
