@@ -40,8 +40,6 @@ interface AIData {
     | 'instructional-routine'
     | 'ocr'
     | 'quiz'
-    | 'widget-builder'
-    | 'widget-explainer'
     | 'blooms-ai'
     | 'video-activity-recommend';
   prompt?: string;
@@ -348,8 +346,6 @@ export function specificFeatureIdFor(
     case 'blooms-ai':
     case 'dashboard-layout':
     case 'instructional-routine':
-    case 'widget-builder':
-    case 'widget-explainer':
       return genType;
     default:
       return null;
@@ -1081,27 +1077,6 @@ Worked example (flashcards app with a "Done" button):
             userPrompt: '',
           };
         },
-        'widget-builder': () => ({
-          systemPrompt: `
-          You are an expert frontend developer creating classroom widgets. Create a complete self-contained HTML widget for a classroom dashboard.
-          Requirements:
-          1. Use vanilla HTML/CSS/JS only (no external libraries except optional Tailwind CDN).
-          2. Use a dark background (#1e293b) with light text.
-          3. Include all styles inline in the HTML file.
-          4. The widget must work in a sandboxed iframe.
-          5. Make buttons and interactive elements large enough for tablet use.
-          6. Output ONLY the complete HTML code, nothing else - no explanations, no markdown.
-          `,
-          userPrompt: `Create a widget that: <user_request>${sanitizedUserInput}</user_request>`,
-        }),
-        'widget-explainer': () => ({
-          systemPrompt: `
-          You are a classroom teacher assistant. Explain what an HTML widget does in 1-2 plain sentences.
-          Use simple language without code jargon.
-          Output ONLY the explanation, nothing else.
-          `,
-          userPrompt: sanitizedUserInput,
-        }),
         'blooms-ai': () => ({
           systemPrompt: `
           You are an expert instructional designer specializing in Bloom's Taxonomy.
@@ -1185,13 +1160,9 @@ Output JSON ONLY in this exact shape:
         integration: genType as AIData['type'],
         claudeTimeoutMs: 180_000,
         parts,
-        // widget-builder, widget-explainer, and blooms-ai return plain text; all other types return JSON
+        // blooms-ai returns plain text; all other types return JSON
         responseMimeType:
-          genType === 'widget-builder' ||
-          genType === 'widget-explainer' ||
-          genType === 'blooms-ai'
-            ? 'text/plain'
-            : 'application/json',
+          genType === 'blooms-ai' ? 'text/plain' : 'application/json',
         ...(responseSchema ? { responseSchema } : {}),
       });
 
@@ -1204,14 +1175,6 @@ Output JSON ONLY in this exact shape:
       // blooms-ai returns plain text — wrap in { text } for the generic callAI client
       if (genType === 'blooms-ai') {
         return { text, _modelConfigUsedFallback: geminiConfig.usedFallback };
-      }
-
-      // widget-builder and widget-explainer return plain text — wrap in { result } for the client
-      if (genType === 'widget-builder' || genType === 'widget-explainer') {
-        return {
-          result: text,
-          _modelConfigUsedFallback: geminiConfig.usedFallback,
-        };
       }
 
       const parsed = parseGeminiJson<Record<string, unknown>>(text);

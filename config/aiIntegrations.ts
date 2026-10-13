@@ -141,14 +141,6 @@ export const AI_INTEGRATIONS: readonly AiIntegration[] = [
     inputs: ['text'],
   },
   {
-    id: 'widget-builder',
-    label: 'Widget builder',
-    description: 'Writes code for a custom widget.',
-    group: 'Board and widgets',
-    tier: 'advanced',
-    inputs: ['text'],
-  },
-  {
     id: 'poll',
     label: 'Smart poll',
     description: 'Drafts a poll question and options from a topic.',
@@ -179,14 +171,6 @@ export const AI_INTEGRATIONS: readonly AiIntegration[] = [
     group: 'Board and widgets',
     tier: 'standard',
     inputs: ['image'],
-  },
-  {
-    id: 'widget-explainer',
-    label: 'Widget explainer',
-    description: 'Explains what a widget does.',
-    group: 'Board and widgets',
-    tier: 'standard',
-    inputs: ['text'],
   },
   {
     id: 'blooms-ai',

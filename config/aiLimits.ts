@@ -4,7 +4,6 @@ import type { AiTier } from '@/config/aiIntegrations';
 export const DEFAULT_MAX_INPUT_CHARS = 50_000;
 export const INPUT_CHARS_DEFAULTS: Readonly<Record<string, number>> = {
   'mini-app': 200_000,
-  'widget-builder': 100_000,
 };
 export const MIN_INPUT_CHARS = 1_000;
 export const MAX_INPUT_CHARS = 1_000_000;
@@ -18,13 +17,11 @@ export const CLAUDE_OUTPUT_TOKENS_DEFAULTS: Readonly<Record<AiTier, number>> = {
 /** Integrations whose typed prompt has an input limit. */
 export const PROMPT_LIMITED_INTEGRATIONS: readonly string[] = [
   'mini-app',
-  'widget-builder',
   'poll',
   'dashboard-layout',
   'instructional-routine',
   'quiz',
   'ocr',
-  'widget-explainer',
   'blooms-ai',
   'video-activity-recommend',
 ];

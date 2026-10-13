@@ -574,8 +574,7 @@ export async function computeAnalyticsForOrg(
   //     mini-app-ai (Mini App), poll→smart-poll, quiz→quiz, ocr→ocr,
   //     ocr+drawing→drawing-ai, ocr+webcam→webcam-ai, blooms-ai→blooms-ai,
   //     video-activity-recommend→video-activity-ai,
-  //     dashboard-layout→dashboard-layout, instructional-routine→instructional-routine,
-  //     widget-builder→widget-builder, widget-explainer→widget-explainer
+  //     dashboard-layout→dashboard-layout, instructional-routine→instructional-routine
   //   generateVideoActivity (aiGeneration.ts): video-activity-ai
   //   generateGuidedLearning, draftGuidedLearningStepTextV1 (aiGeneration.ts): guided-learning-ai
   //   transcribeVideoWithGemini (aiGeneration.ts): video-activity-audio-transcription
@@ -585,7 +584,8 @@ export async function computeAnalyticsForOrg(
   //   translateQuizV1 / translateResponseV1 (quizTranslation.ts): translation (count + backCount)
   //   extractQuizFromDocumentV1 counts as quiz; extractStimulusReadAloudTextV1 counts as ocr
   //
-  // Kept for existing docs only: video-activity-recommend (now counted as video-activity-ai).
+  // Kept for existing docs only: video-activity-recommend (now counted as video-activity-ai),
+  // widget-builder and widget-explainer (the Widget Builder was removed).
   //
   // tests/components/admin/Analytics/AiFeatureLabels.test.ts reads this list and
   // fails unless components/admin/Analytics/aiFeatureLabels.ts labels every id.
