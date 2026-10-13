@@ -19,6 +19,27 @@ import { clearStudentFirstName } from '@/context/StudentAuthContextValue';
 export const STUDENT_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
 const INTERACTION_THROTTLE_MS = 5 * 1000;
 export const STUDENT_LOGIN_PATH = '/student/login';
+const SHARED_ACTIVITY_KEY = 'sb_student_last_activity';
+
+const readSharedActivity = (): number => {
+  try {
+    const value = Number(window.localStorage.getItem(SHARED_ACTIVITY_KEY));
+    return Number.isFinite(value) ? value : 0;
+  } catch {
+    return 0;
+  }
+};
+
+const writeSharedActivity = (at: number): void => {
+  try {
+    window.localStorage.setItem(SHARED_ACTIVITY_KEY, String(at));
+  } catch {
+    // Storage blocked: this tab's own activity still counts.
+  }
+};
+
+const isFocusInsideFrame = (): boolean =>
+  document.hasFocus() && document.activeElement instanceof HTMLIFrameElement;
 
 export function useStudentIdleTimeout(
   enabled: boolean,
@@ -30,6 +51,7 @@ export function useStudentIdleTimeout(
 
     let timeoutId: number | undefined;
     let lastInteractionAt = Date.now();
+    writeSharedActivity(lastInteractionAt);
 
     const triggerIdleSignOut = () => {
       // Always clear the cached first name before tearing down the
@@ -44,24 +66,43 @@ export function useStudentIdleTimeout(
       window.location.assign(redirectPath);
     };
 
-    const scheduleTimeout = () => {
+    const scheduleTimeout = (delay: number = STUDENT_IDLE_TIMEOUT_MS) => {
       if (timeoutId !== undefined) window.clearTimeout(timeoutId);
-      timeoutId = window.setTimeout(
-        triggerIdleSignOut,
-        STUDENT_IDLE_TIMEOUT_MS
-      );
+      timeoutId = window.setTimeout(onTimeout, delay);
     };
+
+    // Sign-out is shared by every tab, so activity in another tab or inside an embedded frame counts too.
+    function onTimeout() {
+      const now = Date.now();
+      if (isFocusInsideFrame()) {
+        lastInteractionAt = now;
+        writeSharedActivity(now);
+      }
+      const lastActive = Math.max(lastInteractionAt, readSharedActivity());
+      const remaining = lastActive + STUDENT_IDLE_TIMEOUT_MS - now;
+      if (remaining > 0) scheduleTimeout(remaining);
+      else triggerIdleSignOut();
+    }
 
     const handleInteraction = () => {
       const now = Date.now();
       if (now - lastInteractionAt < INTERACTION_THROTTLE_MS) return;
       lastInteractionAt = now;
+      writeSharedActivity(now);
       scheduleTimeout();
     };
 
     scheduleTimeout();
 
-    const events = ['mousemove', 'keydown', 'touchstart', 'click'] as const;
+    const events = [
+      'mousemove',
+      'pointerdown',
+      'keydown',
+      'touchstart',
+      'click',
+      'wheel',
+      'scroll',
+    ] as const;
     const options: AddEventListenerOptions = { passive: true, capture: true };
     events.forEach((event) => {
       window.addEventListener(event, handleInteraction, options);
