@@ -1,6 +1,6 @@
 // Narration for connector tours (LIVE_TOUR_ONE_SHOT.md D11): every step with text gets a generated take on save.
 import * as admin from 'firebase-admin';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { ToolContext } from './activity';
 import type { GlSet } from './glTools';
 
@@ -37,6 +37,14 @@ export function narrationSourceText(step: {
   if (!label || !text) return label || text;
   return /[.!?:]$/.test(label) ? `${label} ${text}` : `${label}. ${text}`;
 }
+
+/** Same hash as narrationTextHash in guidedLearningNarration.ts, without loading the TTS module. */
+export const narrationHash = (text: string): string =>
+  createHash('sha256').update(text, 'utf8').digest('hex');
+
+/** Ids of the steps that needed a take, for when narration can't run at all. */
+export const unnarratedIds = (steps: readonly Step[]): string[] =>
+  stepsToNarrate(steps, narrationHash).map((i) => steps[i].id);
 
 /** Steps that need a new take: text and no narration, or a generated take whose words changed. A recorded take stays. */
 export function stepsToNarrate(

@@ -51,6 +51,11 @@ import {
 import { TOUR_ANCHOR_QUEUE } from '../tourAnchorQueue';
 import { CREATES, OVERWRITES, READ_ONLY, iso, run } from './toolKit';
 import { issuePictureTicket } from './tourPictures';
+import {
+  narrateTourSteps,
+  narrationDeps,
+  unnarratedIds,
+} from './tourNarration';
 
 export const HELP_RESOURCES = 'help_resources';
 export const ADMIN_ONLY_TOOLS: ReadonlySet<string> = new Set([
@@ -614,11 +619,10 @@ const narrationNote = (failed: readonly string[]) =>
 /** Generated narration for each step whose words changed; never fails the save. */
 async function narrate(ctx: ToolContext, steps: GlSet['steps']) {
   try {
-    const { narrateTourSteps, narrationDeps } = await import('./tourNarration');
     return await narrateTourSteps(steps, await narrationDeps(ctx));
   } catch (err) {
     console.warn('[live tour] narration unavailable', err);
-    return { steps: [...steps], failed: steps.map((s) => s.id) };
+    return { steps: [...steps], failed: unnarratedIds(steps) };
   }
 }
 

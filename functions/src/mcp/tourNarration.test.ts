@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   narrateTourSteps,
+  narrationHash,
   narrationSourceText,
   stepsToNarrate,
+  unnarratedIds,
   type NarrationDeps,
 } from './tourNarration';
 import type { GlSet } from './glTools';
@@ -59,6 +61,18 @@ describe('live tour narration', () => {
 
   it('narrates new and changed text, never a recorded take or a step without text', () => {
     expect(stepsToNarrate(steps, hash)).toEqual([0, 3]);
+  });
+
+  it('names only the steps that needed a take when narration is unavailable', () => {
+    const real = [...steps];
+    real[2] = {
+      ...steps[2],
+      narration: {
+        source: 'generated',
+        textHash: narrationHash('Keep. Same words.'),
+      },
+    };
+    expect(unnarratedIds(real)).toEqual(['new', 'changed']);
   });
 
   it('adds generated takes and reports the steps TTS failed on', async () => {
