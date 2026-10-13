@@ -20,7 +20,7 @@ Don't agree an outline with the admin first. Build the tour, check it with `dry_
 3. **Follow the path.** Each anchor's `routes[].path` is the list of anchors to click, in order, from the board to where the anchor shows. Turn every path entry the tour hasn't already clicked into a `click` step, in that order. `reveal` is a tab or menu inside the surface. `needs` says what has to exist first: `widget-on-stage` (put the widget in `tour_widgets`), `library-item` (add a material), `class`, `plc`, `admin`, `live-session`, `student-data`.
 4. **Stage it.** Set `tour_widgets`, add `materials` when the tour opens, makes or assigns a library item, and decide `autopilot` (see below).
 5. **Dry-run it.** Call `create_live_tour` with `dry_run: true`. Fix every error; read every warning and fix it unless there's a reason not to.
-6. **Save.** Call it again without `dry_run`. Pass `help_center` with a category from `list_help_center_categories`.
+6. **Save.** Call it again without `dry_run`. Pass `help_center` with a category from `list_help_center_categories`. Saving narrates every step whose text is new or changed; `narration_failed` lists any it couldn't, and saving again retries them.
 7. **Play it (Claude Code only).** Run the browser run below, fix what fails, and let it upload the step pictures. Then hand back.
 
 To change an existing tour, `get_live_tour`, then `update_live_tour` with `steps` (the whole list, ids kept) or `step_text` (wording only). Update takes the same setup fields and `dry_run`.

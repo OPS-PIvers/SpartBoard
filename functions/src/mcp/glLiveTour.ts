@@ -13,6 +13,7 @@ import {
   type HelpCenterPlacement,
 } from './glCreate';
 import {
+  BUILDING,
   MAX_SLIDE_BYTES,
   MAX_STEPS,
   assertAccess,
@@ -194,6 +195,10 @@ const editStep = tourStep.extend({
     .optional()
     .describe('Read only. The picture is kept and retaken in SpartBoard.'),
   thumbnail_stale: z.boolean().optional().describe('Read only.'),
+  has_narration: z
+    .boolean()
+    .optional()
+    .describe('Read only. Saving a step with new text narrates it again.'),
   anchor_ready: z
     .string()
     .optional()
@@ -309,6 +314,7 @@ export function publicTourStep(step: Step): Record<string, unknown> {
   }
   out.has_thumbnail = !!thumb;
   if (thumb && tour && thumb.anchor !== tour.anchor) out.thumbnail_stale = true;
+  out.has_narration = !!(step as { narration?: unknown }).narration;
   return out;
 }
 
@@ -596,6 +602,26 @@ async function helpItemWrite(
     );
 }
 
+const narrationNote = (failed: readonly string[]) =>
+  failed.length
+    ? {
+        narration_failed: failed,
+        narration_note:
+          'These steps have no new narration; saving them again retries it.',
+      }
+    : {};
+
+/** Generated narration for each step whose words changed; never fails the save. */
+async function narrate(ctx: ToolContext, steps: GlSet['steps']) {
+  try {
+    const { narrateTourSteps, narrationDeps } = await import('./tourNarration');
+    return await narrateTourSteps(steps, await narrationDeps(ctx));
+  } catch (err) {
+    console.warn('[live tour] narration unavailable', err);
+    return { steps: [...steps], failed: steps.map((s) => s.id) };
+  }
+}
+
 export function registerLiveTourTools(
   server: McpServer,
   ctx: ToolContext
@@ -709,9 +735,15 @@ export function registerLiveTourTools(
             );
           }
         );
+        const voiced = await narrate(ctx, saved.set.steps);
+        if (voiced.steps.some((s, i) => s !== saved.set.steps[i]))
+          await ctx.db
+            .doc(`${BUILDING}/${saved.set.id}`)
+            .update({ steps: voiced.steps });
         return {
           ...savedSummary(saved),
           ...needsAnchors(saved.set.steps),
+          ...narrationNote(voiced.failed),
           where_to_find_it: help
             ? 'SpartBoard > Admin Settings > Help Center (hidden)'
             : 'SpartBoard > Guided Learning widget > library, building sets',
@@ -849,6 +881,8 @@ export function registerLiveTourTools(
           next.helpCenter = true;
         }
         await reserveWrite(ctx);
+        const voiced = await narrate(ctx, next.steps);
+        next.steps = voiced.steps;
         const saved = await saveSet(
           ctx,
           loaded,
@@ -860,6 +894,7 @@ export function registerLiveTourTools(
         return {
           ...saved,
           ...needsAnchors(next.steps),
+          ...narrationNote(voiced.failed),
           ...(report.warnings.length ? { warnings: report.warnings } : {}),
           note: 'Saved as a draft. Teachers keep the published tour until an admin opens it in SpartBoard (Guided Learning library > Edit) and publishes the changes.',
         };
