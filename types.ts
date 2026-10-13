@@ -9840,8 +9840,6 @@ export type GlobalFeature =
   | 'quiz-import-suggested-targets'
   /** Long text blocks in an imported test become passage stimuli for the questions after them. */
   | 'quiz-import-passages'
-  /** Handing a board or a collection to a substitute, and managing live shares. */
-  | 'sub-share-collections'
   /** Guided Learning player v2: calm motion, learner speed, Watch/Try; stamped on sessions. */
   | 'gl-player-v2'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */

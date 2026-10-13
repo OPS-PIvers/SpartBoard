@@ -12,7 +12,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'paper-answer-sheets',
   'roster-groups',
   'quiz-document-import',
-  'sub-share-collections',
   'gl-player-v2',
   'tab-away-timer',
   'gl-live-tours',

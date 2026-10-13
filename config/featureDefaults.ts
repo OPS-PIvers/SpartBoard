@@ -48,7 +48,6 @@ import {
   Target,
   TextCursorInput,
   Timer,
-  UserCheck,
   UserSearch,
   UsersRound,
   Video,
@@ -566,18 +565,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     widget: 'quiz',
     modalLabel: 'Build from a test document',
     group: 'building',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Share a board or a collection with a substitute, and the manager for live
-  // shares. Admin-only until Paul has run a day's cover on it in prod.
-  'sub-share-collections': {
-    label: 'Share a board or a collection with a sub',
-    icon: UserCheck,
-    description: 'Share boards or collections with a sub.',
-    stage: 'preview',
-    afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
