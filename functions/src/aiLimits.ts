@@ -5,7 +5,6 @@ import type { AiTier } from './aiModels';
 export const DEFAULT_MAX_INPUT_CHARS = 50_000;
 export const INPUT_CHARS_DEFAULTS: Partial<Record<AiIntegrationId, number>> = {
   'mini-app': 200_000,
-  'widget-builder': 100_000,
 };
 export const MIN_INPUT_CHARS = 1_000;
 export const MAX_INPUT_CHARS = 1_000_000;
@@ -19,13 +18,11 @@ export const CLAUDE_OUTPUT_TOKENS_DEFAULTS: Record<AiTier, number> = {
 /** Integrations whose typed prompt goes through generateWithAI's input-size check. */
 export const PROMPT_LIMITED_INTEGRATIONS: readonly AiIntegrationId[] = [
   'mini-app',
-  'widget-builder',
   'poll',
   'dashboard-layout',
   'instructional-routine',
   'quiz',
   'ocr',
-  'widget-explainer',
   'blooms-ai',
   'video-activity-recommend',
 ];
