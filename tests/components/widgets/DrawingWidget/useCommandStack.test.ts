@@ -1,7 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import type { DrawableObject, RectObject } from '@/types';
-import { useCommandStack } from '@/components/widgets/DrawingWidget/useCommandStack';
+import {
+  useCommandStack,
+  MAX_UNDO_DEPTH,
+} from '@/components/widgets/DrawingWidget/useCommandStack';
 
 // Tiny builder so each test reads as data, not setup boilerplate.
 const rect = (overrides: Partial<RectObject> = {}): RectObject => ({
@@ -364,5 +367,27 @@ describe('useCommandStack', () => {
     t.sync();
     expect(t.getObjects()).toEqual([]);
     expect(t.result.current.canUndo).toBe(false);
+  });
+
+  it('caps undo depth so history memory stays bounded', () => {
+    const t = renderStack();
+    const total = MAX_UNDO_DEPTH + 25;
+    for (let i = 0; i < total; i++) {
+      act(() => {
+        t.result.current.push({
+          kind: 'add',
+          object: rect({ id: `r${i}` }),
+        });
+      });
+      t.sync();
+    }
+    for (let i = 0; i < total; i++) {
+      act(() => {
+        t.result.current.undo();
+      });
+      t.sync();
+    }
+    expect(t.result.current.canUndo).toBe(false);
+    expect(t.getObjects()).toHaveLength(total - MAX_UNDO_DEPTH);
   });
 });

@@ -43,6 +43,12 @@ interface PerPageStack {
 
 const EMPTY_STACK: PerPageStack = { past: [], future: [] };
 
+// Caps undo depth per page so snapshot-holding commands can't grow memory unbounded.
+export const MAX_UNDO_DEPTH = 100;
+
+const appendPast = (past: DrawingCommand[], cmd: DrawingCommand) =>
+  [...past, cmd].slice(-MAX_UNDO_DEPTH);
+
 /**
  * Undo/redo stack for DrawingWidget object mutations, scoped per page.
  *
@@ -103,7 +109,7 @@ export const useCommandStack = ({
       const nextStacks: Record<string, PerPageStack> = {
         ...stacksRef.current,
         [pageKey]: {
-          past: [...curStack.past, cmd],
+          past: appendPast(curStack.past, cmd),
           // Any new action invalidates the redo branch — standard undo
           // semantics, scoped to this page.
           future: [],
@@ -151,7 +157,7 @@ export const useCommandStack = ({
     const nextStacks: Record<string, PerPageStack> = {
       ...stacksRef.current,
       [pageKey]: {
-        past: [...curStack.past, cmd],
+        past: appendPast(curStack.past, cmd),
         future: curStack.future.slice(0, -1),
       },
     };
