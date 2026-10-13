@@ -168,7 +168,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
   const setRubric = (rubric: Rubric | undefined): void => {
     const next = { ...draft };
     if (rubric) {
-      next.rubric = rubric;
+      next.rubric = stripRubricExamples(rubric);
       next.rubricMaxPoints = rubricMaxPoints(rubric);
     } else {
       delete next.rubric;
@@ -561,7 +561,7 @@ export const ProjectEditorModal: React.FC<ProjectEditorModalProps> = ({
             attachLabel="Use for project"
             onAttach={(rubric) => {
               // Students can open a project's rubric, so example responses stay behind.
-              setRubric(stripRubricExamples(rubric));
+              setRubric(rubric);
               setRubricBuilderOpen(false);
             }}
             onDetach={() => {

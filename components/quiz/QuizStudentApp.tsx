@@ -3498,6 +3498,7 @@ export const ActiveQuiz: React.FC<{
                   light={light}
                   onLoadError={handleStimulusLoadError}
                   readAloud={stimulusReadAloudFor(s)}
+                  selectableText={session.allowStimulusQuotes === true}
                 />
               </div>
             ))}

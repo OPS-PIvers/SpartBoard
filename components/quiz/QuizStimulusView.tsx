@@ -85,6 +85,8 @@ export interface StimulusRendererProps {
   light?: boolean;
   /** Set only inside a widget's own CSS container-query scope — see file header. */
   cqScaled?: boolean;
+  /** Builds a selectable text layer on PDF pages, for passage quotes. */
+  selectableText?: boolean;
 }
 
 /** `min(Xpx, Ycqmin)`, only meaningful when the caller passes `cqScaled`. */
@@ -572,6 +574,7 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
   onLoadError,
   cqScaled,
   retryNonce,
+  selectableText = false,
 }) => {
   const [state, setState] = useState<
     'loading' | 'ready' | 'fallback' | 'error'
@@ -650,15 +653,19 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
           const wrapper = document.createElement('div');
           wrapper.className = 'quiz-pdf-page';
           wrapper.style.aspectRatio = `${width} / ${height}`;
-          const textLayer = document.createElement('div');
-          textLayer.className = 'textLayer';
-          wrapper.append(textLayer);
-          const text = new pdfjs.TextLayer({
-            textContentSource: page.streamTextContent(),
-            container: textLayer,
-            viewport: page.getViewport({ scale: 1 }),
-          });
-          void text.render().catch(() => undefined);
+          let text: PdfPageSlot['text'] = { cancel: () => undefined };
+          if (selectableText) {
+            const textLayer = document.createElement('div');
+            textLayer.className = 'textLayer';
+            wrapper.append(textLayer);
+            const layer = new pdfjs.TextLayer({
+              textContentSource: page.streamTextContent(),
+              container: textLayer,
+              viewport: page.getViewport({ scale: 1 }),
+            });
+            void layer.render().catch(() => undefined);
+            text = layer;
+          }
           slots.push({
             page,
             wrapper,
@@ -681,7 +688,7 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
           if (cancelled) return;
           await renderPdfSlot(
             slot,
-            Math.min(pdfTargetScale(slot, cssWidth), 2.5)
+            Math.min(pdfTargetScale(slot, cssWidth), PDF_OFFSCREEN_SCALE)
           );
         }
         if (cancelled) return;
@@ -703,7 +710,7 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
     return () => {
       cancelled = true;
     };
-  }, [state, stimulus.id, stimulus.driveFileId, stimulus.url]);
+  }, [state, stimulus.id, stimulus.driveFileId, stimulus.url, selectableText]);
 
   // Re-render pages near the viewport at the zoomed size once zooming settles.
   useEffect(() => {
