@@ -246,4 +246,35 @@ describe('useSubShares', () => {
       expect(endSubstituteCollectionShare).toHaveBeenCalledWith('share-1')
     );
   });
+
+  it('ignores a second End click while the confirm is still open', async () => {
+    const { result } = await load();
+
+    await act(async () => {
+      result.current.end(shares[0]);
+      result.current.end(shares[0]);
+      await Promise.resolve();
+    });
+
+    await waitFor(() =>
+      expect(endSubstituteCollectionShare).toHaveBeenCalled()
+    );
+    expect(showConfirm).toHaveBeenCalledTimes(1);
+    expect(endSubstituteCollectionShare).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a second Add a week click while the first is writing', async () => {
+    const { result } = await load();
+
+    await act(async () => {
+      result.current.extend(shares[0]);
+      result.current.extend(shares[0]);
+      await Promise.resolve();
+    });
+
+    await waitFor(() =>
+      expect(extendSubstituteCollectionShare).toHaveBeenCalled()
+    );
+    expect(extendSubstituteCollectionShare).toHaveBeenCalledTimes(1);
+  });
 });
