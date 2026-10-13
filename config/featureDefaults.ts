@@ -56,6 +56,7 @@ import {
   Wand2,
   Zap,
   BookMarked,
+  Quote,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -597,6 +598,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Tab-away timer',
     icon: Timer,
     description: 'Shows how long a student was away.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Quote from passages in written answers. Admin-only until Paul has tested it in prod.
+  'quiz-stimulus-quotes': {
+    label: 'Quote from passages',
+    icon: Quote,
+    description:
+      'Students add selected passage or PDF text to a written answer as a quote.',
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'students',

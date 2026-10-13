@@ -141,6 +141,8 @@ import {
   enqueueQuizMediaUpload,
 } from '@/utils/quizMediaUpload';
 import { sanitizeQuizResponse } from '@/utils/security';
+import type { WrittenResponseEditorHandle } from './WrittenResponseEditor';
+import { StimulusQuotePopover } from './StimulusQuotePopover';
 import { countWords } from '@/utils/wordCount';
 import { wordLimitStatus } from '@/utils/wordLimit';
 import { AnnotatedResponseView } from '@/components/widgets/QuizWidget/components/AnnotatedResponseView';
@@ -1851,6 +1853,7 @@ export const ActiveQuiz: React.FC<{
   // Ordering inputs because those use dnd-kit's pointer sensors, not native
   // HTML5 drag events.
   const blockCopyPaste = session.blockCopyPaste === true;
+  const quoteEditorRef = useRef<WrittenResponseEditorHandle | null>(null);
   const handleBlockedClipboard = (e: React.ClipboardEvent<HTMLDivElement>) =>
     e.preventDefault();
   const handleBlockedDrop = (e: React.DragEvent<HTMLDivElement>) =>
@@ -4194,8 +4197,20 @@ export const ActiveQuiz: React.FC<{
                       disabled={submitted && !isStudentPaced}
                       blockClipboard={blockCopyPaste}
                       light={light}
+                      ref={quoteEditorRef}
                     />
                   </React.Suspense>
+                  {session.allowStimulusQuotes === true &&
+                    !(submitted && !isStudentPaced) &&
+                    currentStimuli.some(
+                      (s) => s.type === 'text' || s.type === 'pdf'
+                    ) && (
+                      <StimulusQuotePopover
+                        onQuote={(quote) =>
+                          quoteEditorRef.current?.insertQuote(quote)
+                        }
+                      />
+                    )}
 
                   {/*
               Sticky CTA: the editor can grow up to ~70vh tall, so without

@@ -681,6 +681,8 @@ function sessionOptionsToSessionPatch(
   if (o.tabAwayAutoSubmit !== undefined)
     patch.tabAwayAutoSubmit = o.tabAwayAutoSubmit;
   if (o.blockCopyPaste !== undefined) patch.blockCopyPaste = o.blockCopyPaste;
+  if (o.allowStimulusQuotes !== undefined)
+    patch.allowStimulusQuotes = o.allowStimulusQuotes;
   if (o.showResultToStudent !== undefined)
     patch.showResultToStudent = o.showResultToStudent;
   if (o.showCorrectAnswerToStudent !== undefined)
@@ -1186,6 +1188,8 @@ export const useQuizAssignments = (
     authContext?.canAccessFeature?.('quiz-rubric-visibility') === true;
   const timeLimitOn =
     authContext?.canAccessFeature?.(QUIZ_TIME_LIMIT_FEATURE) === true;
+  const stimulusQuotesOn =
+    authContext?.canAccessFeature?.('quiz-stimulus-quotes') === true;
   // Stamped so the student app and pinLoginV1 can honor the teacher's gate.
   const allowAnonymousJoin =
     authContext?.canAccessFeature?.('anonymous-join') !== false;
@@ -1557,6 +1561,9 @@ export const useQuizAssignments = (
           : {}),
         ...tabAwaySessionFields(tabAwayTimerOn, opts),
         blockCopyPaste: opts.blockCopyPaste ?? false,
+        ...(stimulusQuotesOn
+          ? { allowStimulusQuotes: opts.allowStimulusQuotes ?? true }
+          : {}),
         showResultToStudent: opts.showResultToStudent ?? false,
         showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,
         showCorrectOnBoard: opts.showCorrectOnBoard ?? false,
@@ -1781,6 +1788,7 @@ export const useQuizAssignments = (
       allowAnonymousJoin,
       scoreOnSubmitOn,
       timeLimitOn,
+      stimulusQuotesOn,
     ]
   );
 

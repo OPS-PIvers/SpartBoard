@@ -3978,5 +3978,10 @@
     "label": "Novedades",
     "dismiss": "Descartar",
     "gotIt": "Entendido"
+  },
+  "quizQuotes": {
+    "addToResponse": "Añadir a la respuesta",
+    "showQuotes": "Mostrar citas",
+    "showQuotesHint": "Azul es una cita exacta. Ámbar se cambió respecto al texto."
   }
 }

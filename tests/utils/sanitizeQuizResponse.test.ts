@@ -94,3 +94,21 @@ describe('sanitizeQuizResponse', () => {
     );
   });
 });
+
+describe('sanitizeQuizResponse passage quotes', () => {
+  it('keeps a passage-quote span and its two attributes', () => {
+    const out = sanitizeQuizResponse(
+      '<p>“<span data-quote="stim-1" data-quote-text="not large" style="color:red">not large</span>”</p>'
+    );
+    expect(out).toBe(
+      '<p>“<span data-quote="stim-1" data-quote-text="not large">not large</span>”</p>'
+    );
+  });
+
+  it('unwraps spans that are not quotes and strips quote attributes elsewhere', () => {
+    const out = sanitizeQuizResponse(
+      '<p data-quote="x"><span data-quote-text="y">plain</span> <b data-quote="z">bold</b></p>'
+    );
+    expect(out).toBe('<p>plain <b>bold</b></p>');
+  });
+});

@@ -3978,5 +3978,10 @@
     "label": "Neu",
     "dismiss": "Ausblenden",
     "gotIt": "Verstanden"
+  },
+  "quizQuotes": {
+    "addToResponse": "Zur Antwort hinzufügen",
+    "showQuotes": "Zitate zeigen",
+    "showQuotesHint": "Blau ist ein wörtliches Zitat. Gelb wurde gegenüber dem Text verändert."
   }
 }

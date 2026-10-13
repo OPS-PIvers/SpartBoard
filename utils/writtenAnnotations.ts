@@ -21,6 +21,7 @@
 
 import React from 'react';
 import type { WrittenAnswerAnnotation } from '@/types';
+import { QUOTE_ATTR, QUOTE_TEXT_ATTR, isQuoteEdited } from './quizQuotes';
 
 const BLOCK_TAGS = new Set(['P', 'LI', 'UL', 'OL', 'DIV']);
 
@@ -252,6 +253,8 @@ export type AnnotatedSegment =
       tag: string;
       block: boolean;
       children: AnnotatedSegment[];
+      /** Set on a passage-quote span: whether its words still match the passage. */
+      quote?: 'exact' | 'edited';
     };
 
 /**
@@ -306,11 +309,21 @@ const segmentChildren = (
     }
     // Inline elements (b, i, em, strong, u) keep their tag so bold/italic
     // styling survives around annotations.
+    const quote =
+      tag === 'SPAN' && el.hasAttribute(QUOTE_ATTR)
+        ? isQuoteEdited(
+            el.textContent ?? '',
+            el.getAttribute(QUOTE_TEXT_ATTR) ?? ''
+          )
+          ? ('edited' as const)
+          : ('exact' as const)
+        : undefined;
     out.push({
       kind: 'element',
       tag: tag.toLowerCase(),
       block,
       children: segmentChildren(el, annotations, ctx),
+      ...(quote ? { quote } : {}),
     });
   }
   return out;
@@ -374,7 +387,7 @@ const segmentsToReact = (
       const key = `n${ctx.keyCounter++}`;
       return React.createElement(
         seg.tag,
-        { key },
+        seg.quote ? { key, 'data-quote-state': seg.quote } : { key },
         ...segmentsToReact(seg.children, ctx)
       );
     }
