@@ -53,7 +53,6 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   const { showPrompt, showConfirm } = useDialog();
   const { isAdmin, canAccessFeature } = useAuth();
   const canShare = canAccessFeature('dashboard-sharing');
-  const canShareWithSub = canShare && canAccessFeature('sub-share-collections');
   const {
     dashboards,
     activeDashboard,
@@ -89,7 +88,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   // disabled-state re-render on each card.
   const boardDuplicateBusy = useBusyIdSet();
   const collectionDuplicateBusy = useBusyIdSet();
-  const subShares = useSubShares(canShareWithSub);
+  const subShares = useSubShares(canShare);
 
   // Filter by search (substring on Board + Collection names)
   const searchTerm = search.trim().toLowerCase();
@@ -573,7 +572,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
           onBulkUnpin={handleBulkUnpin}
         />
 
-        {canShareWithSub && (
+        {canShare && (
           <SubSharesPanel
             shares={subShares.shares}
             busyShareId={subShares.busyShareId}
@@ -647,7 +646,6 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               board={board}
               position={contextMenu.position}
               canShare={canShare}
-              canShareWithSub={canShareWithSub}
               isAdmin={Boolean(isAdmin)}
               onClose={() => setContextMenu(null)}
               onOpen={() => handleOpenBoard(board.id)}
@@ -708,7 +706,6 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               onClose={() => setContextMenu(null)}
               onOpen={() => setSelectedCollectionId(c.id)}
               canShare={canShare}
-              canShareWithSub={canShareWithSub}
               onShare={() => setShareCollectionTarget(c)}
               onShareWithSub={() =>
                 setSubShareTarget({ kind: 'collection', collection: c })
@@ -783,7 +780,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
         dashboard={shareTarget}
         onClose={() => setShareTarget(null)}
         onShareWithSub={
-          canShareWithSub && shareTarget
+          shareTarget
             ? () => {
                 setSubShareTarget({ kind: 'board', dashboard: shareTarget });
                 setShareTarget(null);
@@ -799,17 +796,13 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
             (d) => (d.collectionId ?? null) === shareCollectionTarget.id
           )}
           onClose={() => setShareCollectionTarget(null)}
-          onShareWithSub={
-            canShareWithSub
-              ? () => {
-                  setSubShareTarget({
-                    kind: 'collection',
-                    collection: shareCollectionTarget,
-                  });
-                  setShareCollectionTarget(null);
-                }
-              : undefined
-          }
+          onShareWithSub={() => {
+            setSubShareTarget({
+              kind: 'collection',
+              collection: shareCollectionTarget,
+            });
+            setShareCollectionTarget(null);
+          }}
         />
       )}
       {/* Mounted only while open, so a second trip through the dialog starts clean. */}
