@@ -2,7 +2,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const REGISTRY_PATH = 'config/tourAnchors.ts';
@@ -159,7 +159,7 @@ export function unanchoredControls(
 
 const isMain =
   process.argv[1] !== undefined &&
-  fileURLToPath(import.meta.url) === process.argv[1].replace(/\\/g, '/');
+  resolve(fileURLToPath(import.meta.url)) === resolve(process.argv[1]);
 
 if (isMain) {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
