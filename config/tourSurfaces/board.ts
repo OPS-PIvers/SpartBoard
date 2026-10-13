@@ -100,6 +100,26 @@ export const SURFACES: TourSurfaceMap = {
       'components/common/PenColorSwatches.tsx',
     ],
   },
+  'board.assignments-hub': {
+    label: 'Assignments hub',
+    kind: 'modal',
+    files: ['components/assignmentsHub/'],
+    opensWith: 'sidebar.assignments',
+  },
+  'board.assignment-detail': {
+    label: 'Assignments hub detail pane',
+    kind: 'panel',
+    files: ['components/assignmentsHub/AssignmentDetailPane.tsx'],
+    opensWith: 'assignments-hub.row#row-1',
+    parent: 'board.assignments-hub',
+    needs: ['class'],
+  },
+  // Rendered inside each kind's sub share widget on the substitute's board.
+  'board.sub-launch': {
+    label: 'Substitute start-as-teacher panel',
+    kind: 'shared',
+    files: ['components/subs/SubLaunchPanel.tsx'],
+  },
   'board.tours': {
     label: 'Live tour runner',
     kind: 'shared',
@@ -109,8 +129,8 @@ export const SURFACES: TourSurfaceMap = {
     label: 'Absent students dialog',
     kind: 'modal',
     files: ['components/common/AbsentStudentsModal.tsx'],
-    openerMissing:
-      'Absent button (components/common/AbsentButton.tsx) in the Random and Stations widgets',
+    opensWith: 'random.mark-absent',
+    parent: 'widgets.random.face',
     needs: ['widget-on-stage', 'class'],
   },
   'board.annotation': {
@@ -446,8 +466,7 @@ export const SURFACES: TourSurfaceMap = {
     label: 'Collection color picker',
     kind: 'modal',
     files: ['components/boardsModal/CollectionColorPicker.tsx'],
-    openerMissing:
-      'Color item in the collection edit menu (components/boardsModal/CollectionContextMenu.tsx)',
+    opensWith: 'boards-modal.collection-menu-color',
     parent: 'board.boards-collection-menu',
     needs: ['library-item'],
   },

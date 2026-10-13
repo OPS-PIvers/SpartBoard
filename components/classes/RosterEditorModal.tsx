@@ -247,6 +247,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
               <select
                 className="px-2 py-2 text-sm border border-slate-200 rounded-xl bg-white font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
                 value={bellKey(bellPeriod)}
+                {...tourAttr('roster-editor.bell-period')}
                 onChange={(e) => {
                   const pick = bellChoices.find(
                     (o) => bellKey(o) === e.target.value
@@ -351,6 +352,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
               })}
               className="w-64"
               options={columnOptions}
+              anchor={tourAttr('roster-editor.columns')}
               selected={selectedColumns}
               onToggle={toggleColumn}
             />
@@ -392,6 +394,7 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
                   <button
                     type="button"
                     onClick={() => setShowPins(true)}
+                    {...tourAttr('roster-editor.show-pins')}
                     className="ml-auto underline hover:text-yellow-900"
                   >
                     {t('sidebar.classes.showPins', {
@@ -654,6 +657,11 @@ const RosterRow: React.FC<RosterRowProps> = ({
           }`}
           value={row.pin}
           onChange={(e) => onChange({ pin: e.target.value })}
+          {...tourFieldAttr(
+            'roster-editor.pin',
+            'roster-editor',
+            `row-${index + 1}`
+          )}
           placeholder={pinPlaceholder}
           maxLength={4}
           inputMode="numeric"
@@ -664,6 +672,11 @@ const RosterRow: React.FC<RosterRowProps> = ({
         value={row.firstName}
         onChange={(e) => onChange({ firstName: e.target.value })}
         onPaste={handleFirstNamePaste}
+        {...tourFieldAttr(
+          'roster-editor.first-name',
+          'roster-editor',
+          `row-${index + 1}`
+        )}
         placeholder={firstNamePlaceholder}
       />
       {showLastNames && (
@@ -671,6 +684,11 @@ const RosterRow: React.FC<RosterRowProps> = ({
           className="px-2 py-1.5 text-sm rounded-md border border-transparent bg-transparent hover:border-slate-200 focus:bg-white outline-none focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 transition-colors"
           value={row.lastName}
           onChange={(e) => onChange({ lastName: e.target.value })}
+          {...tourFieldAttr(
+            'roster-editor.last-name',
+            'roster-editor',
+            `row-${index + 1}`
+          )}
           placeholder={lastNamePlaceholder}
         />
       )}
@@ -680,6 +698,11 @@ const RosterRow: React.FC<RosterRowProps> = ({
           className="px-2 py-1.5 text-sm rounded-md border border-transparent bg-transparent hover:border-slate-200 focus:bg-white outline-none focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 transition-colors"
           value={row.email ?? ''}
           onChange={(e) => onChange({ email: e.target.value })}
+          {...tourFieldAttr(
+            'roster-editor.email',
+            'roster-editor',
+            `row-${index + 1}`
+          )}
           placeholder={emailPlaceholder}
           autoComplete="off"
           spellCheck={false}
@@ -780,11 +803,13 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
             defaultValue: 'New Group',
           })}
           onAdd={addGroup}
+          anchorProps={tourAttr('roster-editor.add-group')}
         />
       ) : (
         <ul className="flex flex-col divide-y divide-slate-100">
-          {groups.map((group) => {
+          {groups.map((group, groupIndex) => {
             const expanded = expandedId === group.id;
+            const groupKey = `group-${groupIndex + 1}`;
             // Count only members still on the roster — a student deleted in
             // the Students tab isn't pruned from studentIds until save.
             const memberCount = group.studentIds.filter((id) =>
@@ -795,6 +820,11 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setExpandedId(expanded ? null : group.id)}
+                    {...tourFieldAttr(
+                      'roster-editor.group-members',
+                      'roster-editor',
+                      groupKey
+                    )}
                     className="p-1 text-slate-400 hover:text-brand-blue-primary rounded-md transition-colors"
                     aria-label={t('sidebar.classes.editGroupMembers', {
                       defaultValue: 'Edit group members',
@@ -806,6 +836,11 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
                     className="flex-1 px-2 py-1 text-sm font-bold rounded-md border border-transparent hover:border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 outline-none transition-colors"
                     value={group.name}
                     onChange={(e) => renameGroup(group.id, e.target.value)}
+                    {...tourFieldAttr(
+                      'roster-editor.group-name',
+                      'roster-editor',
+                      groupKey
+                    )}
                   />
                   <span className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
                     {t('sidebar.classes.groupMemberCount', {
@@ -816,6 +851,11 @@ const RosterGroupsPanel: React.FC<RosterGroupsPanelProps> = ({
                   </span>
                   <button
                     onClick={() => deleteGroup(group.id)}
+                    {...tourFieldAttr(
+                      'roster-editor.group-remove',
+                      'roster-editor',
+                      groupKey
+                    )}
                     aria-label={t('sidebar.classes.removeGroup', {
                       defaultValue: 'Remove group',
                     })}
@@ -906,6 +946,7 @@ const RosterAccommodationsPanel: React.FC<RosterAccommodationsPanelProps> = ({
             defaultValue: 'Add Student',
           })}
           onAdd={onAddStudents}
+          anchorProps={tourAttr('roster-editor.accommodations-add-student')}
         />
       ) : (
         <div className="p-3 flex flex-col gap-2">

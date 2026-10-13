@@ -36,6 +36,11 @@ import {
   type ColorPreset,
 } from '@/config/widgetAppearance';
 import { useDialog } from '@/context/useDialog';
+import {
+  tourFieldAttr,
+  tourTypeAttr,
+  type TourAnchorAttrs,
+} from '@/config/tourAnchors';
 import { ensureTopLevelBlocks } from '@/utils/contentEditableBlocks';
 import { toggleList } from '@/utils/contentEditableLists';
 
@@ -102,7 +107,8 @@ const MenuButton: React.FC<{
   onClose: () => void;
   isOpen: boolean;
   children: React.ReactNode;
-}> = ({ icon, label, onClick, onClose, isOpen, children }) => {
+  anchor?: TourAnchorAttrs;
+}> = ({ icon, label, onClick, onClose, isOpen, children, anchor }) => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   // Start hidden at a fixed position so the first paint never lands at the
   // body origin; useLayoutEffect anchors it under the button before paint.
@@ -152,6 +158,7 @@ const MenuButton: React.FC<{
         }}
         className={`flex items-center gap-1 px-2 py-1 rounded hover:bg-slate-100 transition-colors ${isOpen ? 'bg-slate-100' : ''}`}
         title={label}
+        {...anchor}
       >
         {icon}
         <ChevronDown className="w-2.5 h-2.5 text-slate-400" />
@@ -191,7 +198,16 @@ const SwatchSection: React.FC<{
   onPick: (color: string) => void;
   noneLabel?: string;
   selected?: string;
-}> = ({ label, swatches, customLabel, onPick, noneLabel, selected }) => (
+  fieldPrefix: string;
+}> = ({
+  label,
+  swatches,
+  customLabel,
+  onPick,
+  noneLabel,
+  selected,
+  fieldPrefix,
+}) => (
   <div>
     <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
       {label}
@@ -204,6 +220,7 @@ const SwatchSection: React.FC<{
           className={`${SWATCH_CLASS} border-slate-200 flex items-center justify-center`}
           title={noneLabel}
           aria-label={noneLabel}
+          {...tourFieldAttr('text-toolbar.no-color', 'text', fieldPrefix)}
         >
           <div className="w-px h-3.5 bg-red-500 rotate-45" />
         </button>
@@ -217,12 +234,18 @@ const SwatchSection: React.FC<{
           style={{ backgroundColor: s.hex }}
           title={s.name}
           aria-label={`${label}: ${s.name}`}
+          {...tourFieldAttr(
+            'text-toolbar.swatch',
+            'text',
+            `${fieldPrefix}-${s.name.toLowerCase().replace(/\s+/g, '-')}`
+          )}
         />
       ))}
       <label
         className={`${SWATCH_CLASS} border-dashed border-slate-300 cursor-pointer flex items-center justify-center`}
         title={customLabel}
         onMouseDown={(e) => e.preventDefault()}
+        {...tourFieldAttr('text-toolbar.custom-color', 'text', fieldPrefix)}
       >
         <Plus className="w-3 h-3 text-slate-400" aria-hidden="true" />
         <input
@@ -867,6 +890,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
     <>
       <SwatchSection
         label="Font Color"
+        fieldPrefix="font"
         swatches={FONT_COLOR_PRESETS}
         customLabel="Custom font color"
         onPick={(c) => {
@@ -876,6 +900,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
       />
       <SwatchSection
         label="Highlight"
+        fieldPrefix="highlight"
         swatches={HIGHLIGHT_COLOR_SWATCHES}
         customLabel="Custom highlight color"
         noneLabel="No highlight"
@@ -887,6 +912,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
       {onBgColorChange && (
         <SwatchSection
           label="Background"
+          fieldPrefix="background"
           swatches={NOTE_COLOR_PRESETS}
           customLabel="Custom background color"
           selected={bgColor}
@@ -922,6 +948,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
         <MenuButton
           icon={<Type className="w-3.5 h-3.5 text-slate-600" />}
           label="Font Family"
+          anchor={tourTypeAttr('text-toolbar.font-menu', 'text')}
           isOpen={showFontMenu}
           onClose={closeAllMenus}
           onClick={() => {
@@ -947,6 +974,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                 }}
                 className="text-left px-3 py-1.5 hover:bg-slate-50 rounded text-xs text-slate-700 whitespace-nowrap"
                 style={{ fontFamily: f.family }}
+                {...tourFieldAttr('text-toolbar.font', 'text', f.id)}
               >
                 {f.label}
               </button>
@@ -971,6 +999,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
             onClick={() => applyFontSize(currentFontSize - 1)}
             className="flex items-center justify-center w-5 h-6 hover:bg-slate-100 transition-colors rounded-l"
             title="Decrease font size"
+            {...tourTypeAttr('text-toolbar.font-size-down', 'text')}
             aria-label="Decrease font size"
           >
             <Minus className="w-2.5 h-2.5 text-slate-500" />
@@ -997,12 +1026,14 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
             }}
             className="w-7 h-6 text-center text-[10px] font-mono text-slate-600 border-x border-slate-200 bg-transparent outline-none"
             aria-label="Font size"
+            {...tourTypeAttr('text-toolbar.font-size', 'text')}
           />
           <button
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => applyFontSize(currentFontSize + 1)}
             className="flex items-center justify-center w-5 h-6 hover:bg-slate-100 transition-colors rounded-r"
             title="Increase font size"
+            {...tourTypeAttr('text-toolbar.font-size-up', 'text')}
             aria-label="Increase font size"
           >
             <Plus className="w-2.5 h-2.5 text-slate-500" />
@@ -1027,6 +1058,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           onClick={() => runInlineStyleCommand('bold')}
           className="flex items-center justify-center w-7 h-7 rounded-l border border-r-0 border-slate-200 hover:bg-slate-100 transition-colors"
           title="Bold"
+          {...tourFieldAttr('text-toolbar.style', 'text', 'bold')}
           aria-label="Bold"
         >
           <Bold className="w-3.5 h-3.5 text-slate-600" />
@@ -1036,6 +1068,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           onClick={() => runInlineStyleCommand('italic')}
           className="flex items-center justify-center w-7 h-7 border border-r-0 border-slate-200 hover:bg-slate-100 transition-colors"
           title="Italic"
+          {...tourFieldAttr('text-toolbar.style', 'text', 'italic')}
           aria-label="Italic"
         >
           <Italic className="w-3.5 h-3.5 text-slate-600" />
@@ -1045,6 +1078,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
           onClick={() => runInlineStyleCommand('underline')}
           className="flex items-center justify-center w-7 h-7 rounded-r border border-slate-200 hover:bg-slate-100 transition-colors"
           title="Underline"
+          {...tourFieldAttr('text-toolbar.style', 'text', 'underline')}
           aria-label="Underline"
         >
           <Underline className="w-3.5 h-3.5 text-slate-600" />
@@ -1074,6 +1108,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
             isUnorderedList ? 'bg-blue-100 text-blue-600' : ''
           }`}
           title="Bulleted List (Ctrl+Shift+8)"
+          {...tourFieldAttr('text-toolbar.list', 'text', 'bulleted')}
           aria-label="Bulleted List"
         >
           <List
@@ -1088,6 +1123,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
             isOrderedList ? 'bg-blue-100 text-blue-600' : ''
           }`}
           title="Numbered List (Ctrl+Shift+7)"
+          {...tourFieldAttr('text-toolbar.list', 'text', 'numbered')}
           aria-label="Numbered List"
         >
           <ListOrdered
@@ -1111,6 +1147,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
         <MenuButton
           icon={<AlignLeft className="w-3.5 h-3.5 text-slate-600" />}
           label="Alignment & Layout"
+          anchor={tourTypeAttr('text-toolbar.align-menu', 'text')}
           isOpen={showAlignMenu}
           onClose={closeAllMenus}
           onClick={() => {
@@ -1134,6 +1171,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                   }}
                   className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
                   title="Align Left"
+                  {...tourFieldAttr('text-toolbar.align', 'text', 'left')}
                 >
                   <AlignLeft className="w-3.5 h-3.5 text-slate-600" />
                 </button>
@@ -1145,6 +1183,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                   }}
                   className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
                   title="Align Center"
+                  {...tourFieldAttr('text-toolbar.align', 'text', 'center')}
                 >
                   <AlignCenter className="w-3.5 h-3.5 text-slate-600" />
                 </button>
@@ -1156,6 +1195,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                   }}
                   className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
                   title="Align Right"
+                  {...tourFieldAttr('text-toolbar.align', 'text', 'right')}
                 >
                   <AlignRight className="w-3.5 h-3.5 text-slate-600" />
                 </button>
@@ -1180,6 +1220,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                       }}
                       className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'top' ? 'bg-blue-100 text-blue-600' : ''}`}
                       title="Align Top"
+                      {...tourFieldAttr('text-toolbar.align', 'text', 'top')}
                     >
                       <AlignVerticalJustifyStart className="w-3.5 h-3.5" />
                     </button>
@@ -1191,6 +1232,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                       }}
                       className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'center' ? 'bg-blue-100 text-blue-600' : ''}`}
                       title="Align Middle"
+                      {...tourFieldAttr('text-toolbar.align', 'text', 'middle')}
                     >
                       <AlignVerticalJustifyCenter className="w-3.5 h-3.5" />
                     </button>
@@ -1202,6 +1244,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                       }}
                       className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'bottom' ? 'bg-blue-100 text-blue-600' : ''}`}
                       title="Align Bottom"
+                      {...tourFieldAttr('text-toolbar.align', 'text', 'bottom')}
                     >
                       <AlignVerticalJustifyEnd className="w-3.5 h-3.5" />
                     </button>
@@ -1226,6 +1269,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                   }}
                   className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
                   title="Decrease Indent"
+                  {...tourFieldAttr('text-toolbar.indent', 'text', 'decrease')}
                 >
                   <Outdent className="w-3.5 h-3.5 text-slate-600" />
                 </button>
@@ -1237,6 +1281,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                   }}
                   className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
                   title="Increase Indent"
+                  {...tourFieldAttr('text-toolbar.indent', 'text', 'increase')}
                 >
                   <Indent className="w-3.5 h-3.5 text-slate-600" />
                 </button>
@@ -1261,6 +1306,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
         <MenuButton
           icon={<Palette className="w-3.5 h-3.5 text-slate-600" />}
           label="Colors"
+          anchor={tourTypeAttr('text-toolbar.colors-menu', 'text')}
           isOpen={showColorMenu}
           onClose={closeAllMenus}
           onClick={() => {
@@ -1290,6 +1336,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
         <IconButton
           icon={<LinkIcon className="w-3.5 h-3.5" />}
           label="Hyperlink (Ctrl+K)"
+          {...tourTypeAttr('text-toolbar.link', 'text')}
           onClick={() => void handleLink()}
           size="sm"
           variant="ghost"
@@ -1302,6 +1349,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
         <MenuButton
           icon={<MoreHorizontal className="w-3.5 h-3.5 text-slate-600" />}
           label="More options"
+          anchor={tourTypeAttr('text-toolbar.more', 'text')}
           isOpen={showOverflowMenu}
           onClose={closeAllMenus}
           onClick={() => {
@@ -1326,6 +1374,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                     }}
                     className="flex items-center justify-center w-8 h-8 rounded hover:bg-slate-100"
                     title="Bold"
+                    {...tourFieldAttr('text-toolbar.more-item', 'text', 'bold')}
                     aria-label="Bold"
                   >
                     <Bold className="w-3.5 h-3.5 text-slate-600" />
@@ -1338,6 +1387,11 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                     }}
                     className="flex items-center justify-center w-8 h-8 rounded hover:bg-slate-100"
                     title="Italic"
+                    {...tourFieldAttr(
+                      'text-toolbar.more-item',
+                      'text',
+                      'italic'
+                    )}
                     aria-label="Italic"
                   >
                     <Italic className="w-3.5 h-3.5 text-slate-600" />
@@ -1350,6 +1404,11 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                     }}
                     className="flex items-center justify-center w-8 h-8 rounded hover:bg-slate-100"
                     title="Underline"
+                    {...tourFieldAttr(
+                      'text-toolbar.more-item',
+                      'text',
+                      'underline'
+                    )}
                     aria-label="Underline"
                   >
                     <Underline className="w-3.5 h-3.5 text-slate-600" />
@@ -1373,6 +1432,11 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                     }}
                     className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
                     title="Bulleted List"
+                    {...tourFieldAttr(
+                      'text-toolbar.more-item',
+                      'text',
+                      'bulleted'
+                    )}
                   >
                     <List className="w-3.5 h-3.5 text-slate-600" />
                   </button>
@@ -1384,6 +1448,11 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                     }}
                     className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
                     title="Numbered List"
+                    {...tourFieldAttr(
+                      'text-toolbar.more-item',
+                      'text',
+                      'numbered'
+                    )}
                   >
                     <ListOrdered className="w-3.5 h-3.5 text-slate-600" />
                   </button>
@@ -1406,6 +1475,11 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                     }}
                     className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
                     title="Align Left"
+                    {...tourFieldAttr(
+                      'text-toolbar.more-item',
+                      'text',
+                      'align-left'
+                    )}
                   >
                     <AlignLeft className="w-3.5 h-3.5 text-slate-600" />
                   </button>
@@ -1417,6 +1491,11 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                     }}
                     className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
                     title="Align Center"
+                    {...tourFieldAttr(
+                      'text-toolbar.more-item',
+                      'text',
+                      'align-center'
+                    )}
                   >
                     <AlignCenter className="w-3.5 h-3.5 text-slate-600" />
                   </button>
@@ -1428,6 +1507,11 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                     }}
                     className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
                     title="Align Right"
+                    {...tourFieldAttr(
+                      'text-toolbar.more-item',
+                      'text',
+                      'align-right'
+                    )}
                   >
                     <AlignRight className="w-3.5 h-3.5 text-slate-600" />
                   </button>
@@ -1441,6 +1525,11 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                         }}
                         className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'top' ? 'bg-blue-100 text-blue-600' : ''}`}
                         title="Align Top"
+                        {...tourFieldAttr(
+                          'text-toolbar.more-item',
+                          'text',
+                          'align-top'
+                        )}
                       >
                         <AlignVerticalJustifyStart className="w-3.5 h-3.5" />
                       </button>
@@ -1452,6 +1541,11 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                         }}
                         className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'center' ? 'bg-blue-100 text-blue-600' : ''}`}
                         title="Align Middle"
+                        {...tourFieldAttr(
+                          'text-toolbar.more-item',
+                          'text',
+                          'align-middle'
+                        )}
                       >
                         <AlignVerticalJustifyCenter className="w-3.5 h-3.5" />
                       </button>
@@ -1463,6 +1557,11 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                         }}
                         className={`w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center transition-colors ${verticalAlign === 'bottom' ? 'bg-blue-100 text-blue-600' : ''}`}
                         title="Align Bottom"
+                        {...tourFieldAttr(
+                          'text-toolbar.more-item',
+                          'text',
+                          'align-bottom'
+                        )}
                       >
                         <AlignVerticalJustifyEnd className="w-3.5 h-3.5" />
                       </button>
@@ -1476,6 +1575,11 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                     }}
                     className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
                     title="Decrease Indent"
+                    {...tourFieldAttr(
+                      'text-toolbar.more-item',
+                      'text',
+                      'indent-decrease'
+                    )}
                   >
                     <Outdent className="w-3.5 h-3.5 text-slate-600" />
                   </button>
@@ -1487,6 +1591,11 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                     }}
                     className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
                     title="Increase Indent"
+                    {...tourFieldAttr(
+                      'text-toolbar.more-item',
+                      'text',
+                      'indent-increase'
+                    )}
                   >
                     <Indent className="w-3.5 h-3.5 text-slate-600" />
                   </button>
@@ -1515,6 +1624,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                   }}
                   className="flex items-center gap-1.5 w-full px-2 py-1.5 rounded hover:bg-slate-100 text-xs text-slate-700"
                   title="Insert Link"
+                  {...tourFieldAttr('text-toolbar.more-item', 'text', 'link')}
                 >
                   <LinkIcon className="w-3.5 h-3.5" />
                   Insert Link

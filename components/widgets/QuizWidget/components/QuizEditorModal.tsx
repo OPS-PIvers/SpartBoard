@@ -632,6 +632,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
       incompleteNotice={incompleteNotice}
       onClose={onClose}
       saveLabel={isBank ? 'Save Bank' : 'Save Quiz'}
+      saveAnchor={tourTypeAttr('editor.save', 'quiz')}
       footerExtras={footerExtras}
       contextPane={
         <div className="flex flex-col h-full">
