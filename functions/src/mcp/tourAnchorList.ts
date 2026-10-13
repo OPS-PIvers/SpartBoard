@@ -6133,6 +6133,16 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
     scope: 'field',
   },
   {
+    id: 'plc-assessments.status',
+    label: 'Status chip on a PLC assessment row',
+    scope: 'field',
+  },
+  {
+    id: 'plc-assessments.in-library',
+    label: 'In your library chip on a PLC assessment row',
+    scope: 'field',
+  },
+  {
     id: 'plc-assessments.assign',
     label: 'Assign button in the PLC assessments tab',
     scope: 'field',
@@ -8152,7 +8162,7 @@ export const TOUR_ANCHOR_LIST: ReadonlyArray<{
   },
   {
     id: 'teams.shell.close',
-    label: 'Close button in the team header',
+    label: 'Back button in the team header',
     scope: 'board',
   },
   {
