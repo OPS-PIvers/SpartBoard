@@ -24,6 +24,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Circle,
+  ClipboardCopy,
   GripVertical,
   LayoutDashboard,
   Loader2,
@@ -125,6 +126,8 @@ interface TourEditorPanelProps {
   /** Harness: starts collapsed or on a side regardless of what was remembered. */
   initialCollapsed?: boolean;
   initialSide?: Side;
+  /** Copies a Claude connector prompt for the tour, or for one step; shown only when given. */
+  onCopyForClaude?: (stepId?: string) => void;
 }
 
 /** The board editor's docked outline: every step, the selected one open for editing. */
@@ -136,6 +139,7 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
   settings,
   initialCollapsed,
   initialSide,
+  onCopyForClaude,
 }) => {
   const { t } = useTranslation();
   const [collapsed, setCollapsed] = useState(
@@ -409,6 +413,18 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
               <VolumeX className="h-4 w-4" aria-hidden="true" />
             )}
           </button>
+          {onCopyForClaude && (
+            <button
+              type="button"
+              onClick={() => onCopyForClaude()}
+              aria-label={t('glStudio.copyForClaude')}
+              title={t('glStudio.copyForClaude')}
+              data-testid="tour-editor-copy-for-claude"
+              className={headerIconBtn}
+            >
+              <ClipboardCopy className="h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
           <button
             type="button"
             onClick={swapSide}
@@ -513,6 +529,7 @@ export const TourEditorPanel: React.FC<TourEditorPanelProps> = ({
                 session={session}
                 playback={playback}
                 onPick={(stepId) => setPicking({ stepId, from: 'board' })}
+                onCopyForClaude={onCopyForClaude}
               />
               <div className="flex items-center gap-1 border-t border-slate-200 bg-slate-50 px-1.5 py-1">
                 <button
@@ -641,7 +658,8 @@ const StepOutline: React.FC<{
   session: TourEditorSession;
   playback: TourEditPlayback;
   onPick: (stepId: string) => void;
-}> = ({ session, playback, onPick }) => {
+  onCopyForClaude?: (stepId: string) => void;
+}> = ({ session, playback, onPick, onCopyForClaude }) => {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, {
@@ -690,6 +708,7 @@ const StepOutline: React.FC<{
               }
               session={session}
               onPick={onPick}
+              onCopyForClaude={onCopyForClaude}
             />
           ))}
         </ol>
@@ -708,7 +727,18 @@ const OutlineRow: React.FC<{
   waiting: boolean;
   session: TourEditorSession;
   onPick: (stepId: string) => void;
-}> = ({ step, index, selected, status, jumping, waiting, session, onPick }) => {
+  onCopyForClaude?: (stepId: string) => void;
+}> = ({
+  step,
+  index,
+  selected,
+  status,
+  jumping,
+  waiting,
+  session,
+  onPick,
+  onCopyForClaude,
+}) => {
   const { t } = useTranslation();
   const {
     attributes,
@@ -815,6 +845,18 @@ const OutlineRow: React.FC<{
             )}
           </span>
         </button>
+        {selected && onCopyForClaude && (
+          <button
+            type="button"
+            onClick={() => onCopyForClaude(step.id)}
+            aria-label={t('glStudio.copyForClaude')}
+            title={t('glStudio.copyForClaude')}
+            data-testid="tour-editor-step-copy-for-claude"
+            className={`mt-1.5 rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-700 ${focusRing}`}
+          >
+            <ClipboardCopy className="h-4 w-4" aria-hidden="true" />
+          </button>
+        )}
         <button
           type="button"
           ref={setActivatorNodeRef}
@@ -851,13 +893,15 @@ const StepCard: React.FC<{
   const bind = (next: NonNullable<GuidedLearningStep['tour']>) =>
     session.updateStep(step.id, bindWithStarterText(step, next));
   const thumb = tourThumbnail(step);
-  const pictured = !!tour?.anchor && tour.anchor !== WHOLE_BOARD_ANCHOR;
+  const bound = !!tour?.anchor && tour.anchor !== WHOLE_BOARD_ANCHOR;
+  // An unbound step can carry a picture from where it came from (a recording or a converted slide).
+  const pictured = bound || (!!tour && !tour.anchor);
   return (
     <div
       data-testid="tour-editor-card"
       className="flex flex-col gap-3 px-3 pb-3 pl-[42px] pt-1"
     >
-      {pictured && thumb && (
+      {tour && pictured && thumb && (
         <div className="relative">
           <img
             src={thumb.url}
@@ -867,15 +911,17 @@ const StepCard: React.FC<{
               thumb.anchor === tour.anchor ? '' : 'opacity-50'
             }`}
           />
-          <button
-            type="button"
-            onClick={() => retakeTourEditThumbnail(step.id)}
-            aria-label={t('tours.editor.retake')}
-            title={t('tours.editor.retakeHint')}
-            className={`absolute right-1.5 top-1.5 rounded-lg bg-white p-1.5 text-slate-700 shadow hover:bg-slate-50 ${focusRing}`}
-          >
-            <Camera className="h-3.5 w-3.5" aria-hidden="true" />
-          </button>
+          {bound && (
+            <button
+              type="button"
+              onClick={() => retakeTourEditThumbnail(step.id)}
+              aria-label={t('tours.editor.retake')}
+              title={t('tours.editor.retakeHint')}
+              className={`absolute right-1.5 top-1.5 rounded-lg bg-white p-1.5 text-slate-700 shadow hover:bg-slate-50 ${focusRing}`}
+            >
+              <Camera className="h-3.5 w-3.5" aria-hidden="true" />
+            </button>
+          )}
         </div>
       )}
       <label className={labelClass}>
