@@ -22,7 +22,6 @@ interface CollectionContextMenuProps {
   onColor: () => void;
   canShare: boolean;
   onShare: () => void;
-  canShareWithSub: boolean;
   onShareWithSub: () => void;
   /** When this board/collection is already shared with a sub: its end time. */
   subShareEndsAt?: number | null;
@@ -40,7 +39,6 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
   onColor,
   canShare,
   onShare,
-  canShareWithSub,
   onShareWithSub,
   subShareEndsAt,
   canSaveAsTemplate,
@@ -91,9 +89,6 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
       icon: Share2,
       action: onShare,
     });
-  }
-
-  if (canShareWithSub) {
     items.push({
       label: subShareEndsAt
         ? t('subShare.menu.update', { defaultValue: 'Update sub share…' })

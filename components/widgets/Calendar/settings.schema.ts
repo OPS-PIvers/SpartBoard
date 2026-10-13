@@ -1,9 +1,6 @@
 import React from 'react';
 import { defineSettings } from '@/components/settings/schema/defineSettings';
-import type {
-  CustomRenderCtx,
-  FieldCtx,
-} from '@/components/settings/schema/types';
+import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import type { CalendarConfig } from '@/types';
 import {
   CalendarBuildingSyncField,
@@ -11,7 +8,6 @@ import {
 } from './settingsFields';
 import { DEFAULT_HEADER_COLOR } from './constants';
 
-const dayView = (ctx: FieldCtx) => ctx.canAccessFeature('calendar-day-view');
 const HEADER_COLOR_PRESETS = [
   { name: 'Brand blue', hex: DEFAULT_HEADER_COLOR },
   { name: 'Brand red', hex: '#ad2122' },
@@ -98,7 +94,6 @@ export default defineSettings<CalendarConfig>({
           key: 'pastEvents',
           type: 'segmented',
           label: 'pastEvents',
-          visibleWhen: dayView,
           readValue: (ctx) => ctx.config.pastEvents ?? 'hide',
           options: [
             { value: 'hide', label: 'pastHide' },
@@ -109,7 +104,6 @@ export default defineSettings<CalendarConfig>({
           key: 'headerColor',
           type: 'color',
           label: 'headerColor',
-          visibleWhen: dayView,
           readValue: (ctx) => ctx.config.headerColor ?? DEFAULT_HEADER_COLOR,
           presets: HEADER_COLOR_PRESETS,
         },
