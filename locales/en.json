@@ -5032,5 +5032,10 @@
   "rubricGuide": {
     "examples": "Example responses",
     "or": "or"
+  },
+  "quizQuotes": {
+    "addToResponse": "Add to response",
+    "showQuotes": "Show quotes",
+    "showQuotesHint": "Blue is an exact quote. Amber was changed from the passage."
   }
 }

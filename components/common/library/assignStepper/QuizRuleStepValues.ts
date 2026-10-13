@@ -6,6 +6,7 @@ export interface QuizRuleGates {
   timeLimitOn: boolean;
   tabAwayTimerOn: boolean;
   scoreOnSubmitOn: boolean;
+  stimulusQuotesOn?: boolean;
 }
 
 export interface QuizRuleStepContext extends Partial<QuizRuleGates> {

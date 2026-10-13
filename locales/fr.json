@@ -3982,5 +3982,10 @@
   "rubricGuide": {
     "examples": "Exemples de réponses",
     "or": "ou"
+  },
+  "quizQuotes": {
+    "addToResponse": "Ajouter à la réponse",
+    "showQuotes": "Afficher les citations",
+    "showQuotesHint": "Bleu : citation exacte. Ambre : modifiée par rapport au texte."
   }
 }

@@ -1,4 +1,5 @@
 import DOMPurify from 'dompurify';
+import { QUOTE_ATTR, QUOTE_TEXT_ATTR } from './quizQuotes';
 
 /**
  * Robust HTML sanitizer to prevent XSS.
@@ -78,10 +79,33 @@ export const sanitizeHtml = (html: string): string => {
 export const sanitizeQuizResponse = (html: string): string => {
   if (!html) return '';
 
-  return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS: ['b', 'strong', 'i', 'em', 'u', 'p', 'br', 'ul', 'ol', 'li'],
+  const fragment = DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: [
+      'b',
+      'strong',
+      'i',
+      'em',
+      'u',
+      'p',
+      'br',
+      'ul',
+      'ol',
+      'li',
+      'span',
+    ],
     // No `style`, `color`, `class`, `href`, `src` — formatting comes
     // only from the semantic tags above.
-    ALLOWED_ATTR: [],
+    ALLOWED_ATTR: [QUOTE_ATTR, QUOTE_TEXT_ATTR],
+    RETURN_DOM_FRAGMENT: true,
   });
+  // Spans survive only as passage-quote markers; the quote attributes live nowhere else.
+  for (const el of Array.from(fragment.querySelectorAll('*'))) {
+    if (el.tagName === 'SPAN' && el.hasAttribute(QUOTE_ATTR)) continue;
+    el.removeAttribute(QUOTE_ATTR);
+    el.removeAttribute(QUOTE_TEXT_ATTR);
+    if (el.tagName === 'SPAN') el.replaceWith(...Array.from(el.childNodes));
+  }
+  const host = document.createElement('div');
+  host.append(fragment);
+  return host.innerHTML;
 };

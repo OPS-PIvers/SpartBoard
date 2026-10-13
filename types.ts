@@ -4696,6 +4696,8 @@ export interface QuizSessionOptions extends BaseSessionOptions {
   timeLimitMinutes?: number | null;
   /** Review: leaderboard rows on the board; absent keeps the legacy top 3. */
   boardRankLimit?: ReviewBoardRankLimit;
+  /** Students can select passage or PDF text and add it to a written answer as a quote. */
+  allowStimulusQuotes?: boolean;
 }
 
 /** A Firestore Timestamp or epoch ms on the game clock fields. */
@@ -5036,6 +5038,8 @@ export interface QuizSession
    * client doesn't need a second fetch.
    */
   blockCopyPaste?: boolean;
+  /** Stamped only with the quiz-stimulus-quotes flag; absent = no quote button. */
+  allowStimulusQuotes?: boolean;
   /** Show right/wrong indicator to students after they submit (default false) */
   showResultToStudent?: boolean;
   /** Reveal the correct answer text to students after submit (default false) */
@@ -9840,6 +9844,8 @@ export type GlobalFeature =
   | 'gl-player-v2'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
+  /** Students add selected passage or PDF text to a written answer as a tracked quote. */
+  | 'quiz-stimulus-quotes'
   /** Guided Learning live tours in the teacher app and their launch points. */
   | 'gl-live-tours'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */

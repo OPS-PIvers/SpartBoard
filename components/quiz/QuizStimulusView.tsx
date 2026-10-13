@@ -513,7 +513,9 @@ type PdfPageSlot = {
   height: number;
   /** Scale of the canvas currently shown; 0 before the first render. */
   scale: number;
+  canvas: HTMLCanvasElement | null;
   task: RenderTask | null;
+  text: { cancel: () => void };
   visible: boolean;
 };
 
@@ -549,8 +551,20 @@ async function renderPdfSlot(slot: PdfPageSlot, scale: number) {
   slot.task = null;
   slot.scale = scale;
   // Swap only once drawn, so a zoom never flashes a blank page.
-  slot.wrapper.replaceChildren(canvas);
+  if (slot.canvas) slot.wrapper.replaceChild(canvas, slot.canvas);
+  else slot.wrapper.prepend(canvas);
+  slot.canvas = canvas;
 }
+
+/** Sizes each page's selectable text layer to the page's on-screen width. */
+const applyPdfTextScale = (slots: PdfPageSlot[], cssWidth: number) => {
+  for (const slot of slots) {
+    slot.wrapper.style.setProperty(
+      '--total-scale-factor',
+      String(cssWidth / slot.width)
+    );
+  }
+};
 
 const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
   stimulus,
@@ -582,12 +596,17 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
 
   useLayoutEffect(() => {
     zoomRef.current = zoom;
+    const host = pagesHostRef.current;
+    if (host) applyPdfTextScale(slotsRef.current, host.clientWidth * zoom);
     scheduleSyncRef.current?.();
   }, [zoom]);
 
   useEffect(
     () => () => {
-      for (const slot of slotsRef.current) slot.task?.cancel();
+      for (const slot of slotsRef.current) {
+        slot.task?.cancel();
+        slot.text.cancel();
+      }
       void loadingTaskRef.current?.destroy();
     },
     []
@@ -616,7 +635,10 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
           void loadingTask.destroy();
           return;
         }
-        for (const slot of slotsRef.current) slot.task?.cancel();
+        for (const slot of slotsRef.current) {
+          slot.task?.cancel();
+          slot.text.cancel();
+        }
         void loadingTaskRef.current?.destroy();
         loadingTaskRef.current = loadingTask;
         setPageCount(doc.numPages);
@@ -628,13 +650,24 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
           const wrapper = document.createElement('div');
           wrapper.className = 'quiz-pdf-page';
           wrapper.style.aspectRatio = `${width} / ${height}`;
+          const textLayer = document.createElement('div');
+          textLayer.className = 'textLayer';
+          wrapper.append(textLayer);
+          const text = new pdfjs.TextLayer({
+            textContentSource: page.streamTextContent(),
+            container: textLayer,
+            viewport: page.getViewport({ scale: 1 }),
+          });
+          void text.render().catch(() => undefined);
           slots.push({
             page,
             wrapper,
             width,
             height,
             scale: 0,
+            canvas: null,
             task: null,
+            text,
             visible: true,
           });
         }
@@ -643,6 +676,7 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
         host.replaceChildren(...slots.map((s) => s.wrapper));
         slotsRef.current = slots;
         const cssWidth = (host.clientWidth || 600) * zoomRef.current;
+        applyPdfTextScale(slots, cssWidth);
         for (const slot of slots) {
           if (cancelled) return;
           await renderPdfSlot(
@@ -709,7 +743,10 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
             { root: scroller, rootMargin: '50% 0px' }
           );
     for (const slot of slots) io?.observe(slot.wrapper);
-    const ro = new ResizeObserver(schedule);
+    const ro = new ResizeObserver(() => {
+      applyPdfTextScale(slots, host.clientWidth * zoomRef.current);
+      schedule();
+    });
     ro.observe(host);
     scheduleSyncRef.current = schedule;
     return () => {
@@ -910,6 +947,9 @@ export const StimulusRenderer: React.FC<StimulusRendererProps> = (props) => {
       className={`flex flex-col h-full ${cqScaled ? '' : 'gap-2'}`}
       style={cqScaled ? { gap: mm(8, 2) } : undefined}
       data-stimulus-id={stimulus.id}
+      data-stimulus-quotable={
+        stimulus.type === 'text' || stimulus.type === 'pdf' ? 'true' : undefined
+      }
     >
       {readAloud && (
         <StimulusReadAloudHeader
