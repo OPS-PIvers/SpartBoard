@@ -71,6 +71,8 @@ Stable handles in this app:
 - Feature flags in Isolated mode: set `localStorage.authBypassFeatureOverrides = '{"<GlobalFeature id>": true|false}'` then reload. This is how to see a flag-gated feature on or off.
 - Harness pages (Isolated mode, DEV only): `/library-managers-dev`, `/session-views-dev` (student quiz/VA views), `/student-landing-dev`, `/gl-views-dev`, `/notebook-views-dev`, `/live-tour-views-dev`, `/assign-stepper-dev`, `/gradebook-dev`, `/library-dev`, `/media-review-dev`, `/teams-*-dev`, `/widget-grader-dev`, `/sparty-dev`. Full list: `grep "pathname === '/.*-dev'" App.tsx`.
 
+- Live tours: `node scripts/run-live-tour.mjs <tour.json>` plays a `get_live_tour` result on this server with Autopilot doing every step, and reports each step found or missing with its picture (`docs/live-tours/AUTHORING.md`, "The browser run"). Edits in a worktree need a server restart first: the watcher ignores `.claude/worktrees`.
+
 Per-feature journeys with exact steps live in [features/](features/README.md). Read the README contract, then the feature file.
 
 ## Evidence
