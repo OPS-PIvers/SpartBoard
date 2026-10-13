@@ -237,7 +237,8 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/multilingual-pronunciation-engine.md`
 
-- [ ] Work the open questions Q0–Q13 in the plan's §5 (D1/D4 resolved Aug 2026; D2 and D4 reopened by rich response). (M)
+- [ ] Chromebook go/no-go: load the self-hosted q4 model in `onnxruntime-web` on a district Chromebook and record load/memory/inference (plan §6 step 1, #2350). (M)
+- [ ] Send the espeak-ng GPL brief to district counsel; the `quiz-speak-questions` flag stays admin-only until they confirm (G19, #2337). (S)
 
 #### `docs/gemini-api-terms-audit.md`
 
@@ -417,8 +418,8 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 #### `docs/multilingual-pronunciation-engine.md`
 
-- [ ] Safe-now work (plan §6): port the scoring engine (A1–A13, T1–T5, S1–S5) out of `scripts/spikes`, the espeak→model symbol tokenizer (#2383), and the Chromebook `onnxruntime-web` load/inference measurement (#2350). (L)
-- [ ] Feature build after the §5 questions resolve: spoken item type/mode, on-device scoring, teacher results UI, `GlobalFeature` gate. (L)
+- [ ] Port the scoring engine (A1–A13, T1–T5, S1–S5) into `utils/pronunciation/` and build the espeak→model symbol tokenizer (#2383) (plan §6 step 2). (L)
+- [ ] Build the `'speak'` question type per plan §5 (G1–G22) and §6 steps 3–6, behind `quiz-speak-questions`. (L)
 
 #### `docs/rich-response-wayfinder.md`
 
