@@ -180,9 +180,8 @@ const NotesBodyInner: React.FC<
   const { addToast } = useDashboard();
   const { user, canAccessFeature } = useAuth();
   const richEditorFlag = canAccessFeature('plc-notes-rich-editor');
-  const unified = canAccessFeature('plc-notes-unified');
-  const sidePanels = unified && canAccessFeature('plc-notes-side-panels');
-  const docsToolbar = unified && canAccessFeature('plc-docs-toolbar');
+  const sidePanels = canAccessFeature('plc-notes-side-panels');
+  const docsToolbar = canAccessFeature('plc-docs-toolbar');
   const teamsRedesign = canAccessFeature('teams-redesign');
   // One side panel is open at a time; opening one folds the other.
   const [openPanel, setOpenPanel] = useState<'list' | 'actions'>('list');
@@ -213,9 +212,7 @@ const NotesBodyInner: React.FC<
     setSelectedDocId(selectDocId);
     setOpenPanel('actions');
   }
-  const selectedDoc = unified
-    ? (docs.find((d) => d.id === selectedDocId) ?? null)
-    : null;
+  const selectedDoc = docs.find((d) => d.id === selectedDocId) ?? null;
   const members = useMemo(() => getPlcMembers(plc), [plc]);
   const { recordings, deleteAudio } = usePlcRecordings(
     recorder ? plc.id : null
@@ -808,7 +805,7 @@ const NotesBodyInner: React.FC<
       at: note.lastEditedAt,
       note,
     })),
-    ...(unified ? docs : []).map((doc): NotesListEntry => ({
+    ...docs.map((doc): NotesListEntry => ({
       type: 'doc',
       id: doc.id,
       at: doc.updatedAt,
@@ -1070,34 +1067,7 @@ const NotesBodyInner: React.FC<
             <PanelLeftClose className="w-4 h-4" />
           </button>
         )}
-        {canEdit && !unified && (
-          <div className="flex items-center gap-1">
-            <button
-              {...tourFieldAttr('plc-notes.new-note', 'plc', 'meeting')}
-              type="button"
-              onClick={() => void handleCreate('meeting')}
-              className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xxs font-bold uppercase tracking-wider rounded-md transition-colors"
-              title={t('plcDashboard.notes.meeting.newMeetingNote', {
-                defaultValue: 'New meeting note',
-              })}
-            >
-              <CalendarClock className="w-3 h-3" />
-              {t('plcDashboard.notes.meeting.newMeetingNoteShort', {
-                defaultValue: 'Meeting',
-              })}
-            </button>
-            <button
-              {...tourFieldAttr('plc-notes.new-note', 'plc', 'freeform')}
-              type="button"
-              onClick={() => void handleCreate('freeform')}
-              className="inline-flex items-center gap-1 px-2 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xxs font-bold uppercase tracking-wider rounded-md transition-colors"
-            >
-              <Plus className="w-3 h-3" />
-              {t('plcDashboard.notes.newNote', { defaultValue: 'New' })}
-            </button>
-          </div>
-        )}
-        {canEdit && unified && (
+        {canEdit && (
           <div ref={newMenuRef} className="relative">
             <button
               {...tourAttr('plc-notes.new-menu')}
@@ -1247,7 +1217,7 @@ const NotesBodyInner: React.FC<
     </aside>
   );
 
-  const noteOpenInDocs = selectedNote && canEdit && unified && (
+  const noteOpenInDocs = selectedNote && canEdit && (
     <button
       {...tourAttr('plc-notes.open-in-docs')}
       type="button"

@@ -26,15 +26,13 @@ vi.mock('@/context/useDashboard', () => ({
 
 let richEditorAccess = false;
 let recordingAccess = false;
-let unifiedAccess = false;
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'me' },
     canAccessFeature: (id: string) =>
       (id === 'plc-notes-rich-editor' && richEditorAccess) ||
-      (id === 'plc-meeting-recording' && recordingAccess) ||
-      (id === 'plc-notes-unified' && unifiedAccess),
+      (id === 'plc-meeting-recording' && recordingAccess),
   }),
 }));
 
@@ -226,7 +224,6 @@ beforeEach(() => {
   collabEnabled = false;
   richEditorAccess = false;
   recordingAccess = false;
-  unifiedAccess = false;
   docs = [];
   getOrCreateDocUrlMock.mockClear();
   recorderStart.mockClear();
@@ -570,16 +567,7 @@ describe('NotesBody with notes and docs in one list', () => {
     updatedAt: 500,
   };
 
-  it('keeps the Meeting button and hides docs while the flag is off', () => {
-    docs = [pacingDoc];
-    render(<NotesBody plc={plc} />);
-    expect(screen.getByText('Meeting')).toBeTruthy();
-    expect(screen.queryByText('Pacing guide')).toBeNull();
-    expect(screen.queryByText('Open in Docs')).toBeNull();
-  });
-
   it('lists linked Google Docs with the notes and opens one in the pane', () => {
-    unifiedAccess = true;
     docs = [pacingDoc];
     render(<NotesBody plc={plc} />);
     fireEvent.click(screen.getByText('Pacing guide'));
@@ -587,7 +575,6 @@ describe('NotesBody with notes and docs in one list', () => {
   });
 
   it('offers a meeting note, a blank note and a Google Doc from New', () => {
-    unifiedAccess = true;
     render(<NotesBody plc={plc} />);
     expect(screen.queryByText('Meeting')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /New/ }));
@@ -597,7 +584,6 @@ describe('NotesBody with notes and docs in one list', () => {
   });
 
   it('Open in Docs opens the doc made for the note', async () => {
-    unifiedAccess = true;
     const tab = { opener: {}, location: { href: '' }, close: vi.fn() };
     const openSpy = vi
       .spyOn(window, 'open')
@@ -671,7 +657,6 @@ describe('NotesBody with blocks from the Teams redesign', () => {
   });
 
   it('passes the blocks to Open in Docs', async () => {
-    unifiedAccess = true;
     notes = [{ ...noteAt('## Decisions\n', 1000, 1), blocks }];
     const tab = { opener: {}, location: { href: '' }, close: vi.fn() };
     const openSpy = vi

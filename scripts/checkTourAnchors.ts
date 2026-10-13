@@ -1,8 +1,8 @@
-// Live-tour anchor guard for PRs (fails on in-use anchor removal, warns otherwise): node scripts/checkTourAnchors.ts --base origin/dev-paul
+// Live-tour anchor guard for PRs (fails on in-use anchor removal and on new unanchored controls): node scripts/checkTourAnchors.ts --base origin/dev-paul
 
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const REGISTRY_PATH = 'config/tourAnchors.ts';
@@ -111,7 +111,10 @@ function openingTag(text: string, start: number): string {
   return text.slice(start);
 }
 
-/** 1-based lines of added buttons, selects, tabs, menu items and switches that carry no anchor. */
+// A control no tour should point at says so on its line or the one above: `no-tour-anchor: <why>`.
+const OPT_OUT = /no-tour-anchor/;
+
+/** 1-based lines of added buttons, fields, selects, tabs, menu items and switches that carry no anchor. */
 export function unanchoredControls(
   text: string,
   added: ReadonlySet<number>
@@ -137,15 +140,26 @@ export function unanchoredControls(
     const tag = openingTag(text, match.index);
     const name = match[1];
     const interactive =
-      name === 'button' || name === 'select' || INTERACTIVE_ROLE.test(tag);
-    if (interactive && !HAS_ANCHOR.test(tag)) out.push({ line, tag: name });
+      name === 'button' ||
+      name === 'select' ||
+      name === 'textarea' ||
+      (name === 'input' && !/type=["']hidden["']/.test(tag)) ||
+      INTERACTIVE_ROLE.test(tag);
+    const lineText = (n: number) =>
+      n < 1 ? '' : text.slice(lineStarts[n - 1], lineStarts[n] ?? text.length);
+    const above = lineText(line - 1).trim();
+    const optedOut =
+      OPT_OUT.test(lineText(line) + tag) ||
+      (/^(\{\/\*|\/\/)/.test(above) && OPT_OUT.test(above));
+    if (interactive && !HAS_ANCHOR.test(tag) && !optedOut)
+      out.push({ line, tag: name });
   }
   return out;
 }
 
 const isMain =
   process.argv[1] !== undefined &&
-  fileURLToPath(import.meta.url) === process.argv[1].replace(/\\/g, '/');
+  resolve(fileURLToPath(import.meta.url)) === resolve(process.argv[1]);
 
 if (isMain) {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -215,17 +229,17 @@ if (isMain) {
       missing.push({ path, ...hit });
     }
   }
-  // GitHub shows only the first 10 warnings per step; the summary lists them all.
+  // GitHub shows only the first 10 annotations per step; the summary lists them all.
   for (const m of missing.slice(0, 10)) {
     annotate(
-      'warning',
-      `New <${m.tag}> has no live-tour anchor. Add {...tourAttr('<id>')} and register the id in ${REGISTRY_PATH}, unless a tour would never point at it.`,
+      'error',
+      `New <${m.tag}> has no live-tour anchor. Add {...tourAttr('<id>')} and register the id in ${REGISTRY_PATH}, or add a no-tour-anchor comment saying why no tour would point at it.`,
       `file=${m.path},line=${m.line},`
     );
   }
   if (missing.length) {
     summary.push(
-      `### ⚠️ New controls without a live-tour anchor (${missing.length})\n\nAdd \`{...tourAttr('<id>')}\` and register the id in \`${REGISTRY_PATH}\` for any control a tour might point at. This is a reminder, not a failure.\n\n${missing.map((m) => `- \`${m.path}:${m.line}\` \`<${m.tag}>\``).join('\n')}`
+      `### ❌ New controls without a live-tour anchor (${missing.length})\n\nAdd \`{...tourAttr('<id>')}\` and register the id in \`${REGISTRY_PATH}\`. A control no tour would point at gets a \`no-tour-anchor: <why>\` comment on its line or the line above.\n\n${missing.map((m) => `- \`${m.path}:${m.line}\` \`<${m.tag}>\``).join('\n')}`
     );
   }
 
@@ -236,5 +250,5 @@ if (isMain) {
   if (process.env.GITHUB_STEP_SUMMARY) {
     appendFileSync(process.env.GITHUB_STEP_SUMMARY, report + '\n');
   }
-  process.exit(broken.length ? 1 : 0);
+  process.exit(broken.length || missing.length ? 1 : 0);
 }
