@@ -1127,10 +1127,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               className={`${inputClass} appearance-none`}
             >
               {QUESTION_TYPES.filter(
-                (t) =>
-                  t.value !== 'MA' ||
-                  (!choiceEditor &&
-                    (q.type === 'MA' || canAccessFeature('quiz-choose-all')))
+                (t) => t.value !== 'MA' || !choiceEditor
               ).map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
@@ -1289,7 +1286,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             <ChoiceOptionsEditor
               key={q.id}
               question={q}
-              allowMulti={canAccessFeature('quiz-choose-all')}
               onChange={(updates) => updateQuestion(q.id, updates)}
             />
             {questionNeedsKey(q) && (
@@ -1608,9 +1604,7 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
           <span>Total: {aiTotalCount}</span>
         </div>
         <ul className="divide-y divide-slate-100 border-y border-slate-200">
-          {QUIZ_TYPE_STEPPER_ROWS.filter(
-            (row) => row.type !== 'MA' || canAccessFeature('quiz-choose-all')
-          ).map((row) => {
+          {QUIZ_TYPE_STEPPER_ROWS.map((row) => {
             const value = aiTypeCounts[row.type];
             return (
               <li key={row.type} className="flex items-center gap-3 py-2">

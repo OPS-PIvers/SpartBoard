@@ -9864,8 +9864,6 @@ export type GlobalFeature =
   | 'plc-norming-flags'
   /** Share flashcard sets and class-level flashcard results with a PLC. */
   | 'plc-flashcards'
-  /** Choose-all-that-apply quiz questions in the quiz editor and AI drafting. */
-  | 'quiz-choose-all'
   /** Quiz multiple choice editor as one option list with a correct-answer marker per option. */
   | 'quiz-choice-editor'
   /** Section headings in the quiz editor, with "students answer any N of these M". */
