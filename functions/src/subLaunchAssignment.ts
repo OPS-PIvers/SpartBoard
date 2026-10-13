@@ -634,7 +634,8 @@ async function liveHostHasFeature(
   const email = await admin
     .auth()
     .getUser(hostUid)
-    .then((u) => u.email ?? null)
+    // An unverified email must never match admins/{email} or a beta list.
+    .then((u) => (u.emailVerified ? (u.email ?? null) : null))
     .catch(() => null);
   const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
   return isGlobalFeatureGranted(db, featureId, email, hostUid).catch(
