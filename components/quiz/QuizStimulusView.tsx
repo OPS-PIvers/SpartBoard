@@ -786,8 +786,6 @@ const PdfStimulus: React.FC<StimulusRendererProps & { retryNonce: number }> = ({
             ...(cqScaled ? { gap: mm(8, 2) } : undefined),
           }}
         />
-        {/* CSS resizes pages instantly on zoom; auto margins keep wide pages scrollable. */}
-        <style>{`.quiz-pdf-pages .quiz-pdf-page { flex: none; width: calc(100% * var(--pdf-zoom, 1)); max-width: none; margin-inline: auto; background: white; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.15); overflow: hidden; } .quiz-pdf-pages .quiz-pdf-page canvas { display: block; width: 100%; height: 100%; }`}</style>
       </div>
     </div>
   );
