@@ -128,11 +128,7 @@ const GuidedLearningViewer: React.FC<{ setId: string; fill: boolean }> = ({
           </div>
         }
       >
-        <GuidedLearningPlayer
-          set={state.set}
-          teacherMode
-          playerV2
-        />
+        <GuidedLearningPlayer set={state.set} teacherMode playerV2 />
       </Suspense>
     </div>
   );
