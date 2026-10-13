@@ -1167,6 +1167,16 @@ export const LiveTourRunner: React.FC = () => {
   const action = step?.tour?.action;
   const stepValue = step?.tour?.value;
   // A click on the anchor advances once the app has handled it; typing and native selects advance on change.
+  const advanceFrom = useEffectEvent((from: number) => {
+    if (tour?.phase === 'running' && tour.index === from) goTo(from + 1);
+  });
+  // A pending advance outlives the anchor re-search a click's own widget can cause.
+  const clickWait = useRef<AbortController | null>(null);
+  useEffect(() => {
+    const ctrl = new AbortController();
+    clickWait.current = ctrl;
+    return () => ctrl.abort();
+  }, [stepIndex, ended]);
   useEffect(() => {
     const el = anchor.element;
     if (!el || !acted || !action) return;
@@ -1176,31 +1186,28 @@ export const LiveTourRunner: React.FC = () => {
         (el instanceof HTMLSelectElement || !!el.querySelector('select')));
     const eventName = onChange ? 'change' : 'click';
     const binding = { action, value: stepValue };
-    const ctrl = new AbortController();
-    let raf = 0;
     const onClick = () => {
       lastStepClickAt.current = Date.now();
       // Autopilot's own click waits for the next anchor instead.
       if (autoClicking.current) return;
+      const signal = clickWait.current?.signal;
+      if (!signal || signal.aborted) return;
       // Toggle and select steps wait for the recorded value; a control that can't say counts any click.
       const met = () =>
         (action !== 'toggle' && action !== 'select') ||
         !el.isConnected ||
         stepValueMet(el, binding) !== false;
-      raf = requestAnimationFrame(() => {
-        if (met()) advanceRef.current(stepIndex + 1);
+      requestAnimationFrame(() => {
+        if (signal.aborted) return;
+        if (met()) advanceFrom(stepIndex);
         else
-          void waitFor(met, VALUE_SETTLE_MS, ctrl.signal).then((ok) => {
-            if (ok) advanceRef.current(stepIndex + 1);
+          void waitFor(met, VALUE_SETTLE_MS, signal).then((ok) => {
+            if (ok) advanceFrom(stepIndex);
           });
       });
     };
     el.addEventListener(eventName, onClick, true);
-    return () => {
-      el.removeEventListener(eventName, onClick, true);
-      cancelAnimationFrame(raf);
-      ctrl.abort();
-    };
+    return () => el.removeEventListener(eventName, onClick, true);
   }, [anchor.element, acted, action, stepValue, stepIndex]);
 
   const running = tour?.phase === 'running';

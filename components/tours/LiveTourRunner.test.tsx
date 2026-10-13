@@ -128,6 +128,7 @@ const h = vi.hoisted(() => {
     },
     startRunLog: vi.fn(),
     sparty: false,
+    dockOpens: false,
   };
 });
 
@@ -225,7 +226,14 @@ const Fixture: React.FC = () => {
   );
   return (
     <div>
-      <button {...tourTypeAttr('dock.item', 'dice')}>Dice</button>
+      <button
+        {...tourTypeAttr('dock.item', 'dice')}
+        onClick={() => {
+          if (h.dockOpens) h.actions.addWidget('dice');
+        }}
+      >
+        Dice
+      </button>
       <button {...tourAttr('sidebar.boards')}>Boards</button>
       <div hidden>
         <input {...tourAttr('library.search')} aria-label="Search" />
@@ -291,6 +299,7 @@ beforeEach(() => {
   h.canAccess.mockReturnValue(true);
   h.user = null;
   h.permissions = [];
+  h.dockOpens = false;
   h.startRunLog.mockClear();
   Object.values(h.runLog).forEach((fn) => fn.mockClear());
   sessionStorage.clear();
@@ -487,6 +496,34 @@ describe('LiveTourRunner', () => {
     fireEvent.click(screen.getByRole('button', { name: /Back/ }));
     await frames();
     expect(progress()).toBe('1 / 2');
+  });
+
+  it('advances when the dock click opens the widget the step spawns', async () => {
+    h.dockOpens = true;
+    const set = makeSet([
+      { anchor: 'dock.item:dice', action: 'click' },
+      { anchor: 'sidebar.boards', action: 'click' },
+    ]);
+    set.steps[0].tour = {
+      anchor: 'dock.item:dice',
+      action: 'click',
+      spawns: {
+        type: 'dice',
+        slot: 0,
+        xProp: 0.2,
+        yProp: 0.1,
+        wProp: 0.5,
+        hProp: 0.8,
+      },
+    };
+    // A cleared stage, so the app's own addWidget makes an unsaved tour widget.
+    set.tourSetup = { widgets: [] };
+    await start(set);
+    expect(progress()).toBe('1 / 2');
+    fireEvent.click(screen.getByText('Dice'));
+    await frames();
+    expect(h.board.widgets).toHaveLength(1);
+    expect(progress()).toBe('2 / 2');
   });
 
   it('advances a type step on change, not on the click into the field', async () => {
