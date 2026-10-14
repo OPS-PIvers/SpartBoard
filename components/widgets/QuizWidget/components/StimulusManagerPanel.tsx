@@ -33,6 +33,8 @@ import {
   detectStimulusTypeFromUrl,
   isPlayLimitedType,
   questionsUsingStimulus,
+  stimulusShareMessage,
+  STIMULUS_SHARE_CONFIRM,
 } from '@/utils/quizStimuli';
 import { extractGoogleFileId } from '@/utils/urlHelpers';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
@@ -77,10 +79,7 @@ function useStimulusIntake(state: QuizEditorController) {
 
   const confirmShare = useCallback(
     async (what: string): Promise<boolean> =>
-      showConfirm(
-        `Students open stimuli without a Google sign-in, so "${what}" must be shared as "anyone with the link can view." Update its sharing now?`,
-        { title: 'Share with students?', confirmLabel: 'Share & attach' }
-      ),
+      showConfirm(stimulusShareMessage(what), STIMULUS_SHARE_CONFIRM),
     [showConfirm]
   );
 
