@@ -6670,10 +6670,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ],
     "routes": [
       {
-        "surface": "quiz.face",
-        "kind": "widget",
-        "widget_type": "quiz",
-        "path": [],
+        "surface": "quiz.editor.whiteboard-image",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.whiteboard-image:quiz"
+        ],
         "needs": [
           "widget-on-stage"
         ]
@@ -6712,10 +6715,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ],
     "routes": [
       {
-        "surface": "quiz.face",
-        "kind": "widget",
-        "widget_type": "quiz",
-        "path": [],
+        "surface": "quiz.editor.whiteboard-image",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.whiteboard-image:quiz"
+        ],
         "needs": [
           "widget-on-stage"
         ]
