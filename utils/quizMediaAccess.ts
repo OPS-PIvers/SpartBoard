@@ -1,4 +1,5 @@
 import type { GlobalFeaturePermission } from '@/types';
+import type { AuthContextType } from '@/context/AuthContextValue';
 
 /** The one `GlobalFeature` id whose missing-record default is DENY. */
 export const QUIZ_MEDIA_FEATURE_ID = 'quiz-media-response';
@@ -29,4 +30,17 @@ export function canAccessQuizMediaResponse(
   const { permission, email, resolveAccess } = ctx;
   if (!permission) return false;
   return resolveAccess(permission, email);
+}
+
+/** The whiteboard response flag; fail-closed for everyone, admins included. */
+export const QUIZ_WHITEBOARD_FEATURE_ID = 'quiz-whiteboard-response';
+
+/** Whiteboard responses need both flags: spoken answers (D22 `requires`) and their own. */
+export function canAccessQuizWhiteboardResponse(
+  auth: Pick<AuthContextType, 'canAccessQuizMediaResponse' | 'canAccessFeature'>
+): boolean {
+  return (
+    auth.canAccessQuizMediaResponse() &&
+    auth.canAccessFeature(QUIZ_WHITEBOARD_FEATURE_ID)
+  );
 }

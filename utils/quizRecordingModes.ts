@@ -1,34 +1,33 @@
 /**
  * Which capture modes a question authors, and the limit ceiling that set
- * implies. Only `'audio'` is buildable in this run — the table is
- * mode-generic so video needs no rework, not because video ships here.
+ * implies. Audio and whiteboard are buildable; video is not.
  */
 
 import type { QuizQuestion } from '@/types';
 import { AUDIO_LIMIT_SECONDS_MAX } from '@/config/quizRecordingDefaults';
 
-export type RecordingMode = 'audio' | 'video';
+export type RecordingMode = 'audio' | 'video' | 'whiteboard';
 
-/** RR-A1 sub-decision 8. Whiteboard's ceilings are B-track and excluded. */
+/** RR-A1 sub-decision 8; whiteboard shares audio's ceiling (QUIZ_WHITEBOARD_RESPONSE D3). */
 export const RECORDING_MODE_CEILING_SECONDS: Record<RecordingMode, number> = {
   audio: AUDIO_LIMIT_SECONDS_MAX,
   video: 120,
+  whiteboard: AUDIO_LIMIT_SECONDS_MAX,
 };
 
 /** Locale keys under `quizMediaResponse.authoring` — the label itself is i18n's. */
 export const RECORDING_MODE_LABEL_KEYS: Record<RecordingMode, string> = {
   audio: 'modeLabelAudio',
   video: 'modeLabelVideo',
+  whiteboard: 'modeLabelWhiteboard',
 };
 
-/**
- * The modes a question's recording block authors. There is no persisted
- * response-mode set yet, so a block means audio — never synthesise one.
- */
+/** The mode a question's recording block authors; a block with no `mode` means audio (C5). */
 export function recordingModesForQuestion(
   question: Pick<QuizQuestion, 'recording'>
 ): RecordingMode[] {
-  return question.recording ? ['audio'] : [];
+  if (!question.recording) return [];
+  return [question.recording.mode === 'whiteboard' ? 'whiteboard' : 'audio'];
 }
 
 export interface RecordingLimitCeiling {

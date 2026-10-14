@@ -3451,6 +3451,7 @@
       "timeLimitDisabledHint": "Set by the recording timer.",
       "modeLabelAudio": "audio",
       "modeLabelVideo": "video",
+      "modeLabelWhiteboard": "whiteboard",
       "advisory": {
         "title": "Heads up",
         "deviceBlocked": "If a microphone is blocked, the question comes to you ungraded.",

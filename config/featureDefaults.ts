@@ -1,6 +1,7 @@
 // Registry of every global feature: runtime defaults plus its admin row (docs/plans/shipped/ADMIN_ACCESS_PAGES.md D5).
 import type React from 'react';
 import {
+  PenLine,
   BarChart,
   BellRing,
   BookOpen,
@@ -396,6 +397,23 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     widget: 'quiz',
     modalLabel: 'Spoken answers',
     group: 'questions',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: false,
+    missingDocPublic: false,
+    failClosedForAdmins: true,
+  },
+  // Student whiteboard responses (QUIZ_WHITEBOARD_RESPONSE D22). Fail-closed like
+  // spoken answers; read it through `canAccessQuizWhiteboardResponse`.
+  'quiz-whiteboard-response': {
+    label: 'Whiteboard quiz responses',
+    icon: PenLine,
+    description: "Draw-and-explain answers, saved to the teacher's Drive.",
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    modalLabel: 'Whiteboard answers',
+    group: 'questions',
+    requires: 'quiz-media-response',
     defaultAccessLevel: 'admin',
     defaultEnabled: false,
     missingDocPublic: false,
