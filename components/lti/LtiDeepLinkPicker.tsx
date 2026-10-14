@@ -102,7 +102,10 @@ import { videoActivityMaxPoints } from '@/utils/videoActivityGrading';
 import { logError } from '@/utils/logError';
 import { isGoogleSession } from '@/utils/googleSession';
 import { needsKeyMessage } from '@/utils/quizNeedsKey';
-import { applyAvailability } from '@/utils/assignAvailability';
+import {
+  applyAvailability,
+  availabilityBackwards,
+} from '@/utils/assignAvailability';
 import {
   AddonShell,
   AddonHeader,
@@ -447,6 +450,15 @@ const LtiDeepLinkFlow: React.FC = () => {
       : null;
   }, [kind, selectedQuiz, selectedActivity, lastUsedRules]);
 
+  const windowBackwards =
+    (!stepperOn || assignWindowOn) &&
+    availabilityBackwards(
+      stepperOn
+        ? { ...assignTargeting, availability: assignWhen.availability }
+        : assignTargeting,
+      rosters.filter((r) => ltiSelectedRosterIds.includes(r.id)),
+      undefined
+    );
   const canAdd = kind === 'quiz' ? !!selectedQuizId : !!selectedActivityId;
 
   // Fallback only: bounce the whole top-level tab to this same launch URL (the
@@ -1309,7 +1321,8 @@ const LtiDeepLinkFlow: React.FC = () => {
             <AddonButton
               onClick={() => void add()}
               loading={busy}
-              disabled={!canAdd}
+              disabled={!canAdd || windowBackwards}
+              title={windowBackwards ? 'Closes before it opens.' : undefined}
               icon={Send}
             >
               {kind === 'quiz'

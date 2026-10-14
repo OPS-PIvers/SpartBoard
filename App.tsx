@@ -377,6 +377,14 @@ const SessionViewsDevHarness = import.meta.env.DEV
     )
   : null;
 
+const WhiteboardDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WhiteboardDevHarness').then((module) => ({
+        default: module.WhiteboardDevHarness,
+      }))
+    )
+  : null;
+
 const MediaReviewDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/MediaReviewDevHarness').then((module) => ({
@@ -1122,6 +1130,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <SessionViewsDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: the student whiteboard canvas with fixture starting pages.
+  if (
+    import.meta.env.DEV &&
+    WhiteboardDevHarness &&
+    pathname === '/whiteboard-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WhiteboardDevHarness />
       </Suspense>
     );
   }

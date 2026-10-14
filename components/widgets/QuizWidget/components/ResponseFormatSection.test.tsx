@@ -287,4 +287,34 @@ describe('ResponseFormatSection', () => {
       recording: { ...DEFAULT_RECORDING_CONFIG, limitSeconds: 300 },
     });
   });
+
+  it('shows review on for a saved block and writes it off and back on', () => {
+    const onChange = vi.fn();
+    const { rerender } = render(
+      <ResponseFormatSection question={withRecording()} onChange={onChange} />
+    );
+    const review = screen.getByRole('switch', {
+      name: 'Students review before submitting',
+    });
+    expect(review.getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(review);
+    expect(onChange).toHaveBeenLastCalledWith({
+      recording: { ...DEFAULT_RECORDING_CONFIG, review: false },
+    });
+
+    rerender(
+      <ResponseFormatSection
+        question={withRecording({ review: false })}
+        onChange={onChange}
+      />
+    );
+    const off = screen.getByRole('switch', {
+      name: 'Students review before submitting',
+    });
+    expect(off.getAttribute('aria-checked')).toBe('false');
+    fireEvent.click(off);
+    expect(onChange).toHaveBeenLastCalledWith({
+      recording: { ...DEFAULT_RECORDING_CONFIG, review: true },
+    });
+  });
 });

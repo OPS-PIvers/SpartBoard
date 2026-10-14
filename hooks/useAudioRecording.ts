@@ -1,5 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { RecordingConfig } from '@/types';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
+import type { RecordingConfig, TakeMicState } from '@/types';
 import { wrapUpThresholdSeconds } from '@/config/quizRecordingDefaults';
 
 /**
@@ -23,6 +29,16 @@ export interface AudioTake {
   blob: Blob;
   mimeType: string;
   durationMs: number;
+  micState: 'on';
+}
+
+/** A refused permission is `denied`; a missing, dead or unsupported device is `unavailable`. */
+export function micStateFromError(err: unknown): TakeMicState {
+  const name =
+    err && typeof err === 'object' && 'name' in err ? String(err.name) : '';
+  return name === 'NotAllowedError' || name === 'SecurityError'
+    ? 'denied'
+    : 'unavailable';
 }
 
 export interface UseAudioRecordingOptions {
@@ -32,6 +48,8 @@ export interface UseAudioRecordingOptions {
   /** `auto-advance` / `unanswered` bubble up; `armed` and `auto-start` do not. */
   onPrepExpired?: (expiry: RecordingConfig['prepExpiry']) => void;
   onCaptureUnavailable?: () => void;
+  /** When set, a finished take skips review: it is handed here and the recorder re-arms (D5). */
+  onTakeReady?: (take: AudioTake) => void;
   /** Injected in tests and in the DEV harness; defaults to the real APIs. */
   deps?: AudioRecordingDeps;
 }
@@ -50,12 +68,19 @@ const CANDIDATE_MIME_TYPES = [
   'audio/ogg;codecs=opus',
 ];
 
-const realDeps: AudioRecordingDeps = {
+// 32 kbps keeps a 300 s spoken take near 1.2 MB instead of Chrome's ~128 kbps default.
+export const SPEECH_AUDIO_BITS_PER_SECOND = 32000;
+
+function speechRecorderOptions(mimeType: string): MediaRecorderOptions {
+  return mimeType
+    ? { mimeType, audioBitsPerSecond: SPEECH_AUDIO_BITS_PER_SECOND }
+    : { audioBitsPerSecond: SPEECH_AUDIO_BITS_PER_SECOND };
+}
+
+export const defaultAudioRecordingDeps: AudioRecordingDeps = {
   getStream: () => navigator.mediaDevices.getUserMedia({ audio: true }),
   createRecorder: (stream, mimeType) =>
-    mimeType
-      ? new MediaRecorder(stream, { mimeType })
-      : new MediaRecorder(stream),
+    new MediaRecorder(stream, speechRecorderOptions(mimeType)),
   isTypeSupported: (mimeType) =>
     typeof MediaRecorder !== 'undefined' &&
     typeof MediaRecorder.isTypeSupported === 'function' &&
@@ -79,6 +104,7 @@ export interface UseAudioRecordingResult {
   /** True inside the wrap-up stretch — the stated limit is still the real limit. */
   wrapUpWarning: boolean;
   take: AudioTake | null;
+  micState: TakeMicState | null;
   /** Object URL for the pending take; revoked on discard/commit. */
   takeUrl: string | null;
   arm: () => void;
@@ -94,7 +120,7 @@ export function useAudioRecording(
   options: UseAudioRecordingOptions
 ): UseAudioRecordingResult {
   const { config, enabled } = options;
-  const deps = options.deps ?? realDeps;
+  const deps = options.deps ?? defaultAudioRecordingDeps;
 
   const [phase, setPhase] = useState<AudioRecordingPhase>(
     config.prepSeconds > 0 ? 'prep' : 'armed'
@@ -106,6 +132,7 @@ export function useAudioRecording(
     null
   );
   const [take, setTake] = useState<AudioTake | null>(null);
+  const [micState, setMicState] = useState<TakeMicState | null>(null);
   const [takeUrl, setTakeUrl] = useState<string | null>(null);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -124,6 +151,10 @@ export function useAudioRecording(
   const onCaptureUnavailableRef = useRef(options.onCaptureUnavailable);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in timers/handlers
   onCaptureUnavailableRef.current = options.onCaptureUnavailable;
+  const onTakeReadyRef = useRef(options.onTakeReady);
+  useLayoutEffect(() => {
+    onTakeReadyRef.current = options.onTakeReady;
+  });
 
   const clearPrepTimer = () => {
     if (prepTimerRef.current !== null) {
@@ -163,6 +194,7 @@ export function useAudioRecording(
       // usable stream — treat it exactly like a denied permission.
       if (!track || track.readyState === 'ended') {
         stream.getTracks().forEach((t) => t.stop());
+        setMicState('unavailable');
         setPhase('capture-unavailable');
         onCaptureUnavailableRef.current?.();
         return;
@@ -189,7 +221,18 @@ export function useAudioRecording(
         recorderRef.current = null;
         clearRecordTimer();
         setRecordSecondsLeft(null);
-        setTake({ blob, mimeType: effectiveMime, durationMs });
+        const onTakeReady = onTakeReadyRef.current;
+        if (onTakeReady) {
+          setPhase('armed');
+          onTakeReady({
+            blob,
+            mimeType: effectiveMime,
+            durationMs,
+            micState: 'on',
+          });
+          return;
+        }
+        setTake({ blob, mimeType: effectiveMime, durationMs, micState: 'on' });
         const url = URL.createObjectURL(blob);
         takeUrlRef.current = url;
         setTakeUrl(url);
@@ -199,6 +242,7 @@ export function useAudioRecording(
       recorderRef.current = recorder;
       startedAtRef.current = deps.now();
       recorder.start();
+      setMicState('on');
       setPhase('recording');
       setRecordSecondsLeft(config.limitSeconds);
 
@@ -209,7 +253,8 @@ export function useAudioRecording(
         // Hard stop at exactly the stated limit — no grace tail.
         if (elapsed >= config.limitSeconds) stop();
       }, 250);
-    } catch {
+    } catch (err) {
+      setMicState(micStateFromError(err));
       setPhase('capture-unavailable');
       onCaptureUnavailableRef.current?.();
     } finally {
@@ -311,6 +356,7 @@ export function useAudioRecording(
     recordSecondsLeft,
     wrapUpWarning,
     take,
+    micState,
     takeUrl,
     arm,
     start,

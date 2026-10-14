@@ -5,6 +5,7 @@ import {
   applyWindowEdit,
   availabilityFromStored,
   changedWindow,
+  availabilityBackwards,
   closesBeforeOpens,
   closesInPast,
   defaultAvailability,
@@ -239,6 +240,41 @@ describe('closesBeforeOpens', () => {
     expect(
       closesBeforeOpens(bellToBell('2026-10-02').all, [p3, p5], bellWindow)
     ).toBe(false);
+  });
+});
+
+describe('availabilityBackwards', () => {
+  const backwards = {
+    opens: { day: '2026-10-02', time: '10:00' },
+    closes: { day: '2026-10-02', time: '09:00' },
+  };
+  it('flags a same-day close before the open', () => {
+    expect(
+      availabilityBackwards(
+        { availability: { all: backwards, allowLate: false } },
+        [p3],
+        bellWindow
+      )
+    ).toBe(true);
+  });
+  it('checks each class when classes have their own windows', () => {
+    const ok = bellToBell('2026-10-02').all;
+    expect(
+      availabilityBackwards(
+        {
+          availability: {
+            all: ok,
+            byRoster: { [p5.id]: backwards },
+            allowLate: false,
+          },
+        },
+        [p3, p5],
+        bellWindow
+      )
+    ).toBe(true);
+  });
+  it('passes with no window chosen yet', () => {
+    expect(availabilityBackwards({}, [p3], bellWindow)).toBe(false);
   });
 });
 
