@@ -14,6 +14,7 @@ import { DashboardContext } from '@/context/DashboardContextValue';
 import { DialogProvider } from '@/context/DialogContext';
 import { DialogContainer } from '@/components/common/DialogContainer';
 import { WidgetRenderer } from '@/components/widgets/WidgetRenderer';
+import { SettingsDrawerHost } from '@/components/settings/SettingsDrawerHost';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import {
   DEFAULT_GLOBAL_STYLE,
@@ -122,7 +123,7 @@ const useSettledSignal = (expected: number): boolean => {
       return (
         windows.length >= expected &&
         !document.querySelector(
-          '[data-draggable-window] .animate-spin.border-b-2.border-blue-600'
+          ':is([data-draggable-window], [data-widget-portal]) .animate-spin.border-b-2.border-blue-600, [data-testid="settings-drawer-skeleton"]'
         )
       );
     };
@@ -284,6 +285,7 @@ const HarnessBoard: React.FC<{ params: HarnessParams }> = ({ params }) => {
           </Profiler>
         ))}
       </div>
+      <SettingsDrawerHost />
     </DashboardContext.Provider>
   );
 };

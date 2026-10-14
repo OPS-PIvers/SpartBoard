@@ -4966,6 +4966,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu",
           "gl-capture.menu-item:guided-learning#snap"
         ],
@@ -29774,6 +29775,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.draft-ai"
         ],
         "needs": [
@@ -29788,6 +29790,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu",
           "gl-capture.menu-item:guided-learning#snap"
         ],
@@ -44771,10 +44774,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -44836,6 +44837,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.draft-ai"
         ],
         "needs": [
@@ -44859,6 +44861,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.draft-ai"
         ],
         "needs": [
@@ -44881,6 +44884,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.draft-ai"
         ],
         "needs": [
@@ -44903,6 +44907,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.draft-ai"
         ],
         "needs": [
@@ -44925,6 +44930,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.draft-ai"
         ],
         "needs": [
@@ -44948,6 +44954,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.draft-ai"
         ],
         "needs": [
@@ -44969,10 +44976,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -44993,10 +44998,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45017,10 +45020,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45041,10 +45042,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45065,10 +45064,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45089,10 +45086,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45113,10 +45108,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45137,10 +45130,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45161,10 +45152,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45185,10 +45174,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45210,10 +45197,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45234,10 +45219,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45258,10 +45241,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45282,10 +45263,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45307,6 +45286,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.welcome"
         ],
         "reveal": "gl-editor.welcome",
@@ -45330,6 +45310,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.welcome"
         ],
         "reveal": "gl-editor.welcome",
@@ -45353,6 +45334,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.trim-toggle"
         ],
         "reveal": "gl-editor.trim-toggle",
@@ -45376,6 +45358,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.trim-toggle"
         ],
         "reveal": "gl-editor.trim-toggle",
@@ -45398,10 +45381,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45424,6 +45405,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45446,6 +45428,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45468,6 +45451,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45490,6 +45474,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45512,6 +45497,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45534,6 +45520,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45556,6 +45543,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45578,6 +45566,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45600,6 +45589,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45622,6 +45612,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45644,6 +45635,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45666,6 +45658,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45688,6 +45681,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45710,6 +45704,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45732,6 +45727,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45754,6 +45750,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45776,6 +45773,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45798,6 +45796,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -45822,6 +45821,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -45846,6 +45846,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -45870,6 +45871,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -45895,6 +45897,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -45919,6 +45922,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -45943,6 +45947,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -45967,6 +45972,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -45992,6 +45998,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -46016,6 +46023,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -46040,6 +46048,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -46065,6 +46074,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -46089,6 +46099,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -46581,6 +46592,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu",
           "gl-capture.menu-item:guided-learning#snap"
         ],
@@ -46604,6 +46616,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu",
           "gl-capture.menu-item:guided-learning#snap"
         ],
@@ -46627,6 +46640,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu",
           "gl-capture.menu-item:guided-learning#snap"
         ],
@@ -46650,6 +46664,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu",
           "gl-capture.menu-item:guided-learning#snap"
         ],
@@ -46673,6 +46688,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu",
           "gl-capture.menu-item:guided-learning#snap"
         ],
@@ -46696,6 +46712,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu",
           "gl-capture.menu-item:guided-learning#snap"
         ],
@@ -46719,6 +46736,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu",
           "gl-capture.menu-item:guided-learning#snap"
         ],
@@ -46742,6 +46760,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu",
           "gl-capture.menu-item:guided-learning#snap"
         ],
@@ -46765,6 +46784,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu",
           "gl-capture.menu-item:guided-learning#snap"
         ],
@@ -60196,10 +60216,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -60220,10 +60238,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -60244,10 +60260,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -60268,10 +60282,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -60309,6 +60321,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu"
         ],
         "reveal": "gl-capture.menu",
@@ -60600,6 +60613,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.folder"
         ],
         "reveal": "gl-editor.folder",
@@ -60647,6 +60661,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.folder"
         ],
         "reveal": "gl-editor.folder",
@@ -61620,6 +61635,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.draft-ai"
         ],
         "needs": [

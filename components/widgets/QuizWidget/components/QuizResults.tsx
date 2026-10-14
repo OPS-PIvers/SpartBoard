@@ -1005,10 +1005,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   );
 
   // Printing to hand back (docs/plans/shipped/QUIZ_RESULTS_PRINT.md); never for PLC teammates (D7).
-  const canPrintResults =
-    (canAccessFeature('quiz-results-print') || resultsTools) &&
-    !plcView &&
-    !isReview;
+  const canPrintResults = !plcView && !isReview;
 
   const handleReopenStudents = async (keys: string[]): Promise<boolean> => {
     if (!onReopenStudent) return false;

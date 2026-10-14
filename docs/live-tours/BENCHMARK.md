@@ -36,7 +36,7 @@ No app code was changed. None of the gaps below is a one-line anchor tag: each n
   - Roster editor: tagged, but only `classes.edit-roster` opens it; **New Class** opens the same editor. Workaround: fallbacks for Class Name, Add Student and Save (tour 6).
   - Guided Learning editor: `studio.*` and `gl-editor.*` need `gl-manager.preview-open-editor`; **New Set** opens the same editor. Workaround: fallback for Add media (tour 9).
   - Follow-up: allow several openers per surface.
-- **B7. Studio or classic editor depends on the admin-only `gl-studio` preview flag.** Admins get the Studio after New Set; teachers get the classic editor. Tour 9 was authored and run as an admin, so it shows the Studio. Paul should check it as a teacher before it opens.
+- **B7. Studio or classic editor.** Resolved: everyone gets the Studio after New Set, and the classic editor opens only from the Studio header. Tour 9 shows the Studio.
 
 ### Runner and Autopilot
 

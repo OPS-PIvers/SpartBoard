@@ -30,28 +30,6 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: '**/settings-legacy.spec.ts',
-    },
-    {
-      name: 'legacy-settings',
-      use: {
-        ...devices['Desktop Chrome'],
-        storageState: {
-          cookies: [],
-          origins: [
-            {
-              origin: 'http://localhost:3000',
-              localStorage: [
-                {
-                  name: 'authBypassFeatureOverrides',
-                  value: JSON.stringify({ 'settings-drawer': false }),
-                },
-              ],
-            },
-          ],
-        },
-      },
-      testMatch: ['**/settings-legacy.spec.ts', '**/nexus_qr_text.spec.ts'],
     },
   ],
   webServer: {

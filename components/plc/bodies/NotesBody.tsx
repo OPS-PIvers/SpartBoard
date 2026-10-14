@@ -153,21 +153,12 @@ const openModeFor = (body: string): 'edit' | 'preview' =>
  */
 // The recorder lives above the editor so switching notes doesn't stop a recording.
 export const NotesBody: React.FC<NotesBodyProps> = (props) => {
-  const { canAccessFeature } = useAuth();
-  return canAccessFeature('plc-meeting-recording') ? (
-    <NotesBodyWithRecorder {...props} />
-  ) : (
-    <NotesBodyInner {...props} recorder={null} />
-  );
-};
-
-const NotesBodyWithRecorder: React.FC<NotesBodyProps> = (props) => {
   const recorder = useMeetingRecorder();
   return <NotesBodyInner {...props} recorder={recorder} />;
 };
 
 const NotesBodyInner: React.FC<
-  NotesBodyProps & { recorder: UseMeetingRecorderResult | null }
+  NotesBodyProps & { recorder: UseMeetingRecorderResult }
 > = ({
   plc,
   selectNoteId,
@@ -214,9 +205,7 @@ const NotesBodyInner: React.FC<
   }
   const selectedDoc = docs.find((d) => d.id === selectedDocId) ?? null;
   const members = useMemo(() => getPlcMembers(plc), [plc]);
-  const { recordings, deleteAudio } = usePlcRecordings(
-    recorder ? plc.id : null
-  );
+  const { recordings, deleteAudio } = usePlcRecordings(plc.id);
   // The note the local recorder was started on.
   const [recorderNoteId, setRecorderNoteId] = useState<string | null>(null);
 
@@ -855,7 +844,7 @@ const NotesBodyInner: React.FC<
   };
 
   const handleStartRecording = async () => {
-    if (!recorder || !selectedNote || !user || !canEdit) return;
+    if (!selectedNote || !user || !canEdit) return;
     const note = selectedNote;
     setRecorderNoteId(note.id);
     // Recording a freeform note makes it a meeting note (MR-D4).
@@ -879,10 +868,9 @@ const NotesBodyInner: React.FC<
     });
   };
 
-  const noteRecordings =
-    recorder && selectedNote
-      ? plcRecordingsForNote(recordings, selectedNote.id)
-      : [];
+  const noteRecordings = selectedNote
+    ? plcRecordingsForNote(recordings, selectedNote.id)
+    : [];
   const aiNotesEnabled = canAccessFeature('plc-meeting-ai-notes');
   const notesWithDraft = canEdit
     ? new Set(recordings.filter(plcRecordingDraftPending).map((r) => r.noteId))
@@ -945,18 +933,17 @@ const NotesBodyInner: React.FC<
     }
   };
 
-  const recordControl =
-    recorder && selectedNote ? (
-      <NoteRecordControl
-        recorder={recorder}
-        recorderNoteId={recorderNoteId}
-        noteId={selectedNote.id}
-        live={livePlcRecordingForNote(noteRecordings, selectedNote.id)}
-        members={members}
-        canRecord={canEdit}
-        onStart={() => void handleStartRecording()}
-      />
-    ) : null;
+  const recordControl = selectedNote ? (
+    <NoteRecordControl
+      recorder={recorder}
+      recorderNoteId={recorderNoteId}
+      noteId={selectedNote.id}
+      live={livePlcRecordingForNote(noteRecordings, selectedNote.id)}
+      members={members}
+      canRecord={canEdit}
+      onStart={() => void handleStartRecording()}
+    />
+  ) : null;
 
   const noteActionItemsList = selectedNote ? (
     <NoteActionItems
@@ -1440,30 +1427,28 @@ const NotesBodyInner: React.FC<
               live={blockLive}
             />
             {!sidePanels && noteActionItemsList}
-            {recorder && (
-              <NoteRecordings
-                plcId={plc.id}
-                noteTitle={editorTitle}
-                recordings={noteRecordings}
-                members={members}
-                canEdit={canEdit}
-                onDeleteAudio={deleteAudio}
-                renderExtra={(r) => (
-                  <RecordingMeetingNotes
-                    plcId={plc.id}
-                    recording={r}
-                    label={t('plcDashboard.notes.meetingNotes.recordingN', {
-                      defaultValue: 'Recording {{n}}',
-                      n: noteRecordings.indexOf(r) + 1,
-                    })}
-                    members={members}
-                    canEdit={!editorReadOnly}
-                    aiEnabled={aiNotesEnabled}
-                    onApply={handleApplyMeetingNotes}
-                  />
-                )}
-              />
-            )}
+            <NoteRecordings
+              plcId={plc.id}
+              noteTitle={editorTitle}
+              recordings={noteRecordings}
+              members={members}
+              canEdit={canEdit}
+              onDeleteAudio={deleteAudio}
+              renderExtra={(r) => (
+                <RecordingMeetingNotes
+                  plcId={plc.id}
+                  recording={r}
+                  label={t('plcDashboard.notes.meetingNotes.recordingN', {
+                    defaultValue: 'Recording {{n}}',
+                    n: noteRecordings.indexOf(r) + 1,
+                  })}
+                  members={members}
+                  canEdit={!editorReadOnly}
+                  aiEnabled={aiNotesEnabled}
+                  onApply={handleApplyMeetingNotes}
+                />
+              )}
+            />
           </div>
           <div className="shrink-0 px-4 py-2 border-t border-slate-100 text-xxs text-slate-400">
             {t('plcDashboard.notes.lastEdited', {

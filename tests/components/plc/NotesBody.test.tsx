@@ -25,14 +25,12 @@ vi.mock('@/context/useDashboard', () => ({
 }));
 
 let richEditorAccess = false;
-let recordingAccess = false;
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'me' },
     canAccessFeature: (id: string) =>
-      (id === 'plc-notes-rich-editor' && richEditorAccess) ||
-      (id === 'plc-meeting-recording' && recordingAccess),
+      id === 'plc-notes-rich-editor' && richEditorAccess,
   }),
 }));
 
@@ -223,7 +221,6 @@ beforeEach(() => {
   setActionItemsMock.mockClear();
   collabEnabled = false;
   richEditorAccess = false;
-  recordingAccess = false;
   docs = [];
   getOrCreateDocUrlMock.mockClear();
   recorderStart.mockClear();
@@ -520,13 +517,7 @@ describe('NotesBody with the rich text editor flag', () => {
 });
 
 describe('NotesBody meeting recording', () => {
-  it('hides Record without the recording flag', () => {
-    render(<NotesBody plc={plc} />);
-    expect(screen.queryByRole('button', { name: 'Record' })).toBeNull();
-  });
-
   it('puts Record in the rich editor toolbar', () => {
-    recordingAccess = true;
     richEditorAccess = true;
     render(<NotesBody plc={plc} />);
     const toolbar = screen.getByRole('toolbar');
@@ -536,7 +527,6 @@ describe('NotesBody meeting recording', () => {
   });
 
   it('starts recording and turns a freeform note into a meeting note', async () => {
-    recordingAccess = true;
     render(<NotesBody plc={plc} />);
     fireEvent.click(screen.getByRole('button', { name: 'Record' }));
     expect(recorderStart).toHaveBeenCalledWith({
