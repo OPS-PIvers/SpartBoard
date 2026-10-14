@@ -245,6 +245,14 @@ describe('buildVersionImport', () => {
     expect(SHUFFLED_BEHAVIOR.sessionOptions.shuffleQuestions).toBe(true);
   });
 
+  it('keeps an unticked shuffled quiz’s versions in the bank', async () => {
+    const set = await importedMc();
+    const plan = setGroupCreate(initialVersionPlan(set), 'g1', false);
+    const build = buildVersionImport(set, plan, { folderTitle: 'Q' });
+    expect(build.quizzes).toHaveLength(0);
+    expect(build.bank?.questions.length).toBeGreaterThan(0);
+  });
+
   it('gives whole MC tests that differ a quiz each, since one slot deals one question', async () => {
     const set = await importedMc();
     const plan = setGroupKind(set, initialVersionPlan(set), 'g1', 'parallel');

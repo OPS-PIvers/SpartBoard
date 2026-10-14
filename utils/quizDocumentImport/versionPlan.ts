@@ -344,7 +344,9 @@ export function buildVersionImport(
     versionQuestions(v, plan.sharedImages)
   );
   const copies = new Set(
-    plan.groups.filter((g) => g.kind === 'duplicate').flatMap((g) => g.versions)
+    plan.groups
+      .filter((g) => g.kind === 'duplicate' && g.create)
+      .flatMap((g) => g.versions)
   );
   const bankQuestions = byVersion.flatMap((qs, v) => (copies.has(v) ? [] : qs));
   const bank: QuestionBankData | null =
