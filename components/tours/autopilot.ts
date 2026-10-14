@@ -229,6 +229,17 @@ async function chooseOption(
     dispatchAutoClick(el);
     return;
   }
+  // A segmented control or tab strip: its choices are already on screen.
+  const choice = Array.from(
+    el.querySelectorAll<HTMLElement>('[role="radio"], [role="tab"]')
+  ).find(matches);
+  if (choice) {
+    const on =
+      choice.getAttribute('aria-checked') === 'true' ||
+      choice.getAttribute('aria-selected') === 'true';
+    if (!on) dispatchAutoClick(choice);
+    return;
+  }
   const find = () =>
     Array.from(document.querySelectorAll<HTMLElement>('[role="option"]')).find(
       matches

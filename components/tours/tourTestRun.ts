@@ -114,11 +114,19 @@ export function reportTestStep(
   result: Partial<TestStepResult> & Pick<TestStepResult, 'index'>
 ): void {
   if (!run || run.done) return;
+  const prior = run.results[result.index];
+  // A control that vanished after Autopilot clicked it was still found.
+  const keep = prior?.status === 'found' && result.status === 'missing';
   run.results[result.index] = {
-    ...run.results[result.index],
+    ...prior,
     ...result,
+    ...(keep ? { status: 'found' as const } : {}),
   };
 }
+
+/** Whether this run already found the step's control. */
+export const testStepFound = (index: number): boolean =>
+  run?.results[index]?.status === 'found';
 
 export function endTestRun(finished: boolean): void {
   if (!run || run.done) return;

@@ -129,6 +129,7 @@ import {
   SAMPLE_CLASS_NAME,
   sampleStudents,
   takeTestTour,
+  testStepFound,
 } from './tourTestRun';
 import {
   clearTourEdit,
@@ -1571,13 +1572,15 @@ export const LiveTourRunner: React.FC = () => {
 
   useEffect(() => {
     if (!testStatus || !step) return;
+    // A found control that closes once clicked is Autopilot's to move past.
+    const found = testStepFound(stepIndex);
     reportTestStep({
       index: stepIndex,
       stepId: step.id,
       anchor: step.tour?.anchor ?? '',
       status: testStatus,
     });
-    if (testStatus === 'missing') advanceRef.current(stepIndex + 1);
+    if (testStatus === 'missing' && !found) advanceRef.current(stepIndex + 1);
   }, [testStatus, stepIndex, step]);
   const waitingOnTeacher = autoStage === 'blocked' || autoStage === 'fallback';
   const autoBusy =
