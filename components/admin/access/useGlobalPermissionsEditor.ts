@@ -24,7 +24,6 @@ export const GEMINI_FEATURES: GlobalFeature[] = [
   'smart-poll',
   'embed-mini-app',
   'video-activity-audio-transcription',
-  'ai-file-context',
   PAPER_HANDWRITTEN_FEATURE,
   'quiz',
   'quiz-document-ai-reader',
@@ -34,6 +33,8 @@ export const GEMINI_FEATURES: GlobalFeature[] = [
   'drawing-ai',
   'webcam-ai',
   'blooms-ai',
+  'plc-meeting-ai-notes',
+  'plc-goal-coach',
 ];
 
 /** Features whose admin card picks the Gemini model tier. */
