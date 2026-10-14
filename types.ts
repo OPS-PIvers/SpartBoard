@@ -4419,6 +4419,18 @@ export interface QuizSection {
   directions?: string;
   /** Students answer any this many of the section's questions; absent = all. */
   chooseCount?: number;
+  /** Self-paced students stop after this section until the teacher opens the next part. */
+  stopAfter?: boolean;
+}
+
+/** Highest part opened past a Stop; part 1 is always open. Absent = only part 1. */
+export interface QuizPartsOpen {
+  /** Whole session, for sessions without class periods. */
+  all?: number;
+  /** Class period name → highest part opened. */
+  periods?: Record<string, number>;
+  /** Response doc key → highest part opened for that student. */
+  students?: Record<string, number>;
 }
 
 /** A section frozen onto a session, with the question ids it owns (bank pool ids included). */
@@ -5094,6 +5106,8 @@ export interface QuizSession
   bankSlots?: QuizSessionBankSlot[];
   /** Sections frozen at assignment; absent = one run of questions. */
   sections?: QuizSessionSection[];
+  /** Parts the teacher has opened past a Stop section. */
+  partsOpen?: QuizPartsOpen;
 
   /**
    * True once at least one Schoology LTI student has launched this session and
@@ -5777,6 +5791,10 @@ export interface QuizResponse {
   paperBatchId?: string;
   /** Seat number printed on that sheet, so a rescan lands on the same doc. */
   paperSeat?: number;
+  /** Parts submitted at a Stop; those questions are locked. Absent = 0. */
+  partsDone?: number;
+  /** True while the student waits at a Stop; the idle sweep skips the attempt. */
+  partHeld?: boolean | null;
   /**
    * Teacher-written manual grades for written question types
    * (`short`, `essay`). Keyed by `QuizQuestion.id`. Lives outside the
