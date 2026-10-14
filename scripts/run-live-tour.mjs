@@ -6,6 +6,7 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { installedChromiums } from './lib/findChromium.mjs';
 
 const args = process.argv.slice(2);
 const flag = (name) => {
@@ -43,10 +44,31 @@ mkdirSync(out, { recursive: true });
 const STEP_MS = 30_000;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Playwright's own Chromium when it is installed, else the machine's Chrome.
-const browser = await chromium
-  .launch()
-  .catch(() => chromium.launch({ channel: 'chrome' }));
+// LIVE_TOUR_CHROMIUM wins; else Playwright's expected build, the machine's Chrome, then any installed Chromium.
+async function launchBrowser() {
+  const forced = process.env.LIVE_TOUR_CHROMIUM;
+  if (forced) return chromium.launch({ executablePath: forced });
+  const tried = [];
+  const attempts = [
+    ["Playwright's Chromium", {}],
+    ['Chrome', { channel: 'chrome' }],
+    ...installedChromiums().map((p) => [p, { executablePath: p }]),
+  ];
+  for (const [name, options] of attempts) {
+    try {
+      const b = await chromium.launch(options);
+      if (tried.length) console.error(`Using ${name}.`);
+      return b;
+    } catch (err) {
+      tried.push(`${name}: ${String(err.message).split('\n')[0]}`);
+    }
+  }
+  console.error(
+    `No Chromium would launch. Tried:\n  ${tried.join('\n  ')}\nSet LIVE_TOUR_CHROMIUM to a Chromium or headless shell executable, or run pnpm exec playwright install chromium.`
+  );
+  process.exit(2);
+}
+const browser = await launchBrowser();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const errors = [];
 page.on('pageerror', (err) => errors.push(err.message));
@@ -156,11 +178,18 @@ if (upload) {
     else last.push(p);
   }
   for (const batch of batches) {
-    const res = await fetch(upload, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ticket, pictures: batch }),
-    });
+    let res;
+    try {
+      res = await fetch(upload, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ticket, pictures: batch }),
+      });
+    } catch (err) {
+      // Behind a proxy, Node needs NODE_USE_ENV_PROXY=1 and NODE_EXTRA_CA_CERTS (AUTHORING.md).
+      report.upload.error = `${upload} unreachable: ${err.cause?.message ?? err.message}`;
+      break;
+    }
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
       report.upload.error = body.error ?? `HTTP ${res.status}`;

@@ -27,14 +27,8 @@ import {
   Upload,
   Volume2,
 } from 'lucide-react';
-import type {
-  QuizCalculatorKind,
-  QuizStimulus,
-  QuizStimulusType,
-} from '@/types';
-import { SegmentedControl } from '@/components/common/SegmentedControl';
+import type { QuizStimulus, QuizStimulusType } from '@/types';
 import {
-  CALCULATOR_KIND_LABELS,
   STIMULUS_TYPE_LABELS,
   detectStimulusTypeFromFile,
   detectStimulusTypeFromUrl,
@@ -67,10 +61,6 @@ const TYPE_BADGE: Record<QuizStimulusType, string> = {
   text: 'bg-slate-200 text-slate-700',
   calculator: 'bg-teal-100 text-teal-700',
 };
-
-const CALCULATOR_OPTIONS = (
-  Object.keys(CALCULATOR_KIND_LABELS) as QuizCalculatorKind[]
-).map((value) => ({ value, label: CALCULATOR_KIND_LABELS[value] }));
 
 /** Accept list for the device-upload input. */
 const STIMULUS_ACCEPT = 'image/*,audio/*,video/*,application/pdf,.pdf';
@@ -814,20 +804,7 @@ const StimulusCard: React.FC<{
                 className="w-full px-2.5 py-2 border-2 border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary/50"
               />
             </div>
-          ) : s.type === 'calculator' ? (
-            <SegmentedControl
-              role="radiogroup"
-              ariaLabel="Calculator"
-              value={s.calculator ?? 'graphing'}
-              onChange={(calculator) => updateStimulus(s.id, { calculator })}
-              options={CALCULATOR_OPTIONS}
-              anchor={tourFieldAttr(
-                'quiz-stimuli.calculator-kind',
-                'quiz',
-                String(index)
-              )}
-            />
-          ) : (
+          ) : s.type === 'calculator' ? null : (
             <p className="text-xs text-slate-500 break-all">
               <Link2 className="w-3 h-3 inline mr-1" aria-hidden />
               {s.url}

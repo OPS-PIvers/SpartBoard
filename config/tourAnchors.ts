@@ -2531,11 +2531,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
-  'quiz-stimuli.calculator-kind': {
-    label: 'Calculator type picker in the Quiz widget',
-    perField: true,
-    panel: true,
-  },
   'quiz-stimuli.card-delete': {
     label: 'Delete stimulus in the Quiz widget',
     perField: true,
@@ -11207,6 +11202,30 @@ export const TOUR_ANCHORS = {
     label: 'Reset to my default button on the Style tab',
     panel: true,
     persists: true,
+    requires: 'settings-open',
+  },
+  'settings.window-background': {
+    perWidget: true,
+    label: 'Window background color on the Style tab',
+    panel: true,
+    requires: 'settings-open',
+  },
+  'settings.window-font': {
+    perWidget: true,
+    label: 'Window font on the Style tab',
+    panel: true,
+    requires: 'settings-open',
+  },
+  'settings.window-text-size': {
+    perWidget: true,
+    label: 'Window text size on the Style tab',
+    panel: true,
+    requires: 'settings-open',
+  },
+  'settings.window-transparency': {
+    perWidget: true,
+    label: 'Window transparency slider on the Style tab',
+    panel: true,
     requires: 'settings-open',
   },
   'settings.partner-add': {

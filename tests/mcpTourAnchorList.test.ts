@@ -11,6 +11,7 @@ import { WIDGET_TYPE_LIST } from '@/functions/src/mcp/widgetTypeList';
 import { TOOLS } from '@/config/tools';
 import { WIDGET_SETTINGS_SCHEMAS } from '@/components/widgets/WidgetRegistry';
 import { SETTINGS_FIELD_LIST } from '@/functions/src/mcp/settingsFieldList';
+import { resolveStyleFields } from '@/components/settings/schema/styleKeys';
 import type {
   Field,
   WidgetSettingsSchema,
@@ -95,7 +96,7 @@ describe('connector tour anchor list', () => {
       writeFileSync(
         FILE,
         // Parsed JSON, because an array literal this varied is too complex for the type checker to infer.
-        `// Generated from config/tourAnchors.ts by tests/mcpTourAnchorList.test.ts; rerun it with UPDATE_TOUR_ANCHOR_LIST=1.\nexport interface TourAnchorEntry {\n  id: string;\n  label: string;\n  scope: 'board' | 'widget' | 'widget type' | 'field';\n  panel?: true;\n  destructive?: true;\n  persists?: true;\n  sandboxed?: true;\n  requires?: string;\n  keys?: readonly string[];\n  routes?: ReadonlyArray<{\n    surface: string;\n    kind: string;\n    widget_type?: string;\n    url?: string;\n    path?: readonly string[];\n    reveal?: string;\n    opened_by?: readonly string[];\n    needs?: readonly string[];\n  }>;\n}\n\nexport const TOUR_ANCHOR_LIST = JSON.parse(String.raw\`${JSON.stringify(list, null, 2)}\`) as readonly TourAnchorEntry[];\n`
+        `// Generated from config/tourAnchors.ts by tests/mcpTourAnchorList.test.ts; rerun it with UPDATE_TOUR_ANCHOR_LIST=1.\nexport interface TourAnchorEntry {\n  id: string;\n  label: string;\n  scope: 'board' | 'widget' | 'widget type' | 'field';\n  panel?: true;\n  destructive?: true;\n  persists?: true;\n  sandboxed?: true;\n  requires?: string;\n  keys?: readonly string[];\n  key_pattern?: string;\n  key_hint?: string;\n  cycles?: string;\n  opens_empty?: string;\n  routes?: ReadonlyArray<{\n    surface: string;\n    kind: string;\n    widget_type?: string;\n    url?: string;\n    path?: readonly string[];\n    reveal?: string;\n    opened_by?: readonly string[];\n    needs?: readonly string[];\n  }>;\n}\n\nexport const TOUR_ANCHOR_LIST = JSON.parse(String.raw\`${JSON.stringify(list, null, 2)}\`) as readonly TourAnchorEntry[];\n`
       );
       return;
     }
@@ -153,7 +154,7 @@ const englishLabel = (type: string, leaf: string) =>
   lookup(`widgetSettings.common.${leaf}`) ??
   leaf;
 
-// Mirrors SchemaRenderer, FieldRenderer and ToggleField's tourFieldAttr calls.
+// Mirrors SchemaRenderer, SettingsDrawer, FieldRenderer and ToggleField's tourFieldAttr calls.
 function fieldAnchors(type: string, schema: WidgetSettingsSchema) {
   const out = new Map<string, { label: string; kind?: string }>();
   const add = (anchor: string, label: string, kind?: string) => {
@@ -175,6 +176,8 @@ function fieldAnchors(type: string, schema: WidgetSettingsSchema) {
     );
     group.fields.forEach((field) => addField(field));
   }
+  // The Style tab's shared Content-tier fields, rendered by SettingsDrawer from `styleKeys`.
+  resolveStyleFields(schema.styleKeys).forEach((field) => addField(field));
   return [...out].map(([anchor, rest]) => ({ anchor, ...rest }));
 }
 

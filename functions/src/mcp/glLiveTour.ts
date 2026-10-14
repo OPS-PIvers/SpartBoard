@@ -983,7 +983,7 @@ export function registerLiveTourTools(
     {
       title: 'Upload live tour step pictures',
       description:
-        "Admins only, Claude Code only. Returns a ticket, good for 30 minutes, for scripts/run-live-tour.mjs, which plays the tour on the dev board and posts each step's picture to upload_url as its thumbnail. Run: node scripts/run-live-tour.mjs <tour.json> --upload <upload_url> --ticket <ticket>.",
+        "Admins only, Claude Code only. Returns a ticket, good for 30 minutes, for scripts/run-live-tour.mjs, which plays the tour on the dev board and posts each step's picture to upload_url as its thumbnail. Run: node scripts/run-live-tour.mjs <tour.json> --upload <upload_url> --ticket <ticket>. upload_url_fallback is the same endpoint through the web.app rewrite, for when upload_url is unreachable.",
       inputSchema: { set_id: z.string().min(1) },
       annotations: CREATES,
     },

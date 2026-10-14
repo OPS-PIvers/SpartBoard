@@ -418,7 +418,6 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 #### `docs/multilingual-pronunciation-engine.md`
 
-- [ ] Port the scoring engine (A1–A13, T1–T5, S1–S5) into `utils/pronunciation/` and build the espeak→model symbol tokenizer (#2383) (plan §6 step 2). (L)
 - [ ] Build the `'speak'` question type per plan §5 (G1–G22) and §6 steps 3–6, behind `quiz-speak-questions`. (L)
 
 #### `docs/rich-response-wayfinder.md`

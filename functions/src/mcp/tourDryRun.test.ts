@@ -146,6 +146,16 @@ describe('dryRunTour', () => {
     );
   });
 
+  it('warns that the video activity editor has no Save button', () => {
+    const report = dryRunTour(
+      [step('editor.save:video-activity', 'click')],
+      board
+    );
+    expect(messages(report.warnings)).toContainEqual(
+      expect.stringContaining('end with editor.close:video-activity')
+    );
+  });
+
   it('does not warn on menu positions or Help Center rows', () => {
     const report = dryRunTour(
       [

@@ -9,6 +9,10 @@ export interface TourAnchorEntry {
   sandboxed?: true;
   requires?: string;
   keys?: readonly string[];
+  key_pattern?: string;
+  key_hint?: string;
+  cycles?: string;
+  opens_empty?: string;
   routes?: ReadonlyArray<{
     surface: string;
     kind: string;
@@ -460,36 +464,60 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "requires": "settings-open",
     "keys": [
+      "activity-wall#cardColor",
+      "activity-wall#fontColor",
+      "activity-wall#fontFamily",
       "activity-wall#managedNotice",
+      "arts-letters-agenda#cardColor",
+      "arts-letters-agenda#fontColor",
+      "arts-letters-agenda#fontFamily",
+      "arts-letters-agenda#textSizePreset",
       "blending-board#managedNotice",
       "blooms-taxonomy#enabledCategories",
+      "breathing#cardColor",
       "breathing#color",
+      "breathing#fontColor",
+      "breathing#fontFamily",
       "breathing#pattern",
       "breathing#visual",
+      "calendar#cardColor",
       "calendar#daysVisible",
       "calendar#events",
+      "calendar#fontColor",
+      "calendar#fontFamily",
       "calendar#headerColor",
       "calendar#isBuildingSyncEnabled",
       "calendar#pastEvents",
       "calendar#personalCalendarIds",
+      "calendar#textSizePreset",
       "car-rider-pro#iframeUrl",
       "catalyst#managedNotice",
+      "checklist#cardColor",
       "checklist#completedNames",
       "checklist#firstNames",
+      "checklist#fontColor",
+      "checklist#fontFamily",
       "checklist#items",
       "checklist#lastNames",
       "checklist#mode",
       "checklist#rosterMode",
       "checklist#rosterPoolGroupId",
       "checklist#rowStyle",
+      "checklist#textSizePreset",
       "clock#clockStyle",
       "clock#dateColor",
+      "clock#fontFamily",
       "clock#themeColor",
+      "concept-web#cardColor",
       "concept-web#defaultNodeHeight",
       "concept-web#defaultNodeWidth",
+      "concept-web#fontFamily",
       "concept-web#nodes",
+      "countdown#cardColor",
       "countdown#eventColor",
       "countdown#eventDate",
+      "countdown#fontColor",
+      "countdown#fontFamily",
       "countdown#startDate",
       "countdown#title",
       "countdown#viewMode",
@@ -504,13 +532,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "expectations#syncSoundWidget",
       "first-5#__brand",
       "flashcards#presentShowFirst",
+      "graphic-organizer#cardColor",
+      "graphic-organizer#fontFamily",
       "graphic-organizer#templateType",
       "guided-learning#view",
       "hotspot-image#baseImageUrl",
       "hotspot-image#hotspots",
       "hotspot-image#popoverTheme",
       "instructionalRoutines#customSteps",
+      "instructionalRoutines#scaleMultiplier",
       "instructionalRoutines#selectedRoutineId",
+      "lunchCount#cardColor",
       "lunchCount#gradeLevel",
       "lunchCount#lunchTimeHour",
       "lunchCount#manualBentoBox",
@@ -520,6 +552,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "lunchCount#schoolSite",
       "materials#selectedItems",
       "materials#title",
+      "materials#titleColor",
       "materials#titleFont",
       "mathTool#numberLineMax",
       "mathTool#numberLineMin",
@@ -528,7 +561,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "mathTool#rotation",
       "mathTool#rulerUnits",
       "mathTool#toolType",
+      "mathTools#cardColor",
       "mathTools#dpiCalibration",
+      "mathTools#fontColor",
+      "mathTools#fontFamily",
       "miniApp#manageNotice",
       "music#bgColor",
       "music#layout",
@@ -537,15 +573,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "music#stationId",
       "music#syncWithTimeTool",
       "music#textColor",
+      "need-do-put-then#cardColor",
       "need-do-put-then#doItems",
+      "need-do-put-then#fontColor",
+      "need-do-put-then#fontFamily",
       "need-do-put-then#needItems",
       "need-do-put-then#putItems",
+      "need-do-put-then#textSizePreset",
       "need-do-put-then#thenItems",
       "nextUp#activeDriveFileId",
       "nextUp#autoStartTimer",
       "nextUp#displayCount",
       "nextUp#styling",
+      "numberLine#cardColor",
       "numberLine#displayMode",
+      "numberLine#fontColor",
+      "numberLine#fontFamily",
       "numberLine#jumps",
       "numberLine#markers",
       "numberLine#max",
@@ -555,6 +598,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "poll#activePollSessionId",
       "poll#questions",
       "projects#cardColor",
+      "projects#fontFamily",
       "projects#view",
       "qr#syncWithTextWidget",
       "qr#url",
@@ -578,36 +622,56 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "reveal-grid#columns",
       "reveal-grid#defaultCardBackColor",
       "reveal-grid#defaultCardColor",
+      "reveal-grid#fontFamily",
       "reveal-grid#revealMode",
       "reveal-grid#setName",
       "review#view",
+      "schedule#cardColor",
+      "schedule#fontColor",
+      "schedule#fontFamily",
       "schedule#rowStyle",
       "schedule#schedules",
+      "schedule#textSizePreset",
       "scoreboard#layout",
       "scoreboard#teams",
       "seating-chart#furniture",
       "seating-chart#names",
       "seating-chart#rosterMode",
+      "smartNotebook#cardColor",
+      "smartNotebook#fontColor",
+      "smartNotebook#fontFamily",
       "sound#autoTrafficLight",
       "sound#sensitivity",
       "sound#syncExpectations",
       "sound#trafficLightThreshold",
       "sound#visual",
       "soundboard#selectedSoundIds",
+      "specialist-schedule#cardColor",
       "specialist-schedule#cycleDays",
+      "specialist-schedule#fontColor",
+      "specialist-schedule#fontFamily",
       "specialist-schedule#recurringItems",
+      "specialist-schedule#textSizePreset",
       "starter-pack#packName",
+      "stations#cardColor",
+      "stations#fontColor",
+      "stations#fontFamily",
       "stations#stations",
       "stickers#managedNotice",
       "syntax-framer#alignment",
       "syntax-framer#mode",
       "syntax-framer#tokens",
+      "talking-tool#cardColor",
       "talking-tool#managedNotice",
       "text#bgColor",
       "text#content",
+      "text#fontColor",
+      "text#fontFamily",
+      "text#textSizePreset",
       "text#verticalAlign",
       "time-tool#adjustStepSeconds",
       "time-tool#clockStyle",
+      "time-tool#fontFamily",
       "time-tool#mode",
       "time-tool#selectedSound",
       "time-tool#themeColor",
@@ -620,11 +684,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "url#urls",
       "weather#cardColor",
       "weather#condition",
+      "weather#fontColor",
+      "weather#fontFamily",
       "weather#isAuto",
       "weather#lastSync",
       "weather#secondaryColor",
       "weather#showFeelsLike",
       "weather#temp",
+      "work-symbols#fontColor",
+      "work-symbols#fontFamily",
+      "work-symbols#textSizePreset",
       "work-symbols#titlePosition"
     ],
     "routes": [
@@ -10587,25 +10656,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "keys": [
       "quiz"
     ],
-    "routes": [
-      {
-        "surface": "quiz.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:quiz",
-          "library-shell.new-menu-item:quiz#item-1"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-stimuli.calculator-kind",
-    "label": "Calculator type picker in the Quiz widget",
-    "scope": "field",
-    "panel": true,
     "routes": [
       {
         "surface": "quiz.editor",
@@ -51380,6 +51430,90 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget",
     "panel": true,
     "persists": true,
+    "requires": "settings-open",
+    "routes": [
+      {
+        "surface": "board.settings-drawer",
+        "kind": "settings-drawer",
+        "path": [
+          "widget.settings-opener",
+          "settings.tab-style"
+        ],
+        "reveal": "settings.tab-style",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "settings.window-background",
+    "label": "Window background color on the Style tab",
+    "scope": "widget",
+    "panel": true,
+    "requires": "settings-open",
+    "routes": [
+      {
+        "surface": "board.settings-drawer",
+        "kind": "settings-drawer",
+        "path": [
+          "widget.settings-opener",
+          "settings.tab-style"
+        ],
+        "reveal": "settings.tab-style",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "settings.window-font",
+    "label": "Window font on the Style tab",
+    "scope": "widget",
+    "panel": true,
+    "requires": "settings-open",
+    "routes": [
+      {
+        "surface": "board.settings-drawer",
+        "kind": "settings-drawer",
+        "path": [
+          "widget.settings-opener",
+          "settings.tab-style"
+        ],
+        "reveal": "settings.tab-style",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "settings.window-text-size",
+    "label": "Window text size on the Style tab",
+    "scope": "widget",
+    "panel": true,
+    "requires": "settings-open",
+    "routes": [
+      {
+        "surface": "board.settings-drawer",
+        "kind": "settings-drawer",
+        "path": [
+          "widget.settings-opener",
+          "settings.tab-style"
+        ],
+        "reveal": "settings.tab-style",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "settings.window-transparency",
+    "label": "Window transparency slider on the Style tab",
+    "scope": "widget",
+    "panel": true,
     "requires": "settings-open",
     "routes": [
       {
