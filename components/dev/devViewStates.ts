@@ -33,6 +33,8 @@ export const MEDIA_GRADING_STATES = [
   'capture-unavailable',
   'archiving',
   'deleted',
+  'mic-blocked',
+  'device-gated',
 ] as const;
 export type MediaGradingStateKey = (typeof MEDIA_GRADING_STATES)[number];
 

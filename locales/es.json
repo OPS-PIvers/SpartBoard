@@ -2487,7 +2487,8 @@
       },
       "format": {
         "typed": "Escrita",
-        "spoken": "Hablada"
+        "spoken": "Hablada",
+        "whiteboard": "Pizarra"
       },
       "responseLabel": "Respuesta del estudiante",
       "timedOutUnderMinimum": "Tiempo agotado por debajo del mínimo",

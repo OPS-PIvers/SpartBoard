@@ -2487,7 +2487,8 @@
       },
       "format": {
         "typed": "Getippt",
-        "spoken": "Gesprochen"
+        "spoken": "Gesprochen",
+        "whiteboard": "Whiteboard"
       },
       "responseLabel": "Antwort des Schülers",
       "timedOutUnderMinimum": "Zeit abgelaufen unter dem Minimum",

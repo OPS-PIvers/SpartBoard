@@ -3,7 +3,8 @@
  * component (no fork) against synthetic responses, with a take resolver that
  * hands back a silent WAV instead of hitting Google Drive.
  */
-import React, { useMemo } from 'react';
+import React, { useContext, useMemo } from 'react';
+import { AuthContext } from '@/context/AuthContextValue';
 import { FreeResponseGrader } from '@/components/widgets/QuizWidget/components/FreeResponseGrader';
 import type {
   ArtifactArchiveEntry,
@@ -127,7 +128,10 @@ function makeQuestions(state: MediaGradingStateKey): QuizQuestion[] {
       incorrectAnswers: [],
       timeLimit: 0,
       points: 4,
-      recording: RECORDING,
+      recording:
+        state === 'device-gated'
+          ? { ...RECORDING, mode: 'whiteboard' as const }
+          : RECORDING,
     },
     {
       id: 'q2',
@@ -177,6 +181,9 @@ function makeResponses(state: MediaGradingStateKey): QuizResponse[] {
       answer: '',
       answeredAt: 1_700_000_000_000 + i * 60_000,
       takeIndex: i + 1,
+      ...(state === 'mic-blocked'
+        ? { micState: i === 0 ? ('unavailable' as const) : ('denied' as const) }
+        : {}),
       artifacts: [artifact(`${id}-take${i + 1}`, 18_000 + i * 5_000)],
     }));
 
@@ -216,7 +223,8 @@ function makeResponses(state: MediaGradingStateKey): QuizResponse[] {
         questionId: 'q1',
         answer: '',
         answeredAt: 1_700_000_100_000,
-        unresponded: 'capture-unavailable',
+        unresponded:
+          state === 'device-gated' ? 'device-gated' : 'capture-unavailable',
       },
     ],
   } as unknown as QuizResponse;
@@ -264,7 +272,8 @@ function makeResponses(state: MediaGradingStateKey): QuizResponse[] {
       ),
     ];
   }
-  if (state === 'capture-unavailable') return [grace, ada, kath];
+  if (state === 'capture-unavailable' || state === 'device-gated')
+    return [grace, ada, kath];
   return [ada, grace, kath];
 }
 
@@ -293,17 +302,33 @@ export const MediaGradingDevView: React.FC<{ state: MediaGradingStateKey }> = ({
     []
   );
 
+  // Whiteboard fixtures need both fail-closed flags, which the bypass admin lacks.
+  const auth = useContext(AuthContext);
+  const devAuth = useMemo(
+    () =>
+      auth && state === 'device-gated'
+        ? {
+            ...auth,
+            canAccessQuizMediaResponse: () => true,
+            canAccessFeature: () => true,
+          }
+        : auth,
+    [auth, state]
+  );
+
   return (
-    <FreeResponseGrader
-      key={state}
-      quiz={quiz}
-      responses={responses}
-      displayNameByResponseKey={names}
-      teacherUid="teacher-dev"
-      resolveTakeUrl={() => Promise.resolve(SILENT_WAV)}
-      onSaveGrade={() => Promise.resolve()}
-      onClose={() => undefined}
-    />
+    <AuthContext.Provider value={devAuth}>
+      <FreeResponseGrader
+        key={state}
+        quiz={quiz}
+        responses={responses}
+        displayNameByResponseKey={names}
+        teacherUid="teacher-dev"
+        resolveTakeUrl={() => Promise.resolve(SILENT_WAV)}
+        onSaveGrade={() => Promise.resolve()}
+        onClose={() => undefined}
+      />
+    </AuthContext.Provider>
   );
 };
 

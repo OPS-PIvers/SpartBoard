@@ -34,6 +34,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
+  PenTool,
   Pin,
   ShieldAlert,
   Undo2,
@@ -1648,13 +1649,21 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
             <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
               {tg('questionLabel')}
               <span className="text-slate-300">·</span>
-              {question.recording ? (
+              {question.recording?.mode === 'whiteboard' ? (
+                <PenTool aria-hidden className="h-3 w-3" />
+              ) : question.recording ? (
                 <Mic aria-hidden className="h-3 w-3" />
               ) : (
                 <Pencil aria-hidden className="h-3 w-3" />
               )}
               <span>
-                {tg(question.recording ? 'format.spoken' : 'format.typed')}
+                {tg(
+                  question.recording?.mode === 'whiteboard'
+                    ? 'format.whiteboard'
+                    : question.recording
+                      ? 'format.spoken'
+                      : 'format.typed'
+                )}
               </span>
               <span
                 role="group"

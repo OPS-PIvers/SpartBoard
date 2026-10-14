@@ -2487,7 +2487,8 @@
       },
       "format": {
         "typed": "Écrite",
-        "spoken": "Orale"
+        "spoken": "Orale",
+        "whiteboard": "Tableau blanc"
       },
       "responseLabel": "Réponse de l'élève",
       "timedOutUnderMinimum": "Temps écoulé sous le minimum",
