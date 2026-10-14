@@ -1540,9 +1540,14 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-editor.recording-attempts-info': {
+    label: 'Attempts allowed info button (spoken response) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-editor.recording-expiry': {
-    label: 'Prep expiry option buttons (per option) in the Quiz editor',
-    perField: true,
+    label: 'When thinking time runs out menu in the Quiz editor',
+    perWidgetType: true,
     panel: true,
   },
   'quiz-editor.response-format': {
@@ -1575,6 +1580,17 @@ export const TOUR_ANCHORS = {
   'quiz-editor.whiteboard-image': {
     label:
       'Add image button for the whiteboard starting page in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-image-paste': {
+    label:
+      'Paste image button for the whiteboard starting page in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-preview': {
+    label: 'Preview button for the whiteboard starting page in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },

@@ -6488,10 +6488,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-editor.recording-expiry",
-    "label": "Prep expiry option buttons (per option) in the Quiz editor",
-    "scope": "field",
+    "id": "quiz-editor.recording-attempts-info",
+    "label": "Attempts allowed info button (spoken response) in the Quiz editor",
+    "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ]
+  },
+  {
+    "id": "quiz-editor.recording-expiry",
+    "label": "When thinking time runs out menu in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -6633,6 +6645,24 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "widget-on-stage"
         ]
       }
+    ]
+  },
+  {
+    "id": "quiz-editor.whiteboard-image-paste",
+    "label": "Paste image button for the whiteboard starting page in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ]
+  },
+  {
+    "id": "quiz-editor.whiteboard-preview",
+    "label": "Preview button for the whiteboard starting page in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
     ]
   },
   {

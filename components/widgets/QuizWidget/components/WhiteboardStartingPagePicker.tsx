@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ImagePlus, Loader2, X } from 'lucide-react';
+import { ClipboardPaste, Eye, ImagePlus, Loader2, X } from 'lucide-react';
 import type {
   WhiteboardStartingPattern,
   WhiteboardShapeKind,
@@ -8,18 +8,43 @@ import type {
   WhiteboardStartingImage,
 } from '@/types';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
-import {
-  drawStartingPage,
-  WHITEBOARD_PAGE_HEIGHT,
-  WHITEBOARD_PAGE_WIDTH,
-} from '@/utils/whiteboard/startingPage';
 import { driveImageUrl } from '@/utils/quizStimuli';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
+import { DraftNumberInput } from './DraftNumberInput';
 import {
   BLANK_STARTING_PAGE,
   clampPattern,
   defaultPattern,
 } from './whiteboardStartingPageSpec';
+import { WhiteboardStartingPagePreviewModal } from './WhiteboardStartingPagePreviewModal';
+
+const isTextEntryTarget = (target: EventTarget | null): boolean =>
+  target instanceof HTMLElement &&
+  (target.isContentEditable ||
+    target instanceof HTMLTextAreaElement ||
+    (target instanceof HTMLInputElement &&
+      !['button', 'checkbox', 'radio', 'range', 'file'].includes(target.type)));
+
+const imageFromClipboard = (data: DataTransfer | null): File | undefined =>
+  Array.from(data?.files ?? []).find((f) => f.type.startsWith('image/'));
+
+/** Reads an image off the clipboard from a button press; null when there is none or the browser refuses. */
+async function readClipboardImage(): Promise<File | null> {
+  try {
+    const items = await navigator.clipboard.read();
+    for (const item of items) {
+      const type = item.types.find((t) => t.startsWith('image/'));
+      if (!type) continue;
+      const blob = await item.getType(type);
+      return new File([blob], `pasted.${type.split('/')[1] ?? 'png'}`, {
+        type,
+      });
+    }
+  } catch {
+    // Permission refused or the Clipboard API is missing.
+  }
+  return null;
+}
 
 type PatternKind = WhiteboardStartingPattern['kind'];
 
@@ -40,40 +65,6 @@ const SHAPE_ORDER: WhiteboardShapeKind[] = [
   'polygon',
 ];
 
-const PREVIEW_SCALE = 0.4;
-
-/** Number input that commits on blur or Enter, so typing "-" or "0." is not clobbered. */
-const DraftNumberInput: React.FC<{
-  id: string;
-  value: number;
-  onCommit: (n: number) => void;
-  step?: number;
-  anchor: ReturnType<typeof tourFieldAttr>;
-}> = ({ id, value, onCommit, step, anchor }) => {
-  const [draft, setDraft] = useState<string | null>(null);
-  const commit = () => {
-    if (draft === null) return;
-    const n = parseFloat(draft);
-    setDraft(null);
-    if (Number.isFinite(n) && n !== value) onCommit(n);
-  };
-  return (
-    <input
-      id={id}
-      type="number"
-      step={step}
-      value={draft ?? String(value)}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') commit();
-      }}
-      className={inputClass}
-      {...anchor}
-    />
-  );
-};
-
 export interface WhiteboardStartingPagePickerProps {
   value: WhiteboardStartingPage | undefined;
   onChange: (next: WhiteboardStartingPage) => void;
@@ -91,44 +82,16 @@ export const WhiteboardStartingPagePicker: React.FC<
   const page = value ?? BLANK_STARTING_PAGE;
   const pattern = page.pattern;
   const fileRef = useRef<HTMLInputElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [uploading, setUploading] = useState(false);
-  const [loadedImage, setLoadedImage] = useState<{
-    url: string;
-    el: HTMLImageElement;
-  } | null>(null);
+  const [pasteMissed, setPasteMissed] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const setPattern = (next: WhiteboardStartingPattern) =>
     onChange({ ...page, pattern: clampPattern(next) });
 
-  const imageUrl = page.image
-    ? resolveImageUrl(page.image.driveFileId)
-    : undefined;
-  useEffect(() => {
-    if (!imageUrl) return;
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    let live = true;
-    img.onload = () => {
-      if (live) setLoadedImage({ url: imageUrl, el: img });
-    };
-    img.src = imageUrl;
-    return () => {
-      live = false;
-    };
-  }, [imageUrl]);
-  const previewImage =
-    imageUrl && loadedImage?.url === imageUrl ? loadedImage.el : null;
-
-  useEffect(() => {
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-    ctx.setTransform(PREVIEW_SCALE, 0, 0, PREVIEW_SCALE, 0, 0);
-    drawStartingPage(ctx, page, previewImage);
-  }, [page, previewImage]);
-
   const handleFile = async (file: File | undefined) => {
     if (!file || uploading) return;
+    setPasteMissed(false);
     setUploading(true);
     try {
       const image = await onUploadImage(file);
@@ -137,14 +100,27 @@ export const WhiteboardStartingPagePicker: React.FC<
       setUploading(false);
     }
   };
-
-  const onPaste = (e: React.ClipboardEvent) => {
-    const file = Array.from(e.clipboardData.files).find((f) =>
-      f.type.startsWith('image/')
-    );
-    if (!file) return;
-    e.preventDefault();
+  const onImageFile = useEffectEvent((file: File) => {
     void handleFile(file);
+  });
+
+  // Ctrl+V anywhere in the editor adds the image, unless the teacher is pasting into a text field.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (isTextEntryTarget(e.target)) return;
+      const file = imageFromClipboard(e.clipboardData);
+      if (!file) return;
+      e.preventDefault();
+      onImageFile(file);
+    };
+    document.addEventListener('paste', onPaste);
+    return () => document.removeEventListener('paste', onPaste);
+  }, []);
+
+  const pasteFromClipboard = async () => {
+    const file = await readClipboardImage();
+    if (file) void handleFile(file);
+    else setPasteMissed(true);
   };
 
   const removeImage = () => {
@@ -159,7 +135,7 @@ export const WhiteboardStartingPagePicker: React.FC<
     apply: (n: number) => WhiteboardStartingPattern,
     step?: number
   ) => (
-    <div>
+    <div className="w-24">
       <label className={labelClass} htmlFor={`wb-${field}`}>
         {label}
       </label>
@@ -167,6 +143,7 @@ export const WhiteboardStartingPagePicker: React.FC<
         id={`wb-${field}`}
         value={current}
         step={step}
+        commitWhileTyping={false}
         onCommit={(n) => setPattern(apply(n))}
         anchor={tourFieldAttr(
           'quiz-editor.whiteboard-pattern-value',
@@ -178,12 +155,9 @@ export const WhiteboardStartingPagePicker: React.FC<
   );
 
   return (
-    <div
-      className="grid grid-cols-[minmax(0,1fr)_auto] gap-4"
-      onPaste={onPaste}
-    >
+    <div className="space-y-3 min-w-0">
       <div className="space-y-3 min-w-0">
-        <div>
+        <div className="max-w-[16rem]">
           <label className={labelClass} htmlFor="wb-starting-page">
             {tk('startingPageLabel')}
           </label>
@@ -205,7 +179,7 @@ export const WhiteboardStartingPagePicker: React.FC<
         </div>
 
         {pattern.kind === 'coordinate-plane' && (
-          <div className="grid grid-cols-4 gap-2">
+          <div className="flex flex-wrap gap-2">
             {num('xMin', tk('xFrom'), pattern.xMin, (n) => ({
               ...pattern,
               xMin: n,
@@ -226,7 +200,7 @@ export const WhiteboardStartingPagePicker: React.FC<
         )}
 
         {pattern.kind === 'number-line' && (
-          <div className="grid grid-cols-3 gap-2">
+          <div className="flex flex-wrap gap-2">
             {num('min', tk('from'), pattern.min, (n) => ({
               ...pattern,
               min: n,
@@ -302,6 +276,16 @@ export const WhiteboardStartingPagePicker: React.FC<
             )}
             {page.image ? tk('replaceImage') : tk('addImage')}
           </button>
+          <button
+            type="button"
+            disabled={uploading}
+            onClick={() => void pasteFromClipboard()}
+            className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm font-bold text-brand-blue-primary hover:text-brand-blue-dark disabled:opacity-60"
+            {...tourTypeAttr('quiz-editor.whiteboard-image-paste', 'quiz')}
+          >
+            <ClipboardPaste className="h-4 w-4" aria-hidden />
+            {tk('pasteImage')}
+          </button>
           {page.image && (
             <button
               type="button"
@@ -313,17 +297,30 @@ export const WhiteboardStartingPagePicker: React.FC<
               {tk('removeImage')}
             </button>
           )}
+          <button
+            type="button"
+            onClick={() => setPreviewOpen(true)}
+            className="ml-auto inline-flex items-center gap-1.5 whitespace-nowrap text-sm font-bold text-brand-blue-primary hover:text-brand-blue-dark"
+            {...tourTypeAttr('quiz-editor.whiteboard-preview', 'quiz')}
+          >
+            <Eye className="h-4 w-4" aria-hidden />
+            {tk('previewPage')}
+          </button>
         </div>
+        {pasteMissed && (
+          <p role="status" className="text-xs text-slate-600">
+            {tk('pasteImageEmpty')}
+          </p>
+        )}
       </div>
 
-      <canvas
-        ref={canvasRef}
-        width={WHITEBOARD_PAGE_WIDTH * PREVIEW_SCALE}
-        height={WHITEBOARD_PAGE_HEIGHT * PREVIEW_SCALE}
-        role="img"
-        aria-label={tk('previewLabel')}
-        className="w-48 aspect-[4/3] rounded-lg border border-slate-200 bg-white self-start"
-      />
+      {previewOpen && (
+        <WhiteboardStartingPagePreviewModal
+          page={page}
+          resolveImageUrl={resolveImageUrl}
+          onClose={() => setPreviewOpen(false)}
+        />
+      )}
     </div>
   );
 };

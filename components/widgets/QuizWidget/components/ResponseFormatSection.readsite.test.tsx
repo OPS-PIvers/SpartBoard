@@ -170,7 +170,9 @@ describe('authored recording controls reach a runtime reader', () => {
       fireEvent.change(screen.getByLabelText('Thinking time'), {
         target: { value: '3' },
       });
-      fireEvent.click(screen.getByRole('button', { name: /Start recording/ }));
+      fireEvent.change(screen.getByLabelText('When thinking time runs out'), {
+        target: { value: 'auto-start' },
+      });
     });
     expect(config.prepExpiry).toBe('auto-start');
     const { result } = renderHook(() =>

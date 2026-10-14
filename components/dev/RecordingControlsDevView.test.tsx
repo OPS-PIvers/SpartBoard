@@ -13,7 +13,7 @@ const EXPECTED: Record<string, RegExp> = {
   'rc-typed': /^Format$/,
   'rc-enabled-defaults': /When thinking time runs out/i,
   'rc-clamped-limit': /Capped at 300s/i,
-  'rc-take-limit': /Takes allowed/i,
+  'rc-take-limit': /Attempts allowed/i,
   'rc-advisory': /Shuffle has no effect/i,
   'rc-whiteboard': /^Starting page$/,
   'rc-whiteboard-plane': /^X from$/,
