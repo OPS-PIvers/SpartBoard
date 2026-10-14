@@ -9913,7 +9913,6 @@ export type GlobalFeature =
   | 'quiz-media-response'
   /** Fail-closed; read it through `canAccessQuizWhiteboardResponse`, which also needs `quiz-media-response`. */
   | 'quiz-whiteboard-response'
-  | 'settings-drawer'
   | 'quiz-read-aloud'
   /** Teacher-authored AI quiz translations for multilingual learners. */
   | 'quiz-translation'

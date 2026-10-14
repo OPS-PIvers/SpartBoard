@@ -33,5 +33,4 @@ Preconditions:
 - The "Welcome! Board created" toasts overlap the drawer's tab bar for several seconds after load. Dismiss them (`find "Dismiss"`) before clicking a drawer tab.
 - The clock text changes every second; compare its shape (`HH:MM:SS` vs `HH:MM`), not its value.
 - Alt+S only works while the widget is selected and focus is not in a text field.
-- Some widgets still use the legacy settings panel; forcing it in Isolated mode: `localStorage.authBypassFeatureOverrides = '{"settings-drawer":false}'` and reload. Remove the key afterwards.
 - Proven 2026-10-12 in Isolated mode for `drawer-open` and `drawer-toggle` (gear entry). `drawer-reopen` and `drawer-shortcut` not yet proven.
