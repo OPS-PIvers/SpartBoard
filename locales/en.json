@@ -3592,6 +3592,10 @@
           "lost": "Lost",
           "deleted": "Deleted",
           "unknown": "Unavailable"
+        },
+        "mic": {
+          "denied": "Mic blocked",
+          "unavailable": "No mic"
         }
       },
       "unavailable": {
@@ -3602,7 +3606,10 @@
         "blank": "Blank",
         "blankHelp": "Count it as a zero, like an unanswered question.",
         "substitute": "Offline substitute",
-        "substituteHelp": "You heard the answer another way. A note is required."
+        "substituteHelp": "You heard the answer another way. A note is required.",
+        "deviceGatedTitle": "This student could not draw",
+        "deviceGatedBody": "Their device was held upright, so the whiteboard never opened. Choose how this question counts before the grade is final.",
+        "substituteHelpWhiteboard": "You saw the work another way. A note is required."
       },
       "player": {
         "loading": "Loading the recording…",
@@ -3659,7 +3666,8 @@
       },
       "format": {
         "typed": "Typed",
-        "spoken": "Spoken"
+        "spoken": "Spoken",
+        "whiteboard": "Whiteboard"
       },
       "responseLabel": "Student response",
       "timedOutUnderMinimum": "Timed out under minimum",

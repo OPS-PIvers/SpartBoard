@@ -609,6 +609,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-grading.audio-skip-silence': ['quiz.grader'],
     'quiz-grading.audio-scrubber': ['quiz.grader'],
     'quiz-grading.audio-add-comment': ['quiz.grader'],
+    'quiz-grading.whiteboard-add-comment': ['quiz.grader'],
     'quiz-grading.audio-note-seek': ['quiz.grader'],
     'quiz-grading.audio-note-remove': ['quiz.grader'],
     'quiz-grading.audio-note-comment': ['quiz.grader'],
