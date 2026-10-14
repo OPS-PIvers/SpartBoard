@@ -4909,7 +4909,7 @@ service cloud.firestore {
           return sessionData().get('bankSlots', null) != null &&
             incoming().keys().hasOnly(['dealt', 'by']) &&
             incoming().dealt == prev + 1 &&
-            incoming().by is string &&
+            isStr('by') &&
             getAfter(/databases/$(database)/documents/quiz_sessions/$(sessionId)/responses/$(incoming().by)).data.get('studentUid', '') == authUid();
         }
         allow read: if signedIn();
