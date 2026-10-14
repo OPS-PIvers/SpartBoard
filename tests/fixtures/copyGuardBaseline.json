@@ -69,7 +69,6 @@
     "components/share/ShareLinkCreatorModal.tsx::Could not copy automatically — select the link to copy manua",
     "components/share/ShareWithSubModal.tsx::Send this link to your sub — they sign in with their school ",
     "components/spotify/SpotifyPremiumDialog.tsx::If you connect a free Spotify account, the widget will fall ",
-    "components/student/AssignmentSections.tsx::You're all caught up — no active assignments right now.",
     "components/student/TeacherPreviewBanner.tsx::Teacher preview — students will see this exact screen.",
     "components/subs/SubsAuthGate.tsx::accounts. Signing you out — try again with your district acc",
     "components/videoActivity/VideoActivityStudentApp.tsx::— no further warnings.",

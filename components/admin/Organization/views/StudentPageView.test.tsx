@@ -41,7 +41,6 @@ describe('StudentPageView', () => {
 
   it('shows the real access rows for the student page', () => {
     render(<StudentPageView />);
-    expect(screen.getByTestId('row-student-landing-v2')).toBeInTheDocument();
     expect(screen.getByTestId('row-student-gradebook')).toBeInTheDocument();
   });
 

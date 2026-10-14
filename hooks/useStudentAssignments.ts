@@ -57,10 +57,8 @@ import {
  * quiz / video-activity / guided-learning / activity-wall. Mini-app and
  * flashcards are single-query kinds.
  *
- * The page applies the Active/Completed partition rule using the per-row
- * lazy completion check (see AssignmentListItem). This hook does not
- * compute completion itself — it only delivers the row plus its source
- * channel so the partition can resolve client-side.
+ * This hook does not compute completion itself — it only delivers the row
+ * plus its source channel so the page can resolve it client-side.
  *
  * Bounded growth: the limit(50) on the Ended channel caps reads. The
  * Completed list is therefore a "recent history" view, not a full archive

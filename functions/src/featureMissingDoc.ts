@@ -40,7 +40,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'projects-group-view',
   'gradebook',
   'student-gradebook',
-  'student-landing-v2',
   'quiz-review-split',
   'quiz-time-limit',
   'group-reminders',
