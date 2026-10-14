@@ -2152,9 +2152,15 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             counts
           );
           if (!plan) return response.servedQuestionIds ?? [];
+          const uid = auth.currentUser?.uid;
+          if (!uid) throw new Error('Not signed in');
+          // The counter rule finds the caller's response through their seat, so the key never lands on the counter.
+          if (plan.counters.length > 0) {
+            tx.set(seatRef(sessionId, uid), { responseKey });
+          }
           plan.counters.forEach(({ slotId, dealt }) => {
             const i = balanced.findIndex((s) => s.id === slotId);
-            if (i >= 0) tx.set(counterRefs[i], { dealt, by: responseKey });
+            if (i >= 0) tx.set(counterRefs[i], { dealt, by: uid });
           });
           tx.update(responseRef, {
             servedQuestionIds: plan.ids,

@@ -1,7 +1,8 @@
 // Firestore rules for balanced bank slots (docs/plans/QUIZ_IMPORT_VERSIONS.md V18-V19):
 //   - quiz_sessions/{id}/bank_deals/{dealId}: any signed-in read; a counter that
 //     only a seated student advances, by one, on a session with bank slots; teacher deletes
-//   - responses: `dealtQuestionIds` is a capped list on the student surface
+//   - the counter's `by` is the caller's uid, never the (PIN-bearing) response key
+//   - responses: `dealtQuestionIds` is a capped list on the student surface, never set at create
 //
 // Requires a running Firestore emulator — invoke via `pnpm run test:rules`.
 
@@ -53,9 +54,15 @@ const asStudent = () =>
     .firestore();
 
 const dealPath = `quiz_sessions/${SESSION_ID}/bank_deals/s1__period_1`;
-const responsePath = `quiz_sessions/${SESSION_ID}/responses/${STUDENT_UID}`;
+const PIN_KEY = 'pin-period_1-4821';
+const responsePath = `quiz_sessions/${SESSION_ID}/responses/${PIN_KEY}`;
+const seatPath = `quiz_sessions/${SESSION_ID}/seats/${STUDENT_UID}`;
 
-const seed = async (opts: { bankSlots: boolean; dealt?: number }) => {
+const seed = async (opts: {
+  bankSlots: boolean;
+  dealt?: number;
+  seated?: boolean;
+}) => {
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     const db = ctx.firestore();
     await setDoc(doc(db, `quiz_sessions/${SESSION_ID}`), {
@@ -91,6 +98,9 @@ const seed = async (opts: { bankSlots: boolean; dealt?: number }) => {
       preSyncVersion: 0,
       classPeriod: 'Period 1',
     });
+    if (opts.seated !== false) {
+      await setDoc(doc(db, seatPath), { responseKey: PIN_KEY });
+    }
     if (opts.dealt !== undefined) {
       await setDoc(doc(db, dealPath), { dealt: opts.dealt });
     }
@@ -180,6 +190,35 @@ describe('quiz_sessions/{id}/bank_deals/{dealId}', () => {
     await assertFails(setDoc(doc(asStudent(), dealPath), { dealt: 1 }));
   });
 
+  it('never stores the response key: `by` must be the caller uid', async () => {
+    await seed({ bankSlots: true });
+    await assertFails(
+      setDoc(doc(asStudent(), dealPath), { dealt: 1, by: PIN_KEY })
+    );
+    await assertSucceeds(
+      setDoc(doc(asStudent(), dealPath), { dealt: 1, by: STUDENT_UID })
+    );
+  });
+
+  it('refuses a student with no seat unless the seat lands in the same write', async () => {
+    await seed({ bankSlots: true, seated: false });
+    const db = asStudent();
+    await assertFails(setDoc(doc(db, dealPath), { dealt: 1, by: STUDENT_UID }));
+    await assertSucceeds(
+      runTransaction(db, async (tx) => {
+        await tx.get(doc(db, dealPath));
+        await tx.get(doc(db, responsePath));
+        tx.set(doc(db, seatPath), { responseKey: PIN_KEY });
+        tx.set(doc(db, dealPath), { dealt: 1, by: STUDENT_UID });
+        tx.update(doc(db, responsePath), {
+          servedQuestionIds: ['f1', 'va'],
+          dealtQuestionIds: ['va'],
+          lastWriteAt: serverTimestamp(),
+        });
+      })
+    );
+  });
+
   it('only the session teacher deletes a counter', async () => {
     await seed({ bankSlots: true, dealt: 2 });
     await assertFails(deleteDoc(doc(asStudent(), dealPath)));
@@ -207,6 +246,26 @@ describe('quiz_sessions/{id}/bank_deals/{dealId}', () => {
 });
 
 describe('responses dealtQuestionIds', () => {
+  it('cannot be set, nor partsDone, when the response is created', async () => {
+    await seed({ bankSlots: true });
+    const db = asStudent();
+    const fresh = `quiz_sessions/${SESSION_ID}/responses/${STUDENT_UID}`;
+    const base = {
+      studentUid: STUDENT_UID,
+      joinedAt: 2000,
+      score: null,
+      answers: [],
+      status: 'joined',
+      completedAttempts: 0,
+      preSyncVersion: 0,
+    };
+    await assertFails(
+      setDoc(doc(db, fresh), { ...base, dealtQuestionIds: ['va'] })
+    );
+    await assertFails(setDoc(doc(db, fresh), { ...base, partsDone: 3 }));
+    await assertSucceeds(setDoc(doc(db, fresh), base));
+  });
+
   it('accepts a list within the cap', async () => {
     await seed({ bankSlots: true });
     await assertSucceeds(

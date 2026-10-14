@@ -4674,6 +4674,8 @@ service cloud.firestore {
           incoming().get('servedQuestionIds', null) == null &&
           incoming().get('tabExits', null) == null &&
           incoming().get('partHeld', null) == null &&
+          incoming().get('partsDone', null) == null &&
+          incoming().get('dealtQuestionIds', null) == null &&
           // Per-student publication and the answer key are teacher-written only.
           incoming().get('resultsOverride', null) == null &&
           incoming().get('revealedAnswers', null) == null &&
@@ -4907,14 +4909,15 @@ service cloud.firestore {
         allow create, update: if seatWriteOk('quiz_sessions', sessionId, uid);
       }
       // Balanced bank slots: one turn counter per slot and class period. Only a
-      // student whose own response (`by`) is in this session advances it, by one.
+      // student seated (`seats/{uid}`) on their own response here advances it, by one.
+      // `by` is the uid, never the response key: PIN keys must not be readable here.
       match /bank_deals/{dealId} {
         function dealOk(prev) {
           return sessionData().get('bankSlots', null) != null &&
             incoming().keys().hasOnly(['dealt', 'by']) &&
             incoming().dealt == prev + 1 &&
-            isStr('by') &&
-            getAfter(/databases/$(database)/documents/quiz_sessions/$(sessionId)/responses/$(incoming().by)).data.get('studentUid', '') == authUid();
+            incoming().get('by', '') == authUid() &&
+            getAfter(/databases/$(database)/documents/quiz_sessions/$(sessionId)/responses/$(getAfter(/databases/$(database)/documents/quiz_sessions/$(sessionId)/seats/$(authUid())).data.responseKey)).data.get('studentUid', '') == authUid();
         }
         allow read: if signedIn();
         allow create: if signedIn() && dealOk(0);
