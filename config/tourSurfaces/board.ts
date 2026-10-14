@@ -312,6 +312,7 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'modal',
     files: ['components/classes/', 'components/classes/RosterEditorModal.tsx'],
     opensWith: 'classes.edit-roster',
+    alsoOpensWith: ['classes.new-class', 'classes.new-class-empty'],
     needs: ['class'],
   },
   'board.roster-groups': {

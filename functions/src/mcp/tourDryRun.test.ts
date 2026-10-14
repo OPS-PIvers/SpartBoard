@@ -51,6 +51,22 @@ describe('dryRunTour', () => {
     ]);
   });
 
+  it('accepts a second way into a panel', () => {
+    const open = [
+      step('sidebar.open-menu', 'click'),
+      step('sidebar.classes', 'click'),
+    ];
+    const viaNew = dryRunTour(
+      [...open, step('classes.new-class', 'click'), step('roster-editor.save')],
+      board
+    );
+    expect(viaNew.errors).toEqual([]);
+    const notOpened = dryRunTour([...open, step('roster-editor.save')], board);
+    expect(messages(notOpened.errors)).toEqual([
+      expect.stringContaining('only shows once "classes.edit-roster"'),
+    ]);
+  });
+
   it('lets the runner open a drawer the anchor requires', () => {
     const report = dryRunTour(
       [
@@ -121,6 +137,13 @@ describe('dryRunTour', () => {
       expect.stringContaining('slot 2 is not a widget'),
       expect.stringContaining('Autopilot hands it to the teacher'),
     ]);
+  });
+
+  it('warns that the quiz editor has no Save button', () => {
+    const report = dryRunTour([step('editor.save:quiz', 'click')], board);
+    expect(messages(report.warnings)).toContainEqual(
+      expect.stringContaining('the quiz editor saves as you go')
+    );
   });
 
   it('does not warn on menu positions or Help Center rows', () => {
