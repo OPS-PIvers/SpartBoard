@@ -18,6 +18,7 @@ const EXPECTED: Record<string, RegExp> = {
   prep: /Thinking time/i,
   armed: /When you press record|have \d+ seconds/i,
   recording: /Recording stops on its own/i,
+  'no-review-recording': /Stop and submit/i,
   review: /Listen back/i,
   recovered: /Your saved take/i,
   committing: /Listen back/i,

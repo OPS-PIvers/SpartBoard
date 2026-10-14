@@ -6,6 +6,7 @@ import {
   defaultAudioRecordingDeps,
   SPEECH_AUDIO_BITS_PER_SECOND,
   type AudioRecordingDeps,
+  type AudioTake,
 } from './useAudioRecording';
 import type { RecordingConfig } from '@/types';
 import { memoryTakeRecoveryStore } from '@/utils/takeRecoveryStore';
@@ -243,6 +244,27 @@ describe('useAudioRecording capture', () => {
     );
     expect(result.current.phase).toBe('armed');
   });
+
+  it('hands the take straight to onTakeReady and skips review', async () => {
+    const onTakeReady = vi.fn<(take: AudioTake) => void>();
+    const { result } = renderHook(() =>
+      useAudioRecording({
+        config: config({ prepSeconds: 0, limitSeconds: 10 }),
+        enabled: true,
+        onTakeReady,
+        deps: makeDeps(),
+      })
+    );
+    await act(async () => {
+      await result.current.start();
+    });
+    advance(10_000);
+    expect(onTakeReady).toHaveBeenCalledTimes(1);
+    expect(onTakeReady.mock.calls[0][0].durationMs).toBe(10_000);
+    expect(result.current.phase).toBe('armed');
+    expect(result.current.take).toBeNull();
+    expect(result.current.takeUrl).toBeNull();
+  });
 });
 
 describe('useAudioRecording mic unavailable', () => {
@@ -395,6 +417,29 @@ describe('useAudioRecording crash recovery', () => {
       expect(await store.load(recoveryKey, clock)).toBeNull();
     }
   );
+
+  it('wipes the local copy when review is off and the take commits on stop', async () => {
+    const store = memoryTakeRecoveryStore();
+    const onTakeReady = vi.fn();
+    const { result } = renderHook(() =>
+      useAudioRecording({
+        config: config({ prepSeconds: 0, limitSeconds: 10 }),
+        enabled: true,
+        deps: makeDeps(),
+        recovery: { store, key: recoveryKey },
+        onTakeReady,
+      })
+    );
+    await act(async () => {
+      await result.current.start();
+    });
+    act(() => result.current.stop());
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    expect(onTakeReady).toHaveBeenCalledTimes(1);
+    expect(await store.load(recoveryKey, clock)).toBeNull();
+  });
 
   it('restore puts a recovered take on the review screen', () => {
     const { result } = renderHook(() =>

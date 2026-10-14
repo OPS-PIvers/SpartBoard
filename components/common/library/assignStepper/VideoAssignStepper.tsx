@@ -35,6 +35,7 @@ import { AssignWhenStep } from './AssignWhenStep';
 import {
   defaultWhenValue,
   formatWhenValue,
+  whenBackwards,
   type AssignWhenValue,
 } from './assignWhenValue';
 import { SharingStep } from './SharingStep';
@@ -201,6 +202,8 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
     .map((id) => bodies[id]())
     .filter((s): s is AssignStepDef => s !== null);
 
+  const backwards =
+    !live && whenBackwards(when, pickedRosters, periodAccess?.bellWindow);
   const submit = async () => {
     const manualStart = !live && when.mode === 'manual' && manualAvailable;
     const resolved = live
@@ -253,8 +256,17 @@ export const VideoAssignStepper: React.FC<VideoAssignStepperProps> = ({
       submitLabel={live ? 'Start live' : 'Assign'}
       submitIcon={live ? Play : undefined}
       onSubmit={submit}
-      disabled={plcMissing}
-      disabledReason={plcMissing ? 'Pick a PLC to share with' : undefined}
+      disabled={plcMissing || backwards}
+      disabledReason={
+        plcMissing
+          ? 'Pick a PLC to share with'
+          : backwards
+            ? t(
+                'assignAvailability.closesBeforeOpens',
+                'Closes before it opens.'
+              )
+            : undefined
+      }
       overlayView={
         modsOpen && !live ? (
           <ModificationsView

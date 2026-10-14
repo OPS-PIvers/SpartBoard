@@ -39,6 +39,8 @@ export interface UseAudioRecordingOptions {
   /** `auto-advance` / `unanswered` bubble up; `armed` and `auto-start` do not. */
   onPrepExpired?: (expiry: RecordingConfig['prepExpiry']) => void;
   onCaptureUnavailable?: () => void;
+  /** When set, a finished take skips review: it is handed here and the recorder re-arms (D5). */
+  onTakeReady?: (take: AudioTake) => void;
   /** Injected in tests and in the DEV harness; defaults to the real APIs. */
   deps?: AudioRecordingDeps;
   /** Mirrors chunks of the running take locally so a crash can offer it back (D17). */
@@ -163,6 +165,10 @@ export function useAudioRecording(
   const onCaptureUnavailableRef = useRef(options.onCaptureUnavailable);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in timers/handlers
   onCaptureUnavailableRef.current = options.onCaptureUnavailable;
+  const onTakeReadyRef = useRef(options.onTakeReady);
+  useLayoutEffect(() => {
+    onTakeReadyRef.current = options.onTakeReady;
+  });
 
   const clearPrepTimer = () => {
     if (prepTimerRef.current !== null) {
@@ -232,6 +238,13 @@ export function useAudioRecording(
         recorderRef.current = null;
         clearRecordTimer();
         setRecordSecondsLeft(null);
+        const onTakeReady = onTakeReadyRef.current;
+        if (onTakeReady) {
+          setPhase('armed');
+          queueRecoveryWrite((store, key) => store.remove(key));
+          onTakeReady({ blob, mimeType: effectiveMime, durationMs });
+          return;
+        }
         setTake({ blob, mimeType: effectiveMime, durationMs });
         const url = URL.createObjectURL(blob);
         takeUrlRef.current = url;

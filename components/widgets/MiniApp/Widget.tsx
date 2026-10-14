@@ -69,6 +69,8 @@ import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
 import { buildPeriodGate } from '@/utils/periodPlan';
 import {
   applyAvailability,
+  availabilityBackwards,
+  chosenWorkKind,
   type WorkKindSetting,
 } from '@/utils/assignAvailability';
 import { resolveWorkKind } from '@/utils/gradebook/gradebookCore';
@@ -189,6 +191,15 @@ export const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
 }) => {
   const outward = useViewAsOutward();
   const isViewOnly = mode === 'view-only';
+  const backwards =
+    !isViewOnly &&
+    availabilityBackwards(
+      { ...targetingValue, workKind: chosenWorkKind(targetingValue, workKind) },
+      rosters.filter(
+        (r) => !r.loadError && pickerValue.rosterIds.includes(r.id)
+      ),
+      periodAccess?.bellWindow
+    );
   const link = createdSessionId
     ? `${window.location.origin}/miniapp/${createdSessionId}`
     : null;
@@ -469,10 +480,14 @@ export const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                 disabled={
                   isCreating ||
                   outward.locked ||
+                  backwards ||
                   (!isViewOnly && assignmentName.trim().length === 0)
                 }
                 {...tourTypeAttr('mini-app.assign-confirm', 'miniApp')}
-                title={outward.lockedTitle}
+                title={
+                  outward.lockedTitle ??
+                  (backwards ? 'Closes before it opens.' : undefined)
+                }
                 className="w-full flex items-center justify-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm disabled:opacity-60"
                 style={{
                   gap: 'min(8px, 2cqmin)',

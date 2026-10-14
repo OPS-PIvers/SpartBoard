@@ -168,23 +168,11 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
   const remaining = takesRemaining(config, takesCommitted);
   const takeBudgetReached = remaining !== null && remaining <= 0;
 
-  const recorder = useAudioRecording({
-    config,
-    enabled: acknowledged && !takeBudgetReached && !slotClosed,
-    onPrepExpired,
-    onCaptureUnavailable,
-    deps: recorderDeps,
-    recovery,
-  });
-
-  const { phase, commit, restore, discard } = recorder;
-  const [recoveredTake, setRecoveredTake] = useState(false);
+  const reviewOn = recordingReviewEnabled(config);
 
   const commitInFlightRef = useRef<Promise<void> | null>(null);
-  const sendTake = useCallback(
-    (take: AudioTake | null): Promise<void> => {
-      setRecoveredTake(false);
-      if (!take) return Promise.resolve();
+  const commitTake = useCallback(
+    (take: AudioTake) => {
       setCommitState('committing');
       const run = (async () => {
         try {
@@ -202,23 +190,43 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
     [onCommit]
   );
 
+  const recorder = useAudioRecording({
+    config,
+    enabled: acknowledged && !takeBudgetReached && !slotClosed,
+    onPrepExpired,
+    onCaptureUnavailable,
+    // D5: with review off, a finished take commits the moment the recorder hands it over.
+    onTakeReady: reviewOn ? undefined : (take) => void commitTake(take),
+    deps: recorderDeps,
+    recovery,
+  });
+
+  const { phase, commit, restore, discard } = recorder;
+  const [recoveredTake, setRecoveredTake] = useState(false);
+
   const handleCommit = useCallback(async () => {
     if (commitInFlightRef.current) return commitInFlightRef.current;
-    return sendTake(commit());
-  }, [commit, sendTake]);
+    setRecoveredTake(false);
+    const take = commit();
+    if (!take) return;
+    return commitTake(take);
+  }, [commit, commitTake]);
 
   const handleDiscard = useCallback(() => {
     setRecoveredTake(false);
     discard();
   }, [discard]);
 
-  const reviewOn = recordingReviewEnabled(config);
   const canRecover = acknowledged && !takeBudgetReached && !slotClosed;
   const checkedRecoveryKeyRef = useRef<string | null>(null);
   const restoreRecovered = useEffectEvent((take: AudioTake) => {
     if (!restore(take)) return;
-    if (reviewOn) setRecoveredTake(true);
-    else void sendTake(commit(take));
+    if (reviewOn) {
+      setRecoveredTake(true);
+      return;
+    }
+    const restored = commit(take);
+    if (restored) void commitTake(restored);
   });
 
   // Reopening the question offers back a take a crash or reload interrupted.
@@ -275,6 +283,8 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
               stopRef.current();
             });
           }
+          // Review off: the stop already handed the take to commitTake.
+          if (commitInFlightRef.current) return commitInFlightRef.current;
           if (phaseRef.current !== 'reviewing') return;
           await handleCommitRef.current();
         },
@@ -648,7 +658,9 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
               }`}
             >
               <Square aria-hidden className="h-4 w-4" />
-              {t('quizMediaResponse.capture.stop')}
+              {reviewOn
+                ? t('quizMediaResponse.capture.stop')
+                : t('quizMediaResponse.capture.stopAndSubmit')}
             </button>
           )}
 

@@ -29,7 +29,11 @@ import {
   buildMixedTargetsPayload,
   expandMixedTargeting,
 } from '@/utils/assignTargets';
-import { applyAvailability } from '@/utils/assignAvailability';
+import {
+  applyAvailability,
+  availabilityBackwards,
+  chosenWorkKind,
+} from '@/utils/assignAvailability';
 import { resolveWorkKind } from '@/utils/gradebook/gradebookCore';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { SubShareGuidedLearningWidget } from './SubShareWidget';
@@ -1919,6 +1923,18 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
           }
           onAssign={() => handleAssignConfirm()}
           confirmLabel="Assign"
+          confirmDisabled={availabilityBackwards(
+            {
+              ...targetingValue,
+              workKind: chosenWorkKind(targetingValue, workKindSetting),
+            },
+            rosters.filter((r) => pickerValue.rosterIds.includes(r.id)),
+            assignPeriodCtx?.bellWindow
+          )}
+          confirmDisabledReason={t(
+            'assignAvailability.closesBeforeOpens',
+            'Closes before it opens.'
+          )}
         />
       )}
 
