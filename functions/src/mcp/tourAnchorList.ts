@@ -51213,6 +51213,90 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "settings.window-background",
+    "label": "Window background color on the Style tab",
+    "scope": "widget",
+    "panel": true,
+    "requires": "settings-open",
+    "routes": [
+      {
+        "surface": "board.settings-drawer",
+        "kind": "settings-drawer",
+        "path": [
+          "widget.settings-opener",
+          "settings.tab-style"
+        ],
+        "reveal": "settings.tab-style",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "settings.window-font",
+    "label": "Window font on the Style tab",
+    "scope": "widget",
+    "panel": true,
+    "requires": "settings-open",
+    "routes": [
+      {
+        "surface": "board.settings-drawer",
+        "kind": "settings-drawer",
+        "path": [
+          "widget.settings-opener",
+          "settings.tab-style"
+        ],
+        "reveal": "settings.tab-style",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "settings.window-text-size",
+    "label": "Window text size on the Style tab",
+    "scope": "widget",
+    "panel": true,
+    "requires": "settings-open",
+    "routes": [
+      {
+        "surface": "board.settings-drawer",
+        "kind": "settings-drawer",
+        "path": [
+          "widget.settings-opener",
+          "settings.tab-style"
+        ],
+        "reveal": "settings.tab-style",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "settings.window-transparency",
+    "label": "Window transparency slider on the Style tab",
+    "scope": "widget",
+    "panel": true,
+    "requires": "settings-open",
+    "routes": [
+      {
+        "surface": "board.settings-drawer",
+        "kind": "settings-drawer",
+        "path": [
+          "widget.settings-opener",
+          "settings.tab-style"
+        ],
+        "reveal": "settings.tab-style",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "settings.partner-add",
     "label": "Add partner widget button in widget settings",
     "scope": "field",

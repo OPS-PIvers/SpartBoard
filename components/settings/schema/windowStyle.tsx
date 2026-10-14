@@ -9,6 +9,7 @@ import { FontSelect } from '@/components/common/FontSelect';
 import { StepSlider } from '@/components/common/StepSlider';
 import type { AppearanceKey, TranslateFn } from './types';
 import { contentTierOverrides } from './styleKeys';
+import { tourAttr } from '@/config/tourAnchors';
 
 type BaseTextSize = NonNullable<WidgetData['baseTextSize']>;
 
@@ -79,7 +80,10 @@ export const WindowStyleTier: React.FC<WindowStyleTierProps> = ({
 
   return (
     <div className="flex flex-col gap-4" data-window-tier="">
-      <div className={cardClass}>
+      <div
+        className={cardClass}
+        {...tourAttr('settings.window-background', widget.id, widget.type)}
+      >
         <CardHeader
           id={`${uid}-background`}
           title={t('widgetSettings.common.style.windowBackground')}
@@ -107,7 +111,10 @@ export const WindowStyleTier: React.FC<WindowStyleTierProps> = ({
       </div>
 
       {!overrides.font && (
-        <div className={cardClass}>
+        <div
+          className={cardClass}
+          {...tourAttr('settings.window-font', widget.id, widget.type)}
+        >
           <CardHeader
             id={`${uid}-font`}
             title={t('widgetSettings.common.style.windowFont')}
@@ -135,7 +142,10 @@ export const WindowStyleTier: React.FC<WindowStyleTierProps> = ({
       )}
 
       {!overrides.textSize && (
-        <div className={cardClass}>
+        <div
+          className={cardClass}
+          {...tourAttr('settings.window-text-size', widget.id, widget.type)}
+        >
           <CardHeader
             id={`${uid}-size`}
             title={t('widgetSettings.common.style.windowTextSize')}
@@ -160,7 +170,10 @@ export const WindowStyleTier: React.FC<WindowStyleTierProps> = ({
         </div>
       )}
 
-      <div className={cardClass}>
+      <div
+        className={cardClass}
+        {...tourAttr('settings.window-transparency', widget.id, widget.type)}
+      >
         <CardHeader
           id={`${uid}-transparency`}
           title={t('widgetSettings.common.style.windowTransparency')}
