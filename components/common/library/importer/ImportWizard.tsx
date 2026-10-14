@@ -15,6 +15,8 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { AiReaderToggle } from './AiReaderToggle';
+import { AI_READER_CONFIRM } from './aiReaderConfirm';
+import { ConfirmDialog } from '@/components/widgets/InstructionalRoutines/ConfirmDialog';
 import {
   TestAndKeyUploader,
   type TestAndKeySelection,
@@ -119,6 +121,10 @@ export function ImportWizard<TData>({
   const [parsed, setParsed] = useState<TData | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [note, setNote] = useState('');
+  // The plain read that can be redone with AI from the preview step.
+  const [aiRetrySource, setAiRetrySource] =
+    useState<ImportSourcePayload | null>(null);
+  const [confirmAiRetry, setConfirmAiRetry] = useState(false);
   const [title, setTitle] = useState(defaultTitle ?? '');
   const [parseError, setParseError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
@@ -164,6 +170,8 @@ export function ImportWizard<TData>({
       setParsed(null);
       setWarnings([]);
       setNote('');
+      setAiRetrySource(null);
+      setConfirmAiRetry(false);
       setTitle(defaultTitle ?? '');
       setParseError(null);
       setValidationErrors([]);
@@ -219,6 +227,7 @@ export function ImportWizard<TData>({
       setParsed(result.data);
       setWarnings(result.warnings);
       setNote(result.note ?? '');
+      setAiRetrySource(result.aiRetry ? payload : null);
       // If the adapter can extract a title from the parsed data (e.g. an
       // HTML `<title>` tag) and the user hasn't typed one, prefill it so
       // the derived title isn't wasted. We only overwrite empty input —
@@ -859,7 +868,36 @@ export function ImportWizard<TData>({
           <p className="text-sm text-slate-500">No preview available.</p>
         )}
       </div>
-      {note && <p className="text-xs font-medium text-slate-500">{note}</p>}
+      {(note || aiRetrySource) && (
+        <p className="text-xs font-medium text-slate-500">
+          {note}
+          {aiRetrySource && (
+            <>
+              {note && ' '}
+              <button
+                type="button"
+                {...tourAttr('import-wizard.retry-with-ai')}
+                onClick={() => setConfirmAiRetry(true)}
+                disabled={loading}
+                className="font-semibold text-brand-blue-primary underline-offset-2 hover:underline disabled:opacity-50"
+              >
+                Something not right? Try again with AI
+              </button>
+            </>
+          )}
+        </p>
+      )}
+      {confirmAiRetry && aiRetrySource?.kind === 'document' && (
+        <ConfirmDialog
+          {...AI_READER_CONFIRM}
+          onConfirm={() => {
+            setConfirmAiRetry(false);
+            const { useAi: _plain, ...source } = aiRetrySource;
+            void runParse(source);
+          }}
+          onCancel={() => setConfirmAiRetry(false)}
+        />
+      )}
       {warnings.length > 0 && (
         <ul
           role="alert"

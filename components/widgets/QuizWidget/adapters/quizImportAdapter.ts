@@ -23,6 +23,7 @@ import type { ImportAdapter } from '@/components/common/library';
 import type { QuizData, QuizQuestion } from '@/types';
 import { generateQuiz, type GeneratedQuestion } from '@/utils/ai';
 import {
+  documentKind,
   extractedToQuizData,
   reviewExtrasFor,
   readByLabel,
@@ -49,6 +50,9 @@ import { QuizDocumentReview } from '../components/QuizDocumentReview';
 import { QuizVersionReview } from '../components/QuizVersionReview';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { flagMissingKeys, missingKeyNumbers } from '@/utils/quizNeedsKey';
+
+/** The kinds the AI callable takes, so only these get a "try again with AI". */
+const AI_READABLE_KINDS = new Set<string | null>(['pdf', 'docx']);
 
 export interface QuizImportAdapterDeps {
   /** Wizard copy label; defaults to 'Quiz'. */
@@ -494,6 +498,13 @@ export function createQuizImportAdapter(
             ...rowWarnings(extracted),
           ],
           ...(extracted.readBy ? { note: readByLabel(extracted.readBy) } : {}),
+          ...(deps.importVersions &&
+          deps.aiExtract &&
+          source.useAi === false &&
+          extracted.readBy === 'plain' &&
+          AI_READABLE_KINDS.has(documentKind(source.file, source.fileName))
+            ? { aiRetry: true }
+            : {}),
         };
       }
       throw new Error(

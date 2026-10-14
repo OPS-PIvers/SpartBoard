@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { ConfirmDialog } from '@/components/widgets/InstructionalRoutines/ConfirmDialog';
+import { AI_READER_CONFIRM } from './aiReaderConfirm';
 
 interface AiReaderToggleProps {
   checked: boolean;
@@ -36,9 +37,7 @@ export const AiReaderToggle: React.FC<AiReaderToggleProps> = ({
       </label>
       {confirming && (
         <ConfirmDialog
-          title="Convert with AI?"
-          message="AI handles tables, pictures and messy layouts better. Each conversion costs the district money and counts toward your daily AI limit."
-          confirmLabel="Use AI"
+          {...AI_READER_CONFIRM}
           onConfirm={() => {
             setConfirming(false);
             onChange(true);

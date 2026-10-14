@@ -18,7 +18,7 @@ import { browserPdfDeps } from './pdfBrowserDeps';
 import { browserImageDeps } from './imageBrowserDeps';
 import { browserPdfCropper } from './pdfCropBrowser';
 import { readPdf } from './pdfReader';
-import { MAX_DOCUMENT_PAGES } from './limits';
+import { MAX_DOCUMENT_PAGES, PageLimitError } from './limits';
 import type { DocLine } from './types';
 
 /** Text layer only: a scanned key isn't worth OCR on top of the AI read. */
@@ -88,8 +88,17 @@ export async function readTestDocument(
     kind === 'cartridge' ||
     kind === 'image'
   ) {
-    const extracted = await inBrowser();
-    return { ...extracted, readBy: 'plain' };
+    try {
+      const extracted = await inBrowser();
+      return { ...extracted, readBy: 'plain' };
+    } catch (err) {
+      // A long versioned PDF needs the AI reader, so it is used without asking.
+      const aiCanOpen =
+        kind === 'pdf' &&
+        options.aiExtractVersions &&
+        err instanceof PageLimitError;
+      if (!aiCanOpen) throw err;
+    }
   }
 
   try {
