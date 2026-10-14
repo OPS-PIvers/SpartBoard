@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import type { tourFieldAttr } from '@/config/tourAnchors';
+import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { inputClass } from './quizEditorFieldStyles';
 
 export interface DraftNumberInputProps extends Omit<
@@ -16,7 +16,7 @@ export interface DraftNumberInputProps extends Omit<
   commitWhileTyping?: boolean;
   /** Short unit shown inside the field's right edge, e.g. "Sec". */
   unit?: string;
-  anchor?: ReturnType<typeof tourFieldAttr>;
+  anchor?: TourAnchorAttrs;
 }
 
 /** Number field that keeps what the teacher types and clamps on blur or Enter, so "1" on the way to "120" is never snapped to the minimum. */

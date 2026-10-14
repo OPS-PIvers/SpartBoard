@@ -11,7 +11,7 @@ import {
 
 const EXPECTED: Record<string, RegExp> = {
   'rc-typed': /^Format$/,
-  'rc-enabled-defaults': /When thinking time runs out/i,
+  'rc-enabled-defaults': /After planning time/i,
   'rc-clamped-limit': /Capped at 300s/i,
   'rc-take-limit': /Attempts allowed/i,
   'rc-advisory': /Shuffle has no effect/i,
@@ -19,7 +19,7 @@ const EXPECTED: Record<string, RegExp> = {
   'rc-whiteboard-plane': /^X from$/,
   'rc-whiteboard-number-line': /^Step$/,
   'rc-whiteboard-shape': /^Sides$/,
-  'rc-whiteboard-image': /^Remove image$/,
+  'rc-whiteboard-image': /^Insert image$/,
 };
 
 describe('RecordingControlsDevView', () => {

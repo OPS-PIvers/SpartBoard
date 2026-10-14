@@ -1579,13 +1579,13 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.whiteboard-image': {
     label:
-      'Add image button for the whiteboard starting page in the Quiz editor',
+      'Insert image button for the whiteboard starting page in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },
-  'quiz-editor.whiteboard-image-paste': {
+  'quiz-editor.whiteboard-image-choose': {
     label:
-      'Paste image button for the whiteboard starting page in the Quiz editor',
+      'Choose file button in the whiteboard Insert image dialog in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },

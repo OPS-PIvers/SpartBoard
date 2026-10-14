@@ -173,7 +173,7 @@ describe('WhiteboardResponseCapture', () => {
   it('keeps the page visible but locked during thinking time', () => {
     renderCapture({ config: config({ prepSeconds: 30 }) });
     expect(screen.getByTestId('canvas').dataset.disabled).toBe('true');
-    expect(screen.getByText('Thinking time')).toBeTruthy();
+    expect(screen.getByText('Planning time')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Record' })).toBeNull();
   });
 

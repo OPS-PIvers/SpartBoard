@@ -27,7 +27,7 @@ describe('ResponseFormatSection', () => {
     render(<ResponseFormatSection question={question()} onChange={vi.fn()} />);
     expect(typedTab()).toBeTruthy();
     expect(spokenTab()).toBeTruthy();
-    expect(screen.queryByLabelText('Thinking time')).toBeNull();
+    expect(screen.queryByLabelText('Planning time')).toBeNull();
     expect(screen.queryByLabelText('Takes allowed')).toBeNull();
   });
 
@@ -185,7 +185,7 @@ describe('ResponseFormatSection', () => {
     render(
       <ResponseFormatSection question={withRecording()} onChange={onChange} />
     );
-    fireEvent.change(screen.getByLabelText('Thinking time'), {
+    fireEvent.change(screen.getByLabelText('Planning time'), {
       target: { value: '15' },
     });
     expect(onChange).toHaveBeenCalledWith({
@@ -238,7 +238,7 @@ describe('ResponseFormatSection', () => {
     render(
       <ResponseFormatSection question={withRecording()} onChange={onChange} />
     );
-    const expiry = screen.getByLabelText('When thinking time runs out');
+    const expiry = screen.getByLabelText('After planning time');
     fireEvent.change(expiry, { target: { value: 'auto-start' } });
     expect(onChange).toHaveBeenLastCalledWith({
       recording: { ...DEFAULT_RECORDING_CONFIG, prepExpiry: 'auto-start' },
@@ -275,7 +275,7 @@ describe('ResponseFormatSection', () => {
       <ResponseFormatSection question={withRecording()} onChange={vi.fn()} />
     );
     expect(
-      screen.getByLabelText('Thinking time').getAttribute('title')
+      screen.getByLabelText('Planning time').getAttribute('title')
     ).toMatch(/0 starts recording/);
     expect(
       screen.getByLabelText('Recording limit').getAttribute('title')

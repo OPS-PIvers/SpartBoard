@@ -19,7 +19,6 @@ import type {
   WhiteboardStartingImage,
 } from '@/types';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
-import { Toggle } from '@/components/common/Toggle';
 import {
   AttemptLimitRow,
   ToggleRow,
@@ -83,14 +82,11 @@ const EXPIRY_ORDER: RecordingPrepExpiry[] = [
   'unanswered',
 ];
 
-const EXPIRY_KEYS: Record<
-  RecordingPrepExpiry,
-  { label: string; hint?: string }
-> = {
+const EXPIRY_KEYS: Record<RecordingPrepExpiry, { label: string }> = {
   armed: { label: 'expiryArmed' },
   'auto-start': { label: 'expiryAutoStart' },
   'auto-advance': { label: 'expiryAutoAdvance' },
-  unanswered: { label: 'expiryUnanswered', hint: 'expiryUnansweredHint' },
+  unanswered: { label: 'expiryUnanswered' },
 };
 
 export interface ResponseFormatSectionProps {
@@ -230,26 +226,27 @@ export const SpokenResponseSettings: React.FC<ResponseFormatSectionProps> = ({
 
   if (!recording) return null;
   const whiteboard = whiteboardAllowed && isWhiteboardRecording(recording);
-  const expiryHintKey = EXPIRY_KEYS[recording.prepExpiry]?.hint;
 
   return (
     <div className="space-y-3">
       {whiteboard && (
-        <label className="flex items-center justify-between gap-3">
-          <span className="text-sm font-bold text-brand-blue-dark">
-            {tk('whiteboard.explainAloudLabel')}
-          </span>
-          <Toggle
-            checked={recording.explainAloud !== false}
-            onChange={(explainAloud) => patch({ explainAloud })}
-            label={tk('whiteboard.explainAloudLabel')}
-            size="sm"
+        <div>
+          <span className={labelClass}>{tk('whiteboard.captureLabel')}</span>
+          <SegmentedControl
+            value={recording.explainAloud !== false ? 'audio' : 'screen'}
+            onChange={(v) => patch({ explainAloud: v === 'audio' })}
+            options={[
+              { value: 'screen', label: tk('whiteboard.screenOnly') },
+              { value: 'audio', label: tk('whiteboard.screenAndAudio') },
+            ]}
+            ariaLabel={tk('whiteboard.captureLabel')}
+            role="radiogroup"
             anchor={tourTypeAttr(
               'quiz-editor.whiteboard-explain-aloud',
               'quiz'
             )}
           />
-        </label>
+        </div>
       )}
       <div className="flex flex-wrap items-start gap-3">
         <div className="w-32 shrink-0">
@@ -272,30 +269,7 @@ export const SpokenResponseSettings: React.FC<ResponseFormatSectionProps> = ({
           />
         </div>
 
-        <div className="w-32 shrink-0">
-          <label
-            className={`${labelClass} whitespace-nowrap`}
-            htmlFor="recording-limit-seconds"
-          >
-            {tk('limitLabel')}
-          </label>
-          <DraftNumberInput
-            id="recording-limit-seconds"
-            integer
-            min={AUDIO_LIMIT_SECONDS_MIN}
-            max={ceiling.seconds}
-            value={limitValue}
-            readOnly={clamped}
-            onCommit={(limitSeconds) => patch({ limitSeconds })}
-            unit={tk('secondsUnit')}
-            title={tk('limitHint', { max: ceiling.seconds })}
-            aria-describedby={clamped ? 'recording-limit-hint' : undefined}
-            className={clamped ? 'bg-slate-100 text-slate-600' : ''}
-            anchor={tourTypeAttr('quiz-editor.recording-limit', 'quiz')}
-          />
-        </div>
-
-        <div className="min-w-[12rem] flex-1">
+        <div className="w-48 shrink-0">
           <label
             className={`${labelClass} whitespace-nowrap`}
             htmlFor="recording-prep-expiry"
@@ -318,6 +292,28 @@ export const SpokenResponseSettings: React.FC<ResponseFormatSectionProps> = ({
             ))}
           </select>
         </div>
+        <div className="w-32 shrink-0">
+          <label
+            className={`${labelClass} whitespace-nowrap`}
+            htmlFor="recording-limit-seconds"
+          >
+            {tk('limitLabel')}
+          </label>
+          <DraftNumberInput
+            id="recording-limit-seconds"
+            integer
+            min={AUDIO_LIMIT_SECONDS_MIN}
+            max={ceiling.seconds}
+            value={limitValue}
+            readOnly={clamped}
+            onCommit={(limitSeconds) => patch({ limitSeconds })}
+            unit={tk('secondsUnit')}
+            title={tk('limitHint', { max: ceiling.seconds })}
+            aria-describedby={clamped ? 'recording-limit-hint' : undefined}
+            className={clamped ? 'bg-slate-100 text-slate-600' : ''}
+            anchor={tourTypeAttr('quiz-editor.recording-limit', 'quiz')}
+          />
+        </div>
       </div>
 
       {clamped && (
@@ -338,7 +334,6 @@ export const SpokenResponseSettings: React.FC<ResponseFormatSectionProps> = ({
           </button>
         </p>
       )}
-      {expiryHintKey && <p className={hintClass}>{tk(expiryHintKey)}</p>}
 
       <AttemptLimitRow
         value={recording.takeLimit ?? null}
