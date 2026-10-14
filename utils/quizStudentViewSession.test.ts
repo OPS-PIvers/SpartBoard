@@ -88,7 +88,13 @@ describe('withFocusSettings', () => {
           timeLimit: 0,
           correctAnswer: '',
           incorrectAnswers: [],
-          recording: { mode: 'whiteboard', limitSeconds: 60 },
+          recording: {
+            mode: 'whiteboard',
+            prepSeconds: 0,
+            limitSeconds: 60,
+            prepExpiry: 'armed',
+            takeLimit: null,
+          },
         },
       ],
     } as QuizData;
