@@ -11935,6 +11935,31 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-grading.whiteboard-add-comment",
+    "label": "Add comment at replay position in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.grader",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-grading.audio-note-seek",
     "label": "Seek to timestamp in the Quiz grader, by comment",
     "scope": "field",
