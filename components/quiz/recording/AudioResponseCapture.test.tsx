@@ -10,6 +10,7 @@ import {
 import userEvent from '@testing-library/user-event';
 import '@/i18n';
 import { AudioResponseCapture } from './AudioResponseCapture';
+import { commitActiveTake } from './activeTake';
 import type { RecordingConfig, ResponseArtifact } from '@/types';
 import type { AudioRecordingDeps } from '@/hooks/useAudioRecording';
 import { memoryTakeRecoveryStore } from '@/utils/takeRecoveryStore';
@@ -275,6 +276,116 @@ describe('AudioResponseCapture — take-limit plural', () => {
     expect(
       screen.getByText(/allows 3 takes, and you have used them all/i)
     ).toBeTruthy();
+  });
+});
+
+describe('AudioResponseCapture — cutoffs commit first (D16)', () => {
+  it('stops a running take and commits it', async () => {
+    const clock = { now: 0 };
+    const onCommit = vi.fn().mockResolvedValue(undefined);
+    renderCapture({
+      recorderDeps: liveDeps(clock),
+      latestArtifact: undefined,
+      onCommit,
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^Record/i }));
+    await screen.findByRole('button', { name: /Stop recording/i });
+    clock.now = 12_000;
+
+    await commitActiveTake();
+
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(onCommit.mock.calls[0][0]).toMatchObject({ durationMs: 12_000 });
+    expect(
+      screen.queryByRole('button', { name: /Stop recording/i })
+    ).toBeNull();
+  });
+
+  it('commits a take waiting in review', async () => {
+    const clock = { now: 0 };
+    const onCommit = vi.fn().mockResolvedValue(undefined);
+    renderCapture({
+      recorderDeps: liveDeps(clock),
+      latestArtifact: undefined,
+      onCommit,
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^Record/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Stop recording/i })
+    );
+    await screen.findByRole('button', { name: /Keep this take/i });
+
+    await commitActiveTake();
+
+    expect(onCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('commits nothing when no take is running', async () => {
+    const onCommit = vi.fn().mockResolvedValue(undefined);
+    renderCapture({ latestArtifact: undefined, onCommit });
+
+    await commitActiveTake();
+
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it('does not commit twice when the student already pressed commit', async () => {
+    const clock = { now: 0 };
+    let finish: () => void = () => undefined;
+    const onCommit = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        })
+    );
+    renderCapture({
+      recorderDeps: liveDeps(clock),
+      latestArtifact: undefined,
+      onCommit,
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^Record/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Stop recording/i })
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Keep this take/i })
+    );
+
+    let cutoffDone = false;
+    const cutoff = commitActiveTake().then(() => {
+      cutoffDone = true;
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(cutoffDone).toBe(false);
+    await act(async () => {
+      finish();
+      await cutoff;
+    });
+
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(cutoffDone).toBe(true);
+  });
+
+  it('stops answering once unmounted', async () => {
+    const clock = { now: 0 };
+    const onCommit = vi.fn().mockResolvedValue(undefined);
+    const { unmount } = renderCapture({
+      recorderDeps: liveDeps(clock),
+      latestArtifact: undefined,
+      onCommit,
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^Record/i }));
+    await screen.findByRole('button', { name: /Stop recording/i });
+    unmount();
+
+    await commitActiveTake();
+
+    expect(onCommit).not.toHaveBeenCalled();
   });
 });
 

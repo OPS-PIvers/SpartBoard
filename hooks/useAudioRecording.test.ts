@@ -3,10 +3,12 @@ import { renderHook, act } from '@testing-library/react';
 import {
   RECOVERY_CHUNK_MS,
   useAudioRecording,
+  defaultAudioRecordingDeps,
+  SPEECH_AUDIO_BITS_PER_SECOND,
   type AudioRecordingDeps,
 } from './useAudioRecording';
-import { memoryTakeRecoveryStore } from '@/utils/takeRecoveryStore';
 import type { RecordingConfig } from '@/types';
+import { memoryTakeRecoveryStore } from '@/utils/takeRecoveryStore';
 
 class FakeRecorder {
   state: 'inactive' | 'recording' = 'inactive';
@@ -285,6 +287,35 @@ describe('useAudioRecording mic unavailable', () => {
     });
     expect(result.current.phase).toBe('capture-unavailable');
     expect(deps.createRecorder).not.toHaveBeenCalled();
+  });
+});
+
+describe('defaultAudioRecordingDeps.createRecorder', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('records speech at 32 kbps, with and without a mime type', () => {
+    const ctor = vi.fn();
+    vi.stubGlobal(
+      'MediaRecorder',
+      class {
+        constructor(stream: MediaStream, options?: MediaRecorderOptions) {
+          ctor(stream, options);
+        }
+      }
+    );
+    const stream = {} as MediaStream;
+    defaultAudioRecordingDeps.createRecorder(stream, 'audio/webm;codecs=opus');
+    defaultAudioRecordingDeps.createRecorder(stream, '');
+    expect(SPEECH_AUDIO_BITS_PER_SECOND).toBe(32000);
+    expect(ctor).toHaveBeenNthCalledWith(1, stream, {
+      mimeType: 'audio/webm;codecs=opus',
+      audioBitsPerSecond: 32000,
+    });
+    expect(ctor).toHaveBeenNthCalledWith(2, stream, {
+      audioBitsPerSecond: 32000,
+    });
   });
 });
 

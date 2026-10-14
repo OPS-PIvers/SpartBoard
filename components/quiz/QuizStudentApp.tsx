@@ -136,6 +136,7 @@ import {
   defaultTakeRecoveryStore,
   takeRecoveryKey,
 } from '@/utils/takeRecoveryStore';
+import { commitActiveTake } from './recording/activeTake';
 import { ResponsePlaybackCard } from './recording/ResponsePlaybackCard';
 import { SubmitBlockedNotice } from './recording/SubmitBlockedNotice';
 import { selectPlaybackTake } from '@/utils/responseArtifacts';
@@ -1734,6 +1735,7 @@ export const ActiveQuiz: React.FC<{
       // could finalize the response with the previous (already-written)
       // draft and silently drop the most recent edits.
       document.dispatchEvent(new CustomEvent('spartboard:quiz:flush-written'));
+      await commitActiveTake();
       await showAlert(message, {
         title: 'Quiz Auto-Submitted',
         variant: 'warning',
@@ -1767,6 +1769,7 @@ export const ActiveQuiz: React.FC<{
     setCloseAutoSubmitInFlight(true);
     document.dispatchEvent(new CustomEvent('spartboard:quiz:flush-written'));
     try {
+      await commitActiveTake();
       await onComplete();
       setCloseAutoSubmitted(true);
       setCloseAutoSubmitFailed(false);
@@ -1832,6 +1835,7 @@ export const ActiveQuiz: React.FC<{
     timeUpTriggeredRef.current = true;
     document.dispatchEvent(new CustomEvent('spartboard:quiz:flush-written'));
     try {
+      await commitActiveTake();
       await onComplete({ timeUp: true });
       setTimeUpSubmitted(true);
     } catch (err) {
@@ -1938,7 +1942,8 @@ export const ActiveQuiz: React.FC<{
       // Submit first: the tab may be hidden, where a blocking alert would wait.
       setShowCheatWarning(true);
       document.dispatchEvent(new CustomEvent('spartboard:quiz:flush-written'));
-      void onComplete()
+      void commitActiveTake()
+        .then(() => onComplete())
         .then(() =>
           showAlert(
             'You were away from the quiz too long, so it was submitted.',

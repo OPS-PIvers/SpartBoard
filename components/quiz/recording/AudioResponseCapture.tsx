@@ -2,6 +2,7 @@ import React, {
   useCallback,
   useEffect,
   useEffectEvent,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -38,6 +39,7 @@ import {
 } from './RecordingConsentNotice';
 import { TakeReviewPlayer } from './TakeReviewPlayer';
 import { formatClock } from './formatClock';
+import { registerActiveTake } from './activeTake';
 
 export type CommitState = 'idle' | 'committing' | 'retrying' | 'archive-failed';
 
@@ -178,25 +180,32 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
   const { phase, commit, restore, discard } = recorder;
   const [recoveredTake, setRecoveredTake] = useState(false);
 
+  const commitInFlightRef = useRef<Promise<void> | null>(null);
   const sendTake = useCallback(
-    async (take: AudioTake | null) => {
+    (take: AudioTake | null): Promise<void> => {
       setRecoveredTake(false);
-      if (!take) return;
+      if (!take) return Promise.resolve();
       setCommitState('committing');
-      try {
-        await onCommit(take);
-        setCommitState('idle');
-      } catch {
-        setCommitState('archive-failed');
-      }
+      const run = (async () => {
+        try {
+          await onCommit(take);
+          setCommitState('idle');
+        } catch {
+          setCommitState('archive-failed');
+        } finally {
+          commitInFlightRef.current = null;
+        }
+      })();
+      commitInFlightRef.current = run;
+      return run;
     },
     [onCommit]
   );
 
-  const handleCommit = useCallback(
-    () => sendTake(commit()),
-    [commit, sendTake]
-  );
+  const handleCommit = useCallback(async () => {
+    if (commitInFlightRef.current) return commitInFlightRef.current;
+    return sendTake(commit());
+  }, [commit, sendTake]);
 
   const handleDiscard = useCallback(() => {
     setRecoveredTake(false);
@@ -239,6 +248,39 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
       cancelled = true;
     };
   }, [canRecover, recovery]);
+
+  // D16: a cutoff stops the running take and commits it before its rule runs.
+  const phaseRef = useRef(phase);
+  const handleCommitRef = useRef(handleCommit);
+  const stopRef = useRef(recorder.stop);
+  const takeStoppedRef = useRef<(() => void) | null>(null);
+  useLayoutEffect(() => {
+    phaseRef.current = phase;
+    handleCommitRef.current = handleCommit;
+    stopRef.current = recorder.stop;
+  });
+  useEffect(() => {
+    if (phase === 'recording') return;
+    takeStoppedRef.current?.();
+    takeStoppedRef.current = null;
+  }, [phase]);
+  useEffect(
+    () =>
+      registerActiveTake({
+        commitNow: async () => {
+          if (commitInFlightRef.current) return commitInFlightRef.current;
+          if (phaseRef.current === 'recording') {
+            await new Promise<void>((resolve) => {
+              takeStoppedRef.current = resolve;
+              stopRef.current();
+            });
+          }
+          if (phaseRef.current !== 'reviewing') return;
+          await handleCommitRef.current();
+        },
+      }),
+    []
+  );
 
   const retryBtnRef = useRef<HTMLButtonElement>(null);
   const statusBannerRef = useRef<HTMLDivElement>(null);
