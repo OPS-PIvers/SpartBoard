@@ -9,7 +9,6 @@ import React, {
 import { AlertCircle, AlertTriangle, Check, Loader2, X } from 'lucide-react';
 import { Modal } from './Modal';
 import { FullscreenToggleButton } from './FullscreenToggleButton';
-import { useModalFullscreenEnabled } from '@/hooks/useModalFullscreenEnabled';
 import { useDialog } from '@/context/useDialog';
 import { DashboardContext } from '@/context/DashboardContextValue';
 import { useAutosave, type AutosaveStatus } from '@/hooks/useAutosave';
@@ -128,7 +127,7 @@ interface EditorModalShellProps {
    * the toast when the caller surfaces its own error UI (e.g. inline banner).
    */
   saveErrorMessage?: string | false;
-  /** Offers the "View full screen" toggle (behind the modal-fullscreen flag). */
+  /** Offers the "View full screen" toggle. */
   allowFullscreen?: boolean;
   /** Widget type that scopes the title and Close live-tour anchors; omit to leave them untagged. */
   tourScope?: string;
@@ -182,9 +181,8 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   saveAnchor,
   children,
 }) => {
-  const fullscreenAvailable = useModalFullscreenEnabled() && allowFullscreen;
   const [fullscreen, setFullscreen] = useState(false);
-  const isFullscreen = fullscreenAvailable && fullscreen;
+  const isFullscreen = allowFullscreen && fullscreen;
   const { showConfirm, showAlert } = useDialog();
   // Optional: LMS iframes (Classroom add-on, Schoology) mount editors with no DashboardProvider.
   const addToast = useContext(DashboardContext)?.addToast;
@@ -323,7 +321,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
         {headerExtras && (
           <div className="flex items-center gap-2 shrink-0">{headerExtras}</div>
         )}
-        {fullscreenAvailable && (
+        {allowFullscreen && (
           <FullscreenToggleButton
             fullscreen={isFullscreen}
             onToggle={() => setFullscreen((v) => !v)}
@@ -348,7 +346,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
       subtitle,
       headerExtras,
       requestClose,
-      fullscreenAvailable,
+      allowFullscreen,
       isFullscreen,
       tourScope,
     ]

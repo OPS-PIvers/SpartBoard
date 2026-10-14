@@ -9952,8 +9952,6 @@ export type GlobalFeature =
   | 'plc-norming-flags'
   /** Standard codes typed in or imported with a question text become Learning targets tags. */
   | 'standards-from-question-text'
-  /** "View full screen" toggle on large pop-ups (editors, graders). */
-  | 'modal-fullscreen'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
   | 'quiz-results-tools'
   /** Free-response grader: collapsible student list, no repeated name, one-strand auto-tagging. */

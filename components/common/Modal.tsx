@@ -6,7 +6,6 @@ import { acquireBodyScrollLock, releaseBodyScrollLock } from './bodyScrollLock';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { useBackdropDismiss } from '@/hooks/useBackdropDismiss';
 import { FullscreenToggleButton } from './FullscreenToggleButton';
-import { useModalFullscreenEnabled } from '@/hooks/useModalFullscreenEnabled';
 import {
   tourAttr,
   tourFieldAttr,
@@ -35,7 +34,7 @@ interface ModalProps {
   captureEscape?: boolean; // Whether to use capture phase for Escape key
   ariaLabel?: string;
   ariaLabelledby?: string;
-  /** Shows a "View full screen" toggle in the default header (behind the modal-fullscreen flag). */
+  /** Shows a "View full screen" toggle in the default header. */
   allowFullscreen?: boolean;
   /** Controlled full-screen state, for callers that render their own header toggle. */
   fullscreen?: boolean;
@@ -73,13 +72,10 @@ export const Modal: React.FC<ModalProps> = ({
   closeTourId = 'modal.close',
   tourScope,
 }) => {
-  const fullscreenEnabled = useModalFullscreenEnabled();
   const [fullscreenState, setFullscreenState] = useState(false);
-  const isFullscreen =
-    fullscreenProp ?? (allowFullscreen && fullscreenEnabled && fullscreenState);
+  const isFullscreen = fullscreenProp ?? (allowFullscreen && fullscreenState);
   const setFullscreen = onFullscreenChange ?? setFullscreenState;
-  const showHeaderToggle =
-    allowFullscreen && fullscreenEnabled && fullscreenProp === undefined;
+  const showHeaderToggle = allowFullscreen && fullscreenProp === undefined;
 
   // Dismiss only when the press and the release both land on the backdrop, so
   // a select-drag out of the panel doesn't read as a backdrop click.

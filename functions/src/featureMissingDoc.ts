@@ -19,7 +19,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'plc-home-v2',
   'plc-norming-flags',
   'standards-from-question-text',
-  'modal-fullscreen',
   'quiz-results-tools',
   'quiz-grader-v2',
   'gl-callout-editing',
