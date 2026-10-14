@@ -48,7 +48,9 @@ describe('useQuizEditorState duplicateQuestion', () => {
     expect(copy.targets).not.toBe(orig.targets);
     expect(copy.sourceLabel).toBeUndefined();
 
-    act(() => result.current.updateIncorrect(copy.id, 0, 'Changed'));
+    act(() =>
+      result.current.updateQuestion(copy.id, { incorrectAnswers: ['Changed'] })
+    );
     expect(result.current.questions[0].incorrectAnswers[0]).toBe('No');
   });
 });

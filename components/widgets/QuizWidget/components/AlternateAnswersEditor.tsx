@@ -6,18 +6,6 @@ import { inputClass } from './quizEditorFieldStyles';
 
 const MAX_OPTIONS_PER_LIST = 6;
 
-interface MultiAnswerEditorProps {
-  correctAnswer: string;
-  incorrectAnswers: string[];
-  onChange: (updates: {
-    correctAnswer?: string;
-    incorrectAnswers?: string[];
-  }) => void;
-  /** Anchors for the correct / incorrect option inputs, keyed by row index. */
-  correctItemAnchor?: (index: number) => TourAnchorAttrs;
-  incorrectItemAnchor?: (index: number) => TourAnchorAttrs;
-}
-
 // `|` separates stored options, so it can never appear inside one.
 const clean = (value: string) => value.replace(/\|/g, '');
 
@@ -100,43 +88,6 @@ const OptionList: React.FC<OptionListProps> = ({
     </div>
   </div>
 );
-
-export const MultiAnswerEditor: React.FC<MultiAnswerEditorProps> = ({
-  correctAnswer,
-  incorrectAnswers,
-  onChange,
-  correctItemAnchor,
-  incorrectItemAnchor,
-}) => {
-  // Blank rows survive the round trip: '' splits to [''] and 'A|' to ['A', ''].
-  const correct = correctAnswer.split('|');
-  return (
-    <div className="space-y-4">
-      <OptionList
-        label="Correct Options"
-        labelClassName="block font-bold text-emerald-700 mb-1 text-xs uppercase tracking-wider"
-        itemLabel="Correct option"
-        fieldPrefix="correct"
-        items={correct}
-        minItems={1}
-        inputClassName="w-full px-3 py-2 bg-white border-2 border-emerald-500/30 rounded-lg text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 text-sm"
-        itemAnchor={correctItemAnchor}
-        onItemsChange={(items) => onChange({ correctAnswer: items.join('|') })}
-      />
-      <OptionList
-        label="Incorrect Options"
-        labelClassName="block font-bold text-slate-600 mb-1 text-xs uppercase tracking-wider"
-        itemLabel="Incorrect option"
-        fieldPrefix="incorrect"
-        items={incorrectAnswers}
-        minItems={1}
-        inputClassName={inputClass}
-        itemAnchor={incorrectItemAnchor}
-        onItemsChange={(items) => onChange({ incorrectAnswers: items })}
-      />
-    </div>
-  );
-};
 
 /** FIB: other answers also marked correct. */
 export const AlternateAnswersEditor: React.FC<{

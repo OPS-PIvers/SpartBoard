@@ -15,6 +15,9 @@ import {
   enqueueQuizMediaUpload,
   __resetQuizMediaUploadQueue,
   MAX_QUIZ_MEDIA_BYTES,
+  MAX_WHITEBOARD_PICTURE_BYTES,
+  MAX_WHITEBOARD_LOG_BYTES,
+  maxQuizMediaBytesFor,
   type QuizMediaUploadDeps,
   type QuizMediaUploadJob,
 } from './quizMediaUpload';
@@ -65,6 +68,27 @@ describe('storage path', () => {
       buildQuizMediaStoragePath('s1', 'pin-3-481920', 'a1', 'audio/mp4')
     ).toBe('quiz_response_media/s1/pin-3-481920/a1.m4a');
   });
+
+  it('names whiteboard pictures .png and drawing logs .json', () => {
+    expect(buildQuizMediaStoragePath('s1', 'resp-1', 'p1', 'image/png')).toBe(
+      'quiz_response_media/s1/resp-1/p1.png'
+    );
+    expect(
+      buildQuizMediaStoragePath('s1', 'resp-1', 'l1', 'application/json')
+    ).toBe('quiz_response_media/s1/resp-1/l1.json');
+  });
+
+  it('caps each type at its storage rule limit', () => {
+    expect(maxQuizMediaBytesFor('audio/webm;codecs=opus')).toBe(
+      MAX_QUIZ_MEDIA_BYTES
+    );
+    expect(maxQuizMediaBytesFor('image/png')).toBe(
+      MAX_WHITEBOARD_PICTURE_BYTES
+    );
+    expect(maxQuizMediaBytesFor('application/json')).toBe(
+      MAX_WHITEBOARD_LOG_BYTES
+    );
+  });
 });
 
 describe('enqueueQuizMediaUpload', () => {
@@ -84,6 +108,23 @@ describe('enqueueQuizMediaUpload', () => {
     const result = await enqueueQuizMediaUpload(job({ blob: big }), deps);
     expect(result.uploadState).toBe('failed');
     expect(deps.uploadBlob).not.toHaveBeenCalled();
+  });
+
+  it('uploads a picture over the audio cap but refuses one over its own', async () => {
+    const deps = makeDeps();
+    const pic = { size: MAX_QUIZ_MEDIA_BYTES + 1 } as Blob;
+    const ok = await enqueueQuizMediaUpload(
+      job({ artifactId: 'p1', blob: pic, mimeType: 'image/png' }),
+      deps
+    );
+    expect(ok.uploadState).toBe('uploaded');
+    const big = { size: MAX_WHITEBOARD_PICTURE_BYTES + 1 } as Blob;
+    const refused = await enqueueQuizMediaUpload(
+      job({ artifactId: 'p2', blob: big, mimeType: 'image/png' }),
+      deps
+    );
+    expect(refused.uploadState).toBe('failed');
+    expect(deps.uploadBlob).toHaveBeenCalledTimes(1);
   });
 
   it('retries the archive exactly once before failing', async () => {
