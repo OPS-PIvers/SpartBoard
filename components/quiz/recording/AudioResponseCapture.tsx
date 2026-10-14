@@ -656,6 +656,7 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
               </button>
               {canRedoInReview && (
                 <button
+                  // no-tour-anchor: student quiz app, outside teacher tours
                   type="button"
                   onClick={handleRedo}
                   disabled={commitState === 'committing'}
