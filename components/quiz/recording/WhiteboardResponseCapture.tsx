@@ -641,7 +641,9 @@ export const WhiteboardResponseCapture: React.FC<
               className={`${btn} bg-slate-900 text-white outline-slate-900 hover:bg-slate-800`}
             >
               <Square aria-hidden className="h-4 w-4" />
-              {t('quizMediaResponse.capture.stop')}
+              {reviewOn
+                ? t('quizMediaResponse.capture.stop')
+                : t('quizMediaResponse.capture.stopAndSubmit')}
             </button>
           )}
           {reviewing && reviewOn && (
