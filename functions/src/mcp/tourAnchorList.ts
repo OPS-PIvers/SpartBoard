@@ -62787,6 +62787,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "import-wizard.retry-with-ai",
+    "label": "Try again with AI link on the Import wizard preview step",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "import-wizard.title",
     "label": "Title box on the Import wizard confirm step",
     "scope": "board",

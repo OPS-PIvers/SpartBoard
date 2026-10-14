@@ -13931,6 +13931,10 @@ export const TOUR_ANCHORS = {
     label: 'Generate button in the Import wizard Draft with AI panel',
     panel: true,
   },
+  'import-wizard.retry-with-ai': {
+    label: 'Try again with AI link on the Import wizard preview step',
+    panel: true,
+  },
   'import-wizard.title': {
     label: 'Title box on the Import wizard confirm step',
     panel: true,
