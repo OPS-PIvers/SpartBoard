@@ -114,6 +114,7 @@ const RECORDING_UNRESPONDED_REASONS = new Set<UnrespondedReason>([
   'passed',
   'expired',
   'capture-unavailable',
+  'device-gated',
 ]);
 /**
  * Archive subcollection for responses removed by the teacher. Holds a
