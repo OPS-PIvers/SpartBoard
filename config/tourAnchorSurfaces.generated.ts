@@ -354,6 +354,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-editor.recording-prep': ['quiz.editor'],
     'quiz-editor.recording-limit': ['quiz.editor'],
     'quiz-editor.recording-limit-clamp': ['quiz.editor'],
+    'quiz-editor.recording-review': ['quiz.editor'],
     'quiz-editor.recording-expiry': ['quiz.editor'],
     'quiz-editor.word-min': ['quiz.editor'],
     'quiz-editor.word-max': ['quiz.editor'],
