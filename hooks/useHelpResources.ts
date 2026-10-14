@@ -19,6 +19,11 @@ import {
   sortHelpItems,
 } from '@/utils/helpCenterNormalize';
 import { logError } from '@/utils/logError';
+import {
+  isTestRunProject,
+  sampleHelpCategories,
+  sampleHelpItems,
+} from '@/components/tours/tourTestRun';
 
 interface UseHelpResourcesOptions {
   includeHidden: boolean;
@@ -199,6 +204,15 @@ export const useHelpResources = ({
     : merged.filter(
         (item) => item.visible !== false && isVisibleToViewer(item)
       );
+  if (isTestRunProject() && !allOrgs) {
+    const sampleCategories = sampleHelpCategories();
+    return {
+      items: sortHelpItems(sampleHelpItems(), sampleCategories),
+      categories: sampleCategories,
+      loading: false,
+      error: null,
+    };
+  }
   const effectiveConfigLoaded = isConfigured ? configLoaded : true;
   const effectiveAllLoaded = isConfigured ? allLoaded : true;
   const effectiveGlobalLoaded = isConfigured ? globalLoaded : true;

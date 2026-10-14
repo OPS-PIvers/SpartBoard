@@ -5,6 +5,11 @@ import type {
   Student,
   WidgetType,
 } from '@/types';
+import {
+  DEFAULT_HELP_CATEGORIES,
+  type HelpCategory,
+  type HelpResourceItem,
+} from '@/types/helpCenter';
 import { requestStartTour } from './tourState';
 
 type TourSetup = NonNullable<GuidedLearningSet['tourSetup']>;
@@ -101,6 +106,75 @@ export function setFromConnectorView(
 }
 
 export const TEST_RUN_PROJECT = 'dummy';
+
+/** True on the dummy-backend board (vite-verify), whose Firestore and Storage never answer. */
+export const isTestRunProject = (): boolean =>
+  import.meta.env.DEV &&
+  String(import.meta.env.VITE_FIREBASE_PROJECT_ID ?? '') === TEST_RUN_PROJECT;
+
+// Made-up guides the dummy board's Help Center shows, filed under the default categories.
+const SAMPLE_HELP_GUIDES: [string, string, string, WidgetType[]][] = [
+  ['getting-started', 'Your first board', 'Add widgets and arrange them.', []],
+  ['getting-started', 'Using the Dock', 'Find and launch every tool.', []],
+  [
+    'boards-widgets',
+    'Set up the Timer',
+    'Count down for any activity.',
+    ['time-tool'],
+  ],
+  [
+    'boards-widgets',
+    'Plan your day with Schedule',
+    'Show the day at a glance.',
+    ['schedule'],
+  ],
+  [
+    'quizzes-activities',
+    'Make a quiz',
+    'Write questions and an answer key.',
+    ['quiz'],
+  ],
+  [
+    'quizzes-activities',
+    'Assign a quiz to a class',
+    'Share a join code and watch results.',
+    ['quiz'],
+  ],
+  [
+    'quizzes-activities',
+    'Build a video activity',
+    'Add questions to a YouTube video.',
+    ['video-activity'],
+  ],
+  ['sharing-classes', 'Add a class', 'Type or paste a roster.', ['classes']],
+  ['sharing-classes', 'Share a board', 'Send a copy to a colleague.', []],
+];
+
+export const sampleHelpCategories = (): HelpCategory[] =>
+  DEFAULT_HELP_CATEGORIES.filter((c) => c.id !== 'admin');
+
+export const sampleHelpItems = (): HelpResourceItem[] =>
+  SAMPLE_HELP_GUIDES.map(
+    ([categoryId, title, description, widgetTypes], i) => ({
+      id: `sample-help-${i + 1}`,
+      kind: 'embed',
+      title,
+      description,
+      categoryId,
+      order: i,
+      visible: true,
+      orgId: null,
+      widgetTypes,
+      url: 'https://docs.google.com/document/d/sample/preview',
+      embedType: 'doc',
+      setId: null,
+      openCount: 0,
+      createdBy: 'sample',
+      createdByEmail: '',
+      createdAt: 0,
+      updatedAt: 0,
+    })
+  );
 
 /** Hands the runner this set instead of a Firestore read; one launch only. */
 export function takeTestTour(setId: string): GuidedLearningSet | null {

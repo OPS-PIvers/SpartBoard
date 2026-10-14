@@ -10628,6 +10628,10 @@ export const TOUR_ANCHORS = {
     label: 'Add step button in the Studio timeline',
     panel: true,
   },
+  'studio.canvas': {
+    label: 'Slide image in the Studio, clicked to place a new step',
+    panel: true,
+  },
   // Dashboard shell and classroom-tool anchors.
   'dock.live-session': { label: 'Live session button in the dock' },
   'dock.live-popover-close': {

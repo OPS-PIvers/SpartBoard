@@ -48890,6 +48890,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
         ],
+        "opened_by": [
+          "studio.canvas"
+        ],
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -48911,6 +48914,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
+        ],
+        "opened_by": [
+          "studio.canvas"
         ],
         "needs": [
           "widget-on-stage",
@@ -49078,6 +49084,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
         ],
+        "opened_by": [
+          "studio.canvas"
+        ],
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -49099,6 +49108,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
+        ],
+        "opened_by": [
+          "studio.canvas"
         ],
         "needs": [
           "widget-on-stage",
@@ -49122,6 +49134,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
         ],
+        "opened_by": [
+          "studio.canvas"
+        ],
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -49143,6 +49158,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
+        ],
+        "opened_by": [
+          "studio.canvas"
         ],
         "needs": [
           "widget-on-stage",
@@ -49166,6 +49184,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
         ],
+        "opened_by": [
+          "studio.canvas"
+        ],
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -49187,6 +49208,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
+        ],
+        "opened_by": [
+          "studio.canvas"
         ],
         "needs": [
           "widget-on-stage",
@@ -49210,6 +49234,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
         ],
+        "opened_by": [
+          "studio.canvas"
+        ],
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -49232,6 +49259,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
         ],
+        "opened_by": [
+          "studio.canvas"
+        ],
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -49253,6 +49283,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
+        ],
+        "opened_by": [
+          "studio.canvas"
         ],
         "needs": [
           "widget-on-stage",
@@ -49312,6 +49345,30 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "studio.add-step",
     "label": "Add step button in the Studio timeline",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "guidedLearning.studio",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-open:guided-learning#row-1",
+          "gl-manager.preview-open-editor"
+        ],
+        "opened_by": [
+          "library-shell.new:guided-learning"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "studio.canvas",
+    "label": "Slide image in the Studio, clicked to place a new step",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -60672,6 +60729,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
+        ],
+        "opened_by": [
+          "studio.canvas"
         ],
         "needs": [
           "widget-on-stage",

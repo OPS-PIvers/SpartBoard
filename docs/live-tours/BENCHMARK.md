@@ -41,7 +41,7 @@ No app code was changed. None of the gaps below is a one-line anchor tag: each n
 ### Runner and Autopilot
 
 - **B8. `select` on a segmented settings field reports found without applying.** `chooseOption` (`components/tours/autopilot.ts`) looks for `[role="option"]`, which a segmented control lacks; on `settings.field:random#mode` it clicked, the drawer closed and the mode never changed. Workaround: two clicks on `random.mode` on the widget face (tour 5). Follow-up: handle radio or button groups in `chooseOption`, or have the dry run refuse `select` on them.
-- **B9. The dummy board can't pick a file.** Guided Learning's **Add media** opens the file chooser, so Add step and the step text never appear. Workaround: Add media is a point-only step and the closing step describes adding steps. Follow-up: a sample image the runner can drop in, or a sample Guided Learning material.
+- **B9. The dummy board can't pick a file.** Guided Learning's **Add media** opens the file chooser, so Add step and the step text never appear. Workaround: Add media is a point-only step and the closing step describes adding steps. Follow-up: a sample image the runner can drop in, or a sample Guided Learning material. **Fixed:** `scripts/run-live-tour.mjs` answers every file chooser with `scripts/live-tour-assets/sample-image.png`, and on the dummy project uploads stay in the page. The Studio slide image is now the `studio.canvas` anchor (it opens the step fields). A local run of tour 9 with Add media, Add step, a click on the image and the step text passed every step.
 - **B10. YouTube is blocked in the cloud container.** The video player never loads, so **Add at 0:00** stays disabled and every question step is missing. The tour is authored for a real board and should run there; it can't go green from a cloud session. Follow-up: rerun it on Paul's machine, or let the runner stub the player.
 - **B11. The runner re-marks the previous step missing.** When a step's anchor is missing, the step before it also flips from found to missing in the summary, which points at the wrong step.
 - **B12. Playwright expects Chromium build 1248; the container has 1194.** Workaround: symlinked the installed headless shell under a private `PLAYWRIGHT_BROWSERS_PATH`.
@@ -49,7 +49,7 @@ No app code was changed. None of the gaps below is a one-line anchor tag: each n
 ### App
 
 - **B13. Calendar ID box has no anchor** (tour 4). Teachers paste their own ID, so the step points and waits.
-- **B14. Help Center categories are data.** The dummy board has none, so tour 8 skips choosing a category.
+- **B14. Help Center categories are data.** The dummy board has none, so tour 8 skips choosing a category. **Fixed:** on the dummy project the Help Center shows the default categories (minus Admin) with nine sample guides. A local run that opens Guides, picks **Quizzes & activities** (`help-center.guides.category:help#quizzes-activities`) and opens the first guide passed.
 - **B15. Connect Google is hidden once Google is connected.** Every teacher signs in with Google, so tour 4 starts at the Calendar settings instead.
 
 ## Run 2 (2026-10-14)
