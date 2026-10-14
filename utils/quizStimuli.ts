@@ -41,12 +41,6 @@ export const STIMULUS_TYPE_LABELS: Record<QuizStimulusType, string> = {
   calculator: 'Calculator',
 };
 
-export const CALCULATOR_KIND_LABELS: Record<QuizCalculatorKind, string> = {
-  graphing: 'Graphing',
-  scientific: 'Scientific',
-  'four-function': 'Four-function',
-};
-
 const DESMOS_PATHS: Record<QuizCalculatorKind, string> = {
   graphing: 'calculator',
   scientific: 'scientific',
