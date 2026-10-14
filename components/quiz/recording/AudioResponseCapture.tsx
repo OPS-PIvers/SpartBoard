@@ -29,6 +29,7 @@ import {
   RecordingConsentNotice,
   RecordingNoticeReminder,
 } from './RecordingConsentNotice';
+import { NoticeReminderOverlay } from './NoticeReminderOverlay';
 import { TakeReviewPlayer } from './TakeReviewPlayer';
 import { formatClock } from './formatClock';
 import { registerActiveTake } from './activeTake';
@@ -66,65 +67,6 @@ const cardClass = (light: boolean) =>
   }`;
 const primaryBtn =
   'inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60';
-
-const FOCUSABLE =
-  'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-
-/** The reminder layers ABOVE the live recorder; capture never unmounts. */
-const NoticeReminderOverlay: React.FC<{
-  onClose: () => void;
-  light: boolean;
-}> = ({ onClose, light }) => {
-  const dialogRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const node = dialogRef.current;
-    if (!node) return;
-    const focusable = () =>
-      Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE));
-    focusable()[0]?.focus();
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        onClose();
-        return;
-      }
-      if (e.key !== 'Tab') return;
-      const items = focusable();
-      if (items.length === 0) return;
-      const first = items[0];
-      const last = items[items.length - 1];
-      const active = document.activeElement as HTMLElement | null;
-      if (e.shiftKey && (!active || active === first)) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && (!active || active === last)) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    node.addEventListener('keydown', onKeyDown);
-    return () => node.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="recording-notice-heading"
-        className="max-h-full w-full max-w-lg overflow-y-auto"
-      >
-        <RecordingConsentNotice
-          variant="reminder"
-          light={light}
-          onAcknowledge={onClose}
-        />
-      </div>
-    </div>
-  );
-};
 
 export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
   config,

@@ -2295,6 +2295,17 @@
       "notSubmittedFailed": "Deine Aufnahme wurde nicht gesendet. Wähle Erneut versuchen.",
       "notSubmittedFailedFinal": "Deine Aufnahme wurde nicht gesendet und kann von diesem Gerät nicht gesendet werden. Nimm erneut auf, um eine neue Aufnahme zu senden."
     },
+    "whiteboard": {
+      "title": "Whiteboard answer",
+      "armedNarrated": "Press Record to draw and talk.",
+      "armedDrawOnly": "Press Record to start drawing.",
+      "micOff": "Your microphone is off. Your drawing still counts.",
+      "boardFull": "Your board is full, so recording stopped.",
+      "windowClosedBody": "Your teacher will see this question without a whiteboard answer. Move on when you're ready.",
+      "notSubmittedPending": "Not submitted yet. Your answer is still sending.",
+      "notSubmittedFailed": "Your answer didn't send. Choose Try again.",
+      "notSubmittedFailedFinal": "Your answer didn't send and can't be sent from this device. Record again to send a new take."
+    },
     "unavailable": {
       "title": "Your microphone did not work",
       "body": "Diese Frage geht unbewertet an deine Lehrkraft. Mach mit der nächsten Frage weiter."
