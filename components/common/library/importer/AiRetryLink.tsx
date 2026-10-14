@@ -28,8 +28,7 @@ export const AiRetryLink: React.FC<AiRetryLinkProps> = ({
         disabled={disabled}
         className={`${className} text-brand-blue-primary underline-offset-2 hover:underline disabled:opacity-50`}
       >
-        <span className="max-sm:hidden">Something not right?</span> Try again
-        with AI
+        Not what you expected? Try again with AI
       </button>
       {confirming && (
         <ConfirmDialog

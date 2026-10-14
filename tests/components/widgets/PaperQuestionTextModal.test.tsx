@@ -322,7 +322,7 @@ describe('PaperQuestionTextModal with the shared readers', () => {
     await chooseTest();
     fireEvent.click(
       await screen.findByRole('button', {
-        name: 'Something not right? Try again with AI',
+        name: 'Not what you expected? Try again with AI',
       })
     );
     const prompt = screen.getByRole('dialog', { name: 'Convert with AI?' });
