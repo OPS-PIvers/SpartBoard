@@ -591,6 +591,8 @@ export interface ImportParseResult<TData> {
   warnings: string[];
   /** A neutral status line, shown plainly rather than as a warning. */
   note?: string;
+  /** True when this document was read without AI and the AI reader could redo it. */
+  aiRetry?: boolean;
 }
 
 /** Validation result — `errors` block Save; empty array = pass. */

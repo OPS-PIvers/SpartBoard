@@ -12,6 +12,9 @@ export const MAX_CARTRIDGE_UNZIPPED_BYTES = 100 * 1024 * 1024;
 /** Thrown before the document is read, so an oversized file costs nothing. */
 export class DocumentTooLargeError extends Error {}
 
+/** Over the plain reader's page count; the AI reader may still open the file. */
+export class PageLimitError extends DocumentTooLargeError {}
+
 /** ExamView keeps pictures as raw bitmaps, so its own test files run large. */
 export const MAX_EXAMVIEW_TEST_BYTES = 64 * 1024 * 1024;
 
@@ -47,7 +50,7 @@ export function assertWithinPageLimit(
   maxPages: number = MAX_DOCUMENT_PAGES
 ): void {
   if (pageCount > maxPages) {
-    throw new DocumentTooLargeError(
+    throw new PageLimitError(
       `This file is ${pageCount} pages. Split it into files of ${maxPages} pages or fewer and import them one at a time.`
     );
   }

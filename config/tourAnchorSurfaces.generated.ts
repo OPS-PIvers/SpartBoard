@@ -3367,6 +3367,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'import-wizard.ai-close': ['library.import-wizard'],
     'import-wizard.ai-prompt': ['library.import-wizard'],
     'import-wizard.ai-generate': ['library.import-wizard'],
+    'import-wizard.retry-with-ai': ['library.import-wizard'],
     'import-wizard.title': ['library.import-wizard'],
     'import-wizard.cancel': ['library.import-wizard'],
     'import-wizard.back': ['library.import-wizard'],

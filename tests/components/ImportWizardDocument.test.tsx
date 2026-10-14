@@ -154,6 +154,39 @@ describe('ImportWizard — test document source', () => {
     expect(parseSpy.mock.calls[0][0]).not.toHaveProperty('useAi');
   });
 
+  it('reads a plain read again with AI after the cost prompt', async () => {
+    const { adapter, parseSpy } = makeAdapter();
+    parseSpy.mockImplementation((source: ImportSourcePayload) =>
+      Promise.resolve({
+        data: { rows: ['a'] },
+        warnings: [],
+        ...(source.kind === 'document' && source.useAi === false
+          ? { note: 'Converted without AI.', aiRetry: true }
+          : { note: 'Converted with AI.' }),
+      })
+    );
+    renderWizard({ ...adapter, supportsAiReader: true });
+    await readTest(PDF_BYTES);
+    const retry = await screen.findByRole('button', {
+      name: 'Something not right? Try again with AI',
+    });
+    fireEvent.click(retry);
+    const prompt = screen.getByRole('dialog', { name: 'Convert with AI?' });
+    fireEvent.click(within(prompt).getByRole('button', { name: 'Use AI' }));
+    await screen.findByText('Converted with AI.');
+    expect(parseSpy).toHaveBeenCalledTimes(2);
+    expect(parseSpy.mock.calls[1][0]).toMatchObject({
+      kind: 'document',
+      fileName: 'Unit 3 Test.pdf',
+    });
+    expect(parseSpy.mock.calls[1][0]).not.toHaveProperty('useAi');
+    expect(
+      screen.queryByRole('button', {
+        name: 'Something not right? Try again with AI',
+      })
+    ).toBeNull();
+  });
+
   it('shows the upload tile but no Drive button when the adapter cannot pick', () => {
     const { adapter } = makeAdapter();
     renderWizard(adapter);
