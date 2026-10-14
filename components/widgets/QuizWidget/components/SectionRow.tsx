@@ -9,7 +9,7 @@ interface SectionRowProps {
   section: QuizSection;
   /** Questions a student sees under this heading, bank draws counted. */
   questionCount: number;
-  /** Offer "Stop after this section" (quiz-import-versions, not on the last section). */
+  /** Offer the "After this section" Stop menu (quiz-import-versions, not on the last section). */
   canStop?: boolean;
   onUpdate: (id: string, patch: Partial<QuizSection>) => void;
   onRemove: (id: string) => void;
@@ -98,22 +98,21 @@ export const SectionRow: React.FC<SectionRowProps> = ({
           {`of these ${questionCount} ${questionCount === 1 ? 'question' : 'questions'}`}
         </label>
         {canStop && (
-          <label
-            className="flex items-center gap-1.5 text-xs text-slate-600"
-            title="Self-paced students wait here until you open the next part."
-          >
-            <input
-              type="checkbox"
-              checked={section.stopAfter === true}
+          <label className="flex flex-wrap items-center gap-1.5 text-xs text-slate-600">
+            After this section
+            <select
+              value={section.stopAfter === true ? 'wait' : 'go'}
               onChange={(e) =>
                 onUpdate(section.id, {
-                  stopAfter: e.target.checked ? true : undefined,
+                  stopAfter: e.target.value === 'wait' ? true : undefined,
                 })
               }
               {...tourTypeAttr('quiz-editor.section-stop', 'quiz')}
-              className="h-3.5 w-3.5 rounded border-slate-300 accent-brand-blue-primary"
-            />
-            Stop after this section
+              className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-xs text-slate-700 focus:border-brand-blue-primary focus:outline-none"
+            >
+              <option value="go">Go on</option>
+              <option value="wait">Wait for teacher</option>
+            </select>
           </label>
         )}
       </div>

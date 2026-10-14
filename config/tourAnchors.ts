@@ -1687,7 +1687,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'quiz-editor.section-stop': {
-    label: '"Stop after this section" checkbox in the Quiz editor',
+    label: '"After this section" menu in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },
