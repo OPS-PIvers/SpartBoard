@@ -166,13 +166,21 @@ export function collectMediaSlots(
     const picture = artifacts.find(
       (a) => a.kind === 'whiteboard' && a.part !== 'log'
     );
-    if (picture) {
-      // One whiteboard entry is one take, whatever files it carries (D23).
-      if (!slotNeedsManualGrading(question, picture)) continue;
-      const lead = file(picture);
-      if (!artifactCountsAsTake(picture, lead.archive)) continue;
+    const pictureSlot = picture ? (picture.slot ?? 'primary') : undefined;
+    // The picture's own audio and log belong to the whiteboard take, never a take of their own.
+    const partOfWhiteboard = (a: ResponseArtifact) =>
+      a.kind === 'whiteboard' ||
+      (a.kind === 'audio' && (a.slot ?? 'primary') === pictureSlot);
+    const lead = picture ? file(picture) : undefined;
+    // One whiteboard entry is one take, whatever files it carries (D23).
+    if (
+      picture &&
+      lead &&
+      slotNeedsManualGrading(question, picture) &&
+      artifactCountsAsTake(picture, lead.archive)
+    ) {
       const sameSlot = (a: ResponseArtifact) =>
-        (a.slot ?? 'primary') === (picture.slot ?? 'primary');
+        (a.slot ?? 'primary') === pictureSlot;
       const log = artifacts.find(
         (a) => a.kind === 'whiteboard' && a.part === 'log' && sameSlot(a)
       );
@@ -191,9 +199,9 @@ export function collectMediaSlots(
           ...(audio ? { audio: file(audio) } : {}),
         },
       });
-      continue;
     }
     for (const artifact of artifacts) {
+      if (picture && partOfWhiteboard(artifact)) continue;
       if (!slotNeedsManualGrading(question, artifact)) continue;
       const { archive, playable } = file(artifact);
       // The archive map is authoritative: a swept-up take is still a take.

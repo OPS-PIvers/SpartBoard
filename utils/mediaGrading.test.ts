@@ -630,6 +630,48 @@ describe('whiteboard takes', () => {
     expect(slotNeedsManualGrading(wbQuestion, wb('l', 'log'))).toBe(false);
   });
 
+  it('keeps an addendum on the same entry as its own take', () => {
+    const slots = collectMediaSlots(wbQuestion, {
+      answers: [
+        {
+          questionId: 'q1',
+          answer: '',
+          answeredAt: 1,
+          takeIndex: 1,
+          artifacts: [
+            audio('a1'),
+            wb('p1', 'picture'),
+            wb('l1', 'log'),
+            audio('a2', { slot: 'addendum' }),
+          ],
+        },
+      ],
+      artifactArchive: archived('a1', 'p1', 'l1', 'a2'),
+    });
+    expect(slots.map((s) => s.slot)).toEqual(['primary', 'addendum']);
+    expect(slots[0].takes).toHaveLength(1);
+    expect(slots[1].takes[0].artifact.id).toBe('a2');
+  });
+
+  it('never turns a failed whiteboard take into a spoken one', () => {
+    const slots = collectMediaSlots(wbQuestion, {
+      answers: [
+        {
+          questionId: 'q1',
+          answer: '',
+          answeredAt: 1,
+          takeIndex: 1,
+          artifacts: [
+            audio('a1'),
+            wb('p1', 'picture', { uploadState: 'failed' }),
+          ],
+        },
+      ],
+      artifactArchive: archived('a1'),
+    });
+    expect(slots.flatMap((s) => s.takes)).toHaveLength(0);
+  });
+
   it('folds picture, log and audio of one entry into one take', () => {
     const [slot] = collectMediaSlots(wbQuestion, {
       answers: [
