@@ -171,14 +171,6 @@ export const SURFACES: TourSurfaceMap = {
     needs: ['library-item'],
     files: [`${C}QuizPreview.tsx`],
   },
-  'quiz.assign-destination': {
-    label: 'Assign destination chooser',
-    kind: 'modal',
-    opensWith: 'library-shell.card-primary-action:quiz#row-1',
-    parent: 'quiz.face',
-    needs: ['library-item'],
-    files: [`${C}AssignDestinationModal.tsx`],
-  },
   'quiz.review-start': {
     label: 'Start review dialog',
     kind: 'modal',

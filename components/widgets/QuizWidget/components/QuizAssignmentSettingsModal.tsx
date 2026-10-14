@@ -6,7 +6,7 @@
  * date, targeting fields, and PLC results sharing (D12).
  */
 
-import React, { useContext, useState } from 'react';
+import React, { useState } from 'react';
 import { ClipboardCheck, Pause, Save, Share2 } from 'lucide-react';
 import type {
   QuizAssignment,
@@ -29,7 +29,6 @@ import {
   CollapsibleSection,
   QuizBehaviorSettingsPanel,
 } from '@/components/common/library';
-import { AuthContext } from '@/context/AuthContextValue';
 import { earliestDueAt } from '@/utils/perClassDueDates';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
@@ -63,8 +62,6 @@ interface QuizAssignmentSettingsModalProps {
   onShareResults?: () => void;
   /** Clears the PLC results link (linked assignments). */
   onStopSharing?: () => void | Promise<void>;
-  /** Quiz-kind assignment with the Review split on: hide gamification and board reveal (D9). */
-  assessmentOnly?: boolean;
 }
 
 /** Options object driven through AssignModal's `options` generic. */
@@ -132,7 +129,6 @@ export const QuizAssignmentSettingsModal: React.FC<
   canShareWithPlc = false,
   onShareResults,
   onStopSharing,
-  assessmentOnly = false,
 }) => {
   const [options, setOptions] = useState<SettingsOptions>(() =>
     initialOptionsFor(assignment, rosters)
@@ -145,8 +141,6 @@ export const QuizAssignmentSettingsModal: React.FC<
   }));
   const [behavior, setBehavior] =
     useState<QuizBehaviorSettings>(initialBehavior);
-  const canAccessFeature = useContext(AuthContext)?.canAccessFeature;
-  const stepperOn = canAccessFeature?.('assign-stepper') === true;
   const { t } = useTranslation();
   const ruleGates = useQuizRuleGates();
   const perPeriod =
@@ -250,7 +244,7 @@ export const QuizAssignmentSettingsModal: React.FC<
   };
 
   // The stepper edits Assessment assignments only; Review and live ones keep the full modal.
-  if (stepperOn && getAssignmentWidgetKind(assignment) === 'quiz') {
+  if (getAssignmentWidgetKind(assignment) === 'quiz') {
     // A Manual start has no dates to edit: the teacher starts and pauses each class.
     const manualStart =
       assignment.accessMode === 'assessment' &&
@@ -383,14 +377,14 @@ export const QuizAssignmentSettingsModal: React.FC<
             icon={ClipboardCheck}
             summary={
               <span data-testid="assignment-behavior-summary">
-                {formatBehaviorSummary(behavior, { omitMode: assessmentOnly })}
+                {formatBehaviorSummary(behavior)}
               </span>
             }
           >
             <QuizBehaviorSettingsPanel
               value={behavior}
               onChange={setBehavior}
-              variant={assessmentOnly ? 'quiz' : 'live'}
+              variant="live"
               handRaiseMode="force-off"
             />
           </CollapsibleSection>

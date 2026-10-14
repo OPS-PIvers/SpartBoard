@@ -7,7 +7,7 @@ import type { AssignPeriodAccessContext } from '@/components/common/library/Assi
 import { DEFAULT_FLASHCARD_ASSIGN_FORM } from './utils/flashcardAssign';
 import type { FlashcardAssignSubmission } from './utils/flashcardAssign';
 import type { FlashcardAssignRules } from '@/hooks/useLastFlashcardAssignSettings';
-import { FlashcardAssignModal } from './FlashcardAssignModal';
+import { FlashcardAssignStepper } from './FlashcardAssignStepper';
 
 const lastUsed = vi.hoisted(() => ({
   value: null as FlashcardAssignRules | null,
@@ -81,11 +81,9 @@ const PERIOD_CTX: AssignPeriodAccessContext = {
 };
 
 const renderStepper = ({
-  stepper = true,
   rosterIds = ['r1'],
   periodAccess,
 }: {
-  stepper?: boolean;
   rosterIds?: string[];
   periodAccess?: AssignPeriodAccessContext;
 } = {}) => {
@@ -94,11 +92,11 @@ const renderStepper = ({
   );
   const auth = {
     user: { uid: 'teacher-1' },
-    canAccessFeature: (id: string) => stepper && id === 'assign-stepper',
+    canAccessFeature: () => false,
   } as unknown as React.ContextType<typeof AuthContext>;
   render(
     <AuthContext.Provider value={auth}>
-      <FlashcardAssignModal
+      <FlashcardAssignStepper
         isOpen
         set={makeSet()}
         rosters={ROSTERS}
@@ -122,12 +120,6 @@ describe('FlashcardAssignStepper', () => {
   beforeEach(() => {
     lastUsed.value = null;
     lastUsed.save.mockClear();
-  });
-
-  it('keeps the old dialog while the flag is off', () => {
-    renderStepper({ stepper: false });
-    expect(screen.getByText('Collect a submission')).toBeTruthy();
-    expect(screen.queryByText('How students are checked')).toBeNull();
   });
 
   it('opens on Students submit work with the check step', () => {
@@ -218,11 +210,11 @@ describe('FlashcardAssignStepper', () => {
         value={
           {
             user: { uid: 't' },
-            canAccessFeature: () => true,
+            canAccessFeature: () => false,
           } as unknown as React.ContextType<typeof AuthContext>
         }
       >
-        <FlashcardAssignModal
+        <FlashcardAssignStepper
           isOpen
           set={makeSet()}
           rosters={[roster('r9', 'Club')]}

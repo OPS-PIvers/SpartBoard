@@ -654,7 +654,6 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             claudeReview.markReviewed(meta);
           }
         }}
-        defaultSessionSettings={defaultSessionSettings}
         rosters={rosters}
         periodAccess={assignPeriodCtx}
         plcs={plcs}

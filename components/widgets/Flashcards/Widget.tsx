@@ -31,7 +31,7 @@ import {
 } from '@/utils/studentTargetRef';
 import { buildMixedTargetsPayload } from '@/utils/assignTargets';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
-import { FlashcardAssignModal } from './FlashcardAssignModal';
+import { FlashcardAssignStepper } from './FlashcardAssignStepper';
 import { useFlashcardPlcSharing } from './useFlashcardPlcSharing';
 import {
   rosterHasSsoClass,
@@ -717,7 +717,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       {plcSharing.modal}
 
       {assigningSet && (
-        <FlashcardAssignModal
+        <FlashcardAssignStepper
           key={assigningSet.id}
           isOpen
           set={assigningSet}

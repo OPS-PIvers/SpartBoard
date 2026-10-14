@@ -4,7 +4,6 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QuizAssignmentSettingsModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentSettingsModal';
 import { combineDateAndTime } from '@/utils/localDate';
 import type { ClassRoster, QuizAssignment } from '@/types';
-import { AuthContext, type AuthContextType } from '@/context/AuthContextValue';
 
 function makePlcAssignment(
   overrides: Partial<QuizAssignment> = {}
@@ -120,7 +119,7 @@ describe('QuizAssignmentSettingsModal — behavior editable on a live assignment
       <QuizAssignmentSettingsModal
         assignment={makePlcAssignment({
           status: 'active',
-          sessionMode: 'student',
+          sessionMode: 'teacher',
           sessionOptions: { shuffleAnswerOptions: true },
           attemptLimit: 1,
         })}
@@ -161,47 +160,6 @@ describe('QuizAssignmentSettingsModal — behavior editable on a live assignment
     const summary = screen.getByTestId('assignment-behavior-summary');
     expect(summary.textContent).toContain('Auto-progress');
     expect(summary.textContent).toContain('unlimited attempts');
-  });
-});
-
-describe('QuizAssignmentSettingsModal — assessment only (Review split D9)', () => {
-  const renderModal = (assessmentOnly: boolean) =>
-    render(
-      <QuizAssignmentSettingsModal
-        assignment={makePlcAssignment({
-          status: 'active',
-          sessionMode: 'student',
-          sessionOptions: { speedBonusEnabled: true },
-          attemptLimit: 1,
-        })}
-        rosters={[] as ClassRoster[]}
-        onSave={vi.fn()}
-        onClose={vi.fn()}
-        assessmentOnly={assessmentOnly}
-      />
-    );
-
-  it('hides gamification, board reveal and the mode label', () => {
-    renderModal(true);
-    const summary = screen.getByTestId('assignment-behavior-summary');
-    expect(summary.textContent).not.toContain('Assessment Mode');
-    expect(summary.textContent?.startsWith('1 attempt')).toBe(true);
-    fireEvent.click(
-      screen.getByRole('button', { name: /assessment settings/i })
-    );
-    fireEvent.click(screen.getByRole('button', { name: /answer feedback/i }));
-    expect(screen.queryByText('Gamification')).not.toBeInTheDocument();
-    expect(
-      screen.queryByText('Show correct answer on board')
-    ).not.toBeInTheDocument();
-  });
-
-  it('keeps gamification without the split', () => {
-    renderModal(false);
-    fireEvent.click(
-      screen.getByRole('button', { name: /assessment settings/i })
-    );
-    expect(screen.getByText('Gamification')).toBeInTheDocument();
   });
 });
 
@@ -434,17 +392,6 @@ describe('QuizAssignmentSettingsModal — availability and due date', () => {
     makeRoster({ id: 'r1', name: 'Period 1' }),
     makeRoster({ id: 'r2', name: 'Period 2' }),
   ];
-  const withAuth = (ui: React.ReactElement) => (
-    <AuthContext.Provider
-      value={
-        {
-          canAccessFeature: () => false,
-        } as unknown as AuthContextType
-      }
-    >
-      {ui}
-    </AuthContext.Provider>
-  );
   const opens = combineDateAndTime('2026-06-01', '09:00') ?? 0;
   const closes = combineDateAndTime('2026-06-02', '15:00') ?? 0;
   const saved = (overrides: Partial<QuizAssignment> = {}) =>
@@ -465,14 +412,12 @@ describe('QuizAssignmentSettingsModal — availability and due date', () => {
 
   it('replaces the due date field with the saved window', () => {
     render(
-      withAuth(
-        <QuizAssignmentSettingsModal
-          assignment={saved()}
-          rosters={rosters}
-          onSave={vi.fn()}
-          onClose={vi.fn()}
-        />
-      )
+      <QuizAssignmentSettingsModal
+        assignment={saved()}
+        rosters={rosters}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
     );
     expect(screen.queryByTestId('assignment-due-date')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Opens')).toHaveValue('2026-06-01');
@@ -483,14 +428,12 @@ describe('QuizAssignmentSettingsModal — availability and due date', () => {
   it('writes no window fields when the section is untouched', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     render(
-      withAuth(
-        <QuizAssignmentSettingsModal
-          assignment={saved()}
-          rosters={rosters}
-          onSave={onSave}
-          onClose={vi.fn()}
-        />
-      )
+      <QuizAssignmentSettingsModal
+        assignment={saved()}
+        rosters={rosters}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />
     );
     const patch = await savePatch(onSave);
     for (const key of ['openAt', 'closeAt', 'dueAt', 'dueAtByRosterId'])
@@ -500,14 +443,12 @@ describe('QuizAssignmentSettingsModal — availability and due date', () => {
   it('moves the close and the due date together', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     render(
-      withAuth(
-        <QuizAssignmentSettingsModal
-          assignment={saved()}
-          rosters={rosters}
-          onSave={onSave}
-          onClose={vi.fn()}
-        />
-      )
+      <QuizAssignmentSettingsModal
+        assignment={saved()}
+        rosters={rosters}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />
     );
     fireEvent.change(screen.getByLabelText('Closes'), {
       target: { value: '2026-06-05' },
@@ -522,14 +463,12 @@ describe('QuizAssignmentSettingsModal — availability and due date', () => {
 
   it('keeps one Opens for every class when only one open time is stored', () => {
     render(
-      withAuth(
-        <QuizAssignmentSettingsModal
-          assignment={saved({ rosterIds: ['r1', 'r2'] })}
-          rosters={rosters}
-          onSave={vi.fn()}
-          onClose={vi.fn()}
-        />
-      )
+      <QuizAssignmentSettingsModal
+        assignment={saved({ rosterIds: ['r1', 'r2'] })}
+        rosters={rosters}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
     );
     fireEvent.change(screen.getByLabelText('Dates for'), {
       target: { value: 'each' },
@@ -550,20 +489,18 @@ describe('QuizAssignmentSettingsModal — availability and due date', () => {
       rosterId,
     });
     render(
-      withAuth(
-        <QuizAssignmentSettingsModal
-          assignment={saved({
-            rosterIds: ['r1', 'r2'],
-            openAt: undefined,
-            closeAt: undefined,
-            accessMode: 'assignment',
-            periodAccess: { k1: row('r1'), k2: row('r2') },
-          } as Partial<QuizAssignment>)}
-          rosters={rosters}
-          onSave={onSave}
-          onClose={vi.fn()}
-        />
-      )
+      <QuizAssignmentSettingsModal
+        assignment={saved({
+          rosterIds: ['r1', 'r2'],
+          openAt: undefined,
+          closeAt: undefined,
+          accessMode: 'assignment',
+          periodAccess: { k1: row('r1'), k2: row('r2') },
+        } as Partial<QuizAssignment>)}
+        rosters={rosters}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />
     );
     fireEvent.change(screen.getByLabelText('Dates for'), {
       target: { value: 'each' },
@@ -582,14 +519,12 @@ describe('QuizAssignmentSettingsModal — availability and due date', () => {
   it('saves a date per class with the earliest as dueAt', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     render(
-      withAuth(
-        <QuizAssignmentSettingsModal
-          assignment={saved({ rosterIds: ['r1', 'r2'] })}
-          rosters={rosters}
-          onSave={onSave}
-          onClose={vi.fn()}
-        />
-      )
+      <QuizAssignmentSettingsModal
+        assignment={saved({ rosterIds: ['r1', 'r2'] })}
+        rosters={rosters}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />
     );
     fireEvent.change(screen.getByLabelText('Dates for'), {
       target: { value: 'each' },
@@ -608,14 +543,12 @@ describe('QuizAssignmentSettingsModal — availability and due date', () => {
 
   it('blocks Save when the window closes before it opens', () => {
     render(
-      withAuth(
-        <QuizAssignmentSettingsModal
-          assignment={saved({ closeAt: opens - 60_000, dueAt: opens - 60_000 })}
-          rosters={rosters}
-          onSave={vi.fn()}
-          onClose={vi.fn()}
-        />
-      )
+      <QuizAssignmentSettingsModal
+        assignment={saved({ closeAt: opens - 60_000, dueAt: opens - 60_000 })}
+        rosters={rosters}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
     );
     expect(screen.getByRole('button', { name: /^Save$/ })).toBeDisabled();
   });
@@ -626,17 +559,6 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
     makeRoster({ id: 'r1', name: 'Period 1' }),
     makeRoster({ id: 'r2', name: 'Period 2' }),
   ];
-  const withStepper = (ui: React.ReactElement) => (
-    <AuthContext.Provider
-      value={
-        {
-          canAccessFeature: (id: string) => id === 'assign-stepper',
-        } as unknown as AuthContextType
-      }
-    >
-      {ui}
-    </AuthContext.Provider>
-  );
   const opens = combineDateAndTime('2026-06-01', '09:00') ?? 0;
   const closes = combineDateAndTime('2026-06-02', '15:00') ?? 0;
   const saved = (overrides: Partial<QuizAssignment> = {}) =>
@@ -657,14 +579,12 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
 
   it('shows When, the three rule steps and Sharing, with no Classes step or name', () => {
     render(
-      withStepper(
-        <QuizAssignmentSettingsModal
-          assignment={saved()}
-          rosters={rosters}
-          onSave={vi.fn()}
-          onClose={vi.fn()}
-        />
-      )
+      <QuizAssignmentSettingsModal
+        assignment={saved()}
+        rosters={rosters}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
     );
     const headers = screen
       .getAllByRole('button', { expanded: false })
@@ -688,14 +608,12 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
   it('saves the same classes and no window fields when untouched', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     render(
-      withStepper(
-        <QuizAssignmentSettingsModal
-          assignment={saved()}
-          rosters={rosters}
-          onSave={onSave}
-          onClose={vi.fn()}
-        />
-      )
+      <QuizAssignmentSettingsModal
+        assignment={saved()}
+        rosters={rosters}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />
     );
     const patch = await savePatch(onSave);
     expect(patch.rosterIds).toEqual(['r1']);
@@ -706,14 +624,12 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
   it('moves the close and the due date together', async () => {
     const onSave = vi.fn().mockResolvedValue(undefined);
     render(
-      withStepper(
-        <QuizAssignmentSettingsModal
-          assignment={saved()}
-          rosters={rosters}
-          onSave={onSave}
-          onClose={vi.fn()}
-        />
-      )
+      <QuizAssignmentSettingsModal
+        assignment={saved()}
+        rosters={rosters}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />
     );
     fireEvent.change(screen.getByLabelText('Closes'), {
       target: { value: '2026-06-05' },
@@ -726,14 +642,12 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
 
   it('keeps one Opens for every class when only one open time is stored', () => {
     render(
-      withStepper(
-        <QuizAssignmentSettingsModal
-          assignment={saved({ rosterIds: ['r1', 'r2'] })}
-          rosters={rosters}
-          onSave={vi.fn()}
-          onClose={vi.fn()}
-        />
-      )
+      <QuizAssignmentSettingsModal
+        assignment={saved({ rosterIds: ['r1', 'r2'] })}
+        rosters={rosters}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
     );
     fireEvent.click(
       screen.getByRole('button', { name: 'Different time for each class' })
@@ -744,14 +658,12 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
 
   it('keeps the full modal for a Review assignment', () => {
     render(
-      withStepper(
-        <QuizAssignmentSettingsModal
-          assignment={saved({ sessionMode: 'teacher' })}
-          rosters={rosters}
-          onSave={vi.fn()}
-          onClose={vi.fn()}
-        />
-      )
+      <QuizAssignmentSettingsModal
+        assignment={saved({ sessionMode: 'teacher' })}
+        rosters={rosters}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
     );
     expect(
       screen.getByTestId('assignment-behavior-summary')
@@ -761,22 +673,20 @@ describe('QuizAssignmentSettingsModal — on the assign stepper', () => {
 
   it('shows the Manual state with no dates for a Manual start', () => {
     render(
-      withStepper(
-        <QuizAssignmentSettingsModal
-          assignment={saved({
-            openAt: undefined,
-            closeAt: undefined,
-            dueAt: undefined,
-            accessMode: 'assessment',
-            periodAccess: {
-              c1: { state: 'closed' },
-            } as unknown as QuizAssignment['periodAccess'],
-          })}
-          rosters={rosters}
-          onSave={vi.fn()}
-          onClose={vi.fn()}
-        />
-      )
+      <QuizAssignmentSettingsModal
+        assignment={saved({
+          openAt: undefined,
+          closeAt: undefined,
+          dueAt: undefined,
+          accessMode: 'assessment',
+          periodAccess: {
+            c1: { state: 'closed' },
+          } as unknown as QuizAssignment['periodAccess'],
+        })}
+        rosters={rosters}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
     );
     expect(
       screen.getByText('Starts paused. You start and pause each class.')

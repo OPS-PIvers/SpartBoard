@@ -70,13 +70,6 @@ vi.mock('firebase/functions', () => ({
 const addToast = vi.fn();
 const updateWidget = vi.fn();
 
-const PERIOD_ROSTER = {
-  id: 'r2',
-  name: 'Period 3',
-  source: 'manual',
-  classlinkClassId: 'cl-3',
-  students: [],
-};
 const extraRosters: Record<string, unknown>[] = [];
 const flags = new Set<string>();
 const plcList: { current: unknown[] } = { current: [] };
@@ -200,28 +193,6 @@ vi.mock('@/hooks/usePlcs', () => ({
   usePlcs: () => ({ plcs: plcList.current }),
 }));
 
-// Stub AssignClassPicker so roster selection is driven by checkboxes, same as
-// VideoActivityManager.assign.test.tsx.
-vi.mock('@/components/common/AssignClassPicker', () => ({
-  AssignClassPicker: ({
-    onChange,
-  }: {
-    onChange: (next: { rosterIds: string[] }) => void;
-  }) => (
-    <button
-      type="button"
-      data-testid="assign-class-picker"
-      onClick={() =>
-        onChange({
-          rosterIds: [...extraRosters.map((r) => r.id as string), 'r1'],
-        })
-      }
-    >
-      pick class
-    </button>
-  ),
-}));
-
 Object.defineProperty(navigator, 'clipboard', {
   value: { writeText: vi.fn().mockResolvedValue(undefined) },
   configurable: true,
@@ -242,18 +213,22 @@ function makeWidget(): WidgetData {
 
 async function openAssignModal() {
   render(<VideoActivityWidget widget={makeWidget()} />);
-  const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
-  fireEvent.click(assignBtn);
-  return screen.findByRole('dialog', { name: /cell division/i });
+  fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
+  return screen.findByRole('dialog');
 }
 
 function confirmAssign(dialog: HTMLElement) {
   fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
 }
 
+function pickClass(dialog: HTMLElement, name: string) {
+  fireEvent.click(within(dialog).getByRole('button', { name: /No classes/ }));
+  fireEvent.click(within(dialog).getByLabelText(new RegExp(name)));
+}
+
 /** Checks the class whose roster carries a standing accommodation (M17 class mode). */
 function enableIndividualTargeting(dialog: HTMLElement) {
-  fireEvent.click(within(dialog).getByTestId('assign-class-picker'));
+  pickClass(dialog, 'Period 1');
 }
 
 beforeEach(() => {
@@ -395,54 +370,6 @@ describe('VideoActivityWidget onAssign — default targeting value', () => {
   });
 });
 
-describe('VideoActivityWidget onAssign — per-period access', () => {
-  it('gives each checked class its own period and no shared window', async () => {
-    extraRosters.push(PERIOD_ROSTER);
-    periodCtx.current = {
-      bellOptions: [],
-      bellWindow: () => null,
-      onTagRoster: vi.fn(),
-    };
-    const dialog = await openAssignModal();
-    fireEvent.click(within(dialog).getByTestId('assign-class-picker'));
-    confirmAssign(dialog);
-
-    await waitFor(() => expect(createSession).toHaveBeenCalledOnce());
-    const periodGate = createSession.mock.calls[0][11] as {
-      accessMode: string;
-      periodAccess: Record<string, { state: string; label: string }>;
-    };
-    expect(periodGate.accessMode).toBe('assignment');
-    expect(Object.keys(periodGate.periodAccess).sort()).toEqual([
-      'cl-3',
-      'roster:r1',
-    ]);
-    expect(periodGate.periodAccess['cl-3']).toMatchObject({
-      state: 'open',
-      label: 'Period 3',
-    });
-    await waitFor(() => expect(mockSetDoc).toHaveBeenCalled());
-    expect(mockSetDoc.mock.calls[0][1]).toMatchObject({
-      accessMode: 'assignment',
-      periodAccess: periodGate.periodAccess,
-    });
-  });
-
-  it('keeps a single class on the legacy session', async () => {
-    periodCtx.current = {
-      bellOptions: [],
-      bellWindow: () => null,
-      onTagRoster: vi.fn(),
-    };
-    const dialog = await openAssignModal();
-    fireEvent.click(within(dialog).getByTestId('assign-class-picker'));
-    confirmAssign(dialog);
-
-    await waitFor(() => expect(createSession).toHaveBeenCalledOnce());
-    expect(createSession.mock.calls[0][11]).toBeUndefined();
-  });
-});
-
 describe('VideoActivityWidget onAssign — assign stepper', () => {
   const PERIOD_4 = {
     id: 'r4',
@@ -467,25 +394,13 @@ describe('VideoActivityWidget onAssign — assign stepper', () => {
     ],
   };
 
-  async function openStepper() {
-    flags.add('assign-stepper');
-    render(<VideoActivityWidget widget={makeWidget()} />);
-    fireEvent.click(await screen.findByRole('button', { name: /^assign$/i }));
-    return screen.findByRole('dialog');
-  }
-
-  function pickClass(dialog: HTMLElement, name: string) {
-    fireEvent.click(within(dialog).getByRole('button', { name: /No classes/ }));
-    fireEvent.click(within(dialog).getByLabelText(new RegExp(name)));
-  }
-
   it('Manual on one class writes a closed assessment gate', async () => {
     periodCtx.current = {
       bellOptions: [],
       bellWindow: () => null,
       onTagRoster: vi.fn(),
     };
-    const dialog = await openStepper();
+    const dialog = await openAssignModal();
     pickClass(dialog, 'Period 1');
     fireEvent.click(within(dialog).getByRole('button', { name: /^2When/ }));
     fireEvent.click(within(dialog).getByRole('radio', { name: 'Manual' }));
@@ -504,7 +419,7 @@ describe('VideoActivityWidget onAssign — assign stepper', () => {
   it('narrows a class to picked students through setAssignmentTargetsV1', async () => {
     extraRosters.push(PERIOD_4);
     mockCallable.mockResolvedValue({ data: { skipped: [] } });
-    const dialog = await openStepper();
+    const dialog = await openAssignModal();
     pickClass(dialog, 'Period 4');
     fireEvent.click(
       within(dialog).getByRole('button', { name: /All students/ })
@@ -526,7 +441,7 @@ describe('VideoActivityWidget onAssign — assign stepper', () => {
     plcList.current = [
       { id: 'plc-a', name: 'Science PLC', memberEmails: ['t@example.com'] },
     ];
-    const dialog = await openStepper();
+    const dialog = await openAssignModal();
     pickClass(dialog, 'Period 1');
     fireEvent.click(within(dialog).getByRole('button', { name: /^3Sharing/ }));
     fireEvent.click(

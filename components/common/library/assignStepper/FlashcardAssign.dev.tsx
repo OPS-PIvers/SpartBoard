@@ -1,11 +1,8 @@
-// DEV-only: the real Flashcards assign dialog (stepper, or ?legacy=1 for today's), for /assign-stepper-dev.
+// DEV-only: the real Flashcards assign stepper, for /assign-stepper-dev.
 /* eslint-disable react-refresh/only-export-components -- default export is a harness preview record */
 import React, { useState } from 'react';
 import type { ClassRoster, FlashcardSet } from '@/types';
-import {
-  FlashcardAssignModal,
-  LegacyFlashcardAssignModal,
-} from '@/components/widgets/Flashcards/FlashcardAssignModal';
+import { FlashcardAssignStepper } from '@/components/widgets/Flashcards/FlashcardAssignStepper';
 import type { AssignPeriodAccessContext } from '../AssignPeriodAccessSection';
 
 const SET: FlashcardSet = {
@@ -50,12 +47,9 @@ const PERIOD_CTX: AssignPeriodAccessContext = {
 };
 
 const Preview: React.FC = () => {
-  const legacy = new URLSearchParams(window.location.search).has('legacy');
   const [open, setOpen] = useState(true);
-  const Dialog = legacy ? LegacyFlashcardAssignModal : FlashcardAssignModal;
   return (
     <div className="space-y-2 text-sm text-slate-600">
-      <p>Add ?legacy=1 for today&apos;s dialog.</p>
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -64,7 +58,7 @@ const Preview: React.FC = () => {
         Open
       </button>
       {open && (
-        <Dialog
+        <FlashcardAssignStepper
           isOpen
           set={SET}
           rosters={ROSTERS}

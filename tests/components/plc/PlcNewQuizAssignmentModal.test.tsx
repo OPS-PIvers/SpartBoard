@@ -1,15 +1,5 @@
 /**
- * Tests for PlcNewQuizAssignmentModal — Task 10 (slim PLC quiz assign).
- *
- * After Task 10:
- *   - The configure step no longer renders a mode picker, toggles, or
- *     gamification controls.
- *   - It renders: class picker + due-date input + behavior summary.
- *   - createAssignment receives sessionMode/sessionOptions/attemptLimit
- *     sourced from getQuizBehavior(pickedQuiz.behavior), NOT from removed
- *     controls.
- *   - dueAt flows into settings when a date is entered.
- *   - PLC linkage (plc.id, plc.name, memberEmails) is set with no sheetUrl.
+ * Tests for PlcNewQuizAssignmentModal on the Quiz assign stepper.
  *
  * Mocking strategy:
  *   - useQuiz: quizzes list with one item carrying a behavior.
@@ -111,8 +101,6 @@ vi.mock('@/hooks/usePlcQuizzes', () => ({
   })),
 }));
 
-let mockReviewSplit = false;
-let mockStepper = false;
 vi.mock('@/context/useAuth', () => ({
   useAuth: vi.fn(() => ({
     user: {
@@ -120,12 +108,6 @@ vi.mock('@/context/useAuth', () => ({
       displayName: 'Ms. Smith',
       email: 'smith@school.edu',
     },
-    canAccessFeature: (id: string) =>
-      id === 'quiz-review-split'
-        ? mockReviewSplit
-        : id === 'assign-stepper'
-          ? mockStepper
-          : false,
   })),
 }));
 
@@ -220,13 +202,6 @@ vi.mock('@/components/plc/PlcSharePickerModal', () => ({
   ),
 }));
 
-// Mock PlcNewAssignmentSharingSlot as a simple sentinel.
-vi.mock('@/components/plc/PlcNewAssignmentSharingSlot', () => ({
-  PlcNewAssignmentSharingSlot: vi.fn(() => (
-    <div data-testid="plc-sharing-slot">Sharing slot</div>
-  )),
-}));
-
 // ---------------------------------------------------------------------------
 // Fixtures
 // ---------------------------------------------------------------------------
@@ -279,358 +254,8 @@ async function renderAndPickQuiz(props?: {
 // Tests
 // ---------------------------------------------------------------------------
 
-describe('PlcNewQuizAssignmentModal (Task 10 — slimmed configure step)', () => {
+describe('PlcNewQuizAssignmentModal on the Quiz stepper (D21)', () => {
   beforeEach(() => {
-    mockCreateAssignment.mockClear();
-    mockAddToast.mockClear();
-    mockLoadQuizData.mockClear();
-    mockAttachSyncLinkage.mockClear();
-    mockCreateAssignment.mockResolvedValue({ id: 'assign-new', code: '9999' });
-    mockLoadQuizData.mockResolvedValue({
-      id: 'quiz-1',
-      title: 'Cell Division',
-      questions: [],
-      createdAt: 1000,
-      updatedAt: 2000,
-    });
-  });
-
-  it('does NOT render a mode picker (Teacher-paced / Auto-progress / Self-paced radio buttons) in configure step', async () => {
-    await renderAndPickQuiz();
-
-    expect(
-      screen.queryByRole('radio', { name: /teacher-paced/i })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('radio', { name: /auto-progress/i })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('radio', { name: /self-paced/i })
-    ).not.toBeInTheDocument();
-  });
-
-  it('does NOT render gamification toggles', async () => {
-    await renderAndPickQuiz();
-
-    // Speed bonus, streak bonus, podium, sound effects are gone
-    expect(screen.queryByText(/speed bonus/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/streak bonus/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/podium/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/sound effects/i)).not.toBeInTheDocument();
-  });
-
-  it('does NOT render attempt limit controls', async () => {
-    await renderAndPickQuiz();
-
-    expect(screen.queryByText(/attempt limit/i)).not.toBeInTheDocument();
-  });
-
-  it('renders a due-date input in configure step', async () => {
-    await renderAndPickQuiz();
-
-    expect(screen.getByTestId('plc-assign-due-date')).toBeInTheDocument();
-  });
-
-  it('renders the behavior summary from the picked quiz behavior', async () => {
-    await renderAndPickQuiz();
-
-    // fakeQuiz.behavior is auto-progress; assign always runs in Assessment Mode.
-    // Expected: "Auto-progress · 2 attempts · shuffles answers · shows results"
-    const summaryEl = screen.getByTestId('plc-quiz-behavior-summary');
-    expect(summaryEl).toBeInTheDocument();
-    expect(summaryEl.textContent).toMatch(/assessment mode/i);
-    expect(summaryEl.textContent).toMatch(/2 attempts/i);
-  });
-
-  it('renders a hint about editing behavior in the quiz editor', async () => {
-    await renderAndPickQuiz();
-
-    // The behavior panel shows a hint directing the teacher to the quiz editor
-    // (no inline editor in the PLC modal — behavior is edited in the QuizWidget).
-    expect(screen.getByText(/edit in the quiz editor/i)).toBeInTheDocument();
-  });
-
-  it('renders the PLC sharing slot', async () => {
-    await renderAndPickQuiz();
-
-    expect(screen.getByTestId('plc-sharing-slot')).toBeInTheDocument();
-  });
-
-  it('sources sessionMode/sessionOptions/attemptLimit from getQuizBehavior(pickedQuiz) on submit', async () => {
-    await renderAndPickQuiz();
-
-    const confirmBtn = screen.getByRole('button', {
-      name: /create assignment/i,
-    });
-    act(() => {
-      fireEvent.click(confirmBtn);
-    });
-
-    await waitFor(() => {
-      expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
-    });
-
-    const [, settings] = mockCreateAssignment.mock.calls[0] as [
-      unknown,
-      Record<string, unknown>,
-    ];
-
-    // Must use behavior from fakeQuiz.behavior
-    expect(settings.sessionMode).toBe('student');
-    expect(settings.attemptLimit).toBe(2);
-    expect(
-      (settings.sessionOptions as Record<string, unknown>).showResultToStudent
-    ).toBe(true);
-  });
-
-  it('assigns a question-bank quiz with its pool, slots and frozen copy', async () => {
-    const bankQ = (id: string) => ({
-      id,
-      type: 'MC',
-      text: id,
-      correctAnswer: 'a',
-      incorrectAnswers: ['b'],
-    });
-    mockBankContents.set('bank-1', {
-      id: 'bank-1',
-      title: 'Vocab bank',
-      questions: [bankQ('b1'), bankQ('b2'), bankQ('b3')],
-    });
-    mockSaveDriveSnapshot.mockResolvedValue('snapshot-1');
-    mockLoadQuizData.mockResolvedValue({
-      id: 'quiz-1',
-      title: 'Cell Division',
-      questions: [],
-      bankSlots: [
-        {
-          id: 's1',
-          bankId: 'bank-1',
-          bankTitle: 'Vocab bank',
-          mode: 'random',
-          count: 2,
-        },
-      ],
-      createdAt: 1000,
-      updatedAt: 2000,
-    });
-    try {
-      await renderAndPickQuiz();
-      act(() => {
-        fireEvent.click(
-          screen.getByRole('button', { name: /create assignment/i })
-        );
-      });
-      await waitFor(() => {
-        expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
-      });
-      const [quiz, settings, opts] = mockCreateAssignment.mock.calls[0] as [
-        { driveFileId: string; questions: unknown[] },
-        Record<string, unknown>,
-        Record<string, unknown>,
-      ];
-      expect(quiz.questions).toHaveLength(3);
-      expect(quiz.driveFileId).toBe('snapshot-1');
-      expect(settings.resolvedDriveFileId).toBe('snapshot-1');
-      expect(opts.bankSlots).toHaveLength(1);
-    } finally {
-      mockBankContents.clear();
-    }
-  });
-
-  it('passes plc linkage (id + name) into settings on submit', async () => {
-    await renderAndPickQuiz();
-
-    act(() => {
-      fireEvent.click(
-        screen.getByRole('button', { name: /create assignment/i })
-      );
-    });
-
-    await waitFor(() => {
-      expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
-    });
-
-    const [, settings] = mockCreateAssignment.mock.calls[0] as [
-      unknown,
-      Record<string, unknown>,
-    ];
-    expect(settings.plc).toBeDefined();
-    expect((settings.plc as Record<string, unknown>).id).toBe(fakePlc.id);
-    expect((settings.plc as Record<string, unknown>).name).toBe(fakePlc.name);
-    expect(settings.plc).not.toHaveProperty('sheetUrl');
-  });
-
-  it('pools by the PLC library group whose title matches the picked quiz', async () => {
-    mockPlcLibrary.splice(0, mockPlcLibrary.length, {
-      title: '  cell   DIVISION ',
-      syncGroupId: 'library-group-1',
-    });
-    try {
-      await renderAndPickQuiz();
-      act(() => {
-        fireEvent.click(
-          screen.getByRole('button', { name: /create assignment/i })
-        );
-      });
-      await waitFor(() => {
-        expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
-      });
-      const [, , opts] = mockCreateAssignment.mock.calls[0] as [
-        unknown,
-        unknown,
-        Record<string, unknown>,
-      ];
-      expect(opts.plcPoolSyncGroupId).toBe('library-group-1');
-    } finally {
-      mockPlcLibrary.length = 0;
-    }
-  });
-
-  it('leaves plcPoolSyncGroupId unset when no library title matches', async () => {
-    await renderAndPickQuiz();
-    act(() => {
-      fireEvent.click(
-        screen.getByRole('button', { name: /create assignment/i })
-      );
-    });
-    await waitFor(() => {
-      expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
-    });
-    const [, , opts] = mockCreateAssignment.mock.calls[0] as [
-      unknown,
-      unknown,
-      Record<string, unknown>,
-    ];
-    expect(opts).not.toHaveProperty('plcPoolSyncGroupId');
-  });
-
-  it('forwards dueAt into settings when a date is entered', async () => {
-    await renderAndPickQuiz();
-
-    const dueDateInput = screen.getByTestId('plc-assign-due-date');
-    fireEvent.change(dueDateInput, { target: { value: '2026-07-01' } });
-
-    act(() => {
-      fireEvent.click(
-        screen.getByRole('button', { name: /create assignment/i })
-      );
-    });
-
-    await waitFor(() => {
-      expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
-    });
-
-    const [, settings] = mockCreateAssignment.mock.calls[0] as [
-      unknown,
-      Record<string, unknown>,
-    ];
-    expect(settings.dueAt).toBeDefined();
-    expect(typeof settings.dueAt).toBe('number');
-    expect(settings.dueAt).toBeGreaterThan(0);
-  });
-
-  it('does NOT set dueAt when no date is entered', async () => {
-    await renderAndPickQuiz();
-
-    act(() => {
-      fireEvent.click(
-        screen.getByRole('button', { name: /create assignment/i })
-      );
-    });
-
-    await waitFor(() => {
-      expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
-    });
-
-    const [, settings] = mockCreateAssignment.mock.calls[0] as [
-      unknown,
-      Record<string, unknown>,
-    ];
-    expect(settings.dueAt).toBeUndefined();
-  });
-
-  it('calls onClose after successful submit', async () => {
-    const onClose = vi.fn();
-    await renderAndPickQuiz({ onClose });
-
-    act(() => {
-      fireEvent.click(
-        screen.getByRole('button', { name: /create assignment/i })
-      );
-    });
-
-    await waitFor(() => {
-      expect(onClose).toHaveBeenCalledTimes(1);
-    });
-  });
-});
-
-describe('PlcNewQuizAssignmentModal with quiz-review-split on (D12)', () => {
-  beforeEach(() => {
-    mockReviewSplit = true;
-    mockCreateAssignment.mockClear();
-    mockCreateAssignment.mockResolvedValue({ id: 'assign-new', code: '9999' });
-    mockLoadQuizData.mockResolvedValue({
-      id: 'quiz-1',
-      title: 'Cell Division',
-      questions: [],
-      createdAt: 1000,
-      updatedAt: 2000,
-    });
-  });
-  afterEach(() => {
-    mockReviewSplit = false;
-  });
-
-  it('shows the inline settings instead of the quiz editor hint', async () => {
-    await renderAndPickQuiz();
-    expect(
-      screen.getByTestId('quiz-assign-settings-inline')
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/edit in the quiz editor/i)).toBeNull();
-    expect(screen.queryByTestId('plc-quiz-behavior-summary')).toBeNull();
-  });
-
-  it("assigns with the teacher's last-used settings, not the quiz's, minus gamification", async () => {
-    await renderAndPickQuiz();
-    act(() => {
-      fireEvent.click(
-        screen.getByRole('button', { name: /create assignment/i })
-      );
-    });
-    await waitFor(() => {
-      expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
-    });
-    const [, settings] = mockCreateAssignment.mock.calls[0] as [
-      unknown,
-      Record<string, unknown>,
-    ];
-    const opts = settings.sessionOptions as Record<string, unknown>;
-    expect(settings.sessionMode).toBe('student');
-    expect(settings.attemptLimit).toBe(3);
-    expect(opts.blockCopyPaste).toBe(true);
-    expect(opts.speedBonusEnabled).toBe(false);
-    expect(opts.showResultToStudent).toBeUndefined();
-  });
-
-  it('does not save last-used settings without the stepper', async () => {
-    mockSaveLastUsed.mockClear();
-    await renderAndPickQuiz();
-    act(() => {
-      fireEvent.click(
-        screen.getByRole('button', { name: /create assignment/i })
-      );
-    });
-    await waitFor(() => {
-      expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
-    });
-    expect(mockSaveLastUsed).not.toHaveBeenCalled();
-  });
-});
-
-describe('PlcNewQuizAssignmentModal with assign-stepper on (D21)', () => {
-  beforeEach(() => {
-    mockStepper = true;
     stepperProps = null;
     mockRosters = SAMPLE_ROSTERS;
     mockCreateAssignment.mockClear();
@@ -647,7 +272,6 @@ describe('PlcNewQuizAssignmentModal with assign-stepper on (D21)', () => {
     });
   });
   afterEach(() => {
-    mockStepper = false;
     mockRosters = [];
   });
 
@@ -745,5 +369,131 @@ describe('PlcNewQuizAssignmentModal with assign-stepper on (D21)', () => {
     ];
     expect(call.assignmentId).toBe('assign-new');
     expect(call.kind).toBe('quiz');
+  });
+
+  it('assigns a question-bank quiz with its pool, slots and frozen copy', async () => {
+    const bankQ = (id: string) => ({
+      id,
+      type: 'MC',
+      text: id,
+      correctAnswer: 'a',
+      incorrectAnswers: ['b'],
+    });
+    mockBankContents.set('bank-1', {
+      id: 'bank-1',
+      title: 'Vocab bank',
+      questions: [bankQ('b1'), bankQ('b2'), bankQ('b3')],
+    });
+    mockSaveDriveSnapshot.mockResolvedValue('snapshot-1');
+    mockLoadQuizData.mockResolvedValue({
+      id: 'quiz-1',
+      title: 'Cell Division',
+      questions: [],
+      bankSlots: [
+        {
+          id: 's1',
+          bankId: 'bank-1',
+          bankTitle: 'Vocab bank',
+          mode: 'random',
+          count: 2,
+        },
+      ],
+      createdAt: 1000,
+      updatedAt: 2000,
+    });
+    try {
+      await renderAndPickQuiz();
+      await act(async () => {
+        await props().onSubmit(undefined);
+      });
+      await waitFor(() => {
+        expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
+      });
+      const [quiz, settings, opts] = mockCreateAssignment.mock.calls[0] as [
+        { driveFileId: string; questions: unknown[] },
+        Record<string, unknown>,
+        Record<string, unknown>,
+      ];
+      expect(quiz.questions).toHaveLength(3);
+      expect(quiz.driveFileId).toBe('snapshot-1');
+      expect(settings.resolvedDriveFileId).toBe('snapshot-1');
+      expect(opts.bankSlots).toHaveLength(1);
+    } finally {
+      mockBankContents.clear();
+    }
+  });
+
+  it('passes plc linkage (id + name) into settings on submit', async () => {
+    await renderAndPickQuiz();
+
+    await act(async () => {
+      await props().onSubmit(undefined);
+    });
+
+    await waitFor(() => {
+      expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
+    });
+
+    const [, settings] = mockCreateAssignment.mock.calls[0] as [
+      unknown,
+      Record<string, unknown>,
+    ];
+    expect(settings.plc).toBeDefined();
+    expect((settings.plc as Record<string, unknown>).id).toBe(fakePlc.id);
+    expect((settings.plc as Record<string, unknown>).name).toBe(fakePlc.name);
+    expect(settings.plc).not.toHaveProperty('sheetUrl');
+  });
+
+  it('pools by the PLC library group whose title matches the picked quiz', async () => {
+    mockPlcLibrary.splice(0, mockPlcLibrary.length, {
+      title: '  cell   DIVISION ',
+      syncGroupId: 'library-group-1',
+    });
+    try {
+      await renderAndPickQuiz();
+      await act(async () => {
+        await props().onSubmit(undefined);
+      });
+      await waitFor(() => {
+        expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
+      });
+      const [, , opts] = mockCreateAssignment.mock.calls[0] as [
+        unknown,
+        unknown,
+        Record<string, unknown>,
+      ];
+      expect(opts.plcPoolSyncGroupId).toBe('library-group-1');
+    } finally {
+      mockPlcLibrary.length = 0;
+    }
+  });
+
+  it('leaves plcPoolSyncGroupId unset when no library title matches', async () => {
+    await renderAndPickQuiz();
+    await act(async () => {
+      await props().onSubmit(undefined);
+    });
+    await waitFor(() => {
+      expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
+    });
+    const [, , opts] = mockCreateAssignment.mock.calls[0] as [
+      unknown,
+      unknown,
+      Record<string, unknown>,
+    ];
+    expect(opts).not.toHaveProperty('plcPoolSyncGroupId');
+  });
+
+  it('calls onClose after successful submit', async () => {
+    const onClose = vi.fn();
+    await renderAndPickQuiz({ onClose });
+
+    await act(async () => {
+      await props().onSubmit(undefined);
+    });
+
+    await waitFor(() => {
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
   });
 });

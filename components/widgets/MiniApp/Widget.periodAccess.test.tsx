@@ -115,9 +115,7 @@ function setup(rosterIds: string[]) {
     </div>
   );
   fireEvent.click(screen.getByTitle('Assign (copy student link)'));
-  fireEvent.click(
-    screen.getByRole('button', { name: /create assignment link/i })
-  );
+  fireEvent.click(screen.getByRole('button', { name: /^assign$/i }));
 }
 
 beforeEach(() => {

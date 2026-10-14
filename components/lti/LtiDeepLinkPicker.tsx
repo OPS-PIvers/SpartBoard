@@ -79,13 +79,8 @@ import {
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import { resolveQuizAssignContent } from '@/utils/quizAssignBankDraw';
-import {
-  getAssignBehaviorSeed,
-  formatBehaviorSummary,
-  getQuizAssignPrefill,
-} from '@/utils/quizBehavior';
+import { getQuizAssignPrefill } from '@/utils/quizBehavior';
 import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
-import { QuizAssignSettingsInline } from '@/components/common/library/QuizAssignSettingsInline';
 import { InlineAssignStepBodies } from '@/components/common/library/assignStepper/InlineAssignStepBodies';
 import {
   defaultWhenValue,
@@ -292,15 +287,9 @@ const LtiDeepLinkFlow: React.FC = () => {
     >
   >(new Map());
 
-  const { user, signInWithGoogle, googleAccessToken, canAccessFeature } =
-    useAuth();
-  // D12: with the split on, settings come from the teacher's last-used, editable inline.
-  const reviewSplit = canAccessFeature('quiz-review-split');
-  // D22: with the stepper on, the When and Quiz rule step bodies replace the inline settings.
-  const stepperOn = canAccessFeature('assign-stepper');
-  const lastUsedRules = reviewSplit || stepperOn;
+  const { user, signInWithGoogle, googleAccessToken } = useAuth();
   const { lastUsed: lastAssignSettings, save: saveLastAssignSettings } =
-    useLastQuizAssignSettings(user?.uid, lastUsedRules);
+    useLastQuizAssignSettings(user?.uid, true);
   const [assignWhen, setAssignWhen] = useState<AssignWhenValue>(() =>
     defaultWhenValue({
       activity: 'quiz',
@@ -437,25 +426,18 @@ const LtiDeepLinkFlow: React.FC = () => {
   // surfaces the parity (the quiz/VA's own session mode, attempts, etc.) so the
   // teacher can see what students will get before adding it.
   const behaviorSummary = useMemo(() => {
-    if (kind === 'quiz') {
-      if (lastUsedRules) return null;
-      return selectedQuiz
-        ? formatBehaviorSummary(getAssignBehaviorSeed(selectedQuiz))
-        : null;
-    }
+    if (kind === 'quiz') return null;
     return selectedActivity
       ? formatVideoActivityBehaviorSummary(
           getVideoActivityBehavior(selectedActivity)
         )
       : null;
-  }, [kind, selectedQuiz, selectedActivity, lastUsedRules]);
+  }, [kind, selectedActivity]);
 
   const windowBackwards =
-    (!stepperOn || assignWindowOn) &&
+    assignWindowOn &&
     availabilityBackwards(
-      stepperOn
-        ? { ...assignTargeting, availability: assignWhen.availability }
-        : assignTargeting,
+      { ...assignTargeting, availability: assignWhen.availability },
       rosters.filter((r) => ltiSelectedRosterIds.includes(r.id)),
       undefined
     );
@@ -552,12 +534,9 @@ const LtiDeepLinkFlow: React.FC = () => {
     dueAt: number | null;
   } => {
     // With Schedule off the When step sets no window, so the Schoology item has no due date.
-    if (stepperOn && !assignWindowOn)
-      return { targeting: assignTargeting, dueAt: null };
+    if (!assignWindowOn) return { targeting: assignTargeting, dueAt: null };
     const { targeting } = applyAvailability(
-      stepperOn
-        ? { ...assignTargeting, availability: assignWhen.availability }
-        : assignTargeting,
+      { ...assignTargeting, availability: assignWhen.availability },
       {
         enabled: true,
         rosters: rosters.filter((r) => ltiSelectedRosterIds.includes(r.id)),
@@ -566,7 +545,6 @@ const LtiDeepLinkFlow: React.FC = () => {
     );
     return { targeting, dueAt: targeting.dueAt ?? null };
   }, [
-    stepperOn,
     assignWhen,
     assignWindowOn,
     assignTargeting,
@@ -676,9 +654,8 @@ const LtiDeepLinkFlow: React.FC = () => {
         );
 
         // Assessment Mode always; options and attempt limit come from the quiz.
-        const { sessionMode, sessionOptions, attemptLimit } = lastUsedRules
-          ? splitAssignSettings
-          : getAssignBehaviorSeed(selectedQuiz);
+        const { sessionMode, sessionOptions, attemptLimit } =
+          splitAssignSettings;
 
         const effectiveTeacherName = teacherName.trim() || defaultTeacherName;
         const plcLinkage = resolvePlcLinkage();
@@ -801,7 +778,7 @@ const LtiDeepLinkFlow: React.FC = () => {
         }
         created = { kind: 'quiz', quizCode, maxPoints, dueAt };
         createdRef.current.set(cacheKey, created);
-        if (stepperOn) saveLastAssignSettings(splitAssignSettings);
+        saveLastAssignSettings(splitAssignSettings);
       }
 
       await signAndReturn(created, selectedQuiz.title, returnUrl);
@@ -809,8 +786,6 @@ const LtiDeepLinkFlow: React.FC = () => {
     [
       ltiClassContext,
       selectedQuiz,
-      lastUsedRules,
-      stepperOn,
       saveLastAssignSettings,
       splitAssignSettings,
       loadQuizData,
@@ -1212,12 +1187,6 @@ const LtiDeepLinkFlow: React.FC = () => {
                   </span>
                 </p>
               )}
-              {kind === 'quiz' && reviewSplit && !stepperOn && (
-                <QuizAssignSettingsInline
-                  value={splitAssignSettings}
-                  onChange={setEditedAssignSettings}
-                />
-              )}
 
               <div>
                 <label
@@ -1240,28 +1209,26 @@ const LtiDeepLinkFlow: React.FC = () => {
 
               {/* Availability & Due Date + individual-student targeting. */}
               <div className="space-y-3 border-t border-slate-200 pt-4">
-                {stepperOn && (
-                  <InlineAssignStepBodies
-                    activity={kind === 'quiz' ? 'quiz' : 'video'}
-                    when={assignWhen}
-                    onWhenChange={setAssignWhen}
-                    windowOn={assignWindowOn}
-                    onWindowOnChange={setAssignWindowOn}
-                    rosters={rosters.filter((r) =>
-                      ltiSelectedRosterIds.includes(r.id)
-                    )}
-                    behavior={splitAssignSettings}
-                    onBehaviorChange={setEditedAssignSettings}
-                    disabled={busy}
-                  />
-                )}
+                <InlineAssignStepBodies
+                  activity={kind === 'quiz' ? 'quiz' : 'video'}
+                  when={assignWhen}
+                  onWhenChange={setAssignWhen}
+                  windowOn={assignWindowOn}
+                  onWindowOnChange={setAssignWindowOn}
+                  rosters={rosters.filter((r) =>
+                    ltiSelectedRosterIds.includes(r.id)
+                  )}
+                  behavior={splitAssignSettings}
+                  onBehaviorChange={setEditedAssignSettings}
+                  disabled={busy}
+                />
                 <AssignTargetingSection
                   rosters={rosters}
                   selectedRosterIds={ltiSelectedRosterIds}
                   allowModifications={ltiSelectedRosterIds.length > 0}
                   value={assignTargeting}
                   onChange={setAssignTargeting}
-                  scheduleHidden={stepperOn}
+                  scheduleHidden
                   kind={kind === 'quiz' ? 'quiz' : 'video-activity'}
                   {...(kind === 'quiz'
                     ? {

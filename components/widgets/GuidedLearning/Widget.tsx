@@ -29,11 +29,6 @@ import {
   buildMixedTargetsPayload,
   expandMixedTargeting,
 } from '@/utils/assignTargets';
-import {
-  applyAvailability,
-  availabilityBackwards,
-  chosenWorkKind,
-} from '@/utils/assignAvailability';
 import { resolveWorkKind } from '@/utils/gradebook/gradebookCore';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { SubShareGuidedLearningWidget } from './SubShareWidget';
@@ -51,15 +46,12 @@ import { useFolders } from '@/hooks/useFolders';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import {
-  AssignModal,
-  AssignTargetingSection,
   LIBRARY_ITEM_NOUNS,
   useLibraryDeleteConfirm,
   ViewOnlyShareModal,
   type AssignTargetingValue,
 } from '@/components/common/library';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
-import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
   makeEmptyPickerValue,
   type AssignClassPickerValue,
@@ -230,10 +222,6 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const { user, isAdmin, getAssignmentMode, canAccessFeature, appSettings } =
     useAuth();
   const gradebookOn = canAccessFeature('gradebook');
-  const workKindSetting = canAccessFeature('study-resources')
-    ? { default: resolveWorkKind('guided-learning', null) }
-    : undefined;
-  const stepperOn = canAccessFeature('assign-stepper');
   const canEditToursOnBoard =
     isAdmin === true && canAccessFeature('gl-live-tours');
   const canUseAi =
@@ -344,13 +332,6 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const [pickerValue, setPickerValue] = useState<AssignClassPickerValue>(() =>
     makeEmptyPickerValue()
   );
-  // Individual students & overrides + window (spec §5 B3) — always resets to
-  // 'class' mode for a fresh assign dialog; there is no persisted-preference
-  // path here (unlike roster memory below), matching the acceptance
-  // criterion that class-wide assign stays the unchanged default.
-  const [targetingValue, setTargetingValue] = useState<AssignTargetingValue>(
-    EMPTY_ASSIGN_TARGETING_VALUE
-  );
 
   // Reset the picker when the dialog re-opens for a different set
   // (adjust-state-while-rendering pattern — no effect needed).
@@ -358,7 +339,6 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     useState<AssignDialogTarget | null>(null);
   if (assignTarget !== prevAssignTarget) {
     setPrevAssignTarget(assignTarget);
-    setTargetingValue(EMPTY_ASSIGN_TARGETING_VALUE);
     if (assignTarget) {
       // Prefer unified roster memory; fall back to legacy ClassLink-sourcedId
       // maps so teachers upgrading from pre-unification configs don't lose
@@ -933,7 +913,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   );
 
   // ─── View-only Share modal state ────────────────────────────────────────
-  // View-only "shares" deliberately bypass the AssignModal/picker flow
+  // View-only "shares" deliberately bypass the assign stepper
   // because class targeting has no functional effect on view-only sessions
   // (Firestore rules don't gate views by class; sessions are filtered out
   // of /my-assignments anyway). The teacher gets a single confirmation
@@ -1004,27 +984,6 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     setViewOnlyShareTarget(null);
     setViewOnlyShareLink(null);
     setViewOnlyShareError(null);
-  };
-
-  const handleAssignConfirm = async (): Promise<void> => {
-    if (!assignTarget) return;
-    // Guard against stale rosterIds — rosters can be deleted or fail to
-    // load (`loadError`) after the teacher's last assignment.
-    const visibleRosterIds = new Set(
-      rosters.filter((r) => !r.loadError).map((r) => r.id)
-    );
-    const validRosterIds = pickerValue.rosterIds.filter((id) =>
-      visibleRosterIds.has(id)
-    );
-    const { set, source, originSetId } = assignTarget;
-    setAssignTarget(null);
-    const { targeting } = applyAvailability(targetingValue, {
-      enabled: true,
-      rosters: rosters.filter((r) => validRosterIds.includes(r.id)),
-      bellWindow: assignPeriodCtx?.bellWindow,
-      workKind: workKindSetting,
-    });
-    await performAssign(set, source, originSetId, validRosterIds, targeting);
   };
 
   const handleStepperAssign = async ({
@@ -1882,7 +1841,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
         </Suspense>
       )}
 
-      {assignTarget && stepperOn && (
+      {assignTarget && (
         <GuidedLearningAssignStepper
           title={assignTarget.set.title || 'Untitled set'}
           rosters={rosters}
@@ -1892,48 +1851,6 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
           periodAccess={assignPeriodCtx}
           onClose={() => setAssignTarget(null)}
           onAssign={handleStepperAssign}
-        />
-      )}
-
-      {assignTarget && !stepperOn && (
-        <AssignModal<AssignClassPickerValue>
-          isOpen={!!assignTarget}
-          onClose={() => setAssignTarget(null)}
-          itemTitle={assignTarget.set.title || 'Untitled set'}
-          options={pickerValue}
-          onOptionsChange={setPickerValue}
-          extraSlot={
-            <div className="space-y-3">
-              <AssignClassPicker
-                rosters={rosters}
-                value={pickerValue}
-                onChange={setPickerValue}
-              />
-              <AssignTargetingSection
-                rosters={rosters}
-                selectedRosterIds={pickerValue.rosterIds}
-                periodAccess={assignPeriodCtx}
-                value={targetingValue}
-                onChange={setTargetingValue}
-                kind="guided-learning"
-                workKind={workKindSetting}
-              />
-            </div>
-          }
-          onAssign={() => handleAssignConfirm()}
-          confirmLabel="Assign"
-          confirmDisabled={availabilityBackwards(
-            {
-              ...targetingValue,
-              workKind: chosenWorkKind(targetingValue, workKindSetting),
-            },
-            rosters.filter((r) => pickerValue.rosterIds.includes(r.id)),
-            assignPeriodCtx?.bellWindow
-          )}
-          confirmDisabledReason={t(
-            'assignAvailability.closesBeforeOpens',
-            'Closes before it opens.'
-          )}
         />
       )}
 

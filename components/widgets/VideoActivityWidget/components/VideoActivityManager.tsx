@@ -1,7 +1,7 @@
 /**
  * VideoActivityManager — teacher's video activity library built on the shared
  * Wave-1 library primitives (`LibraryShell`, `LibraryGrid`, `LibraryToolbar`,
- * `useLibraryView`, `useSortableReorder`, `AssignModal`).
+ * `useLibraryView`, `useSortableReorder`, `VideoAssignStepper`).
  *
  * Three tabs (Library / In Progress / Archive) mirror QuizManager's proven
  * pattern. The In Progress + Archive tabs render the persisted assignments
@@ -9,12 +9,6 @@
  * (the live monitor / student join-URL flow) isn't shipped here — it will
  * follow in a later wave. This component only surfaces the list states so
  * teachers can copy URLs, pause/resume, and delete archived rows.
- *
- * Per-assignment session options preserved from the legacy Manager:
- *   - `autoPlay`, `requireCorrectAnswer` (a.k.a "Require Correct Answers"),
- *     `allowSkipping`, and a free-text "Assignment Name" — rendered through
- *     `AssignModal.extraSlot`. The adapter contract is locked; widget-
- *     specific toggles flow through that slot, not by forking the primitive.
  */
 
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
@@ -45,11 +39,7 @@ import { LibraryShell } from '@/components/common/library/LibraryShell';
 import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
 import { LibraryGrid } from '@/components/common/library/LibraryGrid';
 import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
-import { AssignModal } from '@/components/common/library/AssignModal';
-import {
-  AssignTargetingSection,
-  type AssignTargetingValue,
-} from '@/components/common/library/AssignTargetingSection';
+import type { AssignTargetingValue } from '@/components/common/library/AssignTargetingSection';
 import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
 import { EMPTY_ASSIGN_TARGETING_VALUE } from '@/utils/studentTargetRef';
 import { ViewOnlyShareModal } from '@/components/common/library/ViewOnlyShareModal';
@@ -63,10 +53,6 @@ import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArc
 import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { useAuth } from '@/context/useAuth';
-import {
-  applyAvailability,
-  availabilityBackwards,
-} from '@/utils/assignAvailability';
 import { useDialog } from '@/context/useDialog';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
@@ -104,20 +90,13 @@ import type {
   VideoActivityMetadata,
   VideoActivitySession,
   VideoActivitySessionMode,
-  VideoActivitySessionSettings,
 } from '@/types';
-import { SegmentedControl } from '@/components/common/SegmentedControl';
-import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
   makeEmptyPickerValue,
   type AssignClassPickerValue,
 } from '@/components/common/AssignClassPicker.helpers';
 import { mapLegacyClassIdsToRosterIds } from '@/utils/resolveAssignmentTargets';
 import { extractYouTubeId } from '@/utils/youtube';
-import {
-  getVideoActivityBehavior,
-  formatVideoActivityBehaviorSummary,
-} from '@/utils/videoActivityBehavior';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
 
@@ -228,7 +207,6 @@ export interface VideoActivityManagerProps {
    * library order remains fixed for the current session.
    */
   onReorderActivities?: (orderedIds: string[]) => Promise<void> | void;
-  defaultSessionSettings: VideoActivitySessionSettings;
 
   // Assignments (persisted archive)
   assignments: VideoActivityAssignment[];
@@ -516,7 +494,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onResults,
   onAssign,
   onReorderActivities,
-  defaultSessionSettings,
   assignments,
   assignmentsLoading,
   onArchiveCopyUrl,
@@ -546,11 +523,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const { canAccessFeature } = useAuth();
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
   const canAssignLive = canAccessFeature('video-activity-live');
-  const stepperOn = canAccessFeature('assign-stepper');
-  const lastPacing = useLastVideoAssignPacing(
-    userId,
-    stepperOn && canAssignLive
-  );
+  const lastPacing = useLastVideoAssignPacing(userId, canAssignLive);
   const claudeReview = useClaudeReview('video_activities');
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
@@ -560,7 +533,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const [assignTarget, setAssignTarget] =
     useState<VideoActivityMetadata | null>(null);
 
-  // View-only Share modal state — bypasses the AssignModal entirely
+  // View-only Share modal state — bypasses the assign stepper entirely
   // because class targeting has no functional effect on view-only sessions
   // (rules don't gate views by class; sessions are filtered out of
   // /my-assignments anyway).
@@ -573,21 +546,12 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     null
   );
   const [isCreatingViewOnlyShare, setIsCreatingViewOnlyShare] = useState(false);
-  const [assignOptions, setAssignOptions] =
-    useState<VideoActivitySessionSettings>(defaultSessionSettings);
   const [assignError, setAssignError] = useState<string | null>(null);
   // Unified roster picker state. Seeded from the per-activity roster memory
   // on open so repeated assignments don't require re-picking.
   const [pickerValue, setPickerValue] = useState<AssignClassPickerValue>(() =>
     makeEmptyPickerValue()
   );
-  // M17 B3 — individual targeting/overrides/window (spec §5 B3).
-  const [assignTargeting, setAssignTargeting] = useState<AssignTargetingValue>(
-    EMPTY_ASSIGN_TARGETING_VALUE
-  );
-  const [assignPace, setAssignPace] =
-    useState<VideoActivitySessionMode>('student');
-  const assignLive = canAssignLive && assignPace === 'teacher';
 
   // Adjust state during render when the assign target changes — avoids the
   // set-state-in-effect anti-pattern while keeping form fields reset per open.
@@ -617,17 +581,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
 
   if (assignTarget && assignTarget.id !== prevAssignTargetId) {
     setPrevAssignTargetId(assignTarget.id);
-    setAssignOptions(defaultSessionSettings);
-    setAssignTargeting(
-      activePending && activePending.targetStudents.length > 0
-        ? {
-            ...EMPTY_ASSIGN_TARGETING_VALUE,
-            targetMode: 'students',
-            targetStudents: activePending.targetStudents,
-          }
-        : EMPTY_ASSIGN_TARGETING_VALUE
-    );
-    setAssignPace('student');
     setAssignError(null);
     // Prefer unified roster memory; fall back to legacy ClassLink-sourcedId
     // maps so teachers upgrading from pre-unification configs don't lose
@@ -835,43 +788,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   };
 
   /* ─── Handlers ────────────────────────────────────────────────────────── */
-
-  const handleAssignConfirm = async (): Promise<void> => {
-    if (!assignTarget) return;
-    setAssignError(null);
-    // Guard against stale rosterIds — rosters can be deleted or fail to
-    // load (`loadError`) after the teacher's last assignment.
-    const visibleRosterIds = new Set(
-      rosters.filter((r) => !r.loadError).map((r) => r.id)
-    );
-    const validRosterIds = pickerValue.rosterIds
-      .filter((id) => visibleRosterIds.has(id))
-      // One class per live session (D14).
-      .slice(0, assignLive ? 1 : undefined);
-    try {
-      // Behavior (sessionOptions, attemptLimit) is now sourced from the
-      // activity itself in the Widget handler via getVideoActivityBehavior(meta).
-      const targetingWithDue = applyAvailability(assignTargeting, {
-        enabled: true,
-        rosters: rosters.filter((r) => validRosterIds.includes(r.id)),
-        bellWindow: periodAccess?.bellWindow,
-      }).targeting;
-      const dueAt = targetingWithDue.dueAt ?? null;
-      await onAssign(
-        assignTarget,
-        validRosterIds,
-        assignLive ? null : dueAt,
-        assignLive ? EMPTY_ASSIGN_TARGETING_VALUE : targetingWithDue,
-        assignLive ? 'teacher' : 'student'
-      );
-      closeAssign();
-    } catch (err) {
-      setAssignError(
-        err instanceof Error ? err.message : 'Failed to create assignment'
-      );
-      throw err; // let the modal re-enable its button
-    }
-  };
 
   const handleStepperSubmit = async (
     result: VideoAssignStepperResult
@@ -1565,14 +1481,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     </LibraryShell>
   );
 
-  const assignWindowBackwards =
-    !assignLive &&
-    availabilityBackwards(
-      assignTargeting,
-      rosters.filter((r) => pickerValue.rosterIds.includes(r.id)),
-      periodAccess?.bellWindow
-    );
-
   return (
     <>
       {useExternalDnd && tab === 'library' ? (
@@ -1612,7 +1520,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         />
       )}
 
-      {assignTarget && !isViewOnly && stepperOn && (
+      {assignTarget && !isViewOnly && (
         <VideoAssignStepper
           key={`${assignTarget.id}:${activePending?.key ?? ''}`}
           onClose={closeAssign}
@@ -1626,44 +1534,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           initialStudents={activePending?.targetStudents}
           error={assignError}
           onSubmit={handleStepperSubmit}
-        />
-      )}
-
-      {assignTarget && !isViewOnly && !stepperOn && (
-        <AssignModal<VideoActivitySessionSettings>
-          isOpen={true}
-          onClose={closeAssign}
-          itemTitle={assignTarget.title}
-          options={assignOptions}
-          onOptionsChange={setAssignOptions}
-          confirmLabel={assignLive ? 'Start live' : 'Assign'}
-          confirmDisabled={assignWindowBackwards}
-          confirmDisabledReason="Closes before it opens."
-          onAssign={handleAssignConfirm}
-          extraSlot={
-            <AssignBehaviorSummaryVA
-              pace={canAssignLive ? assignPace : undefined}
-              onPaceChange={(next) => {
-                setAssignPace(next);
-                if (next === 'teacher')
-                  setPickerValue((v) => ({
-                    rosterIds: v.rosterIds.slice(0, 1),
-                  }));
-              }}
-              meta={assignTarget}
-              rosters={rosters}
-              pickerValue={pickerValue}
-              onPickerChange={setPickerValue}
-              targeting={assignTargeting}
-              onTargetingChange={setAssignTargeting}
-              periodAccess={periodAccess}
-              assignError={assignError}
-              onEditInActivity={() => {
-                closeAssign();
-                onEdit(assignTarget);
-              }}
-            />
-          }
         />
       )}
 
@@ -1682,133 +1552,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
 };
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
-
-/**
- * AssignBehaviorSummaryVA — slimmed extraSlot for the standalone VA assign
- * modal (VA Task 9 parity with Quiz Task 9).
- *
- * Renders:
- *   1. The class/period picker (AssignClassPicker).
- *   2. Availability & Due Date (AssignTargetingSection).
- *   3. A read-only behavior summary derived from `getVideoActivityBehavior(meta)`,
- *      plus an "Edit in activity" button. The button calls `onEditInActivity`
- *      so the parent can open the editor's Settings tab.
- *   4. An inline error message if `assignError` is set.
- */
-const AssignBehaviorSummaryVA: React.FC<{
-  /** Undefined hides the pacing choice (flag off). */
-  pace?: VideoActivitySessionMode;
-  onPaceChange: (next: VideoActivitySessionMode) => void;
-  meta: VideoActivityMetadata;
-  rosters: ClassRoster[];
-  pickerValue: AssignClassPickerValue;
-  onPickerChange: (next: AssignClassPickerValue) => void;
-  /** M17 B3 — individual targeting/overrides/window (spec §5 B3). */
-  targeting: AssignTargetingValue;
-  onTargetingChange: (next: AssignTargetingValue) => void;
-  periodAccess?: AssignPeriodAccessContext;
-  assignError: string | null;
-  onEditInActivity?: () => void;
-}> = ({
-  pace,
-  onPaceChange,
-  meta,
-  rosters,
-  pickerValue,
-  onPickerChange,
-  targeting,
-  onTargetingChange,
-  periodAccess,
-  assignError,
-  onEditInActivity,
-}) => {
-  const behavior = getVideoActivityBehavior(meta);
-  const summary = formatVideoActivityBehaviorSummary(behavior);
-
-  const live = pace === 'teacher';
-
-  return (
-    <>
-      {pace && (
-        <div className="space-y-1">
-          <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
-            Pacing
-          </p>
-          <SegmentedControl<VideoActivitySessionMode>
-            role="radiogroup"
-            ariaLabel="Pacing"
-            anchor={tourAttr('video-activity.assign-pacing')}
-            value={pace}
-            onChange={onPaceChange}
-            options={[
-              { value: 'student', label: 'Self-paced' },
-              { value: 'teacher', label: 'Teacher-paced (live)' },
-            ]}
-          />
-        </div>
-      )}
-
-      <AssignClassPicker
-        rosters={rosters}
-        value={pickerValue}
-        onChange={onPickerChange}
-        singleSelect={live}
-      />
-
-      {live && (
-        <p data-testid="va-assign-live-note" className="text-sm text-slate-600">
-          Off in live mode: due date, scheduling, retries, rewinds and
-          penalties.
-        </p>
-      )}
-
-      {assignError && (
-        <div className="flex items-start gap-2 rounded-xl border border-brand-red-primary/30 bg-brand-red-lighter/40 px-3 py-2 text-sm font-medium text-brand-red-dark">
-          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-          <span>{assignError}</span>
-        </div>
-      )}
-
-      <fieldset
-        disabled={live}
-        aria-disabled={live}
-        className={`space-y-3 min-w-0 ${live ? 'opacity-50' : ''}`}
-      >
-        <AssignTargetingSection
-          rosters={rosters}
-          selectedRosterIds={pickerValue.rosterIds}
-          periodAccess={periodAccess}
-          value={targeting}
-          onChange={onTargetingChange}
-          kind="video-activity"
-        />
-
-        {/* Read-only behavior summary */}
-        <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1.5">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
-              Behavior
-            </p>
-            <button
-              {...tourAttr('video-activity.behavior-open-editor')}
-              type="button"
-              onClick={onEditInActivity}
-              className="text-xxs font-bold text-brand-blue-primary hover:text-brand-blue-dark transition-colors"
-            >
-              Edit in activity
-            </button>
-          </div>
-          <p
-            data-testid="va-behavior-summary"
-            className="text-sm text-slate-600 leading-snug"
-          >
-            {summary}
-          </p>
-        </div>
-      </fieldset>
-    </>
-  );
-};
 
 /**
  * Lightweight preview pane content for the VideoActivityManager.

@@ -640,18 +640,6 @@ export const TOUR_ANCHORS = {
     label: 'Select mode toggle in the Quiz library',
     perWidget: true,
   },
-  'assign-destination.spartboard': {
-    label: 'SpartBoard Only option in the Assign quiz dialog',
-    panel: true,
-  },
-  'assign-destination.classroom': {
-    label: 'Google Classroom option in the Assign quiz dialog',
-    panel: true,
-  },
-  'assign-destination.schoology': {
-    label: 'Schoology option in the Assign quiz dialog',
-    panel: true,
-  },
   'assign-step.classes': {
     label: 'Classes step header in the Assign dialog',
     panel: true,
@@ -1121,10 +1109,6 @@ export const TOUR_ANCHORS = {
   },
   'view-only-share.open': {
     label: 'Open in New Tab link in the Share link window',
-    panel: true,
-  },
-  'plc-video-assign.due-date': {
-    label: 'Due Date box in the PLC Video Activity assign window',
     panel: true,
   },
   'plc-video-assign.teacher-name': {
@@ -4683,10 +4667,6 @@ export const TOUR_ANCHORS = {
     destructive: true,
   },
   // PLC deferred controls: drag handles, option toggles, invite email, gradebook classes
-  'plc-assign.sheet-toggle': {
-    label: 'Auto-generated sheet switch in the PLC assign dialog',
-    panel: true,
-  },
   'plc-assign.option-toggle': {
     label: 'Option switch in the PLC assign dialog',
     perField: true,
@@ -4910,10 +4890,6 @@ export const TOUR_ANCHORS = {
   },
   'plc-assign.teacher-name': {
     label: 'Teacher name field in the PLC assign dialog',
-    panel: true,
-  },
-  'plc-assign.sheet-url': {
-    label: 'Sheet url field in the PLC assign dialog',
     panel: true,
   },
   'plc-assign.close': {
@@ -9425,52 +9401,6 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
-  'flashcards.collect-submission': {
-    label: 'Collect a submission switch in the Flashcards assign dialog',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards.check-mode': {
-    label: 'Mode choice in the Flashcards assign dialog',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards.show-first': {
-    label: 'Show first choice in the Flashcards assign dialog',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards.strict-mode': {
-    label: 'Strict mode switch in the Flashcards assign dialog',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards.question-type': {
-    label: 'Question type checkbox in the Flashcards assign dialog',
-    perField: true,
-    panel: true,
-  },
-  'flashcards.question-count': {
-    label: 'Questions count in the Flashcards assign dialog',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards.mastery-threshold': {
-    label: 'Mastery threshold choice in the Flashcards assign dialog',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards.score-visibility': {
-    label: 'Score visibility picker in the Flashcards assign dialog',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards.assign-confirm': {
-    label: 'Assign button in the Flashcards assign dialog',
-    perWidgetType: true,
-    persists: true,
-    panel: true,
-  },
   'flashcards.student-actions': {
     label: 'Actions menu button on a student row in Flashcards Check results',
     perField: true,
@@ -9974,10 +9904,6 @@ export const TOUR_ANCHORS = {
   'video-activity.selection-toggle': {
     label: 'Select toggle in the video activity library',
   },
-  'video-activity.behavior-open-editor': {
-    label: 'Edit in activity link in the video activity assign dialog',
-    panel: true,
-  },
   'video-activity.settings-score-visibility': {
     label: 'Score visibility option in video activity behavior settings',
     perField: true,
@@ -10003,11 +9929,6 @@ export const TOUR_ANCHORS = {
   'video-activity.admin-delete': {
     label: 'Delete button on an admin video activity',
     destructive: true,
-    persists: true,
-    panel: true,
-  },
-  'video-activity.plc-assign-due-date': {
-    label: 'Due date box in the PLC video activity assign dialog',
     persists: true,
     panel: true,
   },
@@ -12669,11 +12590,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     persists: true,
     sandboxed: true,
-    panel: true,
-  },
-  'video-activity.assign-pacing': {
-    label: 'Pacing choice in the video activity assign dialog',
-    persists: true,
     panel: true,
   },
   'video-activity.live-end': {
