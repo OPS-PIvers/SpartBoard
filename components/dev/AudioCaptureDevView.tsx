@@ -82,6 +82,7 @@ export const AudioCaptureDevView: React.FC<{ state: AudioCaptureStateKey }> = ({
       limitSeconds: 60,
       prepExpiry: 'armed',
       takeLimit: state === 'take-limit' ? 2 : null,
+      ...(state === 'no-review-recording' ? { review: false } : {}),
     }),
     [state]
   );
@@ -101,7 +102,11 @@ export const AudioCaptureDevView: React.FC<{ state: AudioCaptureStateKey }> = ({
       btn?.click();
       return !!btn;
     };
-    if (state === 'recording' || state === 'mic-unavailable') {
+    if (
+      state === 'recording' ||
+      state === 'no-review-recording' ||
+      state === 'mic-unavailable'
+    ) {
       click(/^Record/);
       return;
     }

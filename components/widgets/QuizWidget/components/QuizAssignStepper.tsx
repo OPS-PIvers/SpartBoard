@@ -26,6 +26,7 @@ import {
 import { AssignWhenStep } from '@/components/common/library/assignStepper/AssignWhenStep';
 import {
   formatWhenValue,
+  whenBackwards,
   type AssignWhenValue,
 } from '@/components/common/library/assignStepper/assignWhenValue';
 import { useQuizRuleGates } from '@/components/common/library/assignStepper/QuizRuleStepGates';
@@ -96,6 +97,7 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
   const inPlc = !!sharing && isSharingStepAvailable(plcs, 'work');
   const ctx = { kind: 'work' as const, inPlc };
   const needsPlc = !!sharing && inPlc && sharingNeedsPlc(sharing.value, plcs);
+  const backwards = whenBackwards(when, picked, periodAccess?.bellWindow);
 
   const bodies: Record<string, Omit<AssignStepDef, 'id' | 'title'>> = {
     classes: {
@@ -185,8 +187,17 @@ export const QuizAssignStepper: React.FC<QuizAssignStepperProps> = ({
       steps={steps}
       submitLabel={submitLabel}
       onSubmit={onSubmit}
-      disabled={needsPlc}
-      disabledReason={needsPlc ? PICK_A_PLC : undefined}
+      disabled={needsPlc || backwards}
+      disabledReason={
+        needsPlc
+          ? PICK_A_PLC
+          : backwards
+            ? t(
+                'assignAvailability.closesBeforeOpens',
+                'Closes before it opens.'
+              )
+            : undefined
+      }
       overlayView={
         modifications && modsOpen ? (
           <ModificationsView

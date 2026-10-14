@@ -65,13 +65,16 @@ import {
   ResponseFormatControl,
   SpokenResponseSettings,
 } from './ResponseFormatSection';
+import { useWhiteboardImageUpload } from './useWhiteboardImageUpload';
+import { canAccessQuizWhiteboardResponse } from '@/utils/quizMediaAccess';
+
 import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
 import { RubricBuilderPanel } from './RubricBuilderPanel';
 import { WordLimitFields } from './WordLimitFields';
 import { PaperBoxSizeField } from './PaperBoxSizeField';
 import { usePaperAnswerSheetsSettings } from '@/hooks/usePaperAnswerSheetsSettings';
 import { PAPER_HANDWRITTEN_FEATURE } from '@/utils/paperWritten';
-import { AlternateAnswersEditor, MultiAnswerEditor } from './MultiAnswerEditor';
+import { AlternateAnswersEditor } from './AlternateAnswersEditor';
 import { FibBlanksEditor } from './FibBlanksEditor';
 import {
   countTextBlanks,
@@ -803,9 +806,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     selectedIndex,
     questions,
     updateQuestion,
-    updateIncorrect,
-    addIncorrect,
-    removeIncorrect,
     updateBankSlot,
     removeBankSlot,
   } = state;
@@ -840,7 +840,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   // Fail-closed: no permission record means the controls never mount, so the
   // editor is pixel-identical to today for everyone else.
   const mediaResponseAllowed = canAccessQuizMediaResponse();
-  const choiceEditor = canAccessFeature('quiz-choice-editor');
+  const whiteboardAllowed = canAccessQuizWhiteboardResponse({
+    canAccessQuizMediaResponse,
+    canAccessFeature,
+  });
+  const uploadWhiteboardImage = useWhiteboardImageUpload();
   const rubricVisibilityOn = canAccessFeature('quiz-rubric-visibility');
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const readPrompt = useCallback(() => promptRef.current?.value, []);
@@ -1067,14 +1071,13 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           <div>
             <label className={labelClass}>Type</label>
             <select
-              value={choiceEditor && q.type === 'MA' ? 'MC' : q.type}
+              value={q.type === 'MA' ? 'MC' : q.type}
               aria-label="Type"
               {...tourTypeAttr('quiz-editor.type', 'quiz')}
               onChange={(e) => {
                 const nextType = e.target.value as QuizQuestionType;
-                // With the one-list editor, MA is Multiple Choice with a setting on.
-                if (choiceEditor && nextType === 'MC' && q.type === 'MA')
-                  return;
+                // MA is Multiple Choice with a setting on.
+                if (nextType === 'MC' && q.type === 'MA') return;
                 const isWritten = isFreeResponseType(nextType);
                 // A rubric only applies to written types, and its Detach button
                 // only renders there — so drop it here, restoring the stashed
@@ -1119,9 +1122,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
               }}
               className={`${inputClass} appearance-none`}
             >
-              {QUESTION_TYPES.filter(
-                (t) => t.value !== 'MA' || !choiceEditor
-              ).map((t) => (
+              {QUESTION_TYPES.filter((t) => t.value !== 'MA').map((t) => (
                 <option key={t.value} value={t.value}>
                   {t.label}
                 </option>
@@ -1133,6 +1134,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 <ResponseFormatControl
                   question={q}
                   onChange={handleRecordingChange}
+                  whiteboardAllowed={whiteboardAllowed}
                 />
               </div>
             )}
@@ -1235,13 +1237,14 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           <SpokenResponseSettings
             question={q}
             onChange={handleRecordingChange}
+            whiteboardAllowed={whiteboardAllowed}
+            onUploadWhiteboardImage={uploadWhiteboardImage}
           />
         )}
 
         {(q.type === 'Matching' ||
           q.type === 'Ordering' ||
-          isMultiBlank(q) ||
-          (q.type === 'MA' && !choiceEditor)) && (
+          isMultiBlank(q)) && (
           <div className="flex items-start gap-2">
             <label
               className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-lg cursor-pointer select-none shrink-0"
@@ -1250,9 +1253,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                   ? 'Award partial points based on the number of correct pairs.'
                   : q.type === 'FIB'
                     ? 'Award points for each blank filled in correctly.'
-                    : q.type === 'MA'
-                      ? 'Each correct pick earns points and each wrong pick takes points away, so choosing everything earns nothing.'
-                      : 'Award partial points based on the longest correctly-ordered sequence.'
+                    : 'Award partial points based on the longest correctly-ordered sequence.'
               }
             >
               <input
@@ -1274,7 +1275,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         )}
 
         {/* Type-specific answer editor */}
-        {choiceEditor && (q.type === 'MC' || q.type === 'MA') ? (
+        {q.type === 'MC' || q.type === 'MA' ? (
           <div className="space-y-1">
             <ChoiceOptionsEditor
               key={q.id}
@@ -1304,23 +1305,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
             correctAnswer={q.correctAnswer}
             onChange={handleOrderingChange}
           />
-        ) : q.type === 'MA' ? (
-          <div className="space-y-1">
-            <MultiAnswerEditor
-              correctAnswer={q.correctAnswer}
-              incorrectAnswers={q.incorrectAnswers}
-              onChange={(updates) => updateQuestion(q.id, updates)}
-            />
-            {questionNeedsKey(q) && (
-              <p
-                role="status"
-                className="flex items-center gap-1 text-xxs font-bold text-amber-700"
-              >
-                <AlertCircle className="w-3 h-3" aria-hidden />
-                No answer imported. Add one before assigning.
-              </p>
-            )}
-          </div>
         ) : isFreeResponseType(q.type) ? (
           <div className="space-y-3">
             {!timeLimitLockedByRecording && (
@@ -1458,56 +1442,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 }
               />
             )}
-          </div>
-        )}
-
-        {q.type === 'MC' && !choiceEditor && (
-          <div className="space-y-2">
-            <label className="block font-bold text-slate-600 mb-1 text-xs uppercase tracking-wider">
-              Distractors (Incorrect Options)
-            </label>
-            <div className="grid gap-2">
-              {q.incorrectAnswers.map((ans, idx) => (
-                <div key={idx} className="flex gap-2">
-                  <input
-                    type="text"
-                    value={ans}
-                    onChange={(e) => updateIncorrect(q.id, idx, e.target.value)}
-                    placeholder={`Distractor ${idx + 1}`}
-                    className={inputClass}
-                    {...tourFieldAttr(
-                      'quiz-editor.distractor',
-                      'quiz',
-                      String(idx + 1)
-                    )}
-                  />
-                  {q.incorrectAnswers.length > 1 && (
-                    <button
-                      onClick={() => removeIncorrect(q.id, idx)}
-                      className="px-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                      aria-label={`Remove distractor ${idx + 1}`}
-                      {...tourFieldAttr(
-                        'quiz-editor.distractor-remove',
-                        'quiz',
-                        String(idx + 1)
-                      )}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-              {q.incorrectAnswers.length < 4 && (
-                <button
-                  onClick={() => addIncorrect(q.id)}
-                  {...tourTypeAttr('quiz-editor.distractor-add', 'quiz')}
-                  className="flex items-center justify-center gap-1.5 py-2 border-2 border-dashed border-slate-300 hover:border-brand-blue-primary/40 hover:bg-slate-100 rounded-lg text-slate-600 hover:text-brand-blue-primary font-bold transition-all text-xs"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  Add Choice
-                </button>
-              )}
-            </div>
           </div>
         )}
 

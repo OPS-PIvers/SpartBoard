@@ -701,17 +701,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // One-list multiple choice editor, choose-all as a setting on it. Admin-only until Paul has tried it.
-  'quiz-choice-editor': {
-    label: 'One-list multiple choice editor',
-    icon: ListChecks,
-    description: 'Mark the correct option in one list.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'standards-from-question-text': {
     label: 'Standards typed in questions',
     icon: BookMarked,
