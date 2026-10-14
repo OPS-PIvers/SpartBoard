@@ -136,7 +136,7 @@ async function record() {
 async function stop() {
   clock.now += 5_000;
   await act(async () => {
-    fireEvent.click(screen.getByRole('button', { name: 'Stop recording' }));
+    fireEvent.click(screen.getByRole('button', { name: /stop/i }));
   });
 }
 
