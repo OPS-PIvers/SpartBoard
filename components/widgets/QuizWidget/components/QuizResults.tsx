@@ -157,6 +157,7 @@ import { deleteField, doc, updateDoc, FieldPath } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
 import { quizMaxPoints } from '@/utils/quizMaxPoints';
+import { servedVersionLabels } from '@/utils/quizBalancedDeal';
 import {
   buildQuizClassroomGradeEntries,
   type ClassroomGradeEntry,
@@ -4236,6 +4237,14 @@ const StudentsScreen: React.FC<{
                   {resultsActions && (
                     <ResultsOverrideBadge override={r.resultsOverride} />
                   )}
+                  {servedVersionLabels(
+                    session?.bankSlots,
+                    r.servedQuestionIds
+                  ).map((label) => (
+                    <span key={label} className="shrink-0">
+                      <SessionBadge tone="neutral" label={label} />
+                    </span>
+                  ))}
                   {r.answers?.some((a) => isPaperWrittenAnswer(a)) && (
                     <span className="shrink-0">
                       <SessionBadge

@@ -19,6 +19,7 @@ import {
   withUploadedPictures,
 } from '@/utils/quizDocumentImport/versionPlan';
 import type { ExtractedQuestion } from '@/utils/quizDocumentImport/types';
+import { resolveQuizAssignment } from '@/utils/questionBanks';
 import { importedFrq, importedMc } from './versionFixtures';
 
 const mc = (
@@ -184,6 +185,7 @@ describe('buildVersionImport', () => {
       expect.objectContaining({
         bankId: build.bank?.id,
         mode: 'random',
+        dealing: 'balanced',
         count: 1,
         questionIds: [bankIds[0], bankIds[1]],
       }),
@@ -212,6 +214,24 @@ describe('buildVersionImport', () => {
     expect(split.quiz.questions[0].text).toContain('A. Identify the hearth');
     expect(bankIds).not.toContain(split.quiz.questions[0].id);
     expect(build.quizzes.every((p) => !p.shuffle)).toBe(true);
+  });
+
+  it('deals each quiz evenly over only its own versions (V18)', async () => {
+    const set = await importedFrq();
+    const build = buildVersionImport(set, initialVersionPlan(set), {
+      folderTitle: 'F',
+    });
+    const bank = build.bank;
+    if (!bank) throw new Error('no bank');
+    const banks = new Map([[bank.id, bank]]);
+    const [parallel, retake] = build.quizzes;
+    for (const planned of [parallel, retake]) {
+      const [slot] = resolveQuizAssignment(planned.quiz, banks).sessionSlots;
+      expect(slot.dealing).toBe('balanced');
+      expect(slot.poolQuestionIds).toEqual(
+        planned.quiz.bankSlots?.[0].questionIds
+      );
+    }
   });
 
   it('leaves out a quiz the teacher unticked and uses the new name', async () => {

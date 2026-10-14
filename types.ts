@@ -4403,6 +4403,8 @@ export interface QuizBankSlot {
   points?: number;
   /** random mode: ids of `QuizData.stimuli` shown with every drawn question */
   stimulusIds?: string[];
+  /** random mode: `balanced` deals pool questions in turn per class period; absent = independent random. */
+  dealing?: 'random' | 'balanced';
 }
 
 /** Position of fixed questions and slots in the quiz editor list. */
@@ -4434,6 +4436,8 @@ export interface QuizSessionBankSlot {
   poolQuestionIds: string[];
   /** Number of fixed questions that precede the slot. */
   position: number;
+  /** Deal in turn per class period (`bank_deals` counter); absent = independent random. */
+  dealing?: 'balanced';
 }
 
 /** What happens when a recording question's prep countdown runs out. */
@@ -5680,6 +5684,8 @@ export interface QuizResponse {
    * Absent = the full question set was served.
    */
   servedQuestionIds?: string[];
+  /** Pool ids balanced bank slots have dealt this student across attempts; never cleared by a retake. */
+  dealtQuestionIds?: string[];
   /** Self-paced Review game score; only checkQuizGameAnswerV1 writes it. */
   game?: QuizGameState;
   /**
@@ -9952,12 +9958,8 @@ export type GlobalFeature =
   | 'plc-norming-flags'
   /** Standard codes typed in or imported with a question text become Learning targets tags. */
   | 'standards-from-question-text'
-  /** "View full screen" toggle on large pop-ups (editors, graders). */
-  | 'modal-fullscreen'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
   | 'quiz-results-tools'
-  /** Free-response grader: collapsible student list, no repeated name, one-strand auto-tagging. */
-  | 'quiz-grader-v2'
   /** Guided Learning Studio: select, resize, restyle and edit callouts on the canvas. */
   | 'gl-callout-editing'
   /** Per-student "Slide N of M · active X ago" on Guided Learning results and the Assignments hub. */
@@ -10002,8 +10004,6 @@ export type GlobalFeature =
   | 'drawing-ai'
   | 'webcam-ai'
   | 'blooms-ai'
-  /** Record a group meeting on a note, with playback (docs/plans/shipped/PLC_MEETING_RECORDING.md). */
-  | 'plc-meeting-recording'
   /** Transcript and drafted notes from a meeting recording; AND-ed with `gemini-functions`. */
   | 'plc-meeting-ai-notes'
   /** Assign dialogs: mark a session Work (submitted, graded) or Resource (study only) (docs/plans/STUDENT_LANDING_V2.md D27). */

@@ -409,7 +409,7 @@ export function buildVersionImport(
       });
       continue;
     }
-    // One question a version: a slot deals one version per student (V8).
+    // One question a version: a slot deals one version per student, evenly per period (V8, V18).
     if (bank && g.versions.every((v) => byVersion[v].length === 1)) {
       const pool = g.versions.map((v) => byVersion[v][0]);
       const points = pool[0].points;
@@ -418,6 +418,7 @@ export function buildVersionImport(
         bankId: bank.id,
         bankTitle: bank.title,
         mode: 'random',
+        dealing: 'balanced',
         count: 1,
         questionIds: pool.map((q) => q.id),
         ...(points !== undefined && pool.every((q) => q.points === points)

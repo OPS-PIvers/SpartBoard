@@ -348,6 +348,7 @@ export function resolveQuizAssignment(
       points,
       poolQuestionIds,
       position: fixedSeen,
+      ...(slot.dealing === 'balanced' ? { dealing: 'balanced' as const } : {}),
     });
   }
 
@@ -393,16 +394,17 @@ export function secureShuffle<T>(
 export function drawServedQuestionIds(
   publicQuestionIds: readonly string[],
   slots: readonly QuizSessionBankSlot[],
-  randomIndex: RandomIndex = secureIndex
+  randomIndex: RandomIndex = secureIndex,
+  dealtBySlot?: ReadonlyMap<string, readonly string[]>
 ): string[] {
   const pooled = new Set(slots.flatMap((s) => s.poolQuestionIds));
   const fixed = publicQuestionIds.filter((id) => !pooled.has(id));
   const bySlotPosition = new Map<number, string[]>();
   for (const slot of slots) {
-    const drawn = secureShuffle(slot.poolQuestionIds, randomIndex).slice(
-      0,
-      slot.count
-    );
+    const dealt = dealtBySlot?.get(slot.id);
+    const drawn = dealt
+      ? [...dealt]
+      : secureShuffle(slot.poolQuestionIds, randomIndex).slice(0, slot.count);
     const at = Math.min(Math.max(slot.position, 0), fixed.length);
     bySlotPosition.set(at, [...(bySlotPosition.get(at) ?? []), ...drawn]);
   }
@@ -489,7 +491,9 @@ export function describeBankSlot(
   slot: QuizBankSlot,
   eligibleCount: number | null
 ): string {
-  const parts = [`Random · ${slot.count ?? 0}`];
+  const parts = [
+    `${slot.dealing === 'balanced' ? 'Even split' : 'Random'} · ${slot.count ?? 0}`,
+  ];
   if (eligibleCount != null) parts[0] += ` of ${eligibleCount}`;
   if (slot.targetFilter && slot.targetFilter.length > 0) {
     parts.push(

@@ -33,6 +33,14 @@ import {
   type DocumentSnapshot,
   type FieldValue,
 } from 'firebase/firestore';
+import {
+  BANK_DEALS_COLLECTION,
+  balancedPeriodKey,
+  bankDealDocId,
+  isBalancedSlot,
+  planBalancedDeal,
+} from '@/utils/quizBalancedDeal';
+import { encodeResponseKeySegment } from '@/utils/quizResponseKey';
 import { db, auth, functions } from '@/config/firebase';
 import { signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
@@ -40,6 +48,7 @@ import {
   QuizSession,
   QuizSessionStatus,
   QuizResponse,
+  QuizSessionBankSlot,
   QuizResponseAnswer,
   QuizQuestion,
   Rubric,
@@ -946,28 +955,7 @@ export class SessionEndedError extends Error {
   }
 }
 
-/**
- * Normalize a string for use as a segment inside a Firestore response doc id.
- *
- * Roster period names and pins are teacher-defined free text and can contain
- * `/`, whitespace, or other characters that would either split the doc path
- * or break the `pin-{period}-{pin}` parse contract enforced by
- * `firestore.rules`. We collapse everything non-alphanumeric to `_` and
- * lowercase the result so the encoding is stable across the client and the
- * rules predicate (`^pin-[a-z0-9_]+-[a-z0-9_]+$`).
- *
- * Empty / all-separator inputs fall back to `'default'` rather than producing
- * a zero-length segment that would collapse the doc path.
- *
- * Exported so firestore rules tests can assert the same mapping.
- */
-export function encodeResponseKeySegment(value: string | undefined): string {
-  const trimmed = (value ?? '').trim();
-  if (!trimmed) return 'default';
-  const normalized = trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '_');
-  const stripped = normalized.replace(/^_+|_+$/g, '');
-  return stripped || 'default';
-}
+export { encodeResponseKeySegment };
 
 /**
  * Compute the deterministic response-doc key.
@@ -2029,6 +2017,11 @@ export interface UseQuizSessionStudentResult {
   setServedQuestionIds: (ids: string[] | null) => void;
   /** Persist this attempt's bank draw on the response doc (rules require `ids.length === session.totalQuestions`). */
   persistServedDraw: (ids: string[]) => Promise<void>;
+  /** Deal balanced slots in one transaction and persist the draw; resolves to the served ids. */
+  dealBalancedDraw: (
+    publicQuestionIds: readonly string[],
+    slots: readonly QuizSessionBankSlot[]
+  ) => Promise<string[]>;
   warningCount: number;
   /** The student's periods on a per-period session (empty otherwise), for `studentCanEnter`. */
   periodKeys: string[];
@@ -2103,6 +2096,73 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         ),
         { servedQuestionIds: ids, lastWriteAt: serverTimestamp() }
       );
+    },
+    []
+  );
+
+  // Transaction on the response and each period counter, so concurrent joins never share a turn.
+  const dealBalancedDraw = useCallback(
+    async (
+      publicQuestionIds: readonly string[],
+      slots: readonly QuizSessionBankSlot[]
+    ): Promise<string[]> => {
+      const sessionId = sessionIdRef.current;
+      const responseKey = responseKeyRef.current;
+      if (!sessionId || !responseKey) throw new Error('Not joined');
+      const responseRef = doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_COLLECTION,
+        responseKey
+      );
+      const ids = await runTransaction(
+        db,
+        async (tx) => {
+          const snap = await tx.get(responseRef);
+          if (!snap.exists()) throw new Error('Response missing');
+          const response = snap.data() as QuizResponse;
+          const period = balancedPeriodKey(response);
+          const balanced = slots.filter(isBalancedSlot);
+          const counterRefs = balanced.map((slot) =>
+            doc(
+              db,
+              QUIZ_SESSIONS_COLLECTION,
+              sessionId,
+              BANK_DEALS_COLLECTION,
+              bankDealDocId(slot.id, period)
+            )
+          );
+          const counterSnaps = await Promise.all(
+            counterRefs.map((ref) => tx.get(ref))
+          );
+          const counts = new Map<string, number>();
+          balanced.forEach((slot, i) => {
+            const raw: unknown = counterSnaps[i].data()?.dealt;
+            counts.set(slot.id, typeof raw === 'number' ? raw : 0);
+          });
+          const plan = planBalancedDeal(
+            publicQuestionIds,
+            slots,
+            response,
+            counts
+          );
+          if (!plan) return response.servedQuestionIds ?? [];
+          plan.counters.forEach(({ slotId, dealt }) => {
+            const i = balanced.findIndex((s) => s.id === slotId);
+            if (i >= 0) tx.set(counterRefs[i], { dealt, by: responseKey });
+          });
+          tx.update(responseRef, {
+            servedQuestionIds: plan.ids,
+            dealtQuestionIds: plan.history,
+            lastWriteAt: serverTimestamp(),
+          });
+          return plan.ids;
+        },
+        { maxAttempts: 10 }
+      );
+      servedQuestionIdsRef.current = ids;
+      return ids;
     },
     []
   );
@@ -3895,6 +3955,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     reportStimulusError,
     setServedQuestionIds,
     persistServedDraw,
+    dealBalancedDraw,
     warningCount,
     periodKeys,
     contentPending: inContent && !content,

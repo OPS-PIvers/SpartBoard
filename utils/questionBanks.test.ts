@@ -222,6 +222,19 @@ describe('resolveQuizAssignment', () => {
     ],
   };
 
+  it('freezes balanced dealing onto the session slot', () => {
+    const balanced = {
+      ...quiz,
+      bankSlots: [{ ...quiz.bankSlots[0], dealing: 'balanced' as const }],
+    };
+    expect(resolveQuizAssignment(balanced, banks).sessionSlots[0].dealing).toBe(
+      'balanced'
+    );
+    expect(
+      resolveQuizAssignment(quiz, banks).sessionSlots[0]
+    ).not.toHaveProperty('dealing');
+  });
+
   it('freezes eligible pool questions with slot points and merged tags', () => {
     const resolved = resolveQuizAssignment(quiz, banks);
     expect(resolved.questions.map((x) => x.id)).toEqual([

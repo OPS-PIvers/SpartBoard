@@ -4744,8 +4744,11 @@ service cloud.firestore {
            // addedKeys and bypass the whitelist entirely.
            // Review games: answers come only from checkQuizGameAnswerV1 (`game` is off the list below).
            (!changed(['answers']) || sessionData().get('sessionMode', '') != 'game') &&
-           changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp']) &&
+           changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'dealtQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp']) &&
            tabExitsOk() &&
+           // Balanced bank slots: the versions this student has been dealt, capped at the pool limit.
+           (!changed(['dealtQuestionIds']) ||
+            (isList('dealtQuestionIds') && incoming().dealtQuestionIds.size() <= 150)) &&
            // Time-limit clock: server-stamped, and only restarted by a new attempt
            // (completed -> joined) or stamped where none exists yet.
            (!changed(['attemptStartedAt']) ||
@@ -4898,6 +4901,21 @@ service cloud.firestore {
       match /seats/{uid} {
         allow read: if signedIn() && authUid() == uid;
         allow create, update: if seatWriteOk('quiz_sessions', sessionId, uid);
+      }
+      // Balanced bank slots: one turn counter per slot and class period. Only a
+      // student whose own response (`by`) is in this session advances it, by one.
+      match /bank_deals/{dealId} {
+        function dealOk(prev) {
+          return sessionData().get('bankSlots', null) != null &&
+            incoming().keys().hasOnly(['dealt', 'by']) &&
+            incoming().dealt == prev + 1 &&
+            isStr('by') &&
+            getAfter(/databases/$(database)/documents/quiz_sessions/$(sessionId)/responses/$(incoming().by)).data.get('studentUid', '') == authUid();
+        }
+        allow read: if signedIn();
+        allow create: if signedIn() && dealOk(0);
+        allow update: if signedIn() && dealOk(existing().get('dealt', 0));
+        allow delete: if signedIn() && (authUid() == sessionTeacherUid() || isAdmin());
       }
 
       // Archived responses — copies of teacher-removed responses (was a hard

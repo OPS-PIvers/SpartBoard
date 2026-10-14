@@ -1780,6 +1780,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-banks.slot-dealing': {
+    label: 'Draw (at random or evenly in each class) menu in Quiz banks',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-banks.slot-remove': {
     label: 'Remove slot in Quiz banks',
     perWidgetType: true,
