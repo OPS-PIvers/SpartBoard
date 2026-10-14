@@ -213,7 +213,7 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
   }, [discard]);
 
   const reviewOn = recordingReviewEnabled(config);
-  const canRecover = acknowledged && !takeBudgetReached;
+  const canRecover = acknowledged && !takeBudgetReached && !slotClosed;
   const checkedRecoveryKeyRef = useRef<string | null>(null);
   const restoreRecovered = useEffectEvent((take: AudioTake) => {
     if (!restore(take)) return;

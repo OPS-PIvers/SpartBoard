@@ -464,6 +464,23 @@ describe('AudioResponseCapture — crash recovery', () => {
     );
   });
 
+  it('leaves a saved take alone once the recording window has closed', async () => {
+    const store = await seededStore();
+    const onCommit = vi.fn(() => Promise.resolve());
+    renderCapture({
+      config: { ...config, review: false },
+      takesCommitted: 0,
+      latestArtifact: undefined,
+      slotClosed: true,
+      onCommit,
+      recovery: { store, key },
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
   it('offers nothing back when the take budget is spent', async () => {
     const store = await seededStore();
     renderCapture({
