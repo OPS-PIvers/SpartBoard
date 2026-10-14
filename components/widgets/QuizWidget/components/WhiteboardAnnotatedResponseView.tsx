@@ -82,7 +82,7 @@ export const WhiteboardAnnotatedResponseView: React.FC<
     error: string | null;
   } | null>(null);
   const [playheadMs, setPlayheadMs] = useState(0);
-  const [localSeek, setLocalSeek] = useState({ ms: 0, nonce: 0 });
+  const [localSeek, setLocalSeek] = useState({ ms: 0, count: 0, base: -1 });
   const resolverRef = useRef(resolveTakeUrl);
   useEffect(() => {
     resolverRef.current = resolveTakeUrl;
@@ -148,11 +148,11 @@ export const WhiteboardAnnotatedResponseView: React.FC<
     [annotations, activeId]
   );
 
-  // A parent jump and a note click both become one seek request.
-  const seek =
-    localSeek.nonce > 0 && localSeek.nonce >= seekNonce
-      ? localSeek
-      : { ms: seekToMs, nonce: seekNonce };
+  // Every parent jump or note click bumps the summed nonce; the newest source wins.
+  const seek = {
+    ms: localSeek.base === seekNonce ? localSeek.ms : seekToMs,
+    nonce: seekNonce + localSeek.count,
+  };
 
   const addAtCursor = () => {
     const at = Math.round(playheadMs);
@@ -241,7 +241,8 @@ export const WhiteboardAnnotatedResponseView: React.FC<
         onSeek={(ms) =>
           setLocalSeek((prev) => ({
             ms,
-            nonce: Math.max(prev.nonce, seekNonce) + 1,
+            count: prev.count + 1,
+            base: seekNonce,
           }))
         }
         disabled={disabled}
