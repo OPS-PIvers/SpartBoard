@@ -68,6 +68,8 @@ export interface WhiteboardResponseCaptureProps {
   takesCommitted: number;
   noticeAckedAt: number | null;
   onAcknowledgeNotice: () => void;
+  /** False when an admin turned the recording notice off. */
+  noticeRequired?: boolean;
   /** Resolves once the take is written; rejects to surface the failed state. */
   onCommit: (take: WhiteboardTake) => Promise<void>;
   onRetryUpload?: () => Promise<void>;
@@ -102,6 +104,7 @@ export const WhiteboardResponseCapture: React.FC<
   takesCommitted,
   noticeAckedAt,
   onAcknowledgeNotice,
+  noticeRequired = true,
   onCommit,
   onRetryUpload,
   onPrepExpired,
@@ -136,7 +139,7 @@ export const WhiteboardResponseCapture: React.FC<
     failed: startingPageFailed,
     retry: retryStartingPage,
   } = useStartingPageImage(startingPage);
-  const acknowledged = noticeAckedAt !== null;
+  const acknowledged = !noticeRequired || noticeAckedAt !== null;
   const remaining = takesRemaining(config, takesCommitted);
   const takeBudgetReached = remaining !== null && remaining <= 0;
   const reviewOn = recordingReviewEnabled(config);
@@ -519,12 +522,14 @@ export const WhiteboardResponseCapture: React.FC<
               </p>
             )}
           </div>
-          <RecordingNoticeReminder
-            ref={reminderRef}
-            light
-            disabled={recording}
-            onOpen={() => setShowNotice(true)}
-          />
+          {noticeRequired && (
+            <RecordingNoticeReminder
+              ref={reminderRef}
+              light
+              disabled={recording}
+              onOpen={() => setShowNotice(true)}
+            />
+          )}
           <div className="flex flex-wrap gap-2">
             {phase === 'armed' && !takeBudgetReached && startingPageReady && (
               <button

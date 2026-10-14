@@ -2629,6 +2629,17 @@
       "lost": "Your whiteboard could not be saved and can no longer be recovered. Your teacher can see that you answered.",
       "missing": "There is no whiteboard saved for this question.",
       "tooLarge": "This whiteboard is too large to show here. Ask your teacher to show it to you."
+    },
+    "micGate": {
+      "title": "Activa tu micrófono",
+      "body": "Este cuestionario tiene preguntas que respondes en voz alta. Permite el micrófono para empezar.",
+      "askingBody": "Elige Permitir en el cuadro que muestra tu navegador.",
+      "allow": "Permitir micrófono",
+      "blockedTitle": "El micrófono está bloqueado",
+      "blockedBody": "Haz clic en el icono a la izquierda de la barra de direcciones, activa el micrófono y vuelve a intentarlo.",
+      "noMicTitle": "No se encontró ningún micrófono",
+      "noMicBody": "Conecta un micrófono o unos auriculares y vuelve a intentarlo.",
+      "retry": "Intentar de nuevo"
     }
   },
   "annotation": {
