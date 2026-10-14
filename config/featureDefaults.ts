@@ -1127,16 +1127,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'plc-meeting-recording': {
-    label: 'Meeting recording',
-    icon: Mic,
-    description: 'Record a group meeting on a note and play it back.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   sparty: {
     label: 'Sparty',
     icon: Smile,
