@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { RecordingConfig } from '@/types';
+import type { RecordingConfig, TakeMicState } from '@/types';
 import { wrapUpThresholdSeconds } from '@/config/quizRecordingDefaults';
 
 /**
@@ -19,9 +19,6 @@ export type AudioRecordingPhase =
   | 'reviewing'
   | 'capture-unavailable';
 
-/** Why a take has sound or not (D18); `null` until the mic is asked for. */
-export type MicState = 'on' | 'denied' | 'unavailable';
-
 export interface AudioTake {
   blob: Blob;
   mimeType: string;
@@ -30,7 +27,7 @@ export interface AudioTake {
 }
 
 /** A refused permission is `denied`; a missing, dead or unsupported device is `unavailable`. */
-export function micStateFromError(err: unknown): MicState {
+export function micStateFromError(err: unknown): TakeMicState {
   const name =
     err && typeof err === 'object' && 'name' in err ? String(err.name) : '';
   return name === 'NotAllowedError' || name === 'SecurityError'
@@ -92,7 +89,7 @@ export interface UseAudioRecordingResult {
   /** True inside the wrap-up stretch — the stated limit is still the real limit. */
   wrapUpWarning: boolean;
   take: AudioTake | null;
-  micState: MicState | null;
+  micState: TakeMicState | null;
   /** Object URL for the pending take; revoked on discard/commit. */
   takeUrl: string | null;
   arm: () => void;
@@ -120,7 +117,7 @@ export function useAudioRecording(
     null
   );
   const [take, setTake] = useState<AudioTake | null>(null);
-  const [micState, setMicState] = useState<MicState | null>(null);
+  const [micState, setMicState] = useState<TakeMicState | null>(null);
   const [takeUrl, setTakeUrl] = useState<string | null>(null);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
