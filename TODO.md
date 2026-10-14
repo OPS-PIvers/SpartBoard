@@ -237,7 +237,7 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/multilingual-pronunciation-engine.md`
 
-- [ ] Chromebook go/no-go: load the self-hosted q4 model in `onnxruntime-web` on a district Chromebook and record load/memory/inference (plan §6 step 1, #2350). (M)
+- [ ] Move on-device decoding into a Web Worker with a "Checking…" state, CPU only (plan §4.5, #2350). (S)
 - [ ] Send the espeak-ng GPL brief to district counsel; the `quiz-speak-questions` flag stays admin-only until they confirm (G19, #2337). (S)
 
 #### `docs/gemini-api-terms-audit.md`
