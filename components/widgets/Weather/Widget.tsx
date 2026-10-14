@@ -258,6 +258,14 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }
   }
 
+  const tempText = `${Math.round(
+    showFeelsLike && feelsLike !== undefined ? feelsLike : temp
+  )}°`;
+  // Approximate rendered width in em so the hero number shrinks to fit narrow cards.
+  const tempWidthEm = [...tempText]
+    .reduce((w, ch) => w + (ch === '-' ? 0.5 : ch === '°' ? 0.42 : 0.66), 0)
+    .toFixed(2);
+
   return (
     <WidgetLayout
       padding="p-0"
@@ -289,14 +297,13 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               <div
                 className="font-black tabular-nums leading-none"
                 style={{
-                  fontSize: hideClothing ? 'min(75cqh, 40cqw)' : '35cqmin',
+                  fontSize: hideClothing
+                    ? `min(75cqh, 40cqw, calc(68cqw / ${tempWidthEm}))`
+                    : `min(35cqmin, calc((100cqw - 34cqmin) / ${tempWidthEm}))`,
                   color: fontColor,
                 }}
               >
-                {showFeelsLike && feelsLike !== undefined
-                  ? Math.round(feelsLike)
-                  : Math.round(temp)}
-                °
+                {tempText}
               </div>
             </div>
 
