@@ -10032,7 +10032,6 @@ export type GlobalFeature =
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
   /** Embed: a pasted Google Slides link opens on the slide it was copied from. */
-  | 'embed-slide-link'
   /** Widget libraries open on folders with a path bar, Recent view and drag filing (docs/plans/LIBRARY_FOLDERS.md D26). */
   | 'library-folder-view'
   /** Assign as an accordion stepper (docs/plans/ASSIGN_STEPPER.md D16). */

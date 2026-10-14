@@ -4,10 +4,9 @@ const LINKED_SLIDE = /[?#&]slide=(id\.[A-Za-z0-9_-]+)/;
 /** Opens a Google Slides `/preview` embed on the slide named in the link the teacher pasted. */
 export function applyLinkedSlide(
   embedUrl: string,
-  originalUrl: string,
-  enabled: boolean
+  originalUrl: string
 ): string {
-  if (!enabled || !embedUrl || !originalUrl) return embedUrl;
+  if (!embedUrl || !originalUrl) return embedUrl;
   const slide = LINKED_SLIDE.exec(originalUrl)?.[1];
   if (!slide) return embedUrl;
   try {
