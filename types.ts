@@ -9913,7 +9913,6 @@ export type GlobalFeature =
   | 'quiz-media-response'
   /** Fail-closed; read it through `canAccessQuizWhiteboardResponse`, which also needs `quiz-media-response`. */
   | 'quiz-whiteboard-response'
-  | 'settings-drawer'
   | 'quiz-read-aloud'
   /** Teacher-authored AI quiz translations for multilingual learners. */
   | 'quiz-translation'
@@ -9945,18 +9944,12 @@ export type GlobalFeature =
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
   | 'live-tour-self-heal'
-  /** Guided Learning Studio editor in place of the classic editor. */
-  | 'gl-studio'
   /** Per-period start/pause and windows on assignments shared by several classes. */
   | 'per-period-access'
-  /** Printing quiz results to hand back: presets, bulk print, bubble-sheet reprints. */
-  | 'quiz-results-print'
   /** PLC Home v2: tile dashboard with a spotlight, meeting cadence and assign-from-library. */
   | 'plc-home-v2'
   /** Flag free-response answers so an anonymized copy appears on the PLC page for norming. */
   | 'plc-norming-flags'
-  /** Share flashcard sets and class-level flashcard results with a PLC. */
-  | 'plc-flashcards'
   /** Standard codes typed in or imported with a question text become Learning targets tags. */
   | 'standards-from-question-text'
   /** "View full screen" toggle on large pop-ups (editors, graders). */
@@ -9965,7 +9958,7 @@ export type GlobalFeature =
   | 'quiz-results-tools'
   /** Free-response grader: collapsible student list, no repeated name, one-strand auto-tagging. */
   | 'quiz-grader-v2'
-  /** Guided Learning Studio: select, resize, restyle and edit callouts on the canvas; AND-ed with `gl-studio`. */
+  /** Guided Learning Studio: select, resize, restyle and edit callouts on the canvas. */
   | 'gl-callout-editing'
   /** Per-student "Slide N of M · active X ago" on Guided Learning results and the Assignments hub. */
   | 'gl-student-progress'
@@ -9993,8 +9986,6 @@ export type GlobalFeature =
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
   | 'student-gradebook'
-  /** Redesigned student landing page at /my-assignments (docs/plans/STUDENT_LANDING_V2.md D26). */
-  | 'student-landing-v2'
   /** Quiz keeps assessment only; live review games move to the Review widget. */
   | 'quiz-review-split'
   /** Quiz assign/edit: an overall time limit per attempt with a student countdown. */

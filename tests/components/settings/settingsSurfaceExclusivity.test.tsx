@@ -1,15 +1,12 @@
 import React from 'react';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render, cleanup } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { DraggableWindow } from '@/components/common/DraggableWindow';
 import {
   DashboardContext,
   DashboardContextValue,
 } from '@/context/DashboardContextValue';
-import {
-  resetSettingsCloseSignal,
-  wasSettingsJustClosed,
-} from '@/components/settings/settingsCloseSignal';
+import { resetSettingsCloseSignal } from '@/components/settings/settingsCloseSignal';
 import type { GlobalStyle, WidgetData } from '@/types';
 
 vi.mock('@/hooks/useScreenshot', () => ({
@@ -68,18 +65,10 @@ const context = {
   zoom: 1,
 } as unknown as DashboardContextValue;
 
-const renderWindow = (useSettingsDrawer: boolean) =>
+const renderWindow = () =>
   render(
     <DashboardContext.Provider value={context}>
-      <DraggableWindow
-        widget={widget}
-        settings={
-          useSettingsDrawer ? undefined : <div>legacy settings body</div>
-        }
-        useSettingsDrawer={useSettingsDrawer}
-        title="Text"
-        globalStyle={globalStyle}
-      >
+      <DraggableWindow widget={widget} title="Text" globalStyle={globalStyle}>
         <div>Content</div>
       </DraggableWindow>
     </DashboardContext.Provider>
@@ -95,25 +84,9 @@ afterEach(() => {
 });
 
 describe('settings surface exclusivity (§4.5)', () => {
-  it('does not mount the floating panel when the drawer owns settings', () => {
-    renderWindow(true);
-    expect(screen.queryByText('legacy settings body')).toBeNull();
+  it('does not mount a floating panel for a flipped widget', () => {
+    renderWindow();
     expect(document.querySelector('[data-widget-portal]')).toBeNull();
-  });
-
-  it('still mounts the floating panel with the flag off', () => {
-    renderWindow(false);
-    expect(screen.getByText('legacy settings body')).toBeInTheDocument();
-    expect(document.querySelector('[data-widget-portal]')).not.toBeNull();
-  });
-
-  it('writes the shared close signal from the floating panel close path', () => {
-    renderWindow(false);
-    expect(wasSettingsJustClosed('w1')).toBe(false);
-    const close = screen.getByLabelText('Close settings');
-    fireEvent.click(close);
-    expect(wasSettingsJustClosed('w1')).toBe(true);
-    expect(updateWidget).toHaveBeenCalledWith('w1', { flipped: false });
   });
 
   it('exposes the gear button as the drawer opener target', () => {
@@ -126,8 +99,6 @@ describe('settings surface exclusivity (§4.5)', () => {
       >
         <DraggableWindow
           widget={{ ...widget, flipped: false }}
-          settings={undefined}
-          useSettingsDrawer
           title="Text"
           globalStyle={globalStyle}
         >
@@ -143,7 +114,7 @@ describe('settings surface exclusivity (§4.5)', () => {
 
 describe('edited-widget ring target (§3 item 9)', () => {
   it('marks the DraggableWindow root, not the drawer portal', () => {
-    renderWindow(true);
+    renderWindow();
     const root = document.querySelector(
       '[data-widget-id="w1"]:not([data-widget-portal])'
     );

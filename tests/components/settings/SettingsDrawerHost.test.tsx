@@ -30,12 +30,10 @@ vi.mock('@/components/settings/legacy/LegacySettingsSlot', () => ({
 }));
 
 const updateUserPreference = vi.fn();
-let flagOn = true;
 
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
-    canAccessFeature: (id: string) =>
-      id === 'settings-drawer' ? flagOn : true,
+    canAccessFeature: () => true,
     featurePermissions: [],
     selectedBuildings: [],
     savedWidgetConfigs: {},
@@ -50,7 +48,6 @@ vi.mock('@/context/useAuth', () => ({
 const drawer = () => screen.queryByRole('dialog');
 
 beforeEach(() => {
-  flagOn = true;
   updateUserPreference.mockClear();
   resetSettingsCloseSignal();
 });
@@ -127,15 +124,6 @@ describe('SettingsDrawerHost selection', () => {
     harness.setState({
       activeDashboard: makeBoard([{ ...w, flipped: false }]),
     });
-    expect(drawer()).toBeNull();
-  });
-
-  it('renders nothing when the feature flag is off', () => {
-    flagOn = false;
-    renderWithCanvas(
-      <SettingsDrawerHost />,
-      makeBoard([makeWidget({ flipped: true })])
-    );
     expect(drawer()).toBeNull();
   });
 });

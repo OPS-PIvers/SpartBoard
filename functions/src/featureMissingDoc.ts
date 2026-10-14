@@ -1,6 +1,5 @@
 // Mirror of isAdminPreviewFeature in config/featureDefaults.ts; config/featureDefaults.test.ts keeps it in sync.
 export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
-  'settings-drawer',
   'quiz-read-aloud',
   'quiz-translation',
   'question-bank-ai',
@@ -16,12 +15,9 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'gl-live-tours',
   'live-tour-editing-v2',
   'live-tour-self-heal',
-  'gl-studio',
   'per-period-access',
-  'quiz-results-print',
   'plc-home-v2',
   'plc-norming-flags',
-  'plc-flashcards',
   'standards-from-question-text',
   'modal-fullscreen',
   'quiz-results-tools',
@@ -40,7 +36,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'projects-group-view',
   'gradebook',
   'student-gradebook',
-  'student-landing-v2',
   'quiz-review-split',
   'quiz-time-limit',
   'group-reminders',

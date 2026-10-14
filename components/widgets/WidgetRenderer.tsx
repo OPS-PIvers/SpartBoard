@@ -1,4 +1,4 @@
-import React, { memo, Suspense, useMemo, useCallback } from 'react';
+import React, { memo, useMemo, useCallback } from 'react';
 import { Z_INDEX } from '@/config/zIndex';
 import {
   WidgetData,
@@ -28,14 +28,9 @@ import {
 import { computeWidgetPixelRect } from '@/utils/proportionalLayout';
 import { UI_CONSTANTS } from '@/config/layout';
 import {
-  WIDGET_SETTINGS_COMPONENTS,
-  WIDGET_APPEARANCE_COMPONENTS,
-  WIDGET_SETTINGS_SCHEMAS,
   WIDGET_SCALING_CONFIG,
   DEFAULT_SCALING_CONFIG,
 } from './WidgetRegistry';
-import { SchemaSettingsFallback } from '@/components/settings/legacy/SchemaSettingsFallback';
-import { SchemaAppearanceFallback } from '@/components/settings/legacy/SchemaAppearanceFallback';
 import {
   POSITION_AWARE_WIDGETS,
   WIDGET_STRETCH_BEHAVIOR,
@@ -43,12 +38,6 @@ import {
 import { isTourSandboxActive } from '@/utils/tourSandbox';
 
 const LIVE_SESSION_UPDATE_DEBOUNCE_MS = 800; // Balance between real-time updates and reducing Firestore write costs
-
-const LoadingFallback = () => (
-  <div className="flex items-center justify-center h-full w-full">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
-  </div>
-);
 
 interface WidgetRendererProps {
   widget: WidgetData;
@@ -230,53 +219,6 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
     void updateSessionBackground(dashboardBackground);
   }, [dashboardBackground, isLive, updateSessionBackground]);
 
-  // With the drawer flag on, SettingsDrawerHost owns the settings surface.
-  const useSettingsDrawer = canAccessFeature('settings-drawer');
-  const SettingsComponent = WIDGET_SETTINGS_COMPONENTS[widget.type];
-  const AppearanceComponent = WIDGET_APPEARANCE_COMPONENTS[widget.type];
-
-  // Memoize the JSX value itself (not a factory): DraggableWindow receives these
-  // as props, so a stable element reference is what lets its React.memo skip
-  // re-renders when neither the component type nor the widget changed. A
-  // useCallback here would be useless because the value is consumed inline.
-  const widgetSettings = useMemo(() => {
-    if (useSettingsDrawer) {
-      return undefined;
-    }
-    if (SettingsComponent) {
-      return (
-        <Suspense fallback={<LoadingFallback />}>
-          <SettingsComponent widget={widget} />
-        </Suspense>
-      );
-    }
-    if (WIDGET_SETTINGS_SCHEMAS[widget.type]) {
-      return <SchemaSettingsFallback widget={widget} />;
-    }
-    return (
-      <div className="text-slate-500 italic text-sm">
-        Standard settings available.
-      </div>
-    );
-  }, [SettingsComponent, widget, useSettingsDrawer]);
-
-  const widgetAppearanceSettings = useMemo(() => {
-    if (useSettingsDrawer) {
-      return null;
-    }
-    if (AppearanceComponent) {
-      return (
-        <Suspense fallback={<LoadingFallback />}>
-          <AppearanceComponent widget={widget} />
-        </Suspense>
-      );
-    }
-    if (WIDGET_SETTINGS_SCHEMAS[widget.type]) {
-      return <SchemaAppearanceFallback widget={widget} />;
-    }
-    return null;
-  }, [AppearanceComponent, widget, useSettingsDrawer]);
-
   // When spotlighted we switch to position:fixed so the element escapes all
   // parent stacking contexts (will-change:transform / container-type:size on
   // DraggableWindow both create stacking contexts that would otherwise trap
@@ -418,12 +360,8 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
     <DraggableWindow
       widget={widget}
       title={getTitle(widget, permission)}
-      settings={widgetSettings}
-      appearanceSettings={widgetAppearanceSettings}
-      useSettingsDrawer={useSettingsDrawer}
       style={customStyle}
       isSpotlighted={isSpotlighted}
-      isBoardActive={isActive}
       skipCloseConfirmation={
         widget.type === 'classes' || accountDisableCloseConfirmation
       }

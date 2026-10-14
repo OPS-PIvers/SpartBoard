@@ -9,7 +9,6 @@ import {
   Building2,
   CalendarClock,
   Cast,
-  Clapperboard,
   ClipboardCheck,
   Download,
   Eye,
@@ -34,7 +33,6 @@ import {
   MousePointerClick,
   Music2,
   PanelLeftClose,
-  PanelRight,
   Printer,
   RefreshCw,
   Route,
@@ -419,18 +417,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
     failClosedForAdmins: true,
   },
-  // Alpha rollout of the redesigned widget settings UI (wave 1b). Default-off
-  // and admin-only until the drawer is verified across all widget types.
-  'settings-drawer': {
-    label: 'Widget Settings Drawer (alpha)',
-    icon: PanelRight,
-    description: 'Side-drawer widget settings.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Quiz read-aloud (Cloud TTS). Admin-only while the player ships in
   // stacked PRs; every teacher-side affordance hides until it is opened up.
   'quiz-read-aloud': {
@@ -659,33 +645,11 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Guided Learning Studio editor. Admin-only until Paul has built sets with it in prod.
-  'gl-studio': {
-    label: 'Guided Learning Studio editor',
-    icon: Clapperboard,
-    description: 'Full-screen Guided Learning editor.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Per-period start/pause on shared assignments. Admin-only until Paul has run a class on it.
   'per-period-access': {
     label: 'Start and pause each class period',
     icon: CalendarClock,
     description: 'Open and pause each class period.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Printable quiz results for handing back. Admin-only until Paul has printed a class set.
-  'quiz-results-print': {
-    label: 'Quiz results printing',
-    icon: Printer,
-    description: 'Print a results copy per student.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -708,17 +672,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'PLC norming flags',
     icon: Flag,
     description: 'Flag answers for PLC norming.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // PLC sharing for flashcard sets and results. Admin-only until Paul has tried it.
-  'plc-flashcards': {
-    label: 'PLC flashcards',
-    icon: Layers,
-    description: 'Share flashcard sets and results with a PLC.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -956,17 +909,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Student Grades tab',
     icon: GraduationCap,
     description: 'Students see their published scores in My Assignments.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Student landing page redesign (docs/plans/STUDENT_LANDING_V2.md D26); students get it when their teacher passes the gate.
-  'student-landing-v2': {
-    label: 'Student landing page',
-    icon: LayoutDashboard,
-    description: 'The redesigned My Assignments page for students.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
