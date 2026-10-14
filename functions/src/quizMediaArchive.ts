@@ -84,6 +84,33 @@ const HANDWRITING_MIME_EXTENSIONS: Readonly<Record<string, string>> = {
   'image/webp': '.webp',
   'image/png': '.png',
 };
+/** Mirrors the `image/png` cap on `quiz_response_media/` in `storage.rules`. */
+export const MAX_WHITEBOARD_PICTURE_BYTES = 10 * 1024 * 1024;
+/** Mirrors the `application/json` cap; the client log budget stops at 4 MB. */
+export const MAX_WHITEBOARD_LOG_BYTES = 5 * 1024 * 1024;
+/** The two files a whiteboard take stores besides its audio. */
+export type WhiteboardPart = 'picture' | 'log';
+export const WHITEBOARD_PART_FILES: Readonly<
+  Record<
+    WhiteboardPart,
+    { mimeType: string; extension: string; maxBytes: number }
+  >
+> = {
+  picture: {
+    mimeType: 'image/png',
+    extension: '.png',
+    maxBytes: MAX_WHITEBOARD_PICTURE_BYTES,
+  },
+  log: {
+    mimeType: 'application/json',
+    extension: '.json',
+    maxBytes: MAX_WHITEBOARD_LOG_BYTES,
+  },
+};
+
+export function isWhiteboardPart(part: unknown): part is WhiteboardPart {
+  return part === 'picture' || part === 'log';
+}
 /** Output bitrate — plenty for a 32 kbps speech source, kept fixed on purpose. */
 export const ARCHIVE_AUDIO_BITRATE = '64k';
 /**
@@ -115,6 +142,7 @@ interface StoredArtifact {
   storagePath?: unknown;
   mimeType?: unknown;
   uploadState?: unknown;
+  part?: unknown;
 }
 
 interface StoredAnswer {
@@ -153,6 +181,8 @@ export interface ArchiveDeps {
     studentUid: string
   ) => Promise<StudentNameParts | null>;
   isFeatureGranted: (teacherUid: string) => Promise<boolean>;
+  /** Both flags, via `isQuizWhiteboardResponseGranted`; whiteboard files need it. */
+  isWhiteboardGranted: (teacherUid: string) => Promise<boolean>;
   now: () => number;
 }
 
@@ -206,10 +236,10 @@ export function hasPaperCropStoragePrefix(
 }
 
 /** Artifact kinds that live in Storage in transit and archive to Drive. */
-export type ArchivableKind = 'audio' | 'handwriting';
+export type ArchivableKind = 'audio' | 'handwriting' | 'whiteboard';
 
 export function isArchivableKind(kind: unknown): kind is ArchivableKind {
-  return kind === 'audio' || kind === 'handwriting';
+  return kind === 'audio' || kind === 'handwriting' || kind === 'whiteboard';
 }
 
 /** Kind-aware transit-path check shared by the archive, cleanup and delete paths. */
@@ -246,7 +276,7 @@ export function isNeedsConsentError(error: unknown): boolean {
   return error instanceof Error && error.message.startsWith('needs-consent');
 }
 
-/** Committed takes for a question, excluding the one being archived right now. */
+/** Committed takes (answer entries) for a question, excluding the take that holds this artifact. */
 export function countCommittedTakes(
   answers: readonly StoredAnswer[],
   questionId: string,
@@ -258,10 +288,8 @@ export function countCommittedTakes(
     const artifacts = Array.isArray(answer.artifacts)
       ? (answer.artifacts as StoredArtifact[])
       : [];
-    const committed = artifacts.filter(
-      (a) => a?.uploadState !== 'failed' && a?.id !== excludeArtifactId
-    );
-    if (committed.length > 0) count++;
+    if (artifacts.some((a) => a?.id === excludeArtifactId)) continue;
+    if (artifacts.some((a) => a?.uploadState !== 'failed')) count++;
   }
   return count;
 }
@@ -705,6 +733,15 @@ export function buildDefaultArchiveDeps(): ArchiveDeps {
       }
       return isQuizMediaResponseGranted(db, email, teacherUid);
     },
+    isWhiteboardGranted: async (teacherUid) => {
+      let email: string | null = null;
+      try {
+        email = (await admin.auth().getUser(teacherUid)).email ?? null;
+      } catch {
+        email = null;
+      }
+      return isQuizWhiteboardResponseGranted(db, email, teacherUid);
+    },
     now: () => Date.now(),
   };
 }
@@ -850,17 +887,33 @@ export async function archiveQuizArtifactCore(
   if (!isArchivableKind(kind)) {
     throw new HttpsError(
       'invalid-argument',
-      'Only audio takes and paper answer crops are archived.'
+      'Only recorded takes and paper answer crops are archived.'
     );
   }
-  // Audio is the student's own take; a paper crop is the teacher's upload.
-  const owner = kind === 'audio' ? studentUid : teacherUid;
+  // Audio and whiteboard files are the student's own take; a paper crop is the teacher's upload.
+  const owner = kind === 'handwriting' ? teacherUid : studentUid;
   if (callerUid !== null && callerUid !== owner) denyCaller();
+  const whiteboardPart =
+    kind === 'whiteboard' && isWhiteboardPart(artifact.part)
+      ? WHITEBOARD_PART_FILES[artifact.part]
+      : null;
+  if (kind === 'whiteboard' && !whiteboardPart) {
+    throw new HttpsError(
+      'invalid-argument',
+      'Whiteboard files must be a picture or a drawing log.'
+    );
+  }
   // Paper crops are not gated by the media feature: nothing past import checks a flag.
-  if (kind === 'audio' && !(await deps.isFeatureGranted(teacherUid))) {
+  if (kind !== 'handwriting' && !(await deps.isFeatureGranted(teacherUid))) {
     throw new HttpsError(
       'permission-denied',
       'Media responses are not enabled for this account.'
+    );
+  }
+  if (kind === 'whiteboard' && !(await deps.isWhiteboardGranted(teacherUid))) {
+    throw new HttpsError(
+      'permission-denied',
+      'Whiteboard responses are not enabled for this account.'
     );
   }
   const storagePath =
@@ -929,7 +982,7 @@ export async function archiveQuizArtifactCore(
   const questionConfig = publicQuestions.find((q) => q?.id === questionId);
   const takeLimit = questionConfig?.recording?.takeLimit ?? null;
   const existingTakes = countCommittedTakes(answers, questionId, artifactId);
-  if (kind === 'audio' && exceedsTakeLimit(existingTakes, takeLimit)) {
+  if (kind !== 'handwriting' && exceedsTakeLimit(existingTakes, takeLimit)) {
     throw new HttpsError(
       'resource-exhausted',
       'This question has reached its take limit.'
@@ -1077,11 +1130,16 @@ export async function archiveQuizArtifactCore(
         'not-found',
         kind === 'audio'
           ? 'Recorded audio is no longer in Storage.'
-          : 'The answer crop is no longer in Storage.'
+          : kind === 'whiteboard'
+            ? 'The whiteboard file is no longer in Storage.'
+            : 'The answer crop is no longer in Storage.'
       );
     }
-    const maxBytes =
-      kind === 'audio' ? MAX_QUIZ_MEDIA_BYTES : MAX_HANDWRITING_CROP_BYTES;
+    const maxBytes = whiteboardPart
+      ? whiteboardPart.maxBytes
+      : kind === 'audio'
+        ? MAX_QUIZ_MEDIA_BYTES
+        : MAX_HANDWRITING_CROP_BYTES;
     if (!Number.isFinite(stat.size) || stat.size > maxBytes) {
       throw new HttpsError(
         'invalid-argument',
@@ -1089,7 +1147,21 @@ export async function archiveQuizArtifactCore(
           ? Number.isFinite(stat.size)
             ? 'Recording exceeds the 5 MB archive limit.'
             : 'Recording size unknown; cannot safely archive.'
-          : 'Answer crop size is unknown or over the 2 MB limit.'
+          : kind === 'whiteboard'
+            ? 'Whiteboard file size is unknown or over its limit.'
+            : 'Answer crop size is unknown or over the 2 MB limit.'
+      );
+    }
+    // Storage rules already pin the type; this catches a part/type mismatch.
+    if (
+      whiteboardPart &&
+      stat.contentType.split(';')[0].trim().toLowerCase() !==
+        whiteboardPart.mimeType
+    ) {
+      unrecoverable = true;
+      throw new HttpsError(
+        'invalid-argument',
+        'Whiteboard file type does not match its part.'
       );
     }
     if (
@@ -1127,8 +1199,10 @@ export async function archiveQuizArtifactCore(
       name,
       fallbackLabel,
       questionLabelFor(publicQuestions, questionId),
-      kind === 'audio' ? '.m4a' : cropExtension,
-      kind === 'audio' ? takeNumberFor(answers, questionId, artifactId) : null
+      kind === 'audio' ? '.m4a' : (whiteboardPart?.extension ?? cropExtension),
+      kind === 'handwriting'
+        ? null
+        : takeNumberFor(answers, questionId, artifactId)
     );
     const quizTitle =
       typeof session.quizTitle === 'string' && session.quizTitle.trim()
@@ -1138,7 +1212,9 @@ export async function archiveQuizArtifactCore(
     const driveFile = await deps.uploadToDrive(
       accessToken ?? (await deps.getAccessToken(teacherUid)),
       archiveBytes,
-      kind === 'audio' ? 'audio/mp4' : cropMimeType,
+      kind === 'audio'
+        ? 'audio/mp4'
+        : (whiteboardPart?.mimeType ?? cropMimeType),
       fileName,
       `${QUIZ_DRIVE_FOLDER}/${quizTitle}`
     );
