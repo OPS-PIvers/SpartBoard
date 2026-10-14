@@ -243,6 +243,7 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-results.bulk-copy-names': 'quiz-results.drill-students:quiz',
       'quiz-results.bulk-print': 'quiz-results.drill-students:quiz',
       'quiz-results.bulk-reopen': 'quiz-results.drill-students:quiz',
+      'quiz-results.bulk-submit': 'quiz-results.drill-students:quiz',
       'quiz-results.bulk-clear': 'quiz-results.drill-students:quiz',
     },
   },
@@ -325,6 +326,7 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-monitor.student-let-in': 'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-unlock-attempt':
         'quiz-monitor.roster-row-actions:quiz',
+      'quiz-monitor.student-submit': 'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-unlock-results':
         'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-remove': 'quiz-monitor.roster-row-actions:quiz',

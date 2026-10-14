@@ -63,6 +63,7 @@ import {
 } from '@/utils/answerTakeOrdering';
 import { resolvePeriodNames } from '@/utils/periodCompat';
 import { normalizeQuizCode } from '@/utils/quizCode';
+import { buildTeacherSubmitUpdate } from '@/utils/quizTeacherSubmit';
 import { findQuizSessionsByCode } from '@/utils/quizJoinCodes';
 import {
   createLeadingTrailingThrottle,
@@ -1168,6 +1169,8 @@ export interface UseQuizSessionTeacherResult {
    * without showing the "Warning N of 3" modal.
    */
   unlockStudentAttempt: (responseKey: string) => Promise<void>;
+  /** Turn in a student's saved answers for them, as the idle auto-submit would. */
+  submitForStudent: (responseKey: string) => Promise<void>;
   /**
    * Unlock a student's results-view lockout (triggered when their
    * `resultsTabWarnings` count hit the session's `protection.tabWarningThreshold`
@@ -1658,6 +1661,39 @@ export const useQuizSessionTeacher = (
     [sessionId, responses, rawSession?.timeLimitMinutes]
   );
 
+  const submitForStudent = useCallback(
+    async (responseKey: string) => {
+      if (!sessionId) {
+        throw new Error('No active session — cannot submit.');
+      }
+      const responseRef = doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_COLLECTION,
+        responseKey
+      );
+      const questionIds = (session?.publicQuestions ?? []).map((q) => q.id);
+      const completenessModel = session?.completenessModel;
+      // Like the idle sweep, the attempt ledger is left alone: the response's own count still caps rejoins.
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(responseRef);
+        if (!snap.exists()) {
+          throw new Error(
+            'Student response not found — they may have already been removed or rejoined.'
+          );
+        }
+        const update = buildTeacherSubmitUpdate(
+          snap.data() as QuizResponse,
+          { questionIds, completenessModel },
+          Date.now()
+        );
+        if (update) tx.update(responseRef, update);
+      });
+    },
+    [sessionId, session?.publicQuestions, session?.completenessModel]
+  );
+
   const unlockResultsForStudent = useCallback(
     async (responseKey: string) => {
       if (!sessionId) {
@@ -1859,6 +1895,7 @@ export const useQuizSessionTeacher = (
     endQuizSession,
     removeStudent,
     unlockStudentAttempt,
+    submitForStudent,
     unlockResultsForStudent,
     clearHandForStudent,
     revealAnswer,

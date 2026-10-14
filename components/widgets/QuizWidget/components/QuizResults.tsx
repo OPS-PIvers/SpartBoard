@@ -70,6 +70,7 @@ import {
 } from '@/utils/quizDriveService';
 import { getPlcTeammateEmails } from '@/utils/plc';
 import { logError } from '@/utils/logError';
+import { canTeacherSubmit } from '@/utils/quizTeacherSubmit';
 import { getResponseDocKey, type ResponseDocKey } from '@/hooks/useQuizSession';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
@@ -268,6 +269,8 @@ interface QuizResultsProps {
   onUnlockResultsForStudent?: (responseKey: string) => Promise<void>;
   /** Sends one submitted student back into the live quiz with their answers kept. */
   onReopenStudent?: (responseKey: string) => Promise<void>;
+  /** Turns in one unfinished student's saved answers. */
+  onSubmitStudent?: (responseKey: string) => Promise<void>;
   /**
    * Called after the 404 stale-sheet recovery replaces a missing PLC sheet
    * with a fresh one. Lets the parent widget persist the new URL onto the
@@ -417,6 +420,7 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
   onDeleteResponse,
   onUnlockResultsForStudent,
   onReopenStudent,
+  onSubmitStudent,
   onPlcSheetUrlReplaced,
   initialExportUrl,
   plcSheetUrl: assignmentPlcSheetUrl,
@@ -1039,6 +1043,37 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
       return false;
     }
     addToast(`Reopened for ${label}.`, 'success');
+    return true;
+  };
+  const handleSubmitStudents = async (keys: string[]): Promise<boolean> => {
+    if (!onSubmitStudent) return false;
+    const wanted = new Set(keys);
+    const open = responses
+      .filter((r) => wanted.has(getResponseDocKey(r)) && canTeacherSubmit(r))
+      .map((r) => getResponseDocKey(r) as string);
+    if (open.length === 0) return false;
+    const label = `${open.length} student${open.length === 1 ? '' : 's'}`;
+    const ok = await showConfirm(
+      `Turn in the quiz for ${label} with the answers saved so far? Reopen it if they need to keep working.`,
+      { title: 'Submit for selected students', confirmLabel: 'Submit' }
+    );
+    if (!ok) return false;
+    const outcomes = await Promise.allSettled(
+      open.map((key) => onSubmitStudent(key))
+    );
+    const failed = outcomes.filter((o) => {
+      if (o.status === 'fulfilled') return false;
+      logError('QuizResults.submitStudent', o.reason);
+      return true;
+    }).length;
+    if (failed > 0) {
+      addToast(
+        `Submitted for ${open.length - failed} of ${open.length}. Try the rest again.`,
+        'error'
+      );
+      return false;
+    }
+    addToast(`Submitted for ${label}.`, 'success');
     return true;
   };
   const reopenBlockedReason =
@@ -2316,6 +2351,11 @@ const QuizResultsContent: React.FC<QuizResultsProps> = ({
                   : undefined
               }
               reopenBlockedReason={reopenBlockedReason}
+              onSubmitStudents={
+                !plcView && !isReview && onSubmitStudent
+                  ? handleSubmitStudents
+                  : undefined
+              }
               expandedKey={expandedStudentKey}
               onExpandedKeyChange={setExpandedStudentKey}
               focusKey={focusStudentKey}
@@ -3787,6 +3827,7 @@ const StudentsScreen: React.FC<{
   showStudentFeedback: boolean;
   onReopenStudents?: (responseKeys: string[]) => Promise<boolean>;
   reopenBlockedReason?: string | null;
+  onSubmitStudents?: (responseKeys: string[]) => Promise<boolean>;
   expandedKey: string | null;
   onExpandedKeyChange: (key: string | null) => void;
   /** A row to scroll to and focus once, after a jump from item analysis. */
@@ -3819,6 +3860,7 @@ const StudentsScreen: React.FC<{
   showStudentFeedback,
   onReopenStudents,
   reopenBlockedReason,
+  onSubmitStudents,
   expandedKey,
   onExpandedKeyChange,
   focusKey,
@@ -3902,6 +3944,7 @@ const StudentsScreen: React.FC<{
           onPrint={onPrintStudents}
           onReopen={onReopenStudents}
           reopenBlockedReason={reopenBlockedReason}
+          onSubmit={onSubmitStudents}
         />
       )}
       {responses.length > 0 && (
