@@ -177,6 +177,49 @@ describe('WhiteboardResponseCapture', () => {
     expect(screen.queryByRole('button', { name: 'Record' })).toBeNull();
   });
 
+  it('holds Record and offers a retry when the starting picture fails to load', async () => {
+    let fail = true;
+    class FakeImage {
+      crossOrigin = '';
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      set src(_url: string) {
+        const failed = fail;
+        queueMicrotask(() => (failed ? this.onerror?.() : this.onload?.()));
+      }
+    }
+    vi.stubGlobal('Image', FakeImage);
+    try {
+      renderCapture({
+        config: config({
+          startingPage: {
+            pattern: { kind: 'blank' },
+            image: {
+              driveFileId: 'f1',
+              url: 'https://drive.google.com/file/d/f1/view',
+              mimeType: 'image/png',
+              width: 800,
+              height: 600,
+            },
+          },
+        }),
+      });
+      expect(
+        await screen.findByText("The starting page didn't load.")
+      ).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Record' })).toBeNull();
+
+      fail = false;
+      fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+      expect(
+        await screen.findByRole('button', { name: 'Record' })
+      ).toBeTruthy();
+      expect(screen.queryByText("The starting page didn't load.")).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('unlocks drawing only while recording', async () => {
     renderCapture();
     expect(screen.getByTestId('canvas').dataset.disabled).toBe('true');
