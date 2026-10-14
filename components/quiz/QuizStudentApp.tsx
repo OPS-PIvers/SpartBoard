@@ -1758,6 +1758,7 @@ export const ActiveQuiz: React.FC<{
     setCloseAutoSubmitInFlight(true);
     document.dispatchEvent(new CustomEvent('spartboard:quiz:flush-written'));
     try {
+      await commitActiveTake();
       await onComplete();
       setCloseAutoSubmitted(true);
       setCloseAutoSubmitFailed(false);

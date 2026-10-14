@@ -242,4 +242,13 @@ describe('QuizStudentApp — cutoffs commit the active take first (D16)', () => 
     await waitFor(() => expect(mockCompleteQuiz).toHaveBeenCalled());
     expect(callOrder).toEqual(['commit', 'complete']);
   });
+
+  it('commits before the class-window close submit', async () => {
+    hookState.session = buildSession({ closeAt: Date.now() - 1000 });
+
+    render(<QuizStudentApp />);
+
+    await waitFor(() => expect(mockCompleteQuiz).toHaveBeenCalled());
+    expect(callOrder).toEqual(['commit', 'complete']);
+  });
 });
