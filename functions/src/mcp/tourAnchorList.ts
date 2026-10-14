@@ -10304,6 +10304,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-stimuli.add-calculator",
+    "label": "Add a calculator in the Quiz widget",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-stimuli.add-passage",
     "label": "Add a passage in the Quiz widget",
     "scope": "widget type",
@@ -10370,6 +10392,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-stimuli.attach-calculator",
+    "label": "Attach section Calculator in the Quiz widget",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-stimuli.attach-question",
     "label": "Per-question attach checkbox in the Quiz widget",
     "scope": "field",
@@ -10419,6 +10463,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "keys": [
       "quiz"
     ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-stimuli.calculator-kind",
+    "label": "Calculator type picker in the Quiz widget",
+    "scope": "field",
+    "panel": true,
     "routes": [
       {
         "surface": "quiz.editor",

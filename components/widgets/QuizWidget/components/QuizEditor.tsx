@@ -922,7 +922,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         onUpdate={updateBankSlot}
         onRemove={removeBankSlot}
         stimulusSection={
-          <SlotStimulusSection state={state} slotId={selectedSlot.id} />
+          <SlotStimulusSection
+            state={state}
+            slotId={selectedSlot.id}
+            calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
+          />
         }
       />
     );
@@ -1430,7 +1434,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
 
         {/* Per-question stimulus attach — second entry point alongside the
             quiz-level Stimuli tab; both edit the same array. */}
-        <QuestionStimulusSection state={state} questionId={q.id} />
+        <QuestionStimulusSection
+          state={state}
+          questionId={q.id}
+          calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
+        />
       </div>
 
       {showRubricBuilder && isFreeResponseType(q.type) && (

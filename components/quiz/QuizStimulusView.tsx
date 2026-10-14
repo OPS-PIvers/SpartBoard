@@ -41,6 +41,7 @@ import type {
 } from 'pdfjs-dist';
 import type { QuizStimulus } from '@/types';
 import {
+  desmosCalculatorUrl,
   drivePreviewUrl,
   driveMediaUrl,
   stimulusMediaUrl,
@@ -475,6 +476,22 @@ const GdocStimulus: React.FC<
     className={`w-full h-full rounded-xl bg-white ${cqScaled ? '' : 'min-h-[320px]'}`}
     style={cqScaled ? { minHeight: mm(320, 60) } : undefined}
     sandbox="allow-scripts allow-same-origin allow-popups"
+  />
+);
+
+// ─── Desmos calculator ───────────────────────────────────────────────────────
+
+/** No allow-popups: links out of Desmos would leave the quiz. */
+const CalculatorStimulus: React.FC<
+  StimulusRendererProps & { retryNonce: number }
+> = ({ stimulus, retryNonce, cqScaled }) => (
+  <iframe
+    key={retryNonce}
+    src={desmosCalculatorUrl(stimulus.calculator)}
+    title="Desmos calculator"
+    className={`w-full h-full rounded-xl bg-white ${cqScaled ? '' : 'min-h-[360px]'}`}
+    style={cqScaled ? { minHeight: mm(360, 70) } : undefined}
+    sandbox="allow-scripts allow-same-origin"
   />
 );
 
@@ -946,6 +963,9 @@ export const StimulusRenderer: React.FC<StimulusRendererProps> = (props) => {
       break;
     case 'text':
       body = <TextStimulus {...inner} />;
+      break;
+    case 'calculator':
+      body = <CalculatorStimulus {...inner} />;
       break;
   }
 

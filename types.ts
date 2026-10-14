@@ -4074,7 +4074,17 @@ export function isFreeResponseType(type: QuizQuestionType): boolean {
  * `gdoc-embed` covers Google Docs/Slides shared as embeds by URL.
  */
 export type QuizStimulusType =
-  'image' | 'pdf' | 'audio' | 'video' | 'youtube' | 'gdoc-embed' | 'text';
+  | 'image'
+  | 'pdf'
+  | 'audio'
+  | 'video'
+  | 'youtube'
+  | 'gdoc-embed'
+  | 'text'
+  | 'calculator';
+
+/** Which Desmos calculator a `calculator` stimulus shows. */
+export type QuizCalculatorKind = 'graphing' | 'scientific' | 'four-function';
 
 /**
  * A stimulus attached to one or more quiz questions. Lives on
@@ -4106,6 +4116,8 @@ export interface QuizStimulus {
    * 'text' means the passage is its own spoken text and needs no review.
    */
   readAloudSource?: 'pdf-text' | 'ocr' | 'edited' | 'text';
+  /** calculator only: which Desmos calculator; `url` stays empty and is never trusted. */
+  calculator?: QuizCalculatorKind;
 }
 
 export interface QuizQuestion {
@@ -9906,6 +9918,8 @@ export type GlobalFeature =
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */
   | 'quiz-stimulus-quotes'
+  /** Desmos calculator stimulus on quiz questions. */
+  | 'quiz-calculator-stimulus'
   /** Guided Learning live tours in the teacher app and their launch points. */
   | 'gl-live-tours'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */

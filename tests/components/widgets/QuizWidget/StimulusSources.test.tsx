@@ -59,7 +59,10 @@ const question: QuizQuestion = {
 let latest: QuizStimulus[] = [];
 const toggle = vi.fn();
 
-const Harness: React.FC<{ perQuestion?: boolean }> = ({ perQuestion }) => {
+const Harness: React.FC<{ perQuestion?: boolean; calculator?: boolean }> = ({
+  perQuestion,
+  calculator,
+}) => {
   const [stimuli, setStimuli] = useState<QuizStimulus[]>([]);
   useEffect(() => {
     latest = stimuli;
@@ -76,9 +79,13 @@ const Harness: React.FC<{ perQuestion?: boolean }> = ({ perQuestion }) => {
     setStimulusOnAllQuestions: vi.fn(),
   } as unknown as QuizEditorController;
   return perQuestion ? (
-    <QuestionStimulusSection state={state} questionId="q1" />
+    <QuestionStimulusSection
+      state={state}
+      questionId="q1"
+      calculatorAvailable={calculator}
+    />
   ) : (
-    <StimulusManagerPanel state={state} />
+    <StimulusManagerPanel state={state} calculatorAvailable={calculator} />
   );
 };
 
@@ -208,6 +215,33 @@ describe('Stimuli tab sources', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Drive' }));
     await waitFor(() => expect(latest).toHaveLength(1));
     expect(latest[0].type).toBe('audio');
+    expect(toggle).toHaveBeenCalledWith(latest[0].id, 'q1');
+  });
+
+  it('adds a graphing calculator from the Stimuli tab only when allowed', async () => {
+    const { unmount } = render(<Harness />);
+    expect(
+      screen.queryByRole('button', { name: 'Add a calculator' })
+    ).toBeNull();
+    unmount();
+    render(<Harness calculator />);
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Add a calculator' })
+    );
+    await waitFor(() => expect(latest).toHaveLength(1));
+    expect(latest[0]).toMatchObject({
+      type: 'calculator',
+      calculator: 'graphing',
+      url: '',
+    });
+  });
+
+  it('adds and attaches a calculator from the per-question section', async () => {
+    render(<Harness perQuestion calculator />);
+    await userEvent.click(screen.getByRole('button', { name: /Stimuli/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Calculator' }));
+    await waitFor(() => expect(latest).toHaveLength(1));
+    expect(latest[0].type).toBe('calculator');
     expect(toggle).toHaveBeenCalledWith(latest[0].id, 'q1');
   });
 });

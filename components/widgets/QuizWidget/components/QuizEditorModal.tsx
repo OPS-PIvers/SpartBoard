@@ -129,7 +129,8 @@ const stimuliEqual = (a: QuizStimulus[], b: QuizStimulus[]): boolean => {
       (sa.text ?? '') !== (sb.text ?? '') ||
       (sa.playLimit ?? 0) !== (sb.playLimit ?? 0) ||
       (sa.readAloudText ?? '') !== (sb.readAloudText ?? '') ||
-      (sa.readAloudSource ?? '') !== (sb.readAloudSource ?? '')
+      (sa.readAloudSource ?? '') !== (sb.readAloudSource ?? '') ||
+      (sa.calculator ?? '') !== (sb.calculator ?? '')
     ) {
       return false;
     }
@@ -692,6 +693,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
             <StimulusManagerPanel
               state={editorState}
               readAloudAvailable={readAloudAvailable}
+              calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
             />
           ) : activeTab === 'languages' ? (
             <>
