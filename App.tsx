@@ -393,6 +393,14 @@ const WhiteboardDevHarness = import.meta.env.DEV
     )
   : null;
 
+const WhiteboardCaptureDevView = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WhiteboardCaptureDevView').then((module) => ({
+        default: module.WhiteboardCaptureDevView,
+      }))
+    )
+  : null;
+
 const MediaReviewDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/MediaReviewDevHarness').then((module) => ({
@@ -1164,6 +1172,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <WhiteboardDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: the whiteboard capture flow (prep, recording, review) with a mocked mic.
+  if (
+    import.meta.env.DEV &&
+    WhiteboardCaptureDevView &&
+    pathname === '/whiteboard-capture-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WhiteboardCaptureDevView />
       </Suspense>
     );
   }
