@@ -114,10 +114,13 @@ export function dryRunTour(
         'has no value, so Autopilot hands it to the teacher; give one unless the choice is theirs (their class, an ID or link).'
       );
 
-    if (b.anchor === 'editor.save:quiz')
+    const autosaved = /^editor\.save:(quiz|video-activity)$/.exec(b.anchor);
+    if (autosaved) {
+      const kind = autosaved[1] === 'quiz' ? 'quiz' : 'video activity';
       warn(
-        "points at the quiz editor's Save, which only the PLC editor shows; the quiz editor saves as you go, so end with editor.close:quiz."
+        `points at the ${kind} editor's Save, which only the PLC editor shows; the ${kind} editor saves as you go, so end with editor.close:${autosaved[1]}.`
       );
+    }
 
     if (b.slot !== undefined && !slots.has(b.slot) && !unbound.has(b.slot)) {
       unbound.add(b.slot);
