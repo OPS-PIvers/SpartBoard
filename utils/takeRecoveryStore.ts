@@ -266,7 +266,11 @@ export const memoryTakeRecoveryStore = (): TakeRecoveryStore => {
 let fallbackStore: TakeRecoveryStore | null = null;
 
 export const defaultTakeRecoveryStore = (): TakeRecoveryStore => {
-  if (typeof indexedDB !== 'undefined') return indexedDbTakeRecoveryStore;
+  try {
+    if (typeof indexedDB !== 'undefined') return indexedDbTakeRecoveryStore;
+  } catch {
+    // Storage-blocked contexts can throw on indexedDB access; use memory.
+  }
   fallbackStore ??= memoryTakeRecoveryStore();
   return fallbackStore;
 };
