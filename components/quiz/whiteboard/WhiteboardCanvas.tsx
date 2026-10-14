@@ -9,6 +9,7 @@ import React, {
 } from 'react';
 import type { DrawableObject, EraserMode, Point, TextObject } from '@/types';
 import type { WhiteboardStartingPage } from '@/types';
+import type { StartingPageImages } from '@/utils/whiteboard/startingPage';
 import type { DrawingCommand } from '@/components/widgets/DrawingWidget/commands';
 import {
   MAX_UNDO_DEPTH,
@@ -51,7 +52,7 @@ export interface WhiteboardCanvasHandle {
 
 interface WhiteboardCanvasProps {
   startingPage: WhiteboardStartingPage;
-  startingImage?: CanvasImageSource | null;
+  startingImages?: StartingPageImages | null;
   /** Prep time and after the take: the page shows, drawing is off. */
   disabled?: boolean;
   recorder?: WhiteboardCaptureSink;
@@ -85,7 +86,7 @@ export const WhiteboardCanvas = forwardRef<
   (
     {
       startingPage,
-      startingImage = null,
+      startingImages = null,
       disabled = false,
       recorder,
       onObjectsChange,
@@ -197,8 +198,8 @@ export const WhiteboardCanvas = forwardRef<
       if (!canvas || !ctx) return;
       canvas.width = WHITEBOARD_PAGE.w * WHITEBOARD_PIXEL_RATIO;
       canvas.height = WHITEBOARD_PAGE.h * WHITEBOARD_PIXEL_RATIO;
-      paintWhiteboardStartingPage(ctx, startingPage, startingImage);
-    }, [startingPage, startingImage]);
+      paintWhiteboardStartingPage(ctx, startingPage, startingImages);
+    }, [startingPage, startingImages]);
 
     // The text box is fixed-positioned, so it follows the page on resize.
     useEffect(() => {

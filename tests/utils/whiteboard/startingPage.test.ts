@@ -6,7 +6,9 @@ import {
   drawStartingPage,
   fitImageToPage,
   niceStep,
+  placedImages,
   renderStartingPageCanvas,
+  startingImageSrc,
   startingPageId,
   startingPageIssues,
 } from '@/utils/whiteboard/startingPage';
@@ -37,6 +39,14 @@ const makeRecorder = () => {
 const page = (
   pattern: WhiteboardStartingPage['pattern']
 ): WhiteboardStartingPage => ({ pattern });
+
+const IMG = {
+  driveFileId: 'f1',
+  url: 'https://lh3.googleusercontent.com/d/f1',
+  mimeType: 'image/png',
+  width: 400,
+  height: 300,
+};
 
 const W = WHITEBOARD_PAGE_WIDTH;
 const H = WHITEBOARD_PAGE_HEIGHT;
@@ -195,7 +205,7 @@ describe('drawStartingPage', () => {
     expect(hex.named('closePath')).toHaveLength(1);
   });
 
-  it('fits the image whole and centred before painting the pattern on top', () => {
+  it('fits a legacy image whole and centred before painting the pattern on top', () => {
     const r = makeRecorder();
     const img = { width: 400, height: 400 } as unknown as CanvasImageSource;
     drawStartingPage(
@@ -210,12 +220,64 @@ describe('drawStartingPage', () => {
           height: 400,
         },
       },
-      img
+      new Map([['f1', img]])
     );
     const draw = r.named('drawImage')[0];
     expect(draw.slice(2)).toEqual([200, 0, 1200, 1200]);
     const order = r.calls.map((c) => c[0]);
     expect(order.indexOf('drawImage')).toBeLessThan(order.indexOf('arc'));
+  });
+
+  it('paints white, then each placed image, then the pattern, then teacher ink', () => {
+    const r = makeRecorder();
+    const a = { id: 'a' } as unknown as CanvasImageSource;
+    const b = { id: 'b' } as unknown as CanvasImageSource;
+    drawStartingPage(
+      r.ctx,
+      {
+        pattern: { kind: 'shape', shape: 'circle' },
+        images: [
+          { ...IMG, driveFileId: 'a', x: 10, y: 20, w: 300, h: 200 },
+          { ...IMG, driveFileId: 'b', x: 500, y: 600, w: 100, h: 50 },
+        ],
+        ink: [{ color: '#0f172a', size: 4, points: [1, 2, 30, 40, 50, 60] }],
+      },
+      new Map([
+        ['a', a],
+        ['b', b],
+      ])
+    );
+    const draws = r.named('drawImage');
+    expect(draws.map((d) => d[1])).toEqual([a, b]);
+    expect(draws[0].slice(2)).toEqual([10, 20, 300, 200]);
+    expect(draws[1].slice(2)).toEqual([500, 600, 100, 50]);
+    const order = r.calls.map((c) => c[0]);
+    const lastDraw = order.lastIndexOf('drawImage');
+    expect(order.indexOf('fillRect')).toBeLessThan(order.indexOf('drawImage'));
+    expect(lastDraw).toBeLessThan(order.indexOf('arc'));
+    const inkMove = r.calls.findIndex(
+      (c) => c[0] === 'moveTo' && c[1] === 1 && c[2] === 2
+    );
+    expect(inkMove).toBeGreaterThan(order.lastIndexOf('arc'));
+    expect(r.named('lineTo').slice(-2)).toEqual([
+      ['lineTo', 30, 40],
+      ['lineTo', 50, 60],
+    ]);
+  });
+
+  it('skips an image that has not loaded and still paints the ink', () => {
+    const r = makeRecorder();
+    drawStartingPage(
+      r.ctx,
+      {
+        pattern: { kind: 'blank' },
+        images: [{ ...IMG, driveFileId: 'a', x: 0, y: 0, w: 10, h: 10 }],
+        ink: [{ color: '#0f172a', size: 4, points: [5, 5] }],
+      },
+      new Map()
+    );
+    expect(r.named('drawImage')).toHaveLength(0);
+    expect(r.named('arc')).toHaveLength(1);
   });
 
   it('paints only the white page when the spec is invalid', () => {
@@ -376,5 +438,64 @@ describe('renderStartingPageCanvas', () => {
     expect([canvas.width, canvas.height]).toEqual([3200, 2400]);
     expect(r.calls[0]).toEqual(['setTransform', 2, 0, 0, 2, 0, 0]);
     expect(r.named('fillRect')).toEqual([['fillRect', 0, 0, W, H]]);
+  });
+});
+
+describe('placedImages', () => {
+  it('turns a legacy image into one fitted placement', () => {
+    expect(placedImages({ pattern: { kind: 'blank' }, image: IMG })).toEqual([
+      { ...IMG, x: 0, y: 0, w: 1600, h: 1200 },
+    ]);
+  });
+
+  it('prefers images over the legacy image and caps them at six', () => {
+    const one = { ...IMG, x: 1, y: 2, w: 3, h: 4 };
+    const spec: WhiteboardStartingPage = {
+      pattern: { kind: 'blank' },
+      image: IMG,
+      images: Array.from({ length: 8 }, () => one),
+    };
+    expect(placedImages(spec)).toHaveLength(6);
+    expect(
+      placedImages({ pattern: { kind: 'blank' }, image: IMG, images: [] })
+    ).toEqual([]);
+  });
+
+  it('returns nothing for no spec or no image', () => {
+    expect(placedImages(undefined)).toEqual([]);
+    expect(placedImages(page({ kind: 'grid' }))).toEqual([]);
+  });
+});
+
+describe('startingImageSrc', () => {
+  it('loads Drive images from lh3 and a dev data URL as is', () => {
+    expect(startingImageSrc(IMG)).toBe(
+      'https://lh3.googleusercontent.com/d/f1'
+    );
+    expect(startingImageSrc({ ...IMG, url: 'data:image/png;base64,AA' })).toBe(
+      'data:image/png;base64,AA'
+    );
+  });
+});
+
+describe('startingPageId with images and ink', () => {
+  it('changes when an image moves or ink is added', () => {
+    const base: WhiteboardStartingPage = {
+      pattern: { kind: 'grid' },
+      images: [{ ...IMG, x: 0, y: 0, w: 400, h: 300 }],
+    };
+    const moved: WhiteboardStartingPage = {
+      ...base,
+      images: [{ ...IMG, x: 10, y: 0, w: 400, h: 300 }],
+    };
+    const inked: WhiteboardStartingPage = {
+      ...base,
+      ink: [{ color: '#0f172a', size: 4, points: [0, 0, 5, 5] }],
+    };
+    const ids = new Set([base, moved, inked].map(startingPageId));
+    expect(ids.size).toBe(3);
+    expect(startingPageId(page({ kind: 'grid' }))).not.toBe(
+      startingPageId(base)
+    );
   });
 });

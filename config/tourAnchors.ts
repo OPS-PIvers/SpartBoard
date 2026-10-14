@@ -1600,6 +1600,35 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-editor.whiteboard-preview-tool': {
+    label:
+      'Move, Pen and Eraser tools (per tool) in the whiteboard starting page editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-preview-clear-ink': {
+    label: 'Clear ink button in the whiteboard starting page editor',
+    perWidgetType: true,
+    panel: true,
+    destructive: true,
+  },
+  'quiz-editor.whiteboard-preview-remove-image': {
+    label:
+      'Remove image button for the selected image in the whiteboard starting page editor',
+    perWidgetType: true,
+    panel: true,
+    destructive: true,
+  },
+  'quiz-editor.whiteboard-preview-cancel': {
+    label: 'Cancel button in the whiteboard starting page editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-preview-save': {
+    label: 'Save button in the whiteboard starting page editor',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-editor.word-min': {
     label: 'Minimum words input in the Quiz editor',
     perWidgetType: true,

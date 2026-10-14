@@ -14,6 +14,7 @@ import { BankEditorModal } from '@/components/widgets/QuizWidget/components/Bank
 import { DEFAULT_RECORDING_CONFIG } from '@/config/quizRecordingDefaults';
 import type { QuestionBankData, QuizData, QuizStimulus } from '@/types';
 import { type QuizEditorStateKey } from './devViewStates';
+import { devRichStartingPage } from './whiteboardStartingPageFixtures';
 
 const quiz = (): QuizData => ({
   id: 'dev-quiz',
@@ -97,6 +98,7 @@ const quiz = (): QuizData => ({
         explainAloud: true,
         limitSeconds: 120,
         startingPage: {
+          ...devRichStartingPage(),
           pattern: {
             kind: 'coordinate-plane',
             xMin: -5,

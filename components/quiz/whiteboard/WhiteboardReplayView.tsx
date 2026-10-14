@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { Loader2, Pause, Play } from 'lucide-react';
 import type { DrawableObject, WhiteboardStartingPage } from '@/types';
 import { renderStartingPageCanvas } from '@/utils/whiteboard/startingPage';
-import { driveImageUrl } from '@/utils/quizStimuli';
+import { useStartingPageImages } from './useStartingPageImages';
 import { useAudioPeaks } from '@/hooks/useAudioPeaks';
 import { formatClock } from '@/components/quiz/recording/formatClock';
 import { WaveformScrubber } from '@/components/quiz/recording/WaveformScrubber';
@@ -51,27 +51,6 @@ export interface WhiteboardReplayViewProps {
 const clamp = (v: number, lo: number, hi: number) =>
   Math.min(hi, Math.max(lo, v));
 
-const useLoadedImage = (src: string | null | undefined) => {
-  const [loaded, setLoaded] = useState<{
-    src: string;
-    img: HTMLImageElement;
-  } | null>(null);
-  useEffect(() => {
-    if (!src) return;
-    let cancelled = false;
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => {
-      if (!cancelled) setLoaded({ src, img });
-    };
-    img.src = src;
-    return () => {
-      cancelled = true;
-    };
-  }, [src]);
-  return src && loaded?.src === src ? loaded.img : null;
-};
-
 export const WhiteboardReplayView: React.FC<WhiteboardReplayViewProps> = ({
   pictureUrl,
   log,
@@ -102,9 +81,7 @@ export const WhiteboardReplayView: React.FC<WhiteboardReplayViewProps> = ({
     () => (log ? createWhiteboardReplayer(log) : null),
     [log]
   );
-  const startingImage = useLoadedImage(
-    startingPage?.image ? driveImageUrl(startingPage.image.driveFileId) : null
-  );
+  const { images: startingImages } = useStartingPageImages(startingPage);
   const { peaks, silent } = useAudioPeaks(audioSrc ?? null);
   const silentTimeline = useMemo(
     () => ({
@@ -118,9 +95,9 @@ export const WhiteboardReplayView: React.FC<WhiteboardReplayViewProps> = ({
   const background = useMemo(
     () =>
       startingPage && typeof document !== 'undefined'
-        ? renderStartingPageCanvas(startingPage, startingImage, backingScale)
+        ? renderStartingPageCanvas(startingPage, startingImages, backingScale)
         : null,
-    [startingPage, startingImage, backingScale]
+    [startingPage, startingImages, backingScale]
   );
   const ink = useMemo(
     () =>

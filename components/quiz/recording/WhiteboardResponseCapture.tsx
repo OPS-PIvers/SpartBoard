@@ -39,7 +39,7 @@ import {
   type WhiteboardCanvasHandle,
 } from '@/components/quiz/whiteboard/WhiteboardCanvas';
 import { renderWhiteboardPicture } from '@/components/quiz/whiteboard/whiteboardPicture';
-import { useStartingPageImage } from '@/components/quiz/whiteboard/useStartingPageImage';
+import { useStartingPageImages } from '@/components/quiz/whiteboard/useStartingPageImages';
 import { WhiteboardReplayView } from '@/components/quiz/whiteboard/WhiteboardReplayView';
 import {
   createWhiteboardLogRecorder,
@@ -134,11 +134,11 @@ export const WhiteboardResponseCapture: React.FC<
     useState<WhiteboardLogRecorder>(makeLogRecorder);
 
   const {
-    image: startingImage,
+    images: startingImages,
     ready: startingPageReady,
     failed: startingPageFailed,
     retry: retryStartingPage,
-  } = useStartingPageImage(startingPage);
+  } = useStartingPageImages(startingPage);
   const acknowledged = !noticeRequired || noticeAckedAt !== null;
   // Every recording is an attempt; a redo throws the last one away (Paul 2026-10-14).
   const [redos, addRedo] = useRedoCount(recovery?.key, takesCommitted);
@@ -239,13 +239,13 @@ export const WhiteboardResponseCapture: React.FC<
       const blob = await renderWhiteboardPicture(
         objects,
         startingPage,
-        startingImage
+        startingImages
       );
       // A take discarded mid-render must not leave its picture for the next one.
       if (gen === boardGenRef.current) setPicture(blob);
       return blob;
     },
-    [setPicture, startingImage, startingPage]
+    [setPicture, startingImages, startingPage]
   );
 
   // Commits the take in hand; nothing reaches the network before this.
@@ -684,7 +684,7 @@ export const WhiteboardResponseCapture: React.FC<
                 ref={canvasRef}
                 key={takeKey}
                 startingPage={startingPage}
-                startingImage={startingImage}
+                startingImages={startingImages}
                 disabled={!canDraw}
                 recorder={logRecorder}
               />

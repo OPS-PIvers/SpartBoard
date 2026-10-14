@@ -91,8 +91,6 @@ export interface ResponseFormatSectionProps {
   onUploadWhiteboardImage?: (
     file: File
   ) => Promise<WhiteboardStartingImage | null>;
-  /** Overrides how the preview loads the image; the dev harness has no Drive file. */
-  resolveWhiteboardImageUrl?: (driveFileId: string) => string;
 }
 
 const useAuthoringT = () => {
@@ -202,7 +200,6 @@ export const SpokenResponseSettings: React.FC<ResponseFormatSectionProps> = ({
   onChange,
   whiteboardAllowed = false,
   onUploadWhiteboardImage,
-  resolveWhiteboardImageUrl,
 }) => {
   const tk = useAuthoringT();
   const recording = question.recording;
@@ -349,7 +346,6 @@ export const SpokenResponseSettings: React.FC<ResponseFormatSectionProps> = ({
           value={recording.startingPage}
           onChange={(startingPage) => patch({ startingPage })}
           onUploadImage={onUploadWhiteboardImage}
-          resolveImageUrl={resolveWhiteboardImageUrl}
         />
       )}
     </div>

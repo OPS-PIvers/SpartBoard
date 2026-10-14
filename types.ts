@@ -4499,10 +4499,28 @@ export interface WhiteboardStartingImage {
   height: number;
 }
 
-/** Locked background of a whiteboard response: one pattern plus an optional image. */
+/** A teacher image placed on the page; `x`, `y`, `w`, `h` are page units, top-left plus size. */
+export interface WhiteboardPlacedImage extends WhiteboardStartingImage {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** A teacher pen stroke on the starting page; `points` is flat x,y pairs in page units. */
+export interface WhiteboardInkStroke {
+  color: string;
+  size: number;
+  points: number[];
+}
+
+/** Locked background of a whiteboard response: a pattern, placed images and teacher ink. */
 export interface WhiteboardStartingPage {
   pattern: WhiteboardStartingPattern;
+  /** Legacy single fitted image; read only, new edits write `images`. */
   image?: WhiteboardStartingImage;
+  images?: WhiteboardPlacedImage[];
+  ink?: WhiteboardInkStroke[];
 }
 
 /** Whether the mic was live for a take; a silent take with `'on'` is silent by choice. */
