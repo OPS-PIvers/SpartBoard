@@ -11,6 +11,7 @@ import { WIDGET_TYPE_LIST } from '@/functions/src/mcp/widgetTypeList';
 import { TOOLS } from '@/config/tools';
 import { WIDGET_SETTINGS_SCHEMAS } from '@/components/widgets/WidgetRegistry';
 import { SETTINGS_FIELD_LIST } from '@/functions/src/mcp/settingsFieldList';
+import { resolveStyleFields } from '@/components/settings/schema/styleKeys';
 import type {
   Field,
   WidgetSettingsSchema,
@@ -145,7 +146,7 @@ const englishLabel = (type: string, leaf: string) =>
   lookup(`widgetSettings.common.${leaf}`) ??
   leaf;
 
-// Mirrors SchemaRenderer, FieldRenderer and ToggleField's tourFieldAttr calls.
+// Mirrors SchemaRenderer, SettingsDrawer, FieldRenderer and ToggleField's tourFieldAttr calls.
 function fieldAnchors(type: string, schema: WidgetSettingsSchema) {
   const out = new Map<string, string>();
   const add = (anchor: string, label: string) => {
@@ -164,6 +165,8 @@ function fieldAnchors(type: string, schema: WidgetSettingsSchema) {
     );
     group.fields.forEach((field) => addField(field));
   }
+  // The Style tab's shared Content-tier fields, rendered by SettingsDrawer from `styleKeys`.
+  resolveStyleFields(schema.styleKeys).forEach((field) => addField(field));
   return [...out].map(([anchor, label]) => ({ anchor, label }));
 }
 

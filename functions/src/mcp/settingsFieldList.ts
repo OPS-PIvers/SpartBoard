@@ -121,6 +121,18 @@ export const SETTINGS_FIELD_LIST: Readonly<
       anchor: 'settings.field:text#verticalAlign',
       label: 'Vertical alignment',
     },
+    {
+      anchor: 'settings.field:text#fontFamily',
+      label: 'Font',
+    },
+    {
+      anchor: 'settings.field:text#fontColor',
+      label: 'Font color',
+    },
+    {
+      anchor: 'settings.field:text#textSizePreset',
+      label: 'Text size',
+    },
   ],
   embed: [
     {
@@ -181,6 +193,10 @@ export const SETTINGS_FIELD_LIST: Readonly<
       anchor: 'settings.toggle:lunchCount#isManualMode',
       label: 'Manual Mode',
     },
+    {
+      anchor: 'settings.field:lunchCount#cardColor',
+      label: 'Card color',
+    },
   ],
   clock: [
     {
@@ -214,6 +230,10 @@ export const SETTINGS_FIELD_LIST: Readonly<
     {
       anchor: 'settings.field:clock#dateColor',
       label: 'Date Color',
+    },
+    {
+      anchor: 'settings.field:clock#fontFamily',
+      label: 'Font',
     },
   ],
   'time-tool': [
@@ -289,6 +309,10 @@ export const SETTINGS_FIELD_LIST: Readonly<
       anchor: 'settings.toggle:time-tool#glow',
       label: 'Glow',
     },
+    {
+      anchor: 'settings.field:time-tool#fontFamily',
+      label: 'Font',
+    },
   ],
   checklist: [
     {
@@ -330,6 +354,22 @@ export const SETTINGS_FIELD_LIST: Readonly<
     {
       anchor: 'settings.field:checklist#rowStyle',
       label: 'Task style',
+    },
+    {
+      anchor: 'settings.field:checklist#textSizePreset',
+      label: 'Text size',
+    },
+    {
+      anchor: 'settings.field:checklist#fontFamily',
+      label: 'Font',
+    },
+    {
+      anchor: 'settings.field:checklist#fontColor',
+      label: 'Font color',
+    },
+    {
+      anchor: 'settings.field:checklist#cardColor',
+      label: 'Card color',
     },
   ],
   weather: [
@@ -380,6 +420,14 @@ export const SETTINGS_FIELD_LIST: Readonly<
     {
       anchor: 'settings.field:weather#cardColor',
       label: 'Clothing card',
+    },
+    {
+      anchor: 'settings.field:weather#fontFamily',
+      label: 'Font',
+    },
+    {
+      anchor: 'settings.field:weather#fontColor',
+      label: 'Font color',
     },
   ],
   expectations: [
@@ -557,6 +605,22 @@ export const SETTINGS_FIELD_LIST: Readonly<
       anchor: 'settings.field:calendar#headerColor',
       label: 'Day header color',
     },
+    {
+      anchor: 'settings.field:calendar#textSizePreset',
+      label: 'Text size',
+    },
+    {
+      anchor: 'settings.field:calendar#fontFamily',
+      label: 'Font',
+    },
+    {
+      anchor: 'settings.field:calendar#fontColor',
+      label: 'Font color',
+    },
+    {
+      anchor: 'settings.field:calendar#cardColor',
+      label: 'Card color',
+    },
   ],
   poll: [
     {
@@ -589,6 +653,10 @@ export const SETTINGS_FIELD_LIST: Readonly<
       anchor: 'settings.field:instructionalRoutines#customSteps',
       label: 'Steps',
     },
+    {
+      anchor: 'settings.field:instructionalRoutines#scaleMultiplier',
+      label: 'Scale',
+    },
   ],
   flashcards: [
     {
@@ -617,6 +685,22 @@ export const SETTINGS_FIELD_LIST: Readonly<
       anchor: 'settings.field:specialist-schedule#recurringItems',
       label: 'Recurring schedule',
     },
+    {
+      anchor: 'settings.field:specialist-schedule#fontFamily',
+      label: 'Font',
+    },
+    {
+      anchor: 'settings.field:specialist-schedule#fontColor',
+      label: 'Font color',
+    },
+    {
+      anchor: 'settings.field:specialist-schedule#textSizePreset',
+      label: 'Text size',
+    },
+    {
+      anchor: 'settings.field:specialist-schedule#cardColor',
+      label: 'Card color',
+    },
   ],
   'graphic-organizer': [
     {
@@ -626,6 +710,14 @@ export const SETTINGS_FIELD_LIST: Readonly<
     {
       anchor: 'settings.field:graphic-organizer#templateType',
       label: 'Template type',
+    },
+    {
+      anchor: 'settings.field:graphic-organizer#fontFamily',
+      label: 'Font',
+    },
+    {
+      anchor: 'settings.field:graphic-organizer#cardColor',
+      label: 'Card color',
     },
   ],
   'reveal-grid': [
@@ -669,6 +761,10 @@ export const SETTINGS_FIELD_LIST: Readonly<
       anchor: 'settings.field:reveal-grid#defaultCardBackColor',
       label: 'Default card back color',
     },
+    {
+      anchor: 'settings.field:reveal-grid#fontFamily',
+      label: 'Font',
+    },
   ],
   numberLine: [
     {
@@ -706,6 +802,18 @@ export const SETTINGS_FIELD_LIST: Readonly<
     {
       anchor: 'settings.toggle:numberLine#showArrows',
       label: 'Show arrows on ends',
+    },
+    {
+      anchor: 'settings.field:numberLine#fontFamily',
+      label: 'Font',
+    },
+    {
+      anchor: 'settings.field:numberLine#fontColor',
+      label: 'Font color',
+    },
+    {
+      anchor: 'settings.field:numberLine#cardColor',
+      label: 'Card color',
     },
   ],
   'syntax-framer': [
@@ -768,6 +876,14 @@ export const SETTINGS_FIELD_LIST: Readonly<
     {
       anchor: 'settings.field:concept-web#nodes',
       label: 'Canvas actions',
+    },
+    {
+      anchor: 'settings.field:concept-web#fontFamily',
+      label: 'Font',
+    },
+    {
+      anchor: 'settings.field:concept-web#cardColor',
+      label: 'Card color',
     },
   ],
   'starter-pack': [
@@ -849,6 +965,18 @@ export const SETTINGS_FIELD_LIST: Readonly<
       anchor: 'settings.field:countdown#eventColor',
       label: 'Event title color',
     },
+    {
+      anchor: 'settings.field:countdown#fontFamily',
+      label: 'Font',
+    },
+    {
+      anchor: 'settings.field:countdown#fontColor',
+      label: 'Font color',
+    },
+    {
+      anchor: 'settings.field:countdown#cardColor',
+      label: 'Card color',
+    },
   ],
   'work-symbols': [
     {
@@ -858,6 +986,18 @@ export const SETTINGS_FIELD_LIST: Readonly<
     {
       anchor: 'settings.field:work-symbols#titlePosition',
       label: 'Title position',
+    },
+    {
+      anchor: 'settings.field:work-symbols#fontFamily',
+      label: 'Font',
+    },
+    {
+      anchor: 'settings.field:work-symbols#fontColor',
+      label: 'Font color',
+    },
+    {
+      anchor: 'settings.field:work-symbols#textSizePreset',
+      label: 'Text size',
     },
   ],
   'blooms-taxonomy': [
@@ -891,6 +1031,22 @@ export const SETTINGS_FIELD_LIST: Readonly<
       anchor: 'settings.field:need-do-put-then#thenItems',
       label: "What's next",
     },
+    {
+      anchor: 'settings.field:need-do-put-then#fontFamily',
+      label: 'Font',
+    },
+    {
+      anchor: 'settings.field:need-do-put-then#fontColor',
+      label: 'Font color',
+    },
+    {
+      anchor: 'settings.field:need-do-put-then#textSizePreset',
+      label: 'Text size',
+    },
+    {
+      anchor: 'settings.field:need-do-put-then#cardColor',
+      label: 'Card color',
+    },
   ],
   stations: [
     {
@@ -904,6 +1060,18 @@ export const SETTINGS_FIELD_LIST: Readonly<
     {
       anchor: 'settings.group:stations#behavior',
       label: 'Behavior',
+    },
+    {
+      anchor: 'settings.field:stations#fontFamily',
+      label: 'Font',
+    },
+    {
+      anchor: 'settings.field:stations#fontColor',
+      label: 'Font color',
+    },
+    {
+      anchor: 'settings.field:stations#cardColor',
+      label: 'Card color',
     },
   ],
   materials: [
@@ -926,6 +1094,10 @@ export const SETTINGS_FIELD_LIST: Readonly<
     {
       anchor: 'settings.field:materials#titleFont',
       label: 'Title font',
+    },
+    {
+      anchor: 'settings.field:materials#titleColor',
+      label: 'Title color',
     },
   ],
   'seating-chart': [
@@ -982,6 +1154,22 @@ export const SETTINGS_FIELD_LIST: Readonly<
     {
       anchor: 'settings.field:schedule#rowStyle',
       label: 'Event style',
+    },
+    {
+      anchor: 'settings.field:schedule#textSizePreset',
+      label: 'Text size',
+    },
+    {
+      anchor: 'settings.field:schedule#fontFamily',
+      label: 'Font',
+    },
+    {
+      anchor: 'settings.field:schedule#fontColor',
+      label: 'Font color',
+    },
+    {
+      anchor: 'settings.field:schedule#cardColor',
+      label: 'Card color',
     },
   ],
   recessGear: [
@@ -1049,8 +1237,37 @@ export const SETTINGS_FIELD_LIST: Readonly<
       anchor: 'settings.field:breathing#color',
       label: 'Color theme',
     },
+    {
+      anchor: 'settings.field:breathing#fontFamily',
+      label: 'Font',
+    },
+    {
+      anchor: 'settings.field:breathing#fontColor',
+      label: 'Font color',
+    },
+    {
+      anchor: 'settings.field:breathing#cardColor',
+      label: 'Card color',
+    },
   ],
-  'arts-letters-agenda': [],
+  'arts-letters-agenda': [
+    {
+      anchor: 'settings.field:arts-letters-agenda#textSizePreset',
+      label: 'Text size',
+    },
+    {
+      anchor: 'settings.field:arts-letters-agenda#fontFamily',
+      label: 'Font',
+    },
+    {
+      anchor: 'settings.field:arts-letters-agenda#fontColor',
+      label: 'Font color',
+    },
+    {
+      anchor: 'settings.field:arts-letters-agenda#cardColor',
+      label: 'Card color',
+    },
+  ],
   mathTools: [
     {
       anchor: 'settings.group:mathTools#behavior',
@@ -1059,6 +1276,18 @@ export const SETTINGS_FIELD_LIST: Readonly<
     {
       anchor: 'settings.field:mathTools#dpiCalibration',
       label: 'Palette DPI calibration (px / inch)',
+    },
+    {
+      anchor: 'settings.field:mathTools#fontFamily',
+      label: 'Font',
+    },
+    {
+      anchor: 'settings.field:mathTools#fontColor',
+      label: 'Font color',
+    },
+    {
+      anchor: 'settings.field:mathTools#cardColor',
+      label: 'Card color',
     },
   ],
   mathTool: [
@@ -1231,7 +1460,20 @@ export const SETTINGS_FIELD_LIST: Readonly<
   ],
   'catalyst-instruction': [],
   'catalyst-visual': [],
-  smartNotebook: [],
+  smartNotebook: [
+    {
+      anchor: 'settings.field:smartNotebook#fontFamily',
+      label: 'Font',
+    },
+    {
+      anchor: 'settings.field:smartNotebook#fontColor',
+      label: 'Font color',
+    },
+    {
+      anchor: 'settings.field:smartNotebook#cardColor',
+      label: 'Card color',
+    },
+  ],
   miniApp: [
     {
       anchor: 'settings.group:miniApp#content',
@@ -1262,6 +1504,10 @@ export const SETTINGS_FIELD_LIST: Readonly<
       anchor: 'settings.field:projects#cardColor',
       label: 'Group rows',
     },
+    {
+      anchor: 'settings.field:projects#fontFamily',
+      label: 'Font',
+    },
   ],
   'activity-wall': [
     {
@@ -1272,6 +1518,18 @@ export const SETTINGS_FIELD_LIST: Readonly<
       anchor: 'settings.field:activity-wall#managedNotice',
       label: 'Walls',
     },
+    {
+      anchor: 'settings.field:activity-wall#fontFamily',
+      label: 'Font',
+    },
+    {
+      anchor: 'settings.field:activity-wall#fontColor',
+      label: 'Font color',
+    },
+    {
+      anchor: 'settings.field:activity-wall#cardColor',
+      label: 'Card color',
+    },
   ],
   'talking-tool': [
     {
@@ -1281,6 +1539,10 @@ export const SETTINGS_FIELD_LIST: Readonly<
     {
       anchor: 'settings.field:talking-tool#managedNotice',
       label: 'Global content settings',
+    },
+    {
+      anchor: 'settings.field:talking-tool#cardColor',
+      label: 'Card color',
     },
   ],
   stickers: [

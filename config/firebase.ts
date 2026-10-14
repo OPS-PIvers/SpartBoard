@@ -6,7 +6,11 @@ import {
   GoogleAuthProvider,
   Auth,
 } from 'firebase/auth';
-import { Firestore, initializeFirestore } from 'firebase/firestore';
+import {
+  Firestore,
+  disableNetwork,
+  initializeFirestore,
+} from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { getFunctions, Functions } from 'firebase/functions';
 import { isViewAsTab } from '@/utils/viewAsTab';
@@ -128,6 +132,13 @@ if (isConfigured) {
     ignoreUndefinedProperties: true,
     experimentalForceLongPolling: true,
   });
+  // The dummy project has no backend; offline, listeners answer from the local cache at once instead of retrying for ~30 s.
+  if (
+    import.meta.env.DEV &&
+    isAuthBypass &&
+    import.meta.env.VITE_FIREBASE_PROJECT_ID === 'dummy'
+  )
+    void disableNetwork(db);
   storage = getStorage(app);
   functions = getFunctions(app, 'us-central1');
   googleProvider = new GoogleAuthProvider();
