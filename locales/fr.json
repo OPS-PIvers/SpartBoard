@@ -4030,6 +4030,16 @@
     "showQuotes": "Afficher les citations",
     "showQuotesHint": "Bleu : citation exacte. Ambre : modifiée par rapport au texte."
   },
+  "quizWhiteboardResponse": {
+    "replay": {
+      "loading": "Chargement du dessin…",
+      "pictureAlt": "Dessin terminé",
+      "replayLabel": "Relecture du dessin",
+      "play": "Lire le dessin",
+      "pause": "Mettre le dessin en pause",
+      "unavailable": "Ce dessin ne peut pas être rejoué."
+    }
+  },
   "quizWhiteboard": {
     "canvas": {
       "tools": "Outils de dessin",

@@ -4030,6 +4030,16 @@
     "showQuotes": "Mostrar citas",
     "showQuotesHint": "Azul es una cita exacta. Ámbar se cambió respecto al texto."
   },
+  "quizWhiteboardResponse": {
+    "replay": {
+      "loading": "Cargando el dibujo…",
+      "pictureAlt": "Dibujo terminado",
+      "replayLabel": "Repetición del dibujo",
+      "play": "Reproducir el dibujo",
+      "pause": "Pausar el dibujo",
+      "unavailable": "Este dibujo no se puede reproducir."
+    }
+  },
   "quizWhiteboard": {
     "canvas": {
       "tools": "Herramientas de dibujo",
