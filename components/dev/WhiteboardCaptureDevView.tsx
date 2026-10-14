@@ -65,8 +65,8 @@ export const WhiteboardCaptureDevView: React.FC = () => {
   const deps = useMemo(() => makeDeps(params.get('denied') === '1'), []);
 
   return (
-    <div className="h-screen [height:100dvh] overflow-y-auto bg-gradient-to-b from-white to-slate-100 p-6">
-      <div className="mx-auto flex h-full max-w-7xl flex-col">
+    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-50 p-6">
+      <div className="mx-auto flex min-h-full max-w-7xl flex-col">
         <WhiteboardResponseCapture
           config={config}
           takesCommitted={takes}
