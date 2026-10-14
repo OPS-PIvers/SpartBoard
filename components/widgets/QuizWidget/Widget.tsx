@@ -35,6 +35,7 @@ import { loadCatalogCodes } from '@/hooks/useStandardsCatalog';
 import { useQuestionBanks } from '@/hooks/useQuestionBanks';
 import {
   BankSlotResolutionError,
+  type BankContent,
   quizHasBankSlots,
   quizServedQuestionCount,
   resolveQuizAssignment,
@@ -714,6 +715,11 @@ const TeacherQuizWidget: React.FC<{
     null
   );
   const [paperPrintIsNew, setPaperPrintIsNew] = useState(false);
+  /** Banks behind `paperPrintQuiz`'s slots, so balanced versions can print. */
+  const [paperPrintBanks, setPaperPrintBanks] = useState<ReadonlyMap<
+    string,
+    BankContent
+  > | null>(null);
   const [paperImport, setPaperImport] = useState<{
     quiz: QuizData;
     meta: QuizMetadata;
@@ -2229,8 +2235,15 @@ const TeacherQuizWidget: React.FC<{
             ? async (meta) => {
                 const data = await loadQuiz(meta);
                 if (!data) return;
+                // A bank that will not load leaves its slots off the sheet, as before.
+                const banks =
+                  canAccessFeature('quiz-import-versions') &&
+                  data.bankSlots?.some((s) => s.dealing === 'balanced')
+                    ? await loadBankContentsForQuiz(data).catch(() => null)
+                    : null;
                 setPaperPrintIsNew(false);
                 setPaperPrintMeta(meta);
+                setPaperPrintBanks(banks);
                 setPaperPrintQuiz(data);
               }
             : undefined
@@ -4049,6 +4062,7 @@ const TeacherQuizWidget: React.FC<{
         <PaperPrintModal
           quiz={paperPrintQuiz}
           rosters={rosters}
+          {...(paperPrintBanks ? { banks: paperPrintBanks } : {})}
           onSaveBatch={(batch) => savePaperBatch(user.uid, batch)}
           onCreateQuiz={
             paperPrintIsNew
@@ -4104,6 +4118,7 @@ const TeacherQuizWidget: React.FC<{
           }
           onClose={() => {
             setPaperPrintQuiz(null);
+            setPaperPrintBanks(null);
             setPaperPrintMeta(null);
             setPaperPrintIsNew(false);
           }}

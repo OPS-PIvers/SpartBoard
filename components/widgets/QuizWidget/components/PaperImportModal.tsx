@@ -269,7 +269,13 @@ export const PaperImportModal: React.FC<PaperImportModalProps> = ({
     const out = new Map<string, string>();
     for (const map of batch?.pageMaps ?? []) {
       for (const item of map.items) {
-        if (item.kind === 'written') out.set(item.questionId, item.label);
+        if (item.kind !== 'written') continue;
+        out.set(item.questionId, item.label);
+        // Another version printed its own question under the same number.
+        for (const v of batch?.versions ?? []) {
+          const swapped = v.swaps[item.questionId];
+          if (swapped) out.set(swapped, item.label);
+        }
       }
     }
     return out;

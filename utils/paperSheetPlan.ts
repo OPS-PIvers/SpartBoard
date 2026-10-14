@@ -8,6 +8,7 @@
 import type {
   ClassRoster,
   PaperBatch,
+  PaperBatchVersion,
   PaperBoxSize,
   PaperColumns,
   PaperPageMap,
@@ -261,6 +262,8 @@ export interface PaperSheetPlan {
   displayName: string;
   className: string;
   isKeySheet: boolean;
+  /** Index into the batch's `versions`; absent when the stack printed one version. */
+  versionIndex?: number;
 }
 
 export interface PaperBatchSelection {
@@ -293,6 +296,8 @@ export interface PaperBatchInput {
   sheetLayout?: 'questions';
   /** From `planPaperPages`; stamps the batch layoutVersion 2 so every reader uses the maps. */
   pageMaps?: PaperPageMap[];
+  /** Balanced bank-slot versions, dealt in seat order within each class and across the spares (V24). */
+  versions?: PaperBatchVersion[];
   createdAt: number;
 }
 
@@ -331,8 +336,16 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
     return seat;
   };
 
+  const versionCount = input.versions?.length ?? 0;
+  const seatVersions: Record<number, number> = {};
+  const dealt = (seat: number, turn: number): { versionIndex?: number } => {
+    if (versionCount === 0) return {};
+    seatVersions[seat] = turn % versionCount;
+    return { versionIndex: seatVersions[seat] };
+  };
+
   for (const { roster, students } of input.selections) {
-    for (const student of students) {
+    students.forEach((student, turn) => {
       const seat = takeSeat();
       seats[seat] = { rosterId: roster.id, studentId: student.id };
       sheets.push({
@@ -341,8 +354,9 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
         displayName: studentLabel(student),
         className: roster.name,
         isKeySheet: false,
+        ...dealt(seat, turn),
       });
-    }
+    });
   }
 
   for (let i = 0; i < Math.max(0, input.spareCount); i += 1) {
@@ -354,6 +368,7 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
       displayName: 'Name ______________________',
       className: '',
       isKeySheet: false,
+      ...dealt(seat, i),
     });
   }
 
@@ -397,6 +412,7 @@ export function planPaperBatch(input: PaperBatchInput): PaperBatchPlan {
       ? { layoutVersion: 2 as const, pageMaps: input.pageMaps }
       : {}),
     ...(input.sheetLayout ? { sheetLayout: input.sheetLayout } : {}),
+    ...(versionCount > 0 ? { versions: input.versions, seatVersions } : {}),
     // Written only when it is not the default, so a batch printed without sheet
     // stimuli is the same document it was before this field existed.
     ...(columnsPerPage === DEFAULT_COLUMNS_PER_PAGE ? {} : { columnsPerPage }),

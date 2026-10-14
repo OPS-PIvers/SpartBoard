@@ -5948,6 +5948,18 @@ export interface PaperPageMap {
   page: number;
   grid: PaperGrid;
   items: PaperPageItem[];
+  /** Question id whose prompt and figures this item-free page prints, before its box (QUIZ_IMPORT_VERSIONS.md V25). */
+  prompt?: string;
+}
+
+/** One version a stack printed when balanced bank slots were dealt at print time (QUIZ_IMPORT_VERSIONS.md V24). */
+export interface PaperBatchVersion {
+  /** "Version B", as Results labels it. */
+  label: string;
+  /** Written to the response as its `servedQuestionIds` on scan import. */
+  servedQuestionIds: string[];
+  /** Page-map question id -> the id this version printed there, where they differ. */
+  swaps: Record<string, string>;
 }
 
 export interface PaperBatch {
@@ -5986,6 +5998,10 @@ export interface PaperBatch {
   layoutVersion?: 2;
   /** One per physical page of a student sheet; `pagesPerSheet` equals its length when present. */
   pageMaps?: PaperPageMap[];
+  /** Present iff `seatVersions` is; version 0 is what `pageMaps` carries. */
+  versions?: PaperBatchVersion[];
+  /** Seat -> index into `versions`; the key sheet is absent and reads as version 0. */
+  seatVersions?: Record<number, number>;
   createdAt: number;
   /** A review the teacher left unfinished, resumable from any device (plan Q26). */
   pendingReview?: PaperPendingReview;

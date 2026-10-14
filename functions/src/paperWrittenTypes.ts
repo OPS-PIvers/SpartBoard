@@ -35,6 +35,8 @@ export interface PaperPageMap {
   page: number;
   grid: PaperGrid;
   items: PaperPageItem[];
+  /** Item-free page printing a question's prompt; mirrors root `types.ts`. */
+  prompt?: string;
 }
 
 export type PaperBoxSize = 'S' | 'M' | 'L' | 'full';
