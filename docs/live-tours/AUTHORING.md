@@ -109,6 +109,8 @@ The dry run reads the map; the browser run plays the tour on a real board. In Cl
 3. Autopilot does every step it can, including ones a teacher run would leave to the teacher. Widgets that need students get a made-up class. Each step is `found`, `missing` (the control never showed) or `left to the teacher` (a step with no value).
 4. Fix every `missing` step with `update_live_tour` (dry-run it first, as before). Then save `get_live_tour` with `for_browser_run: true` over the same file and rerun. A ticket lasts 30 minutes and 20 upload requests (up to 8 pictures each); when the upload says it is expired or used up, call `start_live_tour_picture_upload` again. The run uploads each step's picture as its thumbnail; look at a few with `get_live_tour_step_picture`.
 
+**From a cloud session.** The egress proxy needs Node told about it: run the script with `NODE_USE_ENV_PROXY=1` and `NODE_EXTRA_CA_CERTS` set to the proxy's CA bundle. `upload_url` is the direct functions URL, which the proxy allows; `upload_url_fallback` is the same endpoint on the web.app site, for a machine that can reach only that. When Playwright's expected Chromium isn't installed, the runner tries Chrome and then any Chromium or headless shell it finds; set `LIVE_TOUR_CHROMIUM` to an executable to choose one. It never downloads a browser.
+
 A tour that needs a real library item, a PLC or student work can't fully play on the dummy backend; say which steps that leaves unchecked. In claude.ai there is no browser run, so say the tour was dry-run only.
 
 ## Hand-back
