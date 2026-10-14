@@ -88,7 +88,10 @@ import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { logError } from '@/utils/logError';
 import { ensureGis, requestAccessToken } from './gisOAuth';
 import { needsKeyMessage } from '@/utils/quizNeedsKey';
-import { applyAvailability } from '@/utils/assignAvailability';
+import {
+  applyAvailability,
+  availabilityBackwards,
+} from '@/utils/assignAvailability';
 import {
   ClipboardList,
   Video,
@@ -1128,6 +1131,15 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     attachVideoActivity,
   ]);
 
+  const windowBackwards =
+    windowOn &&
+    availabilityBackwards(
+      stepperOn
+        ? { ...assignTargeting, availability: assignWhen.availability }
+        : assignTargeting,
+      rosters.filter((r) => addonSelectedRosterIds.includes(r.id)),
+      undefined
+    );
   const canAttach = kind === 'quiz' ? !!selectedQuizId : !!selectedActivityId;
 
   // Branded segmented selector for the activity type.
@@ -1368,7 +1380,8 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
           <AddonButton
             onClick={() => void runAttach()}
             loading={busy}
-            disabled={!canAttach}
+            disabled={!canAttach || windowBackwards}
+            title={windowBackwards ? 'Closes before it opens.' : undefined}
             icon={Paperclip}
           >
             {kind === 'quiz' ? 'Attach quiz' : 'Attach video activity'}
