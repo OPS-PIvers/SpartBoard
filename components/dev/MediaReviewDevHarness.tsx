@@ -110,6 +110,53 @@ const ROWS: MediaResponseRow[] = [
       },
     ],
   },
+  {
+    sessionId: 's2',
+    responseKey: 'r4',
+    questionId: 'q-westward-2',
+    questionText: 'Draw the route on the map and explain your choice',
+    quizTitle: 'Westward Expansion Checkpoint',
+    teacherUid: 't2',
+    teacherEmail: 'j.chen@orono.k12.mn.us',
+    studentLabel: 'Pin 3307',
+    lastActivityAt: BASE - 2 * DAY,
+    takes: [
+      {
+        artifactId: 'w1-audio',
+        takeIndex: 1,
+        kind: 'whiteboard',
+        archiveStatus: 'archived',
+        driveFileId: 'drive-w1-audio',
+        archivedAt: BASE - 2 * DAY,
+        hasStorageObject: false,
+        files: [
+          {
+            artifactId: 'w1-audio',
+            kind: 'audio',
+            archiveStatus: 'archived',
+            driveFileId: 'drive-w1-audio',
+            hasStorageObject: false,
+          },
+          {
+            artifactId: 'w1-picture',
+            kind: 'whiteboard',
+            part: 'picture',
+            archiveStatus: 'archived',
+            driveFileId: 'drive-w1-picture',
+            hasStorageObject: false,
+          },
+          {
+            artifactId: 'w1-log',
+            kind: 'whiteboard',
+            part: 'log',
+            archiveStatus: 'archived',
+            driveFileId: 'drive-w1-log',
+            hasStorageObject: false,
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 const RESULTS: MediaDeleteResult[] = [

@@ -1,12 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import {
+  RECOVERY_CHUNK_MS,
+  micStateFromError,
   useAudioRecording,
   defaultAudioRecordingDeps,
   SPEECH_AUDIO_BITS_PER_SECOND,
   type AudioRecordingDeps,
+  type AudioTake,
 } from './useAudioRecording';
 import type { RecordingConfig } from '@/types';
+import { memoryTakeRecoveryStore } from '@/utils/takeRecoveryStore';
 
 class FakeRecorder {
   state: 'inactive' | 'recording' = 'inactive';
@@ -241,6 +245,27 @@ describe('useAudioRecording capture', () => {
     );
     expect(result.current.phase).toBe('armed');
   });
+
+  it('hands the take straight to onTakeReady and skips review', async () => {
+    const onTakeReady = vi.fn<(take: AudioTake) => void>();
+    const { result } = renderHook(() =>
+      useAudioRecording({
+        config: config({ prepSeconds: 0, limitSeconds: 10 }),
+        enabled: true,
+        onTakeReady,
+        deps: makeDeps(),
+      })
+    );
+    await act(async () => {
+      await result.current.start();
+    });
+    advance(10_000);
+    expect(onTakeReady).toHaveBeenCalledTimes(1);
+    expect(onTakeReady.mock.calls[0][0].durationMs).toBe(10_000);
+    expect(result.current.phase).toBe('armed');
+    expect(result.current.take).toBeNull();
+    expect(result.current.takeUrl).toBeNull();
+  });
 });
 
 describe('useAudioRecording mic unavailable', () => {
@@ -263,8 +288,29 @@ describe('useAudioRecording mic unavailable', () => {
       await result.current.start();
     });
     expect(result.current.phase).toBe('capture-unavailable');
+    expect(result.current.micState).toBe('denied');
     expect(deps.createRecorder).not.toHaveBeenCalled();
     expect(onCaptureUnavailable).toHaveBeenCalledTimes(1);
+  });
+
+  it('records a missing device as unavailable, not denied', async () => {
+    const deps = makeDeps({
+      getStream: vi.fn(() =>
+        Promise.reject(new DOMException('no mic', 'NotFoundError'))
+      ),
+    });
+    const { result } = renderHook(() =>
+      useAudioRecording({
+        config: config({ prepSeconds: 0 }),
+        enabled: true,
+        deps,
+      })
+    );
+    await act(async () => {
+      await result.current.start();
+    });
+    expect(result.current.phase).toBe('capture-unavailable');
+    expect(result.current.micState).toBe('unavailable');
   });
 
   it('treats an already-ended track as unavailable', async () => {
@@ -284,7 +330,42 @@ describe('useAudioRecording mic unavailable', () => {
       await result.current.start();
     });
     expect(result.current.phase).toBe('capture-unavailable');
+    expect(result.current.micState).toBe('unavailable');
     expect(deps.createRecorder).not.toHaveBeenCalled();
+  });
+});
+
+describe('useAudioRecording mic on', () => {
+  it('stamps on once recording starts and carries it on the take', async () => {
+    const { result } = renderHook(() =>
+      useAudioRecording({
+        config: config({ prepSeconds: 0 }),
+        enabled: true,
+        deps: makeDeps(),
+      })
+    );
+    expect(result.current.micState).toBeNull();
+    await act(async () => {
+      await result.current.start();
+    });
+    expect(result.current.micState).toBe('on');
+    act(() => result.current.stop());
+    expect(result.current.take?.micState).toBe('on');
+  });
+});
+
+describe('micStateFromError', () => {
+  it.each([
+    ['NotAllowedError', 'denied'],
+    ['SecurityError', 'denied'],
+    ['NotFoundError', 'unavailable'],
+    ['NotReadableError', 'unavailable'],
+  ] as const)('%s maps to %s', (name, expected) => {
+    expect(micStateFromError(new DOMException('x', name))).toBe(expected);
+  });
+
+  it('treats a non-error throw as unavailable', () => {
+    expect(micStateFromError(undefined)).toBe('unavailable');
   });
 });
 
@@ -314,5 +395,157 @@ describe('defaultAudioRecordingDeps.createRecorder', () => {
     expect(ctor).toHaveBeenNthCalledWith(2, stream, {
       audioBitsPerSecond: 32000,
     });
+  });
+});
+
+describe('useAudioRecording crash recovery', () => {
+  const recoveryKey = 's1/r1/q1';
+
+  it('streams chunks to the recovery store while recording', async () => {
+    const store = memoryTakeRecoveryStore();
+    const { result } = renderHook(() =>
+      useAudioRecording({
+        config: config({ prepSeconds: 0, limitSeconds: 10 }),
+        enabled: true,
+        deps: makeDeps(),
+        recovery: { store, key: recoveryKey },
+      })
+    );
+    const startSpy = vi.spyOn(FakeRecorder.prototype, 'start');
+    await act(async () => {
+      await result.current.start();
+    });
+    expect(startSpy).toHaveBeenCalledWith(RECOVERY_CHUNK_MS);
+    await act(async () => {
+      FakeRecorder.instances[0].ondataavailable?.({
+        data: new Blob(['chunk'], { type: 'audio/webm' }),
+      });
+      for (let i = 0; i < 10; i++) await Promise.resolve();
+    });
+    const saved = await store.load(recoveryKey, clock);
+    expect(saved?.chunks).toHaveLength(1);
+    expect(saved?.mimeType).toBe('audio/webm');
+    startSpy.mockRestore();
+  });
+
+  it('records without a timeslice when no recovery store is given', async () => {
+    const { result } = renderHook(() =>
+      useAudioRecording({
+        config: config({ prepSeconds: 0 }),
+        enabled: true,
+        deps: makeDeps(),
+      })
+    );
+    const startSpy = vi.spyOn(FakeRecorder.prototype, 'start');
+    await act(async () => {
+      await result.current.start();
+    });
+    expect(startSpy).toHaveBeenCalledWith();
+    startSpy.mockRestore();
+  });
+
+  it.each(['commit', 'discard'] as const)(
+    'wipes the local copy on %s',
+    async (action) => {
+      const store = memoryTakeRecoveryStore();
+      const { result } = renderHook(() =>
+        useAudioRecording({
+          config: config({ prepSeconds: 0, limitSeconds: 10 }),
+          enabled: true,
+          deps: makeDeps(),
+          recovery: { store, key: recoveryKey },
+        })
+      );
+      await act(async () => {
+        await result.current.start();
+      });
+      act(() => result.current.stop());
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+      expect(await store.load(recoveryKey, clock)).not.toBeNull();
+      act(() => {
+        if (action === 'commit') result.current.commit();
+        else result.current.discard();
+      });
+      await act(async () => {
+        await vi.runAllTimersAsync();
+      });
+      expect(await store.load(recoveryKey, clock)).toBeNull();
+    }
+  );
+
+  it('wipes the local copy when review is off and the take commits on stop', async () => {
+    const store = memoryTakeRecoveryStore();
+    const onTakeReady = vi.fn();
+    const { result } = renderHook(() =>
+      useAudioRecording({
+        config: config({ prepSeconds: 0, limitSeconds: 10 }),
+        enabled: true,
+        deps: makeDeps(),
+        recovery: { store, key: recoveryKey },
+        onTakeReady,
+      })
+    );
+    await act(async () => {
+      await result.current.start();
+    });
+    act(() => result.current.stop());
+    await act(async () => {
+      await vi.runAllTimersAsync();
+    });
+    expect(onTakeReady).toHaveBeenCalledTimes(1);
+    expect(await store.load(recoveryKey, clock)).toBeNull();
+  });
+
+  it('restore puts a recovered take on the review screen', () => {
+    const { result } = renderHook(() =>
+      useAudioRecording({
+        config: config({ prepSeconds: 4 }),
+        enabled: true,
+        deps: makeDeps(),
+      })
+    );
+    const take = {
+      blob: new Blob(['x'], { type: 'audio/webm' }),
+      mimeType: 'audio/webm',
+      durationMs: 3000,
+      micState: 'on' as const,
+    };
+    let restored = false;
+    act(() => {
+      restored = result.current.restore(take);
+    });
+    expect(restored).toBe(true);
+    expect(result.current.phase).toBe('reviewing');
+    expect(result.current.take).toBe(take);
+    expect(result.current.prepSecondsLeft).toBeNull();
+    // The prep countdown no longer runs once the take is restored.
+    advance(10000);
+    expect(result.current.phase).toBe('reviewing');
+  });
+
+  it('restore refuses while a take is recording', async () => {
+    const { result } = renderHook(() =>
+      useAudioRecording({
+        config: config({ prepSeconds: 0 }),
+        enabled: true,
+        deps: makeDeps(),
+      })
+    );
+    await act(async () => {
+      await result.current.start();
+    });
+    let restored = true;
+    act(() => {
+      restored = result.current.restore({
+        blob: new Blob(['x']),
+        mimeType: 'audio/webm',
+        durationMs: 1,
+        micState: 'on',
+      });
+    });
+    expect(restored).toBe(false);
+    expect(result.current.phase).toBe('recording');
   });
 });

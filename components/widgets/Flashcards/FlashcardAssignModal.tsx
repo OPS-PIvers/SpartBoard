@@ -15,6 +15,8 @@ import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { AuthContext } from '@/context/AuthContextValue';
 import {
   applyAvailability,
+  availabilityBackwards,
+  chosenWorkKind,
   type WorkKindSetting,
 } from '@/utils/assignAvailability';
 import {
@@ -160,7 +162,18 @@ export const LegacyFlashcardAssignModal: React.FC<
         ? 'Choose at least one question type.'
         : !hasSsoClass
           ? 'Choose at least one ClassLink class.'
-          : undefined;
+          : availabilityBackwards(
+                {
+                  ...targetingValue,
+                  workKind: chosenWorkKind(targetingValue, workKindSetting),
+                },
+                rosters.filter(
+                  (r) => !r.loadError && pickerValue.rosterIds.includes(r.id)
+                ),
+                periodAccess?.bellWindow
+              )
+            ? 'Closes before it opens.'
+            : undefined;
 
   const toggleTestType = (type: FlashcardTestType, checked: boolean): void =>
     update({

@@ -132,10 +132,17 @@ import {
   isRecordingSlotClosed,
 } from '@/utils/answerTakeOrdering';
 import { AudioResponseCapture } from './recording/AudioResponseCapture';
+import {
+  defaultTakeRecoveryStore,
+  takeRecoveryKey,
+} from '@/utils/takeRecoveryStore';
 import { commitActiveTake } from './recording/activeTake';
 import { ResponsePlaybackCard } from './recording/ResponsePlaybackCard';
 import { SubmitBlockedNotice } from './recording/SubmitBlockedNotice';
-import { selectPlaybackTake } from '@/utils/responseArtifacts';
+import {
+  selectPlaybackTake,
+  selectWhiteboardTake,
+} from '@/utils/responseArtifacts';
 import { hasUngradedRecording } from '@/utils/mediaGrading';
 import type { AudioTake } from '@/hooks/useAudioRecording';
 import {
@@ -864,8 +871,15 @@ const QuizJoinFlow: React.FC<{
     async (opts?: { timeUp?: boolean }) => {
       if (isViewOnly) return;
       await (opts ? completeQuiz(opts) : completeQuiz());
+      const sessionId = session?.id;
+      const responseKey = myResponse?._responseKey;
+      if (sessionId && responseKey) {
+        void defaultTakeRecoveryStore()
+          .removeForResponse(sessionId, responseKey)
+          .catch(() => undefined);
+      }
     },
-    [completeQuiz, isViewOnly]
+    [completeQuiz, isViewOnly, myResponse?._responseKey, session?.id]
   );
 
   // Tennessen acknowledgment. localStorage is the once-per-device fast path;
@@ -981,6 +995,7 @@ const QuizJoinFlow: React.FC<{
         questionId,
         artifact,
         noticeAckedAt: noticeAckedAt ?? undefined,
+        micState: take.micState,
         ...(locale ? { locale } : {}),
       });
       // null means the commit was declined (closed slot, or the response doc
@@ -2133,6 +2148,22 @@ export const ActiveQuiz: React.FC<{
   const { docShaped: docStimuli, inline: inlineStimuli } = useMemo(
     () => splitStimuliForLayout(currentStimuli),
     [currentStimuli]
+  );
+  const recoveryQuestionId = currentQuestion?.id;
+  const recoveryResponseKey = myResponse?._responseKey;
+  const takeRecovery = useMemo(
+    () =>
+      recoveryQuestionId && recoveryResponseKey
+        ? {
+            store: defaultTakeRecoveryStore(),
+            key: takeRecoveryKey({
+              sessionId: session.id,
+              responseKey: recoveryResponseKey,
+              questionId: recoveryQuestionId,
+            }),
+          }
+        : undefined,
+    [recoveryQuestionId, recoveryResponseKey, session.id]
   );
   const handleStimulusPlayCompleted = useCallback(
     (stimulusId: string) => {
@@ -3719,6 +3750,7 @@ export const ActiveQuiz: React.FC<{
                     slotClosed={recordingSlotClosed}
                     onPrepExpired={handleRecordingPrepExpired}
                     onCaptureUnavailable={handleRecordingCaptureUnavailable}
+                    recovery={takeRecovery}
                   />
                   {isStudentPaced && (
                     <div className="space-y-3">
@@ -5363,13 +5395,20 @@ export const PublishedScoreReview: React.FC<{
                     const hasRecordedTake =
                       mediaEnabled &&
                       !!responseKey &&
-                      selectPlaybackTake(
+                      (selectPlaybackTake(
                         myResponse.answers,
                         q.id,
                         'primary',
                         undefined,
                         myResponse.artifactArchive
-                      ) !== null;
+                      ) !== null ||
+                        selectWhiteboardTake(
+                          myResponse.answers,
+                          q.id,
+                          'primary',
+                          undefined,
+                          myResponse.artifactArchive
+                        ) !== null);
                     return (
                       <article
                         key={q.id}
@@ -5485,6 +5524,8 @@ export const PublishedScoreReview: React.FC<{
                                   : undefined
                               }
                               light={light}
+                              whiteboardEnabled
+                              startingPage={q.recording?.startingPage}
                             />
                           )}
                         </div>

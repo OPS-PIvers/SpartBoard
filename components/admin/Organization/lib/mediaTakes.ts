@@ -18,3 +18,12 @@ export function isTakeDeletable(take: {
 export function countDeletableTakes(row: MediaResponseRow): number {
   return row.takes.filter(isTakeDeletable).length;
 }
+
+// A whiteboard take is one take but up to three files; the confirm dialog counts files.
+export function countDeletableFiles(row: MediaResponseRow): number {
+  return row.takes.reduce((sum, take) => {
+    if (!isTakeDeletable(take)) return sum;
+    const files = take.files?.filter(isTakeDeletable).length ?? 0;
+    return sum + Math.max(files, 1);
+  }, 0);
+}

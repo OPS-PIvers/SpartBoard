@@ -1535,9 +1535,53 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-editor.recording-review': {
+    label: 'Students review before submitting switch in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-editor.recording-expiry': {
     label: 'Prep expiry option buttons (per option) in the Quiz editor',
     perField: true,
+    panel: true,
+  },
+  'quiz-editor.response-format': {
+    label:
+      'Response format menu (typed, spoken, whiteboard) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-explain-aloud': {
+    label:
+      'Students explain out loud switch (whiteboard response) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-starting-page': {
+    label: 'Starting page menu (whiteboard response) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-pattern-value': {
+    label: 'Starting page range inputs (per field) in the Quiz editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-shape': {
+    label: 'Starting page shape menu (whiteboard response) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-image': {
+    label:
+      'Add image button for the whiteboard starting page in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-image-remove': {
+    label:
+      'Remove image button for the whiteboard starting page in the Quiz editor',
+    perWidgetType: true,
     panel: true,
   },
   'quiz-editor.word-min': {
