@@ -34,6 +34,8 @@ export interface TourSurfaceDef {
   files: readonly string[];
   /** Anchor ref whose click opens this surface; absent for the board, widget faces and pages. */
   opensWith?: string;
+  /** Other anchors whose click also opens this surface, e.g. New Class and Edit roster. */
+  alsoOpensWith?: readonly string[];
   /** The control that opens this surface when it has no anchor yet, for the anchor sweep to tag. */
   openerMissing?: string;
   /** Surface id `opensWith` is clicked on, when that anchor renders on more than one surface. */
