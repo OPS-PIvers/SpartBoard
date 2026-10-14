@@ -83,6 +83,8 @@ function mock2dContext() {
     setLineDash: vi.fn(),
     closePath: vi.fn(),
     drawImage: vi.fn(),
+    setTransform: vi.fn(),
+    rect: vi.fn(),
     globalAlpha: 1,
     canvas: {
       width: 800,

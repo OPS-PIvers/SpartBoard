@@ -43,6 +43,14 @@ export function driveImageUrl(fileId: string): string {
   return `https://lh3.googleusercontent.com/d/${fileId}`;
 }
 
+/** Prompt shown before a teacher's uploaded Drive file is made link-viewable for students. */
+export const stimulusShareMessage = (what: string): string =>
+  `Students open stimuli without a Google sign-in, so "${what}" must be shared as "anyone with the link can view." Update its sharing now?`;
+export const STIMULUS_SHARE_CONFIRM = {
+  title: 'Share with students?',
+  confirmLabel: 'Share & attach',
+};
+
 /** Drive's embeddable preview iframe URL — the PDF byte-fetch fallback. */
 export function drivePreviewUrl(fileId: string): string {
   return `https://drive.google.com/file/d/${fileId}/preview`;

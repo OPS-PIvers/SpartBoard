@@ -20,6 +20,7 @@ const EXPECTED: Record<string, RegExp> = {
   recording: /Recording stops on its own/i,
   'no-review-recording': /Stop and submit/i,
   review: /Listen back/i,
+  recovered: /Your saved take/i,
   committing: /Listen back/i,
   'archive-failed': /Not yet submitted|didn.t send/i,
   'take-limit': /No takes left/i,

@@ -63,7 +63,10 @@ import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArc
 import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { useAuth } from '@/context/useAuth';
-import { applyAvailability } from '@/utils/assignAvailability';
+import {
+  applyAvailability,
+  availabilityBackwards,
+} from '@/utils/assignAvailability';
 import { useDialog } from '@/context/useDialog';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
@@ -1562,6 +1565,14 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     </LibraryShell>
   );
 
+  const assignWindowBackwards =
+    !assignLive &&
+    availabilityBackwards(
+      assignTargeting,
+      rosters.filter((r) => pickerValue.rosterIds.includes(r.id)),
+      periodAccess?.bellWindow
+    );
+
   return (
     <>
       {useExternalDnd && tab === 'library' ? (
@@ -1626,6 +1637,8 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           options={assignOptions}
           onOptionsChange={setAssignOptions}
           confirmLabel={assignLive ? 'Start live' : 'Assign'}
+          confirmDisabled={assignWindowBackwards}
+          confirmDisabledReason="Closes before it opens."
           onAssign={handleAssignConfirm}
           extraSlot={
             <AssignBehaviorSummaryVA

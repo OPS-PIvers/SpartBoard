@@ -6,6 +6,7 @@ export const AUDIO_CAPTURE_STATES = [
   'armed',
   'recording',
   'review',
+  'recovered',
   'no-review-recording',
   'committing',
   'archive-failed',
@@ -51,6 +52,11 @@ export const RECORDING_CONTROL_STATES = [
   'rc-clamped-limit',
   'rc-take-limit',
   'rc-advisory',
+  'rc-whiteboard',
+  'rc-whiteboard-plane',
+  'rc-whiteboard-number-line',
+  'rc-whiteboard-shape',
+  'rc-whiteboard-image',
 ] as const;
 export type RecordingControlStateKey =
   (typeof RECORDING_CONTROL_STATES)[number];
