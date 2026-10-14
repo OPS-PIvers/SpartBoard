@@ -664,3 +664,52 @@ describe('handwriting crops', () => {
     expect(email.text).toContain('student recordings and paper answers');
   });
 });
+
+describe('whiteboard takes', () => {
+  const takeAnswers = [
+    {
+      questionId: 'q1',
+      artifacts: [
+        { id: 'a1', kind: 'audio' },
+        { id: 'p1', kind: 'whiteboard', part: 'picture' },
+        { id: 'l1', kind: 'whiteboard', part: 'log' },
+      ],
+    },
+    {
+      questionId: 'q1',
+      artifacts: [{ id: 'p2', kind: 'whiteboard', part: 'picture' }],
+    },
+  ];
+
+  it('retries every stuck file but mails each take once', async () => {
+    const stuck = { archiveStatus: 'failed', lastAttemptAt: OLD };
+    const { db, mailWrites } = makeStubDb(
+      [
+        {
+          sessionId: 's1',
+          id: 'r1',
+          data: {
+            hasStuckArchive: true,
+            pin: '7',
+            answers: takeAnswers,
+            artifactArchive: { a1: stuck, p1: stuck, l1: stuck, p2: stuck },
+          },
+        },
+      ],
+      { s1: { teacherUid: 't1', quizTitle: 'Graphing' } }
+    );
+    const deps = makeDeps({
+      archiveOne: vi.fn(() => Promise.reject(new Error('Drive 503'))),
+    });
+    const summary = await runSweepStuckQuizArchives(
+      db as unknown as Parameters<typeof runSweepStuckQuizArchives>[0],
+      deps
+    );
+    expect(deps.archiveOne).toHaveBeenCalledTimes(4);
+    expect(summary.stillStuck).toBe(4);
+    const message = mailWrites[0]?.data.message as { subject: string };
+    expect(message.subject).toBe(
+      'SpartBoard: 2 student recordings could not be saved to Drive'
+    );
+  });
+});
