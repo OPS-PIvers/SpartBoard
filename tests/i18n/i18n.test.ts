@@ -68,9 +68,9 @@ describe('quizMediaResponse plurals', () => {
   it('resolves the take-limit sentence by count', () => {
     expect(
       i18n.t('quizMediaResponse.capture.takeLimitReachedBody', { count: 1 })
-    ).toContain('1 take,');
+    ).toContain('1 attempt,');
     expect(
       i18n.t('quizMediaResponse.capture.takeLimitReachedBody', { count: 3 })
-    ).toContain('3 takes,');
+    ).toContain('3 attempts,');
   });
 });
