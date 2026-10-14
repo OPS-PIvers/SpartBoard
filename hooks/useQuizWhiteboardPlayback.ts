@@ -1,5 +1,14 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { parseWhiteboardLog } from '@/components/quiz/whiteboard/whiteboardLog';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
+import {
+  parseWhiteboardLog,
+  whiteboardLogDuration,
+} from '@/components/quiz/whiteboard/whiteboardLog';
 import type { WhiteboardLog } from '@/components/quiz/whiteboard/whiteboardLogTypes';
 import {
   base64ToBlob,
@@ -55,17 +64,23 @@ export function useQuizWhiteboardPlayback(
     phase: 'idle',
   });
   const urlsRef = useRef<string[]>([]);
-  const generationRef = useRef(0);
-  const loadingGenerationRef = useRef<number | null>(null);
+  // The take on screen and the take being fetched; an answer for any other take is stale.
+  const currentPictureRef = useRef<string | null>(null);
+  const inFlightRef = useRef<string | null>(null);
   const pictureId = request?.pictureId ?? null;
   const [loadedPictureId, setLoadedPictureId] = useState(pictureId);
 
   if (pictureId !== loadedPictureId) {
     setLoadedPictureId(pictureId);
-
-    generationRef.current += 1;
     setState({ phase: 'idle' });
   }
+
+  useLayoutEffect(() => {
+    currentPictureRef.current = pictureId;
+    return () => {
+      currentPictureRef.current = null;
+    };
+  }, [pictureId]);
 
   useEffect(() => {
     return () => {
@@ -84,13 +99,8 @@ export function useQuizWhiteboardPlayback(
   const load = useCallback(() => {
     if (!sessionId || !responseKey || !questionId || !slot || !pictureId)
       return;
-    const generation = generationRef.current;
-    if (
-      loadingGenerationRef.current === generation ||
-      urlsRef.current.length > 0
-    )
-      return;
-    loadingGenerationRef.current = generation;
+    if (inFlightRef.current === pictureId || urlsRef.current.length > 0) return;
+    inFlightRef.current = pictureId;
     setState({ phase: 'loading' });
     const fetchPart = (part: PlaybackPart): Promise<PlaybackResponse | null> =>
       fetchPlayback({ sessionId, responseKey, questionId, slot, part });
@@ -103,7 +113,7 @@ export function useQuizWhiteboardPlayback(
           optional('log', hasLog),
           optional('audio', hasAudio),
         ]);
-        const stale = generationRef.current !== generation;
+        const stale = currentPictureRef.current !== pictureId;
         if (!picture || picture.status !== 'ready') {
           if (!stale && picture)
             setState({ phase: 'unavailable', reason: picture.reason });
@@ -121,20 +131,20 @@ export function useQuizWhiteboardPlayback(
             : null;
         urlsRef.current = audioUrl ? [pictureUrl, audioUrl] : [pictureUrl];
         const parsedLog = log?.status === 'ready' ? decodeLog(log.data) : null;
-        const lastEventMs = parsedLog?.events.at(-1)?.t ?? 0;
+        const logMs = parsedLog ? whiteboardLogDuration(parsedLog) : 0;
         const audioMs = audio?.status === 'ready' ? (audio.durationMs ?? 0) : 0;
         setState({
           phase: 'ready',
           pictureUrl,
           log: parsedLog,
           audioUrl,
-          durationMs: Math.max(audioMs, lastEventMs),
+          durationMs: Math.max(audioMs, logMs),
         });
       } catch {
-        if (generationRef.current === generation) setState({ phase: 'error' });
+        if (currentPictureRef.current === pictureId)
+          setState({ phase: 'error' });
       } finally {
-        if (loadingGenerationRef.current === generation)
-          loadingGenerationRef.current = null;
+        if (inFlightRef.current === pictureId) inFlightRef.current = null;
       }
     })();
   }, [
