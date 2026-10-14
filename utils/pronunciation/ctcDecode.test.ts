@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import vocab from './xlsr53EspeakVocab.json';
 import { greedyCtcDecode, invertVocab } from './ctcDecode';
-import { normalizeForWav2Vec2 } from './audio';
+import { normalizeForWav2Vec2, trimSilence } from './audio';
 
 function logitsFor(ids: number[], vocabSize: number): Float32Array {
   const out = new Float32Array(ids.length * vocabSize);
@@ -53,6 +53,20 @@ describe('greedyCtcDecode', () => {
     expect(() =>
       greedyCtcDecode(new Float32Array(10), 2, 392, symbols, 0)
     ).toThrow();
+  });
+});
+
+describe('trimSilence', () => {
+  it('cuts leading and trailing silence but keeps 200 ms of padding', () => {
+    const audio = new Float32Array(16000 * 3);
+    for (let i = 16000; i < 16000 * 1.5; i++) audio[i] = Math.sin(i / 5) * 0.5;
+    const out = trimSilence(audio);
+    expect(out.length / 16000).toBeCloseTo(0.9, 1);
+  });
+
+  it('returns all-silent audio unchanged', () => {
+    const audio = new Float32Array(16000);
+    expect(trimSilence(audio)).toBe(audio);
   });
 });
 

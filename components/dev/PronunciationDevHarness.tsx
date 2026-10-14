@@ -14,6 +14,7 @@ import {
   MODEL_SAMPLE_RATE,
   decodeToModelRate,
   normalizeForWav2Vec2,
+  trimSilence,
 } from '@/utils/pronunciation/audio';
 
 ort.env.wasm.wasmPaths = { wasm: wasmUrl };
@@ -73,7 +74,10 @@ interface LoadResult {
 
 interface DecodeRow {
   clip: string;
+  backend: Backend;
   pass: 'cold' | 'warm' | 'mic';
+  trimmed: boolean;
+  rawSeconds: number;
   audioSeconds: number;
   prepMs: number;
   inferMs: number;
@@ -176,6 +180,9 @@ export const PronunciationDevHarness: React.FC = () => {
   const [load, setLoad] = useState<LoadResult | null>(null);
   const [rows, setRows] = useState<DecodeRow[]>([]);
   const [busy, setBusy] = useState(false);
+  const [trim, setTrim] = useState(true);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   const sessionRef = useRef<ort.InferenceSession | null>(null);
 
   useEffect(() => {
@@ -188,10 +195,19 @@ export const PronunciationDevHarness: React.FC = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (startedAt == null) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [startedAt]);
+
   const run = async (label: string, task: () => Promise<void>) => {
     setBusy(true);
     setError(null);
     setStatus(label);
+    const start = Date.now();
+    setStartedAt(start);
+    setNow(start);
     try {
       await task();
       setStatus('Done');
@@ -202,6 +218,7 @@ export const PronunciationDevHarness: React.FC = () => {
       setStatus('Failed');
     } finally {
       setBusy(false);
+      setStartedAt(null);
       setProgress(null);
     }
   };
@@ -305,9 +322,10 @@ export const PronunciationDevHarness: React.FC = () => {
     audioBytes: ArrayBuffer
   ): Promise<Omit<DecodeRow, 'clip' | 'pass' | 'python' | 'target'>> => {
     const session = sessionRef.current;
-    if (!session) throw new Error('Load the model first.');
+    if (!session || !load) throw new Error('Load the model first.');
     const t0 = performance.now();
-    const audio = normalizeForWav2Vec2(await decodeToModelRate(audioBytes));
+    const raw = await decodeToModelRate(audioBytes);
+    const audio = normalizeForWav2Vec2(trim ? trimSilence(raw) : raw);
     const prepMs = performance.now() - t0;
     const feeds: Record<string, ort.Tensor> = {
       [session.inputNames[0]]: new ort.Tensor('float32', audio, [
@@ -336,6 +354,9 @@ export const PronunciationDevHarness: React.FC = () => {
     );
     const audioSeconds = audio.length / MODEL_SAMPLE_RATE;
     return {
+      backend: load.backend,
+      trimmed: trim,
+      rawSeconds: Number((raw.length / MODEL_SAMPLE_RATE).toFixed(2)),
       audioSeconds: Number(audioSeconds.toFixed(2)),
       prepMs: Math.round(prepMs),
       inferMs: Math.round(inferMs),
@@ -347,7 +368,10 @@ export const PronunciationDevHarness: React.FC = () => {
 
   const decodeClips = () =>
     run('Decoding clips…', async () => {
-      const pass: DecodeRow['pass'] = rows.some((r) => r.pass === 'cold')
+      const pass: DecodeRow['pass'] = rows.some(
+        (r) =>
+          r.pass === 'cold' && r.backend === load?.backend && r.trimmed === trim
+      )
         ? 'warm'
         : 'cold';
       for (const clip of CLIPS) {
@@ -565,14 +589,24 @@ export const PronunciationDevHarness: React.FC = () => {
               Record {MIC_SECONDS} s from the mic
             </button>
           </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={trim}
+              onChange={(e) => setTrim(e.target.checked)}
+              disabled={busy}
+            />
+            Trim silence before decoding
+          </label>
           {rows.length > 0 && (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b">
                     <th className="py-1 pr-3">Clip</th>
+                    <th className="pr-3">Backend</th>
                     <th className="pr-3">Pass</th>
-                    <th className="pr-3">Audio s</th>
+                    <th className="pr-3">Audio s (raw)</th>
                     <th className="pr-3">Prep ms</th>
                     <th className="pr-3">Infer ms</th>
                     <th className="pr-3">× real time</th>
@@ -585,8 +619,12 @@ export const PronunciationDevHarness: React.FC = () => {
                   {rows.map((r, i) => (
                     <tr key={i} className="border-b font-mono text-xs">
                       <td className="py-1 pr-3 font-sans">{r.clip}</td>
+                      <td className="pr-3">{r.backend}</td>
                       <td className="pr-3">{r.pass}</td>
-                      <td className="pr-3">{r.audioSeconds}</td>
+                      <td className="pr-3">
+                        {r.audioSeconds}
+                        {r.trimmed && ` (${r.rawSeconds})`}
+                      </td>
                       <td className="pr-3">{r.prepMs}</td>
                       <td className="pr-3">{r.inferMs}</td>
                       <td className="pr-3">{r.realTimeFactor}</td>
@@ -609,6 +647,8 @@ export const PronunciationDevHarness: React.FC = () => {
 
         <p role="status" className="text-sm">
           Status: {status}
+          {startedAt != null &&
+            ` ${Math.max(0, Math.round((now - startedAt) / 1000))} s`}
         </p>
         {error && (
           <p
