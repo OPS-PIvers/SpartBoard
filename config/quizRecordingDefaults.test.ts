@@ -186,4 +186,30 @@ describe('normalizeWhiteboardStartingPage', () => {
       })
     ).toEqual({ pattern: { kind: 'blank' } });
   });
+
+  it('drops an image on a host other than Drive, or a malformed file id', () => {
+    const image = {
+      driveFileId: 'drive-1',
+      url: 'https://drive.google.com/file/d/drive-1/view',
+      mimeType: 'image/png',
+      width: 800,
+      height: 600,
+    };
+    expect(
+      normalizeWhiteboardStartingPage({ pattern: { kind: 'blank' }, image })
+    ).toEqual({ pattern: { kind: 'blank' }, image });
+    for (const bad of [
+      { ...image, url: 'https://tracker.example.com/p.png' },
+      { ...image, url: 'https://lh3.googleusercontent.com.evil.io/d/x' },
+      { ...image, url: 'http://lh3.googleusercontent.com/d/x' },
+      { ...image, driveFileId: '../x' },
+    ]) {
+      expect(
+        normalizeWhiteboardStartingPage({
+          pattern: { kind: 'blank' },
+          image: bad,
+        })
+      ).toEqual({ pattern: { kind: 'blank' } });
+    }
+  });
 });

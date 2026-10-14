@@ -177,6 +177,21 @@ function normalizePattern(raw: unknown): WhiteboardStartingPattern {
   }
 }
 
+const DRIVE_FILE_ID = /^[A-Za-z0-9_-]+$/;
+const STARTING_IMAGE_HOSTS = ['drive.google.com', 'lh3.googleusercontent.com'];
+
+/** Students load this URL, so only the Drive hosts the stimulus upload produces pass. */
+function isGoogleImageUrl(raw: string): boolean {
+  try {
+    const url = new URL(raw);
+    return (
+      url.protocol === 'https:' && STARTING_IMAGE_HOSTS.includes(url.hostname)
+    );
+  } catch {
+    return false;
+  }
+}
+
 /** Coerces a stored starting page; `undefined` for absent input (a blank page). */
 export function normalizeWhiteboardStartingPage(
   raw: unknown
@@ -190,9 +205,9 @@ export function normalizeWhiteboardStartingPage(
   if (
     img &&
     typeof img.driveFileId === 'string' &&
-    img.driveFileId.length > 0 &&
+    DRIVE_FILE_ID.test(img.driveFileId) &&
     typeof img.url === 'string' &&
-    img.url.startsWith('https://') &&
+    isGoogleImageUrl(img.url) &&
     typeof img.mimeType === 'string' &&
     finiteOr(img.width, 0) > 0 &&
     finiteOr(img.height, 0) > 0
