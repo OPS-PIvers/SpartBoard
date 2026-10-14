@@ -4673,6 +4673,7 @@ service cloud.firestore {
           // at create stops a forged subset riding in on the join write.
           incoming().get('servedQuestionIds', null) == null &&
           incoming().get('tabExits', null) == null &&
+          incoming().get('partHeld', null) == null &&
           // Per-student publication and the answer key are teacher-written only.
           incoming().get('resultsOverride', null) == null &&
           incoming().get('revealedAnswers', null) == null &&
@@ -4744,8 +4745,11 @@ service cloud.firestore {
            // addedKeys and bypass the whitelist entirely.
            // Review games: answers come only from checkQuizGameAnswerV1 (`game` is off the list below).
            (!changed(['answers']) || sessionData().get('sessionMode', '') != 'game') &&
-           changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp']) &&
+           changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp', 'partsDone', 'partHeld']) &&
            tabExitsOk() &&
+           // Stop checkpoints: a part count, and a held flag that is true or cleared.
+           (!changed(['partsDone']) || incoming().get('partsDone', 0) is int) &&
+           (!changed(['partHeld']) || incoming().get('partHeld', null) in [true, null]) &&
            // Time-limit clock: server-stamped, and only restarted by a new attempt
            // (completed -> joined) or stamped where none exists yet.
            (!changed(['attemptStartedAt']) ||

@@ -3258,6 +3258,16 @@
     "left": "Time left {{time}}",
     "submitted": "Time's up. Your answers were submitted."
   },
+  "quizParts": {
+    "confirmTitle": "Submit Part {{part}}?",
+    "confirmBody": "You can't change your Part {{part}} answers after this.",
+    "confirmSubmit": "Submit Part {{part}}",
+    "stop": "Stop.",
+    "wait": "Wait for your teacher to start Part {{part}}.",
+    "open": "Part {{part}} is open.",
+    "start": "Start Part {{part}}",
+    "startFailed": "Couldn't start Part {{part}}. Try again."
+  },
   "quizReadAloud": {
     "label": "Read aloud",
     "help": "Signed-in students only.",

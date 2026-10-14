@@ -34,7 +34,9 @@ export function sessionHasStops(
 
 /** The part a question belongs to; questions before the first section are in part 1. */
 export function partOfQuestion(
-  sections: readonly Pick<QuizSessionSection, 'id' | 'stopAfter' | 'questionIds'>[] | undefined,
+  sections:
+    | readonly Pick<QuizSessionSection, 'id' | 'stopAfter' | 'questionIds'>[]
+    | undefined,
   questionId: string
 ): number {
   const stops = stopIds(sections);
@@ -96,4 +98,12 @@ export function isWaitingAtStop(
     done < parts &&
     openedPart <= done
   );
+}
+
+/** The part the teacher opens next for these waiting students; null when none wait. */
+export function nextPartToOpen(
+  waiting: readonly Pick<QuizResponse, 'partsDone'>[]
+): number | null {
+  if (waiting.length === 0) return null;
+  return Math.min(...waiting.map((r) => partsDoneOf(r) + 1));
 }

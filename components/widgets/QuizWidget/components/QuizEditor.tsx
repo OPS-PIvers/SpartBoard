@@ -194,8 +194,9 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
   onAddAnswerKey,
   allowSections = true,
 }: PaneProps) {
-  const { canAccessQuizMediaResponse } = useAuth();
+  const { canAccessQuizMediaResponse, canAccessFeature } = useAuth();
   const mediaResponseAllowed = canAccessQuizMediaResponse();
+  const stopsAllowed = canAccessFeature('quiz-import-versions');
   const {
     questions,
     stimuli,
@@ -250,6 +251,10 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
       ),
     [order, bankSlots]
   );
+  // A Stop on the last section has nothing after it, so that row offers none.
+  const lastSectionId = [...order]
+    .reverse()
+    .find((e) => e.kind === 'section')?.id;
   // Question numbers skip slot rows so "Question 3" matches the detail pane.
   const questionNumberById = useMemo(() => {
     const map = new Map<string, number>();
@@ -514,6 +519,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
                   <SectionRow
                     section={section}
                     questionCount={sectionCounts.get(section.id) ?? 0}
+                    canStop={stopsAllowed && section.id !== lastSectionId}
                     onUpdate={updateSection}
                     onRemove={removeSection}
                     dragHandleAttributes={handle.attributes}

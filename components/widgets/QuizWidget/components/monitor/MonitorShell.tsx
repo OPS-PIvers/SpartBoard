@@ -65,6 +65,8 @@ import { GameBoard } from '@/components/widgets/QuizWidget/components/game/GameB
 import { useServerNow } from '@/hooks/useServerNow';
 import { readGameClock, summarizeGameBoard } from '@/utils/quizGame';
 import { StatusBuckets, BucketKey } from './StatusBuckets';
+import { OpenPartControl } from './OpenPartControl';
+import { openQuizPart } from './openPart';
 import { RosterList } from './RosterList';
 import { PeriodAccessStrip } from './PeriodAccessStrip';
 import { PeriodBar } from './PeriodBar';
@@ -253,6 +255,10 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     } catch (err) {
       periodFailed(err);
     }
+  };
+  const partFailed = (err: unknown) => {
+    logError('QuizLiveMonitor.openPart', err);
+    addToast('Could not open the part. Try again.', 'error');
   };
   const runPeriod = async (fn: () => Promise<void>) => {
     try {
@@ -820,6 +826,16 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 }
               />
             )}
+            {!isGame && (
+              <OpenPartControl
+                session={session}
+                responses={responses}
+                periodNames={data.periodNames}
+                disabled={outward.locked}
+                disabledTitle={outward.lockedTitle}
+                onError={partFailed}
+              />
+            )}
             {!(isGame && boardView) && (
               <StatusBuckets
                 counts={data.counts}
@@ -855,6 +871,16 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 onLetIn={
                   perPeriod && session.status !== 'ended'
                     ? (uid) => void runPeriod(() => periodActions.letIn(uid))
+                    : undefined
+                }
+                onOpenPart={
+                  session.status !== 'ended' && !outward.locked
+                    ? (key, part) =>
+                        void openQuizPart(
+                          session.id,
+                          { kind: 'student', responseKey: key },
+                          part
+                        ).catch(partFailed)
                     : undefined
                 }
                 overridesBySourcedId={overridesBySourcedId}

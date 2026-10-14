@@ -150,6 +150,22 @@ const slotQuiz = (): QuizData => ({
   ],
 });
 
+const sectionQuiz = (): QuizData => ({
+  ...quiz(),
+  questions: quiz().questions.slice(0, 3),
+  sections: [
+    { id: 'sec-1', title: 'Part 1', stopAfter: true },
+    { id: 'sec-2', title: 'Part 2' },
+  ],
+  order: [
+    { kind: 'section', id: 'sec-1' },
+    { kind: 'question', id: 'q-mc' },
+    { kind: 'question', id: 'q-fib' },
+    { kind: 'section', id: 'sec-2' },
+    { kind: 'question', id: quiz().questions[2].id },
+  ],
+});
+
 const devBankApi: QuizEditorBankApi = {
   sources: [
     {
@@ -214,7 +230,7 @@ export const QuizEditorDevView: React.FC<{ state: QuizEditorStateKey }> = ({
     <QuizEditorModal
       key={state}
       isOpen
-      quiz={quiz()}
+      quiz={state === 'qe-sections' ? sectionQuiz() : quiz()}
       onClose={() => undefined}
       onSave={() => Promise.resolve()}
     />

@@ -2129,6 +2129,16 @@
     "left": "Temps restant {{time}}",
     "submitted": "Le temps est écoulé. Tes réponses ont été envoyées."
   },
+  "quizParts": {
+    "confirmTitle": "Rendre la partie {{part}} ?",
+    "confirmBody": "Tu ne pourras plus modifier tes réponses de la partie {{part}} après ça.",
+    "confirmSubmit": "Rendre la partie {{part}}",
+    "stop": "Stop.",
+    "wait": "Attends que ton enseignant lance la partie {{part}}.",
+    "open": "La partie {{part}} est ouverte.",
+    "start": "Commencer la partie {{part}}",
+    "startFailed": "Impossible de commencer la partie {{part}}. Réessaie."
+  },
   "quizReadAloud": {
     "label": "Lire à voix haute",
     "help": "Élèves connectés uniquement.",

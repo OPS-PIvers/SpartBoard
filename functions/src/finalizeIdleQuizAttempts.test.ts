@@ -305,6 +305,41 @@ describe('runFinalizeIdleQuizAttempts', () => {
     expect(responses[0].data.status).toBe('joined');
   });
 
+  it('skips a response held at a Stop, and finalizes one that was released', async () => {
+    const { db, responses } = makeStubDb({
+      responses: [
+        {
+          id: 'held',
+          sid: 'sess1',
+          data: {
+            status: 'in-progress',
+            partsDone: 1,
+            partHeld: true,
+            lastWriteAt: tsVal(NOW - 3 * 24 * 60 * MIN),
+          },
+        },
+        {
+          id: 'released',
+          sid: 'sess1',
+          data: {
+            status: 'in-progress',
+            partsDone: 1,
+            partHeld: null,
+            lastWriteAt: tsVal(NOW - IDLE_MS - MIN),
+          },
+        },
+      ],
+      sessions: { sess1: { status: 'active', createdAt: NOW - 2 * IDLE_MS } },
+    });
+
+    const result = await runFinalizeIdleQuizAttempts(db, NOW);
+
+    expect(result.finalized).toBe(1);
+    expect(result.skippedPaused).toBe(1);
+    expect(responses[0].data.status).toBe('in-progress');
+    expect(responses[1].data.status).toBe('completed');
+  });
+
   it('skips a response whose period is closed, and finalizes one whose period is open', async () => {
     const period = (state: string) => ({
       state,

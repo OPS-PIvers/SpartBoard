@@ -5,8 +5,10 @@
 
 import React, { useMemo } from 'react';
 import { ActiveQuiz } from '@/components/quiz/QuizStudentApp';
+import { QuizStopScreen } from '@/components/quiz/QuizStopScreen';
 import {
   makeCalculatorQuizSession,
+  makeStopQuizSession,
   makeStimulusQuizSession,
   makeTimedQuizSession,
   makeTimedStudentResponse,
@@ -27,9 +29,21 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
           ? makeCalculatorQuizSession()
           : state === 'sq-whiteboard'
             ? makeWhiteboardQuizSession()
-            : makeTimedQuizSession('active'),
+            : state === 'sq-stop-part'
+              ? makeStopQuizSession('active')
+              : makeTimedQuizSession('active'),
     [state]
   );
+  if (state === 'sq-stop-wait' || state === 'sq-stop-open') {
+    return (
+      <QuizStopScreen
+        nextPart={2}
+        ready={state === 'sq-stop-open'}
+        onStart={noop}
+        pin="1004"
+      />
+    );
+  }
   const response = makeTimedStudentResponse(
     state === 'sq-last-minute' ? 48_000 : 12 * 60_000 + 34_000
   );
@@ -49,6 +63,7 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
         noticeAckedAt={state === 'sq-whiteboard' ? 1_700_000_000_000 : null}
         onAcknowledgeNotice={() => undefined}
         onComplete={noop}
+        onSubmitPart={state === 'sq-stop-part' ? noop : undefined}
         reportTabSwitch={() => Promise.resolve(0)}
         onSetHandRaised={noop}
         handRaised={false}

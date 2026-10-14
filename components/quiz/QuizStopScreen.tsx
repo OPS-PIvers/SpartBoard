@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Loader2, Octagon } from 'lucide-react';
 
 interface QuizStopScreenProps {
@@ -18,8 +19,10 @@ export const QuizStopScreen: React.FC<QuizStopScreenProps> = ({
   onStart,
   pin,
 }) => {
+  const { t } = useTranslation();
   const [starting, setStarting] = useState(false);
   const [failed, setFailed] = useState(false);
+  const part = nextPart;
   const start = async () => {
     setStarting(true);
     setFailed(false);
@@ -33,32 +36,47 @@ export const QuizStopScreen: React.FC<QuizStopScreenProps> = ({
     }
   };
   return (
-    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+    <div className="h-screen [height:100dvh] overflow-y-auto bg-gradient-to-b from-white to-slate-100 flex flex-col items-center justify-center p-6 text-center">
       <Octagon
-        className={`w-14 h-14 mb-6 ${ready ? 'text-slate-400' : 'text-brand-red-primary'}`}
+        className={`w-14 h-14 mb-6 ${ready ? 'text-brand-blue-primary' : 'text-brand-red-primary'}`}
         aria-hidden
       />
       <h1 className="font-sans text-4xl font-bold text-slate-900 mb-3">
-        {ready ? `Part ${nextPart} is open.` : 'Stop.'}
+        {ready
+          ? t('quizParts.open', 'Part {{part}} is open.', { part })
+          : t('quizParts.stop', 'Stop.')}
       </h1>
       {ready ? (
+        // no-tour-anchor: student screen, tours walk teachers
         <button
           type="button"
           onClick={() => void start()}
           disabled={starting}
-          className="mt-2 mb-8 inline-flex items-center justify-center gap-2 px-8 py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white font-black rounded-2xl transition-colors"
+          className="mt-2 mb-8 inline-flex items-center justify-center gap-2 px-8 py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white font-bold rounded-xl transition-colors"
         >
           {starting && <Loader2 className="w-5 h-5 animate-spin" aria-hidden />}
-          {`Start Part ${nextPart}`}
+          {t('quizParts.start', 'Start Part {{part}}', { part })}
         </button>
       ) : (
         <p className="text-slate-600 text-lg font-medium mb-8 max-w-sm">
-          {`Wait for your teacher to start Part ${nextPart}.`}
+          {t(
+            'quizParts.wait',
+            'Wait for your teacher to start Part {{part}}.',
+            {
+              part,
+            }
+          )}
         </p>
       )}
       {failed && (
         <p role="alert" className="text-brand-red-primary text-sm mb-4">
-          Something went wrong. Try again.
+          {t(
+            'quizParts.startFailed',
+            "Couldn't start Part {{part}}. Try again.",
+            {
+              part,
+            }
+          )}
         </p>
       )}
       {pin && (

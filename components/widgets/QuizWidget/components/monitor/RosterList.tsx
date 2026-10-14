@@ -39,6 +39,8 @@ import {
   hasReachedTabWarningThreshold,
   resolveStudentTabWarningThreshold,
 } from '@/utils/tabWarningThreshold';
+import { partsDoneOf } from '@/utils/quizParts';
+import { isResponseWaiting } from './openPart';
 
 interface RosterListProps {
   bucket: BucketKey;
@@ -55,6 +57,8 @@ interface RosterListProps {
   onClearHand?: (key: string) => void;
   /** Per-period sessions: unlock one student past their period's state. */
   onLetIn?: (studentUid: string) => void;
+  /** Quizzes with a Stop: open the next part for one waiting student. */
+  onOpenPart?: (key: string, part: number) => void;
   /** M17 E2 F2: the active assignment's per-student overrides, keyed by
    *  `StudentTargetRef` key. */
   overridesBySourcedId?: Record<string, StudentOverride> | null;
@@ -132,6 +136,7 @@ const RowMenu: React.FC<{
   onSubmitForStudent?: (key: string) => void;
   onUnlockResults?: (key: string) => void;
   onLetIn?: (studentUid: string) => void;
+  onOpenPart?: (key: string, part: number) => void;
   overridesBySourcedId?: Record<string, StudentOverride> | null;
   targetRefKeyByStudentUid?: Map<string, string> | null;
 }> = ({
@@ -143,6 +148,7 @@ const RowMenu: React.FC<{
   onSubmitForStudent,
   onUnlockResults,
   onLetIn,
+  onOpenPart,
   overridesBySourcedId,
   targetRefKeyByStudentUid,
 }) => {
@@ -190,6 +196,17 @@ const RowMenu: React.FC<{
         setOpen(false);
       },
     });
+  if (onOpenPart && isResponseWaiting(session, r)) {
+    const part = partsDoneOf(r) + 1;
+    items.push({
+      label: `Open Part ${part}`,
+      tour: tourTypeAttr('quiz-monitor.student-open-part', 'quiz'),
+      onClick: () => {
+        onOpenPart(student.key, part);
+        setOpen(false);
+      },
+    });
+  }
   if (locked && onUnlockAttempt)
     items.push({
       label: 'Unlock attempt',
@@ -293,6 +310,7 @@ export const RosterList: React.FC<RosterListProps> = ({
   onUnlockResults,
   onClearHand,
   onLetIn,
+  onOpenPart,
   overridesBySourcedId = null,
   targetRefKeyByStudentUid = null,
 }) => {
@@ -703,6 +721,7 @@ export const RosterList: React.FC<RosterListProps> = ({
                 session={session}
                 now={now}
                 onLetIn={onLetIn}
+                onOpenPart={onOpenPart}
                 onRemove={onRemove}
                 onUnlockAttempt={onUnlockAttempt}
                 onSubmitForStudent={onSubmitForStudent}

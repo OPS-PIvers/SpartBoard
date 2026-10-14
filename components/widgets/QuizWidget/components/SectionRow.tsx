@@ -9,6 +9,8 @@ interface SectionRowProps {
   section: QuizSection;
   /** Questions a student sees under this heading, bank draws counted. */
   questionCount: number;
+  /** Offer "Stop after this section" (quiz-import-versions, not on the last section). */
+  canStop?: boolean;
   onUpdate: (id: string, patch: Partial<QuizSection>) => void;
   onRemove: (id: string) => void;
   dragHandleAttributes: React.HTMLAttributes<HTMLElement>;
@@ -18,6 +20,7 @@ interface SectionRowProps {
 export const SectionRow: React.FC<SectionRowProps> = ({
   section,
   questionCount,
+  canStop = false,
   onUpdate,
   onRemove,
   dragHandleAttributes,
@@ -94,6 +97,25 @@ export const SectionRow: React.FC<SectionRowProps> = ({
           </select>
           {`of these ${questionCount} ${questionCount === 1 ? 'question' : 'questions'}`}
         </label>
+        {canStop && (
+          <label
+            className="flex items-center gap-1.5 text-xs text-slate-600"
+            title="Self-paced students wait here until you open the next part."
+          >
+            <input
+              type="checkbox"
+              checked={section.stopAfter === true}
+              onChange={(e) =>
+                onUpdate(section.id, {
+                  stopAfter: e.target.checked ? true : undefined,
+                })
+              }
+              {...tourTypeAttr('quiz-editor.section-stop', 'quiz')}
+              className="h-3.5 w-3.5 rounded border-slate-300 accent-brand-blue-primary"
+            />
+            Stop after this section
+          </label>
+        )}
       </div>
       <button
         type="button"
