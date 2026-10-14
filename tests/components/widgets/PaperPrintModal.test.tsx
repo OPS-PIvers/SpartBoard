@@ -678,7 +678,7 @@ describe('PaperPrintModal', () => {
 
     it('saves the stimuli onto the quiz before the batch that points at it', async () => {
       const order: string[] = [];
-      const onSaveSheetStimuli = vi.fn(() => {
+      const onSavePrintSetup = vi.fn(() => {
         order.push('quiz');
         return Promise.resolve();
       });
@@ -688,7 +688,7 @@ describe('PaperPrintModal', () => {
       });
       const { print } = setup({
         quiz: quiz({ paperSheetStimuli: [graph] }),
-        onSaveSheetStimuli,
+        onSavePrintSetup,
         onSaveBatch,
       });
       fireEvent.change(screen.getByLabelText('Caption for Unit 3 graph'), {
@@ -697,32 +697,33 @@ describe('PaperPrintModal', () => {
       selectWholeClass();
       fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
       await waitFor(() => expect(print).toHaveBeenCalled());
-      expect(onSaveSheetStimuli).toHaveBeenCalledWith([
-        { ...graph, caption: 'Use for 1-10' },
-      ]);
+      expect(onSavePrintSetup).toHaveBeenCalledWith({
+        stimuli: [{ ...graph, caption: 'Use for 1-10' }],
+        boxSizes: {},
+      });
       expect(order).toEqual(['quiz', 'batch']);
     });
 
     it('does not re-save a quiz whose sheet nobody touched', async () => {
-      const onSaveSheetStimuli = vi.fn();
+      const onSavePrintSetup = vi.fn();
       const { print } = setup({
         quiz: quiz({ paperSheetStimuli: [graph] }),
-        onSaveSheetStimuli,
+        onSavePrintSetup,
       });
       selectWholeClass();
       fireEvent.click(screen.getByRole('button', { name: /^Print$/ }));
       await waitFor(() => expect(print).toHaveBeenCalled());
       // An unchanged save would publish a new PLC version on every print.
-      expect(onSaveSheetStimuli).not.toHaveBeenCalled();
+      expect(onSavePrintSetup).not.toHaveBeenCalled();
     });
 
     it('carries them on the stub a new paper test creates, not a second save', async () => {
       const onCreateQuiz = vi.fn().mockResolvedValue(undefined);
-      const onSaveSheetStimuli = vi.fn();
+      const onSavePrintSetup = vi.fn();
       const { print } = setup({
         quiz: quiz({ title: '', questions: [] }),
         onCreateQuiz,
-        onSaveSheetStimuli,
+        onSavePrintSetup,
       });
       fireEvent.change(screen.getByLabelText('Title'), {
         target: { value: 'Pop quiz' },
@@ -744,7 +745,7 @@ describe('PaperPrintModal', () => {
           driveFileId: 'picked-1',
         }),
       ]);
-      expect(onSaveSheetStimuli).not.toHaveBeenCalled();
+      expect(onSavePrintSetup).not.toHaveBeenCalled();
     });
 
     it('stays open until the print window has the images, then closes', async () => {
@@ -1145,6 +1146,58 @@ describe('PaperPrintModal with handwritten answers', () => {
       m.items.map((i) => `${i.kind}:${i.label}`)
     );
     expect(labels).toEqual(['mc:1', 'written:2', 'mc:3']);
+  });
+
+  it('sizes written boxes here, starting from the saved size or the word limit', () => {
+    setup({
+      quiz: quiz({
+        questions: [
+          fr('w1', { paperBoxSize: 'L' }),
+          fr('w2', { maxWords: 20 }),
+        ],
+      }),
+    });
+    expect(screen.getByText('Written answers')).toBeInTheDocument();
+    expect(screen.getByLabelText('Question 1 box size')).toHaveValue('L');
+    expect(screen.getByLabelText('Question 2 box size')).toHaveValue('S');
+  });
+
+  it('prints the picked box size and saves only the sizes that changed', async () => {
+    const onSavePrintSetup = vi.fn().mockResolvedValue(undefined);
+    const { onSaveBatch, print } = setup({
+      quiz: quiz({
+        questions: [fr('w1', { paperBoxSize: 'L' }), fr('w2')],
+      }),
+      onSavePrintSetup,
+    });
+    fireEvent.change(screen.getByLabelText('Question 2 box size'), {
+      target: { value: 'S' },
+    });
+    fireEvent.change(screen.getByLabelText('Question 1 box size'), {
+      target: { value: 'L' },
+    });
+    await printIt(print);
+    expect(onSavePrintSetup).toHaveBeenCalledWith({
+      stimuli: [],
+      boxSizes: { w2: 'S' },
+    });
+    const lines = onSaveBatch.mock.calls[0][0].pageMaps?.flatMap((m) =>
+      m.items.flatMap((i) => (i.kind === 'written' ? [i.lines] : []))
+    );
+    expect(lines).toEqual([12, 3]);
+  });
+
+  it('does not save the quiz when no box size changed', async () => {
+    const onSavePrintSetup = vi.fn();
+    const { print } = setup({
+      quiz: quiz({ questions: [fr('w1')] }),
+      onSavePrintSetup,
+    });
+    fireEvent.change(screen.getByLabelText('Question 1 box size'), {
+      target: { value: 'M' },
+    });
+    await printIt(print);
+    expect(onSavePrintSetup).not.toHaveBeenCalled();
   });
 
   it('prints a quiz with no written questions exactly as before', async () => {

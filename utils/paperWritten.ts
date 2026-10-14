@@ -1,5 +1,6 @@
 import type {
   PaperBoxSize,
+  QuizQuestion,
   PaperPrivateAnswer,
   PaperPrivateStatus,
   PaperTranscriptState,
@@ -47,6 +48,27 @@ export function defaultPaperBoxSize(maxWords?: number): PaperBoxSize {
   if (lines <= PAPER_BOX_LINES.M) return 'M';
   if (lines <= PAPER_BOX_LINES.L) return 'L';
   return 'full';
+}
+
+/** The box a free-response question prints with: its saved size, else one sized from its word limit. */
+export function paperBoxSizeOf(
+  question: Pick<QuizQuestion, 'paperBoxSize' | 'maxWords'>
+): PaperBoxSize {
+  return question.paperBoxSize ?? defaultPaperBoxSize(question.maxWords);
+}
+
+/** Questions with the print dialog's box sizes applied; untouched when there are none. */
+export function withPaperBoxSizes<T extends { questions: QuizQuestion[] }>(
+  holder: T,
+  sizes: Readonly<Record<string, PaperBoxSize>>
+): T {
+  if (Object.keys(sizes).length === 0) return holder;
+  return {
+    ...holder,
+    questions: holder.questions.map((q) =>
+      sizes[q.id] ? { ...q, paperBoxSize: sizes[q.id] } : q
+    ),
+  };
 }
 
 export function isPaperBoxSize(value: unknown): value is PaperBoxSize {
