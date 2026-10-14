@@ -228,7 +228,7 @@ describe('WhiteboardResponseCapture', () => {
     expect(screen.getByTestId('canvas').dataset.disabled).toBe('false');
   });
 
-  it('reviews, then commits picture, log and audio and starts a fresh page', async () => {
+  it('reviews, then turns in picture, log and audio and starts a fresh page', async () => {
     const { onCommit } = renderCapture();
     const firstMount = screen.getByTestId('canvas').dataset.mount;
     await record();
@@ -238,9 +238,7 @@ describe('WhiteboardResponseCapture', () => {
     expect(onCommit).not.toHaveBeenCalled();
 
     await act(() => {
-      fireEvent.click(
-        screen.getByRole('button', { name: 'Keep this attempt' })
-      );
+      fireEvent.click(screen.getByRole('button', { name: 'Turn in' }));
       return Promise.resolve();
     });
     await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
@@ -256,7 +254,7 @@ describe('WhiteboardResponseCapture', () => {
     );
   });
 
-  it('discard never writes and restarts from the starting page', async () => {
+  it('a redo in review never writes and restarts from the starting page', async () => {
     const { store, removed } = memoryStore();
     const { onCommit } = renderCapture({
       recovery: { store, key: 'k' },
@@ -266,7 +264,7 @@ describe('WhiteboardResponseCapture', () => {
     await stop();
     await screen.findByTestId('replay');
     await act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Redo' }));
       return Promise.resolve();
     });
     expect(onCommit).not.toHaveBeenCalled();
@@ -275,7 +273,7 @@ describe('WhiteboardResponseCapture', () => {
     expect(screen.getByRole('button', { name: 'Record' })).toBeTruthy();
   });
 
-  it('a take discarded mid-render does not lend its picture to the next', async () => {
+  it('a take redone mid-render does not lend its picture to the next', async () => {
     let finish: (b: Blob) => void = () => undefined;
     renderPicture.mockImplementationOnce(
       () => new Promise<Blob>((r) => (finish = r))
@@ -285,7 +283,7 @@ describe('WhiteboardResponseCapture', () => {
     await stop();
     await screen.findByTestId('replay');
     await act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Redo' }));
       return Promise.resolve();
     });
     const stale = new Blob(['stale'], { type: 'image/png' });
@@ -297,9 +295,7 @@ describe('WhiteboardResponseCapture', () => {
     await stop();
     await screen.findByTestId('replay');
     await act(() => {
-      fireEvent.click(
-        screen.getByRole('button', { name: 'Keep this attempt' })
-      );
+      fireEvent.click(screen.getByRole('button', { name: 'Turn in' }));
       return Promise.resolve();
     });
     await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
@@ -311,9 +307,7 @@ describe('WhiteboardResponseCapture', () => {
     await record();
     await stop();
     await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
-    expect(
-      screen.queryByRole('button', { name: 'Keep this attempt' })
-    ).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Turn in' })).toBeNull();
   });
 
   it('draw-only skips the mic and records no mic state', async () => {
@@ -411,10 +405,68 @@ describe('WhiteboardResponseCapture', () => {
     expect(store.load).toHaveBeenCalledTimes(1);
   });
 
-  it('hides Record once the take limit is used', () => {
+  it('hides Record and Redo once the take limit is used', () => {
     renderCapture({ config: config({ takeLimit: 1 }), takesCommitted: 1 });
-    expect(screen.queryByRole('button', { name: /Record/ })).toBeNull();
-    expect(screen.getByText('No attempts left')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Record|Redo/ })).toBeNull();
+    expect(screen.getAllByText('Turned in').length).toBeGreaterThan(0);
+  });
+
+  it('shows the turned-in take, not a blank page, and offers Redo', async () => {
+    function Harness() {
+      const [committed, setCommitted] = React.useState(0);
+      const [recorderDeps] = React.useState(() => deps());
+      return (
+        <WhiteboardResponseCapture
+          config={config({ takeLimit: 3 })}
+          takesCommitted={committed}
+          noticeAckedAt={ACKED}
+          onAcknowledgeNotice={() => undefined}
+          onCommit={() => {
+            setCommitted((n) => n + 1);
+            return Promise.resolve();
+          }}
+          recorderDeps={recorderDeps}
+        />
+      );
+    }
+    render(<Harness />);
+    await record();
+    await stop();
+    await screen.findByTestId('replay');
+    await act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Turn in' }));
+      return Promise.resolve();
+    });
+
+    expect(await screen.findByText('Turned in')).toBeTruthy();
+    const replay = screen.getByTestId('replay');
+    expect(replay.dataset.duration).toBe('5000');
+    expect(replay.dataset.audio).toBe('blob:x');
+    expect(screen.queryByTestId('canvas')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Turn in' })).toBeNull();
+
+    await act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Redo' }));
+      return Promise.resolve();
+    });
+    expect(screen.getByTestId('canvas').dataset.disabled).toBe('false');
+    expect(screen.queryByText('Turned in')).toBeNull();
+  });
+
+  it('counts a redo in review against the take limit', async () => {
+    renderCapture({ config: config({ takeLimit: 2 }) });
+    await record();
+    await stop();
+    await screen.findByTestId('replay');
+    await act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Redo' }));
+      return Promise.resolve();
+    });
+    await record();
+    await stop();
+    await screen.findByTestId('replay');
+    expect(screen.getByRole('button', { name: 'Turn in' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Redo' })).toBeNull();
   });
 
   it('shows the worst upload state across the take', () => {

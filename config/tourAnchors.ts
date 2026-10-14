@@ -1546,7 +1546,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'quiz-editor.recording-expiry': {
-    label: 'When thinking time runs out menu in the Quiz editor',
+    label: 'After planning time menu in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },
@@ -2954,11 +2954,6 @@ export const TOUR_ANCHORS = {
     label: 'Teacher comment box in the Quiz grader',
     perWidgetType: true,
     persists: true,
-    panel: true,
-  },
-  'quiz-grading.take-pin': {
-    label: 'Take pin button in the Quiz grader, by take',
-    perField: true,
     panel: true,
   },
   'quiz-grading.undo-excuse': {

@@ -2276,19 +2276,14 @@
       "windowClosedBody": "Deine Lehrkraft sieht diese Frage ohne Aufnahme. Mach weiter, wenn du bereit bist.",
       "armedBody": "Du hast {{seconds}} Sekunden.",
       "record": "Record",
-      "recordAgain": "Record again",
       "stop": "Stop recording",
       "stopAndSubmit": "Stop and submit",
-      "commit": "Keep this attempt",
-      "discard": "Discard",
+      "commit": "Turn in",
       "retryUpload": "Try again",
       "playPlayback": "Play your recording",
       "pausePlayback": "Pause your recording",
       "submitQuiz": "Submit quiz",
       "nextQuestion": "Next",
-      "takeLimitReachedTitle": "No attempts left",
-      "takeLimitReachedBody_one": "This question allows {{count}} attempt, and you have used it. Your last attempt is the one your teacher receives.",
-      "takeLimitReachedBody_other": "This question allows {{count}} attempts, and you have used them all. Your last attempt is the one your teacher receives.",
       "submitBlockedTitle_one": "One question still needs a recording",
       "submitBlockedTitle_other": "{{count}} questions still need a recording",
       "submitBlockedBody_one": "The question stays incomplete and the assignment cannot be submitted. Go back and record an answer, then turn it in.",
@@ -2296,7 +2291,9 @@
       "submitBlockedJump": "Go to question {{number}}",
       "notSubmittedPending": "Noch nicht abgegeben. Deine Aufnahme wird noch gesendet.",
       "notSubmittedFailed": "Deine Aufnahme wurde nicht gesendet. Wähle Erneut versuchen.",
-      "notSubmittedFailedFinal": "Deine Aufnahme wurde nicht gesendet und kann von diesem Gerät nicht gesendet werden. Nimm erneut auf, um eine neue Aufnahme zu senden."
+      "notSubmittedFailedFinal": "Deine Aufnahme wurde nicht gesendet und kann von diesem Gerät nicht gesendet werden. Nimm erneut auf, um eine neue Aufnahme zu senden.",
+      "redo": "Redo",
+      "submittedLabel": "Turned in"
     },
     "whiteboard": {
       "title": "Whiteboard answer",
@@ -2451,18 +2448,6 @@
         "body": "Sobald Schüler eine Frage mit freier Antwort beantworten, getippt oder gesprochen, erscheinen sie hier."
       },
       "takes": {
-        "title": "Attempts",
-        "count_one": "{{count}} attempt recorded",
-        "count_other": "{{count}} attempts recorded",
-        "take": "Attempt {{n}}",
-        "pinNote": "Scores use the last attempt.",
-        "status": {
-          "archiving": "Still saving",
-          "archive-failed": "Not saved",
-          "lost": "Lost",
-          "deleted": "Deleted",
-          "unknown": "Unavailable"
-        },
         "mic": {
           "denied": "Mikrofon blockiert",
           "unavailable": "Kein Mikrofon"

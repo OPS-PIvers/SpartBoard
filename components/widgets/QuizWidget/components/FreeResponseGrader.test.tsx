@@ -262,35 +262,60 @@ describe('FreeResponseGrader queue shape', () => {
   });
 });
 
-describe('FreeResponseGrader take pinning', () => {
-  it('defaults to the winning take and records an earlier pick as gradedTakeIndex', async () => {
-    const onSave = renderGrader([recorded('ada', 3)]);
-    expect(await screen.findByText('3 attempts recorded')).toBeTruthy();
+describe('FreeResponseGrader graded take', () => {
+  const renderPerTake = (response: QuizResponse) => {
+    const onSaveGrade = vi.fn<FreeResponseGraderProps['onSaveGrade']>(() =>
+      Promise.resolve()
+    );
+    render(
+      <FreeResponseGrader
+        quiz={quiz}
+        responses={[response]}
+        displayNameByResponseKey={names}
+        teacherUid="teacher-1"
+        resolveTakeUrl={(id: string) => Promise.resolve(`blob:${id}`)}
+        onSaveGrade={onSaveGrade}
+        onClose={() => undefined}
+      />
+    );
+    return onSaveGrade;
+  };
 
-    // Winner first, so pinning is opt-in.
-    expect(
-      screen
-        .getByRole('button', { name: /Attempt 3/ })
-        .getAttribute('aria-pressed')
-    ).toBe('true');
-
-    fireEvent.click(screen.getByRole('button', { name: /Attempt 1/ }));
-    expect(
-      screen
-        .getByRole('button', { name: /Attempt 1/ })
-        .getAttribute('aria-pressed')
-    ).toBe('true');
+  it('shows only the turned-in take and saves it as gradedTakeIndex', async () => {
+    const onSave = renderPerTake(recorded('ada', 3));
+    await waitFor(() =>
+      expect(document.querySelector('audio')?.src).toContain('drive-ada-3')
+    );
+    expect(screen.queryByText(/attempts? recorded/i)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Attempt \d/ })).toBeNull();
 
     const pts = screen.getByLabelText(/Points awarded/i);
     fireEvent.change(pts, { target: { value: '3' } });
-    // Enter commits the score without waiting for the idle timer.
     fireEvent.keyDown(pts, { key: 'Enter' });
 
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     const [, key, grade] = onSave.mock.calls[0];
     expect(key).toBe('q1');
-    expect(grade.gradedTakeIndex).toBe(1);
+    expect(grade.gradedTakeIndex).toBe(3);
     expect(grade.pointsAwarded).toBe(3);
+  });
+
+  it('keeps an earlier take a saved grade was pinned to', async () => {
+    const response = {
+      ...(recorded('ada', 3) as unknown as Record<string, unknown>),
+      grading: {
+        q1: {
+          pointsAwarded: 2,
+          gradedTakeIndex: 1,
+          gradedBy: 'teacher-1',
+          gradedAt: 1,
+        },
+      },
+    } as unknown as QuizResponse;
+    renderPerTake(response);
+    await waitFor(() =>
+      expect(document.querySelector('audio')?.src).toContain('drive-ada-1')
+    );
   });
 });
 
@@ -444,27 +469,6 @@ describe('FreeResponseGrader undo excuse', () => {
 });
 
 // INT-B1/U6: the label is the take's position, not its raw index.
-describe('FreeResponseGrader take numbering', () => {
-  it('numbers a rescued/dropped-take history by position', async () => {
-    const response = recorded('ada', 3);
-    // Take 2's upload failed and nothing archived it — it stops counting.
-    const answers = (
-      response as unknown as {
-        answers: { artifacts: { uploadState: string }[] }[];
-      }
-    ).answers;
-    answers[1].artifacts[0].uploadState = 'failed';
-    delete (response as unknown as { artifactArchive: Record<string, unknown> })
-      .artifactArchive['ada-t2'];
-
-    renderGrader([response]);
-    expect(await screen.findByText('2 attempts recorded')).toBeTruthy();
-    // takeIndex 3 survives as the SECOND visible take, so it reads "Take 2".
-    expect(screen.getByRole('button', { name: /Attempt 2/ })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Attempt 3/ })).toBeNull();
-  });
-});
-
 const ESSAY_RUBRIC = {
   id: 'r1',
   title: 'Essay rubric',
@@ -776,85 +780,6 @@ describe('FreeResponseGrader rubric strand tags', () => {
       expect(
         screen.getByRole('button', { name: /notes? as evidence for thesis/i })
       ).toBeInTheDocument()
-    );
-    expect(document.querySelector('audio')?.currentTime).toBe(0);
-  });
-
-  // Asserts the invariant, not a reproduction: the outgoing element consumes
-  // the nonce before the new take's URL lands, so this passes either way.
-  it("leaves a newly picked take at the start, not the last take's seek", async () => {
-    const spokenQuiz = {
-      id: 'quiz-4',
-      title: 'Spoken checks',
-      questions: [
-        {
-          id: 'q1',
-          text: 'Explain your reasoning out loud.',
-          type: 'free-response',
-          correctAnswer: '',
-          incorrectAnswers: [],
-          timeLimit: 0,
-          points: 4,
-          recording: RECORDING,
-          rubricSnapshot: ESSAY_RUBRIC,
-        },
-      ],
-    } as unknown as QuizData;
-
-    const twoTakes = {
-      ...(recorded('ada', 2) as unknown as Record<string, unknown>),
-      grading: {
-        q1: {
-          pointsAwarded: 3,
-          annotationUnit: 'ms',
-          annotations: [
-            {
-              id: 'ada-n1',
-              from: 8_000,
-              to: 8_000,
-              highlightColor: 'yellow',
-              authorUid: 'teacher-1',
-              createdAt: 0,
-              rubricCriteria: [{ criterionId: 'c1', name: 'Thesis' }],
-            },
-          ],
-          rubricScores: [{ criterionId: 'c1', levelId: 'c1l2', points: 3 }],
-          gradedBy: 'teacher-1',
-          gradedAt: 1,
-        },
-      },
-    } as unknown as QuizResponse;
-
-    render(
-      <FreeResponseGrader
-        quiz={spokenQuiz}
-        responses={[twoTakes]}
-        displayNameByResponseKey={names}
-        teacherUid="teacher-1"
-        // A URL per take, as production does: the remounted view only runs
-        // its seek once a `src` lands, so one shared URL hides the bug.
-        resolveTakeUrl={(driveFileId: string) =>
-          Promise.resolve(`blob:${driveFileId}`)
-        }
-        onSaveGrade={vi.fn<FreeResponseGraderProps['onSaveGrade']>(() =>
-          Promise.resolve()
-        )}
-        onClose={() => undefined}
-      />
-    );
-
-    fireEvent.click(
-      await screen.findByRole('button', {
-        name: /notes? as evidence for thesis/i,
-      })
-    );
-    await waitFor(() =>
-      expect(document.querySelector('audio')?.currentTime).toBe(8)
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: /attempt 1/i }));
-    await waitFor(() =>
-      expect(document.querySelector('audio')?.src).toContain('drive-ada-1')
     );
     expect(document.querySelector('audio')?.currentTime).toBe(0);
   });

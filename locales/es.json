@@ -2276,19 +2276,14 @@
       "windowClosedBody": "Tu docente verá esta pregunta sin grabación. Continúa cuando estés listo.",
       "armedBody": "Tendrás {{seconds}} segundos.",
       "record": "Record",
-      "recordAgain": "Record again",
       "stop": "Stop recording",
       "stopAndSubmit": "Stop and submit",
-      "commit": "Keep this attempt",
-      "discard": "Discard",
+      "commit": "Turn in",
       "retryUpload": "Try again",
       "playPlayback": "Play your recording",
       "pausePlayback": "Pause your recording",
       "submitQuiz": "Submit quiz",
       "nextQuestion": "Next",
-      "takeLimitReachedTitle": "No attempts left",
-      "takeLimitReachedBody_one": "This question allows {{count}} attempt, and you have used it. Your last attempt is the one your teacher receives.",
-      "takeLimitReachedBody_other": "This question allows {{count}} attempts, and you have used them all. Your last attempt is the one your teacher receives.",
       "submitBlockedTitle_one": "One question still needs a recording",
       "submitBlockedTitle_other": "{{count}} questions still need a recording",
       "submitBlockedBody_one": "The question stays incomplete and the assignment cannot be submitted. Go back and record an answer, then turn it in.",
@@ -2296,7 +2291,9 @@
       "submitBlockedJump": "Go to question {{number}}",
       "notSubmittedPending": "Aún no se ha entregado. Tu grabación se está enviando.",
       "notSubmittedFailed": "Tu grabación no se envió. Elige Intentar de nuevo.",
-      "notSubmittedFailedFinal": "Tu grabación no se envió y no se puede enviar desde este dispositivo. Graba de nuevo para enviar una toma nueva."
+      "notSubmittedFailedFinal": "Tu grabación no se envió y no se puede enviar desde este dispositivo. Graba de nuevo para enviar una toma nueva.",
+      "redo": "Redo",
+      "submittedLabel": "Turned in"
     },
     "whiteboard": {
       "title": "Whiteboard answer",
@@ -2451,18 +2448,6 @@
         "body": "Cuando los estudiantes respondan una pregunta de respuesta libre, escrita o hablada, aparecerán aquí."
       },
       "takes": {
-        "title": "Attempts",
-        "count_one": "{{count}} attempt recorded",
-        "count_other": "{{count}} attempts recorded",
-        "take": "Attempt {{n}}",
-        "pinNote": "Scores use the last attempt.",
-        "status": {
-          "archiving": "Still saving",
-          "archive-failed": "Not saved",
-          "lost": "Lost",
-          "deleted": "Deleted",
-          "unknown": "Unavailable"
-        },
         "mic": {
           "denied": "Micrófono bloqueado",
           "unavailable": "Sin micrófono"
