@@ -5,6 +5,7 @@ import {
   defaultAudioRecordingDeps,
   SPEECH_AUDIO_BITS_PER_SECOND,
   type AudioRecordingDeps,
+  type AudioTake,
 } from './useAudioRecording';
 import type { RecordingConfig } from '@/types';
 
@@ -240,6 +241,27 @@ describe('useAudioRecording capture', () => {
       3000
     );
     expect(result.current.phase).toBe('armed');
+  });
+
+  it('hands the take straight to onTakeReady and skips review', async () => {
+    const onTakeReady = vi.fn<(take: AudioTake) => void>();
+    const { result } = renderHook(() =>
+      useAudioRecording({
+        config: config({ prepSeconds: 0, limitSeconds: 10 }),
+        enabled: true,
+        onTakeReady,
+        deps: makeDeps(),
+      })
+    );
+    await act(async () => {
+      await result.current.start();
+    });
+    advance(10_000);
+    expect(onTakeReady).toHaveBeenCalledTimes(1);
+    expect(onTakeReady.mock.calls[0][0].durationMs).toBe(10_000);
+    expect(result.current.phase).toBe('armed');
+    expect(result.current.take).toBeNull();
+    expect(result.current.takeUrl).toBeNull();
   });
 });
 
