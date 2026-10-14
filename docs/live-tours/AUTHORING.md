@@ -20,7 +20,7 @@ Don't agree an outline with the admin first. Build the tour, check it with `dry_
 3. **Follow the path.** Each anchor's `routes[].path` is the list of anchors to click, in order, from the board to where the anchor shows. Turn every path entry the tour hasn't already clicked into a `click` step, in that order. `reveal` is a tab or menu inside the surface. `needs` says what has to exist first: `widget-on-stage` (put the widget in `tour_widgets`), `library-item` (add a material), `class`, `plc`, `admin`, `live-session`, `student-data`.
 4. **Stage it.** Set `tour_widgets`, add `materials` when the tour opens, makes or assigns a library item, and decide `autopilot` (see below).
 5. **Dry-run it.** Call `create_live_tour` with `dry_run: true`. Fix every error; read every warning and fix it unless there's a reason not to.
-6. **Save.** Call it again without `dry_run`. Pass `help_center` with a category from `list_help_center_categories`. Saving narrates every step whose text is new or changed; `narration_failed` lists any it couldn't, and saving again retries them.
+6. **Save.** Call it again without `dry_run`. Pass `help_center` with a `category_id` from `list_help_center_categories`, and `widget_types` for the widgets whose **?** button should offer the tour. Saving narrates every step whose text is new or changed; `narration_failed` lists any it couldn't, and saving again retries them.
 7. **Play it (Claude Code only).** Run the browser run below, fix what fails, and let it upload the step pictures. Then hand back.
 
 To change an existing tour, `get_live_tour`, then `update_live_tour` with `steps` (the whole list, ids kept) or `step_text` (wording only). Update takes the same setup fields and `dry_run`.
@@ -53,7 +53,7 @@ To change an existing tour, `get_live_tour`, then `update_live_tour` with `steps
 
 **Controls with no anchor.** When `list_tour_anchors` has nothing for a control, use `"anchor": ""` with `fallback` (its ARIA role and English accessible name) and fill `missing_anchor` (where it is and what it does). The step works in English only, and a developer is asked to tag it. Prefer a tagged control nearby when one says the same thing.
 
-**Editors that save as you go.** The quiz editor autosaves and shows no Save button, so a quiz tour ends with `editor.close:quiz`. `editor.save` is for editors with a Save button, such as the video activity editor.
+**Editors that save as you go.** The quiz editor autosaves and shows no Save button, so a quiz tour leaves it with `editor.close:quiz` (the **Close** button) before its closing step. `editor.save` is for editors with a Save button, such as the video activity editor.
 
 **Positions in a list.** A row in the teacher's own library (`#row-1`) points at whatever sits there on their board, so use it only in a tour with materials. Menu items (`#item-2`) and Help Center rows are the same for everyone.
 
@@ -62,6 +62,7 @@ To change an existing tour, `get_live_tour`, then `update_live_tour` with `steps
 - `tour_widgets`: widget types on the board when the tour starts. The runner clears the stage (the teacher's widgets step aside) and adds these. A widget the tour adds from the Dock (`dock.item:<type>`) doesn't belong here.
   - A staged Schedule already has three demo rows (Morning Meeting, Math, Reading, with Math as Now), so a row the tour adds is `event-4`.
 - `layouts`: leave them out and SpartBoard places the widgets. Set them only when a step needs a widget in a particular spot; give each one a `slot`, and use `slot` on steps only when two widgets of one type are on the board.
+- `welcome_enabled` and `welcome_message`: a card before the first step. Leave it off; the opening `board.whole` step names the goal. Turn it on only when the teacher needs to know something before the board changes.
 - `use_teacher_board: true`: play on the teacher's board as it is, for tours about their own setup. Without it, a widget step fails the dry run unless the widget is staged.
 - `materials`: library items the tour works on. With any material the tour runs in a sandbox, where what it saves, assigns or starts stays out of the teacher's real library unless they choose Keep at the end.
   - `created`: the tour makes it (a quiz from scratch). It starts empty.
@@ -72,7 +73,7 @@ To change an existing tour, `get_live_tour`, then `update_live_tour` with `steps
 
 Autopilot performs each step while the teacher watches. A click that changes the teacher's real account (`persists`) or can't be undone (`destructive`) is handed back to the teacher, unless the tour has materials and the anchor is `sandboxed`.
 
-Set `autopilot` by this rule:
+It starts off unless `autopilot: true`. Set it by this rule:
 
 - **Off** for "how do I…" tours, the workflows a teacher will repeat on their own (assign a quiz, make groups, set up the schedule). They learn by clicking.
 - **On** for "what's here" tours that show around a widget or a screen without a task to repeat.
@@ -85,7 +86,7 @@ Write for a busy teacher reading a small card on a projected board.
 - Second person, present tense, plain words. Name each control in bold exactly as it appears on screen.
 - Say why only when the reason isn't obvious: "Turn on **Shuffle questions** so neighbours see a different order."
 - The label is 2 to 5 words and starts with a verb: "Open the settings", "Pick a class".
-- The first step observes `board.whole` and names the goal: "Let's make a quiz from scratch." The welcome message, when used, is one sentence.
+- The first step observes `board.whole` and names the goal: "Let's make a quiz from scratch." A welcome message, when there is one, is one sentence.
 - The last step observes the result or `board.whole` and says what the teacher can do now.
 - No em dashes, no "Tip:" or "Note:", no "simply", "just" or "easily", no marketing words, no flag names or mechanics.
 
@@ -104,9 +105,9 @@ Write for a busy teacher reading a small card on a projected board.
 The dry run reads the map; the browser run plays the tour on a real board. In Claude Code, after saving:
 
 1. Save the result of `get_live_tour` with `for_browser_run: true` to a file (it keeps each sample material's content), and call `start_live_tour_picture_upload` for a ticket.
-2. Start the `vite-verify` server (the dummy backend, so nothing touches an account), then run `node scripts/run-live-tour.mjs <file> --upload <upload_url> --ticket <ticket>`.
+2. Start the `vite-verify` server from `.claude/launch.json` (`preview_start` with that name; it serves the dummy backend on port 56320, so nothing touches an account), then run `node scripts/run-live-tour.mjs <file> --upload <upload_url> --ticket <ticket>`.
 3. Autopilot does every step it can, including ones a teacher run would leave to the teacher. Widgets that need students get a made-up class. Each step is `found`, `missing` (the control never showed) or `left to the teacher` (a step with no value).
-4. Fix every `missing` step, save, and run it again. The run uploads each step's picture as its thumbnail; look at a few with `get_live_tour_step_picture`.
+4. Fix every `missing` step with `update_live_tour` (dry-run it first, as before), fetch `get_live_tour` again, and rerun. The run uploads each step's picture as its thumbnail; look at a few with `get_live_tour_step_picture`.
 
 A tour that needs a real library item, a PLC or student work can't fully play on the dummy backend; say which steps that leaves unchecked. In claude.ai there is no browser run, so say the tour was dry-run only.
 
@@ -117,10 +118,10 @@ After saving, tell the admin in a few lines:
 - what the tour covers and how many steps it has
 - where to find it (the save result says)
 - the warnings you left in, and why
-- any controls queued for an anchor: the save's `needs_anchors` lists those steps, and the tour waits for them before it's published
+- any controls queued for an anchor: the save's `needs_anchors` lists those steps. Publishing isn't blocked, but those steps fail for teachers using another language, so recommend waiting until they're tagged and rebound
 - the browser run's result, or that there wasn't one
 
-Then they run it with **Run live on my board (draft)** and publish it in the Studio.
+Then the admin opens it from the Guided Learning library (Type: **Live tours**, then **Edit**), which opens it on the board, plays it there, and presses **Publish tour** and then **Show in Help** in the **Teachers' version** panel. **Show in Help** is the same as turning on Visible in Admin Settings > Help Center.
 
 ## Examples
 
@@ -148,16 +149,17 @@ Each example is the body of a `create_live_tour` call without its title. The tes
     {
       "id": "style",
       "label": "Pick a style",
-      "text": "Choose a **Clock style** to switch between a digital and an analog face.",
+      "text": "Under **Display Style**, choose **LCD Panel** for a classic digital look.",
       "tour": {
         "anchor": "settings.field:clock#clockStyle",
-        "action": "observe"
+        "action": "select",
+        "value": "lcd"
       }
     },
     {
       "id": "color",
-      "label": "Pick a color",
-      "text": "Pick a **Theme color** that's easy to read from the back of the room.",
+      "label": "See the colors",
+      "text": "**Color Palette** sets the color of the numbers. Pick one that's easy to read from the back of the room.",
       "tour": {
         "anchor": "settings.field:clock#themeColor",
         "action": "observe"
@@ -210,9 +212,15 @@ Each example is the body of a `create_live_tour` call without its title. The tes
       "tour": { "anchor": "quiz-editor.add-question:quiz", "action": "click" }
     },
     {
+      "id": "close",
+      "label": "Close the editor",
+      "text": "Click **Close**. Your quiz saves as you go, so there's nothing else to save.",
+      "tour": { "anchor": "editor.close:quiz", "action": "click" }
+    },
+    {
       "id": "done",
       "label": "Keep going",
-      "text": "Write the question, mark the right answer, and add as many as you need.",
+      "text": "Your new quiz is in the Quiz widget. Open it any time to write the questions and mark the answers.",
       "tour": { "anchor": "board.whole", "action": "observe" }
     }
   ]
