@@ -87,6 +87,10 @@ export const SURFACES: TourSurfaceMap = {
     inner: {
       'settings.style-defaults-save': 'settings.tab-style',
       'settings.style-defaults-reset': 'settings.tab-style',
+      'settings.window-background': 'settings.tab-style',
+      'settings.window-font': 'settings.tab-style',
+      'settings.window-text-size': 'settings.tab-style',
+      'settings.window-transparency': 'settings.tab-style',
       'settings.help-menu.show-live': 'settings.help',
       'settings.help-menu.open-guides': 'settings.help',
     },
