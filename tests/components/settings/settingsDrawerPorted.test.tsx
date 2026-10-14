@@ -1,4 +1,4 @@
-// Ports the SettingsPanel.test.tsx behaviours the drawer answers differently
+// Ports the old floating panel's behaviours the drawer answers differently
 // (§3 items 2, 6 and 8, §4.5): the drawer is non-modal, never re-selects a side
 // on a board pan, and hands the Escape-after-close signal to DraggableWindow.
 
@@ -199,7 +199,7 @@ describe('SettingsDrawer placement ignores board-pan (§3 item 8)', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Escape after a close, from either surface (§4.5)
+// Escape after a drawer close (§4.5)
 // ---------------------------------------------------------------------------
 
 const updateWidget = vi.fn();
@@ -226,15 +226,11 @@ const context = {
   zoom: 1,
 } as unknown as DashboardContextValue;
 
-const renderWindow = (useSettingsDrawer: boolean) =>
+const renderWindow = () =>
   render(
     <DashboardContext.Provider value={context}>
       <DraggableWindow
         widget={widget}
-        settings={
-          useSettingsDrawer ? undefined : <div>legacy settings body</div>
-        }
-        useSettingsDrawer={useSettingsDrawer}
         title="Text"
         globalStyle={globalStyle}
       >
@@ -258,24 +254,16 @@ describe('Escape after a settings close reads settingsCloseSignal (§4.5)', () =
     resetSettingsCloseSignal();
   });
 
-  it('does nothing after the drawer closed (flag on)', () => {
-    renderWindow(true);
+  it('does nothing after the drawer closed', () => {
+    renderWindow();
     // The host writes the shared signal from its own close handler.
     markSettingsJustClosed('w1');
     pressEscape();
     expect(updateWidget).not.toHaveBeenCalled();
   });
 
-  it('does nothing after the floating panel closed (flag off)', () => {
-    renderWindow(false);
-    fireEvent.click(screen.getByLabelText('Close settings'));
-    expect(updateWidget).toHaveBeenCalledTimes(1);
-    pressEscape();
-    expect(updateWidget).toHaveBeenCalledTimes(1);
-  });
-
   it('still handles Escape when no close is pending', () => {
-    renderWindow(true);
+    renderWindow();
     pressEscape();
     expect(updateWidget).toHaveBeenCalledWith('w1', { flipped: false });
   });
@@ -305,7 +293,6 @@ describe('settingsCloseSignal is scoped per widget (cross-widget isolation)', ()
       <DashboardContext.Provider value={twoWidgetContext}>
         <DraggableWindow
           widget={widget}
-          useSettingsDrawer={false}
           title="W1"
           globalStyle={globalStyle}
         >
@@ -313,7 +300,6 @@ describe('settingsCloseSignal is scoped per widget (cross-widget isolation)', ()
         </DraggableWindow>
         <DraggableWindow
           widget={widget2}
-          useSettingsDrawer={false}
           title="W2"
           globalStyle={globalStyle}
         >
@@ -322,10 +308,8 @@ describe('settingsCloseSignal is scoped per widget (cross-widget isolation)', ()
       </DashboardContext.Provider>
     );
 
-    // Close w1's floating settings panel — writes the shared signal.
-    fireEvent.click(screen.getByLabelText('Close settings'));
-    expect(updateWidget).toHaveBeenCalledWith('w1', { flipped: false });
-    updateWidget.mockClear();
+    // w1's drawer closes — writes the shared signal.
+    markSettingsJustClosed('w1');
 
     // Escape now targets w2 (e.g. the teacher just brought it to front).
     // w1's just-closed settings must not suppress w2's own Escape action.

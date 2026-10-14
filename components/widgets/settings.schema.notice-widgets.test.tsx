@@ -6,14 +6,13 @@ import type {
   Field,
   WidgetSettingsSchema,
 } from '@/components/settings/schema/types';
-import { SchemaSettingsFallback } from '@/components/settings/legacy/SchemaSettingsFallback';
-import { SchemaAppearanceFallback } from '@/components/settings/legacy/SchemaAppearanceFallback';
+import { SettingsDrawer } from '@/components/settings/SettingsDrawer';
 import {
   useDashboardActions,
   type DashboardActions,
 } from '@/context/dashboardCanvasStore';
 import { useProjectsWidgetSettings } from '@/hooks/useProjectsWidgetSettings';
-import type { WidgetData, WidgetType } from '@/types';
+import type { GlobalStyle, WidgetData, WidgetType } from '@/types';
 import activityWallSchema from './ActivityWall/settings.schema';
 import projectsSchema from './Projects/settings.schema';
 import stickersSchema from './stickers/settings.schema';
@@ -25,6 +24,12 @@ import {
 } from './WidgetRegistry';
 
 vi.mock('@/context/dashboardCanvasStore');
+vi.mock('@/hooks/useHelpResources', () => ({
+  useHelpItemsForWidget: () => [],
+}));
+vi.mock('@/components/common/WidgetBuildingToggle', () => ({
+  WidgetBuildingToggle: () => null,
+}));
 vi.mock('@/hooks/useProjectsWidgetSettings');
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
@@ -58,6 +63,33 @@ const makeWidget = (
   flipped: true,
   config,
 });
+
+const renderDrawer = (
+  widget: WidgetData,
+  tab: 'settings' | 'style' = 'settings'
+) => {
+  const view = render(
+    <SettingsDrawer
+      widget={widget}
+      title={widget.type}
+      placement="right"
+      width={400}
+      onWidthCommit={vi.fn()}
+      onClose={vi.fn()}
+      updateWidget={updateWidget}
+      updateConfig={(patch) =>
+        updateWidget(widget.id, { config: { ...widget.config, ...patch } })
+      }
+      globalStyle={{ fontFamily: 'sans' } as GlobalStyle}
+      schema={migratedSchemas[widget.type as keyof typeof migratedSchemas]}
+      canAccessFeature={() => true}
+      canAccessWidget={() => true}
+      profileLoaded
+    />
+  );
+  if (tab === 'style') fireEvent.click(screen.getByRole('tab', { name: /style/i }));
+  return view;
+};
 
 describe('notice-widget settings-drawer migrations', () => {
   beforeEach(() => {
@@ -118,10 +150,10 @@ describe('notice-widget settings-drawer migrations', () => {
     expect(stickersSchema.styleKeys).toBeUndefined();
   });
 
-  describe('flag-off legacy panel', () => {
+  describe('drawer panels', () => {
     it('Projects says so when the rollout switch is off', async () => {
       vi.mocked(useProjectsWidgetSettings).mockReturnValue({ enabled: false });
-      render(<SchemaSettingsFallback widget={makeWidget('projects')} />);
+      renderDrawer(makeWidget('projects'));
       expect(await screen.findByRole('note')).toBeInTheDocument();
       expect(
         screen.queryByRole('button', { name: 'Go to library' })
@@ -133,7 +165,7 @@ describe('notice-widget settings-drawer migrations', () => {
         view: 'board',
         projectId: 'project-a',
       });
-      render(<SchemaSettingsFallback widget={widget} />);
+      renderDrawer(widget);
       fireEvent.click(
         await screen.findByRole('button', { name: 'Go to library' })
       );
@@ -146,58 +178,54 @@ describe('notice-widget settings-drawer migrations', () => {
       });
     });
 
-    it('Projects keeps the font picker and the group-row surface', async () => {
-      render(<SchemaAppearanceFallback widget={makeWidget('projects')} />);
+    it('Projects keeps the group-row surface and no font color', () => {
+      renderDrawer(makeWidget('projects'), 'style');
       expect(
-        await screen.findByRole('radiogroup', { name: 'Font' })
+        screen.getByRole('radiogroup', { name: 'Group rows color' })
       ).toBeInTheDocument();
       expect(
-        screen.getByRole('group', { name: 'Group rows' })
-      ).toBeInTheDocument();
-      expect(
-        screen.queryByRole('radiogroup', { name: /text color/i })
+        screen.queryByRole('radiogroup', { name: /font color/i })
       ).not.toBeInTheDocument();
     });
 
-    it('Activity Wall points at the widget face and keeps font, color and surface', async () => {
+    it('Activity Wall points at the widget face and keeps color and surface', async () => {
       const widget = makeWidget('activity-wall');
-      const { unmount } = render(<SchemaSettingsFallback widget={widget} />);
+      const { unmount } = renderDrawer(widget);
       expect(await screen.findByRole('note')).toBeInTheDocument();
       unmount();
 
-      render(<SchemaAppearanceFallback widget={widget} />);
+      renderDrawer(widget, 'style');
       expect(
-        await screen.findByRole('radiogroup', { name: 'Font' })
+        screen.getByRole('radiogroup', { name: 'Font color' })
       ).toBeInTheDocument();
-      expect(screen.getByText('Font color')).toBeInTheDocument();
       expect(
-        screen.getByRole('group', { name: 'Card color' })
+        screen.getByRole('radiogroup', { name: 'Card color' })
       ).toBeInTheDocument();
     });
 
     it('Talking Tool keeps its admin notice and surface only', async () => {
       const widget = makeWidget('talking-tool');
-      const { unmount } = render(<SchemaSettingsFallback widget={widget} />);
+      const { unmount } = renderDrawer(widget);
       expect(await screen.findByRole('note')).toBeInTheDocument();
       unmount();
 
-      render(<SchemaAppearanceFallback widget={widget} />);
+      renderDrawer(widget, 'style');
       expect(
-        await screen.findByRole('group', { name: 'Card color' })
+        screen.getByRole('radiogroup', { name: 'Card color' })
       ).toBeInTheDocument();
       expect(
-        screen.queryByRole('radiogroup', { name: 'Font' })
+        screen.queryByRole('radiogroup', { name: /font color/i })
       ).not.toBeInTheDocument();
     });
 
-    it('Stickers falls back to the window font and text size', async () => {
-      render(<SchemaAppearanceFallback widget={makeWidget('stickers')} />);
+    it('Stickers shows only the window controls on the Style tab', () => {
+      renderDrawer(makeWidget('stickers'), 'style');
       expect(
-        await screen.findByRole('button', { name: 'Handwritten' })
+        screen.getByRole('radio', { name: 'Board default' })
       ).toBeInTheDocument();
       expect(
-        screen.getByRole('combobox', { name: 'Select default text size' })
-      ).toBeInTheDocument();
+        screen.queryByRole('radiogroup', { name: /card color/i })
+      ).not.toBeInTheDocument();
     });
   });
 });

@@ -34,7 +34,6 @@ import {
   MousePointerClick,
   Music2,
   PanelLeftClose,
-  PanelRight,
   Presentation,
   Printer,
   RefreshCw,
@@ -419,18 +418,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: false,
     missingDocPublic: false,
     failClosedForAdmins: true,
-  },
-  // Alpha rollout of the redesigned widget settings UI (wave 1b). Default-off
-  // and admin-only until the drawer is verified across all widget types.
-  'settings-drawer': {
-    label: 'Widget Settings Drawer (alpha)',
-    icon: PanelRight,
-    description: 'Side-drawer widget settings.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
   },
   // Quiz read-aloud (Cloud TTS). Admin-only while the player ships in
   // stacked PRs; every teacher-side affordance hides until it is opened up.

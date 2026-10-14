@@ -151,7 +151,7 @@ const ShellPlaceholder: React.FC = () => {
   );
 };
 
-// [data-widget-portal] covers SettingsPanel, which portals outside its widget's .widget subtree — but only SettingsPanel carries data-widget-id, so any other portal falls back to topWidgetId.
+// [data-widget-portal] covers the settings drawer, which portals outside its widget's .widget subtree; portals without data-widget-id fall back to topWidgetId.
 // Null when focus is outside every widget — the topmost fallback there let a
 // stray Escape/Delete hit whatever bringToFront had most recently raised.
 function resolveTargetWidgetId(topWidgetId: string): string | null {

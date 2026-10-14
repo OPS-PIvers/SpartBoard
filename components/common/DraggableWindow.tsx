@@ -61,12 +61,10 @@ import {
   useDashboardCanvasStateGetter,
 } from '@/context/dashboardCanvasStore';
 import { GlassCard } from './GlassCard';
-import { SettingsPanel } from './SettingsPanel';
 import { WidgetHostContext } from './WidgetHostContext';
 import {
   markSettingsClosedByGesture,
   consumeSettingsJustClosed,
-  markSettingsJustClosed,
 } from '@/components/settings/settingsCloseSignal';
 import { markSettingsOpenedLocally } from '@/components/settings/settingsOpenSignal';
 import { useClickOutside } from '@/hooks/useClickOutside';
@@ -129,10 +127,6 @@ const RESIZE_PRIORITY_INSET = 16;
 interface DraggableWindowProps {
   widget: WidgetData;
   children: React.ReactNode;
-  settings?: React.ReactNode;
-  appearanceSettings?: React.ReactNode;
-  /** True when SettingsDrawerHost owns the settings surface (§4.5). */
-  useSettingsDrawer?: boolean;
   title: string;
   style?: React.CSSProperties; // Added style prop
   isSpotlighted?: boolean; // Added isSpotlighted prop
@@ -140,7 +134,6 @@ interface DraggableWindowProps {
   skipCloseConfirmation?: boolean;
   headerActions?: React.ReactNode;
   globalStyle: GlobalStyle;
-  isBoardActive?: boolean;
 }
 
 const ResizeHandleIcon = ({
@@ -179,16 +172,12 @@ const MAX_BAR_HIDE_MS = 800;
 export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   widget,
   children,
-  settings,
-  appearanceSettings,
   title,
   style,
   isSpotlighted = false,
   skipCloseConfirmation = false,
   headerActions,
   globalStyle,
-  isBoardActive = true,
-  useSettingsDrawer = false,
 }) => {
   const { t } = useTranslation();
   // Interactive-resize floor comes from the widget's size envelope.
@@ -273,9 +262,6 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   );
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState(widget.customTitle ?? title);
-  const [shouldRenderSettings, setShouldRenderSettings] = useState(
-    widget.flipped
-  );
 
   const [showSnapMenu, setShowSnapMenu] = useState(false);
   const windowSize = useWindowSize(showSnapMenu);
@@ -406,18 +392,6 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     h: number;
   } | null>(null);
 
-  // Adjusting state while rendering (React docs pattern): latch shouldRenderSettings
-  // to true once widget.flipped transitions from false → true. Checking
-  // !shouldRenderSettings keeps this to a single extra render when the widget is
-  // first opened and avoids infinite-loop risk (React bails out when state didn't change).
-  // Inline rather than useEffect so it fires in the same synchronous render pass —
-  // the SettingsPanel therefore always mounts with shouldRenderSettings=true
-  // and the "Standard settings available." placeholder is never visible, even
-  // on slow hardware or projectors where a post-paint effect would produce a
-  // one-frame flash.
-  if (widget.flipped && !shouldRenderSettings) {
-    setShouldRenderSettings(true);
-  }
 
   // Maximized-state FAB kebab (replaces the pill toolbar while full-screen) and
   // a mirror of the Dock's screen-recording status, kept in sync via window
@@ -3600,51 +3574,6 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             </div>
           </div>,
           document.body
-        )}
-
-      {/* SETTINGS PANEL PORTAL */}
-      {!useSettingsDrawer &&
-        widget.flipped &&
-        isBoardActive &&
-        typeof document !== 'undefined' && (
-          <SettingsPanel
-            key={widget.id}
-            widget={widget}
-            widgetRef={windowRef}
-            settings={settings}
-            appearanceSettings={appearanceSettings}
-            shouldRenderSettings={shouldRenderSettings}
-            onClose={() => {
-              // updateWidget (DashboardContext.tsx) returns early — without
-              // calling setDashboards, so no re-render fires to reset this ref
-              // in the render body — on a read-only board OR when there's no
-              // active dashboard (activeIdRef.current null; a very narrow race
-              // where a dashboard switch clears activeId while this widget is
-              // still mounted). Either way the ref would otherwise stay stuck
-              // `true` for the widget's lifetime, permanently no-op'ing every
-              // subsequent Escape in handleCustomKeyboard's priority chain
-              // (including setIsAnnotating(false), a purely local write NOT
-              // blocked by either guard). Only set it when the write will
-              // actually land and trigger the reset.
-              //
-              // Read via getCanvasState() (event-fire time) rather than the
-              // render-closure values above — this callback can fire after a
-              // stale render commit, and reading at event time closes that
-              // window entirely instead of risking acting on a value that's
-              // already out of date by the time onClose runs.
-              const canvasState = getCanvasState();
-              if (
-                !canvasState.isActiveBoardReadOnly &&
-                canvasState.activeDashboard !== null
-              ) {
-                markSettingsJustClosed(widget.id);
-              }
-              updateWidget(widget.id, { flipped: false });
-            }}
-            updateWidget={updateWidget}
-            globalStyle={globalStyle}
-            title={title}
-          />
         )}
     </>
   );

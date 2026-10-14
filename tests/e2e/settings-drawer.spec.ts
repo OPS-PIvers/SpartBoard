@@ -1,9 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
 
-// Runs in the default `chromium` project, where auth bypass leaves the
-// settings-drawer flag on (see playwright.config.ts). The `legacy-settings`
-// project covers the flag-off surface in settings-legacy.spec.ts.
-
 const addNoteWidget = async (page: Page) => {
   await page.addStyleTag({
     content:

@@ -196,10 +196,6 @@ Each item names the plan it came from; the plan holds the detail.
 - [ ] Paul saves the "Video Activity live mode" row once in prod, runs a live session (teacher tab plus a student tab, Present popup autoplay), then sets `video-activity-live` to Public in Admin Settings > Access > Previews and adds the changelog entry. (S)
 - [ ] Offer live mode from sub-launched and Library Assign entry points too; v1 only offers it from the widget's own Assign dialog. (M)
 
-#### `docs/plans/shipped/WIDGET_SETTINGS_DRAWER.md`
-
-- [ ] Flip settings-drawer flag to public default and delete components/common/SettingsPanel.tsx (wave 4). (M)
-
 #### `docs/specs/LO12-nexus-widget-connections-spec.md`
 
 - [ ] Candidate 11: Activity Wall → Hotspot Image. (M)

@@ -11,8 +11,8 @@ function fakeStorage(value: string | null): Pick<Storage, 'getItem'> {
 
 describe('getBuildTimeFeatureOverrides', () => {
   it('parses a valid JSON object of booleans', () => {
-    expect(getBuildTimeFeatureOverrides('{"settings-drawer":false}')).toEqual({
-      'settings-drawer': false,
+    expect(getBuildTimeFeatureOverrides('{"quiz-read-aloud":false}')).toEqual({
+      'quiz-read-aloud': false,
     });
   });
 
@@ -30,7 +30,7 @@ describe('getBuildTimeFeatureOverrides', () => {
   });
 
   it('drops non-boolean values', () => {
-    expect(getBuildTimeFeatureOverrides('{"settings-drawer":"yes"}')).toEqual(
+    expect(getBuildTimeFeatureOverrides('{"quiz-read-aloud":"yes"}')).toEqual(
       {}
     );
   });
@@ -39,8 +39,8 @@ describe('getBuildTimeFeatureOverrides', () => {
 describe('getRuntimeFeatureOverrides', () => {
   it('parses localStorage JSON', () => {
     expect(
-      getRuntimeFeatureOverrides(fakeStorage('{"settings-drawer":true}'))
-    ).toEqual({ 'settings-drawer': true });
+      getRuntimeFeatureOverrides(fakeStorage('{"quiz-read-aloud":true}'))
+    ).toEqual({ 'quiz-read-aloud': true });
   });
 
   it('returns empty when storage is undefined', () => {
@@ -64,17 +64,17 @@ describe('getRuntimeFeatureOverrides', () => {
 describe('resolveAuthBypassFeatureOverride', () => {
   it('prefers the runtime localStorage override over the build-time default', () => {
     const result = resolveAuthBypassFeatureOverride(
-      'settings-drawer',
-      '{"settings-drawer":true}',
-      fakeStorage('{"settings-drawer":false}')
+      'quiz-read-aloud',
+      '{"quiz-read-aloud":true}',
+      fakeStorage('{"quiz-read-aloud":false}')
     );
     expect(result).toBe(false);
   });
 
   it('falls back to the build-time default when localStorage has no entry', () => {
     const result = resolveAuthBypassFeatureOverride(
-      'settings-drawer',
-      '{"settings-drawer":true}',
+      'quiz-read-aloud',
+      '{"quiz-read-aloud":true}',
       fakeStorage(null)
     );
     expect(result).toBe(true);
@@ -82,7 +82,7 @@ describe('resolveAuthBypassFeatureOverride', () => {
 
   it('returns undefined when neither source has an override', () => {
     const result = resolveAuthBypassFeatureOverride(
-      'settings-drawer',
+      'quiz-read-aloud',
       undefined,
       fakeStorage(null)
     );

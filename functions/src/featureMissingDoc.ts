@@ -1,6 +1,5 @@
 // Mirror of isAdminPreviewFeature in config/featureDefaults.ts; config/featureDefaults.test.ts keeps it in sync.
 export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
-  'settings-drawer',
   'quiz-read-aloud',
   'quiz-translation',
   'question-bank-ai',

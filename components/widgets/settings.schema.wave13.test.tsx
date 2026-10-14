@@ -1,18 +1,17 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { validateSchema } from '@/components/settings/schema/validateSchema';
 import type {
   Field,
   WidgetSettingsSchema,
 } from '@/components/settings/schema/types';
-import { SchemaSettingsFallback } from '@/components/settings/legacy/SchemaSettingsFallback';
-import { SchemaAppearanceFallback } from '@/components/settings/legacy/SchemaAppearanceFallback';
+import { SettingsDrawer } from '@/components/settings/SettingsDrawer';
 import {
   useDashboardActions,
   type DashboardActions,
 } from '@/context/dashboardCanvasStore';
-import type { WidgetData, WidgetType } from '@/types';
+import type { GlobalStyle, WidgetData, WidgetType } from '@/types';
 import noSettingsSchema from '@/components/settings/schema/noSettingsSchema';
 import catalystSchema from './Catalyst/settings.schema';
 import miniAppSchema from './MiniApp/settings.schema';
@@ -24,6 +23,12 @@ import {
 } from './WidgetRegistry';
 
 vi.mock('@/context/dashboardCanvasStore');
+vi.mock('@/hooks/useHelpResources', () => ({
+  useHelpItemsForWidget: () => [],
+}));
+vi.mock('@/components/common/WidgetBuildingToggle', () => ({
+  WidgetBuildingToggle: () => null,
+}));
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     isAdmin: false,
@@ -54,6 +59,30 @@ const widgetOf = (type: WidgetType, config: object = {}): WidgetData => ({
   flipped: true,
   config,
 });
+
+const renderDrawer = (
+  widget: WidgetData,
+  tab: 'settings' | 'style' = 'settings'
+) => {
+  render(
+    <SettingsDrawer
+      widget={widget}
+      title={widget.type}
+      placement="right"
+      width={400}
+      onWidthCommit={vi.fn()}
+      onClose={vi.fn()}
+      updateWidget={vi.fn()}
+      updateConfig={vi.fn()}
+      globalStyle={{ fontFamily: 'sans' } as GlobalStyle}
+      schema={migratedSchemas[widget.type as keyof typeof migratedSchemas]}
+      canAccessFeature={() => true}
+      canAccessWidget={() => true}
+      profileLoaded
+    />
+  );
+  if (tab === 'style') fireEvent.click(screen.getByRole('tab', { name: /style/i }));
+};
 
 describe('wave 13 settings-drawer widget migrations', () => {
   beforeEach(() => {
@@ -117,19 +146,15 @@ describe('wave 13 settings-drawer widget migrations', () => {
     ]);
   });
 
-  it('shows the admin-managed notice for Catalyst on the legacy panel', async () => {
-    render(<SchemaSettingsFallback widget={widgetOf('catalyst')} />);
+  it('shows the admin-managed notice for Catalyst in the drawer', async () => {
+    renderDrawer(widgetOf('catalyst'));
     expect(
       await screen.findByRole('note', { name: 'Admin managed' })
     ).toBeInTheDocument();
   });
 
-  it('shows the Mini App hint on the legacy panel', async () => {
-    render(
-      <SchemaSettingsFallback
-        widget={widgetOf('miniApp', { activeApp: null })}
-      />
-    );
+  it('shows the Mini App hint in the drawer', async () => {
+    renderDrawer(widgetOf('miniApp', { activeApp: null }));
     expect(
       await screen.findByText('Manage apps in the main view.')
     ).toBeInTheDocument();
@@ -142,30 +167,27 @@ describe('wave 13 settings-drawer widget migrations', () => {
     'catalyst-visual',
     'smartNotebook',
   ] as const)(
-    '%s keeps the standard empty Settings tab on the legacy panel',
+    '%s keeps the standard empty Settings tab in the drawer',
     async (type) => {
-      render(<SchemaSettingsFallback widget={widgetOf(type)} />);
+      renderDrawer(widgetOf(type));
       expect(
         await screen.findByText('Standard settings available.')
       ).toBeInTheDocument();
     }
   );
 
-  it('renders Smart Notebook font, font color and surface on the legacy Style tab', async () => {
-    render(
-      <SchemaAppearanceFallback
-        widget={widgetOf('smartNotebook', {
-          activeNotebookId: null,
-          cardColor: '#ffffff',
-          cardOpacity: 1,
-        })}
-      />
+  it('renders Smart Notebook font, font color and surface on the drawer Style tab', () => {
+    renderDrawer(
+      widgetOf('smartNotebook', {
+        activeNotebookId: null,
+        cardColor: '#ffffff',
+        cardOpacity: 1,
+      }),
+      'style'
     );
-    await waitFor(() =>
-      expect(
-        screen.getByRole('slider', { name: /opacity/i })
-      ).toBeInTheDocument()
-    );
+    expect(
+      screen.getAllByRole('slider', { name: /opacity/i }).length
+    ).toBeGreaterThan(0);
     expect(screen.getByText('Font')).toBeInTheDocument();
     expect(screen.getByText('Font color')).toBeInTheDocument();
   });
