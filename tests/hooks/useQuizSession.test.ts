@@ -2771,6 +2771,28 @@ describe('useQuizSessionStudent — commitRecordingTake / markUnresponded', () =
     expect(answers[1].answer).toBe('');
   });
 
+  it('writes every artifact of a whiteboard take and its mic state on one entry', async () => {
+    const result = await joinAndSeed([]);
+    (firestore.updateDoc as unknown as ReturnType<typeof vi.fn>).mockClear();
+    await act(async () => {
+      await result.current.commitRecordingTake({
+        questionId: 'q1',
+        artifacts: [
+          makeTestArtifact({ id: 'a' }),
+          makeTestArtifact({ id: 'p', kind: 'whiteboard', part: 'picture' }),
+          makeTestArtifact({ id: 'l', kind: 'whiteboard', part: 'log' }),
+        ],
+        micState: 'denied',
+      });
+    });
+    const answers = lastAnswers();
+    expect(answers).toHaveLength(1);
+    expect((answers[0].artifacts as { id: string }[]).map((a) => a.id)).toEqual(
+      ['a', 'p', 'l']
+    );
+    expect(answers[0].micState).toBe('denied');
+  });
+
   it('returns null without writing when the response doc no longer exists', async () => {
     const result = await joinAndSeed([]);
     (firestore.updateDoc as unknown as ReturnType<typeof vi.fn>).mockClear();

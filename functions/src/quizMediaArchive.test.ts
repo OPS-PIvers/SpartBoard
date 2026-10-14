@@ -76,6 +76,7 @@ vi.mock('./secrets', () => {
 import {
   archiveQuizArtifactCore,
   isQuizMediaResponseGranted,
+  isQuizWhiteboardResponseGranted,
   isGlobalFeatureGranted,
   isLostArchiveError,
   buildArchiveFileName,
@@ -1618,5 +1619,56 @@ describe('handwriting crops', () => {
     expect(deps.deleteObject).toHaveBeenCalledWith(CROP_PATH);
     const entry = (response!.artifactArchive as Bag)[ARTIFACT_ID] as Bag;
     expect(entry.storageCleanupPending).toBeUndefined();
+  });
+});
+
+describe('isQuizWhiteboardResponseGranted', () => {
+  const PUBLIC = { enabled: true, accessLevel: 'public' };
+  function makeDb(
+    records: Record<string, Record<string, unknown>>,
+    adminEmails: string[] = []
+  ) {
+    return {
+      collection: (name: string) => ({
+        doc: (id: string) => ({
+          get: () =>
+            Promise.resolve({
+              exists:
+                name === 'global_permissions'
+                  ? id in records
+                  : adminEmails.includes(id),
+              data: () => (name === 'global_permissions' ? records[id] : {}),
+            }),
+        }),
+      }),
+      doc: () => ({
+        get: () => Promise.resolve({ exists: false, data: () => undefined }),
+      }),
+    } as unknown as Parameters<typeof isQuizWhiteboardResponseGranted>[0];
+  }
+
+  it('grants only when both flags grant', async () => {
+    const both = makeDb({
+      'quiz-media-response': PUBLIC,
+      'quiz-whiteboard-response': PUBLIC,
+    });
+    await expect(
+      isQuizWhiteboardResponseGranted(both, 't@school.org', 't1')
+    ).resolves.toBe(true);
+    const mediaOnly = makeDb({ 'quiz-media-response': PUBLIC });
+    await expect(
+      isQuizWhiteboardResponseGranted(mediaOnly, 't@school.org', 't1')
+    ).resolves.toBe(false);
+    const whiteboardOnly = makeDb({ 'quiz-whiteboard-response': PUBLIC });
+    await expect(
+      isQuizWhiteboardResponseGranted(whiteboardOnly, 't@school.org', 't1')
+    ).resolves.toBe(false);
+  });
+
+  it('denies an admin while the whiteboard record is missing', async () => {
+    const db = makeDb({ 'quiz-media-response': PUBLIC }, ['a@school.org']);
+    await expect(
+      isQuizWhiteboardResponseGranted(db, 'a@school.org', 'a1')
+    ).resolves.toBe(false);
   });
 });
