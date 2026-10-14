@@ -274,6 +274,21 @@ describe('AudioResponseCapture — used-up budget', () => {
     expect(screen.getByText('Turned in')).toBeTruthy();
     expect(screen.queryByRole('button', { name: RECORD })).toBeNull();
   });
+
+  it('still offers Record when redos used the budget but nothing was turned in', () => {
+    localStorage.setItem(
+      'quiz-redos:s1/r1/q9',
+      JSON.stringify({ redos: 2, takes: 0 })
+    );
+    renderCapture({
+      config: { ...config, takeLimit: 2 },
+      takesCommitted: 0,
+      latestArtifact: undefined,
+      recovery: { store: memoryTakeRecoveryStore(), key: 's1/r1/q9' },
+    });
+    expect(screen.getByRole('button', { name: RECORD })).toBeTruthy();
+    localStorage.clear();
+  });
 });
 
 describe('AudioResponseCapture — cutoffs commit first (D16)', () => {

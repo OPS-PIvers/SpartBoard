@@ -114,7 +114,9 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
   const [redos, addRedo] = useRedoCount(recovery?.key, takesCommitted);
   const attemptsUsed = takesCommitted + redos;
   const remaining = takesRemaining(config, attemptsUsed);
-  const takeBudgetReached = remaining !== null && remaining <= 0;
+  // Nothing turned in yet always leaves one recording, so redos alone never lock the student out.
+  const takeBudgetReached =
+    remaining !== null && remaining <= 0 && takesCommitted > 0;
   const canRedoInReview = remaining === null || remaining > 1;
   const [submitted, setSubmitted] = useState<{
     url: string;
