@@ -65,11 +65,7 @@ type Selection =
 export default function NotesDocsPage(props: TeamPageProps) {
   const { canAccessFeature } = useAuth();
   if (!canAccessFeature('teams-redesign')) return null;
-  return canAccessFeature('plc-meeting-recording') ? (
-    <NotesDocsWithRecorder {...props} />
-  ) : (
-    <NotesDocsInner {...props} recorder={null} />
-  );
+  return <NotesDocsWithRecorder {...props} />;
 }
 
 // The recorder lives above the open note so switching notes never stops a recording.
@@ -138,7 +134,7 @@ const DocPane: React.FC<{
 };
 
 const NotesDocsInner: React.FC<
-  TeamPageProps & { recorder: UseMeetingRecorderResult | null }
+  TeamPageProps & { recorder: UseMeetingRecorderResult }
 > = ({ plc, isLead, recorder }) => {
   const { t } = useTranslation();
   const { user, canAccessFeature } = useAuth();
@@ -161,9 +157,7 @@ const NotesDocsInner: React.FC<
   const collabSettings = usePlcNoteCollabSettings();
   const noteGoogleDoc = usePlcNoteGoogleDoc(plc);
   const { softDelete } = usePlcSoftDelete(plc.id);
-  const { recordings, deleteAudio } = usePlcRecordings(
-    recorder ? plc.id : null
-  );
+  const { recordings, deleteAudio } = usePlcRecordings(plc.id);
   const [recorderNoteId, setRecorderNoteId] = useState<string | null>(null);
 
   const { docId: routeDocId, meetingId: routeMeetingId } = useTeamNav();
@@ -451,9 +445,7 @@ const NotesDocsInner: React.FC<
       />
     );
   } else if (selectedNote) {
-    const noteRecordings = recorder
-      ? plcRecordingsForNote(recordings, selectedNote.id)
-      : [];
+    const noteRecordings = plcRecordingsForNote(recordings, selectedNote.id);
     article = (
       <NoteEditorPane
         key={selectedNote.id}
@@ -475,61 +467,50 @@ const NotesDocsInner: React.FC<
         onOpenData={
           showData ? () => openTeamPage(plc.id, 'dataOverview') : undefined
         }
-        recordControl={
-          recorder
-            ? (markMeeting) => (
-                <NoteRecordControl
-                  recorder={recorder}
-                  recorderNoteId={recorderNoteId}
-                  noteId={selectedNote.id}
-                  live={livePlcRecordingForNote(
-                    noteRecordings,
-                    selectedNote.id
-                  )}
-                  members={members}
-                  canRecord={canEdit}
-                  onStart={() => {
-                    if (!user) return;
-                    setRecorderNoteId(selectedNote.id);
-                    markMeeting();
-                    void recorder.start({
-                      plcId: plc.id,
-                      noteId: selectedNote.id,
-                      recorderUid: user.uid,
-                    });
-                  }}
-                />
-              )
-            : undefined
-        }
-        recordings={
-          recorder
-            ? (onApply, editable, title) => (
-                <NoteRecordings
-                  plcId={plc.id}
-                  noteTitle={title}
-                  recordings={noteRecordings}
-                  members={members}
-                  canEdit={canEdit}
-                  onDeleteAudio={deleteAudio}
-                  renderExtra={(r) => (
-                    <RecordingMeetingNotes
-                      plcId={plc.id}
-                      recording={r}
-                      label={t('plcDashboard.notes.meetingNotes.recordingN', {
-                        defaultValue: 'Recording {{n}}',
-                        n: noteRecordings.indexOf(r) + 1,
-                      })}
-                      members={members}
-                      canEdit={editable}
-                      aiEnabled={aiNotesEnabled}
-                      onApply={onApply}
-                    />
-                  )}
-                />
-              )
-            : undefined
-        }
+        recordControl={(markMeeting) => (
+          <NoteRecordControl
+            recorder={recorder}
+            recorderNoteId={recorderNoteId}
+            noteId={selectedNote.id}
+            live={livePlcRecordingForNote(noteRecordings, selectedNote.id)}
+            members={members}
+            canRecord={canEdit}
+            onStart={() => {
+              if (!user) return;
+              setRecorderNoteId(selectedNote.id);
+              markMeeting();
+              void recorder.start({
+                plcId: plc.id,
+                noteId: selectedNote.id,
+                recorderUid: user.uid,
+              });
+            }}
+          />
+        )}
+        recordings={(onApply, editable, title) => (
+          <NoteRecordings
+            plcId={plc.id}
+            noteTitle={title}
+            recordings={noteRecordings}
+            members={members}
+            canEdit={canEdit}
+            onDeleteAudio={deleteAudio}
+            renderExtra={(r) => (
+              <RecordingMeetingNotes
+                plcId={plc.id}
+                recording={r}
+                label={t('plcDashboard.notes.meetingNotes.recordingN', {
+                  defaultValue: 'Recording {{n}}',
+                  n: noteRecordings.indexOf(r) + 1,
+                })}
+                members={members}
+                canEdit={editable}
+                aiEnabled={aiNotesEnabled}
+                onApply={onApply}
+              />
+            )}
+          />
+        )}
       />
     );
   } else {

@@ -105,6 +105,8 @@ interface BankSlotDetailProps {
   onUpdate: (id: string, patch: Partial<QuizBankSlot>) => void;
   onRemove: (id: string) => void;
   stimulusSection?: React.ReactNode;
+  /** Shows the even-split picker (`quiz-import-versions`); an already balanced slot always shows it. */
+  balancedAvailable?: boolean;
 }
 
 type LoadState =
@@ -118,6 +120,7 @@ export const BankSlotDetail: React.FC<BankSlotDetailProps> = ({
   onUpdate,
   onRemove,
   stimulusSection,
+  balancedAvailable = false,
 }) => {
   const source = findSlotSource(bankApi?.sources, slot);
   const sourceKey = source?.key ?? null;
@@ -248,6 +251,29 @@ export const BankSlotDetail: React.FC<BankSlotDetailProps> = ({
             />
           </div>
         </div>
+
+        {(balancedAvailable || slot.dealing === 'balanced') && (
+          <div>
+            <label className={labelClass} htmlFor="bank-slot-dealing">
+              Draw
+            </label>
+            <select
+              id="bank-slot-dealing"
+              {...tourTypeAttr('quiz-banks.slot-dealing', 'quiz')}
+              value={slot.dealing === 'balanced' ? 'balanced' : 'random'}
+              onChange={(e) =>
+                onUpdate(slot.id, {
+                  dealing:
+                    e.target.value === 'balanced' ? 'balanced' : undefined,
+                })
+              }
+              className={inputClass}
+            >
+              <option value="random">At random</option>
+              <option value="balanced">Evenly in each class</option>
+            </select>
+          </div>
+        )}
 
         <div>
           <label className={labelClass}>Target filter</label>

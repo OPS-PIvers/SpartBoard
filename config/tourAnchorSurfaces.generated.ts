@@ -401,6 +401,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-banks.slot-remove-icon': ['quiz.editor'],
     'quiz-banks.slot-count': ['quiz.editor'],
     'quiz-banks.slot-points': ['quiz.editor'],
+    'quiz-banks.slot-dealing': ['quiz.editor'],
     'quiz-banks.slot-remove': ['quiz.editor'],
     'quiz-banks.target-filter-tag': ['quiz.editor'],
     'quiz-banks.target-filter-clear': ['quiz.editor'],
