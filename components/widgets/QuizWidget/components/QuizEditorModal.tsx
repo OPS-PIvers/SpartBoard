@@ -692,6 +692,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
             <StimulusManagerPanel
               state={editorState}
               readAloudAvailable={readAloudAvailable}
+              calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
             />
           ) : activeTab === 'languages' ? (
             <>

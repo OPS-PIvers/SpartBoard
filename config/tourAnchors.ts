@@ -2424,6 +2424,11 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
+  'quiz-stimuli.add-calculator': {
+    label: 'Add a calculator in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-stimuli.add-passage': {
     label: 'Add a passage in the Quiz widget',
     perWidgetType: true,
@@ -2439,6 +2444,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz-stimuli.attach-calculator': {
+    label: 'Attach section Calculator in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-stimuli.attach-question': {
     label: 'Per-question attach checkbox in the Quiz widget',
     perField: true,
@@ -2452,6 +2462,11 @@ export const TOUR_ANCHORS = {
   'quiz-stimuli.attach-toggle': {
     label: 'Attach section Stimuli disclosure in the Quiz widget',
     perWidgetType: true,
+    panel: true,
+  },
+  'quiz-stimuli.calculator-kind': {
+    label: 'Calculator type picker in the Quiz widget',
+    perField: true,
     panel: true,
   },
   'quiz-stimuli.card-delete': {

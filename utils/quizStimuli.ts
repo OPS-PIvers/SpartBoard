@@ -4,6 +4,7 @@
  * projection, and the student renderers.
  */
 import type {
+  QuizCalculatorKind,
   QuizData,
   QuizQuestion,
   QuizStimulus,
@@ -15,7 +16,12 @@ import { extractYouTubeId } from '@/utils/youtube';
 export function isDocShapedStimulus(type: QuizStimulusType): boolean {
   // A passage is read alongside the question the way a PDF is, so it takes
   // the same side panel rather than pushing the question off the screen.
-  return type === 'pdf' || type === 'gdoc-embed' || type === 'text';
+  return (
+    type === 'pdf' ||
+    type === 'gdoc-embed' ||
+    type === 'text' ||
+    type === 'calculator'
+  );
 }
 
 /** Types whose completed plays are counted against `playLimit`. */
@@ -32,7 +38,31 @@ export const STIMULUS_TYPE_LABELS: Record<QuizStimulusType, string> = {
   youtube: 'YouTube',
   'gdoc-embed': 'Doc/Slides embed',
   text: 'Passage',
+  calculator: 'Calculator',
 };
+
+export const CALCULATOR_KIND_LABELS: Record<QuizCalculatorKind, string> = {
+  graphing: 'Graphing',
+  scientific: 'Scientific',
+  'four-function': 'Four-function',
+};
+
+const DESMOS_PATHS: Record<QuizCalculatorKind, string> = {
+  graphing: 'calculator',
+  scientific: 'scientific',
+  'four-function': 'fourfunction',
+};
+
+/** Desmos page for a calculator stimulus; unknown kinds fall back to graphing. */
+export function desmosCalculatorUrl(
+  kind: QuizCalculatorKind | undefined
+): string {
+  const path =
+    kind && Object.hasOwn(DESMOS_PATHS, kind)
+      ? DESMOS_PATHS[kind]
+      : DESMOS_PATHS.graphing;
+  return `https://www.desmos.com/${path}`;
+}
 
 /**
  * Direct-render URL for a Drive-hosted image. `lh3.googleusercontent.com`
@@ -74,7 +104,7 @@ export function driveMediaUrl(fileId: string): string | null {
 /** Best `<img>`/`<video>`/`<audio>` source for a stimulus. */
 export function stimulusMediaUrl(s: QuizStimulus): string {
   // A passage has no file to fetch; its content travels on the stimulus.
-  if (s.type === 'text') return '';
+  if (s.type === 'text' || s.type === 'calculator') return '';
   if (s.driveFileId) {
     if (s.type === 'image') return driveImageUrl(s.driveFileId);
     return driveMediaUrl(s.driveFileId) ?? s.url;

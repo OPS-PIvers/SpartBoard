@@ -57,6 +57,7 @@ import {
   Zap,
   BookMarked,
   Quote,
+  Calculator,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -594,6 +595,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Quote,
     description:
       'Students add selected passage or PDF text to a written answer as a quote.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Desmos calculator stimulus on quiz questions. Admin-only until Paul has tested it in prod.
+  'quiz-calculator-stimulus': {
+    label: 'Calculator stimulus',
+    icon: Calculator,
+    description:
+      'Teachers attach a Desmos graphing, scientific or four-function calculator to quiz questions.',
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'students',

@@ -576,3 +576,32 @@ export function makeStimulusQuizSession(): QuizSession {
     ],
   };
 }
+
+/** Self-paced math question with a Desmos graphing calculator beside it. */
+export function makeCalculatorQuizSession(): QuizSession {
+  const base = makeTimedQuizSession('active');
+  const [first, ...rest] = base.publicQuestions;
+  return {
+    ...base,
+    stimuli: [
+      {
+        id: 'dev-stim-calc',
+        type: 'calculator',
+        url: '',
+        label: '',
+        calculator: 'graphing',
+      },
+    ],
+    publicQuestions: [
+      {
+        ...first,
+        timeLimit: 0,
+        type: 'MC',
+        text: 'Where does y = 2x + 3 cross the x-axis?',
+        choices: ['x = -1.5', 'x = 1.5', 'x = 3', 'x = -3'],
+        stimulusIds: ['dev-stim-calc'],
+      },
+      ...rest,
+    ],
+  };
+}

@@ -6,6 +6,7 @@
 import React, { useMemo } from 'react';
 import { ActiveQuiz } from '@/components/quiz/QuizStudentApp';
 import {
+  makeCalculatorQuizSession,
   makeStimulusQuizSession,
   makeTimedQuizSession,
   makeTimedStudentResponse,
@@ -21,7 +22,9 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
     () =>
       state === 'sq-stimuli'
         ? makeStimulusQuizSession()
-        : makeTimedQuizSession('active'),
+        : state === 'sq-calculator'
+          ? makeCalculatorQuizSession()
+          : makeTimedQuizSession('active'),
     [state]
   );
   const response = makeTimedStudentResponse(
