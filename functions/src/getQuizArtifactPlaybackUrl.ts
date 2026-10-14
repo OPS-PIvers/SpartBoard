@@ -13,12 +13,15 @@
  * marker, the teacher's publish state (`scoreVisibility`, re-read on every
  * call so an unpublish revokes playback with no cleanup step), and ownership
  * (`response.studentUid === request.auth.uid`). Anything unresolvable denies.
+ * A whiteboard take (picture, drawing log, or its audio) also needs the
+ * fail-closed `quiz-whiteboard-response` record.
  */
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 import {
   isQuizMediaResponseGranted,
+  isQuizWhiteboardResponseGranted,
   QUIZ_MEDIA_GOOGLE_SECRETS,
 } from './quizMediaArchive';
 import { ALLOWED_ORIGINS } from './classlinkShared';
@@ -36,11 +39,30 @@ const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
  */
 export const MAX_PLAYBACK_BYTES = 4 * 1024 * 1024;
 
+/** Which file of a take to serve; a whiteboard take has a picture and a drawing log too. */
+export type PlaybackPart = 'audio' | 'picture' | 'log';
+
+/** Decoded ceiling per part, matching the upload caps in `utils/quizMediaUpload.ts`. */
+export const MAX_PLAYBACK_BYTES_BY_PART: Record<PlaybackPart, number> = {
+  audio: MAX_PLAYBACK_BYTES,
+  picture: 10 * 1024 * 1024,
+  log: 5 * 1024 * 1024,
+};
+
+const PART_MIME_TYPE: Record<PlaybackPart, string> = {
+  // Archived takes are always M4A/AAC; the stored mimeType is the webm source.
+  audio: 'audio/mp4',
+  picture: 'image/png',
+  log: 'application/json',
+};
+
 export interface PlaybackRequest {
   sessionId: string;
   responseKey: string;
   questionId: string;
   slot: 'primary' | 'addendum';
+  /** Absent means `'audio'`, the only part clients sent before whiteboard takes. */
+  part?: PlaybackPart;
 }
 
 /** `'not-available'` is an answer, not a failure — a mid-archive take is normal. */
@@ -64,12 +86,15 @@ export interface PlaybackDeps {
   getAccessToken: (teacherUid: string) => Promise<string>;
   downloadDriveFile: (accessToken: string, fileId: string) => Promise<Buffer>;
   isFeatureGranted: (teacherUid: string) => Promise<boolean>;
+  /** Whiteboard flag; checked on top of `isFeatureGranted` for any whiteboard take. */
+  isWhiteboardGranted: (teacherUid: string) => Promise<boolean>;
 }
 
 interface StoredArtifact {
   id?: unknown;
   slot?: unknown;
   kind?: unknown;
+  part?: unknown;
   mimeType?: unknown;
   durationMs?: unknown;
 }
@@ -91,34 +116,52 @@ export function gradingKeyFor(questionId: string, slot: string): string {
 }
 
 export interface PlaybackTake {
-  artifact: StoredArtifact;
+  /** The requested part's file; null when this take has no such file (a draw-only take's audio). */
+  artifact: StoredArtifact | null;
   takeIndex: number;
+  /** Any whiteboard file on the take puts the whole take behind the whiteboard flag. */
+  isWhiteboard: boolean;
+}
+
+function matchesPart(artifact: StoredArtifact, part: PlaybackPart): boolean {
+  if (part === 'audio') return artifact.kind === 'audio';
+  return artifact.kind === 'whiteboard' && artifact.part === part;
 }
 
 /**
  * The take the grade is about: `gradedTakeIndex` when the teacher pinned one
  * (Brief 3.4), else the highest `takeIndex` — the take scoring reads. Playing
  * a recording the teacher's comments aren't about would be worse than useless.
+ * The take is chosen before the part, so every part served comes from one take.
  */
 export function selectPlaybackTake(
   answers: readonly StoredAnswer[],
   questionId: string,
   slot: string,
-  gradedTakeIndex?: number
+  gradedTakeIndex?: number,
+  part: PlaybackPart = 'audio'
 ): PlaybackTake | null {
   const candidates: PlaybackTake[] = [];
   for (const answer of answers) {
     if (answer?.questionId !== questionId) continue;
-    const artifacts = Array.isArray(answer.artifacts)
-      ? (answer.artifacts as StoredArtifact[])
-      : [];
-    const artifact = artifacts.find(
-      (a) => a?.kind === 'audio' && (a?.slot ?? 'primary') === slot
+    const artifacts = (
+      Array.isArray(answer.artifacts)
+        ? (answer.artifacts as StoredArtifact[])
+        : []
+    ).filter(
+      (a) =>
+        (a?.kind === 'audio' || a?.kind === 'whiteboard') &&
+        typeof a.id === 'string' &&
+        (a.slot ?? 'primary') === slot
     );
-    if (!artifact || typeof artifact.id !== 'string') continue;
+    if (artifacts.length === 0) continue;
     const takeIndex =
       typeof answer.takeIndex === 'number' ? answer.takeIndex : 0;
-    candidates.push({ artifact, takeIndex });
+    candidates.push({
+      artifact: artifacts.find((a) => matchesPart(a, part)) ?? null,
+      takeIndex,
+      isWhiteboard: artifacts.some((a) => a.kind === 'whiteboard'),
+    });
   }
   if (candidates.length === 0) return null;
   if (typeof gradedTakeIndex === 'number') {
@@ -158,6 +201,7 @@ export function parsePlaybackRequest(raw: unknown): PlaybackRequest {
   const responseKey = read('responseKey');
   const questionId = read('questionId');
   const rawSlot = read('slot') || 'primary';
+  const rawPart = read('part') || 'audio';
   if (!sessionId || !responseKey || !questionId) {
     throw new HttpsError(
       'invalid-argument',
@@ -170,7 +214,10 @@ export function parsePlaybackRequest(raw: unknown): PlaybackRequest {
   if (rawSlot !== 'primary' && rawSlot !== 'addendum') {
     throw new HttpsError('invalid-argument', 'Unknown artifact slot.');
   }
-  return { sessionId, responseKey, questionId, slot: rawSlot };
+  if (rawPart !== 'audio' && rawPart !== 'picture' && rawPart !== 'log') {
+    throw new HttpsError('invalid-argument', 'Unknown artifact part.');
+  }
+  return { sessionId, responseKey, questionId, slot: rawSlot, part: rawPart };
 }
 
 // ── Default dependency implementations ─────────────────────────────────────
@@ -203,20 +250,26 @@ export async function downloadDriveFileById(
 
 export function buildDefaultPlaybackDeps(): PlaybackDeps {
   const db = admin.firestore();
+  const emailFor = async (teacherUid: string): Promise<string | null> => {
+    try {
+      return (await admin.auth().getUser(teacherUid)).email ?? null;
+    } catch {
+      return null;
+    }
+  };
   return {
     db,
     getAccessToken: async (teacherUid) =>
       (await refreshGoogleAccessTokenForUid(teacherUid)).accessToken,
     downloadDriveFile: downloadDriveFileById,
-    isFeatureGranted: async (teacherUid) => {
-      let email: string | null = null;
-      try {
-        email = (await admin.auth().getUser(teacherUid)).email ?? null;
-      } catch {
-        email = null;
-      }
-      return isQuizMediaResponseGranted(db, email, teacherUid);
-    },
+    isFeatureGranted: async (teacherUid) =>
+      isQuizMediaResponseGranted(db, await emailFor(teacherUid), teacherUid),
+    isWhiteboardGranted: async (teacherUid) =>
+      isQuizWhiteboardResponseGranted(
+        db,
+        await emailFor(teacherUid),
+        teacherUid
+      ),
   };
 }
 
@@ -228,6 +281,7 @@ export async function resolveArtifactPlayback(
 ): Promise<PlaybackResult> {
   const { db } = deps;
   const { sessionId, responseKey, questionId, slot, callerUid } = input;
+  const part = input.part ?? 'audio';
 
   const sessionRef = db.collection('quiz_sessions').doc(sessionId);
   const sessionSnap = await sessionRef.get();
@@ -292,8 +346,26 @@ export async function resolveArtifactPlayback(
       ? gradeEntry.gradedTakeIndex
       : undefined;
 
-  const take = selectPlaybackTake(answers, questionId, slot, gradedTakeIndex);
-  if (!take) return { status: 'not-available', reason: 'no-recording' };
+  const take = selectPlaybackTake(
+    answers,
+    questionId,
+    slot,
+    gradedTakeIndex,
+    part
+  );
+  // Whiteboard files stay dark unless the whiteboard flag passes too (D22).
+  if (
+    (part !== 'audio' || take?.isWhiteboard) &&
+    !(await deps.isWhiteboardGranted(teacherUid))
+  ) {
+    throw new HttpsError(
+      'permission-denied',
+      'Whiteboard responses are not enabled for this account.'
+    );
+  }
+  if (!take?.artifact) {
+    return { status: 'not-available', reason: 'no-recording' };
+  }
 
   const artifactId = take.artifact.id as string;
   const archive = (response.artifactArchive ?? {}) as Record<
@@ -317,7 +389,7 @@ export async function resolveArtifactPlayback(
     });
     throw new HttpsError('unavailable', 'Could not load this recording.');
   }
-  if (bytes.byteLength > MAX_PLAYBACK_BYTES) {
+  if (bytes.byteLength > MAX_PLAYBACK_BYTES_BY_PART[part]) {
     return { status: 'not-available', reason: 'too-large' };
   }
 
@@ -325,10 +397,9 @@ export async function resolveArtifactPlayback(
     status: 'ready',
     artifactId,
     takeIndex: take.takeIndex,
-    // Archived takes are always M4A/AAC; the stored mimeType is the webm source.
-    mimeType: 'audio/mp4',
+    mimeType: PART_MIME_TYPE[part],
     data: bytes.toString('base64'),
-    ...(typeof take.artifact.durationMs === 'number'
+    ...(part === 'audio' && typeof take.artifact.durationMs === 'number'
       ? { durationMs: take.artifact.durationMs }
       : {}),
   };

@@ -6,14 +6,29 @@ import { functions } from '@/config/firebase';
 // Quiz responses carry no `orgId`, so both the listing and the delete run
 // through Admin-SDK callables rather than a client Firestore query.
 
+/** One file of a take: the audio, or a whiteboard take's picture or drawing log. */
+export interface MediaFileRow {
+  artifactId: string;
+  kind: string;
+  part?: string;
+  archiveStatus: string;
+  driveFileId?: string;
+  hasStorageObject: boolean;
+}
+
 export interface MediaTakeRow {
   artifactId: string;
+  /** Absent from a server that predates per-take rows. */
+  takeIndex?: number;
+  kind?: string;
   archiveStatus: string;
   driveFileId?: string;
   archivedAt?: number;
   deletedAt?: number;
   archiveError?: string;
   hasStorageObject: boolean;
+  /** A whiteboard take has up to three; absent from a server that predates per-take rows. */
+  files?: MediaFileRow[];
 }
 
 export interface MediaResponseRow {
