@@ -23,12 +23,22 @@ export const WRAP_UP_FRACTION = 0.1;
 /** Wrap-up never opens later than this, so a short take still gets a warning. */
 export const WRAP_UP_MIN_SECONDS = 5;
 
-const PREP_EXPIRY_VALUES: RecordingPrepExpiry[] = [
-  'auto-start',
+const PREP_EXPIRY_VALUES: RecordingPrepExpiry[] = ['auto-start', 'armed'];
+/** Retired choices that ended the question before the student could record; they now start recording. */
+const RETIRED_PREP_EXPIRY: RecordingPrepExpiry[] = [
   'auto-advance',
-  'armed',
   'unanswered',
 ];
+
+/** The two choices the editor offers; a retired stored value reads as auto-start. */
+export function effectivePrepExpiry(
+  value: RecordingPrepExpiry | undefined
+): RecordingPrepExpiry {
+  if (value && RETIRED_PREP_EXPIRY.includes(value)) return 'auto-start';
+  return value && PREP_EXPIRY_VALUES.includes(value)
+    ? value
+    : DEFAULT_RECORDING_CONFIG.prepExpiry;
+}
 
 export const DEFAULT_RECORDING_CONFIG: RecordingConfig = {
   prepSeconds: DEFAULT_PREP_SECONDS,
@@ -58,11 +68,7 @@ export function normalizeRecordingConfig(
   raw: Partial<RecordingConfig> | undefined | null
 ): RecordingConfig | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
-  const prepExpiry = PREP_EXPIRY_VALUES.includes(
-    raw.prepExpiry as RecordingPrepExpiry
-  )
-    ? (raw.prepExpiry as RecordingPrepExpiry)
-    : DEFAULT_RECORDING_CONFIG.prepExpiry;
+  const prepExpiry = effectivePrepExpiry(raw.prepExpiry);
   const takeLimit =
     typeof raw.takeLimit === 'number' && Number.isFinite(raw.takeLimit)
       ? Math.max(1, Math.round(raw.takeLimit))

@@ -243,10 +243,21 @@ describe('ResponseFormatSection', () => {
     expect(onChange).toHaveBeenLastCalledWith({
       recording: { ...DEFAULT_RECORDING_CONFIG, prepExpiry: 'auto-start' },
     });
-    fireEvent.change(expiry, { target: { value: 'unanswered' } });
-    expect(onChange).toHaveBeenLastCalledWith({
-      recording: { ...DEFAULT_RECORDING_CONFIG, prepExpiry: 'unanswered' },
-    });
+    expect(
+      Array.from(expiry.querySelectorAll('option')).map((o) => o.value)
+    ).toEqual(['armed', 'auto-start']);
+  });
+
+  it('shows a retired prep-expiry value as Recording starts', () => {
+    render(
+      <ResponseFormatSection
+        question={withRecording({ prepExpiry: 'unanswered' })}
+        onChange={vi.fn()}
+      />
+    );
+    expect(
+      screen.getByLabelText<HTMLSelectElement>('After planning time').value
+    ).toBe('auto-start');
   });
 
   it('writes a numeric take limit and back to unlimited', () => {

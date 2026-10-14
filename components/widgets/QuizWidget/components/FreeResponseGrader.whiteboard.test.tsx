@@ -231,7 +231,7 @@ describe('FreeResponseGrader whiteboard takes', () => {
     expect(screen.getByText('duration:30000')).toBeTruthy();
     expect(resolveTakeUrl).toHaveBeenCalledWith('d-ada-l');
     // One take, not three: the take list counts entries, not files.
-    expect(screen.getByText('1 take recorded')).toBeTruthy();
+    expect(screen.getByText('1 attempt recorded')).toBeTruthy();
   });
 
   it('gives a draw-only take a silent timeline', async () => {

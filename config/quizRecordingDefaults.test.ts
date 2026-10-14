@@ -40,6 +40,15 @@ describe('normalizeRecordingConfig', () => {
     ).toBe('armed');
   });
 
+  it.each(['auto-advance', 'unanswered'] as const)(
+    'reads the retired %s choice as auto-start, so students still get to record',
+    (prepExpiry) => {
+      expect(normalizeRecordingConfig({ prepExpiry })?.prepExpiry).toBe(
+        'auto-start'
+      );
+    }
+  );
+
   it('tolerates the authoring-only stash and drops it from the result', () => {
     const normalized = normalizeRecordingConfig({
       ...DEFAULT_RECORDING_CONFIG,

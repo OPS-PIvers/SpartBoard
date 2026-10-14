@@ -205,7 +205,7 @@ describe('QuizStudentApp — recording gate', () => {
     });
     render(<QuizStudentApp />);
 
-    expect(await screen.findByText(/Thinking time/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Planning time/i)).toBeInTheDocument();
     expect(screen.queryByText(/Before you record/i)).not.toBeInTheDocument();
   });
 

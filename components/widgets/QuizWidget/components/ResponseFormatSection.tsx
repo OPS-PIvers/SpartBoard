@@ -33,6 +33,7 @@ import {
   isWhiteboardRecording,
   PREP_SECONDS_MAX,
   AUDIO_LIMIT_SECONDS_MIN,
+  effectivePrepExpiry,
 } from '@/config/quizRecordingDefaults';
 import { WhiteboardStartingPagePicker } from './WhiteboardStartingPagePicker';
 import { BLANK_STARTING_PAGE } from './whiteboardStartingPageSpec';
@@ -75,19 +76,10 @@ function toWhiteboardBlock(block: RecordingConfig): RecordingConfig {
   };
 }
 
-const EXPIRY_ORDER: RecordingPrepExpiry[] = [
-  'armed',
-  'auto-start',
-  'auto-advance',
-  'unanswered',
+const EXPIRY_OPTIONS: { value: RecordingPrepExpiry; label: string }[] = [
+  { value: 'armed', label: 'expiryArmed' },
+  { value: 'auto-start', label: 'expiryAutoStart' },
 ];
-
-const EXPIRY_KEYS: Record<RecordingPrepExpiry, { label: string }> = {
-  armed: { label: 'expiryArmed' },
-  'auto-start': { label: 'expiryAutoStart' },
-  'auto-advance': { label: 'expiryAutoAdvance' },
-  unanswered: { label: 'expiryUnanswered' },
-};
 
 export interface ResponseFormatSectionProps {
   question: QuizQuestion;
@@ -278,16 +270,16 @@ export const SpokenResponseSettings: React.FC<ResponseFormatSectionProps> = ({
           </label>
           <select
             id="recording-prep-expiry"
-            value={recording.prepExpiry}
+            value={effectivePrepExpiry(recording.prepExpiry)}
             onChange={(e) =>
               patch({ prepExpiry: e.target.value as RecordingPrepExpiry })
             }
             className={`${inputClass} appearance-none`}
             {...tourTypeAttr('quiz-editor.recording-expiry', 'quiz')}
           >
-            {EXPIRY_ORDER.map((value) => (
-              <option key={value} value={value}>
-                {tk(EXPIRY_KEYS[value].label)}
+            {EXPIRY_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {tk(o.label)}
               </option>
             ))}
           </select>
