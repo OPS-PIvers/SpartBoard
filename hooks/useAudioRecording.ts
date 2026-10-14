@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import type { RecordingConfig, TakeMicState } from '@/types';
 import { wrapUpThresholdSeconds } from '@/config/quizRecordingDefaults';
 
@@ -42,6 +48,8 @@ export interface UseAudioRecordingOptions {
   /** `auto-advance` / `unanswered` bubble up; `armed` and `auto-start` do not. */
   onPrepExpired?: (expiry: RecordingConfig['prepExpiry']) => void;
   onCaptureUnavailable?: () => void;
+  /** When set, a finished take skips review: it is handed here and the recorder re-arms (D5). */
+  onTakeReady?: (take: AudioTake) => void;
   /** Injected in tests and in the DEV harness; defaults to the real APIs. */
   deps?: AudioRecordingDeps;
 }
@@ -143,6 +151,10 @@ export function useAudioRecording(
   const onCaptureUnavailableRef = useRef(options.onCaptureUnavailable);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in timers/handlers
   onCaptureUnavailableRef.current = options.onCaptureUnavailable;
+  const onTakeReadyRef = useRef(options.onTakeReady);
+  useLayoutEffect(() => {
+    onTakeReadyRef.current = options.onTakeReady;
+  });
 
   const clearPrepTimer = () => {
     if (prepTimerRef.current !== null) {
@@ -209,6 +221,17 @@ export function useAudioRecording(
         recorderRef.current = null;
         clearRecordTimer();
         setRecordSecondsLeft(null);
+        const onTakeReady = onTakeReadyRef.current;
+        if (onTakeReady) {
+          setPhase('armed');
+          onTakeReady({
+            blob,
+            mimeType: effectiveMime,
+            durationMs,
+            micState: 'on',
+          });
+          return;
+        }
         setTake({ blob, mimeType: effectiveMime, durationMs, micState: 'on' });
         const url = URL.createObjectURL(blob);
         takeUrlRef.current = url;

@@ -2276,6 +2276,7 @@
       "record": "Record",
       "recordAgain": "Record again",
       "stop": "Stop recording",
+      "stopAndSubmit": "Stop and submit",
       "commit": "Keep this take",
       "discard": "Discard",
       "retryUpload": "Try again",
@@ -2319,6 +2320,7 @@
       "takeLimitLabel": "Takes allowed",
       "takeLimitUnlimited": "Unlimited",
       "takeLimitHint": "A take is a recording the student keeps, not one they discard.",
+      "reviewLabel": "Students review before submitting",
       "timeLimitDisabledHint": "Set by the recording timer.",
       "modeLabelAudio": "audio",
       "modeLabelVideo": "video",
@@ -3991,5 +3993,42 @@
     "addToResponse": "Ajouter à la réponse",
     "showQuotes": "Afficher les citations",
     "showQuotesHint": "Bleu : citation exacte. Ambre : modifiée par rapport au texte."
+  },
+  "quizWhiteboard": {
+    "canvas": {
+      "tools": "Outils de dessin",
+      "tool": {
+        "pen": "Stylo",
+        "eraser": "Gomme",
+        "text": "Texte",
+        "line": "Ligne",
+        "arrow": "Flèche",
+        "rect": "Rectangle",
+        "ellipse": "Ellipse"
+      },
+      "eraserMode": "Mode gomme",
+      "eraser": {
+        "stroke": "Gomme de trait",
+        "object": "Gomme d'objet",
+        "lasso": "Gomme lasso"
+      },
+      "colors": "Couleurs",
+      "color": {
+        "black": "Noir",
+        "blue": "Bleu",
+        "red": "Rouge",
+        "green": "Vert",
+        "orange": "Orange",
+        "yellow": "Jaune"
+      },
+      "sizes": "Taille",
+      "size": {
+        "thin": "Fin",
+        "medium": "Moyen",
+        "thick": "Épais"
+      },
+      "undo": "Annuler",
+      "redo": "Rétablir"
+    }
   }
 }
