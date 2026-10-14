@@ -2430,7 +2430,8 @@
         "substitute": "Offline substitute",
         "substituteHelp": "You heard the answer another way. A note is required.",
         "deviceGatedTitle": "Diese Person konnte nicht zeichnen",
-        "deviceGatedBody": "Das Gerät wurde hochkant gehalten, daher hat sich das Whiteboard nie geöffnet. Legen Sie fest, wie diese Frage zählt, bevor die Note endgültig ist."
+        "deviceGatedBody": "Das Gerät wurde hochkant gehalten, daher hat sich das Whiteboard nie geöffnet. Legen Sie fest, wie diese Frage zählt, bevor die Note endgültig ist.",
+        "substituteHelpWhiteboard": "Sie haben die Arbeit auf anderem Weg gesehen. Eine Notiz ist erforderlich."
       },
       "player": {
         "loading": "Loading the recording…",

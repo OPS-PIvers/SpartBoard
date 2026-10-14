@@ -2430,7 +2430,8 @@
         "substitute": "Offline substitute",
         "substituteHelp": "You heard the answer another way. A note is required.",
         "deviceGatedTitle": "Este estudiante no pudo dibujar",
-        "deviceGatedBody": "Su dispositivo estaba en vertical, así que la pizarra nunca se abrió. Elija cómo cuenta esta pregunta antes de que la calificación sea final."
+        "deviceGatedBody": "Su dispositivo estaba en vertical, así que la pizarra nunca se abrió. Elija cómo cuenta esta pregunta antes de que la calificación sea final.",
+        "substituteHelpWhiteboard": "Vio el trabajo de otra manera. Se requiere una nota."
       },
       "player": {
         "loading": "Loading the recording…",

@@ -2430,7 +2430,8 @@
         "substitute": "Offline substitute",
         "substituteHelp": "You heard the answer another way. A note is required.",
         "deviceGatedTitle": "Cet élève n'a pas pu dessiner",
-        "deviceGatedBody": "Son appareil était tenu à la verticale, donc le tableau ne s'est jamais ouvert. Choisissez comment cette question compte avant que la note soit définitive."
+        "deviceGatedBody": "Son appareil était tenu à la verticale, donc le tableau ne s'est jamais ouvert. Choisissez comment cette question compte avant que la note soit définitive.",
+        "substituteHelpWhiteboard": "Vous avez vu le travail autrement. Une note est obligatoire."
       },
       "player": {
         "loading": "Loading the recording…",

@@ -268,6 +268,7 @@ describe('FreeResponseGrader whiteboard takes', () => {
     renderGrader([portraitGated('ada')]);
     expect(await screen.findByText('This student could not draw')).toBeTruthy();
     expect(screen.getByRole('button', { name: /excuse/i })).toBeTruthy();
+    expect(screen.getByText(/You saw the work another way/)).toBeTruthy();
   });
 
   it('walks a student through whiteboard and spoken answers in student mode', async () => {

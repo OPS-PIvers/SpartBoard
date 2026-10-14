@@ -35,6 +35,7 @@ export const MEDIA_GRADING_STATES = [
   'deleted',
   'mic-blocked',
   'device-gated',
+  'whiteboard',
 ] as const;
 export type MediaGradingStateKey = (typeof MEDIA_GRADING_STATES)[number];
 

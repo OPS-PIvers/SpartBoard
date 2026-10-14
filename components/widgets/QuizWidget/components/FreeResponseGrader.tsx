@@ -1873,7 +1873,12 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                           {tg(`unavailable.${choice}`)}
                         </span>
                         <span className="mt-0.5 block text-xs leading-snug text-slate-500">
-                          {tg(`unavailable.${choice}Help`)}
+                          {tg(
+                            choice === 'substitute' &&
+                              question.recording?.mode === 'whiteboard'
+                              ? 'unavailable.substituteHelpWhiteboard'
+                              : `unavailable.${choice}Help`
+                          )}
                         </span>
                       </button>
                     )

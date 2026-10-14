@@ -209,7 +209,7 @@ export const WhiteboardAnnotatedResponseView: React.FC<
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+    <div>
       <WhiteboardReplayView
         pictureUrl={loaded.pictureUrl}
         log={loaded.log}
