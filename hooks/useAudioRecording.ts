@@ -7,6 +7,7 @@ import {
 } from 'react';
 import type { RecordingConfig, TakeMicState } from '@/types';
 import { wrapUpThresholdSeconds } from '@/config/quizRecordingDefaults';
+import type { TakeRecoveryStore } from '@/utils/takeRecoveryStore';
 
 /**
  * Audio capture state machine for a quiz recording question. Modeled on
@@ -52,7 +53,12 @@ export interface UseAudioRecordingOptions {
   onTakeReady?: (take: AudioTake) => void;
   /** Injected in tests and in the DEV harness; defaults to the real APIs. */
   deps?: AudioRecordingDeps;
+  /** Mirrors chunks of the running take locally so a crash can offer it back (D17). */
+  recovery?: { store: TakeRecoveryStore; key: string };
 }
+
+/** How often the recorder hands over a chunk while a recovery copy is kept. */
+export const RECOVERY_CHUNK_MS = 1000;
 
 export interface AudioRecordingDeps {
   getStream: () => Promise<MediaStream>;
@@ -111,9 +117,11 @@ export interface UseAudioRecordingResult {
   start: () => Promise<void>;
   stop: () => void;
   discard: () => void;
-  /** Hands the blob to the caller and resets to `armed`; writes nothing itself. */
-  commit: () => AudioTake | null;
+  /** Hands the blob (or a just-restored one) to the caller and resets to `armed`; writes nothing itself. */
+  commit: (restored?: AudioTake) => AudioTake | null;
   reset: () => void;
+  /** Puts a recovered take on the review screen; false when a take is already running. */
+  restore: (take: AudioTake) => boolean;
 }
 
 export function useAudioRecording(
@@ -144,6 +152,24 @@ export function useAudioRecording(
   const prepTimerRef = useRef<number | null>(null);
   const recordTimerRef = useRef<number | null>(null);
   const takeUrlRef = useRef<string | null>(null);
+  const recoveryRef = useRef(options.recovery);
+  const { recovery } = options;
+  useLayoutEffect(() => {
+    recoveryRef.current = recovery;
+  }, [recovery]);
+  const recoveryWritesRef = useRef<Promise<void>>(Promise.resolve());
+
+  // Serialized so a wipe can never land before a chunk queued ahead of it.
+  const queueRecoveryWrite = useCallback(
+    (op: (store: TakeRecoveryStore, key: string) => Promise<void>) => {
+      const target = recoveryRef.current;
+      if (!target) return;
+      recoveryWritesRef.current = recoveryWritesRef.current
+        .then(() => op(target.store, target.key))
+        .catch(() => undefined);
+    },
+    []
+  );
 
   const onPrepExpiredRef = useRef(options.onPrepExpired);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in timers/handlers
@@ -207,7 +233,11 @@ export function useAudioRecording(
       const effectiveMime = recorder.mimeType || mimeType || 'audio/webm';
 
       recorder.ondataavailable = (e: BlobEvent) => {
-        if (e.data && e.data.size > 0) chunksRef.current.push(e.data);
+        if (!e.data || e.data.size <= 0) return;
+        chunksRef.current.push(e.data);
+        const chunk = e.data;
+        const at = deps.now();
+        queueRecoveryWrite((store, key) => store.appendChunk(key, chunk, at));
       };
       recorder.onstop = () => {
         stream.getTracks().forEach((t) => t.stop());
@@ -224,6 +254,7 @@ export function useAudioRecording(
         const onTakeReady = onTakeReadyRef.current;
         if (onTakeReady) {
           setPhase('armed');
+          queueRecoveryWrite((store, key) => store.remove(key));
           onTakeReady({
             blob,
             mimeType: effectiveMime,
@@ -240,8 +271,13 @@ export function useAudioRecording(
       };
 
       recorderRef.current = recorder;
-      startedAtRef.current = deps.now();
-      recorder.start();
+      const startedAt = deps.now();
+      startedAtRef.current = startedAt;
+      queueRecoveryWrite((store, key) =>
+        store.begin(key, effectiveMime, startedAt, { micState: 'on' })
+      );
+      if (recoveryRef.current) recorder.start(RECOVERY_CHUNK_MS);
+      else recorder.start();
       setMicState('on');
       setPhase('recording');
       setRecordSecondsLeft(config.limitSeconds);
@@ -260,7 +296,7 @@ export function useAudioRecording(
     } finally {
       isStartingRef.current = false;
     }
-  }, [config.limitSeconds, deps, enabled, stop]);
+  }, [config.limitSeconds, deps, enabled, queueRecoveryWrite, stop]);
 
   const arm = useCallback(() => {
     clearPrepTimer();
@@ -309,18 +345,45 @@ export function useAudioRecording(
     setTakeUrl(null);
   }, []);
 
+  const wipeRecovery = useCallback(
+    () => queueRecoveryWrite((store, key) => store.remove(key)),
+    [queueRecoveryWrite]
+  );
+
   const discard = useCallback(() => {
     // Zero writes, zero counters: the discard IS the refusal.
     dropTake();
+    wipeRecovery();
     setPhase('armed');
-  }, [dropTake]);
+  }, [dropTake, wipeRecovery]);
 
-  const commit = useCallback((): AudioTake | null => {
-    const committed = take;
-    dropTake();
-    setPhase('armed');
-    return committed;
-  }, [dropTake, take]);
+  const commit = useCallback(
+    (restored?: AudioTake): AudioTake | null => {
+      const committed = restored ?? take;
+      dropTake();
+      if (committed) wipeRecovery();
+      setPhase('armed');
+      return committed;
+    },
+    [dropTake, take, wipeRecovery]
+  );
+
+  const restore = useCallback((recovered: AudioTake): boolean => {
+    const recorder = recorderRef.current;
+    if (isStartingRef.current) return false;
+    if (recorder && recorder.state !== 'inactive') return false;
+    clearPrepTimer();
+    setPrepSecondsLeft(null);
+    setRecordSecondsLeft(null);
+    if (takeUrlRef.current) URL.revokeObjectURL(takeUrlRef.current);
+    const url = URL.createObjectURL(recovered.blob);
+    takeUrlRef.current = url;
+    setTakeUrl(url);
+    setTake(recovered);
+    setMicState(recovered.micState);
+    setPhase('reviewing');
+    return true;
+  }, []);
 
   const reset = useCallback(() => {
     dropTake();
@@ -364,5 +427,6 @@ export function useAudioRecording(
     discard,
     commit,
     reset,
+    restore,
   };
 }

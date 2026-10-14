@@ -3397,6 +3397,8 @@
       "wrapUp": "Wrap it up. Recording stops at {{seconds}} seconds.",
       "reviewLabel": "Listen back",
       "reviewBody": "Not sent yet.",
+      "recoveredLabel": "Your saved take",
+      "recoveredBody": "Saved before you left this question. Not sent yet.",
       "playbackPosition": "Playback position",
       "playbackValueText": "{{elapsed}} of {{total}}",
       "windowClosedTitle": "Recording time is over",

@@ -2268,6 +2268,8 @@
       "wrapUp": "Komm zum Schluss. Die Aufnahme stoppt bei {{seconds}} Sekunden.",
       "reviewLabel": "Listen back",
       "reviewBody": "Noch nicht gesendet.",
+      "recoveredLabel": "Deine gespeicherte Aufnahme",
+      "recoveredBody": "Gespeichert, bevor du diese Frage verlassen hast. Noch nicht gesendet.",
       "playbackPosition": "Playback position",
       "playbackValueText": "{{elapsed}} of {{total}}",
       "windowClosedTitle": "Recording time is over",
