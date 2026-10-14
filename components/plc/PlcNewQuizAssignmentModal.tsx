@@ -327,7 +327,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
             sessionMode: behavior.sessionMode,
             sessionOptions,
             attemptLimit: behavior.attemptLimit,
-            teacherName: user.displayName?.trim() || undefined,
+            teacherName: (user.displayName ?? '').trim() || undefined,
             periodName: derived.periodNames[0],
             periodNames: derived.periodNames,
             plc: plcLinkage,
