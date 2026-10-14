@@ -42,7 +42,7 @@ export interface ResponsePlaybackCardProps {
   /** Teacher timeline comments (ms offsets) on the graded take. */
   annotations?: readonly WrittenAnswerAnnotation[];
   light?: boolean;
-  /** Whiteboard takes render only when the session and the flag allow them. */
+  /** Off hides whiteboard takes; the playback callable re-checks the flag for each file. */
   whiteboardEnabled?: boolean;
   startingPage?: WhiteboardStartingPage;
   /** Injected by tests and the DEV harness only. */
