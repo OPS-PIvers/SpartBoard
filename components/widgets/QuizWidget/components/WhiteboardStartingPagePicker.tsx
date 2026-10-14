@@ -10,8 +10,8 @@ import type {
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import {
   drawStartingPage,
-  PAGE_H,
-  PAGE_W,
+  WHITEBOARD_PAGE_HEIGHT,
+  WHITEBOARD_PAGE_WIDTH,
 } from '@/utils/whiteboard/startingPage';
 import { driveImageUrl } from '@/utils/quizStimuli';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
@@ -107,6 +107,7 @@ export const WhiteboardStartingPagePicker: React.FC<
   useEffect(() => {
     if (!imageUrl) return;
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     let live = true;
     img.onload = () => {
       if (live) setLoadedImage({ url: imageUrl, el: img });
@@ -317,8 +318,8 @@ export const WhiteboardStartingPagePicker: React.FC<
 
       <canvas
         ref={canvasRef}
-        width={PAGE_W * PREVIEW_SCALE}
-        height={PAGE_H * PREVIEW_SCALE}
+        width={WHITEBOARD_PAGE_WIDTH * PREVIEW_SCALE}
+        height={WHITEBOARD_PAGE_HEIGHT * PREVIEW_SCALE}
         role="img"
         aria-label={tk('previewLabel')}
         className="w-48 aspect-[4/3] rounded-lg border border-slate-200 bg-white self-start"
