@@ -377,6 +377,14 @@ const SessionViewsDevHarness = import.meta.env.DEV
     )
   : null;
 
+const WhiteboardReplayDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WhiteboardReplayDevHarness').then((module) => ({
+        default: module.WhiteboardReplayDevHarness,
+      }))
+    )
+  : null;
+
 const MediaReviewDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/MediaReviewDevHarness').then((module) => ({
@@ -1122,6 +1130,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <SessionViewsDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: fixtures for the shared whiteboard answer replay view.
+  if (
+    import.meta.env.DEV &&
+    WhiteboardReplayDevHarness &&
+    pathname === '/whiteboard-replay-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WhiteboardReplayDevHarness />
       </Suspense>
     );
   }

@@ -5048,5 +5048,15 @@
     "addToResponse": "Add to response",
     "showQuotes": "Show quotes",
     "showQuotesHint": "Blue is an exact quote. Amber was changed from the passage."
+  },
+  "quizWhiteboardResponse": {
+    "replay": {
+      "loading": "Loading the drawing…",
+      "pictureAlt": "Finished drawing",
+      "replayLabel": "Drawing replay",
+      "play": "Play the drawing",
+      "pause": "Pause the drawing",
+      "unavailable": "This drawing can't be replayed."
+    }
   }
 }
