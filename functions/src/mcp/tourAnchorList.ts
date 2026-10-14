@@ -11803,6 +11803,38 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-whiteboard.replay-play",
+    "label": "Play / pause a whiteboard answer replay",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.whiteboard-replay",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-whiteboard.replay-scrubber",
+    "label": "Whiteboard answer replay timeline",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.whiteboard-replay",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "quiz-grading.audio-play",
     "label": "Play / pause in the Quiz grader",
     "scope": "widget type",
