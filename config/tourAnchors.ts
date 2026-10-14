@@ -13932,7 +13932,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'import-wizard.retry-with-ai': {
-    label: 'Try again with AI link on the Import wizard preview step',
+    label: 'Try again with AI button in the Import wizard preview footer',
     panel: true,
   },
   'import-wizard.title': {
