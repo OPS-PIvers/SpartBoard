@@ -1,16 +1,31 @@
 # Pronunciation Questions — Plan
 
-**Status:** Live plan. Refreshed and grilled 2026-10-13 (decisions G1–G22 in §5). No feature code exists.
-**Owner:** Paul (OPS-PIvers) + Claude
-**Tickets:** [Wayfinder Map #2331](https://github.com/OPS-PIvers/SpartBoard/issues/2331)
-(29 sub-issues, 11 closed). The map body was last edited 2026-08-04 and predates
-everything in §3. Until it is refreshed, **this doc is the up-to-date picture** and
-the tickets hold the detailed evidence.
-**Scoring contracts (authoritative over the spec):** `scripts/spikes/*/DECISIONS.md`:
-`alignment-engine` (A1–A13), `stress-detection` (S1–S5), `stress-reference`
-(R1–R5), `token-runs` (T1–T5).
-**Source spec:** [`multilingual-pronunciation-engine-spec.md`](multilingual-pronunciation-engine-spec.md)
-is the original proposal, kept as written. Where the two disagree, this doc wins.
+**Status:** Live plan, **paused 2026-10-14** (Paul is wrapping up other work). Grilled 2026-10-13 (decisions G1–G22 in §5). The engine exists in `utils/pronunciation/`, but nothing user-facing does.
+
+**Where we are (2026-10-14):**
+
+- **Done:**
+  - the grill (G1–G22);
+  - the Chromebook gate: **passed for single words**, CPU only (§4.5, #2350);
+  - the scoring engine, stress detection and espeak tokenizer, ported with tests (§6 step 2, `991ce03`);
+  - the `/pronunciation-dev` test page, now with silence trimming.
+- **Waiting on Paul:**
+  - the counsel brief on espeak's licence (G19);
+  - a yes or no on the five calls recorded under §6 step 2 (T1 per run, a held vowel as one syllable, the tokenizer's search rule, its failure contract, and `(en)` handling).
+- **Open checks:** none of these block step 3.
+  - Decode one German _durch_/_wurde_ clip to see whether the model emits its `??` token (§6 step 2 notes).
+  - The stress cue weights (#2366) and the 60/80/95 marks (#2342) are still guesses.
+- **Next, when resumed:** either step 3, the phoneme-lookup callable (§6), or the Web Worker decode in `TODO.md` (small, and needed before any student sees a speak item). Neither depends on the other.
+  **Owner:** Paul (OPS-PIvers) + Claude
+  **Tickets:** [Wayfinder Map #2331](https://github.com/OPS-PIvers/SpartBoard/issues/2331)
+  (29 sub-issues, 11 closed). The map body was last edited 2026-08-04 and predates
+  everything in §3. Until it is refreshed, **this doc is the up-to-date picture** and
+  the tickets hold the detailed evidence.
+  **Scoring contracts (authoritative over the spec):** `scripts/spikes/*/DECISIONS.md`:
+  `alignment-engine` (A1–A13), `stress-detection` (S1–S5), `stress-reference`
+  (R1–R5), `token-runs` (T1–T5).
+  **Source spec:** [`multilingual-pronunciation-engine-spec.md`](multilingual-pronunciation-engine-spec.md)
+  is the original proposal, kept as written. Where the two disagree, this doc wins.
 
 A quiz item where the student **says** a known word and gets scored on
 the sounds they actually produced. The result is a sound-by-sound breakdown
