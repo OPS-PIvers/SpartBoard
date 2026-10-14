@@ -45,8 +45,20 @@ vi.mock('./quizMediaArchive', () => ({
 
 import type { Firestore } from 'firebase-admin/firestore';
 import {
+  DOCUMENT_MAP_PROMPT,
   MAX_DOCUMENT_BYTES,
   MAX_DOCUMENT_PAGES,
+  MAX_VERSIONED_DOCUMENT_PAGES,
+  buildDocumentMapSchema,
+  buildRubricPrompt,
+  buildRubricSchema,
+  buildVersionPrompt,
+  normalizeAiRubric,
+  normalizeDocumentMap,
+  remapFigurePages,
+  versionCallPages,
+  type AiExtractedQuiz,
+  type ExtractedTestSet,
   MAX_FIGURES,
   MAX_QUESTIONS,
   buildDocumentResponseSchema,
@@ -146,6 +158,12 @@ function request(over: Partial<{ fileName: string; mimeType: string }> = {}) {
   };
 }
 
+/** Narrows a plain-mode result, which is never a test set. */
+function asQuiz(result: AiExtractedQuiz | ExtractedTestSet): AiExtractedQuiz {
+  if ('kind' in result) throw new Error('expected a plain quiz');
+  return result;
+}
+
 function makeDeps(over: Partial<ExtractDocumentDeps> = {}) {
   let now = 1_000_000;
   const deps: ExtractDocumentDeps = {
@@ -155,6 +173,9 @@ function makeDeps(over: Partial<ExtractDocumentDeps> = {}) {
     chargeQuiz: vi.fn(() => Promise.resolve()),
     pdfPageCount: vi.fn(() => Promise.resolve(4)),
     extract: vi.fn(() => Promise.resolve(GOOD_RESPONSE)),
+    isVersionsGranted: vi.fn(() => Promise.resolve(true)),
+    generate: vi.fn(() => Promise.reject(new Error('not expected'))),
+    slicePdf: vi.fn((bytes: Buffer) => Promise.resolve(bytes)),
     now: () => now,
     ...over,
   };
@@ -607,7 +628,9 @@ describe('extractQuizFromDocument', () => {
 
   it('reads a document and returns its questions', async () => {
     const { deps } = makeDeps();
-    const quiz = await extractQuizFromDocument(request(), teacher, deps);
+    const quiz = asQuiz(
+      await extractQuizFromDocument(request(), teacher, deps)
+    );
     expect(quiz.title).toBe('Unit 3 Test');
     expect(quiz.questions).toHaveLength(2);
   });
@@ -769,8 +792,494 @@ describe('extractQuizFromDocument', () => {
         )
       ),
     });
-    const quiz = await extractQuizFromDocument(request(), teacher, deps);
+    const quiz = asQuiz(
+      await extractQuizFromDocument(request(), teacher, deps)
+    );
     expect(quiz.title).toBe('Unit 3 Test');
+  });
+});
+
+// ── Versioned tests (QUIZ_IMPORT_VERSIONS V7, V11, V12) ────────────────────
+
+/** Pass 1 for the reference file's shape: four versions, a split, rubrics. */
+const MAP_RESPONSE = {
+  title: 'Unit 3 FRQ',
+  sections: [
+    { kind: 'version', label: 'Version A', startPage: 1 },
+    { kind: 'version', label: 'Version B', startPage: 3 },
+    { kind: 'version', label: 'Unit 3 Version C', startPage: 6 },
+    { kind: 'rubric', label: 'RUBRIC', startPage: 11 },
+    { kind: 'rubric', label: 'RUBRIC (2)', startPage: 13 },
+    { kind: 'version', label: 'Version Split Pt 1', startPage: 19 },
+    { kind: 'version', label: 'Version Split Pt 2', startPage: 22 },
+    { kind: 'rubric', label: 'RUBRIC Version Split', startPage: 25 },
+  ],
+  figures: [
+    {
+      page: 1,
+      x: 0.1,
+      y: 0.1,
+      width: 0.4,
+      height: 0.3,
+      label: 'MAP #1',
+      versions: ['Version A', 'version b', 'Nope'],
+    },
+  ],
+  groups: [
+    {
+      kind: 'parallel',
+      name: 'Unit 3 FRQ',
+      versions: ['Version A', 'Version B'],
+    },
+    {
+      kind: 'retake',
+      name: 'Unit 3 FRQ Retake',
+      versions: ['Unit 3 Version C', 'Version A'],
+    },
+    {
+      kind: 'split',
+      name: '',
+      versions: ['Version Split Pt 1', 'Version Split Pt 2'],
+    },
+  ],
+};
+
+const FRQ_RESPONSE = {
+  title: 'Version A',
+  questions: [
+    {
+      number: 1,
+      text: 'Religion plays a significant role…\nA. Identify…\nB. Define…',
+      type: 'free-response',
+      options: [],
+      correctAnswer: '',
+      figures: [{ page: 1, x: 0.1, y: 0.1, width: 0.4, height: 0.3 }],
+      warnings: [],
+    },
+  ],
+};
+
+const RUBRIC_RESPONSE = {
+  title: 'RUBRIC',
+  printedTotal: 10,
+  criteria: [
+    {
+      letter: 'a',
+      prompt: 'Identify one of the specific Chrsitian denominations.',
+      points: 1,
+      credit: ['X = Mormon; Y = Lutheran; Z = Baptist'],
+      notes: [],
+    },
+    {
+      letter: 'B',
+      prompt: 'Define the term acculturation.',
+      points: 2,
+      credit: [
+        'Clear definition',
+        'As distance increases, interaction decreases',
+      ],
+      notes: ['NOT ACCEPTABLE: assimilation'],
+    },
+  ],
+  warnings: [],
+};
+
+describe('normalizeDocumentMap', () => {
+  it('turns start pages into ranges that cover the file', () => {
+    const map = normalizeDocumentMap(MAP_RESPONSE, 26, 'file');
+    expect(map.versions.map((v) => [v.label, v.pages])).toEqual([
+      ['Version A', { start: 1, end: 2 }],
+      ['Version B', { start: 3, end: 5 }],
+      ['Unit 3 Version C', { start: 6, end: 10 }],
+      ['Version Split Pt 1', { start: 19, end: 21 }],
+      ['Version Split Pt 2', { start: 22, end: 24 }],
+    ]);
+    expect(map.rubrics.map((r) => r.pages)).toEqual([
+      { start: 11, end: 12 },
+      { start: 13, end: 18 },
+      { start: 25, end: 26 },
+    ]);
+  });
+
+  it('maps group and figure labels to version indexes, case-insensitively', () => {
+    const map = normalizeDocumentMap(MAP_RESPONSE, 26, 'file');
+    expect(map.groups).toEqual([
+      { kind: 'parallel', name: 'Unit 3 FRQ', versions: [0, 1] },
+      // Version A is already grouped, so the retake keeps only C.
+      { kind: 'retake', name: 'Unit 3 FRQ Retake', versions: [2] },
+      {
+        kind: 'split',
+        name: 'Version Split Pt 1 / Version Split Pt 2',
+        versions: [3, 4],
+      },
+    ]);
+    expect(map.figures).toEqual([
+      {
+        page: 1,
+        x: 0.1,
+        y: 0.1,
+        width: 0.4,
+        height: 0.3,
+        label: 'MAP #1',
+        versions: [0, 1],
+      },
+    ]);
+  });
+
+  it('drops sections off the file, duplicate start pages and unknown kinds', () => {
+    const map = normalizeDocumentMap(
+      {
+        sections: [
+          { kind: 'version', label: 'Form 1', startPage: 1 },
+          { kind: 'version', label: 'Form 1', startPage: 4 },
+          { kind: 'rubric', label: 'Dup', startPage: 4 },
+          { kind: 'version', label: 'Form 3', startPage: 99 },
+          { kind: 'appendix', label: 'X', startPage: 5 },
+        ],
+      },
+      6,
+      'Fallback'
+    );
+    expect(map.title).toBe('Fallback');
+    expect(map.versions).toEqual([
+      { label: 'Form 1', pages: { start: 1, end: 3 } },
+      { label: 'Form 1 (2)', pages: { start: 4, end: 6 } },
+    ]);
+    expect(map.rubrics).toEqual([]);
+  });
+
+  it('keeps a Word file in the model’s order, without pages', () => {
+    const map = normalizeDocumentMap(
+      {
+        sections: [
+          { kind: 'version', label: 'Version A', startPage: 0 },
+          { kind: 'version', label: 'Version B' },
+        ],
+      },
+      null,
+      'file'
+    );
+    expect(map.versions).toEqual([
+      { label: 'Version A' },
+      { label: 'Version B' },
+    ]);
+  });
+
+  it('attaches a version’s key pages, and a shared key to every version', () => {
+    const map = normalizeDocumentMap(
+      {
+        sections: [
+          { kind: 'version', label: 'Version A', startPage: 1 },
+          { kind: 'version', label: 'Version B', startPage: 3 },
+          {
+            kind: 'answer-key',
+            label: 'Key A',
+            startPage: 5,
+            forVersion: 'Version A',
+          },
+          { kind: 'answer-key', label: 'Key', startPage: 6 },
+        ],
+      },
+      6,
+      'file'
+    );
+    expect(versionCallPages(map, 0).pages).toEqual([1, 2, 5, 6]);
+    expect(versionCallPages(map, 1).pages).toEqual([3, 4, 6]);
+  });
+
+  it('holds each pass-2 call to the per-call page cap (V12)', () => {
+    const map = normalizeDocumentMap(
+      {
+        sections: [
+          { kind: 'version', label: 'Version A', startPage: 1 },
+          {
+            kind: 'version',
+            label: 'Version B',
+            startPage: MAX_DOCUMENT_PAGES + 5,
+          },
+        ],
+      },
+      MAX_DOCUMENT_PAGES + 6,
+      'file'
+    );
+    const call = versionCallPages(map, 0);
+    expect(call.pages).toHaveLength(MAX_DOCUMENT_PAGES);
+    expect(call.truncated).toBe(true);
+  });
+});
+
+describe('normalizeAiRubric', () => {
+  it('keeps criteria verbatim with points from the points column (V2, V3)', () => {
+    const rubric = normalizeAiRubric(RUBRIC_RESPONSE, 'RUBRIC');
+    expect(rubric.printedTotal).toBe(10);
+    expect(rubric.criteria).toEqual([
+      {
+        letter: 'A',
+        prompt: 'Identify one of the specific Chrsitian denominations.',
+        points: 1,
+        credit: ['X = Mormon; Y = Lutheran; Z = Baptist'],
+        notes: [],
+      },
+      {
+        letter: 'B',
+        prompt: 'Define the term acculturation.',
+        points: 2,
+        credit: [
+          'Clear definition',
+          'As distance increases, interaction decreases',
+        ],
+        notes: ['NOT ACCEPTABLE: assimilation'],
+      },
+    ]);
+  });
+
+  it('flags unreadable points instead of guessing, and omits a missing total', () => {
+    const rubric = normalizeAiRubric(
+      {
+        printedTotal: 0,
+        criteria: [{ letter: 'C', prompt: 'Explain.', points: 'two' }],
+      },
+      'Rubric 3'
+    );
+    expect(rubric.title).toBe('Rubric 3');
+    expect(rubric.printedTotal).toBeUndefined();
+    expect(rubric.criteria[0].points).toBe(0);
+    expect(rubric.warnings[0]).toMatch(/Row C/);
+  });
+});
+
+describe('remapFigurePages', () => {
+  it('maps slice pages back to the file’s and drops pages outside it', () => {
+    const questions = normalizeAiQuiz(
+      {
+        questions: [
+          {
+            number: 1,
+            text: 'Q',
+            type: 'free-response',
+            figures: [
+              { page: 2, x: 0.1, y: 0.1, width: 0.2, height: 0.2 },
+              { page: 3, x: 0.1, y: 0.1, width: 0.2, height: 0.2 },
+            ],
+          },
+        ],
+      },
+      'x'
+    ).questions;
+    expect(remapFigurePages(questions, [19, 20])[0].figures).toEqual([
+      { page: 20, x: 0.1, y: 0.1, width: 0.2, height: 0.2 },
+    ]);
+  });
+});
+
+describe('extractQuizFromDocument, versioned mode', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const versionedRequest = () => ({ ...request(), versions: true });
+
+  /** Answers each call by what its prompt asks for. */
+  function routedGenerate(mapResponse: unknown = MAP_RESPONSE) {
+    return vi.fn((_bytes: Buffer, _mime: string, prompt: string) =>
+      Promise.resolve(
+        JSON.stringify(
+          prompt === DOCUMENT_MAP_PROMPT
+            ? mapResponse
+            : prompt.includes('criteria:')
+              ? RUBRIC_RESPONSE
+              : FRQ_RESPONSE
+        )
+      )
+    );
+  }
+
+  it('maps, then reads every version and rubric from its own pages, charging once', async () => {
+    const generate = routedGenerate();
+    const slicePdf = vi.fn((_b: Buffer, pages: number[]) =>
+      Promise.resolve(Buffer.from(pages.join(',')))
+    );
+    const { deps } = makeDeps({
+      pdfPageCount: vi.fn(() => Promise.resolve(26)),
+      generate,
+      slicePdf,
+    });
+    const set = await extractQuizFromDocument(
+      versionedRequest(),
+      teacher,
+      deps
+    );
+    if (!('kind' in set)) throw new Error('expected a test set');
+
+    expect(deps.chargeQuiz).toHaveBeenCalledTimes(1);
+    expect(deps.extract).not.toHaveBeenCalled();
+    // One map call, five versions, three rubrics.
+    expect(generate).toHaveBeenCalledTimes(9);
+    expect(slicePdf).toHaveBeenCalledWith(expect.any(Buffer), [19, 20, 21]);
+
+    expect(set.versions.map((v) => v.label)).toEqual([
+      'Version A',
+      'Version B',
+      'Unit 3 Version C',
+      'Version Split Pt 1',
+      'Version Split Pt 2',
+    ]);
+    expect(set.versions[0].questions).toHaveLength(1);
+    // The slice's page 1 is the split's page 19.
+    expect(set.versions[3].questions[0].figures[0].page).toBe(19);
+    expect(set.rubrics).toHaveLength(3);
+    expect(set.rubrics[0].criteria[1].notes).toEqual([
+      'NOT ACCEPTABLE: assimilation',
+    ]);
+    expect(set.groups.map((g) => g.kind)).toEqual([
+      'parallel',
+      'retake',
+      'split',
+    ]);
+  });
+
+  it('returns today’s quiz unchanged for a file with no versions (V7)', async () => {
+    const generate = routedGenerate({
+      title: '',
+      sections: [],
+      figures: [],
+      groups: [],
+    });
+    const { deps } = makeDeps({ generate });
+    const quiz = await extractQuizFromDocument(
+      versionedRequest(),
+      teacher,
+      deps
+    );
+    const plain = await extractQuizFromDocument(
+      request(),
+      teacher,
+      makeDeps().deps
+    );
+    expect(quiz).toEqual(plain);
+    expect(deps.extract).toHaveBeenCalledTimes(1);
+    expect(deps.chargeQuiz).toHaveBeenCalledTimes(1);
+  });
+
+  it('treats a single version heading as no versions', async () => {
+    const generate = routedGenerate({
+      sections: [{ kind: 'version', label: 'Version A', startPage: 1 }],
+    });
+    const { deps } = makeDeps({ generate });
+    const quiz = await extractQuizFromDocument(
+      versionedRequest(),
+      teacher,
+      deps
+    );
+    expect('kind' in quiz).toBe(false);
+  });
+
+  it('ignores the versions request without the flag, keeping today’s cap', async () => {
+    const { deps } = makeDeps({
+      isVersionsGranted: vi.fn(() => Promise.resolve(false)),
+      pdfPageCount: vi.fn(() => Promise.resolve(26)),
+    });
+    await expect(
+      extractQuizFromDocument(versionedRequest(), teacher, deps)
+    ).rejects.toThrow(/limit is 20/);
+    expect(deps.generate).not.toHaveBeenCalled();
+    expect(deps.chargeQuiz).not.toHaveBeenCalled();
+  });
+
+  it('refuses a file over the versioned ceiling before any charge (V12)', async () => {
+    const { deps } = makeDeps({
+      pdfPageCount: vi.fn(() =>
+        Promise.resolve(MAX_VERSIONED_DOCUMENT_PAGES + 1)
+      ),
+    });
+    await expect(
+      extractQuizFromDocument(versionedRequest(), teacher, deps)
+    ).rejects.toThrow(new RegExp(`limit is ${MAX_VERSIONED_DOCUMENT_PAGES}`));
+    expect(deps.chargeQuiz).not.toHaveBeenCalled();
+    expect(deps.generate).not.toHaveBeenCalled();
+  });
+
+  it('refuses a long file that turns out to have no versions', async () => {
+    const { deps } = makeDeps({
+      pdfPageCount: vi.fn(() => Promise.resolve(26)),
+      generate: routedGenerate({ sections: [] }),
+    });
+    await expect(
+      extractQuizFromDocument(versionedRequest(), teacher, deps)
+    ).rejects.toThrow(/no versions/);
+    expect(deps.extract).not.toHaveBeenCalled();
+  });
+
+  it('keeps the other versions when one call fails', async () => {
+    const generate = vi.fn((_b: Buffer, _m: string, prompt: string) =>
+      prompt === DOCUMENT_MAP_PROMPT
+        ? Promise.resolve(JSON.stringify(MAP_RESPONSE))
+        : prompt.includes('"Version B"')
+          ? Promise.reject(new Error('boom'))
+          : Promise.resolve(
+              JSON.stringify(
+                prompt.includes('criteria:') ? RUBRIC_RESPONSE : FRQ_RESPONSE
+              )
+            )
+    );
+    const { deps } = makeDeps({
+      pdfPageCount: vi.fn(() => Promise.resolve(26)),
+      generate,
+    });
+    const set = await extractQuizFromDocument(
+      versionedRequest(),
+      teacher,
+      deps
+    );
+    if (!('kind' in set)) throw new Error('expected a test set');
+    expect(set.versions[1].questions).toEqual([]);
+    expect(set.versions[1].warnings[0]).toMatch(/could not be read/);
+    expect(set.versions[0].questions).toHaveLength(1);
+  });
+
+  it('reads a Word file whole in every call, scoped by label', async () => {
+    const generate = routedGenerate({
+      sections: [
+        { kind: 'version', label: 'Version A' },
+        { kind: 'version', label: 'Version B' },
+      ],
+    });
+    const { deps } = makeDeps({ generate });
+    const set = await extractQuizFromDocument(
+      { ...versionedRequest(), fileName: 'FRQ.docx', mimeType: DOCX_MIME },
+      teacher,
+      deps
+    );
+    expect('kind' in set).toBe(true);
+    expect(deps.slicePdf).not.toHaveBeenCalled();
+    expect(deps.pdfPageCount).not.toHaveBeenCalled();
+    expect(generate.mock.calls[1][2]).toMatch(
+      /Read only the version\s+headed "Version A"/
+    );
+  });
+});
+
+describe('versioned prompts', () => {
+  it('keeps lettered parts in one written response (V1)', () => {
+    expect(buildVersionPrompt('Version A', false, false)).toMatch(
+      /ONE free-response question/
+    );
+  });
+
+  it('asks for rubric text verbatim (V3)', () => {
+    expect(buildRubricPrompt('RUBRIC', false)).toMatch(/Never reword/);
+  });
+
+  it('requires every rubric row field in the schema', () => {
+    const schema = buildRubricSchema() as {
+      properties: { criteria: { items: { required: string[] } } };
+    };
+    expect(schema.properties.criteria.items.required).toEqual([
+      'letter',
+      'prompt',
+      'points',
+      'credit',
+      'notes',
+    ]);
+    expect(buildDocumentMapSchema().required).toContain('sections');
   });
 });
 

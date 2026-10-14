@@ -143,4 +143,4 @@ Each rubric row is a letter, the prompt, "Credit received for:" bullets, sometim
 
 ## Open items
 
-- The whole-file page ceiling for versioned imports (V12) is set in PR 1 from measured Gemini latency on the reference file.
+- The whole-file page ceiling for versioned imports (V12) is 40 pages, set in PR 1 as the 26-page reference file plus headroom. It was not latency-measured (no Vertex access in the session); time a real import on dev and adjust.
