@@ -4722,3 +4722,24 @@ rather than "no data") is also still open.
 - Notes:
   - `gh` is unavailable, so GitHub access went through MCP.
   - CI had not reported on #4140's head when it was reviewed.
+
+## 2026-10-14
+
+- PRs reviewed:
+  - #4222 Reuse shared Toggle in the settings field kit's ToggleField
+  - #4221 docs(debugger): run 98 log
+  - #4220 Open the Webcam camera once on first load
+  - #4219 Calendar: show multi-day all-day events on every day they cover
+  - #4218 fix(staff-email-input): Escape on the suggestion list no longer closes the host modal
+  - #4217 fix(admin): keep a feature marked saving until its last overlapping save settles
+  - #4216 Widget loop: Weather layout D → C
+  - #4214 docs(unifier): run 116 log — all dimensions aligned
+  - #4190 Tour anchors: tag 1 recorded element
+- Comments processed: 10 — 0 fixed, 0 needing a reply. No inline review threads on any PR. Bot comments were LGTMs, apart from #4190's "TBD PR number", which commit 3f72bc46 had already fixed. #4216's flaky-shard comment was the author's own.
+- Fixes pushed: none
+- Reviews posted: 9
+- Merge readiness:
+  - Ready: #4222, #4220, #4218, #4217, #4214, #4190.
+  - Ready with minor notes: #4219 (UTC window-edge clipping), #4216 (`34cqmin` icon-column coupling), #4221 (two-cell backlog rows, duplicate run-count line).
+- Notes:
+  - `gh` is unavailable, so GitHub access went through MCP.
