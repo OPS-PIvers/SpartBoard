@@ -41,8 +41,7 @@ vi.mock('@/context/useAuth', () => ({
     isAdmin: true,
     getAssignmentMode: () => 'graded',
     canAccessFeature: (id: string) =>
-      id === 'gemini-functions' ||
-      id === 'guided-learning-ai',
+      id === 'gemini-functions' || id === 'guided-learning-ai',
   }),
 }));
 vi.mock('@/context/useDialog', () => ({
