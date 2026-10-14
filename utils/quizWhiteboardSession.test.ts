@@ -62,7 +62,7 @@ describe('noticeDrawingForSession', () => {
 describe('buildWhiteboardTakeArtifacts', () => {
   const ids = ['a', 'b', 'c'];
   const take = {
-    audio: { blob: new Blob(['aa']), mimeType: 'audio/webm', durationMs: 900 },
+    audio: { blob: new Blob(['aa']), mimeType: 'audio/webm' },
     picture: new Blob(['ppp']),
     log: new Blob(['l']),
     durationMs: 1000,
@@ -96,7 +96,7 @@ describe('buildWhiteboardTakeArtifacts', () => {
         id: 'c',
         kind: 'audio',
         mimeType: 'audio/webm',
-        durationMs: 900,
+        durationMs: 1000,
       }),
     ]);
     expect(parts[2].artifact).not.toHaveProperty('part');

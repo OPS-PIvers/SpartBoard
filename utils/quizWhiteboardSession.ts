@@ -55,10 +55,10 @@ export function noticeDrawingForSession(
   return voice ? 'narrated' : 'draw-only';
 }
 
-/** What the whiteboard capture hands back at commit. */
+/** What the whiteboard capture hands back at commit; mirrors W5's export until it lands. */
 export interface WhiteboardTake {
   /** Absent when draw-only or the mic was denied. */
-  audio: { blob: Blob; mimeType: string; durationMs: number } | null;
+  audio: { blob: Blob; mimeType: string } | null;
   /** Final picture, 3200x2400 PNG with the starting page baked in (D20). */
   picture: Blob;
   /** Serialized drawing log (D14). */
@@ -98,7 +98,7 @@ export function buildWhiteboardTakeArtifacts(
     make(take.picture, 'image/png', take.durationMs, 'picture'),
     make(take.log, 'application/json', take.durationMs, 'log'),
     ...(take.audio
-      ? [make(take.audio.blob, take.audio.mimeType, take.audio.durationMs)]
+      ? [make(take.audio.blob, take.audio.mimeType, take.durationMs)]
       : []),
   ];
 }
