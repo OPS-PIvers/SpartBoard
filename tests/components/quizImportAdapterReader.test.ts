@@ -139,6 +139,26 @@ describe('quiz import reader selection', () => {
     expect(result.warnings.join(' ')).toContain('read the simple way');
   });
 
+  it('shows the AI error for a versioned file the plain reader cannot open', async () => {
+    vi.mocked(readQuizDocumentWithAi).mockRejectedValue(
+      new Error('That took too long.')
+    );
+    vi.mocked(readQuizDocument).mockRejectedValue(
+      new Error('This file is 26 pages.')
+    );
+    const versioned = adapter({
+      aiExtract: vi.fn(),
+      aiExtractVersions: vi.fn(),
+      importVersions: true,
+    });
+    await expect(versioned.parse(source)).rejects.toThrow(
+      'That took too long.'
+    );
+    await expect(adapter({ aiExtract: vi.fn() }).parse(source)).rejects.toThrow(
+      'This file is 26 pages.'
+    );
+  });
+
   it('still reports the pictures a fallback read found', async () => {
     vi.mocked(readQuizDocumentWithAi).mockRejectedValue(new Error('down'));
     const images = [

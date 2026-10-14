@@ -110,7 +110,14 @@ export async function readTestDocument(
   } catch (err) {
     // Half a quiz to fix beats an error screen mid-import.
     console.warn('[quizImport] AI reader unavailable', err);
-    const extracted = await inBrowser();
+    let extracted: ExtractedQuiz;
+    try {
+      extracted = await inBrowser();
+    } catch (browserErr) {
+      // A versioned file can be past the plain reader's page limit, so its AI error is the real one.
+      if (options.aiExtractVersions) throw err;
+      throw browserErr;
+    }
     return {
       ...extracted,
       readBy: 'plain',
