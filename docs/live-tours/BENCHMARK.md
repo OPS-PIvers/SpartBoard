@@ -80,7 +80,7 @@ Rounds counts fix-and-rerun cycles: 0 means green on the first browser run.
 | Item                               | Status     | Seen in run 2                                                                                           |
 | ---------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------- |
 | B1. `get_live_tour` drops `sample` | Fixed      | Tour 2's run file carried the sample quiz and the runner seeded it.                                     |
-| B2. `upload_url` unreachable       | Still open | Cloud only. Run 2 was local and uploaded to `upload_url` as returned.                                   |
+| B2. `upload_url` unreachable       | Fixed      | `upload_url` is the functions URL; web.app is `upload_url_fallback`. Verified locally, not in cloud.    |
 | B3. `type` with no value refused   | Fixed      | Tour 4 saved with a warning and the runner left the step to the teacher.                                |
 | B4. `editor.save:quiz`             | Fixed      | The dry run warns and points at `editor.close:quiz`.                                                    |
 | B5. Staged demo rows               | Fixed      | The guide names them; tour 3's `event-4` was right the first time.                                      |
@@ -90,7 +90,7 @@ Rounds counts fix-and-rerun cycles: 0 means green on the first browser run.
 | B9. No file to pick                | Still open | Tour 9 points at Add media and stops; the steps after an upload are still unchecked.                    |
 | B10. YouTube blocked               | Still open | Not reached: tour 11 fails at its first click (B17), so the player never loaded.                        |
 | B11. Previous step re-marked       | Fixed      | Tour 1's first run kept step 6 found while 7-9 were missing.                                            |
-| B12. Playwright build mismatch     | Still open | Cloud only. Locally the runner launched Playwright's Chromium without changes.                          |
+| B12. Playwright build mismatch     | Fixed      | The runner falls back to Chrome or any installed Chromium. Verified locally, not yet in cloud.          |
 | B13. Calendar ID has no anchor     | Fixed      | `widget-settings.calendar.calendar-id` is tagged and found.                                             |
 | B14. Help categories are data      | Still open | Tour 8 still skips choosing a category.                                                                 |
 | B15. Connect Google hidden         | Still open | By design; tour 4 starts at the Calendar settings.                                                      |

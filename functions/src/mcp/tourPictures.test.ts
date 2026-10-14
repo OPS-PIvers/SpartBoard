@@ -87,9 +87,22 @@ beforeEach(() => {
 });
 
 describe('live tour step pictures', () => {
+  it('returns the direct functions URL, with the hosting rewrite as a fallback', async () => {
+    vi.stubEnv('GCLOUD_PROJECT', 'spartboard-dev');
+    vi.stubEnv('MCP_PUBLIC_ORIGIN', '');
+    const out = await issuePictureTicket(ctx, 'tour-1', 1000);
+    vi.unstubAllEnvs();
+    expect(out.upload_url).toBe(
+      'https://us-central1-spartboard-dev.cloudfunctions.net/mcpServer/tour-pictures'
+    );
+    expect(out.upload_url_fallback).toBe(
+      'https://spartboard-dev.web.app/mcp/tour-pictures'
+    );
+  });
+
   it('stores only a hash of the ticket and an expiry', async () => {
     const out = await issuePictureTicket(ctx, 'tour-1', 1000);
-    expect(out.upload_url).toMatch(/\/mcp\/tour-pictures$/);
+    expect(out.upload_url).toMatch(/\/mcpServer\/tour-pictures$/);
     const id = createHash('sha256').update(out.ticket).digest('hex');
     expect(h.docs.get(`mcp_tour_picture_tickets/${id}`)).toEqual({
       uid: 'u1',
