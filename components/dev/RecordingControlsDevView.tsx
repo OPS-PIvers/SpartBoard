@@ -15,17 +15,21 @@ import type {
 } from '@/types';
 import { type RecordingControlStateKey } from './devViewStates';
 
+const SAMPLE_IMAGE_DATA_URL =
+  'data:image/svg+xml;utf8,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect x="100" y="100" width="600" height="300" fill="none" stroke="#334155" stroke-width="6"/><polygon points="100,400 400,100 700,400" fill="#93c5fd" stroke="#334155" stroke-width="6"/></svg>'
+  );
+
 const SAMPLE_IMAGE: WhiteboardStartingImage = {
   driveFileId: 'dev-sample',
-  url:
-    'data:image/svg+xml;utf8,' +
-    encodeURIComponent(
-      '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect x="100" y="100" width="600" height="300" fill="none" stroke="#334155" stroke-width="6"/><polygon points="100,400 400,100 700,400" fill="#93c5fd" stroke="#334155" stroke-width="6"/></svg>'
-    ),
+  url: 'https://drive.google.com/file/d/dev-sample/view',
   mimeType: 'image/svg+xml',
   width: 800,
   height: 500,
 };
+
+const sampleImageUrl = (): string => SAMPLE_IMAGE_DATA_URL;
 
 // Uploads nothing; returns the sample so the image states can be shown.
 const fakeUpload = (): Promise<WhiteboardStartingImage> =>
@@ -119,8 +123,9 @@ export const RecordingControlsDevView: React.FC<{
         />
         <ResponseFormatSection
           question={question}
-          whiteboardAllowed
+          whiteboardAllowed={state.startsWith('rc-whiteboard')}
           onUploadWhiteboardImage={fakeUpload}
+          resolveWhiteboardImageUrl={sampleImageUrl}
           onChange={(updates) => setQuestion((q) => ({ ...q, ...updates }))}
         />
       </div>

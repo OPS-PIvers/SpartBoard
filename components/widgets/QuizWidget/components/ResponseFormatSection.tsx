@@ -44,7 +44,6 @@ const hintClass = 'text-xs text-slate-600 mt-1';
 /** "Student's choice" is out of scope (D1, C5). */
 type ResponseFormat = 'typed' | 'spoken' | 'whiteboard';
 
-
 /** Drops the whiteboard-only fields so a block reads as plain audio again. */
 function toSpokenBlock(block: RecordingConfig): RecordingConfig {
   const {
@@ -100,6 +99,8 @@ export interface ResponseFormatSectionProps {
   onUploadWhiteboardImage?: (
     file: File
   ) => Promise<WhiteboardStartingImage | null>;
+  /** Overrides how the preview loads the image; the dev harness has no Drive file. */
+  resolveWhiteboardImageUrl?: (driveFileId: string) => string;
 }
 
 const useAuthoringT = () => {
@@ -209,6 +210,7 @@ export const SpokenResponseSettings: React.FC<ResponseFormatSectionProps> = ({
   onChange,
   whiteboardAllowed = false,
   onUploadWhiteboardImage,
+  resolveWhiteboardImageUrl,
 }) => {
   const tk = useAuthoringT();
   const recording = question.recording;
@@ -393,6 +395,7 @@ export const SpokenResponseSettings: React.FC<ResponseFormatSectionProps> = ({
           value={recording.startingPage}
           onChange={(startingPage) => patch({ startingPage })}
           onUploadImage={onUploadWhiteboardImage}
+          resolveImageUrl={resolveWhiteboardImageUrl}
         />
       )}
     </div>

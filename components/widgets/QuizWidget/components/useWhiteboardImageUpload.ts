@@ -3,7 +3,6 @@ import type { WhiteboardStartingImage } from '@/types';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDialog } from '@/context/useDialog';
 import {
-  driveImageUrl,
   stimulusShareMessage,
   STIMULUS_SHARE_CONFIRM,
 } from '@/utils/quizStimuli';
@@ -57,7 +56,7 @@ export function useWhiteboardImageUpload() {
         await driveService.makePublic(driveFile.id, undefined);
         return {
           driveFileId: driveFile.id,
-          url: driveImageUrl(driveFile.id),
+          url: `https://drive.google.com/file/d/${driveFile.id}/view`,
           mimeType: file.type,
           width,
           height,

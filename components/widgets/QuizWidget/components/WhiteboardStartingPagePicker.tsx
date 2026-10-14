@@ -13,6 +13,7 @@ import {
   PAGE_H,
   PAGE_W,
 } from '@/utils/whiteboard/startingPage';
+import { driveImageUrl } from '@/utils/quizStimuli';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
 import {
   BLANK_STARTING_PAGE,
@@ -78,11 +79,12 @@ export interface WhiteboardStartingPagePickerProps {
   onChange: (next: WhiteboardStartingPage) => void;
   /** Uploads through the quiz-stimulus Drive path; null when cancelled. */
   onUploadImage: (file: File) => Promise<WhiteboardStartingImage | null>;
+  resolveImageUrl?: (driveFileId: string) => string;
 }
 
 export const WhiteboardStartingPagePicker: React.FC<
   WhiteboardStartingPagePickerProps
-> = ({ value, onChange, onUploadImage }) => {
+> = ({ value, onChange, onUploadImage, resolveImageUrl = driveImageUrl }) => {
   const { t } = useTranslation();
   const tk = (key: string) =>
     t(`quizMediaResponse.authoring.whiteboard.${key}`);
@@ -99,7 +101,9 @@ export const WhiteboardStartingPagePicker: React.FC<
   const setPattern = (next: WhiteboardStartingPattern) =>
     onChange({ ...page, pattern: clampPattern(next) });
 
-  const imageUrl = page.image?.url;
+  const imageUrl = page.image
+    ? resolveImageUrl(page.image.driveFileId)
+    : undefined;
   useEffect(() => {
     if (!imageUrl) return;
     const img = new Image();
