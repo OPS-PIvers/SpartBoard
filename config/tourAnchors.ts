@@ -3500,13 +3500,13 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     persists: true,
   },
-  'quiz-print.import-ai-toggle': {
-    label: 'AI reader toggle in the Quiz print import dialog',
+  'quiz-print.import-retry-with-ai': {
+    label: 'Try again with AI link in the Quiz print import dialog',
     perWidgetType: true,
     panel: true,
   },
-  'quiz-import.paper-text-ai-toggle': {
-    label: 'AI reader toggle in the Quiz paper question text dialog',
+  'quiz-import.paper-text-retry-with-ai': {
+    label: 'Try again with AI link in the Quiz paper question text dialog',
     perWidgetType: true,
     panel: true,
   },

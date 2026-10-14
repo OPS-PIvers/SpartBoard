@@ -59,3 +59,9 @@ export function titleFromFileName(name: string): string {
     .trim();
   return base || 'Imported Quiz';
 }
+
+/** True for the kinds the AI reader takes, a PDF or a Word file. */
+export function isAiReadable(file: File | Blob, name = ''): boolean {
+  const kind = documentKind(file, name);
+  return kind === 'pdf' || kind === 'docx';
+}

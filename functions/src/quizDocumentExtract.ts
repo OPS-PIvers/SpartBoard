@@ -24,8 +24,8 @@ import { assertViewAsAllowed } from './viewAsGuard';
 export const QUIZ_DOCUMENT_IMPORT_FEATURE_ID = 'quiz-document-import';
 export const QUIZ_IMPORT_VERSIONS_FEATURE_ID = 'quiz-import-versions';
 export const GEMINI_FEATURE_ID = 'gemini-functions';
-/** D19: one import is one use of the teacher's existing `quiz` allowance. */
-export const QUIZ_QUOTA_FEATURE_ID = 'quiz';
+/** D19: one import is one use; the AI reader row has its own daily limit. */
+export const QUIZ_QUOTA_FEATURE_ID = 'quiz-document-ai-reader';
 export const DEFAULT_QUIZ_DAILY_LIMIT = 20;
 /** D18, matching the browser reader's `utils/quizDocumentImport/limits.ts`. */
 export const MAX_DOCUMENT_BYTES = 25 * 1024 * 1024;
@@ -1403,7 +1403,7 @@ export async function chargeQuizQuota(
     if (!isAdmin && config.dailyLimitEnabled !== false && used >= limit)
       throw new HttpsError(
         'resource-exhausted',
-        `Daily limit for ${QUIZ_QUOTA_FEATURE_ID} reached (${limit} per day). Please try again tomorrow.`
+        `Daily limit for AI quiz import reached (${limit} per day). Please try again tomorrow.`
       );
     const inc = (n: number) => admin.firestore.FieldValue.increment(n);
     const stamp = admin.firestore.FieldValue.serverTimestamp();
