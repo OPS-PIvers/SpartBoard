@@ -137,7 +137,6 @@ export const PlcNewQuizAssignmentModal: React.FC<
   // setState. See `PlcSharePickerModal.handlePick` for the same pattern.
   const submittingRef = useRef(false);
   const outward = useViewAsOutward();
-  const [submitting, setSubmitting] = useState(false);
 
   const pickerItems: PlcSharePickerItem[] = useMemo(
     () =>
@@ -207,7 +206,6 @@ export const PlcNewQuizAssignmentModal: React.FC<
       )
         return;
       submittingRef.current = true;
-      setSubmitting(true);
 
       let createdSyncGroupId: string | null = null;
       let linkageAttached = false;
@@ -480,7 +478,6 @@ export const PlcNewQuizAssignmentModal: React.FC<
         );
       } finally {
         submittingRef.current = false;
-        setSubmitting(false);
       }
     },
     [

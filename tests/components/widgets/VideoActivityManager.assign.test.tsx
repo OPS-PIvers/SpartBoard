@@ -212,7 +212,7 @@ describe('VideoActivityManager assign stepper — make-up prefill', () => {
           classLinkSourcedId: 'sid-b',
         },
       ],
-    } as ClassRoster,
+    },
   ];
 
   function renderWithPending(
@@ -253,7 +253,10 @@ describe('VideoActivityManager assign stepper — make-up prefill', () => {
     const [, rosterIds, , , mode, extras] = onAssign.mock.calls[0];
     expect(rosterIds).toEqual(['r1']);
     expect(mode).toBe('student');
-    expect(extras.classes.studentsByClass.r1).toEqual([
+    const { classes } = extras as {
+      classes: { studentsByClass: Record<string, unknown[]> };
+    };
+    expect(classes.studentsByClass.r1).toEqual([
       expect.objectContaining({ sourcedId: 'sid-b' }),
     ]);
     expect(onPendingAssignDone).toHaveBeenCalledOnce();
