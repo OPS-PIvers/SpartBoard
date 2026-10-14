@@ -32,7 +32,6 @@ export interface WhiteboardPlaybackCardProps {
   startingPage?: WhiteboardStartingPage;
   gradedTakeIndex?: number;
   annotations?: readonly WrittenAnswerAnnotation[];
-  light?: boolean;
   /** Injected by tests and the DEV harness only. */
   fetchPlayback?: FetchPlayback;
 }
@@ -48,7 +47,6 @@ export const WhiteboardPlaybackCard: React.FC<WhiteboardPlaybackCardProps> = ({
   startingPage,
   gradedTakeIndex,
   annotations,
-  light = true,
   fetchPlayback,
 }) => {
   const { t } = useTranslation();
@@ -102,17 +100,12 @@ export const WhiteboardPlaybackCard: React.FC<WhiteboardPlaybackCardProps> = ({
 
   if (!take) return null;
 
-  const labelCls = light ? 'text-slate-500' : 'text-slate-300';
-  const bodyCls = light ? 'text-slate-600' : 'text-slate-300';
-  const noticeCls = light
-    ? 'border-slate-200 bg-slate-50'
-    : 'border-slate-700 bg-slate-800/60';
-  const commentHoverCls = light
-    ? 'hover:bg-slate-100'
-    : 'hover:bg-slate-700/60';
-  const retryCls = light
-    ? 'border-slate-300 text-slate-700 hover:bg-slate-100'
-    : 'border-slate-600 text-slate-200 hover:bg-slate-700/60';
+  // Whiteboard UI is light only, like the replay view it frames.
+  const labelCls = 'text-slate-500';
+  const bodyCls = 'text-slate-600';
+  const noticeCls = 'border-slate-200 bg-slate-50';
+  const commentHoverCls = 'hover:bg-slate-100';
+  const retryCls = 'border-slate-300 text-slate-700 hover:bg-slate-100';
 
   const notice = (
     icon: React.ReactNode,
@@ -124,11 +117,7 @@ export const WhiteboardPlaybackCard: React.FC<WhiteboardPlaybackCardProps> = ({
     >
       <span
         className={`mt-0.5 shrink-0 ${
-          tone === 'warning'
-            ? light
-              ? 'text-amber-600'
-              : 'text-amber-300'
-            : labelCls
+          tone === 'warning' ? 'text-amber-600' : labelCls
         }`}
       >
         {icon}

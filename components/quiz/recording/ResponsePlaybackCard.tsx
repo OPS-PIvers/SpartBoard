@@ -63,8 +63,12 @@ export const ResponsePlaybackCard: React.FC<ResponsePlaybackCardProps> = ({
   );
   // With the whiteboard off, a whiteboard take stays invisible rather than playing as bare audio.
   if (whiteboardTake) {
+    const { light: _light, ...whiteboardProps } = props;
     return whiteboardEnabled ? (
-      <WhiteboardPlaybackCard {...props} startingPage={startingPage} />
+      <WhiteboardPlaybackCard
+        {...whiteboardProps}
+        startingPage={startingPage}
+      />
     ) : null;
   }
   return <AudioPlaybackCard {...props} />;
