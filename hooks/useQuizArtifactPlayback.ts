@@ -16,16 +16,17 @@ import type { ArtifactSlot } from '@/types';
 export type PlaybackUnavailableReason =
   'archiving' | 'failed' | 'deleted' | 'no-recording' | 'too-large';
 
+/** Which file of a take; a whiteboard take also has its picture and drawing log. */
+export type PlaybackPart = 'audio' | 'picture' | 'log';
+
 export interface PlaybackRequest {
   sessionId: string;
   responseKey: string;
   questionId: string;
   slot: ArtifactSlot;
-  /** Whiteboard takes only; absent means the take's audio. */
+  /** Absent means audio. */
   part?: PlaybackPart;
 }
-
-export type PlaybackPart = 'audio' | 'picture' | 'log';
 
 export interface PlaybackTarget extends PlaybackRequest {
   /** Resolved take id; re-pinning a graded take must not replay the cached one. */
@@ -52,7 +53,7 @@ export type PlaybackState =
 
 export type FetchPlayback = (req: PlaybackRequest) => Promise<PlaybackResponse>;
 
-export const defaultFetchPlayback: FetchPlayback = async (req) => {
+export const defaultFetch: FetchPlayback = async (req) => {
   const callable = httpsCallable<PlaybackRequest, PlaybackResponse>(
     functions,
     'getQuizArtifactPlaybackUrl'
@@ -70,7 +71,7 @@ export function base64ToBlob(data: string, mimeType: string): Blob {
 
 export function useQuizArtifactPlayback(
   request: PlaybackTarget | null,
-  fetchPlayback: FetchPlayback = defaultFetchPlayback
+  fetchPlayback: FetchPlayback = defaultFetch
 ): { state: PlaybackState; load: () => void } {
   const [state, setState] = useState<PlaybackState>({ phase: 'idle' });
   const urlRef = useRef<string | null>(null);
@@ -100,6 +101,7 @@ export function useQuizArtifactPlayback(
   const responseKey = request?.responseKey;
   const questionId = request?.questionId;
   const slot = request?.slot;
+  const part = request?.part;
 
   const load = useCallback(() => {
     if (!sessionId || !responseKey || !questionId || !slot || !artifactId)
@@ -115,6 +117,7 @@ export function useQuizArtifactPlayback(
           responseKey,
           questionId,
           slot,
+          ...(part ? { part } : {}),
         });
         // A take re-pinned mid-flight makes this answer the wrong one; the in-flight guard is "current generation is pending".
         const stale = generationRef.current !== generation;
@@ -138,7 +141,15 @@ export function useQuizArtifactPlayback(
           loadingGenerationRef.current = null;
       }
     })();
-  }, [fetchPlayback, sessionId, responseKey, questionId, slot, artifactId]);
+  }, [
+    fetchPlayback,
+    sessionId,
+    responseKey,
+    questionId,
+    slot,
+    part,
+    artifactId,
+  ]);
 
   return { state, load };
 }

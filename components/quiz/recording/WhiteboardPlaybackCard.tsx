@@ -194,7 +194,6 @@ export const WhiteboardPlaybackCard: React.FC<WhiteboardPlaybackCardProps> = ({
               seekToMs={seek.ms}
               seekNonce={seek.nonce}
               onPositionChange={setPositionMs}
-              light={light}
             />
           </div>
           {timelineComments.length > 0 && (

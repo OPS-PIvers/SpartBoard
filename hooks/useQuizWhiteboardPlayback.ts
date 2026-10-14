@@ -3,7 +3,7 @@ import { parseWhiteboardLog } from '@/components/quiz/whiteboard/whiteboardLog';
 import type { WhiteboardLog } from '@/components/quiz/whiteboard/whiteboardLogTypes';
 import {
   base64ToBlob,
-  defaultFetchPlayback,
+  defaultFetch as defaultFetchPlayback,
   type FetchPlayback,
   type PlaybackPart,
   type PlaybackRequest,
