@@ -92,11 +92,11 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/plans/shipped/GL_STUDIO_GESTURES.md`
 
-- [ ] PR 5: remove gl-studio gate and classic GuidedLearningEditor/GuidedLearningEditorModal fallback from Widget.tsx once Paul confirms new gestures in prod. (M)
+- [ ] PR 5: remove the Studio's "Open classic editor" escape hatch and the classic GuidedLearningEditor/GuidedLearningEditorModal from Widget.tsx. (M)
 
 #### `docs/plans/shipped/GUIDED_LEARNING_STUDIO.md`
 
-- [ ] Paul plays each surface (widget, Manager preview, Help viewer, student app) end to end on prod and flips gl-live-tours, gl-studio from admin to Public in Admin Settings > Access. (S)
+- [ ] Paul plays each surface (widget, Manager preview, Help viewer, student app) end to end on prod and flips gl-live-tours from admin to Public in Admin Settings > Access. (S)
 - [ ] Write public/changelog.json entries once each flag opens (per CLAUDE.md, not at merge). (S)
 
 #### `docs/plans/shipped/LIVE_TOURS_V2.md`

@@ -234,7 +234,6 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     ? { default: resolveWorkKind('guided-learning', null) }
     : undefined;
   const stepperOn = canAccessFeature('assign-stepper');
-  const studioEditor = canAccessFeature('gl-studio');
   const canEditToursOnBoard =
     isAdmin === true && canAccessFeature('gl-live-tours');
   const canUseAi =
@@ -1850,7 +1849,7 @@ const TeacherGuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
       />
       {editingSet && (
         <Suspense fallback={<ModalChunkFallback />}>
-          {studioEditor && !classicEditor ? (
+          {!classicEditor ? (
             <GuidedLearningStudio
               key={editingSet.id}
               set={editingSet}

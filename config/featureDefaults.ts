@@ -9,7 +9,6 @@ import {
   Building2,
   CalendarClock,
   Cast,
-  Clapperboard,
   ClipboardCheck,
   Download,
   Eye,
@@ -654,17 +653,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     icon: Footprints,
     description:
       'Tours reopen a panel that closed mid-step and lay out their own widgets.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Guided Learning Studio editor. Admin-only until Paul has built sets with it in prod.
-  'gl-studio': {
-    label: 'Guided Learning Studio editor',
-    icon: Clapperboard,
-    description: 'Full-screen Guided Learning editor.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

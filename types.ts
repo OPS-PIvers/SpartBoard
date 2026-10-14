@@ -9945,8 +9945,6 @@ export type GlobalFeature =
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
   | 'live-tour-self-heal'
-  /** Guided Learning Studio editor in place of the classic editor. */
-  | 'gl-studio'
   /** Per-period start/pause and windows on assignments shared by several classes. */
   | 'per-period-access'
   /** Printing quiz results to hand back: presets, bulk print, bubble-sheet reprints. */
@@ -9965,7 +9963,7 @@ export type GlobalFeature =
   | 'quiz-results-tools'
   /** Free-response grader: collapsible student list, no repeated name, one-strand auto-tagging. */
   | 'quiz-grader-v2'
-  /** Guided Learning Studio: select, resize, restyle and edit callouts on the canvas; AND-ed with `gl-studio`. */
+  /** Guided Learning Studio: select, resize, restyle and edit callouts on the canvas. */
   | 'gl-callout-editing'
   /** Per-student "Slide N of M · active X ago" on Guided Learning results and the Assignments hub. */
   | 'gl-student-progress'
