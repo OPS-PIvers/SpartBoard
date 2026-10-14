@@ -15,6 +15,11 @@ const EXPECTED: Record<string, RegExp> = {
   'rc-clamped-limit': /Capped at 300s/i,
   'rc-take-limit': /Takes allowed/i,
   'rc-advisory': /Shuffle has no effect/i,
+  'rc-whiteboard': /^Starting page$/,
+  'rc-whiteboard-plane': /^X from$/,
+  'rc-whiteboard-number-line': /^Step$/,
+  'rc-whiteboard-shape': /^Sides$/,
+  'rc-whiteboard-image': /^Remove image$/,
 };
 
 describe('RecordingControlsDevView', () => {

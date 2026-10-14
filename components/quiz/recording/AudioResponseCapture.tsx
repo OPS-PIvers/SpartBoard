@@ -249,6 +249,7 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
           blob,
           mimeType: saved.mimeType,
           durationMs: Math.max(0, saved.updatedAt - saved.startedAt),
+          micState: 'on',
         });
       })
       .catch(() => undefined);

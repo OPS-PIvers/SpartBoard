@@ -992,6 +992,7 @@ const QuizJoinFlow: React.FC<{
         questionId,
         artifact,
         noticeAckedAt: noticeAckedAt ?? undefined,
+        micState: take.micState,
         ...(locale ? { locale } : {}),
       });
       // null means the commit was declined (closed slot, or the response doc

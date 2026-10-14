@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import {
   RECOVERY_CHUNK_MS,
+  micStateFromError,
   useAudioRecording,
   defaultAudioRecordingDeps,
   SPEECH_AUDIO_BITS_PER_SECOND,
@@ -287,8 +288,29 @@ describe('useAudioRecording mic unavailable', () => {
       await result.current.start();
     });
     expect(result.current.phase).toBe('capture-unavailable');
+    expect(result.current.micState).toBe('denied');
     expect(deps.createRecorder).not.toHaveBeenCalled();
     expect(onCaptureUnavailable).toHaveBeenCalledTimes(1);
+  });
+
+  it('records a missing device as unavailable, not denied', async () => {
+    const deps = makeDeps({
+      getStream: vi.fn(() =>
+        Promise.reject(new DOMException('no mic', 'NotFoundError'))
+      ),
+    });
+    const { result } = renderHook(() =>
+      useAudioRecording({
+        config: config({ prepSeconds: 0 }),
+        enabled: true,
+        deps,
+      })
+    );
+    await act(async () => {
+      await result.current.start();
+    });
+    expect(result.current.phase).toBe('capture-unavailable');
+    expect(result.current.micState).toBe('unavailable');
   });
 
   it('treats an already-ended track as unavailable', async () => {
@@ -308,7 +330,42 @@ describe('useAudioRecording mic unavailable', () => {
       await result.current.start();
     });
     expect(result.current.phase).toBe('capture-unavailable');
+    expect(result.current.micState).toBe('unavailable');
     expect(deps.createRecorder).not.toHaveBeenCalled();
+  });
+});
+
+describe('useAudioRecording mic on', () => {
+  it('stamps on once recording starts and carries it on the take', async () => {
+    const { result } = renderHook(() =>
+      useAudioRecording({
+        config: config({ prepSeconds: 0 }),
+        enabled: true,
+        deps: makeDeps(),
+      })
+    );
+    expect(result.current.micState).toBeNull();
+    await act(async () => {
+      await result.current.start();
+    });
+    expect(result.current.micState).toBe('on');
+    act(() => result.current.stop());
+    expect(result.current.take?.micState).toBe('on');
+  });
+});
+
+describe('micStateFromError', () => {
+  it.each([
+    ['NotAllowedError', 'denied'],
+    ['SecurityError', 'denied'],
+    ['NotFoundError', 'unavailable'],
+    ['NotReadableError', 'unavailable'],
+  ] as const)('%s maps to %s', (name, expected) => {
+    expect(micStateFromError(new DOMException('x', name))).toBe(expected);
+  });
+
+  it('treats a non-error throw as unavailable', () => {
+    expect(micStateFromError(undefined)).toBe('unavailable');
   });
 });
 
@@ -453,6 +510,7 @@ describe('useAudioRecording crash recovery', () => {
       blob: new Blob(['x'], { type: 'audio/webm' }),
       mimeType: 'audio/webm',
       durationMs: 3000,
+      micState: 'on' as const,
     };
     let restored = false;
     act(() => {
@@ -484,6 +542,7 @@ describe('useAudioRecording crash recovery', () => {
         blob: new Blob(['x']),
         mimeType: 'audio/webm',
         durationMs: 1,
+        micState: 'on',
       });
     });
     expect(restored).toBe(false);
