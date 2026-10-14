@@ -10,6 +10,7 @@ import {
   type PaperGrid,
 } from './paperSheetLayout';
 import { paperBatchTag } from './paperSheetMarker';
+import { seatQuestionId } from './paperSheetVersions';
 import type {
   PageRead,
   PageReadResult,
@@ -165,7 +166,8 @@ export function assemblePaperScan(
       scanIndex,
     }));
     const written: SheetWritten[] = read.written.map((w) => ({
-      questionId: w.questionId,
+      // The map names version 0's question; this seat may have printed another version.
+      questionId: seatQuestionId(batch, marker.seat, w.questionId),
       label: w.label,
       page: w.page,
       state: w.state,

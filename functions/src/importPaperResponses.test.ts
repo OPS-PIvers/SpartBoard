@@ -844,6 +844,70 @@ describe('handleImportPaperResponses, handwritten answers (layoutVersion 2)', ()
     ).rejects.toMatchObject({ message: /repeats a question/ });
   });
 
+  const versionDocs = (): Record<string, Doc> => {
+    const docs = v2Docs();
+    docs[`quiz_sessions/${ASSIGNMENT}`] = {
+      teacherUid: UID,
+      publicQuestions: ['q1', 'q2', 'q3', 'q4', 'q5'].map((id) => ({ id })),
+    };
+    docs[`users/${UID}/paper_batches/${BATCH}`] = {
+      ...docs[`users/${UID}/paper_batches/${BATCH}`],
+      versions: [
+        {
+          label: 'Version A',
+          servedQuestionIds: ['q1', 'q2', 'q3', 'q4'],
+          swaps: {},
+        },
+        {
+          label: 'Version B',
+          servedQuestionIds: ['q1', 'q5', 'q3', 'q4'],
+          swaps: { q2: 'q5' },
+        },
+      ],
+      seatVersions: { 1: 0, 2: 1, 3: 0 },
+    };
+    return docs;
+  };
+
+  it('checks each seat against the version it printed and saves that version as served', async () => {
+    const seatB = v2Sheet(2, {
+      written: [
+        { questionId: 'q5', page: 1, state: 'ink' },
+        { questionId: 'q4', page: 2, state: 'blank' },
+      ],
+    });
+    const { docs } = await callV2(versionDocs(), [v2Sheet(1), seatB]);
+    expect(docs[RESP].servedQuestionIds).toEqual(['q1', 'q2', 'q3', 'q4']);
+    const b = docs[`quiz_sessions/${ASSIGNMENT}/responses/pseudo-s2`];
+    expect(b.servedQuestionIds).toEqual(['q1', 'q5', 'q3', 'q4']);
+    expect((b.answers as Doc[]).map((a) => a.questionId)).toEqual([
+      'q1',
+      'q3',
+      'q5',
+      'q4',
+    ]);
+    // Version A's question in a Version B seat's box is refused.
+    await expect(callV2(versionDocs(), [v2Sheet(2)])).rejects.toMatchObject({
+      message: /not a box on that page/,
+    });
+  });
+
+  it('refuses a version whose questions are no longer in the session', async () => {
+    const docs = versionDocs();
+    docs[`quiz_sessions/${ASSIGNMENT}`] = {
+      teacherUid: UID,
+      publicQuestions: ['q1', 'q2', 'q3', 'q4'].map((id) => ({ id })),
+    };
+    await expect(callV2(docs, [v2Sheet(1)])).resolves.toBeTruthy();
+    await expect(
+      callV2(docs, [
+        v2Sheet(2, {
+          written: [{ questionId: 'q4', page: 2, state: 'blank' }],
+        }),
+      ])
+    ).rejects.toMatchObject({ message: /not in this session/ });
+  });
+
   it('merges a rescan: MC replaced, graded and edited answers kept, doc fields kept', async () => {
     const first = await callV2(v2Docs(), [v2Sheet(1)]);
     const docs = first.docs;
