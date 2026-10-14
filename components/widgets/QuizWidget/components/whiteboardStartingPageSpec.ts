@@ -1,4 +1,7 @@
-import type { WhiteboardStartingPattern, WhiteboardStartingPage } from '@/types';
+import type {
+  WhiteboardStartingPattern,
+  WhiteboardStartingPage,
+} from '@/types';
 import {
   WHITEBOARD_POLYGON_SIDES_MAX,
   WHITEBOARD_POLYGON_SIDES_MIN,
@@ -32,7 +35,9 @@ const clamp = (v: number, lo: number, hi: number) =>
   Math.min(hi, Math.max(lo, v));
 
 /** Keeps every range low-to-high and the number line under {@link MAX_TICKS} ticks. */
-export function clampPattern(p: WhiteboardStartingPattern): WhiteboardStartingPattern {
+export function clampPattern(
+  p: WhiteboardStartingPattern
+): WhiteboardStartingPattern {
   if (p.kind === 'coordinate-plane') {
     const xMin = clamp(Math.round(p.xMin), -AXIS_LIMIT, AXIS_LIMIT - 1);
     const yMin = clamp(Math.round(p.yMin), -AXIS_LIMIT, AXIS_LIMIT - 1);
