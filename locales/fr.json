@@ -4115,7 +4115,11 @@
         "thick": "Épais"
       },
       "undo": "Annuler",
-      "redo": "Rétablir"
+      "redo": "Rétablir",
+      "zoom": "Zoom",
+      "zoomIn": "Zoom avant",
+      "zoomOut": "Zoom arrière",
+      "zoomReset": "Ajuster la page"
     },
     "drawer": {
       "show": "Show materials",

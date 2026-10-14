@@ -5165,7 +5165,11 @@
         "thick": "Thick"
       },
       "undo": "Undo",
-      "redo": "Redo"
+      "redo": "Redo",
+      "zoom": "Zoom",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "zoomReset": "Fit page"
     },
     "drawer": {
       "show": "Show materials",

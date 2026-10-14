@@ -87,7 +87,7 @@ export interface WhiteboardResponseCaptureProps {
 const BLANK_PAGE: WhiteboardStartingPage = { pattern: { kind: 'blank' } };
 
 const REPLAY_WIDTH: React.CSSProperties = {
-  width: 'calc((min(100dvh - 12rem, 75cqw) - 5rem) * 4 / 3)',
+  width: 'calc((100cqh - 5rem) * 4 / 3)',
   maxWidth: '100%',
 };
 
@@ -446,7 +446,7 @@ export const WhiteboardResponseCapture: React.FC<
   return (
     <>
       <section
-        className="flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm"
+        className="flex flex-1 flex-col gap-3 rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm"
         data-testid="whiteboard-capture"
       >
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -601,9 +601,9 @@ export const WhiteboardResponseCapture: React.FC<
           </p>
         )}
 
-        {/* 4:3 board sized to fit a 1366x768 Chromebook without scrolling. */}
-        <div className="relative w-full [container-type:inline-size]">
-          <div className="relative h-[min(calc(100dvh-12rem),75cqw)]">
+        {/* The board takes the height left over, so the page never scrolls. */}
+        <div className="relative min-h-[16rem] w-full flex-1 [container-type:size]">
+          <div className="absolute inset-0">
             {reviewing && reviewOn && recorder.take ? (
               // Width leaves room under the 4:3 picture for the replay controls.
               <div className="mx-auto" style={REPLAY_WIDTH}>

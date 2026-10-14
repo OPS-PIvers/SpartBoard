@@ -4115,7 +4115,11 @@
         "thick": "Dick"
       },
       "undo": "Rückgängig",
-      "redo": "Wiederholen"
+      "redo": "Wiederholen",
+      "zoom": "Zoom",
+      "zoomIn": "Vergrößern",
+      "zoomOut": "Verkleinern",
+      "zoomReset": "Seite einpassen"
     },
     "drawer": {
       "show": "Show materials",
