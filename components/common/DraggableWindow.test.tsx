@@ -992,11 +992,7 @@ describe('DraggableWindow', () => {
   });
 
   it('minimize closes settings panel', () => {
-    renderComponent(
-      { flipped: true },
-      <div>Content</div>,
-      'test-widget'
-    );
+    renderComponent({ flipped: true }, <div>Content</div>, 'test-widget');
 
     // Click widget to show toolbar, then minimize
     const widgetEl = screen.getByText('Content').closest('.widget');
@@ -1497,11 +1493,7 @@ describe('DraggableWindow', () => {
     const ContentWithInput = () => (
       <input data-testid="content-input" defaultValue="hello" />
     );
-    renderComponent(
-      {},
-      <ContentWithInput />,
-      'test-widget'
-    );
+    renderComponent({}, <ContentWithInput />, 'test-widget');
 
     const input = screen.getByTestId('content-input');
 

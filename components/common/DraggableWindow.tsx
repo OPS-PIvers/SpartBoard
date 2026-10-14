@@ -392,7 +392,6 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     h: number;
   } | null>(null);
 
-
   // Maximized-state FAB kebab (replaces the pill toolbar while full-screen) and
   // a mirror of the Dock's screen-recording status, kept in sync via window
   // events so the kebab's record button reflects the one shared recorder.

@@ -68,11 +68,7 @@ const context = {
 const renderWindow = () =>
   render(
     <DashboardContext.Provider value={context}>
-      <DraggableWindow
-        widget={widget}
-        title="Text"
-        globalStyle={globalStyle}
-      >
+      <DraggableWindow widget={widget} title="Text" globalStyle={globalStyle}>
         <div>Content</div>
       </DraggableWindow>
     </DashboardContext.Provider>

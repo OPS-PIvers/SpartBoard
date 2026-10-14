@@ -229,11 +229,7 @@ const context = {
 const renderWindow = () =>
   render(
     <DashboardContext.Provider value={context}>
-      <DraggableWindow
-        widget={widget}
-        title="Text"
-        globalStyle={globalStyle}
-      >
+      <DraggableWindow widget={widget} title="Text" globalStyle={globalStyle}>
         <div>Content</div>
       </DraggableWindow>
     </DashboardContext.Provider>
@@ -291,18 +287,10 @@ describe('settingsCloseSignal is scoped per widget (cross-widget isolation)', ()
 
     render(
       <DashboardContext.Provider value={twoWidgetContext}>
-        <DraggableWindow
-          widget={widget}
-          title="W1"
-          globalStyle={globalStyle}
-        >
+        <DraggableWindow widget={widget} title="W1" globalStyle={globalStyle}>
           <div>W1 content</div>
         </DraggableWindow>
-        <DraggableWindow
-          widget={widget2}
-          title="W2"
-          globalStyle={globalStyle}
-        >
+        <DraggableWindow widget={widget2} title="W2" globalStyle={globalStyle}>
           <div>W2 content</div>
         </DraggableWindow>
       </DashboardContext.Provider>

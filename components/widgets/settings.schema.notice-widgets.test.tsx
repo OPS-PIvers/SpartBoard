@@ -87,7 +87,8 @@ const renderDrawer = (
       profileLoaded
     />
   );
-  if (tab === 'style') fireEvent.click(screen.getByRole('tab', { name: /style/i }));
+  if (tab === 'style')
+    fireEvent.click(screen.getByRole('tab', { name: /style/i }));
   return view;
 };
 
