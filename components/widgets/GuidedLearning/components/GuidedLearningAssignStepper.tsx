@@ -26,6 +26,7 @@ import { AssignWhenStep } from '@/components/common/library/assignStepper/Assign
 import {
   defaultWhenValue,
   formatWhenValue,
+  whenBackwards,
   type AssignWhenValue,
 } from '@/components/common/library/assignStepper/assignWhenValue';
 import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
@@ -92,13 +93,17 @@ export const GuidedLearningAssignStepper: React.FC<{
   const ctx = { kind };
   const whenVariant = kind === 'resource' ? 'available' : 'when';
 
+  const backwards = whenBackwards(when, picked, bellWindow, kind);
   const handleAssign = async () => {
-    const { targeting: resolved } = applyWhen(targeting, {
-      mode: when.mode,
-      rosters: picked,
-      bellWindow,
-      workKind: { default: kind, locked: true },
-    });
+    const { targeting: resolved } = applyWhen(
+      { ...targeting, availability: when.availability },
+      {
+        mode: when.mode,
+        rosters: picked,
+        bellWindow,
+        workKind: { default: kind, locked: true },
+      }
+    );
     await onAssign({
       classes,
       targeting: resolved,
@@ -177,6 +182,12 @@ export const GuidedLearningAssignStepper: React.FC<{
       steps={steps}
       submitLabel="Assign"
       onSubmit={handleAssign}
+      disabled={backwards}
+      disabledReason={
+        backwards
+          ? t('assignAvailability.closesBeforeOpens', 'Closes before it opens.')
+          : undefined
+      }
       overlayView={
         modificationsOpen ? (
           <ModificationsView

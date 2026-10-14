@@ -135,6 +135,22 @@ export function closesBeforeOpens(
   });
 }
 
+/** True when the targeting's window closes at or before it opens for any checked class; Assign stays off until it's fixed. */
+export function availabilityBackwards(
+  value: Pick<AssignTargetingValue, 'availability' | 'workKind'>,
+  rosters: readonly PeriodRoster[],
+  bellWindow: BellWindowFn | undefined
+): boolean {
+  const availability = value.availability;
+  if (!availability) return false;
+  if (value.workKind === 'resource' && availability.noEnd) return false;
+  return rosters.length > 1 && availability.byRoster
+    ? rosters.some((r) =>
+        closesBeforeOpens(specForRoster(availability, r.id), [r], bellWindow)
+      )
+    : closesBeforeOpens(availability.all, rosters, bellWindow);
+}
+
 /** True when the spec has already closed for any of the classes. */
 export function closesInPast(
   spec: AvailabilitySpec,
