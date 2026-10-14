@@ -110,6 +110,7 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'editor',
     widgetType: 'guided-learning',
     opensWith: 'gl-manager.preview-open-editor',
+    alsoOpensWith: ['library-shell.new:guided-learning'],
     parent: 'guidedLearning.face.preview',
     needs: ['widget-on-stage', 'library-item'],
     files: [`${GLC}studio/`, `${GLC}EditorHeader.tsx`],
@@ -185,6 +186,7 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'editor',
     widgetType: 'guided-learning',
     opensWith: 'gl-manager.preview-open-editor',
+    alsoOpensWith: ['library-shell.new:guided-learning'],
     parent: 'guidedLearning.face.preview',
     needs: ['widget-on-stage', 'library-item'],
     files: [

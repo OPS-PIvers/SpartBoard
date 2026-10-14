@@ -87,6 +87,7 @@ import {
   isNeedsConsentError,
   parseRefKey,
   questionLabelFor,
+  takeNumberFor,
   resolveFailedArchiveStatus,
   retryStorageCleanup,
   transcodeBufferToM4a,
@@ -347,6 +348,26 @@ describe('pure helpers', () => {
       )
     ).toBe('Nguyen_Ava__Q3.m4a');
     expect(buildArchiveFileName(null, 'Pin1234', 'Q1')).toBe('Pin1234__Q1.m4a');
+    expect(buildArchiveFileName(null, 'Pin1234', 'Q1', '.m4a', 3)).toBe(
+      'Pin1234__Q1_take3.m4a'
+    );
+  });
+
+  it('numbers a take by its stored takeIndex, else its position', () => {
+    const answers = [
+      { questionId: 'other', takeIndex: 7, artifacts: [{ id: 'o' }] },
+      { questionId: QUESTION_ID, takeIndex: 1, artifacts: [{ id: 'a' }] },
+      { questionId: QUESTION_ID, takeIndex: 4, artifacts: [{ id: 'b' }] },
+      { questionId: QUESTION_ID, artifacts: [{ id: 'c' }] },
+      { questionId: QUESTION_ID, takeIndex: 1.5, artifacts: [{ id: 'd' }] },
+      { questionId: QUESTION_ID, takeIndex: 1e9, artifacts: [{ id: 'e' }] },
+    ];
+    expect(takeNumberFor(answers, QUESTION_ID, 'a')).toBe(1);
+    expect(takeNumberFor(answers, QUESTION_ID, 'b')).toBe(4);
+    expect(takeNumberFor(answers, QUESTION_ID, 'c')).toBe(3);
+    expect(takeNumberFor(answers, QUESTION_ID, 'd')).toBe(4);
+    expect(takeNumberFor(answers, QUESTION_ID, 'e')).toBe(5);
+    expect(takeNumberFor(answers, QUESTION_ID, 'missing')).toBe(1);
   });
 
   it('labels a question by its 1-based position', () => {
@@ -393,7 +414,7 @@ describe('archiveQuizArtifactCore', () => {
       'token',
       expect.anything(),
       'audio/mp4',
-      'Nguyen_Ava__Q1.m4a',
+      'Nguyen_Ava__Q1_take1.m4a',
       'Quiz Responses/Unit 3 Speaking'
     );
     expect(deps.deleteObject).toHaveBeenCalledWith(GOOD_PATH);
@@ -787,6 +808,27 @@ describe('archiveQuizArtifactCore', () => {
     expect(entry.lastAttemptAt).toBe(1_700_000_000_000);
   });
 
+  it('names a later take by its take number', async () => {
+    const seed = baseSeed();
+    const answers = (seed.response as { answers: Bag[] }).answers;
+    answers[0].takeIndex = 2;
+    answers.unshift({
+      questionId: QUESTION_ID,
+      takeIndex: 1,
+      artifacts: [{ id: 'old-1', uploadState: 'uploaded' }],
+    });
+    const { db } = makeStubDb(seed);
+    const deps = makeDeps(db);
+    await call(deps);
+    expect(deps.uploadToDrive).toHaveBeenCalledWith(
+      'token',
+      expect.anything(),
+      'audio/mp4',
+      'Nguyen_Ava__Q1_take2.m4a',
+      'Quiz Responses/Unit 3 Speaking'
+    );
+  });
+
   it('falls back to the PIN label when no real name resolves', async () => {
     const seed = baseSeed();
     (seed.response as Record<string, unknown>).pin = '4821';
@@ -799,7 +841,7 @@ describe('archiveQuizArtifactCore', () => {
       'token',
       expect.anything(),
       'audio/mp4',
-      'Pin4821__Q1.m4a',
+      'Pin4821__Q1_take1.m4a',
       'Quiz Responses/Unit 3 Speaking'
     );
   });
