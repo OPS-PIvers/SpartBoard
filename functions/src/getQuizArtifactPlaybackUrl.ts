@@ -27,6 +27,7 @@ import {
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import './functionsInit';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { resolveServerResultsVisibility } from './quizResultsVisibilityServer';
 
 type Firestore = admin.firestore.Firestore;
 
@@ -290,16 +291,6 @@ export async function resolveArtifactPlayback(
   }
   const session = sessionSnap.data() ?? {};
 
-  // The publish gate. Read from the session doc every call, so an unpublish
-  // (which deletes this field) revokes playback with no separate cleanup.
-  const visibility: unknown = session.scoreVisibility;
-  if (typeof visibility !== 'string' || visibility === 'none') {
-    throw new HttpsError(
-      'permission-denied',
-      'Results have not been published for this assignment.'
-    );
-  }
-
   // The fail-closed session marker; production sessions omit it entirely.
   if (session.mediaResponseEnabled !== true) {
     throw new HttpsError(
@@ -332,6 +323,19 @@ export async function resolveArtifactPlayback(
     throw new HttpsError(
       'permission-denied',
       'You can only play back your own recordings.'
+    );
+  }
+
+  // The publish gate, re-read every call: a per-student override wins over the class publish.
+  const { visibility } = resolveServerResultsVisibility(
+    session,
+    response,
+    Date.now()
+  );
+  if (visibility === 'none') {
+    throw new HttpsError(
+      'permission-denied',
+      'Results have not been published for this assignment.'
     );
   }
 

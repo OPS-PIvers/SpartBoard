@@ -317,6 +317,43 @@ describe('resolveArtifactPlayback', () => {
     ).rejects.toMatchObject({ code: 'permission-denied' });
   });
 
+  it('serves a student whose results were shown to them alone', async () => {
+    const docs = makeDocs({
+      session: { scoreVisibility: undefined },
+      response: {
+        resultsOverride: { mode: 'shown', visibility: 'score-and-responses' },
+      },
+    });
+    await expect(
+      resolveArtifactPlayback(REQ, makeDeps(docs))
+    ).resolves.toMatchObject({ status: 'ready' });
+  });
+
+  it('denies once a per-student publish has expired', async () => {
+    const docs = makeDocs({
+      session: { scoreVisibility: undefined },
+      response: {
+        resultsOverride: {
+          mode: 'shown',
+          visibility: 'score-and-responses',
+          expiresAt: Date.now() - 1000,
+        },
+      },
+    });
+    await expect(
+      resolveArtifactPlayback(REQ, makeDeps(docs))
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('denies a student hidden from a class-wide publish', async () => {
+    const docs = makeDocs({
+      response: { resultsOverride: { mode: 'hidden' } },
+    });
+    await expect(
+      resolveArtifactPlayback(REQ, makeDeps(docs))
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
   it('denies when the session predates the media marker', async () => {
     const docs = makeDocs({ session: { mediaResponseEnabled: undefined } });
     await expect(
