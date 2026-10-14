@@ -82,14 +82,18 @@ describe('FreeResponseGrader — By-Student mode', () => {
   it('walks every question for one student before the next student', () => {
     renderGrader({ graderMode: 'student' });
     expect(screen.getByText('Question 1 of 2')).toBeTruthy();
-    expect(screen.getByText('Ada', { selector: '[aria-current="true"] span' })).toBeTruthy();
+    expect(
+      screen.getByText('Ada', { selector: '[aria-current="true"] span' })
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /^Next ungraded/i }));
     expect(screen.getByText('Question 2 of 2')).toBeTruthy();
     expect(screen.getByText('Student 1 of 2')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /^Next ungraded/i }));
     expect(screen.getByText('Question 1 of 2')).toBeTruthy();
     expect(screen.getByText('Student 2 of 2')).toBeTruthy();
-    expect(screen.getByText('Grace', { selector: '[aria-current="true"] span' })).toBeTruthy();
+    expect(
+      screen.getByText('Grace', { selector: '[aria-current="true"] span' })
+    ).toBeTruthy();
   });
 
   it('keeps the student rail and adds a question stepper', () => {
@@ -151,10 +155,14 @@ describe('FreeResponseGrader — By-Student mode', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Next ungraded/i }));
     // Grace's q1 is graded, so Next lands on Ada's q2.
     expect(screen.getByText('Question 2 of 2')).toBeTruthy();
-    expect(screen.getByText('Ada', { selector: '[aria-current="true"] span' })).toBeTruthy();
+    expect(
+      screen.getByText('Ada', { selector: '[aria-current="true"] span' })
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /previous question/i }));
     fireEvent.click(within(rail()).getByText('Grace'));
-    expect(screen.getByText('Grace', { selector: '[aria-current="true"] span' })).toBeTruthy();
+    expect(
+      screen.getByText('Grace', { selector: '[aria-current="true"] span' })
+    ).toBeTruthy();
     expect(screen.getByLabelText(/Points awarded/i)).toHaveValue(8);
   });
 });
