@@ -293,6 +293,46 @@ describe('WhiteboardResponseCapture', () => {
     expect(onCommit).not.toHaveBeenCalled();
   });
 
+  it('keeps a recovered take when the parent re-renders mid-load', async () => {
+    const log = serializeWhiteboardLog({
+      v: 1,
+      page: { w: 1600, h: 1200 },
+      startingPageId: 'x',
+      events: [],
+    });
+    let resolve: (t: RecoveredTake) => void = () => undefined;
+    const { store } = memoryStore();
+    store.load = vi.fn(
+      () => new Promise<RecoveredTake | null>((r) => (resolve = r))
+    );
+    const props = {
+      config: config(),
+      takesCommitted: 0,
+      noticeAckedAt: ACKED,
+      onAcknowledgeNotice: () => undefined,
+      onCommit: () => Promise.resolve(),
+      recorderDeps: deps(),
+    };
+    const { rerender } = render(
+      <WhiteboardResponseCapture {...props} recovery={{ store, key: 'k' }} />
+    );
+    rerender(
+      <WhiteboardResponseCapture {...props} recovery={{ store, key: 'k' }} />
+    );
+    resolve({
+      key: 'k',
+      mimeType: 'audio/webm',
+      startedAt: 10_000,
+      updatedAt: 13_000,
+      chunks: [],
+      log,
+      micState: 'on',
+    });
+    const replay = await screen.findByTestId('replay');
+    expect(replay.dataset.duration).toBe('3000');
+    expect(store.load).toHaveBeenCalledTimes(1);
+  });
+
   it('hides Record once the take limit is used', () => {
     renderCapture({ config: config({ takeLimit: 1 }), takesCommitted: 1 });
     expect(screen.queryByRole('button', { name: /Record/ })).toBeNull();

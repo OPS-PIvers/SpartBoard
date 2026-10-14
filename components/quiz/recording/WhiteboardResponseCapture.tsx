@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useEffectEvent,
   useLayoutEffect,
   useRef,
   useState,
@@ -57,6 +58,7 @@ import { NoticeReminderOverlay } from './NoticeReminderOverlay';
 import { formatClock } from './formatClock';
 import {
   hasRecoverableContent,
+  type RecoveredTake,
   type TakeRecoveryStore,
 } from '@/utils/takeRecoveryStore';
 import type { CommitState } from './AudioResponseCapture';
@@ -298,23 +300,22 @@ export const WhiteboardResponseCapture: React.FC<
   }, [logRecorder, phase, recovery, saveLog]);
 
   // A take left behind by a crash or reload opens in review, or commits (D17).
+  const applyRecovered = useEffectEvent((found: RecoveredTake | null) => {
+    if (!found || !hasRecoverableContent(found)) return;
+    const recovered = toCapturedTake(found);
+    if (!recovered) return;
+    restoreRef.current(recovered);
+    if (!reviewOnRef.current) void commitTake(recovered);
+    else void renderPicture(recovered);
+  });
   const restoredRef = useRef(false);
+  const hasRecovery = !!recovery;
   useEffect(() => {
-    if (restoredRef.current || !recovery || !acknowledged) return;
+    const r = recoveryRef.current;
+    if (restoredRef.current || !r || !acknowledged) return;
     restoredRef.current = true;
-    let cancelled = false;
-    void recovery.store.load(recovery.key, Date.now()).then((found) => {
-      if (cancelled || !found || !hasRecoverableContent(found)) return;
-      const recovered = toCapturedTake(found);
-      if (!recovered) return;
-      restoreRef.current(recovered);
-      if (!reviewOnRef.current) void commitTake(recovered);
-      else void renderPicture(recovered);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [acknowledged, commitTake, recovery, renderPicture]);
+    void r.store.load(r.key, Date.now()).then(applyRecovered);
+  }, [acknowledged, hasRecovery]);
 
   // D16: a tab-away or time-limit cutoff commits the take as captured first.
   const liveTake =
