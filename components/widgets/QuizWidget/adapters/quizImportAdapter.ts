@@ -32,7 +32,21 @@ import {
   type RemoteImageFetcher,
 } from '@/utils/quizDocumentImport';
 import { readTestAndKey } from '@/utils/quizDocumentImport/readTestAndKey';
+import type { AiExtractVersionsFn } from '@/utils/quizDocumentImport/aiReader';
+import {
+  VERSIONS_NEED_AI,
+  buildVersionImport,
+  looksVersioned,
+  planProblems,
+  registerVersionImport,
+  testSetWarnings,
+  versionImportFor,
+  withUploadedPictures,
+  withVersionPlan,
+  type VersionImportBuild,
+} from '@/utils/quizDocumentImport/versionPlan';
 import { QuizDocumentReview } from '../components/QuizDocumentReview';
+import { QuizVersionReview } from '../components/QuizVersionReview';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { flagMissingKeys, missingKeyNumbers } from '@/utils/quizNeedsKey';
 
@@ -122,6 +136,12 @@ export interface QuizImportAdapterDeps {
    * the browser reader still runs, because half a quiz to fix beats an error.
    */
   aiExtract?: AiExtractFn;
+  /** True when `quiz-import-versions` is on; a test with versions then gets the version review (QUIZ_IMPORT_VERSIONS V17). */
+  importVersions?: boolean;
+  /** The versioned AI call; given only with `importVersions` and AI access. */
+  aiExtractVersions?: AiExtractVersionsFn;
+  /** Creates the folder, bank and quizzes a version review settled on, pictures already attached (V6). */
+  saveVersionImport?: (build: VersionImportBuild) => Promise<void>;
 }
 
 const DRIVE_ACCESS_ERROR =
@@ -428,6 +448,9 @@ export function createQuizImportAdapter(
           },
           {
             aiExtract: deps.aiExtract,
+            ...(deps.importVersions && deps.aiExtractVersions
+              ? { aiExtractVersions: deps.aiExtractVersions }
+              : {}),
             key: source.keyFile,
             ...(source.useAi === false ? { useAi: false } : {}),
             multiAnswer: true,
@@ -438,6 +461,21 @@ export function createQuizImportAdapter(
           }
         );
         deps.onDocumentImages?.(extracted.images);
+        if (extracted.testSet) {
+          return {
+            data: registerVersionImport(extracted.testSet),
+            warnings: testSetWarnings(extracted.testSet),
+            note: readByLabel('ai'),
+          };
+        }
+        // Only the AI reader finds versions (V13).
+        const versionsNeedAi =
+          deps.importVersions &&
+          extracted.readBy !== 'ai' &&
+          looksVersioned([
+            extracted.title,
+            ...extracted.questions.map((q) => q.text),
+          ]);
         const standardCodes = await deps
           .loadStandardCodes?.()
           .catch(() => undefined);
@@ -448,7 +486,11 @@ export function createQuizImportAdapter(
           }),
           // Row notes ride the wizard's own warnings list, numbered so they
           // line up with the review rows (D10).
-          warnings: [...extracted.warnings, ...rowWarnings(extracted)],
+          warnings: [
+            ...(versionsNeedAi ? [VERSIONS_NEED_AI] : []),
+            ...extracted.warnings,
+            ...rowWarnings(extracted),
+          ],
           ...(extracted.readBy ? { note: readByLabel(extracted.readBy) } : {}),
         };
       }
@@ -457,6 +499,11 @@ export function createQuizImportAdapter(
       );
     },
     validate: (data) => {
+      const versioned = versionImportFor(data);
+      if (versioned) {
+        const problems = planProblems(versioned.plan);
+        return { ok: problems.length === 0, errors: problems };
+      }
       const errors: string[] = [];
       if (!data.questions || data.questions.length === 0) {
         errors.push('Quiz must contain at least one question.');
@@ -474,8 +521,19 @@ export function createQuizImportAdapter(
     // feature is on; otherwise the wizard keeps its read-only preview.
     ...(deps.canImportDocuments
       ? {
-          renderReview: (data: QuizData, onChange: (next: QuizData) => void) =>
-            React.createElement(QuizDocumentReview, {
+          renderReview: (
+            data: QuizData,
+            onChange: (next: QuizData) => void
+          ) => {
+            const versioned = versionImportFor(data);
+            if (versioned) {
+              return React.createElement(QuizVersionReview, {
+                set: versioned.set,
+                plan: versioned.plan,
+                onChange: (plan) => onChange(withVersionPlan(data, plan)),
+              });
+            }
+            return React.createElement(QuizDocumentReview, {
               data,
               onChange,
               images: deps.documentImages?.() ?? [],
@@ -486,7 +544,8 @@ export function createQuizImportAdapter(
                     standardCodes: reviewExtrasFor(data)?.standardCodes,
                   }
                 : {}),
-            }),
+            });
+          },
         }
       : {}),
     // A document import names the quiz after the file (D11); sheet and CSV
@@ -494,6 +553,19 @@ export function createQuizImportAdapter(
     suggestTitle: (data) =>
       data.title && data.title !== PLACEHOLDER_TITLE ? data.title : undefined,
     save: async (data, title) => {
+      const versioned = versionImportFor(data);
+      if (versioned) {
+        if (!deps.saveVersionImport)
+          throw new Error('Versions can’t be saved here.');
+        const build = buildVersionImport(versioned.set, versioned.plan, {
+          folderTitle: title,
+        });
+        const upload = deps.attachDocumentImages;
+        await deps.saveVersionImport(
+          upload ? await withUploadedPictures(build, upload) : build
+        );
+        return;
+      }
       const finalTitle = title.trim() || data.title || 'Untitled Quiz';
       const now = Date.now();
       // Pictures become real stimuli only now, once the teacher has settled

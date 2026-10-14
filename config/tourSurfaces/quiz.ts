@@ -145,6 +145,7 @@ export const SURFACES: TourSurfaceMap = {
     needs: ['widget-on-stage'],
     files: [
       `${C}QuizDocumentReview.tsx`,
+      `${C}QuizVersionReview.tsx`,
       `${C}QuizImportKeyStandards.tsx`,
       `${C}QuizImportSuggestedTargets.tsx`,
     ],

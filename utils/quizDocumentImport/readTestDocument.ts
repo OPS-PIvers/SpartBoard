@@ -6,7 +6,12 @@
  */
 
 import { readQuizDocument } from './index';
-import { readQuizDocumentWithAi, type AiExtractFn } from './aiReader';
+import {
+  readQuizDocumentWithAi,
+  type AiExtractFn,
+  type AiExtractVersionsFn,
+} from './aiReader';
+import { decodeFigurePixels } from './figurePixelsBrowser';
 import type { ExtractedQuiz, RemoteImageFetcher } from './types';
 import { documentKind } from './fileKind';
 import { browserPdfDeps } from './pdfBrowserDeps';
@@ -35,6 +40,8 @@ export const AI_READER_FELL_BACK =
 export interface ReadTestDocumentOptions {
   /** Supplied only when the teacher has AI access; absent means browser-only. */
   aiExtract?: AiExtractFn;
+  /** The versioned AI call, given only when `quiz-import-versions` is on (QUIZ_IMPORT_VERSIONS V7). */
+  aiExtractVersions?: AiExtractVersionsFn;
   /** False when a teacher with AI access switched it off for this read. */
   useAi?: boolean;
   /** Lets the read produce choose-all-that-apply questions. */
@@ -92,6 +99,12 @@ export async function readTestDocument(
       cropper: browserPdfCropper,
       readPdfLines: pdfTextLines,
       ...(options.multiAnswer ? { multiAnswer: true } : {}),
+      ...(options.aiExtractVersions
+        ? {
+            extractVersions: options.aiExtractVersions,
+            decodePixels: decodeFigurePixels,
+          }
+        : {}),
     });
     return { ...extracted, readBy: 'ai' };
   } catch (err) {

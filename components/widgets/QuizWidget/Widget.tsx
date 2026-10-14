@@ -80,7 +80,14 @@ import { PlcShareTargetModal } from '@/components/plc/PlcShareTargetModal';
 import { QuizManager, PlcOptions } from './components/QuizManager';
 import { ImportWizard } from '@/components/common/library/importer';
 import { createQuizImportAdapter } from './adapters/quizImportAdapter';
-import { extractQuizFromDocument } from '@/utils/quizDocumentImport/aiReaderApi';
+import {
+  extractQuizFromDocument,
+  extractTestSetFromDocument,
+} from '@/utils/quizDocumentImport/aiReaderApi';
+import {
+  SHUFFLED_BEHAVIOR,
+  type VersionImportBuild,
+} from '@/utils/quizDocumentImport/versionPlan';
 import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
@@ -289,6 +296,8 @@ const TeacherQuizWidget: React.FC<{
     canImportDocuments &&
     canAccessFeature('quiz-document-ai-reader') &&
     canUseQuizAi;
+  const canImportVersions =
+    canImportDocuments && canAccessFeature('quiz-import-versions');
   const config = widget.config as QuizConfig;
   const reviewSplit = canAccessFeature('quiz-review-split');
   const isReview = variant === 'review';
@@ -552,6 +561,32 @@ const TeacherQuizWidget: React.FC<{
     moveItem: moveQuizItem,
     createFolder: createQuizFolder,
   } = useFolders(user?.uid, 'quiz');
+
+  // One folder holds the bank and every generated quiz, pictures already uploaded (QUIZ_IMPORT_VERSIONS V6).
+  const saveVersionImport = useCallback(
+    async (ready: VersionImportBuild) => {
+      const folderId = await createQuizFolder(ready.folderTitle, null);
+      if (ready.bank) {
+        await saveBank(ready.bank);
+        await moveBankToLibraryFolder(ready.bank.id, folderId);
+      }
+      for (const { quiz, shuffle } of ready.quizzes) {
+        const meta = await saveQuiz(
+          quiz,
+          undefined,
+          shuffle ? SHUFFLED_BEHAVIOR : undefined
+        );
+        await moveQuizItem(meta.id, folderId);
+      }
+    },
+    [
+      createQuizFolder,
+      saveBank,
+      moveBankToLibraryFolder,
+      saveQuiz,
+      moveQuizItem,
+    ]
+  );
 
   // PLC subscription — needed at the widget level (not just inside the
   // Assign modal) so the assign flow can resolve the selected PLC and its
@@ -1796,6 +1831,15 @@ const TeacherQuizWidget: React.FC<{
         : {}),
       pickDocument,
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
+      ...(canImportVersions
+        ? {
+            importVersions: true,
+            saveVersionImport,
+            ...(canUseAiReader
+              ? { aiExtractVersions: extractTestSetFromDocument }
+              : {}),
+          }
+        : {}),
       onDocumentImages: (images) => {
         documentImagesRef.current = images;
       },

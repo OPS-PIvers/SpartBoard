@@ -27,6 +27,8 @@ export const slotEligibleFromSource = (
 ): number | null => {
   if (!source) return null;
   if (slot.targetFilter && slot.targetFilter.length > 0) return null;
+  if (slot.mode === 'random' && slot.questionIds?.length)
+    return slot.questionIds.length;
   return source.questionCount;
 };
 

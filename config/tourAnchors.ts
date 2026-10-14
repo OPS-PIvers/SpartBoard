@@ -2049,6 +2049,31 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz-import.versions-quiz-create': {
+    label: 'Create quiz checkbox in Quiz import versions, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.versions-quiz-name': {
+    label: 'Quiz name input in Quiz import versions, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.versions-quiz-kind': {
+    label: 'How versions are used select in Quiz import versions, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.versions-version-quiz': {
+    label: 'Quiz for a version select in Quiz import versions, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.versions-picture-link': {
+    label: 'Unlink or link a shared picture in Quiz import versions, by item',
+    perField: true,
+    panel: true,
+  },
   'quiz-import.key-standards-add-all': {
     label: 'Add N standards (all key standards) in Quiz import',
     perWidgetType: true,
