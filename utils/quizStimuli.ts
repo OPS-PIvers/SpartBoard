@@ -61,7 +61,7 @@ export function desmosCalculatorUrl(
     kind && Object.hasOwn(DESMOS_PATHS, kind)
       ? DESMOS_PATHS[kind]
       : DESMOS_PATHS.graphing;
-  return `https://www.desmos.com/${path}`;
+  return `https://www.desmos.com/${path}?embed`;
 }
 
 /**

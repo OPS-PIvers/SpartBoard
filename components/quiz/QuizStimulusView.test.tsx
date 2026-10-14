@@ -143,9 +143,9 @@ describe('StimulusRenderer calculator', () => {
   });
 
   it.each([
-    ['graphing', 'https://www.desmos.com/calculator'],
-    ['scientific', 'https://www.desmos.com/scientific'],
-    ['four-function', 'https://www.desmos.com/fourfunction'],
+    ['graphing', 'https://www.desmos.com/calculator?embed'],
+    ['scientific', 'https://www.desmos.com/scientific?embed'],
+    ['four-function', 'https://www.desmos.com/fourfunction?embed'],
   ] as const)('frames the Desmos %s calculator', (kind, src) => {
     const { container } = render(<StimulusRenderer stimulus={calc(kind)} />);
     expect(container.querySelector('iframe')?.getAttribute('src')).toBe(src);
@@ -159,7 +159,7 @@ describe('StimulusRenderer calculator', () => {
     } as unknown as QuizStimulus;
     const { container } = render(<StimulusRenderer stimulus={odd} />);
     expect(container.querySelector('iframe')?.getAttribute('src')).toBe(
-      'https://www.desmos.com/calculator'
+      'https://www.desmos.com/calculator?embed'
     );
   });
 
