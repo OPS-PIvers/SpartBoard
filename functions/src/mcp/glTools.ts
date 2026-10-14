@@ -763,7 +763,7 @@ export async function restoreGuidedLearningRevision(
   await reserveWrite(ctx);
   const next: GlSet = { ...loaded.set, steps };
   for (const key of EDITABLE)
-    if (key !== 'steps') next[key] = data[key] as never;
+    if (key !== 'steps' && key in data) next[key] = data[key] as never;
   return saveSet(ctx, loaded, next, 'restore');
 }
 
