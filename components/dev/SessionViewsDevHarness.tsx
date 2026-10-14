@@ -48,6 +48,8 @@ import {
   makeQuizResponses,
   makeTimedQuizSession,
   makeTimedQuizResponses,
+  makeStopQuizSession,
+  makeStopQuizResponses,
   makeReviewGameResponses,
   makeReviewGameSession,
   makeQuizData,
@@ -188,7 +190,9 @@ const SessionView: React.FC<{
         ? []
         : timed
           ? makeTimedQuizResponses()
-          : makeQuizResponses();
+          : state === 'stop'
+            ? makeStopQuizResponses()
+            : makeQuizResponses();
     const perPeriod = state === 'per-period';
     const period = (label: string, state: 'open' | 'paused' | 'closed') => ({
       label,
@@ -210,7 +214,9 @@ const SessionView: React.FC<{
               'cl-5': period('Period 5', 'closed'),
             },
           }
-        : makeQuizSession(status);
+        : state === 'stop'
+          ? makeStopQuizSession(status)
+          : makeQuizSession(status);
     return (
       <QuizMonitorDev
         session={session}
@@ -361,6 +367,7 @@ export const SessionViewsDevHarness: React.FC = () => {
             </SavedWidgetsProvider>
           </CustomWidgetsProvider>
         </AuthProvider>
+        <DialogContainer />
       </DialogProvider>
     );
   }

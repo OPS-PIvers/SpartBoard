@@ -41,6 +41,15 @@ import {
   SectionCapNotice,
   SectionIntroDialog,
 } from './QuizSectionParts';
+import { QuizStopScreen } from './QuizStopScreen';
+import {
+  openedPartFor,
+  partOfQuestion,
+  partsDoneOf,
+  periodOfResponse,
+  sessionHasStops,
+  totalParts,
+} from '@/utils/quizParts';
 import {
   ClipboardList,
   Loader2,
@@ -511,6 +520,8 @@ const QuizJoinFlow: React.FC<{
     saveTabExits,
     setHandRaised,
     startAttemptClock,
+    submitPart,
+    resumePart,
     recordStimulusPlay,
     reportStimulusError,
     setServedQuestionIds,
@@ -1574,6 +1585,29 @@ const QuizJoinFlow: React.FC<{
       );
     }
 
+    // A student held at a Stop waits here until the teacher opens the next part.
+    const partsDone = partsDoneOf(myResponse);
+    if (
+      sessionHasStops(session) &&
+      myResponse.partHeld === true &&
+      partsDone > 0 &&
+      partsDone < totalParts(session.sections)
+    ) {
+      const opened = openedPartFor(
+        session.partsOpen,
+        periodOfResponse(session, myResponse),
+        myResponse._responseKey
+      );
+      return (
+        <QuizStopScreen
+          nextPart={partsDone + 1}
+          ready={opened > partsDone}
+          onStart={resumePart}
+          pin={pin}
+        />
+      );
+    }
+
     const publicQuestions = session.publicQuestions ?? [];
     const currentQ =
       session.currentQuestionIndex >= 0
@@ -1656,6 +1690,7 @@ const QuizJoinFlow: React.FC<{
           saveTabExits={saveTabExits}
           onSetHandRaised={setHandRaised}
           onStartAttemptClock={isViewOnly ? undefined : startAttemptClock}
+          onSubmitPart={isViewOnly ? undefined : submitPart}
           handRaised={!!myResponse?.handRaisedAt}
           warningCount={warningCount}
           onRecordStimulusPlay={recordStimulusPlay}
@@ -1802,6 +1837,8 @@ export const ActiveQuiz: React.FC<{
   onSetHandRaised: (raised: boolean) => Promise<void>;
   /** Stamps a missing attempt start once a time limit applies. */
   onStartAttemptClock?: () => Promise<void>;
+  /** Locks parts 1..`part` at a Stop; absent in previews, which never lock. */
+  onSubmitPart?: (part: number, held: boolean) => Promise<void>;
   handRaised: boolean;
   warningCount: number;
   onRecordStimulusPlay: (playKey: string) => Promise<void>;
@@ -1835,6 +1872,7 @@ export const ActiveQuiz: React.FC<{
   saveTabExits,
   onSetHandRaised,
   onStartAttemptClock,
+  onSubmitPart,
   handRaised,
   warningCount,
   onRecordStimulusPlay,
@@ -1845,7 +1883,7 @@ export const ActiveQuiz: React.FC<{
   effectiveCloseAt,
   readAloudRequested,
 }) => {
-  const { showAlert } = useDialog();
+  const { showAlert, showConfirm } = useDialog();
   const { t } = useTranslation();
   const [showCheatWarning, setShowCheatWarning] = useState(false);
   const [submitBlocked, setSubmitBlocked] = useState(false);
@@ -2198,6 +2236,26 @@ export const ActiveQuiz: React.FC<{
     studentShuffleSeed,
     session.sections,
   ]);
+
+  // Stop checkpoints (QUIZ_IMPORT_VERSIONS.md V20): submitted parts are locked.
+  const hasStops = isStudentPaced && sessionHasStops(session);
+  const partOf = (q: { id: string } | undefined): number =>
+    hasStops && q ? partOfQuestion(session.sections, q.id) : 1;
+  const partsDone = hasStops && myResponse ? partsDoneOf(myResponse) : 0;
+  // A rejoin or a just-submitted part lands on the first open question.
+  if (
+    partsDone > 0 &&
+    myResponse?.status !== 'completed' &&
+    partOf(orderedPublicQuestions[localIndex]) <= partsDone
+  ) {
+    const firstOpen = orderedPublicQuestions.findIndex(
+      (q) => partOf(q) > partsDone
+    );
+    if (firstOpen > localIndex) setLocalIndex(firstOpen);
+  }
+  const canGoBack =
+    localIndex > 0 &&
+    partOf(orderedPublicQuestions[localIndex - 1]) > partsDone;
 
   const baseQuestion = isStudentPaced
     ? orderedPublicQuestions[localIndex]
@@ -3196,7 +3254,7 @@ export const ActiveQuiz: React.FC<{
   };
 
   const handleBack = () => {
-    if (isStudentPaced && localIndex > 0) {
+    if (isStudentPaced && canGoBack) {
       setLocalIndex(localIndex - 1);
     }
   };
@@ -3216,6 +3274,7 @@ export const ActiveQuiz: React.FC<{
           .filter(
             ({ q }) =>
               studentRecordingFor(q, session) &&
+              partOf(q) > partsDone &&
               !isLockedByChooseCount(
                 session.sections,
                 myResponse?.answers ?? [],
@@ -3320,12 +3379,54 @@ export const ActiveQuiz: React.FC<{
             setSaveError("Couldn't submit your quiz. Tap to try again.");
           }
         }
+      } else if (
+        onSubmitPart &&
+        partOf(orderedPublicQuestions[localIndex + 1]) > partOf(currentQuestion)
+      ) {
+        await finishPart(partOf(currentQuestion));
       } else {
         setLocalIndex(localIndex + 1);
       }
     } finally {
       setSubmitting(false);
       advancingRef.current = false;
+    }
+  };
+
+  // The last question of a part: confirm, then lock it and stop unless the next part is open.
+  const finishPart = async (part: number) => {
+    if (!onSubmitPart || !myResponse) return;
+    const blocking = openRecordingQuestions.filter(
+      ({ index }) => partOf(orderedPublicQuestions[index]) <= part
+    );
+    if (blocking.length > 0) {
+      setSubmitBlocked(true);
+      return;
+    }
+    const ok = await showConfirm(
+      t(
+        'quizParts.confirmBody',
+        "You can't change your Part {{part}} answers after this.",
+        { part }
+      ),
+      {
+        title: t('quizParts.confirmTitle', 'Submit Part {{part}}?', { part }),
+        confirmLabel: t('quizParts.confirmSubmit', 'Submit Part {{part}}', {
+          part,
+        }),
+      }
+    );
+    if (!ok) return;
+    const opened = openedPartFor(
+      session.partsOpen,
+      periodOfResponse(session, myResponse),
+      myResponse._responseKey
+    );
+    try {
+      await onSubmitPart(part, opened <= part);
+    } catch (err) {
+      console.error('[QuizStudentApp] submitPart failed:', err);
+      setSaveError("Couldn't submit this part. Tap to try again.");
     }
   };
 
@@ -3795,7 +3896,7 @@ export const ActiveQuiz: React.FC<{
           >
             <div className="flex items-center gap-2">
               {isStudentPaced &&
-                localIndex > 0 &&
+                canGoBack &&
                 myResponse?.status !== 'completed' && (
                   <button
                     type="button"

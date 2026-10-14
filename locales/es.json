@@ -2129,6 +2129,16 @@
     "left": "Tiempo restante {{time}}",
     "submitted": "Se acabó el tiempo. Tus respuestas se entregaron."
   },
+  "quizParts": {
+    "confirmTitle": "¿Entregar la Parte {{part}}?",
+    "confirmBody": "Después de esto no podrás cambiar tus respuestas de la Parte {{part}}.",
+    "confirmSubmit": "Entregar la Parte {{part}}",
+    "stop": "Alto.",
+    "wait": "Espera a que tu maestro empiece la Parte {{part}}.",
+    "open": "La Parte {{part}} está abierta.",
+    "start": "Empezar la Parte {{part}}",
+    "startFailed": "No se pudo empezar la Parte {{part}}. Inténtalo de nuevo."
+  },
   "quizReadAloud": {
     "label": "Leer en voz alta",
     "help": "Solo para estudiantes con sesión iniciada.",

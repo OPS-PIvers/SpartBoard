@@ -2129,6 +2129,16 @@
     "left": "Verbleibende Zeit {{time}}",
     "submitted": "Die Zeit ist um. Deine Antworten wurden abgegeben."
   },
+  "quizParts": {
+    "confirmTitle": "Teil {{part}} abgeben?",
+    "confirmBody": "Danach kannst du deine Antworten in Teil {{part}} nicht mehr ändern.",
+    "confirmSubmit": "Teil {{part}} abgeben",
+    "stop": "Stopp.",
+    "wait": "Warte, bis deine Lehrkraft Teil {{part}} startet.",
+    "open": "Teil {{part}} ist offen.",
+    "start": "Teil {{part}} starten",
+    "startFailed": "Teil {{part}} konnte nicht gestartet werden. Versuche es noch einmal."
+  },
   "quizReadAloud": {
     "label": "Vorlesen",
     "help": "Nur für angemeldete Schüler.",

@@ -636,3 +636,49 @@ export function makeCalculatorQuizSession(): QuizSession {
     ],
   };
 }
+
+/** Self-paced quiz with a Stop after Part 1, split across two class periods. */
+export function makeStopQuizSession(
+  status: QuizSessionStatus = 'active'
+): QuizSession {
+  return {
+    ...makeQuizSession(status),
+    sessionMode: 'student',
+    periodNames: ['Period 3', 'Period 5'],
+    sections: [
+      {
+        id: 'sec-1',
+        title: 'Part 1',
+        questionIds: [QUIZ_Q1_ID],
+        stopAfter: true,
+      },
+      { id: 'sec-2', title: 'Part 2', questionIds: [QUIZ_Q2_ID] },
+    ],
+  };
+}
+
+export function makeStopQuizResponses(): QuizResponse[] {
+  const held = (pin: string, period: string): QuizResponse => ({
+    _responseKey: `pin-${period}-${pin}`,
+    studentUid: `pin-${period}-${pin}`,
+    pin,
+    joinedAt: NOW - 900_000,
+    status: 'in-progress',
+    answers: [
+      { questionId: QUIZ_Q1_ID, answer: '3/4', answeredAt: NOW - 600_000 },
+    ],
+    score: null,
+    submittedAt: null,
+    classPeriod: period,
+    partsDone: 1,
+    partHeld: true,
+  });
+  return [
+    held('1001', 'Period 3'),
+    held('1002', 'Period 3'),
+    held('1003', 'Period 3'),
+    held('2001', 'Period 5'),
+    held('2002', 'Period 5'),
+    ...makeQuizResponses().filter((r) => r.status !== 'completed'),
+  ];
+}

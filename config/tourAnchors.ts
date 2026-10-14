@@ -1670,6 +1670,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-editor.section-stop': {
+    label: '"After this section" menu in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-editor.section-remove': {
     label: 'Remove section in the Quiz editor',
     perWidgetType: true,
@@ -3275,6 +3280,23 @@ export const TOUR_ANCHORS = {
   'quiz-monitor.roster-row-actions': {
     label: 'Student actions button in the Quiz monitor roster',
     perField: true,
+  },
+  'quiz-monitor.student-open-part': {
+    label: 'Open Part item in the Quiz monitor student menu',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-monitor.open-part': {
+    label: 'Open Part button in the Quiz monitor',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-monitor.open-part-period': {
+    label: 'Class choice in the Quiz monitor Open Part menu',
+    perField: true,
+    persists: true,
   },
   'quiz-monitor.student-let-in': {
     label: 'Let in now item in the Quiz monitor student menu',
