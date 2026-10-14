@@ -2268,6 +2268,8 @@
       "wrapUp": "Termine. L’enregistrement s’arrête à {{seconds}} secondes.",
       "reviewLabel": "Listen back",
       "reviewBody": "Pas encore envoyé.",
+      "recoveredLabel": "Ton enregistrement sauvegardé",
+      "recoveredBody": "Sauvegardé avant que tu quittes cette question. Pas encore envoyé.",
       "playbackPosition": "Playback position",
       "playbackValueText": "{{elapsed}} of {{total}}",
       "windowClosedTitle": "Recording time is over",
@@ -4038,6 +4040,16 @@
     "addToResponse": "Ajouter à la réponse",
     "showQuotes": "Afficher les citations",
     "showQuotesHint": "Bleu : citation exacte. Ambre : modifiée par rapport au texte."
+  },
+  "quizWhiteboardResponse": {
+    "replay": {
+      "loading": "Chargement du dessin…",
+      "pictureAlt": "Dessin terminé",
+      "replayLabel": "Relecture du dessin",
+      "play": "Lire le dessin",
+      "pause": "Mettre le dessin en pause",
+      "unavailable": "Ce dessin ne peut pas être rejoué."
+    }
   },
   "quizWhiteboard": {
     "canvas": {

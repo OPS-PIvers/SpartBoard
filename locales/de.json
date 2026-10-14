@@ -2268,6 +2268,8 @@
       "wrapUp": "Komm zum Schluss. Die Aufnahme stoppt bei {{seconds}} Sekunden.",
       "reviewLabel": "Listen back",
       "reviewBody": "Noch nicht gesendet.",
+      "recoveredLabel": "Deine gespeicherte Aufnahme",
+      "recoveredBody": "Gespeichert, bevor du diese Frage verlassen hast. Noch nicht gesendet.",
       "playbackPosition": "Playback position",
       "playbackValueText": "{{elapsed}} of {{total}}",
       "windowClosedTitle": "Recording time is over",
@@ -4038,6 +4040,16 @@
     "addToResponse": "Zur Antwort hinzufügen",
     "showQuotes": "Zitate zeigen",
     "showQuotesHint": "Blau ist ein wörtliches Zitat. Gelb wurde gegenüber dem Text verändert."
+  },
+  "quizWhiteboardResponse": {
+    "replay": {
+      "loading": "Zeichnung wird geladen…",
+      "pictureAlt": "Fertige Zeichnung",
+      "replayLabel": "Wiedergabe der Zeichnung",
+      "play": "Zeichnung abspielen",
+      "pause": "Zeichnung pausieren",
+      "unavailable": "Diese Zeichnung kann nicht abgespielt werden."
+    }
   },
   "quizWhiteboard": {
     "canvas": {

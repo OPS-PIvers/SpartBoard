@@ -2268,6 +2268,8 @@
       "wrapUp": "Ve terminando. La grabación se detiene a los {{seconds}} segundos.",
       "reviewLabel": "Listen back",
       "reviewBody": "Aún no se ha enviado.",
+      "recoveredLabel": "Tu grabación guardada",
+      "recoveredBody": "Guardada antes de que salieras de esta pregunta. Aún no se ha enviado.",
       "playbackPosition": "Playback position",
       "playbackValueText": "{{elapsed}} of {{total}}",
       "windowClosedTitle": "Recording time is over",
@@ -4038,6 +4040,16 @@
     "addToResponse": "Añadir a la respuesta",
     "showQuotes": "Mostrar citas",
     "showQuotesHint": "Azul es una cita exacta. Ámbar se cambió respecto al texto."
+  },
+  "quizWhiteboardResponse": {
+    "replay": {
+      "loading": "Cargando el dibujo…",
+      "pictureAlt": "Dibujo terminado",
+      "replayLabel": "Repetición del dibujo",
+      "play": "Reproducir el dibujo",
+      "pause": "Pausar el dibujo",
+      "unavailable": "Este dibujo no se puede reproducir."
+    }
   },
   "quizWhiteboard": {
     "canvas": {
