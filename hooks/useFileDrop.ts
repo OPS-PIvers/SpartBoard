@@ -48,6 +48,7 @@ export function useFilesDrop(
       onDragEnter: (e) => {
         if (!hasFiles(e)) return;
         e.preventDefault();
+        e.stopPropagation();
         if (disabled) return;
         depth.current += 1;
         setDragging(true);
@@ -55,17 +56,21 @@ export function useFilesDrop(
       onDragOver: (e) => {
         if (!hasFiles(e)) return;
         e.preventDefault();
+        e.stopPropagation();
         e.dataTransfer.dropEffect = disabled ? 'none' : 'copy';
       },
       onDragLeave: (e) => {
         if (!hasFiles(e)) return;
         e.preventDefault();
+        e.stopPropagation();
         depth.current = Math.max(0, depth.current - 1);
         if (depth.current === 0) setDragging(false);
       },
       onDrop: (e) => {
         if (!hasFiles(e)) return;
         e.preventDefault();
+        // The board behind a modal also takes dropped PDFs; keep it from seeing this one.
+        e.stopPropagation();
         depth.current = 0;
         setDragging(false);
         if (disabled) return;
