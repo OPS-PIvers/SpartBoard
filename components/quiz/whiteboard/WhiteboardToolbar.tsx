@@ -69,7 +69,7 @@ interface WhiteboardToolbarProps {
   onRedo: () => void;
 }
 
-/** Vertical tool rail beside the 4:3 page, two buttons per row. */
+/** Vertical tool rail beside the 4:3 page, two to four buttons per row. */
 export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
   tool,
   eraserMode,
@@ -89,7 +89,9 @@ export const WhiteboardToolbar: React.FC<WhiteboardToolbarProps> = ({
   const showSizes =
     tool !== 'text' &&
     !(tool === 'eraser' && (eraserMode === 'object' || eraserMode === 'lasso'));
-  const group = 'grid grid-cols-2 gap-1';
+  // Short boards widen the rail so every tool stays reachable without scrolling.
+  const group =
+    'grid grid-cols-4 gap-1 [@container(min-height:388px)]:grid-cols-3 [@container(min-height:526px)]:grid-cols-2';
   const divider = 'h-px bg-slate-200';
 
   return (

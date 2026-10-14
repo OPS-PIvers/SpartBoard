@@ -51,3 +51,54 @@ No app code was changed. None of the gaps below is a one-line anchor tag: each n
 - **B13. Calendar ID box has no anchor** (tour 4). Teachers paste their own ID, so the step points and waits.
 - **B14. Help Center categories are data.** The dummy board has none, so tour 8 skips choosing a category.
 - **B15. Connect Google is hidden once Google is connected.** Every teacher signs in with Google, so tour 4 starts at the Calendar settings instead.
+
+## Run 2 (2026-10-14)
+
+The same 12 workflows, authored fresh on 2026-10-14 after #4194, #4237 and #4238, to measure whether Claude can one-shot them with no workarounds. Each was written with the Spartboard-Dev connector by following `get_live_tour_guide` (`list_tour_anchors`, dry run, save), saved as a building draft (none added to the Help Center), then played on the dummy board (`pnpm run dev:verify`, port 56320) with `scripts/run-live-tour.mjs`. Every run file is `get_live_tour` with `for_browser_run: true`, saved as returned. No step uses a fallback, and no app code changed.
+
+Rounds counts fix-and-rerun cycles: 0 means green on the first browser run.
+
+| #   | Workflow                                       | set_id                                 | Steps | Run result                                                                       | Rounds | Dry-run warnings left in                                              | needs_anchors | narration_failed | Paul's edits |
+| --- | ---------------------------------------------- | -------------------------------------- | ----- | -------------------------------------------------------------------------------- | ------ | --------------------------------------------------------------------- | ------------- | ---------------- | ------------ |
+| 1   | Create a quiz from scratch                     | `eb279625-4423-4f13-a49e-5fcfe15347a0` | 11    | Green after the answer-letter suffixes were lowercased (B16)                     | 1      | None                                                                  | None          | None             |              |
+| 2   | Assign a quiz to a class                       | `2a9744a3-99d7-4275-9723-853775ad2089` | 9     | Not green: steps 2-8 missing, the quiz rows load after the player gives up (B17) | -      | `assign` and `submit` persist                                         | None          | None             |              |
+| 3   | Set up the Schedule widget                     | `8607fc4e-a106-42b6-a1d8-306d1dc33a05` | 8     | Green                                                                            | 0      | None                                                                  | None          | None             |              |
+| 4   | Sync Google Calendar                           | `8cd1f76d-6603-4141-bcc2-cc28589cc6dd` | 6     | Green (Calendar ID left to the teacher)                                          | 0      | `calendar-id` has no value (each teacher pastes their own)            | None          | None             |              |
+| 5   | Make random groups                             | `6a87d194-a7b8-4072-ae6a-75e2c1d17262` | 8     | Green after moving the mode choice to the settings field (B18)                   | 1      | None                                                                  | None          | None             |              |
+| 6   | Add a class / roster                           | `1982dad3-1eab-434a-ae53-ec189d315ae6` | 9     | Green                                                                            | 0      | `first-name` is a list row (B20); `save` persists                     | None          | None             |              |
+| 7   | Change a widget's style and save as my default | `e32c3afa-9fcb-40e8-be55-167962567eee` | 6     | Green                                                                            | 0      | `style-defaults-save` persists (the teacher's real default, intended) | None          | None             |              |
+| 8   | Find help in SpartBoard                        | `5c763f99-a24c-4923-adc4-3d3a6c904296` | 6     | Green                                                                            | 0      | None                                                                  | None          | None             |              |
+| 9   | Create a Guided Learning set                   | `a5995d9e-7b82-4300-b07e-20b869702697` | 6     | Green; Add media is a point-only step (B9)                                       | 0      | None                                                                  | None          | None             |              |
+| 10  | Share a board                                  | `2fc7b5b8-9725-416e-9e6c-4e82bfc468d1` | 9     | Green                                                                            | 0      | `share-link.create` persists (makes a real share link)                | None          | None             |              |
+| 11  | Make a video activity                          | `1ec8660e-f15c-48ee-a61c-5026d784b4c7` | 9     | Not green: steps 2-8 missing, the widget is blank for about 39 s (B17)           | -      | None                                                                  | None          | None             |              |
+| 12  | Use the Timer with the schedule                | `3474ad0e-ac70-40a3-9ca0-d308fb083816` | 6     | Green                                                                            | 0      | None                                                                  | None          | None             |              |
+
+10 of 12 ran green with no workarounds: 8 on the first run (3, 4, 6, 7, 8, 9, 10, 12) and 2 after one fix (1, 5). Tours 2 and 11 can't go green on the dummy board without a workaround, so they were left as they are. No save reported `narration_failed`, and no step needed a fallback.
+
+### Run 1 items
+
+| Item                               | Status     | Seen in run 2                                                                                           |
+| ---------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------- |
+| B1. `get_live_tour` drops `sample` | Fixed      | Tour 2's run file carried the sample quiz and the runner seeded it.                                     |
+| B2. `upload_url` unreachable       | Still open | Cloud only. Run 2 was local and uploaded to `upload_url` as returned.                                   |
+| B3. `type` with no value refused   | Fixed      | Tour 4 saved with a warning and the runner left the step to the teacher.                                |
+| B4. `editor.save:quiz`             | Fixed      | The dry run warns and points at `editor.close:quiz`.                                                    |
+| B5. Staged demo rows               | Fixed      | The guide names them; tour 3's `event-4` was right the first time.                                      |
+| B6. One opener per surface         | Fixed      | `opened_by` lets New Class (tour 6) and New (tour 9) reach their editors, with no fallbacks.            |
+| B7. Studio vs classic editor       | Still open | Tour 9 was authored and run as an admin, so it shows the Studio. Check it as a teacher before it opens. |
+| B8. `select` on segmented controls | Fixed      | `settings.field:random#mode` with `groups` switched the mode (tour 5).                                  |
+| B9. No file to pick                | Still open | Tour 9 points at Add media and stops; the steps after an upload are still unchecked.                    |
+| B10. YouTube blocked               | Still open | Not reached: tour 11 fails at its first click (B17), so the player never loaded.                        |
+| B11. Previous step re-marked       | Fixed      | Tour 1's first run kept step 6 found while 7-9 were missing.                                            |
+| B12. Playwright build mismatch     | Still open | Cloud only. Locally the runner launched Playwright's Chromium without changes.                          |
+| B13. Calendar ID has no anchor     | Fixed      | `widget-settings.calendar.calendar-id` is tagged and found.                                             |
+| B14. Help categories are data      | Still open | Tour 8 still skips choosing a category.                                                                 |
+| B15. Connect Google hidden         | Still open | By design; tour 4 starts at the Calendar settings.                                                      |
+
+### New in run 2
+
+- **B16. The dry run accepts any suffix on a field anchor with no `keys`.** `quiz-editor.option:quiz#A` and `quiz-editor.correct:quiz#A` passed, but `ChoiceOptionsEditor.tsx` tags letters lowercase, so steps 7-9 of tour 1 were missing until they became `#a` and `#b`. The label says only "by letter". Follow-up: list `keys` (or a pattern) for letter, row and event fields in `config/tourAnchors.ts` and refuse a suffix that doesn't match.
+- **B17. On the dummy board, libraries load long after the player gives up.** The quiz library shows "Loading folders…" and hides its rows for about 27 s (`components/common/library/useFolderLibraryView.ts`), and the Video Activity widget is blank for about 39 s. The player marks an anchor missing after `ANCHOR_SEARCH_MS` (3 s, `components/tours/useAnchorElement.ts`), so tours 2 and 11 fail from their first click. Teachers on a real backend don't wait like this; the dummy backend does. Follow-up: make the dummy backend's listeners settle at once in `scripts/serve-verify.mjs` and the verify config, or have `scripts/run-live-tour.mjs` wait for the staged widgets to finish loading before step 2. Then rerun tours 2 and 11; tour 11 also covers B10.
+- **B18. The dry run accepts `select` on a control that isn't a choice.** `random.mode` is a cycle button whose label lists four modes, so `select` with `groups` looked right. Autopilot clicked it once (to Shuffle), reported found, and the next steps were missing. Follow-up: have `chooseOption` (`components/tours/autopilot.ts`) report missing when no option matches, and have the dry run refuse `select` on anchors that aren't a select, radio group or tab strip.
+- **B19. The Style tab's own controls have no anchors.** Font, text color, card color and text size (`TypographySettings`, `SurfaceColorSettings`, `TextSizePresetSettings`) aren't in `list_tour_anchors`, so tour 7 changes the Text widget's tagged note color instead. Follow-up: tag the shared style controls once so every widget's Style tab is reachable.
+- **B20. A list-row warning on a list the tour just made.** The dry run warns that `roster-editor.first-name:roster-editor#row-1` differs per teacher, but in a new class row 1 is the student the tour just added. Minor. Follow-up: skip the warning when an earlier step opened the list empty, such as New Class.

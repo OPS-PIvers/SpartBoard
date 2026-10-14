@@ -1540,9 +1540,14 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-editor.recording-attempts-info': {
+    label: 'Attempts allowed info button (spoken response) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-editor.recording-expiry': {
-    label: 'Prep expiry option buttons (per option) in the Quiz editor',
-    perField: true,
+    label: 'When thinking time runs out menu in the Quiz editor',
+    perWidgetType: true,
     panel: true,
   },
   'quiz-editor.response-format': {
@@ -1574,7 +1579,18 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.whiteboard-image': {
     label:
-      'Add image button for the whiteboard starting page in the Quiz editor',
+      'Insert image button for the whiteboard starting page in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-image-choose': {
+    label:
+      'Choose file button in the whiteboard Insert image dialog in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-preview': {
+    label: 'Preview button for the whiteboard starting page in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },
@@ -2734,6 +2750,12 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'quiz-results.bulk-submit': {
+    label: 'Submit for students in Quiz results',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
   'quiz-results.bulk-clear': {
     label: 'Clear selection in Quiz results',
     perWidgetType: true,
@@ -3214,6 +3236,12 @@ export const TOUR_ANCHORS = {
   },
   'quiz-monitor.student-unlock-attempt': {
     label: 'Unlock attempt item in the Quiz monitor student menu',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-monitor.student-submit': {
+    label: 'Submit for student item in the Quiz monitor student menu',
     perWidgetType: true,
     persists: true,
     panel: true,

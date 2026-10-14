@@ -265,19 +265,19 @@ describe('FreeResponseGrader queue shape', () => {
 describe('FreeResponseGrader take pinning', () => {
   it('defaults to the winning take and records an earlier pick as gradedTakeIndex', async () => {
     const onSave = renderGrader([recorded('ada', 3)]);
-    expect(await screen.findByText('3 takes recorded')).toBeTruthy();
+    expect(await screen.findByText('3 attempts recorded')).toBeTruthy();
 
     // Winner first, so pinning is opt-in.
     expect(
       screen
-        .getByRole('button', { name: /Take 3/ })
+        .getByRole('button', { name: /Attempt 3/ })
         .getAttribute('aria-pressed')
     ).toBe('true');
 
-    fireEvent.click(screen.getByRole('button', { name: /Take 1/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Attempt 1/ }));
     expect(
       screen
-        .getByRole('button', { name: /Take 1/ })
+        .getByRole('button', { name: /Attempt 1/ })
         .getAttribute('aria-pressed')
     ).toBe('true');
 
@@ -458,10 +458,10 @@ describe('FreeResponseGrader take numbering', () => {
       .artifactArchive['ada-t2'];
 
     renderGrader([response]);
-    expect(await screen.findByText('2 takes recorded')).toBeTruthy();
+    expect(await screen.findByText('2 attempts recorded')).toBeTruthy();
     // takeIndex 3 survives as the SECOND visible take, so it reads "Take 2".
-    expect(screen.getByRole('button', { name: /Take 2/ })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Take 3/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /Attempt 2/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Attempt 3/ })).toBeNull();
   });
 });
 
@@ -852,7 +852,7 @@ describe('FreeResponseGrader rubric strand tags', () => {
       expect(document.querySelector('audio')?.currentTime).toBe(8)
     );
 
-    fireEvent.click(screen.getByRole('button', { name: /take 1/i }));
+    fireEvent.click(screen.getByRole('button', { name: /attempt 1/i }));
     await waitFor(() =>
       expect(document.querySelector('audio')?.src).toContain('drive-ada-1')
     );

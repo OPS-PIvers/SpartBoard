@@ -84,6 +84,29 @@ const quiz = (): QuizData => ({
       timeLimit: 0,
       recording: { ...DEFAULT_RECORDING_CONFIG },
     },
+    {
+      id: 'q-fr-whiteboard',
+      type: 'free-response',
+      text: 'What keeps the planets moving in orbits around the Sun instead of flying off into space?',
+      correctAnswer: '',
+      incorrectAnswers: [],
+      timeLimit: 0,
+      recording: {
+        ...DEFAULT_RECORDING_CONFIG,
+        mode: 'whiteboard',
+        explainAloud: true,
+        limitSeconds: 120,
+        startingPage: {
+          pattern: {
+            kind: 'coordinate-plane',
+            xMin: -5,
+            xMax: 5,
+            yMin: -5,
+            yMax: 5,
+          },
+        },
+      },
+    },
   ],
 });
 
@@ -148,7 +171,12 @@ const MediaGateGranted: React.FC<{ children: React.ReactNode }> = ({
   const auth = useAuth();
   return (
     <AuthContext.Provider
-      value={{ ...auth, canAccessQuizMediaResponse: () => true }}
+      value={{
+        ...auth,
+        canAccessQuizMediaResponse: () => true,
+        canAccessFeature: (id) =>
+          id === 'quiz-whiteboard-response' || auth.canAccessFeature(id),
+      }}
     >
       {children}
     </AuthContext.Provider>

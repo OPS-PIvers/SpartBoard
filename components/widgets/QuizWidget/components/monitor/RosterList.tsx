@@ -19,6 +19,7 @@ import {
 import { useServerNow } from '@/hooks/useServerNow';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { studentCanEnter } from '@/utils/periodAccess';
+import { canTeacherSubmit } from '@/utils/quizTeacherSubmit';
 import { MonitorStudent } from './useMonitorData';
 import { BucketKey } from './StatusBuckets';
 import {
@@ -48,6 +49,8 @@ interface RosterListProps {
   onUpdateConfig: (updates: Partial<QuizConfig>) => void;
   onRemove?: (key: string) => void;
   onUnlockAttempt?: (key: string) => void;
+  /** Turns in a student's saved answers for them. */
+  onSubmitForStudent?: (key: string) => void;
   onUnlockResults?: (key: string) => void;
   onClearHand?: (key: string) => void;
   /** Per-period sessions: unlock one student past their period's state. */
@@ -126,6 +129,7 @@ const RowMenu: React.FC<{
   now: number;
   onRemove?: (key: string) => void;
   onUnlockAttempt?: (key: string) => void;
+  onSubmitForStudent?: (key: string) => void;
   onUnlockResults?: (key: string) => void;
   onLetIn?: (studentUid: string) => void;
   overridesBySourcedId?: Record<string, StudentOverride> | null;
@@ -136,6 +140,7 @@ const RowMenu: React.FC<{
   now,
   onRemove,
   onUnlockAttempt,
+  onSubmitForStudent,
   onUnlockResults,
   onLetIn,
   overridesBySourcedId,
@@ -190,6 +195,15 @@ const RowMenu: React.FC<{
       label: 'Unlock attempt',
       tour: tourTypeAttr('quiz-monitor.student-unlock-attempt', 'quiz'),
       onClick: () => onUnlockAttempt(student.key),
+    });
+  if (onSubmitForStudent && canTeacherSubmit(r))
+    items.push({
+      label: 'Submit for student',
+      tour: tourTypeAttr('quiz-monitor.student-submit', 'quiz'),
+      onClick: () => {
+        onSubmitForStudent(student.key);
+        setOpen(false);
+      },
     });
   if (r.resultsLockedOut && onUnlockResults)
     items.push({
@@ -275,6 +289,7 @@ export const RosterList: React.FC<RosterListProps> = ({
   onUpdateConfig,
   onRemove,
   onUnlockAttempt,
+  onSubmitForStudent,
   onUnlockResults,
   onClearHand,
   onLetIn,
@@ -690,6 +705,7 @@ export const RosterList: React.FC<RosterListProps> = ({
                 onLetIn={onLetIn}
                 onRemove={onRemove}
                 onUnlockAttempt={onUnlockAttempt}
+                onSubmitForStudent={onSubmitForStudent}
                 onUnlockResults={onUnlockResults}
                 overridesBySourcedId={overridesBySourcedId}
                 targetRefKeyByStudentUid={targetRefKeyByStudentUid}

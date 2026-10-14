@@ -10031,7 +10031,9 @@ export type GlobalFeature =
   | 'mini-app-ai-edit'
   /** Quiz live monitor declutter (#4023): footer buttons, Close all, no More actions menu for assessments. */
   | 'quiz-monitor-declutter'
-  | 'quiz-banks-in-library';
+  | 'quiz-banks-in-library'
+  /** Teachers turn in a quiz for a student who left without submitting. */
+  | 'quiz-submit-for-student';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

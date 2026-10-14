@@ -6488,10 +6488,35 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-editor.recording-expiry",
-    "label": "Prep expiry option buttons (per option) in the Quiz editor",
-    "scope": "field",
+    "id": "quiz-editor.recording-attempts-info",
+    "label": "Attempts allowed info button (spoken response) in the Quiz editor",
+    "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.recording-expiry",
+    "label": "When thinking time runs out menu in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -6615,7 +6640,52 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-editor.whiteboard-image",
-    "label": "Add image button for the whiteboard starting page in the Quiz editor",
+    "label": "Insert image button for the whiteboard starting page in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.whiteboard-image-choose",
+    "label": "Choose file button in the whiteboard Insert image dialog in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor.whiteboard-image",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.whiteboard-image:quiz"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.whiteboard-preview",
+    "label": "Preview button for the whiteboard starting page in the Quiz editor",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -6645,11 +6715,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ],
     "routes": [
       {
-        "surface": "quiz.editor",
-        "kind": "editor",
+        "surface": "quiz.editor.whiteboard-image",
+        "kind": "modal",
         "path": [
           "library-shell.new:quiz",
-          "library-shell.new-menu-item:quiz#item-1"
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.whiteboard-image:quiz"
         ],
         "needs": [
           "widget-on-stage"
@@ -11678,6 +11749,33 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-results.bulk-submit",
+    "label": "Submit for students in Quiz results",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.drill-students:quiz"
+        ],
+        "reveal": "quiz-results.drill-students:quiz",
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-results.bulk-clear",
     "label": "Clear selection in Quiz results",
     "scope": "widget type",
@@ -13532,6 +13630,33 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-monitor.student-unlock-attempt",
     "label": "Unlock attempt item in the Quiz monitor student menu",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.roster-row-actions:quiz"
+        ],
+        "reveal": "quiz-monitor.roster-row-actions:quiz",
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-monitor.student-submit",
+    "label": "Submit for student item in the Quiz monitor student menu",
     "scope": "widget type",
     "panel": true,
     "persists": true,

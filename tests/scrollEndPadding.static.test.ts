@@ -132,5 +132,6 @@ describe('scroll end padding (static)', () => {
       findViolations(),
       'Use min-h-full on the child (or let it size to content) so the scroller keeps its end padding.'
     ).toEqual([]);
-  });
+    // Parses every .tsx in the repo; a busy CI shard runs past the 5s default.
+  }, 60_000);
 });

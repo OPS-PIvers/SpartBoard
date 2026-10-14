@@ -135,6 +135,8 @@ import {
 import { AudioResponseCapture } from './recording/AudioResponseCapture';
 import { WhiteboardResponseCapture } from './recording/WhiteboardResponseCapture';
 import { RecordingNoticeDrawingContext } from './recording/recordingNoticeDrawing';
+import { MicrophoneGate } from './recording/MicrophoneGate';
+import { useQuizRecordingNoticeSettings } from '@/hooks/useQuizRecordingNoticeSettings';
 import {
   StimulusDrawer,
   StimulusDrawerButton,
@@ -145,6 +147,7 @@ import { isWhiteboardRecording } from '@/config/quizRecordingDefaults';
 import {
   buildWhiteboardTakeArtifacts,
   noticeDrawingForSession,
+  sessionNeedsMic,
   studentRecordingFor,
   type WhiteboardTake,
 } from '@/utils/quizWhiteboardSession';
@@ -940,6 +943,17 @@ const QuizJoinFlow: React.FC<{
     }
   }, [acknowledgeRecordingNotice, noticeAckKey]);
 
+  const recordingNotice = useQuizRecordingNoticeSettings(
+    session?.mediaResponseEnabled === true
+  );
+  const noticeRequired = recordingNotice.settings.enabled;
+  // The session whose mic check passed on this page; a reload asks again.
+  const [micReadyFor, setMicReadyFor] = useState<string | null>(null);
+  const sessionIdForMic = session?.id ?? null;
+  const handleMicReady = useCallback(() => {
+    setMicReadyFor(sessionIdForMic);
+  }, [sessionIdForMic]);
+
   // Bytes for takes whose archive failed, so "Try again" re-sends the SAME
   // artifact (same storagePath) instead of pretending something is retrying.
   const retryableTakesRef = useRef(new Map<string, Blob>());
@@ -1551,6 +1565,37 @@ const QuizJoinFlow: React.FC<{
         )
       : false;
 
+    const needsMicGate =
+      !isViewOnly &&
+      micReadyFor !== session.id &&
+      myResponse.status !== 'completed' &&
+      sessionNeedsMic(session, publicQuestions);
+    if (needsMicGate) {
+      return (
+        <RecordingNoticeDrawingContext.Provider
+          value={noticeDrawingForSession(session, publicQuestions)}
+        >
+          {recordingNotice.loaded ? (
+            <MicrophoneGate
+              light={session.sessionMode === 'student'}
+              noticeRequired={noticeRequired}
+              noticeAckedAt={noticeAckedAt}
+              onAcknowledgeNotice={handleAcknowledgeNotice}
+              onReady={handleMicReady}
+            />
+          ) : (
+            <div
+              className={`h-screen [height:100dvh] ${
+                session.sessionMode === 'student'
+                  ? 'bg-gradient-to-b from-white to-slate-100'
+                  : 'bg-slate-900'
+              }`}
+            />
+          )}
+        </RecordingNoticeDrawingContext.Provider>
+      );
+    }
+
     return (
       <RecordingNoticeDrawingContext.Provider
         value={noticeDrawingForSession(session, session.publicQuestions ?? [])}
@@ -1568,6 +1613,7 @@ const QuizJoinFlow: React.FC<{
           onMarkUnresponded={handleMarkUnresponded}
           noticeAckedAt={noticeAckedAt}
           onAcknowledgeNotice={handleAcknowledgeNotice}
+          noticeRequired={noticeRequired}
           onComplete={handleComplete}
           reportTabSwitch={reportTabSwitch}
           saveTabExits={saveTabExits}
@@ -1712,6 +1758,7 @@ export const ActiveQuiz: React.FC<{
   /** Tennessen acknowledgment for this assignment; null until acknowledged. */
   noticeAckedAt: number | null;
   onAcknowledgeNotice: () => void;
+  noticeRequired?: boolean;
   onComplete: (opts?: { timeUp?: boolean }) => Promise<void>;
   reportTabSwitch: () => Promise<number>;
   saveTabExits?: (exits: TabExit[]) => Promise<void>;
@@ -1745,6 +1792,7 @@ export const ActiveQuiz: React.FC<{
   onMarkUnresponded,
   noticeAckedAt,
   onAcknowledgeNotice,
+  noticeRequired = true,
   onComplete,
   reportTabSwitch,
   saveTabExits,
@@ -3380,6 +3428,24 @@ export const ActiveQuiz: React.FC<{
     sectionServedIds
   );
   const quizDone = myResponse?.status === 'completed';
+  const handBesideNext =
+    !!whiteboardConfig && isStudentPaced && !(sectionLocked && sectionState);
+  const raiseHandButton =
+    session.handRaiseEnabled === true && session.mode !== 'view-only' ? (
+      <button
+        onClick={() => void handleToggleHand()}
+        disabled={handBusy}
+        aria-pressed={handRaised}
+        className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold border transition-colors disabled:opacity-60 ${
+          handRaised
+            ? 'bg-brand-red-primary border-brand-red-primary text-white'
+            : 'bg-transparent border-red-400 text-red-300 hover:bg-red-500/10'
+        }`}
+      >
+        <Hand className="w-4 h-4" aria-hidden />
+        {handRaised ? 'Hand raised — help is coming' : 'Raise hand'}
+      </button>
+    ) : null;
   const canClearSectionAnswer =
     isStudentPaced &&
     !quizDone &&
@@ -3469,7 +3535,9 @@ export const ActiveQuiz: React.FC<{
     // on widescreens; this guarantees the narrow-viewport path stays
     // scroll-free regardless of what's rendered inside.
     <div
-      className={`h-screen [height:100dvh] overflow-y-auto overflow-x-hidden relative ${appBg}`}
+      className={`h-screen [height:100dvh] overflow-y-auto overflow-x-hidden relative ${
+        whiteboardConfig ? 'flex flex-col' : ''
+      } ${appBg}`}
     >
       {/* The "your teacher unlocked your attempt" prompt — covers the quiz
           UI on first render after a teacher unlock so the student knows
@@ -3672,9 +3740,9 @@ export const ActiveQuiz: React.FC<{
 
         <div
           {...clipboardGuards}
-          className={`flex flex-col p-6 w-full min-w-0 ${
-            sideStimuli.length > 0 ? 'lg:flex-1' : 'mx-auto'
-          } ${
+          className={`flex flex-col w-full min-w-0 ${
+            whiteboardConfig ? 'flex-1 px-6 py-4' : 'p-6'
+          } ${sideStimuli.length > 0 ? 'lg:flex-1' : 'mx-auto'} ${
             // Free Response gets elbow room for long-form writing; structured
             // inputs read worse stretched across a widescreen.
             whiteboardConfig
@@ -3685,7 +3753,9 @@ export const ActiveQuiz: React.FC<{
           }`}
         >
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
+          <div
+            className={`flex items-center justify-between ${whiteboardConfig ? 'mb-3' : 'mb-6'}`}
+          >
             <div className="flex items-center gap-2">
               {isStudentPaced &&
                 localIndex > 0 &&
@@ -3860,21 +3930,31 @@ export const ActiveQuiz: React.FC<{
           ) : (
             <>
               {recordingConfig && (
-                <div className="space-y-4">
+                <div
+                  className={
+                    whiteboardConfig
+                      ? 'flex flex-1 flex-col gap-3'
+                      : 'space-y-4'
+                  }
+                >
                   {whiteboardConfig ? (
                     // The capture stays mounted under the gate so a live take survives rotation.
                     <div
-                      className={
-                        whiteboardGated ? 'relative min-h-[16rem]' : 'relative'
-                      }
+                      className={`relative flex flex-1 flex-col ${
+                        whiteboardGated ? 'min-h-[16rem]' : ''
+                      }`}
                     >
-                      <div inert={whiteboardGated}>
+                      <div
+                        inert={whiteboardGated}
+                        className="flex flex-1 flex-col"
+                      >
                         <WhiteboardResponseCapture
                           key={currentQuestion.id}
                           config={whiteboardConfig}
                           takesCommitted={committedTakes}
                           noticeAckedAt={noticeAckedAt}
                           onAcknowledgeNotice={onAcknowledgeNotice}
+                          noticeRequired={noticeRequired}
                           onCommit={(take) =>
                             onCommitWhiteboard
                               ? onCommitWhiteboard(
@@ -3910,6 +3990,7 @@ export const ActiveQuiz: React.FC<{
                       takesCommitted={committedTakes}
                       noticeAckedAt={noticeAckedAt}
                       onAcknowledgeNotice={onAcknowledgeNotice}
+                      noticeRequired={noticeRequired}
                       onCommit={(take) =>
                         onCommitRecording(
                           currentQuestion.id,
@@ -3939,7 +4020,10 @@ export const ActiveQuiz: React.FC<{
                     <div className="space-y-3">
                       {currentIndex >= effectiveTotalQuestions - 1 &&
                         saveError && <SaveErrorBanner message={saveError} />}
-                      <div className="flex justify-end">
+                      <div className="flex items-center justify-end gap-3">
+                        {handBesideNext && raiseHandButton && (
+                          <div className="mr-auto">{raiseHandButton}</div>
+                        )}
                         <button
                           type="button"
                           onClick={
@@ -4571,25 +4655,10 @@ export const ActiveQuiz: React.FC<{
             </div>
           )}
 
-          {/* Raise hand */}
-          {session.handRaiseEnabled === true &&
-            session.mode !== 'view-only' && (
-              <div className="mt-6 flex justify-center">
-                <button
-                  onClick={() => void handleToggleHand()}
-                  disabled={handBusy}
-                  aria-pressed={handRaised}
-                  className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold border transition-colors disabled:opacity-60 ${
-                    handRaised
-                      ? 'bg-brand-red-primary border-brand-red-primary text-white'
-                      : 'bg-transparent border-red-400 text-red-300 hover:bg-red-500/10'
-                  }`}
-                >
-                  <Hand className="w-4 h-4" aria-hidden />
-                  {handRaised ? 'Hand raised — help is coming' : 'Raise hand'}
-                </button>
-              </div>
-            )}
+          {/* Raise hand (whiteboard questions show it beside Next to save height) */}
+          {raiseHandButton && !handBesideNext && (
+            <div className="mt-6 flex justify-center">{raiseHandButton}</div>
+          )}
         </div>
       </div>
     </div>

@@ -67,6 +67,7 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-monitor-declutter',
   'quiz-banks-in-library',
   'quiz-stimulus-quotes',
+  'quiz-submit-for-student',
   'quiz-calculator-stimulus',
 ];
 

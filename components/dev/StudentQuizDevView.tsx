@@ -10,6 +10,7 @@ import {
   makeStimulusQuizSession,
   makeTimedQuizSession,
   makeTimedStudentResponse,
+  makeWhiteboardQuizSession,
 } from './sessionViewsMocks';
 import { type StudentQuizStateKey } from './devViewStates';
 
@@ -24,7 +25,9 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
         ? makeStimulusQuizSession()
         : state === 'sq-calculator'
           ? makeCalculatorQuizSession()
-          : makeTimedQuizSession('active'),
+          : state === 'sq-whiteboard'
+            ? makeWhiteboardQuizSession()
+            : makeTimedQuizSession('active'),
     [state]
   );
   const response = makeTimedStudentResponse(
@@ -43,7 +46,7 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
         onRetryRecordingUpload={noop}
         canRetryRecordingUpload={() => false}
         onMarkUnresponded={noop}
-        noticeAckedAt={null}
+        noticeAckedAt={state === 'sq-whiteboard' ? 1_700_000_000_000 : null}
         onAcknowledgeNotice={() => undefined}
         onComplete={noop}
         reportTabSwitch={() => Promise.resolve(0)}

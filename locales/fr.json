@@ -2257,10 +2257,10 @@
     },
     "capture": {
       "title": "Spoken answer",
-      "takeUnlimited": "Take {{n}}",
-      "takeOf": "Take {{n}} of {{total}}",
+      "takeUnlimited": "Attempt {{n}}",
+      "takeOf": "Attempt {{n}} of {{total}}",
       "limitHint": "up to {{seconds}} seconds",
-      "prepLabel": "Thinking time",
+      "prepLabel": "Planning time",
       "prepBody": "Prépare ta réponse.",
       "requestingMic": "Asking to use your microphone…",
       "recordingLabel": "Recording",
@@ -2279,16 +2279,16 @@
       "recordAgain": "Record again",
       "stop": "Stop recording",
       "stopAndSubmit": "Stop and submit",
-      "commit": "Keep this take",
+      "commit": "Keep this attempt",
       "discard": "Discard",
       "retryUpload": "Try again",
       "playPlayback": "Play your recording",
       "pausePlayback": "Pause your recording",
       "submitQuiz": "Submit quiz",
       "nextQuestion": "Next",
-      "takeLimitReachedTitle": "No takes left",
-      "takeLimitReachedBody_one": "This question allows {{count}} take, and you have used it. Your last take is the one your teacher receives.",
-      "takeLimitReachedBody_other": "This question allows {{count}} takes, and you have used them all. Your last take is the one your teacher receives.",
+      "takeLimitReachedTitle": "No attempts left",
+      "takeLimitReachedBody_one": "This question allows {{count}} attempt, and you have used it. Your last attempt is the one your teacher receives.",
+      "takeLimitReachedBody_other": "This question allows {{count}} attempts, and you have used them all. Your last attempt is the one your teacher receives.",
       "submitBlockedTitle_one": "One question still needs a recording",
       "submitBlockedTitle_other": "{{count}} questions still need a recording",
       "submitBlockedBody_one": "The question stays incomplete and the assignment cannot be submitted. Go back and record an answer, then turn it in.",
@@ -2307,7 +2307,7 @@
       "windowClosedBody": "Your teacher will see this question without a whiteboard answer. Move on when you're ready.",
       "notSubmittedPending": "Not submitted yet. Your answer is still sending.",
       "notSubmittedFailed": "Your answer didn't send. Choose Try again.",
-      "notSubmittedFailedFinal": "Your answer didn't send and can't be sent from this device. Record again to send a new take."
+      "notSubmittedFailedFinal": "Your answer didn't send and can't be sent from this device. Record again to send a new attempt."
     },
     "unavailable": {
       "title": "Your microphone did not work",
@@ -2318,29 +2318,24 @@
       "formatTyped": "Typed",
       "formatSpoken": "Spoken",
       "formatWhiteboard": "Whiteboard",
-      "prepLabel": "Thinking time",
+      "prepLabel": "Planning time",
       "prepHint": "0 starts recording right away.",
       "limitLabel": "Recording limit",
       "limitHint": "Up to {{max}} seconds.",
       "limitClamped": "Capped at {{seconds}}s for {{mode}}.",
       "limitClampedAction": "Set to {{seconds}}s",
       "secondsUnit": "Sec",
-      "expiryLabel": "When thinking time runs out",
-      "expiryAutoStart": "Start recording",
-      "expiryAutoAdvance": "Move on",
-      "expiryArmed": "Wait for them",
-      "expiryUnanswered": "Mark unanswered",
-      "expiryUnansweredHint": "Comes to you ungraded.",
-      "takeLimitLabel": "Takes allowed",
+      "expiryLabel": "After planning time",
+      "expiryAutoStart": "Recording starts",
+      "expiryArmed": "Student presses Record",
+      "takeLimitLabel": "Attempts allowed",
       "takeLimitUnlimited": "Unlimited",
-      "takeLimitHint": "A take is a recording the student keeps, not one they discard.",
+      "takeLimitHint": "How many times a student can record this answer. Each new recording replaces the last, and only the final one is turned in.",
       "reviewLabel": "Students review before submitting",
-      "timeLimitDisabledHint": "Set by the recording timer.",
       "modeLabelAudio": "audio",
       "modeLabelVideo": "video",
       "modeLabelWhiteboard": "whiteboard",
       "whiteboard": {
-        "explainAloudLabel": "Students explain out loud",
         "startingPageLabel": "Starting page",
         "pattern": {
           "blank": "Blank",
@@ -2366,11 +2361,15 @@
           "polygon": "Polygon"
         },
         "sides": "Sides",
-        "addImage": "Add image",
-        "replaceImage": "Replace image",
         "removeImage": "Remove image",
-        "imagePasteHint": "Pick a file, or paste an image here.",
-        "previewLabel": "Starting page preview"
+        "previewLabel": "Starting page preview",
+        "previewPage": "Preview",
+        "captureLabel": "Recording",
+        "screenOnly": "Screen only",
+        "screenAndAudio": "Screen & Audio",
+        "insertImage": "Insert image",
+        "insertImageDrop": "Drop an image here, or press Ctrl+V to paste one.",
+        "chooseFile": "Choose file"
       },
       "advisory": {
         "title": "Heads up",
@@ -2452,11 +2451,11 @@
         "body": "Dès que les élèves répondent à une question à réponse libre, écrite ou orale, ils apparaissent ici."
       },
       "takes": {
-        "title": "Takes",
-        "count_one": "{{count}} take recorded",
-        "count_other": "{{count}} takes recorded",
-        "take": "Take {{n}}",
-        "pinNote": "Scores use the last take.",
+        "title": "Attempts",
+        "count_one": "{{count}} attempt recorded",
+        "count_other": "{{count}} attempts recorded",
+        "take": "Attempt {{n}}",
+        "pinNote": "Scores use the last attempt.",
         "status": {
           "archiving": "Still saving",
           "archive-failed": "Not saved",
@@ -2486,8 +2485,8 @@
         "loading": "Loading the recording…",
         "loadFailed": "The recording could not be loaded from your Google Drive. Check that you are still signed in to Google and try again.",
         "retry": "Try again",
-        "play": "Play this take",
-        "pause": "Pause this take",
+        "play": "Play this attempt",
+        "pause": "Pause this attempt",
         "scrubber": "Playback position",
         "skipToSpeech": "Skip to next speech",
         "valueText": "{{elapsed}} of {{total}}",
@@ -2516,7 +2515,7 @@
           },
           "unknown": {
             "title": "Not available",
-            "body": "This take cannot be played right now."
+            "body": "This attempt cannot be played right now."
           }
         }
       },
@@ -2606,7 +2605,7 @@
       "label": "Your recorded answer",
       "play": "Play your recording",
       "loading": "Loading your recording…",
-      "gradedTake": "Your teacher graded take {{n}}.",
+      "gradedTake": "Your teacher graded attempt {{n}}.",
       "archiving": "Your recording is still being saved. Check back in a few minutes.",
       "failed": "Your recording is still being saved — the system keeps trying on its own. Check back later.",
       "deleted": "This recording has been deleted and can no longer be played.",
@@ -2629,6 +2628,17 @@
       "lost": "Your whiteboard could not be saved and can no longer be recovered. Your teacher can see that you answered.",
       "missing": "There is no whiteboard saved for this question.",
       "tooLarge": "This whiteboard is too large to show here. Ask your teacher to show it to you."
+    },
+    "micGate": {
+      "title": "Active ton micro",
+      "body": "Ce quiz contient des questions auxquelles tu réponds à voix haute. Autorise le micro pour commencer.",
+      "askingBody": "Choisis Autoriser dans la fenêtre de ton navigateur.",
+      "allow": "Autoriser le micro",
+      "blockedTitle": "Le micro est bloqué",
+      "blockedBody": "Clique sur l’icône à gauche de la barre d’adresse, active le micro, puis réessaie.",
+      "noMicTitle": "Aucun micro trouvé",
+      "noMicBody": "Branche un micro ou un casque, puis réessaie.",
+      "retry": "Réessayer"
     }
   },
   "annotation": {
@@ -4104,7 +4114,11 @@
         "thick": "Épais"
       },
       "undo": "Annuler",
-      "redo": "Rétablir"
+      "redo": "Rétablir",
+      "zoom": "Zoom",
+      "zoomIn": "Zoom avant",
+      "zoomOut": "Zoom arrière",
+      "zoomReset": "Ajuster la page"
     },
     "drawer": {
       "show": "Show materials",

@@ -577,6 +577,37 @@ export function makeStimulusQuizSession(): QuizSession {
   };
 }
 
+/** A self-paced session whose first question is a whiteboard response. */
+export function makeWhiteboardQuizSession(): QuizSession {
+  const base = makeTimedQuizSession('active');
+  const [first, ...rest] = base.publicQuestions;
+  return {
+    ...base,
+    mediaResponseEnabled: true,
+    whiteboardResponseEnabled: true,
+    publicQuestions: [
+      {
+        ...first,
+        type: 'free-response',
+        timeLimit: 0,
+        text: 'What keeps the planets moving in orbits around the Sun instead of flying off into space or falling into the Sun? Draw it and explain.',
+        choices: undefined,
+        recording: {
+          mode: 'whiteboard',
+          prepSeconds: 0,
+          limitSeconds: 180,
+          prepExpiry: 'armed',
+          takeLimit: 2,
+          explainAloud: true,
+          review: true,
+          startingPage: { pattern: { kind: 'grid' } },
+        },
+      },
+      ...rest,
+    ],
+  };
+}
+
 /** Self-paced math question with a Desmos graphing calculator beside it. */
 export function makeCalculatorQuizSession(): QuizSession {
   const base = makeTimedQuizSession('active');
