@@ -715,17 +715,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // PLC sharing for flashcard sets and results. Admin-only until Paul has tried it.
-  'plc-flashcards': {
-    label: 'PLC flashcards',
-    icon: Layers,
-    description: 'Share flashcard sets and results with a PLC.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'standards-from-question-text': {
     label: 'Standards typed in questions',
     icon: BookMarked,

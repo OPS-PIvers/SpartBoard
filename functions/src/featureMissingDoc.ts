@@ -21,7 +21,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-results-print',
   'plc-home-v2',
   'plc-norming-flags',
-  'plc-flashcards',
   'standards-from-question-text',
   'modal-fullscreen',
   'quiz-results-tools',
