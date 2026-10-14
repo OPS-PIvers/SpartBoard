@@ -36,7 +36,8 @@ const makeStream = (deviceId: string) =>
   }) as unknown as MediaStream;
 
 describe('WebcamWidget camera acquisition', () => {
-  const getUserMedia = vi.fn();
+  const getUserMedia =
+    vi.fn<(c: MediaStreamConstraints) => Promise<MediaStream>>();
   const enumerateDevices = vi.fn();
 
   beforeEach(() => {
@@ -46,16 +47,15 @@ describe('WebcamWidget camera acquisition', () => {
       { kind: 'videoinput', deviceId: 'cam-a', label: 'A' },
       { kind: 'videoinput', deviceId: 'cam-b', label: 'B' },
     ]);
-    getUserMedia.mockImplementation(
-      (c: MediaStreamConstraints) =>
-        Promise.resolve(
-          makeStream(
-            (c.video as MediaTrackConstraints).deviceId
-              ? ((c.video as MediaTrackConstraints).deviceId as { exact: string })
-                  .exact
-              : 'cam-a'
-          )
+    getUserMedia.mockImplementation((c: MediaStreamConstraints) =>
+      Promise.resolve(
+        makeStream(
+          (c.video as MediaTrackConstraints).deviceId
+            ? ((c.video as MediaTrackConstraints).deviceId as { exact: string })
+                .exact
+            : 'cam-a'
         )
+      )
     );
     Object.defineProperty(navigator, 'mediaDevices', {
       configurable: true,
@@ -71,14 +71,14 @@ describe('WebcamWidget camera acquisition', () => {
     render(<WebcamWidget widget={widget} />);
     await waitFor(() => expect(enumerateDevices).toHaveBeenCalled());
     await waitFor(() =>
-      expect(screen.getByTitle("Switch Camera")).toBeTruthy()
+      expect(screen.getByTitle('Switch Camera')).toBeTruthy()
     );
     expect(getUserMedia).toHaveBeenCalledTimes(1);
   });
 
   it('switches to the other camera on the first click', async () => {
     render(<WebcamWidget widget={widget} />);
-    const btn = await screen.findByTitle("Switch Camera");
+    const btn = await screen.findByTitle('Switch Camera');
     fireEvent.click(btn);
     await waitFor(() => expect(getUserMedia).toHaveBeenCalledTimes(2));
     expect(getUserMedia.mock.calls[1][0].video).toEqual({
