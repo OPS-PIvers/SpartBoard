@@ -3,6 +3,7 @@ import type { QuizPublicQuestion, RecordingConfig } from '@/types';
 import {
   buildWhiteboardTakeArtifacts,
   noticeDrawingForSession,
+  sessionNeedsMic,
   studentRecordingFor,
 } from './quizWhiteboardSession';
 
@@ -55,6 +56,21 @@ describe('noticeDrawingForSession', () => {
   it('is draw-only when no question uses the mic', () => {
     expect(noticeDrawingForSession(both, [drawOnly, drawOnly])).toBe(
       'draw-only'
+    );
+  });
+});
+
+describe('sessionNeedsMic', () => {
+  it('is true for a spoken or narrated question', () => {
+    expect(sessionNeedsMic(both, [q(undefined, 'MC'), audio])).toBe(true);
+    expect(sessionNeedsMic(both, [narrated])).toBe(true);
+  });
+
+  it('is false for draw-only, no recording, or an unstamped session', () => {
+    expect(sessionNeedsMic(both, [drawOnly, q()])).toBe(false);
+    expect(sessionNeedsMic({}, [audio])).toBe(false);
+    expect(sessionNeedsMic({ mediaResponseEnabled: true }, [narrated])).toBe(
+      false
     );
   });
 });

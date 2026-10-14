@@ -51,6 +51,8 @@ export interface AudioResponseCaptureProps {
   /** Notice acknowledgment for this assignment; null until the student acks. */
   noticeAckedAt: number | null;
   onAcknowledgeNotice: () => void;
+  /** False when an admin turned the recording notice off. */
+  noticeRequired?: boolean;
   /** Resolves once the take is written; rejects to surface the failed state. */
   onCommit: (take: AudioTake) => Promise<void>;
   /** Re-sends the failed take's own artifact; absent when the bytes are gone. */
@@ -83,6 +85,7 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
   takesCommitted,
   noticeAckedAt,
   onAcknowledgeNotice,
+  noticeRequired = true,
   onCommit,
   onRetryUpload,
   onPrepExpired,
@@ -106,7 +109,7 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
   const [localCommitState, setCommitState] = useState<CommitState>('idle');
   const commitState = commitStateOverride ?? localCommitState;
 
-  const acknowledged = noticeAckedAt !== null;
+  const acknowledged = !noticeRequired || noticeAckedAt !== null;
   const remaining = takesRemaining(config, takesCommitted);
   const takeBudgetReached = remaining !== null && remaining <= 0;
 
@@ -374,12 +377,14 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
               </p>
             </div>
           </div>
-          <RecordingNoticeReminder
-            ref={reminderRef}
-            light={light}
-            disabled={phase === 'recording'}
-            onOpen={() => setShowNotice(true)}
-          />
+          {noticeRequired && (
+            <RecordingNoticeReminder
+              ref={reminderRef}
+              light={light}
+              disabled={phase === 'recording'}
+              onOpen={() => setShowNotice(true)}
+            />
+          )}
         </div>
 
         <div className="mt-5">

@@ -42,6 +42,10 @@ import {
   normalizeViewAsUnlockSettings,
 } from '@/config/viewAs';
 import {
+  QUIZ_RECORDING_NOTICE_SETTINGS_DOC,
+  normalizeQuizRecordingNoticeSettings,
+} from '@/config/quizRecordingNotice';
+import {
   GROUP_REMINDER_EMAILS_SETTINGS_DOC,
   normalizeGroupReminderEmailsSettings,
 } from '@/config/groupReminderEmails';
@@ -142,5 +146,12 @@ export const ROLLOUT_SWITCHES: readonly RolloutSwitch[] = [
     title: 'Group reminder emails',
     description: 'Emails teachers at their pull-out group alert times.',
     normalize: normalizeGroupReminderEmailsSettings,
+  },
+  {
+    docId: QUIZ_RECORDING_NOTICE_SETTINGS_DOC,
+    title: 'Recording notice in quizzes',
+    description:
+      'Students read and accept a notice before their first quiz recording. On by default.',
+    normalize: normalizeQuizRecordingNoticeSettings,
   },
 ];

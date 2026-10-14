@@ -135,6 +135,8 @@ import {
 import { AudioResponseCapture } from './recording/AudioResponseCapture';
 import { WhiteboardResponseCapture } from './recording/WhiteboardResponseCapture';
 import { RecordingNoticeDrawingContext } from './recording/recordingNoticeDrawing';
+import { MicrophoneGate } from './recording/MicrophoneGate';
+import { useQuizRecordingNoticeSettings } from '@/hooks/useQuizRecordingNoticeSettings';
 import {
   StimulusDrawer,
   StimulusDrawerButton,
@@ -145,6 +147,7 @@ import { isWhiteboardRecording } from '@/config/quizRecordingDefaults';
 import {
   buildWhiteboardTakeArtifacts,
   noticeDrawingForSession,
+  sessionNeedsMic,
   studentRecordingFor,
   type WhiteboardTake,
 } from '@/utils/quizWhiteboardSession';
@@ -940,6 +943,17 @@ const QuizJoinFlow: React.FC<{
     }
   }, [acknowledgeRecordingNotice, noticeAckKey]);
 
+  const recordingNotice = useQuizRecordingNoticeSettings(
+    session?.mediaResponseEnabled === true
+  );
+  const noticeRequired = recordingNotice.settings.enabled;
+  // The session whose mic check passed on this page; a reload asks again.
+  const [micReadyFor, setMicReadyFor] = useState<string | null>(null);
+  const sessionIdForMic = session?.id ?? null;
+  const handleMicReady = useCallback(() => {
+    setMicReadyFor(sessionIdForMic);
+  }, [sessionIdForMic]);
+
   // Bytes for takes whose archive failed, so "Try again" re-sends the SAME
   // artifact (same storagePath) instead of pretending something is retrying.
   const retryableTakesRef = useRef(new Map<string, Blob>());
@@ -1551,6 +1565,37 @@ const QuizJoinFlow: React.FC<{
         )
       : false;
 
+    const needsMicGate =
+      !isViewOnly &&
+      micReadyFor !== session.id &&
+      myResponse.status !== 'completed' &&
+      sessionNeedsMic(session, publicQuestions);
+    if (needsMicGate) {
+      return (
+        <RecordingNoticeDrawingContext.Provider
+          value={noticeDrawingForSession(session, publicQuestions)}
+        >
+          {recordingNotice.loaded ? (
+            <MicrophoneGate
+              light={session.sessionMode === 'student'}
+              noticeRequired={noticeRequired}
+              noticeAckedAt={noticeAckedAt}
+              onAcknowledgeNotice={handleAcknowledgeNotice}
+              onReady={handleMicReady}
+            />
+          ) : (
+            <div
+              className={`h-screen [height:100dvh] ${
+                session.sessionMode === 'student'
+                  ? 'bg-gradient-to-b from-white to-slate-100'
+                  : 'bg-slate-900'
+              }`}
+            />
+          )}
+        </RecordingNoticeDrawingContext.Provider>
+      );
+    }
+
     return (
       <RecordingNoticeDrawingContext.Provider
         value={noticeDrawingForSession(session, session.publicQuestions ?? [])}
@@ -1568,6 +1613,7 @@ const QuizJoinFlow: React.FC<{
           onMarkUnresponded={handleMarkUnresponded}
           noticeAckedAt={noticeAckedAt}
           onAcknowledgeNotice={handleAcknowledgeNotice}
+          noticeRequired={noticeRequired}
           onComplete={handleComplete}
           reportTabSwitch={reportTabSwitch}
           saveTabExits={saveTabExits}
@@ -1712,6 +1758,7 @@ export const ActiveQuiz: React.FC<{
   /** Tennessen acknowledgment for this assignment; null until acknowledged. */
   noticeAckedAt: number | null;
   onAcknowledgeNotice: () => void;
+  noticeRequired?: boolean;
   onComplete: (opts?: { timeUp?: boolean }) => Promise<void>;
   reportTabSwitch: () => Promise<number>;
   saveTabExits?: (exits: TabExit[]) => Promise<void>;
@@ -1745,6 +1792,7 @@ export const ActiveQuiz: React.FC<{
   onMarkUnresponded,
   noticeAckedAt,
   onAcknowledgeNotice,
+  noticeRequired = true,
   onComplete,
   reportTabSwitch,
   saveTabExits,
@@ -3875,6 +3923,7 @@ export const ActiveQuiz: React.FC<{
                           takesCommitted={committedTakes}
                           noticeAckedAt={noticeAckedAt}
                           onAcknowledgeNotice={onAcknowledgeNotice}
+                          noticeRequired={noticeRequired}
                           onCommit={(take) =>
                             onCommitWhiteboard
                               ? onCommitWhiteboard(
@@ -3910,6 +3959,7 @@ export const ActiveQuiz: React.FC<{
                       takesCommitted={committedTakes}
                       noticeAckedAt={noticeAckedAt}
                       onAcknowledgeNotice={onAcknowledgeNotice}
+                      noticeRequired={noticeRequired}
                       onCommit={(take) =>
                         onCommitRecording(
                           currentQuestion.id,

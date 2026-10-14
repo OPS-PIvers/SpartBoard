@@ -55,6 +55,18 @@ export function noticeDrawingForSession(
   return voice ? 'narrated' : 'draw-only';
 }
 
+/** True when any question this session serves records the student's voice. */
+export function sessionNeedsMic(
+  session: SessionGates,
+  questions: readonly Pick<QuizPublicQuestion, 'type' | 'recording'>[]
+): boolean {
+  return questions.some((q) => {
+    const recording = studentRecordingFor(q, session);
+    if (!recording) return false;
+    return !isWhiteboardRecording(recording) || whiteboardUsesMic(recording);
+  });
+}
+
 /** One take's artifacts in upload order: picture, log, then audio (D19). */
 export function buildWhiteboardTakeArtifacts(
   take: WhiteboardTake,
