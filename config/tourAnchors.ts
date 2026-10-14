@@ -2735,6 +2735,12 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'quiz-results.bulk-submit': {
+    label: 'Submit for students in Quiz results',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
   'quiz-results.bulk-clear': {
     label: 'Clear selection in Quiz results',
     perWidgetType: true,
@@ -3215,6 +3221,12 @@ export const TOUR_ANCHORS = {
   },
   'quiz-monitor.student-unlock-attempt': {
     label: 'Unlock attempt item in the Quiz monitor student menu',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-monitor.student-submit': {
+    label: 'Submit for student item in the Quiz monitor student menu',
     perWidgetType: true,
     persists: true,
     panel: true,

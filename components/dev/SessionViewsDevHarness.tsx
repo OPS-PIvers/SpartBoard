@@ -21,6 +21,7 @@
 import React, { useState } from 'react';
 import { DialogProvider } from '@/context/DialogContext';
 import { AuthProvider } from '@/context/AuthContext';
+import { DialogContainer } from '@/components/common/DialogContainer';
 import { CustomWidgetsProvider } from '@/context/CustomWidgetsContext';
 import { SavedWidgetsProvider } from '@/context/SavedWidgetsContext';
 import { DashboardProvider } from '@/context/DashboardContext';
@@ -88,6 +89,12 @@ const DEFAULT_STATE_FOR_VIEW: Record<ViewKey, StateKey> = {
 const WIDTHS = [340, 520, 820];
 
 const noop = (): Promise<void> => Promise.resolve();
+
+const HARNESS_RESULTS_ACTIONS = {
+  publish: () => Promise.resolve({ responsesUpdated: 0, skipped: 0 }),
+  hide: noop,
+  clear: noop,
+};
 
 /** Holds monitor config so header/settings toggles (e.g. Board view) work in the harness. */
 const QuizMonitorDev: React.FC<
@@ -217,6 +224,7 @@ const SessionView: React.FC<{
         onResume={noop}
         onRemoveStudent={noop}
         onUnlockStudent={noop}
+        onSubmitForStudent={noop}
         onUnlockResultsForStudent={noop}
         onRevealAnswer={noop}
         onHideAnswer={noop}
@@ -279,6 +287,8 @@ const SessionView: React.FC<{
         config={makeQuizConfig()}
         session={makeQuizSession('ended')}
         onBack={() => undefined}
+        onSubmitStudent={noop}
+        studentResultsActions={HARNESS_RESULTS_ACTIONS}
       />
     );
   }
@@ -438,6 +448,7 @@ export const SessionViewsDevHarness: React.FC = () => {
                 </div>
               </div>
             </DashboardProvider>
+            <DialogContainer />
           </SavedWidgetsProvider>
         </CustomWidgetsProvider>
       </AuthProvider>

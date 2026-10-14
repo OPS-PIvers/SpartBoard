@@ -63,7 +63,7 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, canAccessFeature } = useAuth();
   const { addToast, rosters } = useDashboard();
   const { loadQuizData } = useQuiz(user?.uid);
   const {
@@ -86,6 +86,7 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
     endQuizSession,
     removeStudent,
     unlockStudentAttempt,
+    submitForStudent,
     unlockResultsForStudent,
     clearHandForStudent,
     revealAnswer,
@@ -276,6 +277,11 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
         onUpdateConfig={handleUpdateConfig}
         onRemoveStudent={removeStudent}
         onUnlockStudent={unlockStudentAttempt}
+        onSubmitForStudent={
+          canAccessFeature('quiz-submit-for-student')
+            ? submitForStudent
+            : undefined
+        }
         onUnlockResultsForStudent={unlockResultsForStudent}
         onClearHand={clearHandForStudent}
         onRevealAnswer={revealAnswer}
