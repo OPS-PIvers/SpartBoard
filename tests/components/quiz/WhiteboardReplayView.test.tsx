@@ -35,18 +35,17 @@ const mockSliderRect = () => {
 
 const lastAt = () => cursorAt.mock.calls.at(-1)?.[0];
 
-const fakeCtx = (canvas: HTMLCanvasElement) =>
-  new Proxy(
-    { canvas },
-    {
-      get: (target, key: string): unknown =>
-        key in target ? target[key] : () => undefined,
-      set: (target, key: string, value) => {
-        target[key] = value;
-        return true;
-      },
-    }
-  );
+const fakeCtx = (canvas: HTMLCanvasElement) => {
+  const state: Record<string, unknown> = { canvas };
+  return new Proxy(state, {
+    get: (target, key: string): unknown =>
+      key in target ? target[key] : () => undefined,
+    set: (target, key: string, value: unknown) => {
+      target[key] = value;
+      return true;
+    },
+  });
+};
 
 beforeEach(() => {
   cursorAt.mockClear();
