@@ -20,7 +20,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'per-period-access',
   'plc-home-v2',
   'plc-norming-flags',
-  'plc-flashcards',
   'standards-from-question-text',
   'modal-fullscreen',
   'quiz-results-tools',

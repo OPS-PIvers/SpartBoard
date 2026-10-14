@@ -9953,8 +9953,6 @@ export type GlobalFeature =
   | 'plc-home-v2'
   /** Flag free-response answers so an anonymized copy appears on the PLC page for norming. */
   | 'plc-norming-flags'
-  /** Share flashcard sets and class-level flashcard results with a PLC. */
-  | 'plc-flashcards'
   /** Standard codes typed in or imported with a question text become Learning targets tags. */
   | 'standards-from-question-text'
   /** "View full screen" toggle on large pop-ups (editors, graders). */
