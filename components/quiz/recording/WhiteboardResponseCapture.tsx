@@ -172,14 +172,29 @@ export const WhiteboardResponseCapture: React.FC<
     () => undefined
   );
 
-  const saveLog = useCallback((log: WhiteboardLog) => {
-    const r = recoveryRef.current;
-    if (r) void r.store.setLog(r.key, serializeWhiteboardLog(log), Date.now());
-  }, []);
-  const wipeRecovery = useCallback(async () => {
-    const r = recoveryRef.current;
-    if (r) await r.store.remove(r.key);
-  }, []);
+  // Recovery writes run in order, so a late chunk never lands after a wipe.
+  const recoveryWritesRef = useRef<Promise<void>>(Promise.resolve());
+  const queueRecovery = useCallback(
+    (op: (store: TakeRecoveryStore, key: string) => Promise<void>) => {
+      const r = recoveryRef.current;
+      if (!r) return;
+      recoveryWritesRef.current = recoveryWritesRef.current
+        .then(() => op(r.store, r.key))
+        .catch(() => undefined);
+    },
+    []
+  );
+  const saveLog = useCallback(
+    (log: WhiteboardLog) =>
+      queueRecovery((store, key) =>
+        store.setLog(key, serializeWhiteboardLog(log), Date.now())
+      ),
+    [queueRecovery]
+  );
+  const wipeRecovery = useCallback(
+    () => queueRecovery((store, key) => store.remove(key)),
+    [queueRecovery]
+  );
   const recoveryRef = useRef(recovery);
   const onCommitRef = useRef(onCommit);
   const reviewOnRef = useRef(reviewOn);
@@ -216,6 +231,8 @@ export const WhiteboardResponseCapture: React.FC<
     (captured: WhiteboardCapturedTake): Promise<void> => {
       if (inFlightRef.current) return inFlightRef.current;
       setCommitState('committing');
+      // Same as spoken takes: the local copy goes once the take is handed off.
+      wipeRecovery();
       const run = (async () => {
         try {
           const picture = await renderPicture(captured);
@@ -228,22 +245,19 @@ export const WhiteboardResponseCapture: React.FC<
             durationMs: captured.durationMs,
             micState: captured.micState,
           });
-          await wipeRecovery();
           setCommitState('idle');
-          return true;
         } catch {
           setCommitState('archive-failed');
-          return false;
         }
-      })().then((ok) => {
+      })().then(() => {
         inFlightRef.current = null;
-        // A written take leaves review and the board starts over (D13).
-        if (ok) finishTakeRef.current();
+        // Like spoken takes, a failed send re-arms; the banner offers the retry.
+        finishTakeRef.current();
       });
       inFlightRef.current = run;
       return run;
     },
-    [renderPicture]
+    [renderPicture, wipeRecovery]
   );
 
   const handleTakeReady = useCallback(
@@ -274,13 +288,12 @@ export const WhiteboardResponseCapture: React.FC<
     onTakeReady: handleTakeReady,
     onBeforeStop: () => canvasRef.current?.flush(),
     onStarted: ({ mimeType, micState }) => {
-      const r = recoveryRef.current;
-      if (!r) return;
-      void r.store.begin(r.key, mimeType, Date.now(), { micState });
+      const at = Date.now();
+      queueRecovery((store, key) => store.begin(key, mimeType, at, { micState }));
     },
     onAudioChunk: (chunk) => {
-      const r = recoveryRef.current;
-      if (r) void r.store.appendChunk(r.key, chunk, Date.now());
+      const at = Date.now();
+      queueRecovery((store, key) => store.appendChunk(key, chunk, at));
     },
     deps: recorderDeps,
   });
@@ -363,7 +376,7 @@ export const WhiteboardResponseCapture: React.FC<
 
   const handleDiscard = useCallback(() => {
     recorder.discard();
-    void wipeRecovery();
+    wipeRecovery();
     resetBoard();
   }, [recorder, resetBoard, wipeRecovery]);
 
