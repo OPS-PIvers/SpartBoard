@@ -29,10 +29,10 @@ export function normalizeAiModelId(raw: unknown): string | undefined {
     : undefined;
 }
 
-/** Whether a model can read every input kind an integration sends. */
+/** Whether a model can serve an integration; a Word file falls back to Gemini in aiRouter. */
 export const modelSupportsInputs = (
   model: string,
   inputs: readonly AiInputKind[]
 ): boolean =>
   providerOf(model) === 'gemini' ||
-  inputs.every((kind) => CLAUDE_INPUTS.includes(kind));
+  inputs.every((kind) => kind === 'docx' || CLAUDE_INPUTS.includes(kind));
