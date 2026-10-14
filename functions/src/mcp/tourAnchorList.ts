@@ -10592,25 +10592,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-stimuli.calculator-kind",
-    "label": "Calculator type picker in the Quiz widget",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "quiz.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:quiz",
-          "library-shell.new-menu-item:quiz#item-1"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "quiz-stimuli.card-delete",
     "label": "Delete stimulus in the Quiz widget",
     "scope": "field",

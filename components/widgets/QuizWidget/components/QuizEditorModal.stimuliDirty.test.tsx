@@ -169,36 +169,4 @@ describe('QuizEditorModal isDirty (stimuli compare)', () => {
 
     expect(dirtyAttr()).toBe('true');
   });
-
-  it('flips dirty when the calculator kind changes', () => {
-    const calcQuiz: QuizData = {
-      ...stimulusQuiz,
-      stimuli: [
-        {
-          id: 's1',
-          type: 'calculator',
-          url: '',
-          label: 'Calculator',
-          calculator: 'graphing',
-        },
-      ],
-    };
-    render(
-      <QuizEditorModal
-        isOpen
-        quiz={calcQuiz}
-        onClose={vi.fn()}
-        onSave={vi.fn()}
-      />
-    );
-    expect(dirtyAttr()).toBe('false');
-
-    fireEvent.click(screen.getByRole('button', { name: /^stimuli$/i }));
-
-    const context = within(screen.getByTestId('context-pane'));
-    fireEvent.click(context.getByRole('button', { name: 'Expand stimulus' }));
-    fireEvent.click(context.getByRole('radio', { name: 'Scientific' }));
-
-    expect(dirtyAttr()).toBe('true');
-  });
 });

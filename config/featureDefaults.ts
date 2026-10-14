@@ -606,8 +606,7 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
   'quiz-calculator-stimulus': {
     label: 'Calculator stimulus',
     icon: Calculator,
-    description:
-      'Teachers attach a Desmos graphing, scientific or four-function calculator to quiz questions.',
+    description: 'Teachers attach a Desmos calculator to quiz questions.',
     stage: 'preview',
     afterLaunch: 'keep',
     category: 'students',

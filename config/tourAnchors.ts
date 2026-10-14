@@ -2509,11 +2509,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
-  'quiz-stimuli.calculator-kind': {
-    label: 'Calculator type picker in the Quiz widget',
-    perField: true,
-    panel: true,
-  },
   'quiz-stimuli.card-delete': {
     label: 'Delete stimulus in the Quiz widget',
     perField: true,
