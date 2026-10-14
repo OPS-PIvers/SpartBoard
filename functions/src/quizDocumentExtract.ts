@@ -22,6 +22,7 @@ import { ANTHROPIC_API_KEY } from './secrets';
 import { assertViewAsAllowed } from './viewAsGuard';
 
 export const QUIZ_DOCUMENT_IMPORT_FEATURE_ID = 'quiz-document-import';
+export const QUIZ_IMPORT_VERSIONS_FEATURE_ID = 'quiz-import-versions';
 export const GEMINI_FEATURE_ID = 'gemini-functions';
 /** D19: one import is one use of the teacher's existing `quiz` allowance. */
 export const QUIZ_QUOTA_FEATURE_ID = 'quiz';
@@ -60,6 +61,8 @@ export interface ExtractDocumentRequest {
   bytes: Buffer;
   /** The teacher has choose-all-that-apply, so the model may return MA. */
   multiAnswer?: boolean;
+  /** Look for versions first (QUIZ_IMPORT_VERSIONS V7); only honoured with the flag. */
+  versions?: boolean;
 }
 
 export interface AiExtractedOption {
@@ -116,6 +119,16 @@ export interface ExtractDocumentDeps {
     mimeType: string,
     multiAnswer: boolean
   ) => Promise<string>;
+  isVersionsGranted: (uid: string, email: string | null) => Promise<boolean>;
+  /** One model call over a document with its own prompt and schema (V11). */
+  generate: (
+    bytes: Buffer,
+    mimeType: string,
+    prompt: string,
+    schema: Schema
+  ) => Promise<string>;
+  /** A new PDF holding just these 1-based pages, in order. */
+  slicePdf: (bytes: Buffer, pages: number[]) => Promise<Buffer>;
   now: () => number;
 }
 
@@ -163,7 +176,13 @@ export function parseExtractDocumentRequest(
       'invalid-argument',
       'That file is too large to read. Split it and import the parts.'
     );
-  return { fileName, mimeType, bytes, multiAnswer: d.multiAnswer === true };
+  return {
+    fileName,
+    mimeType,
+    bytes,
+    multiAnswer: d.multiAnswer === true,
+    ...(d.versions === true ? { versions: true } : {}),
+  };
 }
 
 /**
@@ -323,21 +342,27 @@ function coerceOptions(value: unknown): AiExtractedOption[] {
  * model that answers with a zero-width box or a page that isn't there would
  * otherwise become a crop of nothing.
  */
+function coerceBox(raw: unknown): AiFigureBox | null {
+  const f = (raw ?? {}) as Record<string, unknown>;
+  const page = Number(f.page);
+  const x = Number(f.x);
+  const y = Number(f.y);
+  const width = Number(f.width);
+  const height = Number(f.height);
+  if (!Number.isInteger(page) || page < 1) return null;
+  if (![x, y, width, height].every((n) => Number.isFinite(n))) return null;
+  if (width <= 0 || height <= 0) return null;
+  if (x < 0 || y < 0 || x >= 1 || y >= 1) return null;
+  return { page, x, y, width, height };
+}
+
 function coerceFigures(value: unknown): AiFigureBox[] {
   if (!Array.isArray(value)) return [];
   const figures: AiFigureBox[] = [];
   for (const raw of value) {
-    const f = (raw ?? {}) as Record<string, unknown>;
-    const page = Number(f.page);
-    const x = Number(f.x);
-    const y = Number(f.y);
-    const width = Number(f.width);
-    const height = Number(f.height);
-    if (!Number.isInteger(page) || page < 1) continue;
-    if (![x, y, width, height].every((n) => Number.isFinite(n))) continue;
-    if (width <= 0 || height <= 0) continue;
-    if (x < 0 || y < 0 || x >= 1 || y >= 1) continue;
-    figures.push({ page, x, y, width, height });
+    const box = coerceBox(raw);
+    if (!box) continue;
+    figures.push(box);
     if (figures.length >= MAX_FIGURES) break;
   }
   return figures;
@@ -472,7 +497,696 @@ async function withDeadline<T>(
   }
 }
 
+// ── Versioned tests (docs/plans/QUIZ_IMPORT_VERSIONS.md V7, V11, V12) ────
+
+export type DocumentSectionKind = 'version' | 'rubric' | 'answer-key' | 'other';
+export type VersionGroupKind = 'parallel' | 'retake' | 'split';
+
+const SECTION_KINDS: readonly DocumentSectionKind[] = [
+  'version',
+  'rubric',
+  'answer-key',
+  'other',
+];
+const GROUP_KINDS: readonly VersionGroupKind[] = [
+  'parallel',
+  'retake',
+  'split',
+];
+
+/** 1-based, inclusive. */
+export interface PageRange {
+  start: number;
+  end: number;
+}
+
+export interface ExtractedVersion {
+  /** The heading as printed, e.g. "Version A" or "Unit 3 REASSESSMENT". */
+  label: string;
+  /** Absent for a Word file, which has no fixed pages. */
+  pages?: PageRange;
+  title: string;
+  /** Figure pages are the original file's, not the slice's. */
+  questions: AiExtractedQuestion[];
+  warnings: string[];
+}
+
+export interface AiRubricCriterion {
+  /** The row's letter as printed, e.g. "A". */
+  letter: string;
+  prompt: string;
+  /** The row's maximum, from the points column. */
+  points: number;
+  /** "Credit received for" lines, verbatim (V3). */
+  credit: string[];
+  /** "NOT ACCEPTABLE" and "NO POINTS AWARDED IF" lines, verbatim (V3). */
+  notes: string[];
+}
+
+/** A rubric as printed; pairing it with a version is the client's job (V14). */
+export interface ExtractedRubric {
+  label: string;
+  pages?: PageRange;
+  title: string;
+  /** The total the rubric prints, when it prints one (V16 checks the sum). */
+  printedTotal?: number;
+  criteria: AiRubricCriterion[];
+  warnings: string[];
+}
+
+/** The AI's proposed relationship between versions, confirmed in review (V8). */
+export interface VersionGroup {
+  kind: VersionGroupKind;
+  name: string;
+  /** Indexes into `ExtractedTestSet.versions`. */
+  versions: number[];
+}
+
+/** A picture pass 1 saw, with every version that prints it. */
+export interface SharedFigure extends AiFigureBox {
+  label?: string;
+  versions: number[];
+}
+
+export interface ExtractedTestSet {
+  kind: 'test-set';
+  title: string;
+  versions: ExtractedVersion[];
+  rubrics: ExtractedRubric[];
+  groups: VersionGroup[];
+  figures: SharedFigure[];
+  warnings: string[];
+}
+
+/** V12: the whole file's ceiling; each pass-2 call still holds MAX_DOCUMENT_PAGES. */
+export const MAX_VERSIONED_DOCUMENT_PAGES = 60;
+export const VERSIONED_DEADLINE_MS = 230_000;
+export const MAX_VERSIONS = 12;
+export const MAX_RUBRICS = 12;
+export const MAX_CRITERIA = 26;
+export const MAX_SHARED_FIGURES = 24;
+
+export interface MappedSection {
+  label: string;
+  pages?: PageRange;
+}
+
+/** Pass 1's answer, cleaned up. */
+export interface DocumentMap {
+  title: string;
+  versions: MappedSection[];
+  rubrics: MappedSection[];
+  /** Answer keys; `forVersion` absent means the key covers every version. */
+  keys: (MappedSection & { forVersion?: number })[];
+  groups: VersionGroup[];
+  figures: SharedFigure[];
+  warnings: string[];
+}
+
+export function buildDocumentMapSchema(): Schema {
+  const box = {
+    page: { type: Type.INTEGER },
+    x: { type: Type.NUMBER },
+    y: { type: Type.NUMBER },
+    width: { type: Type.NUMBER },
+    height: { type: Type.NUMBER },
+  };
+  return {
+    type: Type.OBJECT,
+    required: ['title', 'sections', 'figures', 'groups'],
+    properties: {
+      title: { type: Type.STRING },
+      sections: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          required: ['kind', 'label', 'startPage'],
+          properties: {
+            kind: { type: Type.STRING, enum: [...SECTION_KINDS] },
+            label: { type: Type.STRING },
+            startPage: { type: Type.INTEGER },
+            forVersion: { type: Type.STRING },
+          },
+        },
+      },
+      figures: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          required: ['page', 'x', 'y', 'width', 'height', 'versions'],
+          properties: {
+            ...box,
+            label: { type: Type.STRING },
+            versions: { type: Type.ARRAY, items: { type: Type.STRING } },
+          },
+        },
+      },
+      groups: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          required: ['kind', 'name', 'versions'],
+          properties: {
+            kind: { type: Type.STRING, enum: [...GROUP_KINDS] },
+            name: { type: Type.STRING },
+            versions: { type: Type.ARRAY, items: { type: Type.STRING } },
+          },
+        },
+      },
+    },
+  };
+}
+
+export const DOCUMENT_MAP_PROMPT = [
+  'You are mapping a teacher’s test document before it is read in detail.',
+  'Do not transcribe any questions.',
+  '',
+  'Some files hold several versions of one test. Each version starts on a new',
+  'page with a heading near the top of that page, such as "Version A",',
+  '"Form 2", "Unit 3 Version C", "Reassessment", "Retake" or',
+  '"Version Split Pt 1". The file may also hold rubrics, scoring guides and',
+  'answer keys.',
+  '',
+  'sections: every section of the document in page order, each with the',
+  '1-based page it starts on and its kind:',
+  '- version: one version of the test. label is its heading exactly as printed.',
+  '- rubric: a rubric or scoring guide. label is its heading as printed; when',
+  '  several rubrics print the same heading, add its position, e.g. "RUBRIC (2)".',
+  '- answer-key: an answer key. forVersion is the label of the version it',
+  '  belongs to, or empty when it covers every version.',
+  '- other: anything else, such as a cover page or general directions.',
+  'A section starts only where a heading near the top of a page begins it. A',
+  'page that continues the section before it (lined answer space, a Name line,',
+  'the rest of a rubric table) is not a new section.',
+  'A single test with no version headings has no version sections.',
+  '',
+  'figures: each picture, map, diagram or chart printed in a version, as its',
+  '1-based page and its box as fractions of the page from the top-left corner,',
+  'with its printed label (for example "MAP #1") and the labels of every',
+  'version that prints the same picture. Leave out logos and decoration.',
+  '',
+  'groups: how the versions relate, judged from their headings and content.',
+  '- parallel: versions given at the same sitting to different students, such',
+  '  as Version A and Version B.',
+  '- retake: versions for students taking the test again, such as a',
+  '  Reassessment or Retake.',
+  '- split: one test given in parts, such as Pt 1 and Pt 2.',
+  'name each group the way a teacher would name the quiz, for example',
+  '"Unit 3 FRQ" or "Unit 3 FRQ Retake". Each version belongs to one group at',
+  'most. Leave groups empty when there are no versions.',
+  '',
+  'title is the test’s name as printed, or empty when it prints none.',
+].join('\n');
+
+/** Pass 2, one version: today's prompt, scoped to the version (V1). */
+export function buildVersionPrompt(
+  label: string,
+  multiAnswer: boolean,
+  wholeDocument: boolean
+): string {
+  const scope = wholeDocument
+    ? [
+        'This document holds several versions of a test. Read only the version',
+        `headed "${label}", and its answer key if it has one. Ignore every other`,
+        'version and every rubric.',
+      ]
+    : [
+        `These pages are one version of a test, headed "${label}". Any pages`,
+        'after it are that version’s answer key. Read only this version.',
+      ];
+  return [
+    ...scope,
+    '',
+    'A prompt with lettered parts (A, B, C …) that share one answer space is',
+    'ONE free-response question. Keep its introduction and the whole lettered',
+    'list in its text, in order, exactly as printed. Never split the lettered',
+    'parts into separate questions. Lined answer space and a Name line are not',
+    'questions.',
+    '',
+    buildExtractPrompt(multiAnswer),
+  ].join('\n');
+}
+
+export function buildRubricSchema(): Schema {
+  return {
+    type: Type.OBJECT,
+    required: ['title', 'printedTotal', 'criteria', 'warnings'],
+    properties: {
+      title: { type: Type.STRING },
+      printedTotal: { type: Type.NUMBER },
+      criteria: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          required: ['letter', 'prompt', 'points', 'credit', 'notes'],
+          properties: {
+            letter: { type: Type.STRING },
+            prompt: { type: Type.STRING },
+            points: { type: Type.NUMBER },
+            credit: { type: Type.ARRAY, items: { type: Type.STRING } },
+            notes: { type: Type.ARRAY, items: { type: Type.STRING } },
+          },
+        },
+      },
+      warnings: { type: Type.ARRAY, items: { type: Type.STRING } },
+    },
+  };
+}
+
+/** Pass 2, one rubric: a transcription, never a summary (V3). */
+export function buildRubricPrompt(label: string, wholeDocument: boolean): string {
+  const scope = wholeDocument
+    ? `This document holds a test and its rubrics. Read only the rubric headed "${label}".`
+    : `These pages are one rubric from a teacher’s test, headed "${label}".`;
+  return [
+    scope,
+    'Transcribe it exactly. Never reword, summarize or correct it, and keep',
+    'spelling mistakes as printed.',
+    '',
+    'title: the rubric’s heading as printed.',
+    'criteria: one per lettered row, in order:',
+    '- letter: the row’s letter as printed (A, B, C …).',
+    '- prompt: the prompt or criterion text for that row, exactly as printed.',
+    '- points: the most points the row is worth, from its points column (for',
+    '  "/2" or "0 1 2" that is 2).',
+    '- credit: each line under "Credit received for" or similar, exactly as',
+    '  printed, one item per bullet or sub-bullet, without the bullet mark.',
+    '- notes: each "NOT ACCEPTABLE", "NO POINTS AWARDED IF" or similar line',
+    '  that says what earns no credit, exactly as printed.',
+    'Leave out "Teacher Comments" space and blank score lines.',
+    'printedTotal: the total points the rubric prints, or 0 when it prints none.',
+    'Use warnings for anything you could not read.',
+  ].join('\n');
+}
+
+const labelKey = (label: string): string =>
+  label.toLowerCase().replace(/\s+/g, ' ').trim();
+
+/** Two sections can't share a label, or groups and keys couldn't find them. */
+function uniqueLabel(label: string, taken: Set<string>): string {
+  let out = label;
+  for (let n = 2; taken.has(labelKey(out)); n++) out = `${label} (${n})`;
+  taken.add(labelKey(out));
+  return out;
+}
+
+function asStringList(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.map(asString).map((s) => s.trim()).filter(Boolean)
+    : [];
+}
+
+/**
+ * Pass 1's answer as sections with page ranges. A range runs to the page
+ * before the next section starts, so a model that only names start pages
+ * still gives every page to exactly one section. `pageCount` is null for a
+ * Word file, whose sections keep the model's order and have no pages.
+ */
+export function normalizeDocumentMap(
+  parsed: unknown,
+  pageCount: number | null,
+  fallbackTitle: string
+): DocumentMap {
+  const root = (parsed ?? {}) as Record<string, unknown>;
+  const warnings: string[] = [];
+  type Raw = {
+    kind: DocumentSectionKind;
+    label: string;
+    start: number;
+    forVersion: string;
+  };
+  let raws: Raw[] = [];
+  for (const item of Array.isArray(root.sections) ? root.sections : []) {
+    const s = (item ?? {}) as Record<string, unknown>;
+    const kind = s.kind as DocumentSectionKind;
+    if (!SECTION_KINDS.includes(kind)) continue;
+    const start = Number(s.startPage);
+    if (pageCount !== null) {
+      if (!Number.isInteger(start) || start < 1 || start > pageCount) continue;
+    }
+    raws.push({
+      kind,
+      label: asString(s.label).trim(),
+      start: Number.isInteger(start) ? start : 0,
+      forVersion: asString(s.forVersion).trim(),
+    });
+  }
+  if (pageCount !== null) {
+    // Stable sort, then one section per start page: the first one named wins.
+    raws = raws
+      .map((r, i) => ({ r, i }))
+      .sort((a, b) => a.r.start - b.r.start || a.i - b.i)
+      .map(({ r }) => r)
+      .filter((r, i, all) => i === 0 || all[i - 1].start !== r.start);
+  }
+
+  const pagesOf = (i: number): PageRange | undefined => {
+    if (pageCount === null) return undefined;
+    const next = raws[i + 1];
+    return { start: raws[i].start, end: next ? next.start - 1 : pageCount };
+  };
+
+  const taken = new Set<string>();
+  const versions: MappedSection[] = [];
+  const rubrics: MappedSection[] = [];
+  const rawKeys: (MappedSection & { forLabel: string })[] = [];
+  raws.forEach((r, i) => {
+    const pages = pagesOf(i);
+    const at = pages ? { pages } : {};
+    if (r.kind === 'version') {
+      if (versions.length >= MAX_VERSIONS) return;
+      const label = uniqueLabel(r.label || `Version ${versions.length + 1}`, taken);
+      versions.push({ label, ...at });
+    } else if (r.kind === 'rubric') {
+      if (rubrics.length >= MAX_RUBRICS) return;
+      const label = uniqueLabel(r.label || `Rubric ${rubrics.length + 1}`, taken);
+      rubrics.push({ label, ...at });
+    } else if (r.kind === 'answer-key') {
+      rawKeys.push({ label: r.label || 'Answer key', forLabel: r.forVersion, ...at });
+    }
+  });
+  const versionCount = raws.filter((r) => r.kind === 'version').length;
+  if (versionCount > MAX_VERSIONS)
+    warnings.push(
+      `Only the first ${MAX_VERSIONS} versions were read. Split the file to import the rest.`
+    );
+  const rubricCount = raws.filter((r) => r.kind === 'rubric').length;
+  if (rubricCount > MAX_RUBRICS)
+    warnings.push(
+      `Only the first ${MAX_RUBRICS} rubrics were read. Split the file to import the rest.`
+    );
+
+  const indexByLabel = new Map(versions.map((v, i) => [labelKey(v.label), i]));
+  const versionIndexes = (value: unknown): number[] => [
+    ...new Set(
+      asStringList(value)
+        .map((l) => indexByLabel.get(labelKey(l)))
+        .filter((i): i is number => i !== undefined)
+    ),
+  ];
+
+  const keys = rawKeys.map(({ forLabel, ...key }) => {
+    const forVersion = forLabel ? indexByLabel.get(labelKey(forLabel)) : undefined;
+    return forVersion === undefined ? key : { ...key, forVersion };
+  });
+
+  const grouped = new Set<number>();
+  const groups: VersionGroup[] = [];
+  for (const item of Array.isArray(root.groups) ? root.groups : []) {
+    const g = (item ?? {}) as Record<string, unknown>;
+    const kind = g.kind as VersionGroupKind;
+    if (!GROUP_KINDS.includes(kind)) continue;
+    const members = versionIndexes(g.versions).filter((i) => !grouped.has(i));
+    if (members.length === 0) continue;
+    members.forEach((i) => grouped.add(i));
+    const name =
+      asString(g.name).trim() || members.map((i) => versions[i].label).join(' / ');
+    groups.push({ kind, name, versions: members.sort((a, b) => a - b) });
+  }
+
+  const figures: SharedFigure[] = [];
+  for (const item of Array.isArray(root.figures) ? root.figures : []) {
+    const box = coerceBox(item);
+    if (!box || (pageCount !== null && box.page > pageCount)) continue;
+    const f = (item ?? {}) as Record<string, unknown>;
+    const label = asString(f.label).trim();
+    figures.push({
+      ...box,
+      ...(label ? { label } : {}),
+      versions: versionIndexes(f.versions),
+    });
+    if (figures.length >= MAX_SHARED_FIGURES) break;
+  }
+
+  return {
+    title: asString(root.title).trim() || fallbackTitle,
+    versions,
+    rubrics,
+    keys,
+    groups,
+    figures,
+    warnings,
+  };
+}
+
+/** A version's pass-2 pages: its own, then its keys, held to the per-call cap (V12). */
+export function versionCallPages(
+  map: DocumentMap,
+  index: number
+): { pages: number[]; truncated: boolean } {
+  const own = map.versions[index].pages;
+  if (!own) return { pages: [], truncated: false };
+  const pages: number[] = [];
+  const add = (range: PageRange) => {
+    for (let p = range.start; p <= range.end; p++)
+      if (!pages.includes(p)) pages.push(p);
+  };
+  add(own);
+  for (const key of map.keys)
+    if (key.pages && (key.forVersion === undefined || key.forVersion === index))
+      add(key.pages);
+  return {
+    pages: pages.slice(0, MAX_DOCUMENT_PAGES),
+    truncated: pages.length > MAX_DOCUMENT_PAGES,
+  };
+}
+
+function rangePages(range: PageRange): number[] {
+  const pages: number[] = [];
+  for (let p = range.start; p <= range.end; p++) pages.push(p);
+  return pages;
+}
+
+/** Figure pages in a slice back to the original file's; a page outside the slice is dropped. */
+export function remapFigurePages(
+  questions: AiExtractedQuestion[],
+  pages: readonly number[]
+): AiExtractedQuestion[] {
+  if (pages.length === 0) return questions;
+  return questions.map((q) => ({
+    ...q,
+    figures: q.figures
+      .filter((f) => f.page <= pages.length)
+      .map((f) => ({ ...f, page: pages[f.page - 1] })),
+  }));
+}
+
+export function normalizeAiRubric(
+  parsed: unknown,
+  label: string
+): Omit<ExtractedRubric, 'label' | 'pages'> {
+  const root = (parsed ?? {}) as Record<string, unknown>;
+  const warnings = asStringList(root.warnings);
+  const criteria: AiRubricCriterion[] = [];
+  const rows = Array.isArray(root.criteria) ? root.criteria : [];
+  for (const item of rows.slice(0, MAX_CRITERIA)) {
+    const c = (item ?? {}) as Record<string, unknown>;
+    const prompt = asString(c.prompt).trim();
+    const letter = asString(c.letter).trim().toUpperCase();
+    if (!prompt && !letter) continue;
+    const raw = Number(c.points);
+    const points = Number.isFinite(raw) && raw >= 0 ? raw : 0;
+    if (points !== raw)
+      warnings.push(
+        `Row ${letter || criteria.length + 1} has no readable points, so it was set to 0.`
+      );
+    criteria.push({
+      letter,
+      prompt,
+      points,
+      credit: asStringList(c.credit),
+      notes: asStringList(c.notes),
+    });
+  }
+  if (rows.length > MAX_CRITERIA)
+    warnings.push(`Only the first ${MAX_CRITERIA} rubric rows were read.`);
+  const total = Number(root.printedTotal);
+  return {
+    title: asString(root.title).trim() || label,
+    ...(Number.isFinite(total) && total > 0 ? { printedTotal: total } : {}),
+    criteria,
+    warnings,
+  };
+}
+
 // ── Core ───────────────────────────────────────────────────────────────────
+
+const TOO_LONG = 'Reading the document took too long. Try a shorter file.';
+
+/** One model call held to the time left, parsed; a failure is the error the teacher sees. */
+async function runCall(
+  work: () => Promise<string>,
+  ms: number,
+  what: string
+): Promise<unknown> {
+  if (ms <= 0) throw new HttpsError('deadline-exceeded', TOO_LONG);
+  let outcome: Awaited<ReturnType<typeof withDeadline<string>>>;
+  try {
+    outcome = await withDeadline(work(), ms);
+  } catch (err) {
+    console.error(`[quizDocumentExtract] ${what} failed`, err);
+    throw new HttpsError('unavailable', 'Reading the document failed.');
+  }
+  if (outcome.timedOut) throw new HttpsError('deadline-exceeded', TOO_LONG);
+  try {
+    return parseGeminiJson<Record<string, unknown>>(outcome.value);
+  } catch (err) {
+    console.error(`[quizDocumentExtract] ${what}: unparseable response`, err);
+    throw new HttpsError('unavailable', 'Reading the document failed.');
+  }
+}
+
+/**
+ * Pass 1 maps the file, then pass 2 reads every version and rubric in its
+ * own call, all at once (V11). Null when the map finds fewer than two
+ * versions, so the caller imports the file the way it always has (V7).
+ */
+async function extractTestSet(
+  request: ExtractDocumentRequest,
+  pageCount: number | null,
+  fallbackTitle: string,
+  left: () => number,
+  deps: ExtractDocumentDeps
+): Promise<ExtractedTestSet | null> {
+  const map = normalizeDocumentMap(
+    await runCall(
+      () =>
+        deps.generate(
+          request.bytes,
+          request.mimeType,
+          DOCUMENT_MAP_PROMPT,
+          buildDocumentMapSchema()
+        ),
+      left(),
+      'document map'
+    ),
+    pageCount,
+    fallbackTitle
+  );
+  if (map.versions.length < 2) return null;
+
+  const multi = request.multiAnswer === true;
+  // A Word file has no pages to slice, so each call reads it whole.
+  const whole = pageCount === null;
+  const read = async (
+    pages: number[],
+    prompt: string,
+    schema: Schema,
+    what: string
+  ) => {
+    const bytes = whole
+      ? request.bytes
+      : await deps.slicePdf(request.bytes, pages);
+    return runCall(
+      () => deps.generate(bytes, request.mimeType, prompt, schema),
+      left(),
+      what
+    );
+  };
+
+  const versions = map.versions.map(
+    async (v, i): Promise<ExtractedVersion> => {
+      const { pages, truncated } = versionCallPages(map, i);
+      const at = v.pages ? { pages: v.pages } : {};
+      const warnings = truncated
+        ? [
+            `Only the first ${MAX_DOCUMENT_PAGES} pages of this version were read.`,
+          ]
+        : [];
+      try {
+        const quiz = normalizeAiQuiz(
+          await read(
+            pages,
+            buildVersionPrompt(v.label, multi, whole),
+            buildDocumentResponseSchema(multi),
+            `version "${v.label}"`
+          ),
+          v.label,
+          multi
+        );
+        return {
+          label: v.label,
+          ...at,
+          title: quiz.title,
+          questions: remapFigurePages(quiz.questions, pages),
+          warnings: [...warnings, ...quiz.warnings],
+        };
+      } catch {
+        return {
+          label: v.label,
+          ...at,
+          title: v.label,
+          questions: [],
+          warnings: [
+            ...warnings,
+            'This version could not be read. Import the file again, or add its questions in the editor.',
+          ],
+        };
+      }
+    }
+  );
+
+  const rubrics = map.rubrics.map(async (r): Promise<ExtractedRubric> => {
+    const all = r.pages ? rangePages(r.pages) : [];
+    const pages = all.slice(0, MAX_DOCUMENT_PAGES);
+    const at = r.pages ? { pages: r.pages } : {};
+    const warnings =
+      all.length > pages.length
+        ? [
+            `Only the first ${MAX_DOCUMENT_PAGES} pages of this rubric were read.`,
+          ]
+        : [];
+    try {
+      const rubric = normalizeAiRubric(
+        await read(
+          pages,
+          buildRubricPrompt(r.label, whole),
+          buildRubricSchema(),
+          `rubric "${r.label}"`
+        ),
+        r.label
+      );
+      return {
+        label: r.label,
+        ...at,
+        ...rubric,
+        warnings: [...warnings, ...rubric.warnings],
+      };
+    } catch {
+      return {
+        label: r.label,
+        ...at,
+        title: r.label,
+        criteria: [],
+        warnings: [
+          ...warnings,
+          'This rubric could not be read. Add it in the Rubrics library.',
+        ],
+      };
+    }
+  });
+
+  const [readVersions, readRubrics] = await Promise.all([
+    Promise.all(versions),
+    Promise.all(rubrics),
+  ]);
+  if (readVersions.every((v) => v.questions.length === 0)) {
+    if (left() <= 0) throw new HttpsError('deadline-exceeded', TOO_LONG);
+    throw new HttpsError(
+      'not-found',
+      'No questions could be read from that document.'
+    );
+  }
+  return {
+    kind: 'test-set',
+    title: map.title,
+    versions: readVersions,
+    rubrics: readRubrics,
+    groups: map.groups,
+    figures: map.figures,
+    warnings: map.warnings,
+  };
+}
 
 export async function extractQuizFromDocument(
   request: ExtractDocumentRequest,
@@ -483,16 +1197,19 @@ export async function extractQuizFromDocument(
     studentRole: boolean;
   },
   deps: ExtractDocumentDeps
-): Promise<AiExtractedQuiz> {
+): Promise<AiExtractedQuiz | ExtractedTestSet> {
   if (caller.studentRole)
     throw new HttpsError('permission-denied', 'Teacher account required.');
   // An unverified (self-reported) email must never reach the admin bypass
   // inside either gate.
   const email = caller.emailVerified ? caller.email : null;
 
-  const [importGranted, geminiGranted] = await Promise.all([
+  const [importGranted, geminiGranted, versioned] = await Promise.all([
     deps.isImportGranted(caller.uid, email),
     deps.isGeminiGranted(caller.uid, email),
+    request.versions === true
+      ? deps.isVersionsGranted(caller.uid, email)
+      : Promise.resolve(false),
   ]);
   if (!importGranted)
     throw new HttpsError(
@@ -507,10 +1224,10 @@ export async function extractQuizFromDocument(
 
   const startedAt = deps.now();
 
+  let pageCount: number | null = null;
   if (request.mimeType === PDF_MIME) {
-    let pages: number;
     try {
-      pages = await deps.pdfPageCount(request.bytes);
+      pageCount = await deps.pdfPageCount(request.bytes);
     } catch (err) {
       console.warn('[quizDocumentExtract] page count failed', err);
       throw new HttpsError(
@@ -519,58 +1236,56 @@ export async function extractQuizFromDocument(
       );
     }
     // Checked before anything is sent, so an over-long file costs nothing.
-    if (pages > MAX_DOCUMENT_PAGES)
+    const limit = versioned ? MAX_VERSIONED_DOCUMENT_PAGES : MAX_DOCUMENT_PAGES;
+    if (pageCount > limit)
       throw new HttpsError(
         'invalid-argument',
-        `That file is ${pages} pages and the limit is ${MAX_DOCUMENT_PAGES}. Split it and import the parts.`
+        `That file is ${pageCount} pages and the limit is ${limit}. Split it and import the parts.`
       );
   }
 
   // Checked before the charge: a request that bails out here never reaches
   // Gemini, so it must not spend one of the teacher's daily uses either.
-  const remaining = EXTRACT_DEADLINE_MS - (deps.now() - startedAt);
-  if (remaining <= 0)
-    throw new HttpsError(
-      'deadline-exceeded',
-      'Reading the document took too long. Try a shorter file.'
-    );
+  const deadline = versioned ? VERSIONED_DEADLINE_MS : EXTRACT_DEADLINE_MS;
+  const left = () => deadline - (deps.now() - startedAt);
+  if (left() <= 0) throw new HttpsError('deadline-exceeded', TOO_LONG);
 
   // Charged once the request is going to be sent, and once per import
-  // whatever the page count (D19).
+  // whatever the page count or the number of calls (D19, V11).
   await deps.chargeQuiz(caller.uid, email);
 
-  let outcome: Awaited<ReturnType<typeof withDeadline<string>>>;
-  try {
-    outcome = await withDeadline(
-      deps.extract(
-        request.bytes,
-        request.mimeType,
-        request.multiAnswer === true
-      ),
-      remaining
-    );
-  } catch (err) {
-    console.error('[quizDocumentExtract] extraction failed', err);
-    throw new HttpsError('unavailable', 'Reading the document failed.');
-  }
-  if (outcome.timedOut)
-    throw new HttpsError(
-      'deadline-exceeded',
-      'Reading the document took too long. Try a shorter file.'
-    );
+  const fallbackTitle =
+    request.fileName.replace(/\.[^.]+$/, '').trim() || 'Imported Quiz';
 
-  let parsed: unknown;
-  try {
-    parsed = parseGeminiJson<Record<string, unknown>>(outcome.value);
-  } catch (err) {
-    console.error('[quizDocumentExtract] unparseable response', err);
-    throw new HttpsError('unavailable', 'Reading the document failed.');
+  if (versioned) {
+    const set = await extractTestSet(
+      request,
+      pageCount,
+      fallbackTitle,
+      left,
+      deps
+    );
+    if (set) return set;
+    // No versions, so the file imports as today and today's cap applies.
+    if (pageCount !== null && pageCount > MAX_DOCUMENT_PAGES)
+      throw new HttpsError(
+        'invalid-argument',
+        `That file is ${pageCount} pages with no versions, and the limit is ${MAX_DOCUMENT_PAGES}. Split it and import the parts.`
+      );
   }
 
-  const fallbackTitle = request.fileName.replace(/\.[^.]+$/, '').trim();
   const quiz = normalizeAiQuiz(
-    parsed,
-    fallbackTitle || 'Imported Quiz',
+    await runCall(
+      () =>
+        deps.extract(
+          request.bytes,
+          request.mimeType,
+          request.multiAnswer === true
+        ),
+      left(),
+      'extraction'
+    ),
+    fallbackTitle,
     request.multiAnswer === true
   );
   if (quiz.questions.length === 0)
@@ -589,25 +1304,51 @@ async function pdfPageCountOf(bytes: Buffer): Promise<number> {
   return doc.getPageCount();
 }
 
-async function geminiExtract(
+function geminiExtract(
   bytes: Buffer,
   mimeType: string,
   multiAnswer: boolean
+): Promise<string> {
+  return geminiGenerate(
+    bytes,
+    mimeType,
+    buildExtractPrompt(multiAnswer),
+    buildDocumentResponseSchema(multiAnswer)
+  );
+}
+
+async function geminiGenerate(
+  bytes: Buffer,
+  mimeType: string,
+  prompt: string,
+  schema: Schema
 ): Promise<string> {
   const { generateAi } = await import('./aiRouter');
   // A .docx goes to Gemini even when Claude is chosen; Claude reads PDFs only.
   const result = await generateAi(admin.firestore(), {
     integration: 'quiz-document-import',
-    // Leaves a long PDF's Gemini retry room inside the 120 s function timeout.
+    // Leaves a long PDF's Gemini retry room inside the function timeout.
     claudeTimeoutMs: 45_000,
     parts: [
-      { text: buildExtractPrompt(multiAnswer) },
+      { text: prompt },
       { inlineData: { mimeType, data: bytes.toString('base64') } },
     ],
     responseMimeType: 'application/json',
-    responseSchema: buildDocumentResponseSchema(multiAnswer),
+    responseSchema: schema,
   });
   return result.text;
+}
+
+async function slicePdfPages(bytes: Buffer, pages: number[]): Promise<Buffer> {
+  const { PDFDocument } = await import('pdf-lib');
+  const source = await PDFDocument.load(bytes, { ignoreEncryption: true });
+  const out = await PDFDocument.create();
+  const copied = await out.copyPages(
+    source,
+    pages.map((p) => p - 1)
+  );
+  copied.forEach((page) => out.addPage(page));
+  return Buffer.from(await out.save());
 }
 
 /** Mirrors generateWithAI's per-feature counter; admins are uncapped. */
@@ -669,6 +1410,10 @@ export function buildDefaultExtractDocumentDeps(): ExtractDocumentDeps {
     chargeQuiz: (uid, email) => chargeQuizQuota(db, uid, email, Date.now()),
     pdfPageCount: pdfPageCountOf,
     extract: geminiExtract,
+    isVersionsGranted: (uid, email) =>
+      isGlobalFeatureGranted(db, QUIZ_IMPORT_VERSIONS_FEATURE_ID, email, uid),
+    generate: geminiGenerate,
+    slicePdf: slicePdfPages,
     now: () => Date.now(),
   };
 }
@@ -678,7 +1423,8 @@ export function buildDefaultExtractDocumentDeps(): ExtractDocumentDeps {
 export const extractQuizFromDocumentV1 = onCall(
   {
     memory: '1GiB',
-    timeoutSeconds: 120,
+    // A versioned import runs two passes (VERSIONED_DEADLINE_MS).
+    timeoutSeconds: 240,
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
     secrets: [ANTHROPIC_API_KEY],

@@ -9902,6 +9902,8 @@ export type GlobalFeature =
   | 'quiz-document-ai-reader'
   /** Learning targets read off an imported test, offered as chips in its review. */
   | 'quiz-import-suggested-targets'
+  /** Multi-version test import: versions, FRQ rubrics, balanced dealing, Stop checkpoints (docs/plans/QUIZ_IMPORT_VERSIONS.md). */
+  | 'quiz-import-versions'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */
