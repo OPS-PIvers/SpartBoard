@@ -110,4 +110,35 @@ describe('useGlobalPermissionsEditor', () => {
     const written = setDocMock.mock.calls[0][1] as { enabled: boolean };
     expect(written.enabled).toBe(false);
   });
+
+  it('stays saving until the last overlapping save of a feature settles', async () => {
+    const finishers: Array<() => void> = [];
+    setDocMock.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          finishers.push(resolve);
+        })
+    );
+    const { result } = renderHook(() => useGlobalPermissionsEditor());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    let first: Promise<boolean> = Promise.resolve(false);
+    let second: Promise<boolean> = Promise.resolve(false);
+    act(() => {
+      first = result.current.savePermission('smart-poll', undefined, '');
+    });
+    act(() => {
+      second = result.current.savePermission('smart-poll', undefined, '');
+    });
+    await act(async () => {
+      finishers[0]();
+      await first;
+    });
+    expect(result.current.saving.has('smart-poll')).toBe(true);
+    await act(async () => {
+      finishers[1]();
+      await second;
+    });
+    expect(result.current.saving.has('smart-poll')).toBe(false);
+  });
 });
