@@ -3991,5 +3991,42 @@
     "addToResponse": "Ajouter à la réponse",
     "showQuotes": "Afficher les citations",
     "showQuotesHint": "Bleu : citation exacte. Ambre : modifiée par rapport au texte."
+  },
+  "quizWhiteboard": {
+    "canvas": {
+      "tools": "Outils de dessin",
+      "tool": {
+        "pen": "Stylo",
+        "eraser": "Gomme",
+        "text": "Texte",
+        "line": "Ligne",
+        "arrow": "Flèche",
+        "rect": "Rectangle",
+        "ellipse": "Ellipse"
+      },
+      "eraserMode": "Mode gomme",
+      "eraser": {
+        "stroke": "Gomme de trait",
+        "object": "Gomme d'objet",
+        "lasso": "Gomme lasso"
+      },
+      "colors": "Couleurs",
+      "color": {
+        "black": "Noir",
+        "blue": "Bleu",
+        "red": "Rouge",
+        "green": "Vert",
+        "orange": "Orange",
+        "yellow": "Jaune"
+      },
+      "sizes": "Taille",
+      "size": {
+        "thin": "Fin",
+        "medium": "Moyen",
+        "thick": "Épais"
+      },
+      "undo": "Annuler",
+      "redo": "Rétablir"
+    }
   }
 }
