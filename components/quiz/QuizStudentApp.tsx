@@ -3862,41 +3862,47 @@ export const ActiveQuiz: React.FC<{
               {recordingConfig && (
                 <div className="space-y-4">
                   {whiteboardConfig ? (
-                    whiteboardGated ? (
-                      <RotateDeviceGate />
-                    ) : (
-                      <WhiteboardResponseCapture
-                        key={currentQuestion.id}
-                        config={whiteboardConfig}
-                        takesCommitted={committedTakes}
-                        noticeAckedAt={noticeAckedAt}
-                        onAcknowledgeNotice={onAcknowledgeNotice}
-                        onCommit={(take) =>
-                          onCommitWhiteboard
-                            ? onCommitWhiteboard(
-                                currentQuestion.id,
-                                take,
-                                localizedStrings ? activeLocale : undefined
-                              )
-                            : Promise.resolve()
-                        }
-                        onRetryUpload={
-                          retryableWhiteboardArtifacts.length > 0
-                            ? async () => {
-                                for (const artifact of retryableWhiteboardArtifacts)
-                                  await onRetryRecordingUpload(
-                                    currentQuestion.id,
-                                    artifact
-                                  );
-                              }
-                            : undefined
-                        }
-                        onPrepExpired={handleRecordingPrepExpired}
-                        latestArtifacts={latestTakeArtifacts}
-                        slotClosed={recordingSlotClosed}
-                        recovery={takeRecovery}
-                      />
-                    )
+                    // The capture stays mounted under the gate so a live take survives rotation.
+                    <div
+                      className={
+                        whiteboardGated ? 'relative min-h-[16rem]' : 'relative'
+                      }
+                    >
+                      <div inert={whiteboardGated}>
+                        <WhiteboardResponseCapture
+                          key={currentQuestion.id}
+                          config={whiteboardConfig}
+                          takesCommitted={committedTakes}
+                          noticeAckedAt={noticeAckedAt}
+                          onAcknowledgeNotice={onAcknowledgeNotice}
+                          onCommit={(take) =>
+                            onCommitWhiteboard
+                              ? onCommitWhiteboard(
+                                  currentQuestion.id,
+                                  take,
+                                  localizedStrings ? activeLocale : undefined
+                                )
+                              : Promise.resolve()
+                          }
+                          onRetryUpload={
+                            retryableWhiteboardArtifacts.length > 0
+                              ? async () => {
+                                  for (const artifact of retryableWhiteboardArtifacts)
+                                    await onRetryRecordingUpload(
+                                      currentQuestion.id,
+                                      artifact
+                                    );
+                                }
+                              : undefined
+                          }
+                          onPrepExpired={handleRecordingPrepExpired}
+                          latestArtifacts={latestTakeArtifacts}
+                          slotClosed={recordingSlotClosed}
+                          recovery={takeRecovery}
+                        />
+                      </div>
+                      {whiteboardGated && <RotateDeviceGate overlay />}
+                    </div>
                   ) : (
                     <AudioResponseCapture
                       key={currentQuestion.id}
