@@ -398,17 +398,22 @@ function attachRubrics(
     folderTitle,
     opts
   );
-  for (const { attachments } of plans) {
+  const attached: Rubric[] = [];
+  for (const { attachments, libraryRubric } of plans) {
+    let used = false;
     for (const { versionIndex, fields } of attachments) {
       const questions = byVersion[versionIndex] ?? [];
       const written = questions.filter((q) => q.type === 'free-response');
       if (written.length !== 1) continue;
+      used = true;
       byVersion[versionIndex] = questions.map((q) =>
         q === written[0] ? { ...q, ...fields } : q
       );
     }
+    // A rubric no question carries isn't saved, so the library gets no orphans.
+    if (used) attached.push(libraryRubric);
   }
-  return plans.map((p) => p.libraryRubric);
+  return attached;
 }
 
 const copyQuestion = (q: QuizQuestion): QuizQuestion => ({

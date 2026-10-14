@@ -125,3 +125,31 @@ describe('version rubrics', () => {
     expect(build.rubrics).toEqual([]);
   });
 });
+
+describe('version rubrics without a written question', () => {
+  it('saves no rubric that no question carries', async () => {
+    const set = await importedMc();
+    const withRubric = {
+      ...set,
+      rubrics: [
+        {
+          label: 'Rubric 1',
+          title: 'Rubric 1',
+          criteria: [
+            { letter: 'A', prompt: 'Part A', points: 2, credit: [], notes: [] },
+          ],
+          warnings: [],
+        },
+      ],
+    };
+    const build = buildVersionImport(
+      withRubric,
+      initialVersionPlan(withRubric),
+      {
+        folderTitle: 'Q',
+        ...guides,
+      }
+    );
+    expect(build.rubrics).toEqual([]);
+  });
+});
