@@ -1,6 +1,6 @@
 # Pronunciation Questions — Plan
 
-**Status:** Live plan, refreshed 2026-10-13 after ten weeks dormant. No feature code exists.
+**Status:** Live plan. Refreshed and grilled 2026-10-13 (decisions G1–G22 in §5). No feature code exists.
 **Owner:** Paul (OPS-PIvers) + Claude
 **Tickets:** [Wayfinder Map #2331](https://github.com/OPS-PIvers/SpartBoard/issues/2331)
 (29 sub-issues, 11 closed). The map body was last edited 2026-08-04 and predates
@@ -26,7 +26,7 @@ everyone else.
 
 - A quiz item whose answer is spoken and is **auto-scored**, without waiting on the teacher.
 - Diagnostic output: the teacher sees _which sound_ went wrong, not just a percentage.
-- The teacher decides whether a spoken item counts toward the grade.
+- The student gets N attempts, with an example, to say it correctly for credit (G5–G6).
 - Hidden from staff who don't teach language.
 
 **Non-goals**
@@ -45,12 +45,12 @@ everyone else.
 | ------ | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | **D1** | Where recognition runs     | **On the student's device**, using a CTC phoneme model through `onnxruntime-web`. Server-side and hybrid are closed. The deciding reason was the rule "voice stays on the device", not bias: Gemini passed the bias probe (§4.1). Reference phonemes are computed **on the server when the teacher saves the question** and stored on the question. The interface is `recognize(audio: Blob, dialect) → phonemes[]` plus `state: ready \| downloading \| unsupported`. | [#2333](https://github.com/OPS-PIvers/SpartBoard/issues/2333)                                                                |
 | —      | Model                      | `facebook/wav2vec2-xlsr-53-espeak-cv-ft`, from the `qnighy` ONNX export, pinned to **q4 (241 MB)**. It has 392 espeak-IPA tokens and no stress marks. Call `Wav2Vec2ForCTC` directly, never `pipeline()`, which discards frame timing.                                                                                                                                                                                                                                 | [#2349](https://github.com/OPS-PIvers/SpartBoard/issues/2349)                                                                |
-| D2     | Voice data                 | Collapsed by D1: "no transmission, no retention". **Reopened by §3.1.**                                                                                                                                                                                                                                                                                                                                                                                                | —                                                                                                                            |
+| D2     | Voice data                 | Collapsed by D1, then reopened by §3.1. **Superseded by G9–G11.**                                                                                                                                                                                                                                                                                                                                                                                                      | —                                                                                                                            |
 | D3     | Gate                       | A `GlobalFeature`, not a widget permission.                                                                                                                                                                                                                                                                                                                                                                                                                            | —                                                                                                                            |
-| **D4** | Type surface               | `'Speak'` as a new `QuizQuestionType`. The student's device writes the recognized phoneme string into `answer`. `gradeAnswer()` recomputes the score from it, so no score is stored. The question gains `referencePhonemes`, `phonemesConfirmed` and `g2pVersion`. The pass mark is a global default that an assignment can override. **Challenged by §3.2.**                                                                                                          | [#2334](https://github.com/OPS-PIvers/SpartBoard/issues/2334)                                                                |
+| **D4** | Type surface               | `'Speak'` as a new `QuizQuestionType`. The student's device writes the recognized phoneme string into `answer`. `gradeAnswer()` recomputes the score from it, so no score is stored. The question gains `referencePhonemes`, `phonemesConfirmed` and `g2pVersion`. The pass mark is a global default that an assignment can override. **Type kept (G2); pass mark is per question instead (G7).**                                                                      | [#2334](https://github.com/OPS-PIvers/SpartBoard/issues/2334)                                                                |
 | D5     | Languages                  | Spanish, German and English. Mandarin is out.                                                                                                                                                                                                                                                                                                                                                                                                                          | —                                                                                                                            |
 | —      | English reference phonemes | espeak-derived rules, with CMUDict as a cross-check. When they disagree, a teacher-review flag is raised; that happens on 5.9% of items. No neural fallback.                                                                                                                                                                                                                                                                                                           | [#2336](https://github.com/OPS-PIvers/SpartBoard/issues/2336)                                                                |
-| D6     | Graded or not              | The teacher chooses per assignment. How that affects points and grade push is still open (#2340).                                                                                                                                                                                                                                                                                                                                                                      | —                                                                                                                            |
+| D6     | Graded or not              | **Dropped.** Points work like any other question (G6).                                                                                                                                                                                                                                                                                                                                                                                                                 | —                                                                                                                            |
 | —      | Alignment & scoring        | A1–A13: insertions get real entries; PER is internal and unclamped; an unknown level or an empty reference throws; ties go to substitution; the engine returns no prose; `score = round((1−w)·segment + w·stress)`.                                                                                                                                                                                                                                                    | [#2335](https://github.com/OPS-PIvers/SpartBoard/issues/2335)                                                                |
 | —      | Held sounds                | T1–T3: an insertion that repeats the neighbouring recognized token costs 0 and gets the status `held`. A held trill no longer reads as an error.                                                                                                                                                                                                                                                                                                                       | [#2380](https://github.com/OPS-PIvers/SpartBoard/issues/2380)                                                                |
 | —      | Stress                     | S1–S5: one syllable index per word, scored 100 or 0, from four cues within the word. The pitch library is `pitchy` (MIT). R1–R5: two reference sources per language; a disagreement is flagged and not stress-scored until the teacher confirms it. German has one source, an accepted weakening.                                                                                                                                                                      | [#2359](https://github.com/OPS-PIvers/SpartBoard/issues/2359), [#2360](https://github.com/OPS-PIvers/SpartBoard/issues/2360) |
@@ -78,7 +78,7 @@ student recording on quiz questions:
 So D1's premise that "the voice never leaves the device" is now a **choice**, not
 a property of the platform. The district has already accepted recordings of
 student voices stored in teacher Drive, with notice. That reopens D2 as a
-product question; see Q2.
+product question, answered by G9–G11.
 
 ### 3.2 Response modes became something a question carries, not a type
 
@@ -86,7 +86,7 @@ Rich response decided (RR-01) that audio is a mode that rides on a question:
 `QuizQuestion.recording?: RecordingConfig`. It is not a new type, and the union
 deliberately did not grow. A **teacher-graded** spoken item already exists today,
 as `free-response` + `recording`. D4's "seventh type" was decided before that
-precedent existed; see Q1.
+precedent existed. It was kept anyway (G2).
 
 ### 3.3 Codebase drift: every §2 anchor of the old doc moved
 
@@ -158,34 +158,102 @@ guess (#2342).
 
 ---
 
-## 5. Open questions (the grill list)
+## 5. Product decisions (grill with Paul, 2026-10-13)
 
-Ordered so each answer unblocks the next. Ticket numbers are the existing homes.
+These supersede D2, D4 (in part) and D6 in §2. G-numbers are cited from code and tickets.
 
-| Q   | Question                                                                                                                                                                                                                                                                                                                                                               | Ticket          |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
-| Q0  | **Is this still worth building, and for whom first?** Who are the named teachers, which languages, what kind of practice? Is a teacher-graded "say it" item (free-response + recording, available today) already enough for some of them?                                                                                                                              | —               |
-| Q1  | **New type, or an auto-scored mode on a question?** D4's `'Speak'` type, versus a `pronunciation` config that sits on a question next to `recording`. Either way it is a third grading category, auto-scored by the device rather than by string matching, that `isFreeResponseType` / `questionNeedsManualGrading` cannot express.                                    | #2334 (reopen?) |
-| Q2  | **Does the recording get kept?** Device-only (D1 as decided), or also archived to the teacher's Drive through the shipped pipeline, so the teacher can listen and override a wrong score (#2379)? If kept: does the Tennessen notice need to mention automated scoring (its test forbids mentioning AI today), and how does the RR-04 "no voiceprints" statement read? | D2              |
-| Q3  | **Teacher override.** When the scorer is wrong, what does the teacher do? Regrade the slot through `FreeResponseGrader`, mark a single sound correct, or excuse the item?                                                                                                                                                                                              | #2362           |
-| Q4  | **Language and dialect: where do they live?** Reuse quiz-level `QuizData.language` (already BCP-47, already picks the read-aloud voice), or add a per-question override? Which dialects ship (es-419/es-US vs es-ES, de-DE, en-US)? Is the "never penalize a correct dialect" rule enforced by storing several accepted references?                                    | #2338, #2342    |
-| Q5  | **GPL-3 espeak on the server.** Route a brief to counsel, or avoid espeak entirely (CMU Flite / Epitran / hand-written Spanish rules)? Spanish could ship on about 30 lines of in-house rules without espeak.                                                                                                                                                          | #2337, #2339    |
-| Q6  | **Can a Chromebook carry it?** A 241 MB first load, its cache behaviour across managed profiles, 30 devices on one access point, inference time. This needs a real-hardware test before anything else is built on D1. What happens when `state: 'unsupported'`: fall back to teacher-graded recording?                                                                 | #2350, #2353    |
-| Q7  | **Graded or practice.** Per-assignment toggle (D6), or reuse `excused` / `workKind: 'resource'`? How does an ungraded spoken item leave `quizMaxPoints` and the LMS pushes?                                                                                                                                                                                            | #2340           |
-| Q8  | **Pass marks.** Is a Loose/Close/Exact preset per question or per assignment, and is the scale numeric or descriptive? Does v1 ship with stress weight `w = 0` until #2366 validates the cues?                                                                                                                                                                         | #2342, #2366    |
-| Q9  | **Authoring.** How does the teacher check the generated phonemes: show IPA, or play it back with read-aloud TTS? How do they handle flagged heteronyms and the stress picker? Can Claude author Speak items through the connector?                                                                                                                                     | #2341           |
-| Q10 | **Student experience.** One take or several (reuse `takeLimit`)? Show the result instantly or after submit? A "hear the model" button via read-aloud TTS? Which sounds' names does a student see (#2361)?                                                                                                                                                              | #2351, #2361    |
-| Q11 | **Learner audio before launch.** Is a consented learner corpus (#2352) a prerequisite, or does the flag-on-for-Paul period double as the validation set?                                                                                                                                                                                                               | #2352, #2356    |
-| Q12 | **Other consumers.** Does Flashcards' deferred "Speak" mode share the engine in v1 or later? Does the engine live in `utils/pronunciation/` as a client module, with the server half for reference phonemes in `functions/`?                                                                                                                                           | —               |
-| Q13 | **Gate and rollout.** `GlobalFeature` id (e.g. `pronunciation-questions`), `stage: 'preview'`, admin-only. Does it `requires` `quiz-media-response`? Is an on-device model exempt from the "every AI call goes through `generateAi`" rule (it is not a server call), and is that recorded in `docs/AI_MODELS.md`?                                                      | —               |
+### The item
+
+- **G1 — Scope.** Spanish, German and English in v1. One word or a short phrase (up to about 5 words) per item.
+- **G2 — Type.** A new `'speak'` member of `QuizQuestionType`, which keeps D4. It reuses the shipped recording pieces (`useAudioRecording`, `AudioResponseCapture`, the consent notice). A speak item is a third grading category, auto-scored on the device. It is **not** added to `isFreeResponseType` or `questionNeedsManualGrading`.
+- **G3 — Language.** Each item stores its own dialect set, prefilled from the quiz's `QuizData.language`. So a copied or banked item keeps its language.
+- **G4 — Dialects.** Each item stores reference phonemes for **every accepted dialect**, and the student is scored against the closest one.
+  - Defaults: Spanish `es-419` + `es-ES`, German `de-DE`, English `en-US`.
+  - The teacher can untick a dialect to require one.
+  - This settles #2338 and the dialect half of #2342.
+
+### Attempts and credit
+
+- **G5 — Attempts.** "Say it correctly within N attempts, with an example."
+  - N is set per question, 1–10, default 3. It is separate from rich response's `takeLimit`.
+  - Every attempt is scored on the device and shown at once, so there is no "show result" switch.
+- **G6 — Credit.** The first attempt that clears the strictness mark ends the item with full points. If no attempt clears it, the item gets `points × best accuracy`.
+  - There is no practice/0-point mode and no assignment-level graded toggle; D6 is dropped. Points work like any other question.
+  - This settles #2340. Today's editor clamps points to at least 1, and the student projection drops a 0, so neither needs to change.
+- **G7 — Strictness.** Loose, Close or Exact per question, default Close.
+  - The 60/80/95 marks are admin-tunable globals.
+  - **Stress counts from v1** at `w` = 10–15%, which is also admin-tunable. This is Paul's call: it accepts that the cue weights are unvalidated (#2366).
+- **G8 — Example.** By default the example is read-aloud TTS in the item's dialect.
+  - The teacher may record their own example in the editor, stored with the quiz, and it replaces the TTS.
+  - The teacher can turn the example off per item, for assessment.
+
+### Recording, privacy and validation
+
+- **G9 — Recording kept.** Scoring happens on the device, but **only the deciding attempt** is archived through the shipped pipeline to teacher Drive: the passing attempt, or the best one if none passed.
+  - Each attempt's score and the attempt count are stored as data.
+  - D2 is now answered by the rich-response posture: Tennessen notice, teacher Drive, admin delete, no voiceprints.
+- **G10 — Notice.** Speak items get their own purpose line in the existing four-part notice, roughly: "Your device listens to your recording and checks each sound. The recording is also saved so your teacher can listen and change the score."
+  - The test that asserts the notice never mentions AI is relaxed for this one variant only.
+- **G11 — Validation.** Student recordings are **never** used to tune the scorer, because their stated purpose is grading. Before the flag opens beyond admins, two things are needed:
+  - a consented corpus of 10–15 adult L2 speakers covering es, de and en (Route B, #2352);
+  - the teacher-override rate measured during the admin-only period.
+
+### Teacher side
+
+- **G12 — Override.** The teacher sets the item score in the existing grading slot (`QuizResponse.grading[qid]`), and a teacher score always wins.
+  - A **reason is required**, and overrides are logged per sound as calibration data for #2379 and #2342.
+  - The auto score stays visible next to the teacher's.
+- **G13 — Results (#2362).** Per student per item: the deciding audio, letter highlights, attempts used, the auto score and any override. Plus a **class "sounds most often missed"** view built from the stored alignments.
+- **G14 — Tampering.** The server flags an item, so the teacher can listen, when:
+  - the archived recording is missing;
+  - its duration is implausible for the target length;
+  - the reported phonemes equal the reference byte-for-byte on every item.
+
+  Server-side re-scoring is out, because D1 rules out server inference.
+
+- **G15 — Authoring (#2341).**
+  - A "Hear it" button plays the example; flagged words show inline with a picker; IPA and stress sit in an **Advanced** panel.
+  - The Claude connector can create speak items: it sets text, dialect set, strictness, N and points. Phoneme lookup runs server-side on save, the same as in the editor, and flagged words wait for teacher confirmation in SpartBoard.
+
+### Student side
+
+- **G16 — Feedback display (#2351).** Each sound is mapped back to the target text's letters and marked correct, changed, missed or extra.
+  - Marks differ by shape and label, not colour alone (WCAG AA).
+  - Tapping a marked letter shows a plain hint in the UI language from the sound-name table (#2361). There is no IPA for students.
+- **G17 — Unsupported device.** The student still records and submits, and the item reads "awaiting score". It is scored later on a capable device, either the student's or the teacher's (decoded from the Drive M4A). Failing that, the teacher grades it by ear. No student is ever blocked from submitting.
+
+### Platform
+
+- **G18 — Model hosting.** The pinned q4 file is self-hosted on our own Firebase Hosting or Storage with immutable cache headers, and kept in Cache Storage after the first load. Two reasons:
+  - school filters often block huggingface.co;
+  - the CDN sits outside our vendor agreements.
+
+  Confirm the model's licence allows redistribution before shipping.
+
+- **G19 — espeak licence (#2337).** espeak-ng runs **server-side** in the save-time phoneme-lookup callable, and only its IPA output is stored. Build with it on dev. A short brief goes to district counsel, and the flag stays admin-only until they confirm. Spanish uses in-house spelling rules regardless.
+- **G20 — Gate.** A new `GlobalFeature` `'quiz-speak-questions'`:
+  - `stage: 'preview'`, `afterLaunch: 'keep'`, `widget: 'quiz'`, `group: 'questions'`;
+  - admin default, `missingDocPublic: false`, `failClosedForAdmins: true`;
+  - `requires: 'quiz-media-response'`.
+
+  Named language/EL teachers get it through `betaUsers`.
+
+- **G21 — AI rule.** On-device models are a documented exception to "every AI call goes through `generateAi`". `docs/AI_MODELS.md` and `CLAUDE.md` gain a short section: pinned files served from our hosting, listed in config with version and licence.
+- **G22 — Shared engine.** The engine lives in `utils/pronunciation/` and knows nothing about quizzes. The phoneme-lookup callable is generic too. Flashcards' Speak mode follows quiz v1 behind its own flag.
 
 ---
 
-## 6. Safe to build now (independent of the open questions)
+## 6. Build order
 
-1. **Port the scoring engine into real code.** That means a pure TypeScript module with A1–A13 + T1–T5 (`held`) + S1–S5 combination, ported from the spikes with their tests. It is pure, has no dependencies, and is needed by every answer to Q1–Q13.
-2. **Symbol normalization (#2383):** a tokenizer from espeak IPA into the model's 392 tokens. It needs backtracking for `juː` and must strip the `(en)` markers and the zero-width joiners.
-3. **The Chromebook measurement (#2350):** a `/pronunciation-dev` harness page that loads the q4 model in `onnxruntime-web` and decodes the five committed clips. It reports load time, memory and inference time. This is the single biggest unknown and only needs Paul and a Chromebook.
+1. **Gate: Chromebook measurement (#2350).** A `/pronunciation-dev` harness page loads the self-hosted q4 model in `onnxruntime-web` and decodes the five committed clips. It reports load time, memory and inference time on a district Chromebook. **No on-device feature code before this passes.** If it fails, revisit D1; the server path is the fallback, since Gemini passed the bias probe.
+2. **In parallel with step 1** (these survive either outcome):
+   - port the scoring engine (A1–A13, T1–T5 `held`, S1–S5) out of `scripts/spikes` into `utils/pronunciation/`, with its tests;
+   - write the espeak→392-token symbol tokenizer (#2383);
+   - send the counsel brief (G19).
+3. The phoneme-lookup callable: espeak with the dialect set, the CMUDict cross-check, and the stress references from R1–R5.
+4. The `'speak'` type, the editor (G15), student capture and attempts (G5, G16, G17), archiving the deciding attempt (G9), and the notice variant (G10). All behind `quiz-speak-questions`.
+5. Results, override and the class summary (G12–G14), plus connector support (G15).
+6. Before the flag opens: the adult L2 corpus and the override-rate review (G11), and counsel sign-off (G19).
 
 ---
 

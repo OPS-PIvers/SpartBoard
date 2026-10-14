@@ -4242,12 +4242,13 @@ Three consequences for this ticket:
 
 ## B. Whiteboard & audio
 
-> **Refreshed 2026-10-13 →
-> [`plans/QUIZ_WHITEBOARD_RESPONSE.md`](plans/QUIZ_WHITEBOARD_RESPONSE.md).**
-> The tickets below are the decision record; that plan audits them against
-> current code (the undo cap from #4142 breaks the "capture log is the undo
-> stack" claim, the shipped archive is one file per artifact, there is no
-> persisted mode set) and holds the open questions.
+> **Re-decided 2026-10-13 →
+> [`plans/QUIZ_WHITEBOARD_RESPONSE.md`](plans/QUIZ_WHITEBOARD_RESPONSE.md),
+> which supersedes these tickets where they differ.** The tickets below stay as
+> the record of the August reasoning. Changed: a teacher starting page replaces
+> the blank start, 300 s replaces 600 s, three flat Drive files per take replace
+> the per-response folder, crash recovery replaces "lost is lost", the
+> teacher-widget migration is decoupled, and RR-B3 is dropped.
 
 ### RR-B1 — Can `DrawingWidget` be the student whiteboard substrate?
 

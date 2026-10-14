@@ -1794,7 +1794,6 @@ const TeacherQuizWidget: React.FC<{
       ...(canAccessFeature('standards-from-question-text')
         ? { loadStandardCodes: loadCatalogCodes }
         : {}),
-      canFindPassages: canAccessFeature('quiz-import-passages'),
       pickDocument,
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
       onDocumentImages: (images) => {

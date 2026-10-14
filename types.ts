@@ -9838,8 +9838,6 @@ export type GlobalFeature =
   | 'quiz-document-ai-reader'
   /** Learning targets read off an imported test, offered as chips in its review. */
   | 'quiz-import-suggested-targets'
-  /** Long text blocks in an imported test become passage stimuli for the questions after them. */
-  | 'quiz-import-passages'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */
@@ -9848,6 +9846,7 @@ export type GlobalFeature =
   | 'gl-live-tours'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
+  | 'live-tour-self-heal'
   /** Guided Learning Studio editor in place of the classic editor. */
   | 'gl-studio'
   /** Per-period start/pause and windows on assignments shared by several classes. */
@@ -9892,8 +9891,6 @@ export type GlobalFeature =
   | 'rubric-scoring-guides'
   /** Projects board: tapping a group name opens that group's student view. */
   | 'projects-group-view'
-  /** Quiz assign/edit: a separate due date per selected class. */
-  | 'quiz-per-class-due-dates'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
@@ -9916,8 +9913,6 @@ export type GlobalFeature =
   | 'drawing-ai'
   | 'webcam-ai'
   | 'blooms-ai'
-  /** Assign modals: Availability & Due Date (opens, closes, late work) replaces the Schedule and period-mode toggle. */
-  | 'assign-availability'
   /** Record a group meeting on a note, with playback (docs/plans/shipped/PLC_MEETING_RECORDING.md). */
   | 'plc-meeting-recording'
   /** Transcript and drafted notes from a meeting recording; AND-ed with `gemini-functions`. */

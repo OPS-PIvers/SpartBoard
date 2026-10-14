@@ -513,17 +513,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Case studies and passages in an imported test become stimuli. Admin-only until Paul has imported with it.
-  'quiz-import-passages': {
-    label: 'Passages found on quiz import',
-    icon: FileText,
-    description: 'Turns passages in imported tests into stimuli.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Print/scan paper answer sheets. Admin-only until opened up; the district
   // switch (admin_settings/paper_answer_sheets) must also be on.
   'paper-answer-sheets': {
@@ -610,6 +599,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Live tour editing v2',
     icon: Footprints,
     description: 'Sandboxed tour replays, step checkpoints and tour materials.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  // Live tours reopen a closed panel and arrange their own widgets (LIVE_TOUR_ONE_SHOT.md D18).
+  'live-tour-self-heal': {
+    label: 'Live tour self-heal',
+    icon: Footprints,
+    description:
+      'Tours reopen a panel that closed mid-step and lay out their own widgets.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -885,20 +886,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Quiz assign/edit: a due date per selected class. Admin-only until Paul has used it.
-  'quiz-per-class-due-dates': {
-    label: 'Due date per class',
-    icon: CalendarClock,
-    description: 'Give each class on a quiz assignment its own due date.',
-    stage: 'preview',
-    afterLaunch: 'keep',
-    widget: 'quiz',
-    modalLabel: 'Due date per class',
-    group: 'assigning',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Projects board: a group's name opens the view its students see.
   'projects-group-view': {
     label: 'Projects group view',
@@ -1101,17 +1088,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Meeting recording',
     icon: Mic,
     description: 'Record a group meeting on a note and play it back.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Assign modals' Availability & Due Date section. Admin-only until Paul has assigned with it in prod.
-  'assign-availability': {
-    label: 'Availability and due date',
-    icon: CalendarClock,
-    description: 'Opens, closes and late work when assigning.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

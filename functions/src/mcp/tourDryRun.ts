@@ -114,6 +114,11 @@ export function dryRunTour(
         'has no value, so Autopilot hands it to the teacher; give one unless the choice is theirs (their class, an ID or link).'
       );
 
+    if (b.anchor === 'editor.save:quiz')
+      warn(
+        "points at the quiz editor's Save, which only the PLC editor shows; the quiz editor saves as you go, so end with editor.close:quiz."
+      );
+
     if (b.slot !== undefined && !slots.has(b.slot) && !unbound.has(b.slot)) {
       unbound.add(b.slot);
       warn(
@@ -237,7 +242,11 @@ function checkAnchor(
     return (
       !last ||
       (ctx.visited.has(r.surface) && !('reveal' in r && r.reveal)) ||
-      ctx.clicked.some((c) => sameControl(parseRef(last), c))
+      ctx.clicked.some((c) => sameControl(parseRef(last), c)) ||
+      ('opened_by' in r &&
+        (r.opened_by ?? []).some((o) =>
+          ctx.clicked.some((c) => sameControl(parseRef(o), c))
+        ))
     );
   });
   if (!open) {

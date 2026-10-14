@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import type { QuizQuestion } from '@/types';
 
-let availabilityOn = false;
 let stepperOn = false;
 const saveLast = vi.fn();
 
@@ -43,9 +42,7 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1', email: 't@example.com', displayName: 'T' },
     signInWithGoogle: vi.fn(),
     googleAccessToken: 'drive-token',
-    canAccessFeature: (id: string) =>
-      (id === 'assign-availability' && availabilityOn) ||
-      (id === 'assign-stepper' && stepperOn),
+    canAccessFeature: (id: string) => id === 'assign-stepper' && stepperOn,
   }),
 }));
 
@@ -146,34 +143,15 @@ describe('LtiDeepLinkPicker — availability', () => {
     };
   };
 
-  it('flag off: the standalone due date drives the assignment and the line item', async () => {
-    availabilityOn = false;
+  it('uses the Availability window and due for the assignment and the line item', async () => {
     await pickQuiz();
-    fireEvent.change(screen.getByLabelText(/due date/i), {
-      target: { value: '2026-10-20' },
-    });
+    expect(screen.queryByLabelText(/due date \(optional\)/i)).toBeNull();
     const { settings, options, signed } = await addQuiz();
-    const expected = new Date(2026, 9, 20, 23, 59, 59, 0).getTime();
-    expect(settings.dueAt).toBe(expected);
-    expect(signed?.dueAt).toBe(expected);
-    expect(options.openAt).toBeNull();
-    expect(options.closeAt).toBeNull();
-  });
-
-  it('flag on: hides the standalone due date and uses the section window and due', async () => {
-    availabilityOn = true;
-    try {
-      await pickQuiz();
-      expect(screen.queryByLabelText(/due date \(optional\)/i)).toBeNull();
-      const { settings, options, signed } = await addQuiz();
-      expect(typeof options.openAt).toBe('number');
-      expect(typeof options.closeAt).toBe('number');
-      expect(settings.dueAt).toBe(options.closeAt);
-      expect(settings.dueAtHasTime).toBe(true);
-      expect(signed?.dueAt).toBe(options.closeAt);
-    } finally {
-      availabilityOn = false;
-    }
+    expect(typeof options.openAt).toBe('number');
+    expect(typeof options.closeAt).toBe('number');
+    expect(settings.dueAt).toBe(options.closeAt);
+    expect(settings.dueAtHasTime).toBe(true);
+    expect(signed?.dueAt).toBe(options.closeAt);
   });
 });
 

@@ -344,7 +344,9 @@ export function mergeSteps(
           : action === 'select' || action === 'type'
             ? 'string'
             : 'undefined';
-      if (typeof value !== want)
+      // A type or select step with no value is handed to the teacher; the dry run warns.
+      const handedBack = want === 'string' && value === undefined;
+      if (typeof value !== want && !handedBack)
         throw new ToolError(
           `${at}.tour.value: ${action} steps take ${want === 'undefined' ? 'no value' : `a ${want} value`}.`
         );
@@ -763,7 +765,7 @@ export async function restoreGuidedLearningRevision(
   await reserveWrite(ctx);
   const next: GlSet = { ...loaded.set, steps };
   for (const key of EDITABLE)
-    if (key !== 'steps') next[key] = data[key] as never;
+    if (key !== 'steps' && key in data) next[key] = data[key] as never;
   return saveSet(ctx, loaded, next, 'restore');
 }
 

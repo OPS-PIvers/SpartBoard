@@ -332,6 +332,16 @@ const SpartyDevGallery = import.meta.env.DEV
       }))
     )
   : null;
+// Also built for the spartboard-dev site so the model can be measured on a real Chromebook (#2350).
+const PronunciationDevHarness =
+  import.meta.env.DEV ||
+  import.meta.env.VITE_FIREBASE_PROJECT_ID === 'spartboard-dev'
+    ? lazy(() =>
+        import('./components/dev/PronunciationDevHarness').then((module) => ({
+          default: module.PronunciationDevHarness,
+        }))
+      )
+    : null;
 // Also built into auth-bypass (E2E) builds for the library end-padding guard.
 const LibraryManagersDevHarness =
   import.meta.env.DEV || import.meta.env.VITE_AUTH_BYPASS === 'true'
@@ -1038,6 +1048,14 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <TeamsAdminDefaultsDevHarness />
+      </Suspense>
+    );
+  }
+
+  if (PronunciationDevHarness && pathname === '/pronunciation-dev') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <PronunciationDevHarness />
       </Suspense>
     );
   }

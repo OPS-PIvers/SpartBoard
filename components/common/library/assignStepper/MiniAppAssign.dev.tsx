@@ -48,7 +48,6 @@ const Preview: React.FC = () => {
           onTargetingChange={setTargeting}
           skippedStudentNames={[]}
           periodAccess={CTX}
-          availabilityEnabled
           workKind={{ default: 'resource' }}
           onConfirm={() => undefined}
           onClose={() => undefined}

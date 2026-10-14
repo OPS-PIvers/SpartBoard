@@ -87,7 +87,6 @@ const lastPacing = {
 vi.mock('@/hooks/useLastVideoAssignPacing', () => ({
   useLastVideoAssignPacing: () => ({ ...lastPacing, loaded: true }),
 }));
-const availabilityFlag = { enabled: false };
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'teacher-1', displayName: 'Test Teacher' },
@@ -98,9 +97,7 @@ vi.mock('@/context/useAuth', () => ({
         ? liveFlag.enabled
         : id === 'assign-stepper'
           ? stepperFlag.enabled
-          : id === 'assign-availability'
-            ? availabilityFlag.enabled
-            : true,
+          : true,
   }),
 }));
 
@@ -300,12 +297,12 @@ describe('VideoActivityManager assign modal — slimmed flow (VA Task 9)', () =>
     ).toBeInTheDocument();
   });
 
-  it('renders a due-date input in the assign modal', async () => {
+  it('renders Availability & Due Date in the assign modal', async () => {
     renderManager(makeVaMeta());
     const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
     fireEvent.click(assignBtn);
     await screen.findByRole('dialog', { name: /cell division/i });
-    expect(screen.getByTestId('va-assign-due-date')).toBeInTheDocument();
+    expect(screen.getByText('Availability & Due Date')).toBeInTheDocument();
   });
 
   it('renders the class/period picker in the assign modal', async () => {
@@ -349,7 +346,7 @@ describe('VideoActivityManager onAssign — behavior sourced from activity, dueA
     vi.clearAllMocks();
   });
 
-  it('calls onAssign with dueAt=null when no due date is entered', async () => {
+  it('calls onAssign with the default Availability due date', async () => {
     const onAssign = vi.fn().mockResolvedValue('session-1');
     const meta = makeVaMeta();
     renderManager(meta, onAssign);
@@ -368,36 +365,7 @@ describe('VideoActivityManager onAssign — behavior sourced from activity, dueA
     const args = onAssign.mock.calls[0];
     // Signature: (meta, rosterIds, dueAt)
     const dueAt = args[2];
-    expect(dueAt).toBeNull();
-  });
-
-  it('calls onAssign with dueAt as epoch ms when a date is entered', async () => {
-    const onAssign = vi.fn().mockResolvedValue('session-1');
-    const meta = makeVaMeta();
-    renderManager(meta, onAssign);
-
-    const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
-    fireEvent.click(assignBtn);
-    await screen.findByRole('dialog', { name: /cell division/i });
-
-    const dueDateInput = screen.getByTestId('va-assign-due-date');
-    fireEvent.change(dueDateInput, { target: { value: '2026-06-01' } });
-
-    const dialog = screen.getByRole('dialog', { name: /cell division/i });
-    const confirmBtn = within(dialog).getByRole('button', {
-      name: /^assign$/i,
-    });
-    fireEvent.click(confirmBtn);
-
-    await waitFor(() => expect(onAssign).toHaveBeenCalledOnce());
-    const args = onAssign.mock.calls[0];
-    const dueAt = args[2];
     expect(typeof dueAt).toBe('number');
-    expect(dueAt).toBeGreaterThan(0);
-    // Pin the concrete local epoch (June 1 2026 at 23:59 local time) and
-    // explicitly rule out the old UTC-midnight value that caused off-by-one dates.
-    expect(dueAt).toBe(new Date(2026, 5, 1, 23, 59, 0, 0).getTime());
-    expect(dueAt).not.toBe(new Date('2026-06-01').getTime());
   });
 
   it('calls onAssign with the activity meta as the first argument', async () => {
@@ -539,17 +507,13 @@ describe('VideoActivityManager assign modal — individual targeting (M17 B3)', 
     expect(targeting.targetMode).toBe('class');
   });
 
-  it('mirrors the legacy due-date input onto targeting.dueAt', async () => {
+  it('passes the same due date on targeting.dueAt', async () => {
     const onAssign = vi.fn().mockResolvedValue('session-1');
     renderManager(makeVaMeta(), onAssign);
 
     const assignBtn = await screen.findByRole('button', { name: /^assign$/i });
     fireEvent.click(assignBtn);
     await screen.findByRole('dialog', { name: /cell division/i });
-
-    fireEvent.change(screen.getByTestId('va-assign-due-date'), {
-      target: { value: '2026-06-01' },
-    });
 
     const dialog = screen.getByRole('dialog', { name: /cell division/i });
     fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
@@ -561,7 +525,7 @@ describe('VideoActivityManager assign modal — individual targeting (M17 B3)', 
       number | null,
       AssignTargetingValue,
     ];
-    expect(targeting.dueAt).toBe(dueAt);
+    expect(targeting.dueAt ?? null).toBe(dueAt);
   });
 });
 
@@ -637,16 +601,12 @@ describe('VideoActivityManager assign modal — live pacing', () => {
     liveFlag.enabled = true;
     const { dialog, onAssign } = await openModal();
     fireEvent.click(within(dialog).getByTestId('roster-r1'));
-    fireEvent.change(within(dialog).getByTestId('va-assign-due-date'), {
-      target: { value: '2026-10-01' },
-    });
     fireEvent.click(
       within(dialog).getByRole('radio', { name: /teacher-paced/i })
     );
     expect(
       within(dialog).getByTestId('va-assign-live-note')
     ).toBeInTheDocument();
-    expect(within(dialog).getByTestId('va-assign-due-date')).toBeDisabled();
     fireEvent.click(
       within(dialog).getByRole('button', { name: /start live/i })
     );
@@ -663,10 +623,6 @@ describe('VideoActivityManager assign modal — live pacing', () => {
 describe('VideoActivityManager assign — never a study resource (D3)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    availabilityFlag.enabled = true;
-  });
-  afterEach(() => {
-    availabilityFlag.enabled = false;
   });
 
   it('offers no Study Resource choice and assigns without a work kind', async () => {

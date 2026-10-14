@@ -690,10 +690,6 @@ export const TOUR_ANCHORS = {
     label: 'Show first switch in the Flashcards check step',
     panel: true,
   },
-  'assign-periods.mode': {
-    label: 'How periods open switch in the Assign window',
-    panel: true,
-  },
   'assign-when.mode-option': {
     label: 'Manual or Scheduled option in the Assign dialog',
     perField: true,
@@ -935,15 +931,6 @@ export const TOUR_ANCHORS = {
     label: 'Clear search button in the Choose students window',
     panel: true,
   },
-  'assign-targeting.schedule': {
-    label: 'Schedule section header in the Assign window',
-    panel: true,
-  },
-  'assign-targeting.window': {
-    label: 'Opens, Closes or Due date box in the Assign window schedule',
-    perField: true,
-    panel: true,
-  },
   'assign-targeting.open': {
     label: 'Edit or add modifications button in the Assign window',
     panel: true,
@@ -1011,21 +998,6 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
-  'assign-periods.window': {
-    label: 'Window for a class dropdown in the Assign window periods',
-    perField: true,
-    panel: true,
-  },
-  'assign-periods.custom-time': {
-    label:
-      'Custom Opens or Closes box for a class in the Assign window periods',
-    perField: true,
-    panel: true,
-  },
-  'assign-periods.customize': {
-    label: 'Customize per period button in the Assign window',
-    panel: true,
-  },
   'assign-periods.selector-close': {
     label: 'Close button in the Class Periods popup',
     panel: true,
@@ -1041,16 +1013,6 @@ export const TOUR_ANCHORS = {
   },
   'assign-periods.selector-save': {
     label: 'Save button in the Class Periods popup',
-    panel: true,
-  },
-  'assign-per-class.mode': {
-    label: 'One date or Each class option in the Assign window due date',
-    perField: true,
-    panel: true,
-  },
-  'assign-per-class.date': {
-    label: 'Due date or time box for a class in the Assign window',
-    perField: true,
     panel: true,
   },
   'assign-settings.attempts': {
@@ -9841,11 +9803,6 @@ export const TOUR_ANCHORS = {
   'video-activity.selection-toggle': {
     label: 'Select toggle in the video activity library',
   },
-  'video-activity.assign-due-date': {
-    label: 'Due date box in the video activity assign dialog',
-    persists: true,
-    panel: true,
-  },
   'video-activity.behavior-open-editor': {
     label: 'Edit in activity link in the video activity assign dialog',
     panel: true,
@@ -12488,7 +12445,8 @@ export const TOUR_ANCHORS = {
   },
   // Video Activity shared-prop controls.
   'editor.save': {
-    label: 'Save button in an editor dialog footer',
+    label:
+      'Save button in an editor dialog footer (not in editors that save as you go, like the quiz editor)',
     perWidgetType: true,
     persists: true,
     sandboxed: true,
@@ -13991,16 +13949,6 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   // Quiz assignment Settings dialog (from an assignment row menu).
-  'quiz-settings-modal.due-date': {
-    label: 'Due date box in the quiz assignment Settings dialog',
-    perWidgetType: true,
-    panel: true,
-  },
-  'quiz-settings-modal.due-time': {
-    label: 'Due time box in the quiz assignment Settings dialog',
-    perWidgetType: true,
-    panel: true,
-  },
   'quiz-settings-modal.plc-results': {
     label:
       'Share results with PLC button in the quiz assignment Settings dialog',

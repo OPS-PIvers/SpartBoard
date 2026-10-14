@@ -120,6 +120,8 @@ import {
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 import { openPopupBoxes, shieldTourUi, withNearbyPopups } from './popups';
 import { startTourRunLog, type TourRunLog } from './tourRuns';
+import { autoStage as stageTour, needsAutoStage } from './tourAutoStage';
+import { healAnchor } from './tourSelfHeal';
 import {
   endTestRun,
   installTestRunHook,
@@ -127,6 +129,7 @@ import {
   SAMPLE_CLASS_NAME,
   sampleStudents,
   takeTestTour,
+  testStepFound,
 } from './tourTestRun';
 import {
   clearTourEdit,
@@ -379,6 +382,9 @@ export const LiveTourRunner: React.FC = () => {
     uid: user?.uid,
     featurePermissions,
   };
+
+  // Steps of this run that self-heal already tried.
+  const healTried = useRef(new Set<number>());
 
   // Edit mode: the board editor's draft, with its selection driving playback.
   const editTarget = useTourEditTarget();
@@ -770,12 +776,20 @@ export const LiveTourRunner: React.FC = () => {
   }, [needsPrereq, prereqStep, attempt]);
 
   const runSetup = (
-    set: GuidedLearningSet,
-    steps: GuidedLearningStep[],
+    rawSet: GuidedLearningSet,
+    rawSteps: GuidedLearningStep[],
     from = 0,
     opts: LaunchOptions = {}
   ) => {
     const { dashboard: d } = latest.current;
+    // Without recorded layouts, the tour arranges its own widgets (D10).
+    const { set, steps } =
+      !opts.edit &&
+      latest.current.canAccessFeature('live-tour-self-heal') &&
+      needsAutoStage(rawSet)
+        ? stageTour(rawSet, rawSteps)
+        : { set: rawSet, steps: rawSteps };
+    healTried.current.clear();
     const v2 = opts.edit
       ? !!getTourEdit()?.v2
       : latest.current.canAccessFeature('live-tour-editing-v2');
@@ -1512,15 +1526,61 @@ export const LiveTourRunner: React.FC = () => {
           ? anchor.status
           : null
       : null;
+  // A control whose panel closed is reopened along its route, once per step (D4).
+  const healKey =
+    running &&
+    !tour?.test &&
+    !tour?.edit &&
+    anchor.status === 'missing' &&
+    !!binding?.anchor &&
+    canAccessFeature('live-tour-self-heal')
+      ? stepKey
+      : null;
+  const healAnchorScope = useEffectEvent(() => ({
+    widgetIds: added,
+    slots: tour?.slots,
+  }));
+  useEffect(() => {
+    if (!healKey || !binding || healTried.current.has(stepIndex)) return;
+    const tried = healTried.current;
+    tried.add(stepIndex);
+    const ctrl = new AbortController();
+    let settled = false;
+    void import('@/config/tourAnchorRoutes')
+      .then(({ tourAnchorRoutes }) =>
+        healAnchor(
+          binding.anchor,
+          tourAnchorRoutes,
+          healAnchorScope(),
+          ctrl.signal
+        )
+      )
+      .then((ok) => {
+        settled = true;
+        if (ok && !ctrl.signal.aborted) setAttempt((n) => n + 1);
+      })
+      .catch((err: unknown) => {
+        settled = true;
+        console.warn('Live tour self-heal failed', err);
+      });
+    return () => {
+      ctrl.abort();
+      // A heal cut short by a re-render hasn't had its try yet.
+      if (!settled) tried.delete(stepIndex);
+    };
+  }, [healKey, binding, stepIndex]);
+
   useEffect(() => {
     if (!testStatus || !step) return;
+    // A found control that closes once clicked is Autopilot's to move past.
+    const found = testStepFound(stepIndex);
     reportTestStep({
       index: stepIndex,
       stepId: step.id,
       anchor: step.tour?.anchor ?? '',
       status: testStatus,
     });
-    if (testStatus === 'missing') advanceRef.current(stepIndex + 1);
+    if (testStatus === 'missing' && !found) advanceRef.current(stepIndex + 1);
   }, [testStatus, stepIndex, step]);
   const waitingOnTeacher = autoStage === 'blocked' || autoStage === 'fallback';
   const autoBusy =

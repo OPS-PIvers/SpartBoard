@@ -62,7 +62,24 @@ describe('AssignTargetingSection', () => {
     expect(affordance).toBeInTheDocument();
     expect(affordance.textContent).not.toContain('+');
     expect(screen.queryByText('Grace Hopper')).not.toBeInTheDocument();
-    expect(screen.queryByText('Opens')).not.toBeInTheDocument();
+  });
+
+  it('renders Availability & Due Date and hides it when the host owns the When step', () => {
+    const { rerender } = renderSection();
+    expect(screen.getByText('Availability & Due Date')).toBeInTheDocument();
+    rerender(
+      <AssignTargetingSection
+        rosters={[roster]}
+        selectedRosterIds={['r1']}
+        value={EMPTY_ASSIGN_TARGETING_VALUE}
+        onChange={vi.fn()}
+        kind="quiz"
+        scheduleHidden
+      />
+    );
+    expect(
+      screen.queryByText('Availability & Due Date')
+    ).not.toBeInTheDocument();
   });
 
   it('expanding fires onExpand and leaves targetMode on class', () => {
@@ -187,7 +204,7 @@ describe('AssignTargetingSection', () => {
     expect(
       screen.queryByText('Edit or add modifications')
     ).not.toBeInTheDocument();
-    expect(screen.getByText('Schedule')).toBeInTheDocument();
+    expect(screen.getByText('Availability & Due Date')).toBeInTheDocument();
   });
 
   it('shows the class hint when no class is checked', () => {
@@ -196,43 +213,6 @@ describe('AssignTargetingSection', () => {
     expect(
       screen.getByText('Check a class above to modify individual students.')
     ).toBeInTheDocument();
-  });
-
-  it('the Schedule affordance is independent of targetMode and renders window pickers when expanded', () => {
-    renderSection();
-    fireEvent.click(screen.getByText('Schedule'));
-    expect(screen.getByText('Opens')).toBeInTheDocument();
-    expect(screen.getByText('Closes')).toBeInTheDocument();
-    expect(screen.queryByText('Due')).not.toBeInTheDocument();
-    expect(screen.getByText('Edit or add modifications')).toBeInTheDocument();
-  });
-
-  it('showDueAt reveals the due date picker once Schedule is expanded', () => {
-    renderSection({ showDueAt: true });
-    fireEvent.click(screen.getByText('Schedule'));
-    expect(screen.getByText('Due')).toBeInTheDocument();
-  });
-
-  it('shows a collapsed-state summary once a schedule is set', () => {
-    renderSection({
-      value: { ...EMPTY_ASSIGN_TARGETING_VALUE, openAt: 1_700_000_000_000 },
-    });
-    expect(screen.getByText(/Opens/)).toBeInTheDocument();
-  });
-
-  it('window picker changes emit epoch-ms values', () => {
-    const { onChange } = renderSection();
-    fireEvent.click(screen.getByText('Schedule'));
-    const openInput = screen.getByLabelText('Opens', {
-      selector: 'input',
-    }) as HTMLInputElement | null;
-    const input =
-      openInput ??
-      (screen.getByText('Opens').nextElementSibling as HTMLInputElement);
-    fireEvent.change(input, { target: { value: '2026-09-01T09:00' } });
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ openAt: expect.any(Number) })
-    );
   });
 
   describe('legacy targetMode:"students" assignments', () => {

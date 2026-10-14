@@ -52,8 +52,6 @@ const Legacy: React.FC = () => {
             value={targeting}
             onChange={setTargeting}
             kind="guided-learning"
-            showDueAt
-            availabilityEnabled
             workKind={{ default: 'resource' }}
           />
         </div>

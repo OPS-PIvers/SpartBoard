@@ -5,7 +5,6 @@ import type { QuizQuestion, VideoActivityQuestion } from '@/types';
 
 // Regression: attach flow's maxPoints must dedup duplicate question ids like other LMS-attach surfaces.
 
-let availabilityOn = false;
 let stepperOn = false;
 const saveLast = vi.fn();
 
@@ -50,9 +49,7 @@ vi.mock('@/context/useAuth', () => ({
     signInWithGoogle: vi.fn(),
     googleAccessToken: 'drive-token',
     ensureGoogleScope: vi.fn(() => null),
-    canAccessFeature: (id: string) =>
-      (id === 'assign-availability' && availabilityOn) ||
-      (id === 'assign-stepper' && stepperOn),
+    canAccessFeature: (id: string) => id === 'assign-stepper' && stepperOn,
   }),
 }));
 
@@ -234,51 +231,31 @@ describe('ClassroomAddonTeacherSpike attach flow — availability', () => {
     };
   };
 
-  it('flag off: no due date and no window on the quiz assignment', async () => {
-    availabilityOn = false;
+  it('the quiz assignment gets openAt/closeAt and dueAt from the section', async () => {
     const { settings, options } = await attachQuiz();
-    expect(settings.dueAt).toBeUndefined();
-    expect(options.openAt).toBeNull();
-    expect(options.closeAt).toBeNull();
+    expect(typeof options.openAt).toBe('number');
+    expect(typeof options.closeAt).toBe('number');
+    expect(settings.dueAt).toBe(options.closeAt);
+    expect(settings.dueAtHasTime).toBe(true);
+    expect(new Date(settings.dueAt as number).getHours()).toBe(23);
   });
 
-  it('flag on: the quiz assignment gets openAt/closeAt and dueAt from the section', async () => {
-    availabilityOn = true;
-    try {
-      const { settings, options } = await attachQuiz();
-      expect(typeof options.openAt).toBe('number');
-      expect(typeof options.closeAt).toBe('number');
-      expect(settings.dueAt).toBe(options.closeAt);
-      expect(settings.dueAtHasTime).toBe(true);
-      expect(new Date(settings.dueAt as number).getHours()).toBe(23);
-    } finally {
-      availabilityOn = false;
-    }
-  });
-
-  it('flag on: the video activity session options carry the resolved due date', async () => {
-    availabilityOn = true;
-    try {
-      render(<ClassroomAddonTeacherSpike />);
-      fireEvent.click(screen.getByRole('tab', { name: 'Video Activity' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Video Activity' }));
-      fireEvent.click(
-        await screen.findByRole('option', { name: 'My Video Activity' })
-      );
-      fireEvent.click(
-        screen.getByRole('button', { name: /attach video activity/i })
-      );
-      await waitFor(() => expect(createVaAssignment).toHaveBeenCalled());
-      const settings = (
-        createVaAssignment.mock.calls.at(-1) as unknown[]
-      )[1] as {
-        sessionOptions: { dueAt?: number; dueAtHasTime?: boolean };
-      };
-      expect(typeof settings.sessionOptions.dueAt).toBe('number');
-      expect(settings.sessionOptions.dueAtHasTime).toBe(true);
-    } finally {
-      availabilityOn = false;
-    }
+  it('the video activity session options carry the resolved due date', async () => {
+    render(<ClassroomAddonTeacherSpike />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Video Activity' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Video Activity' }));
+    fireEvent.click(
+      await screen.findByRole('option', { name: 'My Video Activity' })
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: /attach video activity/i })
+    );
+    await waitFor(() => expect(createVaAssignment).toHaveBeenCalled());
+    const settings = (createVaAssignment.mock.calls.at(-1) as unknown[])[1] as {
+      sessionOptions: { dueAt?: number; dueAtHasTime?: boolean };
+    };
+    expect(typeof settings.sessionOptions.dueAt).toBe('number');
+    expect(settings.sessionOptions.dueAtHasTime).toBe(true);
   });
 
   it('assign stepper on: the Quiz rule bodies drive the rules and an untouched When sets no window', async () => {
