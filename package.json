@@ -12,6 +12,7 @@
   "scripts": {
     "dev": "node scripts/generate-version.js && vite",
     "dev:prod": "node scripts/generate-version.js && vite --mode prod-local",
+    "dev:verify": "node scripts/serve-verify.mjs",
     "build": "node scripts/generate-version.js && vite build && vite build --config vite.prerender.config.ts && node dist-ssr/prerender-legal.js",
     "changelog:draft": "node scripts/draft-changelog-entry.js",
     "preview": "vite preview",

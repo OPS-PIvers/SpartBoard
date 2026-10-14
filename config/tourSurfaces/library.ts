@@ -157,10 +157,6 @@ export const SURFACES: TourSurfaceMap = {
         'library-shell.card-open:video-activity#row-1',
       'video-activity.preview-open-editor':
         'library-shell.card-open:video-activity#row-1',
-      'video-activity.assign-pacing':
-        'library-shell.card-primary-action:video-activity#row-1',
-      'video-activity.behavior-open-editor':
-        'library-shell.card-primary-action:video-activity#row-1',
     },
   },
   'library.video-activity.creator': {
@@ -246,10 +242,9 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'flashcards.editor-paste:flashcards',
   },
   'library.flashcards.assign': {
-    label: 'Flashcards assign dialog / stepper',
+    label: 'Flashcards assign stepper',
     kind: 'modal',
     files: [
-      'components/widgets/Flashcards/FlashcardAssignModal.tsx',
       'components/widgets/Flashcards/FlashcardAssignStepper.tsx',
       'components/common/library/assignStepper/FlashcardsCheckStep.tsx',
     ],
@@ -388,7 +383,6 @@ export const SURFACES: TourSurfaceMap = {
       'mini-app.save-app': 'mini-app.toolbar-save:miniApp',
       'mini-app.dialog-close': 'mini-app.toolbar-student-link:miniApp',
       'mini-app.copy-link': 'mini-app.toolbar-student-link:miniApp',
-      'mini-app.session-name': 'mini-app.toolbar-student-link:miniApp',
       'mini-app.assign-confirm': 'mini-app.toolbar-student-link:miniApp',
     },
   },

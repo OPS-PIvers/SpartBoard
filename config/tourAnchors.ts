@@ -18,6 +18,14 @@ export interface TourAnchorDef {
   panel?: true;
   /** State the runner sets up before it looks for the anchor. */
   requires?: TourAnchorPrerequisite;
+  /** Regex over the whole `type#key` suffix (or `type`), for keys the app computes; the dry run refuses others. */
+  keyPattern?: string;
+  /** Example keys in words, shown with keyPattern. */
+  keyHint?: string;
+  /** A button that steps to the next option on each click; names the anchor where the option is chosen instead. */
+  cycles?: string;
+  /** Opens this anchor namespace's list empty, so its row-N positions are rows the tour adds. */
+  opensEmpty?: string;
 }
 
 export const TOUR_ANCHOR_PREREQUISITES = [
@@ -394,7 +402,11 @@ export const TOUR_ANCHORS = {
     panel: true,
     destructive: true,
   },
-  'classes.new-class': { label: 'New Class button in My Classes', panel: true },
+  'classes.new-class': {
+    label: 'New Class button in My Classes',
+    panel: true,
+    opensEmpty: 'roster-editor',
+  },
   'classes.import-classlink': {
     label: 'ClassLink import button in My Classes',
     panel: true,
@@ -521,6 +533,7 @@ export const TOUR_ANCHORS = {
   'random.mode': {
     label: 'Mode button in Random Picker (Pick One, Shuffle, Groups, Jigsaw)',
     perWidget: true,
+    cycles: 'settings.field:random#mode',
   },
   'random.group-size': {
     label: 'Group size stepper (minus and plus) in Random Picker Groups mode',
@@ -553,6 +566,9 @@ export const TOUR_ANCHORS = {
     label:
       'Start timer button on a Schedule row, by row (active = the Now row)',
     perField: true,
+    keyPattern: 'schedule#(active|row-[1-9]\\d*)',
+    keyHint:
+      'schedule#active for the Now row, schedule#row-1 for the first row',
   },
   'poll.next-question': {
     label: 'Next question button in Poll',
@@ -623,18 +639,6 @@ export const TOUR_ANCHORS = {
   'quiz.select-mode': {
     label: 'Select mode toggle in the Quiz library',
     perWidget: true,
-  },
-  'assign-destination.spartboard': {
-    label: 'SpartBoard Only option in the Assign quiz dialog',
-    panel: true,
-  },
-  'assign-destination.classroom': {
-    label: 'Google Classroom option in the Assign quiz dialog',
-    panel: true,
-  },
-  'assign-destination.schoology': {
-    label: 'Schoology option in the Assign quiz dialog',
-    panel: true,
   },
   'assign-step.classes': {
     label: 'Classes step header in the Assign dialog',
@@ -1107,10 +1111,6 @@ export const TOUR_ANCHORS = {
     label: 'Open in New Tab link in the Share link window',
     panel: true,
   },
-  'plc-video-assign.due-date': {
-    label: 'Due Date box in the PLC Video Activity assign window',
-    panel: true,
-  },
   'plc-video-assign.teacher-name': {
     label: 'Your Name box in the PLC Video Activity assign window',
     panel: true,
@@ -1203,11 +1203,15 @@ export const TOUR_ANCHORS = {
     label: 'Answer option box in the Quiz editor, by letter',
     perField: true,
     panel: true,
+    keyPattern: 'quiz#[a-l]',
+    keyHint: 'quiz#a for option A, quiz#b for B; lowercase letters',
   },
   'quiz-editor.correct': {
     label: 'Mark-correct button beside an answer option, by letter',
     perField: true,
     panel: true,
+    keyPattern: 'quiz#[a-l]',
+    keyHint: 'quiz#a for option A, quiz#b for B; lowercase letters',
   },
   'quiz-editor.add-answer-key': {
     label: 'Add answer key in the Quiz editor',
@@ -1397,6 +1401,8 @@ export const TOUR_ANCHORS = {
     label: 'Remove option (×) in the Quiz editor',
     perField: true,
     panel: true,
+    keyPattern: 'quiz#[a-l]',
+    keyHint: 'quiz#a for option A, quiz#b for B; lowercase letters',
   },
   'quiz-editor.option-add': {
     label: 'Add option in the Quiz editor',
@@ -1540,9 +1546,14 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-editor.recording-attempts-info': {
+    label: 'Attempts allowed info button (spoken response) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-editor.recording-expiry': {
-    label: 'Prep expiry option buttons (per option) in the Quiz editor',
-    perField: true,
+    label: 'After planning time menu in the Quiz editor',
+    perWidgetType: true,
     panel: true,
   },
   'quiz-editor.response-format': {
@@ -1574,13 +1585,53 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.whiteboard-image': {
     label:
-      'Add image button for the whiteboard starting page in the Quiz editor',
+      'Insert image button for the whiteboard starting page in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-image-choose': {
+    label:
+      'Choose file button in the whiteboard Insert image dialog in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-preview': {
+    label: 'Preview button for the whiteboard starting page in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },
   'quiz-editor.whiteboard-image-remove': {
     label:
       'Remove image button for the whiteboard starting page in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-preview-tool': {
+    label:
+      'Move, Pen and Eraser tools (per tool) in the whiteboard starting page editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-preview-clear-ink': {
+    label: 'Clear ink button in the whiteboard starting page editor',
+    perWidgetType: true,
+    panel: true,
+    destructive: true,
+  },
+  'quiz-editor.whiteboard-preview-remove-image': {
+    label:
+      'Remove image button for the selected image in the whiteboard starting page editor',
+    perWidgetType: true,
+    panel: true,
+    destructive: true,
+  },
+  'quiz-editor.whiteboard-preview-cancel': {
+    label: 'Cancel button in the whiteboard starting page editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-preview-save': {
+    label: 'Save button in the whiteboard starting page editor',
     perWidgetType: true,
     panel: true,
   },
@@ -1616,6 +1667,11 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.section-choose-count': {
     label: '"Students answer … of these N" select in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.section-stop': {
+    label: '"After this section" menu in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },
@@ -1710,6 +1766,11 @@ export const TOUR_ANCHORS = {
   },
   'quiz-banks.slot-points': {
     label: 'Points input in Quiz banks',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-banks.slot-dealing': {
+    label: 'Draw (at random or evenly in each class) menu in Quiz banks',
     perWidgetType: true,
     panel: true,
   },
@@ -1985,6 +2046,36 @@ export const TOUR_ANCHORS = {
   },
   'quiz-import.review-link-picture': {
     label: 'Link picture select in Quiz import, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.versions-quiz-create': {
+    label: 'Create quiz checkbox in Quiz import versions, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.versions-quiz-name': {
+    label: 'Quiz name input in Quiz import versions, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.versions-quiz-kind': {
+    label: 'How versions are used select in Quiz import versions, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.versions-version-quiz': {
+    label: 'Quiz for a version select in Quiz import versions, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.versions-rubric': {
+    label: 'Rubric for a version select in Quiz import versions, by item',
+    perField: true,
+    panel: true,
+  },
+  'quiz-import.versions-picture-link': {
+    label: 'Unlink or link a shared picture in Quiz import versions, by item',
     perField: true,
     panel: true,
   },
@@ -2424,6 +2515,11 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
+  'quiz-stimuli.add-calculator': {
+    label: 'Add a calculator in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-stimuli.add-passage': {
     label: 'Add a passage in the Quiz widget',
     perWidgetType: true,
@@ -2437,6 +2533,11 @@ export const TOUR_ANCHORS = {
   'quiz-stimuli.attach-bank-slot': {
     label: 'Per-bank-slot attach checkbox in the Quiz widget',
     perField: true,
+    panel: true,
+  },
+  'quiz-stimuli.attach-calculator': {
+    label: 'Attach section Calculator in the Quiz widget',
+    perWidgetType: true,
     panel: true,
   },
   'quiz-stimuli.attach-question': {
@@ -2609,6 +2710,8 @@ export const TOUR_ANCHORS = {
   'quiz-results.question-toggle': {
     label: 'Question row expand toggle in Quiz results, by position',
     perField: true,
+    keyPattern: 'quiz#\\d+',
+    keyHint: 'quiz#0 for the first question',
   },
   'quiz-results.student-print-answers': {
     label:
@@ -2647,20 +2750,28 @@ export const TOUR_ANCHORS = {
   'quiz-results.student-select': {
     label: 'Select student row checkbox in Quiz results, by position',
     perField: true,
+    keyPattern: 'quiz#\\d+',
+    keyHint: 'quiz#0 for the first student row',
   },
   'quiz-results.student-toggle': {
     label: 'Student row expand button in Quiz results, by row',
     perField: true,
+    keyPattern: 'quiz#\\d+',
+    keyHint: 'quiz#0 for the first student row',
   },
   'quiz-results.student-unlock': {
     label: 'Unlock results in Quiz results, by position',
     perField: true,
     persists: true,
+    keyPattern: 'quiz#\\d+',
+    keyHint: 'quiz#0 for the first student row',
   },
   'quiz-results.student-delete': {
     label: 'Delete this submission in Quiz results, by position',
     perField: true,
     destructive: true,
+    keyPattern: 'quiz#\\d+',
+    keyHint: 'quiz#0 for the first student row',
   },
   'quiz-results.student-results-menu': {
     label: 'Results options menu button in Quiz results, by student',
@@ -2715,6 +2826,12 @@ export const TOUR_ANCHORS = {
   },
   'quiz-results.bulk-reopen': {
     label: 'Reopen in Quiz results',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-results.bulk-submit': {
+    label: 'Submit for students in Quiz results',
     perWidgetType: true,
     persists: true,
     panel: true,
@@ -2940,11 +3057,6 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
-  'quiz-grading.take-pin': {
-    label: 'Take pin button in the Quiz grader, by take',
-    perField: true,
-    panel: true,
-  },
   'quiz-grading.undo-excuse': {
     label: 'Undo excuse in the Quiz grader',
     perWidgetType: true,
@@ -2955,6 +3067,8 @@ export const TOUR_ANCHORS = {
     label: 'Highlight list item in the Quiz grader, by position',
     perField: true,
     panel: true,
+    keyPattern: 'quiz#\\d+',
+    keyHint: 'quiz#0 for the first highlight',
   },
   'quiz-grading.rubric-jump-tagged': {
     label: 'Tagged-count jump in the Quiz grader, by criterion',
@@ -3025,17 +3139,23 @@ export const TOUR_ANCHORS = {
     label: 'Move criterion up on the Quiz rubric builder, by position',
     perField: true,
     panel: true,
+    keyPattern: 'quiz#[1-9]\\d*',
+    keyHint: 'quiz#1 for the first criterion',
   },
   'quiz-rubric.criterion-down': {
     label: 'Move criterion down on the Quiz rubric builder, by position',
     perField: true,
     panel: true,
+    keyPattern: 'quiz#[1-9]\\d*',
+    keyHint: 'quiz#1 for the first criterion',
   },
   'quiz-rubric.criterion-remove': {
     label: 'Remove criterion on the Quiz rubric builder, by position',
     perField: true,
     destructive: true,
     panel: true,
+    keyPattern: 'quiz#[1-9]\\d*',
+    keyHint: 'quiz#1 for the first criterion',
   },
   'quiz-rubric.level-label': {
     label: 'Level label textarea on the Quiz rubric builder, by level',
@@ -3191,6 +3311,23 @@ export const TOUR_ANCHORS = {
     label: 'Student actions button in the Quiz monitor roster',
     perField: true,
   },
+  'quiz-monitor.student-open-part': {
+    label: 'Open Part item in the Quiz monitor student menu',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-monitor.open-part': {
+    label: 'Open Part button in the Quiz monitor',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-monitor.open-part-period': {
+    label: 'Class choice in the Quiz monitor Open Part menu',
+    perField: true,
+    persists: true,
+  },
   'quiz-monitor.student-let-in': {
     label: 'Let in now item in the Quiz monitor student menu',
     perWidgetType: true,
@@ -3199,6 +3336,12 @@ export const TOUR_ANCHORS = {
   },
   'quiz-monitor.student-unlock-attempt': {
     label: 'Unlock attempt item in the Quiz monitor student menu',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  'quiz-monitor.student-submit': {
+    label: 'Submit for student item in the Quiz monitor student menu',
     perWidgetType: true,
     persists: true,
     panel: true,
@@ -4576,10 +4719,6 @@ export const TOUR_ANCHORS = {
     destructive: true,
   },
   // PLC deferred controls: drag handles, option toggles, invite email, gradebook classes
-  'plc-assign.sheet-toggle': {
-    label: 'Auto-generated sheet switch in the PLC assign dialog',
-    panel: true,
-  },
   'plc-assign.option-toggle': {
     label: 'Option switch in the PLC assign dialog',
     perField: true,
@@ -4803,10 +4942,6 @@ export const TOUR_ANCHORS = {
   },
   'plc-assign.teacher-name': {
     label: 'Teacher name field in the PLC assign dialog',
-    panel: true,
-  },
-  'plc-assign.sheet-url': {
-    label: 'Sheet url field in the PLC assign dialog',
     panel: true,
   },
   'plc-assign.close': {
@@ -9318,52 +9453,6 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
-  'flashcards.collect-submission': {
-    label: 'Collect a submission switch in the Flashcards assign dialog',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards.check-mode': {
-    label: 'Mode choice in the Flashcards assign dialog',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards.show-first': {
-    label: 'Show first choice in the Flashcards assign dialog',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards.strict-mode': {
-    label: 'Strict mode switch in the Flashcards assign dialog',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards.question-type': {
-    label: 'Question type checkbox in the Flashcards assign dialog',
-    perField: true,
-    panel: true,
-  },
-  'flashcards.question-count': {
-    label: 'Questions count in the Flashcards assign dialog',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards.mastery-threshold': {
-    label: 'Mastery threshold choice in the Flashcards assign dialog',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards.score-visibility': {
-    label: 'Score visibility picker in the Flashcards assign dialog',
-    perWidgetType: true,
-    panel: true,
-  },
-  'flashcards.assign-confirm': {
-    label: 'Assign button in the Flashcards assign dialog',
-    perWidgetType: true,
-    persists: true,
-    panel: true,
-  },
   'flashcards.student-actions': {
     label: 'Actions menu button on a student row in Flashcards Check results',
     perField: true,
@@ -9867,10 +9956,6 @@ export const TOUR_ANCHORS = {
   'video-activity.selection-toggle': {
     label: 'Select toggle in the video activity library',
   },
-  'video-activity.behavior-open-editor': {
-    label: 'Edit in activity link in the video activity assign dialog',
-    panel: true,
-  },
   'video-activity.settings-score-visibility': {
     label: 'Score visibility option in video activity behavior settings',
     perField: true,
@@ -9896,11 +9981,6 @@ export const TOUR_ANCHORS = {
   'video-activity.admin-delete': {
     label: 'Delete button on an admin video activity',
     destructive: true,
-    persists: true,
-    panel: true,
-  },
-  'video-activity.plc-assign-due-date': {
-    label: 'Due date box in the PLC video activity assign dialog',
     persists: true,
     panel: true,
   },
@@ -10561,6 +10641,10 @@ export const TOUR_ANCHORS = {
     label: 'Add step button in the Studio timeline',
     panel: true,
   },
+  'studio.canvas': {
+    label: 'Slide image in the Studio, clicked to place a new step',
+    panel: true,
+  },
   // Dashboard shell and classroom-tool anchors.
   'dock.live-session': { label: 'Live session button in the dock' },
   'dock.live-popover-close': {
@@ -10825,6 +10909,7 @@ export const TOUR_ANCHORS = {
   'classes.new-class-empty': {
     label: 'Create New Class button in the empty My Classes list',
     panel: true,
+    opensEmpty: 'roster-editor',
   },
   'classes.roster-menu-item': {
     label: 'Class row in the dock class menu',
@@ -11099,6 +11184,30 @@ export const TOUR_ANCHORS = {
     label: 'Reset to my default button on the Style tab',
     panel: true,
     persists: true,
+    requires: 'settings-open',
+  },
+  'settings.window-background': {
+    perWidget: true,
+    label: 'Window background color on the Style tab',
+    panel: true,
+    requires: 'settings-open',
+  },
+  'settings.window-font': {
+    perWidget: true,
+    label: 'Window font on the Style tab',
+    panel: true,
+    requires: 'settings-open',
+  },
+  'settings.window-text-size': {
+    perWidget: true,
+    label: 'Window text size on the Style tab',
+    panel: true,
+    requires: 'settings-open',
+  },
+  'settings.window-transparency': {
+    perWidget: true,
+    label: 'Window transparency slider on the Style tab',
+    panel: true,
     requires: 'settings-open',
   },
   'settings.partner-add': {
@@ -12421,51 +12530,70 @@ export const TOUR_ANCHORS = {
     label:
       'Row button that marks a Schedule row done, by row (active = the Now row)',
     perField: true,
+    keyPattern: 'schedule#(active|row-[1-9]\\d*)',
+    keyHint:
+      'schedule#active for the Now row, schedule#row-1 for the first row',
   },
   'widget-settings.schedule.event-name': {
     label: 'Event name input in Schedule settings, by event row',
     perField: true,
     panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
   },
   'widget-settings.schedule.event-start-time': {
     label: 'Event start time input in Schedule settings, by event row',
     perField: true,
     panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
   },
   'widget-settings.schedule.event-end-time': {
     label: 'Event end time input in Schedule settings, by event row',
     perField: true,
     panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
   },
   'widget-settings.schedule.event-timer-minutes': {
     label:
       'Timer minutes input for an event in Schedule settings, by event row',
     perField: true,
     panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
   },
   'widget-settings.schedule.event-timer-seconds': {
     label:
       'Timer seconds input for an event in Schedule settings, by event row',
     perField: true,
     panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
   },
   'widget-settings.schedule.event-mode': {
     label:
       'Clock or timer mode toggle for an event in Schedule settings, by event row',
     perField: true,
     panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
   },
   'widget-settings.schedule.event-auto-launch': {
     label:
       'Auto-launch widget toggle for an event in Schedule settings, by event row',
     perField: true,
     panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
   },
   'widget-settings.schedule.event-auto-launch-widget': {
     label:
       'Widget choice in an event auto-launch list in Schedule settings, by event row and widget',
     perField: true,
     panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*-[\\w-]+',
+    keyHint: 'schedule#event-1-timer for the Timer choice on the first event',
   },
   'override-row.extended-time': {
     label: 'Extended time options in a student override',
@@ -12514,11 +12642,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     persists: true,
     sandboxed: true,
-    panel: true,
-  },
-  'video-activity.assign-pacing': {
-    label: 'Pacing choice in the video activity assign dialog',
-    persists: true,
     panel: true,
   },
   'video-activity.live-end': {
@@ -13806,6 +13929,10 @@ export const TOUR_ANCHORS = {
   },
   'import-wizard.ai-generate': {
     label: 'Generate button in the Import wizard Draft with AI panel',
+    panel: true,
+  },
+  'import-wizard.retry-with-ai': {
+    label: 'Try again with AI link on the Import wizard preview step',
     panel: true,
   },
   'import-wizard.title': {

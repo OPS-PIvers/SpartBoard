@@ -35,6 +35,7 @@ import { loadCatalogCodes } from '@/hooks/useStandardsCatalog';
 import { useQuestionBanks } from '@/hooks/useQuestionBanks';
 import {
   BankSlotResolutionError,
+  type BankContent,
   quizHasBankSlots,
   quizServedQuestionCount,
   resolveQuizAssignment,
@@ -78,10 +79,17 @@ import { usePlcAutoPullSync } from '@/hooks/usePlcAutoPullSync';
 import { PlcSyncConflictPrompt } from '@/components/plc/sync/PlcSyncConflictPrompt';
 import { PlcShareTargetModal } from '@/components/plc/PlcShareTargetModal';
 import { QuizManager, PlcOptions } from './components/QuizManager';
-import type { AssignDestination } from './components/AssignDestinationModal';
 import { ImportWizard } from '@/components/common/library/importer';
 import { createQuizImportAdapter } from './adapters/quizImportAdapter';
-import { extractQuizFromDocument } from '@/utils/quizDocumentImport/aiReaderApi';
+import {
+  extractQuizFromDocument,
+  extractTestSetFromDocument,
+} from '@/utils/quizDocumentImport/aiReaderApi';
+import {
+  SHUFFLED_BEHAVIOR,
+  type VersionImportBuild,
+} from '@/utils/quizDocumentImport/versionPlan';
+import { saveRubricDoc } from '@/hooks/useRubrics';
 import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
@@ -290,12 +298,13 @@ const TeacherQuizWidget: React.FC<{
     canImportDocuments &&
     canAccessFeature('quiz-document-ai-reader') &&
     canUseQuizAi;
+  const canImportVersions =
+    canImportDocuments && canAccessFeature('quiz-import-versions');
   const config = widget.config as QuizConfig;
   const reviewSplit = canAccessFeature('quiz-review-split');
   const isReview = variant === 'review';
   // The assign stepper is Assessment Mode only and saves last-used rules (plan D12).
-  const assessmentAssign =
-    !isReview && (reviewSplit || canAccessFeature('assign-stepper'));
+  const assessmentAssign = !isReview;
   // Only tag new docs while the split is on, so flag-off data is unchanged (D2).
   const kindTag = reviewSplit ? { widgetKind: variant } : {};
   const { save: saveLastAssignSettings } = useLastQuizAssignSettings(
@@ -490,11 +499,13 @@ const TeacherQuizWidget: React.FC<{
     endQuizSession,
     removeStudent,
     unlockStudentAttempt,
+    submitForStudent,
     unlockResultsForStudent,
     clearHandForStudent,
     revealAnswer,
     hideAnswer,
   } = useQuizSessionTeacher(config.activeAssignmentId);
+  const canSubmitForStudent = canAccessFeature('quiz-submit-for-student');
 
   // Count of students in the active session whose results view is locked
   // out (tab-warning threshold breached). Surfaced on the Monitor button
@@ -552,6 +563,39 @@ const TeacherQuizWidget: React.FC<{
     moveItem: moveQuizItem,
     createFolder: createQuizFolder,
   } = useFolders(user?.uid, 'quiz');
+
+  // One folder holds the bank and every generated quiz, pictures already uploaded (QUIZ_IMPORT_VERSIONS V6).
+  const saveVersionImport = useCallback(
+    async (ready: VersionImportBuild) => {
+      if (ready.rubrics.length > 0) {
+        const uid = user?.uid;
+        if (!uid) throw new Error('Not authenticated');
+        // Rubrics first, so every attached snapshot points at a saved library rubric (V15).
+        for (const rubric of ready.rubrics) await saveRubricDoc(uid, rubric);
+      }
+      const folderId = await createQuizFolder(ready.folderTitle, null);
+      if (ready.bank) {
+        await saveBank(ready.bank);
+        await moveBankToLibraryFolder(ready.bank.id, folderId);
+      }
+      for (const { quiz, shuffle } of ready.quizzes) {
+        const meta = await saveQuiz(
+          quiz,
+          undefined,
+          shuffle ? SHUFFLED_BEHAVIOR : undefined
+        );
+        await moveQuizItem(meta.id, folderId);
+      }
+    },
+    [
+      user?.uid,
+      createQuizFolder,
+      saveBank,
+      moveBankToLibraryFolder,
+      saveQuiz,
+      moveQuizItem,
+    ]
+  );
 
   // PLC subscription — needed at the widget level (not just inside the
   // Assign modal) so the assign flow can resolve the selected PLC and its
@@ -679,6 +723,11 @@ const TeacherQuizWidget: React.FC<{
     null
   );
   const [paperPrintIsNew, setPaperPrintIsNew] = useState(false);
+  /** Banks behind `paperPrintQuiz`'s slots, so balanced versions can print. */
+  const [paperPrintBanks, setPaperPrintBanks] = useState<ReadonlyMap<
+    string,
+    BankContent
+  > | null>(null);
   const [paperImport, setPaperImport] = useState<{
     quiz: QuizData;
     meta: QuizMetadata;
@@ -1796,6 +1845,16 @@ const TeacherQuizWidget: React.FC<{
         : {}),
       pickDocument,
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
+      ...(canImportVersions
+        ? {
+            importVersions: true,
+            saveVersionImport,
+            rubricScoringGuides: canAccessFeature('rubric-scoring-guides'),
+            ...(canUseAiReader
+              ? { aiExtractVersions: extractTestSetFromDocument }
+              : {}),
+          }
+        : {}),
       onDocumentImages: (images) => {
         documentImagesRef.current = images;
       },
@@ -1868,6 +1927,7 @@ const TeacherQuizWidget: React.FC<{
         onDeleteResponse={removeStudent}
         onUnlockResultsForStudent={unlockResultsForStudent}
         onReopenStudent={unlockStudentAttempt}
+        onSubmitStudent={canSubmitForStudent ? submitForStudent : undefined}
         onPlcSheetUrlReplaced={async (newUrl) => {
           // After QuizResults regenerates a stale PLC sheet (404
           // recovery), replace the URL on this widget's config so future
@@ -2063,6 +2123,7 @@ const TeacherQuizWidget: React.FC<{
         onUpdateConfig={handleUpdateQuizConfig}
         onRemoveStudent={removeStudent}
         onUnlockStudent={unlockStudentAttempt}
+        onSubmitForStudent={canSubmitForStudent ? submitForStudent : undefined}
         onUnlockResultsForStudent={unlockResultsForStudent}
         onClearHand={clearHandForStudent}
         onRevealAnswer={revealAnswer}
@@ -2183,8 +2244,15 @@ const TeacherQuizWidget: React.FC<{
             ? async (meta) => {
                 const data = await loadQuiz(meta);
                 if (!data) return;
+                // A bank that will not load leaves its slots off the sheet, as before.
+                const banks =
+                  canAccessFeature('quiz-import-versions') &&
+                  data.bankSlots?.some((s) => s.dealing === 'balanced')
+                    ? await loadBankContentsForQuiz(data).catch(() => null)
+                    : null;
                 setPaperPrintIsNew(false);
                 setPaperPrintMeta(meta);
+                setPaperPrintBanks(banks);
                 setPaperPrintQuiz(data);
               }
             : undefined
@@ -2269,7 +2337,6 @@ const TeacherQuizWidget: React.FC<{
           rosterIds: string[],
           dueAt: number | null,
           targeting: AssignTargetingValue,
-          destination?: AssignDestination,
           preloadedQuizData?: QuizData | null,
           dueAtByRosterId?: Record<string, number>,
           stepper?: QuizStepperAssign
@@ -2686,22 +2753,6 @@ const TeacherQuizWidget: React.FC<{
                 lastRosterIdsByQuizId: nextMap,
               },
             });
-            // Library-row chooser → Google Classroom: the SpartBoard assignment
-            // now exists (we have its id + join code), so hand it straight to the
-            // partner-first GC course picker. The teacher refines the due date
-            // there; this is just the initial seed (date-only).
-            if (destination === 'classroom' && canAssignToClassroom) {
-              setAssigningToClassroom({
-                id: assignmentId,
-                code,
-                title: meta.title,
-                dueAt: dueAt ?? null,
-                dueAtHasTime: dueAt != null ? true : undefined,
-                // Auto-target the linked Google course (Item D) — we have the
-                // freshly-derived ClassLink classes right here.
-                classlinkClassIds: derived.classIds,
-              });
-            }
             const url = `${window.location.origin}/quiz?code=${code}`;
             if (
               quizAssignmentMode !== 'view-only' &&
@@ -3186,7 +3237,6 @@ const TeacherQuizWidget: React.FC<{
         }
         onArchiveSharePlcResults={(a) => setSharePlcResultsTarget(a)}
         onArchiveStopSharingPlc={handleStopSharingPlc}
-        canAssignToClassroom={canAssignToClassroom}
         onArchiveAssignToClassroom={
           canAssignToClassroom
             ? (a) =>
@@ -3524,9 +3574,6 @@ const TeacherQuizWidget: React.FC<{
           canShareWithPlc={plcs.length > 0}
           onShareResults={() => setSharePlcResultsTarget(editingAssignment)}
           onStopSharing={() => handleStopSharingPlc(editingAssignment)}
-          assessmentOnly={
-            reviewSplit && getAssignmentWidgetKind(editingAssignment) === 'quiz'
-          }
           onClose={() => setEditingAssignment(null)}
           onSave={async (patch) => {
             try {
@@ -4024,6 +4071,7 @@ const TeacherQuizWidget: React.FC<{
         <PaperPrintModal
           quiz={paperPrintQuiz}
           rosters={rosters}
+          {...(paperPrintBanks ? { banks: paperPrintBanks } : {})}
           onSaveBatch={(batch) => savePaperBatch(user.uid, batch)}
           onCreateQuiz={
             paperPrintIsNew
@@ -4079,6 +4127,7 @@ const TeacherQuizWidget: React.FC<{
           }
           onClose={() => {
             setPaperPrintQuiz(null);
+            setPaperPrintBanks(null);
             setPaperPrintMeta(null);
             setPaperPrintIsNew(false);
           }}

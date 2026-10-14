@@ -222,6 +222,19 @@ describe('resolveQuizAssignment', () => {
     ],
   };
 
+  it('freezes balanced dealing onto the session slot', () => {
+    const balanced = {
+      ...quiz,
+      bankSlots: [{ ...quiz.bankSlots[0], dealing: 'balanced' as const }],
+    };
+    expect(resolveQuizAssignment(balanced, banks).sessionSlots[0].dealing).toBe(
+      'balanced'
+    );
+    expect(
+      resolveQuizAssignment(quiz, banks).sessionSlots[0]
+    ).not.toHaveProperty('dealing');
+  });
+
   it('freezes eligible pool questions with slot points and merged tags', () => {
     const resolved = resolveQuizAssignment(quiz, banks);
     expect(resolved.questions.map((x) => x.id)).toEqual([
@@ -246,6 +259,28 @@ describe('resolveQuizAssignment', () => {
       },
     ]);
     expect(resolved.totalQuestions).toBe(3);
+  });
+
+  it('draws a random slot only from its question ids when it lists them', () => {
+    const resolved = resolveQuizAssignment(
+      {
+        questions: [],
+        bankSlots: [slot({ count: 1, questionIds: ['b2', 'b4'] })],
+      },
+      banks
+    );
+    expect(resolved.sessionSlots[0].poolQuestionIds).toEqual(['b2', 'b4']);
+    expect(
+      validateBankSlots(
+        {
+          questions: [],
+          bankSlots: [slot({ count: 3, questionIds: ['b2', 'b4'] })],
+        },
+        banks
+      ).map((p) => p.message)
+    ).toEqual([
+      '"Fractions" has 2 questions but the slot draws 3. Lower the count or add questions to the bank.',
+    ]);
   });
 
   it('carries pool stimuli and syncs with the max-points helper', () => {

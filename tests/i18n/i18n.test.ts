@@ -24,7 +24,6 @@ describe('i18n config', () => {
 
 describe('quizMediaResponse plurals', () => {
   const PLURAL_KEYS = [
-    'capture.takeLimitReachedBody',
     'capture.submitBlockedTitle',
     'capture.submitBlockedBody',
   ];
@@ -65,12 +64,12 @@ describe('quizMediaResponse plurals', () => {
     }
   );
 
-  it('resolves the take-limit sentence by count', () => {
+  it('resolves the submit-blocked title by count', () => {
     expect(
-      i18n.t('quizMediaResponse.capture.takeLimitReachedBody', { count: 1 })
-    ).toContain('1 take,');
+      i18n.t('quizMediaResponse.capture.submitBlockedTitle', { count: 1 })
+    ).toBe('One question still needs a recording');
     expect(
-      i18n.t('quizMediaResponse.capture.takeLimitReachedBody', { count: 3 })
-    ).toContain('3 takes,');
+      i18n.t('quizMediaResponse.capture.submitBlockedTitle', { count: 3 })
+    ).toBe('3 questions still need a recording');
   });
 });

@@ -11,6 +11,7 @@ import {
   readQuizDocumentWithAi,
   type AiExtractedQuiz,
 } from '@/utils/quizDocumentImport/aiReader';
+import { mcReorderedTestSet } from '@/components/dev/quizVersionFixtures';
 import type {
   ExtractedImage,
   ExtractedQuestion,
@@ -255,6 +256,38 @@ describe('blobToBase64', () => {
 });
 
 describe('readQuizDocumentWithAi', () => {
+  it('returns a test set instead of questions when the versioned call finds versions', async () => {
+    const extract = vi.fn();
+    const quiz = await readQuizDocumentWithAi(
+      new Blob(['%PDF'], { type: 'application/pdf' }),
+      {
+        fileName: 'Unit 3 Quiz.pdf',
+        extract,
+        extractVersions: () => Promise.resolve(mcReorderedTestSet()),
+      }
+    );
+    expect(extract).not.toHaveBeenCalled();
+    expect(quiz.questions).toEqual([]);
+    expect(quiz.testSet?.versions.map((v) => v.label)).toEqual([
+      'Version A',
+      'Version B',
+    ]);
+    expect(quiz.testSet?.fileTitle).toBe('Unit 3 Quiz');
+  });
+
+  it('reads a plain answer from the versioned call the usual way', async () => {
+    const quiz = await readQuizDocumentWithAi(
+      new Blob(['%PDF'], { type: 'application/pdf' }),
+      {
+        fileName: 'test.pdf',
+        extract: vi.fn(),
+        extractVersions: () => Promise.resolve(aiQuiz()),
+      }
+    );
+    expect(quiz.testSet).toBeUndefined();
+    expect(quiz.questions).toHaveLength(1);
+  });
+
   it('sends the PDF type and returns the mapped quiz', async () => {
     const extract = vi.fn(() => Promise.resolve(aiQuiz()));
     const quiz = await readQuizDocumentWithAi(

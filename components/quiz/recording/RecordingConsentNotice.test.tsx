@@ -96,7 +96,7 @@ describe('AudioResponseCapture notice gate', () => {
       />
     );
     expect(screen.queryByText(/Before you record/i)).toBeNull();
-    expect(screen.getByText(/Thinking time/i)).toBeTruthy();
+    expect(screen.getByText(/Planning time/i)).toBeTruthy();
 
     // A second recording question in the same assignment stays acknowledged.
     rerender(
@@ -123,7 +123,7 @@ describe('AudioResponseCapture notice gate', () => {
         recorderDeps={deps}
       />
     );
-    expect(screen.getByText(/No takes left/i)).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Record/i })).toBeNull();
+    expect(screen.getByText('Turned in')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Record|Redo/i })).toBeNull();
   });
 });

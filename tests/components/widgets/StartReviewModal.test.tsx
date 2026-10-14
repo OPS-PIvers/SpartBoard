@@ -115,9 +115,8 @@ describe('StartReviewModal', () => {
     expect(screen.getByRole('button', { name: /^Start$/ })).toBeDisabled();
   });
 
-  it('picks classes from the class menu when the stepper is on', async () => {
+  it('picks classes from the class menu', async () => {
     const { onStart } = renderModal({
-      classMenu: true,
       rosters: SAMPLE_ROSTERS,
       initialRosterIds: ['c1'],
     });

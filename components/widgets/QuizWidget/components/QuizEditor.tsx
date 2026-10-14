@@ -13,7 +13,6 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { useTranslation } from 'react-i18next';
 import {
   AlertCircle,
   ChevronDown,
@@ -57,6 +56,7 @@ import {
   OrderingAnswerEditor,
 } from './MatchingOrderingEditor';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
+import { DraftNumberInput } from './DraftNumberInput';
 import {
   QuestionStimulusSection,
   SlotStimulusSection,
@@ -175,6 +175,7 @@ const quizContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.state.stimuli === next.state.stimuli &&
   prev.state.order === next.state.order &&
   prev.state.bankSlots === next.state.bankSlots &&
+  prev.state.sections === next.state.sections &&
   prev.state.selectedId === next.state.selectedId &&
   prev.state.checkedIds === next.state.checkedIds &&
   prev.shuffleQuestionsEnabled === next.shuffleQuestionsEnabled &&
@@ -194,8 +195,9 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
   onAddAnswerKey,
   allowSections = true,
 }: PaneProps) {
-  const { canAccessQuizMediaResponse } = useAuth();
+  const { canAccessQuizMediaResponse, canAccessFeature } = useAuth();
   const mediaResponseAllowed = canAccessQuizMediaResponse();
+  const stopsAllowed = canAccessFeature('quiz-import-versions');
   const {
     questions,
     stimuli,
@@ -250,6 +252,10 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
       ),
     [order, bankSlots]
   );
+  // A Stop on the last section has nothing after it, so that row offers none.
+  const lastSectionId = [...order]
+    .reverse()
+    .find((e) => e.kind === 'section')?.id;
   // Question numbers skip slot rows so "Question 3" matches the detail pane.
   const questionNumberById = useMemo(() => {
     const map = new Map<string, number>();
@@ -514,6 +520,7 @@ export const QuizEditorContextPane = React.memo(function QuizEditorContextPane({
                   <SectionRow
                     section={section}
                     questionCount={sectionCounts.get(section.id) ?? 0}
+                    canStop={stopsAllowed && section.id !== lastSectionId}
                     onUpdate={updateSection}
                     onRemove={removeSection}
                     dragHandleAttributes={handle.attributes}
@@ -835,7 +842,6 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
     [selectedQuestionId, updateQuestion]
   );
 
-  const { t } = useTranslation();
   const { user, canAccessQuizMediaResponse, canAccessFeature } = useAuth();
   // Fail-closed: no permission record means the controls never mount, so the
   // editor is pixel-identical to today for everyone else.
@@ -922,8 +928,13 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         bankApi={bankApi}
         onUpdate={updateBankSlot}
         onRemove={removeBankSlot}
+        balancedAvailable={canAccessFeature('quiz-import-versions')}
         stimulusSection={
-          <SlotStimulusSection state={state} slotId={selectedSlot.id} />
+          <SlotStimulusSection
+            state={state}
+            slotId={selectedSlot.id}
+            calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
+          />
         }
       />
     );
@@ -948,9 +959,8 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   const q = selectedQuestion;
   const typeMeta = QUESTION_TYPES.find((entry) => entry.value === q.type);
   const timeLimitLockedByRecording = mediaResponseAllowed && !!q.recording;
-  const timeLimitRecordingHint = t(
-    'quizMediaResponse.authoring.timeLimitDisabledHint'
-  );
+  // Spoken answers on: Type, Format, Time limit and Points share one compact line.
+  const compactRow = mediaResponseAllowed;
 
   return (
     // Not `relative`: the rubric builder anchors to the modal body so it can span both panes.
@@ -1066,9 +1076,15 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           )}
         </div>
 
-        {/* Type / time / points row */}
-        <div className="grid grid-cols-3 gap-3">
-          <div>
+        {/* Type / format / time / points row */}
+        <div
+          className={
+            compactRow
+              ? 'flex flex-wrap items-start gap-3'
+              : 'grid grid-cols-3 gap-3'
+          }
+        >
+          <div className={compactRow ? 'min-w-[10rem] flex-1' : undefined}>
             <label className={labelClass}>Type</label>
             <select
               value={q.type === 'MA' ? 'MC' : q.type}
@@ -1128,81 +1144,60 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 </option>
               ))}
             </select>
-            {/* Anchored under Type so the Time Limit / Points hints fill the space beside it instead of pushing the pane down. */}
-            {isFreeResponseType(q.type) && mediaResponseAllowed && (
-              <div className="mt-3">
-                <ResponseFormatControl
-                  question={q}
-                  onChange={handleRecordingChange}
-                  whiteboardAllowed={whiteboardAllowed}
-                />
-              </div>
-            )}
           </div>
-          <div>
-            <label className={labelClass} htmlFor="question-time-limit">
-              Time Limit
-            </label>
-            <div className="relative">
-              <input
+          {compactRow && isFreeResponseType(q.type) && (
+            <div className="min-w-[8rem] flex-1">
+              <ResponseFormatControl
+                question={q}
+                onChange={handleRecordingChange}
+                whiteboardAllowed={whiteboardAllowed}
+              />
+            </div>
+          )}
+          {/* A recording question's own thinking time and recording limit own the clock. */}
+          {!timeLimitLockedByRecording && (
+            <div className={compactRow ? 'w-28 shrink-0' : undefined}>
+              <label className={labelClass} htmlFor="question-time-limit">
+                Time Limit
+              </label>
+              <DraftNumberInput
                 id="question-time-limit"
-                type="number"
+                integer
                 min={0}
                 max={300}
                 value={q.timeLimit}
-                // Visible and disabled, never unmounted, on a recording
-                // question — its own prep/limit timer owns the clock.
-                disabled={timeLimitLockedByRecording}
-                aria-describedby={
-                  timeLimitLockedByRecording
-                    ? 'question-time-limit-recording-hint'
-                    : undefined
-                }
-                onChange={(e) =>
-                  updateQuestion(q.id, {
-                    timeLimit: parseInt(e.target.value, 10) || 0,
-                  })
-                }
-                className={`${inputClass} pr-12 disabled:bg-slate-100 disabled:text-slate-600`}
-                {...tourTypeAttr('quiz-editor.time-limit', 'quiz')}
+                onCommit={(timeLimit) => updateQuestion(q.id, { timeLimit })}
+                unit="Sec"
+                anchor={tourTypeAttr('quiz-editor.time-limit', 'quiz')}
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xxs uppercase tracking-wider">
-                Sec
-              </span>
             </div>
-            {timeLimitLockedByRecording && (
-              <p
-                id="question-time-limit-recording-hint"
-                className="mt-1 text-xs text-slate-600"
-              >
-                {timeLimitRecordingHint}
-              </p>
-            )}
-          </div>
-          <div>
+          )}
+          <div
+            className={compactRow ? 'w-20 shrink-0' : undefined}
+            title={
+              compactRow && q.rubricSnapshot
+                ? 'Points come from the attached rubric.'
+                : undefined
+            }
+          >
             <label className={labelClass}>Points</label>
-            <input
-              type="number"
+            <DraftNumberInput
+              integer
               min={1}
               max={100}
               value={q.points ?? 1}
               aria-label="Points"
               disabled={!!q.rubricSnapshot}
               aria-describedby={
-                q.rubricSnapshot ? 'question-points-rubric-hint' : undefined
+                q.rubricSnapshot && !compactRow
+                  ? 'question-points-rubric-hint'
+                  : undefined
               }
-              onChange={(e) =>
-                updateQuestion(q.id, {
-                  points: Math.min(
-                    100,
-                    Math.max(1, parseInt(e.target.value, 10) || 1)
-                  ),
-                })
-              }
-              className={`${inputClass} disabled:bg-slate-100 disabled:text-slate-600`}
-              {...tourTypeAttr('quiz-editor.points', 'quiz')}
+              onCommit={(points) => updateQuestion(q.id, { points })}
+              className="disabled:bg-slate-100 disabled:text-slate-600"
+              anchor={tourTypeAttr('quiz-editor.points', 'quiz')}
             />
-            {q.rubricSnapshot && (
+            {q.rubricSnapshot && !compactRow && (
               <p
                 id="question-points-rubric-hint"
                 className="mt-1 text-xs text-slate-600"
@@ -1447,7 +1442,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
 
         {/* Per-question stimulus attach — second entry point alongside the
             quiz-level Stimuli tab; both edit the same array. */}
-        <QuestionStimulusSection state={state} questionId={q.id} />
+        <QuestionStimulusSection
+          state={state}
+          questionId={q.id}
+          calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
+        />
       </div>
 
       {showRubricBuilder && isFreeResponseType(q.type) && (

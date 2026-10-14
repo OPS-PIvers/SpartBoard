@@ -1683,20 +1683,34 @@ export const LiveTourRunner: React.FC = () => {
     const ctrl = new AbortController();
     autoWait.current = ctrl;
     autoClicking.current = true;
-    let performed: Promise<void>;
+    let performed: Promise<boolean>;
     try {
       performed = performStep(el, binding, {
         instant: reducedMotion || jumping,
         signal: ctrl.signal,
       });
     } catch {
-      performed = Promise.resolve();
+      performed = Promise.resolve(true);
     }
     void performed
-      .catch(() => undefined)
-      .then(() => {
+      .catch(() => true)
+      .then((done) => {
         autoClicking.current = false;
         if (ctrl.signal.aborted) return;
+        // No option matched the step's value, so the step didn't happen.
+        if (!done) {
+          if (!tour.test) {
+            setAuto({ key: stepKey, stage: 'fallback' });
+            return;
+          }
+          reportTestStep({
+            index,
+            stepId: step?.id ?? '',
+            anchor: binding.anchor,
+            status: 'missing',
+            noOption: true,
+          });
+        }
         // A plain step next has nothing to wait for.
         if (!nextBinding) {
           requestAnimationFrame(() => advanceRef.current(index + 1));

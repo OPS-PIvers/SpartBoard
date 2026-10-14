@@ -2,10 +2,12 @@
 // Plays a live tour on the dummy-backend board and reports each step (LIVE_TOUR_ONE_SHOT.md D7, D12).
 // Usage: node scripts/run-live-tour.mjs <tour.json> [--base http://localhost:56320] [--out dir]
 //        [--upload <upload_url> --ticket <ticket>] [--flags id,id]
-// <tour.json> is what get_live_tour returned. Start the server first: the vite-verify launch config.
+// <tour.json> is what get_live_tour returned. Start the server first: vite-verify, or pnpm run dev:verify.
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { installedChromiums } from './lib/findChromium.mjs';
 
 const args = process.argv.slice(2);
 const flag = (name) => {
@@ -43,13 +45,41 @@ mkdirSync(out, { recursive: true });
 const STEP_MS = 30_000;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// Playwright's own Chromium when it is installed, else the machine's Chrome.
-const browser = await chromium
-  .launch()
-  .catch(() => chromium.launch({ channel: 'chrome' }));
+// LIVE_TOUR_CHROMIUM wins; else Playwright's expected build, the machine's Chrome, then any installed Chromium.
+async function launchBrowser() {
+  const forced = process.env.LIVE_TOUR_CHROMIUM;
+  if (forced) return chromium.launch({ executablePath: forced });
+  const tried = [];
+  const attempts = [
+    ["Playwright's Chromium", {}],
+    ['Chrome', { channel: 'chrome' }],
+    ...installedChromiums().map((p) => [p, { executablePath: p }]),
+  ];
+  for (const [name, options] of attempts) {
+    try {
+      const b = await chromium.launch(options);
+      if (tried.length) console.error(`Using ${name}.`);
+      return b;
+    } catch (err) {
+      tried.push(`${name}: ${String(err.message).split('\n')[0]}`);
+    }
+  }
+  console.error(
+    `No Chromium would launch. Tried:\n  ${tried.join('\n  ')}\nSet LIVE_TOUR_CHROMIUM to a Chromium or headless shell executable, or run pnpm exec playwright install chromium.`
+  );
+  process.exit(2);
+}
+const browser = await launchBrowser();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const errors = [];
 page.on('pageerror', (err) => errors.push(err.message));
+// Any file chooser a step opens (Add media) gets the bundled sample image.
+const sampleImage = fileURLToPath(
+  new URL('./live-tour-assets/sample-image.png', import.meta.url)
+);
+page.on('filechooser', (chooser) =>
+  chooser.setFiles(sampleImage).catch((err) => errors.push(err.message))
+);
 
 await page.goto(base);
 // Extra preview flags to play the tour with, such as live-tour-self-heal.
@@ -121,6 +151,7 @@ const results = view.steps.map((step, index) => {
     anchor: step.tour?.anchor ?? '',
     status,
     ...(r?.handedBack ? { handed_back: true } : {}),
+    ...(r?.noOption ? { no_option: true } : {}),
     ...(picture ? { picture, w: r.w, h: r.h } : {}),
   };
 });
@@ -155,11 +186,18 @@ if (upload) {
     else last.push(p);
   }
   for (const batch of batches) {
-    const res = await fetch(upload, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ticket, pictures: batch }),
-    });
+    let res;
+    try {
+      res = await fetch(upload, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ ticket, pictures: batch }),
+      });
+    } catch (err) {
+      // Behind a proxy, Node needs NODE_USE_ENV_PROXY=1 and NODE_EXTRA_CA_CERTS (AUTHORING.md).
+      report.upload.error = `${upload} unreachable: ${err.cause?.message ?? err.message}`;
+      break;
+    }
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
       report.upload.error = body.error ?? `HTTP ${res.status}`;
@@ -173,7 +211,7 @@ if (upload) {
 writeFileSync(join(out, 'results.json'), JSON.stringify(report, null, 2));
 for (const r of results)
   console.log(
-    `${r.status === 'found' || r.status === 'plain' ? 'ok  ' : 'FAIL'} ${r.step}. ${r.step_id} ${r.anchor || '(no control)'}: ${r.status}${r.handed_back ? ' (left to the teacher)' : ''}`
+    `${r.status === 'found' || r.status === 'plain' ? 'ok  ' : 'FAIL'} ${r.step}. ${r.step_id} ${r.anchor || '(no control)'}: ${r.status}${r.handed_back ? ' (left to the teacher)' : ''}${r.no_option ? ' (no option matches the value)' : ''}`
   );
 if (report.upload)
   console.log(

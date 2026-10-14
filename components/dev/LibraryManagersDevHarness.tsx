@@ -301,7 +301,6 @@ const VideoActivityView: React.FC = () => (
     onAssign={() => Promise.resolve('')}
     rosters={ROSTERS}
     periodAccess={PERIOD_ACCESS}
-    defaultSessionSettings={VA_SETTINGS}
     assignments={VA_ASSIGNMENTS}
     assignmentsLoading={false}
   />

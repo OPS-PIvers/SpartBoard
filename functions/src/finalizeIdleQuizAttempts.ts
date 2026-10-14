@@ -122,6 +122,8 @@ interface QuizResponseDoc {
   answers?: QuizAnswer[];
   /** M17 per-student subset of `publicQuestions`; absent means "all of them". */
   servedQuestionIds?: unknown;
+  /** True while the student waits at a quiz Stop; absent on older responses. */
+  partHeld?: unknown;
 }
 
 /**
@@ -457,8 +459,10 @@ export async function runFinalizeIdleQuizAttempts(
       continue;
     }
     // A closed or paused period freezes the attempt until the teacher starts it again.
+    // A student held at a Stop waits for the next part, possibly for days.
     if (
       meta.status === 'paused' ||
+      docSnap.data()?.partHeld === true ||
       isPeriodFrozen(meta.periodGate, docSnap.data() ?? {}, finalizedAt)
     ) {
       skippedPaused++;
@@ -490,6 +494,7 @@ export async function runFinalizeIdleQuizAttempts(
         if (fresh.status !== 'joined' && fresh.status !== 'in-progress') {
           return 'raced-status' as const;
         }
+        if (fresh.partHeld === true) return 'raced-status' as const;
         if (
           fresh.lastWriteAt &&
           fresh.lastWriteAt.toMillis() >= cutoff.toMillis()

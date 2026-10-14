@@ -41,11 +41,6 @@ vi.mock('@/hooks/useStudentGrades', () => ({
   useStudentGrades: () => ({ status: 'loading' }),
 }));
 
-const landing: { v2: boolean | null } = { v2: false };
-vi.mock('@/hooks/useStudentLandingV2', () => ({
-  useStudentLandingV2Enabled: () => landing.v2,
-}));
-
 const clock = { now: 0 };
 const OMS: BuildingScheduleDefaults = {
   buildingId: 'oms',
@@ -88,16 +83,11 @@ vi.mock('@/utils/serverTime', () => ({
   syncServerTime: vi.fn(),
 }));
 
-vi.mock('./StudentOverview', () => ({
-  StudentOverview: () => <div>overview</div>,
-}));
-
 // 2026-10-02 is a Friday.
 const at = (h: number, m: number) => new Date(2026, 9, 2, h, m).getTime();
 
 beforeEach(() => {
   window.matchMedia = vi.fn().mockReturnValue({ matches: true });
-  landing.v2 = false;
   schedules.status = 'ready';
   clock.now = at(8, 30);
   window.history.replaceState(null, '', '/my-assignments');
@@ -132,7 +122,6 @@ describe('MyAssignmentsPage class list', () => {
     expect(screen.getByText('English 9 Honors')).toBeTruthy();
     expect(screen.getByText('Ms. Ortiz & Mr. Lee')).toBeTruthy();
     expect(screen.queryByText('Class')).toBeNull();
-    expect(screen.getByText('1 class')).toBeTruthy();
   });
 });
 
@@ -166,23 +155,8 @@ describe('MyAssignmentsPage bell period', () => {
   const heading = () =>
     screen.queryByRole('heading', { level: 1 })?.textContent;
 
-  it('keeps the old name order and opens the Overview with the flag off', () => {
-    setClasses();
-    render(<MyAssignmentsPage />);
-    expect(sidebarOrder()).toEqual(['Art', 'Algebra', 'Biology']);
-    expect(screen.getByText('overview')).toBeTruthy();
-  });
-
-  it('waits for the flag before showing the page', () => {
-    setClasses();
-    landing.v2 = null;
-    render(<MyAssignmentsPage />);
-    expect(screen.getByText('Loading your assignments…')).toBeTruthy();
-  });
-
   it('orders by bell period and opens the class in session', () => {
     setClasses();
-    landing.v2 = true;
     render(<MyAssignmentsPage />);
     expect(sidebarOrder()).toEqual(['Biology', 'Algebra', 'Art']);
     expect(heading()).toBe('Biology');
@@ -190,7 +164,6 @@ describe('MyAssignmentsPage bell period', () => {
 
   it('opens the Overview when no class is in session', () => {
     setClasses();
-    landing.v2 = true;
     clock.now = at(12, 0);
     render(<MyAssignmentsPage />);
     expect(screen.getByText('Up next')).toBeTruthy();
@@ -198,7 +171,6 @@ describe('MyAssignmentsPage bell period', () => {
 
   it('lets a class in the URL win', () => {
     setClasses();
-    landing.v2 = true;
     window.history.replaceState(null, '', '/my-assignments/ALG');
     render(<MyAssignmentsPage />);
     expect(heading()).toBe('Algebra');
@@ -220,7 +192,6 @@ describe('MyAssignmentsPage bell period', () => {
 
   it('re-selects after the tab was away more than 10 minutes', () => {
     setClasses();
-    landing.v2 = true;
     render(<MyAssignmentsPage />);
     expect(heading()).toBe('Biology');
     clock.now = at(9, 20);
@@ -230,7 +201,6 @@ describe('MyAssignmentsPage bell period', () => {
 
   it('ignores a short absence', () => {
     setClasses();
-    landing.v2 = true;
     render(<MyAssignmentsPage />);
     clock.now = at(9, 20);
     away(5 * 60 * 1000);
@@ -239,7 +209,6 @@ describe('MyAssignmentsPage bell period', () => {
 
   it('never switches once the student has picked a class', () => {
     setClasses();
-    landing.v2 = true;
     render(<MyAssignmentsPage />);
     fireEvent.click(screen.getByRole('button', { name: /^Art/ }));
     expect(heading()).toBe('Art');

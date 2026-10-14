@@ -133,6 +133,44 @@ describe('StimulusRenderer text passage (D16)', () => {
   });
 });
 
+describe('StimulusRenderer calculator', () => {
+  const calc = (calculator?: QuizStimulus['calculator']): QuizStimulus => ({
+    id: 'stim-calc',
+    type: 'calculator',
+    url: '',
+    label: '',
+    ...(calculator ? { calculator } : {}),
+  });
+
+  it.each([
+    ['graphing', 'https://www.desmos.com/calculator?embed'],
+    ['scientific', 'https://www.desmos.com/scientific?embed'],
+    ['four-function', 'https://www.desmos.com/fourfunction?embed'],
+  ] as const)('frames the Desmos %s calculator', (kind, src) => {
+    const { container } = render(<StimulusRenderer stimulus={calc(kind)} />);
+    expect(container.querySelector('iframe')?.getAttribute('src')).toBe(src);
+  });
+
+  it('ignores the stored url and an unknown kind', () => {
+    const odd = {
+      ...calc(),
+      url: 'https://evil.example',
+      calculator: 'constructor',
+    } as unknown as QuizStimulus;
+    const { container } = render(<StimulusRenderer stimulus={odd} />);
+    expect(container.querySelector('iframe')?.getAttribute('src')).toBe(
+      'https://www.desmos.com/calculator?embed'
+    );
+  });
+
+  it('cannot open popups that would leave the quiz', () => {
+    const { container } = render(<StimulusRenderer stimulus={calc()} />);
+    expect(
+      container.querySelector('iframe')?.getAttribute('sandbox')
+    ).not.toContain('allow-popups');
+  });
+});
+
 describe('StimulusRenderer pdf fallback', () => {
   const pdf = (overrides: Partial<QuizStimulus> = {}): QuizStimulus => ({
     id: 'stim-pdf',

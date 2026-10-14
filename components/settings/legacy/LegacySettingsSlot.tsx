@@ -7,7 +7,7 @@ import {
 
 export type LegacySlotKind = 'settings' | 'appearance';
 
-// Mirrors WidgetRenderer's Suspense fallback so slot output is unchanged.
+// Spinner while the lazy legacy panel loads.
 const LoadingFallback = () => (
   <div className="flex items-center justify-center h-full w-full">
     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />

@@ -92,11 +92,11 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/plans/shipped/GL_STUDIO_GESTURES.md`
 
-- [ ] PR 5: remove gl-studio gate and classic GuidedLearningEditor/GuidedLearningEditorModal fallback from Widget.tsx once Paul confirms new gestures in prod. (M)
+- [ ] PR 5: remove the Studio's "Open classic editor" escape hatch and the classic GuidedLearningEditor/GuidedLearningEditorModal from Widget.tsx. (M)
 
 #### `docs/plans/shipped/GUIDED_LEARNING_STUDIO.md`
 
-- [ ] Paul plays each surface (widget, Manager preview, Help viewer, student app) end to end on prod and flips gl-live-tours, gl-studio from admin to Public in Admin Settings > Access. (S)
+- [ ] Paul plays each surface (widget, Manager preview, Help viewer, student app) end to end on prod and flips gl-live-tours from admin to Public in Admin Settings > Access. (S)
 - [ ] Write public/changelog.json entries once each flag opens (per CLAUDE.md, not at merge). (S)
 
 #### `docs/plans/shipped/LIVE_TOURS_V2.md`
@@ -159,7 +159,6 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/plans/shipped/QUIZ_RESULTS_PRINT.md`
 
-- [ ] Flag 'quiz-results-print' is still admin-only (stage: 'preview'); opening to all teachers requires Paul to test in prod and flip Admin Settings > Access > Global Settings to Public. (S)
 - [ ] Changelog entry for teachers has not been written (correctly deferred until the flag opens per repo convention). (S)
 
 #### `docs/plans/QUIZ_STRUCTURED_ASSESSMENTS.md`
@@ -195,10 +194,6 @@ Each item names the plan it came from; the plan holds the detail.
 
 - [ ] Paul saves the "Video Activity live mode" row once in prod, runs a live session (teacher tab plus a student tab, Present popup autoplay), then sets `video-activity-live` to Public in Admin Settings > Access > Previews and adds the changelog entry. (S)
 - [ ] Offer live mode from sub-launched and Library Assign entry points too; v1 only offers it from the widget's own Assign dialog. (M)
-
-#### `docs/plans/shipped/WIDGET_SETTINGS_DRAWER.md`
-
-- [ ] Flip settings-drawer flag to public default and delete components/common/SettingsPanel.tsx (wave 4). (M)
 
 #### `docs/specs/LO12-nexus-widget-connections-spec.md`
 
@@ -237,7 +232,7 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/multilingual-pronunciation-engine.md`
 
-- [ ] Chromebook go/no-go: load the self-hosted q4 model in `onnxruntime-web` on a district Chromebook and record load/memory/inference (plan §6 step 1, #2350). (M)
+- [ ] Move on-device decoding into a Web Worker with a "Checking…" state, CPU only (plan §4.5, #2350). (S)
 - [ ] Send the espeak-ng GPL brief to district counsel; the `quiz-speak-questions` flag stays admin-only until they confirm (G19, #2337). (S)
 
 #### `docs/gemini-api-terms-audit.md`
@@ -418,7 +413,6 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 #### `docs/multilingual-pronunciation-engine.md`
 
-- [ ] Port the scoring engine (A1–A13, T1–T5, S1–S5) into `utils/pronunciation/` and build the espeak→model symbol tokenizer (#2383) (plan §6 step 2). (L)
 - [ ] Build the `'speak'` question type per plan §5 (G1–G22) and §6 steps 3–6, behind `quiz-speak-questions`. (L)
 
 #### `docs/rich-response-wayfinder.md`

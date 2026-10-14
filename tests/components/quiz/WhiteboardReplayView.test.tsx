@@ -8,7 +8,8 @@ vi.mock('@/components/quiz/whiteboard/whiteboardLog', () => ({
   createWhiteboardReplayer: () => ({ seek: cursorAt, durationMs: 30_000 }),
   whiteboardLogDuration: () => 30_000,
 }));
-vi.mock('@/utils/whiteboard/startingPage', () => ({
+vi.mock('@/utils/whiteboard/startingPage', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/utils/whiteboard/startingPage')>()),
   renderStartingPageCanvas: vi.fn(() => document.createElement('canvas')),
 }));
 

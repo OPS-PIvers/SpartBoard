@@ -168,33 +168,6 @@ vi.mock('./AnnotationCanvas', () => ({
   },
 }));
 
-// Spy wrapper for SettingsPanel — records every props object passed to the
-// component so regression tests can inspect the shouldRenderSettings value
-// that arrives on the FIRST mount when the widget transitions to flipped=true.
-// The actual SettingsPanel uses createPortal and heavy hooks; the spy renders
-// a lightweight stand-in that exposes just enough to check the key prop.
-const { settingsPanelRenderProps } = vi.hoisted(() => ({
-  settingsPanelRenderProps: [] as Array<{ shouldRenderSettings: boolean }>,
-}));
-
-vi.mock('./SettingsPanel', () => ({
-  SettingsPanel: (props: {
-    shouldRenderSettings: boolean;
-    settings: React.ReactNode;
-  }) => {
-    settingsPanelRenderProps.push({
-      shouldRenderSettings: props.shouldRenderSettings,
-    });
-    return props.shouldRenderSettings && props.settings ? (
-      <div data-testid="settings-spy-content">{props.settings}</div>
-    ) : (
-      <div data-testid="settings-spy-placeholder" className="italic">
-        Standard settings available.
-      </div>
-    );
-  },
-}));
-
 const mockWidget: WidgetData = {
   id: 'test-widget',
   type: 'clock',
@@ -251,8 +224,6 @@ describe('DraggableWindow', () => {
     // (which don't care about the screenshot filename) are unaffected.
     mockGetLocalIsoDate.mockReset();
     mockGetLocalIsoDate.mockImplementation(defaultGetLocalIsoDate.current);
-    // Reset SettingsPanel render spy before each test
-    settingsPanelRenderProps.length = 0;
     // Reset AnnotationCanvas size-prop spy before each test
     annotationCanvasSizeProps.length = 0;
     // Setup default spy to return null
@@ -269,7 +240,6 @@ describe('DraggableWindow', () => {
   const renderComponent = (
     widgetProps: Partial<WidgetData> = {},
     children: React.ReactNode = <div>Content</div>,
-    settings: React.ReactNode = <div>Settings</div>,
     selectedWidgetId: string | null = null
   ) => {
     const widget = { ...mockWidget, ...widgetProps };
@@ -293,7 +263,6 @@ describe('DraggableWindow', () => {
         <DraggableWindow
           widget={widget}
           title="Test Widget"
-          settings={settings}
           globalStyle={mockGlobalStyle}
         >
           {children}
@@ -301,158 +270,6 @@ describe('DraggableWindow', () => {
       </DashboardContext.Provider>
     );
   };
-
-  it('conditionally loads settings only after flip (optimization)', async () => {
-    const SettingsContent = () => (
-      <div data-testid="settings-content">Settings Loaded</div>
-    );
-
-    const { rerender } = render(
-      <DashboardContext.Provider
-        value={
-          {
-            updateWidget: mockUpdateWidget,
-            removeWidget: mockRemoveWidget,
-            duplicateWidget: mockDuplicateWidget,
-            bringToFront: mockBringToFront,
-            addToast: mockAddToast,
-            resetWidgetSize: mockResetWidgetSize,
-            selectedWidgetId: null,
-            setSelectedWidgetId: mockSetSelectedWidgetId,
-            zoom: 1,
-            panOffset: { x: 0, y: 0 },
-          } as unknown as DashboardContextValue
-        }
-      >
-        <DraggableWindow
-          widget={mockWidget}
-          title="Test Widget"
-          settings={<SettingsContent />}
-          globalStyle={mockGlobalStyle}
-        >
-          <div>Content</div>
-        </DraggableWindow>
-      </DashboardContext.Provider>
-    );
-
-    // Initially, settings should NOT be in the document because flipped is false
-    expect(screen.queryByTestId('settings-content')).not.toBeInTheDocument();
-
-    // Rerender with flipped = true
-    const flippedWidget = { ...mockWidget, flipped: true };
-    rerender(
-      <DashboardContext.Provider
-        value={
-          {
-            updateWidget: mockUpdateWidget,
-            removeWidget: mockRemoveWidget,
-            duplicateWidget: mockDuplicateWidget,
-            bringToFront: mockBringToFront,
-            addToast: mockAddToast,
-            resetWidgetSize: mockResetWidgetSize,
-            selectedWidgetId: null,
-            setSelectedWidgetId: mockSetSelectedWidgetId,
-            zoom: 1,
-            panOffset: { x: 0, y: 0 },
-          } as unknown as DashboardContextValue
-        }
-      >
-        <DraggableWindow
-          widget={flippedWidget}
-          title="Test Widget"
-          settings={<SettingsContent />}
-          globalStyle={mockGlobalStyle}
-        >
-          <div>Content</div>
-        </DraggableWindow>
-      </DashboardContext.Provider>
-    );
-
-    // Now settings SHOULD be in the document
-    await waitFor(() => {
-      expect(screen.getByTestId('settings-content')).toBeInTheDocument();
-    });
-  });
-
-  it('SettingsPanel receives shouldRenderSettings=true on its very first render when widget flips open', () => {
-    // Regression test for: "shouldRenderSettings useEffect latch causes one-frame
-    // placeholder flash on slow hardware/projectors"
-    //
-    // Root cause (dev-paul): DraggableWindow used a useEffect to latch
-    // shouldRenderSettings=true when widget.flipped became true. In a real browser
-    // (not JSDOM) useEffect fires AFTER paint, so SettingsPanel's first commit
-    // received shouldRenderSettings=false and briefly rendered the placeholder
-    // "Standard settings available." before the effect re-rendered with true.
-    //
-    // Fix: Replace the useEffect with React's "adjust state while rendering"
-    // pattern — the inline `if (widget.flipped && !shouldRenderSettings)`
-    // assignment fires in the same synchronous render pass, so SettingsPanel
-    // always mounts with shouldRenderSettings=true.
-    //
-    // Why RTL alone cannot catch this: act() flushes effects synchronously in
-    // JSDOM, making both the useEffect and inline approaches produce identical
-    // DOM state after rerender(). Instead, this test uses the settingsPanelRenderProps
-    // spy (module-level vi.mock above) to inspect what shouldRenderSettings value
-    // was passed to SettingsPanel on its VERY FIRST render call — before any
-    // effects could fire. With the useEffect approach the first call gets false;
-    // with the inline approach it gets true.
-
-    const SettingsContent = () => (
-      <div data-testid="settings-content-sync">Settings Loaded</div>
-    );
-
-    const contextValue = {
-      updateWidget: mockUpdateWidget,
-      removeWidget: mockRemoveWidget,
-      duplicateWidget: mockDuplicateWidget,
-      bringToFront: mockBringToFront,
-      addToast: mockAddToast,
-      resetWidgetSize: mockResetWidgetSize,
-      selectedWidgetId: null,
-      setSelectedWidgetId: mockSetSelectedWidgetId,
-      zoom: 1,
-      panOffset: { x: 0, y: 0 },
-    } as unknown as DashboardContextValue;
-
-    const { rerender } = render(
-      <DashboardContext.Provider value={contextValue}>
-        <DraggableWindow
-          widget={mockWidget}
-          title="Test Widget"
-          settings={<SettingsContent />}
-          globalStyle={mockGlobalStyle}
-        >
-          <div>Content</div>
-        </DraggableWindow>
-      </DashboardContext.Provider>
-    );
-
-    // Before flip: SettingsPanel not mounted, spy array is empty
-    expect(settingsPanelRenderProps).toHaveLength(0);
-
-    // Flip the widget — SettingsPanel mounts for the first time
-    rerender(
-      <DashboardContext.Provider value={contextValue}>
-        <DraggableWindow
-          widget={{ ...mockWidget, flipped: true }}
-          title="Test Widget"
-          settings={<SettingsContent />}
-          globalStyle={mockGlobalStyle}
-        >
-          <div>Content</div>
-        </DraggableWindow>
-      </DashboardContext.Provider>
-    );
-
-    // At least one render must have occurred
-    expect(settingsPanelRenderProps.length).toBeGreaterThan(0);
-
-    // KEY ASSERTION: The very first render call must have shouldRenderSettings=true.
-    // With the buggy useEffect approach: first render gets false (the effect
-    // hasn't fired yet), then a subsequent render gets true.
-    // With the fixed inline approach: first render already gets true.
-    expect(settingsPanelRenderProps[0].shouldRenderSettings).toBe(true);
-  });
 
   it('exposes a high-contrast focus-visible ring for keyboard users', () => {
     // WCAG 2.4.7: the focus indicator must stay visible (>=3:1) on white, dark,
@@ -1007,7 +824,6 @@ describe('DraggableWindow', () => {
     renderComponent(
       { type: 'blooms-taxonomy', w: 200, h: 200 },
       <div>Content</div>,
-      <div>Settings</div>,
       'test-widget'
     );
 
@@ -1159,7 +975,7 @@ describe('DraggableWindow', () => {
 
   it('settings button toggles flipped to true when closed', () => {
     // Pass test-widget as selected so toolbar shows
-    renderComponent({}, <div>Content</div>, <div>Settings</div>, 'test-widget');
+    renderComponent({}, <div>Content</div>, 'test-widget');
 
     // Click widget to show toolbar
     const widgetEl = screen.getByText('Content').closest('.widget');
@@ -1176,12 +992,7 @@ describe('DraggableWindow', () => {
   });
 
   it('minimize closes settings panel', () => {
-    renderComponent(
-      { flipped: true },
-      <div>Content</div>,
-      <div>Settings</div>,
-      'test-widget'
-    );
+    renderComponent({ flipped: true }, <div>Content</div>, 'test-widget');
 
     // Click widget to show toolbar, then minimize
     const widgetEl = screen.getByText('Content').closest('.widget');
@@ -1201,7 +1012,7 @@ describe('DraggableWindow', () => {
     const { useClickOutside } = await import('@/hooks/useClickOutside');
 
     // Pass test-widget as selected so toolbar shows
-    renderComponent({}, <div>Content</div>, <div>Settings</div>, 'test-widget');
+    renderComponent({}, <div>Content</div>, 'test-widget');
 
     // Verify title is rendered
     const titleEl = screen.getByText('Test Widget');
@@ -1248,7 +1059,7 @@ describe('DraggableWindow', () => {
     // Sanity check: the global modal counter starts at 0 across tests.
     expect(getOpenModalCount()).toBe(0);
 
-    renderComponent({}, <div>Content</div>, <div>Settings</div>, 'test-widget');
+    renderComponent({}, <div>Content</div>, 'test-widget');
 
     // With the widget selected and no modal open, the toolbar should render
     // its action buttons (Settings / Minimize live only inside the toolbar).
@@ -1426,7 +1237,7 @@ describe('DraggableWindow', () => {
     });
 
     it('starts resize when click is in the corner priority zone, even with a button beneath', () => {
-      renderComponent({}, null, undefined, 'test-widget');
+      renderComponent({}, null, 'test-widget');
       const seHandle = getSeHandle();
 
       // (290, 290) is within 16px of right (300) and bottom (300) → priority zone.
@@ -1446,7 +1257,7 @@ describe('DraggableWindow', () => {
     });
 
     it('passes through to interactive element when click is outside priority zone', () => {
-      renderComponent({}, null, undefined, 'test-widget');
+      renderComponent({}, null, 'test-widget');
       const seHandle = getSeHandle();
 
       // (270, 270) is 30px inside right/bottom → NOT in the priority zone,
@@ -1467,7 +1278,7 @@ describe('DraggableWindow', () => {
     });
 
     it('starts resize from the overhang outside the widget bounds', () => {
-      renderComponent({}, null, undefined, 'test-widget');
+      renderComponent({}, null, 'test-widget');
       const seHandle = getSeHandle();
 
       // (305, 305) is OUTSIDE the widget (right=300, bottom=300) — the
@@ -1525,7 +1336,7 @@ describe('DraggableWindow', () => {
     // browser's focus manager would produce.
 
     // Pass test-widget as selected so the floating toolbar (and title) shows
-    renderComponent({}, <div>Content</div>, <div>Settings</div>, 'test-widget');
+    renderComponent({}, <div>Content</div>, 'test-widget');
 
     // Click the title span to enter edit mode
     const titleEl = screen.getByText('Test Widget');
@@ -1568,7 +1379,7 @@ describe('DraggableWindow', () => {
 
   // Browsers that skip blur on unmount (Firefox/Safari) leave the cancel flag set; the next rename must still save.
   it('saves the next title edit after an Escape-cancel that fired no blur', async () => {
-    renderComponent({}, <div>Content</div>, <div>Settings</div>, 'test-widget');
+    renderComponent({}, <div>Content</div>, 'test-widget');
 
     fireEvent.click(screen.getByText('Test Widget'));
     const first = screen.getByDisplayValue('Test Widget');
@@ -1606,7 +1417,7 @@ describe('DraggableWindow', () => {
   // so the node is still connected at the time of the second saveTitle() call.)
   it('calls updateWidget exactly once when Enter commits the widget title edit', async () => {
     // Render with the widget selected so the floating toolbar and title show
-    renderComponent({}, <div>Content</div>, <div>Settings</div>, 'test-widget');
+    renderComponent({}, <div>Content</div>, 'test-widget');
 
     // Click the title span to enter edit mode
     const titleEl = screen.getByText('Test Widget');
@@ -1682,12 +1493,7 @@ describe('DraggableWindow', () => {
     const ContentWithInput = () => (
       <input data-testid="content-input" defaultValue="hello" />
     );
-    renderComponent(
-      {},
-      <ContentWithInput />,
-      <div>Settings</div>,
-      'test-widget'
-    );
+    renderComponent({}, <ContentWithInput />, 'test-widget');
 
     const input = screen.getByTestId('content-input');
 

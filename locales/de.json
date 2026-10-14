@@ -2129,6 +2129,16 @@
     "left": "Verbleibende Zeit {{time}}",
     "submitted": "Die Zeit ist um. Deine Antworten wurden abgegeben."
   },
+  "quizParts": {
+    "confirmTitle": "Teil {{part}} abgeben?",
+    "confirmBody": "Danach kannst du deine Antworten in Teil {{part}} nicht mehr ändern.",
+    "confirmSubmit": "Teil {{part}} abgeben",
+    "stop": "Stopp.",
+    "wait": "Warte, bis deine Lehrkraft Teil {{part}} startet.",
+    "open": "Teil {{part}} ist offen.",
+    "start": "Teil {{part}} starten",
+    "startFailed": "Teil {{part}} konnte nicht gestartet werden. Versuche es noch einmal."
+  },
   "quizReadAloud": {
     "label": "Vorlesen",
     "help": "Nur für angemeldete Schüler.",
@@ -2257,10 +2267,10 @@
     },
     "capture": {
       "title": "Spoken answer",
-      "takeUnlimited": "Take {{n}}",
-      "takeOf": "Take {{n}} of {{total}}",
+      "takeUnlimited": "Attempt {{n}}",
+      "takeOf": "Attempt {{n}} of {{total}}",
       "limitHint": "up to {{seconds}} seconds",
-      "prepLabel": "Thinking time",
+      "prepLabel": "Planning time",
       "prepBody": "Plane deine Antwort.",
       "requestingMic": "Asking to use your microphone…",
       "recordingLabel": "Recording",
@@ -2276,19 +2286,14 @@
       "windowClosedBody": "Deine Lehrkraft sieht diese Frage ohne Aufnahme. Mach weiter, wenn du bereit bist.",
       "armedBody": "Du hast {{seconds}} Sekunden.",
       "record": "Record",
-      "recordAgain": "Record again",
       "stop": "Stop recording",
       "stopAndSubmit": "Stop and submit",
-      "commit": "Keep this take",
-      "discard": "Discard",
+      "commit": "Turn in",
       "retryUpload": "Try again",
       "playPlayback": "Play your recording",
       "pausePlayback": "Pause your recording",
       "submitQuiz": "Submit quiz",
       "nextQuestion": "Next",
-      "takeLimitReachedTitle": "No takes left",
-      "takeLimitReachedBody_one": "This question allows {{count}} take, and you have used it. Your last take is the one your teacher receives.",
-      "takeLimitReachedBody_other": "This question allows {{count}} takes, and you have used them all. Your last take is the one your teacher receives.",
       "submitBlockedTitle_one": "One question still needs a recording",
       "submitBlockedTitle_other": "{{count}} questions still need a recording",
       "submitBlockedBody_one": "The question stays incomplete and the assignment cannot be submitted. Go back and record an answer, then turn it in.",
@@ -2296,7 +2301,9 @@
       "submitBlockedJump": "Go to question {{number}}",
       "notSubmittedPending": "Noch nicht abgegeben. Deine Aufnahme wird noch gesendet.",
       "notSubmittedFailed": "Deine Aufnahme wurde nicht gesendet. Wähle Erneut versuchen.",
-      "notSubmittedFailedFinal": "Deine Aufnahme wurde nicht gesendet und kann von diesem Gerät nicht gesendet werden. Nimm erneut auf, um eine neue Aufnahme zu senden."
+      "notSubmittedFailedFinal": "Deine Aufnahme wurde nicht gesendet und kann von diesem Gerät nicht gesendet werden. Nimm erneut auf, um eine neue Aufnahme zu senden.",
+      "redo": "Redo",
+      "submittedLabel": "Turned in"
     },
     "whiteboard": {
       "title": "Whiteboard answer",
@@ -2307,7 +2314,7 @@
       "windowClosedBody": "Your teacher will see this question without a whiteboard answer. Move on when you're ready.",
       "notSubmittedPending": "Not submitted yet. Your answer is still sending.",
       "notSubmittedFailed": "Your answer didn't send. Choose Try again.",
-      "notSubmittedFailedFinal": "Your answer didn't send and can't be sent from this device. Record again to send a new take."
+      "notSubmittedFailedFinal": "Your answer didn't send and can't be sent from this device. Record again to send a new attempt."
     },
     "unavailable": {
       "title": "Your microphone did not work",
@@ -2318,29 +2325,24 @@
       "formatTyped": "Typed",
       "formatSpoken": "Spoken",
       "formatWhiteboard": "Whiteboard",
-      "prepLabel": "Thinking time",
+      "prepLabel": "Planning time",
       "prepHint": "0 starts recording right away.",
       "limitLabel": "Recording limit",
       "limitHint": "Up to {{max}} seconds.",
       "limitClamped": "Capped at {{seconds}}s for {{mode}}.",
       "limitClampedAction": "Set to {{seconds}}s",
       "secondsUnit": "Sec",
-      "expiryLabel": "When thinking time runs out",
-      "expiryAutoStart": "Start recording",
-      "expiryAutoAdvance": "Move on",
-      "expiryArmed": "Wait for them",
-      "expiryUnanswered": "Mark unanswered",
-      "expiryUnansweredHint": "Comes to you ungraded.",
-      "takeLimitLabel": "Takes allowed",
+      "expiryLabel": "After planning time",
+      "expiryAutoStart": "Recording starts",
+      "expiryArmed": "Student presses Record",
+      "takeLimitLabel": "Attempts allowed",
       "takeLimitUnlimited": "Unlimited",
-      "takeLimitHint": "A take is a recording the student keeps, not one they discard.",
+      "takeLimitHint": "How many times a student can record this answer. Each new recording replaces the last, and only the final one is turned in.",
       "reviewLabel": "Students review before submitting",
-      "timeLimitDisabledHint": "Set by the recording timer.",
       "modeLabelAudio": "audio",
       "modeLabelVideo": "video",
       "modeLabelWhiteboard": "whiteboard",
       "whiteboard": {
-        "explainAloudLabel": "Students explain out loud",
         "startingPageLabel": "Starting page",
         "pattern": {
           "blank": "Blank",
@@ -2366,11 +2368,24 @@
           "polygon": "Polygon"
         },
         "sides": "Sides",
-        "addImage": "Add image",
-        "replaceImage": "Replace image",
         "removeImage": "Remove image",
-        "imagePasteHint": "Pick a file, or paste an image here.",
-        "previewLabel": "Starting page preview"
+        "previewLabel": "Starting page preview",
+        "previewPage": "Preview",
+        "captureLabel": "Recording",
+        "screenOnly": "Screen only",
+        "screenAndAudio": "Screen & Audio",
+        "insertImage": "Insert image",
+        "insertImageDrop": "Drop images here, or press Ctrl+V to paste.",
+        "chooseFiles": "Choose files",
+        "imageLimit": "Up to {{max}} images.",
+        "removeImageNumber": "Remove image {{n}}",
+        "toolsLabel": "Tools",
+        "tool": {
+          "move": "Move",
+          "pen": "Pen",
+          "eraser": "Eraser"
+        },
+        "clearInk": "Clear ink"
       },
       "advisory": {
         "title": "Heads up",
@@ -2452,18 +2467,6 @@
         "body": "Sobald Schüler eine Frage mit freier Antwort beantworten, getippt oder gesprochen, erscheinen sie hier."
       },
       "takes": {
-        "title": "Takes",
-        "count_one": "{{count}} take recorded",
-        "count_other": "{{count}} takes recorded",
-        "take": "Take {{n}}",
-        "pinNote": "Scores use the last take.",
-        "status": {
-          "archiving": "Still saving",
-          "archive-failed": "Not saved",
-          "lost": "Lost",
-          "deleted": "Deleted",
-          "unknown": "Unavailable"
-        },
         "mic": {
           "denied": "Mikrofon blockiert",
           "unavailable": "Kein Mikrofon"
@@ -2486,8 +2489,8 @@
         "loading": "Loading the recording…",
         "loadFailed": "The recording could not be loaded from your Google Drive. Check that you are still signed in to Google and try again.",
         "retry": "Try again",
-        "play": "Play this take",
-        "pause": "Pause this take",
+        "play": "Play this attempt",
+        "pause": "Pause this attempt",
         "scrubber": "Playback position",
         "skipToSpeech": "Skip to next speech",
         "valueText": "{{elapsed}} of {{total}}",
@@ -2516,7 +2519,7 @@
           },
           "unknown": {
             "title": "Not available",
-            "body": "This take cannot be played right now."
+            "body": "This attempt cannot be played right now."
           }
         }
       },
@@ -2606,7 +2609,7 @@
       "label": "Your recorded answer",
       "play": "Play your recording",
       "loading": "Loading your recording…",
-      "gradedTake": "Your teacher graded take {{n}}.",
+      "gradedTake": "Your teacher graded attempt {{n}}.",
       "archiving": "Your recording is still being saved. Check back in a few minutes.",
       "failed": "Your recording is still being saved — the system keeps trying on its own. Check back later.",
       "deleted": "This recording has been deleted and can no longer be played.",
@@ -2629,6 +2632,17 @@
       "lost": "Your whiteboard could not be saved and can no longer be recovered. Your teacher can see that you answered.",
       "missing": "There is no whiteboard saved for this question.",
       "tooLarge": "This whiteboard is too large to show here. Ask your teacher to show it to you."
+    },
+    "micGate": {
+      "title": "Schalte dein Mikrofon ein",
+      "body": "Dieses Quiz hat Fragen, die du laut beantwortest. Erlaube das Mikrofon, um zu beginnen.",
+      "askingBody": "Wähle Zulassen in dem Fenster, das dein Browser zeigt.",
+      "allow": "Mikrofon zulassen",
+      "blockedTitle": "Das Mikrofon ist blockiert",
+      "blockedBody": "Klicke auf das Symbol links in der Adressleiste, schalte das Mikrofon ein und versuche es erneut.",
+      "noMicTitle": "Kein Mikrofon gefunden",
+      "noMicBody": "Schließe ein Mikrofon oder Headset an und versuche es erneut.",
+      "retry": "Erneut versuchen"
     }
   },
   "annotation": {
@@ -4104,7 +4118,11 @@
         "thick": "Dick"
       },
       "undo": "Rückgängig",
-      "redo": "Wiederholen"
+      "redo": "Wiederholen",
+      "zoom": "Zoom",
+      "zoomIn": "Vergrößern",
+      "zoomOut": "Verkleinern",
+      "zoomReset": "Seite einpassen"
     },
     "drawer": {
       "show": "Show materials",
@@ -4118,6 +4136,9 @@
     "notice": {
       "drawOnlyTitle": "Before you draw",
       "replayLine": "Your teacher can replay how you drew, including anything you erase."
+    },
+    "startingPage": {
+      "loadFailed": "Die Startseite wurde nicht geladen."
     }
   }
 }

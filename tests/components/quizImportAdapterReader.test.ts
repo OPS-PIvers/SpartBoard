@@ -35,6 +35,7 @@ import {
 } from '@/utils/quizDocumentImport';
 import { readQuizDocumentWithAi } from '@/utils/quizDocumentImport/aiReader';
 import { browserPdfCropper } from '@/utils/quizDocumentImport/pdfCropBrowser';
+import { PageLimitError } from '@/utils/quizDocumentImport/limits';
 import { createQuizImportAdapter } from '@/components/widgets/QuizWidget/adapters/quizImportAdapter';
 
 const extracted = (title: string): ExtractedQuiz => ({
@@ -137,6 +138,80 @@ describe('quiz import reader selection', () => {
     // A teacher mid-import wants a quiz to fix, not an error screen.
     expect(result.data.title).toBe('browser');
     expect(result.warnings.join(' ')).toContain('read the simple way');
+  });
+
+  it('shows the AI error for a versioned file the plain reader cannot open', async () => {
+    vi.mocked(readQuizDocumentWithAi).mockRejectedValue(
+      new Error('That took too long.')
+    );
+    vi.mocked(readQuizDocument).mockRejectedValue(
+      new Error('This file is 26 pages.')
+    );
+    const versioned = adapter({
+      aiExtract: vi.fn(),
+      aiExtractVersions: vi.fn(),
+      importVersions: true,
+    });
+    await expect(versioned.parse(source)).rejects.toThrow(
+      'That took too long.'
+    );
+    await expect(adapter({ aiExtract: vi.fn() }).parse(source)).rejects.toThrow(
+      'This file is 26 pages.'
+    );
+  });
+
+  it('uses AI for a versioned PDF past the plain page limit', async () => {
+    vi.mocked(readQuizDocument).mockRejectedValue(
+      new PageLimitError('This file is 26 pages.')
+    );
+    const versioned = adapter({
+      aiExtract: vi.fn(),
+      importVersions: true,
+      aiExtractVersions: vi.fn(),
+    });
+
+    const result = await versioned.parse({ ...source, useAi: false });
+
+    expect(readQuizDocumentWithAi).toHaveBeenCalled();
+    expect(result.note).toBe('Converted with AI.');
+    expect(result.aiRetry).toBeUndefined();
+  });
+
+  it('keeps the page limit error without the versions flag', async () => {
+    vi.mocked(readQuizDocument).mockRejectedValue(
+      new PageLimitError('This file is 26 pages.')
+    );
+    await expect(
+      adapter({ aiExtract: vi.fn() }).parse({ ...source, useAi: false })
+    ).rejects.toThrow('26 pages');
+    expect(readQuizDocumentWithAi).not.toHaveBeenCalled();
+  });
+
+  it('offers an AI retry only after a plain read of a PDF or Word file', async () => {
+    const versioned = adapter({
+      aiExtract: vi.fn(),
+      importVersions: true,
+      aiExtractVersions: vi.fn(),
+    });
+    const plain = await versioned.parse({ ...source, useAi: false });
+    expect(plain.aiRetry).toBe(true);
+
+    const ai = await versioned.parse(source);
+    expect(ai.aiRetry).toBeUndefined();
+
+    const photo = await versioned.parse({
+      kind: 'document',
+      file: new Blob(['x'], { type: 'image/png' }),
+      fileName: 'page.png',
+      useAi: false,
+    });
+    expect(photo.aiRetry).toBeUndefined();
+
+    const unflagged = await adapter({ aiExtract: vi.fn() }).parse({
+      ...source,
+      useAi: false,
+    });
+    expect(unflagged.aiRetry).toBeUndefined();
   });
 
   it('still reports the pictures a fallback read found', async () => {

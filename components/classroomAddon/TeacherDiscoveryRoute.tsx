@@ -65,13 +65,8 @@ import {
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
 import { translateHiddenOptionIdsToText } from '@/utils/quizHiddenOptions';
 import { resolveQuizAssignContent } from '@/utils/quizAssignBankDraw';
-import {
-  getAssignBehaviorSeed,
-  formatBehaviorSummary,
-  getQuizAssignPrefill,
-} from '@/utils/quizBehavior';
+import { getQuizAssignPrefill } from '@/utils/quizBehavior';
 import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
-import { QuizAssignSettingsInline } from '@/components/common/library/QuizAssignSettingsInline';
 import { InlineAssignStepBodies } from '@/components/common/library/assignStepper/InlineAssignStepBodies';
 import {
   defaultWhenValue,
@@ -190,18 +185,11 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   // already-created attachment (no addOnToken in that iframe).
   const existingAttachmentId = params.get('attachmentId') ?? '';
 
-  const { user, signInWithGoogle, googleAccessToken, canAccessFeature } =
-    useAuth();
-  // D12: with the split on, settings come from the teacher's last-used, editable inline.
-  const reviewSplit = canAccessFeature('quiz-review-split');
-  // D22: with the stepper on, the When and Quiz rule step bodies replace the inline settings.
-  const stepperOn = canAccessFeature('assign-stepper');
-  const lastUsedRules = reviewSplit || stepperOn;
-  const [assignWindowOn, setAssignWindowOn] = useState(false);
+  const { user, signInWithGoogle, googleAccessToken } = useAuth();
   // Classroom owns the due date: the When step sets a window only with Schedule on.
-  const windowOn = !stepperOn || assignWindowOn;
+  const [windowOn, setWindowOn] = useState(false);
   const { lastUsed: lastAssignSettings, save: saveLastAssignSettings } =
-    useLastQuizAssignSettings(user?.uid, lastUsedRules);
+    useLastQuizAssignSettings(user?.uid, true);
   const [assignWhen, setAssignWhen] = useState<AssignWhenValue>(() =>
     defaultWhenValue({
       activity: 'quiz',
@@ -316,9 +304,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     (): AssignTargetingValue =>
       windowOn
         ? applyAvailability(
-            stepperOn
-              ? { ...assignTargeting, availability: assignWhen.availability }
-              : assignTargeting,
+            { ...assignTargeting, availability: assignWhen.availability },
             {
               enabled: true,
               rosters: rosters.filter((r) =>
@@ -328,14 +314,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
             }
           ).targeting
         : assignTargeting,
-    [
-      windowOn,
-      stepperOn,
-      assignWhen,
-      assignTargeting,
-      rosters,
-      addonSelectedRosterIds,
-    ]
+    [windowOn, assignWhen, assignTargeting, rosters, addonSelectedRosterIds]
   );
   // Full quiz content backing the per-student override editor (question
   // subset / MC-option hider). Loaded lazily on first expand, cached per quiz.
@@ -404,18 +383,13 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   // surfaces the parity (the quiz/VA's own session mode, attempts, etc.) so the
   // teacher can see what students will get before attaching.
   const behaviorSummary = useMemo(() => {
-    if (kind === 'quiz') {
-      if (lastUsedRules) return null;
-      return selectedQuiz
-        ? formatBehaviorSummary(getAssignBehaviorSeed(selectedQuiz))
-        : null;
-    }
+    if (kind === 'quiz') return null;
     return selectedActivity
       ? formatVideoActivityBehaviorSummary(
           getVideoActivityBehavior(selectedActivity)
         )
       : null;
-  }, [kind, selectedQuiz, selectedActivity, lastUsedRules]);
+  }, [kind, selectedActivity]);
 
   const signIn = useCallback(async () => {
     setBusy(true);
@@ -624,9 +598,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     const targeting = await resolveClassTargeting();
 
     // Assessment Mode always; options and attempt limit come from the quiz.
-    const { sessionMode, sessionOptions, attemptLimit } = lastUsedRules
-      ? splitAssignSettings
-      : getAssignBehaviorSeed(selectedQuiz);
+    const { sessionMode, sessionOptions, attemptLimit } = splitAssignSettings;
 
     const effectiveTeacherName = teacherName.trim() || defaultTeacherName;
 
@@ -697,7 +669,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       }
     );
     append(`Assignment created (join code ${code}).`);
-    if (stepperOn) saveLastAssignSettings(splitAssignSettings);
+    saveLastAssignSettings(splitAssignSettings);
 
     // Individual targeting only (§3a-G): a class-wide attach never depends on
     // the callable, so a Cloud Functions hiccup can't regress today's flow.
@@ -822,8 +794,6 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     resolveWindow,
     setAssignmentTargets,
     setAssignmentTargetSkippedCount,
-    lastUsedRules,
-    stepperOn,
     saveLastAssignSettings,
     splitAssignSettings,
   ]);
@@ -1134,9 +1104,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   const windowBackwards =
     windowOn &&
     availabilityBackwards(
-      stepperOn
-        ? { ...assignTargeting, availability: assignWhen.availability }
-        : assignTargeting,
+      { ...assignTargeting, availability: assignWhen.availability },
       rosters.filter((r) => addonSelectedRosterIds.includes(r.id)),
       undefined
     );
@@ -1271,12 +1239,6 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                   </span>
                 </p>
               )}
-              {kind === 'quiz' && reviewSplit && !stepperOn && (
-                <QuizAssignSettingsInline
-                  value={splitAssignSettings}
-                  onChange={setEditedAssignSettings}
-                />
-              )}
 
               <div>
                 <label
@@ -1300,28 +1262,26 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
               {/* M17 schedule window + individual-student targeting. No due
                   picker here — Classroom's own composer owns the due date. */}
               <div className="space-y-3 border-t border-slate-200 pt-4">
-                {stepperOn && (
-                  <InlineAssignStepBodies
-                    activity={kind === 'quiz' ? 'quiz' : 'video'}
-                    when={assignWhen}
-                    onWhenChange={setAssignWhen}
-                    windowOn={assignWindowOn}
-                    onWindowOnChange={setAssignWindowOn}
-                    rosters={rosters.filter((r) =>
-                      addonSelectedRosterIds.includes(r.id)
-                    )}
-                    behavior={splitAssignSettings}
-                    onBehaviorChange={setEditedAssignSettings}
-                    disabled={busy}
-                  />
-                )}
+                <InlineAssignStepBodies
+                  activity={kind === 'quiz' ? 'quiz' : 'video'}
+                  when={assignWhen}
+                  onWhenChange={setAssignWhen}
+                  windowOn={windowOn}
+                  onWindowOnChange={setWindowOn}
+                  rosters={rosters.filter((r) =>
+                    addonSelectedRosterIds.includes(r.id)
+                  )}
+                  behavior={splitAssignSettings}
+                  onBehaviorChange={setEditedAssignSettings}
+                  disabled={busy}
+                />
                 <AssignTargetingSection
                   rosters={rosters}
                   selectedRosterIds={addonSelectedRosterIds}
                   allowModifications={addonSelectedRosterIds.length > 0}
                   value={assignTargeting}
                   onChange={setAssignTargeting}
-                  scheduleHidden={stepperOn}
+                  scheduleHidden
                   kind={kind === 'quiz' ? 'quiz' : 'video-activity'}
                   {...(kind === 'quiz'
                     ? {

@@ -87,13 +87,13 @@ export const providerOf = (model: string): AiProvider =>
 
 const CLAUDE_INPUTS: readonly AiInputKind[] = ['text', 'image', 'pdf'];
 
-/** Gemini reads every input; Claude reads text, images and PDFs only. */
+/** Gemini reads every input; Claude reads text, images and PDFs, and a Word file falls back to Gemini on the server. */
 export const modelReadsInputs = (
   model: string,
   inputs: readonly AiInputKind[]
 ): boolean =>
   providerOf(model) === 'gemini' ||
-  inputs.every((kind) => CLAUDE_INPUTS.includes(kind));
+  inputs.every((kind) => kind === 'docx' || CLAUDE_INPUTS.includes(kind));
 
 export const aiModelLabel = (model: string): string =>
   AI_MODEL_OPTIONS.find((m) => m.id === model)?.label ?? model;

@@ -16,7 +16,6 @@ import {
   PenLine,
   RotateCcw,
   Square,
-  Trash2,
 } from 'lucide-react';
 import type {
   RecordingConfig,
@@ -40,7 +39,7 @@ import {
   type WhiteboardCanvasHandle,
 } from '@/components/quiz/whiteboard/WhiteboardCanvas';
 import { renderWhiteboardPicture } from '@/components/quiz/whiteboard/whiteboardPicture';
-import { useStartingPageImage } from '@/components/quiz/whiteboard/useStartingPageImage';
+import { useStartingPageImages } from '@/components/quiz/whiteboard/useStartingPageImages';
 import { WhiteboardReplayView } from '@/components/quiz/whiteboard/WhiteboardReplayView';
 import {
   createWhiteboardLogRecorder,
@@ -62,12 +61,15 @@ import {
   type TakeRecoveryStore,
 } from '@/utils/takeRecoveryStore';
 import type { CommitState } from './AudioResponseCapture';
+import { useRedoCount } from './useRedoCount';
 
 export interface WhiteboardResponseCaptureProps {
   config: RecordingConfig;
   takesCommitted: number;
   noticeAckedAt: number | null;
   onAcknowledgeNotice: () => void;
+  /** False when an admin turned the recording notice off. */
+  noticeRequired?: boolean;
   /** Resolves once the take is written; rejects to surface the failed state. */
   onCommit: (take: WhiteboardTake) => Promise<void>;
   onRetryUpload?: () => Promise<void>;
@@ -85,7 +87,7 @@ export interface WhiteboardResponseCaptureProps {
 const BLANK_PAGE: WhiteboardStartingPage = { pattern: { kind: 'blank' } };
 
 const REPLAY_WIDTH: React.CSSProperties = {
-  width: 'calc((min(100dvh - 12rem, 75cqw) - 5rem) * 4 / 3)',
+  width: 'calc((100cqh - 5rem) * 4 / 3)',
   maxWidth: '100%',
 };
 
@@ -102,6 +104,7 @@ export const WhiteboardResponseCapture: React.FC<
   takesCommitted,
   noticeAckedAt,
   onAcknowledgeNotice,
+  noticeRequired = true,
   onCommit,
   onRetryUpload,
   onPrepExpired,
@@ -130,10 +133,51 @@ export const WhiteboardResponseCapture: React.FC<
   const [logRecorder, setLogRecorder] =
     useState<WhiteboardLogRecorder>(makeLogRecorder);
 
-  const startingImage = useStartingPageImage(startingPage);
-  const acknowledged = noticeAckedAt !== null;
-  const remaining = takesRemaining(config, takesCommitted);
-  const takeBudgetReached = remaining !== null && remaining <= 0;
+  const {
+    images: startingImages,
+    ready: startingPageReady,
+    failed: startingPageFailed,
+    retry: retryStartingPage,
+  } = useStartingPageImages(startingPage);
+  const acknowledged = !noticeRequired || noticeAckedAt !== null;
+  // Every recording is an attempt; a redo throws the last one away (Paul 2026-10-14).
+  const [redos, addRedo] = useRedoCount(recovery?.key, takesCommitted);
+  const attemptsUsed = takesCommitted + redos;
+  const remaining = takesRemaining(config, attemptsUsed);
+  // Nothing turned in yet always leaves one recording, so redos alone never lock the student out.
+  const takeBudgetReached =
+    remaining !== null && remaining <= 0 && takesCommitted > 0;
+  const canRedoInReview = remaining === null || remaining > 1;
+  const [submitted, setSubmitted] = useState<{
+    log: WhiteboardLog;
+    pictureUrl: string;
+    audioUrl: string | null;
+    durationMs: number;
+  } | null>(null);
+  const submittedUrlsRef = useRef<string[]>([]);
+  const keepSubmitted = useCallback(
+    (captured: WhiteboardCapturedTake, picture: Blob) => {
+      submittedUrlsRef.current.forEach((u) => URL.revokeObjectURL(u));
+      const pictureUrl = URL.createObjectURL(picture);
+      const audioUrl = captured.audio
+        ? URL.createObjectURL(captured.audio.blob)
+        : null;
+      submittedUrlsRef.current = audioUrl
+        ? [pictureUrl, audioUrl]
+        : [pictureUrl];
+      setSubmitted({
+        log: captured.log,
+        pictureUrl,
+        audioUrl,
+        durationMs: captured.durationMs,
+      });
+    },
+    []
+  );
+  useEffect(
+    () => () => submittedUrlsRef.current.forEach((u) => URL.revokeObjectURL(u)),
+    []
+  );
   const reviewOn = recordingReviewEnabled(config);
 
   const pictureRef = useRef<{ url: string; blob: Blob } | null>(null);
@@ -195,13 +239,13 @@ export const WhiteboardResponseCapture: React.FC<
       const blob = await renderWhiteboardPicture(
         objects,
         startingPage,
-        startingImage
+        startingImages
       );
       // A take discarded mid-render must not leave its picture for the next one.
       if (gen === boardGenRef.current) setPicture(blob);
       return blob;
     },
-    [setPicture, startingImage, startingPage]
+    [setPicture, startingImages, startingPage]
   );
 
   // Commits the take in hand; nothing reaches the network before this.
@@ -210,11 +254,11 @@ export const WhiteboardResponseCapture: React.FC<
     (captured: WhiteboardCapturedTake): Promise<void> => {
       if (inFlightRef.current) return inFlightRef.current;
       setCommitState('committing');
-      // Same as spoken takes: the local copy goes once the take is handed off.
-      wipeRecovery();
       const run = (async () => {
         try {
           const picture = await renderPicture(captured);
+          // The local copy outlives the render, so a crash before hand-off can recover it.
+          wipeRecovery();
           await onCommitRef.current({
             audio: captured.audio,
             picture,
@@ -224,6 +268,7 @@ export const WhiteboardResponseCapture: React.FC<
             durationMs: captured.durationMs,
             micState: captured.micState,
           });
+          keepSubmitted(captured, picture);
           setCommitState('idle');
         } catch {
           setCommitState('archive-failed');
@@ -236,7 +281,7 @@ export const WhiteboardResponseCapture: React.FC<
       inFlightRef.current = run;
       return run;
     },
-    [renderPicture, wipeRecovery]
+    [keepSubmitted, renderPicture, wipeRecovery]
   );
 
   const handleTakeReady = useCallback(
@@ -262,7 +307,8 @@ export const WhiteboardResponseCapture: React.FC<
 
   const recorder = useWhiteboardRecording({
     config,
-    enabled: acknowledged && !takeBudgetReached && !slotClosed,
+    enabled:
+      acknowledged && !takeBudgetReached && !slotClosed && startingPageReady,
     logSink: logRecorder,
     onPrepExpired,
     onTakeReady: handleTakeReady,
@@ -353,11 +399,12 @@ export const WhiteboardResponseCapture: React.FC<
     await commitTake(captured);
   }, [commitTake, recorder.take]);
 
-  const handleDiscard = useCallback(() => {
+  const handleRedo = useCallback(() => {
+    addRedo();
     recorder.discard();
     wipeRecovery();
     resetBoard();
-  }, [recorder, resetBoard, wipeRecovery]);
+  }, [addRedo, recorder, resetBoard, wipeRecovery]);
 
   useEffect(() => {
     const target = focusAfterRetryRef.current;
@@ -411,9 +458,9 @@ export const WhiteboardResponseCapture: React.FC<
 
   const takeLabel =
     config.takeLimit == null
-      ? t('quizMediaResponse.capture.takeUnlimited', { n: takesCommitted + 1 })
+      ? t('quizMediaResponse.capture.takeUnlimited', { n: attemptsUsed + 1 })
       : t('quizMediaResponse.capture.takeOf', {
-          n: Math.min(takesCommitted + 1, config.takeLimit),
+          n: Math.min(attemptsUsed + 1, config.takeLimit),
           total: config.takeLimit,
         });
 
@@ -430,6 +477,8 @@ export const WhiteboardResponseCapture: React.FC<
   const recording = phase === 'recording';
   const reviewing = phase === 'reviewing' && recorder.take !== null;
   const canDraw = recording;
+  // After turning in, the board shows what was sent until a redo starts.
+  const showSubmitted = takesCommitted > 0 && phase === 'armed';
   const micOff =
     recorder.narrated &&
     (recorder.micState === 'denied' || recorder.micState === 'unavailable');
@@ -437,7 +486,7 @@ export const WhiteboardResponseCapture: React.FC<
   return (
     <>
       <section
-        className="flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm"
+        className="flex flex-1 flex-col gap-3 rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-sm"
         data-testid="whiteboard-capture"
       >
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -466,6 +515,12 @@ export const WhiteboardResponseCapture: React.FC<
             role="status"
             aria-live="polite"
           >
+            {showSubmitted && (
+              <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-emerald-700">
+                <Check aria-hidden className="h-3.5 w-3.5" />
+                {t('quizMediaResponse.capture.submittedLabel')}
+              </p>
+            )}
             {phase === 'prep' && (
               <p className="flex items-baseline gap-2 text-sm text-slate-600">
                 <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
@@ -513,23 +568,29 @@ export const WhiteboardResponseCapture: React.FC<
               </p>
             )}
           </div>
-          <RecordingNoticeReminder
-            ref={reminderRef}
-            light
-            disabled={recording}
-            onOpen={() => setShowNotice(true)}
-          />
+          {noticeRequired && (
+            <RecordingNoticeReminder
+              ref={reminderRef}
+              light
+              disabled={recording}
+              onOpen={() => setShowNotice(true)}
+            />
+          )}
           <div className="flex flex-wrap gap-2">
-            {phase === 'armed' && !takeBudgetReached && (
+            {phase === 'armed' && !takeBudgetReached && startingPageReady && (
               <button
                 // no-tour-anchor: student quiz app, outside teacher tours
                 type="button"
                 onClick={() => void handleStart()}
                 className={`${btn} bg-brand-red-primary text-white outline-brand-red-primary hover:bg-brand-red-dark`}
               >
-                <PenLine aria-hidden className="h-4 w-4" />
+                {takesCommitted > 0 ? (
+                  <RotateCcw aria-hidden className="h-4 w-4" />
+                ) : (
+                  <PenLine aria-hidden className="h-4 w-4" />
+                )}
                 {takesCommitted > 0
-                  ? t('quizMediaResponse.capture.recordAgain')
+                  ? t('quizMediaResponse.capture.redo')
                   : t('quizMediaResponse.capture.record')}
               </button>
             )}
@@ -548,16 +609,18 @@ export const WhiteboardResponseCapture: React.FC<
             )}
             {reviewing && reviewOn && (
               <>
-                <button
-                  // no-tour-anchor: student quiz app, outside teacher tours
-                  type="button"
-                  onClick={handleDiscard}
-                  disabled={commitState === 'committing'}
-                  className={`${btn} border border-slate-300 bg-white text-slate-700 outline-slate-400 hover:bg-slate-50`}
-                >
-                  <Trash2 aria-hidden className="h-4 w-4" />
-                  {t('quizMediaResponse.capture.discard')}
-                </button>
+                {canRedoInReview && (
+                  <button
+                    // no-tour-anchor: student quiz app, outside teacher tours
+                    type="button"
+                    onClick={handleRedo}
+                    disabled={commitState === 'committing'}
+                    className={`${btn} border border-slate-300 bg-white text-slate-700 outline-slate-400 hover:bg-slate-50`}
+                  >
+                    <RotateCcw aria-hidden className="h-4 w-4" />
+                    {t('quizMediaResponse.capture.redo')}
+                  </button>
+                )}
                 <button
                   // no-tour-anchor: student quiz app, outside teacher tours
                   type="button"
@@ -590,9 +653,9 @@ export const WhiteboardResponseCapture: React.FC<
           </p>
         )}
 
-        {/* 4:3 board sized to fit a 1366x768 Chromebook without scrolling. */}
-        <div className="relative w-full [container-type:inline-size]">
-          <div className="relative h-[min(calc(100dvh-12rem),75cqw)]">
+        {/* The board takes the height left over, so the page never scrolls. */}
+        <div className="relative min-h-[16rem] w-full flex-1 [container-type:size]">
+          <div className="absolute inset-0">
             {reviewing && reviewOn && recorder.take ? (
               // Width leaves room under the 4:3 picture for the replay controls.
               <div className="mx-auto" style={REPLAY_WIDTH}>
@@ -605,29 +668,63 @@ export const WhiteboardResponseCapture: React.FC<
                   startingPage={startingPage}
                 />
               </div>
+            ) : showSubmitted && submitted ? (
+              <div className="mx-auto" style={REPLAY_WIDTH}>
+                <WhiteboardReplayView
+                  log={submitted.log}
+                  pictureUrl={submitted.pictureUrl}
+                  loading={false}
+                  audioSrc={submitted.audioUrl ?? undefined}
+                  durationMs={submitted.durationMs}
+                  startingPage={startingPage}
+                />
+              </div>
             ) : (
               <WhiteboardCanvas
                 ref={canvasRef}
                 key={takeKey}
                 startingPage={startingPage}
-                startingImage={startingImage}
+                startingImages={startingImages}
                 disabled={!canDraw}
                 recorder={logRecorder}
               />
             )}
-            {!recording && !reviewing && phase !== 'stopping' && (
-              <div className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center">
-                <p className="rounded-xl bg-slate-900/80 px-4 py-2 text-sm font-semibold text-white">
-                  {takeBudgetReached
-                    ? t('quizMediaResponse.capture.takeLimitReachedTitle')
-                    : phase === 'prep'
-                      ? t('quizMediaResponse.capture.prepBody')
-                      : recorder.narrated
-                        ? t('quizMediaResponse.whiteboard.armedNarrated')
-                        : t('quizMediaResponse.whiteboard.armedDrawOnly')}
+            {startingPageFailed && !recording && !reviewing && (
+              <div
+                role="alert"
+                className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/90"
+              >
+                <p className="text-sm font-semibold text-slate-800">
+                  {t('quizWhiteboard.startingPage.loadFailed')}
                 </p>
+                <button
+                  // no-tour-anchor: student quiz app, outside teacher tours
+                  type="button"
+                  onClick={retryStartingPage}
+                  className={`${btn} bg-brand-blue-primary text-white outline-brand-blue-primary hover:bg-brand-blue-dark`}
+                >
+                  <RotateCcw aria-hidden className="h-4 w-4" />
+                  {t('quizMediaResponse.capture.retryUpload')}
+                </button>
               </div>
             )}
+            {!startingPageFailed &&
+              !recording &&
+              !reviewing &&
+              !(showSubmitted && (submitted !== null || takeBudgetReached)) &&
+              phase !== 'stopping' && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center">
+                  <p className="rounded-xl bg-slate-900/80 px-4 py-2 text-sm font-semibold text-white">
+                    {takeBudgetReached
+                      ? t('quizMediaResponse.capture.submittedLabel')
+                      : phase === 'prep'
+                        ? t('quizMediaResponse.capture.prepBody')
+                        : recorder.narrated
+                          ? t('quizMediaResponse.whiteboard.armedNarrated')
+                          : t('quizMediaResponse.whiteboard.armedDrawOnly')}
+                  </p>
+                </div>
+              )}
           </div>
         </div>
         {(archivePending || archiveFailed) && (

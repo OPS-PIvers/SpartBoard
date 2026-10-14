@@ -73,7 +73,10 @@ export async function readTestAndKey(
     ...options,
     ...(test.pages ? { pages: test.pages } : {}),
   });
-  return key ? withAnswerKey(read, key, options.multiAnswer === true) : read;
+  // Each version brings its own key from the document (QUIZ_IMPORT_VERSIONS V9).
+  return key && !read.testSet
+    ? withAnswerKey(read, key, options.multiAnswer === true)
+    : read;
 }
 
 /** What a screen with the two drop zones is handed to read them. */

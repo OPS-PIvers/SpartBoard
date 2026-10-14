@@ -7,6 +7,7 @@
 
 import type { QuizQuestionType } from '@/types';
 import { splitBlanks } from '@/utils/quizFibBlanks';
+import type { AiExtractedQuiz } from './aiReader';
 
 /** One column-separated piece of a line: a table cell, a tab stop, or a PDF x-gap. */
 export interface DocSegment {
@@ -200,6 +201,33 @@ export interface ExtractedQuiz {
   keySummary?: KeySummary;
   /** Which reader ran; set only for a teacher who has AI access. */
   readBy?: 'ai' | 'plain';
+  /** Set when the AI reader found versions; `questions` is then empty (QUIZ_IMPORT_VERSIONS V7). */
+  testSet?: ImportedTestSet;
+}
+
+/** One version as review and creation see it, pictures already cropped. */
+export interface ImportedVersion {
+  label: string;
+  title: string;
+  questions: ExtractedQuestion[];
+  warnings: string[];
+}
+
+/** A versioned test after the browser has cropped and compared its pictures (V4, V7). */
+export interface ImportedTestSet {
+  title: string;
+  /** The file's name, which the library folder takes (V6). */
+  fileTitle: string;
+  versions: ImportedVersion[];
+  rubrics: AiExtractedRubric[];
+  groups: VersionGroup[];
+  /** Each version's own pictures; questions point at them by id. */
+  images: ExtractedImage[];
+  /** Image id to the identical image in an earlier version. */
+  sharedImages: Record<string, string>;
+  /** Image id to the version that prints it. */
+  imageVersion: Record<string, number>;
+  warnings: string[];
 }
 
 /** The neutral status line naming the reader, or '' when there is none. */
@@ -242,3 +270,77 @@ export interface ReaderOptions {
   /** Lets an LMS export bring in pictures hosted outside the zip. */
   fetchRemoteImage?: RemoteImageFetcher;
 }
+
+/** 1-based, inclusive (QUIZ_IMPORT_VERSIONS V12). */
+export interface PageRange {
+  start: number;
+  end: number;
+}
+
+/** One version of a multi-version test, as the AI reader returns it (V7). */
+export interface AiExtractedVersion {
+  /** The heading as printed, e.g. "Version A". */
+  label: string;
+  /** Absent for a Word file. */
+  pages?: PageRange;
+  title: string;
+  /** Figure pages are the whole file's. */
+  questions: AiExtractedQuiz['questions'];
+  warnings: string[];
+}
+
+/** One lettered rubric row; credit and notes are verbatim (V2, V3). */
+export interface AiRubricCriterion {
+  letter: string;
+  prompt: string;
+  points: number;
+  credit: string[];
+  notes: string[];
+}
+
+/** A rubric as printed, not yet paired with a version (V14). */
+export interface AiExtractedRubric {
+  label: string;
+  pages?: PageRange;
+  title: string;
+  printedTotal?: number;
+  criteria: AiRubricCriterion[];
+  warnings: string[];
+}
+
+export type VersionGroupKind = 'parallel' | 'retake' | 'split';
+
+/** The AI's proposed grouping, confirmed in review (V8). */
+export interface VersionGroup {
+  kind: VersionGroupKind;
+  name: string;
+  /** Indexes into `ExtractedTestSet.versions`. */
+  versions: number[];
+}
+
+/** A picture pass 1 found, with every version that prints it. */
+export interface SharedFigure {
+  page: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  label?: string;
+  versions: number[];
+}
+
+/** What the AI reader returns for a file with versions; mirrors the server's `ExtractedTestSet`. */
+export interface ExtractedTestSet {
+  kind: 'test-set';
+  title: string;
+  versions: AiExtractedVersion[];
+  rubrics: AiExtractedRubric[];
+  groups: VersionGroup[];
+  figures: SharedFigure[];
+  warnings: string[];
+}
+
+export const isTestSet = (
+  result: AiExtractedQuiz | ExtractedTestSet
+): result is ExtractedTestSet =>
+  (result as Partial<ExtractedTestSet>).kind === 'test-set';

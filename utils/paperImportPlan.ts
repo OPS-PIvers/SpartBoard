@@ -12,6 +12,7 @@ import type { AssembledSheet } from './paperImportAssemble';
 import { mcItemsOf } from './paperPageMap';
 import { CHOICE_LETTERS } from './paperSheetLayout';
 import { analyzePaperQuiz } from './paperSheetPlan';
+import { pageMapsForSeat } from './paperSheetVersions';
 import { paperCropStoragePath } from './paperWritten';
 
 /** Client mirror of the function's `ImportPaperAnswer`. */
@@ -135,7 +136,14 @@ export interface BuildImportResult {
  * reader doubted the row and the teacher left it (plan Q20/Q22).
  */
 export function buildImportPayload(input: BuildImportInput): BuildImportResult {
-  const rowIds = sheetRowQuestionIds(input.quiz, input.batch);
+  const batchRowIds = sheetRowQuestionIds(input.quiz, input.batch);
+  const rowIdsFor = (seat: number): string[] =>
+    input.batch.versions
+      ? sheetRowQuestionIds(input.quiz, {
+          layoutVersion: input.batch.layoutVersion,
+          pageMaps: pageMapsForSeat(input.batch, seat),
+        })
+      : batchRowIds;
   const payload: ImportPaperSheetPayload[] = [];
   const skipped: SkippedSheet[] = [];
 
@@ -156,20 +164,22 @@ export function buildImportPayload(input: BuildImportInput): BuildImportResult {
       continue;
     }
     const byQuestion = new Map(sheet.answers.map((a) => [a.question, a]));
-    const answers: ImportPaperAnswerPayload[] = rowIds.map((questionId, i) => {
-      const read = byQuestion.get(i);
-      if (read && read.choice !== null) {
+    const answers: ImportPaperAnswerPayload[] = rowIdsFor(sheet.seat).map(
+      (questionId, i) => {
+        const read = byQuestion.get(i);
+        if (read && read.choice !== null) {
+          return {
+            questionId,
+            answer: answerTextFor(input.batch, questionId, read.choice),
+          };
+        }
         return {
           questionId,
-          answer: answerTextFor(input.batch, questionId, read.choice),
+          answer: '',
+          unresponded: read?.doubt ? 'paper-unclear' : 'passed',
         };
       }
-      return {
-        questionId,
-        answer: '',
-        unresponded: read?.doubt ? 'paper-unclear' : 'passed',
-      };
-    });
+    );
     const scan = input.scan;
     const written =
       scan && sheet.written

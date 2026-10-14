@@ -67,6 +67,8 @@ import { GameBoard } from '@/components/widgets/QuizWidget/components/game/GameB
 import { useServerNow } from '@/hooks/useServerNow';
 import { readGameClock, summarizeGameBoard } from '@/utils/quizGame';
 import { StatusBuckets, BucketKey } from '../StatusBuckets';
+import { OpenPartControl } from '../OpenPartControl';
+import { openQuizPart } from '../openPart';
 import { RosterList } from '../RosterList';
 import { PeriodAccessStrip } from '../PeriodAccessStrip';
 import { PeriodBar } from './LegacyPeriodBar';
@@ -96,6 +98,8 @@ export interface QuizLiveMonitorProps {
   onRemoveStudent?: (responseKey: string) => Promise<void>;
   /** Unlock a locked/auto-submitted attempt by response-doc key. */
   onUnlockStudent?: (responseKey: string) => Promise<void>;
+  /** Turn in a student's saved answers by response-doc key. */
+  onSubmitForStudent?: (responseKey: string) => Promise<void>;
   /** Unlock a results-view lockout by response-doc key. */
   onUnlockResultsForStudent?: (responseKey: string) => Promise<void>;
   /** Clear a student's raised hand by response-doc key. */
@@ -151,6 +155,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     onUpdateConfig,
     onRemoveStudent,
     onUnlockStudent,
+    onSubmitForStudent,
     onUnlockResultsForStudent,
     onClearHand,
     onRevealAnswer,
@@ -245,6 +250,10 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     } catch (err) {
       periodFailed(err);
     }
+  };
+  const partFailed = (err: unknown) => {
+    logError('QuizLiveMonitor.openPart', err);
+    addToast('Could not open the part. Try again.', 'error');
   };
   const runPeriod = async (fn: () => Promise<void>) => {
     try {
@@ -482,6 +491,24 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       }
     },
     [onUnlockStudent, showConfirm, addToast]
+  );
+
+  const handleSubmitForStudent = useCallback(
+    async (key: string) => {
+      const ok = await showConfirm(
+        "Turn in this student's quiz with the answers saved so far? Reopen it if they need to keep working.",
+        { title: 'Submit for student?', confirmLabel: 'Submit' }
+      );
+      if (!ok) return;
+      try {
+        await onSubmitForStudent?.(key);
+        addToast('Submitted for the student.', 'success');
+      } catch (err) {
+        logError('QuizLiveMonitor.submitForStudent', err);
+        addToast('Could not submit for the student. Try again.', 'error');
+      }
+    },
+    [onSubmitForStudent, showConfirm, addToast]
   );
 
   const handleUnlockResults = useCallback(
@@ -837,6 +864,16 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 periodControls={periodBar && <PeriodBar {...periodBar} />}
               />
             )}
+            {!isGame && (
+              <OpenPartControl
+                session={session}
+                responses={responses}
+                periodNames={data.periodNames}
+                disabled={outward.locked}
+                disabledTitle={outward.lockedTitle}
+                onError={partFailed}
+              />
+            )}
             {!(isGame && boardView) && (
               <StatusBuckets
                 counts={data.counts}
@@ -862,6 +899,9 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 onUnlockAttempt={
                   onUnlockStudent ? handleUnlockAttempt : undefined
                 }
+                onSubmitForStudent={
+                  onSubmitForStudent ? handleSubmitForStudent : undefined
+                }
                 onUnlockResults={
                   onUnlockResultsForStudent ? handleUnlockResults : undefined
                 }
@@ -869,6 +909,16 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 onLetIn={
                   perPeriod && session.status !== 'ended'
                     ? (uid) => void runPeriod(() => periodActions.letIn(uid))
+                    : undefined
+                }
+                onOpenPart={
+                  session.status !== 'ended' && !outward.locked
+                    ? (key, part) =>
+                        void openQuizPart(
+                          session.id,
+                          { kind: 'student', responseKey: key },
+                          part
+                        ).catch(partFailed)
                     : undefined
                 }
                 overridesBySourcedId={overridesBySourcedId}

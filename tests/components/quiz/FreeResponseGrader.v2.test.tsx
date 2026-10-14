@@ -11,8 +11,6 @@ vi.mock('@/context/useDialog', () => ({
 
 import { FreeResponseGrader } from '@/components/widgets/QuizWidget/components/FreeResponseGrader';
 import { AnnotatedResponseView } from '@/components/widgets/QuizWidget/components/AnnotatedResponseView';
-import { AuthContext } from '@/context/AuthContextValue';
-import type { AuthContextType } from '@/context/AuthContextValue';
 import type {
   QuizData,
   QuizResponse,
@@ -51,45 +49,28 @@ const responseFor = (uid: string, tabSwitchWarnings: number): QuizResponse => ({
   completedAttempts: 1,
 });
 
-const renderGrader = (flagOn: boolean) =>
+const renderGrader = () =>
   render(
-    <AuthContext.Provider
-      value={
-        {
-          canAccessFeature: () => flagOn,
-          canAccessQuizMediaResponse: () => false,
-        } as unknown as AuthContextType
+    <FreeResponseGrader
+      quiz={quiz}
+      responses={[responseFor('uid-a', 3), responseFor('uid-b', 0)]}
+      displayNameByResponseKey={
+        new Map([
+          ['uid-a', 'Ada Lovelace'],
+          ['uid-b', 'Grace Hopper'],
+        ])
       }
-    >
-      <FreeResponseGrader
-        quiz={quiz}
-        responses={[responseFor('uid-a', 3), responseFor('uid-b', 0)]}
-        displayNameByResponseKey={
-          new Map([
-            ['uid-a', 'Ada Lovelace'],
-            ['uid-b', 'Grace Hopper'],
-          ])
-        }
-        teacherUid="teacher-1"
-        onSaveGrade={vi.fn().mockResolvedValue(undefined)}
-        onClose={vi.fn()}
-      />
-    </AuthContext.Provider>
+      teacherUid="teacher-1"
+      onSaveGrade={vi.fn().mockResolvedValue(undefined)}
+      onClose={vi.fn()}
+    />
   );
 
 beforeEach(() => window.localStorage.clear());
 
-describe('FreeResponseGrader — quiz-grader-v2', () => {
-  it('leaves the grader unchanged while the flag is off', () => {
-    renderGrader(false);
-    expect(
-      screen.queryByRole('button', { name: /hide student list/i })
-    ).toBeNull();
-    expect(screen.getAllByText('Ada Lovelace')).toHaveLength(2);
-  });
-
+describe('FreeResponseGrader student list', () => {
   it('shows the name once, in the list, with its tab switches', () => {
-    renderGrader(true);
+    renderGrader();
     const list = screen.getByRole('navigation');
     expect(screen.getAllByText('Ada Lovelace')).toHaveLength(1);
     expect(list.textContent).toContain('Ada Lovelace');
@@ -99,7 +80,7 @@ describe('FreeResponseGrader — quiz-grader-v2', () => {
   });
 
   it('collapses the list to a count that hides names, and remembers it', () => {
-    const { unmount } = renderGrader(true);
+    const { unmount } = renderGrader();
     expect(screen.getByText('0/2 graded')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /hide student list/i }));
     expect(screen.queryByText('Ada Lovelace')).toBeNull();
@@ -107,7 +88,7 @@ describe('FreeResponseGrader — quiz-grader-v2', () => {
     expect(screen.getAllByText(/ungraded/i).length).toBeGreaterThan(0);
     expect(screen.getByText(/3 tab switches/i)).toBeTruthy();
     unmount();
-    renderGrader(true);
+    renderGrader();
     expect(
       screen.getByRole('button', { name: /show student list/i })
     ).toBeTruthy();

@@ -79,6 +79,8 @@ interface UseDrawingCanvasResult {
   handleStart: (e: React.PointerEvent) => void;
   handleMove: (e: React.PointerEvent) => void;
   handleEnd: () => void;
+  /** Drops the stroke in progress without committing it. */
+  cancel: () => void;
   isDrawing: boolean;
 }
 
@@ -745,7 +747,15 @@ export const useDrawingCanvas = ({
     }
   }, [isDrawing, onObjectComplete, color, width, generateId, nextZ, shapeFill]);
 
-  return { handleStart, handleMove, handleEnd, isDrawing };
+  // Drops the stroke in progress without committing it (a pinch took over).
+  const cancel = useCallback(() => {
+    if (!inProgressRef.current && !isDrawing) return;
+    inProgressRef.current = null;
+    setIsDrawing(false);
+    redrawWithInProgress();
+  }, [isDrawing, redrawWithInProgress]);
+
+  return { handleStart, handleMove, handleEnd, cancel, isDrawing };
 };
 
 // Live-preview renderer for the in-flight shape. Uses the same renderers as

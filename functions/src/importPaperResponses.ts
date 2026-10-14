@@ -267,6 +267,51 @@ interface BatchDoc {
   keySheetSeat?: unknown;
   layoutVersion?: unknown;
   pageMaps?: unknown;
+  /** Balanced versions dealt at print time (QUIZ_IMPORT_VERSIONS.md V24). */
+  versions?: unknown;
+  seatVersions?: unknown;
+}
+
+interface SeatVersion {
+  servedQuestionIds: string[];
+  swaps: Record<string, string>;
+}
+
+/** The version a seat printed; version 0 for the key or an unlisted seat, null when the batch has none. */
+function seatVersion(batch: BatchDoc, seat: number): SeatVersion | null {
+  if (!Array.isArray(batch.versions)) return null;
+  const at = isRecord(batch.seatVersions)
+    ? batch.seatVersions[String(seat)]
+    : undefined;
+  const raw: unknown = batch.versions[typeof at === 'number' ? at : 0];
+  if (!isRecord(raw) || !Array.isArray(raw.servedQuestionIds)) return null;
+  const swaps: Record<string, string> = {};
+  if (isRecord(raw.swaps)) {
+    for (const [from, to] of Object.entries(raw.swaps)) {
+      if (typeof to === 'string') swaps[from] = to;
+    }
+  }
+  return {
+    servedQuestionIds: raw.servedQuestionIds.filter(
+      (id: unknown): id is string => typeof id === 'string'
+    ),
+    swaps,
+  };
+}
+
+/** The batch's map index as one seat's sheet printed it. */
+function seatMapIndex(
+  index: BatchMapIndex,
+  version: SeatVersion | null
+): BatchMapIndex {
+  if (!version || Object.keys(version.swaps).length === 0) return index;
+  const swap = (id: string) => version.swaps[id] ?? id;
+  return {
+    mc: new Set([...index.mc].map(swap)),
+    written: new Map(
+      [...index.written].map(([id, page]) => [swap(id), page] as const)
+    ),
+  };
 }
 
 interface BatchMapIndex {
@@ -366,9 +411,17 @@ export async function handleImportPaperResponses(
   );
   const mapIndex = batchV2 ? indexPageMaps(batch.pageMaps) : null;
 
+  const versionBySeat = new Map<number, SeatVersion>();
   for (const sheet of input.sheets) {
     if (batch.keySheetSeat === sheet.seat)
       invalid(`Seat ${sheet.seat} is the answer key, not a student.`);
+    const version = seatVersion(batch, sheet.seat);
+    if (version) {
+      if (!version.servedQuestionIds.every((id) => questionIds.has(id)))
+        invalid('A sheet references a question not in this session.');
+      versionBySeat.set(sheet.seat, version);
+    }
+    const seatIndex = mapIndex ? seatMapIndex(mapIndex, version) : null;
     const printedRoster = seatRoster(batch, sheet.seat);
     if (printedRoster === null && !isSpare(batch, sheet.seat))
       invalid(`Seat ${sheet.seat} was not printed in this batch.`);
@@ -377,13 +430,13 @@ export async function handleImportPaperResponses(
     for (const a of sheet.answers) {
       if (!questionIds.has(a.questionId))
         invalid('A sheet references a question not in this session.');
-      if (mapIndex && !mapIndex.mc.has(a.questionId))
+      if (seatIndex && !seatIndex.mc.has(a.questionId))
         invalid('A bubble answer is not a bubble row on this batch.');
     }
     for (const box of sheet.written ?? []) {
       if (!questionIds.has(box.questionId))
         invalid('A sheet references a question not in this session.');
-      if (mapIndex?.written.get(box.questionId) !== box.page)
+      if (seatIndex?.written.get(box.questionId) !== box.page)
         invalid('A written answer is not a box on that page of this batch.');
     }
   }
@@ -487,6 +540,8 @@ export async function handleImportPaperResponses(
         uid: caller.uid,
         scanId: input.scanId ?? null,
         allowedPages,
+        servedQuestionIds:
+          versionBySeat.get(r.sheet.seat)?.servedQuestionIds ?? null,
         now,
       })
     )
@@ -551,6 +606,8 @@ interface SeatContext {
   uid: string;
   scanId: string | null;
   allowedPages: ReadonlySet<string>;
+  /** The version this seat printed, saved so Results scores what the student saw (V24). */
+  servedQuestionIds: string[] | null;
   now: number;
 }
 
@@ -738,6 +795,9 @@ async function importSeat(
               admin.firestore.FieldValue.delete(),
             ])
           )
+        : {}),
+      ...(ctx.servedQuestionIds
+        ? { servedQuestionIds: ctx.servedQuestionIds }
         : {}),
     },
     { merge: true }

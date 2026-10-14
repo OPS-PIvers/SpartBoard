@@ -9,6 +9,7 @@ import {
 } from './paperSheetLayout';
 import { mcItemsOf } from './paperPageMap';
 import { analyzePaperQuiz } from './paperSheetPlan';
+import { pageMapsForSeat } from './paperSheetVersions';
 import type {
   PaperSheetQuestionText,
   SheetFill,
@@ -79,7 +80,10 @@ export function planSheetReprint(
   if (!response.paperBatchId || response.paperSeat === undefined) return null;
   const pageMaps =
     batch.layoutVersion === 2 && batch.pageMaps?.length
-      ? batch.pageMaps
+      ? pageMapsForSeat(batch, response.paperSeat)
+          // A prompt page holds nothing the student wrote, so a reprint leaves it out.
+          ?.filter((m) => !m.prompt)
+          .map((m, i) => ({ ...m, page: i + 1 }))
       : undefined;
   // A v2 batch reads its MC rows off the map, in sheet-row order; older batches recompute them.
   const rows = pageMaps

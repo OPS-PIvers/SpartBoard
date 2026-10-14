@@ -9,6 +9,10 @@ export interface TourAnchorEntry {
   sandboxed?: true;
   requires?: string;
   keys?: readonly string[];
+  key_pattern?: string;
+  key_hint?: string;
+  cycles?: string;
+  opens_empty?: string;
   routes?: ReadonlyArray<{
     surface: string;
     kind: string;
@@ -460,36 +464,60 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "requires": "settings-open",
     "keys": [
+      "activity-wall#cardColor",
+      "activity-wall#fontColor",
+      "activity-wall#fontFamily",
       "activity-wall#managedNotice",
+      "arts-letters-agenda#cardColor",
+      "arts-letters-agenda#fontColor",
+      "arts-letters-agenda#fontFamily",
+      "arts-letters-agenda#textSizePreset",
       "blending-board#managedNotice",
       "blooms-taxonomy#enabledCategories",
+      "breathing#cardColor",
       "breathing#color",
+      "breathing#fontColor",
+      "breathing#fontFamily",
       "breathing#pattern",
       "breathing#visual",
+      "calendar#cardColor",
       "calendar#daysVisible",
       "calendar#events",
+      "calendar#fontColor",
+      "calendar#fontFamily",
       "calendar#headerColor",
       "calendar#isBuildingSyncEnabled",
       "calendar#pastEvents",
       "calendar#personalCalendarIds",
+      "calendar#textSizePreset",
       "car-rider-pro#iframeUrl",
       "catalyst#managedNotice",
+      "checklist#cardColor",
       "checklist#completedNames",
       "checklist#firstNames",
+      "checklist#fontColor",
+      "checklist#fontFamily",
       "checklist#items",
       "checklist#lastNames",
       "checklist#mode",
       "checklist#rosterMode",
       "checklist#rosterPoolGroupId",
       "checklist#rowStyle",
+      "checklist#textSizePreset",
       "clock#clockStyle",
       "clock#dateColor",
+      "clock#fontFamily",
       "clock#themeColor",
+      "concept-web#cardColor",
       "concept-web#defaultNodeHeight",
       "concept-web#defaultNodeWidth",
+      "concept-web#fontFamily",
       "concept-web#nodes",
+      "countdown#cardColor",
       "countdown#eventColor",
       "countdown#eventDate",
+      "countdown#fontColor",
+      "countdown#fontFamily",
       "countdown#startDate",
       "countdown#title",
       "countdown#viewMode",
@@ -504,13 +532,17 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "expectations#syncSoundWidget",
       "first-5#__brand",
       "flashcards#presentShowFirst",
+      "graphic-organizer#cardColor",
+      "graphic-organizer#fontFamily",
       "graphic-organizer#templateType",
       "guided-learning#view",
       "hotspot-image#baseImageUrl",
       "hotspot-image#hotspots",
       "hotspot-image#popoverTheme",
       "instructionalRoutines#customSteps",
+      "instructionalRoutines#scaleMultiplier",
       "instructionalRoutines#selectedRoutineId",
+      "lunchCount#cardColor",
       "lunchCount#gradeLevel",
       "lunchCount#lunchTimeHour",
       "lunchCount#manualBentoBox",
@@ -520,6 +552,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "lunchCount#schoolSite",
       "materials#selectedItems",
       "materials#title",
+      "materials#titleColor",
       "materials#titleFont",
       "mathTool#numberLineMax",
       "mathTool#numberLineMin",
@@ -528,7 +561,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "mathTool#rotation",
       "mathTool#rulerUnits",
       "mathTool#toolType",
+      "mathTools#cardColor",
       "mathTools#dpiCalibration",
+      "mathTools#fontColor",
+      "mathTools#fontFamily",
       "miniApp#manageNotice",
       "music#bgColor",
       "music#layout",
@@ -537,15 +573,22 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "music#stationId",
       "music#syncWithTimeTool",
       "music#textColor",
+      "need-do-put-then#cardColor",
       "need-do-put-then#doItems",
+      "need-do-put-then#fontColor",
+      "need-do-put-then#fontFamily",
       "need-do-put-then#needItems",
       "need-do-put-then#putItems",
+      "need-do-put-then#textSizePreset",
       "need-do-put-then#thenItems",
       "nextUp#activeDriveFileId",
       "nextUp#autoStartTimer",
       "nextUp#displayCount",
       "nextUp#styling",
+      "numberLine#cardColor",
       "numberLine#displayMode",
+      "numberLine#fontColor",
+      "numberLine#fontFamily",
       "numberLine#jumps",
       "numberLine#markers",
       "numberLine#max",
@@ -555,6 +598,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "poll#activePollSessionId",
       "poll#questions",
       "projects#cardColor",
+      "projects#fontFamily",
       "projects#view",
       "qr#syncWithTextWidget",
       "qr#url",
@@ -578,36 +622,56 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "reveal-grid#columns",
       "reveal-grid#defaultCardBackColor",
       "reveal-grid#defaultCardColor",
+      "reveal-grid#fontFamily",
       "reveal-grid#revealMode",
       "reveal-grid#setName",
       "review#view",
+      "schedule#cardColor",
+      "schedule#fontColor",
+      "schedule#fontFamily",
       "schedule#rowStyle",
       "schedule#schedules",
+      "schedule#textSizePreset",
       "scoreboard#layout",
       "scoreboard#teams",
       "seating-chart#furniture",
       "seating-chart#names",
       "seating-chart#rosterMode",
+      "smartNotebook#cardColor",
+      "smartNotebook#fontColor",
+      "smartNotebook#fontFamily",
       "sound#autoTrafficLight",
       "sound#sensitivity",
       "sound#syncExpectations",
       "sound#trafficLightThreshold",
       "sound#visual",
       "soundboard#selectedSoundIds",
+      "specialist-schedule#cardColor",
       "specialist-schedule#cycleDays",
+      "specialist-schedule#fontColor",
+      "specialist-schedule#fontFamily",
       "specialist-schedule#recurringItems",
+      "specialist-schedule#textSizePreset",
       "starter-pack#packName",
+      "stations#cardColor",
+      "stations#fontColor",
+      "stations#fontFamily",
       "stations#stations",
       "stickers#managedNotice",
       "syntax-framer#alignment",
       "syntax-framer#mode",
       "syntax-framer#tokens",
+      "talking-tool#cardColor",
       "talking-tool#managedNotice",
       "text#bgColor",
       "text#content",
+      "text#fontColor",
+      "text#fontFamily",
+      "text#textSizePreset",
       "text#verticalAlign",
       "time-tool#adjustStepSeconds",
       "time-tool#clockStyle",
+      "time-tool#fontFamily",
       "time-tool#mode",
       "time-tool#selectedSound",
       "time-tool#themeColor",
@@ -620,11 +684,16 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "url#urls",
       "weather#cardColor",
       "weather#condition",
+      "weather#fontColor",
+      "weather#fontFamily",
       "weather#isAuto",
       "weather#lastSync",
       "weather#secondaryColor",
       "weather#showFeelsLike",
       "weather#temp",
+      "work-symbols#fontColor",
+      "work-symbols#fontFamily",
+      "work-symbols#textSizePreset",
       "work-symbols#titlePosition"
     ],
     "routes": [
@@ -1911,6 +1980,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "New Class button in My Classes",
     "scope": "board",
     "panel": true,
+    "opens_empty": "roster-editor",
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -2488,6 +2558,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "random.mode",
     "label": "Mode button in Random Picker (Pick One, Shuffle, Groups, Jigsaw)",
     "scope": "widget",
+    "cycles": "settings.field:random#mode",
     "routes": [
       {
         "surface": "widgets.random.face",
@@ -2606,6 +2677,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "schedule.start-timer",
     "label": "Start timer button on a Schedule row, by row (active = the Now row)",
     "scope": "field",
+    "key_pattern": "schedule#(active|row-[1-9]\\d*)",
+    "key_hint": "schedule#active for the Now row, schedule#row-1 for the first row",
     "routes": [
       {
         "surface": "widgets.schedule.face",
@@ -2907,63 +2980,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "quiz",
         "path": [],
         "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "assign-destination.spartboard",
-    "label": "SpartBoard Only option in the Assign quiz dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "quiz.assign-destination",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "assign-destination.classroom",
-    "label": "Google Classroom option in the Assign quiz dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "quiz.assign-destination",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "assign-destination.schoology",
-    "label": "Schoology option in the Assign quiz dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "quiz.assign-destination",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1"
-        ],
-        "needs": [
-          "library-item",
           "widget-on-stage"
         ]
       }
@@ -4618,29 +4634,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "plc-video-assign.due-date",
-    "label": "Due Date box in the PLC Video Activity assign window",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.assessments.video.new-assignment",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.tab:plc#video-activity",
-          "plc-video.cta"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
     "id": "plc-video-assign.teacher-name",
     "label": "Your Name box in the PLC Video Activity assign window",
     "scope": "board",
@@ -4973,6 +4966,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu",
           "gl-capture.menu-item:guided-learning#snap"
         ],
@@ -5076,6 +5070,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Answer option box in the Quiz editor, by letter",
     "scope": "field",
     "panel": true,
+    "key_pattern": "quiz#[a-l]",
+    "key_hint": "quiz#a for option A, quiz#b for B; lowercase letters",
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5095,6 +5091,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Mark-correct button beside an answer option, by letter",
     "scope": "field",
     "panel": true,
+    "key_pattern": "quiz#[a-l]",
+    "key_hint": "quiz#a for option A, quiz#b for B; lowercase letters",
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5909,6 +5907,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Remove option (×) in the Quiz editor",
     "scope": "field",
     "panel": true,
+    "key_pattern": "quiz#[a-l]",
+    "key_hint": "quiz#a for option A, quiz#b for B; lowercase letters",
     "routes": [
       {
         "surface": "quiz.editor",
@@ -6488,10 +6488,35 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-editor.recording-expiry",
-    "label": "Prep expiry option buttons (per option) in the Quiz editor",
-    "scope": "field",
+    "id": "quiz-editor.recording-attempts-info",
+    "label": "Attempts allowed info button (spoken response) in the Quiz editor",
+    "scope": "widget type",
     "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.recording-expiry",
+    "label": "After planning time menu in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -6615,7 +6640,52 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-editor.whiteboard-image",
-    "label": "Add image button for the whiteboard starting page in the Quiz editor",
+    "label": "Insert image button for the whiteboard starting page in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.whiteboard-image-choose",
+    "label": "Choose file button in the whiteboard Insert image dialog in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor.whiteboard-image",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.whiteboard-image:quiz"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.whiteboard-preview",
+    "label": "Preview button for the whiteboard starting page in the Quiz editor",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -6645,11 +6715,126 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ],
     "routes": [
       {
-        "surface": "quiz.editor",
-        "kind": "editor",
+        "surface": "quiz.editor.whiteboard-image",
+        "kind": "modal",
         "path": [
           "library-shell.new:quiz",
-          "library-shell.new-menu-item:quiz#item-1"
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.whiteboard-image:quiz"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.whiteboard-preview-tool",
+    "label": "Move, Pen and Eraser tools (per tool) in the whiteboard starting page editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor.whiteboard-preview",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.whiteboard-preview:quiz"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.whiteboard-preview-clear-ink",
+    "label": "Clear ink button in the whiteboard starting page editor",
+    "scope": "widget type",
+    "panel": true,
+    "destructive": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor.whiteboard-preview",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.whiteboard-preview:quiz"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.whiteboard-preview-remove-image",
+    "label": "Remove image button for the selected image in the whiteboard starting page editor",
+    "scope": "widget type",
+    "panel": true,
+    "destructive": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor.whiteboard-preview",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.whiteboard-preview:quiz"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.whiteboard-preview-cancel",
+    "label": "Cancel button in the whiteboard starting page editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor.whiteboard-preview",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.whiteboard-preview:quiz"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.whiteboard-preview-save",
+    "label": "Save button in the whiteboard starting page editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor.whiteboard-preview",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.whiteboard-preview:quiz"
         ],
         "needs": [
           "widget-on-stage"
@@ -6792,6 +6977,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-editor.section-choose-count",
     "label": "\"Students answer … of these N\" select in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.section-stop",
+    "label": "\"After this section\" menu in the Quiz editor",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -7196,6 +7403,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-banks.slot-points",
     "label": "Points input in Quiz banks",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-banks.slot-dealing",
+    "label": "Draw (at random or evenly in each class) menu in Quiz banks",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -8358,6 +8587,120 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-import.review-link-picture",
     "label": "Link picture select in Quiz import, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.import",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-2"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.versions-quiz-create",
+    "label": "Create quiz checkbox in Quiz import versions, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.import",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-2"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.versions-quiz-name",
+    "label": "Quiz name input in Quiz import versions, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.import",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-2"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.versions-quiz-kind",
+    "label": "How versions are used select in Quiz import versions, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.import",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-2"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.versions-version-quiz",
+    "label": "Quiz for a version select in Quiz import versions, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.import",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-2"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.versions-rubric",
+    "label": "Rubric for a version select in Quiz import versions, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.import",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-2"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.versions-picture-link",
+    "label": "Unlink or link a shared picture in Quiz import versions, by item",
     "scope": "field",
     "panel": true,
     "routes": [
@@ -10233,6 +10576,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-stimuli.add-calculator",
+    "label": "Add a calculator in the Quiz widget",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-stimuli.add-passage",
     "label": "Add a passage in the Quiz widget",
     "scope": "widget type",
@@ -10292,6 +10657,28 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "quiz-editor.tab-stimuli:quiz"
         ],
         "reveal": "quiz-editor.tab-stimuli:quiz",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-stimuli.attach-calculator",
+    "label": "Attach section Calculator in the Quiz widget",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
         "needs": [
           "widget-on-stage"
         ]
@@ -11108,6 +11495,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.question-toggle",
     "label": "Question row expand toggle in Quiz results, by position",
     "scope": "field",
+    "key_pattern": "quiz#\\d+",
+    "key_hint": "quiz#0 for the first question",
     "routes": [
       {
         "surface": "quiz.results",
@@ -11304,6 +11693,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.student-select",
     "label": "Select student row checkbox in Quiz results, by position",
     "scope": "field",
+    "key_pattern": "quiz#\\d+",
+    "key_hint": "quiz#0 for the first student row",
     "routes": [
       {
         "surface": "quiz.results",
@@ -11326,6 +11717,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.student-toggle",
     "label": "Student row expand button in Quiz results, by row",
     "scope": "field",
+    "key_pattern": "quiz#\\d+",
+    "key_hint": "quiz#0 for the first student row",
     "routes": [
       {
         "surface": "quiz.results",
@@ -11349,6 +11742,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Unlock results in Quiz results, by position",
     "scope": "field",
     "persists": true,
+    "key_pattern": "quiz#\\d+",
+    "key_hint": "quiz#0 for the first student row",
     "routes": [
       {
         "surface": "quiz.results",
@@ -11372,6 +11767,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Delete this submission in Quiz results, by position",
     "scope": "field",
     "destructive": true,
+    "key_pattern": "quiz#\\d+",
+    "key_hint": "quiz#0 for the first student row",
     "routes": [
       {
         "surface": "quiz.results",
@@ -11590,6 +11987,33 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-results.bulk-reopen",
     "label": "Reopen in Quiz results",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.results",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-results.drill-students:quiz"
+        ],
+        "reveal": "quiz-results.drill-students:quiz",
+        "needs": [
+          "library-item",
+          "student-data",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-results.bulk-submit",
+    "label": "Submit for students in Quiz results",
     "scope": "widget type",
     "panel": true,
     "persists": true,
@@ -12616,28 +13040,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-grading.take-pin",
-    "label": "Take pin button in the Quiz grader, by take",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "quiz.grader",
-        "kind": "modal",
-        "path": [
-          "library-shell.tab:quiz#archive",
-          "library-shell.archive-primary-action:quiz#row-1",
-          "quiz-grading.open:quiz"
-        ],
-        "needs": [
-          "student-data",
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "quiz-grading.undo-excuse",
     "label": "Undo excuse in the Quiz grader",
     "scope": "widget type",
@@ -12668,6 +13070,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Highlight list item in the Quiz grader, by position",
     "scope": "field",
     "panel": true,
+    "key_pattern": "quiz#\\d+",
+    "key_hint": "quiz#0 for the first highlight",
     "routes": [
       {
         "surface": "quiz.grader",
@@ -12895,6 +13299,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Move criterion up on the Quiz rubric builder, by position",
     "scope": "field",
     "panel": true,
+    "key_pattern": "quiz#[1-9]\\d*",
+    "key_hint": "quiz#1 for the first criterion",
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -12908,6 +13314,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Move criterion down on the Quiz rubric builder, by position",
     "scope": "field",
     "panel": true,
+    "key_pattern": "quiz#[1-9]\\d*",
+    "key_hint": "quiz#1 for the first criterion",
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -12922,6 +13330,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "key_pattern": "quiz#[1-9]\\d*",
+    "key_hint": "quiz#1 for the first criterion",
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -13440,6 +13850,77 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-monitor.student-open-part",
+    "label": "Open Part item in the Quiz monitor student menu",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-monitor.open-part",
+    "label": "Open Part button in the Quiz monitor",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-monitor.open-part-period",
+    "label": "Class choice in the Quiz monitor Open Part menu",
+    "scope": "field",
+    "persists": true,
+    "routes": [
+      {
+        "surface": "quiz.monitor",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-monitor.student-let-in",
     "label": "Let in now item in the Quiz monitor student menu",
     "scope": "widget type",
@@ -13469,6 +13950,33 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-monitor.student-unlock-attempt",
     "label": "Unlock attempt item in the Quiz monitor student menu",
+    "scope": "widget type",
+    "panel": true,
+    "persists": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.monitor",
+        "kind": "panel",
+        "path": [
+          "library-shell.tab#active",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-monitor.roster-row-actions:quiz"
+        ],
+        "reveal": "quiz-monitor.roster-row-actions:quiz",
+        "needs": [
+          "widget-on-stage",
+          "library-item",
+          "live-session"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-monitor.student-submit",
+    "label": "Submit for student item in the Quiz monitor student menu",
     "scope": "widget type",
     "panel": true,
     "persists": true,
@@ -19066,19 +19574,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "plc-assign.sheet-toggle",
-    "label": "Auto-generated sheet switch in the PLC assign dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.assignment-sharing-slot",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
     "id": "plc-assign.option-toggle",
     "label": "Option switch in the PLC assign dialog",
     "scope": "field",
@@ -20114,24 +20609,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "plc.assignment-config",
         "kind": "modal"
-      },
-      {
-        "surface": "plc.assignment-sharing-slot",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
-    "id": "plc-assign.sheet-url",
-    "label": "Sheet url field in the PLC assign dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.assignment-sharing-slot",
-        "kind": "shared",
-        "path": []
       }
     ]
   },
@@ -20141,20 +20618,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "panel": true,
     "routes": [
-      {
-        "surface": "plc.assessments.new-quiz-assignment",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.library-assign"
-        ],
-        "needs": [
-          "plc"
-        ]
-      },
       {
         "surface": "plc.assignment-config",
         "kind": "modal"
@@ -20168,20 +20631,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
-        "surface": "plc.assessments.new-quiz-assignment",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.library-assign"
-        ],
-        "needs": [
-          "plc"
-        ]
-      },
-      {
         "surface": "plc.assignment-config",
         "kind": "modal"
       }
@@ -20193,20 +20642,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "panel": true,
     "routes": [
-      {
-        "surface": "plc.assessments.new-quiz-assignment",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.library-assign"
-        ],
-        "needs": [
-          "plc"
-        ]
-      },
       {
         "surface": "plc.assignment-config",
         "kind": "modal"
@@ -20220,20 +20655,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "persists": true,
     "routes": [
-      {
-        "surface": "plc.assessments.new-quiz-assignment",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.library-assign"
-        ],
-        "needs": [
-          "plc"
-        ]
-      },
       {
         "surface": "plc.assignment-config",
         "kind": "modal"
@@ -29583,6 +30004,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.draft-ai"
         ],
         "needs": [
@@ -29597,6 +30019,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu",
           "gl-capture.menu-item:guided-learning#snap"
         ],
@@ -42260,211 +42683,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "flashcards.collect-submission",
-    "label": "Collect a submission switch in the Flashcards assign dialog",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.assign",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.check-mode",
-    "label": "Mode choice in the Flashcards assign dialog",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.assign",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.show-first",
-    "label": "Show first choice in the Flashcards assign dialog",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.assign",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.strict-mode",
-    "label": "Strict mode switch in the Flashcards assign dialog",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.assign",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.question-type",
-    "label": "Question type checkbox in the Flashcards assign dialog",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.flashcards.assign",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.question-count",
-    "label": "Questions count in the Flashcards assign dialog",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.assign",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.mastery-threshold",
-    "label": "Mastery threshold choice in the Flashcards assign dialog",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.assign",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.score-visibility",
-    "label": "Score visibility picker in the Flashcards assign dialog",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.assign",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.assign-confirm",
-    "label": "Assign button in the Flashcards assign dialog",
-    "scope": "widget type",
-    "panel": true,
-    "persists": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.assign",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "flashcards.student-actions",
     "label": "Actions menu button on a student row in Flashcards Check results",
     "scope": "field",
@@ -42877,19 +43095,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-item",
           "class",
           "widget-on-stage"
-        ]
-      },
-      {
-        "surface": "library.mini-app.running",
-        "kind": "panel",
-        "path": [
-          "library-shell.card-menu#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
-          "mini-app.toolbar-student-link:miniApp"
-        ],
-        "reveal": "mini-app.toolbar-student-link:miniApp",
-        "needs": [
-          "library-item"
         ]
       }
     ]
@@ -44609,26 +44814,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "video-activity.behavior-open-editor",
-    "label": "Edit in activity link in the video activity assign dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [
-          "library-shell.card-primary-action:video-activity#row-1"
-        ],
-        "reveal": "library-shell.card-primary-action:video-activity#row-1",
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "video-activity.settings-score-visibility",
     "label": "Score visibility option in video activity behavior settings",
     "scope": "field",
@@ -44738,30 +44923,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "video-activity.plc-assign-due-date",
-    "label": "Due date box in the PLC video activity assign dialog",
-    "scope": "board",
-    "panel": true,
-    "persists": true,
-    "routes": [
-      {
-        "surface": "plc.assessments.video.new-assignment",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.tab:plc#video-activity",
-          "plc-video.cta"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
     "id": "video-activity.plc-teacher-name",
     "label": "Teacher name box in the PLC video activity assign dialog",
     "scope": "board",
@@ -44842,10 +45003,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -44907,6 +45066,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.draft-ai"
         ],
         "needs": [
@@ -44930,6 +45090,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.draft-ai"
         ],
         "needs": [
@@ -44952,6 +45113,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.draft-ai"
         ],
         "needs": [
@@ -44974,6 +45136,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.draft-ai"
         ],
         "needs": [
@@ -44996,6 +45159,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.draft-ai"
         ],
         "needs": [
@@ -45019,6 +45183,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.draft-ai"
         ],
         "needs": [
@@ -45040,10 +45205,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45064,10 +45227,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45088,10 +45249,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45112,10 +45271,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45136,10 +45293,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45160,10 +45315,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45184,10 +45337,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45208,10 +45359,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45232,10 +45381,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45256,10 +45403,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45281,10 +45426,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45305,10 +45448,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45329,10 +45470,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45353,10 +45492,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45378,6 +45515,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.welcome"
         ],
         "reveal": "gl-editor.welcome",
@@ -45401,6 +45539,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.welcome"
         ],
         "reveal": "gl-editor.welcome",
@@ -45424,6 +45563,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.trim-toggle"
         ],
         "reveal": "gl-editor.trim-toggle",
@@ -45447,6 +45587,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.trim-toggle"
         ],
         "reveal": "gl-editor.trim-toggle",
@@ -45469,10 +45610,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -45495,6 +45634,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45517,6 +45657,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45539,6 +45680,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45561,6 +45703,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45583,6 +45726,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45605,6 +45749,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45627,6 +45772,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45649,6 +45795,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45671,6 +45818,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45693,6 +45841,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45715,6 +45864,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45737,6 +45887,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45759,6 +45910,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45781,6 +45933,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45803,6 +45956,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45825,6 +45979,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45847,6 +46002,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip"
         ],
         "needs": [
@@ -45869,6 +46025,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -45893,6 +46050,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -45917,6 +46075,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -45941,6 +46100,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -45966,6 +46126,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -45990,6 +46151,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -46014,6 +46176,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -46038,6 +46201,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -46063,6 +46227,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -46087,6 +46252,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -46111,6 +46277,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -46136,6 +46303,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -46160,6 +46328,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.step-chip",
           "gl-editor.step-interaction"
         ],
@@ -46652,6 +46821,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu",
           "gl-capture.menu-item:guided-learning#snap"
         ],
@@ -46675,6 +46845,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu",
           "gl-capture.menu-item:guided-learning#snap"
         ],
@@ -46698,6 +46869,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu",
           "gl-capture.menu-item:guided-learning#snap"
         ],
@@ -46721,6 +46893,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu",
           "gl-capture.menu-item:guided-learning#snap"
         ],
@@ -46744,6 +46917,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu",
           "gl-capture.menu-item:guided-learning#snap"
         ],
@@ -46767,6 +46941,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu",
           "gl-capture.menu-item:guided-learning#snap"
         ],
@@ -46790,6 +46965,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu",
           "gl-capture.menu-item:guided-learning#snap"
         ],
@@ -46813,6 +46989,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu",
           "gl-capture.menu-item:guided-learning#snap"
         ],
@@ -46836,6 +47013,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu",
           "gl-capture.menu-item:guided-learning#snap"
         ],
@@ -48610,6 +48788,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
         ],
+        "opened_by": [
+          "studio.canvas"
+        ],
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -48631,6 +48812,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
+        ],
+        "opened_by": [
+          "studio.canvas"
         ],
         "needs": [
           "widget-on-stage",
@@ -48798,6 +48982,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
         ],
+        "opened_by": [
+          "studio.canvas"
+        ],
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -48819,6 +49006,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
+        ],
+        "opened_by": [
+          "studio.canvas"
         ],
         "needs": [
           "widget-on-stage",
@@ -48842,6 +49032,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
         ],
+        "opened_by": [
+          "studio.canvas"
+        ],
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -48863,6 +49056,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
+        ],
+        "opened_by": [
+          "studio.canvas"
         ],
         "needs": [
           "widget-on-stage",
@@ -48886,6 +49082,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
         ],
+        "opened_by": [
+          "studio.canvas"
+        ],
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -48907,6 +49106,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
+        ],
+        "opened_by": [
+          "studio.canvas"
         ],
         "needs": [
           "widget-on-stage",
@@ -48930,6 +49132,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
         ],
+        "opened_by": [
+          "studio.canvas"
+        ],
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -48952,6 +49157,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
         ],
+        "opened_by": [
+          "studio.canvas"
+        ],
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -48973,6 +49181,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
+        ],
+        "opened_by": [
+          "studio.canvas"
         ],
         "needs": [
           "widget-on-stage",
@@ -49032,6 +49243,30 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "studio.add-step",
     "label": "Add step button in the Studio timeline",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "guidedLearning.studio",
+        "kind": "editor",
+        "widget_type": "guided-learning",
+        "path": [
+          "library-shell.card-open:guided-learning#row-1",
+          "gl-manager.preview-open-editor"
+        ],
+        "opened_by": [
+          "library-shell.new:guided-learning"
+        ],
+        "needs": [
+          "widget-on-stage",
+          "library-item"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "studio.canvas",
+    "label": "Slide image in the Studio, clicked to place a new step",
     "scope": "board",
     "panel": true,
     "routes": [
@@ -49991,6 +50226,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Create New Class button in the empty My Classes list",
     "scope": "board",
     "panel": true,
+    "opens_empty": "roster-editor",
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -51071,6 +51307,90 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget",
     "panel": true,
     "persists": true,
+    "requires": "settings-open",
+    "routes": [
+      {
+        "surface": "board.settings-drawer",
+        "kind": "settings-drawer",
+        "path": [
+          "widget.settings-opener",
+          "settings.tab-style"
+        ],
+        "reveal": "settings.tab-style",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "settings.window-background",
+    "label": "Window background color on the Style tab",
+    "scope": "widget",
+    "panel": true,
+    "requires": "settings-open",
+    "routes": [
+      {
+        "surface": "board.settings-drawer",
+        "kind": "settings-drawer",
+        "path": [
+          "widget.settings-opener",
+          "settings.tab-style"
+        ],
+        "reveal": "settings.tab-style",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "settings.window-font",
+    "label": "Window font on the Style tab",
+    "scope": "widget",
+    "panel": true,
+    "requires": "settings-open",
+    "routes": [
+      {
+        "surface": "board.settings-drawer",
+        "kind": "settings-drawer",
+        "path": [
+          "widget.settings-opener",
+          "settings.tab-style"
+        ],
+        "reveal": "settings.tab-style",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "settings.window-text-size",
+    "label": "Window text size on the Style tab",
+    "scope": "widget",
+    "panel": true,
+    "requires": "settings-open",
+    "routes": [
+      {
+        "surface": "board.settings-drawer",
+        "kind": "settings-drawer",
+        "path": [
+          "widget.settings-opener",
+          "settings.tab-style"
+        ],
+        "reveal": "settings.tab-style",
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "settings.window-transparency",
+    "label": "Window transparency slider on the Style tab",
+    "scope": "widget",
+    "panel": true,
     "requires": "settings-open",
     "routes": [
       {
@@ -56350,6 +56670,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "schedule.toggle-item",
     "label": "Row button that marks a Schedule row done, by row (active = the Now row)",
     "scope": "field",
+    "key_pattern": "schedule#(active|row-[1-9]\\d*)",
+    "key_hint": "schedule#active for the Now row, schedule#row-1 for the first row",
     "routes": [
       {
         "surface": "widgets.schedule.face",
@@ -56367,6 +56689,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Event name input in Schedule settings, by event row",
     "scope": "field",
     "panel": true,
+    "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*",
+    "key_hint": "schedule#event-1 for the first event",
     "routes": [
       {
         "surface": "widgets.schedule.settings",
@@ -56386,6 +56710,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Event start time input in Schedule settings, by event row",
     "scope": "field",
     "panel": true,
+    "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*",
+    "key_hint": "schedule#event-1 for the first event",
     "routes": [
       {
         "surface": "widgets.schedule.settings",
@@ -56405,6 +56731,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Event end time input in Schedule settings, by event row",
     "scope": "field",
     "panel": true,
+    "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*",
+    "key_hint": "schedule#event-1 for the first event",
     "routes": [
       {
         "surface": "widgets.schedule.settings",
@@ -56424,6 +56752,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Timer minutes input for an event in Schedule settings, by event row",
     "scope": "field",
     "panel": true,
+    "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*",
+    "key_hint": "schedule#event-1 for the first event",
     "routes": [
       {
         "surface": "widgets.schedule.settings",
@@ -56443,6 +56773,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Timer seconds input for an event in Schedule settings, by event row",
     "scope": "field",
     "panel": true,
+    "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*",
+    "key_hint": "schedule#event-1 for the first event",
     "routes": [
       {
         "surface": "widgets.schedule.settings",
@@ -56462,6 +56794,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Clock or timer mode toggle for an event in Schedule settings, by event row",
     "scope": "field",
     "panel": true,
+    "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*",
+    "key_hint": "schedule#event-1 for the first event",
     "routes": [
       {
         "surface": "widgets.schedule.settings",
@@ -56481,6 +56815,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Auto-launch widget toggle for an event in Schedule settings, by event row",
     "scope": "field",
     "panel": true,
+    "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*",
+    "key_hint": "schedule#event-1 for the first event",
     "routes": [
       {
         "surface": "widgets.schedule.settings",
@@ -56500,6 +56836,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Widget choice in an event auto-launch list in Schedule settings, by event row and widget",
     "scope": "field",
     "panel": true,
+    "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*-[\\w-]+",
+    "key_hint": "schedule#event-1-timer for the Timer choice on the first event",
     "routes": [
       {
         "surface": "widgets.schedule.settings",
@@ -56699,27 +57037,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:quiz",
           "library-shell.new-menu-item:quiz#item-1"
         ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "video-activity.assign-pacing",
-    "label": "Pacing choice in the video activity assign dialog",
-    "scope": "board",
-    "panel": true,
-    "persists": true,
-    "routes": [
-      {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [
-          "library-shell.card-primary-action:video-activity#row-1"
-        ],
-        "reveal": "library-shell.card-primary-action:video-activity#row-1",
         "needs": [
           "widget-on-stage"
         ]
@@ -60128,10 +60445,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -60152,10 +60467,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -60176,10 +60489,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -60200,10 +60511,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "widget_type": "guided-learning",
         "path": [
           "library-shell.card-open:guided-learning#row-1",
-          "gl-manager.preview-open-editor"
-        ],
-        "opened_by": [
-          "library-shell.new:guided-learning"
+          "gl-manager.preview-open-editor",
+          "gl-editor.open-classic"
         ],
         "needs": [
           "widget-on-stage",
@@ -60241,6 +60550,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-capture.menu"
         ],
         "reveal": "gl-capture.menu",
@@ -60393,6 +60703,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "gl-manager.preview-open-editor",
           "studio.timeline-step"
         ],
+        "opened_by": [
+          "studio.canvas"
+        ],
         "needs": [
           "widget-on-stage",
           "library-item"
@@ -60529,6 +60842,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.folder"
         ],
         "reveal": "gl-editor.folder",
@@ -60576,6 +60890,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.folder"
         ],
         "reveal": "gl-editor.folder",
@@ -61549,6 +61864,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "path": [
           "library-shell.card-open:guided-learning#row-1",
           "gl-manager.preview-open-editor",
+          "gl-editor.open-classic",
           "gl-editor.draft-ai"
         ],
         "needs": [
@@ -62460,6 +62776,19 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "import-wizard.ai-generate",
     "label": "Generate button in the Import wizard Draft with AI panel",
+    "scope": "board",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "library.import-wizard",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "import-wizard.retry-with-ai",
+    "label": "Try again with AI link on the Import wizard preview step",
     "scope": "board",
     "panel": true,
     "routes": [

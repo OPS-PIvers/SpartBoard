@@ -17,7 +17,6 @@ import { PlcVideoActivitiesTabsBody } from './PlcVideoActivitiesTabsBody';
 import { PlcRubricLibraryBody } from './PlcRubricLibraryBody';
 import { PlcQuestionBanksBody } from './PlcQuestionBanksBody';
 import { PlcFlashcardsBody } from './PlcFlashcardsBody';
-import { useAuth } from '@/context/useAuth';
 import { tourFieldAttr } from '@/config/tourAnchors';
 
 type AssessmentType =
@@ -78,19 +77,15 @@ export const PlcAssessmentsBody: React.FC<PlcAssessmentsBodyProps> = ({
 }) => {
   const { t } = useTranslation();
   const features = useMemo(() => getPlcFeatures(plc), [plc]);
-  const { canAccessFeature } = useAuth();
-  const flashcardsEnabled = canAccessFeature('plc-flashcards');
-
-  // Rubrics have no feature flag — they ride along with the section.
+  // Rubrics and flashcards have no feature flag — they ride along with the section.
   const enabledTypes = useMemo(
     () =>
       TYPE_NAV.filter((f) => {
         if (f.id === 'quiz' || f.id === 'bank') return features.quizzes;
         if (f.id === 'video-activity') return features.videoActivities;
-        if (f.id === 'flashcards') return flashcardsEnabled;
         return true;
       }),
-    [features.quizzes, features.videoActivities, flashcardsEnabled]
+    [features.quizzes, features.videoActivities]
   );
 
   const [activeType, setActiveType] = useState<AssessmentType>(

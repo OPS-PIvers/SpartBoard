@@ -48,15 +48,15 @@ export function buildStudentViewSession(
   const opts = behavior.sessionOptions;
   const questions = dedupeQuestionsById(quiz.questions);
   const publicQuestions = questions.map((q) => {
-    const {
-      targets,
-      recording: _recording,
-      ...rest
-    } = toPublicQuestion(q, undefined, {
+    const { targets, ...rest } = toPublicQuestion(q, undefined, {
       hideRubricUnlessShown,
     });
     return opts.showLearningTargets && targets ? { ...rest, targets } : rest;
   });
+  const hasRecording = publicQuestions.some((q) => !!q.recording);
+  const hasWhiteboard = publicQuestions.some(
+    (q) => q.recording?.mode === 'whiteboard'
+  );
   const stimuli = projectSessionStimuli({ questions, stimuli: quiz.stimuli });
   const readAloudText = readAloudTextByStimulusId({
     questions,
@@ -82,6 +82,9 @@ export function buildStudentViewSession(
     code: '',
     totalQuestions: questions.length,
     publicQuestions,
+    // Same markers Assign stamps, so spoken and whiteboard questions show their recorder.
+    ...(hasRecording ? { mediaResponseEnabled: true } : {}),
+    ...(hasWhiteboard ? { whiteboardResponseEnabled: true } : {}),
     ...(sections.length > 0 ? { sections } : {}),
     ...(stimuli.length > 0 ? { stimuli } : {}),
     ...(Object.keys(readAloudText).length > 0

@@ -60,17 +60,25 @@ export function bankTargetIndex(
   return { targetIds: Object.keys(counts).sort(), targetCounts: counts };
 }
 
-/** Bank questions matching any id in `targetFilter`; the whole bank when the filter is empty. */
+/** Bank questions matching any id in `targetFilter`, within `poolIds` when given; the whole bank when both are empty. */
 export function eligibleBankQuestions(
   bank: Pick<BankContent, 'questions' | 'targets'>,
-  targetFilter?: string[]
+  targetFilter?: string[],
+  poolIds?: string[]
 ): QuizQuestion[] {
-  if (!targetFilter || targetFilter.length === 0) return bank.questions;
+  const pool = poolIds && poolIds.length > 0 ? new Set(poolIds) : null;
+  const inPool = pool ? bank.questions.filter((q) => pool.has(q.id)) : null;
+  const questions = inPool ?? bank.questions;
+  if (!targetFilter || targetFilter.length === 0) return questions;
   const wanted = new Set(targetFilter);
-  return bank.questions.filter((q) =>
+  return questions.filter((q) =>
     effectiveQuestionTargets(q, bank).some((t) => wanted.has(t.id))
   );
 }
+
+/** A random slot's pool restriction (QUIZ_IMPORT_VERSIONS V8); selected slots use `questionIds` as picks. */
+export const randomSlotPool = (slot: QuizBankSlot): string[] | undefined =>
+  slot.mode === 'random' ? slot.questionIds : undefined;
 
 export interface CopiedBankQuestions {
   questions: QuizQuestion[];
@@ -212,7 +220,11 @@ export function validateBankSlots(
       });
       continue;
     }
-    const eligible = eligibleBankQuestions(bank, slot.targetFilter).length;
+    const eligible = eligibleBankQuestions(
+      bank,
+      slot.targetFilter,
+      randomSlotPool(slot)
+    ).length;
     if (eligible < count) {
       const filtered = slot.targetFilter && slot.targetFilter.length > 0;
       problems.push({
@@ -294,7 +306,11 @@ export function resolveQuizAssignment(
       quizStimulusIds.has(sid)
     );
     const poolQuestionIds: string[] = [];
-    for (const source of eligibleBankQuestions(bank, slot.targetFilter)) {
+    for (const source of eligibleBankQuestions(
+      bank,
+      slot.targetFilter,
+      randomSlotPool(slot)
+    )) {
       // A bank question drawn by two slots keeps its first slot's points.
       if (usedIds.has(source.id)) continue;
       usedIds.add(source.id);
@@ -332,6 +348,7 @@ export function resolveQuizAssignment(
       points,
       poolQuestionIds,
       position: fixedSeen,
+      ...(slot.dealing === 'balanced' ? { dealing: 'balanced' as const } : {}),
     });
   }
 
@@ -377,16 +394,17 @@ export function secureShuffle<T>(
 export function drawServedQuestionIds(
   publicQuestionIds: readonly string[],
   slots: readonly QuizSessionBankSlot[],
-  randomIndex: RandomIndex = secureIndex
+  randomIndex: RandomIndex = secureIndex,
+  dealtBySlot?: ReadonlyMap<string, readonly string[]>
 ): string[] {
   const pooled = new Set(slots.flatMap((s) => s.poolQuestionIds));
   const fixed = publicQuestionIds.filter((id) => !pooled.has(id));
   const bySlotPosition = new Map<number, string[]>();
   for (const slot of slots) {
-    const drawn = secureShuffle(slot.poolQuestionIds, randomIndex).slice(
-      0,
-      slot.count
-    );
+    const dealt = dealtBySlot?.get(slot.id);
+    const drawn = dealt
+      ? [...dealt]
+      : secureShuffle(slot.poolQuestionIds, randomIndex).slice(0, slot.count);
     const at = Math.min(Math.max(slot.position, 0), fixed.length);
     bySlotPosition.set(at, [...(bySlotPosition.get(at) ?? []), ...drawn]);
   }
@@ -473,7 +491,9 @@ export function describeBankSlot(
   slot: QuizBankSlot,
   eligibleCount: number | null
 ): string {
-  const parts = [`Random · ${slot.count ?? 0}`];
+  const parts = [
+    `${slot.dealing === 'balanced' ? 'Even split' : 'Random'} · ${slot.count ?? 0}`,
+  ];
   if (eligibleCount != null) parts[0] += ` of ${eligibleCount}`;
   if (slot.targetFilter && slot.targetFilter.length > 0) {
     parts.push(

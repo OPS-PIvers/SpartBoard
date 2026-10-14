@@ -19,6 +19,7 @@ import {
 import { useServerNow } from '@/hooks/useServerNow';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { studentCanEnter } from '@/utils/periodAccess';
+import { canTeacherSubmit } from '@/utils/quizTeacherSubmit';
 import { MonitorStudent } from './useMonitorData';
 import { BucketKey } from './StatusBuckets';
 import {
@@ -38,6 +39,8 @@ import {
   hasReachedTabWarningThreshold,
   resolveStudentTabWarningThreshold,
 } from '@/utils/tabWarningThreshold';
+import { partsDoneOf } from '@/utils/quizParts';
+import { isResponseWaiting } from './openPart';
 
 interface RosterListProps {
   bucket: BucketKey;
@@ -48,10 +51,14 @@ interface RosterListProps {
   onUpdateConfig: (updates: Partial<QuizConfig>) => void;
   onRemove?: (key: string) => void;
   onUnlockAttempt?: (key: string) => void;
+  /** Turns in a student's saved answers for them. */
+  onSubmitForStudent?: (key: string) => void;
   onUnlockResults?: (key: string) => void;
   onClearHand?: (key: string) => void;
   /** Per-period sessions: unlock one student past their period's state. */
   onLetIn?: (studentUid: string) => void;
+  /** Quizzes with a Stop: open the next part for one waiting student. */
+  onOpenPart?: (key: string, part: number) => void;
   /** M17 E2 F2: the active assignment's per-student overrides, keyed by
    *  `StudentTargetRef` key. */
   overridesBySourcedId?: Record<string, StudentOverride> | null;
@@ -126,8 +133,10 @@ const RowMenu: React.FC<{
   now: number;
   onRemove?: (key: string) => void;
   onUnlockAttempt?: (key: string) => void;
+  onSubmitForStudent?: (key: string) => void;
   onUnlockResults?: (key: string) => void;
   onLetIn?: (studentUid: string) => void;
+  onOpenPart?: (key: string, part: number) => void;
   overridesBySourcedId?: Record<string, StudentOverride> | null;
   targetRefKeyByStudentUid?: Map<string, string> | null;
 }> = ({
@@ -136,8 +145,10 @@ const RowMenu: React.FC<{
   now,
   onRemove,
   onUnlockAttempt,
+  onSubmitForStudent,
   onUnlockResults,
   onLetIn,
+  onOpenPart,
   overridesBySourcedId,
   targetRefKeyByStudentUid,
 }) => {
@@ -185,11 +196,31 @@ const RowMenu: React.FC<{
         setOpen(false);
       },
     });
+  if (onOpenPart && isResponseWaiting(session, r)) {
+    const part = partsDoneOf(r) + 1;
+    items.push({
+      label: `Open Part ${part}`,
+      tour: tourTypeAttr('quiz-monitor.student-open-part', 'quiz'),
+      onClick: () => {
+        onOpenPart(student.key, part);
+        setOpen(false);
+      },
+    });
+  }
   if (locked && onUnlockAttempt)
     items.push({
       label: 'Unlock attempt',
       tour: tourTypeAttr('quiz-monitor.student-unlock-attempt', 'quiz'),
       onClick: () => onUnlockAttempt(student.key),
+    });
+  if (onSubmitForStudent && canTeacherSubmit(r))
+    items.push({
+      label: 'Submit for student',
+      tour: tourTypeAttr('quiz-monitor.student-submit', 'quiz'),
+      onClick: () => {
+        onSubmitForStudent(student.key);
+        setOpen(false);
+      },
     });
   if (r.resultsLockedOut && onUnlockResults)
     items.push({
@@ -275,9 +306,11 @@ export const RosterList: React.FC<RosterListProps> = ({
   onUpdateConfig,
   onRemove,
   onUnlockAttempt,
+  onSubmitForStudent,
   onUnlockResults,
   onClearHand,
   onLetIn,
+  onOpenPart,
   overridesBySourcedId = null,
   targetRefKeyByStudentUid = null,
 }) => {
@@ -688,8 +721,10 @@ export const RosterList: React.FC<RosterListProps> = ({
                 session={session}
                 now={now}
                 onLetIn={onLetIn}
+                onOpenPart={onOpenPart}
                 onRemove={onRemove}
                 onUnlockAttempt={onUnlockAttempt}
+                onSubmitForStudent={onSubmitForStudent}
                 onUnlockResults={onUnlockResults}
                 overridesBySourcedId={overridesBySourcedId}
                 targetRefKeyByStudentUid={targetRefKeyByStudentUid}

@@ -44,7 +44,6 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const canGenerateApp =
     canAccessFeature('gemini-functions') && canAccessFeature('embed-mini-app');
   const canReload = canAccessFeature('embed-reload');
-  const keepLinkedSlide = canAccessFeature('embed-slide-link');
   const buildingId = useWidgetBuildingId(widget);
   const { config: globalConfig } = useEmbedConfig(buildingId);
   const { getDriveFileTextContent } = useGoogleDrive();
@@ -223,10 +222,9 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     () =>
       applyLinkedSlide(
         applyStartAt(applyAutoplay(embedUrl, autoplay), startAtSeconds),
-        sanitizedUrl,
-        keepLinkedSlide
+        sanitizedUrl
       ),
-    [embedUrl, autoplay, startAtSeconds, sanitizedUrl, keepLinkedSlide]
+    [embedUrl, autoplay, startAtSeconds, sanitizedUrl]
   );
 
   const [refreshKey, setRefreshKey] = useState(0);

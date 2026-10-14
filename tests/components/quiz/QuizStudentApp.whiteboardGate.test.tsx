@@ -31,6 +31,24 @@ const { mockAuth, hookState, spies } = vi.hoisted(() => ({
   },
 }));
 
+vi.mock('@/hooks/useQuizRecordingNoticeSettings', () => ({
+  useQuizRecordingNoticeSettings: () => ({
+    settings: { enabled: true },
+    loaded: true,
+  }),
+}));
+
+// The pre-quiz mic check has its own suite; these tests start past it.
+vi.mock('@/components/quiz/recording/MicrophoneGate', async () => {
+  const { useEffect } = await import('react');
+  return {
+    MicrophoneGate: ({ onReady }: { onReady: () => void }) => {
+      useEffect(onReady, [onReady]);
+      return null;
+    },
+  };
+});
+
 vi.mock('@/hooks/useStudentAssignmentPointer', () => ({
   useStudentAssignmentPointer: () => null,
 }));
@@ -199,6 +217,17 @@ describe('QuizStudentApp — whiteboard gate', () => {
     await waitFor(() =>
       expect(spies.markUnresponded).toHaveBeenCalledWith('q1', 'device-gated')
     );
+  });
+
+  it('keeps the whiteboard mounted under the portrait gate', async () => {
+    setPortrait(true);
+    hookState.session = buildSession({ whiteboardResponseEnabled: true });
+    const { container } = render(<QuizStudentApp />);
+
+    await screen.findByText('Turn your device sideways');
+    const inert = container.querySelector('[inert]');
+    expect(inert).not.toBeNull();
+    expect(inert?.childElementCount).toBeGreaterThan(0);
   });
 
   it('keeps the slot open after rotating back from a device-gated marker', async () => {

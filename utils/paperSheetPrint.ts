@@ -29,6 +29,7 @@ import {
   REGISTRATION_MARK_CENTERS_MM,
   REGISTRATION_MARK_SIZE_MM,
   ROWS_PER_COLUMN,
+  STIMULUS_RECT_MM,
   QUESTION_CHOICE_TEXT_GAP_MM,
   QUESTION_STEM_H_MM,
   QUESTION_STEM_W_MM,
@@ -98,6 +99,25 @@ export interface PaperPrintJob {
   pageMaps?: readonly PaperPageMap[];
   /** Stem per written question id, printed in its header when the header has room. */
   writtenTexts?: Readonly<Record<string, string>>;
+  /** What each prompt page prints, by its page map's `prompt` id (QUIZ_IMPORT_VERSIONS.md V25). */
+  prompts?: Readonly<Record<string, PaperPromptPage>>;
+  /** Per-version text, chosen by each sheet's `versionIndex`; keys stay the page maps' ids (V24). */
+  versions?: readonly PaperPrintVersion[];
+}
+
+/** A written question's full prompt and its figures, printed on the page before its box. */
+export interface PaperPromptPage {
+  text: string;
+  stimuli: readonly PaperSheetStimulus[];
+}
+
+/** What one version prints in place of the job's own text. */
+export interface PaperPrintVersion {
+  label: string;
+  questionTexts?: readonly PaperSheetQuestionText[];
+  rowLabels?: readonly (string | undefined)[];
+  writtenTexts?: Readonly<Record<string, string>>;
+  prompts?: Readonly<Record<string, PaperPromptPage>>;
 }
 
 /** What a question-text row prints beside its bubbles. */
@@ -195,7 +215,7 @@ function stimuliHtml(job: PaperPrintJob, page: number): string {
   if (!job.sheetStimuli?.length || job.columnsPerPage !== 1) return '';
   const map = job.pageMaps?.[page - 1];
   // A box wider than the left column takes the band, so the stimulus waits for the next page (D10).
-  if (map && isStimulusFreePage(map)) return '';
+  if (map && (isStimulusFreePage(map) || map.prompt)) return '';
   const parts: string[] = [];
   for (const item of layoutSheetStimuli(job.sheetStimuli, page).items) {
     const src = job.stimulusImageSrc?.[item.stimulus.id];
@@ -234,10 +254,12 @@ function headerHtml(
   page: number,
   pageCount: number,
   printedForTeacherName?: string,
-  score?: string
+  score?: string,
+  versionLabel?: string
 ): string {
   const line2 = [
     printedForTeacherName,
+    versionLabel,
     sheet.className,
     `Page ${page} of ${pageCount}`,
   ]
@@ -525,14 +547,76 @@ function mapLegendsHtml(map: PaperPageMap, choiceCount: number): string {
   return parts.join('');
 }
 
+/** Gap between a prompt's text column and its figures. */
+const PROMPT_GUTTER_MM = 4;
+
+/** Point sizes a prompt tries, largest first, until its text fits the column. */
+const PROMPT_SIZES_PT = [11, 10, 9, 8, 7] as const;
+
+/** Rough Arial line count, enough to pick a size that keeps a prompt on its page. */
+function promptFontPt(text: string, widthMm: number, heightMm: number): number {
+  for (const pt of PROMPT_SIZES_PT) {
+    const charsPerLine = Math.max(1, Math.floor(widthMm / (pt * 0.19)));
+    const lines = text
+      .split('\n')
+      .reduce((n, p) => n + Math.max(1, Math.ceil(p.length / charsPerLine)), 0);
+    if (lines * pt * 0.48 <= heightMm) return pt;
+  }
+  return PROMPT_SIZES_PT[PROMPT_SIZES_PT.length - 1];
+}
+
+/** A written question's version, prompt and figures, on the page before its box (V25). */
+function promptPageHtml(
+  prompt: PaperPromptPage | undefined,
+  label: string | undefined,
+  imageSrc: Readonly<Record<string, string>> | undefined
+): string {
+  if (!prompt) return '';
+  const band = STIMULUS_RECT_MM;
+  const placed = layoutSheetStimuli(prompt.stimuli, 1, band).items.filter(
+    (item) => !!imageSrc?.[item.stimulus.id]
+  );
+  const x = HEADER_RECT_MM.x;
+  const right = placed.length > 0 ? band.x - PROMPT_GUTTER_MM : band.x + band.w;
+  const w = right - x;
+  const parts: string[] = [];
+  let top = band.y;
+  if (label) {
+    parts.push(
+      `<div class="pr-label" style="left:${mm(x)};top:${mm(top)};width:${mm(w)}">${escapeHtml(label)}</div>`
+    );
+    top += 7;
+  }
+  const h = band.y + band.h - top;
+  const pt = promptFontPt(prompt.text, w, h);
+  parts.push(
+    `<div class="pr-text" style="left:${mm(x)};top:${mm(top)};width:${mm(w)};height:${mm(h)};font-size:${pt}pt">${escapeHtml(prompt.text)}</div>`
+  );
+  for (const item of placed) {
+    const r = item.rect;
+    parts.push(
+      `<img class="stim" alt="" src="${escapeHtml(imageSrc?.[item.stimulus.id] ?? '')}" style="left:${mm(r.x)};top:${mm(r.y)};width:${mm(r.w)};height:${mm(r.h)}" />`
+    );
+  }
+  return parts.join('');
+}
+
 /** Everything a map page prints between its header and footer. */
 function mapPageBodyHtml(
   map: PaperPageMap,
   job: PaperPrintJob,
   sheet: PaperSheetPlan,
   choiceCount: number,
-  fill?: SheetFill
+  fill?: SheetFill,
+  versionLabel?: string
 ): string {
+  if (map.prompt) {
+    return promptPageHtml(
+      job.prompts?.[map.prompt],
+      versionLabel,
+      job.stimulusImageSrc
+    );
+  }
   const parts = [mapLegendsHtml(map, choiceCount)];
   for (const item of map.items) {
     if (item.kind === 'mc') {
@@ -570,10 +654,26 @@ function mapPageBodyHtml(
  */
 function sheetPagesHtml(
   sheet: PaperSheetPlan,
-  job: PaperPrintJob,
+  printJob: PaperPrintJob,
   pageCount: number,
   fill?: SheetFill
 ): string {
+  const version =
+    sheet.versionIndex !== undefined
+      ? printJob.versions?.[sheet.versionIndex]
+      : undefined;
+  const job: PaperPrintJob = version
+    ? {
+        ...printJob,
+        ...(version.questionTexts
+          ? { questionTexts: version.questionTexts }
+          : {}),
+        ...(version.rowLabels ? { rowLabels: version.rowLabels } : {}),
+        ...(version.writtenTexts ? { writtenTexts: version.writtenTexts } : {}),
+        ...(version.prompts ? { prompts: version.prompts } : {}),
+      }
+    : printJob;
+  const versionLabel = version?.label;
   const choiceCount = Math.min(
     Math.max(job.choiceCount, MIN_CHOICE_COUNT),
     MAX_CHOICE_COUNT
@@ -584,7 +684,7 @@ function sheetPagesHtml(
     const map = job.pageMaps?.[page - 1];
     let body: string;
     if (map) {
-      body = mapPageBodyHtml(map, job, sheet, choiceCount, fill);
+      body = mapPageBodyHtml(map, job, sheet, choiceCount, fill, versionLabel);
     } else {
       const rows = answerRowsHtml(
         page,
@@ -613,7 +713,8 @@ function sheetPagesHtml(
         page,
         pageCount,
         job.printedForTeacherName,
-        fill?.score
+        fill?.score,
+        versionLabel
       )}${body}${stimuliHtml(job, page)}${footerHtml()}</div>`
     );
   }
@@ -664,6 +765,9 @@ const SHEET_STYLES = `
     text-overflow: ellipsis;
   }
   .stim { object-fit: contain; }
+  .pr-label, .pr-text { position: absolute; color: #000; }
+  .pr-label { font-size: 12pt; font-weight: 700; }
+  .pr-text { line-height: 1.35; white-space: pre-wrap; overflow: hidden; }
   .stim-cap {
     font-size: ${CAPTION_SIZE_PT}pt;
     line-height: 1.3;
@@ -770,6 +874,8 @@ export function buildFilledSheetHtml(
     | 'questionTexts'
     | 'pageMaps'
     | 'writtenTexts'
+    | 'prompts'
+    | 'stimulusImageSrc'
   >,
   pageCount: number,
   fill: SheetFill
@@ -795,11 +901,16 @@ export function printPaperSheets(
       styles: STYLES,
       body: buildPaperSheetsHtml(job),
       // A remote image that has not decoded yet prints as an empty box.
-      awaitImages: !!job.sheetStimuli?.length,
+      awaitImages: !!job.sheetStimuli?.length || hasPromptImages(job),
       ...(job.onImagesReady ? { onImagesReady: job.onImagesReady } : {}),
     },
     openWindow
   );
+}
+
+function hasPromptImages(job: PaperPrintJob): boolean {
+  const all = [job.prompts, ...(job.versions ?? []).map((v) => v.prompts)];
+  return all.some((p) => p && Object.values(p).some((x) => x.stimuli.length));
 }
 
 /** The document `printPaperSheets` would write. Exported for tests and preview. */

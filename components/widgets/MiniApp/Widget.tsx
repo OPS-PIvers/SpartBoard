@@ -53,7 +53,6 @@ import {
 } from 'firebase/firestore';
 import { db, functions } from '@/config/firebase';
 import { httpsCallable } from 'firebase/functions';
-import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
   makeEmptyPickerValue,
   resolveSelectedRosters,
@@ -63,14 +62,9 @@ import {
   deriveSessionTargetsFromRosters,
   mapLegacyClassIdsToRosterIds,
 } from '@/utils/resolveAssignmentTargets';
-import { AssignTargetingSection } from '@/components/common/library/AssignTargetingSection';
-import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
 import { useAssignPeriodAccess } from '@/hooks/useTeacherBellPeriods';
-import { buildPeriodGate } from '@/utils/periodPlan';
 import {
   applyAvailability,
-  availabilityBackwards,
-  chosenWorkKind,
   type WorkKindSetting,
 } from '@/utils/assignAvailability';
 import { resolveWorkKind } from '@/utils/gradebook/gradebookCore';
@@ -79,7 +73,6 @@ import {
   expandClassTargeting,
   payloadRequiresCall,
   EMPTY_ASSIGN_TARGETING_VALUE,
-  type AssignTargetingValue,
 } from '@/utils/studentTargetRef';
 import type { StudentOverride, StudentTargetRef } from '@/types';
 import { MiniAppEditorModal } from './components/MiniAppEditorModal';
@@ -145,61 +138,31 @@ interface SetAssignmentTargetsResult {
 interface MiniAppAssignModalProps {
   appTitle: string;
   assignmentName: string;
-  onNameChange: (name: string) => void;
   isCreating: boolean;
   createdSessionId: string | null;
   error: string | null;
   onConfirm: () => void;
   onClose: () => void;
-  /** Rosters available for targeting (unified picker). */
-  rosters: import('@/types').ClassRoster[];
-  /** Current picker selection. */
-  pickerValue: AssignClassPickerValue;
-  onPickerChange: (next: AssignClassPickerValue) => void;
-  /** Org-wide mode. Drives the modal copy (Assign vs Share) and whether the
-   *  underlying session is created with submissions enabled. */
+  /** Org-wide mode. Drives the modal copy (Assign vs Share). */
   mode: AssignmentMode;
-  /** M17 B3 — schedule + individual-student targeting (spec §5 B3, §4). */
-  targetingValue: AssignTargetingValue;
-  onTargetingChange: (next: AssignTargetingValue) => void;
   /** M17 B3 — names of students `setAssignmentTargetsV1` could not target,
    *  surfaced after creation so a skip is never silent (spec §5 B3(4)). */
   skippedStudentNames: string[];
-  /** Per-period mode and windows; undefined while the flag is off. */
-  periodAccess?: AssignPeriodAccessContext;
-  workKind?: WorkKindSetting;
 }
 
 export const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
   appTitle,
   assignmentName,
-  onNameChange,
   isCreating,
   createdSessionId,
   error,
   onConfirm,
   onClose,
-  rosters,
-  pickerValue,
-  onPickerChange,
   mode,
-  targetingValue,
-  onTargetingChange,
   skippedStudentNames,
-  periodAccess,
-  workKind,
 }) => {
   const outward = useViewAsOutward();
   const isViewOnly = mode === 'view-only';
-  const backwards =
-    !isViewOnly &&
-    availabilityBackwards(
-      { ...targetingValue, workKind: chosenWorkKind(targetingValue, workKind) },
-      rosters.filter(
-        (r) => !r.loadError && pickerValue.rosterIds.includes(r.id)
-      ),
-      periodAccess?.bellWindow
-    );
   const link = createdSessionId
     ? `${window.location.origin}/miniapp/${createdSessionId}`
     : null;
@@ -361,8 +324,10 @@ export const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
               </div>
             </>
           ) : (
-            /* Pre-creation: zero form fields in view-only; name input + class
-               picker in submissions. */
+            /* Pre-creation (view-only only): zero form fields. Class targeting
+               has no effect (rules don't gate views by class; sessions are
+               filtered out of /my-assignments anyway). The auto-generated share
+               name is used behind the scenes for the Shared archive. */
             <>
               <div className="text-center">
                 <p
@@ -385,82 +350,12 @@ export const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                   {isViewOnly ? 'Create Share Link' : 'Create Assignment Link'}
                 </p>
               </div>
-              {isViewOnly ? (
-                /* View-only: zero form fields. Class targeting has no effect
-                   (rules don't gate views by class; sessions are filtered out
-                   of /my-assignments anyway). The auto-generated share name
-                   is used behind the scenes for the Shared archive — teachers
-                   can rename later from the archive's overflow menu. */
-                <p
-                  className="text-slate-600 text-center"
-                  style={{ fontSize: 'min(14px, 5.5cqmin)' }}
-                >
-                  Anyone with the link can open it.
-                </p>
-              ) : (
-                <>
-                  <div
-                    className="bg-slate-50 border border-slate-200 rounded-xl"
-                    style={{ padding: 'min(12px, 3cqmin)' }}
-                  >
-                    <label
-                      htmlFor="miniapp-assignment-name"
-                      className="block font-bold text-slate-700"
-                      style={{
-                        fontSize: 'min(14px, 5.5cqmin)',
-                        marginBottom: 'min(6px, 1.5cqmin)',
-                      }}
-                    >
-                      Assignment Name
-                    </label>
-                    <input
-                      id="miniapp-assignment-name"
-                      {...tourTypeAttr('mini-app.session-name', 'miniApp')}
-                      type="text"
-                      value={assignmentName}
-                      onChange={(e) => onNameChange(e.target.value)}
-                      placeholder="1st period"
-                      className="w-full rounded-xl border border-slate-200 font-medium text-slate-700 outline-none focus:border-brand-blue-primary"
-                      style={{
-                        paddingLeft: 'min(12px, 3cqmin)',
-                        paddingRight: 'min(12px, 3cqmin)',
-                        paddingTop: 'min(8px, 2cqmin)',
-                        paddingBottom: 'min(8px, 2cqmin)',
-                        fontSize: 'min(14px, 5.5cqmin)',
-                      }}
-                    />
-                  </div>
-                  <div
-                    className="bg-slate-50 border border-slate-200 rounded-xl"
-                    style={{ padding: 'min(12px, 3cqmin)' }}
-                  >
-                    <AssignClassPicker
-                      rosters={rosters}
-                      value={pickerValue}
-                      onChange={onPickerChange}
-                    />
-                    <p
-                      className="text-slate-500"
-                      style={{
-                        fontSize: 'min(11px, 4cqmin)',
-                        marginTop: 'min(8px, 2cqmin)',
-                      }}
-                    >
-                      Leave empty to share by link only.
-                    </p>
-                  </div>
-                  <AssignTargetingSection
-                    rosters={rosters}
-                    selectedRosterIds={pickerValue.rosterIds}
-                    periodAccess={periodAccess}
-                    value={targetingValue}
-                    onChange={onTargetingChange}
-                    kind="mini-app"
-                    cqScaled
-                    workKind={workKind}
-                  />
-                </>
-              )}
+              <p
+                className="text-slate-600 text-center"
+                style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+              >
+                Anyone with the link can open it.
+              </p>
               {error && (
                 <p
                   className="text-brand-red-primary text-center font-medium"
@@ -477,17 +372,9 @@ export const MiniAppAssignModal: React.FC<MiniAppAssignModalProps> = ({
                     VIEW_AS_WRITES.assign
                   )
                 }
-                disabled={
-                  isCreating ||
-                  outward.locked ||
-                  backwards ||
-                  (!isViewOnly && assignmentName.trim().length === 0)
-                }
+                disabled={isCreating || outward.locked}
                 {...tourTypeAttr('mini-app.assign-confirm', 'miniApp')}
-                title={
-                  outward.lockedTitle ??
-                  (backwards ? 'Closes before it opens.' : undefined)
-                }
+                title={outward.lockedTitle}
                 className="w-full flex items-center justify-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-xl transition-all active:scale-95 shadow-sm disabled:opacity-60"
                 style={{
                   gap: 'min(8px, 2cqmin)',
@@ -544,8 +431,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   const { user, getAssignmentMode, canAccessFeature } = useAuth();
   const assignmentMode: AssignmentMode = getAssignmentMode('miniApp');
   // View-only shares a link with no classes, so it keeps its own dialog (D20).
-  const stepperOn =
-    canAccessFeature('assign-stepper') && assignmentMode === 'submissions';
+  const stepperOn = assignmentMode === 'submissions';
   const resultsOn = miniAppResultsOn(canAccessFeature, assignmentMode);
   const { showConfirm } = useDialog();
   const claudeReview = useClaudeReview('miniapps');
@@ -616,9 +502,6 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     useState<AssignClassPickerValue>(makeEmptyPickerValue());
   const [assignmentsForApp, setAssignmentsForApp] =
     useState<MiniAppItem | null>(null);
-  // M17 B3 — schedule + individual-student targeting (spec §5 B3).
-  const [assignTargetingValue, setAssignTargetingValue] =
-    useState<AssignTargetingValue>(EMPTY_ASSIGN_TARGETING_VALUE);
   const [skippedStudentNames, setSkippedStudentNames] = useState<string[]>([]);
 
   const handleOpenAssign = (app: MiniAppItem) =>
@@ -629,7 +512,6 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     setAssignmentName(app.title);
     setCreatedSessionId(null);
     setAssignError(null);
-    setAssignTargetingValue(EMPTY_ASSIGN_TARGETING_VALUE);
     setSkippedStudentNames([]);
     // Pre-populate the roster picker with the teacher's last selection for
     // this app. Prefer unified roster memory; fall back to the legacy
@@ -700,8 +582,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       const derived = deriveSessionTargetsFromRosters(selectedRosters);
       const { targeting: targetingForSave } = stepperPlan
         ? { targeting: stepperPlan.targeting }
-        : applyAvailability(assignTargetingValue, {
-            enabled: assignmentMode === 'submissions',
+        : applyAvailability(EMPTY_ASSIGN_TARGETING_VALUE, {
+            enabled: false,
             rosters: selectedRosters,
             bellWindow: assignPeriodCtx?.bellWindow,
             workKind: workKindSetting,
@@ -730,26 +612,11 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       // reads its pointer doc at this id, which `setAssignmentTargetsV1` also
       // uses as the pointer key.
       const generatedAssignmentId = crypto.randomUUID();
-      const periodGate = stepperPlan
-        ? stepperPlan.periodGate
-        : assignmentMode === 'submissions'
-          ? buildPeriodGate({
-              plan: targetingForSave.periodPlan,
-              rosters: selectedRosters,
-              sharedWindow: targetingForSave,
-              bellWindow: assignPeriodCtx?.bellWindow,
-            })
-          : undefined;
-      // The stepper asks only for submitted work; the older dialog keeps the defaults.
-      const resultsPicked = stepper
-        ? resultsChoice
-        : resultsOn
-          ? DEFAULT_MINI_APP_RESULTS
-          : undefined;
+      const periodGate = stepperPlan?.periodGate;
       const results =
-        resultsOn && resultsPicked
+        resultsOn && resultsChoice
           ? {
-              ...resultsPicked,
+              ...resultsChoice,
               key: await loadMiniAppKey(user.uid, assigningApp.id),
             }
           : undefined;
@@ -1486,7 +1353,6 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     setCreatedSessionId(null);
     setAssignError(null);
     setAssignPickerValue(makeEmptyPickerValue());
-    setAssignTargetingValue(EMPTY_ASSIGN_TARGETING_VALUE);
     setSkippedStudentNames([]);
   };
 
@@ -1510,19 +1376,11 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       <MiniAppAssignModal
         appTitle={assigningApp.title}
         assignmentName={assignmentName}
-        onNameChange={setAssignmentName}
         isCreating={isCreatingSession}
         createdSessionId={createdSessionId}
         error={assignError}
-        rosters={rosters}
-        pickerValue={assignPickerValue}
-        onPickerChange={setAssignPickerValue}
         mode={assignmentMode}
-        targetingValue={assignTargetingValue}
-        onTargetingChange={setAssignTargetingValue}
         skippedStudentNames={skippedStudentNames}
-        periodAccess={assignPeriodCtx}
-        workKind={workKindSetting}
         onConfirm={() => void handleConfirmAssign()}
         onClose={closeAssign}
       />

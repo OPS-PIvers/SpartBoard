@@ -8,7 +8,6 @@ import type {
   ReviewLaunchSettings,
 } from '@/types';
 import { AssignModal } from '@/components/common/library/AssignModal';
-import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import type { AssignClassPickerValue } from '@/components/common/AssignClassPicker.helpers';
 import { ClassPickerMenu } from '@/components/common/library/assignStepper/ClassPickerMenu';
 import {
@@ -44,8 +43,6 @@ export interface StartReviewModalProps {
   nothingToPlay: boolean;
   handRaiseMode: QuizHandRaiseMode;
   readAloudAvailable: boolean;
-  /** Assign stepper's class menu in place of the class list (D19). */
-  classMenu?: boolean;
   onClose: () => void;
   onStart: (
     settings: ReviewLaunchSettings,
@@ -62,7 +59,6 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
   nothingToPlay,
   handRaiseMode,
   readAloudAvailable,
-  classMenu = false,
   onClose,
   onStart,
 }) => {
@@ -222,28 +218,19 @@ export const StartReviewModal: React.FC<StartReviewModalProps> = ({
                   })}
             </p>
           )}
-          {classMenu ? (
-            <div
-              className="space-y-1.5"
-              {...tourAttr('review-start.class-picker')}
-            >
-              <span className="text-sm font-bold text-brand-blue-dark">
-                {t('reviewStart.classes', 'Classes')}
-              </span>
-              <ClassPickerMenu
-                rosters={rosters}
-                value={{ classIds: picker.rosterIds, studentsByClass: {} }}
-                onChange={(next) => setPicker({ rosterIds: next.classIds })}
-              />
-            </div>
-          ) : (
-            <AssignClassPicker
-              collapsible
+          <div
+            className="space-y-1.5"
+            {...tourAttr('review-start.class-picker')}
+          >
+            <span className="text-sm font-bold text-brand-blue-dark">
+              {t('reviewStart.classes', 'Classes')}
+            </span>
+            <ClassPickerMenu
               rosters={rosters}
-              value={picker}
-              onChange={setPicker}
+              value={{ classIds: picker.rosterIds, studentsByClass: {} }}
+              onChange={(next) => setPicker({ rosterIds: next.classIds })}
             />
-          )}
+          </div>
           <div
             className="flex items-center justify-between gap-3"
             {...tourAttr('review-start.rank-limit')}

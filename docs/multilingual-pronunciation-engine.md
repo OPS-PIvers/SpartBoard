@@ -1,18 +1,33 @@
 # Pronunciation Questions — Plan
 
-**Status:** Live plan. Refreshed and grilled 2026-10-13 (decisions G1–G22 in §5). No feature code exists.
-**Owner:** Paul (OPS-PIvers) + Claude
-**Tickets:** [Wayfinder Map #2331](https://github.com/OPS-PIvers/SpartBoard/issues/2331)
-(29 sub-issues, 11 closed). The map body was last edited 2026-08-04 and predates
-everything in §3. Until it is refreshed, **this doc is the up-to-date picture** and
-the tickets hold the detailed evidence.
-**Scoring contracts (authoritative over the spec):** `scripts/spikes/*/DECISIONS.md`:
-`alignment-engine` (A1–A13), `stress-detection` (S1–S5), `stress-reference`
-(R1–R5), `token-runs` (T1–T5).
-**Source spec:** [`multilingual-pronunciation-engine-spec.md`](multilingual-pronunciation-engine-spec.md)
-is the original proposal, kept as written. Where the two disagree, this doc wins.
+**Status:** Live plan, **paused 2026-10-14** (Paul is wrapping up other work). Grilled 2026-10-13 (decisions G1–G22 in §5). The engine exists in `utils/pronunciation/`, but nothing user-facing does.
 
-A quiz item where the student **says** a known word or phrase and gets scored on
+**Where we are (2026-10-14):**
+
+- **Done:**
+  - the grill (G1–G22);
+  - the Chromebook gate: **passed for single words**, CPU only (§4.5, #2350);
+  - the scoring engine, stress detection and espeak tokenizer, ported with tests (§6 step 2, `991ce03`);
+  - the `/pronunciation-dev` test page, now with silence trimming.
+- **Waiting on Paul:**
+  - the counsel brief on espeak's licence (G19);
+  - a yes or no on the five calls recorded under §6 step 2 (T1 per run, a held vowel as one syllable, the tokenizer's search rule, its failure contract, and `(en)` handling).
+- **Open checks:** none of these block step 3.
+  - Decode one German _durch_/_wurde_ clip to see whether the model emits its `??` token (§6 step 2 notes).
+  - The stress cue weights (#2366) and the 60/80/95 marks (#2342) are still guesses.
+- **Next, when resumed:** either step 3, the phoneme-lookup callable (§6), or the Web Worker decode in `TODO.md` (small, and needed before any student sees a speak item). Neither depends on the other.
+  **Owner:** Paul (OPS-PIvers) + Claude
+  **Tickets:** [Wayfinder Map #2331](https://github.com/OPS-PIvers/SpartBoard/issues/2331)
+  (29 sub-issues, 11 closed). The map body was last edited 2026-08-04 and predates
+  everything in §3. Until it is refreshed, **this doc is the up-to-date picture** and
+  the tickets hold the detailed evidence.
+  **Scoring contracts (authoritative over the spec):** `scripts/spikes/*/DECISIONS.md`:
+  `alignment-engine` (A1–A13), `stress-detection` (S1–S5), `stress-reference`
+  (R1–R5), `token-runs` (T1–T5).
+  **Source spec:** [`multilingual-pronunciation-engine-spec.md`](multilingual-pronunciation-engine-spec.md)
+  is the original proposal, kept as written. Where the two disagree, this doc wins.
+
+A quiz item where the student **says** a known word and gets scored on
 the sounds they actually produced. The result is a sound-by-sound breakdown
 (correct / substituted / omitted / inserted / held), a stress check and an
 accuracy score. It is for world-language and EL teachers and is invisible to
@@ -148,13 +163,34 @@ Also new since August: the dev Firebase project (`spartboard-dev`) and the
 ### 4.4 What has never been tested
 
 - **Learner speech**: no child and no L2 speaker has been decoded.
-- **The browser runtime**: `onnxruntime-web` on a district Chromebook, covering load time, memory and inference time.
-- **Any latency number at all.**
 - **Stress cue weights against real audio** (#2366).
 - **German contrasts in audio**: final devoicing and ü.
 
 The thresholds of 60/80/95 for Loose/Close/Exact are still the spec author's
 guess (#2342).
+
+### 4.5 Chromebook runtime (#2350, measured 2026-10-14)
+
+`/pronunciation-dev` on a district Chromebook (ChromeOS 14541, Chrome 151, 8 cores, 4 GB), q4 model, `onnxruntime-web` 1.30, single thread (the site is not cross-origin isolated).
+
+| Measure                       | Result                                                                 |
+| ----------------------------- | ---------------------------------------------------------------------- |
+| First download (241 MB)       | 14.7 s, then 4.7 s to start the session                                |
+| Reopen from Cache Storage     | 2.1 s read + 1.5 s session                                             |
+| JS heap after load            | about 270 MB                                                           |
+| CPU (WASM) decode, 0.7–0.85 s | 4.2–4.9 s per clip, about 6× real time; warm is no faster              |
+| CPU decode, 2.8 s mic take    | 12.5 s (untrimmed; reads `perro`)                                      |
+| Agreement with Python q4      | 9 of 10 decodes; trill 3 reads `pero` for `perro`, same score under T1 |
+| WebGPU                        | Session loads, then the first decode never returns                     |
+
+The likely cause of the trill 3 difference is the browser resampling the 22.05 kHz clips differently from Python.
+
+**Decision (Paul, 2026-10-14): pass for single words.**
+
+- Scoring runs on the CPU in a Web Worker, so the page never freezes during the 4–5 s decode. The student sees a "Checking…" state.
+- Silence is trimmed before decoding (`trimSilence`).
+- Long takes and slow devices fall back to G17 (score later).
+- WebGPU is off for the q4 file. An fp16/fp32 export on WebGPU, or threads via cross-origin isolation on the student routes, is a later option for phrases.
 
 ---
 
@@ -164,7 +200,7 @@ These supersede D2, D4 (in part) and D6 in §2. G-numbers are cited from code an
 
 ### The item
 
-- **G1 — Scope.** Spanish, German and English in v1. One word or a short phrase (up to about 5 words) per item.
+- **G1 — Scope.** Spanish, German and English in v1. **One word per item** (narrowed 2026-10-14 by the Chromebook result in §4.5). Short phrases wait for a faster runtime path.
 - **G2 — Type.** A new `'speak'` member of `QuizQuestionType`, which keeps D4. It reuses the shipped recording pieces (`useAudioRecording`, `AudioResponseCapture`, the consent notice). A speak item is a third grading category, auto-scored on the device. It is **not** added to `isFreeResponseType` or `questionNeedsManualGrading`.
 - **G3 — Language.** Each item stores its own dialect set, prefilled from the quiz's `QuizData.language`. So a copied or banked item keeps its language.
 - **G4 — Dialects.** Each item stores reference phonemes for **every accepted dialect**, and the student is scored against the closest one.
@@ -245,11 +281,25 @@ These supersede D2, D4 (in part) and D6 in §2. G-numbers are cited from code an
 
 ## 6. Build order
 
-1. **Gate: Chromebook measurement (#2350).** A `/pronunciation-dev` harness page loads the self-hosted q4 model in `onnxruntime-web` and decodes the five committed clips. It reports load time, memory and inference time on a district Chromebook. **No on-device feature code before this passes.** If it fails, revisit D1; the server path is the fallback, since Gemini passed the bias probe.
+1. **Gate: Chromebook measurement (#2350). Passed for single words, 2026-10-14 (§4.5).** CPU only, in a Web Worker, with silence trimming.
 2. **In parallel with step 1** (these survive either outcome):
-   - port the scoring engine (A1–A13, T1–T5 `held`, S1–S5) out of `scripts/spikes` into `utils/pronunciation/`, with its tests;
-   - write the espeak→392-token symbol tokenizer (#2383);
+   - ~~port the scoring engine (A1–A13, T1–T5 `held`, S1–S5) out of `scripts/spikes` into `utils/pronunciation/`, with its tests~~ — done 2026-10-14: `score.ts`, `stress.ts` (now with in-house energy and pitch measurement), see the notes below;
+   - ~~write the espeak→392-token symbol tokenizer (#2383)~~ — done 2026-10-14: `tokenizeIpa.ts`, see the notes below;
    - send the counsel brief (G19).
+
+   **Engine port notes (2026-10-14).** These settle points the spikes left open; Paul can reverse any of them.
+   - **T1 is charged once per run.** An extra token is free only when it repeats the recognized token _before_ it. So `p o` heard as `p r r o` scores one insertion plus one `held`. Under the literal "either neighbour" wording, both `r`s would be free.
+   - **A held vowel is one syllable for stress.** A `held` repeat extends the nucleus before it. Without this, a long stressed vowel would split into two half-length syllables and lose the ranking. A doubled vowel that the reference also doubles (_ehemann_) stays two syllables, as T4 requires.
+   - **The tokenizer picks the fewest tokens for the whole string, and no token may span a stress mark.** Run on 34,000 espeak words (es/de/en top lists), it found:
+     - no word it couldn't tokenize, so no stranded length marks;
+     - every polysyllabic word got its primary stress.
+   - **The #2383 failure contract.** Failure returns no tokens at all, so nothing partial can be stored:
+     - espeak's `?` gives `unrenderable`, with no reference (116 of 12,000 German words, mirroring R1b);
+     - a string with no valid tokenization gives `untokenizable`, naming where it stopped;
+     - `(en)…(de)` spans keep the English phonemes and return `languageSwitches: ['en']`, which the editor shows for teacher confirmation (G15). That was 136 German words.
+   - **The vocab holds a `??` token**, so the model was trained on espeak's `?` and may emit it for German UR. The tokenizer still refuses `?` for now. Scoring those words is possible later, once a decode shows what the model emits for _durch_.
+   - The tokenizer lives in `utils/pronunciation/` so the editor's Advanced IPA field can validate input. The step 3 callable gets a mirror, as `functions/src/flashcardMatch.ts` does.
+
 3. The phoneme-lookup callable: espeak with the dialect set, the CMUDict cross-check, and the stress references from R1–R5.
 4. The `'speak'` type, the editor (G15), student capture and attempts (G5, G16, G17), archiving the deciding attempt (G9), and the notice variant (G10). All behind `quiz-speak-questions`.
 5. Results, override and the class summary (G12–G14), plus connector support (G15).

@@ -81,7 +81,7 @@ describe('PreviewsPanel', () => {
   it('links a public retire-after-launch flag to a prefilled cleanup issue', async () => {
     savedPermissions = [
       {
-        featureId: 'quiz-grader-v2',
+        featureId: 'gl-callout-editing',
         enabled: true,
         accessLevel: 'public',
         betaUsers: [],
@@ -89,17 +89,17 @@ describe('PreviewsPanel', () => {
       },
     ];
     await renderPanel();
-    const link = screen.getByTestId('retire-quiz-grader-v2');
+    const link = screen.getByTestId('retire-gl-callout-editing');
     const url = new URL(link.getAttribute('href') ?? '');
     expect(url.pathname).toBe('/OPS-PIvers/SpartBoard/issues/new');
     expect(url.searchParams.get('labels')).toBe('retire-flag');
     expect(url.searchParams.get('title')).toBe(
-      'Retire flag: Tidier free-response grader'
+      'Retire flag: Guided Learning callout editing'
     );
     expect(url.searchParams.get('body')).toContain(
-      "canAccessFeature('quiz-grader-v2')"
+      "canAccessFeature('gl-callout-editing')"
     );
-    expect(screen.queryByTestId('graduate-quiz-grader-v2')).toBeNull();
+    expect(screen.queryByTestId('graduate-gl-callout-editing')).toBeNull();
   });
 
   it('graduates a public keep flag in place and moves it off the tab', async () => {

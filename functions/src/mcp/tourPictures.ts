@@ -19,7 +19,14 @@ const DATA_URL = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/;
 const hashOf = (ticket: string) =>
   createHash('sha256').update(ticket).digest('hex');
 
-export const picturesUrl = (): string => `${publicOrigin()}/mcp/tour-pictures`;
+// The direct functions URL, since cloud sessions' egress proxies refuse the hosting rewrite on *.web.app.
+export const picturesUrl = (): string => {
+  const project = process.env.GCLOUD_PROJECT;
+  if (!project || process.env.MCP_PUBLIC_ORIGIN) return hostingPicturesUrl();
+  return `https://us-central1-${project}.cloudfunctions.net/mcpServer/tour-pictures`;
+};
+export const hostingPicturesUrl = (): string =>
+  `${publicOrigin()}/mcp/tour-pictures`;
 
 /** A ticket, good for 30 minutes, that lets the browser-run script set this tour's step pictures. */
 export async function issuePictureTicket(
@@ -38,6 +45,8 @@ export async function issuePictureTicket(
   });
   return {
     upload_url: picturesUrl(),
+    // Same endpoint through the hosting rewrite; use it only if upload_url is unreachable.
+    upload_url_fallback: hostingPicturesUrl(),
     ticket,
     expires_at: new Date(expiresAt).toISOString(),
   };

@@ -146,6 +146,16 @@ describe('dryRunTour', () => {
     );
   });
 
+  it('warns that the video activity editor has no Save button', () => {
+    const report = dryRunTour(
+      [step('editor.save:video-activity', 'click')],
+      board
+    );
+    expect(messages(report.warnings)).toContainEqual(
+      expect.stringContaining('end with editor.close:video-activity')
+    );
+  });
+
   it('does not warn on menu positions or Help Center rows', () => {
     const report = dryRunTour(
       [
@@ -178,6 +188,24 @@ describe('dryRunTour', () => {
     ]);
   });
 
+  it('allows list positions in a list an earlier step opened empty', () => {
+    const rows = (opener: string) =>
+      messages(
+        dryRunTour(
+          [
+            step('sidebar.classes', 'click'),
+            step(opener, 'click'),
+            step('roster-editor.first-name:roster-editor#row-1', 'type', {
+              value: 'Ada',
+            }),
+          ],
+          board
+        ).warnings
+      ).filter((m) => m.includes('position in a list'));
+    expect(rows('classes.new-class')).toEqual([]);
+    expect(rows('classes.import-classlink')).toHaveLength(1);
+  });
+
   it('warns that Autopilot leaves a real-account click to the teacher', () => {
     const report = dryRunTour(
       [
@@ -189,6 +217,61 @@ describe('dryRunTour', () => {
     );
     expect(messages(report.warnings)).toEqual([
       expect.stringContaining("changes the teacher's real account"),
+    ]);
+  });
+
+  it('refuses a computed key that does not match its pattern, naming the form', () => {
+    const quiz = { widgets: ['quiz'] };
+    const wrong = dryRunTour(
+      [step('quiz-editor.option:quiz#A', 'type', { value: 'Paris' })],
+      quiz
+    );
+    expect(messages(wrong.errors)).toEqual([
+      expect.stringContaining(
+        '"quiz#A" is not a key of "quiz-editor.option". Keys look like quiz#a for option A'
+      ),
+    ]);
+    const right = dryRunTour(
+      [step('quiz-editor.option:quiz#a', 'type', { value: 'Paris' })],
+      quiz
+    );
+    expect(messages(right.errors).join()).not.toContain('is not a key');
+  });
+
+  it('refuses select on a cycle button and names the real choice', () => {
+    const report = dryRunTour(
+      [step('random.mode', 'select', { value: 'groups' })],
+      { widgets: ['random'] }
+    );
+    expect(messages(report.errors)).toEqual([
+      expect.stringContaining(
+        `moves to the next option on each click, so "select" can't pick one. Point the step at "settings.field:random#mode"`
+      ),
+    ]);
+  });
+
+  it('accepts select on a segmented settings field', () => {
+    const report = dryRunTour(
+      [step('settings.field:random#mode', 'select', { value: 'groups' })],
+      { widgets: ['random'] }
+    );
+    expect(report.errors).toEqual([]);
+  });
+
+  it('refuses select on a number field or a switch', () => {
+    const number = dryRunTour(
+      [step('settings.field:calendar#daysVisible', 'select', { value: '5' })],
+      { widgets: ['calendar'] }
+    );
+    expect(messages(number.errors)).toEqual([
+      expect.stringContaining('is a number field, not a choice'),
+    ]);
+    const toggle = dryRunTour(
+      [step('settings.toggle:random#soundEnabled', 'select', { value: 'on' })],
+      { widgets: ['random'] }
+    );
+    expect(messages(toggle.errors)).toEqual([
+      expect.stringContaining('use "toggle"'),
     ]);
   });
 });

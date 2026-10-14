@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ImagePlus, Loader2, X } from 'lucide-react';
+import { Eye, ImagePlus } from 'lucide-react';
 import type {
   WhiteboardStartingPattern,
   WhiteboardShapeKind,
@@ -8,18 +8,17 @@ import type {
   WhiteboardStartingImage,
 } from '@/types';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
-import {
-  drawStartingPage,
-  WHITEBOARD_PAGE_HEIGHT,
-  WHITEBOARD_PAGE_WIDTH,
-} from '@/utils/whiteboard/startingPage';
-import { driveImageUrl } from '@/utils/quizStimuli';
+import { placedImages } from '@/utils/whiteboard/startingPage';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
+import { DraftNumberInput } from './DraftNumberInput';
 import {
   BLANK_STARTING_PAGE,
   clampPattern,
   defaultPattern,
 } from './whiteboardStartingPageSpec';
+import { WhiteboardStartingPagePreviewModal } from './WhiteboardStartingPagePreviewModal';
+import { WhiteboardInsertImageModal } from './WhiteboardInsertImageModal';
+import { withEdits } from './whiteboardStartingPageEdit';
 
 type PatternKind = WhiteboardStartingPattern['kind'];
 
@@ -40,117 +39,26 @@ const SHAPE_ORDER: WhiteboardShapeKind[] = [
   'polygon',
 ];
 
-const PREVIEW_SCALE = 0.4;
-
-/** Number input that commits on blur or Enter, so typing "-" or "0." is not clobbered. */
-const DraftNumberInput: React.FC<{
-  id: string;
-  value: number;
-  onCommit: (n: number) => void;
-  step?: number;
-  anchor: ReturnType<typeof tourFieldAttr>;
-}> = ({ id, value, onCommit, step, anchor }) => {
-  const [draft, setDraft] = useState<string | null>(null);
-  const commit = () => {
-    if (draft === null) return;
-    const n = parseFloat(draft);
-    setDraft(null);
-    if (Number.isFinite(n) && n !== value) onCommit(n);
-  };
-  return (
-    <input
-      id={id}
-      type="number"
-      step={step}
-      value={draft ?? String(value)}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') commit();
-      }}
-      className={inputClass}
-      {...anchor}
-    />
-  );
-};
-
 export interface WhiteboardStartingPagePickerProps {
   value: WhiteboardStartingPage | undefined;
   onChange: (next: WhiteboardStartingPage) => void;
   /** Uploads through the quiz-stimulus Drive path; null when cancelled. */
   onUploadImage: (file: File) => Promise<WhiteboardStartingImage | null>;
-  resolveImageUrl?: (driveFileId: string) => string;
 }
 
 export const WhiteboardStartingPagePicker: React.FC<
   WhiteboardStartingPagePickerProps
-> = ({ value, onChange, onUploadImage, resolveImageUrl = driveImageUrl }) => {
+> = ({ value, onChange, onUploadImage }) => {
   const { t } = useTranslation();
   const tk = (key: string) =>
     t(`quizMediaResponse.authoring.whiteboard.${key}`);
   const page = value ?? BLANK_STARTING_PAGE;
   const pattern = page.pattern;
-  const fileRef = useRef<HTMLInputElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [uploading, setUploading] = useState(false);
-  const [loadedImage, setLoadedImage] = useState<{
-    url: string;
-    el: HTMLImageElement;
-  } | null>(null);
+  const [insertOpen, setInsertOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   const setPattern = (next: WhiteboardStartingPattern) =>
     onChange({ ...page, pattern: clampPattern(next) });
-
-  const imageUrl = page.image
-    ? resolveImageUrl(page.image.driveFileId)
-    : undefined;
-  useEffect(() => {
-    if (!imageUrl) return;
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    let live = true;
-    img.onload = () => {
-      if (live) setLoadedImage({ url: imageUrl, el: img });
-    };
-    img.src = imageUrl;
-    return () => {
-      live = false;
-    };
-  }, [imageUrl]);
-  const previewImage =
-    imageUrl && loadedImage?.url === imageUrl ? loadedImage.el : null;
-
-  useEffect(() => {
-    const ctx = canvasRef.current?.getContext('2d');
-    if (!ctx) return;
-    ctx.setTransform(PREVIEW_SCALE, 0, 0, PREVIEW_SCALE, 0, 0);
-    drawStartingPage(ctx, page, previewImage);
-  }, [page, previewImage]);
-
-  const handleFile = async (file: File | undefined) => {
-    if (!file || uploading) return;
-    setUploading(true);
-    try {
-      const image = await onUploadImage(file);
-      if (image) onChange({ ...page, image });
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const onPaste = (e: React.ClipboardEvent) => {
-    const file = Array.from(e.clipboardData.files).find((f) =>
-      f.type.startsWith('image/')
-    );
-    if (!file) return;
-    e.preventDefault();
-    void handleFile(file);
-  };
-
-  const removeImage = () => {
-    const { image: _drop, ...rest } = page;
-    onChange(rest);
-  };
 
   const num = (
     field: string,
@@ -159,7 +67,7 @@ export const WhiteboardStartingPagePicker: React.FC<
     apply: (n: number) => WhiteboardStartingPattern,
     step?: number
   ) => (
-    <div>
+    <div className="w-24">
       <label className={labelClass} htmlFor={`wb-${field}`}>
         {label}
       </label>
@@ -167,6 +75,7 @@ export const WhiteboardStartingPagePicker: React.FC<
         id={`wb-${field}`}
         value={current}
         step={step}
+        commitWhileTyping={false}
         onCommit={(n) => setPattern(apply(n))}
         anchor={tourFieldAttr(
           'quiz-editor.whiteboard-pattern-value',
@@ -178,22 +87,19 @@ export const WhiteboardStartingPagePicker: React.FC<
   );
 
   return (
-    <div
-      className="grid grid-cols-[minmax(0,1fr)_auto] gap-4"
-      onPaste={onPaste}
-    >
+    <div className="space-y-3 min-w-0">
       <div className="space-y-3 min-w-0">
-        <div>
-          <label className={labelClass} htmlFor="wb-starting-page">
-            {tk('startingPageLabel')}
-          </label>
+        <label className={labelClass} htmlFor="wb-starting-page">
+          {tk('startingPageLabel')}
+        </label>
+        <div className="flex items-center gap-2">
           <select
             id="wb-starting-page"
             value={pattern.kind}
             onChange={(e) =>
               setPattern(defaultPattern(e.target.value as PatternKind))
             }
-            className={`${inputClass} appearance-none`}
+            className={`${inputClass} appearance-none min-w-0 flex-1 max-w-[16rem]`}
             {...tourTypeAttr('quiz-editor.whiteboard-starting-page', 'quiz')}
           >
             {PATTERN_ORDER.map((kind) => (
@@ -202,10 +108,28 @@ export const WhiteboardStartingPagePicker: React.FC<
               </option>
             ))}
           </select>
+          <button
+            type="button"
+            onClick={() => setInsertOpen(true)}
+            className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-brand-blue-primary hover:bg-slate-50"
+            {...tourTypeAttr('quiz-editor.whiteboard-image', 'quiz')}
+          >
+            <ImagePlus className="h-4 w-4" aria-hidden />
+            {tk('insertImage')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setPreviewOpen(true)}
+            className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-bold text-brand-blue-primary hover:bg-slate-50"
+            {...tourTypeAttr('quiz-editor.whiteboard-preview', 'quiz')}
+          >
+            <Eye className="h-4 w-4" aria-hidden />
+            {tk('previewPage')}
+          </button>
         </div>
 
         {pattern.kind === 'coordinate-plane' && (
-          <div className="grid grid-cols-4 gap-2">
+          <div className="flex flex-wrap gap-2">
             {num('xMin', tk('xFrom'), pattern.xMin, (n) => ({
               ...pattern,
               xMin: n,
@@ -226,7 +150,7 @@ export const WhiteboardStartingPagePicker: React.FC<
         )}
 
         {pattern.kind === 'number-line' && (
-          <div className="grid grid-cols-3 gap-2">
+          <div className="flex flex-wrap gap-2">
             {num('min', tk('from'), pattern.min, (n) => ({
               ...pattern,
               min: n,
@@ -274,56 +198,25 @@ export const WhiteboardStartingPagePicker: React.FC<
               }))}
           </div>
         )}
-
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 min-w-0">
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            // no-tour-anchor: hidden input opened by the image button
-            onChange={(e) => {
-              void handleFile(e.target.files?.[0]);
-              e.target.value = '';
-            }}
-          />
-          <button
-            type="button"
-            disabled={uploading}
-            onClick={() => fileRef.current?.click()}
-            title={tk('imagePasteHint')}
-            className="inline-flex items-center gap-1.5 whitespace-nowrap text-sm font-bold text-brand-blue-primary hover:text-brand-blue-dark disabled:opacity-60"
-            {...tourTypeAttr('quiz-editor.whiteboard-image', 'quiz')}
-          >
-            {uploading ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            ) : (
-              <ImagePlus className="h-4 w-4" aria-hidden />
-            )}
-            {page.image ? tk('replaceImage') : tk('addImage')}
-          </button>
-          {page.image && (
-            <button
-              type="button"
-              onClick={removeImage}
-              className="inline-flex items-center gap-1 whitespace-nowrap text-sm text-slate-600 hover:text-slate-900"
-              {...tourTypeAttr('quiz-editor.whiteboard-image-remove', 'quiz')}
-            >
-              <X className="h-4 w-4" aria-hidden />
-              {tk('removeImage')}
-            </button>
-          )}
-        </div>
       </div>
 
-      <canvas
-        ref={canvasRef}
-        width={WHITEBOARD_PAGE_WIDTH * PREVIEW_SCALE}
-        height={WHITEBOARD_PAGE_HEIGHT * PREVIEW_SCALE}
-        role="img"
-        aria-label={tk('previewLabel')}
-        className="w-48 aspect-[4/3] rounded-lg border border-slate-200 bg-white self-start"
-      />
+      {insertOpen && (
+        <WhiteboardInsertImageModal
+          images={placedImages(page)}
+          onUploadImage={onUploadImage}
+          onChange={(images) =>
+            onChange(withEdits(page, images, page.ink ?? []))
+          }
+          onClose={() => setInsertOpen(false)}
+        />
+      )}
+      {previewOpen && (
+        <WhiteboardStartingPagePreviewModal
+          page={page}
+          onChange={onChange}
+          onClose={() => setPreviewOpen(false)}
+        />
+      )}
     </div>
   );
 };

@@ -63,23 +63,11 @@ vi.mock('@/components/common/ScalableWidget', () => ({
 }));
 
 // We use 'text' as a valid WidgetType to pass type checking
-const registrySchemas = vi.hoisted(
-  (): Record<string, () => Promise<unknown>> => ({})
-);
 vi.mock('@/components/widgets/WidgetRegistry', () => ({
-  WIDGET_SETTINGS_COMPONENTS: {},
-  WIDGET_APPEARANCE_COMPONENTS: {},
-  WIDGET_SETTINGS_SCHEMAS: registrySchemas,
   WIDGET_SCALING_CONFIG: {
     text: { baseWidth: 200, baseHeight: 200, canSpread: true },
   },
   DEFAULT_SCALING_CONFIG: { baseWidth: 200, baseHeight: 200 },
-}));
-
-vi.mock('@/components/settings/legacy/SchemaAppearanceFallback', () => ({
-  SchemaAppearanceFallback: () => (
-    <div data-testid="schema-appearance-fallback" />
-  ),
 }));
 
 vi.mock('@/components/widgets/WidgetLayout', () => ({
@@ -143,7 +131,6 @@ describe('WidgetRenderer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    delete registrySchemas.text;
     (useAuth as unknown as Mock).mockReturnValue({
       user: { uid: 'u1' },
       canAccessFeature: vi.fn(),
@@ -179,30 +166,6 @@ describe('WidgetRenderer', () => {
 
     // The children prop (render callback) should be referentially equal
     expect(firstRenderProps.children).toBe(secondRenderProps.children);
-  });
-
-  it('wires SchemaAppearanceFallback into appearanceSettings when the drawer flag is off, no legacy appearance component exists, and a schema is registered', () => {
-    registrySchemas.text = () => Promise.resolve({ groups: [] });
-    render(withCtx(<WidgetRenderer {...mockProps} />));
-
-    expect(mockDraggableWindow).toHaveBeenCalled();
-    const props = mockDraggableWindow.mock.calls[0][0] as {
-      appearanceSettings?: React.ReactNode;
-    };
-    render(<div>{props.appearanceSettings}</div>);
-    expect(
-      screen.getByTestId('schema-appearance-fallback')
-    ).toBeInTheDocument();
-  });
-
-  it('leaves appearanceSettings null when no schema is registered for the widget type', () => {
-    render(withCtx(<WidgetRenderer {...mockProps} />));
-
-    expect(mockDraggableWindow).toHaveBeenCalled();
-    const props = mockDraggableWindow.mock.calls[0][0] as {
-      appearanceSettings?: React.ReactNode;
-    };
-    expect(props.appearanceSettings).toBeNull();
   });
 
   it('passes isSpotlighted correctly to DraggableWindow', () => {

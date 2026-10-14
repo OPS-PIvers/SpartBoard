@@ -77,16 +77,16 @@ export const SURFACES: TourSurfaceMap = {
   'board.settings-drawer': {
     label: 'Widget settings drawer',
     kind: 'settings-drawer',
-    files: [
-      'components/settings/',
-      'components/common/SettingsPanel.tsx',
-      'components/help/WidgetHelpButton.tsx',
-    ],
+    files: ['components/settings/', 'components/help/WidgetHelpButton.tsx'],
     opensWith: 'widget.settings-opener',
     needs: ['widget-on-stage'],
     inner: {
       'settings.style-defaults-save': 'settings.tab-style',
       'settings.style-defaults-reset': 'settings.tab-style',
+      'settings.window-background': 'settings.tab-style',
+      'settings.window-font': 'settings.tab-style',
+      'settings.window-text-size': 'settings.tab-style',
+      'settings.window-transparency': 'settings.tab-style',
       'settings.help-menu.show-live': 'settings.help',
       'settings.help-menu.open-guides': 'settings.help',
     },

@@ -170,6 +170,15 @@ export const WhiteboardAnnotatedResponseView: React.FC<
   };
 
   const unplayable = takeUnplayableReason(take);
+  // Narration still archiving (or lost) would otherwise replay silently.
+  const audioFile = files?.audio;
+  const audioReason = audioFile
+    ? takeUnplayableReason({
+        ...take,
+        archive: audioFile.archive,
+        playable: audioFile.playable,
+      })
+    : null;
   if (loading) {
     return (
       <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-6 text-sm text-slate-600">
@@ -210,6 +219,24 @@ export const WhiteboardAnnotatedResponseView: React.FC<
 
   return (
     <div>
+      {audioReason && (
+        <div
+          role="status"
+          className="mb-3 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+        >
+          <p className="flex items-center gap-2 font-bold">
+            <AlertTriangle aria-hidden className="h-4 w-4" />
+            {t(
+              `quizMediaResponse.grading.player.unplayable.${audioReason}.title`
+            )}
+          </p>
+          <p className="mt-1 leading-relaxed">
+            {t(
+              `quizMediaResponse.grading.player.unplayable.${audioReason}.body`
+            )}
+          </p>
+        </div>
+      )}
       <WhiteboardReplayView
         pictureUrl={loaded.pictureUrl}
         log={loaded.log}

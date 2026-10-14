@@ -29,6 +29,11 @@ export interface PaperTestQuestion {
 export interface PaperTestJob {
   quizTitle: string;
   questions: readonly PaperTestQuestion[];
+  /** One copy per version, each on fresh pages under its label; replaces `questions` (QUIZ_IMPORT_VERSIONS.md V24). */
+  versions?: readonly {
+    label: string;
+    questions: readonly PaperTestQuestion[];
+  }[];
 }
 
 const STYLES = `
@@ -51,6 +56,9 @@ const STYLES = `
   ol.c { list-style: none; padding: 0; margin: 1.5mm 0 0; }
   ol.c > li { display: grid; grid-template-columns: 8mm 1fr; margin-top: 0.8mm; }
   .written { margin: 1.5mm 0 0; font-size: 10pt; font-style: italic; }
+  .version { break-before: page; }
+  .version:first-child { break-before: auto; }
+  .version-label { font-size: 12pt; font-weight: bold; margin: -2mm 0 4mm; }
 `;
 
 function questionHtml(q: PaperTestQuestion): string {
@@ -73,18 +81,40 @@ function questionHtml(q: PaperTestQuestion): string {
   return `${section}<li><span class="num">${escapeHtml(String(q.row))}.</span><div><div class="text">${escapeHtml(q.text)}</div>${choices}</div></li>`;
 }
 
+function testHtml(
+  quizTitle: string,
+  questions: readonly PaperTestQuestion[],
+  label?: string
+): string {
+  return `<div class="brand">${spartronLogoSvg(4.2)}<span class="brand-tag">${escapeHtml(SPARTRON_TAGLINE)}</span></div><h1>${escapeHtml(quizTitle)}</h1>${
+    label ? `<p class="version-label">${escapeHtml(label)}</p>` : ''
+  }
+<div class="meta"><div>Name <span></span></div><div>Class <span></span></div></div>
+<ol class="q">${questions.map(questionHtml).join('')}</ol>`;
+}
+
 /** The document `printPaperTest` would write. Exported for tests. */
 export function buildPaperTestHtml(job: PaperTestJob): string {
-  return `<div class="brand">${spartronLogoSvg(4.2)}<span class="brand-tag">${escapeHtml(SPARTRON_TAGLINE)}</span></div><h1>${escapeHtml(job.quizTitle)}</h1>
-<div class="meta"><div>Name <span></span></div><div>Class <span></span></div></div>
-<ol class="q">${job.questions.map(questionHtml).join('')}</ol>`;
+  if (job.versions?.length) {
+    return job.versions
+      .map(
+        (v) =>
+          `<section class="version">${testHtml(job.quizTitle, v.questions, v.label)}</section>`
+      )
+      .join('');
+  }
+  return testHtml(job.quizTitle, job.questions);
 }
 
 export function printPaperTest(
   job: PaperTestJob,
   openWindow?: OpenWindow
 ): void {
-  if (job.questions.length === 0) return;
+  if (
+    job.questions.length === 0 &&
+    !job.versions?.some((v) => v.questions.length)
+  )
+    return;
   printHtmlDocument(
     {
       title: `${job.quizTitle} — test`,

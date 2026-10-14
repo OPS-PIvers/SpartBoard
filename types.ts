@@ -4074,7 +4074,17 @@ export function isFreeResponseType(type: QuizQuestionType): boolean {
  * `gdoc-embed` covers Google Docs/Slides shared as embeds by URL.
  */
 export type QuizStimulusType =
-  'image' | 'pdf' | 'audio' | 'video' | 'youtube' | 'gdoc-embed' | 'text';
+  | 'image'
+  | 'pdf'
+  | 'audio'
+  | 'video'
+  | 'youtube'
+  | 'gdoc-embed'
+  | 'text'
+  | 'calculator';
+
+/** Which Desmos calculator a `calculator` stimulus shows. */
+export type QuizCalculatorKind = 'graphing' | 'scientific' | 'four-function';
 
 /**
  * A stimulus attached to one or more quiz questions. Lives on
@@ -4106,6 +4116,8 @@ export interface QuizStimulus {
    * 'text' means the passage is its own spoken text and needs no review.
    */
   readAloudSource?: 'pdf-text' | 'ocr' | 'edited' | 'text';
+  /** calculator only: which Desmos calculator; `url` stays empty and is never trusted. */
+  calculator?: QuizCalculatorKind;
 }
 
 export interface QuizQuestion {
@@ -4381,7 +4393,7 @@ export interface QuizBankSlot {
   syncGroupId?: string;
   bankTitle: string;
   mode: 'selected' | 'random';
-  /** selected mode */
+  /** selected mode: the picks; random mode: draws only from these ids (absent = whole bank) */
   questionIds?: string[];
   /** random mode: questions drawn per attempt */
   count?: number;
@@ -4391,6 +4403,8 @@ export interface QuizBankSlot {
   points?: number;
   /** random mode: ids of `QuizData.stimuli` shown with every drawn question */
   stimulusIds?: string[];
+  /** random mode: `balanced` deals pool questions in turn per class period; absent = independent random. */
+  dealing?: 'random' | 'balanced';
 }
 
 /** Position of fixed questions and slots in the quiz editor list. */
@@ -4407,6 +4421,18 @@ export interface QuizSection {
   directions?: string;
   /** Students answer any this many of the section's questions; absent = all. */
   chooseCount?: number;
+  /** Self-paced students stop after this section until the teacher opens the next part. */
+  stopAfter?: boolean;
+}
+
+/** Highest part opened past a Stop; part 1 is always open. Absent = only part 1. */
+export interface QuizPartsOpen {
+  /** Whole session, for sessions without class periods. */
+  all?: number;
+  /** Class period name → highest part opened. */
+  periods?: Record<string, number>;
+  /** Response doc key → highest part opened for that student. */
+  students?: Record<string, number>;
 }
 
 /** A section frozen onto a session, with the question ids it owns (bank pool ids included). */
@@ -4422,6 +4448,8 @@ export interface QuizSessionBankSlot {
   poolQuestionIds: string[];
   /** Number of fixed questions that precede the slot. */
   position: number;
+  /** Deal in turn per class period (`bank_deals` counter); absent = independent random. */
+  dealing?: 'balanced';
 }
 
 /** What happens when a recording question's prep countdown runs out. */
@@ -4487,10 +4515,28 @@ export interface WhiteboardStartingImage {
   height: number;
 }
 
-/** Locked background of a whiteboard response: one pattern plus an optional image. */
+/** A teacher image placed on the page; `x`, `y`, `w`, `h` are page units, top-left plus size. */
+export interface WhiteboardPlacedImage extends WhiteboardStartingImage {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** A teacher pen stroke on the starting page; `points` is flat x,y pairs in page units. */
+export interface WhiteboardInkStroke {
+  color: string;
+  size: number;
+  points: number[];
+}
+
+/** Locked background of a whiteboard response: a pattern, placed images and teacher ink. */
 export interface WhiteboardStartingPage {
   pattern: WhiteboardStartingPattern;
+  /** Legacy single fitted image; read only, new edits write `images`. */
   image?: WhiteboardStartingImage;
+  images?: WhiteboardPlacedImage[];
+  ink?: WhiteboardInkStroke[];
 }
 
 /** Whether the mic was live for a take; a silent take with `'on'` is silent by choice. */
@@ -5064,6 +5110,8 @@ export interface QuizSession
   bankSlots?: QuizSessionBankSlot[];
   /** Sections frozen at assignment; absent = one run of questions. */
   sections?: QuizSessionSection[];
+  /** Parts the teacher has opened past a Stop section. */
+  partsOpen?: QuizPartsOpen;
 
   /**
    * True once at least one Schoology LTI student has launched this session and
@@ -5650,6 +5698,8 @@ export interface QuizResponse {
    * Absent = the full question set was served.
    */
   servedQuestionIds?: string[];
+  /** Pool ids balanced bank slots have dealt this student across attempts; never cleared by a retake. */
+  dealtQuestionIds?: string[];
   /** Self-paced Review game score; only checkQuizGameAnswerV1 writes it. */
   game?: QuizGameState;
   /**
@@ -5747,6 +5797,10 @@ export interface QuizResponse {
   paperBatchId?: string;
   /** Seat number printed on that sheet, so a rescan lands on the same doc. */
   paperSeat?: number;
+  /** Parts submitted at a Stop; those questions are locked. Absent = 0. */
+  partsDone?: number;
+  /** True while the student waits at a Stop; the idle sweep skips the attempt. */
+  partHeld?: boolean | null;
   /**
    * Teacher-written manual grades for written question types
    * (`short`, `essay`). Keyed by `QuizQuestion.id`. Lives outside the
@@ -5894,6 +5948,18 @@ export interface PaperPageMap {
   page: number;
   grid: PaperGrid;
   items: PaperPageItem[];
+  /** Question id whose prompt and figures this item-free page prints, before its box (QUIZ_IMPORT_VERSIONS.md V25). */
+  prompt?: string;
+}
+
+/** One version a stack printed when balanced bank slots were dealt at print time (QUIZ_IMPORT_VERSIONS.md V24). */
+export interface PaperBatchVersion {
+  /** "Version B", as Results labels it. */
+  label: string;
+  /** Written to the response as its `servedQuestionIds` on scan import. */
+  servedQuestionIds: string[];
+  /** Page-map question id -> the id this version printed there, where they differ. */
+  swaps: Record<string, string>;
 }
 
 export interface PaperBatch {
@@ -5932,6 +5998,10 @@ export interface PaperBatch {
   layoutVersion?: 2;
   /** One per physical page of a student sheet; `pagesPerSheet` equals its length when present. */
   pageMaps?: PaperPageMap[];
+  /** Present iff `seatVersions` is; version 0 is what `pageMaps` carries. */
+  versions?: PaperBatchVersion[];
+  /** Seat -> index into `versions`; the key sheet is absent and reads as version 0. */
+  seatVersions?: Record<number, number>;
   createdAt: number;
   /** A review the teacher left unfinished, resumable from any device (plan Q26). */
   pendingReview?: PaperPendingReview;
@@ -9883,7 +9953,6 @@ export type GlobalFeature =
   | 'quiz-media-response'
   /** Fail-closed; read it through `canAccessQuizWhiteboardResponse`, which also needs `quiz-media-response`. */
   | 'quiz-whiteboard-response'
-  | 'settings-drawer'
   | 'quiz-read-aloud'
   /** Teacher-authored AI quiz translations for multilingual learners. */
   | 'quiz-translation'
@@ -9902,36 +9971,30 @@ export type GlobalFeature =
   | 'quiz-document-ai-reader'
   /** Learning targets read off an imported test, offered as chips in its review. */
   | 'quiz-import-suggested-targets'
+  /** Multi-version test import: versions, FRQ rubrics, balanced dealing, Stop checkpoints (docs/plans/QUIZ_IMPORT_VERSIONS.md). */
+  | 'quiz-import-versions'
   /** Tab-away clock, auto-submit when away too long, and the teacher's exit log. */
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */
   | 'quiz-stimulus-quotes'
+  /** Desmos calculator stimulus on quiz questions. */
+  | 'quiz-calculator-stimulus'
   /** Guided Learning live tours in the teacher app and their launch points. */
   | 'gl-live-tours'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
   | 'live-tour-editing-v2'
   | 'live-tour-self-heal'
-  /** Guided Learning Studio editor in place of the classic editor. */
-  | 'gl-studio'
   /** Per-period start/pause and windows on assignments shared by several classes. */
   | 'per-period-access'
-  /** Printing quiz results to hand back: presets, bulk print, bubble-sheet reprints. */
-  | 'quiz-results-print'
   /** PLC Home v2: tile dashboard with a spotlight, meeting cadence and assign-from-library. */
   | 'plc-home-v2'
   /** Flag free-response answers so an anonymized copy appears on the PLC page for norming. */
   | 'plc-norming-flags'
-  /** Share flashcard sets and class-level flashcard results with a PLC. */
-  | 'plc-flashcards'
   /** Standard codes typed in or imported with a question text become Learning targets tags. */
   | 'standards-from-question-text'
-  /** "View full screen" toggle on large pop-ups (editors, graders). */
-  | 'modal-fullscreen'
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
   | 'quiz-results-tools'
-  /** Free-response grader: collapsible student list, no repeated name, one-strand auto-tagging. */
-  | 'quiz-grader-v2'
-  /** Guided Learning Studio: select, resize, restyle and edit callouts on the canvas; AND-ed with `gl-studio`. */
+  /** Guided Learning Studio: select, resize, restyle and edit callouts on the canvas. */
   | 'gl-callout-editing'
   /** Per-student "Slide N of M · active X ago" on Guided Learning results and the Assignments hub. */
   | 'gl-student-progress'
@@ -9959,8 +10022,6 @@ export type GlobalFeature =
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
   | 'student-gradebook'
-  /** Redesigned student landing page at /my-assignments (docs/plans/STUDENT_LANDING_V2.md D26). */
-  | 'student-landing-v2'
   /** Quiz keeps assessment only; live review games move to the Review widget. */
   | 'quiz-review-split'
   /** Quiz assign/edit: an overall time limit per attempt with a student countdown. */
@@ -9977,8 +10038,6 @@ export type GlobalFeature =
   | 'drawing-ai'
   | 'webcam-ai'
   | 'blooms-ai'
-  /** Record a group meeting on a note, with playback (docs/plans/shipped/PLC_MEETING_RECORDING.md). */
-  | 'plc-meeting-recording'
   /** Transcript and drafted notes from a meeting recording; AND-ed with `gemini-functions`. */
   | 'plc-meeting-ai-notes'
   /** Assign dialogs: mark a session Work (submitted, graded) or Resource (study only) (docs/plans/STUDENT_LANDING_V2.md D27). */
@@ -9997,12 +10056,8 @@ export type GlobalFeature =
   | 'plc-goal-coach'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
   | 'embed-reload'
-  /** Embed: a pasted Google Slides link opens on the slide it was copied from. */
-  | 'embed-slide-link'
   /** Widget libraries open on folders with a path bar, Recent view and drag filing (docs/plans/LIBRARY_FOLDERS.md D26). */
   | 'library-folder-view'
-  /** Assign as an accordion stepper (docs/plans/ASSIGN_STEPPER.md D16). */
-  | 'assign-stepper'
   /** Team invite boxes suggest staff emails from the org directory as you type. */
   | 'team-email-suggest'
   /** Push scores into a SpartBoard-made Schoology gradebook column (docs/plans/SCHOOLOGY_TOOL_COLUMNS.md D11). */
@@ -10017,7 +10072,9 @@ export type GlobalFeature =
   | 'mini-app-ai-edit'
   /** Quiz live monitor declutter (#4023): footer buttons, Close all, no More actions menu for assessments. */
   | 'quiz-monitor-declutter'
-  | 'quiz-banks-in-library';
+  | 'quiz-banks-in-library'
+  /** Teachers turn in a quiz for a student who left without submitting. */
+  | 'quiz-submit-for-student';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

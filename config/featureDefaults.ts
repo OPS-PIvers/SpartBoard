@@ -9,7 +9,6 @@ import {
   Building2,
   CalendarClock,
   Cast,
-  Clapperboard,
   ClipboardCheck,
   Download,
   Eye,
@@ -27,15 +26,10 @@ import {
   Library,
   Link2,
   ListChecks,
-  ListOrdered,
   AtSign,
-  Maximize2,
   Mic,
   MousePointerClick,
   Music2,
-  PanelLeftClose,
-  PanelRight,
-  Presentation,
   Printer,
   RefreshCw,
   Route,
@@ -57,6 +51,7 @@ import {
   Zap,
   BookMarked,
   Quote,
+  Calculator,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -419,18 +414,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
     failClosedForAdmins: true,
   },
-  // Alpha rollout of the redesigned widget settings UI (wave 1b). Default-off
-  // and admin-only until the drawer is verified across all widget types.
-  'settings-drawer': {
-    label: 'Widget Settings Drawer (alpha)',
-    icon: PanelRight,
-    description: 'Side-drawer widget settings.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Quiz read-aloud (Cloud TTS). Admin-only while the player ships in
   // stacked PRs; every teacher-side affordance hides until it is opened up.
   'quiz-read-aloud': {
@@ -531,6 +514,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Multi-version test import (QUIZ_IMPORT_VERSIONS V26). Admin-only until Paul has imported with it.
+  'quiz-import-versions': {
+    label: 'Multi-version test import',
+    icon: Layers,
+    description:
+      'Splits a test with several versions into a bank, rubrics and quizzes.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Print/scan paper answer sheets. Admin-only until opened up; the district
   // switch (admin_settings/paper_answer_sheets) must also be on.
   'paper-answer-sheets': {
@@ -601,6 +596,18 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Desmos calculator stimulus on quiz questions. Admin-only until Paul has tested it in prod.
+  'quiz-calculator-stimulus': {
+    label: 'Calculator stimulus',
+    icon: Calculator,
+    description: 'Teachers attach a Desmos calculator to quiz questions.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Guided Learning live tours that walk a teacher through the real app. Admin-only until opened up.
   'gl-live-tours': {
     label: 'Guided Learning live tours',
@@ -635,33 +642,11 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Guided Learning Studio editor. Admin-only until Paul has built sets with it in prod.
-  'gl-studio': {
-    label: 'Guided Learning Studio editor',
-    icon: Clapperboard,
-    description: 'Full-screen Guided Learning editor.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // Per-period start/pause on shared assignments. Admin-only until Paul has run a class on it.
   'per-period-access': {
     label: 'Start and pause each class period',
     icon: CalendarClock,
     description: 'Open and pause each class period.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Printable quiz results for handing back. Admin-only until Paul has printed a class set.
-  'quiz-results-print': {
-    label: 'Quiz results printing',
-    icon: Printer,
-    description: 'Print a results copy per student.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -690,32 +675,10 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // PLC sharing for flashcard sets and results. Admin-only until Paul has tried it.
-  'plc-flashcards': {
-    label: 'PLC flashcards',
-    icon: Layers,
-    description: 'Share flashcard sets and results with a PLC.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'standards-from-question-text': {
     label: 'Standards typed in questions',
     icon: BookMarked,
     description: 'Codes in question text become Learning targets.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Full-screen toggle on large pop-ups. Admin-only until Paul has tried it on a Chromebook.
-  'modal-fullscreen': {
-    label: 'Full screen for large pop-ups',
-    icon: Maximize2,
-    description: 'Full-screen button on large pop-ups.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -727,17 +690,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Quiz results teacher tools',
     icon: UserSearch,
     description: 'Extra quiz results tools.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Free-response grader layout pass from the teacher feedback session. Admin-only until Paul has graded with it.
-  'quiz-grader-v2': {
-    label: 'Tidier free-response grader',
-    icon: PanelLeftClose,
-    description: 'Collapsible student list in the grader.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -938,17 +890,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Student landing page redesign (docs/plans/STUDENT_LANDING_V2.md D26); students get it when their teacher passes the gate.
-  'student-landing-v2': {
-    label: 'Student landing page',
-    icon: LayoutDashboard,
-    description: 'The redesigned My Assignments page for students.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'group-reminders': {
     label: 'Group reminders',
     icon: BellRing,
@@ -1102,16 +1043,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'plc-meeting-recording': {
-    label: 'Meeting recording',
-    icon: Mic,
-    description: 'Record a group meeting on a note and play it back.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   sparty: {
     label: 'Sparty',
     icon: Smile,
@@ -1170,16 +1101,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  'embed-slide-link': {
-    label: 'Embed: Open Slides on linked slide',
-    icon: Presentation,
-    description: 'A copied Slides link opens on the slide it was copied from.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   'library-folder-view': {
     label: 'Library folders view',
     icon: FolderOpen,
@@ -1187,18 +1108,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
       'Libraries open on your folders, with a path bar, folder rows and a Recent list.',
     stage: 'preview',
     afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // One accordion stepper replaces the Assign dialogs (ASSIGN_STEPPER.md D16).
-  'assign-stepper': {
-    label: 'Assign stepper',
-    icon: ListOrdered,
-    description: 'Assign in short steps, one open at a time.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    group: 'assigning',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
     missingDocPublic: false,
@@ -1285,6 +1194,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Question banks in Quiz library',
     icon: Library,
     description: 'Question banks open from the Quiz library sidebar.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'quiz-submit-for-student': {
+    label: 'Submit quiz for a student',
+    icon: Send,
+    description: "Turn in a student's saved quiz answers.",
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'quiz',

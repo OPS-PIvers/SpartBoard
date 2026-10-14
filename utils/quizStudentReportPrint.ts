@@ -247,6 +247,7 @@ const STIMULUS_KIND: Record<QuizStimulus['type'], string> = {
   video: 'Video',
   youtube: 'Video',
   'gdoc-embed': 'Google Doc',
+  calculator: 'Calculator',
 };
 
 const keyApplies = (line: StudentQuestionLine, mode: ResultsKeyMode): boolean =>

@@ -44,7 +44,7 @@ function unkeyedOrdering(q: ExtractedQuestion): QuizQuestion {
   };
 }
 
-function toQuizQuestion(q: ExtractedQuestion): QuizQuestion {
+export function toQuizQuestion(q: ExtractedQuestion): QuizQuestion {
   if (q.type === 'Ordering') {
     const order = q.correctAnswer.trim();
     if (!order) return unkeyedOrdering(q);

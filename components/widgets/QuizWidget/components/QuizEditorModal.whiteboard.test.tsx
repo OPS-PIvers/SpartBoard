@@ -150,7 +150,7 @@ describe('QuizEditorModal whiteboard format', () => {
         .getAttribute('aria-checked')
     ).toBe('true');
     expect(detail().queryByText('Starting page')).toBeNull();
-    expect(detail().queryByText('Students explain out loud')).toBeNull();
+    expect(detail().queryByText('Screen & Audio')).toBeNull();
   });
 
   it('needs the spoken answers flag too', () => {
@@ -178,7 +178,7 @@ describe('QuizEditorModal whiteboard format', () => {
     ).toBe('180');
     expect(
       detail()
-        .getByRole('switch', { name: 'Students explain out loud' })
+        .getByRole('radio', { name: 'Screen & Audio' })
         .getAttribute('aria-checked')
     ).toBe('true');
   });
@@ -200,9 +200,9 @@ describe('QuizEditorModal whiteboard format', () => {
     expect(detail().getByLabelText<HTMLInputElement>('Y to').value).toBe('8');
     expect(
       detail()
-        .getByRole('switch', { name: 'Students explain out loud' })
+        .getByRole('radio', { name: 'Screen only' })
         .getAttribute('aria-checked')
-    ).toBe('false');
+    ).toBe('true');
     expect(
       detail().getByRole<HTMLInputElement>('spinbutton', {
         name: 'Recording limit',
@@ -217,6 +217,6 @@ describe('QuizEditorModal whiteboard format', () => {
       target: { value: 'spoken' },
     });
     expect(detail().queryByText('Starting page')).toBeNull();
-    expect(detail().queryByText('Students explain out loud')).toBeNull();
+    expect(detail().queryByText('Screen & Audio')).toBeNull();
   });
 });

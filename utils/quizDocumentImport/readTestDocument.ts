@@ -6,14 +6,19 @@
  */
 
 import { readQuizDocument } from './index';
-import { readQuizDocumentWithAi, type AiExtractFn } from './aiReader';
+import {
+  readQuizDocumentWithAi,
+  type AiExtractFn,
+  type AiExtractVersionsFn,
+} from './aiReader';
+import { decodeFigurePixels } from './figurePixelsBrowser';
 import type { ExtractedQuiz, RemoteImageFetcher } from './types';
 import { documentKind } from './fileKind';
 import { browserPdfDeps } from './pdfBrowserDeps';
 import { browserImageDeps } from './imageBrowserDeps';
 import { browserPdfCropper } from './pdfCropBrowser';
 import { readPdf } from './pdfReader';
-import { MAX_DOCUMENT_PAGES } from './limits';
+import { MAX_DOCUMENT_PAGES, PageLimitError } from './limits';
 import type { DocLine } from './types';
 
 /** Text layer only: a scanned key isn't worth OCR on top of the AI read. */
@@ -35,6 +40,8 @@ export const AI_READER_FELL_BACK =
 export interface ReadTestDocumentOptions {
   /** Supplied only when the teacher has AI access; absent means browser-only. */
   aiExtract?: AiExtractFn;
+  /** The versioned AI call, given only when `quiz-import-versions` is on (QUIZ_IMPORT_VERSIONS V7). */
+  aiExtractVersions?: AiExtractVersionsFn;
   /** False when a teacher with AI access switched it off for this read. */
   useAi?: boolean;
   /** Lets the read produce choose-all-that-apply questions. */
@@ -81,8 +88,17 @@ export async function readTestDocument(
     kind === 'cartridge' ||
     kind === 'image'
   ) {
-    const extracted = await inBrowser();
-    return { ...extracted, readBy: 'plain' };
+    try {
+      const extracted = await inBrowser();
+      return { ...extracted, readBy: 'plain' };
+    } catch (err) {
+      // A long versioned PDF needs the AI reader, so it is used without asking.
+      const aiCanOpen =
+        kind === 'pdf' &&
+        options.aiExtractVersions &&
+        err instanceof PageLimitError;
+      if (!aiCanOpen) throw err;
+    }
   }
 
   try {
@@ -92,12 +108,25 @@ export async function readTestDocument(
       cropper: browserPdfCropper,
       readPdfLines: pdfTextLines,
       ...(options.multiAnswer ? { multiAnswer: true } : {}),
+      ...(options.aiExtractVersions
+        ? {
+            extractVersions: options.aiExtractVersions,
+            decodePixels: decodeFigurePixels,
+          }
+        : {}),
     });
     return { ...extracted, readBy: 'ai' };
   } catch (err) {
     // Half a quiz to fix beats an error screen mid-import.
     console.warn('[quizImport] AI reader unavailable', err);
-    const extracted = await inBrowser();
+    let extracted: ExtractedQuiz;
+    try {
+      extracted = await inBrowser();
+    } catch (browserErr) {
+      // A versioned file can be past the plain reader's page limit, so its AI error is the real one.
+      if (options.aiExtractVersions) throw err;
+      throw browserErr;
+    }
     return {
       ...extracted,
       readBy: 'plain',

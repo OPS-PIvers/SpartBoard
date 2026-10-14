@@ -4,16 +4,9 @@
  * Wave 2-QZ refactor: this component now composes the shared Library
  * primitives (`LibraryShell`, `LibraryToolbar`, `LibraryGrid`,
  * `LibraryItemCard`, `useLibraryView`, `useSortableReorder`) rather than
- * hand-rolling 3-tab chrome + quiz cards. The Assign flow uses
- * `AssignModal` with the PLC section rendered into `plcSlot` and
- * quiz-specific toggles (tab-switch detection, reveal correct, speed/streak
- * bonus, podium, sound) rendered into `extraSlot`. Archive rows delegate
- * to `AssignmentArchiveCard`.
+ * hand-rolling 3-tab chrome + quiz cards. Assign opens `QuizAssignStepper`.
+ * Archive rows delegate to `AssignmentArchiveCard`.
  *
- * Behavior is preserved 1:1 from the previous implementation — all PLC
- * semantics, 2-stage assign flow, status-aware assignment cards, and
- * overflow-menu actions are identical; this refactor changes structure
- * only, not functionality.
  */
 
 import React, {
@@ -63,7 +56,6 @@ import {
   KeyRound,
   ScanLine,
   ScanText,
-  ClipboardCheck,
   Library,
 } from 'lucide-react';
 import {
@@ -87,13 +79,6 @@ import { LibraryKindIcon } from './LibraryKindIcon';
 import { visibleTeammateBanks } from './teammateBankRows';
 import type { LibraryLocation } from '@/components/common/library/folderView';
 import { useCopyBankFoldersToLibrary } from './useCopyBankFoldersToLibrary';
-import { Toggle } from '@/components/common/Toggle';
-import {
-  classStudentRows,
-  studentTargetRefKey,
-} from '@/utils/studentTargetRef';
-import { isEmptyStudentOverride } from '@/utils/rosterDefaultOverrides';
-import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
   makeEmptyPickerValue,
   type AssignClassPickerValue,
@@ -111,7 +96,6 @@ import {
   LibraryGrid,
   LibraryItemCard,
   LibraryPreviewPane,
-  AssignModal,
   ViewOnlyShareModal,
   AssignmentArchiveCard,
   ViewCountBadge,
@@ -125,9 +109,6 @@ import {
   useSortableReorder,
   BulkActionBar,
   buildDuplicateAction,
-  AssignTargetingSection,
-  QuizBehaviorSettingsPanel,
-  CollapsibleSection,
   EMPTY_ASSIGN_TARGETING_VALUE,
   toOverrideEditorQuestions,
   type AssignTargetingValue,
@@ -142,23 +123,13 @@ import {
   useLibraryDeleteConfirm,
 } from '@/components/common/library';
 import { earliestDueAt } from '@/utils/perClassDueDates';
-import {
-  applyAvailability,
-  availabilityBackwards,
-  applyWhen,
-  manualStartAvailable,
-} from '@/utils/assignAvailability';
+import { applyWhen, manualStartAvailable } from '@/utils/assignAvailability';
 import { QuizAssignStepper } from './QuizAssignStepper';
 import { sharingNeedsPlc } from '@/components/common/library/assignStepper/SharingStep.format';
 import { defaultWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';
 import type { AssignWhenValue } from '@/components/common/library/assignStepper/assignWhenValue';
 import type { AssignClassesValue } from '@/utils/assignTargets';
 import { useRubrics } from '@/hooks/useRubrics';
-import {
-  AssignDestinationModal,
-  type AssignDestination,
-} from './AssignDestinationModal';
-import { SchoologyAssignInstructions } from './SchoologyAssignInstructions';
 import { PersonalLearningTargetsModal } from './PersonalLearningTargetsModal';
 import { countItemsByFolder } from '@/components/common/library/folderFilters';
 import { useFolders } from '@/hooks/useFolders';
@@ -168,15 +139,10 @@ import { useAuth } from '@/context/useAuth';
 import { useQuizHandRaiseMode } from '@/hooks/useQuizHandRaiseMode';
 import { QUIZ_TRANSLATION_FEATURE } from '@/config/quizTranslation';
 import { useDialog } from '@/context/useDialog';
-import {
-  getAssignBehaviorSeed,
-  formatBehaviorSummary,
-  getQuizAssignPrefill,
-} from '@/utils/quizBehavior';
+import { getQuizAssignPrefill } from '@/utils/quizBehavior';
 import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
 import { needsKeyMessage } from '@/utils/quizNeedsKey';
 import { useClaudeReview } from '@/hooks/useClaudeReview';
-import { countRecordingSlots } from '@/utils/quizRecordingModes';
 import { quizNeedsManualGrading } from '@/utils/quizScoreOnSubmit';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
@@ -340,12 +306,6 @@ interface QuizManagerProps {
      */
     targeting: AssignTargetingValue,
     /**
-     * Where the teacher chose to assign (library-row chooser). 'spartboard' =
-     * the SpartBoard-only flow; 'classroom' = create the SpartBoard assignment
-     * THEN open the Google Classroom course picker. Defaults to 'spartboard'.
-     */
-    destination?: AssignDestination,
-    /**
      * Full quiz content already loaded via `onLoadQuizData` for the B2
      * override editor (F1 fix) — present whenever the teacher expanded
      * "Edit or add modifications" during this modal session. The
@@ -489,11 +449,6 @@ interface QuizManagerProps {
    * the gating lives entirely in the host widget.
    */
   onArchiveAssignToClassroom?: (assignment: QuizAssignment) => void;
-  /**
-   * Whether the library-row Assign chooser should offer "Google Classroom"
-   * (admin-gated by the host, same as the archive-row kebab action).
-   */
-  canAssignToClassroom?: boolean;
   /**
    * Publish (or unpublish) student-facing score visibility for an
    * assignment. The widget owns the picker modal and the
@@ -729,7 +684,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onArchiveSharePlcResults,
   onArchiveStopSharingPlc,
   onArchiveAssignToClassroom,
-  canAssignToClassroom = false,
   onArchivePublishScores,
   onArchiveUnpublishScores,
   onArchivePauseResume,
@@ -751,27 +705,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 }) => {
   const isReview = variant === 'review';
   const { canAccessFeature } = useAuth();
-  // D8/D9: with the split on, Quiz assigns are assessment only.
-  const assessmentOnly = !isReview && canAccessFeature('quiz-review-split');
-  // Plan D16/D12: the stepper replaces the assign dialog and always prefills last-used rules.
-  const stepperOn = !isReview && canAccessFeature('assign-stepper');
-  const schoologyToolColumns = canAccessFeature('schoology-tool-columns');
   // Banks open from the Library sidebar instead of their own tab; Archive reads Completed.
   const banksInLibrary =
     !isReview &&
     Boolean(banks && onNewBank && onEditBank) &&
     canAccessFeature('quiz-banks-in-library');
-  const prefillLastUsed = assessmentOnly || stepperOn;
+  // Plan D12: the stepper always prefills last-used rules.
   const { lastUsed: lastAssignSettings } = useLastQuizAssignSettings(
     userId,
-    prefillLastUsed
-  );
-  const seedBehavior = useCallback(
-    (quiz: QuizMetadata) =>
-      prefillLastUsed
-        ? getQuizAssignPrefill(lastAssignSettings)
-        : getAssignBehaviorSeed(quiz),
-    [prefillLastUsed, lastAssignSettings]
+    !isReview
   );
   const isViewOnly = !isReview && assignmentMode === 'view-only';
   const primaryActionLabel = isReview
@@ -789,22 +731,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const confirmDelete = useLibraryDeleteConfirm();
   const claudeReview = useClaudeReview('quizzes');
 
-  // ─── Assign modal state (2-stage: mode → settings) ────────────────────────
+  // ─── Assign stepper state ─────────────────────────────────────────────────
   const [assignTarget, setAssignTarget] = useState<QuizMetadata | null>(null);
-  // Library-row Assign chooser (Phase 2): the teacher first picks a destination,
-  // then the SpartBoard-only / Google-Classroom flows continue through the same
-  // AssignModal below (Schoology shows a how-to modal instead).
-  const [chooserTarget, setChooserTarget] = useState<QuizMetadata | null>(null);
-  const [schoologyTarget, setSchoologyTarget] = useState<QuizMetadata | null>(
-    null
-  );
-  // Destination chosen for the in-flight AssignModal: 'classroom' chains the
-  // Google Classroom course picker after the SpartBoard assignment is created.
-  const [assignDestination, setAssignDestination] =
-    useState<AssignDestination>('spartboard');
 
   // ─── View-only Share modal state ──────────────────────────────────────────
-  // Bypasses the AssignModal entirely — class targeting, PLC, mode picker,
+  // Bypasses the assign stepper entirely — class targeting, PLC, mode picker,
   // and per-assignment settings are all meaningless for view-only shares.
   const [viewOnlyShareTarget, setViewOnlyShareTarget] =
     useState<QuizMetadata | null>(null);
@@ -870,51 +801,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           setViewOnlyShareTarget(quiz);
           setViewOnlyShareLink(null);
           setViewOnlyShareError(null);
-        } else if (
-          stepperOn ||
-          (schoologyToolColumns && !canAssignToClassroom)
-        ) {
-          // Stepper (Classroom posts from the assignment's menu) or no other destination: skip the chooser.
-          setAssignDestination('spartboard');
-          // eslint-disable-next-line react-hooks/immutability -- stable state setter referenced before its declaration
-          setAssignBehavior(seedBehavior(quiz));
-          setAssignTarget(quiz);
         } else {
-          // Open the destination chooser first; it routes to the SpartBoard assign
-          // modal, the Google Classroom flow, or the Schoology how-to.
-          setChooserTarget(quiz);
+          // Classroom posts from the assignment's menu, so there is no destination chooser.
+          // eslint-disable-next-line react-hooks/immutability -- stable state setter referenced before its declaration
+          setAssignBehavior(getQuizAssignPrefill(lastAssignSettings));
+          setAssignTarget(quiz);
         }
       });
     },
-    [
-      isViewOnly,
-      claudeReview,
-      isReview,
-      onStartReview,
-      stepperOn,
-      schoologyToolColumns,
-      canAssignToClassroom,
-      seedBehavior,
-    ]
-  );
-
-  // Route a chooser pick to the right flow. SpartBoard/Classroom both continue
-  // through the existing AssignModal (the destination only changes the
-  // post-create step); Schoology is a how-to modal with no assignment created.
-  const handlePickDestination = useCallback(
-    (destination: AssignDestination) => {
-      const quiz = chooserTarget;
-      setChooserTarget(null);
-      if (!quiz) return;
-      if (destination === 'schoology') {
-        setSchoologyTarget(quiz);
-        return;
-      }
-      setAssignDestination(destination);
-      setAssignBehavior(seedBehavior(quiz));
-      setAssignTarget(quiz);
-    },
-    [chooserTarget, seedBehavior]
+    [isViewOnly, claudeReview, isReview, onStartReview, lastAssignSettings]
   );
 
   const handleConfirmViewOnlyShare = useCallback(async () => {
@@ -950,21 +845,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const [assignTargeting, setAssignTargeting] = useState<AssignTargetingValue>(
     EMPTY_ASSIGN_TARGETING_VALUE
   );
-  // M17 C3 F5 — inline block when individual targeting is picked on a
-  // non-self-paced quiz (overrides can't apply to a class-wide pacing cursor).
-  const [targetingPacingError, setTargetingPacingError] = useState<
-    string | null
-  >(null);
-  // Non-blocking: standing timing accommodations that a teacher-paced session
-  // cannot honour. Names, not a count, so the teacher knows who is affected.
-  const [targetingTimingWarning, setTargetingTimingWarning] = useState<
-    string[] | null
-  >(null);
   // Full quiz content for the current assign modal's question-override
   // fields (question subset / MC-option hider / rubric swap). `QuizMetadata`
   // doesn't carry questions — loaded on demand via `onLoadQuizData`.
   const [assignQuizData, setAssignQuizData] = useState<QuizData | null>(null);
-  // Stepper only: per-class student picks (D5a) and the When choice (D6).
+  // Per-class student picks (D5a) and the When choice (D6).
   const [assignStudentsByClass, setAssignStudentsByClass] = useState<
     AssignClassesValue['studentsByClass']
   >({});
@@ -972,13 +857,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // Tracks the quiz id whose full content has been loaded/in-flight for the
   // current assign modal (F1 fix) — see `handleExpandIndividualTargeting`.
   const loadedAssignQuizDataForRef = useRef<string | null>(null);
-  // Recorded answers only capture in self-paced sessions (no per-student
-  // submit exists in a live/teacher-paced session). Surface a heads-up
-  // rather than block — the session still creates fine, just written-only.
-  const assignHasRecordingQuestions = useMemo(
-    () => countRecordingSlots(assignQuizData?.questions ?? []) > 0,
-    [assignQuizData]
-  );
   const { rubrics: assignRubrics } = useRubrics(userId);
   const handRaiseMode = useQuizHandRaiseMode();
   const translationAllowed = canAccessFeature(QUIZ_TRANSLATION_FEATURE);
@@ -986,8 +864,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   // §10 assign advisory: coverage comes from the in-memory index; Generate reuses the editor hook.
   const assignTranslations = useQuizTranslations(assignQuizData, assignTarget);
 
-  // Subscribed at the parent so both AssignPlcSlot (UI) and
-  // handleAssignConfirm (effective-id resolution) read the same source.
+  // Subscribed at the parent so the stepper's Sharing step and
+  // handleStepperAssign (effective-id resolution) read the same source.
   const { plcs } = usePlcs();
 
   // Reset assign form when modal re-opens (adjust-state-while-rendering)
@@ -1890,65 +1768,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       )
     : undefined;
 
-  const assignClassRows = useMemo(
-    () =>
-      classStudentRows({
-        rosters,
-        selectedRosterIds: assignOptions.picker.rosterIds,
-      }),
-    [rosters, assignOptions.picker.rosterIds]
-  );
-
-  // Standing roster defaults carrying extended time: teacher-paced sessions
-  // have no per-student timer, so these will not apply (a warning, not a block).
-  const timingOnlyDefaultNames = useMemo(() => {
-    const excluded = new Set(
-      (assignTargeting.excludedStudents ?? []).map(studentTargetRefKey)
-    );
-    return assignClassRows
-      .filter(
-        (row) =>
-          !excluded.has(row.key) &&
-          !assignTargeting.overridesByKey[row.key] &&
-          row.defaultOverride?.timeMultiplier != null
-      )
-      .map((row) => row.name);
-  }, [
-    assignClassRows,
-    assignTargeting.excludedStudents,
-    assignTargeting.overridesByKey,
-  ]);
-
-  // Work the teacher expressed FOR THIS assignment: a hand-picked list, a skip,
-  // or a non-empty edit on a student still in a checked class. An override
-  // toggled on and back off leaves an empty object and must not count.
-  const explicitTargetingWork = useMemo(() => {
-    if (assignTargeting.targetMode === 'students') return true;
-    const rowKeys = new Set(assignClassRows.map((row) => row.key));
-    if (
-      (assignTargeting.excludedStudents ?? []).some((ref) =>
-        rowKeys.has(studentTargetRefKey(ref))
-      )
-    )
-      return true;
-    return Object.entries(assignTargeting.overridesByKey).some(
-      ([key, override]) => rowKeys.has(key) && !isEmptyStudentOverride(override)
-    );
-  }, [
-    assignClassRows,
-    assignTargeting.targetMode,
-    assignTargeting.excludedStudents,
-    assignTargeting.overridesByKey,
-  ]);
-
-  const assignPeriodAccess =
-    assignBehavior?.sessionMode === 'student' ? periodAccess : undefined;
-  const assignWindowBackwards = availabilityBackwards(
-    assignTargeting,
-    rosters.filter((r) => assignOptions.picker.rosterIds.includes(r.id)),
-    assignPeriodAccess?.bellWindow
-  );
-
   const assignQuizContext = {
     questions: toOverrideEditorQuestions(assignQuizData),
     rubrics: assignRubrics,
@@ -1970,99 +1789,13 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       : {}),
   };
 
-  // ─── Assign confirm handler ───────────────────────────────────────────────
-  const handleAssignConfirm = (): void => {
-    if (!assignTarget) return;
-    const behavior = assignBehavior ?? seedBehavior(assignTarget);
-    // M17 C3 F5 — per-student overrides are only honored in self-paced mode
-    // (a teacher-paced `currentQuestionIndex` is shared class-wide and can't
-    // diverge per student). Block the save rather than silently assigning
-    // accommodations that would never take effect.
-    // Standing roster defaults are a pre-existing setting and never block.
-    if (explicitTargetingWork && behavior.sessionMode !== 'student') {
-      setTargetingPacingError(
-        t('assignTargeting.pacingBlocked', {
-          defaultValue:
-            "Individual student modifications require Assessment Mode. Switch Assessment Settings above to Assessment Mode, or use 'Clear all modifications' under Edit or add modifications.",
-        })
-      );
-      return;
-    }
-    setTargetingPacingError(null);
-    // Confirm step, not a toast that dies with the modal: extended time cannot
-    // apply in a teacher-paced session, so the teacher acknowledges it first.
-    if (
-      behavior.sessionMode !== 'student' &&
-      timingOnlyDefaultNames.length > 0 &&
-      !targetingTimingWarning
-    ) {
-      setTargetingTimingWarning(timingOnlyDefaultNames);
-      return;
-    }
-    setTargetingTimingWarning(null);
-    // Guard against stale rosterIds — rosters can be deleted or fail to load
-    // (`loadError`) between the teacher's last assignment and the current one.
-    // A roster without students can't produce a joinable session, so treat
-    // `loadError` rosters as unavailable at confirm time in addition to the
-    // picker-side disabled state.
-    const visibleRosterIds = new Set(
-      rosters.filter((r) => !r.loadError).map((r) => r.id)
-    );
-    const validRosterIds = assignOptions.picker.rosterIds.filter((id) =>
-      visibleRosterIds.has(id)
-    );
-    const effectivePeriodNames = resolveEffectivePeriodNames(
-      { rosterIds: validRosterIds },
-      rosters
-    );
-    const plcOptions: PlcOptions = {
-      plcMode: assignOptions.plcMode,
-      teacherName: assignOptions.teacherName || undefined,
-      periodName: effectivePeriodNames[0] || undefined,
-      periodNames:
-        effectivePeriodNames.length > 0 ? effectivePeriodNames : undefined,
-      plcId: assignEffectivePlcId || undefined,
-      ...(assignOptions.plcMode && assignPoolGroup
-        ? { plcPoolSyncGroupId: assignPoolGroup.syncGroupId }
-        : {}),
-    };
-    const applied = applyAvailability(assignTargeting, {
-      enabled: true,
-      rosters: rosters.filter((r) => validRosterIds.includes(r.id)),
-      bellWindow: assignPeriodAccess?.bellWindow,
-    });
-    const perClassDue = applied.dueAtByRosterId;
-    const sharedDue = applied.targeting.dueAt ?? null;
-    onAssign(
-      assignTarget,
-      behavior,
-      plcOptions,
-      validRosterIds,
-      perClassDue ? earliestDueAt(perClassDue) : sharedDue,
-      applied.targeting,
-      assignDestination,
-      assignQuizData,
-      perClassDue
-    );
-    setAssignTarget(null);
-    setAssignBehavior(null);
-    setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
-    setTargetingPacingError(null);
-    setTargetingTimingWarning(null);
-    setAssignQuizData(null);
-    setAssignDestination('spartboard');
-  };
-
   const resetAssign = (): void => {
     setAssignTarget(null);
     setAssignBehavior(null);
     setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
-    setTargetingPacingError(null);
-    setTargetingTimingWarning(null);
     setAssignQuizData(null);
     setAssignStudentsByClass({});
     setAssignWhen(null);
-    setAssignDestination('spartboard');
   };
 
   // Stepper confirm: always Assessment Mode; Manual starts every class paused (D6).
@@ -2070,7 +1803,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     if (!assignTarget || !assignWhen) return;
     if (plcs.length > 0 && sharingNeedsPlc(assignOptions, plcs)) return;
     const behavior: QuizBehaviorSettings = {
-      ...(assignBehavior ?? seedBehavior(assignTarget)),
+      ...(assignBehavior ?? getQuizAssignPrefill(lastAssignSettings)),
       sessionMode: 'student',
     };
     const validRosters = rosters.filter(
@@ -2112,7 +1845,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         ? earliestDueAt(perClassDue)
         : (applied.targeting.dueAt ?? null),
       applied.targeting,
-      assignDestination,
       assignQuizData,
       perClassDue,
       {
@@ -2834,196 +2566,44 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         />
       )}
 
-      {assignTarget &&
-        !isViewOnly &&
-        stepperOn &&
-        assignBehavior &&
-        assignWhen && (
-          <QuizAssignStepper
-            title={assignTarget.title}
-            rosters={rosters}
-            classes={{
-              classIds: assignOptions.picker.rosterIds,
-              studentsByClass: assignStudentsByClass,
-            }}
-            onClassesChange={(next) => {
-              setAssignOptions({
-                ...assignOptions,
-                picker: { ...assignOptions.picker, rosterIds: next.classIds },
-              });
-              setAssignStudentsByClass(next.studentsByClass);
-            }}
-            when={assignWhen}
-            onWhenChange={setAssignWhen}
-            behavior={assignBehavior}
-            onBehaviorChange={setAssignBehavior}
-            modifications={{
-              targeting: assignTargeting,
-              onTargetingChange: setAssignTargeting,
-              quizContext: assignQuizContext,
-            }}
-            sharing={{
-              value: assignOptions,
-              onChange: ({ plcMode, plcId }) =>
-                setAssignOptions({ ...assignOptions, plcMode, plcId }),
-              plcs,
-            }}
-            periodAccess={periodAccess}
-            hasManualGrading={quizNeedsManualGrading(
-              assignQuizData?.questions ?? []
-            )}
-            handRaiseMode={handRaiseMode}
-            submitLabel={
-              assignDestination === 'classroom'
-                ? 'Continue to Google Classroom'
-                : 'Assign'
-            }
-            onClose={resetAssign}
-            onSubmit={handleStepperAssign}
-          />
-        )}
-
-      {assignTarget && !isViewOnly && !stepperOn && (
-        <AssignModal<QuizAssignOptions>
-          isOpen={!!assignTarget}
-          onClose={() => {
-            setAssignTarget(null);
-            setAssignBehavior(null);
-            setAssignTargeting(EMPTY_ASSIGN_TARGETING_VALUE);
-            setTargetingPacingError(null);
-            setTargetingTimingWarning(null);
-            setAssignQuizData(null);
-            // Reset the destination so a cancelled 'classroom' pick can't leak
-            // into a later open (every exit path leaves clean state; the
-            // confirm path already resets it).
-            setAssignDestination('spartboard');
+      {assignTarget && !isViewOnly && assignBehavior && assignWhen && (
+        <QuizAssignStepper
+          title={assignTarget.title}
+          rosters={rosters}
+          classes={{
+            classIds: assignOptions.picker.rosterIds,
+            studentsByClass: assignStudentsByClass,
           }}
-          itemTitle={assignTarget.title}
-          options={assignOptions}
-          onOptionsChange={setAssignOptions}
-          extraSlot={
-            <>
-              {/* Who, then how, then when and per-student modifications */}
-              <AssignClassPicker
-                collapsible
-                rosters={rosters}
-                value={assignOptions.picker}
-                onChange={(picker) =>
-                  setAssignOptions({ ...assignOptions, picker })
-                }
-              />
-
-              {/* How — per-assignment behavior, pre-filled from the quiz */}
-              {assignBehavior && (
-                <CollapsibleSection
-                  label="Assessment Settings"
-                  icon={ClipboardCheck}
-                  summary={
-                    <span data-testid="quiz-behavior-summary">
-                      {formatBehaviorSummary(assignBehavior, {
-                        omitMode: assessmentOnly,
-                      })}
-                    </span>
-                  }
-                >
-                  <p className="text-xxs text-slate-400">
-                    Applies to this assignment only.
-                  </p>
-                  <QuizBehaviorSettingsPanel
-                    variant={assessmentOnly ? 'quiz' : 'full'}
-                    value={assignBehavior}
-                    onChange={(next) => {
-                      setTargetingPacingError(null);
-                      setAssignBehavior(next);
-                    }}
-                    handRaiseMode={handRaiseMode}
-                    hasManualGrading={quizNeedsManualGrading(
-                      assignQuizData?.questions ?? []
-                    )}
-                  />
-                  {assignHasRecordingQuestions &&
-                    assignBehavior.sessionMode !== 'student' && (
-                      <p
-                        role="status"
-                        className="text-xxs text-amber-300 bg-amber-500/10 border border-amber-500/30 rounded-lg px-2.5 py-1.5"
-                      >
-                        {t('quizMediaResponse.assign.advisory.notSelfPaced')}
-                      </p>
-                    )}
-                </CollapsibleSection>
-              )}
-
-              <AssignTargetingSection
-                rosters={rosters}
-                selectedRosterIds={assignOptions.picker.rosterIds}
-                periodAccess={assignPeriodAccess}
-                value={assignTargeting}
-                onChange={(next) => {
-                  setTargetingPacingError(null);
-                  setTargetingTimingWarning(null);
-                  setAssignTargeting(next);
-                }}
-                kind="quiz"
-                quizContext={assignQuizContext}
-                onExpand={handleExpandIndividualTargeting}
-              />
-              {targetingPacingError && (
-                <p
-                  role="alert"
-                  className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300"
-                >
-                  {targetingPacingError}
-                </p>
-              )}
-              {targetingTimingWarning && targetingTimingWarning.length > 0 && (
-                <p
-                  role="status"
-                  className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-700"
-                >
-                  {t('assignTargeting.timingNotAppliedConfirm', {
-                    defaultValue:
-                      "Extended time for {{names}} won't apply in teacher-paced mode. Click Assign again to continue.",
-                    names: targetingTimingWarning.join(', '),
-                  })}
-                </p>
-              )}
-            </>
-          }
-          plcSlot={
-            <AssignPlcSlot
-              options={assignOptions}
-              onChange={setAssignOptions}
-              plcs={plcs}
-            />
-          }
-          onAssign={() => handleAssignConfirm()}
-          confirmDisabled={assignWindowBackwards}
-          confirmDisabledReason={t(
-            'assignAvailability.closesBeforeOpens',
-            'Closes before it opens.'
+          onClassesChange={(next) => {
+            setAssignOptions({
+              ...assignOptions,
+              picker: { ...assignOptions.picker, rosterIds: next.classIds },
+            });
+            setAssignStudentsByClass(next.studentsByClass);
+          }}
+          when={assignWhen}
+          onWhenChange={setAssignWhen}
+          behavior={assignBehavior}
+          onBehaviorChange={setAssignBehavior}
+          modifications={{
+            targeting: assignTargeting,
+            onTargetingChange: setAssignTargeting,
+            quizContext: assignQuizContext,
+          }}
+          sharing={{
+            value: assignOptions,
+            onChange: ({ plcMode, plcId }) =>
+              setAssignOptions({ ...assignOptions, plcMode, plcId }),
+            plcs,
+          }}
+          periodAccess={periodAccess}
+          hasManualGrading={quizNeedsManualGrading(
+            assignQuizData?.questions ?? []
           )}
-          confirmLabel={
-            assignDestination === 'classroom'
-              ? 'Continue to Google Classroom'
-              : 'Assign'
-          }
-        />
-      )}
-
-      {chooserTarget && (
-        <AssignDestinationModal
-          quizTitle={chooserTarget.title}
-          showClassroom={canAssignToClassroom}
-          showSchoology={!schoologyToolColumns}
-          onPick={handlePickDestination}
-          onClose={() => setChooserTarget(null)}
-        />
-      )}
-
-      {schoologyTarget && (
-        <SchoologyAssignInstructions
-          quizTitle={schoologyTarget.title}
-          onClose={() => setSchoologyTarget(null)}
+          handRaiseMode={handRaiseMode}
+          submitLabel="Assign"
+          onClose={resetAssign}
+          onSubmit={handleStepperAssign}
         />
       )}
 
@@ -3688,80 +3268,6 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
       tourIndex={tourIndex}
       tourWidgetType={tourWidgetType}
     />
-  );
-};
-
-/* ─── Assign modal slot components ───────────────────────────────────────── */
-
-const AssignPlcSlot: React.FC<{
-  options: QuizAssignOptions;
-  onChange: (next: QuizAssignOptions) => void;
-  /** Teacher's PLC memberships (parent derives the effective id the same way). */
-  plcs: readonly Plc[];
-}> = ({ options, onChange, plcs }) => {
-  const update = <K extends keyof QuizAssignOptions>(
-    key: K,
-    value: QuizAssignOptions[K]
-  ) => onChange({ ...options, [key]: value });
-
-  if (plcs.length === 0) return null;
-
-  // Explicit choice wins; a sole PLC auto-selects; a stale id collapses to ''.
-  const explicitlyChosen = plcs.find((p) => p.id === options.plcId) ?? null;
-  const selectedPlc = explicitlyChosen ?? (plcs.length === 1 ? plcs[0] : null);
-  const effectivePlcId = selectedPlc?.id ?? '';
-  const label =
-    plcs.length === 1
-      ? `Share results with ${plcs[0].name}`
-      : 'Share results with a PLC';
-
-  return (
-    <>
-      <div className="border-t border-slate-200/70 pt-3 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <Share2
-            className="w-4 h-4 shrink-0 text-brand-blue-primary"
-            aria-hidden="true"
-          />
-          <span className="text-sm font-bold text-brand-blue-dark truncate">
-            {label}
-          </span>
-        </div>
-        <Toggle
-          checked={options.plcMode}
-          onChange={(v) => update('plcMode', v)}
-          size="sm"
-          showLabels={true}
-        />
-      </div>
-      <p className="text-xxs text-slate-500 -mt-1">
-        Results pool on the PLC page without student names.
-      </p>
-
-      {options.plcMode && plcs.length > 1 && (
-        <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-          <label
-            htmlFor="assign-plc-select"
-            className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1"
-          >
-            PLC
-          </label>
-          <select
-            id="assign-plc-select"
-            value={effectivePlcId}
-            onChange={(e) => update('plcId', e.target.value)}
-            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            <option value="">Select a PLC…</option>
-            {plcs.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-    </>
   );
 };
 

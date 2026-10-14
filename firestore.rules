@@ -1057,6 +1057,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Org switch for the notice students read before a quiz recording —
+    // students read it on the quiz; admins turn it off.
+    match /admin_settings/quiz_recording_notice {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
     // Admin audit log — admin-only read; create-only (append-only so an admin
     // can't edit/delete their own trail). Written by GlobalPermissionsManager on
     // sensitive settings changes. timestamp is set server-side via
@@ -4666,6 +4673,9 @@ service cloud.firestore {
           // at create stops a forged subset riding in on the join write.
           incoming().get('servedQuestionIds', null) == null &&
           incoming().get('tabExits', null) == null &&
+          incoming().get('partHeld', null) == null &&
+          incoming().get('partsDone', null) == null &&
+          incoming().get('dealtQuestionIds', null) == null &&
           // Per-student publication and the answer key are teacher-written only.
           incoming().get('resultsOverride', null) == null &&
           incoming().get('revealedAnswers', null) == null &&
@@ -4737,8 +4747,14 @@ service cloud.firestore {
            // addedKeys and bypass the whitelist entirely.
            // Review games: answers come only from checkQuizGameAnswerV1 (`game` is off the list below).
            (!changed(['answers']) || sessionData().get('sessionMode', '') != 'game') &&
-           changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp']) &&
+           changedOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt', 'handRaisedAt', 'stimulusPlays', 'stimulusErrors', 'servedQuestionIds', 'dealtQuestionIds', 'recordingNoticeAckedAt', 'tabExits', 'attemptStartedAt', 'timeUp', 'partsDone', 'partHeld']) &&
            tabExitsOk() &&
+           // Balanced bank slots: the versions this student has been dealt, capped at the pool limit.
+           (!changed(['dealtQuestionIds']) ||
+            (isList('dealtQuestionIds') && incoming().dealtQuestionIds.size() <= 150)) &&
+           // Stop checkpoints: a part count, and a held flag that is true or cleared.
+           (!changed(['partsDone']) || incoming().get('partsDone', 0) is int) &&
+           (!changed(['partHeld']) || incoming().get('partHeld', null) in [true, null]) &&
            // Time-limit clock: server-stamped, and only restarted by a new attempt
            // (completed -> joined) or stamped where none exists yet.
            (!changed(['attemptStartedAt']) ||
@@ -4891,6 +4907,22 @@ service cloud.firestore {
       match /seats/{uid} {
         allow read: if signedIn() && authUid() == uid;
         allow create, update: if seatWriteOk('quiz_sessions', sessionId, uid);
+      }
+      // Balanced bank slots: one turn counter per slot and class period. Only a
+      // student seated (`seats/{uid}`) on their own response here advances it, by one.
+      // `by` is the uid, never the response key: PIN keys must not be readable here.
+      match /bank_deals/{dealId} {
+        function dealOk(prev) {
+          return sessionData().get('bankSlots', null) != null &&
+            incoming().keys().hasOnly(['dealt', 'by']) &&
+            incoming().dealt == prev + 1 &&
+            incoming().get('by', '') == authUid() &&
+            getAfter(/databases/$(database)/documents/quiz_sessions/$(sessionId)/responses/$(getAfter(/databases/$(database)/documents/quiz_sessions/$(sessionId)/seats/$(authUid())).data.responseKey)).data.get('studentUid', '') == authUid();
+        }
+        allow read: if signedIn();
+        allow create: if signedIn() && dealOk(0);
+        allow update: if signedIn() && dealOk(existing().get('dealt', 0));
+        allow delete: if signedIn() && (authUid() == sessionTeacherUid() || isAdmin());
       }
 
       // Archived responses — copies of teacher-removed responses (was a hard

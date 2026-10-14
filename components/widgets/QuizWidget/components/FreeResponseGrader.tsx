@@ -35,7 +35,6 @@ import {
   PanelLeftOpen,
   Pencil,
   PenTool,
-  Pin,
   ShieldAlert,
   Undo2,
 } from 'lucide-react';
@@ -66,11 +65,9 @@ import { sumRubricScorePoints } from '@/utils/rubricPoints';
 import { resolveRubricForResponse } from '@/utils/rubricOverrideResolution';
 import {
   collectMediaSlots,
-  formatTimecode,
   isSlotExcused,
   resolveSlotState,
   selectGradedTake,
-  takeDurationMs,
   takeUnplayableReason,
   type MediaGradingSlot,
 } from '@/utils/mediaGrading';
@@ -457,12 +454,11 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
 }) => {
   const { t } = useTranslation();
   const auth = useContext(AuthContext);
-  const graderV2 = auth?.canAccessFeature('quiz-grader-v2') ?? false;
   const whiteboardEnabled = auth
     ? canAccessQuizWhiteboardResponse(auth)
     : false;
   const [railCollapsedPref, setRailCollapsedPref] = useState(readRailCollapsed);
-  const railCollapsed = graderV2 && railCollapsedPref;
+  const railCollapsed = railCollapsedPref;
   const toggleRail = () => {
     const next = !railCollapsedPref;
     setRailCollapsedPref(next);
@@ -646,7 +642,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   const [seek, setSeek] = useState({ ms: 0, nonce: 0 });
 
   const isUnavailable = !!slot?.captureUnavailable;
-  const takes = slot?.takes ?? [];
+
   const activeTake = useMemo(() => {
     if (!slot) return undefined;
     if (pinnedTakeIndex != null) {
@@ -1264,39 +1260,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   const stepperButton =
     'rounded p-1 text-slate-500 transition-colors hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-30';
 
-  const studentHeading = response && (
-    <div className="flex flex-wrap items-center gap-2">
-      <h3 className="text-base font-bold leading-tight text-slate-900">
-        {studentLabel}
-      </h3>
-      <span
-        className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xxs uppercase tracking-wider ${headerVocabulary.chip}`}
-      >
-        {headerVocabulary.key.endsWith('.scored') && !slotExcused && (
-          <CheckCircle2 aria-hidden className="h-3 w-3" />
-        )}
-        {t(headerVocabulary.key)}
-      </span>
-      {isPaperAnswer && paperBadge}
-      {tabSwitches > 0 && (
-        <span
-          className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-amber-700"
-          title={tg('tabSwitchesTitle', { count: tabSwitches })}
-        >
-          <ShieldAlert aria-hidden className="h-3 w-3" />
-          {tg('tabSwitches', { count: tabSwitches })}
-        </span>
-      )}
-      {textEntry?.timedOutUnderMinimum && (
-        <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-amber-700">
-          <Clock aria-hidden className="h-3 w-3" />
-          {tg('timedOutUnderMinimum')}
-        </span>
-      )}
-    </div>
-  );
-
-  // v2 drops the name heading; the current target's state (and, with the list collapsed, tab switches) stays.
+  // The current target's state (and, with the list collapsed, tab switches); the rail shows the name.
   const studentStatusRow = response && (
     <div className="flex flex-wrap items-center gap-2">
       <span
@@ -1544,30 +1508,24 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
             className="overflow-y-auto border-r border-slate-200 bg-slate-50 pb-2"
           >
             <div className="sticky top-0 z-10 flex items-center gap-1 border-b border-slate-200 bg-slate-50/95 py-1.5 pl-4 pr-2 backdrop-blur">
-              {graderV2 && (
-                <button
-                  type="button"
-                  onClick={toggleRail}
-                  aria-label={tg('collapseList')}
-                  {...tourTypeAttr('quiz-grading.rail-collapse', 'quiz')}
-                  title={tg('collapseList')}
-                  aria-expanded
-                  className={`${stepperButton} -ml-2`}
-                >
-                  <PanelLeftClose aria-hidden className="h-4 w-4" />
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={toggleRail}
+                aria-label={tg('collapseList')}
+                {...tourTypeAttr('quiz-grading.rail-collapse', 'quiz')}
+                title={tg('collapseList')}
+                aria-expanded
+                className={`${stepperButton} -ml-2`}
+              >
+                <PanelLeftClose aria-hidden className="h-4 w-4" />
+              </button>
               <p className="min-w-0 flex-1 truncate text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                {graderV2 ? (
-                  <span title={gradedCountLabel}>
-                    {tg('gradedCount', {
-                      graded: gradedCount,
-                      total: railRows.length,
-                    })}
-                  </span>
-                ) : (
-                  tg('queueLabel')
-                )}
+                <span title={gradedCountLabel}>
+                  {tg('gradedCount', {
+                    graded: gradedCount,
+                    total: railRows.length,
+                  })}
+                </span>
               </p>
               <button
                 type="button"
@@ -1615,7 +1573,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                       <span className="min-w-0 flex-1 truncate">
                         {nameFor(entry.response)}
                       </span>
-                      {graderV2 && entryTabSwitches > 0 && (
+                      {entryTabSwitches > 0 && (
                         <span
                           className="inline-flex shrink-0 items-center gap-0.5 rounded bg-amber-100 px-1 py-0.5 text-xxs font-bold text-amber-700"
                           title={tg('tabSwitchesTitle', {
@@ -1709,7 +1667,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
           </div>
 
           <div className="flex flex-col gap-4 p-6">
-            {graderV2 ? studentStatusRow : studentHeading}
+            {studentStatusRow}
             {!target && (
               <div className="rounded-lg border border-slate-200 bg-white p-5 text-sm italic text-slate-500">
                 {tg('noAnswersOnQuestion')}
@@ -1786,7 +1744,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                     >
                       {wordCounterLabel(answerWordCount, question)}
                     </span>
-                    {graderV2 && textEntry?.timedOutUnderMinimum && (
+                    {textEntry?.timedOutUnderMinimum && (
                       <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-amber-700">
                         <Clock aria-hidden className="h-3 w-3" />
                         {tg('timedOutUnderMinimum')}
@@ -1806,7 +1764,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                       activeId={activeAnnotationId}
                       onActiveIdChange={setActiveAnnotationId}
                       rubric={taggableRubric}
-                      autoTagSingleStrand={graderV2}
+                      autoTagSingleStrand
                     />
                   </ResponseQuotesFrame>
                 ) : isPaperAnswer ? null : (
@@ -1894,6 +1852,16 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 )}
               </div>
             )}
+
+            {isMedia &&
+              !isUnavailable &&
+              (activeTake?.micState === 'denied' ||
+                activeTake?.micState === 'unavailable') && (
+                <span className="inline-flex w-fit items-center gap-1 rounded bg-slate-200 px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider text-slate-700">
+                  <MicOff aria-hidden className="h-3 w-3" />
+                  {tg(`takes.mic.${activeTake.micState}`)}
+                </span>
+              )}
 
             {isMedia &&
               !isUnavailable &&
@@ -2064,73 +2032,6 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 noCommentHint={tg('highlightNoComment')}
                 rubric={taggableRubric}
               />
-            </div>
-          )}
-
-          {isMedia && !isUnavailable && (
-            <div className="border-t border-slate-200 pt-3">
-              <h4 className="mb-1 text-sm font-bold uppercase tracking-wider text-slate-500">
-                {tg('takes.title')}
-              </h4>
-              <p className="mb-2 text-xs text-slate-500">
-                {tg('takes.count', { count: takes.length })}
-              </p>
-              <ul className="flex flex-col gap-1.5">
-                {takes.map((take) => {
-                  const isActive = take.takeIndex === activeTake?.takeIndex;
-                  const reason = takeUnplayableReason(take);
-                  return (
-                    <li key={take.artifact.id}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          editSourceRef.current = 'pin';
-                          setPinnedTakeIndex(take.takeIndex);
-                        }}
-                        aria-pressed={isActive}
-                        {...tourFieldAttr(
-                          'quiz-grading.take-pin',
-                          'quiz',
-                          String(take.takeIndex)
-                        )}
-                        className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs transition-colors ${
-                          isActive
-                            ? 'border-brand-blue-primary bg-brand-blue-primary/5'
-                            : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
-                        }`}
-                      >
-                        <span className="font-bold text-slate-800">
-                          {tg('takes.take', { n: take.displayIndex })}
-                        </span>
-                        <span className="font-mono tabular-nums text-slate-500">
-                          {formatTimecode(takeDurationMs(take))}
-                        </span>
-                        {(take.micState === 'denied' ||
-                          take.micState === 'unavailable') && (
-                          <span className="inline-flex items-center gap-0.5 rounded bg-slate-200 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-slate-700">
-                            <MicOff aria-hidden className="h-3 w-3" />
-                            {tg(`takes.mic.${take.micState}`)}
-                          </span>
-                        )}
-                        {reason && (
-                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-amber-700">
-                            {tg(`takes.status.${reason}`)}
-                          </span>
-                        )}
-                        {isActive && (
-                          <Pin
-                            aria-hidden
-                            className="ml-auto h-3.5 w-3.5 text-brand-blue-primary"
-                          />
-                        )}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-              <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                {tg('takes.pinNote')}
-              </p>
             </div>
           )}
 

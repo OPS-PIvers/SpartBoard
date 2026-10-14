@@ -125,10 +125,12 @@ const makeActions = () => ({
 
 const renderResults = (
   actions?: ReturnType<typeof makeActions>,
-  screenName: RegExp | null = /^students/i
+  screenName: RegExp | null = /^students/i,
+  plcView = false
 ) => {
   const utils = render(
     <QuizResults
+      plcView={plcView}
       quiz={quiz}
       responses={responses}
       config={{ view: 'results' } as unknown as QuizConfig}
@@ -299,8 +301,8 @@ describe('QuizResults — student drill-down', () => {
     ).toBeNull();
   });
 
-  it('prints the report with or without correct answers', () => {
-    renderResults();
+  it('prints a PLC teammate the report with or without correct answers', () => {
+    renderResults(undefined, /^students/i, true);
     fireEvent.click(rowToggle('PIN 1111'));
     fireEvent.click(screen.getByRole('button', { name: 'Print report' }));
     expect(printStudentReport).toHaveBeenLastCalledWith(
@@ -319,8 +321,8 @@ describe('QuizResults — student drill-down', () => {
     );
   });
 
-  it('prints the masked label while names are hidden', () => {
-    renderResults(undefined, null);
+  it('prints a PLC teammate the masked label while names are hidden', () => {
+    renderResults(undefined, null, true);
     fireEvent.click(screen.getByRole('button', { name: 'Hide student names' }));
     fireEvent.click(screen.getByRole('button', { name: /^students/i }));
     fireEvent.click(rowToggle('Student 1'));

@@ -31,7 +31,7 @@ import {
 } from '@/utils/studentTargetRef';
 import { buildMixedTargetsPayload } from '@/utils/assignTargets';
 import { skippedTargetsToastMessage } from '@/utils/assignTargetingSkippedToast';
-import { FlashcardAssignModal } from './FlashcardAssignModal';
+import { FlashcardAssignStepper } from './FlashcardAssignStepper';
 import { useFlashcardPlcSharing } from './useFlashcardPlcSharing';
 import {
   rosterHasSsoClass,
@@ -114,7 +114,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
   const config = widget.config as FlashcardsConfig;
-  const { user, ensureGoogleScope, canAccessFeature } = useAuth();
+  const { user, ensureGoogleScope } = useAuth();
   const claudeReview = useClaudeReview('flashcard_sets');
   const { addToast, updateWidget, rosters, updateRoster } = useDashboard();
   const assignPeriodCtx = useAssignPeriodAccess(updateRoster);
@@ -138,7 +138,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
     setPlcShare,
   } = useFlashcardAssignments(inShare ? undefined : user?.uid);
   const plcSharing = useFlashcardPlcSharing({
-    enabled: !inShare && canAccessFeature('plc-flashcards'),
+    enabled: !inShare,
     addToast,
     setPlcShare,
   });
@@ -717,7 +717,7 @@ export const FlashcardsWidget: React.FC<{ widget: WidgetData }> = ({
       {plcSharing.modal}
 
       {assigningSet && (
-        <FlashcardAssignModal
+        <FlashcardAssignStepper
           key={assigningSet.id}
           isOpen
           set={assigningSet}

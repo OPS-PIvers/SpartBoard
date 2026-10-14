@@ -6,8 +6,7 @@
  *
  *   1. Pick a quiz from the teacher's personal library
  *      (reuses `PlcSharePickerModal`).
- *   2. Slimmed configure step: class/period picker + due-date + read-only
- *      behavior summary from `getAssignBehaviorSeed(pickedQuiz)` + teacher name.
+ *   2. The Quiz assign stepper, prefilled from the teacher's last-used rules.
  *
  * On submit:
  *
@@ -28,10 +27,8 @@
 
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Calendar, X } from 'lucide-react';
 import type {
   AssignmentMode,
-  ClassRoster,
   Plc,
   PlcLinkage,
   QuizBehaviorSettings,
@@ -51,30 +48,14 @@ import {
 import { getPlcMemberEmails } from '@/utils/plc';
 import { usePlcQuizzes } from '@/hooks/usePlcQuizzes';
 import { resolvePlcPoolSyncGroupId } from '@/utils/plcPooling';
-import {
-  splitDueAtToInputs,
-  dueInputsToEpoch,
-  DEFAULT_DUE_TIME,
-} from '@/utils/localDate';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { logError } from '@/utils/logError';
-import {
-  getAssignBehaviorSeed,
-  formatBehaviorSummary,
-  getQuizAssignPrefill,
-} from '@/utils/quizBehavior';
+import { getQuizAssignPrefill } from '@/utils/quizBehavior';
 import { useLastQuizAssignSettings } from '@/hooks/useLastQuizAssignSettings';
-import { QuizAssignSettingsInline } from '@/components/common/library/QuizAssignSettingsInline';
-import { AssignClassPicker } from '@/components/common/AssignClassPicker';
-import {
-  makeEmptyPickerValue,
-  type AssignClassPickerValue,
-} from '@/components/common/AssignClassPicker.helpers';
 import {
   PlcSharePickerModal,
   type PlcSharePickerItem,
 } from './PlcSharePickerModal';
-import { PlcNewAssignmentSharingSlot } from './PlcNewAssignmentSharingSlot';
 import { formatShortDate } from './newAssignmentHelpers';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import { syncedQuizContentFields } from '@/utils/syncedQuizContent';
@@ -94,7 +75,6 @@ import {
 } from '@/components/common/library/assignStepper/assignWhenValue';
 import { QuizAssignStepper } from '@/components/widgets/QuizWidget/components/QuizAssignStepper';
 import { planPlcQuizStepperAssign } from './plcQuizStepperAssign';
-import { tourAttr } from '@/config/tourAnchors';
 
 interface PlcNewQuizAssignmentModalProps {
   plc: Plc;
@@ -114,31 +94,14 @@ interface PlcNewQuizAssignmentModalProps {
   onCreated?: (info: { assignmentId: string; quizTitle: string }) => void;
 }
 
-/** Slimmed configure-step options (Task 10). Behavior is on the quiz. */
-interface QuizAssignOptions {
-  teacherName: string;
-  picker: AssignClassPickerValue;
-}
-
-function buildDefaultOptions(defaultTeacherName?: string): QuizAssignOptions {
-  return {
-    teacherName: defaultTeacherName ?? '',
-    picker: makeEmptyPickerValue(),
-  };
-}
-
 export const PlcNewQuizAssignmentModal: React.FC<
   PlcNewQuizAssignmentModalProps
 > = ({ plc, assignmentMode = 'submissions', onClose, onCreated }) => {
   const { t } = useTranslation();
-  const { user, canAccessFeature } = useAuth();
-  // D12: with the split on, settings come from the teacher's last-used, editable inline.
-  const reviewSplit = canAccessFeature('quiz-review-split');
+  const { user } = useAuth();
   // D21: the stepper uses the Quiz steps, prefilled from and saving to last-used rules.
-  const stepperOn = canAccessFeature('assign-stepper');
-  const prefillLastUsed = reviewSplit || stepperOn;
   const { lastUsed: lastAssignSettings, save: saveLastAssignSettings } =
-    useLastQuizAssignSettings(user?.uid, prefillLastUsed);
+    useLastQuizAssignSettings(user?.uid, true);
   const [editedAssignSettings, setEditedAssignSettings] =
     useState<QuizBehaviorSettings | null>(null);
   const splitAssignSettings = useMemo(
@@ -169,17 +132,11 @@ export const PlcNewQuizAssignmentModal: React.FC<
 
   const [step, setStep] = useState<'pick' | 'configure'>('pick');
   const [pickedQuiz, setPickedQuiz] = useState<QuizMetadata | null>(null);
-  const [options, setOptions] = useState<QuizAssignOptions>(() =>
-    buildDefaultOptions(user?.displayName ?? undefined)
-  );
-  // Due date state (epoch ms or null)
-  const [dueAt, setDueAt] = useState<number | null>(null);
   // Synchronous submit guard. State alone isn't enough — a double-click
   // can fire two submit handlers before React commits the first
   // setState. See `PlcSharePickerModal.handlePick` for the same pattern.
   const submittingRef = useRef(false);
   const outward = useViewAsOutward();
-  const [submitting, setSubmitting] = useState(false);
 
   const pickerItems: PlcSharePickerItem[] = useMemo(
     () =>
@@ -241,7 +198,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
   const handleSubmit = useCallback(
     async (confirmed = false) => {
       if (submittingRef.current || outward.locked) return;
-      if (!pickedQuiz || !user) return;
+      if (!pickedQuiz || !user || !stepperWhen) return;
       if (
         outward.active &&
         !confirmed &&
@@ -249,7 +206,6 @@ export const PlcNewQuizAssignmentModal: React.FC<
       )
         return;
       submittingRef.current = true;
-      setSubmitting(true);
 
       let createdSyncGroupId: string | null = null;
       let linkageAttached = false;
@@ -265,25 +221,13 @@ export const PlcNewQuizAssignmentModal: React.FC<
           { loadBankContentsForQuiz, saveDriveSnapshot }
         );
 
-        const stepperPlan =
-          stepperOn && stepperWhen
-            ? planPlcQuizStepperAssign({
-                classes: stepperClasses,
-                when: stepperWhen,
-                rosters,
-                bellWindow: periodAccess?.bellWindow,
-              })
-            : null;
-        const visibleRosterIds = new Set(
-          rosters.filter((r) => !r.loadError).map((r) => r.id)
-        );
-        const validRosterIds = options.picker.rosterIds.filter((id) =>
-          visibleRosterIds.has(id)
-        );
-        const selectedRosters: ClassRoster[] =
-          stepperPlan?.rosters ??
-          rosters.filter((r) => validRosterIds.includes(r.id));
-        const derived = deriveSessionTargetsFromRosters(selectedRosters);
+        const stepperPlan = planPlcQuizStepperAssign({
+          classes: stepperClasses,
+          when: stepperWhen,
+          rosters,
+          bellWindow: periodAccess?.bellWindow,
+        });
+        const derived = deriveSessionTargetsFromRosters(stepperPlan.rosters);
 
         // PLC link only — no sheet step; results pool server-side.
         const plcLinkage: PlcLinkage = {
@@ -354,16 +298,9 @@ export const PlcNewQuizAssignmentModal: React.FC<
           }
         }
 
-        // Task 10: source sessionMode/sessionOptions/attemptLimit from the
-        // quiz's behavior settings, always in Assessment Mode. No longer driven by
-        // removed form controls.
-        const behavior = stepperPlan
-          ? toAssessmentBehavior(splitAssignSettings)
-          : reviewSplit
-            ? splitAssignSettings
-            : getAssignBehaviorSeed(pickedQuiz);
-        const stepperTargeting = stepperPlan?.mixed.targeting;
-        const effectiveDueAt = stepperPlan ? stepperPlan.dueAt : dueAt;
+        const behavior = toAssessmentBehavior(splitAssignSettings);
+        const stepperTargeting = stepperPlan.mixed.targeting;
+        const effectiveDueAt = stepperPlan.dueAt;
         const sessionOptions: QuizSessionOptions = behavior.sessionOptions;
 
         // Title-aware pooling (§8.1): prefer the PLC library group so every
@@ -390,14 +327,14 @@ export const PlcNewQuizAssignmentModal: React.FC<
             sessionMode: behavior.sessionMode,
             sessionOptions,
             attemptLimit: behavior.attemptLimit,
-            teacherName: options.teacherName.trim() || undefined,
+            teacherName: (user.displayName ?? '').trim() || undefined,
             periodName: derived.periodNames[0],
             periodNames: derived.periodNames,
             plc: plcLinkage,
             ...(effectiveDueAt != null
               ? { dueAt: effectiveDueAt, dueAtHasTime: true }
               : {}),
-            ...(stepperPlan?.dueAtByRosterId
+            ...(stepperPlan.dueAtByRosterId
               ? { dueAtByRosterId: stepperPlan.dueAtByRosterId }
               : {}),
             ...(content.resolvedDriveFileId
@@ -406,13 +343,13 @@ export const PlcNewQuizAssignmentModal: React.FC<
           },
           {
             // A per-period session is gated by its periods, not a global pause.
-            initialStatus: stepperPlan?.periodGate ? 'active' : 'paused',
-            ...(stepperPlan?.periodGate ?? {}),
+            initialStatus: stepperPlan.periodGate ? 'active' : 'paused',
+            ...(stepperPlan.periodGate ?? {}),
             ...(content.bankSlots ? { bankSlots: content.bankSlots } : {}),
             classIds: derived.classIds,
             rosterIds: derived.rosterIds,
             classPeriodByClassId: derived.classPeriodByClassId,
-            ...(stepperPlan?.dueAtByRosterId
+            ...(stepperPlan.dueAtByRosterId
               ? {
                   dueAtByClassId: dueAtByClassIdFromRosters(
                     stepperPlan.dueAtByRosterId,
@@ -434,75 +371,68 @@ export const PlcNewQuizAssignmentModal: React.FC<
           }
         );
 
-        if (stepperOn) {
-          saveLastAssignSettings({
-            sessionMode: behavior.sessionMode,
-            sessionOptions,
-            attemptLimit: behavior.attemptLimit,
-          });
-        }
+        saveLastAssignSettings({
+          sessionMode: behavior.sessionMode,
+          sessionOptions,
+          attemptLimit: behavior.attemptLimit,
+        });
 
         // Student picks fan out like the Quiz widget's stepper assign (D5b).
-        if (stepperPlan) {
-          const payload = buildMixedTargetsPayload(
-            undefined,
-            stepperPlan.mixed
-          );
-          if (payloadRequiresCall(payload)) {
-            try {
-              const result = await setAssignmentTargets({
-                assignmentId,
-                kind: 'quiz',
-                sessionId: assignmentId,
-                targetMode: payload.targetMode,
-                add: payload.add,
-                remove: payload.remove,
-                overridesBySourcedId: payload.overridesBySourcedId,
-                ...(payload.excludedTargets
-                  ? { excludedTargets: payload.excludedTargets }
-                  : {}),
-                ...(payload.studentTargetClassIds
-                  ? { studentTargetClassIds: payload.studentTargetClassIds }
-                  : {}),
-                window: payload.window,
-              });
-              if (result.skipped.length > 0) {
-                addToast(
-                  skippedTargetsToastMessage(
-                    result.skipped.length,
-                    result.skippedExclusions?.length ?? 0
-                  ),
-                  'warning'
-                );
-                try {
-                  await setAssignmentTargetSkippedCount(
-                    assignmentId,
-                    result.skipped.length
-                  );
-                } catch (persistErr) {
-                  logError(
-                    'PlcNewQuizAssignmentModal.setAssignmentTargetSkippedCount',
-                    persistErr,
-                    { assignmentId }
-                  );
-                }
-              }
-            } catch (targetErr) {
-              logError(
-                'PlcNewQuizAssignmentModal.setAssignmentTargets',
-                targetErr,
-                { assignmentId }
-              );
+        const payload = buildMixedTargetsPayload(undefined, stepperPlan.mixed);
+        if (payloadRequiresCall(payload)) {
+          try {
+            const result = await setAssignmentTargets({
+              assignmentId,
+              kind: 'quiz',
+              sessionId: assignmentId,
+              targetMode: payload.targetMode,
+              add: payload.add,
+              remove: payload.remove,
+              overridesBySourcedId: payload.overridesBySourcedId,
+              ...(payload.excludedTargets
+                ? { excludedTargets: payload.excludedTargets }
+                : {}),
+              ...(payload.studentTargetClassIds
+                ? { studentTargetClassIds: payload.studentTargetClassIds }
+                : {}),
+              window: payload.window,
+            });
+            if (result.skipped.length > 0) {
               addToast(
-                'Assigned to the class, but individual student targeting failed to save. Reopen Settings to retry.',
-                'error'
+                skippedTargetsToastMessage(
+                  result.skipped.length,
+                  result.skippedExclusions?.length ?? 0
+                ),
+                'warning'
               );
+              try {
+                await setAssignmentTargetSkippedCount(
+                  assignmentId,
+                  result.skipped.length
+                );
+              } catch (persistErr) {
+                logError(
+                  'PlcNewQuizAssignmentModal.setAssignmentTargetSkippedCount',
+                  persistErr,
+                  { assignmentId }
+                );
+              }
             }
+          } catch (targetErr) {
+            logError(
+              'PlcNewQuizAssignmentModal.setAssignmentTargets',
+              targetErr,
+              { assignmentId }
+            );
+            addToast(
+              'Assigned to the class, but individual student targeting failed to save. Reopen Settings to retry.',
+              'error'
+            );
           }
         }
 
         // Only a period gate creates it active; otherwise it starts paused.
-        const gated = !!stepperPlan?.periodGate;
+        const gated = !!stepperPlan.periodGate;
         const createdKey = gated ? 'StepperCreated' : 'Created';
         addToast(
           t(`plcDashboard.newAssignment.quiz.group${createdKey}`, {
@@ -548,7 +478,6 @@ export const PlcNewQuizAssignmentModal: React.FC<
         );
       } finally {
         submittingRef.current = false;
-        setSubmitting(false);
       }
     },
     [
@@ -557,22 +486,18 @@ export const PlcNewQuizAssignmentModal: React.FC<
       assignmentMode,
       attachSyncLinkage,
       createAssignment,
-      dueAt,
       loadQuizData,
       loadBankContentsForQuiz,
       saveDriveSnapshot,
       onClose,
       onCreated,
-      options,
       pickedQuiz,
       plc,
       rosters,
       t,
       user,
       plcLibrary,
-      reviewSplit,
       splitAssignSettings,
-      stepperOn,
       stepperWhen,
       stepperClasses,
       periodAccess,
@@ -612,186 +537,25 @@ export const PlcNewQuizAssignmentModal: React.FC<
     );
   }
 
-  // ─── Step 2: slimmed configure — class picker + due-date + behavior summary
-  if (!pickedQuiz) {
-    // Defensive: callers transition `step` only after `pickedQuiz` is set,
-    // so this branch is unreachable in practice. Bail rather than render
-    // a broken modal if state ever desynchronizes.
-    return null;
-  }
-
-  if (stepperOn && stepperWhen) {
-    return (
-      <QuizAssignStepper
-        title={pickedQuiz.title}
-        rosters={rosters}
-        classes={stepperClasses}
-        onClassesChange={setStepperClasses}
-        when={stepperWhen}
-        onWhenChange={setStepperWhen}
-        behavior={splitAssignSettings}
-        onBehaviorChange={setEditedAssignSettings}
-        periodAccess={periodAccess}
-        hasManualGrading={false}
-        handRaiseMode={handRaiseMode}
-        submitLabel="Assign"
-        onClose={onClose}
-        onSubmit={() => handleSubmit(true)}
-      />
-    );
-  }
-
-  const behavior = getAssignBehaviorSeed(pickedQuiz);
-  const behaviorSummary = formatBehaviorSummary(behavior);
-
-  const dateInputValue = splitDueAtToInputs(dueAt, true).date;
-
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setDueAt(val ? dueInputsToEpoch(val, DEFAULT_DUE_TIME) : null);
-  };
-
-  const modalTitle = t('plcDashboard.newAssignment.quiz.configureTitle', {
-    title: pickedQuiz.title,
-    defaultValue: 'Assign "{{title}}"',
-  });
+  // Callers set `stepperWhen` and `pickedQuiz` before moving to configure.
+  if (!pickedQuiz || !stepperWhen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-label={modalTitle}
-    >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <div>
-            <h2 className="text-base font-semibold text-slate-900">
-              {modalTitle}
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              {t('plcDashboard.newAssignment.quiz.configureSubtitle', {
-                name: plc.name,
-                defaultValue: 'Shared with {{name}}',
-              })}
-            </p>
-          </div>
-          <button
-            {...tourAttr('plc-assign.close')}
-            type="button"
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-            aria-label={t('common.close', { defaultValue: 'Close' })}
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
-          {/* Class / period picker */}
-          <div>
-            <p className="text-sm font-medium text-slate-700 mb-2">
-              {t('plcDashboard.newAssignment.quiz.classPickerLabel', {
-                defaultValue: 'Class periods',
-              })}
-            </p>
-            <AssignClassPicker
-              rosters={rosters}
-              value={options.picker}
-              onChange={(picker) => setOptions((p) => ({ ...p, picker }))}
-            />
-          </div>
-
-          {/* Due date */}
-          <div>
-            <label
-              htmlFor="plc-assign-due-date-input"
-              className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1.5"
-            >
-              <Calendar className="w-4 h-4" aria-hidden="true" />
-              {t('plcDashboard.newAssignment.quiz.dueDateLabel', {
-                defaultValue: 'Due date (optional)',
-              })}
-            </label>
-            <input
-              {...tourAttr('plc-assign.due-date')}
-              id="plc-assign-due-date-input"
-              type="date"
-              data-testid="plc-assign-due-date"
-              value={dateInputValue}
-              onChange={handleDateChange}
-              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30"
-            />
-          </div>
-
-          {reviewSplit ? (
-            <QuizAssignSettingsInline
-              value={splitAssignSettings}
-              onChange={setEditedAssignSettings}
-            />
-          ) : (
-            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1.5">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
-                  {t('plcDashboard.newAssignment.quiz.behaviorLabel', {
-                    defaultValue: 'Behavior',
-                  })}
-                </p>
-                <span className="text-xxs text-slate-400">
-                  {t('plcDashboard.newAssignment.quiz.behaviorEditHint', {
-                    defaultValue: 'Edit in the quiz editor',
-                  })}
-                </span>
-              </div>
-              <p
-                data-testid="plc-quiz-behavior-summary"
-                className="text-sm text-slate-600 leading-snug"
-              >
-                {behaviorSummary}
-              </p>
-            </div>
-          )}
-
-          {/* PLC sharing slot (teacher name only — no sheet step) */}
-          <PlcNewAssignmentSharingSlot
-            plcName={plc.name}
-            teacherName={options.teacherName}
-            onTeacherNameChange={(v) =>
-              setOptions((p) => ({ ...p, teacherName: v }))
-            }
-          />
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100">
-          <button
-            {...tourAttr('plc-assign.cancel')}
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
-          >
-            {t('common.cancel', { defaultValue: 'Cancel' })}
-          </button>
-          <button
-            {...tourAttr('plc-assign.submit')}
-            type="button"
-            onClick={() => void handleSubmit()}
-            disabled={submitting || outward.locked}
-            title={outward.lockedTitle}
-            className="px-4 py-2 rounded-lg bg-brand-blue-primary text-white text-sm font-semibold hover:bg-brand-blue-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {submitting
-              ? t('plcDashboard.assignmentConfig.creating', {
-                  defaultValue: 'Creating…',
-                })
-              : t('plcDashboard.newAssignment.confirm', {
-                  defaultValue: 'Create assignment',
-                })}
-          </button>
-        </div>
-      </div>
-    </div>
+    <QuizAssignStepper
+      title={pickedQuiz.title}
+      rosters={rosters}
+      classes={stepperClasses}
+      onClassesChange={setStepperClasses}
+      when={stepperWhen}
+      onWhenChange={setStepperWhen}
+      behavior={splitAssignSettings}
+      onBehaviorChange={setEditedAssignSettings}
+      periodAccess={periodAccess}
+      hasManualGrading={false}
+      handRaiseMode={handRaiseMode}
+      submitLabel="Assign"
+      onClose={onClose}
+      onSubmit={() => handleSubmit(true)}
+    />
   );
 };

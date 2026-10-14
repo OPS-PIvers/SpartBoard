@@ -576,3 +576,109 @@ export function makeStimulusQuizSession(): QuizSession {
     ],
   };
 }
+
+/** A self-paced session whose first question is a whiteboard response. */
+export function makeWhiteboardQuizSession(): QuizSession {
+  const base = makeTimedQuizSession('active');
+  const [first, ...rest] = base.publicQuestions;
+  return {
+    ...base,
+    mediaResponseEnabled: true,
+    whiteboardResponseEnabled: true,
+    publicQuestions: [
+      {
+        ...first,
+        type: 'free-response',
+        timeLimit: 0,
+        text: 'What keeps the planets moving in orbits around the Sun instead of flying off into space or falling into the Sun? Draw it and explain.',
+        choices: undefined,
+        recording: {
+          mode: 'whiteboard',
+          prepSeconds: 0,
+          limitSeconds: 180,
+          prepExpiry: 'armed',
+          takeLimit: 2,
+          explainAloud: true,
+          review: true,
+          startingPage: { pattern: { kind: 'grid' } },
+        },
+      },
+      ...rest,
+    ],
+  };
+}
+
+/** Self-paced math question with a Desmos graphing calculator beside it. */
+export function makeCalculatorQuizSession(): QuizSession {
+  const base = makeTimedQuizSession('active');
+  const [first, ...rest] = base.publicQuestions;
+  return {
+    ...base,
+    stimuli: [
+      {
+        id: 'dev-stim-calc',
+        type: 'calculator',
+        url: '',
+        label: '',
+        calculator: 'graphing',
+      },
+    ],
+    publicQuestions: [
+      {
+        ...first,
+        timeLimit: 0,
+        type: 'MC',
+        text: 'Where does y = 2x + 3 cross the x-axis?',
+        choices: ['x = -1.5', 'x = 1.5', 'x = 3', 'x = -3'],
+        stimulusIds: ['dev-stim-calc'],
+      },
+      ...rest,
+    ],
+  };
+}
+
+/** Self-paced quiz with a Stop after Part 1, split across two class periods. */
+export function makeStopQuizSession(
+  status: QuizSessionStatus = 'active'
+): QuizSession {
+  return {
+    ...makeQuizSession(status),
+    sessionMode: 'student',
+    periodNames: ['Period 3', 'Period 5'],
+    sections: [
+      {
+        id: 'sec-1',
+        title: 'Part 1',
+        questionIds: [QUIZ_Q1_ID],
+        stopAfter: true,
+      },
+      { id: 'sec-2', title: 'Part 2', questionIds: [QUIZ_Q2_ID] },
+    ],
+  };
+}
+
+export function makeStopQuizResponses(): QuizResponse[] {
+  const held = (pin: string, period: string): QuizResponse => ({
+    _responseKey: `pin-${period}-${pin}`,
+    studentUid: `pin-${period}-${pin}`,
+    pin,
+    joinedAt: NOW - 900_000,
+    status: 'in-progress',
+    answers: [
+      { questionId: QUIZ_Q1_ID, answer: '3/4', answeredAt: NOW - 600_000 },
+    ],
+    score: null,
+    submittedAt: null,
+    classPeriod: period,
+    partsDone: 1,
+    partHeld: true,
+  });
+  return [
+    held('1001', 'Period 3'),
+    held('1002', 'Period 3'),
+    held('1003', 'Period 3'),
+    held('2001', 'Period 5'),
+    held('2002', 'Period 5'),
+    ...makeQuizResponses().filter((r) => r.status !== 'completed'),
+  ];
+}

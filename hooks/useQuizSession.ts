@@ -33,6 +33,14 @@ import {
   type DocumentSnapshot,
   type FieldValue,
 } from 'firebase/firestore';
+import {
+  BANK_DEALS_COLLECTION,
+  balancedPeriodKey,
+  bankDealDocId,
+  isBalancedSlot,
+  planBalancedDeal,
+} from '@/utils/quizBalancedDeal';
+import { encodeResponseKeySegment } from '@/utils/quizResponseKey';
 import { db, auth, functions } from '@/config/firebase';
 import { signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
@@ -40,6 +48,7 @@ import {
   QuizSession,
   QuizSessionStatus,
   QuizResponse,
+  QuizSessionBankSlot,
   QuizResponseAnswer,
   QuizQuestion,
   Rubric,
@@ -63,6 +72,7 @@ import {
 } from '@/utils/answerTakeOrdering';
 import { resolvePeriodNames } from '@/utils/periodCompat';
 import { normalizeQuizCode } from '@/utils/quizCode';
+import { buildTeacherSubmitUpdate } from '@/utils/quizTeacherSubmit';
 import { findQuizSessionsByCode } from '@/utils/quizJoinCodes';
 import {
   createLeadingTrailingThrottle,
@@ -945,28 +955,7 @@ export class SessionEndedError extends Error {
   }
 }
 
-/**
- * Normalize a string for use as a segment inside a Firestore response doc id.
- *
- * Roster period names and pins are teacher-defined free text and can contain
- * `/`, whitespace, or other characters that would either split the doc path
- * or break the `pin-{period}-{pin}` parse contract enforced by
- * `firestore.rules`. We collapse everything non-alphanumeric to `_` and
- * lowercase the result so the encoding is stable across the client and the
- * rules predicate (`^pin-[a-z0-9_]+-[a-z0-9_]+$`).
- *
- * Empty / all-separator inputs fall back to `'default'` rather than producing
- * a zero-length segment that would collapse the doc path.
- *
- * Exported so firestore rules tests can assert the same mapping.
- */
-export function encodeResponseKeySegment(value: string | undefined): string {
-  const trimmed = (value ?? '').trim();
-  if (!trimmed) return 'default';
-  const normalized = trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '_');
-  const stripped = normalized.replace(/^_+|_+$/g, '');
-  return stripped || 'default';
-}
+export { encodeResponseKeySegment };
 
 /**
  * Compute the deterministic response-doc key.
@@ -1168,6 +1157,8 @@ export interface UseQuizSessionTeacherResult {
    * without showing the "Warning N of 3" modal.
    */
   unlockStudentAttempt: (responseKey: string) => Promise<void>;
+  /** Turn in a student's saved answers for them, as the idle auto-submit would. */
+  submitForStudent: (responseKey: string) => Promise<void>;
   /**
    * Unlock a student's results-view lockout (triggered when their
    * `resultsTabWarnings` count hit the session's `protection.tabWarningThreshold`
@@ -1658,6 +1649,39 @@ export const useQuizSessionTeacher = (
     [sessionId, responses, rawSession?.timeLimitMinutes]
   );
 
+  const submitForStudent = useCallback(
+    async (responseKey: string) => {
+      if (!sessionId) {
+        throw new Error('No active session — cannot submit.');
+      }
+      const responseRef = doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_COLLECTION,
+        responseKey
+      );
+      const questionIds = (session?.publicQuestions ?? []).map((q) => q.id);
+      const completenessModel = session?.completenessModel;
+      // Like the idle sweep, the attempt ledger is left alone: the response's own count still caps rejoins.
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(responseRef);
+        if (!snap.exists()) {
+          throw new Error(
+            'Student response not found — they may have already been removed or rejoined.'
+          );
+        }
+        const update = buildTeacherSubmitUpdate(
+          snap.data() as QuizResponse,
+          { questionIds, completenessModel },
+          Date.now()
+        );
+        if (update) tx.update(responseRef, update);
+      });
+    },
+    [sessionId, session?.publicQuestions, session?.completenessModel]
+  );
+
   const unlockResultsForStudent = useCallback(
     async (responseKey: string) => {
       if (!sessionId) {
@@ -1859,6 +1883,7 @@ export const useQuizSessionTeacher = (
     endQuizSession,
     removeStudent,
     unlockStudentAttempt,
+    submitForStudent,
     unlockResultsForStudent,
     clearHandForStudent,
     revealAnswer,
@@ -1976,6 +2001,10 @@ export interface UseQuizSessionStudentResult {
   setHandRaised: (raised: boolean) => Promise<void>;
   /** Stamps the attempt start for a response that has none (a time limit added mid-attempt). */
   startAttemptClock: () => Promise<void>;
+  /** Locks parts 1..`part` at a Stop; `held` waits there until the teacher opens the next part. */
+  submitPart: (part: number, held: boolean) => Promise<void>;
+  /** Leaves the Stop screen once the next part is open. */
+  resumePart: () => Promise<void>;
   /**
    * Record one completed play of a play-limited stimulus. `playKey` is the
    * attempt-scoped `stimulusPlayKey(attemptIndex, stimulusId)`.
@@ -1992,6 +2021,11 @@ export interface UseQuizSessionStudentResult {
   setServedQuestionIds: (ids: string[] | null) => void;
   /** Persist this attempt's bank draw on the response doc (rules require `ids.length === session.totalQuestions`). */
   persistServedDraw: (ids: string[]) => Promise<void>;
+  /** Deal balanced slots in one transaction and persist the draw; resolves to the served ids. */
+  dealBalancedDraw: (
+    publicQuestionIds: readonly string[],
+    slots: readonly QuizSessionBankSlot[]
+  ) => Promise<string[]>;
   warningCount: number;
   /** The student's periods on a per-period session (empty otherwise), for `studentCanEnter`. */
   periodKeys: string[];
@@ -2066,6 +2100,79 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         ),
         { servedQuestionIds: ids, lastWriteAt: serverTimestamp() }
       );
+    },
+    []
+  );
+
+  // Transaction on the response and each period counter, so concurrent joins never share a turn.
+  const dealBalancedDraw = useCallback(
+    async (
+      publicQuestionIds: readonly string[],
+      slots: readonly QuizSessionBankSlot[]
+    ): Promise<string[]> => {
+      const sessionId = sessionIdRef.current;
+      const responseKey = responseKeyRef.current;
+      if (!sessionId || !responseKey) throw new Error('Not joined');
+      const responseRef = doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_COLLECTION,
+        responseKey
+      );
+      const ids = await runTransaction(
+        db,
+        async (tx) => {
+          const snap = await tx.get(responseRef);
+          if (!snap.exists()) throw new Error('Response missing');
+          const response = snap.data() as QuizResponse;
+          const period = balancedPeriodKey(response);
+          const balanced = slots.filter(isBalancedSlot);
+          const counterRefs = balanced.map((slot) =>
+            doc(
+              db,
+              QUIZ_SESSIONS_COLLECTION,
+              sessionId,
+              BANK_DEALS_COLLECTION,
+              bankDealDocId(slot.id, period)
+            )
+          );
+          const counterSnaps = await Promise.all(
+            counterRefs.map((ref) => tx.get(ref))
+          );
+          const counts = new Map<string, number>();
+          balanced.forEach((slot, i) => {
+            const raw: unknown = counterSnaps[i].data()?.dealt;
+            counts.set(slot.id, typeof raw === 'number' ? raw : 0);
+          });
+          const plan = planBalancedDeal(
+            publicQuestionIds,
+            slots,
+            response,
+            counts
+          );
+          if (!plan) return response.servedQuestionIds ?? [];
+          const uid = auth.currentUser?.uid;
+          if (!uid) throw new Error('Not signed in');
+          // The counter rule finds the caller's response through their seat, so the key never lands on the counter.
+          if (plan.counters.length > 0) {
+            tx.set(seatRef(sessionId, uid), { responseKey });
+          }
+          plan.counters.forEach(({ slotId, dealt }) => {
+            const i = balanced.findIndex((s) => s.id === slotId);
+            if (i >= 0) tx.set(counterRefs[i], { dealt, by: uid });
+          });
+          tx.update(responseRef, {
+            servedQuestionIds: plan.ids,
+            dealtQuestionIds: plan.history,
+            lastWriteAt: serverTimestamp(),
+          });
+          return plan.ids;
+        },
+        { maxAttempts: 10 }
+      );
+      servedQuestionIdsRef.current = ids;
+      return ids;
     },
     []
   );
@@ -2638,6 +2745,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               preSyncVersion: 0,
               ...(hasTimeLimit ? { attemptStartedAt: serverTimestamp() } : {}),
               ...(existing.timeUp ? { timeUp: deleteField() } : {}),
+              // A new attempt starts back at Part 1.
+              ...(existing.partsDone != null
+                ? { partsDone: deleteField() }
+                : {}),
+              ...(existing.partHeld != null ? { partHeld: deleteField() } : {}),
               // A bank-draw session rolls a fresh draw for the next attempt.
               ...(Array.isArray(sessionData.bankSlots) &&
               sessionData.bankSlots.length > 0
@@ -3624,6 +3736,34 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     );
   }, []);
 
+  const writePartState = useCallback(
+    async (patch: Record<string, unknown>): Promise<void> => {
+      const sessionId = sessionIdRef.current;
+      const responseKey = responseKeyRef.current;
+      if (!sessionId || !responseKey) return;
+      await updateDoc(
+        doc(
+          db,
+          QUIZ_SESSIONS_COLLECTION,
+          sessionId,
+          RESPONSES_COLLECTION,
+          responseKey
+        ),
+        { ...patch, lastWriteAt: serverTimestamp() }
+      );
+    },
+    []
+  );
+  const submitPart = useCallback(
+    (part: number, held: boolean) =>
+      writePartState({ partsDone: part, partHeld: held ? true : null }),
+    [writePartState]
+  );
+  const resumePart = useCallback(
+    () => writePartState({ partHeld: null }),
+    [writePartState]
+  );
+
   /**
    * Record one completed play of a play-limited stimulus. `playKey` is the
    * attempt-scoped `stimulusPlayKey(attemptIndex, stimulusId)` so retakes
@@ -3854,10 +3994,13 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     saveTabExits,
     setHandRaised,
     startAttemptClock,
+    submitPart,
+    resumePart,
     recordStimulusPlay,
     reportStimulusError,
     setServedQuestionIds,
     persistServedDraw,
+    dealBalancedDraw,
     warningCount,
     periodKeys,
     contentPending: inContent && !content,

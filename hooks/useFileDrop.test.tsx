@@ -31,6 +31,19 @@ describe('useFileDrop', () => {
     expect(onFile).toHaveBeenCalledOnce();
   });
 
+  it('keeps the drop from reaching the board behind the zone', () => {
+    const onFile = vi.fn();
+    const onBoardDrop = vi.fn();
+    render(
+      <div onDrop={onBoardDrop}>
+        <Zone onFile={onFile} />
+      </div>
+    );
+    drop([file()]);
+    expect(onFile).toHaveBeenCalledOnce();
+    expect(onBoardDrop).not.toHaveBeenCalled();
+  });
+
   it('still stops the browser while it is busy, and takes nothing', () => {
     const onFile = vi.fn();
     render(<Zone onFile={onFile} disabled />);

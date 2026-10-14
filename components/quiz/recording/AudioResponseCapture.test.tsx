@@ -85,6 +85,9 @@ function liveDeps(clock: { now: number }): AudioRecordingDeps {
   };
 }
 
+// After a turn-in the record button reads Redo.
+const RECORD = /^(Record|Redo)$/i;
+
 beforeEach(() => {
   globalThis.URL.createObjectURL = vi.fn(() => 'blob:take');
   globalThis.URL.revokeObjectURL = vi.fn();
@@ -96,9 +99,7 @@ describe('AudioResponseCapture — closed recording window', () => {
 
     expect(screen.getByText(/Recording time is over/i)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Record/i })).toBeNull();
-    expect(
-      screen.queryByRole('button', { name: /Keep this take/i })
-    ).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Turn in$/i })).toBeNull();
     expect(screen.queryByText(/Before you record/i)).toBeNull();
   });
 
@@ -119,7 +120,7 @@ describe('AudioResponseCapture — notice reminder overlay', () => {
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(screen.getByRole('button', { name: /^Close$/i })).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: /^Record/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Redo$/i }));
     expect(
       await screen.findByRole('button', { name: /Stop recording/i })
     ).toBeTruthy();
@@ -144,7 +145,7 @@ describe('AudioResponseCapture — notice reminder overlay', () => {
     const clock = { now: 0 };
     renderCapture({ recorderDeps: liveDeps(clock), latestArtifact: undefined });
 
-    fireEvent.click(screen.getByRole('button', { name: /^Record/i }));
+    fireEvent.click(screen.getByRole('button', { name: RECORD }));
     await screen.findByRole('button', { name: /Stop recording/i });
     expect(
       screen.getByRole('button', { name: /Why we’re asking/i })
@@ -160,7 +161,7 @@ describe('AudioResponseCapture — playback progress', () => {
       latestArtifact: undefined,
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /^Record/i }));
+    fireEvent.click(screen.getByRole('button', { name: RECORD }));
     const stop = await screen.findByRole('button', {
       name: /Stop recording/i,
     });
@@ -263,19 +264,30 @@ describe('AudioResponseCapture — dark shell', () => {
   });
 });
 
-describe('AudioResponseCapture — take-limit plural', () => {
-  it('uses the singular take-limit sentence for a one-take budget', () => {
-    renderCapture({ config: { ...config, takeLimit: 1 }, takesCommitted: 1 });
-    expect(
-      screen.getByText(/allows 1 take, and you have used it/i)
-    ).toBeTruthy();
+describe('AudioResponseCapture — used-up budget', () => {
+  it('shows the turned-in answer and no record button', () => {
+    renderCapture({
+      config: { ...config, takeLimit: 1 },
+      takesCommitted: 1,
+      latestArtifact: undefined,
+    });
+    expect(screen.getByText('Turned in')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: RECORD })).toBeNull();
   });
 
-  it('uses the plural take-limit sentence for a multi-take budget', () => {
-    renderCapture({ config: { ...config, takeLimit: 3 }, takesCommitted: 3 });
-    expect(
-      screen.getByText(/allows 3 takes, and you have used them all/i)
-    ).toBeTruthy();
+  it('still offers Record when redos used the budget but nothing was turned in', () => {
+    localStorage.setItem(
+      'quiz-redos:s1/r1/q9',
+      JSON.stringify({ redos: 2, takes: 0 })
+    );
+    renderCapture({
+      config: { ...config, takeLimit: 2 },
+      takesCommitted: 0,
+      latestArtifact: undefined,
+      recovery: { store: memoryTakeRecoveryStore(), key: 's1/r1/q9' },
+    });
+    expect(screen.getByRole('button', { name: RECORD })).toBeTruthy();
+    localStorage.clear();
   });
 });
 
@@ -289,7 +301,7 @@ describe('AudioResponseCapture — cutoffs commit first (D16)', () => {
       onCommit,
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /^Record/i }));
+    fireEvent.click(screen.getByRole('button', { name: RECORD }));
     await screen.findByRole('button', { name: /Stop recording/i });
     clock.now = 12_000;
 
@@ -311,11 +323,11 @@ describe('AudioResponseCapture — cutoffs commit first (D16)', () => {
       onCommit,
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /^Record/i }));
+    fireEvent.click(screen.getByRole('button', { name: RECORD }));
     fireEvent.click(
       await screen.findByRole('button', { name: /Stop recording/i })
     );
-    await screen.findByRole('button', { name: /Keep this take/i });
+    await screen.findByRole('button', { name: /^Turn in$/i });
 
     await commitActiveTake();
 
@@ -346,13 +358,11 @@ describe('AudioResponseCapture — cutoffs commit first (D16)', () => {
       onCommit,
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /^Record/i }));
+    fireEvent.click(screen.getByRole('button', { name: RECORD }));
     fireEvent.click(
       await screen.findByRole('button', { name: /Stop recording/i })
     );
-    fireEvent.click(
-      await screen.findByRole('button', { name: /Keep this take/i })
-    );
+    fireEvent.click(await screen.findByRole('button', { name: /^Turn in$/i }));
 
     let cutoffDone = false;
     const cutoff = commitActiveTake().then(() => {
@@ -379,7 +389,7 @@ describe('AudioResponseCapture — cutoffs commit first (D16)', () => {
       latestArtifact: undefined,
       onCommit,
     });
-    fireEvent.click(screen.getByRole('button', { name: /^Record/i }));
+    fireEvent.click(screen.getByRole('button', { name: RECORD }));
     await screen.findByRole('button', { name: /Stop recording/i });
     unmount();
 
@@ -401,7 +411,7 @@ describe('AudioResponseCapture — review setting', () => {
       onCommit,
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /^Record/i }));
+    fireEvent.click(screen.getByRole('button', { name: RECORD }));
     const stop = await screen.findByRole('button', {
       name: /Stop and submit/i,
     });
@@ -412,9 +422,7 @@ describe('AudioResponseCapture — review setting', () => {
     expect(onCommit).toHaveBeenCalledWith(
       expect.objectContaining({ durationMs: 12_000 })
     );
-    expect(
-      screen.queryByRole('button', { name: /Keep this take/i })
-    ).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Turn in$/i })).toBeNull();
     expect(screen.queryByRole('progressbar')).toBeNull();
   });
 
@@ -430,7 +438,7 @@ describe('AudioResponseCapture — review setting', () => {
         takesCommitted: 0,
         onCommit,
       });
-      fireEvent.click(screen.getByRole('button', { name: /^Record/i }));
+      fireEvent.click(screen.getByRole('button', { name: RECORD }));
       await screen.findByRole('button', { name: /Stop and submit/i });
       clock.now = 5_000;
       act(() => {
@@ -451,12 +459,12 @@ describe('AudioResponseCapture — review setting', () => {
       onCommit,
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /^Record/i }));
+    fireEvent.click(screen.getByRole('button', { name: RECORD }));
     fireEvent.click(
       await screen.findByRole('button', { name: /Stop recording/i })
     );
     expect(
-      await screen.findByRole('button', { name: /Keep this take/i })
+      await screen.findByRole('button', { name: /^Turn in$/i })
     ).toBeTruthy();
     expect(onCommit).not.toHaveBeenCalled();
   });
@@ -477,7 +485,7 @@ describe('AudioResponseCapture — review setting', () => {
       takesCommitted: 0,
       onCommit,
     });
-    fireEvent.click(screen.getByRole('button', { name: /^Record/i }));
+    fireEvent.click(screen.getByRole('button', { name: RECORD }));
     await screen.findByRole('button', { name: /Stop and submit/i });
 
     let cutoffDone = false;
@@ -520,8 +528,8 @@ describe('AudioResponseCapture — crash recovery', () => {
       recovery: { store, key },
     });
 
-    expect(await screen.findByText('Your saved take')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /Keep this take/i }));
+    expect(await screen.findByText('Your saved attempt')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /^Turn in$/i }));
     await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
     const [take] = onCommit.mock.calls[0] as unknown as [
       { blob: Blob; durationMs: number },
@@ -533,7 +541,7 @@ describe('AudioResponseCapture — crash recovery', () => {
     );
   });
 
-  it('discarding a saved take wipes it without writing', async () => {
+  it('redoing a saved take wipes it without writing', async () => {
     const store = await seededStore();
     const onCommit = vi.fn(() => Promise.resolve());
     renderCapture({
@@ -543,8 +551,8 @@ describe('AudioResponseCapture — crash recovery', () => {
       recovery: { store, key },
     });
 
-    await screen.findByText('Your saved take');
-    fireEvent.click(screen.getByRole('button', { name: /^Discard$/i }));
+    await screen.findByText('Your saved attempt');
+    fireEvent.click(screen.getByRole('button', { name: /^Redo$/i }));
     expect(screen.getByRole('button', { name: /^Record$/i })).toBeTruthy();
     expect(onCommit).not.toHaveBeenCalled();
     await waitFor(async () =>
@@ -564,7 +572,7 @@ describe('AudioResponseCapture — crash recovery', () => {
     });
 
     await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
-    expect(screen.queryByText('Your saved take')).toBeNull();
+    expect(screen.queryByText('Your saved attempt')).toBeNull();
     await waitFor(async () =>
       expect(await store.load(key, Date.now())).toBeNull()
     );
@@ -598,6 +606,88 @@ describe('AudioResponseCapture — crash recovery', () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(screen.queryByText('Your saved take')).toBeNull();
+    expect(screen.queryByText('Your saved attempt')).toBeNull();
+  });
+});
+
+describe('AudioResponseCapture — attempts are redos', () => {
+  function TurnInHarness({
+    takeLimit,
+    onCommit,
+    clock,
+  }: {
+    takeLimit: number | null;
+    onCommit: () => void;
+    clock: { now: number };
+  }) {
+    const [committed, setCommitted] = React.useState(0);
+    const recorderDeps = React.useMemo(() => liveDeps(clock), [clock]);
+    return (
+      <AudioResponseCapture
+        config={{ ...config, takeLimit }}
+        takesCommitted={committed}
+        noticeAckedAt={1700000000000}
+        onAcknowledgeNotice={() => undefined}
+        onCommit={() => {
+          onCommit();
+          setCommitted((n) => n + 1);
+          return Promise.resolve();
+        }}
+        recorderDeps={recorderDeps}
+      />
+    );
+  }
+
+  async function recordAndStop(clock: { now: number }, label: RegExp) {
+    fireEvent.click(screen.getByRole('button', { name: label }));
+    const stop = await screen.findByRole('button', { name: /Stop recording/i });
+    clock.now += 5_000;
+    fireEvent.click(stop);
+    await screen.findByRole('button', { name: /^Turn in$/i });
+  }
+
+  it('shows the turned-in recording and offers Redo while attempts remain', async () => {
+    const clock = { now: 0 };
+    const onCommit = vi.fn();
+    const { container } = render(
+      <TurnInHarness takeLimit={3} onCommit={onCommit} clock={clock} />
+    );
+
+    await recordAndStop(clock, /^Record$/i);
+    fireEvent.click(screen.getByRole('button', { name: /^Turn in$/i }));
+
+    expect(await screen.findByText('Turned in')).toBeTruthy();
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(container.querySelector('audio')?.getAttribute('src')).toBe(
+      'blob:take'
+    );
+    expect(screen.getByRole('button', { name: /^Redo$/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Record$/i })).toBeNull();
+  });
+
+  it('counts a redo in review against the take limit', async () => {
+    const clock = { now: 0 };
+    const onCommit = vi.fn();
+    render(<TurnInHarness takeLimit={2} onCommit={onCommit} clock={clock} />);
+
+    await recordAndStop(clock, /^Record$/i);
+    fireEvent.click(screen.getByRole('button', { name: /^Redo$/i }));
+    expect(onCommit).not.toHaveBeenCalled();
+
+    await recordAndStop(clock, /^Record$/i);
+    expect(screen.queryByRole('button', { name: /^Redo$/i })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: /^Turn in$/i }));
+    expect(await screen.findByText('Turned in')).toBeTruthy();
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: RECORD })).toBeNull();
+  });
+
+  it('offers no Redo in review on a one-attempt question', async () => {
+    const clock = { now: 0 };
+    render(<TurnInHarness takeLimit={1} onCommit={vi.fn()} clock={clock} />);
+
+    await recordAndStop(clock, /^Record$/i);
+    expect(screen.queryByRole('button', { name: /^Redo$/i })).toBeNull();
   });
 });

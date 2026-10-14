@@ -113,6 +113,18 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'quiz-editor.add-from-bank:quiz',
     files: [`${C}BankPickerModal.tsx`],
   },
+  'quiz.editor.whiteboard-image': {
+    label: 'Insert image dialog',
+    kind: 'modal',
+    opensWith: 'quiz-editor.whiteboard-image:quiz',
+    files: [`${C}WhiteboardInsertImageModal.tsx`],
+  },
+  'quiz.editor.whiteboard-preview': {
+    label: 'Starting page editor dialog',
+    kind: 'modal',
+    opensWith: 'quiz-editor.whiteboard-preview:quiz',
+    files: [`${C}WhiteboardStartingPagePreviewModal.tsx`],
+  },
   'quiz.editor.save-to-bank': {
     label: 'Save questions to bank dialog',
     kind: 'modal',
@@ -133,6 +145,7 @@ export const SURFACES: TourSurfaceMap = {
     needs: ['widget-on-stage'],
     files: [
       `${C}QuizDocumentReview.tsx`,
+      `${C}QuizVersionReview.tsx`,
       `${C}QuizImportKeyStandards.tsx`,
       `${C}QuizImportSuggestedTargets.tsx`,
     ],
@@ -158,14 +171,6 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'quiz-library.preview-check-answers:quiz',
     needs: ['library-item'],
     files: [`${C}QuizPreview.tsx`],
-  },
-  'quiz.assign-destination': {
-    label: 'Assign destination chooser',
-    kind: 'modal',
-    opensWith: 'library-shell.card-primary-action:quiz#row-1',
-    parent: 'quiz.face',
-    needs: ['library-item'],
-    files: [`${C}AssignDestinationModal.tsx`],
   },
   'quiz.review-start': {
     label: 'Start review dialog',
@@ -243,6 +248,7 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-results.bulk-copy-names': 'quiz-results.drill-students:quiz',
       'quiz-results.bulk-print': 'quiz-results.drill-students:quiz',
       'quiz-results.bulk-reopen': 'quiz-results.drill-students:quiz',
+      'quiz-results.bulk-submit': 'quiz-results.drill-students:quiz',
       'quiz-results.bulk-clear': 'quiz-results.drill-students:quiz',
     },
   },
@@ -325,6 +331,7 @@ export const SURFACES: TourSurfaceMap = {
       'quiz-monitor.student-let-in': 'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-unlock-attempt':
         'quiz-monitor.roster-row-actions:quiz',
+      'quiz-monitor.student-submit': 'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-unlock-results':
         'quiz-monitor.roster-row-actions:quiz',
       'quiz-monitor.student-remove': 'quiz-monitor.roster-row-actions:quiz',

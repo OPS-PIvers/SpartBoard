@@ -897,6 +897,7 @@ export const StudioEditLayer: React.FC<StudioEditLayerProps> = ({
     <div
       ref={rootRef}
       data-testid="gl-studio-edit-layer"
+      {...tourAttr('studio.canvas')}
       data-adding={adding || undefined}
       className={`absolute inset-0 touch-none select-none ${
         editing ? 'pointer-events-none' : 'pointer-events-auto'

@@ -1,4 +1,4 @@
-// Quiz assign on the accordion stepper (docs/plans/ASSIGN_STEPPER.md PR 3), behind `assign-stepper`.
+// Quiz assign on the accordion stepper (docs/plans/ASSIGN_STEPPER.md PR 3).
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ClassRoster, Plc, QuizBehaviorSettings } from '@/types';

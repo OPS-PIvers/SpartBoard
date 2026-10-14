@@ -41,6 +41,15 @@ import {
   SectionCapNotice,
   SectionIntroDialog,
 } from './QuizSectionParts';
+import { QuizStopScreen } from './QuizStopScreen';
+import {
+  openedPartFor,
+  partOfQuestion,
+  partsDoneOf,
+  periodOfResponse,
+  sessionHasStops,
+  totalParts,
+} from '@/utils/quizParts';
 import {
   ClipboardList,
   Loader2,
@@ -135,6 +144,8 @@ import {
 import { AudioResponseCapture } from './recording/AudioResponseCapture';
 import { WhiteboardResponseCapture } from './recording/WhiteboardResponseCapture';
 import { RecordingNoticeDrawingContext } from './recording/recordingNoticeDrawing';
+import { MicrophoneGate } from './recording/MicrophoneGate';
+import { useQuizRecordingNoticeSettings } from '@/hooks/useQuizRecordingNoticeSettings';
 import {
   StimulusDrawer,
   StimulusDrawerButton,
@@ -145,6 +156,7 @@ import { isWhiteboardRecording } from '@/config/quizRecordingDefaults';
 import {
   buildWhiteboardTakeArtifacts,
   noticeDrawingForSession,
+  sessionNeedsMic,
   studentRecordingFor,
   type WhiteboardTake,
 } from '@/utils/quizWhiteboardSession';
@@ -229,6 +241,7 @@ import {
 import { FibMultiBlankInput, NumberedBlanksText } from './FibMultiBlankInput';
 import { isValidDraw, orderServedQuestions } from '@/utils/questionBanks';
 import { chooseServedDraw } from '@/utils/quizBankDraw';
+import { hasBalancedSlots } from '@/utils/quizBalancedDeal';
 import { groupQuestionsByTargets } from '@/utils/quizTargetStats';
 import { resolveResultsVisibility } from '@/utils/quizResultsVisibility';
 import { useQuizScoreOnSubmit } from '@/hooks/useQuizScoreOnSubmit';
@@ -507,10 +520,13 @@ const QuizJoinFlow: React.FC<{
     saveTabExits,
     setHandRaised,
     startAttemptClock,
+    submitPart,
+    resumePart,
     recordStimulusPlay,
     reportStimulusError,
     setServedQuestionIds,
     persistServedDraw,
+    dealBalancedDraw,
     warningCount,
     periodKeys,
     contentPending,
@@ -753,22 +769,57 @@ const QuizJoinFlow: React.FC<{
   const [localDraw, setLocalDraw] = useState<{
     key: string;
     ids: string[];
+    /** The deal transaction already wrote these ids. */
+    persisted?: boolean;
   } | null>(null);
   let drawIds: string[] | undefined;
+  let dealPending = false;
   if (bankSlots && myResponse && drawKey) {
     const persisted = myResponse.servedQuestionIds;
     if (persisted && isValidDraw(publicQuestionIds, bankSlots, persisted)) {
       drawIds = persisted;
     } else if (localDraw?.key === drawKey) {
       drawIds = localDraw.ids;
+    } else if (
+      hasBalancedSlots(bankSlots) &&
+      myResponse.status !== 'completed'
+    ) {
+      dealPending = true;
     } else {
       const chosen = chooseServedDraw(persisted, publicQuestionIds, bankSlots);
       setLocalDraw({ key: drawKey, ids: chosen.ids });
       drawIds = chosen.ids;
     }
   }
+  // Balanced slots deal from the period's shared counter; a failed deal falls back to a random roll.
+  const dealingKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!dealPending || !drawKey || !bankSlots) return;
+    if (dealingKeyRef.current === drawKey) return;
+    dealingKeyRef.current = drawKey;
+    let cancelled = false;
+    dealBalancedDraw(publicQuestionIds, bankSlots)
+      .then((ids) => {
+        if (!cancelled) setLocalDraw({ key: drawKey, ids, persisted: true });
+      })
+      .catch((err: unknown) => {
+        console.warn('[QuizStudentApp] Balanced deal failed, rolling:', err);
+        if (cancelled) return;
+        const chosen = chooseServedDraw(
+          undefined,
+          publicQuestionIds,
+          bankSlots
+        );
+        setLocalDraw({ key: drawKey, ids: chosen.ids });
+      });
+    return () => {
+      cancelled = true;
+      dealingKeyRef.current = null;
+    };
+  }, [dealPending, drawKey, bankSlots, publicQuestionIds, dealBalancedDraw]);
   const drawNeedsPersist =
     !!drawIds &&
+    localDraw?.persisted !== true &&
     myResponse?.status !== 'completed' &&
     !(
       myResponse?.servedQuestionIds &&
@@ -939,6 +990,17 @@ const QuizJoinFlow: React.FC<{
       // A blocked storage quota only costs a repeat of the notice.
     }
   }, [acknowledgeRecordingNotice, noticeAckKey]);
+
+  const recordingNotice = useQuizRecordingNoticeSettings(
+    session?.mediaResponseEnabled === true
+  );
+  const noticeRequired = recordingNotice.settings.enabled;
+  // The session whose mic check passed on this page; a reload asks again.
+  const [micReadyFor, setMicReadyFor] = useState<string | null>(null);
+  const sessionIdForMic = session?.id ?? null;
+  const handleMicReady = useCallback(() => {
+    setMicReadyFor(sessionIdForMic);
+  }, [sessionIdForMic]);
 
   // Bytes for takes whose archive failed, so "Try again" re-sends the SAME
   // artifact (same storagePath) instead of pretending something is retrying.
@@ -1381,7 +1443,7 @@ const QuizJoinFlow: React.FC<{
     );
   }
   if (
-    contentPending &&
+    (contentPending || dealPending) &&
     session.status !== 'ended' &&
     myResponse?.status !== 'completed'
   ) {
@@ -1523,6 +1585,29 @@ const QuizJoinFlow: React.FC<{
       );
     }
 
+    // A student held at a Stop waits here until the teacher opens the next part.
+    const partsDone = partsDoneOf(myResponse);
+    if (
+      sessionHasStops(session) &&
+      myResponse.partHeld === true &&
+      partsDone > 0 &&
+      partsDone < totalParts(session.sections)
+    ) {
+      const opened = openedPartFor(
+        session.partsOpen,
+        periodOfResponse(session, myResponse),
+        myResponse._responseKey
+      );
+      return (
+        <QuizStopScreen
+          nextPart={partsDone + 1}
+          ready={opened > partsDone}
+          onStart={resumePart}
+          pin={pin}
+        />
+      );
+    }
+
     const publicQuestions = session.publicQuestions ?? [];
     const currentQ =
       session.currentQuestionIndex >= 0
@@ -1551,6 +1636,37 @@ const QuizJoinFlow: React.FC<{
         )
       : false;
 
+    const needsMicGate =
+      !isViewOnly &&
+      micReadyFor !== session.id &&
+      myResponse.status !== 'completed' &&
+      sessionNeedsMic(session, publicQuestions);
+    if (needsMicGate) {
+      return (
+        <RecordingNoticeDrawingContext.Provider
+          value={noticeDrawingForSession(session, publicQuestions)}
+        >
+          {recordingNotice.loaded ? (
+            <MicrophoneGate
+              light={session.sessionMode === 'student'}
+              noticeRequired={noticeRequired}
+              noticeAckedAt={noticeAckedAt}
+              onAcknowledgeNotice={handleAcknowledgeNotice}
+              onReady={handleMicReady}
+            />
+          ) : (
+            <div
+              className={`h-screen [height:100dvh] ${
+                session.sessionMode === 'student'
+                  ? 'bg-gradient-to-b from-white to-slate-100'
+                  : 'bg-slate-900'
+              }`}
+            />
+          )}
+        </RecordingNoticeDrawingContext.Provider>
+      );
+    }
+
     return (
       <RecordingNoticeDrawingContext.Provider
         value={noticeDrawingForSession(session, session.publicQuestions ?? [])}
@@ -1568,11 +1684,13 @@ const QuizJoinFlow: React.FC<{
           onMarkUnresponded={handleMarkUnresponded}
           noticeAckedAt={noticeAckedAt}
           onAcknowledgeNotice={handleAcknowledgeNotice}
+          noticeRequired={noticeRequired}
           onComplete={handleComplete}
           reportTabSwitch={reportTabSwitch}
           saveTabExits={saveTabExits}
           onSetHandRaised={setHandRaised}
           onStartAttemptClock={isViewOnly ? undefined : startAttemptClock}
+          onSubmitPart={isViewOnly ? undefined : submitPart}
           handRaised={!!myResponse?.handRaisedAt}
           warningCount={warningCount}
           onRecordStimulusPlay={recordStimulusPlay}
@@ -1712,12 +1830,15 @@ export const ActiveQuiz: React.FC<{
   /** Tennessen acknowledgment for this assignment; null until acknowledged. */
   noticeAckedAt: number | null;
   onAcknowledgeNotice: () => void;
+  noticeRequired?: boolean;
   onComplete: (opts?: { timeUp?: boolean }) => Promise<void>;
   reportTabSwitch: () => Promise<number>;
   saveTabExits?: (exits: TabExit[]) => Promise<void>;
   onSetHandRaised: (raised: boolean) => Promise<void>;
   /** Stamps a missing attempt start once a time limit applies. */
   onStartAttemptClock?: () => Promise<void>;
+  /** Locks parts 1..`part` at a Stop; absent in previews, which never lock. */
+  onSubmitPart?: (part: number, held: boolean) => Promise<void>;
   handRaised: boolean;
   warningCount: number;
   onRecordStimulusPlay: (playKey: string) => Promise<void>;
@@ -1745,11 +1866,13 @@ export const ActiveQuiz: React.FC<{
   onMarkUnresponded,
   noticeAckedAt,
   onAcknowledgeNotice,
+  noticeRequired = true,
   onComplete,
   reportTabSwitch,
   saveTabExits,
   onSetHandRaised,
   onStartAttemptClock,
+  onSubmitPart,
   handRaised,
   warningCount,
   onRecordStimulusPlay,
@@ -1760,7 +1883,7 @@ export const ActiveQuiz: React.FC<{
   effectiveCloseAt,
   readAloudRequested,
 }) => {
-  const { showAlert } = useDialog();
+  const { showAlert, showConfirm } = useDialog();
   const { t } = useTranslation();
   const [showCheatWarning, setShowCheatWarning] = useState(false);
   const [submitBlocked, setSubmitBlocked] = useState(false);
@@ -2113,6 +2236,26 @@ export const ActiveQuiz: React.FC<{
     studentShuffleSeed,
     session.sections,
   ]);
+
+  // Stop checkpoints (QUIZ_IMPORT_VERSIONS.md V20): submitted parts are locked.
+  const hasStops = isStudentPaced && sessionHasStops(session);
+  const partOf = (q: { id: string } | undefined): number =>
+    hasStops && q ? partOfQuestion(session.sections, q.id) : 1;
+  const partsDone = hasStops && myResponse ? partsDoneOf(myResponse) : 0;
+  // A rejoin or a just-submitted part lands on the first open question.
+  if (
+    partsDone > 0 &&
+    myResponse?.status !== 'completed' &&
+    partOf(orderedPublicQuestions[localIndex]) <= partsDone
+  ) {
+    const firstOpen = orderedPublicQuestions.findIndex(
+      (q) => partOf(q) > partsDone
+    );
+    if (firstOpen > localIndex) setLocalIndex(firstOpen);
+  }
+  const canGoBack =
+    localIndex > 0 &&
+    partOf(orderedPublicQuestions[localIndex - 1]) > partsDone;
 
   const baseQuestion = isStudentPaced
     ? orderedPublicQuestions[localIndex]
@@ -3111,7 +3254,7 @@ export const ActiveQuiz: React.FC<{
   };
 
   const handleBack = () => {
-    if (isStudentPaced && localIndex > 0) {
+    if (isStudentPaced && canGoBack) {
       setLocalIndex(localIndex - 1);
     }
   };
@@ -3131,6 +3274,7 @@ export const ActiveQuiz: React.FC<{
           .filter(
             ({ q }) =>
               studentRecordingFor(q, session) &&
+              partOf(q) > partsDone &&
               !isLockedByChooseCount(
                 session.sections,
                 myResponse?.answers ?? [],
@@ -3235,12 +3379,54 @@ export const ActiveQuiz: React.FC<{
             setSaveError("Couldn't submit your quiz. Tap to try again.");
           }
         }
+      } else if (
+        onSubmitPart &&
+        partOf(orderedPublicQuestions[localIndex + 1]) > partOf(currentQuestion)
+      ) {
+        await finishPart(partOf(currentQuestion));
       } else {
         setLocalIndex(localIndex + 1);
       }
     } finally {
       setSubmitting(false);
       advancingRef.current = false;
+    }
+  };
+
+  // The last question of a part: confirm, then lock it and stop unless the next part is open.
+  const finishPart = async (part: number) => {
+    if (!onSubmitPart || !myResponse) return;
+    const blocking = openRecordingQuestions.filter(
+      ({ index }) => partOf(orderedPublicQuestions[index]) <= part
+    );
+    if (blocking.length > 0) {
+      setSubmitBlocked(true);
+      return;
+    }
+    const ok = await showConfirm(
+      t(
+        'quizParts.confirmBody',
+        "You can't change your Part {{part}} answers after this.",
+        { part }
+      ),
+      {
+        title: t('quizParts.confirmTitle', 'Submit Part {{part}}?', { part }),
+        confirmLabel: t('quizParts.confirmSubmit', 'Submit Part {{part}}', {
+          part,
+        }),
+      }
+    );
+    if (!ok) return;
+    const opened = openedPartFor(
+      session.partsOpen,
+      periodOfResponse(session, myResponse),
+      myResponse._responseKey
+    );
+    try {
+      await onSubmitPart(part, opened <= part);
+    } catch (err) {
+      console.error('[QuizStudentApp] submitPart failed:', err);
+      setSaveError("Couldn't submit this part. Tap to try again.");
     }
   };
 
@@ -3380,6 +3566,24 @@ export const ActiveQuiz: React.FC<{
     sectionServedIds
   );
   const quizDone = myResponse?.status === 'completed';
+  const handBesideNext =
+    !!whiteboardConfig && isStudentPaced && !(sectionLocked && sectionState);
+  const raiseHandButton =
+    session.handRaiseEnabled === true && session.mode !== 'view-only' ? (
+      <button
+        onClick={() => void handleToggleHand()}
+        disabled={handBusy}
+        aria-pressed={handRaised}
+        className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold border transition-colors disabled:opacity-60 ${
+          handRaised
+            ? 'bg-brand-red-primary border-brand-red-primary text-white'
+            : 'bg-transparent border-red-400 text-red-300 hover:bg-red-500/10'
+        }`}
+      >
+        <Hand className="w-4 h-4" aria-hidden />
+        {handRaised ? 'Hand raised — help is coming' : 'Raise hand'}
+      </button>
+    ) : null;
   const canClearSectionAnswer =
     isStudentPaced &&
     !quizDone &&
@@ -3469,7 +3673,9 @@ export const ActiveQuiz: React.FC<{
     // on widescreens; this guarantees the narrow-viewport path stays
     // scroll-free regardless of what's rendered inside.
     <div
-      className={`h-screen [height:100dvh] overflow-y-auto overflow-x-hidden relative ${appBg}`}
+      className={`h-screen [height:100dvh] overflow-y-auto overflow-x-hidden relative ${
+        whiteboardConfig ? 'flex flex-col' : ''
+      } ${appBg}`}
     >
       {/* The "your teacher unlocked your attempt" prompt — covers the quiz
           UI on first render after a teacher unlock so the student knows
@@ -3672,9 +3878,9 @@ export const ActiveQuiz: React.FC<{
 
         <div
           {...clipboardGuards}
-          className={`flex flex-col p-6 w-full min-w-0 ${
-            sideStimuli.length > 0 ? 'lg:flex-1' : 'mx-auto'
-          } ${
+          className={`flex flex-col w-full min-w-0 ${
+            whiteboardConfig ? 'flex-1 px-6 py-4' : 'p-6'
+          } ${sideStimuli.length > 0 ? 'lg:flex-1' : 'mx-auto'} ${
             // Free Response gets elbow room for long-form writing; structured
             // inputs read worse stretched across a widescreen.
             whiteboardConfig
@@ -3685,10 +3891,12 @@ export const ActiveQuiz: React.FC<{
           }`}
         >
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
+          <div
+            className={`flex items-center justify-between ${whiteboardConfig ? 'mb-3' : 'mb-6'}`}
+          >
             <div className="flex items-center gap-2">
               {isStudentPaced &&
-                localIndex > 0 &&
+                canGoBack &&
                 myResponse?.status !== 'completed' && (
                   <button
                     type="button"
@@ -3860,43 +4068,59 @@ export const ActiveQuiz: React.FC<{
           ) : (
             <>
               {recordingConfig && (
-                <div className="space-y-4">
+                <div
+                  className={
+                    whiteboardConfig
+                      ? 'flex flex-1 flex-col gap-3'
+                      : 'space-y-4'
+                  }
+                >
                   {whiteboardConfig ? (
-                    whiteboardGated ? (
-                      <RotateDeviceGate />
-                    ) : (
-                      <WhiteboardResponseCapture
-                        key={currentQuestion.id}
-                        config={whiteboardConfig}
-                        takesCommitted={committedTakes}
-                        noticeAckedAt={noticeAckedAt}
-                        onAcknowledgeNotice={onAcknowledgeNotice}
-                        onCommit={(take) =>
-                          onCommitWhiteboard
-                            ? onCommitWhiteboard(
-                                currentQuestion.id,
-                                take,
-                                localizedStrings ? activeLocale : undefined
-                              )
-                            : Promise.resolve()
-                        }
-                        onRetryUpload={
-                          retryableWhiteboardArtifacts.length > 0
-                            ? async () => {
-                                for (const artifact of retryableWhiteboardArtifacts)
-                                  await onRetryRecordingUpload(
-                                    currentQuestion.id,
-                                    artifact
-                                  );
-                              }
-                            : undefined
-                        }
-                        onPrepExpired={handleRecordingPrepExpired}
-                        latestArtifacts={latestTakeArtifacts}
-                        slotClosed={recordingSlotClosed}
-                        recovery={takeRecovery}
-                      />
-                    )
+                    // The capture stays mounted under the gate so a live take survives rotation.
+                    <div
+                      className={`relative flex flex-1 flex-col ${
+                        whiteboardGated ? 'min-h-[16rem]' : ''
+                      }`}
+                    >
+                      <div
+                        inert={whiteboardGated}
+                        className="flex flex-1 flex-col"
+                      >
+                        <WhiteboardResponseCapture
+                          key={currentQuestion.id}
+                          config={whiteboardConfig}
+                          takesCommitted={committedTakes}
+                          noticeAckedAt={noticeAckedAt}
+                          onAcknowledgeNotice={onAcknowledgeNotice}
+                          noticeRequired={noticeRequired}
+                          onCommit={(take) =>
+                            onCommitWhiteboard
+                              ? onCommitWhiteboard(
+                                  currentQuestion.id,
+                                  take,
+                                  localizedStrings ? activeLocale : undefined
+                                )
+                              : Promise.resolve()
+                          }
+                          onRetryUpload={
+                            retryableWhiteboardArtifacts.length > 0
+                              ? async () => {
+                                  for (const artifact of retryableWhiteboardArtifacts)
+                                    await onRetryRecordingUpload(
+                                      currentQuestion.id,
+                                      artifact
+                                    );
+                                }
+                              : undefined
+                          }
+                          onPrepExpired={handleRecordingPrepExpired}
+                          latestArtifacts={latestTakeArtifacts}
+                          slotClosed={recordingSlotClosed}
+                          recovery={takeRecovery}
+                        />
+                      </div>
+                      {whiteboardGated && <RotateDeviceGate overlay />}
+                    </div>
                   ) : (
                     <AudioResponseCapture
                       key={currentQuestion.id}
@@ -3904,6 +4128,7 @@ export const ActiveQuiz: React.FC<{
                       takesCommitted={committedTakes}
                       noticeAckedAt={noticeAckedAt}
                       onAcknowledgeNotice={onAcknowledgeNotice}
+                      noticeRequired={noticeRequired}
                       onCommit={(take) =>
                         onCommitRecording(
                           currentQuestion.id,
@@ -3933,7 +4158,10 @@ export const ActiveQuiz: React.FC<{
                     <div className="space-y-3">
                       {currentIndex >= effectiveTotalQuestions - 1 &&
                         saveError && <SaveErrorBanner message={saveError} />}
-                      <div className="flex justify-end">
+                      <div className="flex items-center justify-end gap-3">
+                        {handBesideNext && raiseHandButton && (
+                          <div className="mr-auto">{raiseHandButton}</div>
+                        )}
                         <button
                           type="button"
                           onClick={
@@ -4565,25 +4793,10 @@ export const ActiveQuiz: React.FC<{
             </div>
           )}
 
-          {/* Raise hand */}
-          {session.handRaiseEnabled === true &&
-            session.mode !== 'view-only' && (
-              <div className="mt-6 flex justify-center">
-                <button
-                  onClick={() => void handleToggleHand()}
-                  disabled={handBusy}
-                  aria-pressed={handRaised}
-                  className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold border transition-colors disabled:opacity-60 ${
-                    handRaised
-                      ? 'bg-brand-red-primary border-brand-red-primary text-white'
-                      : 'bg-transparent border-red-400 text-red-300 hover:bg-red-500/10'
-                  }`}
-                >
-                  <Hand className="w-4 h-4" aria-hidden />
-                  {handRaised ? 'Hand raised — help is coming' : 'Raise hand'}
-                </button>
-              </div>
-            )}
+          {/* Raise hand (whiteboard questions show it beside Next to save height) */}
+          {raiseHandButton && !handBesideNext && (
+            <div className="mt-6 flex justify-center">{raiseHandButton}</div>
+          )}
         </div>
       </div>
     </div>
