@@ -262,6 +262,8 @@ export const SURFACES: TourSurfaceMap = {
       `${C}AudioAnnotatedResponseView.tsx`,
       `${C}BackTranslationPanel.tsx`,
       `${C}RubricStrandChips.tsx`,
+      `${C}TimedNotesList.tsx`,
+      `${C}WhiteboardAnnotatedResponseView.tsx`,
     ],
   },
   'quiz.rubric-scoring': {

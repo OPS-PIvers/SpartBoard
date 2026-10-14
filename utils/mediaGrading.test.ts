@@ -10,7 +10,9 @@ import {
   readSlotGrade,
   resolveSlotState,
   selectGradedTake,
+  hasUngradedRecording,
   slotNeedsManualGrading,
+  takeDurationMs,
   takeUnplayableReason,
 } from './mediaGrading';
 import type {
@@ -596,5 +598,134 @@ describe('takeUnplayableReason', () => {
     expect(takeUnplayableReason(take('delete-failed'))).toBe('deleted');
     expect(takeUnplayableReason(take('archived'))).toBe('archiving');
     expect(takeUnplayableReason(undefined)).toBe('unknown');
+  });
+});
+
+describe('whiteboard takes', () => {
+  const wbQuestion = question({
+    recording: { ...RECORDING, mode: 'whiteboard' },
+  });
+  const wb = (
+    id: string,
+    part: 'picture' | 'log',
+    over: Partial<ResponseArtifact> = {}
+  ): ResponseArtifact => ({
+    id,
+    slot: 'primary',
+    kind: 'whiteboard',
+    part,
+    uploadState: 'uploaded',
+    ...over,
+  });
+  const archived = (...ids: string[]) =>
+    Object.fromEntries(
+      ids.map((id) => [
+        id,
+        { archiveStatus: 'archived' as const, driveFileId: `d-${id}` },
+      ])
+    );
+
+  it('grades the picture and never the log', () => {
+    expect(slotNeedsManualGrading(wbQuestion, wb('p', 'picture'))).toBe(true);
+    expect(slotNeedsManualGrading(wbQuestion, wb('l', 'log'))).toBe(false);
+  });
+
+  it('folds picture, log and audio of one entry into one take', () => {
+    const [slot] = collectMediaSlots(wbQuestion, {
+      answers: [
+        {
+          questionId: 'q1',
+          answer: '',
+          answeredAt: 1,
+          takeIndex: 1,
+          micState: 'on',
+          artifacts: [
+            audio('a1', { durationMs: 42_000 }),
+            wb('p1', 'picture'),
+            wb('l1', 'log'),
+          ],
+        },
+        {
+          questionId: 'q1',
+          answer: '',
+          answeredAt: 2,
+          takeIndex: 2,
+          micState: 'denied',
+          artifacts: [wb('p2', 'picture'), wb('l2', 'log')],
+        },
+      ],
+      artifactArchive: archived('a1', 'p1', 'l1', 'p2', 'l2'),
+    });
+    expect(slot.takes).toHaveLength(2);
+    const [newest, oldest] = slot.takes;
+    expect(newest.artifact.id).toBe('p2');
+    expect(newest.micState).toBe('denied');
+    expect(newest.whiteboard?.audio).toBeUndefined();
+    expect(newest.whiteboard?.log?.artifact.id).toBe('l2');
+    expect(oldest.whiteboard?.audio?.artifact.id).toBe('a1');
+    expect(oldest.whiteboard?.picture.playable).toBe(true);
+    expect(takeDurationMs(oldest)).toBe(42_000);
+  });
+
+  it('drops a whiteboard take whose picture upload failed', () => {
+    const slots = collectMediaSlots(wbQuestion, {
+      answers: [
+        {
+          questionId: 'q1',
+          answer: '',
+          answeredAt: 1,
+          artifacts: [
+            audio('a1'),
+            wb('p1', 'picture', { uploadState: 'failed' }),
+          ],
+        },
+      ],
+    });
+    expect(slots).toEqual([]);
+  });
+
+  it('records the portrait gate as its own unavailable reason', () => {
+    const [slot] = collectMediaSlots(wbQuestion, {
+      answers: [
+        {
+          questionId: 'q1',
+          answer: '',
+          answeredAt: 1,
+          unresponded: 'device-gated',
+        },
+      ],
+    });
+    expect(slot.captureUnavailable).toBe(true);
+    expect(slot.unavailableReason).toBe('device-gated');
+    expect(resolveSlotState(slot)).toBe('awaiting-grade');
+  });
+
+  it('carries mic state on a spoken take too', () => {
+    const [slot] = collectMediaSlots(question(), {
+      answers: [
+        {
+          questionId: 'q1',
+          answer: '',
+          answeredAt: 1,
+          micState: 'unavailable',
+          artifacts: [audio('a1')],
+        },
+      ],
+    });
+    expect(slot.takes[0].micState).toBe('unavailable');
+    expect(slot.takes[0].whiteboard).toBeUndefined();
+  });
+
+  it('flags a draw-only take as still owed a grade', () => {
+    const answers = [
+      {
+        questionId: 'q1',
+        answer: '',
+        answeredAt: 1,
+        artifacts: [wb('p1', 'picture'), wb('l1', 'log')],
+      },
+    ];
+    expect(hasUngradedRecording(answers, undefined, ['q1'])).toBe(true);
+    expect(hasUngradedRecording(answers, { q1: grade() }, ['q1'])).toBe(false);
   });
 });

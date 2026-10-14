@@ -2414,6 +2414,10 @@
           "lost": "Lost",
           "deleted": "Deleted",
           "unknown": "Unavailable"
+        },
+        "mic": {
+          "denied": "Mikrofon blockiert",
+          "unavailable": "Kein Mikrofon"
         }
       },
       "unavailable": {
@@ -2424,7 +2428,9 @@
         "blank": "Blank",
         "blankHelp": "Count it as a zero, like an unanswered question.",
         "substitute": "Offline substitute",
-        "substituteHelp": "You heard the answer another way. A note is required."
+        "substituteHelp": "You heard the answer another way. A note is required.",
+        "deviceGatedTitle": "Diese Person konnte nicht zeichnen",
+        "deviceGatedBody": "Das Gerät wurde hochkant gehalten, daher hat sich das Whiteboard nie geöffnet. Legen Sie fest, wie diese Frage zählt, bevor die Note endgültig ist."
       },
       "player": {
         "loading": "Loading the recording…",

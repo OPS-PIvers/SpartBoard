@@ -2792,6 +2792,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-grading.whiteboard-add-comment': {
+    label: 'Add comment at replay position in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-grading.audio-note-seek': {
     label: 'Seek to timestamp in the Quiz grader, by comment',
     perField: true,

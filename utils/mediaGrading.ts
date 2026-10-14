@@ -65,10 +65,12 @@ export function readSlotGrade(
  */
 export function slotNeedsManualGrading(
   question: Pick<QuizQuestion, 'type' | 'recording'> | undefined,
-  artifact: Pick<ResponseArtifact, 'kind' | 'slot'> | undefined
+  artifact: Pick<ResponseArtifact, 'kind' | 'slot' | 'part'> | undefined
 ): boolean {
   if (!artifact) return false;
   if (artifact.kind === 'audio' || artifact.kind === 'video') return true;
+  // A whiteboard take is graded once, on its picture; the log rides along.
+  if (artifact.kind === 'whiteboard') return artifact.part !== 'log';
   if (artifact.kind === 'text') return artifact.slot === 'addendum';
   return false;
 }
@@ -78,6 +80,20 @@ export function questionHasRecordingSlot(
   question: Pick<QuizQuestion, 'recording'> | undefined
 ): boolean {
   return !!question?.recording;
+}
+
+/** One file of a take, with its server-owned archive state. */
+export interface TakeFile {
+  artifact: ResponseArtifact;
+  archive?: ArtifactArchiveEntry;
+  playable: boolean;
+}
+
+/** A whiteboard take's three files; audio is absent on a draw-only take. */
+export interface WhiteboardTakeFiles {
+  picture: TakeFile;
+  log?: TakeFile;
+  audio?: TakeFile;
 }
 
 /** One committed take of one slot, newest first in {@link MediaGradingSlot.takes}. */
@@ -90,7 +106,13 @@ export interface MediaTake {
   archive?: ArtifactArchiveEntry;
   /** Archived to Drive and still there — the only state that plays. */
   playable: boolean;
+  micState?: QuizResponseAnswer['micState'];
+  /** Present on a whiteboard take; `artifact` is then its picture. */
+  whiteboard?: WhiteboardTakeFiles;
 }
+
+/** Why a slot has no take: no capture at all, or the portrait gate. */
+export type SlotUnavailableReason = 'capture-unavailable' | 'device-gated';
 
 export interface MediaGradingSlot {
   questionId: string;
@@ -101,6 +123,7 @@ export interface MediaGradingSlot {
   takes: MediaTake[];
   /** Capture was never available to this student and no take exists. */
   captureUnavailable: boolean;
+  unavailableReason?: SlotUnavailableReason;
   grade?: WrittenAnswerGrade;
 }
 
@@ -130,26 +153,69 @@ export function collectMediaSlots(
   const bySlot = new Map<ArtifactSlot, MediaTake[]>();
   for (const entry of entries) {
     if (entry.unresponded) continue;
-    for (const artifact of entry.artifacts ?? []) {
-      if (!slotNeedsManualGrading(question, artifact)) continue;
+    const artifacts = entry.artifacts ?? [];
+    const file = (artifact: ResponseArtifact): TakeFile => {
       const archive = response.artifactArchive?.[artifact.id];
+      return { artifact, archive, playable: isArtifactPlayable(archive) };
+    };
+    const push = (slot: ArtifactSlot, take: MediaTake) => {
+      const list = bySlot.get(slot) ?? [];
+      list.push(take);
+      bySlot.set(slot, list);
+    };
+    const picture = artifacts.find(
+      (a) => a.kind === 'whiteboard' && a.part !== 'log'
+    );
+    if (picture) {
+      // One whiteboard entry is one take, whatever files it carries (D23).
+      if (!slotNeedsManualGrading(question, picture)) continue;
+      const lead = file(picture);
+      if (!artifactCountsAsTake(picture, lead.archive)) continue;
+      const sameSlot = (a: ResponseArtifact) =>
+        (a.slot ?? 'primary') === (picture.slot ?? 'primary');
+      const log = artifacts.find(
+        (a) => a.kind === 'whiteboard' && a.part === 'log' && sameSlot(a)
+      );
+      const audio = artifacts.find((a) => a.kind === 'audio' && sameSlot(a));
+      push(picture.slot, {
+        takeIndex: entry.takeIndex ?? 0,
+        displayIndex: 0,
+        answeredAt: entry.answeredAt ?? 0,
+        artifact: picture,
+        archive: lead.archive,
+        playable: lead.playable,
+        micState: entry.micState,
+        whiteboard: {
+          picture: lead,
+          ...(log ? { log: file(log) } : {}),
+          ...(audio ? { audio: file(audio) } : {}),
+        },
+      });
+      continue;
+    }
+    for (const artifact of artifacts) {
+      if (!slotNeedsManualGrading(question, artifact)) continue;
+      const { archive, playable } = file(artifact);
       // The archive map is authoritative: a swept-up take is still a take.
       if (!artifactCountsAsTake(artifact, archive)) continue;
-      const list = bySlot.get(artifact.slot) ?? [];
-      list.push({
+      push(artifact.slot, {
         takeIndex: entry.takeIndex ?? 0,
         displayIndex: 0,
         answeredAt: entry.answeredAt ?? 0,
         artifact,
         archive,
-        playable: isArtifactPlayable(archive),
+        playable,
+        micState: entry.micState,
       });
-      bySlot.set(artifact.slot, list);
     }
   }
-  const captureUnavailable = entries.some(
-    (a) => a.unresponded === 'capture-unavailable'
-  );
+  const unavailableReason: SlotUnavailableReason | undefined = entries.some(
+    (a) => a.unresponded === 'device-gated'
+  )
+    ? 'device-gated'
+    : entries.some((a) => a.unresponded === 'capture-unavailable')
+      ? 'capture-unavailable'
+      : undefined;
 
   const slots: ArtifactSlot[] = ['primary', 'addendum'];
   const out: MediaGradingSlot[] = [];
@@ -162,7 +228,7 @@ export function collectMediaSlots(
       take.displayIndex = takes.length - i;
     });
     const unavailable =
-      slot === 'primary' && captureUnavailable && !takes.length;
+      slot === 'primary' && !!unavailableReason && !takes.length;
     const grade = readSlotGrade(response.grading, question.id, slot);
     if (!takes.length && !unavailable && !grade) continue;
     out.push({
@@ -171,6 +237,7 @@ export function collectMediaSlots(
       key: gradingKey(question.id, slot),
       takes,
       captureUnavailable: unavailable,
+      ...(unavailable ? { unavailableReason } : {}),
       grade,
     });
   }
@@ -317,6 +384,17 @@ export function applyMediaSlots(
   };
 }
 
+/** A take's length: the audio when there is some, else what the picture carries. */
+export function takeDurationMs(take: MediaTake | undefined): number {
+  if (!take) return 0;
+  return (
+    take.whiteboard?.audio?.artifact.durationMs ??
+    take.artifact.durationMs ??
+    take.whiteboard?.log?.artifact.durationMs ??
+    0
+  );
+}
+
 /** Human-facing reason a take cannot be played right now, or null. */
 export type TakeUnplayableReason =
   'archiving' | 'archive-failed' | 'lost' | 'deleted' | 'unknown';
@@ -352,6 +430,7 @@ export function hasUngradedRecording(
   archive?: Record<string, ArtifactArchiveEntry>
 ): boolean {
   return questionIds.some((questionId) => {
+    if (grading?.[gradingKey(questionId, 'primary')] != null) return false;
     const take = selectPlaybackTake(
       answers,
       questionId,
@@ -359,7 +438,19 @@ export function hasUngradedRecording(
       undefined,
       archive
     );
-    if (!take) return false;
-    return grading?.[gradingKey(questionId, take.artifact.slot)] == null;
+    if (take) return true;
+    // A draw-only whiteboard take has no audio for the selector to find.
+    return answers.some(
+      (a) =>
+        a.questionId === questionId &&
+        !a.unresponded &&
+        (a.artifacts ?? []).some(
+          (x) =>
+            x.kind === 'whiteboard' &&
+            x.part !== 'log' &&
+            (x.slot ?? 'primary') === 'primary' &&
+            artifactCountsAsTake(x, archive?.[x.id])
+        )
+    );
   });
 }
