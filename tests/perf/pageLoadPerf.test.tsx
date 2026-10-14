@@ -353,6 +353,9 @@ const { dashboardValue } = vi.hoisted(() => {
     pendingAssignmentEditId: null,
     setPendingAssignmentEdit: noop,
     clearPendingAssignmentEdit: noop,
+    pendingQuizReveal: null,
+    setPendingQuizReveal: noop,
+    clearPendingQuizReveal: noop,
     shareCollection: () => Promise.resolve(''),
     shareSubstituteCollection: () => Promise.resolve(''),
     loadSharedCollection: () =>

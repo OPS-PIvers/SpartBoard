@@ -7,6 +7,7 @@ import { LiveTourRunner } from './LiveTourRunner';
 import { TRY_HINT_MS } from '@/components/widgets/GuidedLearning/components/player/playback';
 import { requestStartTour } from './tourState';
 import { ANCHOR_SEARCH_MS } from './useAnchorElement';
+import { AUTO_NEXT_WAIT_MS } from './autopilot';
 import { tourHealthOf } from './tourHealth';
 import { SAVED_TOUR_KEY } from './tourResume';
 import {
@@ -115,7 +116,7 @@ const h = vi.hoisted(() => {
     board,
     actions,
     reset,
-    canAccess: vi.fn(() => true),
+    canAccess: vi.fn((_id: string) => true),
     loadTour: vi.fn(),
     loadDraft: vi.fn(),
     user: null as { uid: string } | null,
@@ -163,6 +164,8 @@ vi.mock('@/context/useDashboard', () => ({
     return {
       ...h.actions,
       isActiveBoardReadOnly: h.board.readOnly,
+      rosters: [],
+      activeRosterId: 'class-1',
       selectedWidgetId: h.board.selectedWidgetId,
       activeDashboard: { id: h.board.id, widgets: h.board.widgets },
     };
@@ -175,6 +178,11 @@ vi.mock('@/hooks/useGuidedLearning', () => ({
 
 vi.mock('./publishedTours', () => ({
   loadRunnableTour: h.loadTour,
+}));
+
+// jsdom can't picture the board; a test run moves on without one.
+vi.mock('./stepSnapshot', () => ({
+  captureStepSnapshot: () => Promise.resolve(null),
 }));
 
 vi.mock('./settingsTab', () => ({
@@ -296,7 +304,8 @@ beforeEach(() => {
   h.loadDraft.mockReset();
   vi.useFakeTimers();
   h.reset();
-  h.canAccess.mockReturnValue(true);
+  // Self-heal is a preview flag; its own tests turn it on.
+  h.canAccess.mockImplementation((id: string) => id !== 'live-tour-self-heal');
   h.user = null;
   h.permissions = [];
   h.dockOpens = false;
@@ -620,6 +629,22 @@ describe('LiveTourRunner', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(screen.getByText('Finding it on your screen…')).toBeInTheDocument();
     warn.mockRestore();
+  });
+
+  it("keeps the step's own text when its anchor is missing", async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const set = makeSet([{ anchor: 'sidebar.classes', action: 'click' }]);
+    (set.steps[0] as { text?: string }).text = 'Open your classes.';
+    await start(set);
+    await frames(ANCHOR_SEARCH_MS + 100);
+    expect(screen.getByText('Open your classes.')).toBeInTheDocument();
+    expect(screen.getByTestId('tour-anchor-missing')).toHaveTextContent(
+      /Couldn't find this on your screen/
+    );
+    expect(screen.getByTestId('tour-tip-next')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Try again' })
+    ).toBeInTheDocument();
   });
 
   it('exits on Escape and offers teardown', async () => {
@@ -1275,6 +1300,27 @@ describe('LiveTourRunner modes', () => {
     expect(autopilotSwitch()).toHaveAttribute('aria-checked', 'false');
   });
 
+  it('Guided: waits past a slow save for the next anchor instead of handing the step back', async () => {
+    h.dockOpens = true;
+    await start(
+      makeSet(
+        [
+          { anchor: 'dock.item:dice', action: 'click' },
+          { anchor: 'widget.close', action: 'click' },
+        ],
+        [],
+        'guided'
+      )
+    );
+    // The widget lands 5 s after the click, past the old 3 s wait.
+    h.actions.addWidget.mockImplementationOnce((type: string) => {
+      setTimeout(() => h.actions.addWidget(type), 5000);
+    });
+    for (let i = 0; i < 200 && progress() === '1 / 2'; i++) await run(100);
+    expect(progress()).toBe('2 / 2');
+    expect(status()).not.toHaveTextContent('Click here to continue');
+  });
+
   it('Guided: falls back to the teacher when the click does not bring up the next anchor', async () => {
     await start(
       makeSet(
@@ -1291,6 +1337,9 @@ describe('LiveTourRunner modes', () => {
     expect(dice).toEqual(AUTO_TYPES);
     expect(progress()).toBe('1 / 2');
     await run(ANCHOR_SEARCH_MS);
+    expect(progress()).toBe('1 / 2');
+    expect(status()).not.toHaveTextContent('Click here to continue');
+    await run(AUTO_NEXT_WAIT_MS - ANCHOR_SEARCH_MS);
     expect(progress()).toBe('1 / 2');
     expect(status()).toHaveTextContent('Click here to continue');
     await run(8000);
@@ -2309,12 +2358,15 @@ describe('LiveTourRunner robustness', () => {
         ))}
         <div data-testid="drawer-body" style={{ overflowY: 'auto' }}>
           {tab === 'settings' ? (
-            <button
-              role="switch"
-              {...tourFieldAttr('settings.toggle', w.type, 'showSeconds')}
-            >
-              Seconds
-            </button>
+            <>
+              <button
+                role="switch"
+                {...tourFieldAttr('settings.toggle', w.type, 'showSeconds')}
+              >
+                Seconds
+              </button>
+              <input aria-label="Find" {...tourAttr('library.search')} />
+            </>
           ) : (
             <div {...tourFieldAttr('settings.field', w.type, 'fontFamily')}>
               Font
@@ -2391,6 +2443,26 @@ describe('LiveTourRunner robustness', () => {
     await frames(800);
     expect(flips()).toEqual(['mine:true', 'mine:false', 'mine:true']);
     expect(found()).toBe(true);
+  });
+
+  it('keeps the drawer open for a step whose anchor sits in it without requiring it', async () => {
+    h.board.widgets = [{ id: 'mine', type: 'clock' }];
+    await startOn(
+      makeSet([
+        { anchor: 'settings.toggle:clock#showSeconds', action: 'observe' },
+        { anchor: 'library.search', action: 'observe' },
+        { anchor: 'widget.window:clock', action: 'observe' },
+      ]),
+      <DrawerBoard />
+    );
+    await frames(800);
+    fireEvent.click(barButton('Next'));
+    await frames(800);
+    expect(flips()).toEqual(['mine:true']);
+    expect(found()).toBe(true);
+    fireEvent.click(barButton('Next'));
+    await frames(800);
+    expect(flips()).toEqual(['mine:true', 'mine:false']);
   });
 
   it('centres a drawer row once the drawer settles, then pulses it once', async () => {
@@ -2782,6 +2854,25 @@ describe('LiveTourRunner cleared stage', () => {
     ).toBeInTheDocument();
   });
 
+  it('with self-heal on, lays out a tour with no recorded layouts around its first widget', async () => {
+    h.canAccess.mockReturnValue(true);
+    await startStage(
+      stageSet([{ ...diceStep, action: 'click' }], {
+        widgets: ['clock', 'dice'],
+      })
+    );
+    const placed = new Map(
+      h.actions.addTourWidget.mock.calls.map(([type, layout]) => [
+        type,
+        layout as { wProp: number },
+      ])
+    );
+    expect([...placed.keys()].sort()).toEqual(['clock', 'dice']);
+    expect(placed.get('dice')?.wProp).toBeGreaterThan(
+      placed.get('clock')?.wProp ?? 1
+    );
+  });
+
   it('binds recorded slots only to tour widgets', async () => {
     h.board.widgets = [{ id: 'mine', type: 'clock', z: 1 }];
     await startStage(
@@ -3046,6 +3137,24 @@ describe('LiveTourRunner Autopilot performer', () => {
     expect(name()).toHaveValue('Hello');
   });
 
+  it('advances a type step once the field holds the text, without a blur', async () => {
+    await begin(
+      makeSet([
+        { anchor: 'dock.open-tools', action: 'type', value: 'Hello' },
+        { anchor: 'sidebar.boards', action: 'observe' },
+      ])
+    );
+    await run(200);
+    fireEvent.input(name(), { target: { value: 'Hel' } });
+    await run(1000);
+    expect(progress()).toBe('1 / 2');
+    fireEvent.input(name(), { target: { value: 'Hello' } });
+    await run(200);
+    expect(progress()).toBe('1 / 2');
+    await run(500);
+    expect(progress()).toBe('2 / 2');
+  });
+
   it('Guided: skips the click on a toggle already in its recorded state', async () => {
     await begin(
       makeSet(
@@ -3191,5 +3300,79 @@ describe('LiveTourRunner with Sparty', () => {
     await frames();
     fireEvent.click(barButton('Done'));
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+});
+
+describe('LiveTourRunner DEV browser run', () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it('refuses to start on a real Firebase project', () => {
+    vi.stubEnv('VITE_FIREBASE_PROJECT_ID', 'spartboard-dev');
+    render(<LiveTourRunner />);
+    expect(() =>
+      window.__liveTourRun?.start({ set_id: 'run-0', steps: [] })
+    ).toThrow(/dummy/);
+    expect(window.__liveTourRun?.state()).not.toMatchObject({
+      setId: 'run-0',
+    });
+  });
+
+  it('performs every step it can, records each one and moves past a missing control', async () => {
+    vi.stubEnv('VITE_FIREBASE_PROJECT_ID', 'dummy');
+    h.board.widgets = [{ id: 'mine', type: 'dice' }];
+    const closed: string[] = [];
+    render(
+      <>
+        <Fixture />
+        <LiveTourRunner />
+      </>
+    );
+    screen
+      .getByRole('button', { name: 'Close mine' })
+      .addEventListener('click', () => closed.push('mine'));
+    act(() => {
+      window.__liveTourRun?.start({
+        set_id: 'run-1',
+        steps: [
+          {
+            id: 'a',
+            text: 'Boards',
+            tour: { anchor: 'sidebar.boards', action: 'click' },
+          },
+          {
+            id: 'b',
+            text: 'Search',
+            tour: { anchor: 'library.search', action: 'observe' },
+          },
+          {
+            id: 'c',
+            text: 'Close',
+            tour: { anchor: 'widget.close', action: 'click' },
+          },
+          {
+            id: 'd',
+            text: 'Type',
+            tour: { anchor: 'sidebar.boards', action: 'type', value: '' },
+          },
+        ],
+        use_teacher_board: true,
+      });
+    });
+    for (let i = 0; i < 1200 && !window.__liveTourRun?.state()?.done; i++)
+      await frames(50);
+    const state = window.__liveTourRun?.state();
+    expect(state?.done).toBe(true);
+    expect(state?.finished).toBe(true);
+    expect(
+      state?.results.map((r) => [r.stepId, r.status, !!r.handedBack])
+    ).toEqual([
+      ['a', 'found', false],
+      ['b', 'missing', false],
+      ['c', 'found', false],
+      ['d', 'found', true],
+    ]);
+    // A destructive click a teacher run leaves alone; the test run performs it.
+    expect(closed).toEqual(['mine']);
+    expect(h.loadTour).not.toHaveBeenCalled();
   });
 });

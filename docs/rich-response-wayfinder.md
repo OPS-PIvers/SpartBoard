@@ -4242,6 +4242,14 @@ Three consequences for this ticket:
 
 ## B. Whiteboard & audio
 
+> **Re-decided 2026-10-13 →
+> [`plans/QUIZ_WHITEBOARD_RESPONSE.md`](plans/QUIZ_WHITEBOARD_RESPONSE.md),
+> which supersedes these tickets where they differ.** The tickets below stay as
+> the record of the August reasoning. Changed: a teacher starting page replaces
+> the blank start, 300 s replaces 600 s, three flat Drive files per take replace
+> the per-response folder, crash recovery replaces "lost is lost", the
+> teacher-widget migration is decoupled, and RR-B3 is dropped.
+
 ### RR-B1 — Can `DrawingWidget` be the student whiteboard substrate?
 
 **Type:** research (AFK, local codebase) · **Status:** ✅ **Closed 2026-08-04** · **Blocks (now unblocked):** RR-B2

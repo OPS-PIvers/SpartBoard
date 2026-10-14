@@ -54,11 +54,10 @@ let mockUser: { uid: string; email: string } | null = {
   uid: 'uid-lead',
   email: 'lead@school.edu',
 };
-let mockGroupWording = false;
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: mockUser,
-    canAccessFeature: (id: string) => id === 'my-groups' && mockGroupWording,
+    canAccessFeature: () => false,
   }),
 }));
 
@@ -154,7 +153,6 @@ function legacyPlc(): Plc {
 beforeEach(() => {
   vi.clearAllMocks();
   mockUser = { uid: 'uid-lead', email: 'lead@school.edu' };
-  mockGroupWording = false;
   showConfirm.mockResolvedValue(true);
 });
 
@@ -305,26 +303,18 @@ describe('MembersBody — mutator wiring', () => {
     expect(removeMember).not.toHaveBeenCalled();
   });
 
-  it('offers "Leave this PLC" to a non-lead member and calls leavePlc on confirm', async () => {
+  it('offers "Leave this team" to a non-lead member and calls leavePlc on confirm', async () => {
     mockUser = { uid: 'uid-mem', email: 'mem@school.edu' };
     render(<MembersBody plc={mapPlc()} />);
-    const leaveBtn = screen.getByText('Leave this PLC');
+    const leaveBtn = screen.getByText('Leave this team');
     fireEvent.click(leaveBtn);
     expect(showConfirm).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(leavePlc).toHaveBeenCalledWith('plc-1'));
   });
 
-  it('says "Leave this team" under the my-groups flag', () => {
-    mockUser = { uid: 'uid-mem', email: 'mem@school.edu' };
-    mockGroupWording = true;
+  it('does NOT offer "Leave this team" to the lead (must transfer first)', () => {
     render(<MembersBody plc={mapPlc()} />);
-    expect(screen.getByText('Leave this team')).toBeInTheDocument();
-    expect(screen.queryByText('Leave this PLC')).not.toBeInTheDocument();
-  });
-
-  it('does NOT offer "Leave this PLC" to the lead (must transfer first)', () => {
-    render(<MembersBody plc={mapPlc()} />);
-    expect(screen.queryByText('Leave this PLC')).not.toBeInTheDocument();
+    expect(screen.queryByText('Leave this team')).not.toBeInTheDocument();
   });
 });
 

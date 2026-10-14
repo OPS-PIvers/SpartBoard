@@ -70,7 +70,8 @@
       "browserslist": "^4.28.7",
       "uuid@<11.1.1": "^11.1.1",
       "ts-deepmerge": "^8.0.0",
-      "@opentelemetry/core@<2.8.0": "^2.8.0"
+      "@opentelemetry/core@<2.8.0": "^2.8.0",
+      "@imgly/background-removal>onnxruntime-web": "1.21.0"
     }
   },
   "dependencies": {
@@ -93,6 +94,7 @@
     "leaflet": "^1.9.4",
     "lib0": "^0.2.119",
     "lucide-react": "^0.563.0",
+    "onnxruntime-web-1-30": "npm:onnxruntime-web@1.30.0",
     "pdfjs-dist": "^6.4.299",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

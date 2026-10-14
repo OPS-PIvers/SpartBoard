@@ -677,6 +677,7 @@ const StudentExperience: React.FC<{
           }
           teacherMode={false}
           timeMultiplier={timeMultiplier}
+          // Unmarked sessions were started before the new player and keep the old one.
           playerV2={session.playerV2 === true}
           onStepEvent={onStepEvent}
           autoPlay

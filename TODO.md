@@ -96,7 +96,7 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/plans/shipped/GUIDED_LEARNING_STUDIO.md`
 
-- [ ] Paul plays each surface (widget, Manager preview, Help viewer, student app) end to end on prod and flips gl-player-v2, gl-live-tours, gl-studio from admin to Public in Admin Settings > Access. (S)
+- [ ] Paul plays each surface (widget, Manager preview, Help viewer, student app) end to end on prod and flips gl-live-tours, gl-studio from admin to Public in Admin Settings > Access. (S)
 - [ ] Write public/changelog.json entries once each flag opens (per CLAUDE.md, not at merge). (S)
 
 #### `docs/plans/shipped/LIVE_TOURS_V2.md`
@@ -134,10 +134,6 @@ Each item names the plan it came from; the plan holds the detail.
 - [ ] Release notes must flag raise-hand default OFF for existing quizzes, written without naming internal flags. (S)
 - [ ] Check TTS cost after first Spanish class uses read-aloud. (S)
 - [ ] Flip admin_settings/feature_permissions flags to Public on prod after Paul's testing. (S)
-
-#### `docs/plans/shipped/QUIZ_EXAMVIEW_IMPORT.md`
-
-- [ ] Paul flips 'quiz-sections' flag to Public in Admin Settings after prod testing. (S)
 
 #### `docs/plans/shipped/QUIZ_IMPORT_RELIABILITY.md`
 
@@ -229,14 +225,10 @@ Each item names the plan it came from; the plan holds the detail.
 - [ ] Confirm the live prod Spike A end-to-end pass (partner-first courseWork.create, due-date patch, token-less add-on attachment render+launch, grade roll-up) with the admin-only cohort. (S)
 - [ ] Flip CLASSROOM_ASSIGN_ADMIN_ONLY to false to widen the feature from admins to all Classroom-using teachers once Spike A is confirmed. (S)
 
-#### `docs/multilingual-pronunciation-engine-spec.md`
-
-- [ ] Resolve D1 (client-side vs server-side inference) — blocks the whole design. (L)
-
 #### `docs/rich-response-wayfinder.md`
 
 - [ ] Enable the `quiz-media-response` global permission to actually turn on audio capture for admin/beta testing. (S)
-- [ ] Run RR-B3's whiteboard grading-time prototype (30 responses, stopwatch) to validate the 180s/600s take-limit assumption before committing to the B-track grading surface. (M)
+- [x] ~~Run RR-B3's whiteboard grading-time prototype~~ — dropped 2026-10-13 (`docs/plans/QUIZ_WHITEBOARD_RESPONSE.md` D27).
 
 #### `docs/plans/shipped/rich-response/IMPLEMENTATION.md`
 
@@ -245,7 +237,8 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/multilingual-pronunciation-engine.md`
 
-- [ ] Resolve student voice data / consent (D2) given the human-audio fixtures raised in #2344. (M)
+- [ ] Chromebook go/no-go: load the self-hosted q4 model in `onnxruntime-web` on a district Chromebook and record load/memory/inference (plan §6 step 1, #2350). (M)
+- [ ] Send the espeak-ng GPL brief to district counsel; the `quiz-speak-questions` flag stays admin-only until they confirm (G19, #2337). (S)
 
 #### `docs/gemini-api-terms-audit.md`
 
@@ -423,11 +416,10 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 - [ ] Update the doc's own status header and §7 to reflect that the scope/Marketplace step already happened and the flag is live (admin-only), since the doc text still reads as pre-flip guidance. (S)
 
-#### `docs/multilingual-pronunciation-engine-spec.md`
+#### `docs/multilingual-pronunciation-engine.md`
 
-- [ ] Build dialect surface, Firestore response shape, recording UX (issues #2338, #2354, #2351). (L)
-- [ ] Build feature code: 'Speak' quiz question type, MediaRecorder capture, teacher results UI, gating via GlobalFeature. (L)
-- [ ] Source/build per-dialect accepted stress-pattern reference data for Spanish, German, English. (M)
+- [ ] Port the scoring engine (A1–A13, T1–T5, S1–S5) into `utils/pronunciation/` and build the espeak→model symbol tokenizer (#2383) (plan §6 step 2). (L)
+- [ ] Build the `'speak'` question type per plan §5 (G1–G22) and §6 steps 3–6, behind `quiz-speak-questions`. (L)
 
 #### `docs/rich-response-wayfinder.md`
 
@@ -436,10 +428,6 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 #### `docs/plans/shipped/rich-response/IMPLEMENTATION.md`
 
 - [ ] Verify follow-up issues #2735, #2749-#2755, #2750, #2751 (sweep retry cap, pluralisation, and integration-review fixes) actually merged, not just referenced in the doc. (S)
-
-#### `docs/multilingual-pronunciation-engine.md`
-
-- [ ] Update the doc's spike status (the D1 bias probe has run) and the stale types.ts citations. (S)
 
 #### `docs/gemini-api-terms-audit.md`
 
@@ -471,7 +459,7 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 #### `docs/plans/QUIZ_STRUCTURED_ASSESSMENTS.md`
 
-- [ ] PR2: formatting, section extras (not-scored award, subtotals, wait-for-teacher) on top of ExamView's quiz-sections core (D8-D14). (L)
+- [ ] PR2: formatting, section extras (not-scored award, subtotals, wait-for-teacher) on top of ExamView's sections core (D8-D14). (L)
 - [ ] PR8: A&L answer-key profile in non-AI key reader (D27). (M)
 
 #### `docs/plans/shipped/WIDGET_SETTINGS_DRAWER.md`
@@ -485,7 +473,7 @@ Unshipped work found by checking every `docs/plans/`, `docs/specs/` and design d
 
 #### `docs/rich-response-wayfinder.md`
 
-- [ ] Build deferred video capture (peer-mode UI, framing check, transcode runtime, district gate) and whiteboard B-track (event-log capture, page-space migration). (L)
+- [ ] Build deferred video capture (peer-mode UI, framing check, transcode runtime, district gate) and the whiteboard response — now planned in `docs/plans/QUIZ_WHITEBOARD_RESPONSE.md` (spoken-answer fixes first, D28); the drawing widget page-space migration is a separate fix (D29). (L)
 
 #### `docs/rich-response/README.md`
 

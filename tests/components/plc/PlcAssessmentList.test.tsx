@@ -31,17 +31,34 @@ vi.mock('react-i18next', () => ({
 }));
 
 const addToast = vi.fn();
+const addWidget = vi.fn();
+const updateWidget = vi.fn();
+const bringToFront = vi.fn();
+const setPendingQuizReveal = vi.fn();
+let mockBoardWidgets: { id: string; type: string; minimized?: boolean }[] = [];
 vi.mock('@/context/useDashboard', () => ({
-  useDashboard: () => ({ addToast }),
+  useDashboard: () => ({
+    addToast,
+    activeDashboard: { widgets: mockBoardWidgets },
+    addWidget,
+    updateWidget,
+    bringToFront,
+    setPendingQuizReveal,
+  }),
 }));
 
 let mockCanAccessPaper = true;
 let mockHomeV2 = false;
+let mockTeamsRedesign = false;
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'uid-alice' },
     canAccessFeature: (id: string) =>
-      id === 'plc-home-v2' ? mockHomeV2 : mockCanAccessPaper,
+      id === 'plc-home-v2'
+        ? mockHomeV2
+        : id === 'teams-redesign'
+          ? mockTeamsRedesign
+          : mockCanAccessPaper,
     getAssignmentMode: () => 'submissions',
   }),
 }));
@@ -264,6 +281,12 @@ function setDefaults() {
   mockCanEdit = true;
   mockCanAccessPaper = true;
   mockHomeV2 = false;
+  mockTeamsRedesign = false;
+  mockBoardWidgets = [];
+  addWidget.mockClear();
+  updateWidget.mockClear();
+  bringToFront.mockClear();
+  setPendingQuizReveal.mockClear();
   mockDelegatedPrintingOn = true;
   mockPaperSheetsOn = true;
   teammatePrintProps.mockClear();
@@ -386,6 +409,58 @@ describe('PlcAssessmentList', () => {
     expect(rowByTitle('Decimals quiz')).not.toHaveTextContent(
       'In your library'
     );
+  });
+
+  it('keeps the chips static without the Team pages redesign flag', () => {
+    mockInLibraryGroups = ['g-running'];
+    render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
+    expect(
+      within(rowByTitle('Decimals quiz')).queryByRole('button', {
+        name: 'Open the live monitor',
+      })
+    ).toBeNull();
+  });
+
+  it('opens the live monitor from an In progress chip and closes the page', () => {
+    mockTeamsRedesign = true;
+    mockInLibraryGroups = ['g-running'];
+    mockBoardWidgets = [{ id: 'w-quiz', type: 'quiz', minimized: true }];
+    const onClose = vi.fn();
+    render(<PlcAssessmentList plc={plc} onCloseDashboard={onClose} />);
+    fireEvent.click(
+      within(rowByTitle('Decimals quiz')).getByRole('button', {
+        name: 'Open the live monitor',
+      })
+    );
+    expect(setPendingQuizReveal).toHaveBeenCalledWith({
+      syncGroupId: 'g-running',
+      target: 'monitor',
+      widgetId: 'w-quiz',
+    });
+    expect(updateWidget).toHaveBeenCalledWith('w-quiz', { minimized: false });
+    expect(bringToFront).toHaveBeenCalledWith('w-quiz');
+    expect(addWidget).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(spaNavigate).not.toHaveBeenCalled();
+  });
+
+  it('adds a Quiz widget and shows the library from the In your library chip', () => {
+    mockTeamsRedesign = true;
+    mockInLibraryGroups = ['g-scored'];
+    const onClose = vi.fn();
+    render(<PlcAssessmentList plc={plc} onCloseDashboard={onClose} />);
+    const buttons = within(rowByTitle('Fractions CFA')).getAllByRole('button', {
+      name: 'Show in my Quiz library',
+    });
+    expect(buttons).toHaveLength(2);
+    fireEvent.click(buttons[1]);
+    expect(setPendingQuizReveal).toHaveBeenCalledWith({
+      syncGroupId: 'g-scored',
+      target: 'library',
+      widgetId: null,
+    });
+    expect(addWidget).toHaveBeenCalledWith('quiz');
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('filters with the status chips and the search box', () => {

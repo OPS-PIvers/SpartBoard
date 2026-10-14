@@ -22,6 +22,7 @@ import {
   keepableSandboxItems,
   keepSandboxItem,
   startTourSandbox,
+  useTourSandbox,
 } from '@/utils/tourSandbox';
 import {
   checkpointAt,
@@ -96,9 +97,11 @@ import { TourDialog } from './TourDialog';
 import { useShowSparty } from '@/components/sparty/useShowSparty';
 import type { SpartyPose } from '@/components/sparty/spartyFrames';
 import {
+  AUTO_NEXT_WAIT_MS,
   autoLeadMs,
   autoObserveMs,
   canPerform,
+  isSettled,
   performStep,
   stepValueMet,
   waitFor,
@@ -117,6 +120,17 @@ import {
 import { usePrefersReducedMotion } from './usePrefersReducedMotion';
 import { openPopupBoxes, shieldTourUi, withNearbyPopups } from './popups';
 import { startTourRunLog, type TourRunLog } from './tourRuns';
+import { autoStage as stageTour, needsAutoStage } from './tourAutoStage';
+import { healAnchor } from './tourSelfHeal';
+import {
+  endTestRun,
+  installTestRunHook,
+  reportTestStep,
+  SAMPLE_CLASS_NAME,
+  sampleStudents,
+  takeTestTour,
+  testStepFound,
+} from './tourTestRun';
 import {
   clearTourEdit,
   getTourEdit,
@@ -143,6 +157,8 @@ interface LaunchOptions {
   start?: TourStepStart;
   /** Tour material id to the teacher's item picked for it. */
   picks?: Readonly<Record<string, string>>;
+  /** A DEV browser run: Autopilot does every step it can and each step is recorded. */
+  test?: boolean;
 }
 
 interface ActiveTour {
@@ -179,6 +195,19 @@ interface ActiveTour {
   sandboxed?: boolean;
   /** The teacher's items picked for the tour's materials. */
   picks?: Readonly<Record<string, string>>;
+  test?: boolean;
+}
+
+/** A test run's step picture as a data URL, with its size. */
+async function testPicture(index: number, frame: Blob) {
+  const { width: w, height: h } = await createImageBitmap(frame);
+  const picture = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error ?? new Error('No picture.'));
+    reader.readAsDataURL(frame);
+  });
+  return { index, picture, w, h };
 }
 
 /** How long a step keeps asking its widget to open a material. */
@@ -231,6 +260,8 @@ type AutoStage = 'demo' | 'waiting' | 'confirm' | 'blocked' | 'fallback';
 const BOARD_WAIT_MS = 2000;
 /** How long a teacher's toggle or choice has to show the recorded value. */
 const VALUE_SETTLE_MS = 600;
+/** Pause after the last keystroke before a matching type step moves on. */
+const TYPE_SETTLE_MS = 500;
 /** How often a step re-applies its anchor's prerequisite while the anchor is missing. */
 const PREREQ_RETRY_MS = 400;
 // A board switch this soon after a step's click is that step's own navigation.
@@ -249,6 +280,12 @@ const PLAIN_SLIDE_SKIP: ReadonlySet<string> = new Set([
   'video',
 ]);
 const VIEWPORT_GUTTER = 16;
+
+/** The widget whose settings drawer holds `el`, if it sits in one. */
+const drawerWidgetOf = (el: Element | null): string | null =>
+  el
+    ?.closest('[data-tour="settings.root"]')
+    ?.getAttribute('data-tour-widget') ?? null;
 
 const nextFrame = () =>
   new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
@@ -345,6 +382,9 @@ export const LiveTourRunner: React.FC = () => {
     uid: user?.uid,
     featurePermissions,
   };
+
+  // Steps of this run that self-heal already tried.
+  const healTried = useRef(new Set<number>());
 
   // Edit mode: the board editor's draft, with its selection driving playback.
   const editTarget = useTourEditTarget();
@@ -552,7 +592,7 @@ export const LiveTourRunner: React.FC = () => {
     step && binding ? `${step.id}:${binding.anchor}:${editRetake}` : '';
   const snapStepId =
     tour?.phase === 'running' &&
-    tour.edit &&
+    (tour.edit || tour.test) &&
     !standAside &&
     !jumping &&
     step &&
@@ -560,37 +600,48 @@ export const LiveTourRunner: React.FC = () => {
     binding.anchor !== WHOLE_BOARD_ANCHOR &&
     anchor.status === 'found' &&
     !shotIds.has(shotKey) &&
-    (editRetake > 0 || !hasStepSlide(step))
+    (tour.test || editRetake > 0 || !hasStepSlide(step))
       ? step.id
       : null;
   const snapElement = snapStepId ? anchor.element : null;
+  const testShot = !!tour?.test;
+  const snapIndex = tour?.index ?? 0;
   useEffect(() => {
     if (!snapStepId || !snapElement || !binding) return;
     let live = true;
+    const markShot = () => setShotIds((prev) => new Set(prev).add(shotKey));
     const people = (latest.current.dashboard.rosters ?? []).flatMap(
       (r) => r.students
     );
     const timer = window.setTimeout(() => {
       void import('./stepSnapshot')
         .then((m) => m.captureStepSnapshot(snapElement, people))
-        .then((shot) => {
-          if (!live || !shot) return;
+        .then(async (shot) => {
+          if (!live) return;
+          if (testShot) {
+            if (shot) reportTestStep(await testPicture(snapIndex, shot.frame));
+            markShot();
+            return;
+          }
+          if (!shot) return;
           reportTourEditShot({
             stepId: snapStepId,
             tour: binding,
             frame: shot.frame,
           });
-          setShotIds((prev) => new Set(prev).add(shotKey));
+          markShot();
         })
-        .catch((err: unknown) =>
-          console.warn('Live tour step picture failed', err)
-        );
+        .catch((err: unknown) => {
+          console.warn('Live tour step picture failed', err);
+          // A test run moves on without the picture rather than waiting forever.
+          if (live && testShot) markShot();
+        });
     }, SNAPSHOT_SETTLE_MS);
     return () => {
       live = false;
       window.clearTimeout(timer);
     };
-  }, [snapStepId, snapElement, binding, shotKey]);
+  }, [snapStepId, snapElement, binding, shotKey, testShot, snapIndex]);
   const anchorScope = { widgetIds: added, slots: tour?.slots };
   const onStage = hiddenIds.length
     ? widgets.filter((w) => !hiddenIds.includes(w.id))
@@ -667,16 +718,38 @@ export const LiveTourRunner: React.FC = () => {
       : null;
   const leavesDrawer = !!binding && tour?.phase === 'running';
   const drawerStep = tour?.index ?? 0;
+  // An anchor without `requires` that still sits in an open drawer keeps that drawer.
+  const anchorSettled =
+    anchor.status === 'found' || anchor.status === 'missing';
+  const holdingDrawerId =
+    anchor.status === 'found' ? drawerWidgetOf(anchor.element) : null;
+  const latestScope = useRef(anchorScope);
+  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
+  latestScope.current = anchorScope;
   useEffect(() => {
-    if (!leavesDrawer) return;
-    const keep = drawerWidgetId ? settingsUndoKey(drawerWidgetId) : null;
+    if (!leavesDrawer || !binding) return;
+    let holder = drawerWidgetId ?? holdingDrawerId;
+    if (!holder && !anchorSettled) {
+      const now = findTourAnchor(binding, latestScope.current);
+      // Not on screen yet: decide once the search settles.
+      if (!now) return;
+      holder = drawerWidgetOf(now);
+    }
+    const keep = holder ? settingsUndoKey(holder) : null;
     for (const [key, undo] of prereqUndos.current) {
       if (key.startsWith(settingsUndoKey('')) && key !== keep) {
         prereqUndos.current.delete(key);
         undo();
       }
     }
-  }, [leavesDrawer, drawerWidgetId, drawerStep]);
+  }, [
+    leavesDrawer,
+    binding,
+    drawerWidgetId,
+    holdingDrawerId,
+    anchorSettled,
+    drawerStep,
+  ]);
   // Sets up what the anchor needs before and while it is searched for.
   // Once the anchor has shown, a teacher who undoes the setup is not overridden until Retry.
   const prereqStep = tour?.index ?? 0;
@@ -703,12 +776,20 @@ export const LiveTourRunner: React.FC = () => {
   }, [needsPrereq, prereqStep, attempt]);
 
   const runSetup = (
-    set: GuidedLearningSet,
-    steps: GuidedLearningStep[],
+    rawSet: GuidedLearningSet,
+    rawSteps: GuidedLearningStep[],
     from = 0,
     opts: LaunchOptions = {}
   ) => {
     const { dashboard: d } = latest.current;
+    // Without recorded layouts, the tour arranges its own widgets (D10).
+    const { set, steps } =
+      !opts.edit &&
+      latest.current.canAccessFeature('live-tour-self-heal') &&
+      needsAutoStage(rawSet)
+        ? stageTour(rawSet, rawSteps)
+        : { set: rawSet, steps: rawSteps };
+    healTried.current.clear();
     const v2 = opts.edit
       ? !!getTourEdit()?.v2
       : latest.current.canAccessFeature('live-tour-editing-v2');
@@ -778,7 +859,10 @@ export const LiveTourRunner: React.FC = () => {
         : null;
     setAttempt(0);
     setAutoOn(
-      !opts.edit && (set.mode === 'guided' || set.tourSetup?.autopilot === true)
+      !opts.edit &&
+        (!!opts.test ||
+          set.mode === 'guided' ||
+          set.tourSetup?.autopilot === true)
     );
     setHandsOn(false);
     setAuto(null);
@@ -808,6 +892,7 @@ export const LiveTourRunner: React.FC = () => {
       v2,
       sandboxed,
       picks: opts.picks,
+      test: opts.test,
     });
   };
 
@@ -832,11 +917,13 @@ export const LiveTourRunner: React.FC = () => {
       draft: opts.draft,
       edit: opts.edit,
       picks: opts.picks,
+      test: opts.test,
     });
     setCheering(false);
     setFinished(false);
     const asksPicks =
       !opts.edit &&
+      !opts.test &&
       !opts.picks &&
       latest.current.canAccessFeature('live-tour-editing-v2') &&
       (set.tourSetup?.materials ?? []).some((m) => m.source === 'teacher');
@@ -868,9 +955,19 @@ export const LiveTourRunner: React.FC = () => {
     };
     void (async () => {
       try {
-        const set = req.draft
-          ? await loadBuildingSet(req.setId)
-          : await loadRunnableTour(req.setId);
+        const test = import.meta.env.DEV ? takeTestTour(req.setId) : null;
+        const set =
+          test ??
+          (req.draft
+            ? await loadBuildingSet(req.setId)
+            : await loadRunnableTour(req.setId));
+        // Widgets that need students get a class: the first one, or a made-up one on an empty backend.
+        if (test && !d.activeRosterId) {
+          d.setActiveRoster(
+            d.rosters.find((r) => r.students.length > 0)?.id ??
+              (await d.addRoster(SAMPLE_CLASS_NAME, sampleStudents()))
+          );
+        }
         const steps = set ? liveTourStepsOf(set) : [];
         if (!set || steps.length === 0) {
           launchFailed();
@@ -882,12 +979,13 @@ export const LiveTourRunner: React.FC = () => {
           set,
           steps,
           from,
-          from === 0 && !opts.skipWelcome && tourWelcome(set) !== null
+          from === 0 && !opts.skipWelcome && !test && tourWelcome(set) !== null
             ? 'welcome'
             : null,
           {
             ...opts,
             draft: req.draft,
+            test: !!test,
           }
         );
       } catch (err) {
@@ -901,6 +999,8 @@ export const LiveTourRunner: React.FC = () => {
   const launchRef = useRef(launch);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   launchRef.current = launch;
+
+  useEffect(() => installTestRunHook(), []);
 
   useEffect(() => {
     const onStart = (e: Event) =>
@@ -988,6 +1088,7 @@ export const LiveTourRunner: React.FC = () => {
 
   const finish = (done = false) => {
     if (!tour) return;
+    if (tour.test) endTestRun(done);
     if (tour.phase === 'running') {
       noteMiss();
       runLog.current?.end(done ? { done } : { done, exit: tour.index });
@@ -1207,9 +1308,30 @@ export const LiveTourRunner: React.FC = () => {
       });
     };
     el.addEventListener(eventName, onClick, true);
-    return () => el.removeEventListener(eventName, onClick, true);
+    // A type step with a recorded value also moves on once the field holds it, without a blur.
+    const typed =
+      action === 'type' && stepValue !== undefined && String(stepValue) !== '';
+    let typing: ReturnType<typeof setTimeout> | undefined;
+    const onInput = () => {
+      clearTimeout(typing);
+      if (autoClicking.current) return;
+      typing = setTimeout(() => {
+        const signal = clickWait.current?.signal;
+        if (!signal || signal.aborted || !el.isConnected) return;
+        if (stepValueMet(el, binding) === true) advanceFrom(stepIndex);
+      }, TYPE_SETTLE_MS);
+    };
+    if (typed) el.addEventListener('input', onInput, true);
+    return () => {
+      clearTimeout(typing);
+      el.removeEventListener(eventName, onClick, true);
+      el.removeEventListener('input', onInput, true);
+    };
   }, [anchor.element, acted, action, stepValue, stepIndex]);
 
+  const sandbox = useTourSandbox();
+  // A teacher's own picked item takes real writes, so only a run without one autopilots sandboxed saves.
+  const inSandbox = !!tour?.sandboxed && sandbox.passthrough.size === 0;
   const running = tour?.phase === 'running';
   const offeringResume =
     !tour &&
@@ -1392,7 +1514,74 @@ export const LiveTourRunner: React.FC = () => {
   const stepKey = `${stepIndex}:${attempt}`;
   const autoStage = auto?.key === stepKey ? auto.stage : null;
   const found = running && anchor.status === 'found';
-  const autoRunning = autopilot && (found || plain);
+  // A test run pictures the step before Autopilot moves on from it.
+  const autoRunning =
+    autopilot && (found || plain) && !(tour?.test && snapStepId !== null);
+  // A test run records each step once it settles, and moves past a control it can't find.
+  const testStatus =
+    tour?.test && running && step
+      ? plain
+        ? 'plain'
+        : anchor.status === 'found' || anchor.status === 'missing'
+          ? anchor.status
+          : null
+      : null;
+  // A control whose panel closed is reopened along its route, once per step (D4).
+  const healKey =
+    running &&
+    !tour?.test &&
+    !tour?.edit &&
+    anchor.status === 'missing' &&
+    !!binding?.anchor &&
+    canAccessFeature('live-tour-self-heal')
+      ? stepKey
+      : null;
+  const healAnchorScope = useEffectEvent(() => ({
+    widgetIds: added,
+    slots: tour?.slots,
+  }));
+  useEffect(() => {
+    if (!healKey || !binding || healTried.current.has(stepIndex)) return;
+    const tried = healTried.current;
+    tried.add(stepIndex);
+    const ctrl = new AbortController();
+    let settled = false;
+    void import('@/config/tourAnchorRoutes')
+      .then(({ tourAnchorRoutes }) =>
+        healAnchor(
+          binding.anchor,
+          tourAnchorRoutes,
+          healAnchorScope(),
+          ctrl.signal
+        )
+      )
+      .then((ok) => {
+        settled = true;
+        if (ok && !ctrl.signal.aborted) setAttempt((n) => n + 1);
+      })
+      .catch((err: unknown) => {
+        settled = true;
+        console.warn('Live tour self-heal failed', err);
+      });
+    return () => {
+      ctrl.abort();
+      // A heal cut short by a re-render hasn't had its try yet.
+      if (!settled) tried.delete(stepIndex);
+    };
+  }, [healKey, binding, stepIndex]);
+
+  useEffect(() => {
+    if (!testStatus || !step) return;
+    // A found control that closes once clicked is Autopilot's to move past.
+    const found = testStepFound(stepIndex);
+    reportTestStep({
+      index: stepIndex,
+      stepId: step.id,
+      anchor: step.tour?.anchor ?? '',
+      status: testStatus,
+    });
+    if (testStatus === 'missing' && !found) advanceRef.current(stepIndex + 1);
+  }, [testStatus, stepIndex, step]);
   const waitingOnTeacher = autoStage === 'blocked' || autoStage === 'fallback';
   const autoBusy =
     autoStage === 'demo' || autoStage === 'waiting' || autoStage === 'confirm';
@@ -1466,10 +1655,23 @@ export const LiveTourRunner: React.FC = () => {
     // A sandboxed editor replay clicks every step on the way, stopping before real writes.
     const clickAll = !!tour.edit && !!tour.sandboxed && jumping;
     const gate = canPerform(binding)
-      ? clickAll
-        ? replayGate(binding, tour.policy)
-        : autopilotGate(binding, tour.policy)
+      ? tour.test
+        ? 'perform'
+        : clickAll
+          ? replayGate(binding, tour.policy, inSandbox)
+          : autopilotGate(binding, tour.policy, inSandbox)
       : 'teacher';
+    if (tour.test && gate === 'teacher') {
+      reportTestStep({
+        index: tour.index,
+        stepId: step?.id ?? '',
+        anchor: binding.anchor,
+        status: 'found',
+        handedBack: true,
+      });
+      advanceRef.current(tour.index + 1);
+      return;
+    }
     if (gate === 'teacher' || (gate === 'confirm' && !consented)) {
       setAuto({ key: stepKey, stage: gate === 'teacher' ? 'blocked' : gate });
       return;
@@ -1500,18 +1702,22 @@ export const LiveTourRunner: React.FC = () => {
           requestAnimationFrame(() => advanceRef.current(index + 1));
           return;
         }
+        // Slow saves get up to 10 s, and the next step waits for its anchor to stop moving.
         void waitFor(
-          () =>
-            !!findTourAnchor(nextBinding, {
+          () => {
+            const next = findTourAnchor(nextBinding, {
               widgetIds: latestAdded.current,
               slots: latestSlots.current,
               accept: isAnchorReachable,
-            }),
-          ANCHOR_SEARCH_MS,
+            });
+            return !!next && isSettled(next);
+          },
+          // A fast-forward moves on regardless, so it keeps the short search.
+          jumping ? ANCHOR_SEARCH_MS : AUTO_NEXT_WAIT_MS,
           ctrl.signal
         ).then((ok) => {
           if (ctrl.signal.aborted) return;
-          if (ok || jumping) advanceRef.current(index + 1);
+          if (ok || jumping || tour.test) advanceRef.current(index + 1);
           else setAuto({ key: stepKey, stage: 'fallback' });
         });
       });
@@ -1977,7 +2183,7 @@ export const LiveTourRunner: React.FC = () => {
       !!binding &&
       binding.action !== 'observe' &&
       canPerform(binding) &&
-      autopilotGate(binding, tour.policy) !== 'teacher' &&
+      autopilotGate(binding, tour.policy, inSandbox) !== 'teacher' &&
       !autoBusy &&
       autoStage !== 'blocked' &&
       (!autoOn || autoStage === 'fallback');
@@ -2088,25 +2294,25 @@ export const LiveTourRunner: React.FC = () => {
               <TourMiniPlayer set={tour.set} step={step} />
             </Suspense>
           )}
-          {isMissing ? (
+          {step.text && (
             <p className="text-sm text-slate-600">
+              {renderStepText(step.text)}
+            </p>
+          )}
+          {!isMissing && plain && step.question?.text.trim() && (
+            <p className="text-sm font-semibold text-slate-900">
+              {step.question.text}
+            </p>
+          )}
+          {isMissing && (
+            <p
+              data-testid="tour-anchor-missing"
+              className="text-xs font-medium text-amber-700"
+            >
               {t(
                 preview ? 'tours.anchorMissingPreview' : 'tours.anchorMissing'
               )}
             </p>
-          ) : (
-            <>
-              {step.text && (
-                <p className="text-sm text-slate-600">
-                  {renderStepText(step.text)}
-                </p>
-              )}
-              {plain && step.question?.text.trim() && (
-                <p className="text-sm font-semibold text-slate-900">
-                  {step.question.text}
-                </p>
-              )}
-            </>
           )}
         </TourTip>
         {cueShown && (

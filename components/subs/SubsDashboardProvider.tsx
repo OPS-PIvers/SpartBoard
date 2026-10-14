@@ -368,6 +368,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       pendingVideoActivityShareId: null,
       pendingAssignmentSetupId: null,
       pendingAssignmentEditId: null,
+      pendingQuizReveal: null,
       rosters,
       activeRosterId,
 
@@ -482,6 +483,8 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       setPendingAssignmentSetup: NOOP,
       clearPendingAssignmentEdit: NOOP,
       setPendingAssignmentEdit: NOOP,
+      clearPendingQuizReveal: NOOP,
+      setPendingQuizReveal: NOOP,
 
       // Roster CRUD — subs only read the shared rosters.
       addRoster: () => Promise.resolve(''),

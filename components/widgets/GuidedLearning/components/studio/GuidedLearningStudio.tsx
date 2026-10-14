@@ -1153,7 +1153,7 @@ const StudioSession: React.FC<
                 set={playing.set}
                 preset={preset}
                 startStepId={playing.startStepId}
-                playerV2={canAccessFeature('gl-player-v2')}
+                playerV2
                 onStepShown={(id) => {
                   lastPlayedRef.current = id;
                 }}
@@ -1186,7 +1186,7 @@ const StudioSession: React.FC<
                 tools={tools}
                 setId={set.id}
                 preset={preset}
-                playerV2={canAccessFeature('gl-player-v2')}
+                playerV2
                 onDeleteStep={deleteStepWithUndo}
               />
             )}

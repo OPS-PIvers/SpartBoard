@@ -1040,22 +1040,6 @@ describe('Dock smart-paste – two-column lists become flashcards', () => {
       config: { view: 'library', pasteDraftId: expect.any(String) },
     });
   });
-
-  it('keeps the old paste behavior when the flag is off', () => {
-    const addWidget = vi.fn();
-    setupMocks({
-      addWidget,
-      canAccessFeature: vi.fn(
-        (feature: string) => feature !== 'flashcard-smart-paste'
-      ),
-    });
-    render(<Dock />);
-
-    paste('hola\thello\nadiós\tgoodbye');
-
-    expect(addWidget).toHaveBeenCalledTimes(1);
-    expect(addWidget.mock.calls[0][0]).not.toBe('flashcards');
-  });
 });
 
 describe('Dock – live tour hidden widgets', () => {

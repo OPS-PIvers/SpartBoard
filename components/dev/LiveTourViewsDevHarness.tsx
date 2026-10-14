@@ -546,19 +546,20 @@ export const LiveTourViewsDevHarness: React.FC = () => {
               : undefined
           }
         >
-          {state === 'missing' ? (
-            <>
-              <TourMiniPlayer set={NO_SLIDES} step={MISSING_STEP} />
-              <p className="text-sm text-slate-600">
-                {t('tours.anchorMissingPreview')}
-              </p>
-            </>
-          ) : state === 'edit-missing' ? (
-            <p className="text-sm text-slate-600">{t('tours.anchorMissing')}</p>
-          ) : (
-            step.text && (
-              <p className="text-sm text-slate-600">{boldText(step.text)}</p>
-            )
+          {state === 'missing' && (
+            <TourMiniPlayer set={NO_SLIDES} step={MISSING_STEP} />
+          )}
+          {step.text && (
+            <p className="text-sm text-slate-600">{boldText(step.text)}</p>
+          )}
+          {(state === 'missing' || state === 'edit-missing') && (
+            <p className="text-xs font-medium text-amber-700">
+              {t(
+                state === 'missing'
+                  ? 'tours.anchorMissingPreview'
+                  : 'tours.anchorMissing'
+              )}
+            </p>
           )}
         </TourTip>
       )}

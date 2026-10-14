@@ -22,7 +22,6 @@ export type { VideoActivityBehaviorSettingsPanelProps } from './VideoActivityBeh
 export { ViewOnlyShareModal } from './ViewOnlyShareModal';
 export type { ViewOnlyShareModalProps } from './ViewOnlyShareModal';
 export { CollapsibleSection } from './CollapsibleSection';
-export { DueDateModeSwitch, PerClassDueDateRows } from './PerClassDueDates';
 export {
   AssignmentSettingsToggleGroup,
   AttemptLimitRow,

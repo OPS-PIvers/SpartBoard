@@ -275,6 +275,10 @@ jobs:
           workload_identity_provider: ${{ env.DEV_WIF_PROVIDER }}
           service_account: ${{ env.DEV_DEPLOY_SA }}
 
+      # Open tabs on an older build still lazy-load their own chunks instead of reloading mid-lesson.
+      - name: Carry recent builds' assets forward
+        run: node scripts/carryForwardAssets.mjs "https://${SITE}.web.app"
+
       - name: Deploy Hosting
         run: |
           jq --arg site "$SITE" '.hosting.site = $site' firebase.json > firebase.json.tmp

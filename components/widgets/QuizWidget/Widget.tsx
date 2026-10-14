@@ -262,6 +262,8 @@ const TeacherQuizWidget: React.FC<{
     clearPendingAssignmentSetup,
     pendingAssignmentEditId,
     clearPendingAssignmentEdit,
+    pendingQuizReveal,
+    clearPendingQuizReveal,
   } = useDashboard();
   const {
     user,
@@ -647,9 +649,14 @@ const TeacherQuizWidget: React.FC<{
   // `responses` — guarantees aggregate stats recompute after a mid-view
   // submission delete even if the upstream snapshot state lagged.
   const [resultsEnterToken, setResultsEnterToken] = useState(0);
+  // Library quiz the preview pane opens on, set by a PLC status chip.
+  const [revealRequest, setRevealRequest] = useState<{
+    quizId: string;
+  } | null>(null);
   const [prevView, setPrevView] = useState(config.view);
   if (config.view !== prevView) {
     setPrevView(config.view);
+    if (prevView === 'manager') setRevealRequest(null);
     if (config.view === 'results') {
       setResultsEnterToken((n) => n + 1);
     }
@@ -1144,6 +1151,73 @@ const TeacherQuizWidget: React.FC<{
     clearPendingAssignmentEdit();
   }, [pendingAssignmentEditId, assignments, clearPendingAssignmentEdit]);
 
+  // Honor a PLC status chip: open my live monitor for that quiz, or show it in the library.
+  React.useEffect(() => {
+    if (!pendingQuizReveal) return;
+    if (
+      pendingQuizReveal.widgetId === null
+        ? isReview
+        : pendingQuizReveal.widgetId !== widget.id
+    )
+      return;
+    if (quizzesLoading || assignmentsLoading) return;
+    clearPendingQuizReveal();
+    const meta = quizzes.find(
+      (q) => q.sync?.groupId === pendingQuizReveal.syncGroupId
+    );
+    const live =
+      meta && pendingQuizReveal.target === 'monitor'
+        ? kindAssignments.filter(
+            (a) => a.quizId === meta.id && a.status === 'active'
+          )
+        : [];
+    if (meta && live.length === 1) {
+      const a = live[0];
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- loads the quiz the PLC page asked to monitor
+      void loadQuiz(answerKeyMeta(meta, a)).then((data) => {
+        if (!data) return;
+        updateWidget(widget.id, {
+          config: {
+            ...config,
+            view: 'monitor',
+            selectedQuizId: a.quizId,
+            selectedQuizTitle: a.quizTitle,
+            activeAssignmentId: a.id,
+            activeLiveSessionCode: a.code,
+            periodName: a.periodName ?? '',
+            periodNames: a.periodNames ?? [],
+            teacherName: a.teacherName ?? '',
+            plcMode: !!a.plc,
+            plcSheetUrl: a.plc?.sheetUrl ?? '',
+          },
+        });
+      });
+      return;
+    }
+
+    setRevealRequest(meta && live.length === 0 ? { quizId: meta.id } : null);
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        view: 'manager',
+        managerTab: live.length > 1 ? 'active' : 'library',
+      },
+    });
+  }, [
+    pendingQuizReveal,
+    isReview,
+    widget.id,
+    quizzesLoading,
+    assignmentsLoading,
+    clearPendingQuizReveal,
+    quizzes,
+    kindAssignments,
+    loadQuiz,
+    answerKeyMeta,
+    updateWidget,
+    config,
+  ]);
+
   // Auto-load quiz data if we are in monitor view or have an active session, but data is missing
   // This allows for seamless resumption after page reload.
   React.useEffect(() => {
@@ -1626,7 +1700,6 @@ const TeacherQuizWidget: React.FC<{
         }
         canUploadPictures={!!driveService}
         fetchRemoteImage={fetchImageThroughServer}
-        multiAnswer={canAccessFeature('quiz-choose-all')}
       />
     );
   }
@@ -1662,7 +1735,6 @@ const TeacherQuizWidget: React.FC<{
         }
         canUploadPictures={!!driveService}
         fetchRemoteImage={fetchImageThroughServer}
-        multiAnswer={canAccessFeature('quiz-choose-all')}
       />
     );
   }
@@ -1719,14 +1791,11 @@ const TeacherQuizWidget: React.FC<{
       // tile is offered on the quiz import only.
       canImportDocuments,
       canSuggestTargets: canAccessFeature('quiz-import-suggested-targets'),
-      canUseSections: canAccessFeature('quiz-sections'),
       ...(canAccessFeature('standards-from-question-text')
         ? { loadStandardCodes: loadCatalogCodes }
         : {}),
-      canFindPassages: canAccessFeature('quiz-import-passages'),
       pickDocument,
       ...(canUseAiReader ? { aiExtract: extractQuizFromDocument } : {}),
-      canUseChooseAll: canAccessFeature('quiz-choose-all'),
       onDocumentImages: (images) => {
         documentImagesRef.current = images;
       },
@@ -2921,6 +2990,7 @@ const TeacherQuizWidget: React.FC<{
         }}
         // ─── Archive tab ─────────────────────────────────────────────────────
         managerTab={config.managerTab ?? 'library'}
+        revealRequest={revealRequest}
         onTabChange={(tab) => handleUpdateQuizConfig({ managerTab: tab })}
         // ─── Banks tab ───────────────────────────────────────────────────────
         banks={banks}

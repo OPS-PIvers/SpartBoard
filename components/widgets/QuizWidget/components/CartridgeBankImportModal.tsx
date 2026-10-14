@@ -70,7 +70,6 @@ interface CartridgeBankImportModalProps {
   /** False when Drive isn't connected, so pictures can't be copied. */
   canUploadPictures: boolean;
   fetchRemoteImage?: RemoteImageFetcher;
-  multiAnswer: boolean;
 }
 
 type ReadState =
@@ -99,7 +98,6 @@ export const CartridgeBankImportModal: React.FC<
   attachPictures,
   canUploadPictures,
   fetchRemoteImage,
-  multiAnswer,
 }) => {
   const [read, setRead] = useState<ReadState>({ kind: 'reading' });
   const [name, setName] = useState('');
@@ -119,7 +117,7 @@ export const CartridgeBankImportModal: React.FC<
   useEffect(() => {
     let cancelled = false;
     readCartridgeBanks(file, titleFromFileName(file.name), {
-      multiAnswer,
+      multiAnswer: true,
       read: isQuiz ? 'tests' : 'banks',
       ...(fetchRemoteImage ? { fetchRemoteImage } : {}),
     })
@@ -141,7 +139,7 @@ export const CartridgeBankImportModal: React.FC<
     return () => {
       cancelled = true;
     };
-  }, [file, multiAnswer, fetchRemoteImage, isQuiz]);
+  }, [file, fetchRemoteImage, isQuiz]);
 
   const rows = useMemo<BankImportRow[]>(
     () =>

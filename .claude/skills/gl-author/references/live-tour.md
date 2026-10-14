@@ -5,6 +5,10 @@ step's callout points at the real control instead of a screenshot. Use it
 for "how do I…" help about SpartBoard itself. A lesson about a diagram or
 another app is an ordinary set.
 
+This page covers tours authored as `.gl.json` files. A tour written through
+the connector follows `docs/live-tours/AUTHORING.md` (served as
+`get_live_tour_guide`) instead, which wins where the two differ.
+
 ## What has to be true for it to run
 
 - The set is a **building set**. An admin imports the file with the Import
@@ -91,11 +95,10 @@ demonstrate the live tour.
 - `action: "type"` for a text field, with `value` the text Autopilot enters.
   Never put a student's name in it: Tour health flags a value that matches
   a roster name, and an empty value.
-- Autopilot does not perform these values yet. Guided mode shows the step
-  and waits for the teacher, so a switch already in the right state is
-  never flipped. A `toggle` or custom-listbox step advances on a click of
-  the anchor; a `type` or native `select` step advances when the field
-  changes. Next always moves on.
+- Autopilot performs these values: it flips a switch only when it isn't
+  already in the `value` state, picks the option, and types the text. A
+  step with no `value` is left to the teacher. A teacher's own `type` step
+  advances once the field holds the `value`; Next always moves on.
 - Autopilot clicks the anchor element itself, so a click step's anchor must
   be the control, not a row or panel around it. A settings field anchor is
   the whole row, so point at the control inside it instead, or make the
@@ -116,8 +119,9 @@ demonstrate the live tour.
 Every tagged element carries `data-tour="<id>"`, with
 `data-tour-widget-type` on per-type, per-widget and per-field anchors and
 `data-tour-field` on per-field anchors. The registry is
-`config/tourAnchors.ts` (about 350 ids): read its `label`s to plan which
-controls a tour can point at.
+`config/tourAnchors.ts` (over 1,200 ids): read its `label`s to plan which
+controls a tour can point at, and `routes` in `list_tour_anchors` for the
+clicks that open each one.
 
 | Anchor kind                | Ref form          | Example                         |
 | -------------------------- | ----------------- | ------------------------------- |
@@ -264,4 +268,6 @@ the step starts in:
    for an observe step, move on.
 
 Then run the validator. The last check is the real one: import the file as
-a building set on spartboard-dev and use **Run live (draft)**.
+a building set on spartboard-dev and use **Run live (draft)**, or play it on
+the dummy board with `scripts/run-live-tour.mjs` (the connector guide's
+browser run).

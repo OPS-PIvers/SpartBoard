@@ -12,6 +12,8 @@ export interface TourAnchorDef {
   destructive?: true;
   /** Its effect outlives the tour: assigns, shares, publishes, starts a live session or changes account settings. */
   persists?: true;
+  /** Its persists effect goes through the tour sandbox, so a tour with materials can autopilot it. */
+  sandboxed?: true;
   /** Shown only once a menu, the dock or another panel is open. */
   panel?: true;
   /** State the runner sets up before it looks for the anchor. */
@@ -486,6 +488,7 @@ export const TOUR_ANCHORS = {
   'activity-wall.toggle-open': {
     label: 'Open/Closed toggle in Activity Wall',
     persists: true,
+    sandboxed: true,
     perWidget: true,
   },
   'activity-wall.moderate': {
@@ -595,6 +598,7 @@ export const TOUR_ANCHORS = {
   'quiz.pause-resume': {
     label: 'Pause or resume button in the Quiz monitor',
     persists: true,
+    sandboxed: true,
     perWidget: true,
   },
   'quiz.end-quiz': {
@@ -684,10 +688,6 @@ export const TOUR_ANCHORS = {
   },
   'flashcards-check.show-first': {
     label: 'Show first switch in the Flashcards check step',
-    panel: true,
-  },
-  'assign-periods.mode': {
-    label: 'How periods open switch in the Assign window',
     panel: true,
   },
   'assign-when.mode-option': {
@@ -931,15 +931,6 @@ export const TOUR_ANCHORS = {
     label: 'Clear search button in the Choose students window',
     panel: true,
   },
-  'assign-targeting.schedule': {
-    label: 'Schedule section header in the Assign window',
-    panel: true,
-  },
-  'assign-targeting.window': {
-    label: 'Opens, Closes or Due date box in the Assign window schedule',
-    perField: true,
-    panel: true,
-  },
   'assign-targeting.open': {
     label: 'Edit or add modifications button in the Assign window',
     panel: true,
@@ -1007,21 +998,6 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
-  'assign-periods.window': {
-    label: 'Window for a class dropdown in the Assign window periods',
-    perField: true,
-    panel: true,
-  },
-  'assign-periods.custom-time': {
-    label:
-      'Custom Opens or Closes box for a class in the Assign window periods',
-    perField: true,
-    panel: true,
-  },
-  'assign-periods.customize': {
-    label: 'Customize per period button in the Assign window',
-    panel: true,
-  },
   'assign-periods.selector-close': {
     label: 'Close button in the Class Periods popup',
     panel: true,
@@ -1037,16 +1013,6 @@ export const TOUR_ANCHORS = {
   },
   'assign-periods.selector-save': {
     label: 'Save button in the Class Periods popup',
-    panel: true,
-  },
-  'assign-per-class.mode': {
-    label: 'One date or Each class option in the Assign window due date',
-    perField: true,
-    panel: true,
-  },
-  'assign-per-class.date': {
-    label: 'Due date or time box for a class in the Assign window',
-    perField: true,
     panel: true,
   },
   'assign-settings.attempts': {
@@ -3340,6 +3306,7 @@ export const TOUR_ANCHORS = {
     label: 'Merge button in the Quiz library bulk action bar',
     perWidgetType: true,
     persists: true,
+    sandboxed: true,
   },
   'quiz-library.bulk-share-plc': {
     label: 'Share with PLC button in the Quiz library bulk action bar',
@@ -4319,6 +4286,7 @@ export const TOUR_ANCHORS = {
   'activity-wall-editor.save': {
     label: 'Save wall button in the Activity Wall editor',
     persists: true,
+    sandboxed: true,
     perWidget: true,
     panel: true,
   },
@@ -4902,6 +4870,14 @@ export const TOUR_ANCHORS = {
     label: 'Open button in the PLC assessments tab',
     perField: true,
   },
+  'plc-assessments.status': {
+    label: 'Status chip on a PLC assessment row',
+    perField: true,
+  },
+  'plc-assessments.in-library': {
+    label: 'In your library chip on a PLC assessment row',
+    perField: true,
+  },
   'plc-assessments.assign': {
     label: 'Assign button in the PLC assessments tab',
     persists: true,
@@ -5030,10 +5006,6 @@ export const TOUR_ANCHORS = {
   },
   'plc-notes.rollup-toggle': {
     label: 'Rollup toggle button in the PLC notes tab',
-  },
-  'plc-notes.docs-tab': {
-    label: 'Docs tab button in the PLC notes tab',
-    perField: true,
   },
   'plc-notes.docs-import': {
     label: 'Docs import button in the PLC notes tab',
@@ -5170,46 +5142,6 @@ export const TOUR_ANCHORS = {
     label: 'Add submit button in the PLC docs tab',
     persists: true,
     panel: true,
-  },
-  'plc-docs.rename-input': {
-    label: 'Rename input field in the PLC docs tab',
-  },
-  'plc-docs.rename-confirm': {
-    label: 'Rename confirm button in the PLC docs tab',
-    persists: true,
-    perField: true,
-  },
-  'plc-docs.rename-cancel': {
-    label: 'Rename cancel button in the PLC docs tab',
-    perField: true,
-  },
-  'plc-docs.rename': {
-    label: 'Rename button in the PLC docs tab',
-    persists: true,
-    perField: true,
-  },
-  'plc-docs.remove': {
-    label: 'Remove button in the PLC docs tab',
-    perField: true,
-    destructive: true,
-  },
-  'plc-docs.new-title': {
-    label: 'New title field in the PLC docs tab',
-  },
-  'plc-docs.new-url': {
-    label: 'New url field in the PLC docs tab',
-  },
-  'plc-docs.new-add': {
-    label: 'New add button in the PLC docs tab',
-    persists: true,
-  },
-  'plc-docs.add-doc': {
-    label: 'Add doc button in the PLC docs tab',
-    persists: true,
-    panel: true,
-  },
-  'plc-docs.open-doc': {
-    label: 'Open doc link in the PLC docs tab',
   },
   'plc-goals.delete': {
     label: 'Delete button in the PLC goal editor',
@@ -6394,7 +6326,7 @@ export const TOUR_ANCHORS = {
     panel: true,
   },
   'teams.shell.close': {
-    label: 'Close button in the team header',
+    label: 'Back button in the team header',
   },
   'teams.shell.my-items': {
     label: 'My items button in the team header',
@@ -8776,6 +8708,7 @@ export const TOUR_ANCHORS = {
     label: 'Visible/Hidden posts toggle in Activity Wall',
     perWidget: true,
     persists: true,
+    sandboxed: true,
   },
   'activity-wall.more-actions': {
     label: 'More wall actions button in Activity Wall',
@@ -8897,6 +8830,7 @@ export const TOUR_ANCHORS = {
     label: 'Create gallery link button in the Activity Wall share dialog',
     perWidgetType: true,
     persists: true,
+    sandboxed: true,
     panel: true,
   },
   'activity-wall-link.done': {
@@ -9489,6 +9423,7 @@ export const TOUR_ANCHORS = {
     label: 'Assign or Create share link button in the Mini App assign dialog',
     perWidgetType: true,
     persists: true,
+    sandboxed: true,
     panel: true,
   },
   'mini-app.toolbar-student-link': {
@@ -9508,6 +9443,7 @@ export const TOUR_ANCHORS = {
     label: 'QR Share button in the running Mini App toolbar',
     perWidgetType: true,
     persists: true,
+    sandboxed: true,
   },
   'mini-app.toolbar-save-as-widget': {
     label: 'Save as Widget button in the running Mini App toolbar',
@@ -9532,6 +9468,7 @@ export const TOUR_ANCHORS = {
     label: 'Save App button in the Mini App save to library form',
     perWidgetType: true,
     persists: true,
+    sandboxed: true,
     panel: true,
   },
   'mini-app.select-mode': {
@@ -9691,6 +9628,7 @@ export const TOUR_ANCHORS = {
   'video-activity.creator-source-manual': {
     label: 'Create manually choice in the creator',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.creator-ai-count': {
     label: 'Question count slider in the creator AI step',
@@ -9721,6 +9659,7 @@ export const TOUR_ANCHORS = {
   'video-activity.editor-youtube-url': {
     label: 'YouTube URL box in the video activity editor',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-question-pill': {
     label: 'Question button in the editor question list',
@@ -9731,27 +9670,33 @@ export const TOUR_ANCHORS = {
     perField: true,
     destructive: true,
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-question-text': {
     label: 'Question prompt box in the video activity editor',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-question-type': {
     label: 'Question type button in the video activity editor',
     perField: true,
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-question-timestamp': {
     label: 'Question timestamp box in the video activity editor',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-question-time-limit': {
     label: 'Question time limit box in the video activity editor',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-question-points': {
     label: 'Question points box in the video activity editor',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.ai-count-decrement': {
     label: 'Fewer questions button for a type in the AI drafter',
@@ -9764,33 +9709,40 @@ export const TOUR_ANCHORS = {
   'video-activity.editor-correct-answer': {
     label: 'Correct answer box for a multiple choice question',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-incorrect-answer': {
     label: 'Incorrect answer box for a multiple choice question',
     perField: true,
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-fib-answer': {
     label: 'Canonical answer box for a fill in the blank question',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-fib-variants': {
     label: 'Acceptable variants box for a fill in the blank question',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-option-correct': {
     label: 'Correct toggle on a multi-answer option',
     perField: true,
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-option-text': {
     label: 'Text box on a multi-answer option',
     perField: true,
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-partial-credit': {
     label: 'Allow partial credit checkbox in the video activity editor',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.editor-draft-ai': {
     label: 'Draft with AI button in the video activity editor footer',
@@ -9853,21 +9805,18 @@ export const TOUR_ANCHORS = {
     label: 'Question marker on the editor video timeline',
     perField: true,
     persists: true,
+    sandboxed: true,
   },
   'video-activity.timeline-add': {
     label: 'Add question at playhead button under the editor timeline',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.empty-create': {
     label: 'Create Activity button in the empty video activity library',
   },
   'video-activity.selection-toggle': {
     label: 'Select toggle in the video activity library',
-  },
-  'video-activity.assign-due-date': {
-    label: 'Due date box in the video activity assign dialog',
-    persists: true,
-    panel: true,
   },
   'video-activity.behavior-open-editor': {
     label: 'Edit in activity link in the video activity assign dialog',
@@ -9877,6 +9826,7 @@ export const TOUR_ANCHORS = {
     label: 'Score visibility option in video activity behavior settings',
     perField: true,
     persists: true,
+    sandboxed: true,
   },
   'video-activity.admin-tab': {
     label: 'List and Settings tabs in the video activity admin modal',
@@ -10263,6 +10213,7 @@ export const TOUR_ANCHORS = {
     label: 'Overwrite button in the Studio conflict banner',
     destructive: true,
     persists: true,
+    sandboxed: true,
     panel: true,
   },
   'studio.dismiss-note': {
@@ -10393,6 +10344,7 @@ export const TOUR_ANCHORS = {
   'studio.props-mark-reviewed': {
     label: 'Mark reviewed button in the Studio properties panel',
     persists: true,
+    sandboxed: true,
     panel: true,
   },
   'studio.props-description': {
@@ -11118,10 +11070,6 @@ export const TOUR_ANCHORS = {
     label: 'Make a copy option in the share dialog',
     panel: true,
   },
-  'share-link.mode-substitute': {
-    label: 'Substitute option in the share dialog',
-    panel: true,
-  },
   'share-link.close': {
     label: 'Close button in the share dialog',
     panel: true,
@@ -11136,30 +11084,6 @@ export const TOUR_ANCHORS = {
   },
   'share-link.done': {
     label: 'Done button in the share dialog',
-    panel: true,
-  },
-  'share-link.sub-expires': {
-    label: 'Expiry date box for a sub share in the share dialog',
-    panel: true,
-  },
-  'share-link.sub-building': {
-    label: 'Building picker for a sub share in the share dialog',
-    panel: true,
-  },
-  'share-link.sub-preset-email': {
-    label: 'Saved sub email button in the share dialog',
-    panel: true,
-  },
-  'share-link.sub-remove-email': {
-    label: 'Remove sub email button in the share dialog',
-    panel: true,
-  },
-  'share-link.sub-email-input': {
-    label: 'Sub email box in the share dialog',
-    panel: true,
-  },
-  'share-link.add-sub-email': {
-    label: 'Add sub email button in the share dialog',
     panel: true,
   },
   'share-link.plc-scope': {
@@ -11197,38 +11121,6 @@ export const TOUR_ANCHORS = {
   },
   'share-collection.share-with-sub': {
     label: 'Share with a sub option in the collection share dialog',
-    panel: true,
-  },
-  'share-collection.mode-copy': {
-    label: 'Copy mode in the collection share dialog',
-    panel: true,
-  },
-  'share-collection.mode-substitute': {
-    label: 'Substitute mode in the collection share dialog',
-    panel: true,
-  },
-  'share-collection.ttl': {
-    label: 'Expires in button in the collection share dialog',
-    panel: true,
-  },
-  'share-collection.building': {
-    label: 'Building picker in the collection share dialog',
-    panel: true,
-  },
-  'share-collection.preset-email': {
-    label: 'Saved sub email button in the collection share dialog',
-    panel: true,
-  },
-  'share-collection.remove-email': {
-    label: 'Remove sub email button in the collection share dialog',
-    panel: true,
-  },
-  'share-collection.email-input': {
-    label: 'Sub email box in the collection share dialog',
-    panel: true,
-  },
-  'share-collection.add-email': {
-    label: 'Add sub email button in the collection share dialog',
     panel: true,
   },
   'share-collection.cancel': {
@@ -11445,6 +11337,7 @@ export const TOUR_ANCHORS = {
     label: 'Unpublish button in the publish scores dialog',
     panel: true,
     persists: true,
+    sandboxed: true,
   },
   'publish-scores.cancel': {
     label: 'Cancel button in the publish scores dialog',
@@ -12567,9 +12460,11 @@ export const TOUR_ANCHORS = {
   },
   // Video Activity shared-prop controls.
   'editor.save': {
-    label: 'Save button in an editor dialog footer',
+    label:
+      'Save button in an editor dialog footer (not in editors that save as you go, like the quiz editor)',
     perWidgetType: true,
     persists: true,
+    sandboxed: true,
     panel: true,
   },
   'video-activity.assign-pacing': {
@@ -12605,11 +12500,13 @@ export const TOUR_ANCHORS = {
   'video-activity.monitor-pause-toggle': {
     label: 'Pause or Resume button in the video activity monitor',
     persists: true,
+    sandboxed: true,
   },
   'video-activity.monitor-end': {
     label: 'End button in the video activity monitor',
     destructive: true,
     persists: true,
+    sandboxed: true,
   },
   'video-activity.results-back': {
     label: 'Back button in video activity results',
@@ -12739,6 +12636,7 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     destructive: true,
     persists: true,
+    sandboxed: true,
     panel: true,
   },
   'mini-app.editor-save': {
@@ -13508,6 +13406,7 @@ export const TOUR_ANCHORS = {
   'mini-app.preview-save-library': {
     label: 'Save to my library button in the Mini App preview',
     persists: true,
+    sandboxed: true,
     panel: true,
   },
   'quiz-library.preview-close': {
@@ -13586,6 +13485,7 @@ export const TOUR_ANCHORS = {
     label: 'Save to my library item in a Mini App card menu',
     perWidgetType: true,
     persists: true,
+    sandboxed: true,
     panel: true,
   },
   'video-activity.editor-folder': {
@@ -13705,6 +13605,671 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  // Text widget formatting toolbar, shown while editing a note.
+  'text-toolbar.font-menu': {
+    label: 'Font family menu button in the Text formatting toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'text-toolbar.font': {
+    label: 'Font choice in the Text toolbar font menu, by font id',
+    perField: true,
+    panel: true,
+  },
+  'text-toolbar.font-size-down': {
+    label: 'Decrease font size button in the Text formatting toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'text-toolbar.font-size': {
+    label: 'Font size box in the Text formatting toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'text-toolbar.font-size-up': {
+    label: 'Increase font size button in the Text formatting toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'text-toolbar.style': {
+    label: 'Bold, Italic or Underline button in the Text formatting toolbar',
+    perField: true,
+    panel: true,
+  },
+  'text-toolbar.list': {
+    label: 'Bulleted or Numbered list button in the Text formatting toolbar',
+    perField: true,
+    panel: true,
+  },
+  'text-toolbar.align-menu': {
+    label: 'Alignment and layout menu button in the Text formatting toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'text-toolbar.align': {
+    label:
+      'Alignment button in the Text toolbar alignment menu (left, center, right, top, middle, bottom)',
+    perField: true,
+    panel: true,
+  },
+  'text-toolbar.indent': {
+    label:
+      'Decrease or Increase indent button in the Text toolbar alignment menu',
+    perField: true,
+    panel: true,
+  },
+  'text-toolbar.colors-menu': {
+    label: 'Colors menu button in the Text formatting toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'text-toolbar.swatch': {
+    label:
+      'Color swatch in the Text toolbar colors menu, keyed section-color (font-, highlight-, background-)',
+    perField: true,
+    panel: true,
+  },
+  'text-toolbar.no-color': {
+    label: 'No highlight swatch in the Text toolbar colors menu',
+    perField: true,
+    panel: true,
+  },
+  'text-toolbar.custom-color': {
+    label:
+      'Custom color picker in the Text toolbar colors menu, by section (font, highlight, background)',
+    perField: true,
+    panel: true,
+  },
+  'text-toolbar.link': {
+    label: 'Hyperlink button in the Text formatting toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'text-toolbar.more': {
+    label: 'More options button in a narrow Text formatting toolbar',
+    perWidgetType: true,
+    panel: true,
+  },
+  'text-toolbar.more-item': {
+    label:
+      'Formatting button in the Text toolbar More options menu, by action (bold, bulleted, align-left, indent-increase, link)',
+    perField: true,
+    panel: true,
+  },
+  // Library Import wizard (Quiz, Video Activity, Guided Learning, Mini App, Flashcards).
+  'import-wizard.close': {
+    label: 'Close button in the Import wizard',
+    panel: true,
+  },
+  'import-wizard.bulk-file': {
+    label:
+      'Choose file button on the bulk export tile in the Import wizard (Schoology .imscc)',
+    panel: true,
+  },
+  'import-wizard.pick-sheet': {
+    label: 'Choose Google Sheet button in the Import wizard',
+    panel: true,
+  },
+  'import-wizard.choose-file': {
+    label: 'Choose file button in the Import wizard',
+    panel: true,
+  },
+  'import-wizard.format-help': {
+    label: 'Template and format help link in the Import wizard',
+    panel: true,
+  },
+  'import-wizard.create-template': {
+    label: 'Create template button in the Import wizard format help',
+    persists: true,
+    panel: true,
+  },
+  'import-wizard.copy-template-url': {
+    label: 'Copy template URL button in the Import wizard format help',
+    panel: true,
+  },
+  'import-wizard.sheet-url': {
+    label: 'Google Sheet URL box in the Import wizard',
+    panel: true,
+  },
+  'import-wizard.sheet-url-submit': {
+    label: 'Import from Google Sheet URL button in the Import wizard',
+    panel: true,
+  },
+  'import-wizard.paste-json': {
+    label: 'Paste JSON box in the Import wizard',
+    panel: true,
+  },
+  'import-wizard.paste-json-submit': {
+    label: 'Import pasted JSON button in the Import wizard',
+    panel: true,
+  },
+  'import-wizard.ai-assist': {
+    label: 'Draft with AI button in the Import wizard',
+    panel: true,
+  },
+  'import-wizard.ai-close': {
+    label: 'Close button in the Import wizard Draft with AI panel',
+    panel: true,
+  },
+  'import-wizard.ai-prompt': {
+    label: 'Prompt box in the Import wizard Draft with AI panel',
+    panel: true,
+  },
+  'import-wizard.ai-generate': {
+    label: 'Generate button in the Import wizard Draft with AI panel',
+    panel: true,
+  },
+  'import-wizard.title': {
+    label: 'Title box on the Import wizard confirm step',
+    panel: true,
+  },
+  'import-wizard.cancel': {
+    label: 'Cancel button in the Import wizard',
+    panel: true,
+  },
+  'import-wizard.back': {
+    label: 'Back button in the Import wizard',
+    panel: true,
+  },
+  'import-wizard.continue': {
+    label: 'Continue button on the Import wizard preview step',
+    panel: true,
+  },
+  'import-wizard.save': {
+    label: 'Save to library button on the Import wizard confirm step',
+    persists: true,
+    panel: true,
+  },
+  // Instructional routines template editor (Admin Settings routine library).
+  'admin.routines.editor-back': {
+    label: 'Back button in the routine template editor',
+    panel: true,
+  },
+  'admin.routines.editor-ai': {
+    label: 'Draft with AI button in the routine template editor',
+    panel: true,
+  },
+  'admin.routines.editor-save': {
+    label: 'Save to Library button in the routine template editor',
+    persists: true,
+    panel: true,
+  },
+  'admin.routines.editor-name': {
+    label: 'Routine name box in the routine template editor',
+    panel: true,
+  },
+  'admin.routines.editor-icon': {
+    label: 'Main icon picker in the routine template editor',
+    panel: true,
+  },
+  'admin.routines.editor-color': {
+    label: 'Main color menu in the routine template editor',
+    panel: true,
+  },
+  'admin.routines.editor-structure': {
+    label: 'Structure menu in the routine template editor',
+    panel: true,
+  },
+  'admin.routines.editor-audience': {
+    label: 'Audience menu in the routine template editor',
+    panel: true,
+  },
+  'admin.routines.editor-layout': {
+    label: 'Layout menu in the routine template editor',
+    panel: true,
+  },
+  'admin.routines.editor-grade': {
+    label: 'Grade level chip in the routine template editor, by grade level',
+    perField: true,
+    panel: true,
+  },
+  'admin.routines.editor-step-icon': {
+    label: 'Step icon picker in the routine template editor, keyed step-N',
+    perField: true,
+    panel: true,
+  },
+  'admin.routines.editor-step-sticker': {
+    label: 'Upload sticker button on a step in the routine template editor',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.routines.editor-step-sticker-remove': {
+    label: 'Remove sticker button on a step in the routine template editor',
+    perField: true,
+    panel: true,
+  },
+  'admin.routines.editor-step-image': {
+    label:
+      'Upload display image button on a step in the routine template editor',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'admin.routines.editor-step-image-remove': {
+    label:
+      'Remove display image button on a step in the routine template editor',
+    perField: true,
+    panel: true,
+  },
+  'admin.routines.editor-step-label': {
+    label: 'Step label box in the routine template editor',
+    perField: true,
+    panel: true,
+  },
+  'admin.routines.editor-step-color': {
+    label: 'Step color menu in the routine template editor',
+    perField: true,
+    panel: true,
+  },
+  'admin.routines.editor-step-text': {
+    label: 'Step instruction text box in the routine template editor',
+    perField: true,
+    panel: true,
+  },
+  'admin.routines.editor-step-widget': {
+    label: 'Connect widget menu on a step in the routine template editor',
+    perField: true,
+    panel: true,
+  },
+  'admin.routines.editor-step-remove': {
+    label: 'Remove step button in the routine template editor',
+    perField: true,
+    panel: true,
+  },
+  'admin.routines.editor-add-step': {
+    label: 'Add Template Step button in the routine template editor',
+    panel: true,
+  },
+  'roster-editor.bell-period': {
+    label: 'Bell period menu in the roster editor',
+    panel: true,
+  },
+  'roster-editor.columns': {
+    label: 'Columns menu on the roster editor Students tab',
+    panel: true,
+  },
+  'roster-editor.show-pins': {
+    label: 'Show PINs button in the duplicate PIN warning of the roster editor',
+    panel: true,
+  },
+  'roster-editor.pin': {
+    label: 'Quiz PIN box on a roster editor row',
+    perField: true,
+    panel: true,
+  },
+  'roster-editor.first-name': {
+    label: 'First name (or full name) box on a roster editor row',
+    perField: true,
+    panel: true,
+  },
+  'roster-editor.last-name': {
+    label: 'Last name box on a roster editor row',
+    perField: true,
+    panel: true,
+  },
+  'roster-editor.email': {
+    label: 'Email box on a roster editor row',
+    perField: true,
+    panel: true,
+  },
+  'roster-editor.add-group': {
+    label: 'New Group button on the empty roster editor Groups tab',
+    panel: true,
+  },
+  'roster-editor.group-members': {
+    label: 'Edit group members button on a roster editor group, keyed group-N',
+    perField: true,
+    panel: true,
+  },
+  'roster-editor.group-name': {
+    label: 'Group name box on a roster editor group',
+    perField: true,
+    panel: true,
+  },
+  'roster-editor.group-remove': {
+    label: 'Remove group button on a roster editor group',
+    perField: true,
+    destructive: true,
+    panel: true,
+  },
+  'roster-editor.accommodations-add-student': {
+    label: 'Add Student button on the empty roster editor Accommodations tab',
+    panel: true,
+  },
+  // Quiz library kebab items that open dialogs.
+  'quiz-library.import-responses': {
+    label: 'Import responses item in a quiz card menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.import-questions': {
+    label: 'Import questions item in a quiz card menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.archive-monitor': {
+    label: 'Monitor item in a quiz assignment row menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.archive-settings': {
+    label: 'Settings item in a quiz assignment row menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-library.archive-plc-results': {
+    label: 'Share results with PLC item in a quiz assignment row menu',
+    perWidgetType: true,
+    panel: true,
+  },
+  // Quiz assignment Settings dialog (from an assignment row menu).
+  'quiz-settings-modal.plc-results': {
+    label:
+      'Share results with PLC button in the quiz assignment Settings dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-settings-modal.stop-plc': {
+    label:
+      'Stop sharing with PLC button in the quiz assignment Settings dialog',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  // Share results with PLC dialog.
+  'plc-results-pool.close': {
+    label: 'Close button in the Share results with PLC dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'plc-results-pool.plc': {
+    label: 'PLC choice in the Share results with PLC dialog, keyed plc-N',
+    perField: true,
+    panel: true,
+  },
+  'plc-results-pool.next': {
+    label: 'Next button in the Share results with PLC dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'plc-results-pool.pool': {
+    label:
+      'Existing pool choice in the Share results with PLC dialog, keyed pool-N',
+    perField: true,
+    panel: true,
+  },
+  'plc-results-pool.new-pool': {
+    label: 'Create new pool choice in the Share results with PLC dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'plc-results-pool.back': {
+    label: 'Back button in the Share results with PLC dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'plc-results-pool.cancel': {
+    label: 'Cancel button in the Share results with PLC dialog',
+    perWidgetType: true,
+    panel: true,
+  },
+  'plc-results-pool.submit': {
+    label: 'Share button in the Share results with PLC dialog',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
+  // Assignments hub (sidebar menu > Assignments).
+  'assignments-hub.close': {
+    label: 'Close button in the Assignments hub',
+    panel: true,
+  },
+  'assignments-hub.search': {
+    label: 'Search box in the Assignments hub',
+    panel: true,
+  },
+  'assignments-hub.filter': {
+    label: 'Filter menu in the Assignments hub (type, status, class)',
+    perField: true,
+    panel: true,
+  },
+  'assignments-hub.clear-filters': {
+    label: 'Clear filters button in the Assignments hub',
+    panel: true,
+  },
+  'assignments-hub.row': {
+    label: 'Assignment row in the Assignments hub list, keyed row-N',
+    perField: true,
+    panel: true,
+  },
+  'assignments-hub.go-create': {
+    label: 'Go create one button in the empty Assignments hub',
+    panel: true,
+  },
+  'assignments-hub.close-now': {
+    label: 'Close now button in the Assignments hub detail pane',
+    persists: true,
+    panel: true,
+  },
+  'assignments-hub.edit': {
+    label: 'Edit button in the Assignments hub detail pane',
+    panel: true,
+  },
+  'assignments-hub.stop-plc': {
+    label: 'Stop sharing with PLC button in the Assignments hub detail pane',
+    persists: true,
+    panel: true,
+  },
+  'assignments-hub.plc-results': {
+    label: 'Share results with PLC button in the Assignments hub detail pane',
+    panel: true,
+  },
+  'assignments-hub.names-retry': {
+    label:
+      'Retry loading student names button in the Assignments hub detail pane',
+    panel: true,
+  },
+  'assignments-hub.edit-cancel': {
+    label: 'Cancel button while editing in the Assignments hub detail pane',
+    panel: true,
+  },
+  'assignments-hub.save': {
+    label: 'Save button while editing in the Assignments hub detail pane',
+    persists: true,
+    panel: true,
+  },
+  'assignments-hub.add-students': {
+    label:
+      'Add students button for an empty roster in the Assignments hub detail pane',
+    panel: true,
+  },
+  // Substitute start-as-teacher panel in a sub share widget.
+  'sub-launch.start': {
+    label: 'Start button in the substitute launch panel',
+    persists: true,
+  },
+  'sub-launch.class': {
+    label: 'Class choice in the substitute launch panel, keyed class-N',
+    perField: true,
+    persists: true,
+    panel: true,
+  },
+  'sub-launch.cancel': {
+    label: 'Cancel button in the substitute launch class picker',
+    panel: true,
+  },
+  'sub-launch.error-back': {
+    label: 'Back button after a substitute launch error',
+    panel: true,
+  },
+  'sub-launch.pause': {
+    label: 'Pause or Start again button for a substitute-started run',
+    persists: true,
+    panel: true,
+  },
+  'sub-launch.end': {
+    label: 'End button for a substitute-started run',
+    panel: true,
+  },
+  'sub-launch.end-confirm': {
+    label: 'End it now button confirming a substitute-started run should end',
+    destructive: true,
+    persists: true,
+    panel: true,
+  },
+  'sub-launch.end-cancel': {
+    label: 'Cancel button when ending a substitute-started run',
+    panel: true,
+  },
+  // Routine Guide widget.
+  'routine-guide.search': {
+    label: 'Search routines box in the Routine Guide library',
+    perWidgetType: true,
+  },
+  'routine-guide.filter': {
+    label: 'Show menu (scope, category or team) in the Routine Guide library',
+    perWidgetType: true,
+  },
+  'routine-guide.routine': {
+    label: 'Routine tile in the Routine Guide library, keyed routine-N',
+    perField: true,
+  },
+  'routine-guide.favorite': {
+    label: 'Favorite star on a Routine Guide library tile',
+    perField: true,
+  },
+  'routine-guide.back': {
+    label: 'All routines (back) button in the Routine Guide',
+    perWidgetType: true,
+  },
+  'routine-guide.info': {
+    label: 'About this routine button in the Routine Guide',
+    perWidgetType: true,
+  },
+  'routine-guide.launch': {
+    label:
+      'Launch button that puts a routine on the board in the Routine Guide',
+    perWidgetType: true,
+  },
+  'routine-guide.view': {
+    label: 'Current step or All steps view button in a launched Routine Guide',
+    perField: true,
+  },
+  'routine-guide.step': {
+    label: 'Step in the Routine Guide step list, keyed step-N',
+    perField: true,
+  },
+  'routine-guide.prev': {
+    label: 'Previous step button in a launched Routine Guide',
+    perWidgetType: true,
+  },
+  'routine-guide.next': {
+    label: 'Next step button in a launched Routine Guide',
+    perWidgetType: true,
+  },
+  'routine-guide.tool': {
+    label: 'Open attached tool button on a Routine Guide step',
+    perWidgetType: true,
+  },
+  // Expectations widget face.
+  'expectations.volume': {
+    label: 'Volume category button in Expectations',
+    perWidget: true,
+  },
+  'expectations.groups': {
+    label: 'Groups (work mode) category button in Expectations',
+    perWidget: true,
+  },
+  'expectations.interaction': {
+    label: 'Interaction category button in Expectations',
+    perWidget: true,
+  },
+  'expectations.back': {
+    label: 'Back button in an Expectations category',
+    perWidget: true,
+    panel: true,
+  },
+  'expectations.volume-option': {
+    label: 'Volume level choice in Expectations, by option id',
+    perField: true,
+    panel: true,
+  },
+  'expectations.group-option': {
+    label: 'Work mode choice in Expectations, by option id',
+    perField: true,
+    panel: true,
+  },
+  'expectations.interaction-option': {
+    label: 'Interaction choice in Expectations, by option id',
+    perField: true,
+    panel: true,
+  },
+  // Board and collection card menu items in Manage Boards.
+  'boards-modal.board-menu-open': {
+    label: 'Open item in the board card menu',
+    panel: true,
+  },
+  'boards-modal.board-menu-rename': {
+    label: 'Rename item in the board card menu',
+    panel: true,
+  },
+  'boards-modal.board-menu-duplicate': {
+    label: 'Duplicate item in the board card menu',
+    persists: true,
+    panel: true,
+  },
+  'boards-modal.board-menu-set-default': {
+    label: 'Set as default in this Collection item in the board card menu',
+    persists: true,
+    panel: true,
+  },
+  'boards-modal.board-menu-pin': {
+    label: 'Pin or Unpin item in the board card menu',
+    persists: true,
+    panel: true,
+  },
+  'boards-modal.board-menu-move': {
+    label: 'Move to item in the board card menu',
+    panel: true,
+  },
+  'boards-modal.board-menu-template': {
+    label: 'Save as Template item in the board card menu (admins)',
+    panel: true,
+  },
+  'boards-modal.collection-menu-open': {
+    label: 'Open item in the collection card menu',
+    panel: true,
+  },
+  'boards-modal.collection-menu-rename': {
+    label: 'Rename item in the collection card menu',
+    panel: true,
+  },
+  'boards-modal.collection-menu-move': {
+    label: 'Move to item in the collection card menu',
+    panel: true,
+  },
+  'boards-modal.collection-menu-color': {
+    label: 'Set color item in the collection card menu',
+    panel: true,
+  },
+  'boards-modal.collection-menu-template': {
+    label: 'Save as Template item in the collection card menu (admins)',
+    panel: true,
+  },
+  'stations.absent': {
+    label: 'Mark absent students button in Stations',
+    perWidget: true,
+  },
+  'gradebook.tab': {
+    label: 'Grades or Data analysis tab in the gradebook header',
+    perField: true,
+  },
+  'smart-notebook.object-link': {
+    label: 'Link badge on a selected object in the Smart Notebook page editor',
+    perWidgetType: true,
+    panel: true,
+  },
 } as const satisfies Record<string, TourAnchorDef>;
 
 export type TourAnchorId = keyof typeof TOUR_ANCHORS;
@@ -13802,4 +14367,12 @@ export const isPersistsAnchor = (ref: string): boolean => {
   if (!isTourAnchorId(id)) return false;
   const def: TourAnchorDef = TOUR_ANCHORS[id];
   return !!def.persists;
+};
+
+/** Whether a step's anchor is a persists click that the tour sandbox absorbs. */
+export const isSandboxedAnchor = (ref: string): boolean => {
+  const { id } = parseTourAnchorRef(ref);
+  if (!isTourAnchorId(id)) return false;
+  const def: TourAnchorDef = TOUR_ANCHORS[id];
+  return !!def.sandboxed;
 };

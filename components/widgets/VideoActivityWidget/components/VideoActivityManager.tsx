@@ -115,11 +115,6 @@ import {
   getVideoActivityBehavior,
   formatVideoActivityBehaviorSummary,
 } from '@/utils/videoActivityBehavior';
-import {
-  splitDueAtToInputs,
-  dueInputsToEpoch,
-  DEFAULT_DUE_TIME,
-} from '@/utils/localDate';
 import { useFolderViewSidebar } from '@/components/common/library/useFolderViewSidebar';
 import type { FolderDeleteActions } from '@/components/common/library/FolderSidebar';
 
@@ -548,7 +543,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const { canAccessFeature } = useAuth();
   const canOfferAnonymousJoin = canAccessFeature('anonymous-join');
   const canAssignLive = canAccessFeature('video-activity-live');
-  const availabilityOn = canAccessFeature('assign-availability');
   const stepperOn = canAccessFeature('assign-stepper');
   const lastPacing = useLastVideoAssignPacing(
     userId,
@@ -579,8 +573,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const [assignOptions, setAssignOptions] =
     useState<VideoActivitySessionSettings>(defaultSessionSettings);
   const [assignError, setAssignError] = useState<string | null>(null);
-  // Due date for the current assign modal (epoch ms or null = no due date).
-  const [assignDueAt, setAssignDueAt] = useState<number | null>(null);
   // Unified roster picker state. Seeded from the per-activity roster memory
   // on open so repeated assignments don't require re-picking.
   const [pickerValue, setPickerValue] = useState<AssignClassPickerValue>(() =>
@@ -617,14 +609,12 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       : null;
   const closeAssign = () => {
     setAssignTarget(null);
-    setAssignDueAt(null);
     if (pendingAssign) onPendingAssignDone?.();
   };
 
   if (assignTarget && assignTarget.id !== prevAssignTargetId) {
     setPrevAssignTargetId(assignTarget.id);
     setAssignOptions(defaultSessionSettings);
-    setAssignDueAt(null);
     setAssignTargeting(
       activePending && activePending.targetStudents.length > 0
         ? {
@@ -858,20 +848,12 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     try {
       // Behavior (sessionOptions, attemptLimit) is now sourced from the
       // activity itself in the Widget handler via getVideoActivityBehavior(meta).
-      // Mirror the legacy due-date input onto the new top-level `dueAt` so
-      // individual-targeting pointer docs see the same due date the teacher
-      // already set — no second, competing "Due" field in the Schedule
-      // affordance (AssignTargetingSection renders with `showDueAt={false}`).
-      const targetingWithDue: AssignTargetingValue = availabilityOn
-        ? applyAvailability(assignTargeting, {
-            enabled: true,
-            rosters: rosters.filter((r) => validRosterIds.includes(r.id)),
-            bellWindow: periodAccess?.bellWindow,
-          }).targeting
-        : { ...assignTargeting, dueAt: assignDueAt ?? undefined };
-      const dueAt = availabilityOn
-        ? (targetingWithDue.dueAt ?? null)
-        : assignDueAt;
+      const targetingWithDue = applyAvailability(assignTargeting, {
+        enabled: true,
+        rosters: rosters.filter((r) => validRosterIds.includes(r.id)),
+        bellWindow: periodAccess?.bellWindow,
+      }).targeting;
+      const dueAt = targetingWithDue.dueAt ?? null;
       await onAssign(
         assignTarget,
         validRosterIds,
@@ -1656,15 +1638,12 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
                   }));
               }}
               meta={assignTarget}
-              dueAt={assignDueAt}
-              onDueAtChange={setAssignDueAt}
               rosters={rosters}
               pickerValue={pickerValue}
               onPickerChange={setPickerValue}
               targeting={assignTargeting}
               onTargetingChange={setAssignTargeting}
               periodAccess={periodAccess}
-              availabilityEnabled={availabilityOn}
               assignError={assignError}
               onEditInActivity={() => {
                 closeAssign();
@@ -1697,7 +1676,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
  *
  * Renders:
  *   1. The class/period picker (AssignClassPicker).
- *   2. A due-date date input.
+ *   2. Availability & Due Date (AssignTargetingSection).
  *   3. A read-only behavior summary derived from `getVideoActivityBehavior(meta)`,
  *      plus an "Edit in activity" button. The button calls `onEditInActivity`
  *      so the parent can open the editor's Settings tab.
@@ -1708,8 +1687,6 @@ const AssignBehaviorSummaryVA: React.FC<{
   pace?: VideoActivitySessionMode;
   onPaceChange: (next: VideoActivitySessionMode) => void;
   meta: VideoActivityMetadata;
-  dueAt: number | null;
-  onDueAtChange: (dueAt: number | null) => void;
   rosters: ClassRoster[];
   pickerValue: AssignClassPickerValue;
   onPickerChange: (next: AssignClassPickerValue) => void;
@@ -1717,39 +1694,23 @@ const AssignBehaviorSummaryVA: React.FC<{
   targeting: AssignTargetingValue;
   onTargetingChange: (next: AssignTargetingValue) => void;
   periodAccess?: AssignPeriodAccessContext;
-  availabilityEnabled: boolean;
   assignError: string | null;
   onEditInActivity?: () => void;
 }> = ({
   pace,
   onPaceChange,
   meta,
-  dueAt,
-  onDueAtChange,
   rosters,
   pickerValue,
   onPickerChange,
   targeting,
   onTargetingChange,
   periodAccess,
-  availabilityEnabled,
   assignError,
   onEditInActivity,
 }) => {
   const behavior = getVideoActivityBehavior(meta);
   const summary = formatVideoActivityBehaviorSummary(behavior);
-
-  // Use local-time helpers so the picker date matches the school's timezone (not UTC).
-  const dateInputValue = splitDueAtToInputs(dueAt, true).date;
-
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    if (!val) {
-      onDueAtChange(null);
-    } else {
-      onDueAtChange(dueInputsToEpoch(val, DEFAULT_DUE_TIME));
-    }
-  };
 
   const live = pace === 'teacher';
 
@@ -1807,30 +1768,7 @@ const AssignBehaviorSummaryVA: React.FC<{
           value={targeting}
           onChange={onTargetingChange}
           kind="video-activity"
-          showDueAt={false}
-          availabilityEnabled={availabilityEnabled}
         />
-
-        {/* Due date */}
-        {!availabilityEnabled && (
-          <div>
-            <label
-              htmlFor="va-assign-due-date-input"
-              className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1"
-            >
-              Due Date <span className="font-normal">(optional)</span>
-            </label>
-            <input
-              {...tourAttr('video-activity.assign-due-date')}
-              id="va-assign-due-date-input"
-              type="date"
-              data-testid="va-assign-due-date"
-              value={dateInputValue}
-              onChange={handleDateChange}
-              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
-            />
-          </div>
-        )}
 
         {/* Read-only behavior summary */}
         <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1.5">

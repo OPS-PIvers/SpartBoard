@@ -26,8 +26,6 @@ type ChoiceUpdates = Partial<
 
 interface ChoiceOptionsEditorProps {
   question: QuizQuestion;
-  /** Shows the "Multiple correct answers" setting. */
-  allowMulti: boolean;
   onChange: (updates: ChoiceUpdates) => void;
 }
 
@@ -59,7 +57,6 @@ function initialRows(q: QuizQuestion): ChoiceRow[] {
 /** MC and choose-all as one option list; mount with `key={question.id}`. */
 export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
   question,
-  allowMulti,
   onChange,
 }) => {
   const multi = question.type === 'MA';
@@ -213,53 +210,51 @@ export const ChoiceOptionsEditor: React.FC<ChoiceOptionsEditorProps> = ({
         </div>
       </div>
 
-      {(allowMulti || multi) && (
-        <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2">
+        <label
+          className={`flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-lg select-none ${
+            multi && !canTurnOffMulti
+              ? 'opacity-50 cursor-not-allowed'
+              : 'cursor-pointer'
+          }`}
+          title={
+            multi && !canTurnOffMulti
+              ? `Single-answer questions hold up to ${MAX_SINGLE_OPTIONS} options.`
+              : undefined
+          }
+        >
+          <input
+            type="checkbox"
+            checked={multi}
+            disabled={multi && !canTurnOffMulti}
+            onChange={(e) => setMulti(e.target.checked)}
+            {...tourTypeAttr('quiz-editor.multi-correct', 'quiz')}
+            className="w-4 h-4 accent-brand-blue-primary"
+          />
+          <span className="font-bold text-xs text-slate-700 whitespace-nowrap">
+            Multiple correct answers
+          </span>
+        </label>
+        {multi && (
           <label
-            className={`flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-lg select-none ${
-              multi && !canTurnOffMulti
-                ? 'opacity-50 cursor-not-allowed'
-                : 'cursor-pointer'
-            }`}
-            title={
-              multi && !canTurnOffMulti
-                ? `Single-answer questions hold up to ${MAX_SINGLE_OPTIONS} options.`
-                : undefined
-            }
+            className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-lg cursor-pointer select-none"
+            title="Each correct pick earns points and each wrong pick takes points away, so choosing everything earns nothing."
           >
             <input
               type="checkbox"
-              checked={multi}
-              disabled={multi && !canTurnOffMulti}
-              onChange={(e) => setMulti(e.target.checked)}
-              {...tourTypeAttr('quiz-editor.multi-correct', 'quiz')}
+              checked={question.allowPartialCredit === true}
+              onChange={(e) =>
+                onChange({ allowPartialCredit: e.target.checked })
+              }
+              {...tourTypeAttr('quiz-editor.choice-partial-credit', 'quiz')}
               className="w-4 h-4 accent-brand-blue-primary"
             />
             <span className="font-bold text-xs text-slate-700 whitespace-nowrap">
-              Multiple correct answers
+              Partial credit
             </span>
           </label>
-          {multi && (
-            <label
-              className="flex items-center gap-2 px-3 py-2 bg-white border border-slate-300 rounded-lg cursor-pointer select-none"
-              title="Each correct pick earns points and each wrong pick takes points away, so choosing everything earns nothing."
-            >
-              <input
-                type="checkbox"
-                checked={question.allowPartialCredit === true}
-                onChange={(e) =>
-                  onChange({ allowPartialCredit: e.target.checked })
-                }
-                {...tourTypeAttr('quiz-editor.choice-partial-credit', 'quiz')}
-                className="w-4 h-4 accent-brand-blue-primary"
-              />
-              <span className="font-bold text-xs text-slate-700 whitespace-nowrap">
-                Partial credit
-              </span>
-            </label>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

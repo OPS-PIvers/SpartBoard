@@ -334,7 +334,6 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
 }) => {
   const { t, i18n } = useTranslation();
   const { user, canAccessFeature } = useAuth();
-  const groupWording = canAccessFeature('my-groups');
   const { addToast } = useDashboard();
   const { data: assessments, loading: assessmentsLoading } =
     usePlcAssessmentsData();
@@ -416,13 +415,9 @@ export const PlcAssessmentDetail: React.FC<PlcAssessmentDetailProps> = ({
             })}
           </p>
           <p className="text-sm text-slate-500 mt-1">
-            {groupWording
-              ? t('plcDashboard.assessmentDetail.groupNotFoundSubtitle', {
-                  defaultValue: 'It may have been removed from this team.',
-                })
-              : t('plcDashboard.assessmentDetail.notFoundSubtitle', {
-                  defaultValue: 'It may have been removed from this PLC.',
-                })}
+            {t('plcDashboard.assessmentDetail.groupNotFoundSubtitle', {
+              defaultValue: 'It may have been removed from this team.',
+            })}
           </p>
         </div>
       </div>

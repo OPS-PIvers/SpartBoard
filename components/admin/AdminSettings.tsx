@@ -206,7 +206,6 @@ const TAB_GROUPS = [
         label: 'Building groups',
         icon: Building2,
         component: BuildingGroupsManager,
-        feature: 'my-groups',
       },
       {
         id: 'team-type-defaults',

@@ -62,10 +62,9 @@ vi.mock('react-i18next', () => ({
   }),
 }));
 
-let mockGroups = false;
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
-    canAccessFeature: (id: string) => id === 'my-groups' && mockGroups,
+    canAccessFeature: () => false,
   }),
 }));
 
@@ -161,8 +160,8 @@ describe('PlcIndexHub — Your PLCs section', () => {
     // Exactly one Lead badge (on the led team).
     expect(screen.getAllByText('Lead')).toHaveLength(1);
     // Member counts render per PLC.
-    expect(screen.getByText('2 Members')).toBeInTheDocument();
-    expect(screen.getByText('3 Members')).toBeInTheDocument();
+    expect(screen.getByText(/2 Members/)).toBeInTheDocument();
+    expect(screen.getByText(/3 Members/)).toBeInTheDocument();
   });
 
   it('navigates to /plc/:id when a PLC is clicked', () => {
@@ -174,26 +173,21 @@ describe('PlcIndexHub — Your PLCs section', () => {
 
   it('shows the empty state when the user has no PLCs', () => {
     renderHub({ plcs: [] });
-    expect(screen.getByText('No PLCs yet')).toBeInTheDocument();
+    expect(screen.getByText('No teams yet')).toBeInTheDocument();
   });
 });
 
-describe('PlcIndexHub — My Groups flag', () => {
+describe('PlcIndexHub — team types', () => {
   it('titles the hub My Teams and labels each row with its type', () => {
-    mockGroups = true;
-    try {
-      renderHub({
-        plcs: [
-          makePlc({ id: 'p1', name: 'Mentors', groupType: 'mentoring' }),
-          makePlc({ id: 'p2', name: 'Grade 4' }),
-        ],
-      });
-      expect(screen.getByText('My Teams')).toBeInTheDocument();
-      expect(screen.getByText(/Mentoring ·/)).toBeInTheDocument();
-      expect(screen.getByText(/PLC ·/)).toBeInTheDocument();
-    } finally {
-      mockGroups = false;
-    }
+    renderHub({
+      plcs: [
+        makePlc({ id: 'p1', name: 'Mentors', groupType: 'mentoring' }),
+        makePlc({ id: 'p2', name: 'Grade 4' }),
+      ],
+    });
+    expect(screen.getByText('My Teams')).toBeInTheDocument();
+    expect(screen.getByText(/Mentoring ·/)).toBeInTheDocument();
+    expect(screen.getByText(/PLC ·/)).toBeInTheDocument();
   });
 });
 
@@ -213,7 +207,7 @@ describe('PlcIndexHub — PLCs in my building directory', () => {
 
     renderHub({ plcs: [] });
 
-    expect(screen.getByText('PLCs in my building')).toBeInTheDocument();
+    expect(screen.getByText('Teams in my building')).toBeInTheDocument();
     expect(screen.getByText('Neighbor Science')).toBeInTheDocument();
     expect(screen.getByText('4 members')).toBeInTheDocument();
     // The join hint surfaces the user's email as a tooltip.
@@ -226,7 +220,7 @@ describe('PlcIndexHub — PLCs in my building directory', () => {
     setDirectory({ entries: [] });
     renderHub({ plcs: [makePlc({ id: 'p1', name: 'Mine' })] });
 
-    expect(screen.getByText('No other PLCs to show')).toBeInTheDocument();
+    expect(screen.getByText('No other teams to show')).toBeInTheDocument();
   });
 
   it('shows the "directory unavailable" notice when the user has no org', () => {

@@ -105,17 +105,10 @@ describe('tour anchor registry', () => {
       'share-link.mode-synced',
       'share-link.mode-view-only',
       'share-link.mode-copy',
-      'share-link.mode-substitute',
       'share-link.close',
       'share-link.url',
       'share-link.copy',
       'share-link.done',
-      'share-link.sub-expires',
-      'share-link.sub-building',
-      'share-link.sub-preset-email',
-      'share-link.sub-remove-email',
-      'share-link.sub-email-input',
-      'share-link.add-sub-email',
       'share-link.plc-scope',
       'sub-share.expires',
       'sub-share.email-chip',
@@ -124,14 +117,6 @@ describe('tour anchor registry', () => {
       'sub-share.url',
       'sub-share.copy-link',
       'share-collection.share-with-sub',
-      'share-collection.mode-copy',
-      'share-collection.mode-substitute',
-      'share-collection.ttl',
-      'share-collection.building',
-      'share-collection.preset-email',
-      'share-collection.remove-email',
-      'share-collection.email-input',
-      'share-collection.add-email',
       'share-collection.cancel',
       'share-collection.url',
       'share-collection.copy-link',
@@ -158,7 +143,7 @@ describe('tour anchor registry', () => {
       /^(assign-(destination|step)\.|plc-(assign|share)\.|admin-plc\.recovery-reassign)/.test(
         id
       ) ||
-      /^(assign-(top|rule|when|classes|students|students-legacy|mods|override|modal|targeting|availability|periods|per-class|settings|quiz-behavior|quiz-time|tab-warning|results-protection|video-behavior)|flashcards-assign|plc-video-assign|publish-scores|view-only-share)\./.test(
+      /^(assign-(top|rule|when|classes|students|students-legacy|mods|override|modal|targeting|availability|periods|per-class|settings|quiz-behavior|quiz-time|tab-warning|results-protection|video-behavior)|assignments-hub|flashcards-assign|plc-video-assign|publish-scores|view-only-share)\./.test(
         id
       );
     const unflagged = Object.entries(TOUR_ANCHORS)

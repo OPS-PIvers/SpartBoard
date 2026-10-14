@@ -182,7 +182,31 @@ interface RowProps {
   onArchive: (row: AssessmentListRow) => void;
   onRestore: (row: AssessmentListRow) => void;
   onMoveToFolder: (row: AssessmentListRow, folderId: string | null) => void;
+  /** Set when the chips open this quiz in the Quiz widget. */
+  onShowInQuiz?: (
+    row: AssessmentListRow,
+    target: 'monitor' | 'library'
+  ) => void;
 }
+
+const CHIP_BUTTON =
+  'relative z-10 inline-flex rounded-full transition-[filter] hover:brightness-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40';
+
+// Chips are buttons inside the row, so the open button reaches the row edges through ::after instead of wrapping them.
+const STRETCH_OPEN =
+  "after:absolute after:inset-0 after:rounded-2xl after:content-['']";
+
+const InLibraryChip: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xxs font-bold uppercase tracking-wider text-emerald-700">
+      <Cloud className="w-3 h-3" aria-hidden="true" />
+      {t('plcDashboard.quizLibrary.inLibrary', {
+        defaultValue: 'In your library',
+      })}
+    </span>
+  );
+};
 
 const menuItemClass =
   'flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50';
@@ -204,6 +228,7 @@ const AssessmentRow: React.FC<RowProps> = ({
   onArchive,
   onRestore,
   onMoveToFolder,
+  onShowInQuiz,
 }) => {
   const { t, i18n } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -278,6 +303,17 @@ const AssessmentRow: React.FC<RowProps> = ({
     }
   }
 
+  const showInLibraryLabel = t(
+    'plcDashboard.assessmentList.showInQuizLibrary',
+    { defaultValue: 'Show in my Quiz library' }
+  );
+  const chipAction =
+    !row.archived && row.status === 'inProgress'
+      ? t('plcDashboard.assessmentList.openMonitor', {
+          defaultValue: 'Open the live monitor',
+        })
+      : showInLibraryLabel;
+
   const body = (
     <>
       <span className="flex items-center justify-center w-9 h-9 rounded-xl bg-brand-blue-primary/10 shrink-0">
@@ -291,15 +327,48 @@ const AssessmentRow: React.FC<RowProps> = ({
           <span className="text-sm font-bold text-slate-800 truncate">
             {title}
           </span>
-          <AssessmentStatusBadge status={row.status} archived={row.archived} />
-          {inLibrary && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xxs font-bold uppercase tracking-wider text-emerald-700">
-              <Cloud className="w-3 h-3" aria-hidden="true" />
-              {t('plcDashboard.quizLibrary.inLibrary', {
-                defaultValue: 'In your library',
-              })}
-            </span>
+          {onShowInQuiz ? (
+            <button
+              {...tourFieldAttr('plc-assessments.status', 'plc', row.id)}
+              type="button"
+              onClick={() =>
+                onShowInQuiz(
+                  row,
+                  !row.archived && row.status === 'inProgress'
+                    ? 'monitor'
+                    : 'library'
+                )
+              }
+              title={chipAction}
+              aria-label={chipAction}
+              className={CHIP_BUTTON}
+            >
+              <AssessmentStatusBadge
+                status={row.status}
+                archived={row.archived}
+              />
+            </button>
+          ) : (
+            <AssessmentStatusBadge
+              status={row.status}
+              archived={row.archived}
+            />
           )}
+          {inLibrary &&
+            (onShowInQuiz ? (
+              <button
+                {...tourFieldAttr('plc-assessments.in-library', 'plc', row.id)}
+                type="button"
+                onClick={() => onShowInQuiz(row, 'library')}
+                title={showInLibraryLabel}
+                aria-label={showInLibraryLabel}
+                className={CHIP_BUTTON}
+              >
+                <InLibraryChip />
+              </button>
+            ) : (
+              <InLibraryChip />
+            ))}
         </span>
         <span className="block text-xs text-slate-500 mt-0.5 truncate">
           {meta.join(' · ')}
@@ -320,7 +389,7 @@ const AssessmentRow: React.FC<RowProps> = ({
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       data-testid="assessment-row"
-      className={`bg-white border border-slate-200 rounded-2xl px-4 py-3 flex items-center gap-3 ${isDragging ? 'opacity-40' : ''}`}
+      className={`bg-white border border-slate-200 rounded-2xl px-4 py-3 flex items-center gap-3 ${onShowInQuiz ? 'relative' : ''} ${isDragging ? 'opacity-40' : ''}`}
     >
       {canEdit && !row.archived && (
         <button
@@ -331,12 +400,28 @@ const AssessmentRow: React.FC<RowProps> = ({
           aria-label={t('plcDashboard.assessmentList.folders.dragHandle', {
             defaultValue: 'Drag to move',
           })}
-          className="shrink-0 p-1 -ml-1 rounded text-slate-400 hover:text-slate-600 cursor-grab touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+          className={`shrink-0 p-1 -ml-1 rounded text-slate-400 hover:text-slate-600 cursor-grab touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${onShowInQuiz ? 'relative z-10' : ''}`}
         >
           <GripVertical className="w-4 h-4" aria-hidden="true" />
         </button>
       )}
-      {row.assessmentId ? (
+      {row.assessmentId && onShowInQuiz ? (
+        <>
+          <div className="flex items-center gap-3 flex-1 min-w-0">{body}</div>
+          <button
+            {...tourFieldAttr('plc-assessments.open', 'plc', row.id)}
+            type="button"
+            onClick={() => onOpen(row.assessmentId as string)}
+            aria-label={title}
+            className={`shrink-0 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${STRETCH_OPEN}`}
+          >
+            <ChevronRight
+              className="w-4 h-4 text-slate-400"
+              aria-hidden="true"
+            />
+          </button>
+        </>
+      ) : row.assessmentId ? (
         <button
           {...tourFieldAttr('plc-assessments.open', 'plc', row.id)}
           type="button"
@@ -359,7 +444,7 @@ const AssessmentRow: React.FC<RowProps> = ({
           type="button"
           onClick={() => onAssign(row)}
           disabled={busy}
-          className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-brand-blue-primary hover:bg-brand-blue-primary/5 transition-colors disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
+          className="relative z-10 shrink-0 inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-brand-blue-primary hover:bg-brand-blue-primary/5 transition-colors disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40"
         >
           <Users className="w-3.5 h-3.5" aria-hidden="true" />
           {t('plcDashboard.assessmentList.assign', {
@@ -369,7 +454,10 @@ const AssessmentRow: React.FC<RowProps> = ({
       )}
 
       {canEdit && (
-        <div ref={menuRef} className="relative shrink-0">
+        <div
+          ref={menuRef}
+          className={`relative shrink-0 ${onShowInQuiz ? (menuOpen ? 'z-20' : 'z-10') : ''}`}
+        >
           <button
             {...tourFieldAttr('plc-assessments.menu', 'plc', row.id)}
             type="button"
@@ -640,9 +728,46 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
   rail,
 }) => {
   const { t } = useTranslation();
-  const { addToast } = useDashboard();
+  const {
+    addToast,
+    activeDashboard,
+    addWidget,
+    updateWidget,
+    bringToFront,
+    setPendingQuizReveal,
+  } = useDashboard();
   const { showPrompt } = useDialog();
   const { user, canAccessFeature, getAssignmentMode } = useAuth();
+  const chipsOpenQuiz = canAccessFeature('teams-redesign');
+  const showInQuiz = useCallback(
+    (row: AssessmentListRow, target: 'monitor' | 'library') => {
+      const quizWidget = activeDashboard?.widgets.find(
+        (w) => w.type === 'quiz'
+      );
+      setPendingQuizReveal({
+        syncGroupId: row.syncGroupId,
+        target,
+        widgetId: quizWidget?.id ?? null,
+      });
+      if (quizWidget) {
+        if (quizWidget.minimized) {
+          updateWidget(quizWidget.id, { minimized: false });
+        }
+        bringToFront(quizWidget.id);
+      } else {
+        addWidget('quiz');
+      }
+      onCloseDashboard();
+    },
+    [
+      activeDashboard,
+      setPendingQuizReveal,
+      updateWidget,
+      bringToFront,
+      addWidget,
+      onCloseDashboard,
+    ]
+  );
   const { updateAssessment, archiveQuiz, restoreQuiz } = usePlcActions();
   const canEdit = useCanEditPlcContent();
   const {
@@ -1245,6 +1370,11 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
                   onArchive={(r) => void handleArchive(r)}
                   onRestore={(r) => void handleRestore(r)}
                   onMoveToFolder={(r, folderId) => void moveRow(r, folderId)}
+                  onShowInQuiz={
+                    chipsOpenQuiz && quizActions.isInLibrary(row.syncGroupId)
+                      ? showInQuiz
+                      : undefined
+                  }
                 />
               ))}
             </ul>

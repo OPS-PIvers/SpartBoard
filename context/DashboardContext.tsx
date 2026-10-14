@@ -142,6 +142,7 @@ import {
 } from '@/utils/aiModelConfigFallback';
 import {
   DashboardContext,
+  PendingQuizReveal,
   PendingShareImport,
   SharedBoardImportMode,
   SubstituteShareInput,
@@ -694,6 +695,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const clearPendingAssignmentEdit = useCallback(() => {
     setPendingAssignmentEdit(null);
+  }, []);
+
+  const [pendingQuizReveal, setPendingQuizReveal] =
+    useState<PendingQuizReveal | null>(null);
+  const clearPendingQuizReveal = useCallback(() => {
+    setPendingQuizReveal(null);
   }, []);
 
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -7545,6 +7552,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingAssignmentEditId,
       setPendingAssignmentEdit,
       clearPendingAssignmentEdit,
+      pendingQuizReveal,
+      setPendingQuizReveal,
+      clearPendingQuizReveal,
       shareCollection,
       shareSubstituteCollection,
       updateSubstituteCollectionShare,
@@ -7674,6 +7684,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingAssignmentEditId,
       setPendingAssignmentEdit,
       clearPendingAssignmentEdit,
+      pendingQuizReveal,
+      setPendingQuizReveal,
+      clearPendingQuizReveal,
       shareCollection,
       shareSubstituteCollection,
       sharedCollectionApi.loadSharedCollection,
