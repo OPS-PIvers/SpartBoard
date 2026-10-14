@@ -30,6 +30,7 @@ export const SegmentedField: React.FC<
             type="button"
             role="radio"
             aria-checked={selected}
+            data-value={option.value}
             tabIndex={tabbable ? 0 : -1}
             disabled={disabled}
             onClick={() => onChange(option.value)}

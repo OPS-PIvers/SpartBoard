@@ -190,7 +190,10 @@ describe('Guided Learning step edits', () => {
     expect(() => mergeSteps([], [tour('toggle', 'on')], 1)).toThrow(
       /boolean value/
     );
-    expect(() => mergeSteps([], [tour('type')], 1)).toThrow(/string value/);
+    expect(mergeSteps([], [tour('type')], 1)).toHaveLength(1);
+    expect(() => mergeSteps([], [tour('type', true)], 1)).toThrow(
+      /string value/
+    );
     expect(() => mergeSteps([], [tour('click', true)], 1)).toThrow(/no value/);
   });
 

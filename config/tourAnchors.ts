@@ -12460,7 +12460,8 @@ export const TOUR_ANCHORS = {
   },
   // Video Activity shared-prop controls.
   'editor.save': {
-    label: 'Save button in an editor dialog footer',
+    label:
+      'Save button in an editor dialog footer (not in editors that save as you go, like the quiz editor)',
     perWidgetType: true,
     persists: true,
     sandboxed: true,
