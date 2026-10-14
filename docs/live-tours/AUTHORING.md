@@ -44,10 +44,10 @@ To change an existing tour, `get_live_tour`, then `update_live_tour` with `steps
 - `click`: the teacher clicks the control; the tour moves on when they do. Use it for buttons, tabs, menu items and anything that opens something.
 - `observe`: point at something to notice; the teacher presses Next. Use it for the opening and closing steps (`board.whole`), a result, or a settings row the tour only shows.
 - `toggle`: a switch or checkbox, with `value` true or false, the state it should end in.
-- `select`: a dropdown, segmented control or tab strip, with `value` the option value.
+- `select`: a dropdown, segmented control or tab strip, with `value` the option value. Never a button that steps to the next option on each click: an anchor with `cycles` is one, and `cycles` names the control to select instead. A `settings.field` whose `kind` is text, number or a list isn't a choice either.
 - `type`: a text field, with `value` the text Autopilot types. The tour moves on once the field holds it. Never put a real student's name in it.
 
-**Anchor refs.** Write the id from `list_tour_anchors`, plus `:<type>` when its scope is `widget type` and `:<type>#<key>` when it is `field`. When an anchor lists `keys`, the suffix must be one of them. `settings.field`, `settings.toggle` and `settings.group` refs come from `widget_type` lookups (`settings_fields`).
+**Anchor refs.** Write the id from `list_tour_anchors`, plus `:<type>` when its scope is `widget type` and `:<type>#<key>` when it is `field`. When an anchor lists `keys`, the suffix must be one of them; when it gives a `key_pattern`, the suffix must match it, and `key_hint` shows examples (quiz option letters are lowercase: `quiz-editor.option:quiz#a`). `settings.field`, `settings.toggle` and `settings.group` refs come from `widget_type` lookups (`settings_fields`).
 
 **Things the runner does for you.** An anchor with `requires` is set up before the runner looks: it expands the dock, selects the widget, restores it, scrolls it into view, or opens the settings drawer on the right tab. A tour that is about a widget's settings can still start with a `click` on `widget.settings-opener:<type>`, so teachers learn where the gear is; after that, every settings step on that widget stays in the open drawer.
 
@@ -94,7 +94,8 @@ Write for a busy teacher reading a small card on a projected board.
 
 `dry_run` reports what playback would hit. **Errors refuse the save:**
 
-- an anchor that isn't registered, a per-type or per-field ref without its suffix, or a suffix that isn't one of its `keys`
+- an anchor that isn't registered, a per-type or per-field ref without its suffix, or a suffix that isn't one of its `keys` or doesn't match its `key_pattern`
+- `select` on a control that isn't a choice: a cycle button, a switch, or a text, number or list field
 - a control on a panel no earlier step opens (the error lists the clicks from the board)
 - a widget control when that widget isn't staged or added from the Dock first
 

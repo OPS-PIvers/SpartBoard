@@ -9,6 +9,10 @@ export interface TourAnchorEntry {
   sandboxed?: true;
   requires?: string;
   keys?: readonly string[];
+  key_pattern?: string;
+  key_hint?: string;
+  cycles?: string;
+  opens_empty?: string;
   routes?: ReadonlyArray<{
     surface: string;
     kind: string;
@@ -1976,6 +1980,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "New Class button in My Classes",
     "scope": "board",
     "panel": true,
+    "opens_empty": "roster-editor",
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -2553,6 +2558,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "random.mode",
     "label": "Mode button in Random Picker (Pick One, Shuffle, Groups, Jigsaw)",
     "scope": "widget",
+    "cycles": "settings.field:random#mode",
     "routes": [
       {
         "surface": "widgets.random.face",
@@ -2671,6 +2677,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "schedule.start-timer",
     "label": "Start timer button on a Schedule row, by row (active = the Now row)",
     "scope": "field",
+    "key_pattern": "schedule#(active|row-[1-9]\\d*)",
+    "key_hint": "schedule#active for the Now row, schedule#row-1 for the first row",
     "routes": [
       {
         "surface": "widgets.schedule.face",
@@ -5141,6 +5149,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Answer option box in the Quiz editor, by letter",
     "scope": "field",
     "panel": true,
+    "key_pattern": "quiz#[a-l]",
+    "key_hint": "quiz#a for option A, quiz#b for B; lowercase letters",
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5160,6 +5170,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Mark-correct button beside an answer option, by letter",
     "scope": "field",
     "panel": true,
+    "key_pattern": "quiz#[a-l]",
+    "key_hint": "quiz#a for option A, quiz#b for B; lowercase letters",
     "routes": [
       {
         "surface": "quiz.editor",
@@ -5974,6 +5986,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Remove option (×) in the Quiz editor",
     "scope": "field",
     "panel": true,
+    "key_pattern": "quiz#[a-l]",
+    "key_hint": "quiz#a for option A, quiz#b for B; lowercase letters",
     "routes": [
       {
         "surface": "quiz.editor",
@@ -11402,6 +11416,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.question-toggle",
     "label": "Question row expand toggle in Quiz results, by position",
     "scope": "field",
+    "key_pattern": "quiz#\\d+",
+    "key_hint": "quiz#0 for the first question",
     "routes": [
       {
         "surface": "quiz.results",
@@ -11598,6 +11614,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.student-select",
     "label": "Select student row checkbox in Quiz results, by position",
     "scope": "field",
+    "key_pattern": "quiz#\\d+",
+    "key_hint": "quiz#0 for the first student row",
     "routes": [
       {
         "surface": "quiz.results",
@@ -11620,6 +11638,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "quiz-results.student-toggle",
     "label": "Student row expand button in Quiz results, by row",
     "scope": "field",
+    "key_pattern": "quiz#\\d+",
+    "key_hint": "quiz#0 for the first student row",
     "routes": [
       {
         "surface": "quiz.results",
@@ -11643,6 +11663,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Unlock results in Quiz results, by position",
     "scope": "field",
     "persists": true,
+    "key_pattern": "quiz#\\d+",
+    "key_hint": "quiz#0 for the first student row",
     "routes": [
       {
         "surface": "quiz.results",
@@ -11666,6 +11688,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Delete this submission in Quiz results, by position",
     "scope": "field",
     "destructive": true,
+    "key_pattern": "quiz#\\d+",
+    "key_hint": "quiz#0 for the first student row",
     "routes": [
       {
         "surface": "quiz.results",
@@ -12967,6 +12991,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Highlight list item in the Quiz grader, by position",
     "scope": "field",
     "panel": true,
+    "key_pattern": "quiz#\\d+",
+    "key_hint": "quiz#0 for the first highlight",
     "routes": [
       {
         "surface": "quiz.grader",
@@ -13194,6 +13220,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Move criterion up on the Quiz rubric builder, by position",
     "scope": "field",
     "panel": true,
+    "key_pattern": "quiz#[1-9]\\d*",
+    "key_hint": "quiz#1 for the first criterion",
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -13207,6 +13235,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Move criterion down on the Quiz rubric builder, by position",
     "scope": "field",
     "panel": true,
+    "key_pattern": "quiz#[1-9]\\d*",
+    "key_hint": "quiz#1 for the first criterion",
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -13221,6 +13251,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "field",
     "panel": true,
     "destructive": true,
+    "key_pattern": "quiz#[1-9]\\d*",
+    "key_hint": "quiz#1 for the first criterion",
     "routes": [
       {
         "surface": "quiz.rubric-builder",
@@ -50317,6 +50349,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Create New Class button in the empty My Classes list",
     "scope": "board",
     "panel": true,
+    "opens_empty": "roster-editor",
     "routes": [
       {
         "surface": "board.sidebar-classes",
@@ -56760,6 +56793,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "id": "schedule.toggle-item",
     "label": "Row button that marks a Schedule row done, by row (active = the Now row)",
     "scope": "field",
+    "key_pattern": "schedule#(active|row-[1-9]\\d*)",
+    "key_hint": "schedule#active for the Now row, schedule#row-1 for the first row",
     "routes": [
       {
         "surface": "widgets.schedule.face",
@@ -56777,6 +56812,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Event name input in Schedule settings, by event row",
     "scope": "field",
     "panel": true,
+    "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*",
+    "key_hint": "schedule#event-1 for the first event",
     "routes": [
       {
         "surface": "widgets.schedule.settings",
@@ -56796,6 +56833,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Event start time input in Schedule settings, by event row",
     "scope": "field",
     "panel": true,
+    "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*",
+    "key_hint": "schedule#event-1 for the first event",
     "routes": [
       {
         "surface": "widgets.schedule.settings",
@@ -56815,6 +56854,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Event end time input in Schedule settings, by event row",
     "scope": "field",
     "panel": true,
+    "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*",
+    "key_hint": "schedule#event-1 for the first event",
     "routes": [
       {
         "surface": "widgets.schedule.settings",
@@ -56834,6 +56875,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Timer minutes input for an event in Schedule settings, by event row",
     "scope": "field",
     "panel": true,
+    "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*",
+    "key_hint": "schedule#event-1 for the first event",
     "routes": [
       {
         "surface": "widgets.schedule.settings",
@@ -56853,6 +56896,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Timer seconds input for an event in Schedule settings, by event row",
     "scope": "field",
     "panel": true,
+    "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*",
+    "key_hint": "schedule#event-1 for the first event",
     "routes": [
       {
         "surface": "widgets.schedule.settings",
@@ -56872,6 +56917,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Clock or timer mode toggle for an event in Schedule settings, by event row",
     "scope": "field",
     "panel": true,
+    "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*",
+    "key_hint": "schedule#event-1 for the first event",
     "routes": [
       {
         "surface": "widgets.schedule.settings",
@@ -56891,6 +56938,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Auto-launch widget toggle for an event in Schedule settings, by event row",
     "scope": "field",
     "panel": true,
+    "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*",
+    "key_hint": "schedule#event-1 for the first event",
     "routes": [
       {
         "surface": "widgets.schedule.settings",
@@ -56910,6 +56959,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Widget choice in an event auto-launch list in Schedule settings, by event row and widget",
     "scope": "field",
     "panel": true,
+    "key_pattern": "[a-z][\\w-]*#event-[1-9]\\d*-[\\w-]+",
+    "key_hint": "schedule#event-1-timer for the Timer choice on the first event",
     "routes": [
       {
         "surface": "widgets.schedule.settings",

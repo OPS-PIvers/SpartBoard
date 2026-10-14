@@ -18,6 +18,14 @@ export interface TourAnchorDef {
   panel?: true;
   /** State the runner sets up before it looks for the anchor. */
   requires?: TourAnchorPrerequisite;
+  /** Regex over the whole `type#key` suffix (or `type`), for keys the app computes; the dry run refuses others. */
+  keyPattern?: string;
+  /** Example keys in words, shown with keyPattern. */
+  keyHint?: string;
+  /** A button that steps to the next option on each click; names the anchor where the option is chosen instead. */
+  cycles?: string;
+  /** Opens this anchor namespace's list empty, so its row-N positions are rows the tour adds. */
+  opensEmpty?: string;
 }
 
 export const TOUR_ANCHOR_PREREQUISITES = [
@@ -394,7 +402,11 @@ export const TOUR_ANCHORS = {
     panel: true,
     destructive: true,
   },
-  'classes.new-class': { label: 'New Class button in My Classes', panel: true },
+  'classes.new-class': {
+    label: 'New Class button in My Classes',
+    panel: true,
+    opensEmpty: 'roster-editor',
+  },
   'classes.import-classlink': {
     label: 'ClassLink import button in My Classes',
     panel: true,
@@ -521,6 +533,7 @@ export const TOUR_ANCHORS = {
   'random.mode': {
     label: 'Mode button in Random Picker (Pick One, Shuffle, Groups, Jigsaw)',
     perWidget: true,
+    cycles: 'settings.field:random#mode',
   },
   'random.group-size': {
     label: 'Group size stepper (minus and plus) in Random Picker Groups mode',
@@ -553,6 +566,9 @@ export const TOUR_ANCHORS = {
     label:
       'Start timer button on a Schedule row, by row (active = the Now row)',
     perField: true,
+    keyPattern: 'schedule#(active|row-[1-9]\\d*)',
+    keyHint:
+      'schedule#active for the Now row, schedule#row-1 for the first row',
   },
   'poll.next-question': {
     label: 'Next question button in Poll',
@@ -1203,11 +1219,15 @@ export const TOUR_ANCHORS = {
     label: 'Answer option box in the Quiz editor, by letter',
     perField: true,
     panel: true,
+    keyPattern: 'quiz#[a-l]',
+    keyHint: 'quiz#a for option A, quiz#b for B; lowercase letters',
   },
   'quiz-editor.correct': {
     label: 'Mark-correct button beside an answer option, by letter',
     perField: true,
     panel: true,
+    keyPattern: 'quiz#[a-l]',
+    keyHint: 'quiz#a for option A, quiz#b for B; lowercase letters',
   },
   'quiz-editor.add-answer-key': {
     label: 'Add answer key in the Quiz editor',
@@ -1397,6 +1417,8 @@ export const TOUR_ANCHORS = {
     label: 'Remove option (×) in the Quiz editor',
     perField: true,
     panel: true,
+    keyPattern: 'quiz#[a-l]',
+    keyHint: 'quiz#a for option A, quiz#b for B; lowercase letters',
   },
   'quiz-editor.option-add': {
     label: 'Add option in the Quiz editor',
@@ -2664,6 +2686,8 @@ export const TOUR_ANCHORS = {
   'quiz-results.question-toggle': {
     label: 'Question row expand toggle in Quiz results, by position',
     perField: true,
+    keyPattern: 'quiz#\\d+',
+    keyHint: 'quiz#0 for the first question',
   },
   'quiz-results.student-print-answers': {
     label:
@@ -2702,20 +2726,28 @@ export const TOUR_ANCHORS = {
   'quiz-results.student-select': {
     label: 'Select student row checkbox in Quiz results, by position',
     perField: true,
+    keyPattern: 'quiz#\\d+',
+    keyHint: 'quiz#0 for the first student row',
   },
   'quiz-results.student-toggle': {
     label: 'Student row expand button in Quiz results, by row',
     perField: true,
+    keyPattern: 'quiz#\\d+',
+    keyHint: 'quiz#0 for the first student row',
   },
   'quiz-results.student-unlock': {
     label: 'Unlock results in Quiz results, by position',
     perField: true,
     persists: true,
+    keyPattern: 'quiz#\\d+',
+    keyHint: 'quiz#0 for the first student row',
   },
   'quiz-results.student-delete': {
     label: 'Delete this submission in Quiz results, by position',
     perField: true,
     destructive: true,
+    keyPattern: 'quiz#\\d+',
+    keyHint: 'quiz#0 for the first student row',
   },
   'quiz-results.student-results-menu': {
     label: 'Results options menu button in Quiz results, by student',
@@ -3011,6 +3043,8 @@ export const TOUR_ANCHORS = {
     label: 'Highlight list item in the Quiz grader, by position',
     perField: true,
     panel: true,
+    keyPattern: 'quiz#\\d+',
+    keyHint: 'quiz#0 for the first highlight',
   },
   'quiz-grading.rubric-jump-tagged': {
     label: 'Tagged-count jump in the Quiz grader, by criterion',
@@ -3081,17 +3115,23 @@ export const TOUR_ANCHORS = {
     label: 'Move criterion up on the Quiz rubric builder, by position',
     perField: true,
     panel: true,
+    keyPattern: 'quiz#[1-9]\\d*',
+    keyHint: 'quiz#1 for the first criterion',
   },
   'quiz-rubric.criterion-down': {
     label: 'Move criterion down on the Quiz rubric builder, by position',
     perField: true,
     panel: true,
+    keyPattern: 'quiz#[1-9]\\d*',
+    keyHint: 'quiz#1 for the first criterion',
   },
   'quiz-rubric.criterion-remove': {
     label: 'Remove criterion on the Quiz rubric builder, by position',
     perField: true,
     destructive: true,
     panel: true,
+    keyPattern: 'quiz#[1-9]\\d*',
+    keyHint: 'quiz#1 for the first criterion',
   },
   'quiz-rubric.level-label': {
     label: 'Level label textarea on the Quiz rubric builder, by level',
@@ -10887,6 +10927,7 @@ export const TOUR_ANCHORS = {
   'classes.new-class-empty': {
     label: 'Create New Class button in the empty My Classes list',
     panel: true,
+    opensEmpty: 'roster-editor',
   },
   'classes.roster-menu-item': {
     label: 'Class row in the dock class menu',
@@ -12507,51 +12548,70 @@ export const TOUR_ANCHORS = {
     label:
       'Row button that marks a Schedule row done, by row (active = the Now row)',
     perField: true,
+    keyPattern: 'schedule#(active|row-[1-9]\\d*)',
+    keyHint:
+      'schedule#active for the Now row, schedule#row-1 for the first row',
   },
   'widget-settings.schedule.event-name': {
     label: 'Event name input in Schedule settings, by event row',
     perField: true,
     panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
   },
   'widget-settings.schedule.event-start-time': {
     label: 'Event start time input in Schedule settings, by event row',
     perField: true,
     panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
   },
   'widget-settings.schedule.event-end-time': {
     label: 'Event end time input in Schedule settings, by event row',
     perField: true,
     panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
   },
   'widget-settings.schedule.event-timer-minutes': {
     label:
       'Timer minutes input for an event in Schedule settings, by event row',
     perField: true,
     panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
   },
   'widget-settings.schedule.event-timer-seconds': {
     label:
       'Timer seconds input for an event in Schedule settings, by event row',
     perField: true,
     panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
   },
   'widget-settings.schedule.event-mode': {
     label:
       'Clock or timer mode toggle for an event in Schedule settings, by event row',
     perField: true,
     panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
   },
   'widget-settings.schedule.event-auto-launch': {
     label:
       'Auto-launch widget toggle for an event in Schedule settings, by event row',
     perField: true,
     panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*',
+    keyHint: 'schedule#event-1 for the first event',
   },
   'widget-settings.schedule.event-auto-launch-widget': {
     label:
       'Widget choice in an event auto-launch list in Schedule settings, by event row and widget',
     perField: true,
     panel: true,
+    keyPattern: '[a-z][\\w-]*#event-[1-9]\\d*-[\\w-]+',
+    keyHint: 'schedule#event-1-timer for the Timer choice on the first event',
   },
   'override-row.extended-time': {
     label: 'Extended time options in a student override',

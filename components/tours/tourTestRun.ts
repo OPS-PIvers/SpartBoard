@@ -17,6 +17,8 @@ export interface TestStepResult {
   status: 'found' | 'missing' | 'plain';
   /** teacher: Autopilot could not do it (no value), so the run moved on without it. */
   handedBack?: boolean;
+  /** A select step whose control showed but had no option matching its value. */
+  noOption?: boolean;
   /** The step picture as a PNG data URL, cropped the way the editor crops thumbnails. */
   picture?: string;
   w?: number;
@@ -115,8 +117,11 @@ export function reportTestStep(
 ): void {
   if (!run || run.done) return;
   const prior = run.results[result.index];
-  // A control that vanished after Autopilot clicked it was still found.
-  const keep = prior?.status === 'found' && result.status === 'missing';
+  // A control that vanished after Autopilot clicked it was still found, unless its choice had no matching option.
+  const keep =
+    prior?.status === 'found' &&
+    result.status === 'missing' &&
+    !result.noOption;
   run.results[result.index] = {
     ...prior,
     ...result,

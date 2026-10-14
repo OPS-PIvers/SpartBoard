@@ -143,6 +143,7 @@ const results = view.steps.map((step, index) => {
     anchor: step.tour?.anchor ?? '',
     status,
     ...(r?.handedBack ? { handed_back: true } : {}),
+    ...(r?.noOption ? { no_option: true } : {}),
     ...(picture ? { picture, w: r.w, h: r.h } : {}),
   };
 });
@@ -202,7 +203,7 @@ if (upload) {
 writeFileSync(join(out, 'results.json'), JSON.stringify(report, null, 2));
 for (const r of results)
   console.log(
-    `${r.status === 'found' || r.status === 'plain' ? 'ok  ' : 'FAIL'} ${r.step}. ${r.step_id} ${r.anchor || '(no control)'}: ${r.status}${r.handed_back ? ' (left to the teacher)' : ''}`
+    `${r.status === 'found' || r.status === 'plain' ? 'ok  ' : 'FAIL'} ${r.step}. ${r.step_id} ${r.anchor || '(no control)'}: ${r.status}${r.handed_back ? ' (left to the teacher)' : ''}${r.no_option ? ' (no option matches the value)' : ''}`
   );
 if (report.upload)
   console.log(

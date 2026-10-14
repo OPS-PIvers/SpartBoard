@@ -217,17 +217,18 @@ async function typeInto(
   field.blur();
 }
 
+/** Picks the option matching `value`; false when no such option shows. */
 async function chooseOption(
   el: HTMLElement,
   value: string,
   signal: AbortSignal
-) {
+): Promise<boolean> {
   const matches = (o: Element) =>
     optionValue(o) === value || (o.textContent ?? '').trim() === value;
   // The recorded option itself, or a combobox whose listbox opens on click.
   if (el.matches('[role="option"]')) {
     dispatchAutoClick(el);
-    return;
+    return true;
   }
   // A segmented control or tab strip: its choices are already on screen.
   const choice = Array.from(
@@ -238,7 +239,7 @@ async function chooseOption(
       choice.getAttribute('aria-checked') === 'true' ||
       choice.getAttribute('aria-selected') === 'true';
     if (!on) dispatchAutoClick(choice);
-    return;
+    return true;
   }
   const find = () =>
     Array.from(document.querySelectorAll<HTMLElement>('[role="option"]')).find(
@@ -247,39 +248,45 @@ async function chooseOption(
   if (!find()) dispatchAutoClick(el);
   await waitFor(() => !!find(), OPTION_WAIT_MS, signal);
   const option = find();
-  if (option && !signal.aborted) dispatchAutoClick(option);
+  if (!option || signal.aborted) return false;
+  dispatchAutoClick(option);
+  return true;
 }
 
-/** Performs a step on its anchor: a click, a toggle to its recorded state, a choice, or typed text. */
+/** Performs a step on its anchor: a click, a toggle to its recorded state, a choice, or typed text; false when a choice has no option matching its value. */
 export async function performStep(
   el: HTMLElement,
   binding: StepBinding,
   opts: { instant: boolean; signal: AbortSignal }
-): Promise<void> {
+): Promise<boolean> {
   const { action, value } = binding;
-  if (action === 'observe') return;
+  if (action === 'observe') return true;
   if (action === 'toggle') {
     const toggle = toggleIn(el) ?? el;
     if (value === undefined || isOn(toggle) !== (value === true))
       dispatchAutoClick(toggle);
-    return;
+    return true;
   }
   if (action === 'select' && value !== undefined) {
     const select = selectIn(el);
     if (!select) return chooseOption(el, String(value), opts.signal);
-    if (select.value === String(value)) return;
+    if (!Array.from(select.options).some((o) => o.value === String(value)))
+      return false;
+    if (select.value === String(value)) return true;
     select.focus({ preventScroll: true });
     setNativeValue(select, String(value));
     fire(select, 'input');
     fire(select, 'change');
-    return;
+    return true;
   }
   if (action === 'type') {
     const field = fieldIn(el);
-    if (!field) return;
-    return typeInto(field, String(value ?? ''), opts.instant, opts.signal);
+    if (field)
+      await typeInto(field, String(value ?? ''), opts.instant, opts.signal);
+    return true;
   }
   dispatchAutoClick(el);
+  return true;
 }
 
 /** A select or type step with no recorded value has nothing for Autopilot to enter. */

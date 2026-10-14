@@ -1,6 +1,7 @@
 // The connector's live tour check: hard errors refuse a save, warnings ride along (LIVE_TOUR_ONE_SHOT.md D6).
 import { TOUR_ANCHOR_LIST } from './tourAnchorList';
 import { WIDGET_TYPE_LIST } from './widgetTypeList';
+import { SETTINGS_FIELD_LIST } from './settingsFieldList';
 
 type AnchorEntry = (typeof TOUR_ANCHOR_LIST)[number];
 
@@ -19,6 +20,15 @@ const WIDGET_TYPES = new Set(WIDGET_TYPE_LIST);
 // A row in a teacher's own list; menu item positions and Help Center rows are the same for everyone.
 const POSITIONAL = /(^|[#-])row-\d+/;
 const SHARED_LISTS = new Set(['help-center']);
+// Settings field kinds that hold no list of options, with the action that does work on them.
+const NOT_CHOICE: Record<string, string> = {
+  text: 'type',
+  textarea: 'type',
+  number: 'type',
+  slider: 'click',
+  list: 'click',
+  imageUpload: 'click',
+};
 const MIN_STEPS = 3;
 const MAX_GOOD_STEPS = 15;
 
@@ -205,12 +215,24 @@ function checkAnchor(
         `"${suffix}" is not a ${entry.scope === 'field' ? 'field' : 'type'} of "${ref.id}". Valid: ${shown}${keys.length > 12 ? ', …' : ''}.`
       );
     }
+  } else if (entry.key_pattern) {
+    const suffix =
+      entry.scope === 'field' ? `${ref.type}#${ref.key}` : `${ref.type}`;
+    if (!new RegExp(`^(?:${entry.key_pattern})$`).test(suffix))
+      return fail(
+        `"${suffix}" is not a key of "${ref.id}". Keys look like ${entry.key_hint ?? entry.key_pattern}.`
+      );
+  }
+  if (b.action === 'select') {
+    const wrong = notAChoice(b.anchor, ref, entry);
+    if (wrong) return fail(wrong);
   }
 
   if (
     POSITIONAL.test(`${ref.key ?? ''}`) &&
     !SHARED_LISTS.has(ref.id.split('.')[0]) &&
-    !ctx.sandboxed
+    !ctx.sandboxed &&
+    !openedEmpty(ref, ctx.clicked)
   )
     warn(
       `"${b.anchor}" points at a position in a list, which differs on each teacher's board; use a tour material so the tour controls what is there.`
@@ -261,6 +283,34 @@ function checkAnchor(
       `"${b.anchor}" only shows once "${path[path.length - 1]}" is clicked, and no earlier step clicks it. The clicks from the board are: ${path.join(' → ')}.`
     );
   }
+}
+
+/** Whether an earlier click opened this anchor's list empty, so its rows are ones the tour added. */
+const openedEmpty = (ref: Ref, clicked: readonly Ref[]): boolean =>
+  clicked.some((c) => ANCHORS.get(c.id)?.opens_empty === ref.id.split('.')[0]);
+
+/** Why `select` can't work on this control, or null when it may be a choice. */
+function notAChoice(
+  anchor: string,
+  ref: Ref,
+  entry: AnchorEntry
+): string | null {
+  if (entry.cycles)
+    return `"${ref.id}" is a button that moves to the next option on each click, so "select" can't pick one. Point the step at "${entry.cycles}" and select the value there.`;
+  if (ref.id === 'settings.toggle')
+    return `"${anchor}" is an on/off switch; use "toggle" with value true or false.`;
+  if (ref.id !== 'settings.field' || !ref.type) return null;
+  const fields = Object.prototype.hasOwnProperty.call(
+    SETTINGS_FIELD_LIST,
+    ref.type
+  )
+    ? SETTINGS_FIELD_LIST[ref.type]
+    : [];
+  const kind = fields.find((f) => f.anchor === anchor)?.kind;
+  const action = kind ? NOT_CHOICE[kind] : undefined;
+  return action
+    ? `"${anchor}" is a ${kind} field, not a choice, so "select" can't set it; use "${action}".`
+    : null;
 }
 
 const routesOf = (entry: AnchorEntry) =>
