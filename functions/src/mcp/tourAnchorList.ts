@@ -14666,6 +14666,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "widget-settings.calendar.calendar-id",
+    "label": "Calendar ID box in Calendar settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.calendar.settings",
+        "kind": "settings-drawer",
+        "widget_type": "calendar",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "widget-settings.checklist.paste",
     "label": "Add pasted tasks button in Checklist settings",
     "scope": "widget",

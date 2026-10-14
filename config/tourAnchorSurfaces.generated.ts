@@ -736,6 +736,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'widget-settings.calendar.instructions': ['widgets.calendar.settings'],
     'widget-settings.calendar.connect-google': ['widgets.calendar.settings'],
     'widget-settings.calendar.add-calendar': ['widgets.calendar.settings'],
+    'widget-settings.calendar.calendar-id': ['widgets.calendar.settings'],
     'widget-settings.checklist.paste': ['widgets.checklist.settings'],
     'widget-settings.checklist.import-routine': ['widgets.checklist.settings'],
     'widget-settings.checklist.import-text': ['widgets.checklist.settings'],
