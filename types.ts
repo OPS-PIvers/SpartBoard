@@ -5037,6 +5037,8 @@ export interface QuizSession
    * fail-closed gate reaches `/quiz` — a route that mounts no AuthProvider.
    */
   mediaResponseEnabled?: boolean;
+  /** Whiteboard capture gate for `/quiz`, stamped only when `canAccessQuizWhiteboardResponse()` passed. */
+  whiteboardResponseEnabled?: boolean;
   /**
    * Stimuli referenced by at least one public question, projected from the
    * quiz at session-create time with authoring labels stripped. `playLimit`

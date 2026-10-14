@@ -4097,6 +4097,19 @@
       },
       "undo": "Rückgängig",
       "redo": "Wiederholen"
+    },
+    "drawer": {
+      "show": "Show materials",
+      "hide": "Hide materials",
+      "label": "Materials"
+    },
+    "rotate": {
+      "title": "Turn your device sideways",
+      "body": "The whiteboard needs a wide screen."
+    },
+    "notice": {
+      "drawOnlyTitle": "Before you draw",
+      "replayLine": "Your teacher can replay how you drew, including anything you erase."
     }
   }
 }

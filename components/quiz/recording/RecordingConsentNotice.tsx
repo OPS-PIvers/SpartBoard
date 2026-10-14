@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useContext } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Mic, ShieldCheck, X } from 'lucide-react';
+import { Mic, PenLine, ShieldCheck, X } from 'lucide-react';
+import { RecordingNoticeDrawingContext } from './recordingNoticeDrawing';
 
 /**
  * Minn. Stat. § 13.04 subd. 2 Tennessen warning, shown once per assignment
@@ -22,8 +23,14 @@ export const RecordingConsentNotice: React.FC<{
   light = true,
 }) => {
   const { t } = useTranslation();
+  const drawing = useContext(RecordingNoticeDrawingContext);
+  const drawOnly = drawing === 'draw-only';
+  const replayLine = t(
+    'quizWhiteboard.notice.replayLine',
+    'Your teacher can replay how you drew, including anything you erase.'
+  );
 
-  const elements: { key: string; label: string; body: string }[] = [
+  const voiceElements: { key: string; label: string; body: string }[] = [
     {
       key: 'purpose',
       label: t('quizMediaResponse.notice.purposeLabel'),
@@ -45,6 +52,7 @@ export const RecordingConsentNotice: React.FC<{
       body: t('quizMediaResponse.notice.recipientsBody'),
     },
   ];
+  const elements = drawOnly ? [] : voiceElements;
 
   return (
     <section
@@ -73,36 +81,47 @@ export const RecordingConsentNotice: React.FC<{
               light ? 'text-slate-900' : 'text-white'
             }`}
           >
-            {t('quizMediaResponse.notice.title')}
+            {drawOnly
+              ? t('quizWhiteboard.notice.drawOnlyTitle', 'Before you draw')
+              : t('quizMediaResponse.notice.title')}
           </h3>
           <p
             className={`mt-1 text-sm ${light ? 'text-slate-600' : 'text-slate-300'}`}
           >
-            {t('quizMediaResponse.notice.intro')}
+            {drawOnly ? replayLine : t('quizMediaResponse.notice.intro')}
           </p>
+          {drawing === 'narrated' && (
+            <p
+              className={`mt-2 text-sm font-semibold ${light ? 'text-slate-800' : 'text-slate-100'}`}
+            >
+              {replayLine}
+            </p>
+          )}
         </div>
       </div>
 
-      <dl className="mt-5 space-y-4">
-        {elements.map((el) => (
-          <div key={el.key}>
-            <dt
-              className={`text-xs font-bold uppercase tracking-wider ${
-                light ? 'text-slate-500' : 'text-slate-300'
-              }`}
-            >
-              {el.label}
-            </dt>
-            <dd
-              className={`mt-1 text-sm leading-relaxed ${
-                light ? 'text-slate-700' : 'text-slate-200'
-              }`}
-            >
-              {el.body}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      {elements.length > 0 && (
+        <dl className="mt-5 space-y-4">
+          {elements.map((el) => (
+            <div key={el.key}>
+              <dt
+                className={`text-xs font-bold uppercase tracking-wider ${
+                  light ? 'text-slate-500' : 'text-slate-300'
+                }`}
+              >
+                {el.label}
+              </dt>
+              <dd
+                className={`mt-1 text-sm leading-relaxed ${
+                  light ? 'text-slate-700' : 'text-slate-200'
+                }`}
+              >
+                {el.body}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
 
       <button
         type="button"
@@ -112,6 +131,8 @@ export const RecordingConsentNotice: React.FC<{
       >
         {variant === 'reminder' ? (
           <X aria-hidden className="h-4 w-4" />
+        ) : drawOnly ? (
+          <PenLine aria-hidden className="h-4 w-4" />
         ) : (
           <Mic aria-hidden className="h-4 w-4" />
         )}
