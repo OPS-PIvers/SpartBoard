@@ -4,6 +4,7 @@ import {
   useWhiteboardRecording,
   micStateFromError,
   WHITEBOARD_AUDIO_BITS_PER_SECOND,
+  type WhiteboardCapturedTake,
   type WhiteboardLogSink,
   type WhiteboardRecordingDeps,
 } from './useWhiteboardRecording';
@@ -106,7 +107,7 @@ function setup(
   extra: Partial<Parameters<typeof useWhiteboardRecording>[0]> = {}
 ) {
   const sink = makeSink();
-  const onTakeReady = vi.fn();
+  const onTakeReady = vi.fn<(take: WhiteboardCapturedTake) => void>();
   const hook = renderHook(() =>
     useWhiteboardRecording({
       config: cfg,

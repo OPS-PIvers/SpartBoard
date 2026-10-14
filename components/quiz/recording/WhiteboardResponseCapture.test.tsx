@@ -1,9 +1,18 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  act,
+} from '@testing-library/react';
 import '@/i18n';
 import type { RecordingConfig, ResponseArtifact } from '@/types';
-import type { WhiteboardRecordingDeps } from '@/hooks/useWhiteboardRecording';
+import type {
+  WhiteboardRecordingDeps,
+  WhiteboardTake,
+} from '@/hooks/useWhiteboardRecording';
 import type {
   RecoveredTake,
   TakeRecoveryStore,
@@ -23,7 +32,7 @@ vi.mock('@/components/quiz/whiteboard/WhiteboardCanvas', async () => {
   >(function FakeCanvas(props, ref) {
     const [id] = ReactMod.useState(() => ++mountCount);
     ReactMod.useImperativeHandle(ref, () => ({ flush: () => [] }));
-    canvasMounts.push({ key: id, props: props as Record<string, unknown> });
+    canvasMounts.push({ key: id, props });
     return (
       <div
         data-testid="canvas"
@@ -45,7 +54,9 @@ vi.mock('@/components/quiz/whiteboard/WhiteboardReplayView', () => ({
   ),
 }));
 
-const renderPicture = vi.fn(async () => new Blob(['png'], { type: 'image/png' }));
+const renderPicture = vi.fn(() =>
+  Promise.resolve(new Blob(['png'], { type: 'image/png' }))
+);
 vi.mock('@/components/quiz/whiteboard/whiteboardPicture', () => ({
   renderWhiteboardPicture: (...a: unknown[]) => renderPicture(...(a as [])),
 }));
@@ -98,12 +109,13 @@ function deps(denied = false): WhiteboardRecordingDeps {
 function memoryStore(seed?: RecoveredTake) {
   const removed: string[] = [];
   const store: TakeRecoveryStore = {
-    begin: vi.fn(async () => undefined),
-    appendChunk: vi.fn(async () => undefined),
-    setLog: vi.fn(async () => undefined),
-    load: vi.fn(async () => seed ?? null),
-    remove: vi.fn(async (key: string) => {
+    begin: vi.fn(() => Promise.resolve()),
+    appendChunk: vi.fn(() => Promise.resolve()),
+    setLog: vi.fn(() => Promise.resolve()),
+    load: vi.fn(() => Promise.resolve(seed ?? null)),
+    remove: vi.fn((key: string) => {
       removed.push(key);
+      return Promise.resolve();
     }),
   } as unknown as TakeRecoveryStore;
   return { store, removed };
@@ -112,7 +124,7 @@ function memoryStore(seed?: RecoveredTake) {
 function renderCapture(
   props: Partial<React.ComponentProps<typeof WhiteboardResponseCapture>> = {}
 ) {
-  const onCommit = vi.fn(() => Promise.resolve());
+  const onCommit = vi.fn((_take: WhiteboardTake) => Promise.resolve());
   const utils = render(
     <WhiteboardResponseCapture
       config={config()}
@@ -124,19 +136,21 @@ function renderCapture(
       {...props}
     />
   );
-  return { ...utils, onCommit: props.onCommit ?? onCommit };
+  return { ...utils, onCommit };
 }
 
 async function record() {
-  await act(async () => {
+  await act(() => {
     fireEvent.click(screen.getByRole('button', { name: 'Record' }));
+    return Promise.resolve();
   });
 }
 
 async function stop() {
   clock.now += 5_000;
-  await act(async () => {
+  await act(() => {
     fireEvent.click(screen.getByRole('button', { name: /stop/i }));
+    return Promise.resolve();
   });
 }
 
@@ -180,20 +194,15 @@ describe('WhiteboardResponseCapture', () => {
     expect(replay.dataset.duration).toBe('5000');
     expect(onCommit).not.toHaveBeenCalled();
 
-    await act(async () => {
+    await act(() => {
       fireEvent.click(screen.getByRole('button', { name: 'Keep this take' }));
+      return Promise.resolve();
     });
     await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
-    const take = (onCommit.mock.calls[0] as unknown[])[0] as {
-      picture: Blob;
-      log: Blob;
-      audio: { mimeType: string } | null;
-      micState?: string;
-      durationMs: number;
-    };
+    const take = onCommit.mock.calls[0][0];
     expect(take.picture.type).toBe('image/png');
     expect(take.log.type).toBe('application/json');
-    expect(JSON.parse(await take.log.text()).v).toBe(1);
+    expect((JSON.parse(await take.log.text()) as { v: number }).v).toBe(1);
     expect(take.audio?.mimeType).toBe('audio/webm');
     expect(take.micState).toBe('on');
     expect(take.durationMs).toBe(5_000);
@@ -211,8 +220,9 @@ describe('WhiteboardResponseCapture', () => {
     await record();
     await stop();
     await screen.findByTestId('replay');
-    await act(async () => {
+    await act(() => {
       fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+      return Promise.resolve();
     });
     expect(onCommit).not.toHaveBeenCalled();
     expect(removed).toEqual(['k']);
@@ -239,10 +249,7 @@ describe('WhiteboardResponseCapture', () => {
     await stop();
     await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
     expect(d.getStream).not.toHaveBeenCalled();
-    const take = (onCommit.mock.calls[0] as unknown[])[0] as {
-      audio: unknown;
-      micState?: string;
-    };
+    const take = onCommit.mock.calls[0][0];
     expect(take.audio).toBeNull();
     expect(take.micState).toBeUndefined();
   });

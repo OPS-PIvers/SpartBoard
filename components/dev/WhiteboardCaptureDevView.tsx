@@ -61,6 +61,7 @@ export const WhiteboardCaptureDevView: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fixed per page load
     []
   );
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- fixed per page load
   const deps = useMemo(() => makeDeps(params.get('denied') === '1'), []);
 
   return (

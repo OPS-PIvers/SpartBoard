@@ -7,6 +7,8 @@ import {
 } from 'react';
 import type { RecordingConfig, TakeMicState } from '@/types';
 import type { WhiteboardLog } from '@/components/quiz/whiteboard/whiteboardLogTypes';
+import { parseWhiteboardLog } from '@/components/quiz/whiteboard/whiteboardLog';
+import type { RecoveredTake } from '@/utils/takeRecoveryStore';
 import {
   whiteboardUsesMic,
   wrapUpThresholdSeconds,
@@ -34,6 +36,8 @@ export type WhiteboardStopReason = 'user' | 'limit' | 'budget' | 'cutoff';
 export interface WhiteboardLogSink {
   start: (t0: number) => void;
   toLog: () => WhiteboardLog;
+  /** D14: a full log ends the take exactly like the time limit. */
+  readonly budgetReached?: boolean;
 }
 
 export interface WhiteboardCapturedTake {
@@ -100,7 +104,9 @@ export interface UseWhiteboardRecordingResult {
   narrated: boolean;
   start: () => Promise<void>;
   /** Ends the take; resolves with it once the audio is flushed. */
-  stop: (reason?: WhiteboardStopReason) => Promise<WhiteboardCapturedTake | null>;
+  stop: (
+    reason?: WhiteboardStopReason
+  ) => Promise<WhiteboardCapturedTake | null>;
   discard: () => void;
   commit: () => WhiteboardCapturedTake | null;
   /** Loads a take recovered from local storage straight into review (D17). */
@@ -140,8 +146,37 @@ function pickMimeType(deps: WhiteboardRecordingDeps): string {
   return '';
 }
 
+/** A recovered record becomes a take only when its log survived; audio alone can't replay. */
+export function toCapturedTake(
+  found: RecoveredTake
+): WhiteboardCapturedTake | null {
+  if (!found.log) return null;
+  let log: WhiteboardLog;
+  try {
+    log = parseWhiteboardLog(found.log);
+  } catch {
+    return null;
+  }
+  const bytes = found.chunks.some((c) => c.size > 0);
+  return {
+    audio:
+      bytes && found.mimeType
+        ? {
+            blob: new Blob(found.chunks, { type: found.mimeType }),
+            mimeType: found.mimeType,
+          }
+        : null,
+    log,
+    durationMs: Math.max(0, found.updatedAt - found.startedAt),
+    micState: found.micState,
+    stopReason: 'cutoff',
+    startedAt: found.startedAt,
+  };
+}
+
 export function micStateFromError(err: unknown): WhiteboardMicState {
-  const name = err instanceof Error || err instanceof DOMException ? err.name : '';
+  const name =
+    err instanceof Error || err instanceof DOMException ? err.name : '';
   return name === 'NotAllowedError' || name === 'SecurityError'
     ? 'denied'
     : 'unavailable';
@@ -358,6 +393,7 @@ export function useWhiteboardRecording(
           Math.max(0, Math.ceil(config.limitSeconds - elapsed))
         );
         if (elapsed >= config.limitSeconds) void stop('limit');
+        else if (optionsRef.current.logSink.budgetReached) void stop('budget');
       }, 250);
     } finally {
       isStartingRef.current = false;
