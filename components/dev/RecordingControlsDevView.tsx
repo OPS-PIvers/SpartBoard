@@ -8,8 +8,28 @@ import React, { useMemo, useState } from 'react';
 import { ResponseFormatSection } from '@/components/widgets/QuizWidget/components/ResponseFormatSection';
 import { QuizAuthoringAdvisory } from '@/components/widgets/QuizWidget/components/QuizAuthoringAdvisory';
 import { DEFAULT_RECORDING_CONFIG } from '@/config/quizRecordingDefaults';
-import type { QuizQuestion } from '@/types';
+import type {
+  QuizQuestion,
+  WhiteboardStartingPattern,
+  WhiteboardStartingImage,
+} from '@/types';
 import { type RecordingControlStateKey } from './devViewStates';
+
+const SAMPLE_IMAGE: WhiteboardStartingImage = {
+  driveFileId: 'dev-sample',
+  url:
+    'data:image/svg+xml;utf8,' +
+    encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500"><rect x="100" y="100" width="600" height="300" fill="none" stroke="#334155" stroke-width="6"/><polygon points="100,400 400,100 700,400" fill="#93c5fd" stroke="#334155" stroke-width="6"/></svg>'
+    ),
+  mimeType: 'image/svg+xml',
+  width: 800,
+  height: 500,
+};
+
+// Uploads nothing; returns the sample so the image states can be shown.
+const fakeUpload = (): Promise<WhiteboardStartingImage> =>
+  Promise.resolve(SAMPLE_IMAGE);
 
 // Prefixed so no key collides with AUDIO_CAPTURE_STATES in the harness picker.
 
@@ -30,6 +50,32 @@ function seedQuestion(state: RecordingControlStateKey): QuizQuestion {
     return {
       ...q,
       recording: { ...DEFAULT_RECORDING_CONFIG, limitSeconds: 420 },
+    };
+  }
+  if (state.startsWith('rc-whiteboard')) {
+    const pattern: WhiteboardStartingPattern =
+      state === 'rc-whiteboard-plane'
+        ? { kind: 'coordinate-plane', xMin: -10, xMax: 10, yMin: -10, yMax: 10 }
+        : state === 'rc-whiteboard-number-line'
+          ? { kind: 'number-line', min: 0, max: 10, step: 1 }
+          : state === 'rc-whiteboard-shape'
+            ? { kind: 'shape', shape: 'polygon', sides: 6 }
+            : state === 'rc-whiteboard-image'
+              ? { kind: 'grid' }
+              : { kind: 'blank' };
+    return {
+      ...q,
+      text: 'Show how you found the area of the shaded region.',
+      recording: {
+        ...DEFAULT_RECORDING_CONFIG,
+        mode: 'whiteboard',
+        explainAloud: true,
+        limitSeconds: 180,
+        startingPage: {
+          pattern,
+          ...(state === 'rc-whiteboard-image' ? { image: SAMPLE_IMAGE } : {}),
+        },
+      },
     };
   }
   if (state === 'rc-take-limit') {
@@ -73,6 +119,8 @@ export const RecordingControlsDevView: React.FC<{
         />
         <ResponseFormatSection
           question={question}
+          whiteboardAllowed
+          onUploadWhiteboardImage={fakeUpload}
           onChange={(updates) => setQuestion((q) => ({ ...q, ...updates }))}
         />
       </div>
