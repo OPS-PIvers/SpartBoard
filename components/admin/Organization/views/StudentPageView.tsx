@@ -7,10 +7,7 @@ import { StudentLandingSample } from '@/components/student/landing/StudentLandin
 import { useAuth } from '@/context/useAuth';
 
 // The access flags that change the student page; each row is the same control as on Access > Previews.
-const STUDENT_PAGE_FEATURES: GlobalFeature[] = [
-  'student-landing-v2',
-  'student-gradebook',
-];
+const STUDENT_PAGE_FEATURES: GlobalFeature[] = ['student-gradebook'];
 
 // Rows in the sample are links to fixture sessions; keep the admin on this page.
 const blockLinks = (e: React.MouseEvent) => {
