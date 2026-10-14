@@ -2,7 +2,7 @@
 // Plays a live tour on the dummy-backend board and reports each step (LIVE_TOUR_ONE_SHOT.md D7, D12).
 // Usage: node scripts/run-live-tour.mjs <tour.json> [--base http://localhost:56320] [--out dir]
 //        [--upload <upload_url> --ticket <ticket>] [--flags id,id]
-// <tour.json> is what get_live_tour returned. Start the server first: the vite-verify launch config.
+// <tour.json> is what get_live_tour returned. Start the server first: vite-verify, or pnpm run dev:verify.
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
