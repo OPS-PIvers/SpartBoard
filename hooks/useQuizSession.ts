@@ -2013,6 +2013,10 @@ export interface UseQuizSessionStudentResult {
   setHandRaised: (raised: boolean) => Promise<void>;
   /** Stamps the attempt start for a response that has none (a time limit added mid-attempt). */
   startAttemptClock: () => Promise<void>;
+  /** Locks parts 1..`part` at a Stop; `held` waits there until the teacher opens the next part. */
+  submitPart: (part: number, held: boolean) => Promise<void>;
+  /** Leaves the Stop screen once the next part is open. */
+  resumePart: () => Promise<void>;
   /**
    * Record one completed play of a play-limited stimulus. `playKey` is the
    * attempt-scoped `stimulusPlayKey(attemptIndex, stimulusId)`.
@@ -2675,6 +2679,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               preSyncVersion: 0,
               ...(hasTimeLimit ? { attemptStartedAt: serverTimestamp() } : {}),
               ...(existing.timeUp ? { timeUp: deleteField() } : {}),
+              // A new attempt starts back at Part 1.
+              ...(existing.partsDone != null
+                ? { partsDone: deleteField() }
+                : {}),
+              ...(existing.partHeld != null ? { partHeld: deleteField() } : {}),
               // A bank-draw session rolls a fresh draw for the next attempt.
               ...(Array.isArray(sessionData.bankSlots) &&
               sessionData.bankSlots.length > 0
@@ -3661,6 +3670,34 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     );
   }, []);
 
+  const writePartState = useCallback(
+    async (patch: Record<string, unknown>): Promise<void> => {
+      const sessionId = sessionIdRef.current;
+      const responseKey = responseKeyRef.current;
+      if (!sessionId || !responseKey) return;
+      await updateDoc(
+        doc(
+          db,
+          QUIZ_SESSIONS_COLLECTION,
+          sessionId,
+          RESPONSES_COLLECTION,
+          responseKey
+        ),
+        { ...patch, lastWriteAt: serverTimestamp() }
+      );
+    },
+    []
+  );
+  const submitPart = useCallback(
+    (part: number, held: boolean) =>
+      writePartState({ partsDone: part, partHeld: held ? true : null }),
+    [writePartState]
+  );
+  const resumePart = useCallback(
+    () => writePartState({ partHeld: null }),
+    [writePartState]
+  );
+
   /**
    * Record one completed play of a play-limited stimulus. `playKey` is the
    * attempt-scoped `stimulusPlayKey(attemptIndex, stimulusId)` so retakes
@@ -3891,6 +3928,8 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     saveTabExits,
     setHandRaised,
     startAttemptClock,
+    submitPart,
+    resumePart,
     recordStimulusPlay,
     reportStimulusError,
     setServedQuestionIds,

@@ -65,6 +65,7 @@ function cleanSection(section: QuizSection): QuizSection {
     ...(count !== undefined && Number.isInteger(count) && count > 0
       ? { chooseCount: count }
       : {}),
+    ...(section.stopAfter === true ? { stopAfter: true } : {}),
   };
 }
 
