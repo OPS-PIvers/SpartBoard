@@ -682,17 +682,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
-  // Printable quiz results for handing back. Admin-only until Paul has printed a class set.
-  'quiz-results-print': {
-    label: 'Quiz results printing',
-    icon: Printer,
-    description: 'Print a results copy per student.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
   // PLC Home v2 tile dashboard. Admin-only until Paul has run a PLC on it in prod.
   'plc-home-v2': {
     label: 'PLC Home dashboard',
