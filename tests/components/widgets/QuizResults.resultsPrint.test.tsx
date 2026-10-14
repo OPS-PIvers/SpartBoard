@@ -14,7 +14,6 @@ import type {
   ResultsPrintJob,
 } from '@/utils/quizStudentReportPrint';
 
-let flagOn = true;
 let toolsOn = false;
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
@@ -42,9 +41,7 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1' },
     orgId: null,
     isExternalUser: false,
-    canAccessFeature: (id: string) =>
-      (flagOn && id === 'quiz-results-print') ||
-      (toolsOn && id === 'quiz-results-tools'),
+    canAccessFeature: (id: string) => toolsOn && id === 'quiz-results-tools',
     updateAccountPreferences: vi.fn().mockResolvedValue(undefined),
   }),
 }));
@@ -187,7 +184,6 @@ const ticked = () =>
 
 describe('QuizResults — results print', () => {
   beforeEach(() => {
-    flagOn = true;
     toolsOn = false;
     namesLoading = false;
     printQuizResults.mockReset();
@@ -229,12 +225,8 @@ describe('QuizResults — results print', () => {
     expect(screen.queryByRole('dialog', { name: 'Print results' })).toBeNull();
   });
 
-  it('is hidden for PLC teammates and when the flag is off', () => {
-    const { unmount } = renderResults({ plcView: true });
-    expect(screen.queryByRole('button', { name: 'Print results' })).toBeNull();
-    unmount();
-    flagOn = false;
-    renderResults();
+  it('is hidden for PLC teammates', () => {
+    renderResults({ plcView: true });
     expect(screen.queryByRole('button', { name: 'Print results' })).toBeNull();
   });
 
@@ -308,7 +300,6 @@ describe('QuizResults — results print', () => {
   });
 
   it('leads with Full report or Missed only when the results tools are on', () => {
-    flagOn = false;
     toolsOn = true;
     renderResults();
     fireEvent.click(screen.getByRole('button', { name: 'Print results' }));

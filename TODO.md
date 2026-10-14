@@ -159,7 +159,6 @@ Each item names the plan it came from; the plan holds the detail.
 
 #### `docs/plans/shipped/QUIZ_RESULTS_PRINT.md`
 
-- [ ] Flag 'quiz-results-print' is still admin-only (stage: 'preview'); opening to all teachers requires Paul to test in prod and flip Admin Settings > Access > Global Settings to Public. (S)
 - [ ] Changelog entry for teachers has not been written (correctly deferred until the flag opens per repo convention). (S)
 
 #### `docs/plans/QUIZ_STRUCTURED_ASSESSMENTS.md`
