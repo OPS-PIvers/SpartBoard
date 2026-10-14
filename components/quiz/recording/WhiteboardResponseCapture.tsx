@@ -137,6 +137,7 @@ export const WhiteboardResponseCapture: React.FC<
   const reviewOn = recordingReviewEnabled(config);
 
   const pictureRef = useRef<{ url: string; blob: Blob } | null>(null);
+  const boardGenRef = useRef(0);
   const reminderRef = useRef<HTMLButtonElement>(null);
   const canvasRef = useRef<WhiteboardCanvasHandle>(null);
   const retryBtnRef = useRef<HTMLButtonElement>(null);
@@ -189,13 +190,15 @@ export const WhiteboardResponseCapture: React.FC<
   const renderPicture = useCallback(
     async (captured: WhiteboardCapturedTake): Promise<Blob> => {
       if (pictureRef.current) return pictureRef.current.blob;
+      const gen = boardGenRef.current;
       const objects = replayAt(captured.log, captured.durationMs);
       const blob = await renderWhiteboardPicture(
         objects,
         startingPage,
         startingImage
       );
-      setPicture(blob);
+      // A take discarded mid-render must not leave its picture for the next one.
+      if (gen === boardGenRef.current) setPicture(blob);
       return blob;
     },
     [setPicture, startingImage, startingPage]
@@ -251,6 +254,7 @@ export const WhiteboardResponseCapture: React.FC<
 
   // A fresh page and a fresh log for every take (D13).
   const resetBoard = useCallback(() => {
+    boardGenRef.current += 1;
     setPicture(null);
     setLogRecorder(makeLogRecorder());
     setTakeKey((k) => k + 1);

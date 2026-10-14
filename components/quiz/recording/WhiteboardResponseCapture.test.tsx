@@ -230,6 +230,35 @@ describe('WhiteboardResponseCapture', () => {
     expect(screen.getByRole('button', { name: 'Record' })).toBeTruthy();
   });
 
+  it('a take discarded mid-render does not lend its picture to the next', async () => {
+    let finish: (b: Blob) => void = () => undefined;
+    renderPicture.mockImplementationOnce(
+      () => new Promise<Blob>((r) => (finish = r))
+    );
+    const { onCommit } = renderCapture();
+    await record();
+    await stop();
+    await screen.findByTestId('replay');
+    await act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Discard' }));
+      return Promise.resolve();
+    });
+    const stale = new Blob(['stale'], { type: 'image/png' });
+    await act(() => {
+      finish(stale);
+      return Promise.resolve();
+    });
+    await record();
+    await stop();
+    await screen.findByTestId('replay');
+    await act(() => {
+      fireEvent.click(screen.getByRole('button', { name: 'Keep this take' }));
+      return Promise.resolve();
+    });
+    await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
+    expect(onCommit.mock.calls[0][0].picture).not.toBe(stale);
+  });
+
   it('commits the moment the take ends when review is off', async () => {
     const { onCommit } = renderCapture({ config: config({ review: false }) });
     await record();
