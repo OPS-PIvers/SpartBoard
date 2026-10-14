@@ -1,16 +1,22 @@
 import type { WhiteboardStartingPage } from '@/types';
 import { paintBackground } from '@/components/widgets/DrawingWidget/backgroundTemplates';
+import {
+  WHITEBOARD_BITMAP_SCALE,
+  WHITEBOARD_PAGE,
+} from '@/components/quiz/whiteboard/whiteboardLogTypes';
+import {
+  WHITEBOARD_POLYGON_SIDES_MAX,
+  WHITEBOARD_POLYGON_SIDES_MIN,
+} from '@/config/quizRecordingDefaults';
 
 // Paints a whiteboard starting page (D6, D7) in page units; callers scale the context for the 2x bitmap.
 
-export const WHITEBOARD_PAGE_WIDTH = 1600;
-export const WHITEBOARD_PAGE_HEIGHT = 1200;
-export const WHITEBOARD_BITMAP_SCALE = 2;
+export { WHITEBOARD_BITMAP_SCALE };
+export const WHITEBOARD_PAGE_WIDTH = WHITEBOARD_PAGE.w;
+export const WHITEBOARD_PAGE_HEIGHT = WHITEBOARD_PAGE.h;
 
-export const COORDINATE_PLANE_MAX_SPAN = 200;
+// Matches the number-line tick cap in normalizeWhiteboardStartingPage.
 export const NUMBER_LINE_MAX_TICKS = 100;
-export const SHAPE_MIN_SIDES = 3;
-export const SHAPE_MAX_SIDES = 12;
 
 const PAGE_FILL = '#ffffff';
 const INK = '#334155';
@@ -25,7 +31,6 @@ type Pattern = WhiteboardStartingPage['pattern'];
 export type StartingPageIssue =
   | 'x-range'
   | 'y-range'
-  | 'range-too-wide'
   | 'number-line-range'
   | 'number-line-step'
   | 'too-many-ticks'
@@ -44,11 +49,6 @@ export const startingPageIssues = (
     const yOk = isNum(p.yMin) && isNum(p.yMax) && p.yMin < p.yMax;
     if (!xOk) issues.push('x-range');
     if (!yOk) issues.push('y-range');
-    if (
-      (xOk && p.xMax - p.xMin > COORDINATE_PLANE_MAX_SPAN) ||
-      (yOk && p.yMax - p.yMin > COORDINATE_PLANE_MAX_SPAN)
-    )
-      issues.push('range-too-wide');
   } else if (p.kind === 'number-line') {
     const rangeOk = isNum(p.min) && isNum(p.max) && p.min < p.max;
     const stepOk = isNum(p.step) && p.step > 0;
@@ -64,7 +64,9 @@ export const startingPageIssues = (
     const s = p.sides;
     if (
       s !== undefined &&
-      (!Number.isInteger(s) || s < SHAPE_MIN_SIDES || s > SHAPE_MAX_SIDES)
+      (!Number.isInteger(s) ||
+        s < WHITEBOARD_POLYGON_SIDES_MIN ||
+        s > WHITEBOARD_POLYGON_SIDES_MAX)
     )
       issues.push('shape-sides');
   }

@@ -285,7 +285,7 @@ describe('startingPageIssues', () => {
     ).toEqual(['x-range', 'y-range']);
   });
 
-  it('rejects ranges wider than the plane can label', () => {
+  it('accepts wide ranges and thins their labels instead', () => {
     expect(
       startingPageIssues(
         page({
@@ -296,7 +296,7 @@ describe('startingPageIssues', () => {
           yMax: 10,
         })
       )
-    ).toEqual(['range-too-wide']);
+    ).toEqual([]);
   });
 
   it('rejects bad number line steps and too many ticks', () => {
