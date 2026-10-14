@@ -153,7 +153,7 @@ describe('authored recording controls reach a runtime reader', () => {
   it('prepSeconds drives the student prep countdown', () => {
     const { config } = author(baseQuestion(), () => {
       fireEvent.click(screen.getByRole('radio', { name: 'Spoken' }));
-      fireEvent.change(screen.getByLabelText('Thinking time'), {
+      fireEvent.change(screen.getByLabelText('Planning time'), {
         target: { value: '8' },
       });
     });
@@ -167,10 +167,12 @@ describe('authored recording controls reach a runtime reader', () => {
   it('prepExpiry auto-start arms the recorder when prep runs out', async () => {
     const { config } = author(baseQuestion(), () => {
       fireEvent.click(screen.getByRole('radio', { name: 'Spoken' }));
-      fireEvent.change(screen.getByLabelText('Thinking time'), {
+      fireEvent.change(screen.getByLabelText('Planning time'), {
         target: { value: '3' },
       });
-      fireEvent.click(screen.getByRole('button', { name: /Start recording/ }));
+      fireEvent.change(screen.getByLabelText('After planning time'), {
+        target: { value: 'auto-start' },
+      });
     });
     expect(config.prepExpiry).toBe('auto-start');
     const { result } = renderHook(() =>
@@ -183,7 +185,7 @@ describe('authored recording controls reach a runtime reader', () => {
   it('limitSeconds hard-stops the take at the authored value', async () => {
     const { config } = author(baseQuestion(), () => {
       fireEvent.click(screen.getByRole('radio', { name: 'Spoken' }));
-      fireEvent.change(screen.getByLabelText('Thinking time'), {
+      fireEvent.change(screen.getByLabelText('Planning time'), {
         target: { value: '0' },
       });
       fireEvent.change(screen.getByLabelText('Recording limit'), {

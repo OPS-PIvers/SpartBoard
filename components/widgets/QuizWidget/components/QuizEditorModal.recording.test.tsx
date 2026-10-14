@@ -130,7 +130,7 @@ describe('QuizEditorModal Format row', () => {
     expect(spokenTab().getAttribute('aria-checked')).toBe('false');
   });
 
-  it('choosing Spoken flips dirty, disables Time Limit, advises, and hides Placeholder/Word limit', () => {
+  it('choosing Spoken flips dirty, hides Time Limit, advises, and hides Placeholder/Word limit', () => {
     gate.mockReturnValue(true);
     open();
     expect(dirtyAttr()).toBe('false');
@@ -144,12 +144,9 @@ describe('QuizEditorModal Format row', () => {
     fireEvent.click(spokenTab());
 
     expect(dirtyAttr()).toBe('true');
-    const timeLimit = detail().getByRole<HTMLInputElement>('spinbutton', {
-      name: 'Time Limit',
-    });
-    expect(timeLimit.disabled).toBe(true);
-    expect(timeLimit.value).toBe('0');
-    expect(detail().getByText(/Set by the recording timer/i)).toBeTruthy();
+    expect(
+      detail().queryByRole('spinbutton', { name: 'Time Limit' })
+    ).toBeNull();
     expect(
       detail().queryByPlaceholderText(
         'e.g. Cite at least two pieces of evidence.'

@@ -173,7 +173,7 @@ describe('WhiteboardResponseCapture', () => {
   it('keeps the page visible but locked during thinking time', () => {
     renderCapture({ config: config({ prepSeconds: 30 }) });
     expect(screen.getByTestId('canvas').dataset.disabled).toBe('true');
-    expect(screen.getByText('Thinking time')).toBeTruthy();
+    expect(screen.getByText('Planning time')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Record' })).toBeNull();
   });
 
@@ -238,7 +238,9 @@ describe('WhiteboardResponseCapture', () => {
     expect(onCommit).not.toHaveBeenCalled();
 
     await act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Keep this take' }));
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Keep this attempt' })
+      );
       return Promise.resolve();
     });
     await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
@@ -295,7 +297,9 @@ describe('WhiteboardResponseCapture', () => {
     await stop();
     await screen.findByTestId('replay');
     await act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Keep this take' }));
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Keep this attempt' })
+      );
       return Promise.resolve();
     });
     await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
@@ -307,7 +311,9 @@ describe('WhiteboardResponseCapture', () => {
     await record();
     await stop();
     await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
-    expect(screen.queryByRole('button', { name: 'Keep this take' })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Keep this attempt' })
+    ).toBeNull();
   });
 
   it('draw-only skips the mic and records no mic state', async () => {
@@ -408,7 +414,7 @@ describe('WhiteboardResponseCapture', () => {
   it('hides Record once the take limit is used', () => {
     renderCapture({ config: config({ takeLimit: 1 }), takesCommitted: 1 });
     expect(screen.queryByRole('button', { name: /Record/ })).toBeNull();
-    expect(screen.getByText('No takes left')).toBeTruthy();
+    expect(screen.getByText('No attempts left')).toBeTruthy();
   });
 
   it('shows the worst upload state across the take', () => {

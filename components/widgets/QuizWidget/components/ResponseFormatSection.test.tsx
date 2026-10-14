@@ -27,7 +27,7 @@ describe('ResponseFormatSection', () => {
     render(<ResponseFormatSection question={question()} onChange={vi.fn()} />);
     expect(typedTab()).toBeTruthy();
     expect(spokenTab()).toBeTruthy();
-    expect(screen.queryByLabelText('Thinking time')).toBeNull();
+    expect(screen.queryByLabelText('Planning time')).toBeNull();
     expect(screen.queryByLabelText('Takes allowed')).toBeNull();
   });
 
@@ -185,7 +185,7 @@ describe('ResponseFormatSection', () => {
     render(
       <ResponseFormatSection question={withRecording()} onChange={onChange} />
     );
-    fireEvent.change(screen.getByLabelText('Thinking time'), {
+    fireEvent.change(screen.getByLabelText('Planning time'), {
       target: { value: '15' },
     });
     expect(onChange).toHaveBeenCalledWith({
@@ -204,8 +204,32 @@ describe('ResponseFormatSection', () => {
       recording: { ...DEFAULT_RECORDING_CONFIG, limitSeconds: 120 },
     });
     fireEvent.change(limit, { target: { value: '9000' } });
+    fireEvent.blur(limit);
     expect(onChange).toHaveBeenLastCalledWith({
       recording: { ...DEFAULT_RECORDING_CONFIG, limitSeconds: 300 },
+    });
+  });
+
+  it('keeps a partly typed limit until blur instead of snapping to 5 or 300', () => {
+    const onChange = vi.fn();
+    render(
+      <ResponseFormatSection question={withRecording()} onChange={onChange} />
+    );
+    const limit = screen.getByLabelText<HTMLInputElement>('Recording limit');
+    fireEvent.change(limit, { target: { value: '1' } });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(limit.value).toBe('1');
+    fireEvent.change(limit, { target: { value: '512' } });
+    expect(onChange).not.toHaveBeenCalled();
+    expect(limit.value).toBe('512');
+    fireEvent.change(limit, { target: { value: '12' } });
+    expect(onChange).toHaveBeenLastCalledWith({
+      recording: { ...DEFAULT_RECORDING_CONFIG, limitSeconds: 12 },
+    });
+    fireEvent.change(limit, { target: { value: '2' } });
+    fireEvent.blur(limit);
+    expect(onChange).toHaveBeenLastCalledWith({
+      recording: { ...DEFAULT_RECORDING_CONFIG, limitSeconds: 5 },
     });
   });
 
@@ -214,14 +238,26 @@ describe('ResponseFormatSection', () => {
     render(
       <ResponseFormatSection question={withRecording()} onChange={onChange} />
     );
-    fireEvent.click(screen.getByRole('button', { name: /Start recording/ }));
+    const expiry = screen.getByLabelText('After planning time');
+    fireEvent.change(expiry, { target: { value: 'auto-start' } });
     expect(onChange).toHaveBeenLastCalledWith({
       recording: { ...DEFAULT_RECORDING_CONFIG, prepExpiry: 'auto-start' },
     });
-    fireEvent.click(screen.getByRole('button', { name: /Mark unanswered/ }));
-    expect(onChange).toHaveBeenLastCalledWith({
-      recording: { ...DEFAULT_RECORDING_CONFIG, prepExpiry: 'unanswered' },
-    });
+    expect(
+      Array.from(expiry.querySelectorAll('option')).map((o) => o.value)
+    ).toEqual(['armed', 'auto-start']);
+  });
+
+  it('shows a retired prep-expiry value as Recording starts', () => {
+    render(
+      <ResponseFormatSection
+        question={withRecording({ prepExpiry: 'unanswered' })}
+        onChange={vi.fn()}
+      />
+    );
+    expect(
+      screen.getByLabelText<HTMLSelectElement>('After planning time').value
+    ).toBe('auto-start');
   });
 
   it('writes a numeric take limit and back to unlimited', () => {
@@ -232,7 +268,9 @@ describe('ResponseFormatSection', () => {
         onChange={onChange}
       />
     );
-    expect(screen.getByRole('group', { name: 'Takes allowed' })).toBeTruthy();
+    expect(
+      screen.getByRole('group', { name: 'Attempts allowed' })
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Unlimited' }));
     expect(onChange).toHaveBeenLastCalledWith({
       recording: { ...DEFAULT_RECORDING_CONFIG, takeLimit: null },
@@ -243,17 +281,16 @@ describe('ResponseFormatSection', () => {
     });
   });
 
-  it('points both duration fields at their hint text', () => {
+  it('keeps both duration hints on the fields as tooltips', () => {
     render(
       <ResponseFormatSection question={withRecording()} onChange={vi.fn()} />
     );
-    const hintFor = (label: string) => {
-      const id =
-        screen.getByLabelText(label).getAttribute('aria-describedby') ?? '';
-      return document.getElementById(id)?.textContent ?? '';
-    };
-    expect(hintFor('Thinking time')).toMatch(/0 starts recording/);
-    expect(hintFor('Recording limit')).toMatch(/Up to \d+ seconds/);
+    expect(
+      screen.getByLabelText('Planning time').getAttribute('title')
+    ).toMatch(/0 starts recording/);
+    expect(
+      screen.getByLabelText('Recording limit').getAttribute('title')
+    ).toMatch(/Up to \d+ seconds/);
   });
 
   it('marks the active take limit as pressed', () => {

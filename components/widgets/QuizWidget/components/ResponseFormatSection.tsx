@@ -19,13 +19,13 @@ import type {
   WhiteboardStartingImage,
 } from '@/types';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
-import { Toggle } from '@/components/common/Toggle';
 import {
   AttemptLimitRow,
   ToggleRow,
 } from '@/components/common/library/AssignmentSettingsToggleGroup';
-import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
+import { tourTypeAttr } from '@/config/tourAnchors';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
+import { DraftNumberInput } from './DraftNumberInput';
 import {
   DEFAULT_RECORDING_CONFIG,
   DEFAULT_LIMIT_SECONDS,
@@ -33,6 +33,7 @@ import {
   isWhiteboardRecording,
   PREP_SECONDS_MAX,
   AUDIO_LIMIT_SECONDS_MIN,
+  effectivePrepExpiry,
 } from '@/config/quizRecordingDefaults';
 import { WhiteboardStartingPagePicker } from './WhiteboardStartingPagePicker';
 import { BLANK_STARTING_PAGE } from './whiteboardStartingPageSpec';
@@ -75,22 +76,10 @@ function toWhiteboardBlock(block: RecordingConfig): RecordingConfig {
   };
 }
 
-const EXPIRY_ORDER: RecordingPrepExpiry[] = [
-  'armed',
-  'auto-start',
-  'auto-advance',
-  'unanswered',
+const EXPIRY_OPTIONS: { value: RecordingPrepExpiry; label: string }[] = [
+  { value: 'armed', label: 'expiryArmed' },
+  { value: 'auto-start', label: 'expiryAutoStart' },
 ];
-
-const EXPIRY_KEYS: Record<
-  RecordingPrepExpiry,
-  { label: string; hint?: string }
-> = {
-  armed: { label: 'expiryArmed' },
-  'auto-start': { label: 'expiryAutoStart' },
-  'auto-advance': { label: 'expiryAutoAdvance' },
-  unanswered: { label: 'expiryUnanswered', hint: 'expiryUnansweredHint' },
-};
 
 export interface ResponseFormatSectionProps {
   question: QuizQuestion;
@@ -233,156 +222,110 @@ export const SpokenResponseSettings: React.FC<ResponseFormatSectionProps> = ({
   return (
     <div className="space-y-3">
       {whiteboard && (
-        <label className="flex items-center justify-between gap-3">
-          <span className="text-sm font-bold text-brand-blue-dark">
-            {tk('whiteboard.explainAloudLabel')}
-          </span>
-          <Toggle
-            checked={recording.explainAloud !== false}
-            onChange={(explainAloud) => patch({ explainAloud })}
-            label={tk('whiteboard.explainAloudLabel')}
-            size="sm"
+        <div>
+          <span className={labelClass}>{tk('whiteboard.captureLabel')}</span>
+          <SegmentedControl
+            value={recording.explainAloud !== false ? 'audio' : 'screen'}
+            onChange={(v) => patch({ explainAloud: v === 'audio' })}
+            options={[
+              { value: 'screen', label: tk('whiteboard.screenOnly') },
+              { value: 'audio', label: tk('whiteboard.screenAndAudio') },
+            ]}
+            ariaLabel={tk('whiteboard.captureLabel')}
+            role="radiogroup"
             anchor={tourTypeAttr(
               'quiz-editor.whiteboard-explain-aloud',
               'quiz'
             )}
           />
-        </label>
+        </div>
       )}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className={labelClass} htmlFor="recording-prep-seconds">
+      <div className="flex flex-wrap items-start gap-3">
+        <div className="w-32 shrink-0">
+          <label
+            className={`${labelClass} whitespace-nowrap`}
+            htmlFor="recording-prep-seconds"
+          >
             {tk('prepLabel')}
           </label>
-          <div className="relative">
-            <input
-              id="recording-prep-seconds"
-              type="number"
-              min={0}
-              max={PREP_SECONDS_MAX}
-              value={recording.prepSeconds}
-              aria-describedby="recording-prep-hint"
-              onChange={(e) => {
-                const raw = parseInt(e.target.value, 10);
-                patch({
-                  prepSeconds: Math.min(
-                    PREP_SECONDS_MAX,
-                    Math.max(0, Number.isFinite(raw) ? raw : 0)
-                  ),
-                });
-              }}
-              className={`${inputClass} pr-12`}
-              {...tourTypeAttr('quiz-editor.recording-prep', 'quiz')}
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xxs uppercase tracking-wider">
-              {tk('secondsUnit')}
-            </span>
-          </div>
-          <p id="recording-prep-hint" className={hintClass}>
-            {tk('prepHint')}
-          </p>
+          <DraftNumberInput
+            id="recording-prep-seconds"
+            integer
+            min={0}
+            max={PREP_SECONDS_MAX}
+            value={recording.prepSeconds}
+            onCommit={(prepSeconds) => patch({ prepSeconds })}
+            unit={tk('secondsUnit')}
+            title={tk('prepHint')}
+            anchor={tourTypeAttr('quiz-editor.recording-prep', 'quiz')}
+          />
         </div>
 
-        <div>
-          <label className={labelClass} htmlFor="recording-limit-seconds">
+        <div className="w-48 shrink-0">
+          <label
+            className={`${labelClass} whitespace-nowrap`}
+            htmlFor="recording-prep-expiry"
+          >
+            {tk('expiryLabel')}
+          </label>
+          <select
+            id="recording-prep-expiry"
+            value={effectivePrepExpiry(recording.prepExpiry)}
+            onChange={(e) =>
+              patch({ prepExpiry: e.target.value as RecordingPrepExpiry })
+            }
+            className={`${inputClass} appearance-none`}
+            {...tourTypeAttr('quiz-editor.recording-expiry', 'quiz')}
+          >
+            {EXPIRY_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {tk(o.label)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="w-32 shrink-0">
+          <label
+            className={`${labelClass} whitespace-nowrap`}
+            htmlFor="recording-limit-seconds"
+          >
             {tk('limitLabel')}
           </label>
-          <div className="relative">
-            <input
-              id="recording-limit-seconds"
-              type="number"
-              min={AUDIO_LIMIT_SECONDS_MIN}
-              max={ceiling.seconds}
-              value={limitValue}
-              readOnly={clamped}
-              aria-describedby="recording-limit-hint"
-              onChange={(e) => {
-                const raw = parseInt(e.target.value, 10);
-                patch({
-                  limitSeconds: Math.min(
-                    ceiling.seconds,
-                    Math.max(
-                      AUDIO_LIMIT_SECONDS_MIN,
-                      Number.isFinite(raw) ? raw : AUDIO_LIMIT_SECONDS_MIN
-                    )
-                  ),
-                });
-              }}
-              className={`${inputClass} pr-12 ${
-                clamped ? 'bg-slate-100 text-slate-600' : ''
-              }`}
-              {...tourTypeAttr('quiz-editor.recording-limit', 'quiz')}
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xxs uppercase tracking-wider">
-              {tk('secondsUnit')}
-            </span>
-          </div>
-          {clamped ? (
-            <p id="recording-limit-hint" className={hintClass}>
-              <span className="font-bold text-amber-700">
-                {tk('limitClamped', {
-                  seconds: ceiling.seconds,
-                  mode: tk(RECORDING_MODE_LABEL_KEYS[ceiling.mode]),
-                })}
-              </span>{' '}
-              <button
-                type="button"
-                onClick={() => patch({ limitSeconds: ceiling.seconds })}
-                {...tourTypeAttr('quiz-editor.recording-limit-clamp', 'quiz')}
-                className="underline font-bold text-brand-blue-primary"
-              >
-                {tk('limitClampedAction', { seconds: ceiling.seconds })}
-              </button>
-            </p>
-          ) : (
-            <p id="recording-limit-hint" className={hintClass}>
-              {tk('limitHint', { max: ceiling.seconds })}
-            </p>
-          )}
+          <DraftNumberInput
+            id="recording-limit-seconds"
+            integer
+            min={AUDIO_LIMIT_SECONDS_MIN}
+            max={ceiling.seconds}
+            value={limitValue}
+            readOnly={clamped}
+            onCommit={(limitSeconds) => patch({ limitSeconds })}
+            unit={tk('secondsUnit')}
+            title={tk('limitHint', { max: ceiling.seconds })}
+            aria-describedby={clamped ? 'recording-limit-hint' : undefined}
+            className={clamped ? 'bg-slate-100 text-slate-600' : ''}
+            anchor={tourTypeAttr('quiz-editor.recording-limit', 'quiz')}
+          />
         </div>
       </div>
 
-      <div>
-        <span className={labelClass}>{tk('expiryLabel')}</span>
-        <div
-          role="group"
-          aria-label={tk('expiryLabel')}
-          className="grid grid-cols-2 gap-1.5"
-        >
-          {EXPIRY_ORDER.map((value) => {
-            const active = recording.prepExpiry === value;
-            const hintKey = EXPIRY_KEYS[value].hint;
-            return (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={active}
-                onClick={() => patch({ prepExpiry: value })}
-                {...tourFieldAttr(
-                  'quiz-editor.recording-expiry',
-                  'quiz',
-                  value
-                )}
-                className={
-                  'text-left px-2.5 py-1.5 rounded-lg border text-xs transition ' +
-                  (active
-                    ? 'border-brand-blue-primary bg-brand-blue-lighter/40 text-brand-blue-dark'
-                    : 'border-slate-200 text-slate-600 hover:bg-slate-50')
-                }
-              >
-                <span className="block font-bold">
-                  {tk(EXPIRY_KEYS[value].label)}
-                </span>
-                {hintKey && (
-                  <span className="block text-xxs text-slate-500">
-                    {tk(hintKey)}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {clamped && (
+        <p id="recording-limit-hint" className={hintClass}>
+          <span className="font-bold text-amber-700">
+            {tk('limitClamped', {
+              seconds: ceiling.seconds,
+              mode: tk(RECORDING_MODE_LABEL_KEYS[ceiling.mode]),
+            })}
+          </span>{' '}
+          <button
+            type="button"
+            onClick={() => patch({ limitSeconds: ceiling.seconds })}
+            {...tourTypeAttr('quiz-editor.recording-limit-clamp', 'quiz')}
+            className="underline font-bold text-brand-blue-primary"
+          >
+            {tk('limitClampedAction', { seconds: ceiling.seconds })}
+          </button>
+        </p>
+      )}
 
       <AttemptLimitRow
         value={recording.takeLimit ?? null}
@@ -390,7 +333,8 @@ export const SpokenResponseSettings: React.FC<ResponseFormatSectionProps> = ({
         label={tk('takeLimitLabel')}
         ariaLabel={tk('takeLimitLabel')}
         unlimitedLabel={tk('takeLimitUnlimited')}
-        tooltip={tk('takeLimitHint')}
+        info={tk('takeLimitHint')}
+        infoAnchor={tourTypeAttr('quiz-editor.recording-attempts-info', 'quiz')}
       />
 
       <ToggleRow

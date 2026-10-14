@@ -13,9 +13,9 @@
  * stay on the per-widget extension type and are owned by the parent.
  */
 
-import React from 'react';
+import React, { useId, useState } from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
-import { Lock } from 'lucide-react';
+import { Info, Lock } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
 import { CollapsibleSection } from './CollapsibleSection';
 import type { BaseSessionOptions } from '@/types';
@@ -46,6 +46,9 @@ export interface AttemptLimitRowProps {
   ariaLabel?: string;
   /** Label on the `null` option. Defaults to "Unlimited". */
   unlimitedLabel?: string;
+  /** Explanation behind an info button beside the label; tapping it shows the text under the row. */
+  info?: string;
+  infoAnchor?: TourAnchorAttrs;
 }
 
 export const AttemptLimitRow: React.FC<AttemptLimitRowProps> = ({
@@ -55,47 +58,77 @@ export const AttemptLimitRow: React.FC<AttemptLimitRowProps> = ({
   label = 'Attempts Allowed',
   ariaLabel,
   unlimitedLabel,
-}) => (
-  <div>
-    <div className="flex items-center justify-between gap-3">
-      <span className="text-sm font-bold text-brand-blue-dark" title={tooltip}>
-        {label}
-      </span>
-      <div
-        role="group"
-        aria-label={ariaLabel ?? 'Attempts allowed'}
-        className="inline-flex rounded-lg border border-slate-200 bg-white overflow-hidden"
-      >
-        {ATTEMPT_OPTIONS.map((opt) => {
-          const optLabel =
-            opt.value === null ? (unlimitedLabel ?? opt.label) : opt.label;
-          const active = value === opt.value;
-          return (
+  info,
+  infoAnchor,
+}) => {
+  const [infoOpen, setInfoOpen] = useState(false);
+  const infoId = useId();
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3">
+        <span className="inline-flex items-center gap-1.5">
+          <span
+            className="text-sm font-bold text-brand-blue-dark"
+            title={info ? undefined : tooltip}
+          >
+            {label}
+          </span>
+          {info && (
             <button
-              key={opt.label}
               type="button"
-              aria-pressed={active}
-              onClick={() => onChange(opt.value)}
-              {...tourFieldAttr(
-                'assign-settings.attempts',
-                'assign',
-                opt.label
-              )}
-              className={
-                'px-3 py-1.5 text-xs font-bold transition ' +
-                (active
-                  ? 'bg-brand-blue-primary text-white'
-                  : 'text-slate-600 hover:bg-slate-50')
-              }
+              aria-label={info}
+              aria-expanded={infoOpen}
+              aria-controls={infoId}
+              title={info}
+              onClick={() => setInfoOpen((open) => !open)}
+              className="relative touch-target-expand text-slate-500 hover:text-brand-blue-primary"
+              {...infoAnchor}
             >
-              {optLabel}
+              <Info className="h-3.5 w-3.5" aria-hidden />
             </button>
-          );
-        })}
+          )}
+        </span>
+        <div
+          role="group"
+          aria-label={ariaLabel ?? 'Attempts allowed'}
+          className="inline-flex rounded-lg border border-slate-200 bg-white overflow-hidden"
+        >
+          {ATTEMPT_OPTIONS.map((opt) => {
+            const optLabel =
+              opt.value === null ? (unlimitedLabel ?? opt.label) : opt.label;
+            const active = value === opt.value;
+            return (
+              <button
+                key={opt.label}
+                type="button"
+                aria-pressed={active}
+                onClick={() => onChange(opt.value)}
+                {...tourFieldAttr(
+                  'assign-settings.attempts',
+                  'assign',
+                  opt.label
+                )}
+                className={
+                  'px-3 py-1.5 text-xs font-bold transition ' +
+                  (active
+                    ? 'bg-brand-blue-primary text-white'
+                    : 'text-slate-600 hover:bg-slate-50')
+                }
+              >
+                {optLabel}
+              </button>
+            );
+          })}
+        </div>
       </div>
+      {info && infoOpen && (
+        <p id={infoId} className="mt-1 text-xs text-slate-600">
+          {info}
+        </p>
+      )}
     </div>
-  </div>
-);
+  );
+};
 
 /* ─── SectionHeader ───────────────────────────────────────────────────────── */
 

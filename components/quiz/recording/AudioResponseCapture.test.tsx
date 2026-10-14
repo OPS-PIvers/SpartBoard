@@ -97,7 +97,7 @@ describe('AudioResponseCapture — closed recording window', () => {
     expect(screen.getByText(/Recording time is over/i)).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Record/i })).toBeNull();
     expect(
-      screen.queryByRole('button', { name: /Keep this take/i })
+      screen.queryByRole('button', { name: /Keep this attempt/i })
     ).toBeNull();
     expect(screen.queryByText(/Before you record/i)).toBeNull();
   });
@@ -267,14 +267,14 @@ describe('AudioResponseCapture — take-limit plural', () => {
   it('uses the singular take-limit sentence for a one-take budget', () => {
     renderCapture({ config: { ...config, takeLimit: 1 }, takesCommitted: 1 });
     expect(
-      screen.getByText(/allows 1 take, and you have used it/i)
+      screen.getByText(/allows 1 attempt, and you have used it/i)
     ).toBeTruthy();
   });
 
   it('uses the plural take-limit sentence for a multi-take budget', () => {
     renderCapture({ config: { ...config, takeLimit: 3 }, takesCommitted: 3 });
     expect(
-      screen.getByText(/allows 3 takes, and you have used them all/i)
+      screen.getByText(/allows 3 attempts, and you have used them all/i)
     ).toBeTruthy();
   });
 });
@@ -315,7 +315,7 @@ describe('AudioResponseCapture — cutoffs commit first (D16)', () => {
     fireEvent.click(
       await screen.findByRole('button', { name: /Stop recording/i })
     );
-    await screen.findByRole('button', { name: /Keep this take/i });
+    await screen.findByRole('button', { name: /Keep this attempt/i });
 
     await commitActiveTake();
 
@@ -351,7 +351,7 @@ describe('AudioResponseCapture — cutoffs commit first (D16)', () => {
       await screen.findByRole('button', { name: /Stop recording/i })
     );
     fireEvent.click(
-      await screen.findByRole('button', { name: /Keep this take/i })
+      await screen.findByRole('button', { name: /Keep this attempt/i })
     );
 
     let cutoffDone = false;
@@ -413,7 +413,7 @@ describe('AudioResponseCapture — review setting', () => {
       expect.objectContaining({ durationMs: 12_000 })
     );
     expect(
-      screen.queryByRole('button', { name: /Keep this take/i })
+      screen.queryByRole('button', { name: /Keep this attempt/i })
     ).toBeNull();
     expect(screen.queryByRole('progressbar')).toBeNull();
   });
@@ -456,7 +456,7 @@ describe('AudioResponseCapture — review setting', () => {
       await screen.findByRole('button', { name: /Stop recording/i })
     );
     expect(
-      await screen.findByRole('button', { name: /Keep this take/i })
+      await screen.findByRole('button', { name: /Keep this attempt/i })
     ).toBeTruthy();
     expect(onCommit).not.toHaveBeenCalled();
   });
@@ -520,8 +520,8 @@ describe('AudioResponseCapture — crash recovery', () => {
       recovery: { store, key },
     });
 
-    expect(await screen.findByText('Your saved take')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /Keep this take/i }));
+    expect(await screen.findByText('Your saved attempt')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Keep this attempt/i }));
     await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
     const [take] = onCommit.mock.calls[0] as unknown as [
       { blob: Blob; durationMs: number },
@@ -543,7 +543,7 @@ describe('AudioResponseCapture — crash recovery', () => {
       recovery: { store, key },
     });
 
-    await screen.findByText('Your saved take');
+    await screen.findByText('Your saved attempt');
     fireEvent.click(screen.getByRole('button', { name: /^Discard$/i }));
     expect(screen.getByRole('button', { name: /^Record$/i })).toBeTruthy();
     expect(onCommit).not.toHaveBeenCalled();
@@ -564,7 +564,7 @@ describe('AudioResponseCapture — crash recovery', () => {
     });
 
     await waitFor(() => expect(onCommit).toHaveBeenCalledTimes(1));
-    expect(screen.queryByText('Your saved take')).toBeNull();
+    expect(screen.queryByText('Your saved attempt')).toBeNull();
     await waitFor(async () =>
       expect(await store.load(key, Date.now())).toBeNull()
     );
@@ -598,6 +598,6 @@ describe('AudioResponseCapture — crash recovery', () => {
     await act(async () => {
       await Promise.resolve();
     });
-    expect(screen.queryByText('Your saved take')).toBeNull();
+    expect(screen.queryByText('Your saved attempt')).toBeNull();
   });
 });

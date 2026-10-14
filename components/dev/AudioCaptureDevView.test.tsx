@@ -15,15 +15,15 @@ beforeEach(() => {
 
 const EXPECTED: Record<string, RegExp> = {
   notice: /Before you record/i,
-  prep: /Thinking time/i,
+  prep: /Planning time/i,
   armed: /When you press record|have \d+ seconds/i,
   recording: /Recording stops on its own/i,
   'no-review-recording': /Stop and submit/i,
   review: /Listen back/i,
-  recovered: /Your saved take/i,
+  recovered: /Your saved attempt/i,
   committing: /Listen back/i,
   'archive-failed': /Not yet submitted|didn.t send/i,
-  'take-limit': /No takes left/i,
+  'take-limit': /No attempts left/i,
   'window-closed': /Recording time is over/i,
   'mic-unavailable': /microphone did not work/i,
   'submit-blocked': /questions still need a recording/i,

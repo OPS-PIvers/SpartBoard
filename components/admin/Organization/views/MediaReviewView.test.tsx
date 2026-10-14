@@ -412,7 +412,7 @@ describe('whiteboard takes', () => {
 
   it('shows one take and counts only its files still to delete', () => {
     renderView({ rows: [WB_ROW] });
-    expect(screen.getByText('1 take')).toBeInTheDocument();
+    expect(screen.getByText('1 attempt')).toBeInTheDocument();
     fireEvent.click(
       screen.getByRole('checkbox', { name: 'Select Pin 7777, question q-1' })
     );
