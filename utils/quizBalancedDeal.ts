@@ -1,10 +1,6 @@
 /** Balanced bank slots: deal pool questions in turn per class period (QUIZ_IMPORT_VERSIONS.md V18-V19). */
 
-import type {
-  QuizQuestion,
-  QuizResponse,
-  QuizSessionBankSlot,
-} from '@/types';
+import type { QuizResponse, QuizSessionBankSlot } from '@/types';
 import { drawServedQuestionIds, isValidDraw } from '@/utils/questionBanks';
 import { encodeResponseKeySegment } from '@/utils/quizResponseKey';
 
@@ -36,10 +32,7 @@ export function bankDealDocId(slotId: string, periodKey: string): string {
   return `${slotId}__${periodKey}`;
 }
 
-/**
- * The `count` pool ids at rotation turn `dealt`, skipping ids this student
- * has already had; seen ids fill in only when too few unseen ones remain.
- */
+/** The `count` pool ids at rotation turn `dealt`, preferring ids this student hasn't had. */
 export function dealFromRotation(
   pool: readonly string[],
   count: number,
@@ -64,10 +57,7 @@ export interface BalancedDealPlan {
   history: string[];
 }
 
-/**
- * Pure core of the deal transaction. Returns `null` when the response already
- * holds a valid draw (rejoin or a second device), so nothing is written.
- */
+/** Pure core of the deal transaction; `null` when the response already holds a valid draw. */
 export function planBalancedDeal(
   publicQuestionIds: readonly string[],
   slots: readonly QuizSessionBankSlot[],
@@ -89,12 +79,7 @@ export function planBalancedDeal(
   for (const slot of slots) {
     if (!isBalancedSlot(slot)) continue;
     const dealt = dealtCounts.get(slot.id) ?? 0;
-    const ids = dealFromRotation(
-      slot.poolQuestionIds,
-      slot.count,
-      dealt,
-      seen
-    );
+    const ids = dealFromRotation(slot.poolQuestionIds, slot.count, dealt, seen);
     dealtBySlot.set(slot.id, ids);
     counters.push({ slotId: slot.id, dealt: dealt + 1 });
     for (const id of ids) {
@@ -113,22 +98,18 @@ export function planBalancedDeal(
   return { ids, counters, history };
 }
 
-/** "Version B" style label for each balanced slot a response was served; `sourceLabel` wins when set. */
+/** "Version B" for each pool question a balanced slot served, lettered by bank order. */
 export function servedVersionLabels(
   slots: readonly QuizSessionBankSlot[] | undefined,
-  servedQuestionIds: readonly string[] | undefined,
-  questions: readonly Pick<QuizQuestion, 'id' | 'sourceLabel'>[]
+  servedQuestionIds: readonly string[] | undefined
 ): string[] {
   if (!slots || !servedQuestionIds || servedQuestionIds.length === 0) return [];
   const served = new Set(servedQuestionIds);
-  const byId = new Map(questions.map((q) => [q.id, q]));
   const labels: string[] = [];
   for (const slot of slots) {
     if (!isBalancedSlot(slot)) continue;
     slot.poolQuestionIds.forEach((id, index) => {
-      if (!served.has(id)) return;
-      const own = byId.get(id)?.sourceLabel?.trim();
-      labels.push(own ? own : `Version ${versionLetter(index)}`);
+      if (served.has(id)) labels.push(`Version ${versionLetter(index)}`);
     });
   }
   return labels;
