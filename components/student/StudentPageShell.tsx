@@ -34,14 +34,14 @@ export const StudentPageShell: React.FC<PageShellProps> = ({
           </span>
         </div>
         <button
-            type="button"
-            onClick={onDone}
-            aria-label="Done — sign out"
-            className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:border-white/30 hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue-primary"
-          >
-            <LogOut className="h-4 w-4" strokeWidth={2.25} />
-            <span>Done</span>
-          </button>
+          type="button"
+          onClick={onDone}
+          aria-label="Done — sign out"
+          className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:border-white/30 hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue-primary"
+        >
+          <LogOut className="h-4 w-4" strokeWidth={2.25} />
+          <span>Done</span>
+        </button>
       </header>
 
       <div className="flex flex-1 flex-col">

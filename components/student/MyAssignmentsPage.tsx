@@ -207,25 +207,25 @@ const MyAssignmentsPage: React.FC = () => {
   }
 
   return (
-      <StudentLandingV2
-        classes={classes}
-        scheduleFor={bell.scheduleFor}
-        assignments={assignments}
-        pseudonymUid={pseudonymUid}
-        firstName={firstName}
-        selectedClassId={effectiveClassId}
-        onSelectClass={handleSelectClass}
-        tab={landingTab}
-        onTabChange={handleLandingTabChange}
-        gradesEnabled={gradesEnabled}
-        onSignOut={handleDone}
-        notice={
-          hasErrors ? (
-            <PartialFailureBanner onRetry={retry} className="mb-4" />
-          ) : undefined
-        }
-      />
-    );
+    <StudentLandingV2
+      classes={classes}
+      scheduleFor={bell.scheduleFor}
+      assignments={assignments}
+      pseudonymUid={pseudonymUid}
+      firstName={firstName}
+      selectedClassId={effectiveClassId}
+      onSelectClass={handleSelectClass}
+      tab={landingTab}
+      onTabChange={handleLandingTabChange}
+      gradesEnabled={gradesEnabled}
+      onSignOut={handleDone}
+      notice={
+        hasErrors ? (
+          <PartialFailureBanner onRetry={retry} className="mb-4" />
+        ) : undefined
+      }
+    />
+  );
 };
 
 // ---------------------------------------------------------------------------
