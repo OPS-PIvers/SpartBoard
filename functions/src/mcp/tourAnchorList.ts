@@ -62788,7 +62788,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "import-wizard.retry-with-ai",
-    "label": "Try again with AI link on the Import wizard preview step",
+    "label": "Try again with AI button in the Import wizard preview footer",
     "scope": "board",
     "panel": true,
     "routes": [

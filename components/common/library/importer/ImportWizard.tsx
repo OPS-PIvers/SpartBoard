@@ -854,25 +854,7 @@ export function ImportWizard<TData>({
           <p className="text-sm text-slate-500">No preview available.</p>
         )}
       </div>
-      {(note || aiRetrySource) && (
-        <p className="text-xs font-medium text-slate-500">
-          {note}
-          {aiRetrySource && (
-            <>
-              {note && ' '}
-              <AiRetryLink
-                anchor={tourAttr('import-wizard.retry-with-ai')}
-                disabled={loading}
-                onRetry={() => {
-                  if (aiRetrySource.kind !== 'document') return;
-                  const { useAi: _plain, ...source } = aiRetrySource;
-                  void runParse(source);
-                }}
-              />
-            </>
-          )}
-        </p>
-      )}
+      {note && <p className="text-xs font-medium text-slate-500">{note}</p>}
       {warnings.length > 0 && (
         <ul
           role="alert"
@@ -946,7 +928,7 @@ export function ImportWizard<TData>({
   /* ─── Footer ────────────────────────────────────────────────────────── */
 
   const footer = (
-    <div className="flex items-center justify-between gap-3 px-6 py-3 bg-white">
+    <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-3 bg-white">
       {step === 'source' ? (
         <button
           type="button"
@@ -978,6 +960,18 @@ export function ImportWizard<TData>({
         <div ref={setSubmitSlot} className="flex-1" />
       )}
 
+      {step === 'preview' && aiRetrySource && (
+        <AiRetryLink
+          anchor={tourAttr('import-wizard.retry-with-ai')}
+          disabled={loading}
+          className="text-sm font-bold max-sm:order-first max-sm:w-full sm:ml-auto"
+          onRetry={() => {
+            if (aiRetrySource.kind !== 'document') return;
+            const { useAi: _plain, ...source } = aiRetrySource;
+            void runParse(source);
+          }}
+        />
+      )}
       <div className="flex items-center gap-2">
         {step === 'preview' && (
           <button

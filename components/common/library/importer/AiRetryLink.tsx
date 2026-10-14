@@ -7,6 +7,7 @@ interface AiRetryLinkProps {
   onRetry: () => void;
   disabled?: boolean;
   anchor?: TourAnchorAttrs;
+  className?: string;
 }
 
 /** Redoes a plain read with AI once the teacher confirms it counts toward their limit. */
@@ -14,6 +15,7 @@ export const AiRetryLink: React.FC<AiRetryLinkProps> = ({
   onRetry,
   disabled,
   anchor,
+  className = 'font-semibold',
 }) => {
   const [confirming, setConfirming] = useState(false);
 
@@ -24,9 +26,9 @@ export const AiRetryLink: React.FC<AiRetryLinkProps> = ({
         {...anchor}
         onClick={() => setConfirming(true)}
         disabled={disabled}
-        className="font-semibold text-brand-blue-primary underline-offset-2 hover:underline disabled:opacity-50"
+        className={`${className} text-brand-blue-primary underline-offset-2 hover:underline disabled:opacity-50`}
       >
-        Something not right? Try again with AI
+        Not what you expected? Try again with AI
       </button>
       {confirming && (
         <ConfirmDialog

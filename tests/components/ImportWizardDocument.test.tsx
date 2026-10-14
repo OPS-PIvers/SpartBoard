@@ -161,7 +161,7 @@ describe('ImportWizard — test document source', () => {
     renderWizard({ ...adapter, supportsAiReader: true });
     await readTest(PDF_BYTES);
     const retry = await screen.findByRole('button', {
-      name: 'Something not right? Try again with AI',
+      name: 'Not what you expected? Try again with AI',
     });
     fireEvent.click(retry);
     const prompt = screen.getByRole('dialog', { name: 'Convert with AI?' });
@@ -175,7 +175,7 @@ describe('ImportWizard — test document source', () => {
     expect(parseSpy.mock.calls[1][0]).not.toHaveProperty('useAi');
     expect(
       screen.queryByRole('button', {
-        name: 'Something not right? Try again with AI',
+        name: 'Not what you expected? Try again with AI',
       })
     ).toBeNull();
   });
