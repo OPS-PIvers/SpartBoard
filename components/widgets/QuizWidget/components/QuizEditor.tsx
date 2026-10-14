@@ -175,6 +175,7 @@ const quizContextPanePropsEqual = (prev: PaneProps, next: PaneProps): boolean =>
   prev.state.stimuli === next.state.stimuli &&
   prev.state.order === next.state.order &&
   prev.state.bankSlots === next.state.bankSlots &&
+  prev.state.sections === next.state.sections &&
   prev.state.selectedId === next.state.selectedId &&
   prev.state.checkedIds === next.state.checkedIds &&
   prev.shuffleQuestionsEnabled === next.shuffleQuestionsEnabled &&
