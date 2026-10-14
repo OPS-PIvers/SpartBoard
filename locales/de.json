@@ -4002,5 +4002,42 @@
     "addToResponse": "Zur Antwort hinzufügen",
     "showQuotes": "Zitate zeigen",
     "showQuotesHint": "Blau ist ein wörtliches Zitat. Gelb wurde gegenüber dem Text verändert."
+  },
+  "quizWhiteboard": {
+    "canvas": {
+      "tools": "Zeichenwerkzeuge",
+      "tool": {
+        "pen": "Stift",
+        "eraser": "Radierer",
+        "text": "Text",
+        "line": "Linie",
+        "arrow": "Pfeil",
+        "rect": "Rechteck",
+        "ellipse": "Ellipse"
+      },
+      "eraserMode": "Radiermodus",
+      "eraser": {
+        "stroke": "Strichradierer",
+        "object": "Objektradierer",
+        "lasso": "Lasso-Radierer"
+      },
+      "colors": "Farben",
+      "color": {
+        "black": "Schwarz",
+        "blue": "Blau",
+        "red": "Rot",
+        "green": "Grün",
+        "orange": "Orange",
+        "yellow": "Gelb"
+      },
+      "sizes": "Größe",
+      "size": {
+        "thin": "Dünn",
+        "medium": "Mittel",
+        "thick": "Dick"
+      },
+      "undo": "Rückgängig",
+      "redo": "Wiederholen"
+    }
   }
 }

@@ -1143,4 +1143,69 @@ describe('useDrawingCanvas', () => {
       expect(fullClearHit).toBe(true);
     });
   });
+
+  describe('pixelRatio', () => {
+    const mkEvent = (clientX: number, clientY: number) =>
+      ({ clientX, clientY, pointerId: 1 }) as unknown as React.PointerEvent;
+
+    it('sizes the bitmap at the ratio and keeps objects in page space', () => {
+      const canvas = makeCanvas();
+      const setTransform = vi.fn();
+      (mockCtx as unknown as { setTransform: Mock }).setTransform =
+        setTransform;
+      const onObjectComplete = vi.fn();
+      const { result } = renderHook(() =>
+        useDrawingCanvas({
+          canvasRef: { current: canvas },
+          color: '#000',
+          width: 4,
+          objects: [],
+          onObjectComplete,
+          canvasSize: { width: 800, height: 600 },
+          pixelRatio: 2,
+          generateId: () => 'p',
+          nextZ: 0,
+        })
+      );
+
+      expect(canvas.width).toBe(1600);
+      expect(canvas.height).toBe(1200);
+      expect(setTransform).toHaveBeenCalledWith(2, 0, 0, 2, 0, 0);
+
+      act(() => result.current.handleStart(mkEvent(100, 50)));
+      act(() => result.current.handleMove(mkEvent(400, 300)));
+      act(() => result.current.handleEnd());
+
+      const [emitted, meta] = onObjectComplete.mock.calls[0] as [
+        PathObject,
+        { pointTimes: number[] },
+      ];
+      expect(emitted.points).toEqual([
+        { x: 100, y: 50 },
+        { x: 400, y: 300 },
+      ]);
+      expect(meta.pointTimes).toHaveLength(2);
+      expect(meta.pointTimes[1]).toBeGreaterThanOrEqual(meta.pointTimes[0]);
+    });
+
+    it('leaves the bitmap and transform alone at the default ratio', () => {
+      const canvas = makeCanvas();
+      const setTransform = vi.fn();
+      (mockCtx as unknown as { setTransform: Mock }).setTransform =
+        setTransform;
+      renderHook(() =>
+        useDrawingCanvas({
+          canvasRef: { current: canvas },
+          color: '#000',
+          width: 4,
+          objects: [pathObj()],
+          onObjectComplete: vi.fn(),
+          canvasSize: { width: 800, height: 600 },
+          nextZ: 1,
+        })
+      );
+      expect(canvas.width).toBe(800);
+      expect(setTransform).not.toHaveBeenCalled();
+    });
+  });
 });

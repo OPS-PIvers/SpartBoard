@@ -29,7 +29,10 @@ interface UseDrawingCanvasOptions {
   color: string;
   width: number;
   objects: DrawableObject[];
-  onObjectComplete: (obj: DrawableObject) => void;
+  onObjectComplete: (
+    obj: DrawableObject,
+    meta?: { pointTimes?: number[] }
+  ) => void;
   /** If true, pointer events are ignored (e.g. student read-only view). */
   disabled?: boolean;
   /** Internal canvas resolution. Re-applies on change. */
@@ -68,6 +71,8 @@ interface UseDrawingCanvasOptions {
    * pointer-up when the commit lands.
    */
   previewObject?: DrawableObject | null;
+  /** Bitmap px per object px; canvasSize stays in object space. Defaults to 1. */
+  pixelRatio?: number;
 }
 
 interface UseDrawingCanvasResult {
@@ -80,7 +85,12 @@ interface UseDrawingCanvasResult {
 // Discriminated in-flight state. Captures whichever geometry the active tool
 // needs so handleMove/handleEnd can branch without re-reading activeTool.
 type InProgress =
-  | { kind: 'path'; tool: 'pen' | 'eraser'; points: Point[] }
+  | {
+      kind: 'path';
+      tool: 'pen' | 'eraser';
+      points: Point[];
+      pointTimes: number[];
+    }
   | {
       kind: 'rect' | 'ellipse';
       x0: number;
@@ -118,6 +128,7 @@ export const useDrawingCanvas = ({
   selectedObject = null,
   transformState = null,
   previewObject = null,
+  pixelRatio = 1,
 }: UseDrawingCanvasOptions): UseDrawingCanvasResult => {
   const [isDrawing, setIsDrawing] = useState(false);
   const inProgressRef = useRef<InProgress | null>(null);
@@ -164,8 +175,8 @@ export const useDrawingCanvas = ({
     if (!canvas) return 1;
     const rect = canvas.getBoundingClientRect();
     if (rect.width <= 0) return 1;
-    return canvas.width / rect.width;
-  }, [canvasRef]);
+    return canvas.width / pixelRatio / rect.width;
+  }, [canvasRef, pixelRatio]);
 
   const draw = useCallback(
     (
@@ -369,10 +380,12 @@ export const useDrawingCanvas = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const sizeChanged =
-      canvas.width !== canvasSize.width || canvas.height !== canvasSize.height;
-    if (canvas.width !== canvasSize.width) canvas.width = canvasSize.width;
-    if (canvas.height !== canvasSize.height) canvas.height = canvasSize.height;
+    const bitmapW = Math.round(canvasSize.width * pixelRatio);
+    const bitmapH = Math.round(canvasSize.height * pixelRatio);
+    const sizeChanged = canvas.width !== bitmapW || canvas.height !== bitmapH;
+    if (canvas.width !== bitmapW) canvas.width = bitmapW;
+    if (canvas.height !== bitmapH) canvas.height = bitmapH;
+    if (pixelRatio !== 1) ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
 
     // Install the latest redraw closure for renderImage's onload callback.
     // Async image decodes resolve via this ref, so a freshly-pasted image
@@ -451,6 +464,7 @@ export const useDrawingCanvas = ({
     canvasRef,
     canvasSize.width,
     canvasSize.height,
+    pixelRatio,
     objects,
     draw,
     drawIncremental,
@@ -468,14 +482,16 @@ export const useDrawingCanvas = ({
       const canvas = canvasRef.current;
       if (!canvas) return { x: 0, y: 0 };
       const rect = canvas.getBoundingClientRect();
-      const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
-      const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
+      const scaleX =
+        rect.width > 0 ? canvas.width / pixelRatio / rect.width : 1;
+      const scaleY =
+        rect.height > 0 ? canvas.height / pixelRatio / rect.height : 1;
       return {
         x: (e.clientX - rect.left) * scaleX,
         y: (e.clientY - rect.top) * scaleY,
       };
     },
-    [canvasRef]
+    [canvasRef, pixelRatio]
   );
 
   const handleStart = useCallback(
@@ -519,6 +535,7 @@ export const useDrawingCanvas = ({
           kind: 'path',
           tool: activeTool,
           points: [pos],
+          pointTimes: [performance.now()],
         };
         const ctx = canvasRef.current?.getContext('2d');
         if (ctx) {
@@ -584,6 +601,7 @@ export const useDrawingCanvas = ({
 
       if (inProgress.kind === 'path') {
         inProgress.points.push(pos);
+        inProgress.pointTimes.push(performance.now());
         const ctx = canvasRef.current?.getContext('2d');
         if (ctx && inProgress.points.length > 1) {
           setPathContextStyles(ctx, inProgress.tool);
@@ -646,7 +664,7 @@ export const useDrawingCanvas = ({
           color: persistedColor,
           width,
         };
-        onObjectComplete(completed);
+        onObjectComplete(completed, { pointTimes: inProgress.pointTimes });
       }
       return;
     }

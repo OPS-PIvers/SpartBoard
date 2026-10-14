@@ -4002,5 +4002,42 @@
     "addToResponse": "Añadir a la respuesta",
     "showQuotes": "Mostrar citas",
     "showQuotesHint": "Azul es una cita exacta. Ámbar se cambió respecto al texto."
+  },
+  "quizWhiteboard": {
+    "canvas": {
+      "tools": "Herramientas de dibujo",
+      "tool": {
+        "pen": "Lápiz",
+        "eraser": "Borrador",
+        "text": "Texto",
+        "line": "Línea",
+        "arrow": "Flecha",
+        "rect": "Rectángulo",
+        "ellipse": "Elipse"
+      },
+      "eraserMode": "Modo de borrador",
+      "eraser": {
+        "stroke": "Borrador de trazo",
+        "object": "Borrador de objetos",
+        "lasso": "Borrador de lazo"
+      },
+      "colors": "Colores",
+      "color": {
+        "black": "Negro",
+        "blue": "Azul",
+        "red": "Rojo",
+        "green": "Verde",
+        "orange": "Naranja",
+        "yellow": "Amarillo"
+      },
+      "sizes": "Tamaño",
+      "size": {
+        "thin": "Fino",
+        "medium": "Mediano",
+        "thick": "Grueso"
+      },
+      "undo": "Deshacer",
+      "redo": "Rehacer"
+    }
   }
 }
