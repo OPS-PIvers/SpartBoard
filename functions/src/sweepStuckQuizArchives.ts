@@ -175,6 +175,35 @@ export function findArtifactKind(
   return null;
 }
 
+/** Index of the answer entry (one take) holding an artifact, or -1. */
+export function findTakeEntryIndex(
+  answers: unknown,
+  artifactId: string
+): number {
+  if (!Array.isArray(answers)) return -1;
+  return answers.findIndex((answer) => {
+    const artifacts = (answer as { artifacts?: unknown })?.artifacts;
+    return (
+      Array.isArray(artifacts) &&
+      artifacts.some((a) => (a as { id?: unknown })?.id === artifactId)
+    );
+  });
+}
+
+/** True when the take holding this artifact carries any whiteboard file. */
+export function isWhiteboardTakeArtifact(
+  answers: unknown,
+  artifactId: string
+): boolean {
+  const index = findTakeEntryIndex(answers, artifactId);
+  if (index < 0 || !Array.isArray(answers)) return false;
+  const artifacts = (answers[index] as { artifacts?: unknown })?.artifacts;
+  return (
+    Array.isArray(artifacts) &&
+    artifacts.some((a) => (a as { kind?: unknown })?.kind === 'whiteboard')
+  );
+}
+
 export interface StragglerItem {
   /** `'handwriting'` for a paper answer crop; absent for a recording. */
   kind?: 'handwriting';
@@ -314,6 +343,8 @@ export async function runSweepStuckQuizArchives(
       const studentUid =
         typeof data.studentUid === 'string' ? data.studentUid : '';
       const pin = typeof data.pin === 'string' ? data.pin : '';
+      // A whiteboard take's files are one line in the email, not one per file.
+      const mailedTakes = new Set<number>();
 
       for (const [artifactId, entry] of Object.entries(archive)) {
         const target = { sessionId, responseKey: docSnap.id, artifactId };
@@ -361,6 +392,11 @@ export async function runSweepStuckQuizArchives(
           if (permanent) summary.lost++;
           else summary.stillStuck++;
           if (!session.teacherUid) continue;
+          if (isWhiteboardTakeArtifact(data.answers, artifactId)) {
+            const take = findTakeEntryIndex(data.answers, artifactId);
+            if (mailedTakes.has(take)) continue;
+            mailedTakes.add(take);
+          }
           const studentLabel = await deps.resolveStudentLabel(
             session.teacherUid,
             studentUid,
