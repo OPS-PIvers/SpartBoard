@@ -48,7 +48,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'teams-redesign',
   'plc-goal-coach',
   'embed-reload',
-  'embed-slide-link',
   'library-folder-view',
   'assign-stepper',
   'team-email-suggest',

@@ -2,8 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { applyLinkedSlide } from './applyLinkedSlide';
 import { convertToEmbedUrl } from '@/utils/urlHelpers';
 
-const embedFor = (url: string) =>
-  applyLinkedSlide(convertToEmbedUrl(url), url, true);
+const embedFor = (url: string) => applyLinkedSlide(convertToEmbedUrl(url), url);
 
 describe('applyLinkedSlide', () => {
   it('keeps the slide from a copied edit link', () => {
@@ -27,20 +26,11 @@ describe('applyLinkedSlide', () => {
     expect(embedFor(url)).toBe(convertToEmbedUrl(url));
   });
 
-  it('does nothing when disabled', () => {
-    const url =
-      'https://docs.google.com/presentation/d/abc123/edit#slide=id.p3';
-    expect(applyLinkedSlide(convertToEmbedUrl(url), url, false)).toBe(
-      'https://docs.google.com/presentation/d/abc123/preview'
-    );
-  });
-
   it('ignores non-Slides embeds', () => {
     expect(
       applyLinkedSlide(
         'https://www.youtube.com/embed/abcdefghijk',
-        'https://example.com/?slide=id.p3',
-        true
+        'https://example.com/?slide=id.p3'
       )
     ).toBe('https://www.youtube.com/embed/abcdefghijk');
   });
