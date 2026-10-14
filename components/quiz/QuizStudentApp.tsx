@@ -133,6 +133,7 @@ import {
   isRecordingSlotClosed,
 } from '@/utils/answerTakeOrdering';
 import { AudioResponseCapture } from './recording/AudioResponseCapture';
+import { WhiteboardResponseCapture } from './recording/WhiteboardResponseCapture';
 import { RecordingNoticeDrawingContext } from './recording/recordingNoticeDrawing';
 import {
   StimulusDrawer,
@@ -1663,14 +1664,6 @@ const SuccessPill: React.FC<{ light: boolean; children: React.ReactNode }> = ({
 );
 
 // ─── Active quiz ──────────────────────────────────────────────────────────────
-
-// TEMP(W6): replaced by W5's WhiteboardResponseCapture before the PR opens.
-const WhiteboardCapturePending: React.FC<{
-  onCommit?: (take: WhiteboardTake) => Promise<void>;
-  onRetryUpload?: () => Promise<void>;
-}> = () => (
-  <div className="mx-auto aspect-[4/3] h-[min(calc(100dvh-12rem),calc((100vw-3rem)*0.75))] max-w-full rounded-2xl border border-slate-200 bg-white shadow-sm" />
-);
 
 export const ActiveQuiz: React.FC<{
   session: QuizSession;
@@ -3859,16 +3852,20 @@ export const ActiveQuiz: React.FC<{
                     whiteboardGated ? (
                       <RotateDeviceGate />
                     ) : (
-                      <WhiteboardCapturePending
-                        onCommit={
+                      <WhiteboardResponseCapture
+                        key={currentQuestion.id}
+                        config={whiteboardConfig}
+                        takesCommitted={committedTakes}
+                        noticeAckedAt={noticeAckedAt}
+                        onAcknowledgeNotice={onAcknowledgeNotice}
+                        onCommit={(take) =>
                           onCommitWhiteboard
-                            ? (take) =>
-                                onCommitWhiteboard(
-                                  currentQuestion.id,
-                                  take,
-                                  localizedStrings ? activeLocale : undefined
-                                )
-                            : undefined
+                            ? onCommitWhiteboard(
+                                currentQuestion.id,
+                                take,
+                                localizedStrings ? activeLocale : undefined
+                              )
+                            : Promise.resolve()
                         }
                         onRetryUpload={
                           retryableWhiteboardArtifacts.length > 0
@@ -3881,6 +3878,10 @@ export const ActiveQuiz: React.FC<{
                               }
                             : undefined
                         }
+                        onPrepExpired={handleRecordingPrepExpired}
+                        latestArtifacts={latestTakeArtifacts}
+                        slotClosed={recordingSlotClosed}
+                        recovery={takeRecovery}
                       />
                     )
                   ) : (

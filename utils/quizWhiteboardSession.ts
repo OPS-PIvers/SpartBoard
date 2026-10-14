@@ -4,8 +4,8 @@ import {
   type QuizSession,
   type RecordingConfig,
   type ResponseArtifact,
-  type TakeMicState,
 } from '@/types';
+import type { WhiteboardTake } from '@/hooks/useWhiteboardRecording';
 import type { RecordingNoticeDrawing } from '@/components/quiz/recording/recordingNoticeDrawing';
 import {
   isWhiteboardRecording,
@@ -55,19 +55,6 @@ export function noticeDrawingForSession(
   return voice ? 'narrated' : 'draw-only';
 }
 
-/** What the whiteboard capture hands back at commit; mirrors W5's export until it lands. */
-export interface WhiteboardTake {
-  /** Absent when draw-only or the mic was denied. */
-  audio: { blob: Blob; mimeType: string } | null;
-  /** Final picture, 3200x2400 PNG with the starting page baked in (D20). */
-  picture: Blob;
-  /** Serialized drawing log (D14). */
-  log: Blob;
-  durationMs: number;
-  /** Absent on a draw-only take, which never asks for the mic. */
-  micState?: TakeMicState;
-}
-
 /** One take's artifacts in upload order: picture, log, then audio (D19). */
 export function buildWhiteboardTakeArtifacts(
   take: WhiteboardTake,
@@ -102,3 +89,5 @@ export function buildWhiteboardTakeArtifacts(
       : []),
   ];
 }
+
+export type { WhiteboardTake };
