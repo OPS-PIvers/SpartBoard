@@ -77,9 +77,9 @@ const renderDrawer = (
       onWidthCommit={vi.fn()}
       onClose={vi.fn()}
       updateWidget={updateWidget}
-      updateConfig={(patch) =>
-        updateWidget(widget.id, { config: { ...widget.config, ...patch } })
-      }
+      updateConfig={(patch) => {
+        updateWidget(widget.id, { config: { ...widget.config, ...patch } });
+      }}
       globalStyle={{ fontFamily: 'sans' } as GlobalStyle}
       schema={migratedSchemas[widget.type as keyof typeof migratedSchemas]}
       canAccessFeature={() => true}
