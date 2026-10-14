@@ -4074,7 +4074,17 @@ export function isFreeResponseType(type: QuizQuestionType): boolean {
  * `gdoc-embed` covers Google Docs/Slides shared as embeds by URL.
  */
 export type QuizStimulusType =
-  'image' | 'pdf' | 'audio' | 'video' | 'youtube' | 'gdoc-embed' | 'text';
+  | 'image'
+  | 'pdf'
+  | 'audio'
+  | 'video'
+  | 'youtube'
+  | 'gdoc-embed'
+  | 'text'
+  | 'calculator';
+
+/** Which Desmos calculator a `calculator` stimulus shows. */
+export type QuizCalculatorKind = 'graphing' | 'scientific' | 'four-function';
 
 /**
  * A stimulus attached to one or more quiz questions. Lives on
@@ -4106,6 +4116,8 @@ export interface QuizStimulus {
    * 'text' means the passage is its own spoken text and needs no review.
    */
   readAloudSource?: 'pdf-text' | 'ocr' | 'edited' | 'text';
+  /** calculator only: which Desmos calculator; `url` stays empty and is never trusted. */
+  calculator?: QuizCalculatorKind;
 }
 
 export interface QuizQuestion {
@@ -4443,7 +4455,76 @@ export interface RecordingConfig {
   takeLimit: number | null;
   /** Authoring-only stash of the `timeLimit` this block zeroed; never projected to students. */
   priorTimeLimit?: number;
+  /** Absent means audio, so every quiz saved before whiteboard keeps its meaning. */
+  mode?: RecordingResponseMode;
+  /** Whiteboard only: `false` makes the question draw-only (no mic). Absent means true. */
+  explainAloud?: boolean;
+  /** Student reviews a take before it commits. Absent means true. */
+  review?: boolean;
+  /** Whiteboard only: the locked background every take starts from. */
+  startingPage?: WhiteboardStartingPage;
 }
+
+/** Which kind of take a recording question captures. */
+export type RecordingResponseMode = 'audio' | 'whiteboard';
+
+/** One shape drawn large and centred on a whiteboard starting page. */
+export type WhiteboardShapeKind =
+  'triangle' | 'rectangle' | 'circle' | 'polygon';
+
+/** The code-drawn pattern under a whiteboard starting page. */
+export type WhiteboardStartingPattern =
+  | { kind: 'blank' }
+  | { kind: 'grid' }
+  | { kind: 'lines' }
+  | { kind: 'dots' }
+  | {
+      kind: 'coordinate-plane';
+      xMin: number;
+      xMax: number;
+      yMin: number;
+      yMax: number;
+    }
+  | { kind: 'number-line'; min: number; max: number; step: number }
+  | { kind: 'shape'; shape: WhiteboardShapeKind; sides?: number };
+
+/** A teacher image fitted whole and centred on the 1600x1200 page. */
+export interface WhiteboardStartingImage {
+  /** Reuses the quiz-stimulus upload (teacher Drive, `Assets/QuizStimuli`, link-public). */
+  driveFileId: string;
+  /** The lh3 URL that upload returns; what students load. */
+  url: string;
+  mimeType: string;
+  width: number;
+  height: number;
+}
+
+/** A teacher image placed on the page; `x`, `y`, `w`, `h` are page units, top-left plus size. */
+export interface WhiteboardPlacedImage extends WhiteboardStartingImage {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+/** A teacher pen stroke on the starting page; `points` is flat x,y pairs in page units. */
+export interface WhiteboardInkStroke {
+  color: string;
+  size: number;
+  points: number[];
+}
+
+/** Locked background of a whiteboard response: a pattern, placed images and teacher ink. */
+export interface WhiteboardStartingPage {
+  pattern: WhiteboardStartingPattern;
+  /** Legacy single fitted image; read only, new edits write `images`. */
+  image?: WhiteboardStartingImage;
+  images?: WhiteboardPlacedImage[];
+  ink?: WhiteboardInkStroke[];
+}
+
+/** Whether the mic was live for a take; a silent take with `'on'` is silent by choice. */
+export type TakeMicState = 'on' | 'denied' | 'unavailable';
 
 /**
  * Result of grading a student's answer to a single quiz question.
@@ -4986,6 +5067,8 @@ export interface QuizSession
    * fail-closed gate reaches `/quiz` — a route that mounts no AuthProvider.
    */
   mediaResponseEnabled?: boolean;
+  /** Whiteboard capture gate for `/quiz`, stamped only when `canAccessQuizWhiteboardResponse()` passed. */
+  whiteboardResponseEnabled?: boolean;
   /**
    * Stimuli referenced by at least one public question, projected from the
    * quiz at session-create time with authoring labels stripped. `playLimit`
@@ -5269,7 +5352,9 @@ export type UnrespondedReason =
   | 'abandoned'
   | 'capture-unavailable'
   /** A paper bubble row the reader could not trust and the teacher left unresolved. */
-  | 'paper-unclear';
+  | 'paper-unclear'
+  /** A whiteboard question stayed behind the portrait-orientation gate. */
+  | 'device-gated';
 
 /** Which response slot an artifact fills: the answer itself, or a supporting addendum. */
 export type ArtifactSlot = 'primary' | 'addendum';
@@ -5305,7 +5390,12 @@ export interface ResponseArtifact {
   durationMs?: number;
   /** `'pending'` is an expected value, not an error: metadata lands before the bytes do. */
   uploadState: ArtifactUploadState;
+  /** `kind: 'whiteboard'` only: the final picture or the drawing log of the take. */
+  part?: WhiteboardArtifactPart;
 }
+
+/** A whiteboard take is up to three artifacts: audio, `picture` and `log`. */
+export type WhiteboardArtifactPart = 'picture' | 'log';
 
 export interface QuizResponseAnswer {
   questionId: string;
@@ -5357,6 +5447,8 @@ export interface QuizResponseAnswer {
    * routing. Absent means English; the key is omitted, never written undefined.
    */
   locale?: string;
+  /** Recording takes: mic state during the take. Absent on takes written before it existed. */
+  micState?: TakeMicState;
   /** Paper written answers: the scan that produced this answer. */
   paperScanId?: string;
   /** Paper written answers: public transcription state; failures read as `'pending'`. */
@@ -9819,6 +9911,8 @@ export type GlobalFeature =
   | 'anonymous-join'
   /** Fail-closed: read it through `canAccessQuizMediaResponse`, never `canAccessFeature`. */
   | 'quiz-media-response'
+  /** Fail-closed; read it through `canAccessQuizWhiteboardResponse`, which also needs `quiz-media-response`. */
+  | 'quiz-whiteboard-response'
   | 'settings-drawer'
   | 'quiz-read-aloud'
   /** Teacher-authored AI quiz translations for multilingual learners. */
@@ -9842,6 +9936,8 @@ export type GlobalFeature =
   | 'tab-away-timer'
   /** Students add selected passage or PDF text to a written answer as a tracked quote. */
   | 'quiz-stimulus-quotes'
+  /** Desmos calculator stimulus on quiz questions. */
+  | 'quiz-calculator-stimulus'
   /** Guided Learning live tours in the teacher app and their launch points. */
   | 'gl-live-tours'
   /** Live tour editing v2: pick and pause clear the stage, checkpoints, sandboxed replays, tour materials. */
@@ -9859,8 +9955,6 @@ export type GlobalFeature =
   | 'plc-norming-flags'
   /** Share flashcard sets and class-level flashcard results with a PLC. */
   | 'plc-flashcards'
-  /** Quiz multiple choice editor as one option list with a correct-answer marker per option. */
-  | 'quiz-choice-editor'
   /** Standard codes typed in or imported with a question text become Learning targets tags. */
   | 'standards-from-question-text'
   /** "View full screen" toggle on large pop-ups (editors, graders). */
@@ -9893,8 +9987,6 @@ export type GlobalFeature =
   | 'rubric-scoring-guides'
   /** Projects board: tapping a group name opens that group's student view. */
   | 'projects-group-view'
-  /** Quiz assign/edit: a separate due date per selected class. */
-  | 'quiz-per-class-due-dates'
   /** Teacher gradebook route (docs/plans/GRADEBOOK.md). */
   | 'gradebook'
   /** Student Grades tab in My Assignments (docs/plans/GRADEBOOK.md D35). */
@@ -9957,7 +10049,9 @@ export type GlobalFeature =
   | 'mini-app-ai-edit'
   /** Quiz live monitor declutter (#4023): footer buttons, Close all, no More actions menu for assessments. */
   | 'quiz-monitor-declutter'
-  | 'quiz-banks-in-library';
+  | 'quiz-banks-in-library'
+  /** Teachers turn in a quiz for a student who left without submitting. */
+  | 'quiz-submit-for-student';
 
 /** `admin_settings/quiz_translation` — curated languages and org monthly caps (plan §7). */
 export interface QuizTranslationSettings {

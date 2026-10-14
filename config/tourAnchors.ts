@@ -1348,21 +1348,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
-  'quiz-editor.distractor': {
-    label: 'Distractor input, per index in the Quiz editor',
-    perField: true,
-    panel: true,
-  },
-  'quiz-editor.distractor-remove': {
-    label: 'Remove distractor (×) in the Quiz editor',
-    perField: true,
-    panel: true,
-  },
-  'quiz-editor.distractor-add': {
-    label: 'Add choice in the Quiz editor',
-    perWidgetType: true,
-    panel: true,
-  },
   'quiz-editor.ai-prompt': {
     label: 'AI describe-your-quiz textarea in the Quiz editor',
     perWidgetType: true,
@@ -1550,9 +1535,98 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-editor.recording-review': {
+    label: 'Students review before submitting switch in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.recording-attempts-info': {
+    label: 'Attempts allowed info button (spoken response) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-editor.recording-expiry': {
-    label: 'Prep expiry option buttons (per option) in the Quiz editor',
+    label: 'After planning time menu in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.response-format': {
+    label:
+      'Response format menu (typed, spoken, whiteboard) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-explain-aloud': {
+    label:
+      'Students explain out loud switch (whiteboard response) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-starting-page': {
+    label: 'Starting page menu (whiteboard response) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-pattern-value': {
+    label: 'Starting page range inputs (per field) in the Quiz editor',
     perField: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-shape': {
+    label: 'Starting page shape menu (whiteboard response) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-image': {
+    label:
+      'Insert image button for the whiteboard starting page in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-image-choose': {
+    label:
+      'Choose file button in the whiteboard Insert image dialog in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-preview': {
+    label: 'Preview button for the whiteboard starting page in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-image-remove': {
+    label:
+      'Remove image button for the whiteboard starting page in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-preview-tool': {
+    label:
+      'Move, Pen and Eraser tools (per tool) in the whiteboard starting page editor',
+    perField: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-preview-clear-ink': {
+    label: 'Clear ink button in the whiteboard starting page editor',
+    perWidgetType: true,
+    panel: true,
+    destructive: true,
+  },
+  'quiz-editor.whiteboard-preview-remove-image': {
+    label:
+      'Remove image button for the selected image in the whiteboard starting page editor',
+    perWidgetType: true,
+    panel: true,
+    destructive: true,
+  },
+  'quiz-editor.whiteboard-preview-cancel': {
+    label: 'Cancel button in the whiteboard starting page editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.whiteboard-preview-save': {
+    label: 'Save button in the whiteboard starting page editor',
+    perWidgetType: true,
     panel: true,
   },
   'quiz-editor.word-min': {
@@ -2395,6 +2469,11 @@ export const TOUR_ANCHORS = {
     destructive: true,
     panel: true,
   },
+  'quiz-stimuli.add-calculator': {
+    label: 'Add a calculator in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-stimuli.add-passage': {
     label: 'Add a passage in the Quiz widget',
     perWidgetType: true,
@@ -2410,6 +2489,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz-stimuli.attach-calculator': {
+    label: 'Attach section Calculator in the Quiz widget',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-stimuli.attach-question': {
     label: 'Per-question attach checkbox in the Quiz widget',
     perField: true,
@@ -2423,6 +2507,11 @@ export const TOUR_ANCHORS = {
   'quiz-stimuli.attach-toggle': {
     label: 'Attach section Stimuli disclosure in the Quiz widget',
     perWidgetType: true,
+    panel: true,
+  },
+  'quiz-stimuli.calculator-kind': {
+    label: 'Calculator type picker in the Quiz widget',
+    perField: true,
     panel: true,
   },
   'quiz-stimuli.card-delete': {
@@ -2690,6 +2779,12 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'quiz-results.bulk-submit': {
+    label: 'Submit for students in Quiz results',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
   'quiz-results.bulk-clear': {
     label: 'Clear selection in Quiz results',
     perWidgetType: true,
@@ -2772,6 +2867,16 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-whiteboard.replay-play': {
+    label: 'Play / pause a whiteboard answer replay',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-whiteboard.replay-scrubber': {
+    label: 'Whiteboard answer replay timeline',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-grading.audio-play': {
     label: 'Play / pause in the Quiz grader',
     perWidgetType: true,
@@ -2789,6 +2894,11 @@ export const TOUR_ANCHORS = {
   },
   'quiz-grading.audio-add-comment': {
     label: 'Add comment at playhead in the Quiz grader',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-grading.whiteboard-add-comment': {
+    label: 'Add comment at replay position in the Quiz grader',
     perWidgetType: true,
     panel: true,
   },
@@ -2894,11 +3004,6 @@ export const TOUR_ANCHORS = {
     label: 'Teacher comment box in the Quiz grader',
     perWidgetType: true,
     persists: true,
-    panel: true,
-  },
-  'quiz-grading.take-pin': {
-    label: 'Take pin button in the Quiz grader, by take',
-    perField: true,
     panel: true,
   },
   'quiz-grading.undo-excuse': {
@@ -3159,6 +3264,12 @@ export const TOUR_ANCHORS = {
     persists: true,
     panel: true,
   },
+  'quiz-monitor.student-submit': {
+    label: 'Submit for student item in the Quiz monitor student menu',
+    perWidgetType: true,
+    persists: true,
+    panel: true,
+  },
   'quiz-monitor.student-unlock-results': {
     label: 'Unlock results item in the Quiz monitor student menu',
     perWidgetType: true,
@@ -3405,6 +3516,11 @@ export const TOUR_ANCHORS = {
   },
   'widget-settings.calendar.add-calendar': {
     label: 'Add calendar button in Calendar settings',
+    perWidget: true,
+    panel: true,
+  },
+  'widget-settings.calendar.calendar-id': {
+    label: 'Calendar ID box in Calendar settings',
     perWidget: true,
     panel: true,
   },
@@ -12460,7 +12576,8 @@ export const TOUR_ANCHORS = {
   },
   // Video Activity shared-prop controls.
   'editor.save': {
-    label: 'Save button in an editor dialog footer',
+    label:
+      'Save button in an editor dialog footer (not in editors that save as you go, like the quiz editor)',
     perWidgetType: true,
     persists: true,
     sandboxed: true,

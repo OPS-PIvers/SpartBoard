@@ -6,6 +6,7 @@ import {
   Loader2,
   Printer,
   RotateCcw,
+  Send,
   Users,
   X,
 } from 'lucide-react';
@@ -17,6 +18,7 @@ import type {
 } from '@/types';
 import { getResponseDocKey } from '@/hooks/useQuizSession';
 import { logError } from '@/utils/logError';
+import { canTeacherSubmit } from '@/utils/quizTeacherSubmit';
 import { ShowResultsDialog } from './ShowResultsDialog';
 import { tourTypeAttr } from '@/config/tourAnchors';
 import type {
@@ -38,6 +40,8 @@ interface StudentResultsBulkBarProps {
   onReopen?: (responseKeys: string[]) => Promise<boolean>;
   /** Why Reopen is unavailable right now, shown on the disabled button. */
   reopenBlockedReason?: string | null;
+  /** Turns in these unfinished students' saved answers; resolves true once done. */
+  onSubmit?: (responseKeys: string[]) => Promise<boolean>;
 }
 
 const plural = (n: number) => `${n} student${n === 1 ? '' : 's'}`;
@@ -52,9 +56,12 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
   onPrint,
   onReopen,
   reopenBlockedReason = null,
+  onSubmit,
 }) => {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [busy, setBusy] = useState<'hide' | 'clear' | 'reopen' | null>(null);
+  const [busy, setBusy] = useState<
+    'hide' | 'clear' | 'reopen' | 'submit' | null
+  >(null);
   const selected = responses.filter((r) =>
     selection.selectedResponseKeys.has(getResponseDocKey(r))
   );
@@ -63,6 +70,10 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
   const keys = selected.map((r) => getResponseDocKey(r) as string);
   const completedKeys = selected
     .filter((r) => r.status === 'completed')
+    .map((r) => getResponseDocKey(r) as string);
+
+  const openKeys = selected
+    .filter(canTeacherSubmit)
     .map((r) => getResponseDocKey(r) as string);
 
   const run = async (kind: 'hide' | 'clear') => {
@@ -119,6 +130,16 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
     setBusy('reopen');
     try {
       if (await onReopen(completedKeys)) selection.clearSelection();
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const submit = async () => {
+    if (!onSubmit) return;
+    setBusy('submit');
+    try {
+      if (await onSubmit(openKeys)) selection.clearSelection();
     } finally {
       setBusy(null);
     }
@@ -254,6 +275,28 @@ export const StudentResultsBulkBar: React.FC<StudentResultsBulkBarProps> = ({
             <RotateCcw style={iconStyle} />
           )}
           Reopen
+        </button>
+      )}
+      {onSubmit && (
+        <button
+          type="button"
+          onClick={() => void submit()}
+          {...tourTypeAttr('quiz-results.bulk-submit', 'quiz')}
+          disabled={busy !== null || openKeys.length === 0}
+          title={
+            openKeys.length === 0
+              ? 'All of the selected students have submitted'
+              : "Turn in these students' saved answers"
+          }
+          className={buttonCls}
+          style={buttonStyle}
+        >
+          {busy === 'submit' ? (
+            <Loader2 className="animate-spin" style={iconStyle} />
+          ) : (
+            <Send style={iconStyle} />
+          )}
+          Submit
         </button>
       )}
       <button

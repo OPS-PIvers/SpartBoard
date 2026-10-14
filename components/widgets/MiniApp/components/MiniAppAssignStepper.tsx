@@ -22,6 +22,7 @@ import { AssignWhenStep } from '@/components/common/library/assignStepper/Assign
 import {
   defaultWhenValue,
   formatWhenValue,
+  whenBackwards,
   type AssignWhenValue,
 } from '@/components/common/library/assignStepper/assignWhenValue';
 import {
@@ -100,6 +101,12 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
   const variant = kind === 'resource' ? 'available' : 'when';
   const ctx = { kind };
   const nameMissing = assignmentName.trim().length === 0;
+  const backwards = whenBackwards(
+    when,
+    pickedRosters,
+    periodAccess?.bellWindow,
+    kind
+  );
 
   const bodies = {
     classes: (
@@ -202,7 +209,12 @@ export const MiniAppAssignStepper: React.FC<MiniAppAssignStepperProps> = ({
       steps={steps}
       submitLabel="Assign"
       submitting={submitting}
-      disabled={nameMissing}
+      disabled={nameMissing || backwards}
+      disabledReason={
+        backwards
+          ? t('assignAvailability.closesBeforeOpens', 'Closes before it opens.')
+          : undefined
+      }
       onSubmit={() =>
         onSubmit(
           { kind, classes, when, targeting },

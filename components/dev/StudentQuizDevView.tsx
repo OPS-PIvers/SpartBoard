@@ -6,9 +6,11 @@
 import React, { useMemo } from 'react';
 import { ActiveQuiz } from '@/components/quiz/QuizStudentApp';
 import {
+  makeCalculatorQuizSession,
   makeStimulusQuizSession,
   makeTimedQuizSession,
   makeTimedStudentResponse,
+  makeWhiteboardQuizSession,
 } from './sessionViewsMocks';
 import { type StudentQuizStateKey } from './devViewStates';
 
@@ -21,7 +23,11 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
     () =>
       state === 'sq-stimuli'
         ? makeStimulusQuizSession()
-        : makeTimedQuizSession('active'),
+        : state === 'sq-calculator'
+          ? makeCalculatorQuizSession()
+          : state === 'sq-whiteboard'
+            ? makeWhiteboardQuizSession()
+            : makeTimedQuizSession('active'),
     [state]
   );
   const response = makeTimedStudentResponse(
@@ -40,7 +46,7 @@ export const StudentQuizDevView: React.FC<{ state: StudentQuizStateKey }> = ({
         onRetryRecordingUpload={noop}
         canRetryRecordingUpload={() => false}
         onMarkUnresponded={noop}
-        noticeAckedAt={null}
+        noticeAckedAt={state === 'sq-whiteboard' ? 1_700_000_000_000 : null}
         onAcknowledgeNotice={() => undefined}
         onComplete={noop}
         reportTabSwitch={() => Promise.resolve(0)}

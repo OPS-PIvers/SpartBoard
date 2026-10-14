@@ -1,6 +1,7 @@
 // Registry of every global feature: runtime defaults plus its admin row (docs/plans/shipped/ADMIN_ACCESS_PAGES.md D5).
 import type React from 'react';
 import {
+  PenLine,
   BarChart,
   BellRing,
   BookOpen,
@@ -56,6 +57,7 @@ import {
   Zap,
   BookMarked,
   Quote,
+  Calculator,
 } from 'lucide-react';
 import type {
   AccessLevel,
@@ -401,6 +403,23 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
     failClosedForAdmins: true,
   },
+  // Student whiteboard responses (QUIZ_WHITEBOARD_RESPONSE D22). Fail-closed like
+  // spoken answers; read it through `canAccessQuizWhiteboardResponse`.
+  'quiz-whiteboard-response': {
+    label: 'Whiteboard quiz responses',
+    icon: PenLine,
+    description: "Draw-and-explain answers, saved to the teacher's Drive.",
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    modalLabel: 'Whiteboard answers',
+    group: 'questions',
+    requires: 'quiz-media-response',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: false,
+    missingDocPublic: false,
+    failClosedForAdmins: true,
+  },
   // Alpha rollout of the redesigned widget settings UI (wave 1b). Default-off
   // and admin-only until the drawer is verified across all widget types.
   'settings-drawer': {
@@ -583,6 +602,19 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     defaultEnabled: true,
     missingDocPublic: false,
   },
+  // Desmos calculator stimulus on quiz questions. Admin-only until Paul has tested it in prod.
+  'quiz-calculator-stimulus': {
+    label: 'Calculator stimulus',
+    icon: Calculator,
+    description:
+      'Teachers attach a Desmos graphing, scientific or four-function calculator to quiz questions.',
+    stage: 'preview',
+    afterLaunch: 'keep',
+    category: 'students',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
   // Guided Learning live tours that walk a teacher through the real app. Admin-only until opened up.
   'gl-live-tours': {
     label: 'Guided Learning live tours',
@@ -677,17 +709,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'PLC flashcards',
     icon: Layers,
     description: 'Share flashcard sets and results with a PLC.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // One-list multiple choice editor, choose-all as a setting on it. Admin-only until Paul has tried it.
-  'quiz-choice-editor': {
-    label: 'One-list multiple choice editor',
-    icon: ListChecks,
-    description: 'Mark the correct option in one list.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',
@@ -892,20 +913,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     afterLaunch: 'keep',
     widget: 'quiz',
     modalLabel: 'Score on submit',
-    group: 'assigning',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // Quiz assign/edit: a due date per selected class. Admin-only until Paul has used it.
-  'quiz-per-class-due-dates': {
-    label: 'Due date per class',
-    icon: CalendarClock,
-    description: 'Give each class on a quiz assignment its own due date.',
-    stage: 'preview',
-    afterLaunch: 'keep',
-    widget: 'quiz',
-    modalLabel: 'Due date per class',
     group: 'assigning',
     defaultAccessLevel: 'admin',
     defaultEnabled: true,
@@ -1292,6 +1299,17 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'Question banks in Quiz library',
     icon: Library,
     description: 'Question banks open from the Quiz library sidebar.',
+    stage: 'preview',
+    afterLaunch: 'retire',
+    widget: 'quiz',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: true,
+    missingDocPublic: false,
+  },
+  'quiz-submit-for-student': {
+    label: 'Submit quiz for a student',
+    icon: Send,
+    description: "Turn in a student's saved quiz answers.",
     stage: 'preview',
     afterLaunch: 'retire',
     widget: 'quiz',

@@ -52,6 +52,24 @@ const {
   };
 });
 
+vi.mock('@/hooks/useQuizRecordingNoticeSettings', () => ({
+  useQuizRecordingNoticeSettings: () => ({
+    settings: { enabled: true },
+    loaded: true,
+  }),
+}));
+
+// The pre-quiz mic check has its own suite; these tests start past it.
+vi.mock('@/components/quiz/recording/MicrophoneGate', async () => {
+  const { useEffect } = await import('react');
+  return {
+    MicrophoneGate: ({ onReady }: { onReady: () => void }) => {
+      useEffect(onReady, [onReady]);
+      return null;
+    },
+  };
+});
+
 vi.mock('@/hooks/useStudentAssignmentPointer', () => ({
   useStudentAssignmentPointer: () => pointerState.current,
 }));
@@ -79,6 +97,7 @@ vi.mock('@/components/quiz/recording/AudioResponseCapture', () => ({
       blob: Blob;
       mimeType: string;
       durationMs: number;
+      micState: 'on';
     }) => Promise<void>;
   }) => (
     <button
@@ -88,6 +107,7 @@ vi.mock('@/components/quiz/recording/AudioResponseCapture', () => ({
           blob: new Blob(['x']),
           mimeType: 'audio/webm',
           durationMs: 1000,
+          micState: 'on',
         })
       }
     >
@@ -128,10 +148,14 @@ type SubmitCall = [
 ];
 
 /** Last `commitRecordingTake` input, typed — the mock's tuple is untyped. */
-function lastCommit(): { questionId: string; locale?: string } {
+function lastCommit(): {
+  questionId: string;
+  locale?: string;
+  micState?: string;
+} {
   const call = mockCommitRecording.mock.calls.at(-1);
   if (!call) throw new Error('commitRecordingTake was never called');
-  return call[0] as { questionId: string; locale?: string };
+  return call[0] as { questionId: string; locale?: string; micState?: string };
 }
 
 /** Last `submitAnswer` call, typed — the mock's tuple is untyped. */
@@ -591,6 +615,16 @@ describe('QuizStudentApp — recording takes carry the rendering locale', () => 
     await user.click(screen.getByRole('button', { name: 'commit-take' }));
     await waitFor(() => expect(mockCommitRecording).toHaveBeenCalled());
     expect(lastCommit()).toMatchObject({ questionId: 'qr', locale: 'es' });
+  });
+
+  it('stamps the mic state the recorder reported on the take', async () => {
+    const user = userEvent.setup();
+    render(<QuizStudentApp />);
+    await user.click(
+      await screen.findByRole('button', { name: 'commit-take' })
+    );
+    await waitFor(() => expect(mockCommitRecording).toHaveBeenCalled());
+    expect(lastCommit()).toMatchObject({ questionId: 'qr', micState: 'on' });
   });
 
   it('omits `locale` once the student toggles to English', async () => {

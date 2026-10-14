@@ -96,6 +96,8 @@ export interface QuizLiveMonitorProps {
   onRemoveStudent?: (responseKey: string) => Promise<void>;
   /** Unlock a locked/auto-submitted attempt by response-doc key. */
   onUnlockStudent?: (responseKey: string) => Promise<void>;
+  /** Turn in a student's saved answers by response-doc key. */
+  onSubmitForStudent?: (responseKey: string) => Promise<void>;
   /** Unlock a results-view lockout by response-doc key. */
   onUnlockResultsForStudent?: (responseKey: string) => Promise<void>;
   /** Clear a student's raised hand by response-doc key. */
@@ -151,6 +153,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     onUpdateConfig,
     onRemoveStudent,
     onUnlockStudent,
+    onSubmitForStudent,
     onUnlockResultsForStudent,
     onClearHand,
     onRevealAnswer,
@@ -482,6 +485,24 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
       }
     },
     [onUnlockStudent, showConfirm, addToast]
+  );
+
+  const handleSubmitForStudent = useCallback(
+    async (key: string) => {
+      const ok = await showConfirm(
+        "Turn in this student's quiz with the answers saved so far? Reopen it if they need to keep working.",
+        { title: 'Submit for student?', confirmLabel: 'Submit' }
+      );
+      if (!ok) return;
+      try {
+        await onSubmitForStudent?.(key);
+        addToast('Submitted for the student.', 'success');
+      } catch (err) {
+        logError('QuizLiveMonitor.submitForStudent', err);
+        addToast('Could not submit for the student. Try again.', 'error');
+      }
+    },
+    [onSubmitForStudent, showConfirm, addToast]
   );
 
   const handleUnlockResults = useCallback(
@@ -861,6 +882,9 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 onRemove={onRemoveStudent ? handleRemove : undefined}
                 onUnlockAttempt={
                   onUnlockStudent ? handleUnlockAttempt : undefined
+                }
+                onSubmitForStudent={
+                  onSubmitForStudent ? handleSubmitForStudent : undefined
                 }
                 onUnlockResults={
                   onUnlockResultsForStudent ? handleUnlockResults : undefined

@@ -163,6 +163,7 @@ import {
 import { useSandboxedQuizAssignments } from './useTourSandboxed';
 import { useSetAssignmentTargets } from './useSetAssignmentTargets';
 import { hasStudentPointers } from '@/utils/studentTargetRef';
+import { QUIZ_WHITEBOARD_FEATURE_ID } from '@/utils/quizMediaAccess';
 
 /** Import-mode picker result for shared-assignment paste flows. */
 export type SharedAssignmentImportMode = 'sync' | 'copy';
@@ -1199,6 +1200,10 @@ export const useQuizAssignments = (
   }, [googleAccessToken, userId]);
   const mediaResponseGranted =
     authContext?.canAccessQuizMediaResponse?.() === true;
+  // Same two checks as canAccessQuizWhiteboardResponse, tolerant of a partial context.
+  const whiteboardResponseGranted =
+    mediaResponseGranted &&
+    authContext?.canAccessFeature?.(QUIZ_WHITEBOARD_FEATURE_ID) === true;
   const tabAwayTimerOn =
     authContext?.canAccessFeature?.('tab-away-timer') === true;
   const scoreOnSubmitOn =
@@ -1254,11 +1259,15 @@ export const useQuizAssignments = (
         ),
         { hideRubricUnlessShown }
       );
-      if (mediaResponseGranted || !projected.recording) return projected;
+      const keepRecording =
+        mediaResponseGranted &&
+        (projected.recording?.mode !== 'whiteboard' ||
+          whiteboardResponseGranted);
+      if (keepRecording || !projected.recording) return projected;
       const { recording: _stripped, ...rest } = projected;
       return rest;
     },
-    [mediaResponseGranted, hideRubricUnlessShown]
+    [mediaResponseGranted, whiteboardResponseGranted, hideRubricUnlessShown]
   );
 
   // Recorded answers are a self-paced (student mode) feature: only there does a
@@ -1520,6 +1529,9 @@ export const useQuizAssignments = (
       const sessionHasRecording = sessionPublicQuestions.some(
         (q) => !!q.recording
       );
+      const sessionHasWhiteboard = sessionPublicQuestions.some(
+        (q) => q.recording?.mode === 'whiteboard'
+      );
       const sessionSections = sessionSectionsFor(
         {
           questions: sessionQuestions,
@@ -1558,6 +1570,7 @@ export const useQuizAssignments = (
         completenessModel: 1,
         // Carries the teacher-side media gate to `/quiz`, which has no AuthProvider.
         ...(sessionHasRecording ? { mediaResponseEnabled: true } : {}),
+        ...(sessionHasWhiteboard ? { whiteboardResponseEnabled: true } : {}),
         // Stimuli referenced by at least one question, labels stripped.
         // Omitted entirely for stimulus-free quizzes.
         ...(sessionStimuli.length > 0 ? { stimuli: sessionStimuli } : {}),
@@ -2929,6 +2942,9 @@ export const useQuizAssignments = (
         if (payload.title) quizTitleLocalized[locale] = payload.title;
       }
       const syncHasRecording = publicQuestions.some((q) => !!q.recording);
+      const syncHasWhiteboard = publicQuestions.some(
+        (q) => q.recording?.mode === 'whiteboard'
+      );
       const canonicalStimuli = projectSessionStimuli({
         questions: canonicalQuestions,
         stimuli: canonical.stimuli,
@@ -3097,6 +3113,8 @@ export const useQuizAssignments = (
         // unless committed takes still depend on it.
         mediaResponseEnabled:
           syncHasRecording || stickyMediaMarker ? true : deleteField(),
+        // Capture gate only; committed whiteboard takes ride the media marker.
+        whiteboardResponseEnabled: syncHasWhiteboard ? true : deleteField(),
       });
       if (inContent) {
         const syncedContent: QuizSessionContent = {

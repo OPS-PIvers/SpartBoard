@@ -63,6 +63,7 @@ vi.mock('./secrets', () => {
 import {
   gradingKeyFor,
   MAX_PLAYBACK_BYTES,
+  MAX_PLAYBACK_BYTES_BY_PART,
   parsePlaybackRequest,
   playbackBlockReason,
   resolveArtifactPlayback,
@@ -149,6 +150,7 @@ function makeDeps(
     getAccessToken: () => Promise.resolve('token'),
     downloadDriveFile: () => Promise.resolve(Buffer.from('audio-bytes')),
     isFeatureGranted: () => Promise.resolve(true),
+    isWhiteboardGranted: () => Promise.resolve(true),
     ...over,
   };
 }
@@ -184,6 +186,18 @@ describe('parsePlaybackRequest', () => {
     expect(() =>
       parsePlaybackRequest({ ...REQ, responseKey: '../other' })
     ).toThrow();
+  });
+
+  it('defaults the part to audio and rejects an unknown part', () => {
+    expect(
+      parsePlaybackRequest({
+        sessionId: 's1',
+        responseKey: 'r1',
+        questionId: 'q1',
+      }).part
+    ).toBe('audio');
+    expect(parsePlaybackRequest({ ...REQ, part: 'log' }).part).toBe('log');
+    expect(() => parsePlaybackRequest({ ...REQ, part: 'video' })).toThrow();
   });
 
   it('defaults the slot to primary', () => {
@@ -298,6 +312,43 @@ describe('resolveArtifactPlayback', () => {
 
   it('denies when results were unpublished back to none', async () => {
     const docs = makeDocs({ session: { scoreVisibility: 'none' } });
+    await expect(
+      resolveArtifactPlayback(REQ, makeDeps(docs))
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('serves a student whose results were shown to them alone', async () => {
+    const docs = makeDocs({
+      session: { scoreVisibility: undefined },
+      response: {
+        resultsOverride: { mode: 'shown', visibility: 'score-and-responses' },
+      },
+    });
+    await expect(
+      resolveArtifactPlayback(REQ, makeDeps(docs))
+    ).resolves.toMatchObject({ status: 'ready' });
+  });
+
+  it('denies once a per-student publish has expired', async () => {
+    const docs = makeDocs({
+      session: { scoreVisibility: undefined },
+      response: {
+        resultsOverride: {
+          mode: 'shown',
+          visibility: 'score-and-responses',
+          expiresAt: Date.now() - 1000,
+        },
+      },
+    });
+    await expect(
+      resolveArtifactPlayback(REQ, makeDeps(docs))
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('denies a student hidden from a class-wide publish', async () => {
+    const docs = makeDocs({
+      response: { resultsOverride: { mode: 'hidden' } },
+    });
     await expect(
       resolveArtifactPlayback(REQ, makeDeps(docs))
     ).rejects.toMatchObject({ code: 'permission-denied' });
@@ -434,5 +485,171 @@ describe('resolveArtifactPlayback', () => {
         makeDeps({ 'quiz_sessions/s1': makeDocs()['quiz_sessions/s1'] })
       )
     ).rejects.toMatchObject({ code: 'not-found' });
+  });
+});
+
+function whiteboardTake(takeIndex: number, withAudio = true) {
+  return {
+    questionId: 'q1',
+    takeIndex,
+    artifacts: [
+      ...(withAudio
+        ? [
+            {
+              id: `w${takeIndex}-audio`,
+              slot: 'primary',
+              kind: 'audio',
+              durationMs: 9000,
+            },
+          ]
+        : []),
+      {
+        id: `w${takeIndex}-picture`,
+        slot: 'primary',
+        kind: 'whiteboard',
+        part: 'picture',
+      },
+      {
+        id: `w${takeIndex}-log`,
+        slot: 'primary',
+        kind: 'whiteboard',
+        part: 'log',
+      },
+    ],
+  };
+}
+
+function whiteboardDocs(answers: Doc[], extra: Doc = {}) {
+  const archive: Record<string, Doc> = {};
+  for (const answer of answers) {
+    for (const a of answer.artifacts as Array<{ id: string }>) {
+      archive[a.id] = {
+        archiveStatus: 'archived',
+        driveFileId: `drive-${a.id}`,
+      };
+    }
+  }
+  return makeDocs({
+    response: {
+      studentUid: STUDENT,
+      answers,
+      artifactArchive: archive,
+      ...extra,
+    },
+  });
+}
+
+describe('whiteboard playback', () => {
+  it('serves the picture and the log of the newest take with their own types', async () => {
+    const docs = whiteboardDocs([whiteboardTake(1), whiteboardTake(2)]);
+    const download = vi.fn(() => Promise.resolve(Buffer.from('bytes')));
+    const deps = makeDeps(docs, { downloadDriveFile: download });
+    await expect(
+      resolveArtifactPlayback({ ...REQ, part: 'picture' }, deps)
+    ).resolves.toMatchObject({
+      status: 'ready',
+      artifactId: 'w2-picture',
+      takeIndex: 2,
+      mimeType: 'image/png',
+    });
+    const log = await resolveArtifactPlayback({ ...REQ, part: 'log' }, deps);
+    expect(log).toMatchObject({
+      status: 'ready',
+      artifactId: 'w2-log',
+      mimeType: 'application/json',
+    });
+    expect(log).not.toHaveProperty('durationMs');
+    expect(download).toHaveBeenCalledWith('token', 'drive-w2-picture');
+    expect(download).toHaveBeenCalledWith('token', 'drive-w2-log');
+  });
+
+  it('keeps every part on the pinned take', async () => {
+    const docs = whiteboardDocs([whiteboardTake(1), whiteboardTake(2)], {
+      grading: { q1: { gradedTakeIndex: 1 } },
+    });
+    const deps = makeDeps(docs);
+    for (const part of ['audio', 'picture', 'log'] as const) {
+      await expect(
+        resolveArtifactPlayback({ ...REQ, part }, deps)
+      ).resolves.toMatchObject({ artifactId: `w1-${part}`, takeIndex: 1 });
+    }
+  });
+
+  it('reports no-recording for the audio of a draw-only take instead of an older take', async () => {
+    const docs = whiteboardDocs([whiteboardTake(1), whiteboardTake(2, false)]);
+    await expect(
+      resolveArtifactPlayback({ ...REQ, part: 'audio' }, makeDeps(docs))
+    ).resolves.toEqual({ status: 'not-available', reason: 'no-recording' });
+  });
+
+  it('denies every part of a whiteboard take when the whiteboard flag is off', async () => {
+    const docs = whiteboardDocs([whiteboardTake(1)]);
+    const download = vi.fn();
+    const deps = makeDeps(docs, {
+      isWhiteboardGranted: () => Promise.resolve(false),
+      downloadDriveFile: download,
+    });
+    for (const part of ['audio', 'picture', 'log'] as const) {
+      await expect(
+        resolveArtifactPlayback({ ...REQ, part }, deps)
+      ).rejects.toMatchObject({ code: 'permission-denied' });
+    }
+    expect(download).not.toHaveBeenCalled();
+  });
+
+  it('still denies a picture request with the whiteboard flag off when no take exists', async () => {
+    const docs = makeDocs({
+      response: { studentUid: STUDENT, answers: [], artifactArchive: {} },
+    });
+    const deps = makeDeps(docs, {
+      isWhiteboardGranted: () => Promise.resolve(false),
+    });
+    await expect(
+      resolveArtifactPlayback({ ...REQ, part: 'picture' }, deps)
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+
+  it('leaves spoken takes alone when the whiteboard flag is off', async () => {
+    const deps = makeDeps(makeDocs(), {
+      isWhiteboardGranted: () => Promise.resolve(false),
+    });
+    await expect(resolveArtifactPlayback(REQ, deps)).resolves.toMatchObject({
+      status: 'ready',
+      artifactId: 'a2',
+    });
+  });
+
+  it('a picture request on a spoken take finds no picture', async () => {
+    await expect(
+      resolveArtifactPlayback({ ...REQ, part: 'picture' }, makeDeps(makeDocs()))
+    ).resolves.toEqual({ status: 'not-available', reason: 'no-recording' });
+  });
+
+  it('applies the per-part size ceiling', async () => {
+    const docs = whiteboardDocs([whiteboardTake(1)]);
+    const ok = makeDeps(docs, {
+      downloadDriveFile: () =>
+        Promise.resolve(Buffer.alloc(MAX_PLAYBACK_BYTES + 1, 0x41)),
+    });
+    await expect(
+      resolveArtifactPlayback({ ...REQ, part: 'picture' }, ok)
+    ).resolves.toMatchObject({ status: 'ready' });
+    const big = makeDeps(docs, {
+      downloadDriveFile: () =>
+        Promise.resolve(Buffer.alloc(MAX_PLAYBACK_BYTES_BY_PART.log + 1, 0x41)),
+    });
+    await expect(
+      resolveArtifactPlayback({ ...REQ, part: 'log' }, big)
+    ).resolves.toEqual({ status: 'not-available', reason: 'too-large' });
+  });
+
+  it('still denies a classmate', async () => {
+    const docs = whiteboardDocs([whiteboardTake(1)]);
+    await expect(
+      resolveArtifactPlayback(
+        { ...REQ, part: 'picture', callerUid: 'other-student' },
+        makeDeps(docs)
+      )
+    ).rejects.toMatchObject({ code: 'permission-denied' });
   });
 });

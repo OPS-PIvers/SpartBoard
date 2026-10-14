@@ -26,6 +26,7 @@ import { AssignWhenStep } from '@/components/common/library/assignStepper/Assign
 import {
   defaultWhenValue,
   formatWhenValue,
+  whenBackwards,
   type AssignWhenValue,
 } from '@/components/common/library/assignStepper/assignWhenValue';
 import { FlashcardsCheckStep } from '@/components/common/library/assignStepper/FlashcardsCheckStep';
@@ -120,7 +121,12 @@ export const FlashcardAssignStepper: React.FC<FlashcardAssignModalProps> = ({
         ? 'Choose at least one question type.'
         : !hasSsoClass
           ? 'Choose at least one ClassLink class.'
-          : undefined;
+          : whenBackwards(when, pickedRosters, periodAccess?.bellWindow, kind)
+            ? t(
+                'assignAvailability.closesBeforeOpens',
+                'Closes before it opens.'
+              )
+            : undefined;
 
   const ctx = { kind };
   const whenVariant = kind === 'resource' ? 'available' : 'when';

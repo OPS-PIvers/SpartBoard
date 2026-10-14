@@ -377,6 +377,30 @@ const SessionViewsDevHarness = import.meta.env.DEV
     )
   : null;
 
+const WhiteboardReplayDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WhiteboardReplayDevHarness').then((module) => ({
+        default: module.WhiteboardReplayDevHarness,
+      }))
+    )
+  : null;
+
+const WhiteboardDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WhiteboardDevHarness').then((module) => ({
+        default: module.WhiteboardDevHarness,
+      }))
+    )
+  : null;
+
+const WhiteboardCaptureDevView = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WhiteboardCaptureDevView').then((module) => ({
+        default: module.WhiteboardCaptureDevView,
+      }))
+    )
+  : null;
+
 const MediaReviewDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/MediaReviewDevHarness').then((module) => ({
@@ -1122,6 +1146,45 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <SessionViewsDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: fixtures for the shared whiteboard answer replay view.
+  if (
+    import.meta.env.DEV &&
+    WhiteboardReplayDevHarness &&
+    pathname === '/whiteboard-replay-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WhiteboardReplayDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: the student whiteboard canvas with fixture starting pages.
+  if (
+    import.meta.env.DEV &&
+    WhiteboardDevHarness &&
+    pathname === '/whiteboard-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WhiteboardDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: the whiteboard capture flow (prep, recording, review) with a mocked mic.
+  if (
+    import.meta.env.DEV &&
+    WhiteboardCaptureDevView &&
+    pathname === '/whiteboard-capture-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WhiteboardCaptureDevView />
       </Suspense>
     );
   }

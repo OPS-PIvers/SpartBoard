@@ -21,7 +21,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'plc-home-v2',
   'plc-norming-flags',
   'plc-flashcards',
-  'quiz-choice-editor',
   'standards-from-question-text',
   'modal-fullscreen',
   'quiz-results-tools',
@@ -38,7 +37,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-rubric-visibility',
   'rubric-scoring-guides',
   'projects-group-view',
-  'quiz-per-class-due-dates',
   'gradebook',
   'student-gradebook',
   'student-landing-v2',
@@ -69,6 +67,8 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'quiz-monitor-declutter',
   'quiz-banks-in-library',
   'quiz-stimulus-quotes',
+  'quiz-submit-for-student',
+  'quiz-calculator-stimulus',
 ];
 
 /** Plan D7: admins pass a default-off flag (preview, or admin-default like `guided-learning-ai`) that has no saved doc yet. */

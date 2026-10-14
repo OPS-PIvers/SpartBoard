@@ -62,6 +62,23 @@ describe('ToggleField', () => {
     expect(control).toHaveAttribute('data-tour-field', 'enabled');
   });
 
+  it('links the switch to its label by id', () => {
+    render(
+      <FieldRenderer
+        field={field}
+        widget={widget}
+        ctx={makeCtx({ enabled: true })}
+        updateConfig={vi.fn()}
+      />
+    );
+    const control = screen.getByRole('switch');
+    expect(control.id).not.toBe('');
+    expect(screen.getByText('Enabled').closest('label')).toHaveAttribute(
+      'for',
+      control.id
+    );
+  });
+
   it('calls onChange with the flipped boolean', () => {
     const updateConfig = vi.fn() as UpdateConfig;
     render(

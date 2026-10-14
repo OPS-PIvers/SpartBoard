@@ -30,10 +30,11 @@ import {
   FileScan,
   Loader2,
   Mic,
+  MicOff,
   PanelLeftClose,
   PanelLeftOpen,
   Pencil,
-  Pin,
+  PenTool,
   ShieldAlert,
   Undo2,
 } from 'lucide-react';
@@ -64,7 +65,6 @@ import { sumRubricScorePoints } from '@/utils/rubricPoints';
 import { resolveRubricForResponse } from '@/utils/rubricOverrideResolution';
 import {
   collectMediaSlots,
-  formatTimecode,
   isSlotExcused,
   resolveSlotState,
   selectGradedTake,
@@ -72,6 +72,7 @@ import {
   type MediaGradingSlot,
 } from '@/utils/mediaGrading';
 import type { TakeUrlResolver } from '@/utils/quizMediaPlayback';
+import { canAccessQuizWhiteboardResponse } from '@/utils/quizMediaAccess';
 import { resolveStimuli } from '@/utils/quizStimuli';
 import { CollapsibleStimuli } from '@/components/quiz/QuizStimulusView';
 import {
@@ -101,6 +102,7 @@ import { isBackTranslatableLocale } from '@/utils/backTranslationHash';
 import { AnnotatedResponseView } from './AnnotatedResponseView';
 import { BackTranslationPanel } from './BackTranslationPanel';
 import { AudioAnnotatedResponseView } from './AudioAnnotatedResponseView';
+import { WhiteboardAnnotatedResponseView } from './WhiteboardAnnotatedResponseView';
 import { RubricScoringPanel } from './RubricScoringPanel';
 import { RubricStrandPills } from './RubricStrandChips';
 import { PaperCropPanel } from '@/components/quiz/paper/PaperCropPanel';
@@ -451,8 +453,11 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const graderV2 =
-    useContext(AuthContext)?.canAccessFeature('quiz-grader-v2') ?? false;
+  const auth = useContext(AuthContext);
+  const graderV2 = auth?.canAccessFeature('quiz-grader-v2') ?? false;
+  const whiteboardEnabled = auth
+    ? canAccessQuizWhiteboardResponse(auth)
+    : false;
   const [railCollapsedPref, setRailCollapsedPref] = useState(readRailCollapsed);
   const railCollapsed = graderV2 && railCollapsedPref;
   const toggleRail = () => {
@@ -470,9 +475,12 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   const questions = useMemo(
     () =>
       quiz.questions.filter(
-        (q) => isFreeResponseType(q.type) && (mediaEnabled || !q.recording)
+        (q) =>
+          isFreeResponseType(q.type) &&
+          (mediaEnabled || !q.recording) &&
+          (q.recording?.mode !== 'whiteboard' || whiteboardEnabled)
       ),
-    [quiz.questions, mediaEnabled]
+    [quiz.questions, mediaEnabled, whiteboardEnabled]
   );
 
   const [mode, setMode] = useState<GraderMode>(graderMode);
@@ -635,7 +643,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   const [seek, setSeek] = useState({ ms: 0, nonce: 0 });
 
   const isUnavailable = !!slot?.captureUnavailable;
-  const takes = slot?.takes ?? [];
+
   const activeTake = useMemo(() => {
     if (!slot) return undefined;
     if (pinnedTakeIndex != null) {
@@ -775,9 +783,11 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   const [loadingTake, setLoadingTake] = useState(false);
   const [takeError, setTakeError] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
-  const driveFileId = activeTake?.playable
-    ? activeTake.archive?.driveFileId
-    : undefined;
+  // A whiteboard take loads its own three files.
+  const driveFileId =
+    activeTake?.playable && !activeTake.whiteboard
+      ? activeTake.archive?.driveFileId
+      : undefined;
   const resolverRef = useRef(resolveTakeUrl);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   resolverRef.current = resolveTakeUrl;
@@ -1636,13 +1646,21 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
             <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
               {tg('questionLabel')}
               <span className="text-slate-300">·</span>
-              {question.recording ? (
+              {question.recording?.mode === 'whiteboard' ? (
+                <PenTool aria-hidden className="h-3 w-3" />
+              ) : question.recording ? (
                 <Mic aria-hidden className="h-3 w-3" />
               ) : (
                 <Pencil aria-hidden className="h-3 w-3" />
               )}
               <span>
-                {tg(question.recording ? 'format.spoken' : 'format.typed')}
+                {tg(
+                  question.recording?.mode === 'whiteboard'
+                    ? 'format.whiteboard'
+                    : question.recording
+                      ? 'format.spoken'
+                      : 'format.typed'
+                )}
               </span>
               <span
                 role="group"
@@ -1817,10 +1835,14 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
             {isMedia && isUnavailable && (
               <div className="rounded-2xl border border-slate-200 bg-white p-5">
                 <h3 className="text-sm font-bold text-slate-900">
-                  {tg('unavailable.title')}
+                  {slot?.unavailableReason === 'device-gated'
+                    ? tg('unavailable.deviceGatedTitle')
+                    : tg('unavailable.title')}
                 </h3>
                 <p className="mt-1 text-sm leading-relaxed text-slate-600">
-                  {tg('unavailable.body')}
+                  {slot?.unavailableReason === 'device-gated'
+                    ? tg('unavailable.deviceGatedBody')
+                    : tg('unavailable.body')}
                 </p>
                 <div className="mt-4 grid gap-2 sm:grid-cols-3">
                   {(['excuse', 'blank', 'substitute'] as const).map(
@@ -1848,7 +1870,12 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                           {tg(`unavailable.${choice}`)}
                         </span>
                         <span className="mt-0.5 block text-xs leading-snug text-slate-500">
-                          {tg(`unavailable.${choice}Help`)}
+                          {tg(
+                            choice === 'substitute' &&
+                              question.recording?.mode === 'whiteboard'
+                              ? 'unavailable.substituteHelpWhiteboard'
+                              : `unavailable.${choice}Help`
+                          )}
                         </span>
                       </button>
                     )
@@ -1865,7 +1892,37 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
               </div>
             )}
 
-            {isMedia && !isUnavailable && (
+            {isMedia &&
+              !isUnavailable &&
+              (activeTake?.micState === 'denied' ||
+                activeTake?.micState === 'unavailable') && (
+                <span className="inline-flex w-fit items-center gap-1 rounded bg-slate-200 px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider text-slate-700">
+                  <MicOff aria-hidden className="h-3 w-3" />
+                  {tg(`takes.mic.${activeTake.micState}`)}
+                </span>
+              )}
+
+            {isMedia &&
+              !isUnavailable &&
+              activeTake?.whiteboard &&
+              resolveTakeUrl && (
+                <WhiteboardAnnotatedResponseView
+                  key={takeKey}
+                  take={activeTake}
+                  resolveTakeUrl={resolveTakeUrl}
+                  startingPage={question.recording?.startingPage}
+                  annotations={draftAnnotations}
+                  onChange={handleAnnotationsChange}
+                  authorUid={teacherUid}
+                  activeId={activeAnnotationId}
+                  onActiveIdChange={setActiveAnnotationId}
+                  rubric={taggableRubric}
+                  seekToMs={seek.ms}
+                  seekNonce={seek.nonce}
+                />
+              )}
+
+            {isMedia && !isUnavailable && !activeTake?.whiteboard && (
               <AudioAnnotatedResponseView
                 key={takeKey}
                 src={takeUrl}
@@ -2014,66 +2071,6 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 noCommentHint={tg('highlightNoComment')}
                 rubric={taggableRubric}
               />
-            </div>
-          )}
-
-          {isMedia && !isUnavailable && (
-            <div className="border-t border-slate-200 pt-3">
-              <h4 className="mb-1 text-sm font-bold uppercase tracking-wider text-slate-500">
-                {tg('takes.title')}
-              </h4>
-              <p className="mb-2 text-xs text-slate-500">
-                {tg('takes.count', { count: takes.length })}
-              </p>
-              <ul className="flex flex-col gap-1.5">
-                {takes.map((take) => {
-                  const isActive = take.takeIndex === activeTake?.takeIndex;
-                  const reason = takeUnplayableReason(take);
-                  return (
-                    <li key={take.artifact.id}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          editSourceRef.current = 'pin';
-                          setPinnedTakeIndex(take.takeIndex);
-                        }}
-                        aria-pressed={isActive}
-                        {...tourFieldAttr(
-                          'quiz-grading.take-pin',
-                          'quiz',
-                          String(take.takeIndex)
-                        )}
-                        className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs transition-colors ${
-                          isActive
-                            ? 'border-brand-blue-primary bg-brand-blue-primary/5'
-                            : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
-                        }`}
-                      >
-                        <span className="font-bold text-slate-800">
-                          {tg('takes.take', { n: take.displayIndex })}
-                        </span>
-                        <span className="font-mono tabular-nums text-slate-500">
-                          {formatTimecode(take.artifact.durationMs ?? 0)}
-                        </span>
-                        {reason && (
-                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-amber-700">
-                            {tg(`takes.status.${reason}`)}
-                          </span>
-                        )}
-                        {isActive && (
-                          <Pin
-                            aria-hidden
-                            className="ml-auto h-3.5 w-3.5 text-brand-blue-primary"
-                          />
-                        )}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-              <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                {tg('takes.pinNote')}
-              </p>
             </div>
           )}
 

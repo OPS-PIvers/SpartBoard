@@ -145,3 +145,32 @@ describe('useQuizArtifactPlayback', () => {
     expect(fetchPlayback).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('useQuizArtifactPlayback parts', () => {
+  it('sends a whiteboard part and leaves audio requests unchanged', async () => {
+    const fetchPlayback = vi.fn(readyFor('w1-picture'));
+    const { result } = renderHook(() =>
+      useQuizArtifactPlayback(
+        { ...target('w1-picture'), part: 'picture' },
+        fetchPlayback
+      )
+    );
+    act(() => result.current.load());
+    await waitFor(() => expect(result.current.state.phase).toBe('ready'));
+    expect(fetchPlayback).toHaveBeenCalledWith({
+      sessionId: 's1',
+      responseKey: 'r1',
+      questionId: 'q1',
+      slot: 'primary',
+      part: 'picture',
+    });
+
+    const audioFetch = vi.fn(readyFor('a1'));
+    const audio = renderHook(() =>
+      useQuizArtifactPlayback(target('a1'), audioFetch)
+    );
+    act(() => audio.result.current.load());
+    await waitFor(() => expect(audioFetch).toHaveBeenCalledTimes(1));
+    expect(audioFetch.mock.calls[0][0]).not.toHaveProperty('part');
+  });
+});

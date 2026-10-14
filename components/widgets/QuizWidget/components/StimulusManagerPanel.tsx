@@ -13,6 +13,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
 import { useTranslation } from 'react-i18next';
 import {
+  Calculator,
   ChevronDown,
   ChevronRight,
   CloudDownload,
@@ -26,13 +27,21 @@ import {
   Upload,
   Volume2,
 } from 'lucide-react';
-import type { QuizStimulus, QuizStimulusType } from '@/types';
+import type {
+  QuizCalculatorKind,
+  QuizStimulus,
+  QuizStimulusType,
+} from '@/types';
+import { SegmentedControl } from '@/components/common/SegmentedControl';
 import {
+  CALCULATOR_KIND_LABELS,
   STIMULUS_TYPE_LABELS,
   detectStimulusTypeFromFile,
   detectStimulusTypeFromUrl,
   isPlayLimitedType,
   questionsUsingStimulus,
+  stimulusShareMessage,
+  STIMULUS_SHARE_CONFIRM,
 } from '@/utils/quizStimuli';
 import { extractGoogleFileId } from '@/utils/urlHelpers';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
@@ -56,7 +65,12 @@ const TYPE_BADGE: Record<QuizStimulusType, string> = {
   youtube: 'bg-rose-100 text-rose-700',
   'gdoc-embed': 'bg-indigo-100 text-indigo-700',
   text: 'bg-slate-200 text-slate-700',
+  calculator: 'bg-teal-100 text-teal-700',
 };
+
+const CALCULATOR_OPTIONS = (
+  Object.keys(CALCULATOR_KIND_LABELS) as QuizCalculatorKind[]
+).map((value) => ({ value, label: CALCULATOR_KIND_LABELS[value] }));
 
 /** Accept list for the device-upload input. */
 const STIMULUS_ACCEPT = 'image/*,audio/*,video/*,application/pdf,.pdf';
@@ -77,10 +91,7 @@ function useStimulusIntake(state: QuizEditorController) {
 
   const confirmShare = useCallback(
     async (what: string): Promise<boolean> =>
-      showConfirm(
-        `Students open stimuli without a Google sign-in, so "${what}" must be shared as "anyone with the link can view." Update its sharing now?`,
-        { title: 'Share with students?', confirmLabel: 'Share & attach' }
-      ),
+      showConfirm(stimulusShareMessage(what), STIMULUS_SHARE_CONFIRM),
     [showConfirm]
   );
 
@@ -282,7 +293,26 @@ function useStimulusIntake(state: QuizEditorController) {
     return stimulus;
   }, [state]);
 
-  return { addFromFile, addFromUrl, addFromDrive, addPassage, busy };
+  const addCalculator = useCallback((): QuizStimulus => {
+    const stimulus: QuizStimulus = {
+      id: crypto.randomUUID(),
+      type: 'calculator',
+      url: '',
+      calculator: 'graphing',
+      label: 'Calculator',
+    };
+    state.addStimulus(stimulus);
+    return stimulus;
+  }, [state]);
+
+  return {
+    addFromFile,
+    addFromUrl,
+    addFromDrive,
+    addPassage,
+    addCalculator,
+    busy,
+  };
 }
 
 type StimulusIntake = ReturnType<typeof useStimulusIntake>;
@@ -438,7 +468,9 @@ export const StimulusManagerPanel: React.FC<{
   state: QuizEditorController;
   /** `quiz-read-aloud` gate; shows the per-stimulus read-aloud text row (D12). */
   readAloudAvailable?: boolean;
-}> = ({ state, readAloudAvailable = false }) => {
+  /** `quiz-calculator-stimulus` gate. */
+  calculatorAvailable?: boolean;
+}> = ({ state, readAloudAvailable = false, calculatorAvailable = false }) => {
   const { stimuli, questions } = state;
   const intake = useStimulusIntake(state);
   const { addFromFile } = intake;
@@ -484,6 +516,18 @@ export const StimulusManagerPanel: React.FC<{
             <FileText className="w-4 h-4" />
             Add a passage
           </button>
+          {calculatorAvailable && (
+            <button
+              type="button"
+              onClick={() => intake.addCalculator()}
+              {...tourTypeAttr('quiz-stimuli.add-calculator', 'quiz')}
+              disabled={intake.busy}
+              className="shrink-0 flex items-center gap-2 px-3 py-2 bg-white border-2 border-slate-300 hover:border-brand-blue-primary/50 disabled:opacity-40 rounded-lg text-sm font-bold text-slate-700"
+            >
+              <Calculator className="w-4 h-4" />
+              Add a calculator
+            </button>
+          )}
           <div className="flex-1 min-w-0">
             <UrlAddRow onAdd={intake.addFromUrl} busy={intake.busy} anchored />
           </div>
@@ -770,6 +814,19 @@ const StimulusCard: React.FC<{
                 className="w-full px-2.5 py-2 border-2 border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:border-brand-blue-primary/50"
               />
             </div>
+          ) : s.type === 'calculator' ? (
+            <SegmentedControl
+              role="radiogroup"
+              ariaLabel="Calculator"
+              value={s.calculator ?? 'graphing'}
+              onChange={(calculator) => updateStimulus(s.id, { calculator })}
+              options={CALCULATOR_OPTIONS}
+              anchor={tourFieldAttr(
+                'quiz-stimuli.calculator-kind',
+                'quiz',
+                String(index)
+              )}
+            />
           ) : (
             <p className="text-xs text-slate-500 break-all">
               <Link2 className="w-3 h-3 inline mr-1" aria-hidden />
@@ -907,12 +964,15 @@ const StimulusCard: React.FC<{
 export const QuestionStimulusSection: React.FC<{
   state: QuizEditorController;
   questionId: string;
-}> = ({ state, questionId }) => {
+  /** `quiz-calculator-stimulus` gate. */
+  calculatorAvailable?: boolean;
+}> = ({ state, questionId, calculatorAvailable = false }) => {
   const question = state.questions.find((q) => q.id === questionId);
   return (
     <AttachStimulusSection
       state={state}
       attachedIds={question?.stimulusIds}
+      calculatorAvailable={calculatorAvailable}
       onToggle={(stimulusId) =>
         state.toggleStimulusOnQuestion(stimulusId, questionId)
       }
@@ -924,12 +984,14 @@ export const QuestionStimulusSection: React.FC<{
 export const SlotStimulusSection: React.FC<{
   state: QuizEditorController;
   slotId: string;
-}> = ({ state, slotId }) => {
+  calculatorAvailable?: boolean;
+}> = ({ state, slotId, calculatorAvailable = false }) => {
   const slot = state.bankSlots.find((s) => s.id === slotId);
   return (
     <AttachStimulusSection
       state={state}
       attachedIds={slot?.stimulusIds}
+      calculatorAvailable={calculatorAvailable}
       onToggle={(stimulusId) => state.toggleStimulusOnSlot(stimulusId, slotId)}
     />
   );
@@ -938,8 +1000,9 @@ export const SlotStimulusSection: React.FC<{
 const AttachStimulusSection: React.FC<{
   state: QuizEditorController;
   attachedIds: string[] | undefined;
+  calculatorAvailable: boolean;
   onToggle: (stimulusId: string) => void;
-}> = ({ state, attachedIds, onToggle }) => {
+}> = ({ state, attachedIds, calculatorAvailable, onToggle }) => {
   const { stimuli, questions, bankSlots } = state;
   const intake = useStimulusIntake(state);
   const [open, setOpen] = useState(false);
@@ -1023,6 +1086,18 @@ const AttachStimulusSection: React.FC<{
               intake={intake}
               onAdded={(added) => onToggle(added.id)}
             />
+            {calculatorAvailable && (
+              <button
+                type="button"
+                onClick={() => onToggle(intake.addCalculator().id)}
+                disabled={intake.busy}
+                {...tourTypeAttr('quiz-stimuli.attach-calculator', 'quiz')}
+                className={fileButtonClass}
+              >
+                <Calculator className="h-3.5 w-3.5" aria-hidden />
+                Calculator
+              </button>
+            )}
           </div>
           <UrlAddRow
             busy={intake.busy}

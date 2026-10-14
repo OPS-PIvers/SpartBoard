@@ -35,6 +35,28 @@ export const stripHtml = (html: string): string => {
   return (doc.body.textContent ?? '').replace(/\n{3,}/g, '\n\n').trim();
 };
 
+const DAY_MS = 86_400_000;
+
+// An all-day event's end.date is exclusive; list each day it covers within the window.
+const allDayDates = (
+  start: string,
+  end: string | undefined,
+  timeMin: string,
+  timeMax: string
+): string[] => {
+  const first = Date.parse(`${start}T00:00:00Z`);
+  const last = end ? Date.parse(`${end}T00:00:00Z`) : NaN;
+  if (isNaN(first) || isNaN(last) || last - first <= DAY_MS) return [start];
+  const lo = Date.parse(`${timeMin.slice(0, 10)}T00:00:00Z`);
+  const hi = Date.parse(`${timeMax.slice(0, 10)}T00:00:00Z`);
+  const dates: string[] = [];
+  for (let t = Math.max(first, isNaN(lo) ? first : lo); t < last; t += DAY_MS) {
+    if (!isNaN(hi) && t > hi) break;
+    dates.push(new Date(t).toISOString().slice(0, 10));
+  }
+  return dates.length ? dates : [start];
+};
+
 export interface CalendarApiError extends Error {
   status?: number;
 }
@@ -124,33 +146,36 @@ export class GoogleCalendarService {
       pages += 1;
     } while (pageToken && pages < MAX_PAGES);
 
-    return items.map((item) => {
+    return items.flatMap((item) => {
       // Use date for all-day events, otherwise use dateTime
       const startValue = item.start.date ?? item.start.dateTime ?? '';
       // Format to YYYY-MM-DD for consistency
       const dateOnly = startValue.split('T')[0];
+      const dates = item.start.date
+        ? allDayDates(item.start.date, item.end?.date, timeMin, timeMax)
+        : [dateOnly];
 
       const time = formatClockTime(item.start.dateTime);
       if (!details) {
-        return {
+        return dates.map((date) => ({
           title: item.summary,
-          date: dateOnly,
+          date,
           ...(time ? { time } : {}),
-        };
+        }));
       }
       const endTime = formatClockTime(item.end?.dateTime);
       const description = item.description
         ? stripHtml(item.description)
         : undefined;
-      return {
+      return dates.map((date) => ({
         title: item.summary,
-        date: dateOnly,
+        date,
         ...(time ? { time } : {}),
         ...(endTime ? { endTime } : {}),
         ...(item.location ? { location: item.location } : {}),
         ...(description ? { description } : {}),
         ...(calendarName ? { calendarName } : {}),
-      };
+      }));
     });
   }
 }

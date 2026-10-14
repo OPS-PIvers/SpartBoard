@@ -1057,6 +1057,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Org switch for the notice students read before a quiz recording —
+    // students read it on the quiz; admins turn it off.
+    match /admin_settings/quiz_recording_notice {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
     // Admin audit log — admin-only read; create-only (append-only so an admin
     // can't edit/delete their own trail). Written by GlobalPermissionsManager on
     // sensitive settings changes. timestamp is set server-side via

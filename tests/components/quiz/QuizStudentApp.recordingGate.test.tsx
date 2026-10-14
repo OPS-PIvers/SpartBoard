@@ -32,6 +32,24 @@ const { mockAuth, hookState, spies } = vi.hoisted(() => ({
   },
 }));
 
+vi.mock('@/hooks/useQuizRecordingNoticeSettings', () => ({
+  useQuizRecordingNoticeSettings: () => ({
+    settings: { enabled: true },
+    loaded: true,
+  }),
+}));
+
+// The pre-quiz mic check has its own suite; these tests start past it.
+vi.mock('@/components/quiz/recording/MicrophoneGate', async () => {
+  const { useEffect } = await import('react');
+  return {
+    MicrophoneGate: ({ onReady }: { onReady: () => void }) => {
+      useEffect(onReady, [onReady]);
+      return null;
+    },
+  };
+});
+
 vi.mock('@/hooks/useStudentAssignmentPointer', () => ({
   useStudentAssignmentPointer: () => null,
 }));
@@ -205,7 +223,7 @@ describe('QuizStudentApp — recording gate', () => {
     });
     render(<QuizStudentApp />);
 
-    expect(await screen.findByText(/Thinking time/i)).toBeInTheDocument();
+    expect(await screen.findByText(/Planning time/i)).toBeInTheDocument();
     expect(screen.queryByText(/Before you record/i)).not.toBeInTheDocument();
   });
 

@@ -50,7 +50,7 @@ Reference example: Grade 4, Module 1, Reading Comprehension Assessment 1, which 
 - **Paper answer sheets** are MC-only; every other type is left off the sheet (`utils/paperSheetPlan.ts`).
 - **Choice editor (#3446, 2026-09-25).**
   - Multiple choice and choose-all now share one option list in `ChoiceOptionsEditor.tsx`. Each option has a correct-answer marker beside it, and a **Multiple correct answers** setting switches the question between `MC` and `MA`.
-  - It is behind the admin-only `quiz-choice-editor` flag.
+  - It replaced the old two-list editor for everyone.
   - The saved shape is unchanged: `MA` is still a question type with `correctAnswer`/`incorrectAnswers`.
   - A new editor-only `optionOrder` keeps the typed order; students still get a shuffle.
   - Limits come from `utils/quizChoiceRows.ts` (`MAX_SINGLE_OPTIONS`, `MAX_MULTI_PER_LIST`).
@@ -94,6 +94,7 @@ Reference example: Grade 4, Module 1, Reading Comprehension Assessment 1, which 
 - **D12.** Section subtotals (for example Fluency 5/6, Content Knowledge 8/10) appear as columns in Results, in exports and print, and in the PLC aggregate breakdown.
 - **D13.** Unscored MC/MA answers show a class tally ("12 chose 'confident'") plus each student's choices in the drill-down. Unscored written answers can be read in the grader but never enter the grading queue.
 - **D14.** Optional **Wait for teacher** gate on a section. In self-paced sessions, a student who reaches the end of the section waits on a "Stop — wait for your teacher" screen until the teacher releases the section from the monitor, for the whole class or one student. Teacher-paced and auto-paced sessions ignore the gate.
+  - _Amended 2026-10-14:_ `QUIZ_IMPORT_VERSIONS.md` PR 5 builds this gate as a "Stop" (V20–V23). It locks earlier parts, survives the idle sweep across days, and releases per class period or per student. PR 2 here drops D14.
 
 ### Part A/B and per-part scoring (PR 3)
 
@@ -113,7 +114,6 @@ Reference example: Grade 4, Module 1, Reading Comprehension Assessment 1, which 
 - **D18.** MA gets an optional **Choose exactly N** limit (`selectCount`). The player stops the student selecting more than N, and the prompt shows the count.
   - The control lives in `ChoiceOptionsEditor` (#3446) under **Multiple correct answers**. It shows only while that setting is on, and defaults N to the number of options marked correct.
   - The per-question credit mode (D17) for MA sits beside it.
-  - The old editor gets neither control, so PR 3's MA authoring also requires `quiz-choice-editor`. PR 3's flag is useless for MA until Paul has that flag on, and that flag should open to Public before or with PR 3's.
   - The player and scoring honor `selectCount` whatever editor wrote it.
   - The importer (D26) writes `optionOrder` so imported options stay in the printed a–d order in the editor. Teachers who want students to see the printed order turn shuffle off in the session options.
 

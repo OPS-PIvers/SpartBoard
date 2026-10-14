@@ -353,7 +353,8 @@ export function needsAnchors(steps: GlSet['steps']) {
 export function liveTourView(
   set: GlSet,
   publishedAt: number | null,
-  ready: ReadonlyMap<string, string> = new Map()
+  ready: ReadonlyMap<string, string> = new Map(),
+  withSamples = false
 ) {
   const state = tourPublishState(set.updatedAt, publishedAt);
   const unregistered = set.steps.flatMap((s) => {
@@ -374,7 +375,11 @@ export function liveTourView(
     use_teacher_board: setup.useTeacherBoard === true,
     autopilot: setup.autopilot === true,
     ...(setup.materials?.length
-      ? { materials: setup.materials.map(publicMaterial) }
+      ? {
+          materials: withSamples
+            ? setup.materials
+            : setup.materials.map(publicMaterial),
+        }
       : {}),
     publish_state: state,
     published_at: publishedAt === null ? null : iso(publishedAt),
@@ -587,7 +592,9 @@ async function helpItemWrite(
     return (batch) =>
       batch.update(ref, {
         categoryId: placement.category_id,
-        widgetTypes: [...new Set(placement.widget_types ?? [])],
+        ...(placement.widget_types
+          ? { widgetTypes: [...new Set(placement.widget_types)] }
+          : {}),
         ...(moved ? { order: help.order } : {}),
         updatedAt: now,
       });
@@ -686,6 +693,7 @@ export function registerLiveTourTools(
     },
     (input) =>
       run('create_live_tour', ctx, async () => {
+        await assertAccess(ctx, 'building');
         const placement = input.help_center;
         const steps = input.steps.map((s) => toStepInput(s));
         const materialsDraft = (input.materials ?? []).map((m) => ({
@@ -775,10 +783,18 @@ export function registerLiveTourTools(
       title: 'Get a live tour',
       description:
         'Admins only. Returns a live tour with every step: its anchor, action, value and text, whether it has a thumbnail, and whether teachers see the latest version (publish_state "draft" never published, "published" up to date, "changed" saved since the last publish). Find the set_id with list_guided_learning, source "building", kind "live_tour". A recorded step with anchor "" works from its English fallback only; anchor_ready on such a step is the anchor its control has since been given, which update_live_tour can put in tour.anchor. Use get_live_tour_step_picture to see what was recorded before writing a step\'s text.',
-      inputSchema: { set_id: z.string().min(1) },
+      inputSchema: {
+        set_id: z.string().min(1),
+        for_browser_run: z
+          .boolean()
+          .optional()
+          .describe(
+            "Include each sample material's copied content, so scripts/run-live-tour.mjs can seed it. Save this result as the run file."
+          ),
+      },
       annotations: READ_ONLY,
     },
-    ({ set_id }) =>
+    ({ set_id, for_browser_run }) =>
       run('get_live_tour', ctx, async () => {
         await assertAccess(ctx, 'building');
         const [loaded, publishedAt] = await Promise.all([
@@ -786,7 +802,12 @@ export function registerLiveTourTools(
           publishedAtOf(ctx, set_id),
         ]);
         const ready = await readyAnchors(ctx, loaded.set.steps);
-        return liveTourView(loaded.set, publishedAt, ready);
+        return liveTourView(
+          loaded.set,
+          publishedAt,
+          ready,
+          for_browser_run === true
+        );
       })
   );
 

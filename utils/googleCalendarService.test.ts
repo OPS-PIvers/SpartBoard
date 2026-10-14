@@ -130,4 +130,41 @@ describe('GoogleCalendarService', () => {
       'pageToken=p2'
     );
   });
+
+  it('lists every day of a multi-day all-day event (end.date is exclusive)', async () => {
+    (global.fetch as Mock).mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          items: [
+            {
+              id: '1',
+              summary: 'Spring Break',
+              start: { date: '2026-03-30' },
+              end: { date: '2026-04-03' },
+            },
+            {
+              id: '2',
+              summary: 'One Day',
+              start: { date: '2026-03-05' },
+              end: { date: '2026-03-06' },
+            },
+          ],
+        }),
+    });
+
+    const events = await service.getEvents(
+      'test-cal',
+      '2026-03-01T00:00:00Z',
+      '2026-05-01T00:00:00Z'
+    );
+
+    expect(events.map((e) => `${e.title}@${e.date}`)).toEqual([
+      'Spring Break@2026-03-30',
+      'Spring Break@2026-03-31',
+      'Spring Break@2026-04-01',
+      'Spring Break@2026-04-02',
+      'One Day@2026-03-05',
+    ]);
+  });
 });

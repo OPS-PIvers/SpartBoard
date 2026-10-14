@@ -1,6 +1,8 @@
 import React, {
   useCallback,
   useEffect,
+  useEffectEvent,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -15,7 +17,6 @@ import {
   MicOff,
   RotateCcw,
   Square,
-  Trash2,
 } from 'lucide-react';
 import type { RecordingConfig, ResponseArtifact } from '@/types';
 import {
@@ -23,13 +24,23 @@ import {
   type AudioRecordingDeps,
   type AudioTake,
 } from '@/hooks/useAudioRecording';
-import { takesRemaining } from '@/config/quizRecordingDefaults';
+import {
+  recordingReviewEnabled,
+  takesRemaining,
+} from '@/config/quizRecordingDefaults';
+import {
+  hasRecoverableContent,
+  type TakeRecoveryStore,
+} from '@/utils/takeRecoveryStore';
 import {
   RecordingConsentNotice,
   RecordingNoticeReminder,
 } from './RecordingConsentNotice';
+import { NoticeReminderOverlay } from './NoticeReminderOverlay';
 import { TakeReviewPlayer } from './TakeReviewPlayer';
 import { formatClock } from './formatClock';
+import { registerActiveTake } from './activeTake';
+import { useRedoCount } from './useRedoCount';
 
 export type CommitState = 'idle' | 'committing' | 'retrying' | 'archive-failed';
 
@@ -40,6 +51,8 @@ export interface AudioResponseCaptureProps {
   /** Notice acknowledgment for this assignment; null until the student acks. */
   noticeAckedAt: number | null;
   onAcknowledgeNotice: () => void;
+  /** False when an admin turned the recording notice off. */
+  noticeRequired?: boolean;
   /** Resolves once the take is written; rejects to surface the failed state. */
   onCommit: (take: AudioTake) => Promise<void>;
   /** Re-sends the failed take's own artifact; absent when the bytes are gone. */
@@ -52,6 +65,8 @@ export interface AudioResponseCaptureProps {
   slotClosed?: boolean;
   /** The live (teacher-paced) quiz shell is dark; the self-paced one is light. */
   light?: boolean;
+  /** Local copy of the running take, offered back after a crash or reload (D17). */
+  recovery?: { store: TakeRecoveryStore; key: string };
   /** Injected by tests and the DEV harness only. */
   recorderDeps?: AudioRecordingDeps;
   /** Forced state for the DEV harness; never set in the app. */
@@ -65,70 +80,12 @@ const cardClass = (light: boolean) =>
 const primaryBtn =
   'inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60';
 
-const FOCUSABLE =
-  'button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-
-/** The reminder layers ABOVE the live recorder; capture never unmounts. */
-const NoticeReminderOverlay: React.FC<{
-  onClose: () => void;
-  light: boolean;
-}> = ({ onClose, light }) => {
-  const dialogRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const node = dialogRef.current;
-    if (!node) return;
-    const focusable = () =>
-      Array.from(node.querySelectorAll<HTMLElement>(FOCUSABLE));
-    focusable()[0]?.focus();
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        onClose();
-        return;
-      }
-      if (e.key !== 'Tab') return;
-      const items = focusable();
-      if (items.length === 0) return;
-      const first = items[0];
-      const last = items[items.length - 1];
-      const active = document.activeElement as HTMLElement | null;
-      if (e.shiftKey && (!active || active === first)) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && (!active || active === last)) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    node.addEventListener('keydown', onKeyDown);
-    return () => node.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-sm">
-      <div
-        ref={dialogRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="recording-notice-heading"
-        className="max-h-full w-full max-w-lg overflow-y-auto"
-      >
-        <RecordingConsentNotice
-          variant="reminder"
-          light={light}
-          onAcknowledge={onClose}
-        />
-      </div>
-    </div>
-  );
-};
-
 export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
   config,
   takesCommitted,
   noticeAckedAt,
   onAcknowledgeNotice,
+  noticeRequired = true,
   onCommit,
   onRetryUpload,
   onPrepExpired,
@@ -136,6 +93,7 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
   latestArtifact,
   slotClosed = false,
   light = true,
+  recovery,
   recorderDeps,
   commitStateOverride,
 }) => {
@@ -151,31 +109,157 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
   const [localCommitState, setCommitState] = useState<CommitState>('idle');
   const commitState = commitStateOverride ?? localCommitState;
 
-  const acknowledged = noticeAckedAt !== null;
-  const remaining = takesRemaining(config, takesCommitted);
-  const takeBudgetReached = remaining !== null && remaining <= 0;
+  const acknowledged = !noticeRequired || noticeAckedAt !== null;
+  // Every recording is an attempt; a redo throws the last one away (Paul 2026-10-14).
+  const [redos, addRedo] = useRedoCount(recovery?.key, takesCommitted);
+  const attemptsUsed = takesCommitted + redos;
+  const remaining = takesRemaining(config, attemptsUsed);
+  // Nothing turned in yet always leaves one recording, so redos alone never lock the student out.
+  const takeBudgetReached =
+    remaining !== null && remaining <= 0 && takesCommitted > 0;
+  const canRedoInReview = remaining === null || remaining > 1;
+  const [submitted, setSubmitted] = useState<{
+    url: string;
+    durationMs: number;
+  } | null>(null);
+  const submittedUrlRef = useRef<string | null>(null);
+  useEffect(
+    () => () => {
+      if (submittedUrlRef.current) URL.revokeObjectURL(submittedUrlRef.current);
+    },
+    []
+  );
+
+  const reviewOn = recordingReviewEnabled(config);
+
+  const commitInFlightRef = useRef<Promise<void> | null>(null);
+  const commitTake = useCallback(
+    (take: AudioTake) => {
+      setCommitState('committing');
+      const run = (async () => {
+        try {
+          await onCommit(take);
+          if (submittedUrlRef.current)
+            URL.revokeObjectURL(submittedUrlRef.current);
+          const url = URL.createObjectURL(take.blob);
+          submittedUrlRef.current = url;
+          setSubmitted({ url, durationMs: take.durationMs });
+          setCommitState('idle');
+        } catch {
+          setCommitState('archive-failed');
+        } finally {
+          commitInFlightRef.current = null;
+        }
+      })();
+      commitInFlightRef.current = run;
+      return run;
+    },
+    [onCommit]
+  );
 
   const recorder = useAudioRecording({
     config,
     enabled: acknowledged && !takeBudgetReached && !slotClosed,
     onPrepExpired,
     onCaptureUnavailable,
+    // D5: with review off, a finished take commits the moment the recorder hands it over.
+    onTakeReady: reviewOn ? undefined : (take) => void commitTake(take),
     deps: recorderDeps,
+    recovery,
   });
 
-  const { phase, commit } = recorder;
+  const { phase, commit, restore, discard } = recorder;
+  const [recoveredTake, setRecoveredTake] = useState(false);
 
   const handleCommit = useCallback(async () => {
+    if (commitInFlightRef.current) return commitInFlightRef.current;
+    setRecoveredTake(false);
     const take = commit();
     if (!take) return;
-    setCommitState('committing');
-    try {
-      await onCommit(take);
-      setCommitState('idle');
-    } catch {
-      setCommitState('archive-failed');
+    return commitTake(take);
+  }, [commit, commitTake]);
+
+  const handleRedo = useCallback(() => {
+    setRecoveredTake(false);
+    addRedo();
+    discard();
+  }, [addRedo, discard]);
+
+  const canRecover = acknowledged && !takeBudgetReached && !slotClosed;
+  const checkedRecoveryKeyRef = useRef<string | null>(null);
+  const restoreRecovered = useEffectEvent((take: AudioTake) => {
+    if (!restore(take)) return;
+    if (reviewOn) {
+      setRecoveredTake(true);
+      return;
     }
-  }, [commit, onCommit]);
+    const restored = commit(take);
+    if (restored) void commitTake(restored);
+  });
+
+  // Reopening the question offers back a take a crash or reload interrupted.
+  useEffect(() => {
+    if (!recovery || !canRecover) return;
+    if (checkedRecoveryKeyRef.current === recovery.key) return;
+    let cancelled = false;
+    const now = Date.now();
+    recovery.store
+      .removeExpired(now)
+      .catch(() => undefined)
+      .then(() => recovery.store.load(recovery.key, now))
+      .then((saved) => {
+        if (cancelled) return;
+        checkedRecoveryKeyRef.current = recovery.key;
+        if (!saved || !hasRecoverableContent(saved)) return;
+        const blob = new Blob(saved.chunks, { type: saved.mimeType });
+        if (blob.size === 0) return;
+        restoreRecovered({
+          blob,
+          mimeType: saved.mimeType,
+          durationMs: Math.max(0, saved.updatedAt - saved.startedAt),
+          micState: 'on',
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [canRecover, recovery]);
+
+  // D16: a cutoff stops the running take and commits it before its rule runs.
+  const phaseRef = useRef(phase);
+  const handleCommitRef = useRef(handleCommit);
+  const stopRef = useRef(recorder.stop);
+  const takeStoppedRef = useRef<(() => void) | null>(null);
+  useLayoutEffect(() => {
+    phaseRef.current = phase;
+    handleCommitRef.current = handleCommit;
+    stopRef.current = recorder.stop;
+  });
+  useEffect(() => {
+    if (phase === 'recording') return;
+    takeStoppedRef.current?.();
+    takeStoppedRef.current = null;
+  }, [phase]);
+  useEffect(
+    () =>
+      registerActiveTake({
+        commitNow: async () => {
+          if (commitInFlightRef.current) return commitInFlightRef.current;
+          if (phaseRef.current === 'recording') {
+            await new Promise<void>((resolve) => {
+              takeStoppedRef.current = resolve;
+              stopRef.current();
+            });
+          }
+          // Review off: the stop already handed the take to commitTake.
+          if (commitInFlightRef.current) return commitInFlightRef.current;
+          if (phaseRef.current !== 'reviewing') return;
+          await handleCommitRef.current();
+        },
+      }),
+    []
+  );
 
   const retryBtnRef = useRef<HTMLButtonElement>(null);
   const statusBannerRef = useRef<HTMLDivElement>(null);
@@ -206,13 +290,13 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
   const takeLabel = useMemo(() => {
     if (config.takeLimit == null)
       return t('quizMediaResponse.capture.takeUnlimited', {
-        n: takesCommitted + 1,
+        n: attemptsUsed + 1,
       });
     return t('quizMediaResponse.capture.takeOf', {
-      n: Math.min(takesCommitted + 1, config.takeLimit),
+      n: Math.min(attemptsUsed + 1, config.takeLimit),
       total: config.takeLimit,
     });
-  }, [config.takeLimit, t, takesCommitted]);
+  }, [config.takeLimit, t, attemptsUsed]);
 
   // A closed slot outranks everything: no notice, no mic, no controls.
   if (slotClosed) {
@@ -316,12 +400,14 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
               </p>
             </div>
           </div>
-          <RecordingNoticeReminder
-            ref={reminderRef}
-            light={light}
-            disabled={phase === 'recording'}
-            onOpen={() => setShowNotice(true)}
-          />
+          {noticeRequired && (
+            <RecordingNoticeReminder
+              ref={reminderRef}
+              light={light}
+              disabled={phase === 'recording'}
+              onOpen={() => setShowNotice(true)}
+            />
+          )}
         </div>
 
         <div className="mt-5">
@@ -415,7 +501,9 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
               <p
                 className={`text-xs font-bold uppercase tracking-widest ${labelCls}`}
               >
-                {t('quizMediaResponse.capture.reviewLabel')}
+                {recoveredTake
+                  ? t('quizMediaResponse.capture.recoveredLabel')
+                  : t('quizMediaResponse.capture.reviewLabel')}
               </p>
               {/* Local object URL — reviewing touches no network and no Firestore. */}
               <TakeReviewPlayer
@@ -425,37 +513,41 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
                 light={light}
               />
               <p className={`mt-2 text-sm ${mutedCls}`}>
-                {t('quizMediaResponse.capture.reviewBody')}
+                {recoveredTake
+                  ? t('quizMediaResponse.capture.recoveredBody')
+                  : t('quizMediaResponse.capture.reviewBody')}
               </p>
             </div>
           )}
 
-          {phase === 'armed' && !takeBudgetReached && (
+          {phase === 'armed' && takesCommitted > 0 && (
+            <div className={`rounded-2xl p-4 ${panelCls}`}>
+              <p
+                className={`flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest ${
+                  light ? 'text-emerald-700' : 'text-emerald-300'
+                }`}
+              >
+                <Check aria-hidden className="h-3.5 w-3.5" />
+                {t('quizMediaResponse.capture.submittedLabel')}
+              </p>
+              {submitted && (
+                <TakeReviewPlayer
+                  key={submitted.url}
+                  src={submitted.url}
+                  durationMs={submitted.durationMs}
+                  light={light}
+                />
+              )}
+            </div>
+          )}
+
+          {phase === 'armed' && takesCommitted === 0 && !takeBudgetReached && (
             <div
               className={`flex flex-col items-center gap-2 rounded-2xl py-8 ${panelCls}`}
             >
               <p className={`text-sm ${mutedCls}`}>
                 {t('quizMediaResponse.capture.armedBody', {
                   seconds: config.limitSeconds,
-                })}
-              </p>
-            </div>
-          )}
-
-          {takeBudgetReached && (
-            <div
-              className={`rounded-2xl border p-4 ${
-                light
-                  ? 'border-slate-200 bg-slate-50'
-                  : 'border-slate-700 bg-slate-900/40'
-              }`}
-            >
-              <p className={`text-sm font-semibold ${headingCls}`}>
-                {t('quizMediaResponse.capture.takeLimitReachedTitle')}
-              </p>
-              <p className={`mt-1 text-sm ${mutedCls}`}>
-                {t('quizMediaResponse.capture.takeLimitReachedBody', {
-                  count: config.takeLimit ?? 0,
                 })}
               </p>
             </div>
@@ -521,9 +613,13 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
               onClick={() => void recorder.start()}
               className={`${primaryBtn} bg-brand-red-primary text-white outline-brand-red-primary hover:bg-brand-red-dark`}
             >
-              <Mic aria-hidden className="h-4 w-4" />
+              {takesCommitted > 0 ? (
+                <RotateCcw aria-hidden className="h-4 w-4" />
+              ) : (
+                <Mic aria-hidden className="h-4 w-4" />
+              )}
               {takesCommitted > 0
-                ? t('quizMediaResponse.capture.recordAgain')
+                ? t('quizMediaResponse.capture.redo')
                 : t('quizMediaResponse.capture.record')}
             </button>
           )}
@@ -539,7 +635,9 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
               }`}
             >
               <Square aria-hidden className="h-4 w-4" />
-              {t('quizMediaResponse.capture.stop')}
+              {reviewOn
+                ? t('quizMediaResponse.capture.stop')
+                : t('quizMediaResponse.capture.stopAndSubmit')}
             </button>
           )}
 
@@ -558,19 +656,22 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
                 )}
                 {t('quizMediaResponse.capture.commit')}
               </button>
-              <button
-                type="button"
-                onClick={recorder.discard}
-                disabled={commitState === 'committing'}
-                className={`${primaryBtn} border outline-slate-400 ${
-                  light
-                    ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-                    : 'border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700'
-                }`}
-              >
-                <Trash2 aria-hidden className="h-4 w-4" />
-                {t('quizMediaResponse.capture.discard')}
-              </button>
+              {canRedoInReview && (
+                <button
+                  // no-tour-anchor: student quiz app, outside teacher tours
+                  type="button"
+                  onClick={handleRedo}
+                  disabled={commitState === 'committing'}
+                  className={`${primaryBtn} border outline-slate-400 ${
+                    light
+                      ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                      : 'border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700'
+                  }`}
+                >
+                  <RotateCcw aria-hidden className="h-4 w-4" />
+                  {t('quizMediaResponse.capture.redo')}
+                </button>
+              )}
             </>
           )}
         </div>

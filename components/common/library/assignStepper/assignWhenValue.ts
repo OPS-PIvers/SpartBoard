@@ -1,9 +1,14 @@
 import type { TFunction } from 'i18next';
 import {
+  availabilityBackwards,
   defaultAvailability,
+  manualStartAvailable,
   type AssignAvailability,
   type AssignWhenMode,
+  type BellWindowFn,
 } from '@/utils/assignAvailability';
+import type { PeriodRoster } from '@/utils/periodPlan';
+import type { WorkKind } from '@/utils/gradebook/gradebookCore';
 import type { AssignActivity } from './assignSteps';
 
 /** 'when' collects work, 'available' is a study resource, 'live' is Video Activity teacher-paced. */
@@ -104,4 +109,24 @@ export function formatWhenValue(
         defaultValue:
           'Open {{openDay}}, {{openTime}} to {{closeDay}}, {{closeTime}}',
       });
+}
+
+/** True when a Scheduled window closes at or before it opens for a picked class; Manual has no window. */
+export function whenBackwards(
+  when: AssignWhenValue,
+  rosters: readonly PeriodRoster[],
+  bellWindow: BellWindowFn | undefined,
+  workKind?: WorkKind
+): boolean {
+  if (
+    when.mode === 'manual' &&
+    workKind !== 'resource' &&
+    manualStartAvailable(bellWindow)
+  )
+    return false;
+  return availabilityBackwards(
+    { availability: when.availability, workKind },
+    rosters,
+    bellWindow
+  );
 }

@@ -129,7 +129,8 @@ const stimuliEqual = (a: QuizStimulus[], b: QuizStimulus[]): boolean => {
       (sa.text ?? '') !== (sb.text ?? '') ||
       (sa.playLimit ?? 0) !== (sb.playLimit ?? 0) ||
       (sa.readAloudText ?? '') !== (sb.readAloudText ?? '') ||
-      (sa.readAloudSource ?? '') !== (sb.readAloudSource ?? '')
+      (sa.readAloudSource ?? '') !== (sb.readAloudSource ?? '') ||
+      (sa.calculator ?? '') !== (sb.calculator ?? '')
     ) {
       return false;
     }
@@ -154,10 +155,10 @@ const rubricSnapshotKey = (rubric: Rubric | undefined): string =>
       ])
     : '';
 
-/** Absent block and present block never collide: '' vs a 4-field key. */
+/** Absent block and present block never collide: '' vs a multi-field key. */
 const recordingKey = (recording: QuizQuestion['recording']): string =>
   recording
-    ? `${recording.prepSeconds}|${recording.limitSeconds}|${recording.prepExpiry}|${recording.takeLimit ?? 'null'}`
+    ? `${recording.prepSeconds}|${recording.limitSeconds}|${recording.prepExpiry}|${recording.takeLimit ?? 'null'}|${recording.mode ?? ''}|${recording.explainAloud ?? ''}|${recording.review ?? ''}|${JSON.stringify(recording.startingPage ?? null)}`
     : '';
 
 /** Order-stable id key for a question's learning-target tags (bulk tagging must flip dirty). */
@@ -692,6 +693,7 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
             <StimulusManagerPanel
               state={editorState}
               readAloudAvailable={readAloudAvailable}
+              calculatorAvailable={canAccessFeature('quiz-calculator-stimulus')}
             />
           ) : activeTab === 'languages' ? (
             <>

@@ -49,6 +49,7 @@ import {
   QuizAttemptLedger,
   GradeResult,
   ResponseArtifact,
+  TakeMicState,
   ArtifactUploadState,
   UnrespondedReason,
   TabExit,
@@ -62,6 +63,7 @@ import {
 } from '@/utils/answerTakeOrdering';
 import { resolvePeriodNames } from '@/utils/periodCompat';
 import { normalizeQuizCode } from '@/utils/quizCode';
+import { buildTeacherSubmitUpdate } from '@/utils/quizTeacherSubmit';
 import { findQuizSessionsByCode } from '@/utils/quizJoinCodes';
 import {
   createLeadingTrailingThrottle,
@@ -113,6 +115,7 @@ const RECORDING_UNRESPONDED_REASONS = new Set<UnrespondedReason>([
   'passed',
   'expired',
   'capture-unavailable',
+  'device-gated',
 ]);
 /**
  * Archive subcollection for responses removed by the teacher. Holds a
@@ -200,13 +203,28 @@ export function servedSnapshotPatch(
     : {};
 }
 
-export interface CommitRecordingTakeInput {
+interface CommitRecordingTakeBase {
   questionId: string;
-  artifact: ResponseArtifact;
   /** Tennessen acknowledgment time, stamped on the take it authorised. */
   noticeAckedAt?: number;
   /** BCP-47 code the student was reading. Display hint only; never grades. */
   locale?: string;
+  /** Mic state during the take (QUIZ_WHITEBOARD_RESPONSE D18). */
+  micState?: TakeMicState;
+}
+
+/** A spoken take carries one artifact; a whiteboard take carries up to three (D19). */
+export type CommitRecordingTakeInput = CommitRecordingTakeBase &
+  (
+    | { artifact: ResponseArtifact; artifacts?: never }
+    | { artifacts: ResponseArtifact[]; artifact?: never }
+  );
+
+/** The artifacts a take commits, whichever shape the caller used. */
+export function takeArtifacts(
+  input: CommitRecordingTakeInput
+): ResponseArtifact[] {
+  return input.artifacts ?? [input.artifact];
 }
 
 /**
@@ -1151,6 +1169,8 @@ export interface UseQuizSessionTeacherResult {
    * without showing the "Warning N of 3" modal.
    */
   unlockStudentAttempt: (responseKey: string) => Promise<void>;
+  /** Turn in a student's saved answers for them, as the idle auto-submit would. */
+  submitForStudent: (responseKey: string) => Promise<void>;
   /**
    * Unlock a student's results-view lockout (triggered when their
    * `resultsTabWarnings` count hit the session's `protection.tabWarningThreshold`
@@ -1641,6 +1661,39 @@ export const useQuizSessionTeacher = (
     [sessionId, responses, rawSession?.timeLimitMinutes]
   );
 
+  const submitForStudent = useCallback(
+    async (responseKey: string) => {
+      if (!sessionId) {
+        throw new Error('No active session — cannot submit.');
+      }
+      const responseRef = doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_COLLECTION,
+        responseKey
+      );
+      const questionIds = (session?.publicQuestions ?? []).map((q) => q.id);
+      const completenessModel = session?.completenessModel;
+      // Like the idle sweep, the attempt ledger is left alone: the response's own count still caps rejoins.
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(responseRef);
+        if (!snap.exists()) {
+          throw new Error(
+            'Student response not found — they may have already been removed or rejoined.'
+          );
+        }
+        const update = buildTeacherSubmitUpdate(
+          snap.data() as QuizResponse,
+          { questionIds, completenessModel },
+          Date.now()
+        );
+        if (update) tx.update(responseRef, update);
+      });
+    },
+    [sessionId, session?.publicQuestions, session?.completenessModel]
+  );
+
   const unlockResultsForStudent = useCallback(
     async (responseKey: string) => {
       if (!sessionId) {
@@ -1842,6 +1895,7 @@ export const useQuizSessionTeacher = (
     endQuizSession,
     removeStudent,
     unlockStudentAttempt,
+    submitForStudent,
     unlockResultsForStudent,
     clearHandForStudent,
     revealAnswer,
@@ -3280,10 +3334,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           answeredAt: Date.now(),
           status: 'submitted',
           takeIndex,
-          artifacts: [input.artifact],
+          artifacts: takeArtifacts(input),
         };
         if (input.noticeAckedAt) newAnswer.noticeAckedAt = input.noticeAckedAt;
         if (input.locale) newAnswer.locale = input.locale;
+        if (input.micState) newAnswer.micState = input.micState;
 
         const updated = [...existingAnswers, newAnswer];
         const nextStatus =

@@ -7,6 +7,7 @@ import React, { useMemo } from 'react';
 import { AudioResponseCapture } from '@/components/quiz/recording/AudioResponseCapture';
 import { SubmitBlockedNotice } from '@/components/quiz/recording/SubmitBlockedNotice';
 import type { AudioRecordingDeps } from '@/hooks/useAudioRecording';
+import { memoryTakeRecoveryStore } from '@/utils/takeRecoveryStore';
 import type { RecordingConfig, ResponseArtifact } from '@/types';
 import {
   AUDIO_CAPTURE_STATES,
@@ -65,6 +66,24 @@ const pendingArtifact: ResponseArtifact = {
   uploadState: 'pending',
 };
 
+const RECOVERED_KEY = 'dev-session/dev-response/dev-question';
+
+/** An 18-second take left behind by a closed tab, captured 20 seconds ago. */
+function seedRecoveredTake() {
+  const store = memoryTakeRecoveryStore();
+  const startedAt = Date.now() - 20_000;
+  void store
+    .begin(RECOVERED_KEY, 'audio/webm', startedAt)
+    .then(() =>
+      store.appendChunk(
+        RECOVERED_KEY,
+        new Blob(['fixture'], { type: 'audio/webm' }),
+        startedAt + 18_000
+      )
+    );
+  return { store, key: RECOVERED_KEY };
+}
+
 /**
  * Drives the component into a state by choosing config + props, then (for the
  * live states) firing the same buttons a student would.
@@ -81,14 +100,25 @@ export const AudioCaptureDevView: React.FC<{ state: AudioCaptureStateKey }> = ({
       prepSeconds: state === 'prep' ? 30 : 0,
       limitSeconds: 60,
       prepExpiry: 'armed',
-      takeLimit: state === 'take-limit' ? 2 : null,
+      takeLimit: state === 'take-limit' ? 1 : null,
+      ...(state === 'no-review-recording' ? { review: false } : {}),
     }),
     [state]
   );
 
   const deps = useMemo(() => makeDeps(state === 'mic-unavailable'), [state]);
+  const recovery = useMemo(
+    () => (state === 'recovered' ? seedRecoveredTake() : undefined),
+    [state]
+  );
 
   const rootRef = React.useRef<HTMLDivElement>(null);
+  const [takesCommitted, setTakesCommitted] = React.useState(0);
+  const [prevStateKey, setPrevStateKey] = React.useState(stateKey);
+  if (prevStateKey !== stateKey) {
+    setPrevStateKey(stateKey);
+    setTakesCommitted(0);
+  }
 
   // Fixture-only: click the same buttons a student would to reach the state.
   React.useEffect(() => {
@@ -101,17 +131,27 @@ export const AudioCaptureDevView: React.FC<{ state: AudioCaptureStateKey }> = ({
       btn?.click();
       return !!btn;
     };
-    if (state === 'recording' || state === 'mic-unavailable') {
+    if (
+      state === 'recording' ||
+      state === 'no-review-recording' ||
+      state === 'mic-unavailable'
+    ) {
       click(/^Record/);
       return;
     }
-    if (state !== 'review' && state !== 'committing') return;
+    if (state !== 'review' && state !== 'committing' && state !== 'take-limit')
+      return;
     click(/^Record/);
-    // Poll for the Stop button: getUserMedia resolves on a later microtask.
+    // Poll for each next button: getUserMedia resolves on a later microtask.
+    const steps =
+      state === 'take-limit'
+        ? [/Stop recording/, /^Turn in$/]
+        : [/Stop recording/];
     let tries = 0;
     const id = window.setInterval(() => {
       tries += 1;
-      if (click(/Stop recording/) || tries > 30) window.clearInterval(id);
+      if (click(steps[0])) steps.shift();
+      if (steps.length === 0 || tries > 60) window.clearInterval(id);
     }, 10);
     return () => window.clearInterval(id);
   }, [state]);
@@ -143,14 +183,16 @@ export const AudioCaptureDevView: React.FC<{ state: AudioCaptureStateKey }> = ({
         key={stateKey}
         light={light}
         config={config}
-        takesCommitted={state === 'take-limit' ? 2 : 0}
+        takesCommitted={takesCommitted}
         noticeAckedAt={state === 'notice' ? null : ACKED_AT}
         onAcknowledgeNotice={() => undefined}
-        onCommit={() =>
-          state === 'archive-failed'
-            ? Promise.reject(new Error('archive failed'))
-            : new Promise<void>(() => undefined)
-        }
+        onCommit={() => {
+          if (state === 'archive-failed')
+            return Promise.reject(new Error('archive failed'));
+          if (state !== 'take-limit') return new Promise<void>(() => undefined);
+          setTakesCommitted((n) => n + 1);
+          return Promise.resolve();
+        }}
         onRetryUpload={
           state === 'archive-failed'
             ? () => new Promise<void>(() => undefined)
@@ -168,6 +210,7 @@ export const AudioCaptureDevView: React.FC<{ state: AudioCaptureStateKey }> = ({
               : undefined
         }
         recorderDeps={deps}
+        recovery={recovery}
       />
     </div>
   );
