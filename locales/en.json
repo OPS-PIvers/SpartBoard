@@ -3405,6 +3405,7 @@
       "record": "Record",
       "recordAgain": "Record again",
       "stop": "Stop recording",
+      "stopAndSubmit": "Stop and submit",
       "commit": "Keep this take",
       "discard": "Discard",
       "retryUpload": "Try again",
@@ -3449,6 +3450,7 @@
       "takeLimitLabel": "Takes allowed",
       "takeLimitUnlimited": "Unlimited",
       "takeLimitHint": "A take is a recording the student keeps, not one they discard.",
+      "reviewLabel": "Students review before submitting",
       "timeLimitDisabledHint": "Set by the recording timer.",
       "modeLabelAudio": "audio",
       "modeLabelVideo": "video",
@@ -5075,5 +5077,42 @@
     "addToResponse": "Add to response",
     "showQuotes": "Show quotes",
     "showQuotesHint": "Blue is an exact quote. Amber was changed from the passage."
+  },
+  "quizWhiteboard": {
+    "canvas": {
+      "tools": "Drawing tools",
+      "tool": {
+        "pen": "Pen",
+        "eraser": "Eraser",
+        "text": "Text",
+        "line": "Line",
+        "arrow": "Arrow",
+        "rect": "Rectangle",
+        "ellipse": "Ellipse"
+      },
+      "eraserMode": "Eraser mode",
+      "eraser": {
+        "stroke": "Stroke eraser",
+        "object": "Object eraser",
+        "lasso": "Lasso eraser"
+      },
+      "colors": "Colors",
+      "color": {
+        "black": "Black",
+        "blue": "Blue",
+        "red": "Red",
+        "green": "Green",
+        "orange": "Orange",
+        "yellow": "Yellow"
+      },
+      "sizes": "Size",
+      "size": {
+        "thin": "Thin",
+        "medium": "Medium",
+        "thick": "Thick"
+      },
+      "undo": "Undo",
+      "redo": "Redo"
+    }
   }
 }

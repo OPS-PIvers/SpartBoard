@@ -1535,6 +1535,11 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-editor.recording-review': {
+    label: 'Students review before submitting switch in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-editor.recording-expiry': {
     label: 'Prep expiry option buttons (per option) in the Quiz editor',
     perField: true,

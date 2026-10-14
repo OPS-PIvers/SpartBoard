@@ -2276,6 +2276,7 @@
       "record": "Record",
       "recordAgain": "Record again",
       "stop": "Stop recording",
+      "stopAndSubmit": "Stop and submit",
       "commit": "Keep this take",
       "discard": "Discard",
       "retryUpload": "Try again",
@@ -2320,6 +2321,7 @@
       "takeLimitLabel": "Takes allowed",
       "takeLimitUnlimited": "Unlimited",
       "takeLimitHint": "A take is a recording the student keeps, not one they discard.",
+      "reviewLabel": "Students review before submitting",
       "timeLimitDisabledHint": "Set by the recording timer.",
       "modeLabelAudio": "audio",
       "modeLabelVideo": "video",
@@ -4025,5 +4027,42 @@
     "addToResponse": "Zur Antwort hinzufügen",
     "showQuotes": "Zitate zeigen",
     "showQuotesHint": "Blau ist ein wörtliches Zitat. Gelb wurde gegenüber dem Text verändert."
+  },
+  "quizWhiteboard": {
+    "canvas": {
+      "tools": "Zeichenwerkzeuge",
+      "tool": {
+        "pen": "Stift",
+        "eraser": "Radierer",
+        "text": "Text",
+        "line": "Linie",
+        "arrow": "Pfeil",
+        "rect": "Rechteck",
+        "ellipse": "Ellipse"
+      },
+      "eraserMode": "Radiermodus",
+      "eraser": {
+        "stroke": "Strichradierer",
+        "object": "Objektradierer",
+        "lasso": "Lasso-Radierer"
+      },
+      "colors": "Farben",
+      "color": {
+        "black": "Schwarz",
+        "blue": "Blau",
+        "red": "Rot",
+        "green": "Grün",
+        "orange": "Orange",
+        "yellow": "Gelb"
+      },
+      "sizes": "Größe",
+      "size": {
+        "thin": "Dünn",
+        "medium": "Mittel",
+        "thick": "Dick"
+      },
+      "undo": "Rückgängig",
+      "redo": "Wiederholen"
+    }
   }
 }

@@ -20,7 +20,10 @@ import type {
 } from '@/types';
 import { SegmentedControl } from '@/components/common/SegmentedControl';
 import { Toggle } from '@/components/common/Toggle';
-import { AttemptLimitRow } from '@/components/common/library/AssignmentSettingsToggleGroup';
+import {
+  AttemptLimitRow,
+  ToggleRow,
+} from '@/components/common/library/AssignmentSettingsToggleGroup';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
 import {
@@ -388,6 +391,13 @@ export const SpokenResponseSettings: React.FC<ResponseFormatSectionProps> = ({
         ariaLabel={tk('takeLimitLabel')}
         unlimitedLabel={tk('takeLimitUnlimited')}
         tooltip={tk('takeLimitHint')}
+      />
+
+      <ToggleRow
+        label={tk('reviewLabel')}
+        checked={recording.review !== false}
+        onChange={(review) => patch({ review })}
+        anchor={tourTypeAttr('quiz-editor.recording-review', 'quiz')}
       />
 
       {whiteboard && onUploadWhiteboardImage && (

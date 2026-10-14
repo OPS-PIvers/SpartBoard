@@ -2276,6 +2276,7 @@
       "record": "Record",
       "recordAgain": "Record again",
       "stop": "Stop recording",
+      "stopAndSubmit": "Stop and submit",
       "commit": "Keep this take",
       "discard": "Discard",
       "retryUpload": "Try again",
@@ -2320,6 +2321,7 @@
       "takeLimitLabel": "Takes allowed",
       "takeLimitUnlimited": "Unlimited",
       "takeLimitHint": "A take is a recording the student keeps, not one they discard.",
+      "reviewLabel": "Students review before submitting",
       "timeLimitDisabledHint": "Set by the recording timer.",
       "modeLabelAudio": "audio",
       "modeLabelVideo": "video",
@@ -4025,5 +4027,42 @@
     "addToResponse": "Añadir a la respuesta",
     "showQuotes": "Mostrar citas",
     "showQuotesHint": "Azul es una cita exacta. Ámbar se cambió respecto al texto."
+  },
+  "quizWhiteboard": {
+    "canvas": {
+      "tools": "Herramientas de dibujo",
+      "tool": {
+        "pen": "Lápiz",
+        "eraser": "Borrador",
+        "text": "Texto",
+        "line": "Línea",
+        "arrow": "Flecha",
+        "rect": "Rectángulo",
+        "ellipse": "Elipse"
+      },
+      "eraserMode": "Modo de borrador",
+      "eraser": {
+        "stroke": "Borrador de trazo",
+        "object": "Borrador de objetos",
+        "lasso": "Borrador de lazo"
+      },
+      "colors": "Colores",
+      "color": {
+        "black": "Negro",
+        "blue": "Azul",
+        "red": "Rojo",
+        "green": "Verde",
+        "orange": "Naranja",
+        "yellow": "Amarillo"
+      },
+      "sizes": "Tamaño",
+      "size": {
+        "thin": "Fino",
+        "medium": "Mediano",
+        "thick": "Grueso"
+      },
+      "undo": "Deshacer",
+      "redo": "Rehacer"
+    }
   }
 }
