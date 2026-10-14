@@ -44,7 +44,7 @@ To change an existing tour, `get_live_tour`, then `update_live_tour` with `steps
 - `click`: the teacher clicks the control; the tour moves on when they do. Use it for buttons, tabs, menu items and anything that opens something.
 - `observe`: point at something to notice; the teacher presses Next. Use it for the opening and closing steps (`board.whole`), a result, or a settings row the tour only shows.
 - `toggle`: a switch or checkbox, with `value` true or false, the state it should end in.
-- `select`: a dropdown, with `value` the option value.
+- `select`: a dropdown, segmented control or tab strip, with `value` the option value.
 - `type`: a text field, with `value` the text Autopilot types. The tour moves on once the field holds it. Never put a real student's name in it.
 
 **Anchor refs.** Write the id from `list_tour_anchors`, plus `:<type>` when its scope is `widget type` and `:<type>#<key>` when it is `field`. When an anchor lists `keys`, the suffix must be one of them. `settings.field`, `settings.toggle` and `settings.group` refs come from `widget_type` lookups (`settings_fields`).
@@ -53,11 +53,14 @@ To change an existing tour, `get_live_tour`, then `update_live_tour` with `steps
 
 **Controls with no anchor.** When `list_tour_anchors` has nothing for a control, use `"anchor": ""` with `fallback` (its ARIA role and English accessible name) and fill `missing_anchor` (where it is and what it does). The step works in English only, and a developer is asked to tag it. Prefer a tagged control nearby when one says the same thing.
 
+**Editors that save as you go.** The quiz editor autosaves and shows no Save button, so a quiz tour ends with `editor.close:quiz`. `editor.save` is for editors with a Save button, such as the video activity editor.
+
 **Positions in a list.** A row in the teacher's own library (`#row-1`) points at whatever sits there on their board, so use it only in a tour with materials. Menu items (`#item-2`) and Help Center rows are the same for everyone.
 
 ## Staging
 
 - `tour_widgets`: widget types on the board when the tour starts. The runner clears the stage (the teacher's widgets step aside) and adds these. A widget the tour adds from the Dock (`dock.item:<type>`) doesn't belong here.
+  - A staged Schedule already has three demo rows (Morning Meeting, Math, Reading, with Math as Now), so a row the tour adds is `event-4`.
 - `layouts`: leave them out and SpartBoard places the widgets. Set them only when a step needs a widget in a particular spot; give each one a `slot`, and use `slot` on steps only when two widgets of one type are on the board.
 - `use_teacher_board: true`: play on the teacher's board as it is, for tours about their own setup. Without it, a widget step fails the dry run unless the widget is staged.
 - `materials`: library items the tour works on. With any material the tour runs in a sandbox, where what it saves, assigns or starts stays out of the teacher's real library unless they choose Keep at the end.
@@ -100,7 +103,7 @@ Write for a busy teacher reading a small card on a projected board.
 
 The dry run reads the map; the browser run plays the tour on a real board. In Claude Code, after saving:
 
-1. Save `get_live_tour`'s result to a file, and call `start_live_tour_picture_upload` for a ticket.
+1. Save the result of `get_live_tour` with `for_browser_run: true` to a file (it keeps each sample material's content), and call `start_live_tour_picture_upload` for a ticket.
 2. Start the `vite-verify` server (the dummy backend, so nothing touches an account), then run `node scripts/run-live-tour.mjs <file> --upload <upload_url> --ticket <ticket>`.
 3. Autopilot does every step it can, including ones a teacher run would leave to the teacher. Widgets that need students get a made-up class. Each step is `found`, `missing` (the control never showed) or `left to the teacher` (a step with no value).
 4. Fix every `missing` step, save, and run it again. The run uploads each step's picture as its thumbnail; look at a few with `get_live_tour_step_picture`.

@@ -183,6 +183,9 @@ describe('tour surfaces', () => {
           for (const need of def.needs ?? [])
             if (!(TOUR_SURFACE_NEEDS as readonly string[]).includes(need))
               fail(`need ${need}`);
+          for (const ref of def.alsoOpensWith ?? [])
+            if (!isRegisteredRef(ref))
+              fail(`alsoOpensWith ${ref} is not a registered anchor`);
           if (def.opensWith) {
             if (!isRegisteredRef(def.opensWith))
               fail(`opensWith ${def.opensWith} is not a registered anchor`);
