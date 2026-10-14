@@ -11,7 +11,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { CloudDownload, FileUp, Loader2, ScanText, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
-import { AiReaderToggle } from '@/components/common/library/importer/AiReaderToggle';
+import { AiRetryLink } from '@/components/common/library/importer/AiRetryLink';
 import { useFileDrop } from '@/hooks/useFileDrop';
 import type { QuizData } from '@/types';
 import {
@@ -22,7 +22,7 @@ import {
   parseNumberedQuestions,
   type QuestionFill,
 } from '@/utils/paperQuestionOcr';
-import { readByLabel } from '@/utils/quizDocumentImport';
+import { isAiReadable, readByLabel } from '@/utils/quizDocumentImport';
 import { recognizeRasterPage } from '@/utils/quizDocumentImport/imageBrowserDeps';
 import type { ReadUploadedTest } from '@/utils/quizDocumentImport/readTestAndKey';
 import type { UploadedDocument } from '@/utils/quizDocumentImport/uploadIntake';
@@ -82,7 +82,8 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
   // which only ever produced stem text.
   const [fills, setFills] = useState<Record<number, QuestionFill>>({});
   const [notes, setNotes] = useState<string[]>([]);
-  const [useAi, setUseAi] = useState(false);
+  // The plain read that can be redone with AI from the review.
+  const [aiRetry, setAiRetry] = useState<TestAndKeySelection | null>(null);
   const [readerNote, setReaderNote] = useState('');
   // Set when only a key was added: the review then shows the answer fill (R17).
   const [keyFill, setKeyFill] = useState<SavedKeyFill | null>(null);
@@ -102,13 +103,21 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
   const readWithImporter = async (
     test: UploadedDocument,
     key: UploadedDocument | null,
-    read: ReadUploadedTest
+    read: ReadUploadedTest,
+    withAi: boolean
   ) => {
     setProgress('Importing…');
     const extracted = await read(test, {
-      ...(canUseAi ? { useAi } : {}),
+      ...(canUseAi ? { useAi: withAi } : {}),
       key,
     });
+    setAiRetry(
+      canUseAi &&
+        extracted.readBy === 'plain' &&
+        isAiReadable(test.file, test.fileName)
+        ? { test, key }
+        : null
+    );
     const byNumber = new Map(extracted.questions.map((q) => [q.number, q]));
     const nextDrafts: Record<number, string> = {};
     const nextApply: Record<number, boolean> = {};
@@ -168,6 +177,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
   };
 
   const readFile = async (file: File) => {
+    setAiRetry(null);
     setStep('reading');
     try {
       await readWithOcr(file);
@@ -196,14 +206,18 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
   const { dragging, dropProps } = useFileDrop((file) => void readFile(file));
 
   /** The shared uploader's test, and optionally its key file (R14). */
-  const readSelection = async ({ test, key }: TestAndKeySelection) => {
+  const readSelection = async (
+    { test, key }: TestAndKeySelection,
+    withAi = false
+  ) => {
     if (!readDocument || (!test && !key)) return;
     setStep('reading');
     try {
       if (test) {
         setKeyFill(null);
-        await readWithImporter(test, key, readDocument);
+        await readWithImporter(test, key, readDocument, withAi);
       } else if (key) {
+        setAiRetry(null);
         setProgress('Importing…');
         setKeyFill(
           await readKeyFill(quiz.questions, key, readKey, fillStubKey)
@@ -310,15 +324,7 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
         }
         submitLabel="Import"
         onSubmit={(selection) => void readSelection(selection)}
-      >
-        {canUseAi && (
-          <AiReaderToggle
-            checked={useAi}
-            onChange={setUseAi}
-            anchor={tourTypeAttr('quiz-import.paper-text-ai-toggle', 'quiz')}
-          />
-        )}
-      </TestAndKeyUploader>
+      />
     </div>
   );
 
@@ -380,7 +386,23 @@ export const PaperQuestionTextModal: React.FC<PaperQuestionTextModalProps> = ({
       <p className="text-sm text-slate-700">
         Rows that already have text stay as they are unless you tick them.
       </p>
-      {readerNote && <p className="text-xs text-slate-500">{readerNote}</p>}
+      {(readerNote || aiRetry) && (
+        <p className="text-xs text-slate-500">
+          {readerNote}
+          {aiRetry && (
+            <>
+              {readerNote && ' '}
+              <AiRetryLink
+                anchor={tourTypeAttr(
+                  'quiz-import.paper-text-retry-with-ai',
+                  'quiz'
+                )}
+                onRetry={() => void readSelection(aiRetry, true)}
+              />
+            </>
+          )}
+        </p>
+      )}
       {missing.length > 0 && (
         <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
           Not found in the scan: question{missing.length === 1 ? '' : 's'}{' '}

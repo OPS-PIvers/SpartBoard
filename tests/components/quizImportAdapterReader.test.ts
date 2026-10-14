@@ -177,6 +177,19 @@ describe('quiz import reader selection', () => {
     expect(result.aiRetry).toBeUndefined();
   });
 
+  it('uses AI without asking when the plain reader finds no questions', async () => {
+    vi.mocked(readQuizDocument).mockResolvedValue({
+      ...extracted('browser'),
+      questions: [],
+    });
+    const result = await adapter({ aiExtract: vi.fn() }).parse({
+      ...source,
+      useAi: false,
+    });
+    expect(readQuizDocumentWithAi).toHaveBeenCalled();
+    expect(result.note).toBe('Converted with AI.');
+  });
+
   it('keeps the page limit error without the versions flag', async () => {
     vi.mocked(readQuizDocument).mockRejectedValue(
       new PageLimitError('This file is 26 pages.')
@@ -211,7 +224,10 @@ describe('quiz import reader selection', () => {
       ...source,
       useAi: false,
     });
-    expect(unflagged.aiRetry).toBeUndefined();
+    expect(unflagged.aiRetry).toBe(true);
+
+    const noAi = await adapter({}).parse({ ...source, useAi: false });
+    expect(noAi.aiRetry).toBeUndefined();
   });
 
   it('still reports the pictures a fallback read found', async () => {

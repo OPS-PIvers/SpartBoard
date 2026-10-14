@@ -498,8 +498,7 @@ export function createQuizImportAdapter(
             ...rowWarnings(extracted),
           ],
           ...(extracted.readBy ? { note: readByLabel(extracted.readBy) } : {}),
-          ...(deps.importVersions &&
-          deps.aiExtract &&
+          ...(deps.aiExtract &&
           source.useAi === false &&
           extracted.readBy === 'plain' &&
           AI_READABLE_KINDS.has(documentKind(source.file, source.fileName))

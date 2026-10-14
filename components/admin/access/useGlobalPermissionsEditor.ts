@@ -27,6 +27,7 @@ export const GEMINI_FEATURES: GlobalFeature[] = [
   'ai-file-context',
   PAPER_HANDWRITTEN_FEATURE,
   'quiz',
+  'quiz-document-ai-reader',
   'video-activity-ai',
   'guided-learning-ai',
   'mini-app-ai',

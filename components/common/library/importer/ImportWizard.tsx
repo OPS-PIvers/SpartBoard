@@ -14,9 +14,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { AiReaderToggle } from './AiReaderToggle';
-import { AI_READER_CONFIRM } from './aiReaderConfirm';
-import { ConfirmDialog } from '@/components/widgets/InstructionalRoutines/ConfirmDialog';
+import { AiRetryLink } from './AiRetryLink';
 import {
   TestAndKeyUploader,
   type TestAndKeySelection,
@@ -124,7 +122,6 @@ export function ImportWizard<TData>({
   // The plain read that can be redone with AI from the preview step.
   const [aiRetrySource, setAiRetrySource] =
     useState<ImportSourcePayload | null>(null);
-  const [confirmAiRetry, setConfirmAiRetry] = useState(false);
   const [title, setTitle] = useState(defaultTitle ?? '');
   const [parseError, setParseError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
@@ -151,8 +148,6 @@ export function ImportWizard<TData>({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bulkInputRef = useRef<HTMLInputElement>(null);
-  // Off by default; kept across opens so a teacher needn't re-tick it.
-  const [aiReaderOff, setAiReaderOff] = useState(true);
 
   // Bumped on every open/close transition; in-flight handlers check it to drop results from a cancelled session.
   const sessionRef = useRef(0);
@@ -171,7 +166,6 @@ export function ImportWizard<TData>({
       setWarnings([]);
       setNote('');
       setAiRetrySource(null);
-      setConfirmAiRetry(false);
       setTitle(defaultTitle ?? '');
       setParseError(null);
       setValidationErrors([]);
@@ -300,7 +294,7 @@ export function ImportWizard<TData>({
       fileName: test.fileName,
       ...(test.pages ? { pages: test.pages } : {}),
       ...(key && supportsKeyFile ? { keyFile: key } : {}),
-      ...(supportsAiReader && aiReaderOff ? { useAi: false } : {}),
+      ...(supportsAiReader ? { useAi: false } : {}),
     });
   };
 
@@ -348,7 +342,7 @@ export function ImportWizard<TData>({
         kind: 'document',
         file,
         fileName: file.name,
-        ...(supportsAiReader && aiReaderOff ? { useAi: false } : {}),
+        ...(supportsAiReader ? { useAi: false } : {}),
       });
       return;
     }
@@ -576,15 +570,7 @@ export function ImportWizard<TData>({
             onSubmit={readTestAndKey}
             keyBehindLink
             submitContainer={submitSlot}
-          >
-            {supportsAiReader && (
-              <AiReaderToggle
-                checked={!aiReaderOff}
-                onChange={(on) => setAiReaderOff(!on)}
-                disabled={loading}
-              />
-            )}
-          </TestAndKeyUploader>
+          />
         </div>
       )}
 
@@ -874,29 +860,18 @@ export function ImportWizard<TData>({
           {aiRetrySource && (
             <>
               {note && ' '}
-              <button
-                type="button"
-                {...tourAttr('import-wizard.retry-with-ai')}
-                onClick={() => setConfirmAiRetry(true)}
+              <AiRetryLink
+                anchor={tourAttr('import-wizard.retry-with-ai')}
                 disabled={loading}
-                className="font-semibold text-brand-blue-primary underline-offset-2 hover:underline disabled:opacity-50"
-              >
-                Something not right? Try again with AI
-              </button>
+                onRetry={() => {
+                  if (aiRetrySource.kind !== 'document') return;
+                  const { useAi: _plain, ...source } = aiRetrySource;
+                  void runParse(source);
+                }}
+              />
             </>
           )}
         </p>
-      )}
-      {confirmAiRetry && aiRetrySource?.kind === 'document' && (
-        <ConfirmDialog
-          {...AI_READER_CONFIRM}
-          onConfirm={() => {
-            setConfirmAiRetry(false);
-            const { useAi: _plain, ...source } = aiRetrySource;
-            void runParse(source);
-          }}
-          onCancel={() => setConfirmAiRetry(false)}
-        />
       )}
       {warnings.length > 0 && (
         <ul

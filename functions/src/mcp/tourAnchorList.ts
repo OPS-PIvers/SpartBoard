@@ -14800,8 +14800,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-print.import-ai-toggle",
-    "label": "AI reader toggle in the Quiz print import dialog",
+    "id": "quiz-print.import-retry-with-ai",
+    "label": "Try again with AI link in the Quiz print import dialog",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -14822,8 +14822,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-import.paper-text-ai-toggle",
-    "label": "AI reader toggle in the Quiz paper question text dialog",
+    "id": "quiz-import.paper-text-retry-with-ai",
+    "label": "Try again with AI link in the Quiz paper question text dialog",
     "scope": "widget type",
     "panel": true,
     "keys": [

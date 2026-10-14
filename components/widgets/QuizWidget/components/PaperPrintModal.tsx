@@ -19,7 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
-import { AiReaderToggle } from '@/components/common/library/importer/AiReaderToggle';
+import { AiRetryLink } from '@/components/common/library/importer/AiRetryLink';
 import {
   TestAndKeyUploader,
   type TestAndKeySelection,
@@ -49,6 +49,7 @@ import {
   paperGridOf,
 } from '@/utils/paperSheetLayout';
 import {
+  isAiReadable,
   readByLabel,
   type ExtractedQuestion,
 } from '@/utils/quizDocumentImport';
@@ -281,9 +282,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     questions: ExtractedQuestion[];
     warnings: string[];
     note: string;
+    aiRetry?: TestAndKeySelection;
   } | null>(null);
   const [readingDoc, setReadingDoc] = useState(false);
-  const [useAi, setUseAi] = useState(false);
   const [spareCount, setSpareCount] = useState(2);
   const [includeKeySheet, setIncludeKeySheet] = useState(isStub);
   const [includeQuestionText, setIncludeQuestionText] = useState(false);
@@ -606,12 +607,15 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
    * (D17). The numbers printed on the paper are the rows, so the count
    * follows the highest number read rather than how many were found.
    */
-  const readQuestionsFrom = async ({ test, key }: TestAndKeySelection) => {
+  const readQuestionsFrom = async (
+    { test, key }: TestAndKeySelection,
+    withAi = false
+  ) => {
     if (!readDocument || !test) return;
     setReadingDoc(true);
     try {
       const extracted = await readDocument(test, {
-        ...(canUseAi ? { useAi } : {}),
+        ...(canUseAi ? { useAi: withAi } : {}),
         key,
       });
       const questions = extracted.questions.filter((q) => q.text.trim());
@@ -643,6 +647,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         fileName: key ? `${test.fileName} + ${key.fileName}` : test.fileName,
         questions,
         note: readByLabel(extracted.readBy),
+        ...(canUseAi &&
+        extracted.readBy === 'plain' &&
+        isAiReadable(test.file, test.fileName)
+          ? { aiRetry: { test, key } }
+          : {}),
         // Row notes are numbered by the reader, so they name their own row.
         warnings: [
           ...extracted.warnings,
@@ -1306,6 +1315,22 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                       {readDoc.questions.length} question
                       {readDoc.questions.length === 1 ? '' : 's'} read.
                       {readDoc.note ? ` ${readDoc.note}` : ''}
+                      {readDoc.aiRetry && (
+                        <>
+                          {' '}
+                          <AiRetryLink
+                            anchor={tourTypeAttr(
+                              'quiz-print.import-retry-with-ai',
+                              'quiz'
+                            )}
+                            disabled={readingDoc}
+                            onRetry={() => {
+                              if (readDoc.aiRetry)
+                                void readQuestionsFrom(readDoc.aiRetry, true);
+                            }}
+                          />
+                        </>
+                      )}
                     </p>
                   </div>
                   <button
@@ -1353,16 +1378,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 busy={readingDoc}
                 busyLabel="Importing…"
                 onSubmit={(selection) => void readQuestionsFrom(selection)}
-              >
-                {canUseAi && (
-                  <AiReaderToggle
-                    checked={useAi}
-                    onChange={setUseAi}
-                    disabled={readingDoc}
-                    anchor={tourTypeAttr('quiz-print.import-ai-toggle', 'quiz')}
-                  />
-                )}
-              </TestAndKeyUploader>
+              />
             )}
           </div>
         )}
