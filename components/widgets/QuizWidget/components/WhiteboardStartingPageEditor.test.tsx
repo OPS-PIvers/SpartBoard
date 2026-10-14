@@ -81,7 +81,7 @@ describe('starting page edit geometry', () => {
 
   it('rounds ink points, skips tiny moves and stops at the point budget', () => {
     expect(appendInkPoint([], 10.4, 20.6, 10)).toEqual([10, 21]);
-    expect(appendInkPoint([10, 21], 11, 21, 10)).toEqual([10, 21]);
+    expect(appendInkPoint([10, 21], 15, 21, 10)).toEqual([10, 21]);
     expect(appendInkPoint([10, 21], 30, 21, 1)).toEqual([10, 21]);
   });
 

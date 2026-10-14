@@ -296,7 +296,7 @@ describe('normalizeWhiteboardStartingPage images and ink', () => {
     const big = Array.from({ length: 3 }, () => ({
       color: '#000',
       size: 4,
-      points: Array.from({ length: 16_000 }, (_, i) => i % 1000),
+      points: Array.from({ length: 5_000 }, (_, i) => i % 1000),
     }));
     const limited = limitStartingInk(big);
     const total = limited.reduce((n, s) => n + s.points.length / 2, 0);

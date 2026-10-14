@@ -24,7 +24,7 @@ export const WHITEBOARD_POLYGON_SIDES_MAX = 12;
 /** Starting page caps: placed images, teacher ink strokes and their total points. */
 export const WHITEBOARD_STARTING_IMAGES_MAX = 6;
 export const WHITEBOARD_INK_STROKES_MAX = 200;
-export const WHITEBOARD_INK_POINTS_MAX = 20_000;
+export const WHITEBOARD_INK_POINTS_MAX = 6_000;
 const INK_SIZE_MAX = 64;
 const INK_COLOR = /^#[0-9a-fA-F]{3,8}$/;
 

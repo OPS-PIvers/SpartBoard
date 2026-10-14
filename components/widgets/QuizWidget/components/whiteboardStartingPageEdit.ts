@@ -25,7 +25,7 @@ export type Corner = 'nw' | 'ne' | 'sw' | 'se';
 const DEFAULT_FIT = 0.6;
 const CASCADE_STEP = 48;
 const MIN_IMAGE_SIZE = 40;
-const MIN_POINT_GAP = 2;
+const MIN_POINT_GAP = 6;
 export const TEACHER_INK_COLOR = '#0f172a';
 export const TEACHER_INK_SIZE = 4;
 
