@@ -77,6 +77,7 @@ export const QUIZ_MEDIA_STORAGE_ROOT = 'quiz_response_media';
 export const MAX_QUIZ_MEDIA_BYTES = 5 * 1024 * 1024;
 /** Fail-closed `GlobalFeature` id; a missing permission record means denied. */
 export const QUIZ_MEDIA_FEATURE_ID = 'quiz-media-response';
+export const QUIZ_WHITEBOARD_FEATURE_ID = 'quiz-whiteboard-response';
 /** Mirrors the 2 MB cap on `paper_written_crops/` in `storage.rules`. */
 export const MAX_HANDWRITING_CROP_BYTES = 2 * 1024 * 1024;
 const HANDWRITING_MIME_EXTENSIONS: Readonly<Record<string, string>> = {
@@ -543,6 +544,23 @@ export async function isQuizMediaResponseGranted(
   return isGlobalFeatureGranted(
     db,
     QUIZ_MEDIA_FEATURE_ID,
+    teacherEmail,
+    teacherUid
+  );
+}
+
+/** Whiteboard takes need both flags (QUIZ_WHITEBOARD_RESPONSE D22); both fail closed. */
+export async function isQuizWhiteboardResponseGranted(
+  db: Firestore,
+  teacherEmail: string | null,
+  teacherUid: string
+): Promise<boolean> {
+  if (!(await isQuizMediaResponseGranted(db, teacherEmail, teacherUid))) {
+    return false;
+  }
+  return isGlobalFeatureGranted(
+    db,
+    QUIZ_WHITEBOARD_FEATURE_ID,
     teacherEmail,
     teacherUid
   );
