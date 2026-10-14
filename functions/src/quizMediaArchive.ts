@@ -119,6 +119,7 @@ interface StoredArtifact {
 interface StoredAnswer {
   questionId?: unknown;
   artifacts?: unknown;
+  takeIndex?: unknown;
 }
 
 /** Name parts resolved server-side; never taken from the request payload. */
@@ -300,14 +301,15 @@ export function sanitizeDriveNameSegment(raw: string): string {
 }
 
 /**
- * `{LastName}_{FirstName}__Q{n}.m4a`. The real name only exists once the file
- * crosses into Drive; Firebase transit stays pseudonymous.
+ * `{LastName}_{FirstName}__Q{n}_take{k}.m4a`. The real name only exists once
+ * the file crosses into Drive; Firebase transit stays pseudonymous.
  */
 export function buildArchiveFileName(
   name: StudentNameParts | null,
   fallbackLabel: string,
   questionLabel: string,
-  extension = '.m4a'
+  extension = '.m4a',
+  takeNumber: number | null = null
 ): string {
   const family = sanitizeDriveNameSegment(name?.familyName ?? '');
   const given = sanitizeDriveNameSegment(name?.givenName ?? '');
@@ -315,7 +317,35 @@ export function buildArchiveFileName(
     family || given
       ? [family, given].filter(Boolean).join('_').replace(/ /g, '')
       : sanitizeDriveNameSegment(fallbackLabel) || 'Student';
-  return `${person}__${questionLabel}${extension}`;
+  const take = takeNumber === null ? '' : `_take${takeNumber}`;
+  return `${person}__${questionLabel}${take}${extension}`;
+}
+
+const MAX_TAKE_NUMBER = 9999;
+
+/** The take's 1-based number: its stored `takeIndex`, else its position among the question's entries. */
+export function takeNumberFor(
+  answers: readonly StoredAnswer[],
+  questionId: string,
+  artifactId: string
+): number {
+  let position = 0;
+  for (const answer of answers) {
+    if (answer?.questionId !== questionId) continue;
+    position++;
+    const list = Array.isArray(answer.artifacts)
+      ? (answer.artifacts as StoredArtifact[])
+      : [];
+    if (!list.some((a) => a?.id === artifactId)) continue;
+    const stored = answer.takeIndex;
+    return typeof stored === 'number' &&
+      Number.isInteger(stored) &&
+      stored >= 1 &&
+      stored <= MAX_TAKE_NUMBER
+      ? stored
+      : position;
+  }
+  return 1;
 }
 
 /** 1-based position in `publicQuestions`, or the sanitized id when unknown. */
@@ -1079,7 +1109,8 @@ export async function archiveQuizArtifactCore(
       name,
       fallbackLabel,
       questionLabelFor(publicQuestions, questionId),
-      kind === 'audio' ? '.m4a' : cropExtension
+      kind === 'audio' ? '.m4a' : cropExtension,
+      kind === 'audio' ? takeNumberFor(answers, questionId, artifactId) : null
     );
     const quizTitle =
       typeof session.quizTitle === 'string' && session.quizTitle.trim()
