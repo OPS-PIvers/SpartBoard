@@ -25,6 +25,7 @@ import {
 } from '@/components/widgets/DrawingWidget/hitTest';
 import { nextZ } from '@/utils/migrateDrawingConfig';
 import { WhiteboardToolbar } from './WhiteboardToolbar';
+import { WhiteboardZoomFrame } from './WhiteboardZoomFrame';
 import {
   WHITEBOARD_COLORS,
   type WhiteboardSize,
@@ -70,8 +71,9 @@ const ERASER_WIDTHS: Record<WhiteboardSize, number> = {
   thick: 96,
 };
 const TEXT_FONT_SIZE = 40;
-// Toolbar width plus the gap beside it, so the page never pushes the rail off-screen.
-const TOOLBAR_ROOM_PX = 120;
+// Toolbar width plus the gap beside it at 2, 3 and 4 columns (see WhiteboardToolbar).
+const TOOLBAR_ROOM =
+  '[--rail:214px] [@container(min-height:388px)]:[--rail:166px] [@container(min-height:526px)]:[--rail:120px]';
 const isEraserStroke = (o: DrawableObject) =>
   o.kind === 'path' && o.color === 'eraser';
 
@@ -107,6 +109,7 @@ export const WhiteboardCanvas = forwardRef<
     const [lassoPoints, setLassoPoints] = useState<Point[] | null>(null);
     const eraseQueueRef = useRef<Set<string>>(new Set());
     const activePointerRef = useRef<number | null>(null);
+    const pinchingRef = useRef(false);
     // Mirrors the stack depth so the recorder only logs undo/redo that applied.
     const historyRef = useRef({ past: 0, future: 0 });
 
@@ -253,7 +256,7 @@ export const WhiteboardCanvas = forwardRef<
     const strokeWidth =
       tool === 'eraser' ? ERASER_WIDTHS[size] : PEN_WIDTHS[size];
 
-    const { handleStart, handleMove, handleEnd } = useDrawingCanvas({
+    const { handleStart, handleMove, handleEnd, cancel } = useDrawingCanvas({
       canvasRef,
       color,
       width: strokeWidth,
@@ -291,8 +294,16 @@ export const WhiteboardCanvas = forwardRef<
     const pickedEraser =
       tool === 'eraser' && eraserMode !== 'stroke' ? eraserMode : null;
 
+    // Two fingers zoom the page, so the first finger's stroke never lands.
+    const handlePinchStart = () => {
+      activePointerRef.current = null;
+      eraseQueueRef.current = new Set();
+      setLassoPoints(null);
+      cancel();
+    };
+
     const handlePointerDown = (e: React.PointerEvent) => {
-      if (disabled) return;
+      if (disabled || pinchingRef.current) return;
       // One finger or pen at a time; a resting palm can't start a second stroke.
       if (activePointerRef.current !== null) return;
       activePointerRef.current = e.pointerId;
@@ -315,7 +326,12 @@ export const WhiteboardCanvas = forwardRef<
     };
 
     const handlePointerMove = (e: React.PointerEvent) => {
-      if (disabled || activePointerRef.current !== e.pointerId) return;
+      if (
+        disabled ||
+        pinchingRef.current ||
+        activePointerRef.current !== e.pointerId
+      )
+        return;
       if (pickedEraser === 'object') {
         queueEraseHits(toPage(e));
         return;
@@ -402,11 +418,14 @@ export const WhiteboardCanvas = forwardRef<
           onUndo={undo}
           onRedo={redo}
         />
-        <div
+        <WhiteboardZoomFrame
           ref={pageRef}
-          className="relative shrink-0 overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-slate-200"
+          disabled={disabled}
+          pinchingRef={pinchingRef}
+          onPinchStart={handlePinchStart}
+          className={TOOLBAR_ROOM}
           style={{
-            width: `min(calc(100cqw - ${TOOLBAR_ROOM_PX}px), calc(100cqh * 4 / 3))`,
+            width: 'min(calc(100cqw - var(--rail)), calc(100cqh * 4 / 3))',
             aspectRatio: '4 / 3',
           }}
         >
@@ -446,7 +465,7 @@ export const WhiteboardCanvas = forwardRef<
               />
             </svg>
           )}
-        </div>
+        </WhiteboardZoomFrame>
         {editingText && pageRect && (
           <TextEditorOverlay
             ref={textEditorRef}

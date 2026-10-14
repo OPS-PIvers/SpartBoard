@@ -310,9 +310,20 @@ const SessionView: React.FC<{
   );
 };
 
+const urlParams = new URLSearchParams(window.location.search);
+const isViewKey = (v: string | null): v is ViewKey =>
+  VIEWS.some((opt) => opt.key === v);
+
 export const SessionViewsDevHarness: React.FC = () => {
-  const [view, setView] = useState<ViewKey>('quiz-monitor');
-  const [state, setState] = useState<StateKey>('live');
+  // ?view=…&state=… opens a view; &full=1 renders it alone at page size for screenshots.
+  const initialView = urlParams.get('view');
+  const [view, setView] = useState<ViewKey>(
+    isViewKey(initialView) ? initialView : 'quiz-monitor'
+  );
+  const [state, setState] = useState<StateKey>(
+    (urlParams.get('state') as StateKey | null) ??
+      (isViewKey(initialView) ? DEFAULT_STATE_FOR_VIEW[initialView] : 'live')
+  );
   const [width, setWidth] = useState<number>(520);
   const [showNames, setShowNames] = useState(false);
 
@@ -325,6 +336,22 @@ export const SessionViewsDevHarness: React.FC = () => {
         Set <code className="mx-1 font-mono">VITE_AUTH_BYPASS=true</code> to use
         this harness.
       </div>
+    );
+  }
+
+  if (urlParams.get('full') === '1') {
+    return (
+      <DialogProvider>
+        <AuthProvider>
+          <CustomWidgetsProvider>
+            <SavedWidgetsProvider>
+              <DashboardProvider>
+                <SessionView view={view} state={state} showNames={showNames} />
+              </DashboardProvider>
+            </SavedWidgetsProvider>
+          </CustomWidgetsProvider>
+        </AuthProvider>
+      </DialogProvider>
     );
   }
 

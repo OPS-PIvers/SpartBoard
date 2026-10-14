@@ -81,5 +81,6 @@ export const STUDENT_QUIZ_STATES = [
   'sq-timed',
   'sq-last-minute',
   'sq-stimuli',
+  'sq-whiteboard',
 ] as const;
 export type StudentQuizStateKey = (typeof STUDENT_QUIZ_STATES)[number];

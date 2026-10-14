@@ -4104,7 +4104,11 @@
         "thick": "Grueso"
       },
       "undo": "Deshacer",
-      "redo": "Rehacer"
+      "redo": "Rehacer",
+      "zoom": "Zoom",
+      "zoomIn": "Acercar",
+      "zoomOut": "Alejar",
+      "zoomReset": "Ajustar página"
     },
     "drawer": {
       "show": "Show materials",

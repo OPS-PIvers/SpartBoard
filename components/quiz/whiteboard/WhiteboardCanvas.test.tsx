@@ -159,6 +159,80 @@ describe('WhiteboardCanvas', () => {
     ]);
   });
 
+  it("drops the first finger's stroke when a second finger starts a pinch", () => {
+    const recorder = makeRecorder();
+    render(<WhiteboardCanvas startingPage={PAGE} recorder={recorder} />);
+    const touch = { pointerType: 'touch' };
+    fireEvent.pointerDown(ink(), {
+      ...touch,
+      clientX: 10,
+      clientY: 10,
+      pointerId: 1,
+      isPrimary: true,
+    });
+    fireEvent.pointerMove(ink(), {
+      ...touch,
+      clientX: 30,
+      clientY: 30,
+      pointerId: 1,
+    });
+    fireEvent.pointerDown(ink(), {
+      ...touch,
+      clientX: 300,
+      clientY: 300,
+      pointerId: 2,
+      isPrimary: false,
+    });
+    fireEvent.pointerMove(ink(), {
+      ...touch,
+      clientX: 400,
+      clientY: 400,
+      pointerId: 2,
+    });
+    fireEvent.pointerUp(ink(), { ...touch, pointerId: 2 });
+    fireEvent.pointerUp(ink(), { ...touch, pointerId: 1 });
+    expect(recorder.push).not.toHaveBeenCalled();
+
+    fireEvent.pointerDown(ink(), {
+      ...touch,
+      clientX: 10,
+      clientY: 10,
+      pointerId: 3,
+      isPrimary: true,
+    });
+    fireEvent.pointerMove(ink(), {
+      ...touch,
+      clientX: 60,
+      clientY: 60,
+      pointerId: 3,
+    });
+    fireEvent.pointerUp(ink(), { ...touch, pointerId: 3 });
+    expect(recorder.push).toHaveBeenCalledTimes(1);
+  });
+
+  it('zooms the page view without logging anything', () => {
+    const recorder = makeRecorder();
+    render(<WhiteboardCanvas startingPage={PAGE} recorder={recorder} />);
+    const content = ink().parentElement as HTMLElement;
+    expect(content.style.width).toBe('100cqw');
+    expect(screen.getByRole('button', { name: 'Zoom out' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    expect(content.style.width).toBe('150cqw');
+    expect(content.style.height).toBe('150cqh');
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom in' }));
+    expect(content.style.width).toBe('300cqw');
+    expect(screen.getByRole('button', { name: 'Zoom in' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Fit page' }));
+    expect(content.style.width).toBe('100cqw');
+    expect(recorder.push).not.toHaveBeenCalled();
+  });
+
+  it('keeps zoom available while drawing is off', () => {
+    render(<WhiteboardCanvas startingPage={PAGE} disabled />);
+    expect(screen.getByRole('button', { name: 'Zoom in' })).toBeEnabled();
+  });
+
   it('object eraser removes touched ink but never an eraser stroke', () => {
     const recorder = makeRecorder();
     render(<WhiteboardCanvas startingPage={PAGE} recorder={recorder} />);
