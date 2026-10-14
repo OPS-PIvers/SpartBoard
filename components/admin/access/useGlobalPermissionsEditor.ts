@@ -83,6 +83,8 @@ export const useGlobalPermissionsEditor = () => {
   const editVersionsRef = useRef<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<Set<string>>(new Set());
+  // In-flight save count per feature, so overlapping saves keep it marked saving.
+  const inFlightRef = useRef<Map<string, number>>(new Map());
   const [unsavedChanges, setUnsavedChanges] = useState<Set<string>>(new Set());
 
   const showMessage = useCallback(
@@ -218,6 +220,10 @@ export const useGlobalPermissionsEditor = () => {
     extra?: Partial<GlobalFeaturePermission>,
     successText?: string
   ): Promise<boolean> => {
+    inFlightRef.current.set(
+      featureId,
+      (inFlightRef.current.get(featureId) ?? 0) + 1
+    );
     try {
       setSaving((prev) => new Set(prev).add(featureId));
       const versionAtSave = editVersionsRef.current.get(featureId) ?? 0;
@@ -288,11 +294,16 @@ export const useGlobalPermissionsEditor = () => {
       );
       return false;
     } finally {
-      setSaving((prev) => {
-        const next = new Set(prev);
-        next.delete(featureId);
-        return next;
-      });
+      const left = (inFlightRef.current.get(featureId) ?? 1) - 1;
+      if (left > 0) inFlightRef.current.set(featureId, left);
+      else {
+        inFlightRef.current.delete(featureId);
+        setSaving((prev) => {
+          const next = new Set(prev);
+          next.delete(featureId);
+          return next;
+        });
+      }
     }
   };
 
