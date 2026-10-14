@@ -380,10 +380,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
         });
 
         // Student picks fan out like the Quiz widget's stepper assign (D5b).
-        const payload = buildMixedTargetsPayload(
-          undefined,
-          stepperPlan.mixed
-        );
+        const payload = buildMixedTargetsPayload(undefined, stepperPlan.mixed);
         if (payloadRequiresCall(payload)) {
           try {
             const result = await setAssignmentTargets({

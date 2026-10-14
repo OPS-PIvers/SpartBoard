@@ -204,7 +204,13 @@ describe('VideoActivityManager assign stepper — make-up prefill', () => {
     {
       ...ROSTERS[0],
       students: [
-        { id: 'st-b', firstName: 'Bo', lastName: 'B', pin: '02', classLinkSourcedId: 'sid-b' },
+        {
+          id: 'st-b',
+          firstName: 'Bo',
+          lastName: 'B',
+          pin: '02',
+          classLinkSourcedId: 'sid-b',
+        },
       ],
     } as ClassRoster,
   ];
@@ -276,7 +282,7 @@ describe('VideoActivityManager — delete in progress assignment', () => {
         onDelete={vi.fn()}
         onAssign={vi.fn()}
         onResults={vi.fn()}
-          rosters={ROSTERS}
+        rosters={ROSTERS}
         assignments={[makeVaAssignment()]}
         assignmentsLoading={false}
         onArchiveDelete={onArchiveDelete}

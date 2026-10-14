@@ -141,9 +141,7 @@ describe('LtiDeepLinkPicker — assign stepper step bodies', () => {
     expect(
       screen.queryByRole('switch', { name: 'Allow submissions after close' })
     ).toBeNull();
-    fireEvent.click(
-      screen.getByRole('switch', { name: 'Shuffle questions' })
-    );
+    fireEvent.click(screen.getByRole('switch', { name: 'Shuffle questions' }));
     fireEvent.click(
       screen.getByRole('button', { name: /add quiz to schoology/i })
     );

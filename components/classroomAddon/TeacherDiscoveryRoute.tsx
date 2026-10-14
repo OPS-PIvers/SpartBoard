@@ -314,13 +314,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
             }
           ).targeting
         : assignTargeting,
-    [
-      windowOn,
-      assignWhen,
-      assignTargeting,
-      rosters,
-      addonSelectedRosterIds,
-    ]
+    [windowOn, assignWhen, assignTargeting, rosters, addonSelectedRosterIds]
   );
   // Full quiz content backing the per-student override editor (question
   // subset / MC-option hider). Loaded lazily on first expand, cached per quiz.

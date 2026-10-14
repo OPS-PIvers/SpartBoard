@@ -2566,49 +2566,46 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         />
       )}
 
-      {assignTarget &&
-        !isViewOnly &&
-        assignBehavior &&
-        assignWhen && (
-          <QuizAssignStepper
-            title={assignTarget.title}
-            rosters={rosters}
-            classes={{
-              classIds: assignOptions.picker.rosterIds,
-              studentsByClass: assignStudentsByClass,
-            }}
-            onClassesChange={(next) => {
-              setAssignOptions({
-                ...assignOptions,
-                picker: { ...assignOptions.picker, rosterIds: next.classIds },
-              });
-              setAssignStudentsByClass(next.studentsByClass);
-            }}
-            when={assignWhen}
-            onWhenChange={setAssignWhen}
-            behavior={assignBehavior}
-            onBehaviorChange={setAssignBehavior}
-            modifications={{
-              targeting: assignTargeting,
-              onTargetingChange: setAssignTargeting,
-              quizContext: assignQuizContext,
-            }}
-            sharing={{
-              value: assignOptions,
-              onChange: ({ plcMode, plcId }) =>
-                setAssignOptions({ ...assignOptions, plcMode, plcId }),
-              plcs,
-            }}
-            periodAccess={periodAccess}
-            hasManualGrading={quizNeedsManualGrading(
-              assignQuizData?.questions ?? []
-            )}
-            handRaiseMode={handRaiseMode}
-            submitLabel="Assign"
-            onClose={resetAssign}
-            onSubmit={handleStepperAssign}
-          />
-        )}
+      {assignTarget && !isViewOnly && assignBehavior && assignWhen && (
+        <QuizAssignStepper
+          title={assignTarget.title}
+          rosters={rosters}
+          classes={{
+            classIds: assignOptions.picker.rosterIds,
+            studentsByClass: assignStudentsByClass,
+          }}
+          onClassesChange={(next) => {
+            setAssignOptions({
+              ...assignOptions,
+              picker: { ...assignOptions.picker, rosterIds: next.classIds },
+            });
+            setAssignStudentsByClass(next.studentsByClass);
+          }}
+          when={assignWhen}
+          onWhenChange={setAssignWhen}
+          behavior={assignBehavior}
+          onBehaviorChange={setAssignBehavior}
+          modifications={{
+            targeting: assignTargeting,
+            onTargetingChange: setAssignTargeting,
+            quizContext: assignQuizContext,
+          }}
+          sharing={{
+            value: assignOptions,
+            onChange: ({ plcMode, plcId }) =>
+              setAssignOptions({ ...assignOptions, plcMode, plcId }),
+            plcs,
+          }}
+          periodAccess={periodAccess}
+          hasManualGrading={quizNeedsManualGrading(
+            assignQuizData?.questions ?? []
+          )}
+          handRaiseMode={handRaiseMode}
+          submitLabel="Assign"
+          onClose={resetAssign}
+          onSubmit={handleStepperAssign}
+        />
+      )}
 
       {viewOnlyShareTarget && (
         <ViewOnlyShareModal

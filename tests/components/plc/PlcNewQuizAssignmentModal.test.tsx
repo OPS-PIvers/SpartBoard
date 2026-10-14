@@ -404,8 +404,8 @@ describe('PlcNewQuizAssignmentModal on the Quiz stepper (D21)', () => {
     try {
       await renderAndPickQuiz();
       await act(async () => {
-      await props().onSubmit(undefined);
-    });
+        await props().onSubmit(undefined);
+      });
       await waitFor(() => {
         expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
       });
@@ -452,8 +452,8 @@ describe('PlcNewQuizAssignmentModal on the Quiz stepper (D21)', () => {
     try {
       await renderAndPickQuiz();
       await act(async () => {
-      await props().onSubmit(undefined);
-    });
+        await props().onSubmit(undefined);
+      });
       await waitFor(() => {
         expect(mockCreateAssignment).toHaveBeenCalledTimes(1);
       });

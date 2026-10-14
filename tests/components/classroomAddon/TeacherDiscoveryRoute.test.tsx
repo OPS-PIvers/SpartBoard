@@ -233,9 +233,7 @@ describe('ClassroomAddonTeacherSpike attach flow — assign step bodies', () => 
     expect(
       screen.queryByRole('switch', { name: 'Allow submissions after close' })
     ).toBeNull();
-    fireEvent.click(
-      screen.getByRole('switch', { name: 'Shuffle questions' })
-    );
+    fireEvent.click(screen.getByRole('switch', { name: 'Shuffle questions' }));
     fireEvent.click(screen.getByRole('button', { name: /attach quiz/i }));
     await waitFor(() => expect(createAssignment).toHaveBeenCalled());
     const call = createAssignment.mock.calls.at(-1) as unknown[];
@@ -260,17 +258,15 @@ describe('ClassroomAddonTeacherSpike attach flow — assign step bodies', () => 
       await screen.findByRole('option', { name: 'My Video Activity' })
     );
     expect(screen.getByRole('region', { name: 'When' })).toBeTruthy();
-    expect(
-      screen.queryByRole('region', { name: 'Quiz integrity' })
-    ).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Quiz integrity' })).toBeNull();
     fireEvent.click(screen.getByRole('switch', { name: 'Schedule' }));
     fireEvent.click(
       screen.getByRole('button', { name: /attach video activity/i })
     );
     await waitFor(() => expect(createVaAssignment).toHaveBeenCalled());
-    const settings = (
-      createVaAssignment.mock.calls.at(-1) as unknown[]
-    )[1] as { sessionOptions: { dueAt?: number } };
+    const settings = (createVaAssignment.mock.calls.at(-1) as unknown[])[1] as {
+      sessionOptions: { dueAt?: number };
+    };
     expect(typeof settings.sessionOptions.dueAt).toBe('number');
   });
 });

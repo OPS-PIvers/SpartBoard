@@ -55,9 +55,7 @@ import { getPlcMemberEmails, getPlcTeammateEmails } from '@/utils/plc';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { logError } from '@/utils/logError';
-import {
-  getVideoActivityBehavior,
-} from '@/utils/videoActivityBehavior';
+import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
 import {
   PlcSharePickerModal,
   type PlcSharePickerItem,
@@ -362,13 +360,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
         status: 'active',
       });
       batch.update(
-        doc(
-          db,
-          'users',
-          user.uid,
-          'video_activity_assignments',
-          assignmentId
-        ),
+        doc(db, 'users', user.uid, 'video_activity_assignments', assignmentId),
         { ...fields, status: 'active', updatedAt: Date.now() }
       );
       await batch.commit();
@@ -534,10 +526,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
           ? t('plcDashboard.newAssignment.sharing.sheetUrlInvalid', {
               defaultValue: "This doesn't look like a Google Sheets URL.",
             })
-          : t(
-              'assignAvailability.closesBeforeOpens',
-              'Closes before it opens.'
-            )
+          : t('assignAvailability.closesBeforeOpens', 'Closes before it opens.')
       }
     />
   );
