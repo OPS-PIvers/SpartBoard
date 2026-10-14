@@ -378,8 +378,17 @@ export function useWhiteboardRecording(
       const t0 = deps.now();
       startedAtRef.current = t0;
       logSink.start(t0);
+      try {
+        recorder?.start(WHITEBOARD_CHUNK_MS);
+      } catch {
+        // A recorder that won't start leaves a drawing-only take.
+        recorder = null;
+        stream?.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        micStateRef.current = 'unavailable';
+        setMicState('unavailable');
+      }
       recorderRef.current = recorder;
-      recorder?.start(WHITEBOARD_CHUNK_MS);
       optionsRef.current.onStarted?.({
         mimeType: recorder ? chunkMime : '',
         micState: micStateRef.current,

@@ -171,6 +171,29 @@ describe('useWhiteboardRecording', () => {
     });
   });
 
+  it('a recorder that will not start still records the drawing', async () => {
+    const deps = makeDeps({
+      createRecorder: vi.fn(() => {
+        const r = new FakeRecorder();
+        r.start = () => {
+          throw new DOMException('no', 'NotSupportedError');
+        };
+        return r as unknown as MediaRecorder;
+      }),
+    });
+    const { hook, onTakeReady } = setup(config(), deps);
+    await act(() => hook.result.current.start());
+    expect(hook.result.current.phase).toBe('recording');
+    expect(hook.result.current.micState).toBe('unavailable');
+    await act(async () => {
+      await hook.result.current.stop();
+    });
+    expect(onTakeReady.mock.calls[0][0]).toMatchObject({
+      audio: null,
+      micState: 'unavailable',
+    });
+  });
+
   it('classifies mic errors', () => {
     expect(micStateFromError(new DOMException('', 'NotAllowedError'))).toBe(
       'denied'
