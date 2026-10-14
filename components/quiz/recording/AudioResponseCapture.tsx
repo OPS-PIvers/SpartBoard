@@ -111,7 +111,7 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
 
   const acknowledged = !noticeRequired || noticeAckedAt !== null;
   // Every recording is an attempt; a redo throws the last one away (Paul 2026-10-14).
-  const [redos, addRedo] = useRedoCount(recovery?.key);
+  const [redos, addRedo] = useRedoCount(recovery?.key, takesCommitted);
   const attemptsUsed = takesCommitted + redos;
   const remaining = takesRemaining(config, attemptsUsed);
   const takeBudgetReached = remaining !== null && remaining <= 0;
