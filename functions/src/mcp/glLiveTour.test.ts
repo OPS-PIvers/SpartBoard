@@ -430,31 +430,30 @@ describe('connector v2 setup and checks', () => {
     ).toThrow('slot 0 is used twice');
   });
 
-  it('shows the full setup and only the fields update_live_tour takes back', () => {
-    const view = liveTourView(
-      {
-        id: 't',
-        title: 'Tour',
-        imageUrls: [],
-        mode: 'tour',
-        updatedAt: 1,
-        steps: [step('a', 'board.whole')],
-        tourSetup: {
-          widgets: ['clock'],
-          useTeacherBoard: true,
-          materials: [
-            {
-              id: 'm1',
-              kind: 'quiz',
-              source: 'sample',
-              label: 'A quiz',
-              sample: { meta: {}, data: {}, fromId: 'q1', title: 'Fractions' },
-            },
-          ],
+  const sampleTour = (): Parameters<typeof liveTourView>[0] => ({
+    id: 't',
+    title: 'Tour',
+    imageUrls: [],
+    mode: 'tour',
+    updatedAt: 1,
+    steps: [step('a', 'board.whole')],
+    tourSetup: {
+      widgets: ['clock'],
+      useTeacherBoard: true,
+      materials: [
+        {
+          id: 'm1',
+          kind: 'quiz',
+          source: 'sample',
+          label: 'A quiz',
+          sample: { meta: {}, data: {}, fromId: 'q1', title: 'Fractions' },
         },
-      },
-      null
-    );
+      ],
+    },
+  });
+
+  it('shows the full setup and only the fields update_live_tour takes back', () => {
+    const view = liveTourView(sampleTour(), null);
     expect(view).toMatchObject({
       tour_widgets: ['clock'],
       use_teacher_board: true,
@@ -471,5 +470,14 @@ describe('connector v2 setup and checks', () => {
     });
     expect(view.steps[0]).not.toHaveProperty('interactionType');
     expect(view.steps[0]).not.toHaveProperty('imageIndex');
+    expect(view.materials?.[0]).not.toHaveProperty('sample');
+  });
+
+  it('keeps sample content for a browser run', () => {
+    const view = liveTourView(sampleTour(), null, new Map(), true);
+    expect(view.materials?.[0]).toMatchObject({
+      id: 'm1',
+      sample: { fromId: 'q1', title: 'Fractions' },
+    });
   });
 });
