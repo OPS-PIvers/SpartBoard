@@ -2599,6 +2599,17 @@
       "lost": "Your recording could not be saved and can no longer be recovered. Your teacher can see that you recorded an answer.",
       "commentsHint": "Tap a comment to jump to that moment.",
       "scorePending": "Your score is being prepared. Check back soon."
+    },
+    "whiteboardPlayback": {
+      "label": "Your whiteboard answer",
+      "show": "Show your whiteboard",
+      "loading": "Loading your whiteboard…",
+      "error": "Your whiteboard did not load.",
+      "archiving": "Your whiteboard is still being saved. Check back in a few minutes.",
+      "deleted": "This whiteboard answer has been deleted and can no longer be shown.",
+      "lost": "Your whiteboard could not be saved and can no longer be recovered. Your teacher can see that you answered.",
+      "missing": "There is no whiteboard saved for this question.",
+      "tooLarge": "This whiteboard is too large to show here. Ask your teacher to show it to you."
     }
   },
   "annotation": {

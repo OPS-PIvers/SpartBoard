@@ -67,6 +67,10 @@ export const RESULTS_PLAYBACK_STATES = [
   'failed',
   'deleted',
   'provisional',
+  'wb-show',
+  'wb-ready',
+  'wb-archiving',
+  'wb-deleted',
 ] as const;
 export type ResultsPlaybackStateKey = (typeof RESULTS_PLAYBACK_STATES)[number];
 
