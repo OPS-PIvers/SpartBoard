@@ -18,16 +18,17 @@ vi.mock('@/utils/whiteboard/startingPage', async (importOriginal) => ({
 
 const PAGE: WhiteboardStartingPage = { pattern: { kind: 'grid' } };
 
-const ctxStub = () =>
-  new Proxy(
-    { canvas: { width: 0, height: 0 } },
-    {
-      get: (target, key): unknown => {
-        if (!(key in target)) target[key] = vi.fn();
-        return target[key];
-      },
-    }
-  );
+const ctxStub = () => {
+  const target: Record<string | symbol, unknown> = {
+    canvas: { width: 0, height: 0 },
+  };
+  return new Proxy(target, {
+    get: (t, key): unknown => {
+      if (!(key in t)) t[key] = vi.fn();
+      return t[key];
+    },
+  });
+};
 
 const makeRecorder = () => ({
   push: vi.fn<WhiteboardCaptureSink['push']>(),
