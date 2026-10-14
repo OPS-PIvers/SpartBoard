@@ -88,6 +88,7 @@ import {
   SHUFFLED_BEHAVIOR,
   type VersionImportBuild,
 } from '@/utils/quizDocumentImport/versionPlan';
+import { saveRubricDoc } from '@/hooks/useRubrics';
 import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
@@ -565,6 +566,12 @@ const TeacherQuizWidget: React.FC<{
   // One folder holds the bank and every generated quiz, pictures already uploaded (QUIZ_IMPORT_VERSIONS V6).
   const saveVersionImport = useCallback(
     async (ready: VersionImportBuild) => {
+      if (ready.rubrics.length > 0) {
+        const uid = user?.uid;
+        if (!uid) throw new Error('Not authenticated');
+        // Rubrics first, so every attached snapshot points at a saved library rubric (V15).
+        for (const rubric of ready.rubrics) await saveRubricDoc(uid, rubric);
+      }
       const folderId = await createQuizFolder(ready.folderTitle, null);
       if (ready.bank) {
         await saveBank(ready.bank);
@@ -580,6 +587,7 @@ const TeacherQuizWidget: React.FC<{
       }
     },
     [
+      user?.uid,
       createQuizFolder,
       saveBank,
       moveBankToLibraryFolder,
@@ -1835,6 +1843,7 @@ const TeacherQuizWidget: React.FC<{
         ? {
             importVersions: true,
             saveVersionImport,
+            rubricScoringGuides: canAccessFeature('rubric-scoring-guides'),
             ...(canUseAiReader
               ? { aiExtractVersions: extractTestSetFromDocument }
               : {}),

@@ -142,6 +142,8 @@ export interface QuizImportAdapterDeps {
   aiExtractVersions?: AiExtractVersionsFn;
   /** Creates the folder, bank and quizzes a version review settled on, pictures already attached (V6). */
   saveVersionImport?: (build: VersionImportBuild) => Promise<void>;
+  /** `rubric-scoring-guides` is on, so imported rubric rows keep guide text in the guide (V26). */
+  rubricScoringGuides?: boolean;
 }
 
 const DRIVE_ACCESS_ERROR =
@@ -559,6 +561,7 @@ export function createQuizImportAdapter(
           throw new Error('Versions can’t be saved here.');
         const build = buildVersionImport(versioned.set, versioned.plan, {
           folderTitle: title,
+          rubrics: { scoringGuides: deps.rubricScoringGuides === true },
         });
         const upload = deps.attachDocumentImages;
         await deps.saveVersionImport(

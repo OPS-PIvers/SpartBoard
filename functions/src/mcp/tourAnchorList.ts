@@ -8680,6 +8680,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-import.versions-rubric",
+    "label": "Rubric for a version select in Quiz import versions, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.import",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-2"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-import.versions-picture-link",
     "label": "Unlink or link a shared picture in Quiz import versions, by item",
     "scope": "field",

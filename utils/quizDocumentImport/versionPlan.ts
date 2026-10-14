@@ -2,6 +2,7 @@
 import { DEFAULT_QUIZ_BEHAVIOR } from '@/utils/quizBehavior';
 import type {
   QuizBehaviorSettings,
+  Rubric,
   QuestionBankData,
   QuizBankSlot,
   QuizData,
@@ -9,6 +10,13 @@ import type {
   QuizQuestion,
   QuizSection,
 } from '@/types';
+import {
+  pairRubricsByOrder,
+  planImportedRubrics,
+  type RubricImportOptions,
+  type RubricPairing,
+  type RubricSource,
+} from './rubricImport';
 import { toQuizQuestion } from './toQuizData';
 import type {
   ExtractedQuestion,
@@ -36,6 +44,8 @@ export interface VersionPlan {
   groups: PlanGroup[];
   /** Image id to the earlier identical image it shares; unlinked ones are removed. */
   sharedImages: Record<string, string>;
+  /** Rubric index (or null for none) by a pairing unit's first version; units not listed have none (V14). */
+  rubricFor?: Record<string, number | null>;
 }
 
 const normalize = (text: string): string =>
@@ -159,8 +169,53 @@ export function initialVersionPlan(set: ImportedTestSet): VersionPlan {
       create: true,
     });
   }
-  return { groups, sharedImages: { ...set.sharedImages } };
+  const byOrder = pairRubricsByOrder(set);
+  const rubricFor = Object.fromEntries(
+    byOrder.units.map((u, i) => [String(u.versions[0]), byOrder.rubricFor[i]])
+  );
+  return { groups, sharedImages: { ...set.sharedImages }, rubricFor };
 }
+
+/** The set as rubrics see it: the plan's split quizzes are the units that share one rubric (V10). */
+export const rubricSourceFor = (
+  set: ImportedTestSet,
+  plan: VersionPlan
+): RubricSource => ({
+  ...set,
+  groups: plan.groups
+    .filter((g) => g.kind === 'split')
+    .map((g) => ({
+      kind: 'split' as const,
+      name: g.name,
+      versions: g.versions,
+    })),
+});
+
+/** The review's current pairs; the counts compare versions as rubrics count them (V14). */
+export function planPairing(
+  set: ImportedTestSet,
+  plan: VersionPlan
+): RubricPairing {
+  const base = pairRubricsByOrder(rubricSourceFor(set, plan));
+  const chosen = plan.rubricFor ?? {};
+  return {
+    ...base,
+    rubricFor: base.units.map((u) => {
+      const r = chosen[String(u.versions[0])];
+      return r === undefined || (r !== null && !set.rubrics[r]) ? null : r;
+    }),
+  };
+}
+
+/** The reassign dropdown: one version (or split) gets another rubric, or none. */
+export const setVersionRubric = (
+  plan: VersionPlan,
+  firstVersion: number,
+  rubric: number | null
+): VersionPlan => ({
+  ...plan,
+  rubricFor: { ...plan.rubricFor, [String(firstVersion)]: rubric },
+});
 
 /** A duplicate group whose members stopped being reorders goes back to parallel. */
 function settle(set: ImportedTestSet, groups: PlanGroup[]): PlanGroup[] {
@@ -325,6 +380,35 @@ export interface VersionImportBuild {
   /** Null when every version became a shuffled copy. */
   bank: QuestionBankData | null;
   quizzes: PlannedQuiz[];
+  /** Saved to the Rubrics library before the quizzes that carry their snapshots (V15). */
+  rubrics: Rubric[];
+}
+
+/** Each version's questions with its paired rubric on its one written question (V2, V15). */
+function attachRubrics(
+  set: ImportedTestSet,
+  plan: VersionPlan,
+  byVersion: QuizQuestion[][],
+  folderTitle: string,
+  opts: RubricImportOptions
+): Rubric[] {
+  const plans = planImportedRubrics(
+    rubricSourceFor(set, plan),
+    planPairing(set, plan),
+    folderTitle,
+    opts
+  );
+  for (const { attachments } of plans) {
+    for (const { versionIndex, fields } of attachments) {
+      const questions = byVersion[versionIndex] ?? [];
+      const written = questions.filter((q) => q.type === 'free-response');
+      if (written.length !== 1) continue;
+      byVersion[versionIndex] = questions.map((q) =>
+        q === written[0] ? { ...q, ...fields } : q
+      );
+    }
+  }
+  return plans.map((p) => p.libraryRubric);
 }
 
 const copyQuestion = (q: QuizQuestion): QuizQuestion => ({
@@ -336,13 +420,24 @@ const copyQuestion = (q: QuizQuestion): QuizQuestion => ({
 export function buildVersionImport(
   set: ImportedTestSet,
   plan: VersionPlan,
-  options: { folderTitle: string; now?: number }
+  options: {
+    folderTitle: string;
+    now?: number;
+    /** Leave out to import no rubrics. */
+    rubrics?: RubricImportOptions;
+  }
 ): VersionImportBuild {
   const now = options.now ?? Date.now();
   const folderTitle = options.folderTitle.trim() || set.fileTitle;
   const byVersion = set.versions.map((v) =>
     versionQuestions(v, plan.sharedImages)
   );
+  const rubrics = options.rubrics
+    ? attachRubrics(set, plan, byVersion, folderTitle, {
+        now,
+        ...options.rubrics,
+      })
+    : [];
   const copies = new Set(
     plan.groups
       .filter((g) => g.kind === 'duplicate' && g.create)
@@ -445,7 +540,7 @@ export function buildVersionImport(
       });
     }
   }
-  return { folderTitle, bank, quizzes };
+  return { folderTitle, bank, quizzes, rubrics };
 }
 
 /** Uploads every picture once, then hands each item only the stimuli its questions use. */

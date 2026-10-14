@@ -2069,6 +2069,11 @@ export const TOUR_ANCHORS = {
     perField: true,
     panel: true,
   },
+  'quiz-import.versions-rubric': {
+    label: 'Rubric for a version select in Quiz import versions, by item',
+    perField: true,
+    panel: true,
+  },
   'quiz-import.versions-picture-link': {
     label: 'Unlink or link a shared picture in Quiz import versions, by item',
     perField: true,
