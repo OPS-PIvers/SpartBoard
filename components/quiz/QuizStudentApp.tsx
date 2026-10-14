@@ -889,13 +889,19 @@ const QuizJoinFlow: React.FC<{
       await (opts ? completeQuiz(opts) : completeQuiz());
       const sessionId = session?.id;
       const responseKey = myResponse?._responseKey;
-      if (sessionId && responseKey) {
+      if (sessionId && responseKey && session?.mediaResponseEnabled === true) {
         void defaultTakeRecoveryStore()
           .removeForResponse(sessionId, responseKey)
           .catch(() => undefined);
       }
     },
-    [completeQuiz, isViewOnly, myResponse?._responseKey, session?.id]
+    [
+      completeQuiz,
+      isViewOnly,
+      myResponse?._responseKey,
+      session?.id,
+      session?.mediaResponseEnabled,
+    ]
   );
 
   // Tennessen acknowledgment. localStorage is the once-per-device fast path;
@@ -1547,7 +1553,7 @@ const QuizJoinFlow: React.FC<{
 
     return (
       <RecordingNoticeDrawingContext.Provider
-        value={noticeDrawingForSession(session, session.publicQuestions)}
+        value={noticeDrawingForSession(session, session.publicQuestions ?? [])}
       >
         <ActiveQuiz
           session={session}
@@ -2219,7 +2225,9 @@ export const ActiveQuiz: React.FC<{
   const recoveryResponseKey = myResponse?._responseKey;
   const takeRecovery = useMemo(
     () =>
-      recoveryQuestionId && recoveryResponseKey
+      recoveryQuestionId &&
+      recoveryResponseKey &&
+      session.mediaResponseEnabled === true
         ? {
             store: defaultTakeRecoveryStore(),
             key: takeRecoveryKey({
@@ -2229,7 +2237,12 @@ export const ActiveQuiz: React.FC<{
             }),
           }
         : undefined,
-    [recoveryQuestionId, recoveryResponseKey, session.id]
+    [
+      recoveryQuestionId,
+      recoveryResponseKey,
+      session.id,
+      session.mediaResponseEnabled,
+    ]
   );
   const handleStimulusPlayCompleted = useCallback(
     (stimulusId: string) => {
@@ -5688,7 +5701,9 @@ export const PublishedScoreReview: React.FC<{
                                   : undefined
                               }
                               light={light}
-                              whiteboardEnabled
+                              whiteboardEnabled={
+                                session.whiteboardResponseEnabled === true
+                              }
                               startingPage={q.recording?.startingPage}
                             />
                           )}
