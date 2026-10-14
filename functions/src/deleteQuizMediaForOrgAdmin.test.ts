@@ -67,6 +67,7 @@ import {
   buildQuestionTextMap,
   buildRowsForResponse,
   callerEmailFrom,
+  aggregateTakeStatus,
   collectQuestionArtifacts,
   deleteOrgQuizMediaSets,
   finishStuckMediaDelete,
@@ -1198,9 +1199,18 @@ describe('handwriting crops', () => {
     expect(rows[0]?.takes).toEqual([
       {
         artifactId: 'h1',
+        takeIndex: 0,
         kind: 'handwriting',
         archiveStatus: 'awaiting-drive',
         hasStorageObject: true,
+        files: [
+          {
+            artifactId: 'h1',
+            kind: 'handwriting',
+            archiveStatus: 'awaiting-drive',
+            hasStorageObject: true,
+          },
+        ],
       },
     ]);
   });
@@ -1235,5 +1245,176 @@ describe('handwriting crops', () => {
       deps
     );
     expect(deps.deleteStorageObject).not.toHaveBeenCalled();
+  });
+});
+
+describe('whiteboard takes (D21)', () => {
+  let db: FakeStore;
+  const wbPath = (id: string) => `quiz_response_media/s1/r1/${id}.json`;
+  beforeEach(() => {
+    db = createFakeDb();
+    seedOrg(db);
+    seedResponse(db, {
+      answers: [
+        {
+          questionId: 'q1',
+          takeIndex: 1,
+          artifacts: [
+            { id: 'w1-audio', kind: 'audio', slot: 'primary' },
+            {
+              id: 'w1-pic',
+              kind: 'whiteboard',
+              part: 'picture',
+              slot: 'primary',
+            },
+            { id: 'w1-log', kind: 'whiteboard', part: 'log', slot: 'primary' },
+          ],
+        },
+        {
+          questionId: 'q1',
+          takeIndex: 2,
+          artifacts: [
+            {
+              id: 'w2-pic',
+              kind: 'whiteboard',
+              part: 'picture',
+              slot: 'primary',
+            },
+            {
+              id: 'w2-log',
+              kind: 'whiteboard',
+              part: 'log',
+              slot: 'primary',
+              storagePath: wbPath('w2-log'),
+            },
+          ],
+        },
+      ],
+      artifactArchive: {
+        'w1-audio': {
+          archiveStatus: 'archived',
+          driveFileId: 'd-w1a',
+          archivedAt: 10,
+        },
+        'w1-pic': {
+          archiveStatus: 'archived',
+          driveFileId: 'd-w1p',
+          archivedAt: 11,
+        },
+        'w1-log': {
+          archiveStatus: 'archived',
+          driveFileId: 'd-w1l',
+          archivedAt: 12,
+        },
+        'w2-pic': {
+          archiveStatus: 'archived',
+          driveFileId: 'd-w2p',
+          archivedAt: 20,
+        },
+        'w2-log': { archiveStatus: 'syncing' },
+      },
+    });
+  });
+
+  it('lists each take as one row however many files it has', async () => {
+    const { rows } = await listOrgQuizMedia(
+      { orgId: ORG },
+      { db: asFirestore(db) }
+    );
+    const takes = rows[0]?.takes ?? [];
+    expect(takes).toHaveLength(2);
+    expect(takes[0]).toMatchObject({
+      artifactId: 'w1-audio',
+      takeIndex: 1,
+      kind: 'whiteboard',
+      archiveStatus: 'archived',
+      archivedAt: 12,
+    });
+    expect(takes[0]?.files.map((f) => f.part ?? f.kind)).toEqual([
+      'audio',
+      'picture',
+      'log',
+    ]);
+    // The unsettled log decides the take's status and keeps its transit object visible.
+    expect(takes[1]).toMatchObject({
+      takeIndex: 2,
+      archiveStatus: 'syncing',
+      hasStorageObject: true,
+    });
+  });
+
+  it('deletes every file of every take from Drive and Storage together', async () => {
+    const deps = makeDeps(db);
+    const { results } = await deleteOrgQuizMediaSets(
+      {
+        orgId: ORG,
+        targets: [{ sessionId: 's1', responseKey: 'r1', questionId: 'q1' }],
+        deletedBy: 'admin-uid',
+      },
+      deps
+    );
+    expect(results.map((r) => [r.artifactId, r.status])).toEqual([
+      ['w1-audio', 'deleted'],
+      ['w1-pic', 'deleted'],
+      ['w1-log', 'deleted'],
+      ['w2-pic', 'deleted'],
+      ['w2-log', 'deleted'],
+    ]);
+    expect(deps.deleteDriveFile).toHaveBeenCalledTimes(4);
+    expect(deps.deleteStorageObject).toHaveBeenCalledWith(wbPath('w2-log'));
+  });
+
+  it('a failed file leaves its take retryable, and a retry finishes it', async () => {
+    const failing = makeDeps(db, {
+      deleteDriveFile: vi.fn((_t: string, id: string) =>
+        id === 'd-w1p' ? Promise.reject(new Error('boom')) : Promise.resolve()
+      ),
+    });
+    const target = { sessionId: 's1', responseKey: 'r1', questionId: 'q1' };
+    await deleteOrgQuizMediaSets(
+      { orgId: ORG, targets: [target], deletedBy: 'admin-uid' },
+      failing
+    );
+    let { rows } = await listOrgQuizMedia(
+      { orgId: ORG },
+      { db: asFirestore(db) }
+    );
+    expect(rows[0]?.takes[0]).toMatchObject({
+      archiveStatus: 'delete-failed',
+      driveFileId: 'd-w1p',
+    });
+    expect(rows[0]?.takes[1]?.archiveStatus).toBe('deleted');
+
+    const retry = makeDeps(db);
+    const { results } = await deleteOrgQuizMediaSets(
+      { orgId: ORG, targets: [target], deletedBy: 'admin-uid' },
+      retry
+    );
+    expect(results.find((r) => r.artifactId === 'w1-pic')?.status).toBe(
+      'deleted'
+    );
+    expect(retry.deleteDriveFile).toHaveBeenCalledTimes(1);
+    ({ rows } = await listOrgQuizMedia(
+      { orgId: ORG },
+      { db: asFirestore(db) }
+    ));
+    expect(rows[0]?.takes.map((t) => t.archiveStatus)).toEqual([
+      'deleted',
+      'deleted',
+    ]);
+  });
+});
+
+describe('aggregateTakeStatus', () => {
+  it('reads as the least-settled file', () => {
+    expect(aggregateTakeStatus(['archived', 'deleted'])).toBe('archived');
+    expect(aggregateTakeStatus(['deleted', 'delete-failed'])).toBe(
+      'delete-failed'
+    );
+    expect(aggregateTakeStatus(['archived', 'awaiting-drive'])).toBe(
+      'awaiting-drive'
+    );
+    expect(aggregateTakeStatus(['deleted', 'deleted'])).toBe('deleted');
+    expect(aggregateTakeStatus([])).toBe('syncing');
   });
 });
