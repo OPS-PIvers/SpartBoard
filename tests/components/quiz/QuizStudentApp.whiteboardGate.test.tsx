@@ -78,6 +78,7 @@ vi.mock('@/hooks/useQuizSession', () => ({
 }));
 
 import { QuizStudentApp } from '@/components/quiz/QuizStudentApp';
+import { isRecordingSlotClosed } from '@/utils/answerTakeOrdering';
 
 const WHITEBOARD_QUESTION: QuizPublicQuestion = {
   id: 'q1',
@@ -197,6 +198,32 @@ describe('QuizStudentApp — whiteboard gate', () => {
     ).toBeInTheDocument();
     await waitFor(() =>
       expect(spies.markUnresponded).toHaveBeenCalledWith('q1', 'device-gated')
+    );
+  });
+
+  it('keeps the slot open after rotating back from a device-gated marker', async () => {
+    hookState.session = buildSession({ whiteboardResponseEnabled: true });
+    hookState.myResponse = buildResponse({
+      answers: [
+        {
+          questionId: 'q1',
+          answer: '',
+          answeredAt: 1700000001000,
+          status: 'submitted',
+          unresponded: 'device-gated',
+        },
+      ],
+    });
+    render(<QuizStudentApp />);
+
+    expect(
+      await screen.findByRole('button', { name: 'Show materials' })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText('Turn your device sideways')
+    ).not.toBeInTheDocument();
+    expect(isRecordingSlotClosed(hookState.myResponse.answers, 'q1')).toBe(
+      false
     );
   });
 
