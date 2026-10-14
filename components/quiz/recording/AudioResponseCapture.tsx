@@ -198,7 +198,7 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
     stopRef.current = recorder.stop;
   });
   useEffect(() => {
-    if (phase !== 'reviewing') return;
+    if (phase === 'recording') return;
     takeStoppedRef.current?.();
     takeStoppedRef.current = null;
   }, [phase]);
