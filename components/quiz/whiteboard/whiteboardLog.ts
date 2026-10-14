@@ -4,34 +4,26 @@ import {
   type DrawingCommand,
 } from '@/components/widgets/DrawingWidget/commands';
 
+import {
+  WHITEBOARD_LOG_BUDGET_BYTES,
+  WHITEBOARD_PAGE,
+  type WhiteboardLog,
+  type WhiteboardLogCommand,
+  type WhiteboardLogEntry,
+  type WhiteboardLogEvent,
+} from './whiteboardLogTypes';
+
+export {
+  WHITEBOARD_LOG_BUDGET_BYTES,
+  WHITEBOARD_PAGE,
+  type WhiteboardLog,
+  type WhiteboardLogCommand,
+  type WhiteboardLogEvent,
+};
+
 // Whiteboard capture log (plan D14, C1): uncapped, separate from the 100-deep undo stack.
 
-export const WHITEBOARD_LOG_VERSION = 1;
-export const WHITEBOARD_PAGE = { w: 1600, h: 1200 } as const;
-export const WHITEBOARD_LOG_BUDGET_BYTES = 4 * 1024 * 1024;
-
-// Compact logged command. Snapshots the replay can rebuild (remove, update before, clear, bulkRemove) are stored as ids.
-export type WhiteboardLogCommand =
-  | { k: 'add'; o: DrawableObject; pt?: number[] }
-  | { k: 'remove'; id: string }
-  | { k: 'update'; o: DrawableObject }
-  | { k: 'reorder'; id: string; z: number }
-  | { k: 'clear' }
-  | { k: 'bulkRemove'; ids: string[] }
-  | { k: 'undo' }
-  | { k: 'redo' };
-
-export interface WhiteboardLogEvent {
-  t: number;
-  cmd: WhiteboardLogCommand;
-}
-
-export interface WhiteboardLog {
-  v: typeof WHITEBOARD_LOG_VERSION;
-  page: { w: number; h: number };
-  startingPageId: string;
-  events: WhiteboardLogEvent[];
-}
+const WHITEBOARD_LOG_VERSION = 1;
 
 const MIN_POINT_DISTANCE = 1;
 
@@ -115,12 +107,12 @@ export const createWhiteboardLogRecorder = ({
   let bytes = headerBytes(startingPageId);
   let budgetReached = false;
 
-  const record = (cmd: WhiteboardLogCommand, at?: number) => {
+  const record = (entry: WhiteboardLogEntry, at?: number) => {
     if (t0 === null) return;
     const raw = Math.round((at ?? now()) - t0);
     const t = Math.max(lastT, raw, 0);
     lastT = t;
-    const event: WhiteboardLogEvent = { t, cmd };
+    const event: WhiteboardLogEvent = { ...entry, t };
     events.push(event);
     bytes += JSON.stringify(event).length + 1;
     if (!budgetReached && bytes >= budgetBytes) {
@@ -128,6 +120,9 @@ export const createWhiteboardLogRecorder = ({
       onBudgetReached?.();
     }
   };
+
+  const recordDo = (cmd: WhiteboardLogCommand, at?: number) =>
+    record({ op: 'do', cmd }, at);
 
   return {
     start: (startAt) => {
@@ -150,34 +145,37 @@ export const createWhiteboardLogRecorder = ({
             times.length > 0
           ) {
             const first = times[0];
-            const pt = kept.map((i) =>
+            const pointTimes = kept.map((i) =>
               Math.max(0, Math.round(times[i] - first))
             );
-            record({ k: 'add', o: obj, pt }, first);
+            recordDo({ kind: 'add', object: obj, pointTimes }, first);
           } else {
-            record({ k: 'add', o: obj });
+            recordDo({ kind: 'add', object: obj });
           }
           return;
         }
         case 'remove':
-          record({ k: 'remove', id: cmd.object.id });
+          recordDo({ kind: 'remove', id: cmd.object.id });
           return;
         case 'update':
-          record({ k: 'update', o: thinObject(cmd.after).obj });
+          recordDo({ kind: 'update', after: thinObject(cmd.after).obj });
           return;
         case 'reorder':
-          record({ k: 'reorder', id: cmd.objectId, z: cmd.toZ });
+          recordDo({ kind: 'reorder', id: cmd.objectId, toZ: cmd.toZ });
           return;
         case 'clear':
-          record({ k: 'clear' });
+          recordDo({ kind: 'clear' });
           return;
         case 'bulkRemove':
-          record({ k: 'bulkRemove', ids: cmd.objects.map((o) => o.id) });
+          recordDo({
+            kind: 'bulkRemove',
+            ids: cmd.objects.map((o) => o.id),
+          });
           return;
       }
     },
-    undo: () => record({ k: 'undo' }),
-    redo: () => record({ k: 'redo' }),
+    undo: () => record({ op: 'undo' }),
+    redo: () => record({ op: 'redo' }),
     get started() {
       return t0 !== null;
     },
@@ -189,7 +187,7 @@ export const createWhiteboardLogRecorder = ({
     },
     toLog: () => ({
       v: WHITEBOARD_LOG_VERSION,
-      page: { ...WHITEBOARD_PAGE },
+      page: WHITEBOARD_PAGE,
       startingPageId,
       events: [...events],
     }),
@@ -197,8 +195,8 @@ export const createWhiteboardLogRecorder = ({
 };
 
 const eventEnd = (e: WhiteboardLogEvent): number =>
-  e.cmd.k === 'add' && e.cmd.pt?.length
-    ? e.t + e.cmd.pt[e.cmd.pt.length - 1]
+  e.op === 'do' && e.cmd.kind === 'add' && e.cmd.pointTimes?.length
+    ? e.t + e.cmd.pointTimes[e.cmd.pointTimes.length - 1]
     : e.t;
 
 /** Time the last stroke finishes drawing, in ms from the start of the take. */
@@ -220,23 +218,23 @@ interface ReplayState {
 // Rebuilds the full DrawingCommand from the compact form against the replay's current objects.
 const hydrate = (
   objects: readonly DrawableObject[],
-  cmd: Exclude<WhiteboardLogCommand, { k: 'undo' } | { k: 'redo' }>
+  cmd: WhiteboardLogCommand
 ): DrawingCommand | null => {
-  switch (cmd.k) {
+  switch (cmd.kind) {
     case 'add':
-      return { kind: 'add', object: cmd.o };
+      return { kind: 'add', object: cmd.object };
     case 'remove': {
       const object = objects.find((o) => o.id === cmd.id);
       return object ? { kind: 'remove', object } : null;
     }
     case 'update': {
-      const before = objects.find((o) => o.id === cmd.o.id);
-      return before ? { kind: 'update', before, after: cmd.o } : null;
+      const before = objects.find((o) => o.id === cmd.after.id);
+      return before ? { kind: 'update', before, after: cmd.after } : null;
     }
     case 'reorder': {
       const target = objects.find((o) => o.id === cmd.id);
       return target
-        ? { kind: 'reorder', objectId: cmd.id, fromZ: target.z, toZ: cmd.z }
+        ? { kind: 'reorder', objectId: cmd.id, fromZ: target.z, toZ: cmd.toZ }
         : null;
     }
     case 'clear':
@@ -252,9 +250,8 @@ const hydrate = (
 };
 
 const step = (state: ReplayState, event: WhiteboardLogEvent): ReplayState => {
-  const { cmd } = event;
   const index = state.index + 1;
-  if (cmd.k === 'undo') {
+  if (event.op === 'undo') {
     if (!state.past) return { ...state, index };
     const last = state.past.cmd;
     return {
@@ -264,7 +261,7 @@ const step = (state: ReplayState, event: WhiteboardLogEvent): ReplayState => {
       future: { cmd: last, rest: state.future },
     };
   }
-  if (cmd.k === 'redo') {
+  if (event.op === 'redo') {
     if (!state.future) return { ...state, index };
     const next = state.future.cmd;
     return {
@@ -274,7 +271,7 @@ const step = (state: ReplayState, event: WhiteboardLogEvent): ReplayState => {
       future: state.future.rest,
     };
   }
-  const full = hydrate(state.objects, cmd);
+  const full = hydrate(state.objects, event.cmd);
   if (!full) return { ...state, index };
   return {
     index,
@@ -337,13 +334,14 @@ export const createWhiteboardReplayer = (
       if (
         pending &&
         pending.t <= ms &&
-        pending.cmd.k === 'add' &&
-        pending.cmd.o.kind === 'path' &&
-        pending.cmd.pt
+        pending.op === 'do' &&
+        pending.cmd.kind === 'add' &&
+        pending.cmd.object.kind === 'path' &&
+        pending.cmd.pointTimes
       ) {
         const elapsed = ms - pending.t;
-        const pt = pending.cmd.pt;
-        const path = pending.cmd.o;
+        const pt = pending.cmd.pointTimes;
+        const path = pending.cmd.object;
         const points = path.points.filter((_, i) => pt[i] <= elapsed);
         if (points.length > 0) {
           return [
@@ -443,43 +441,50 @@ const isDrawableObject = (v: unknown): v is DrawableObject => {
 
 const parseCommand = (v: unknown): WhiteboardLogCommand | null => {
   if (!isRec(v)) return null;
-  switch (v.k) {
+  switch (v.kind) {
     case 'add': {
-      if (!isDrawableObject(v.o)) return null;
-      if (v.pt === undefined) return { k: 'add', o: v.o };
+      if (!isDrawableObject(v.object)) return null;
+      if (v.pointTimes === undefined) return { kind: 'add', object: v.object };
+      const pt = v.pointTimes;
       if (
-        v.o.kind !== 'path' ||
-        !Array.isArray(v.pt) ||
-        v.pt.length !== v.o.points.length ||
-        !v.pt.every(
+        v.object.kind !== 'path' ||
+        !Array.isArray(pt) ||
+        pt.length !== v.object.points.length ||
+        !pt.every(
           (n, i, arr) => isNum(n) && n >= 0 && (i === 0 || n >= arr[i - 1])
         )
       ) {
         return null;
       }
-      return { k: 'add', o: v.o, pt: v.pt as number[] };
+      return { kind: 'add', object: v.object, pointTimes: pt as number[] };
     }
     case 'remove':
-      return isId(v.id) ? { k: 'remove', id: v.id } : null;
+      return isId(v.id) ? { kind: 'remove', id: v.id } : null;
     case 'update':
-      return isDrawableObject(v.o) ? { k: 'update', o: v.o } : null;
+      return isDrawableObject(v.after)
+        ? { kind: 'update', after: v.after }
+        : null;
     case 'reorder':
-      return isId(v.id) && isNum(v.z)
-        ? { k: 'reorder', id: v.id, z: v.z }
+      return isId(v.id) && isNum(v.toZ)
+        ? { kind: 'reorder', id: v.id, toZ: v.toZ }
         : null;
     case 'clear':
-      return { k: 'clear' };
+      return { kind: 'clear' };
     case 'bulkRemove':
       return Array.isArray(v.ids) && v.ids.every(isId)
-        ? { k: 'bulkRemove', ids: v.ids }
+        ? { kind: 'bulkRemove', ids: v.ids }
         : null;
-    case 'undo':
-      return { k: 'undo' };
-    case 'redo':
-      return { k: 'redo' };
     default:
       return null;
   }
+};
+
+const parseEvent = (e: unknown): WhiteboardLogEntry | null => {
+  if (!isRec(e)) return null;
+  if (e.op === 'undo' || e.op === 'redo') return { op: e.op };
+  if (e.op !== 'do') return null;
+  const cmd = parseCommand(e.cmd);
+  return cmd ? { op: 'do', cmd } : null;
 };
 
 /** Parses JSON text or an already-decoded value; throws WhiteboardLogParseError when anything is off. */
@@ -513,13 +518,13 @@ export const parseWhiteboardLog = (input: unknown): WhiteboardLog => {
       throw new WhiteboardLogParseError(`event ${i} time`);
     }
     lastT = e.t;
-    const cmd = parseCommand(e.cmd);
-    if (!cmd) throw new WhiteboardLogParseError(`event ${i} command`);
-    return { t: e.t, cmd };
+    const entry = parseEvent(e);
+    if (!entry) throw new WhiteboardLogParseError(`event ${i} command`);
+    return { ...entry, t: e.t };
   });
   return {
     v: WHITEBOARD_LOG_VERSION,
-    page: { w: WHITEBOARD_PAGE.w, h: WHITEBOARD_PAGE.h },
+    page: WHITEBOARD_PAGE,
     startingPageId: data.startingPageId,
     events,
   };

@@ -113,7 +113,10 @@ describe('whiteboard log recorder', () => {
     h.push({ kind: 'add', object: path('a', 3) }, [500, 600, 800]);
     const [event] = h.rec.toLog().events;
     expect(event.t).toBe(500);
-    expect(event.cmd).toMatchObject({ k: 'add', pt: [0, 100, 300] });
+    expect(event).toMatchObject({
+      op: 'do',
+      cmd: { kind: 'add', pointTimes: [0, 100, 300] },
+    });
   });
 
   it('drops points under 1 px apart but keeps the last point', () => {
@@ -130,15 +133,19 @@ describe('whiteboard log recorder', () => {
     };
     h.push({ kind: 'add', object: jitter }, [0, 10, 20, 30, 40]);
     const [event] = h.rec.toLog().events;
-    if (event.cmd.k !== 'add' || event.cmd.o.kind !== 'path') {
+    if (
+      event.op !== 'do' ||
+      event.cmd.kind !== 'add' ||
+      event.cmd.object.kind !== 'path'
+    ) {
       throw new Error('expected a path add');
     }
-    expect(event.cmd.o.points).toEqual([
+    expect(event.cmd.object.points).toEqual([
       { x: 0, y: 0 },
       { x: 5, y: 5 },
       { x: 5.2, y: 5.1 },
     ]);
-    expect(event.cmd.pt).toEqual([0, 30, 40]);
+    expect(event.cmd.pointTimes).toEqual([0, 30, 40]);
   });
 
   it('stores ids instead of snapshots for removes and clears', () => {
@@ -147,9 +154,12 @@ describe('whiteboard log recorder', () => {
     h.push({ kind: 'add', object: path('p') });
     h.push({ kind: 'bulkRemove', objects: [rect('r')] });
     h.push({ kind: 'clear', objects: [path('p')] });
-    const cmds = h.rec.toLog().events.map((e) => e.cmd);
-    expect(cmds[2]).toEqual({ k: 'bulkRemove', ids: ['r'] });
-    expect(cmds[3]).toEqual({ k: 'clear' });
+    const events = h.rec.toLog().events;
+    expect(events[2]).toMatchObject({
+      op: 'do',
+      cmd: { kind: 'bulkRemove', ids: ['r'] },
+    });
+    expect(events[3]).toMatchObject({ op: 'do', cmd: { kind: 'clear' } });
   });
 
   it('keeps every event past the undo stack cap', () => {
@@ -387,16 +397,18 @@ describe('whiteboard log serialize and parse', () => {
     ['missing starting page', corrupt((r) => delete r.startingPageId)],
     ['times out of order', corrupt((r) => (events(r)[1].t = 0))],
     ['negative time', corrupt((r) => (events(r)[0].t = -1))],
-    ['unknown command', corrupt((r) => (events(r)[0].cmd = { k: 'paint' }))],
+    ['unknown command', corrupt((r) => (events(r)[0].cmd = { kind: 'paint' }))],
     [
       'point times length mismatch',
-      corrupt((r) => ((events(r)[0].cmd as Record<string, unknown>).pt = [0])),
+      corrupt(
+        (r) => ((events(r)[0].cmd as Record<string, unknown>).pointTimes = [0])
+      ),
     ],
     [
       'bad object',
       corrupt(
         (r) =>
-          ((events(r)[1].cmd as Record<string, unknown>).o = {
+          ((events(r)[1].cmd as Record<string, unknown>).object = {
             id: 'x',
             kind: 'rect',
             z: 0,
@@ -407,7 +419,7 @@ describe('whiteboard log serialize and parse', () => {
       'image object',
       corrupt(
         (r) =>
-          ((events(r)[1].cmd as Record<string, unknown>).o = {
+          ((events(r)[1].cmd as Record<string, unknown>).object = {
             id: 'x',
             kind: 'image',
             z: 0,
@@ -419,6 +431,7 @@ describe('whiteboard log serialize and parse', () => {
           })
       ),
     ],
+    ['unknown op', corrupt((r) => (events(r)[0].op = 'paint'))],
   ])('rejects %s', (_label, run) => {
     expect(run).toThrow(WhiteboardLogParseError);
   });
