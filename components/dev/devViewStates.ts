@@ -6,6 +6,7 @@ export const AUDIO_CAPTURE_STATES = [
   'armed',
   'recording',
   'review',
+  'no-review-recording',
   'committing',
   'archive-failed',
   'take-limit',

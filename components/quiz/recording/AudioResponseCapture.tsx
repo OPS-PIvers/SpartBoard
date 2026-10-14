@@ -24,7 +24,10 @@ import {
   type AudioRecordingDeps,
   type AudioTake,
 } from '@/hooks/useAudioRecording';
-import { takesRemaining } from '@/config/quizRecordingDefaults';
+import {
+  recordingReviewEnabled,
+  takesRemaining,
+} from '@/config/quizRecordingDefaults';
 import {
   RecordingConsentNotice,
   RecordingNoticeReminder,
@@ -99,35 +102,46 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
   const remaining = takesRemaining(config, takesCommitted);
   const takeBudgetReached = remaining !== null && remaining <= 0;
 
+  const reviewOn = recordingReviewEnabled(config);
+
+  const commitInFlightRef = useRef<Promise<void> | null>(null);
+  const commitTake = useCallback(
+    (take: AudioTake) => {
+      setCommitState('committing');
+      const run = (async () => {
+        try {
+          await onCommit(take);
+          setCommitState('idle');
+        } catch {
+          setCommitState('archive-failed');
+        } finally {
+          commitInFlightRef.current = null;
+        }
+      })();
+      commitInFlightRef.current = run;
+      return run;
+    },
+    [onCommit]
+  );
+
   const recorder = useAudioRecording({
     config,
     enabled: acknowledged && !takeBudgetReached && !slotClosed,
     onPrepExpired,
     onCaptureUnavailable,
+    // D5: with review off, a finished take commits the moment the recorder hands it over.
+    onTakeReady: reviewOn ? undefined : (take) => void commitTake(take),
     deps: recorderDeps,
   });
 
   const { phase, commit } = recorder;
 
-  const commitInFlightRef = useRef<Promise<void> | null>(null);
   const handleCommit = useCallback(async () => {
     if (commitInFlightRef.current) return commitInFlightRef.current;
     const take = commit();
     if (!take) return;
-    setCommitState('committing');
-    const run = (async () => {
-      try {
-        await onCommit(take);
-        setCommitState('idle');
-      } catch {
-        setCommitState('archive-failed');
-      } finally {
-        commitInFlightRef.current = null;
-      }
-    })();
-    commitInFlightRef.current = run;
-    return run;
-  }, [commit, onCommit]);
+    return commitTake(take);
+  }, [commit, commitTake]);
 
   // D16: a cutoff stops the running take and commits it before its rule runs.
   const phaseRef = useRef(phase);
@@ -155,6 +169,8 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
               stopRef.current();
             });
           }
+          // Review off: the stop already handed the take to commitTake.
+          if (commitInFlightRef.current) return commitInFlightRef.current;
           if (phaseRef.current !== 'reviewing') return;
           await handleCommitRef.current();
         },
@@ -524,7 +540,9 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
               }`}
             >
               <Square aria-hidden className="h-4 w-4" />
-              {t('quizMediaResponse.capture.stop')}
+              {reviewOn
+                ? t('quizMediaResponse.capture.stop')
+                : t('quizMediaResponse.capture.stopAndSubmit')}
             </button>
           )}
 
