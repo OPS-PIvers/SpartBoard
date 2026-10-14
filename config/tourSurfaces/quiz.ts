@@ -113,6 +113,12 @@ export const SURFACES: TourSurfaceMap = {
     opensWith: 'quiz-editor.add-from-bank:quiz',
     files: [`${C}BankPickerModal.tsx`],
   },
+  'quiz.editor.whiteboard-image': {
+    label: 'Insert image dialog',
+    kind: 'modal',
+    opensWith: 'quiz-editor.whiteboard-image:quiz',
+    files: [`${C}WhiteboardInsertImageModal.tsx`],
+  },
   'quiz.editor.save-to-bank': {
     label: 'Save questions to bank dialog',
     kind: 'modal',
