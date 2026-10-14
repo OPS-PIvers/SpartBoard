@@ -155,7 +155,6 @@ export const SettingsDrawerHost: React.FC = () => {
     savedWidgetConfigs,
     saveWidgetDefault,
   } = useAuth();
-  const enabled = canAccessFeature('settings-drawer');
   const toolLabel = useToolLabel();
 
   const { updateWidget, updateWidgets } = useDashboardActions();
@@ -232,7 +231,7 @@ export const SettingsDrawerHost: React.FC = () => {
     dispatch({ type: 'close' });
   }
 
-  const open = enabled && !!widget && widget.flipped === true;
+  const open = !!widget && widget.flipped === true;
 
   const openerRef = useRef<HTMLElement | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);

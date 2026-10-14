@@ -23,7 +23,6 @@ const authMock = {
   selectedBuildings: [],
   savedWidgetConfigs: {},
   saveWidgetConfig: vi.fn(),
-  canAccessFeature: vi.fn((_feature: string) => false),
   refreshGoogleToken: vi.fn(),
   googleAccessToken: null,
   remoteControlEnabled: true,
@@ -455,7 +454,6 @@ describe('DashboardContext appearance defaults', () => {
   });
 
   afterEach(() => {
-    authMock.canAccessFeature.mockImplementation(() => false);
     vi.useRealTimers();
   });
 
@@ -466,19 +464,7 @@ describe('DashboardContext appearance defaults', () => {
       })
     );
 
-  it('auto-saves appearance edits as the default for flag-off users', async () => {
-    const stateRef = setup();
-    await settleSnapshot(stateRef, [makeDashboard([makeWidget('w1')])]);
-    editFontColor(stateRef);
-    expect(authMock.saveWidgetConfig).toHaveBeenCalledWith('text', {
-      fontColor: '#ffffff',
-    });
-  });
-
-  it('leaves defaults alone for settings-drawer users, who save them explicitly (D28)', async () => {
-    authMock.canAccessFeature.mockImplementation(
-      (feature) => feature === 'settings-drawer'
-    );
+  it('leaves defaults alone; teachers save them explicitly (D28)', async () => {
     const stateRef = setup();
     await settleSnapshot(stateRef, [makeDashboard([makeWidget('w1')])]);
     editFontColor(stateRef);

@@ -41,7 +41,7 @@ interface StudentLandingV2Props {
 const LOCKED_MESSAGE =
   'Locked by your teacher. Ask them to unlock your results.';
 
-/** STUDENT_LANDING_V2 PR 4: the `student-landing-v2` student page. */
+/** The student page at /my-assignments (docs/plans/STUDENT_LANDING_V2.md PR 4). */
 export const StudentLandingV2: React.FC<StudentLandingV2Props> = ({
   classes,
   scheduleFor,

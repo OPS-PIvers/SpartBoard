@@ -22,7 +22,6 @@ const CALLABLE_MODES: Record<string, Mode> = {
   getPseudonymsForAssignmentV1: 'read',
   getQuizArtifactPlaybackUrl: 'read',
   getStudentClassDirectoryV1: 'read',
-  getStudentLandingV2V1: 'read',
   getTeammatePrintContextV1: 'read',
   getViewAsDriveTokenV1: 'read',
   listQuizMediaForOrgAdmin: 'read',

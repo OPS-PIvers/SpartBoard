@@ -534,8 +534,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     featurePermissions,
     selectedBuildings,
     savedWidgetConfigs,
-    saveWidgetConfig,
-    canAccessFeature,
     materialsPreferences,
     profileLoaded,
     setupCompleted,
@@ -6340,11 +6338,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     });
   }, [activeId, addToast, recordHistory, undoWidgets]);
 
-  // Read through a ref so updateWidget stays mount-stable when permissions load; optional call tolerates partial auth mocks.
-  const explicitDefaultsRef = useRef(false);
-  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
-  explicitDefaultsRef.current = canAccessFeature?.('settings-drawer') ?? false;
-
   const updateWidget = useCallback(
     (
       id: string,
@@ -6415,13 +6408,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           // so memoized consumers don't re-render on a no-op.
           if (!widgetType) return d;
 
-          // Save appearance globally so new instances inherit the styling.
-          // saveWidgetConfig keeps only APPEARANCE_CONFIG_KEYS — content stays
-          // on this board. Drawer users save defaults explicitly instead (D28).
-          if (updates.config && !explicitDefaultsRef.current) {
-            saveWidgetConfig(widgetType, updates.config);
-          }
-
           return {
             ...d,
             widgets: newWidgets,
@@ -6429,7 +6415,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         })
       );
     },
-    [saveWidgetConfig, recordHistory]
+    [recordHistory]
   );
 
   // Mirror the latest updateWidget closure into the forward-declared ref

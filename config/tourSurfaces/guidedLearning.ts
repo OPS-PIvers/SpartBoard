@@ -106,7 +106,7 @@ export const SURFACES: TourSurfaceMap = {
     files: [`${GLC}ScreenCaptureModal.tsx`],
   },
   'guidedLearning.studio': {
-    label: 'Guided Learning Studio editor (gl-studio flag on)',
+    label: 'Guided Learning Studio editor',
     kind: 'editor',
     widgetType: 'guided-learning',
     opensWith: 'gl-manager.preview-open-editor',
@@ -182,13 +182,11 @@ export const SURFACES: TourSurfaceMap = {
     files: [`${GLC}studio/StudioShortcutSheet.tsx`],
   },
   'guidedLearning.editor': {
-    label:
-      'Guided Learning classic editor (gl-studio flag off, the teacher default)',
+    label: 'Guided Learning classic editor, opened from the Studio header',
     kind: 'editor',
     widgetType: 'guided-learning',
-    opensWith: 'gl-manager.preview-open-editor',
-    alsoOpensWith: ['library-shell.new:guided-learning'],
-    parent: 'guidedLearning.face.preview',
+    opensWith: 'gl-editor.open-classic',
+    parent: 'guidedLearning.studio',
     needs: ['widget-on-stage', 'library-item'],
     files: [
       `${GLC}GuidedLearningEditorModal.tsx`,
