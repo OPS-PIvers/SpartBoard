@@ -100,7 +100,7 @@ export const AudioCaptureDevView: React.FC<{ state: AudioCaptureStateKey }> = ({
       prepSeconds: state === 'prep' ? 30 : 0,
       limitSeconds: 60,
       prepExpiry: 'armed',
-      takeLimit: state === 'take-limit' ? 2 : null,
+      takeLimit: state === 'take-limit' ? 1 : null,
       ...(state === 'no-review-recording' ? { review: false } : {}),
     }),
     [state]
@@ -113,6 +113,12 @@ export const AudioCaptureDevView: React.FC<{ state: AudioCaptureStateKey }> = ({
   );
 
   const rootRef = React.useRef<HTMLDivElement>(null);
+  const [takesCommitted, setTakesCommitted] = React.useState(0);
+  const [prevStateKey, setPrevStateKey] = React.useState(stateKey);
+  if (prevStateKey !== stateKey) {
+    setPrevStateKey(stateKey);
+    setTakesCommitted(0);
+  }
 
   // Fixture-only: click the same buttons a student would to reach the state.
   React.useEffect(() => {
@@ -133,13 +139,19 @@ export const AudioCaptureDevView: React.FC<{ state: AudioCaptureStateKey }> = ({
       click(/^Record/);
       return;
     }
-    if (state !== 'review' && state !== 'committing') return;
+    if (state !== 'review' && state !== 'committing' && state !== 'take-limit')
+      return;
     click(/^Record/);
-    // Poll for the Stop button: getUserMedia resolves on a later microtask.
+    // Poll for each next button: getUserMedia resolves on a later microtask.
+    const steps =
+      state === 'take-limit'
+        ? [/Stop recording/, /^Turn in$/]
+        : [/Stop recording/];
     let tries = 0;
     const id = window.setInterval(() => {
       tries += 1;
-      if (click(/Stop recording/) || tries > 30) window.clearInterval(id);
+      if (click(steps[0])) steps.shift();
+      if (steps.length === 0 || tries > 60) window.clearInterval(id);
     }, 10);
     return () => window.clearInterval(id);
   }, [state]);
@@ -171,14 +183,16 @@ export const AudioCaptureDevView: React.FC<{ state: AudioCaptureStateKey }> = ({
         key={stateKey}
         light={light}
         config={config}
-        takesCommitted={state === 'take-limit' ? 2 : 0}
+        takesCommitted={takesCommitted}
         noticeAckedAt={state === 'notice' ? null : ACKED_AT}
         onAcknowledgeNotice={() => undefined}
-        onCommit={() =>
-          state === 'archive-failed'
-            ? Promise.reject(new Error('archive failed'))
-            : new Promise<void>(() => undefined)
-        }
+        onCommit={() => {
+          if (state === 'archive-failed')
+            return Promise.reject(new Error('archive failed'));
+          if (state !== 'take-limit') return new Promise<void>(() => undefined);
+          setTakesCommitted((n) => n + 1);
+          return Promise.resolve();
+        }}
         onRetryUpload={
           state === 'archive-failed'
             ? () => new Promise<void>(() => undefined)

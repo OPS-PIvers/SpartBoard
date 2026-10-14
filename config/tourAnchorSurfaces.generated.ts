@@ -634,7 +634,6 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-grading.unavailable-choice': ['quiz.grader'],
     'quiz-grading.points': ['quiz.grader'],
     'quiz-grading.comment': ['quiz.grader'],
-    'quiz-grading.take-pin': ['quiz.grader'],
     'quiz-grading.undo-excuse': ['quiz.grader'],
     'quiz-grading.highlight-select': ['quiz.grader'],
     'quiz-grading.rubric-jump-tagged': ['quiz.rubric-scoring'],

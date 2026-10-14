@@ -6511,7 +6511,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "quiz-editor.recording-expiry",
-    "label": "When thinking time runs out menu in the Quiz editor",
+    "label": "After planning time menu in the Quiz editor",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -12696,28 +12696,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "keys": [
       "quiz"
     ],
-    "routes": [
-      {
-        "surface": "quiz.grader",
-        "kind": "modal",
-        "path": [
-          "library-shell.tab:quiz#archive",
-          "library-shell.archive-primary-action:quiz#row-1",
-          "quiz-grading.open:quiz"
-        ],
-        "needs": [
-          "student-data",
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-grading.take-pin",
-    "label": "Take pin button in the Quiz grader, by take",
-    "scope": "field",
-    "panel": true,
     "routes": [
       {
         "surface": "quiz.grader",

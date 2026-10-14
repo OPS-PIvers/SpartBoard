@@ -3405,19 +3405,14 @@
       "windowClosedBody": "Your teacher will see this question without a recording. Move on when you're ready.",
       "armedBody": "You'll have {{seconds}} seconds.",
       "record": "Record",
-      "recordAgain": "Record again",
       "stop": "Stop recording",
       "stopAndSubmit": "Stop and submit",
-      "commit": "Keep this attempt",
-      "discard": "Discard",
+      "commit": "Turn in",
       "retryUpload": "Try again",
       "playPlayback": "Play your recording",
       "pausePlayback": "Pause your recording",
       "submitQuiz": "Submit quiz",
       "nextQuestion": "Next",
-      "takeLimitReachedTitle": "No attempts left",
-      "takeLimitReachedBody_one": "This question allows {{count}} attempt, and you have used it. Your last attempt is the one your teacher receives.",
-      "takeLimitReachedBody_other": "This question allows {{count}} attempts, and you have used them all. Your last attempt is the one your teacher receives.",
       "submitBlockedTitle_one": "One question still needs a recording",
       "submitBlockedTitle_other": "{{count}} questions still need a recording",
       "submitBlockedBody_one": "The question stays incomplete and the assignment cannot be submitted. Go back and record an answer, then turn it in.",
@@ -3425,7 +3420,9 @@
       "submitBlockedJump": "Go to question {{number}}",
       "notSubmittedPending": "Not submitted yet. Your recording is still sending.",
       "notSubmittedFailed": "Your recording didn't send. Choose Try again.",
-      "notSubmittedFailedFinal": "Your recording didn't send and can't be sent from this device. Record again to send a new attempt."
+      "notSubmittedFailedFinal": "Your recording didn't send and can't be sent from this device. Record again to send a new attempt.",
+      "redo": "Redo",
+      "submittedLabel": "Turned in"
     },
     "whiteboard": {
       "title": "Whiteboard answer",
@@ -3580,18 +3577,6 @@
         "body": "Once students answer a Free Response question, typed or spoken, they show up here."
       },
       "takes": {
-        "title": "Attempts",
-        "count_one": "{{count}} attempt recorded",
-        "count_other": "{{count}} attempts recorded",
-        "take": "Attempt {{n}}",
-        "pinNote": "Scores use the last attempt.",
-        "status": {
-          "archiving": "Still saving",
-          "archive-failed": "Not saved",
-          "lost": "Lost",
-          "deleted": "Deleted",
-          "unknown": "Unavailable"
-        },
         "mic": {
           "denied": "Mic blocked",
           "unavailable": "No mic"

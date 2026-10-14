@@ -35,7 +35,6 @@ import {
   PanelLeftOpen,
   Pencil,
   PenTool,
-  Pin,
   ShieldAlert,
   Undo2,
 } from 'lucide-react';
@@ -66,11 +65,9 @@ import { sumRubricScorePoints } from '@/utils/rubricPoints';
 import { resolveRubricForResponse } from '@/utils/rubricOverrideResolution';
 import {
   collectMediaSlots,
-  formatTimecode,
   isSlotExcused,
   resolveSlotState,
   selectGradedTake,
-  takeDurationMs,
   takeUnplayableReason,
   type MediaGradingSlot,
 } from '@/utils/mediaGrading';
@@ -646,7 +643,7 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
   const [seek, setSeek] = useState({ ms: 0, nonce: 0 });
 
   const isUnavailable = !!slot?.captureUnavailable;
-  const takes = slot?.takes ?? [];
+
   const activeTake = useMemo(() => {
     if (!slot) return undefined;
     if (pinnedTakeIndex != null) {
@@ -1897,6 +1894,16 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
 
             {isMedia &&
               !isUnavailable &&
+              (activeTake?.micState === 'denied' ||
+                activeTake?.micState === 'unavailable') && (
+                <span className="inline-flex w-fit items-center gap-1 rounded bg-slate-200 px-1.5 py-0.5 text-xxs font-bold uppercase tracking-wider text-slate-700">
+                  <MicOff aria-hidden className="h-3 w-3" />
+                  {tg(`takes.mic.${activeTake.micState}`)}
+                </span>
+              )}
+
+            {isMedia &&
+              !isUnavailable &&
               activeTake?.whiteboard &&
               resolveTakeUrl && (
                 <WhiteboardAnnotatedResponseView
@@ -2064,73 +2071,6 @@ export const FreeResponseGrader: React.FC<FreeResponseGraderProps> = ({
                 noCommentHint={tg('highlightNoComment')}
                 rubric={taggableRubric}
               />
-            </div>
-          )}
-
-          {isMedia && !isUnavailable && (
-            <div className="border-t border-slate-200 pt-3">
-              <h4 className="mb-1 text-sm font-bold uppercase tracking-wider text-slate-500">
-                {tg('takes.title')}
-              </h4>
-              <p className="mb-2 text-xs text-slate-500">
-                {tg('takes.count', { count: takes.length })}
-              </p>
-              <ul className="flex flex-col gap-1.5">
-                {takes.map((take) => {
-                  const isActive = take.takeIndex === activeTake?.takeIndex;
-                  const reason = takeUnplayableReason(take);
-                  return (
-                    <li key={take.artifact.id}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          editSourceRef.current = 'pin';
-                          setPinnedTakeIndex(take.takeIndex);
-                        }}
-                        aria-pressed={isActive}
-                        {...tourFieldAttr(
-                          'quiz-grading.take-pin',
-                          'quiz',
-                          String(take.takeIndex)
-                        )}
-                        className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs transition-colors ${
-                          isActive
-                            ? 'border-brand-blue-primary bg-brand-blue-primary/5'
-                            : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
-                        }`}
-                      >
-                        <span className="font-bold text-slate-800">
-                          {tg('takes.take', { n: take.displayIndex })}
-                        </span>
-                        <span className="font-mono tabular-nums text-slate-500">
-                          {formatTimecode(takeDurationMs(take))}
-                        </span>
-                        {(take.micState === 'denied' ||
-                          take.micState === 'unavailable') && (
-                          <span className="inline-flex items-center gap-0.5 rounded bg-slate-200 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-slate-700">
-                            <MicOff aria-hidden className="h-3 w-3" />
-                            {tg(`takes.mic.${take.micState}`)}
-                          </span>
-                        )}
-                        {reason && (
-                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xxs uppercase tracking-wider text-amber-700">
-                            {tg(`takes.status.${reason}`)}
-                          </span>
-                        )}
-                        {isActive && (
-                          <Pin
-                            aria-hidden
-                            className="ml-auto h-3.5 w-3.5 text-brand-blue-primary"
-                          />
-                        )}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-              <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                {tg('takes.pinNote')}
-              </p>
             </div>
           )}
 

@@ -17,7 +17,6 @@ import {
   MicOff,
   RotateCcw,
   Square,
-  Trash2,
 } from 'lucide-react';
 import type { RecordingConfig, ResponseArtifact } from '@/types';
 import {
@@ -41,6 +40,7 @@ import { NoticeReminderOverlay } from './NoticeReminderOverlay';
 import { TakeReviewPlayer } from './TakeReviewPlayer';
 import { formatClock } from './formatClock';
 import { registerActiveTake } from './activeTake';
+import { useRedoCount } from './useRedoCount';
 
 export type CommitState = 'idle' | 'committing' | 'retrying' | 'archive-failed';
 
@@ -110,8 +110,25 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
   const commitState = commitStateOverride ?? localCommitState;
 
   const acknowledged = !noticeRequired || noticeAckedAt !== null;
-  const remaining = takesRemaining(config, takesCommitted);
-  const takeBudgetReached = remaining !== null && remaining <= 0;
+  // Every recording is an attempt; a redo throws the last one away (Paul 2026-10-14).
+  const [redos, addRedo] = useRedoCount(recovery?.key, takesCommitted);
+  const attemptsUsed = takesCommitted + redos;
+  const remaining = takesRemaining(config, attemptsUsed);
+  // Nothing turned in yet always leaves one recording, so redos alone never lock the student out.
+  const takeBudgetReached =
+    remaining !== null && remaining <= 0 && takesCommitted > 0;
+  const canRedoInReview = remaining === null || remaining > 1;
+  const [submitted, setSubmitted] = useState<{
+    url: string;
+    durationMs: number;
+  } | null>(null);
+  const submittedUrlRef = useRef<string | null>(null);
+  useEffect(
+    () => () => {
+      if (submittedUrlRef.current) URL.revokeObjectURL(submittedUrlRef.current);
+    },
+    []
+  );
 
   const reviewOn = recordingReviewEnabled(config);
 
@@ -122,6 +139,11 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
       const run = (async () => {
         try {
           await onCommit(take);
+          if (submittedUrlRef.current)
+            URL.revokeObjectURL(submittedUrlRef.current);
+          const url = URL.createObjectURL(take.blob);
+          submittedUrlRef.current = url;
+          setSubmitted({ url, durationMs: take.durationMs });
           setCommitState('idle');
         } catch {
           setCommitState('archive-failed');
@@ -157,10 +179,11 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
     return commitTake(take);
   }, [commit, commitTake]);
 
-  const handleDiscard = useCallback(() => {
+  const handleRedo = useCallback(() => {
     setRecoveredTake(false);
+    addRedo();
     discard();
-  }, [discard]);
+  }, [addRedo, discard]);
 
   const canRecover = acknowledged && !takeBudgetReached && !slotClosed;
   const checkedRecoveryKeyRef = useRef<string | null>(null);
@@ -267,13 +290,13 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
   const takeLabel = useMemo(() => {
     if (config.takeLimit == null)
       return t('quizMediaResponse.capture.takeUnlimited', {
-        n: takesCommitted + 1,
+        n: attemptsUsed + 1,
       });
     return t('quizMediaResponse.capture.takeOf', {
-      n: Math.min(takesCommitted + 1, config.takeLimit),
+      n: Math.min(attemptsUsed + 1, config.takeLimit),
       total: config.takeLimit,
     });
-  }, [config.takeLimit, t, takesCommitted]);
+  }, [config.takeLimit, t, attemptsUsed]);
 
   // A closed slot outranks everything: no notice, no mic, no controls.
   if (slotClosed) {
@@ -497,32 +520,34 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
             </div>
           )}
 
-          {phase === 'armed' && !takeBudgetReached && (
+          {phase === 'armed' && takesCommitted > 0 && (
+            <div className={`rounded-2xl p-4 ${panelCls}`}>
+              <p
+                className={`flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest ${
+                  light ? 'text-emerald-700' : 'text-emerald-300'
+                }`}
+              >
+                <Check aria-hidden className="h-3.5 w-3.5" />
+                {t('quizMediaResponse.capture.submittedLabel')}
+              </p>
+              {submitted && (
+                <TakeReviewPlayer
+                  key={submitted.url}
+                  src={submitted.url}
+                  durationMs={submitted.durationMs}
+                  light={light}
+                />
+              )}
+            </div>
+          )}
+
+          {phase === 'armed' && takesCommitted === 0 && !takeBudgetReached && (
             <div
               className={`flex flex-col items-center gap-2 rounded-2xl py-8 ${panelCls}`}
             >
               <p className={`text-sm ${mutedCls}`}>
                 {t('quizMediaResponse.capture.armedBody', {
                   seconds: config.limitSeconds,
-                })}
-              </p>
-            </div>
-          )}
-
-          {takeBudgetReached && (
-            <div
-              className={`rounded-2xl border p-4 ${
-                light
-                  ? 'border-slate-200 bg-slate-50'
-                  : 'border-slate-700 bg-slate-900/40'
-              }`}
-            >
-              <p className={`text-sm font-semibold ${headingCls}`}>
-                {t('quizMediaResponse.capture.takeLimitReachedTitle')}
-              </p>
-              <p className={`mt-1 text-sm ${mutedCls}`}>
-                {t('quizMediaResponse.capture.takeLimitReachedBody', {
-                  count: config.takeLimit ?? 0,
                 })}
               </p>
             </div>
@@ -588,9 +613,13 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
               onClick={() => void recorder.start()}
               className={`${primaryBtn} bg-brand-red-primary text-white outline-brand-red-primary hover:bg-brand-red-dark`}
             >
-              <Mic aria-hidden className="h-4 w-4" />
+              {takesCommitted > 0 ? (
+                <RotateCcw aria-hidden className="h-4 w-4" />
+              ) : (
+                <Mic aria-hidden className="h-4 w-4" />
+              )}
               {takesCommitted > 0
-                ? t('quizMediaResponse.capture.recordAgain')
+                ? t('quizMediaResponse.capture.redo')
                 : t('quizMediaResponse.capture.record')}
             </button>
           )}
@@ -627,19 +656,22 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
                 )}
                 {t('quizMediaResponse.capture.commit')}
               </button>
-              <button
-                type="button"
-                onClick={handleDiscard}
-                disabled={commitState === 'committing'}
-                className={`${primaryBtn} border outline-slate-400 ${
-                  light
-                    ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-                    : 'border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700'
-                }`}
-              >
-                <Trash2 aria-hidden className="h-4 w-4" />
-                {t('quizMediaResponse.capture.discard')}
-              </button>
+              {canRedoInReview && (
+                <button
+                  // no-tour-anchor: student quiz app, outside teacher tours
+                  type="button"
+                  onClick={handleRedo}
+                  disabled={commitState === 'committing'}
+                  className={`${primaryBtn} border outline-slate-400 ${
+                    light
+                      ? 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                      : 'border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700'
+                  }`}
+                >
+                  <RotateCcw aria-hidden className="h-4 w-4" />
+                  {t('quizMediaResponse.capture.redo')}
+                </button>
+              )}
             </>
           )}
         </div>
