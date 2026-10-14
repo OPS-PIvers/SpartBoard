@@ -89,9 +89,6 @@ export interface QuizEditorController {
   selectedIndex: number;
   // Per-question handlers
   updateQuestion: (id: string, updates: Partial<QuizQuestion>) => void;
-  updateIncorrect: (id: string, index: number, value: string) => void;
-  addIncorrect: (id: string) => void;
-  removeIncorrect: (id: string, index: number) => void;
   addQuestion: () => void;
   deleteQuestion: (id: string) => void;
   duplicateQuestion: (id: string) => void;
@@ -287,40 +284,6 @@ export function useQuizEditorState({
     },
     []
   );
-
-  const updateIncorrect = useCallback(
-    (id: string, index: number, value: string) => {
-      setQuestions((prev) =>
-        prev.map((q) => {
-          if (q.id !== id) return q;
-          const incorrect = [...q.incorrectAnswers];
-          incorrect[index] = value;
-          return { ...q, incorrectAnswers: incorrect };
-        })
-      );
-    },
-    []
-  );
-
-  const addIncorrect = useCallback((id: string) => {
-    setQuestions((prev) =>
-      prev.map((q) =>
-        q.id === id && q.incorrectAnswers.length < (q.type === 'MA' ? 6 : 4)
-          ? { ...q, incorrectAnswers: [...q.incorrectAnswers, ''] }
-          : q
-      )
-    );
-  }, []);
-
-  const removeIncorrect = useCallback((id: string, index: number) => {
-    setQuestions((prev) =>
-      prev.map((q) => {
-        if (q.id !== id) return q;
-        const incorrect = q.incorrectAnswers.filter((_, i) => i !== index);
-        return { ...q, incorrectAnswers: incorrect };
-      })
-    );
-  }, []);
 
   const addQuestion = useCallback(() => {
     const q = blankQuestion();
@@ -776,9 +739,6 @@ export function useQuizEditorState({
     selectedQuestion,
     selectedIndex,
     updateQuestion,
-    updateIncorrect,
-    addIncorrect,
-    removeIncorrect,
     addQuestion,
     deleteQuestion,
     duplicateQuestion,

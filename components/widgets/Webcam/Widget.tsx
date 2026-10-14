@@ -69,19 +69,6 @@ export const WebcamWidget: React.FC<{
 
     async function startCamera() {
       try {
-        // Enumerate devices if not already done
-        if (devices.length === 0) {
-          const allDevices = await navigator.mediaDevices.enumerateDevices();
-          if (cancelled) return;
-          const videoDevices = allDevices.filter(
-            (d) => d.kind === 'videoinput'
-          );
-          setDevices(videoDevices);
-          if (videoDevices.length > 0 && !selectedDeviceId) {
-            setSelectedDeviceId(videoDevices[0].deviceId);
-          }
-        }
-
         const constraints: MediaStreamConstraints = {
           video: selectedDeviceId
             ? { deviceId: { exact: selectedDeviceId } }
@@ -101,6 +88,12 @@ export const WebcamWidget: React.FC<{
           videoRef.current.srcObject = mediaStream;
         }
         setError(null);
+        // Enumerate after the grant so ids are populated without a second getUserMedia.
+        const allDevices = await navigator.mediaDevices
+          .enumerateDevices()
+          .catch(() => []);
+        if (cancelled) return;
+        setDevices(allDevices.filter((d) => d.kind === 'videoinput'));
       } catch (err) {
         console.error('Error accessing webcam:', err);
         setError('Could not access webcam');
@@ -115,16 +108,16 @@ export const WebcamWidget: React.FC<{
         currentStream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, [isActive, selectedDeviceId, devices.length]);
+  }, [isActive, selectedDeviceId]);
 
   const switchCamera = useCallback(() => {
     if (devices.length < 2) return;
-    const currentIndex = devices.findIndex(
-      (d) => d.deviceId === selectedDeviceId
-    );
+    const currentId =
+      stream?.getVideoTracks()[0]?.getSettings().deviceId ?? selectedDeviceId;
+    const currentIndex = devices.findIndex((d) => d.deviceId === currentId);
     const nextIndex = (currentIndex + 1) % devices.length;
     setSelectedDeviceId(devices[nextIndex].deviceId);
-  }, [devices, selectedDeviceId]);
+  }, [devices, selectedDeviceId, stream]);
 
   const performSendToNotes = useCallback(
     (text: string) => {

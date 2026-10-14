@@ -98,7 +98,12 @@ const privateFor = (
 const renderGrader = (responses: QuizResponse[], withCrops = true) =>
   render(
     <AuthContext.Provider
-      value={{ canAccessFeature: () => true } as unknown as AuthContextType}
+      value={
+        {
+          canAccessFeature: () => true,
+          canAccessQuizMediaResponse: () => false,
+        } as unknown as AuthContextType
+      }
     >
       <FreeResponseGrader
         quiz={quiz}

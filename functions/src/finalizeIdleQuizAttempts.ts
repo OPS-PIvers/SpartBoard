@@ -106,7 +106,13 @@ interface QuizAnswer {
   answeredAt?: number;
   status?: string;
   /** Mirrors `UnrespondedReason`; absent means the student responded. */
-  unresponded?: 'passed' | 'expired' | 'abandoned' | 'capture-unavailable';
+  unresponded?:
+    | 'passed'
+    | 'expired'
+    | 'abandoned'
+    | 'capture-unavailable'
+    | 'paper-unclear'
+    | 'device-gated';
 }
 
 interface QuizResponseDoc {

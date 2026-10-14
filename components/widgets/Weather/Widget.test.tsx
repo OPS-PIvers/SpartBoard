@@ -126,6 +126,23 @@ describe('WeatherWidget', () => {
     expect(screen.queryByText(/Long Sleeves/i)).not.toBeInTheDocument();
   });
 
+  it.each([
+    [72, 1.74],
+    [100, 2.4],
+    [-41, 2.24],
+  ])('caps the %s° temperature by its estimated width', (temp, widthEm) => {
+    const widget: WidgetData = {
+      ...baseWidget,
+      config: { ...baseWidget.config, temp },
+    };
+    render(<WeatherWidget widget={widget} />);
+    // jsdom rewrites calc(x / n) as (1/n) * x.
+    const factor = /min\(35cqmin, ([\d.]+) \* \(100cqw - 34cqmin\)\)/.exec(
+      screen.getByText(`${temp}°`).style.fontSize
+    )?.[1];
+    expect(Number(factor)).toBeCloseTo(1 / widthEm, 6);
+  });
+
   it('syncs background when enabled', async () => {
     const widget: WidgetData = {
       ...baseWidget,

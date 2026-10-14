@@ -30,6 +30,8 @@ export interface ToggleProps {
   variant?: 'standard' | 'transparent';
   /** Live-tour anchor attrs. */
   anchor?: TourAnchorAttrs;
+  id?: string;
+  describedBy?: string;
 }
 
 export const Toggle: React.FC<ToggleProps> = ({
@@ -43,6 +45,8 @@ export const Toggle: React.FC<ToggleProps> = ({
   showLabels = true,
   variant = 'standard',
   anchor,
+  id,
+  describedBy,
 }) => {
   const sizes = {
     xs: {
@@ -72,10 +76,12 @@ export const Toggle: React.FC<ToggleProps> = ({
   return (
     <button
       {...anchor}
+      id={id}
       type="button"
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      aria-describedby={describedBy}
       disabled={disabled}
       onClick={() => !disabled && onChange(!checked)}
       className={`

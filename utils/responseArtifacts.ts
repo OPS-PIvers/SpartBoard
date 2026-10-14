@@ -119,3 +119,51 @@ export function responseHasArtifacts(data: unknown): boolean {
     return Array.isArray(artifacts) && artifacts.length > 0;
   });
 }
+
+export interface WhiteboardTakeSelection {
+  takeIndex: number;
+  /** 1-based, numbered the same way as the grader so both sides agree on "Take N". */
+  displayIndex: number;
+  picture: ResponseArtifact;
+  log?: ResponseArtifact;
+  audio?: ResponseArtifact;
+}
+
+/** Whiteboard twin of `selectPlaybackTake`: one answer entry is one take, counted by its picture. */
+export function selectWhiteboardTake(
+  answers: readonly QuizResponseAnswer[],
+  questionId: string,
+  slot: ArtifactSlot = 'primary',
+  gradedTakeIndex?: number,
+  archive?: Record<string, ArtifactArchiveEntry>
+): WhiteboardTakeSelection | null {
+  const candidates: WhiteboardTakeSelection[] = [];
+  for (const answer of answers) {
+    if (answer.questionId !== questionId) continue;
+    const inSlot = (answer.artifacts ?? []).filter(
+      (a) => (a.slot ?? 'primary') === slot
+    );
+    const picture = inSlot.find(
+      (a) => a.kind === 'whiteboard' && a.part === 'picture'
+    );
+    if (!picture) continue;
+    if (!artifactCountsAsTake(picture, archive?.[picture.id])) continue;
+    candidates.push({
+      takeIndex: answer.takeIndex ?? 0,
+      displayIndex: 0,
+      picture,
+      log: inSlot.find((a) => a.kind === 'whiteboard' && a.part === 'log'),
+      audio: inSlot.find((a) => a.kind === 'audio'),
+    });
+  }
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => a.takeIndex - b.takeIndex);
+  candidates.forEach((c, i) => {
+    c.displayIndex = i + 1;
+  });
+  if (typeof gradedTakeIndex === 'number') {
+    const pinned = candidates.find((c) => c.takeIndex === gradedTakeIndex);
+    if (pinned) return pinned;
+  }
+  return candidates[candidates.length - 1];
+}

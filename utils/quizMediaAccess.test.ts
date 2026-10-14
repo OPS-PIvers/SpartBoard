@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
   canAccessQuizMediaResponse,
+  canAccessQuizWhiteboardResponse,
   type ResolvePermissionAccess,
 } from './quizMediaAccess';
 import type { GlobalFeaturePermission } from '@/types';
@@ -129,5 +130,29 @@ describe('canAccessQuizMediaResponse', () => {
         resolveAccess: resolver({ tier: 'free' }),
       })
     ).toBe(false);
+  });
+});
+
+describe('canAccessQuizWhiteboardResponse', () => {
+  const gate = (media: boolean, whiteboard: boolean) => {
+    const canAccessFeature = vi.fn(() => whiteboard);
+    return {
+      result: canAccessQuizWhiteboardResponse({
+        canAccessQuizMediaResponse: () => media,
+        canAccessFeature,
+      }),
+      canAccessFeature,
+    };
+  };
+
+  it('needs both the spoken-answer flag and its own flag', () => {
+    expect(gate(true, true).result).toBe(true);
+    expect(gate(true, false).result).toBe(false);
+    expect(gate(false, true).result).toBe(false);
+  });
+
+  it('reads the whiteboard flag by its id', () => {
+    const { canAccessFeature } = gate(true, true);
+    expect(canAccessFeature).toHaveBeenCalledWith('quiz-whiteboard-response');
   });
 });

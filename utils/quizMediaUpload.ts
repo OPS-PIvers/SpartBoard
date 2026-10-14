@@ -7,11 +7,30 @@ import type { ArtifactUploadState } from '@/types';
 export const QUIZ_MEDIA_STORAGE_ROOT = 'quiz_response_media';
 /** Mirrors the `storage.rules` cap so the client fails fast, not at the rule. */
 export const MAX_QUIZ_MEDIA_BYTES = 5 * 1024 * 1024;
+/** Whiteboard final picture cap, mirroring `storage.rules`. */
+export const MAX_WHITEBOARD_PICTURE_BYTES = 10 * 1024 * 1024;
+/** Whiteboard drawing log cap, mirroring `storage.rules`. */
+export const MAX_WHITEBOARD_LOG_BYTES = 5 * 1024 * 1024;
+
+function baseMimeType(mimeType: string): string {
+  return (mimeType || '').split(';')[0].trim().toLowerCase();
+}
+
+/** The `storage.rules` size cap for one transit upload of this type. */
+export function maxQuizMediaBytesFor(mimeType: string): number {
+  switch (baseMimeType(mimeType)) {
+    case 'image/png':
+      return MAX_WHITEBOARD_PICTURE_BYTES;
+    case 'application/json':
+      return MAX_WHITEBOARD_LOG_BYTES;
+    default:
+      return MAX_QUIZ_MEDIA_BYTES;
+  }
+}
 
 /** Record whatever `MediaRecorder` natively produced; never hardcode a type. */
 export function quizMediaExtensionForMimeType(mimeType: string): string {
-  const base = (mimeType || '').split(';')[0].trim().toLowerCase();
-  switch (base) {
+  switch (baseMimeType(mimeType)) {
     case 'audio/webm':
       return 'webm';
     case 'audio/ogg':
@@ -25,6 +44,10 @@ export function quizMediaExtensionForMimeType(mimeType: string): string {
     case 'audio/wav':
     case 'audio/x-wav':
       return 'wav';
+    case 'image/png':
+      return 'png';
+    case 'application/json':
+      return 'json';
     default:
       return 'audio';
   }
@@ -120,11 +143,12 @@ async function runUpload(
     job.artifactId,
     job.mimeType
   );
-  if (job.blob.size > MAX_QUIZ_MEDIA_BYTES) {
+  const maxBytes = maxQuizMediaBytesFor(job.mimeType);
+  if (job.blob.size > maxBytes) {
     return {
       storagePath,
       uploadState: 'failed',
-      error: 'Recording exceeds the 5 MB limit.',
+      error: `Recording exceeds the ${maxBytes / (1024 * 1024)} MB limit.`,
     };
   }
   try {

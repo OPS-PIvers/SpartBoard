@@ -5707,66 +5707,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-editor.distractor",
-    "label": "Distractor input, per index in the Quiz editor",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "quiz.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:quiz",
-          "library-shell.new-menu-item:quiz#item-1"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-editor.distractor-remove",
-    "label": "Remove distractor (×) in the Quiz editor",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "quiz.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:quiz",
-          "library-shell.new-menu-item:quiz#item-1"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "quiz-editor.distractor-add",
-    "label": "Add choice in the Quiz editor",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "quiz"
-    ],
-    "routes": [
-      {
-        "surface": "quiz.editor",
-        "kind": "editor",
-        "path": [
-          "library-shell.new:quiz",
-          "library-shell.new-menu-item:quiz#item-1"
-        ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "quiz-editor.ai-prompt",
     "label": "AI describe-your-quiz textarea in the Quiz editor",
     "scope": "widget type",
@@ -6526,10 +6466,183 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-editor.recording-review",
+    "label": "Students review before submitting switch in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-editor.recording-expiry",
     "label": "Prep expiry option buttons (per option) in the Quiz editor",
     "scope": "field",
     "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.response-format",
+    "label": "Response format menu (typed, spoken, whiteboard) in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.whiteboard-explain-aloud",
+    "label": "Students explain out loud switch (whiteboard response) in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.whiteboard-starting-page",
+    "label": "Starting page menu (whiteboard response) in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.whiteboard-pattern-value",
+    "label": "Starting page range inputs (per field) in the Quiz editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.whiteboard-shape",
+    "label": "Starting page shape menu (whiteboard response) in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.whiteboard-image",
+    "label": "Add image button for the whiteboard starting page in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor",
+        "kind": "editor",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.whiteboard-image-remove",
+    "label": "Remove image button for the whiteboard starting page in the Quiz editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
     "routes": [
       {
         "surface": "quiz.editor",
@@ -11863,6 +11976,38 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-whiteboard.replay-play",
+    "label": "Play / pause a whiteboard answer replay",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.whiteboard-replay",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
+    "id": "quiz-whiteboard.replay-scrubber",
+    "label": "Whiteboard answer replay timeline",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "board.whiteboard-replay",
+        "kind": "shared",
+        "path": []
+      }
+    ]
+  },
+  {
     "id": "quiz-grading.audio-play",
     "label": "Play / pause in the Quiz grader",
     "scope": "widget type",
@@ -11940,6 +12085,31 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "quiz-grading.audio-add-comment",
     "label": "Add comment at playhead in the Quiz grader",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.grader",
+        "kind": "modal",
+        "path": [
+          "library-shell.tab:quiz#archive",
+          "library-shell.archive-primary-action:quiz#row-1",
+          "quiz-grading.open:quiz"
+        ],
+        "needs": [
+          "student-data",
+          "library-item",
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-grading.whiteboard-add-comment",
+    "label": "Add comment at replay position in the Quiz grader",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -14479,6 +14649,25 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   {
     "id": "widget-settings.calendar.add-calendar",
     "label": "Add calendar button in Calendar settings",
+    "scope": "widget",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "widgets.calendar.settings",
+        "kind": "settings-drawer",
+        "widget_type": "calendar",
+        "path": [
+          "widget.settings-opener"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "widget-settings.calendar.calendar-id",
+    "label": "Calendar ID box in Calendar settings",
     "scope": "widget",
     "panel": true,
     "routes": [

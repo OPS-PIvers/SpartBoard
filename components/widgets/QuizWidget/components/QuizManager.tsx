@@ -144,6 +144,7 @@ import {
 import { earliestDueAt } from '@/utils/perClassDueDates';
 import {
   applyAvailability,
+  availabilityBackwards,
   applyWhen,
   manualStartAvailable,
 } from '@/utils/assignAvailability';
@@ -1942,6 +1943,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 
   const assignPeriodAccess =
     assignBehavior?.sessionMode === 'student' ? periodAccess : undefined;
+  const assignWindowBackwards = availabilityBackwards(
+    assignTargeting,
+    rosters.filter((r) => assignOptions.picker.rosterIds.includes(r.id)),
+    assignPeriodAccess?.bellWindow
+  );
 
   const assignQuizContext = {
     questions: toOverrideEditorQuestions(assignQuizData),
@@ -2991,6 +2997,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             />
           }
           onAssign={() => handleAssignConfirm()}
+          confirmDisabled={assignWindowBackwards}
+          confirmDisabledReason={t(
+            'assignAvailability.closesBeforeOpens',
+            'Closes before it opens.'
+          )}
           confirmLabel={
             assignDestination === 'classroom'
               ? 'Continue to Google Classroom'

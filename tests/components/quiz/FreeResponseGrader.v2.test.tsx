@@ -54,7 +54,12 @@ const responseFor = (uid: string, tabSwitchWarnings: number): QuizResponse => ({
 const renderGrader = (flagOn: boolean) =>
   render(
     <AuthContext.Provider
-      value={{ canAccessFeature: () => flagOn } as unknown as AuthContextType}
+      value={
+        {
+          canAccessFeature: () => flagOn,
+          canAccessQuizMediaResponse: () => false,
+        } as unknown as AuthContextType
+      }
     >
       <FreeResponseGrader
         quiz={quiz}

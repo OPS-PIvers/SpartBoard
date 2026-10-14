@@ -367,3 +367,63 @@ describe('MediaReviewView question identity (INT-A)', () => {
     expect(screen.getByText('Recording lost')).toBeInTheDocument();
   });
 });
+
+describe('whiteboard takes', () => {
+  const WB_ROW: MediaResponseRow = {
+    ...ROWS[1],
+    responseKey: 'r3',
+    studentLabel: 'Pin 7777',
+    takes: [
+      {
+        artifactId: 'w1-audio',
+        takeIndex: 1,
+        kind: 'whiteboard',
+        archiveStatus: 'archived',
+        driveFileId: 'd-a',
+        hasStorageObject: false,
+        files: [
+          {
+            artifactId: 'w1-audio',
+            kind: 'audio',
+            archiveStatus: 'archived',
+            driveFileId: 'd-a',
+            hasStorageObject: false,
+          },
+          {
+            artifactId: 'w1-pic',
+            kind: 'whiteboard',
+            part: 'picture',
+            archiveStatus: 'archived',
+            driveFileId: 'd-p',
+            hasStorageObject: false,
+          },
+          {
+            artifactId: 'w1-log',
+            kind: 'whiteboard',
+            part: 'log',
+            archiveStatus: 'deleted',
+            driveFileId: 'd-l',
+            hasStorageObject: false,
+          },
+        ],
+      },
+    ],
+  };
+
+  it('shows one take and counts only its files still to delete', () => {
+    renderView({ rows: [WB_ROW] });
+    expect(screen.getByText('1 take')).toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole('checkbox', { name: 'Select Pin 7777, question q-1' })
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Delete media \(1\)/ }));
+    const dialog = screen.getByRole('dialog', {
+      name: 'Permanently delete student media',
+    });
+    expect(
+      within(dialog).getByText(
+        /permanently delete 2 file\(s\) across 1 response/i
+      )
+    ).toBeInTheDocument();
+  });
+});

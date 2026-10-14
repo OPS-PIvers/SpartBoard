@@ -49,6 +49,7 @@ import {
   QuizAttemptLedger,
   GradeResult,
   ResponseArtifact,
+  TakeMicState,
   ArtifactUploadState,
   UnrespondedReason,
   TabExit,
@@ -113,6 +114,7 @@ const RECORDING_UNRESPONDED_REASONS = new Set<UnrespondedReason>([
   'passed',
   'expired',
   'capture-unavailable',
+  'device-gated',
 ]);
 /**
  * Archive subcollection for responses removed by the teacher. Holds a
@@ -200,13 +202,28 @@ export function servedSnapshotPatch(
     : {};
 }
 
-export interface CommitRecordingTakeInput {
+interface CommitRecordingTakeBase {
   questionId: string;
-  artifact: ResponseArtifact;
   /** Tennessen acknowledgment time, stamped on the take it authorised. */
   noticeAckedAt?: number;
   /** BCP-47 code the student was reading. Display hint only; never grades. */
   locale?: string;
+  /** Mic state during the take (QUIZ_WHITEBOARD_RESPONSE D18). */
+  micState?: TakeMicState;
+}
+
+/** A spoken take carries one artifact; a whiteboard take carries up to three (D19). */
+export type CommitRecordingTakeInput = CommitRecordingTakeBase &
+  (
+    | { artifact: ResponseArtifact; artifacts?: never }
+    | { artifacts: ResponseArtifact[]; artifact?: never }
+  );
+
+/** The artifacts a take commits, whichever shape the caller used. */
+export function takeArtifacts(
+  input: CommitRecordingTakeInput
+): ResponseArtifact[] {
+  return input.artifacts ?? [input.artifact];
 }
 
 /**
@@ -3280,10 +3297,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           answeredAt: Date.now(),
           status: 'submitted',
           takeIndex,
-          artifacts: [input.artifact],
+          artifacts: takeArtifacts(input),
         };
         if (input.noticeAckedAt) newAnswer.noticeAckedAt = input.noticeAckedAt;
         if (input.locale) newAnswer.locale = input.locale;
+        if (input.micState) newAnswer.micState = input.micState;
 
         const updated = [...existingAnswers, newAnswer];
         const nextStatus =

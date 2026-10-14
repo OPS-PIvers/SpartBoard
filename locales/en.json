@@ -3397,6 +3397,8 @@
       "wrapUp": "Wrap it up. Recording stops at {{seconds}} seconds.",
       "reviewLabel": "Listen back",
       "reviewBody": "Not sent yet.",
+      "recoveredLabel": "Your saved take",
+      "recoveredBody": "Saved before you left this question. Not sent yet.",
       "playbackPosition": "Playback position",
       "playbackValueText": "{{elapsed}} of {{total}}",
       "windowClosedTitle": "Recording time is over",
@@ -3405,6 +3407,7 @@
       "record": "Record",
       "recordAgain": "Record again",
       "stop": "Stop recording",
+      "stopAndSubmit": "Stop and submit",
       "commit": "Keep this take",
       "discard": "Discard",
       "retryUpload": "Try again",
@@ -3424,6 +3427,17 @@
       "notSubmittedFailed": "Your recording didn't send. Choose Try again.",
       "notSubmittedFailedFinal": "Your recording didn't send and can't be sent from this device. Record again to send a new take."
     },
+    "whiteboard": {
+      "title": "Whiteboard answer",
+      "armedNarrated": "Press Record to draw and talk.",
+      "armedDrawOnly": "Press Record to start drawing.",
+      "micOff": "Your microphone is off. Your drawing still counts.",
+      "boardFull": "Your board is full, so recording stopped.",
+      "windowClosedBody": "Your teacher will see this question without a whiteboard answer. Move on when you're ready.",
+      "notSubmittedPending": "Not submitted yet. Your answer is still sending.",
+      "notSubmittedFailed": "Your answer didn't send. Choose Try again.",
+      "notSubmittedFailedFinal": "Your answer didn't send and can't be sent from this device. Record again to send a new take."
+    },
     "unavailable": {
       "title": "Your microphone did not work",
       "body": "This question goes to your teacher ungraded. Move on to the next question."
@@ -3432,6 +3446,7 @@
       "formatLabel": "Format",
       "formatTyped": "Typed",
       "formatSpoken": "Spoken",
+      "formatWhiteboard": "Whiteboard",
       "prepLabel": "Thinking time",
       "prepHint": "0 starts recording right away.",
       "limitLabel": "Recording limit",
@@ -3448,9 +3463,44 @@
       "takeLimitLabel": "Takes allowed",
       "takeLimitUnlimited": "Unlimited",
       "takeLimitHint": "A take is a recording the student keeps, not one they discard.",
+      "reviewLabel": "Students review before submitting",
       "timeLimitDisabledHint": "Set by the recording timer.",
       "modeLabelAudio": "audio",
       "modeLabelVideo": "video",
+      "modeLabelWhiteboard": "whiteboard",
+      "whiteboard": {
+        "explainAloudLabel": "Students explain out loud",
+        "startingPageLabel": "Starting page",
+        "pattern": {
+          "blank": "Blank",
+          "grid": "Grid",
+          "lines": "Lines",
+          "dots": "Dots",
+          "coordinate-plane": "Coordinate plane",
+          "number-line": "Number line",
+          "shape": "Shape"
+        },
+        "xFrom": "X from",
+        "xTo": "X to",
+        "yFrom": "Y from",
+        "yTo": "Y to",
+        "from": "From",
+        "to": "To",
+        "step": "Step",
+        "shapeLabel": "Shape",
+        "shape": {
+          "triangle": "Triangle",
+          "rectangle": "Rectangle",
+          "circle": "Circle",
+          "polygon": "Polygon"
+        },
+        "sides": "Sides",
+        "addImage": "Add image",
+        "replaceImage": "Replace image",
+        "removeImage": "Remove image",
+        "imagePasteHint": "Pick a file, or paste an image here.",
+        "previewLabel": "Starting page preview"
+      },
       "advisory": {
         "title": "Heads up",
         "deviceBlocked": "If a microphone is blocked, the question comes to you ungraded.",
@@ -3542,6 +3592,10 @@
           "lost": "Lost",
           "deleted": "Deleted",
           "unknown": "Unavailable"
+        },
+        "mic": {
+          "denied": "Mic blocked",
+          "unavailable": "No mic"
         }
       },
       "unavailable": {
@@ -3552,7 +3606,10 @@
         "blank": "Blank",
         "blankHelp": "Count it as a zero, like an unanswered question.",
         "substitute": "Offline substitute",
-        "substituteHelp": "You heard the answer another way. A note is required."
+        "substituteHelp": "You heard the answer another way. A note is required.",
+        "deviceGatedTitle": "This student could not draw",
+        "deviceGatedBody": "Their device was held upright, so the whiteboard never opened. Choose how this question counts before the grade is final.",
+        "substituteHelpWhiteboard": "You saw the work another way. A note is required."
       },
       "player": {
         "loading": "Loading the recording…",
@@ -3609,7 +3666,8 @@
       },
       "format": {
         "typed": "Typed",
-        "spoken": "Spoken"
+        "spoken": "Spoken",
+        "whiteboard": "Whiteboard"
       },
       "responseLabel": "Student response",
       "timedOutUnderMinimum": "Timed out under minimum",
@@ -3693,6 +3751,17 @@
       "lost": "Your recording could not be saved and can no longer be recovered. Your teacher can see that you recorded an answer.",
       "commentsHint": "Tap a comment to jump to that moment.",
       "scorePending": "Your score is being prepared. Check back soon."
+    },
+    "whiteboardPlayback": {
+      "label": "Your whiteboard answer",
+      "show": "Show your whiteboard",
+      "loading": "Loading your whiteboard…",
+      "error": "Your whiteboard did not load.",
+      "archiving": "Your whiteboard is still being saved. Check back in a few minutes.",
+      "deleted": "This whiteboard answer has been deleted and can no longer be shown.",
+      "lost": "Your whiteboard could not be saved and can no longer be recovered. Your teacher can see that you answered.",
+      "missing": "There is no whiteboard saved for this question.",
+      "tooLarge": "This whiteboard is too large to show here. Ask your teacher to show it to you."
     }
   },
   "annotation": {
@@ -5040,5 +5109,65 @@
     "addToResponse": "Add to response",
     "showQuotes": "Show quotes",
     "showQuotesHint": "Blue is an exact quote. Amber was changed from the passage."
+  },
+  "quizWhiteboardResponse": {
+    "replay": {
+      "loading": "Loading the drawing…",
+      "pictureAlt": "Finished drawing",
+      "replayLabel": "Drawing replay",
+      "play": "Play the drawing",
+      "pause": "Pause the drawing",
+      "unavailable": "This drawing can't be replayed."
+    }
+  },
+  "quizWhiteboard": {
+    "canvas": {
+      "tools": "Drawing tools",
+      "tool": {
+        "pen": "Pen",
+        "eraser": "Eraser",
+        "text": "Text",
+        "line": "Line",
+        "arrow": "Arrow",
+        "rect": "Rectangle",
+        "ellipse": "Ellipse"
+      },
+      "eraserMode": "Eraser mode",
+      "eraser": {
+        "stroke": "Stroke eraser",
+        "object": "Object eraser",
+        "lasso": "Lasso eraser"
+      },
+      "colors": "Colors",
+      "color": {
+        "black": "Black",
+        "blue": "Blue",
+        "red": "Red",
+        "green": "Green",
+        "orange": "Orange",
+        "yellow": "Yellow"
+      },
+      "sizes": "Size",
+      "size": {
+        "thin": "Thin",
+        "medium": "Medium",
+        "thick": "Thick"
+      },
+      "undo": "Undo",
+      "redo": "Redo"
+    },
+    "drawer": {
+      "show": "Show materials",
+      "hide": "Hide materials",
+      "label": "Materials"
+    },
+    "rotate": {
+      "title": "Turn your device sideways",
+      "body": "The whiteboard needs a wide screen."
+    },
+    "notice": {
+      "drawOnlyTitle": "Before you draw",
+      "replayLine": "Your teacher can replay how you drew, including anything you erase."
+    }
   }
 }

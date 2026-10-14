@@ -4443,7 +4443,58 @@ export interface RecordingConfig {
   takeLimit: number | null;
   /** Authoring-only stash of the `timeLimit` this block zeroed; never projected to students. */
   priorTimeLimit?: number;
+  /** Absent means audio, so every quiz saved before whiteboard keeps its meaning. */
+  mode?: RecordingResponseMode;
+  /** Whiteboard only: `false` makes the question draw-only (no mic). Absent means true. */
+  explainAloud?: boolean;
+  /** Student reviews a take before it commits. Absent means true. */
+  review?: boolean;
+  /** Whiteboard only: the locked background every take starts from. */
+  startingPage?: WhiteboardStartingPage;
 }
+
+/** Which kind of take a recording question captures. */
+export type RecordingResponseMode = 'audio' | 'whiteboard';
+
+/** One shape drawn large and centred on a whiteboard starting page. */
+export type WhiteboardShapeKind =
+  'triangle' | 'rectangle' | 'circle' | 'polygon';
+
+/** The code-drawn pattern under a whiteboard starting page. */
+export type WhiteboardStartingPattern =
+  | { kind: 'blank' }
+  | { kind: 'grid' }
+  | { kind: 'lines' }
+  | { kind: 'dots' }
+  | {
+      kind: 'coordinate-plane';
+      xMin: number;
+      xMax: number;
+      yMin: number;
+      yMax: number;
+    }
+  | { kind: 'number-line'; min: number; max: number; step: number }
+  | { kind: 'shape'; shape: WhiteboardShapeKind; sides?: number };
+
+/** A teacher image fitted whole and centred on the 1600x1200 page. */
+export interface WhiteboardStartingImage {
+  /** Reuses the quiz-stimulus upload (teacher Drive, `Assets/QuizStimuli`, link-public). */
+  driveFileId: string;
+  /** The lh3 URL that upload returns; what students load. */
+  url: string;
+  mimeType: string;
+  width: number;
+  height: number;
+}
+
+/** Locked background of a whiteboard response: one pattern plus an optional image. */
+export interface WhiteboardStartingPage {
+  pattern: WhiteboardStartingPattern;
+  image?: WhiteboardStartingImage;
+}
+
+/** Whether the mic was live for a take; a silent take with `'on'` is silent by choice. */
+export type TakeMicState = 'on' | 'denied' | 'unavailable';
 
 /**
  * Result of grading a student's answer to a single quiz question.
@@ -4986,6 +5037,8 @@ export interface QuizSession
    * fail-closed gate reaches `/quiz` — a route that mounts no AuthProvider.
    */
   mediaResponseEnabled?: boolean;
+  /** Whiteboard capture gate for `/quiz`, stamped only when `canAccessQuizWhiteboardResponse()` passed. */
+  whiteboardResponseEnabled?: boolean;
   /**
    * Stimuli referenced by at least one public question, projected from the
    * quiz at session-create time with authoring labels stripped. `playLimit`
@@ -5269,7 +5322,9 @@ export type UnrespondedReason =
   | 'abandoned'
   | 'capture-unavailable'
   /** A paper bubble row the reader could not trust and the teacher left unresolved. */
-  | 'paper-unclear';
+  | 'paper-unclear'
+  /** A whiteboard question stayed behind the portrait-orientation gate. */
+  | 'device-gated';
 
 /** Which response slot an artifact fills: the answer itself, or a supporting addendum. */
 export type ArtifactSlot = 'primary' | 'addendum';
@@ -5305,7 +5360,12 @@ export interface ResponseArtifact {
   durationMs?: number;
   /** `'pending'` is an expected value, not an error: metadata lands before the bytes do. */
   uploadState: ArtifactUploadState;
+  /** `kind: 'whiteboard'` only: the final picture or the drawing log of the take. */
+  part?: WhiteboardArtifactPart;
 }
+
+/** A whiteboard take is up to three artifacts: audio, `picture` and `log`. */
+export type WhiteboardArtifactPart = 'picture' | 'log';
 
 export interface QuizResponseAnswer {
   questionId: string;
@@ -5357,6 +5417,8 @@ export interface QuizResponseAnswer {
    * routing. Absent means English; the key is omitted, never written undefined.
    */
   locale?: string;
+  /** Recording takes: mic state during the take. Absent on takes written before it existed. */
+  micState?: TakeMicState;
   /** Paper written answers: the scan that produced this answer. */
   paperScanId?: string;
   /** Paper written answers: public transcription state; failures read as `'pending'`. */
@@ -9819,6 +9881,8 @@ export type GlobalFeature =
   | 'anonymous-join'
   /** Fail-closed: read it through `canAccessQuizMediaResponse`, never `canAccessFeature`. */
   | 'quiz-media-response'
+  /** Fail-closed; read it through `canAccessQuizWhiteboardResponse`, which also needs `quiz-media-response`. */
+  | 'quiz-whiteboard-response'
   | 'settings-drawer'
   | 'quiz-read-aloud'
   /** Teacher-authored AI quiz translations for multilingual learners. */
@@ -9859,8 +9923,6 @@ export type GlobalFeature =
   | 'plc-norming-flags'
   /** Share flashcard sets and class-level flashcard results with a PLC. */
   | 'plc-flashcards'
-  /** Quiz multiple choice editor as one option list with a correct-answer marker per option. */
-  | 'quiz-choice-editor'
   /** Standard codes typed in or imported with a question text become Learning targets tags. */
   | 'standards-from-question-text'
   /** "View full screen" toggle on large pop-ups (editors, graders). */

@@ -1,6 +1,7 @@
 // Registry of every global feature: runtime defaults plus its admin row (docs/plans/shipped/ADMIN_ACCESS_PAGES.md D5).
 import type React from 'react';
 import {
+  PenLine,
   BarChart,
   BellRing,
   BookOpen,
@@ -401,6 +402,23 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     missingDocPublic: false,
     failClosedForAdmins: true,
   },
+  // Student whiteboard responses (QUIZ_WHITEBOARD_RESPONSE D22). Fail-closed like
+  // spoken answers; read it through `canAccessQuizWhiteboardResponse`.
+  'quiz-whiteboard-response': {
+    label: 'Whiteboard quiz responses',
+    icon: PenLine,
+    description: "Draw-and-explain answers, saved to the teacher's Drive.",
+    stage: 'preview',
+    afterLaunch: 'keep',
+    widget: 'quiz',
+    modalLabel: 'Whiteboard answers',
+    group: 'questions',
+    requires: 'quiz-media-response',
+    defaultAccessLevel: 'admin',
+    defaultEnabled: false,
+    missingDocPublic: false,
+    failClosedForAdmins: true,
+  },
   // Alpha rollout of the redesigned widget settings UI (wave 1b). Default-off
   // and admin-only until the drawer is verified across all widget types.
   'settings-drawer': {
@@ -677,17 +695,6 @@ export const FEATURE_DEFAULTS: Record<GlobalFeature, FeatureDefault> = {
     label: 'PLC flashcards',
     icon: Layers,
     description: 'Share flashcard sets and results with a PLC.',
-    stage: 'preview',
-    afterLaunch: 'retire',
-    defaultAccessLevel: 'admin',
-    defaultEnabled: true,
-    missingDocPublic: false,
-  },
-  // One-list multiple choice editor, choose-all as a setting on it. Admin-only until Paul has tried it.
-  'quiz-choice-editor': {
-    label: 'One-list multiple choice editor',
-    icon: ListChecks,
-    description: 'Mark the correct option in one list.',
     stage: 'preview',
     afterLaunch: 'retire',
     defaultAccessLevel: 'admin',

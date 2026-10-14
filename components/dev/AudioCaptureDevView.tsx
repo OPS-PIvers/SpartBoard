@@ -7,6 +7,7 @@ import React, { useMemo } from 'react';
 import { AudioResponseCapture } from '@/components/quiz/recording/AudioResponseCapture';
 import { SubmitBlockedNotice } from '@/components/quiz/recording/SubmitBlockedNotice';
 import type { AudioRecordingDeps } from '@/hooks/useAudioRecording';
+import { memoryTakeRecoveryStore } from '@/utils/takeRecoveryStore';
 import type { RecordingConfig, ResponseArtifact } from '@/types';
 import {
   AUDIO_CAPTURE_STATES,
@@ -65,6 +66,24 @@ const pendingArtifact: ResponseArtifact = {
   uploadState: 'pending',
 };
 
+const RECOVERED_KEY = 'dev-session/dev-response/dev-question';
+
+/** An 18-second take left behind by a closed tab, captured 20 seconds ago. */
+function seedRecoveredTake() {
+  const store = memoryTakeRecoveryStore();
+  const startedAt = Date.now() - 20_000;
+  void store
+    .begin(RECOVERED_KEY, 'audio/webm', startedAt)
+    .then(() =>
+      store.appendChunk(
+        RECOVERED_KEY,
+        new Blob(['fixture'], { type: 'audio/webm' }),
+        startedAt + 18_000
+      )
+    );
+  return { store, key: RECOVERED_KEY };
+}
+
 /**
  * Drives the component into a state by choosing config + props, then (for the
  * live states) firing the same buttons a student would.
@@ -82,11 +101,16 @@ export const AudioCaptureDevView: React.FC<{ state: AudioCaptureStateKey }> = ({
       limitSeconds: 60,
       prepExpiry: 'armed',
       takeLimit: state === 'take-limit' ? 2 : null,
+      ...(state === 'no-review-recording' ? { review: false } : {}),
     }),
     [state]
   );
 
   const deps = useMemo(() => makeDeps(state === 'mic-unavailable'), [state]);
+  const recovery = useMemo(
+    () => (state === 'recovered' ? seedRecoveredTake() : undefined),
+    [state]
+  );
 
   const rootRef = React.useRef<HTMLDivElement>(null);
 
@@ -101,7 +125,11 @@ export const AudioCaptureDevView: React.FC<{ state: AudioCaptureStateKey }> = ({
       btn?.click();
       return !!btn;
     };
-    if (state === 'recording' || state === 'mic-unavailable') {
+    if (
+      state === 'recording' ||
+      state === 'no-review-recording' ||
+      state === 'mic-unavailable'
+    ) {
       click(/^Record/);
       return;
     }
@@ -168,6 +196,7 @@ export const AudioCaptureDevView: React.FC<{ state: AudioCaptureStateKey }> = ({
               : undefined
         }
         recorderDeps={deps}
+        recovery={recovery}
       />
     </div>
   );

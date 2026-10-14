@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { StaffEmailInput } from './StaffEmailInput';
+import { Modal } from './Modal';
 import { primeStaffDirectory } from '@/hooks/useStaffDirectory';
 
 vi.mock('@/config/firebase', () => ({ db: {} }));
@@ -65,6 +66,22 @@ describe('StaffEmailInput', () => {
     expect(onEnter).not.toHaveBeenCalled();
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(onEnter).toHaveBeenCalledTimes(1);
+  });
+
+  it('closes only the suggestion list on Escape, not the host modal', async () => {
+    const onClose = vi.fn();
+    render(
+      <Modal isOpen onClose={onClose} title="Members">
+        <Harness orgId="org-a" />
+      </Modal>
+    );
+    const input = await typeInto('paul');
+    await screen.findAllByRole('option');
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(screen.queryByRole('listbox')).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('skips excluded emails', async () => {

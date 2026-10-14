@@ -3,9 +3,26 @@
  * component (no fork) against synthetic responses, with a take resolver that
  * hands back a silent WAV instead of hitting Google Drive.
  */
-import React, { useMemo } from 'react';
+import React, { useContext, useMemo } from 'react';
+import { AuthContext } from '@/context/AuthContextValue';
+import {
+  PAGE_H,
+  PAGE_W,
+  paintReplayFrame,
+} from '@/components/quiz/whiteboard/replayFrame';
+import {
+  replayAt,
+  whiteboardLogDuration,
+  type WhiteboardLog,
+} from '@/components/quiz/whiteboard/whiteboardLog';
+import {
+  renderStartingPageCanvas,
+  startingPageId,
+} from '@/utils/whiteboard/startingPage';
 import { FreeResponseGrader } from '@/components/widgets/QuizWidget/components/FreeResponseGrader';
 import type {
+  DrawableObject,
+  WhiteboardStartingPage,
   ArtifactArchiveEntry,
   QuizQuestion,
   QuizResponse,
@@ -117,6 +134,80 @@ const GUIDE_RUBRIC = {
   ],
 };
 
+const WB_PAGE: WhiteboardStartingPage = {
+  pattern: { kind: 'coordinate-plane', xMin: -8, xMax: 8, yMin: -6, yMax: 6 },
+};
+
+// A student plots two points, draws a wrong line, erases it, then draws y = 2x - 1.
+function buildWhiteboardLog(): WhiteboardLog {
+  const at = (x: number, y: number) => ({ x: 800 + x * 91, y: 600 - y * 88 });
+  const path = (
+    id: string,
+    z: number,
+    t: number,
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+    color: string
+  ) => {
+    const points = Array.from({ length: 41 }, (_, i) => ({
+      x: from.x + ((to.x - from.x) * i) / 40,
+      y: from.y + ((to.y - from.y) * i) / 40,
+    }));
+    return {
+      t,
+      op: 'do' as const,
+      cmd: {
+        kind: 'add' as const,
+        object: { id, kind: 'path' as const, z, points, color, width: 6 },
+        pointTimes: points.map((_, i) => i * 40),
+      },
+    };
+  };
+  return {
+    v: 1,
+    page: { w: 1600, h: 1200 },
+    startingPageId: startingPageId(WB_PAGE),
+    events: [
+      path('wrong', 1, 4000, at(-3, -4.5), at(3, 4.5), '#dc2626'),
+      { t: 9000, op: 'do', cmd: { kind: 'remove', id: 'wrong' } },
+      path('answer', 2, 12000, at(-2, -5), at(3.5, 6), '#1d4ed8'),
+    ],
+  };
+}
+
+function renderWhiteboardPicture(log: WhiteboardLog): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = PAGE_W * 2;
+  canvas.height = PAGE_H * 2;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+  const objects: DrawableObject[] = replayAt(log, whiteboardLogDuration(log));
+  paintReplayFrame(
+    ctx,
+    renderStartingPageCanvas(WB_PAGE, null, 2),
+    document.createElement('canvas'),
+    objects,
+    2
+  );
+  return canvas.toDataURL('image/png');
+}
+
+// Hands each whiteboard file id its fixture; anything else plays silence.
+function whiteboardResolver(): (id: string) => Promise<string> {
+  const log = buildWhiteboardLog();
+  const picture = renderWhiteboardPicture(log);
+  return (id) =>
+    Promise.resolve(
+      id.endsWith('-pic')
+        ? picture
+        : id.endsWith('-log')
+          ? URL.createObjectURL(
+              new Blob([JSON.stringify(log)], { type: 'application/json' })
+            )
+          : SILENT_WAV
+    );
+}
+
 function makeQuestions(state: MediaGradingStateKey): QuizQuestion[] {
   const spoken = [
     {
@@ -127,7 +218,10 @@ function makeQuestions(state: MediaGradingStateKey): QuizQuestion[] {
       incorrectAnswers: [],
       timeLimit: 0,
       points: 4,
-      recording: RECORDING,
+      recording:
+        state === 'device-gated' || state === 'whiteboard'
+          ? { ...RECORDING, mode: 'whiteboard' as const, startingPage: WB_PAGE }
+          : RECORDING,
     },
     {
       id: 'q2',
@@ -177,6 +271,9 @@ function makeResponses(state: MediaGradingStateKey): QuizResponse[] {
       answer: '',
       answeredAt: 1_700_000_000_000 + i * 60_000,
       takeIndex: i + 1,
+      ...(state === 'mic-blocked'
+        ? { micState: i === 0 ? ('unavailable' as const) : ('denied' as const) }
+        : {}),
       artifacts: [artifact(`${id}-take${i + 1}`, 18_000 + i * 5_000)],
     }));
 
@@ -216,7 +313,8 @@ function makeResponses(state: MediaGradingStateKey): QuizResponse[] {
         questionId: 'q1',
         answer: '',
         answeredAt: 1_700_000_100_000,
-        unresponded: 'capture-unavailable',
+        unresponded:
+          state === 'device-gated' ? 'device-gated' : 'capture-unavailable',
       },
     ],
   } as unknown as QuizResponse;
@@ -264,7 +362,52 @@ function makeResponses(state: MediaGradingStateKey): QuizResponse[] {
       ),
     ];
   }
-  if (state === 'capture-unavailable') return [grace, ada, kath];
+  if (state === 'capture-unavailable' || state === 'device-gated')
+    return [grace, ada, kath];
+  if (state === 'whiteboard') {
+    const wbTake = (key: string, drawOnly: boolean): QuizResponse =>
+      ({
+        _responseKey: key,
+        studentUid: `u-${key}`,
+        status: 'completed',
+        answers: [
+          {
+            questionId: 'q1',
+            answer: '',
+            answeredAt: 1_700_000_000_000,
+            takeIndex: 1,
+            micState: drawOnly ? 'denied' : 'on',
+            artifacts: [
+              ...(drawOnly ? [] : [artifact(`${key}-aud`, 16_000)]),
+              {
+                id: `${key}-pic`,
+                slot: 'primary',
+                kind: 'whiteboard',
+                part: 'picture',
+                mimeType: 'image/png',
+                uploadState: 'uploaded',
+                durationMs: 16_000,
+              },
+              {
+                id: `${key}-log`,
+                slot: 'primary',
+                kind: 'whiteboard',
+                part: 'log',
+                mimeType: 'application/json',
+                uploadState: 'uploaded',
+              },
+            ],
+          },
+        ],
+        artifactArchive: Object.fromEntries(
+          ['aud', 'pic', 'log'].map((part) => [
+            `${key}-${part}`,
+            archived(`drive-${key}-${part}`),
+          ])
+        ),
+      }) as unknown as QuizResponse;
+    return [wbTake('r-ada', false), wbTake('r-kath', true)];
+  }
   return [ada, grace, kath];
 }
 
@@ -293,17 +436,40 @@ export const MediaGradingDevView: React.FC<{ state: MediaGradingStateKey }> = ({
     []
   );
 
+  const resolveTakeUrl = useMemo(
+    () =>
+      state === 'whiteboard'
+        ? whiteboardResolver()
+        : () => Promise.resolve(SILENT_WAV),
+    [state]
+  );
+  // Whiteboard fixtures need both fail-closed flags, which the bypass admin lacks.
+  const auth = useContext(AuthContext);
+  const devAuth = useMemo(
+    () =>
+      auth && (state === 'device-gated' || state === 'whiteboard')
+        ? {
+            ...auth,
+            canAccessQuizMediaResponse: () => true,
+            canAccessFeature: () => true,
+          }
+        : auth,
+    [auth, state]
+  );
+
   return (
-    <FreeResponseGrader
-      key={state}
-      quiz={quiz}
-      responses={responses}
-      displayNameByResponseKey={names}
-      teacherUid="teacher-dev"
-      resolveTakeUrl={() => Promise.resolve(SILENT_WAV)}
-      onSaveGrade={() => Promise.resolve()}
-      onClose={() => undefined}
-    />
+    <AuthContext.Provider value={devAuth}>
+      <FreeResponseGrader
+        key={state}
+        quiz={quiz}
+        responses={responses}
+        displayNameByResponseKey={names}
+        teacherUid="teacher-dev"
+        resolveTakeUrl={resolveTakeUrl}
+        onSaveGrade={() => Promise.resolve()}
+        onClose={() => undefined}
+      />
+    </AuthContext.Provider>
   );
 };
 
