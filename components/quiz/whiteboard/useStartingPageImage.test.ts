@@ -1,9 +1,10 @@
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WhiteboardStartingPage } from '@/types';
 import { useStartingPageImage } from './useStartingPageImage';
 
 const created: FakeImage[] = [];
+let failNext = false;
 class FakeImage {
   crossOrigin = '';
   url = '';
@@ -14,7 +15,9 @@ class FakeImage {
   }
   set src(url: string) {
     this.url = url;
-    queueMicrotask(() => this.onload?.());
+    const fail = failNext;
+    failNext = false;
+    queueMicrotask(() => (fail ? this.onerror?.() : this.onload?.()));
   }
 }
 
@@ -40,15 +43,31 @@ describe('useStartingPageImage', () => {
     const { result } = renderHook(() =>
       useStartingPageImage({ pattern: { kind: 'grid' } })
     );
-    expect(result.current).toBeNull();
+    expect(result.current.image).toBeNull();
+    expect(result.current.ready).toBe(true);
     expect(created).toHaveLength(0);
   });
 
   it('loads the lh3 image with CORS so the export is not tainted', async () => {
     vi.stubGlobal('Image', FakeImage);
     const { result } = renderHook(() => useStartingPageImage(withImage));
-    await waitFor(() => expect(result.current).not.toBeNull());
+    expect(result.current.ready).toBe(false);
+    await waitFor(() => expect(result.current.image).not.toBeNull());
+    expect(result.current.ready).toBe(true);
     expect(created[0].crossOrigin).toBe('anonymous');
     expect(created[0].url).toBe('https://lh3.googleusercontent.com/d/f1');
+  });
+
+  it('reports a failed load and loads again on retry', async () => {
+    vi.stubGlobal('Image', FakeImage);
+    failNext = true;
+    const { result } = renderHook(() => useStartingPageImage(withImage));
+    await waitFor(() => expect(result.current.failed).toBe(true));
+    expect(result.current.ready).toBe(false);
+
+    act(() => result.current.retry());
+    expect(result.current.failed).toBe(false);
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    expect(created).toHaveLength(2);
   });
 });

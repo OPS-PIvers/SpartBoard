@@ -5168,6 +5168,9 @@
     "notice": {
       "drawOnlyTitle": "Before you draw",
       "replayLine": "Your teacher can replay how you drew, including anything you erase."
+    },
+    "startingPage": {
+      "loadFailed": "The starting page didn't load."
     }
   }
 }

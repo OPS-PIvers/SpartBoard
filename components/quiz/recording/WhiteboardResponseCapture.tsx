@@ -130,7 +130,12 @@ export const WhiteboardResponseCapture: React.FC<
   const [logRecorder, setLogRecorder] =
     useState<WhiteboardLogRecorder>(makeLogRecorder);
 
-  const startingImage = useStartingPageImage(startingPage);
+  const {
+    image: startingImage,
+    ready: startingPageReady,
+    failed: startingPageFailed,
+    retry: retryStartingPage,
+  } = useStartingPageImage(startingPage);
   const acknowledged = noticeAckedAt !== null;
   const remaining = takesRemaining(config, takesCommitted);
   const takeBudgetReached = remaining !== null && remaining <= 0;
@@ -262,7 +267,8 @@ export const WhiteboardResponseCapture: React.FC<
 
   const recorder = useWhiteboardRecording({
     config,
-    enabled: acknowledged && !takeBudgetReached && !slotClosed,
+    enabled:
+      acknowledged && !takeBudgetReached && !slotClosed && startingPageReady,
     logSink: logRecorder,
     onPrepExpired,
     onTakeReady: handleTakeReady,
@@ -520,7 +526,7 @@ export const WhiteboardResponseCapture: React.FC<
             onOpen={() => setShowNotice(true)}
           />
           <div className="flex flex-wrap gap-2">
-            {phase === 'armed' && !takeBudgetReached && (
+            {phase === 'armed' && !takeBudgetReached && startingPageReady && (
               <button
                 // no-tour-anchor: student quiz app, outside teacher tours
                 type="button"
@@ -615,19 +621,41 @@ export const WhiteboardResponseCapture: React.FC<
                 recorder={logRecorder}
               />
             )}
-            {!recording && !reviewing && phase !== 'stopping' && (
-              <div className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center">
-                <p className="rounded-xl bg-slate-900/80 px-4 py-2 text-sm font-semibold text-white">
-                  {takeBudgetReached
-                    ? t('quizMediaResponse.capture.takeLimitReachedTitle')
-                    : phase === 'prep'
-                      ? t('quizMediaResponse.capture.prepBody')
-                      : recorder.narrated
-                        ? t('quizMediaResponse.whiteboard.armedNarrated')
-                        : t('quizMediaResponse.whiteboard.armedDrawOnly')}
+            {startingPageFailed && !recording && !reviewing && (
+              <div
+                role="alert"
+                className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/90"
+              >
+                <p className="text-sm font-semibold text-slate-800">
+                  {t('quizWhiteboard.startingPage.loadFailed')}
                 </p>
+                <button
+                  // no-tour-anchor: student quiz app, outside teacher tours
+                  type="button"
+                  onClick={retryStartingPage}
+                  className={`${btn} bg-brand-blue-primary text-white outline-brand-blue-primary hover:bg-brand-blue-dark`}
+                >
+                  <RotateCcw aria-hidden className="h-4 w-4" />
+                  {t('quizMediaResponse.capture.retryUpload')}
+                </button>
               </div>
             )}
+            {!startingPageFailed &&
+              !recording &&
+              !reviewing &&
+              phase !== 'stopping' && (
+                <div className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center">
+                  <p className="rounded-xl bg-slate-900/80 px-4 py-2 text-sm font-semibold text-white">
+                    {takeBudgetReached
+                      ? t('quizMediaResponse.capture.takeLimitReachedTitle')
+                      : phase === 'prep'
+                        ? t('quizMediaResponse.capture.prepBody')
+                        : recorder.narrated
+                          ? t('quizMediaResponse.whiteboard.armedNarrated')
+                          : t('quizMediaResponse.whiteboard.armedDrawOnly')}
+                  </p>
+                </div>
+              )}
           </div>
         </div>
         {(archivePending || archiveFailed) && (
