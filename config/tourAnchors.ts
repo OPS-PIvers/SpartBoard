@@ -1348,21 +1348,6 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
-  'quiz-editor.distractor': {
-    label: 'Distractor input, per index in the Quiz editor',
-    perField: true,
-    panel: true,
-  },
-  'quiz-editor.distractor-remove': {
-    label: 'Remove distractor (×) in the Quiz editor',
-    perField: true,
-    panel: true,
-  },
-  'quiz-editor.distractor-add': {
-    label: 'Add choice in the Quiz editor',
-    perWidgetType: true,
-    panel: true,
-  },
   'quiz-editor.ai-prompt': {
     label: 'AI describe-your-quiz textarea in the Quiz editor',
     perWidgetType: true,
@@ -1547,6 +1532,11 @@ export const TOUR_ANCHORS = {
   },
   'quiz-editor.recording-limit-clamp': {
     label: 'Clamp-to-ceiling link (shown when clamped) in the Quiz editor',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-editor.recording-review': {
+    label: 'Students review before submitting switch in the Quiz editor',
     perWidgetType: true,
     panel: true,
   },

@@ -215,6 +215,7 @@ function makeDeps(
       Promise.resolve({ givenName: 'Ava', familyName: 'Nguyen' })
     ),
     isFeatureGranted: vi.fn(() => Promise.resolve(true)),
+    isWhiteboardGranted: vi.fn(() => Promise.resolve(true)),
     now: () => 1_700_000_000_000,
     ...overrides,
   };
@@ -338,6 +339,44 @@ describe('pure helpers', () => {
       },
     ];
     expect(countCommittedTakes(answers, QUESTION_ID, ARTIFACT_ID)).toBe(1);
+  });
+
+  it('counts a multi-file take once and never counts the take being archived', () => {
+    const answers = [
+      {
+        questionId: QUESTION_ID,
+        artifacts: [
+          { id: 'a1', kind: 'audio', uploadState: 'uploaded' },
+          {
+            id: 'p1',
+            kind: 'whiteboard',
+            part: 'picture',
+            uploadState: 'uploaded',
+          },
+          {
+            id: 'l1',
+            kind: 'whiteboard',
+            part: 'log',
+            uploadState: 'uploaded',
+          },
+        ],
+      },
+      {
+        questionId: QUESTION_ID,
+        artifacts: [
+          { id: 'a2', kind: 'audio', uploadState: 'pending' },
+          {
+            id: 'p2',
+            kind: 'whiteboard',
+            part: 'picture',
+            uploadState: 'pending',
+          },
+        ],
+      },
+    ];
+    expect(countCommittedTakes(answers, QUESTION_ID, 'p2')).toBe(1);
+    expect(countCommittedTakes(answers, QUESTION_ID, 'a2')).toBe(1);
+    expect(countCommittedTakes(answers, QUESTION_ID, 'l1')).toBe(1);
   });
 
   it('names the Drive file with the real name and question position', () => {
@@ -1670,5 +1709,263 @@ describe('isQuizWhiteboardResponseGranted', () => {
     await expect(
       isQuizWhiteboardResponseGranted(db, 'a@school.org', 'a1')
     ).resolves.toBe(false);
+  });
+});
+
+describe('whiteboard takes', () => {
+  const PICTURE_ID = 'wb-pic-1';
+  const LOG_ID = 'wb-log-1';
+  const AUDIO_ID = 'wb-audio-1';
+  const pathFor = (id: string, ext: string) =>
+    `quiz_response_media/${SESSION_ID}/${RESPONSE_KEY}/${id}.${ext}`;
+
+  function whiteboardSeed(
+    take: Record<string, unknown> = {},
+    takeLimit: number | null = null
+  ): SeedOptions {
+    return {
+      session: {
+        teacherUid: TEACHER_UID,
+        quizTitle: 'Unit 4 Graphing',
+        publicQuestions: [
+          { id: 'q0' },
+          { id: QUESTION_ID, recording: { mode: 'whiteboard', takeLimit } },
+        ],
+      },
+      response: {
+        studentUid: STUDENT_UID,
+        answers: [
+          {
+            questionId: QUESTION_ID,
+            takeIndex: 1,
+            artifacts: [
+              {
+                id: AUDIO_ID,
+                kind: 'audio',
+                storagePath: pathFor(AUDIO_ID, 'webm'),
+                mimeType: 'audio/webm',
+                uploadState: 'pending',
+              },
+              {
+                id: PICTURE_ID,
+                kind: 'whiteboard',
+                part: 'picture',
+                storagePath: pathFor(PICTURE_ID, 'png'),
+                mimeType: 'image/png',
+                uploadState: 'pending',
+              },
+              {
+                id: LOG_ID,
+                kind: 'whiteboard',
+                part: 'log',
+                storagePath: pathFor(LOG_ID, 'json'),
+                mimeType: 'application/json',
+                uploadState: 'pending',
+              },
+            ],
+            ...take,
+          },
+        ],
+      },
+    };
+  }
+
+  const statAs = (contentType: string, size = 50_000) =>
+    vi.fn(() => Promise.resolve({ size, contentType }));
+
+  const archive = (
+    deps: ArchiveDeps,
+    artifactId: string,
+    callerUid: string | null = STUDENT_UID
+  ) =>
+    archiveQuizArtifactCore(
+      {
+        sessionId: SESSION_ID,
+        responseKey: RESPONSE_KEY,
+        questionId: QUESTION_ID,
+        artifactId,
+        callerUid,
+      },
+      deps
+    );
+
+  it('archives the picture as a take-numbered PNG without transcoding', async () => {
+    const { db, response } = makeStubDb(whiteboardSeed({ takeIndex: 2 }));
+    const deps = makeDeps(db, { statObject: statAs('image/png') });
+    await expect(archive(deps, PICTURE_ID)).resolves.toEqual({
+      archiveStatus: 'archived',
+      driveFileId: 'drive-1',
+    });
+    expect(deps.transcodeToM4a).not.toHaveBeenCalled();
+    expect(deps.uploadToDrive).toHaveBeenCalledWith(
+      'token',
+      Buffer.from('source'),
+      'image/png',
+      'Nguyen_Ava__Q2_take2.png',
+      'Quiz Responses/Unit 4 Graphing'
+    );
+    expect(deps.deleteObject).toHaveBeenCalledWith(pathFor(PICTURE_ID, 'png'));
+    const entry = (response!.artifactArchive as Bag)[PICTURE_ID] as Bag;
+    expect(entry.archiveStatus).toBe('archived');
+  });
+
+  it('archives the drawing log as JSON', async () => {
+    const { db } = makeStubDb(whiteboardSeed());
+    const deps = makeDeps(db, { statObject: statAs('application/json') });
+    await archive(deps, LOG_ID);
+    expect(deps.uploadToDrive).toHaveBeenCalledWith(
+      'token',
+      Buffer.from('source'),
+      'application/json',
+      'Nguyen_Ava__Q2_take1.json',
+      'Quiz Responses/Unit 4 Graphing'
+    );
+  });
+
+  it("names the take's audio with the same take number", async () => {
+    const { db } = makeStubDb(whiteboardSeed());
+    const deps = makeDeps(db);
+    await archive(deps, AUDIO_ID);
+    expect(deps.uploadToDrive).toHaveBeenCalledWith(
+      'token',
+      Buffer.from('m4a'),
+      'audio/mp4',
+      'Nguyen_Ava__Q2_take1.m4a',
+      'Quiz Responses/Unit 4 Graphing'
+    );
+  });
+
+  it('refuses when the whiteboard flag is off, even with media on', async () => {
+    const { db } = makeStubDb(whiteboardSeed());
+    const deps = makeDeps(db, {
+      statObject: statAs('image/png'),
+      isWhiteboardGranted: vi.fn(() => Promise.resolve(false)),
+    });
+    await expect(archive(deps, PICTURE_ID)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    expect(deps.downloadObject).not.toHaveBeenCalled();
+    expect(deps.uploadToDrive).not.toHaveBeenCalled();
+  });
+
+  it('refuses when the media flag is off, even with the whiteboard flag on', async () => {
+    const { db } = makeStubDb(whiteboardSeed());
+    const deps = makeDeps(db, {
+      statObject: statAs('application/json'),
+      isFeatureGranted: vi.fn(() => Promise.resolve(false)),
+    });
+    await expect(archive(deps, LOG_ID)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    expect(deps.uploadToDrive).not.toHaveBeenCalled();
+  });
+
+  it('refuses the session teacher and other callers', async () => {
+    const { db } = makeStubDb(whiteboardSeed());
+    const deps = makeDeps(db, { statObject: statAs('image/png') });
+    for (const caller of [TEACHER_UID, 'someone-else']) {
+      await expect(archive(deps, PICTURE_ID, caller)).rejects.toMatchObject({
+        code: 'permission-denied',
+      });
+    }
+    expect(deps.uploadToDrive).not.toHaveBeenCalled();
+  });
+
+  it('refuses a whiteboard artifact with no known part', async () => {
+    const seed = whiteboardSeed();
+    const answers = (seed.response as { answers: Bag[] }).answers;
+    (answers[0].artifacts as Bag[])[1].part = 'thumbnail';
+    const { db } = makeStubDb(seed);
+    const deps = makeDeps(db, { statObject: statAs('image/png') });
+    await expect(archive(deps, PICTURE_ID)).rejects.toMatchObject({
+      code: 'invalid-argument',
+    });
+    expect(deps.uploadToDrive).not.toHaveBeenCalled();
+  });
+
+  it('settles a part whose stored type does not match at lost', async () => {
+    const { db, response } = makeStubDb(whiteboardSeed());
+    const deps = makeDeps(db, { statObject: statAs('application/json') });
+    await expect(archive(deps, PICTURE_ID)).rejects.toMatchObject({
+      code: 'invalid-argument',
+    });
+    expect(deps.downloadObject).not.toHaveBeenCalled();
+    const entry = (response!.artifactArchive as Bag)[PICTURE_ID] as Bag;
+    expect(entry.archiveStatus).toBe('lost');
+  });
+
+  it('caps the picture at 10 MB and the log at 5 MB', async () => {
+    const MB = 1024 * 1024;
+    const okPic = makeStubDb(whiteboardSeed());
+    await expect(
+      archive(
+        makeDeps(okPic.db, { statObject: statAs('image/png', 10 * MB) }),
+        PICTURE_ID
+      )
+    ).resolves.toMatchObject({ archiveStatus: 'archived' });
+    const bigPic = makeStubDb(whiteboardSeed());
+    await expect(
+      archive(
+        makeDeps(bigPic.db, { statObject: statAs('image/png', 10 * MB + 1) }),
+        PICTURE_ID
+      )
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    const bigLog = makeStubDb(whiteboardSeed());
+    await expect(
+      archive(
+        makeDeps(bigLog.db, {
+          statObject: statAs('application/json', 5 * MB + 1),
+        }),
+        LOG_ID
+      )
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+  });
+
+  it('rejects a path outside this response', async () => {
+    const seed = whiteboardSeed();
+    const answers = (seed.response as { answers: Bag[] }).answers;
+    (answers[0].artifacts as Bag[])[1].storagePath =
+      `quiz_response_media/${SESSION_ID}/other-key/${PICTURE_ID}.png`;
+    const { db } = makeStubDb(seed);
+    const deps = makeDeps(db, { statObject: statAs('image/png') });
+    await expect(archive(deps, PICTURE_ID)).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+  });
+
+  it('counts the take limit per take, not per file', async () => {
+    const { db } = makeStubDb(whiteboardSeed({}, 1));
+    const deps = makeDeps(db, { statObject: statAs('image/png') });
+    await expect(archive(deps, PICTURE_ID)).resolves.toMatchObject({
+      archiveStatus: 'archived',
+    });
+  });
+
+  it('refuses a new take past the limit', async () => {
+    const seed = whiteboardSeed({ takeIndex: 2 }, 1);
+    const answers = (seed.response as { answers: Bag[] }).answers;
+    answers.unshift({
+      questionId: QUESTION_ID,
+      takeIndex: 1,
+      artifacts: [
+        {
+          id: 'old-pic',
+          kind: 'whiteboard',
+          part: 'picture',
+          uploadState: 'uploaded',
+        },
+        {
+          id: 'old-log',
+          kind: 'whiteboard',
+          part: 'log',
+          uploadState: 'uploaded',
+        },
+      ],
+    });
+    const { db } = makeStubDb(seed);
+    const deps = makeDeps(db, { statObject: statAs('image/png') });
+    await expect(archive(deps, PICTURE_ID)).rejects.toMatchObject({
+      code: 'resource-exhausted',
+    });
   });
 });

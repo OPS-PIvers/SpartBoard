@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import {
   useAudioRecording,
+  defaultAudioRecordingDeps,
+  SPEECH_AUDIO_BITS_PER_SECOND,
   type AudioRecordingDeps,
+  type AudioTake,
 } from './useAudioRecording';
 import type { RecordingConfig } from '@/types';
 
@@ -239,6 +242,27 @@ describe('useAudioRecording capture', () => {
     );
     expect(result.current.phase).toBe('armed');
   });
+
+  it('hands the take straight to onTakeReady and skips review', async () => {
+    const onTakeReady = vi.fn<(take: AudioTake) => void>();
+    const { result } = renderHook(() =>
+      useAudioRecording({
+        config: config({ prepSeconds: 0, limitSeconds: 10 }),
+        enabled: true,
+        onTakeReady,
+        deps: makeDeps(),
+      })
+    );
+    await act(async () => {
+      await result.current.start();
+    });
+    advance(10_000);
+    expect(onTakeReady).toHaveBeenCalledTimes(1);
+    expect(onTakeReady.mock.calls[0][0].durationMs).toBe(10_000);
+    expect(result.current.phase).toBe('armed');
+    expect(result.current.take).toBeNull();
+    expect(result.current.takeUrl).toBeNull();
+  });
 });
 
 describe('useAudioRecording mic unavailable', () => {
@@ -283,5 +307,34 @@ describe('useAudioRecording mic unavailable', () => {
     });
     expect(result.current.phase).toBe('capture-unavailable');
     expect(deps.createRecorder).not.toHaveBeenCalled();
+  });
+});
+
+describe('defaultAudioRecordingDeps.createRecorder', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('records speech at 32 kbps, with and without a mime type', () => {
+    const ctor = vi.fn();
+    vi.stubGlobal(
+      'MediaRecorder',
+      class {
+        constructor(stream: MediaStream, options?: MediaRecorderOptions) {
+          ctor(stream, options);
+        }
+      }
+    );
+    const stream = {} as MediaStream;
+    defaultAudioRecordingDeps.createRecorder(stream, 'audio/webm;codecs=opus');
+    defaultAudioRecordingDeps.createRecorder(stream, '');
+    expect(SPEECH_AUDIO_BITS_PER_SECOND).toBe(32000);
+    expect(ctor).toHaveBeenNthCalledWith(1, stream, {
+      mimeType: 'audio/webm;codecs=opus',
+      audioBitsPerSecond: 32000,
+    });
+    expect(ctor).toHaveBeenNthCalledWith(2, stream, {
+      audioBitsPerSecond: 32000,
+    });
   });
 });

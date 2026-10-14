@@ -9923,8 +9923,6 @@ export type GlobalFeature =
   | 'plc-norming-flags'
   /** Share flashcard sets and class-level flashcard results with a PLC. */
   | 'plc-flashcards'
-  /** Quiz multiple choice editor as one option list with a correct-answer marker per option. */
-  | 'quiz-choice-editor'
   /** Standard codes typed in or imported with a question text become Learning targets tags. */
   | 'standards-from-question-text'
   /** "View full screen" toggle on large pop-ups (editors, graders). */

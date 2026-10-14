@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import type { RecordingConfig } from '@/types';
 import { wrapUpThresholdSeconds } from '@/config/quizRecordingDefaults';
 
@@ -32,6 +38,8 @@ export interface UseAudioRecordingOptions {
   /** `auto-advance` / `unanswered` bubble up; `armed` and `auto-start` do not. */
   onPrepExpired?: (expiry: RecordingConfig['prepExpiry']) => void;
   onCaptureUnavailable?: () => void;
+  /** When set, a finished take skips review: it is handed here and the recorder re-arms (D5). */
+  onTakeReady?: (take: AudioTake) => void;
   /** Injected in tests and in the DEV harness; defaults to the real APIs. */
   deps?: AudioRecordingDeps;
 }
@@ -50,12 +58,19 @@ const CANDIDATE_MIME_TYPES = [
   'audio/ogg;codecs=opus',
 ];
 
-const realDeps: AudioRecordingDeps = {
+// 32 kbps keeps a 300 s spoken take near 1.2 MB instead of Chrome's ~128 kbps default.
+export const SPEECH_AUDIO_BITS_PER_SECOND = 32000;
+
+function speechRecorderOptions(mimeType: string): MediaRecorderOptions {
+  return mimeType
+    ? { mimeType, audioBitsPerSecond: SPEECH_AUDIO_BITS_PER_SECOND }
+    : { audioBitsPerSecond: SPEECH_AUDIO_BITS_PER_SECOND };
+}
+
+export const defaultAudioRecordingDeps: AudioRecordingDeps = {
   getStream: () => navigator.mediaDevices.getUserMedia({ audio: true }),
   createRecorder: (stream, mimeType) =>
-    mimeType
-      ? new MediaRecorder(stream, { mimeType })
-      : new MediaRecorder(stream),
+    new MediaRecorder(stream, speechRecorderOptions(mimeType)),
   isTypeSupported: (mimeType) =>
     typeof MediaRecorder !== 'undefined' &&
     typeof MediaRecorder.isTypeSupported === 'function' &&
@@ -94,7 +109,7 @@ export function useAudioRecording(
   options: UseAudioRecordingOptions
 ): UseAudioRecordingResult {
   const { config, enabled } = options;
-  const deps = options.deps ?? realDeps;
+  const deps = options.deps ?? defaultAudioRecordingDeps;
 
   const [phase, setPhase] = useState<AudioRecordingPhase>(
     config.prepSeconds > 0 ? 'prep' : 'armed'
@@ -124,6 +139,10 @@ export function useAudioRecording(
   const onCaptureUnavailableRef = useRef(options.onCaptureUnavailable);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in timers/handlers
   onCaptureUnavailableRef.current = options.onCaptureUnavailable;
+  const onTakeReadyRef = useRef(options.onTakeReady);
+  useLayoutEffect(() => {
+    onTakeReadyRef.current = options.onTakeReady;
+  });
 
   const clearPrepTimer = () => {
     if (prepTimerRef.current !== null) {
@@ -189,6 +208,12 @@ export function useAudioRecording(
         recorderRef.current = null;
         clearRecordTimer();
         setRecordSecondsLeft(null);
+        const onTakeReady = onTakeReadyRef.current;
+        if (onTakeReady) {
+          setPhase('armed');
+          onTakeReady({ blob, mimeType: effectiveMime, durationMs });
+          return;
+        }
         setTake({ blob, mimeType: effectiveMime, durationMs });
         const url = URL.createObjectURL(blob);
         takeUrlRef.current = url;
