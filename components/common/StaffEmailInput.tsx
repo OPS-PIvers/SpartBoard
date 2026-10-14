@@ -106,6 +106,8 @@ export const StaffEmailInput: React.FC<StaffEmailInputProps> = ({
       }
       if (e.key === 'Escape') {
         e.preventDefault();
+        // Keep a host Modal's window Escape handler from also closing.
+        e.stopPropagation();
         setOpen(false);
         return;
       }
