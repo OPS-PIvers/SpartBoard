@@ -21,7 +21,11 @@ export interface PlaybackRequest {
   responseKey: string;
   questionId: string;
   slot: ArtifactSlot;
+  /** Whiteboard takes only; absent means the take's audio. */
+  part?: PlaybackPart;
 }
+
+export type PlaybackPart = 'audio' | 'picture' | 'log';
 
 export interface PlaybackTarget extends PlaybackRequest {
   /** Resolved take id; re-pinning a graded take must not replay the cached one. */
@@ -48,7 +52,7 @@ export type PlaybackState =
 
 export type FetchPlayback = (req: PlaybackRequest) => Promise<PlaybackResponse>;
 
-const defaultFetch: FetchPlayback = async (req) => {
+export const defaultFetchPlayback: FetchPlayback = async (req) => {
   const callable = httpsCallable<PlaybackRequest, PlaybackResponse>(
     functions,
     'getQuizArtifactPlaybackUrl'
@@ -57,7 +61,7 @@ const defaultFetch: FetchPlayback = async (req) => {
   return result.data;
 };
 
-function base64ToBlob(data: string, mimeType: string): Blob {
+export function base64ToBlob(data: string, mimeType: string): Blob {
   const binary = atob(data);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
@@ -66,7 +70,7 @@ function base64ToBlob(data: string, mimeType: string): Blob {
 
 export function useQuizArtifactPlayback(
   request: PlaybackTarget | null,
-  fetchPlayback: FetchPlayback = defaultFetch
+  fetchPlayback: FetchPlayback = defaultFetchPlayback
 ): { state: PlaybackState; load: () => void } {
   const [state, setState] = useState<PlaybackState>({ phase: 'idle' });
   const urlRef = useRef<string | null>(null);

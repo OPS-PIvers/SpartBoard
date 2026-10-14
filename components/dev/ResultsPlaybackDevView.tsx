@@ -10,6 +10,7 @@ import { ResponsePlaybackCard } from '@/components/quiz/recording/ResponsePlayba
 import { PublishedScoreReview } from '@/components/quiz/QuizStudentApp';
 import type { FetchPlayback } from '@/hooks/useQuizArtifactPlayback';
 import type {
+  WrittenAnswerAnnotation,
   ArtifactArchiveEntry,
   QuizResponse,
   QuizResponseAnswer,
@@ -74,7 +75,64 @@ const ARCHIVE: Record<ResultsPlaybackStateKey, ArtifactArchiveEntry> = {
   failed: { archiveStatus: 'failed', archiveError: 'Drive responded 500' },
   deleted: { archiveStatus: 'deleted', deletedAt: 1_700_000_100_000 },
   provisional: { archiveStatus: 'archived', driveFileId: 'drive-1' },
+  'wb-show': { archiveStatus: 'archived', driveFileId: 'drive-1' },
+  'wb-ready': { archiveStatus: 'archived', driveFileId: 'drive-1' },
+  'wb-archiving': { archiveStatus: 'syncing' },
+  'wb-deleted': { archiveStatus: 'deleted', deletedAt: 1_700_000_100_000 },
 };
+
+const WB_ANSWERS: QuizResponseAnswer[] = [
+  {
+    questionId: 'q1',
+    answer: '',
+    answeredAt: 1_700_000_000_000,
+    takeIndex: 1,
+    artifacts: [
+      {
+        id: 'wb-audio',
+        slot: 'primary',
+        kind: 'audio',
+        mimeType: 'audio/webm',
+        durationMs: 1000,
+        uploadState: 'uploaded',
+      },
+      {
+        id: 'wb-picture',
+        slot: 'primary',
+        kind: 'whiteboard',
+        part: 'picture',
+        mimeType: 'image/png',
+        uploadState: 'uploaded',
+      },
+      {
+        id: 'wb-log',
+        slot: 'primary',
+        kind: 'whiteboard',
+        part: 'log',
+        mimeType: 'application/json',
+        uploadState: 'uploaded',
+      },
+    ],
+  },
+];
+
+/** A hand-drawn-looking 4:3 picture so the fixture shows a real image. */
+const WB_PICTURE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1200"><rect width="1600" height="1200" fill="#fff"/><g stroke="#e2e8f0" stroke-width="2">${Array.from({ length: 15 }, (_, i) => `<line x1="${(i + 1) * 100}" y1="0" x2="${(i + 1) * 100}" y2="1200"/>`).join('')}${Array.from({ length: 11 }, (_, i) => `<line x1="0" y1="${(i + 1) * 100}" x2="1600" y2="${(i + 1) * 100}"/>`).join('')}</g><g stroke="#334155" stroke-width="4"><line x1="0" y1="600" x2="1600" y2="600"/><line x1="800" y1="0" x2="800" y2="1200"/></g><path d="M300 1000 L1300 200" stroke="#2d3f89" stroke-width="10" fill="none" stroke-linecap="round"/><circle cx="800" cy="600" r="16" fill="#ad2122"/><path d="M1000 900 q60 -80 140 -20 t140 -10" stroke="#ad2122" stroke-width="8" fill="none" stroke-linecap="round"/><text x="1020" y="980" font-family="Patrick Hand, cursive" font-size="64" fill="#ad2122">slope = 4/5</text></svg>`;
+
+const WB_COMMENTS: WrittenAnswerAnnotation[] = [
+  {
+    id: 'c1',
+    from: 4000,
+    to: 4000,
+    comment: 'Good start: you found the intercept first.',
+  },
+  {
+    id: 'c2',
+    from: 21000,
+    to: 21000,
+    comment: 'Check your rise over run here.',
+  },
+] as unknown as WrittenAnswerAnnotation[];
 
 const SESSION = {
   id: 'session-dev',
@@ -114,6 +172,62 @@ export const ResultsPlaybackDevView: React.FC<{
         durationMs: 1000,
       });
   }, []);
+  const whiteboardFetch: FetchPlayback = useMemo(() => {
+    const tone = toneWavBase64();
+    const picture = btoa(WB_PICTURE_SVG);
+    const log = btoa(
+      JSON.stringify({
+        v: 1,
+        page: { w: 1600, h: 1200 },
+        startingPageId: 'grid',
+        events: [{ t: 30000, op: 'undo' }],
+      })
+    );
+    return (req) =>
+      Promise.resolve({
+        status: 'ready' as const,
+        artifactId: `wb-${req.part ?? 'audio'}`,
+        takeIndex: 1,
+        mimeType:
+          req.part === 'picture'
+            ? 'image/svg+xml'
+            : req.part === 'log'
+              ? 'application/json'
+              : 'audio/wav',
+        data:
+          req.part === 'picture' ? picture : req.part === 'log' ? log : tone,
+        durationMs: 1000,
+      });
+  }, []);
+
+  if (state.startsWith('wb-')) {
+    const archive = ARCHIVE[state];
+    return (
+      <div className="h-full w-full overflow-auto bg-slate-50 p-6">
+        <article className="rounded-xl border border-slate-200 bg-white p-4">
+          <p className="mb-2 text-sm font-semibold text-slate-900">
+            Graph y = 4/5x + 1 and explain how you found the slope.
+          </p>
+          <ResponsePlaybackCard
+            key={state}
+            sessionId="session-dev"
+            responseKey="response-dev"
+            questionId="q1"
+            answers={WB_ANSWERS}
+            artifactArchive={{
+              'wb-audio': archive,
+              'wb-picture': archive,
+              'wb-log': archive,
+            }}
+            gradedTakeIndex={state === 'wb-ready' ? 1 : undefined}
+            annotations={state === 'wb-ready' ? WB_COMMENTS : undefined}
+            whiteboardEnabled
+            fetchPlayback={whiteboardFetch}
+          />
+        </article>
+      </div>
+    );
+  }
 
   if (state === 'provisional') {
     return (
