@@ -41,10 +41,22 @@ const TOOLS: { id: Tool; icon: typeof Move }[] = [
 ];
 
 const SELECT_BLUE = '#2563eb';
-const HANDLE = 20;
-// Hit radii in screen pixels; a finger gets a wider reach than a mouse.
-const HANDLE_REACH_PX = { mouse: 14, touch: 24 };
+// Handle sizes are screen pixels so they stay grabbable at any modal width.
+const HANDLE_PX = { mouse: 16, touch: 28 };
+// Hit radii in screen pixels; a finger gets at least a 48px target.
+const HANDLE_REACH_PX = { mouse: 16, touch: 28 };
 const ERASER_REACH_PX = { mouse: 8, touch: 16 };
+const NUDGE = { small: 10, large: 50 };
+const ARROWS: Record<string, [number, number]> = {
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+};
+const coarsePointer = () =>
+  typeof window !== 'undefined' &&
+  typeof window.matchMedia === 'function' &&
+  window.matchMedia('(pointer: coarse)').matches;
 
 type Drag =
   | {
@@ -88,6 +100,19 @@ export const WhiteboardStartingPagePreviewModal: React.FC<
   const [tool, setTool] = useState<Tool>('move');
   const [selected, setSelected] = useState<number | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
+  const [displayWidth, setDisplayWidth] = useState(0);
+  const [coarse] = useState(coarsePointer);
+
+  // Handles are sized from the canvas's on-screen width, so track it.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() =>
+      setDisplayWidth(canvas.clientWidth)
+    );
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, []);
 
   const draft = useMemo(
     () =>
@@ -127,15 +152,18 @@ export const WhiteboardStartingPagePreviewModal: React.FC<
       selectedRect.w,
       selectedRect.h
     );
+    const unitsPerPx =
+      displayWidth > 0 ? WHITEBOARD_PAGE_WIDTH / displayWidth : 2;
+    const size = (coarse ? HANDLE_PX.touch : HANDLE_PX.mouse) * unitsPerPx;
     ctx.fillStyle = '#ffffff';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2 * unitsPerPx;
     for (const c of CORNERS) {
       const [cx, cy] = cornerPoint(selectedRect, c);
-      ctx.fillRect(cx - HANDLE / 2, cy - HANDLE / 2, HANDLE, HANDLE);
-      ctx.strokeRect(cx - HANDLE / 2, cy - HANDLE / 2, HANDLE, HANDLE);
+      ctx.fillRect(cx - size / 2, cy - size / 2, size, size);
+      ctx.strokeRect(cx - size / 2, cy - size / 2, size, size);
     }
     ctx.restore();
-  }, [draft, loaded, selectedRect]);
+  }, [draft, loaded, selectedRect, displayWidth, coarse]);
 
   const toPage = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -228,6 +256,27 @@ export const WhiteboardStartingPagePreviewModal: React.FC<
       setInk((cur) => [...cur, stroke]);
     }
     setDrag(null);
+  };
+
+  const nudge = (e: React.KeyboardEvent<HTMLCanvasElement>) => {
+    const dir = ARROWS[e.key];
+    const resize = e.key === '+' || e.key === '=' || e.key === '-';
+    if ((!dir && !resize) || tool !== 'move' || images.length === 0) return;
+    e.preventDefault();
+    if (selected === null) {
+      setSelected(images.length - 1);
+      return;
+    }
+    const img = images[selected];
+    let next: WhiteboardPlacedImage;
+    if (dir) {
+      const step = e.shiftKey ? NUDGE.large : NUDGE.small;
+      next = moveRect(img, dir[0] * step, dir[1] * step);
+    } else {
+      const s = e.key === '-' ? 0.9 : 1.1;
+      next = resizeFromCorner(img, 'se', img.x + img.w * s, img.y + img.h * s);
+    }
+    setImages((cur) => cur.map((im, i) => (i === selected ? next : im)));
   };
 
   const removeSelected = () => {
@@ -335,6 +384,8 @@ export const WhiteboardStartingPagePreviewModal: React.FC<
             if (e.key === 'Delete' || e.key === 'Backspace') {
               e.preventDefault();
               removeSelected();
+            } else {
+              nudge(e);
             }
           }}
           className={`block aspect-[4/3] w-full touch-none select-none rounded-lg border border-slate-200 bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 ${

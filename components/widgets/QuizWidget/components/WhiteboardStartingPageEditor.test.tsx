@@ -251,6 +251,42 @@ describe('WhiteboardStartingPagePreviewModal', () => {
     });
   });
 
+  it('grabs a corner with a finger from a 48px target', () => {
+    const { canvas, onChange } = openEditor(pageWithImage);
+    const touch = (
+      type: 'pointerDown' | 'pointerMove' | 'pointerUp',
+      x: number,
+      y: number
+    ) =>
+      fireEvent[type](canvas, {
+        clientX: x,
+        clientY: y,
+        pointerId: 2,
+        pointerType: 'touch',
+      });
+    touch('pointerDown', 100, 100);
+    touch('pointerUp', 100, 100);
+    touch('pointerDown', 265, 215);
+    touch('pointerMove', 365, 215);
+    touch('pointerUp', 365, 215);
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(saved(onChange).images?.[0]).toMatchObject({ x: 100, y: 100 });
+    expect(saved(onChange).images?.[0].w).toBeGreaterThan(400);
+  });
+
+  it('selects, moves and resizes an image from the keyboard', () => {
+    const { canvas, onChange } = openEditor(pageWithImage);
+    fireEvent.keyDown(canvas, { key: 'ArrowRight' });
+    fireEvent.keyDown(canvas, { key: 'ArrowRight' });
+    fireEvent.keyDown(canvas, { key: 'ArrowDown', shiftKey: true });
+    fireEvent.keyDown(canvas, { key: '+' });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const img = saved(onChange).images?.[0];
+    expect(img).toMatchObject({ x: 110, y: 150 });
+    expect(img?.w).toBeCloseTo(440);
+    expect(img?.h).toBeCloseTo(330);
+  });
+
   it('removes the selected image with the Delete key', () => {
     const { canvas, at, onChange } = openEditor(pageWithImage);
     at('pointerDown', 100, 100);
