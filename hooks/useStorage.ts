@@ -15,6 +15,7 @@ import {
   releaseDriveFiles,
   releaseStorageFiles,
 } from '@/utils/guidedLearningFileRelease';
+import { isTestRunProject } from '@/components/tours/tourTestRun';
 
 export const MAX_PDF_SIZE_BYTES = 50 * 1024 * 1024; // 50MB
 
@@ -197,6 +198,9 @@ export const useStorage = () => {
     fileName: string,
     home: GuidedLearningMediaHome = 'drive'
   ): Promise<GuidedLearningImageUpload> => {
+    // The dummy board has no Storage, so its slides stay in the page.
+    if (isTestRunProject())
+      return { url: URL.createObjectURL(blob), storagePath: '' };
     if (home === 'drive' && driveService) {
       beginUpload();
       try {

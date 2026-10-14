@@ -2594,6 +2594,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'studio.timeline-slide': ['guidedLearning.studio'],
     'studio.timeline-step': ['guidedLearning.studio'],
     'studio.add-step': ['guidedLearning.studio'],
+    'studio.canvas': ['guidedLearning.studio'],
     'dock.live-session': ['board'],
     'dock.live-popover-close': ['board'],
     'dock.restore-custom': ['board'],

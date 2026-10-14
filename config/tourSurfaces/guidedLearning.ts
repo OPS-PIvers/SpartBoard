@@ -143,6 +143,7 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'panel',
     widgetType: 'guided-learning',
     opensWith: 'studio.timeline-step',
+    alsoOpensWith: ['studio.canvas'],
     needs: ['widget-on-stage', 'library-item'],
     files: [
       `${GLC}studio/StudioStepFields.tsx`,

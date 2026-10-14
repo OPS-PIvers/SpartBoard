@@ -6,6 +6,7 @@
 import { chromium } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { installedChromiums } from './lib/findChromium.mjs';
 
 const args = process.argv.slice(2);
@@ -72,6 +73,13 @@ const browser = await launchBrowser();
 const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const errors = [];
 page.on('pageerror', (err) => errors.push(err.message));
+// Any file chooser a step opens (Add media) gets the bundled sample image.
+const sampleImage = fileURLToPath(
+  new URL('./live-tour-assets/sample-image.png', import.meta.url)
+);
+page.on('filechooser', (chooser) =>
+  chooser.setFiles(sampleImage).catch((err) => errors.push(err.message))
+);
 
 await page.goto(base);
 // Extra preview flags to play the tour with, such as live-tour-self-heal.
