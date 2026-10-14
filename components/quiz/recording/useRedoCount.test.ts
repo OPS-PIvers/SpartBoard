@@ -25,6 +25,17 @@ describe('useRedoCount', () => {
     ).toBe(0);
   });
 
+  it('keeps the count when saved takes load after mount', () => {
+    const first = renderHook(() => useRedoCount('s1:r1:q1', 2));
+    act(() => first.result.current[1]());
+    first.unmount();
+    const again = renderHook(({ takes }) => useRedoCount('s1:r1:q1', takes), {
+      initialProps: { takes: 0 },
+    });
+    again.rerender({ takes: 2 });
+    expect(again.result.current[0]).toBe(1);
+  });
+
   it('counts in memory when there is no key', () => {
     const { result } = renderHook(() => useRedoCount(undefined));
     act(() => result.current[1]());

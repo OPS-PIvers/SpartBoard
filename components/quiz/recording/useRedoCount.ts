@@ -1,41 +1,39 @@
 import { useCallback, useState } from 'react';
 
-const storageKey = (key: string) => `quiz-redos:${key}`;
+interface RedoRecord {
+  redos: number;
+  /** Turned-in takes when the count was written; fewer now means a teacher reset. */
+  takes: number;
+}
 
-// Stored with the committed-take count it was written at, so a teacher reset (fewer takes) clears it.
-const read = (key: string | undefined, takesCommitted: number): number => {
-  if (!key) return 0;
+const storageKey = (key: string) => `quiz-redos:${key}`;
+const EMPTY: RedoRecord = { redos: 0, takes: 0 };
+
+const read = (key: string | undefined): RedoRecord => {
+  if (!key) return EMPTY;
   try {
     const saved = JSON.parse(
       localStorage.getItem(storageKey(key)) ?? 'null'
-    ) as {
-      redos?: unknown;
-      takes?: unknown;
-    } | null;
-    if (
-      typeof saved?.redos !== 'number' ||
-      typeof saved.takes !== 'number' ||
-      takesCommitted < saved.takes
-    )
-      return 0;
-    return Math.max(0, Math.floor(saved.redos));
+    ) as Partial<RedoRecord> | null;
+    if (typeof saved?.redos !== 'number' || typeof saved.takes !== 'number')
+      return EMPTY;
+    return { redos: Math.max(0, Math.floor(saved.redos)), takes: saved.takes };
   } catch {
-    return 0;
+    return EMPTY;
   }
 };
 
 /** Redos used on this question, kept in localStorage so leaving and returning can't refill attempts. */
 export const useRedoCount = (key: string | undefined, takesCommitted = 0) => {
-  const [redos, setRedos] = useState(() => read(key, takesCommitted));
+  const [record, setRecord] = useState(() => read(key));
+  // Checked each render, so a count read before saved takes load isn't lost.
+  const redos = takesCommitted < record.takes ? 0 : record.redos;
   const addRedo = useCallback(() => {
-    const next = redos + 1;
-    setRedos(next);
+    const next = { redos: redos + 1, takes: takesCommitted };
+    setRecord(next);
     if (!key) return;
     try {
-      localStorage.setItem(
-        storageKey(key),
-        JSON.stringify({ redos: next, takes: takesCommitted })
-      );
+      localStorage.setItem(storageKey(key), JSON.stringify(next));
     } catch {
       // Private mode or blocked storage: the count still holds for this visit.
     }
