@@ -261,7 +261,7 @@ export const WeatherWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const tempText = `${Math.round(
     showFeelsLike && feelsLike !== undefined ? feelsLike : temp
   )}°`;
-  // Approximate rendered width in em so the hero number shrinks to fit narrow cards.
+  // Approximate width in em; the 34cqmin below covers the 22cqmin icon, its gap and padding.
   const tempWidthEm = [...tempText]
     .reduce((w, ch) => w + (ch === '-' ? 0.5 : ch === '°' ? 0.42 : 0.66), 0)
     .toFixed(2);
