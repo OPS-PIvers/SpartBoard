@@ -662,8 +662,7 @@ const StudioSession: React.FC<
     setCurrentImageIndex(shown.imageIndex);
   }, [steps, setSelectedStepId, setCurrentImageIndex]);
 
-  const calloutEditing =
-    canAccessFeature('gl-studio') && canAccessFeature('gl-callout-editing');
+  const calloutEditing = canAccessFeature('gl-callout-editing');
   const tools = useCanvasTools(editorState, preset, { calloutEditing });
   const { rows: canvasRows, typeRows, deleteFocusedVertex } = tools;
 

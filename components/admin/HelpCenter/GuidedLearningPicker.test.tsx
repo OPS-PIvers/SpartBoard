@@ -21,7 +21,7 @@ const glState = vi.hoisted(() => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'admin-1' },
-    canAccessFeature: (id: string) => id === 'gl-studio',
+    canAccessFeature: () => false,
   }),
 }));
 

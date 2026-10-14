@@ -15,7 +15,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'gl-live-tours',
   'live-tour-editing-v2',
   'live-tour-self-heal',
-  'gl-studio',
   'per-period-access',
   'plc-home-v2',
   'plc-norming-flags',

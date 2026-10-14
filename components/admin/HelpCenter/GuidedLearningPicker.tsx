@@ -18,12 +18,6 @@ const GuidedLearningStudio = lazy(() =>
   )
 );
 
-const GuidedLearningEditorModal = lazy(() =>
-  import('@/components/widgets/GuidedLearning/components/GuidedLearningEditorModal').then(
-    (m) => ({ default: m.GuidedLearningEditorModal })
-  )
-);
-
 interface GuidedLearningPickerProps {
   selectedSetId: string | null;
   /** Title for a new activity, taken from the help item. */
@@ -52,7 +46,6 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
   onChange,
 }) => {
   const { user, canAccessFeature } = useAuth();
-  const studioEditor = canAccessFeature('gl-studio');
   const liveTours = canAccessFeature('gl-live-tours');
   const { sets, buildingSets, buildingLoading, loadSetData, saveBuildingSet } =
     useGuidedLearning(user?.uid);
@@ -353,23 +346,13 @@ export const GuidedLearningPicker: React.FC<GuidedLearningPickerProps> = ({
 
       {editing && (
         <Suspense fallback={null}>
-          {studioEditor ? (
-            <GuidedLearningStudio
-              key={editing.id}
-              set={editing}
-              meta={null}
-              onClose={closeEditor}
-              onSave={handleEditorSave}
-            />
-          ) : (
-            <GuidedLearningEditorModal
-              isOpen
-              set={editing}
-              meta={null}
-              onClose={closeEditor}
-              onSave={handleEditorSave}
-            />
-          )}
+          <GuidedLearningStudio
+            key={editing.id}
+            set={editing}
+            meta={null}
+            onClose={closeEditor}
+            onSave={handleEditorSave}
+          />
         </Suspense>
       )}
     </>
