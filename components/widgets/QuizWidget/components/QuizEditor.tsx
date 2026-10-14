@@ -65,6 +65,9 @@ import {
   ResponseFormatControl,
   SpokenResponseSettings,
 } from './ResponseFormatSection';
+import { useWhiteboardImageUpload } from './useWhiteboardImageUpload';
+import { canAccessQuizWhiteboardResponse } from '@/utils/quizMediaAccess';
+
 import { QuizAuthoringAdvisory } from './QuizAuthoringAdvisory';
 import { RubricBuilderPanel } from './RubricBuilderPanel';
 import { WordLimitFields } from './WordLimitFields';
@@ -837,6 +840,11 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
   // Fail-closed: no permission record means the controls never mount, so the
   // editor is pixel-identical to today for everyone else.
   const mediaResponseAllowed = canAccessQuizMediaResponse();
+  const whiteboardAllowed = canAccessQuizWhiteboardResponse({
+    canAccessQuizMediaResponse,
+    canAccessFeature,
+  });
+  const uploadWhiteboardImage = useWhiteboardImageUpload();
   const rubricVisibilityOn = canAccessFeature('quiz-rubric-visibility');
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const readPrompt = useCallback(() => promptRef.current?.value, []);
@@ -1126,6 +1134,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
                 <ResponseFormatControl
                   question={q}
                   onChange={handleRecordingChange}
+                  whiteboardAllowed={whiteboardAllowed}
                 />
               </div>
             )}
@@ -1228,6 +1237,8 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
           <SpokenResponseSettings
             question={q}
             onChange={handleRecordingChange}
+            whiteboardAllowed={whiteboardAllowed}
+            onUploadWhiteboardImage={uploadWhiteboardImage}
           />
         )}
 

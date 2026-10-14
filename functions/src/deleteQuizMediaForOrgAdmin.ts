@@ -15,7 +15,9 @@
  * denormalized index collection.
  *
  * `deleteQuizMediaForOrgAdmin` deletes a *set*: every take of one question for
- * one student, Drive file plus any surviving Storage transit object. It never
+ * one student, Drive file plus any surviving Storage transit object. A
+ * whiteboard take's audio, picture and drawing log are listed as one take and
+ * always deleted together; a file that fails leaves the take retryable. It never
  * touches `answers[]`/`artifacts[]` — the student's answer record is a separate
  * FERPA fact from the media COPPA's delete standard reaches. A dead teacher
  * token is surfaced honestly as `'delete-failed'`, never a false success.
@@ -59,17 +61,35 @@ export const MAX_DELETE_TARGETS = 100;
 
 // ── Wire shapes ────────────────────────────────────────────────────────────
 
-export interface MediaTakeRow {
+/** One file of a take: the audio, or a whiteboard take's picture or drawing log. */
+export interface MediaFileRow {
   artifactId: string;
-  /** `'audio'` or `'handwriting'` (a paper answer crop). */
   kind: string;
+  /** `'picture'` or `'log'` on a whiteboard file; absent otherwise. */
+  part?: string;
   archiveStatus: string;
+  driveFileId?: string;
+  /** Transit object still present; the delete has to sweep Storage too. */
+  hasStorageObject: boolean;
+}
+
+/** One take, however many files it has (D21): a whiteboard take is one row, not three. */
+export interface MediaTakeRow {
+  /** The take's first file id; a stable key for the row. */
+  artifactId: string;
+  takeIndex: number;
+  /** `'audio'`, `'whiteboard'` or `'handwriting'` (a paper answer crop). */
+  kind: string;
+  /** The take's least-settled file status, so one stuck file keeps the take visible. */
+  archiveStatus: string;
+  /** Any file of the take that may still exist in Drive. */
   driveFileId?: string;
   archivedAt?: number;
   deletedAt?: number;
   archiveError?: string;
-  /** Transit object still present; the delete has to sweep Storage too. */
+  /** Some file still has a transit object; the delete has to sweep Storage too. */
   hasStorageObject: boolean;
+  files: MediaFileRow[];
 }
 
 export interface MediaResponseRow {
@@ -147,12 +167,25 @@ export interface OrgMediaDeps {
 interface StoredArtifact {
   id?: unknown;
   kind?: unknown;
+  part?: unknown;
+  slot?: unknown;
   storagePath?: unknown;
 }
 
 interface StoredAnswer {
   questionId?: unknown;
+  takeIndex?: unknown;
   artifacts?: unknown;
+}
+
+export interface QuestionArtifact {
+  id: string;
+  kind: string;
+  storagePath: string;
+  /** Groups the files of one take: the answer entry plus its slot. */
+  takeKey: string;
+  takeIndex: number;
+  part?: string;
 }
 
 type ArchiveEntry = {
@@ -188,26 +221,88 @@ const readArchiveMap = (
 export function collectQuestionArtifacts(
   answers: unknown,
   questionId: string
-): Array<{ id: string; kind: string; storagePath: string }> {
+): QuestionArtifact[] {
   if (!Array.isArray(answers)) return [];
-  const out: Array<{ id: string; kind: string; storagePath: string }> = [];
-  for (const raw of answers as StoredAnswer[]) {
-    if (raw?.questionId !== questionId) continue;
+  const out: QuestionArtifact[] = [];
+  (answers as StoredAnswer[]).forEach((raw, answerIndex) => {
+    if (raw?.questionId !== questionId) return;
     const artifacts = Array.isArray(raw.artifacts)
       ? (raw.artifacts as StoredArtifact[])
       : [];
+    const takeIndex = asNumber(raw.takeIndex) ?? 0;
     for (const artifact of artifacts) {
       const id = asString(artifact?.id);
       if (!id || out.some((a) => a.id === id)) continue;
       if (artifact?.kind === 'text') continue;
+      const part = asString(artifact?.part);
       out.push({
         id,
         kind: asString(artifact?.kind) || 'audio',
         storagePath: asString(artifact?.storagePath),
+        takeKey: `${answerIndex}:${asString(artifact?.slot) || 'primary'}`,
+        takeIndex,
+        ...(part ? { part } : {}),
       });
     }
-  }
+  });
   return out;
+}
+
+/** Least-settled first: a take reads as its most urgent file. */
+const TAKE_STATUS_PRECEDENCE = [
+  'delete-failed',
+  'deleting',
+  'failed',
+  'lost',
+  'syncing',
+  'archived',
+  'deleted',
+];
+
+const ARCHIVED_RANK = TAKE_STATUS_PRECEDENCE.indexOf('archived');
+
+/** Any other status (e.g. a paper crop's `'awaiting-drive'`) ranks as unsettled, just ahead of archived. */
+const takeStatusRank = (status: string): number => {
+  const rank = TAKE_STATUS_PRECEDENCE.indexOf(status);
+  return rank === -1 ? ARCHIVED_RANK - 0.5 : rank;
+};
+
+export function aggregateTakeStatus(statuses: readonly string[]): string {
+  if (statuses.length === 0) return 'syncing';
+  return statuses.reduce((worst, s) =>
+    takeStatusRank(s) < takeStatusRank(worst) ? s : worst
+  );
+}
+
+/** Folds a take's files into one row; deleted files never make the take deletable. */
+export function buildTakeRow(
+  takeIndex: number,
+  files: readonly MediaFileRow[],
+  stamps: ReadonlyArray<{
+    archivedAt?: number;
+    deletedAt?: number;
+    archiveError?: string;
+  }>
+): MediaTakeRow {
+  const live = files.filter((f) => f.archiveStatus !== 'deleted');
+  const driveFileId = live.find((f) => f.driveFileId)?.driveFileId;
+  const archivedAt = Math.max(0, ...stamps.map((s) => s.archivedAt ?? 0));
+  const deletedAt = Math.max(0, ...stamps.map((s) => s.deletedAt ?? 0));
+  const archiveError = stamps.find((s) => s.archiveError)?.archiveError;
+  return {
+    artifactId: files[0].artifactId,
+    takeIndex,
+    kind: files.some((f) => f.kind === 'whiteboard')
+      ? 'whiteboard'
+      : files[0].kind,
+    archiveStatus: aggregateTakeStatus(files.map((f) => f.archiveStatus)),
+    ...(driveFileId ? { driveFileId } : {}),
+    ...(archivedAt > 0 ? { archivedAt } : {}),
+    ...(deletedAt > 0 ? { deletedAt } : {}),
+    ...(archiveError ? { archiveError } : {}),
+    hasStorageObject: live.some((f) => f.hasStorageObject),
+    files: [...files],
+  };
 }
 
 /** Keeps a prompt readable in one table cell without a tooltip. */
@@ -311,31 +406,48 @@ export function buildRowsForResponse(
   const rows: MediaResponseRow[] = [];
   for (const questionId of questionIds) {
     const artifacts = collectQuestionArtifacts(answers, questionId);
-    const takes: MediaTakeRow[] = [];
+    const grouped = new Map<
+      string,
+      {
+        takeIndex: number;
+        files: MediaFileRow[];
+        stamps: Array<{
+          archivedAt?: number;
+          deletedAt?: number;
+          archiveError?: string;
+        }>;
+      }
+    >();
     for (const artifact of artifacts) {
       const entry = archive[artifact.id];
       const hasStorageObject = artifact.storagePath.length > 0;
       // Nothing recorded and nothing in transit means there is no media here.
       if (!entry && !hasStorageObject) continue;
-      takes.push({
+      const group = grouped.get(artifact.takeKey) ?? {
+        takeIndex: artifact.takeIndex,
+        files: [],
+        stamps: [],
+      };
+      grouped.set(artifact.takeKey, group);
+      group.files.push({
         artifactId: artifact.id,
         kind: artifact.kind,
+        ...(artifact.part ? { part: artifact.part } : {}),
         archiveStatus: asString(entry?.archiveStatus) || 'syncing',
         ...(asString(entry?.driveFileId)
           ? { driveFileId: asString(entry?.driveFileId) }
           : {}),
-        ...(asNumber(entry?.archivedAt) !== undefined
-          ? { archivedAt: asNumber(entry?.archivedAt) }
-          : {}),
-        ...(asNumber(entry?.deletedAt) !== undefined
-          ? { deletedAt: asNumber(entry?.deletedAt) }
-          : {}),
-        ...(asString(entry?.archiveError)
-          ? { archiveError: asString(entry?.archiveError) }
-          : {}),
         hasStorageObject,
       });
+      group.stamps.push({
+        archivedAt: asNumber(entry?.archivedAt),
+        deletedAt: asNumber(entry?.deletedAt),
+        archiveError: asString(entry?.archiveError) || undefined,
+      });
     }
+    const takes = [...grouped.values()].map((g) =>
+      buildTakeRow(g.takeIndex, g.files, g.stamps)
+    );
     if (takes.length === 0) continue;
     const questionText = input.questionTextById?.[questionId];
     rows.push({
