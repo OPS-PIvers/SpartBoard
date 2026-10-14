@@ -5,10 +5,21 @@ import { GUIDE_MAX_POINTS, guideLevels } from '@/utils/rubricGuide';
 import { rubricMaxPoints } from '@/utils/rubricPoints';
 import type {
   AiExtractedRubric,
-  AiExtractedVersion,
   AiRubricCriterion,
-  ExtractedTestSet,
+  VersionGroup,
 } from './types';
+
+/** What pairing and flags read from a test set: the AI's or the review's (pictures already cropped). */
+export interface RubricSource {
+  versions: readonly {
+    label: string;
+    questions: readonly { text: string; label?: string }[];
+  }[];
+  rubrics: readonly AiExtractedRubric[];
+  groups: readonly VersionGroup[];
+}
+
+type SourceVersion = RubricSource['versions'][number];
 
 export interface RubricImportOptions {
   /** False when `rubric-scoring-guides` is off for the teacher: guide text goes in a plain criterion (V26). */
@@ -128,7 +139,7 @@ export const rubricAttachment = (
 
 /** A version as rubrics count them: the split's parts together make one. */
 export interface PairingUnit {
-  /** Indexes into `ExtractedTestSet.versions`, in order. */
+  /** Indexes into `RubricSource.versions`, in order. */
   versions: number[];
   label: string;
   split: boolean;
@@ -136,14 +147,14 @@ export interface PairingUnit {
 
 export interface RubricPairing {
   units: PairingUnit[];
-  /** Per unit, an index into `ExtractedTestSet.rubrics`, or null for none. */
+  /** Per unit, an index into `RubricSource.rubrics`, or null for none. */
   rubricFor: (number | null)[];
   /** Set when the counts differ; never resolved by guessing. */
   countMismatch: { versions: number; rubrics: number } | null;
 }
 
 /** Versions in file order, each split group folded into one unit at its first part. */
-export function pairingUnits(set: ExtractedTestSet): PairingUnit[] {
+export function pairingUnits(set: RubricSource): PairingUnit[] {
   const splitOf = new Map<number, number>();
   set.groups.forEach((g, gi) => {
     if (g.kind !== 'split' || g.versions.length < 2) return;
@@ -173,7 +184,7 @@ export function pairingUnits(set: ExtractedTestSet): PairingUnit[] {
 }
 
 /** First rubric to the first version, and so on; extras on either side stay unpaired. */
-export function pairRubricsByOrder(set: ExtractedTestSet): RubricPairing {
+export function pairRubricsByOrder(set: RubricSource): RubricPairing {
   const units = pairingUnits(set);
   const rubrics = set.rubrics.length;
   return {
@@ -240,7 +251,7 @@ const labelLetter = (label: string | undefined): string | null => {
 };
 
 /** A version's prompts: lettered lines in one written question, or one question per letter. */
-export function versionPromptItems(version: AiExtractedVersion): PromptItem[] {
+export function versionPromptItems(version: SourceVersion): PromptItem[] {
   const fromText = version.questions.flatMap((q) => parsePromptItems(q.text));
   if (fromText.length > 0) return fromText;
   if (version.questions.length < 2) return [];
@@ -434,7 +445,7 @@ const KNOWN_WEIGHT = 2;
 const TYPO_MIN_LENGTH = 6;
 
 /** Word counts across the whole file, so a word spelled right elsewhere can vouch for itself. */
-export function testSetVocabulary(set: ExtractedTestSet): Map<string, number> {
+export function testSetVocabulary(set: RubricSource): Map<string, number> {
   const counts = new Map<string, number>();
   const add = (text: string) => {
     for (const w of words(text)) counts.set(w, (counts.get(w) ?? 0) + 1);
@@ -526,12 +537,12 @@ export interface ImportedRubricPlan {
   flags: RubricFlag[];
 }
 
-const splitPartLabel = (version: AiExtractedVersion, i: number): string =>
+const splitPartLabel = (version: SourceVersion, i: number): string =>
   version.label.trim() || `Part ${i + 1}`;
 
 /** Rubrics and snapshots for every paired unit; nothing is saved here. */
 export function planImportedRubrics(
-  set: ExtractedTestSet,
+  set: RubricSource,
   pairing: RubricPairing,
   fileTitle: string,
   opts: RubricImportOptions

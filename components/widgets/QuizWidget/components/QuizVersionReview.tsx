@@ -1,19 +1,27 @@
 // Review step for a test with versions: structure only, wording is fixed later in the editors (QUIZ_IMPORT_VERSIONS V17).
 import React from 'react';
+import { AlertCircle } from 'lucide-react';
 import { tourFieldAttr } from '@/config/tourAnchors';
 import type {
   ExtractedImage,
   ImportedTestSet,
 } from '@/utils/quizDocumentImport';
 import {
+  countMismatchFlag,
+  planImportedRubrics,
+} from '@/utils/quizDocumentImport/rubricImport';
+import {
   NEW_GROUP,
   NO_GROUP,
   assignVersion,
   groupIsReordered,
   linkImage,
+  planPairing,
   renameGroup,
+  rubricSourceFor,
   setGroupCreate,
   setGroupKind,
+  setVersionRubric,
   unlinkImage,
   type PlanGroup,
   type PlanGroupKind,
@@ -71,6 +79,16 @@ export const QuizVersionReview: React.FC<Props> = ({ set, plan, onChange }) => {
       ? `${what} · ${pictures} picture${pictures === 1 ? '' : 's'}`
       : what;
   };
+
+  const pairing = planPairing(set, plan);
+  const mismatch = countMismatchFlag(pairing);
+  // Flags only; the rubrics themselves are built again when the import saves (V16).
+  const flagsByUnit = new Map(
+    planImportedRubrics(rubricSourceFor(set, plan), pairing, set.fileTitle, {
+      scoringGuides: false,
+    }).map((p) => [p.unitIndex, p.flags])
+  );
+  const NO_RUBRIC = 'none';
 
   const pictureName = (img: ExtractedImage): string =>
     /^figure-page-\d+\.png$/.test(img.name) ? 'Picture' : img.name;
@@ -213,6 +231,78 @@ export const QuizVersionReview: React.FC<Props> = ({ set, plan, onChange }) => {
           ))}
         </ul>
       </section>
+
+      {set.rubrics.length > 0 && (
+        <section className="space-y-1">
+          <h4 className={sectionLabel}>Rubrics</h4>
+          {mismatch && (
+            <p className="flex items-start gap-1 text-xs font-medium text-amber-700">
+              <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden />
+              {mismatch.message}
+            </p>
+          )}
+          <ul className="divide-y divide-slate-200">
+            {pairing.units.map((unit, ui) => {
+              const first = unit.versions[0];
+              const chosen = pairing.rubricFor[ui];
+              const flags = flagsByUnit.get(ui) ?? [];
+              return (
+                <li key={first} className="space-y-1 py-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="min-w-0 text-sm font-bold text-slate-800">
+                      {unit.label}
+                    </p>
+                    <select
+                      {...tourFieldAttr(
+                        'quiz-import.versions-rubric',
+                        'quiz',
+                        `version-${first + 1}`
+                      )}
+                      value={chosen === null ? NO_RUBRIC : String(chosen)}
+                      onChange={(e) =>
+                        onChange(
+                          setVersionRubric(
+                            plan,
+                            first,
+                            e.target.value === NO_RUBRIC
+                              ? null
+                              : Number(e.target.value)
+                          )
+                        )
+                      }
+                      aria-label={`Rubric for ${unit.label}`}
+                      className={fieldClass}
+                    >
+                      {set.rubrics.map((r, ri) => (
+                        <option key={ri} value={String(ri)}>
+                          {r.label || r.title}
+                        </option>
+                      ))}
+                      <option value={NO_RUBRIC}>No rubric</option>
+                    </select>
+                  </div>
+                  {flags.length > 0 && (
+                    <ul className="space-y-0.5">
+                      {flags.map((f, fi) => (
+                        <li
+                          key={fi}
+                          className="flex items-start gap-1 text-xs font-medium text-amber-700"
+                        >
+                          <AlertCircle
+                            className="mt-px h-3.5 w-3.5 shrink-0"
+                            aria-hidden
+                          />
+                          {f.message}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       {sharable.length > 0 && (
         <section className="space-y-1">

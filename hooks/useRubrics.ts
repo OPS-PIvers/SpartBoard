@@ -35,6 +35,13 @@ export interface UseRubricsResult {
   importSharedRubric: (shareId: string) => Promise<Rubric>;
 }
 
+/** One write to the teacher's Rubrics library, for callers that don't need the live list. */
+export const saveRubricDoc = (userId: string, rubric: Rubric): Promise<void> =>
+  setDoc(doc(db, 'users', userId, RUBRICS_COLLECTION, rubric.id), {
+    ...rubric,
+    updatedAt: Date.now(),
+  });
+
 export const useRubrics = (userId: string | undefined): UseRubricsResult => {
   const [rubrics, setRubrics] = useState<Rubric[]>([]);
   const [loading, setLoading] = useState<boolean>(!!userId);
@@ -80,10 +87,7 @@ export const useRubrics = (userId: string | undefined): UseRubricsResult => {
   const saveRubric = useCallback(
     async (rubric: Rubric): Promise<void> => {
       if (!userId) throw new Error('Not authenticated');
-      await setDoc(doc(db, 'users', userId, RUBRICS_COLLECTION, rubric.id), {
-        ...rubric,
-        updatedAt: Date.now(),
-      });
+      await saveRubricDoc(userId, rubric);
     },
     [userId]
   );

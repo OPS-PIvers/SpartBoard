@@ -455,6 +455,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-import.versions-quiz-name': ['quiz.import'],
     'quiz-import.versions-quiz-kind': ['quiz.import'],
     'quiz-import.versions-version-quiz': ['quiz.import'],
+    'quiz-import.versions-rubric': ['quiz.import'],
     'quiz-import.versions-picture-link': ['quiz.import'],
     'quiz-import.key-standards-add-all': ['quiz.import'],
     'quiz-import.key-standard-add': ['quiz.import'],

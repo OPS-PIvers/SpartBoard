@@ -131,6 +131,7 @@ const harnessAdapter = (onSaved: (build: VersionImportBuild) => void) =>
       harnessImages.list = next;
     },
     documentImages: () => harnessImages.list,
+    rubricScoringGuides: true,
     saveVersionImport: (build) => {
       onSaved(build);
       return Promise.resolve();
@@ -163,11 +164,20 @@ export const QuizVersionImportDevHarness: React.FC = () => {
             {
               folder: saved.folderTitle,
               bank: saved.bank?.questions.length ?? 0,
+              rubrics: saved.rubrics.map((r) => r.title),
+              rubricsAttached: saved.bank?.questions.map(
+                (q) => q.rubricSnapshot?.title ?? null
+              ),
               quizzes: saved.quizzes.map((p) => ({
                 title: p.quiz.title,
                 shuffle: p.shuffle,
                 slots: p.quiz.bankSlots?.length ?? 0,
                 sections: p.quiz.sections?.map((s) => s.title),
+                rubrics: p.quiz.questions.map(
+                  (q) =>
+                    q.rubricSnapshot?.criteria.map((c) => c.name.slice(0, 1)) ??
+                    null
+                ),
               })),
             },
             null,

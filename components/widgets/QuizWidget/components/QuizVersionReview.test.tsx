@@ -113,3 +113,35 @@ describe('QuizVersionReview', () => {
     expect(kind.value).toBe('parallel');
   });
 });
+
+describe('QuizVersionReview rubrics', () => {
+  it('shows each version beside its rubric and reassigns one', async () => {
+    const onPlan = vi.fn();
+    render(<Harness set={await importedFrq()} onPlan={onPlan} />);
+    const pick = screen.getByRole<HTMLSelectElement>('combobox', {
+      name: 'Rubric for Version A',
+    });
+    expect(pick.value).toBe('0');
+    expect(
+      screen.getByRole<HTMLSelectElement>('combobox', {
+        name: 'Rubric for Unit 3 FRQ Split',
+      }).value
+    ).toBe('4');
+    fireEvent.change(pick, { target: { value: 'none' } });
+    const last = onPlan.mock.lastCall?.[0] as VersionPlan | undefined;
+    expect(last?.rubricFor?.['0']).toBeNull();
+    expect(pick.value).toBe('none');
+  });
+
+  it('flags a likely typo in the paired version', async () => {
+    render(<Harness set={await importedFrq()} />);
+    expect(
+      screen.getByText('"Chrsitian" may be a typo for "Christian".')
+    ).toBeInTheDocument();
+  });
+
+  it('has no rubric section for a test without rubrics', async () => {
+    render(<Harness set={await importedMc()} />);
+    expect(screen.queryByText('Rubrics')).toBeNull();
+  });
+});
