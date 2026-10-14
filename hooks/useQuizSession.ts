@@ -2150,7 +2150,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           if (!plan) return response.servedQuestionIds ?? [];
           plan.counters.forEach(({ slotId, dealt }) => {
             const i = balanced.findIndex((s) => s.id === slotId);
-            if (i >= 0) tx.set(counterRefs[i], { dealt });
+            if (i >= 0) tx.set(counterRefs[i], { dealt, by: responseKey });
           });
           tx.update(responseRef, {
             servedQuestionIds: plan.ids,

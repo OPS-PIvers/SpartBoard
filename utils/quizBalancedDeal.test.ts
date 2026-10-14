@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { QuizSessionBankSlot } from '@/types';
 import {
+  DEALT_HISTORY_CAP,
   balancedPeriodKey,
   bankDealDocId,
   dealFromRotation,
@@ -122,5 +123,19 @@ describe('helpers', () => {
     expect(
       servedVersionLabels([slot({ dealing: undefined })], ['q1', 'vb'])
     ).toEqual([]);
+  });
+});
+
+describe('dealt history cap', () => {
+  it('keeps the newest ids within the rules cap', () => {
+    const pool = Array.from({ length: 200 }, (_, i) => `p${i}`);
+    const plan = planBalancedDeal(
+      ['q1', ...pool],
+      [slot({ poolQuestionIds: pool })],
+      { dealtQuestionIds: pool.slice(0, 199) },
+      new Map()
+    );
+    expect(plan?.history).toHaveLength(DEALT_HISTORY_CAP);
+    expect(plan?.history.at(-1)).toBe('p199');
   });
 });

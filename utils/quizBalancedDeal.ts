@@ -7,6 +7,9 @@ import { encodeResponseKeySegment } from '@/utils/quizResponseKey';
 /** Subcollection under `quiz_sessions/{id}` holding one `{ dealt }` counter per slot and period. */
 export const BANK_DEALS_COLLECTION = 'bank_deals';
 
+/** Rules cap on `dealtQuestionIds`; older ids drop off first. */
+export const DEALT_HISTORY_CAP = 150;
+
 export function isBalancedSlot(slot: QuizSessionBankSlot): boolean {
   return (
     slot.dealing === 'balanced' &&
@@ -95,7 +98,7 @@ export function planBalancedDeal(
     undefined,
     dealtBySlot
   );
-  return { ids, counters, history };
+  return { ids, counters, history: history.slice(-DEALT_HISTORY_CAP) };
 }
 
 /** "Version B" for each pool question a balanced slot served, lettered by bank order. */
