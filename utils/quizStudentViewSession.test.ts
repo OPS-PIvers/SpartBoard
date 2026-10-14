@@ -76,4 +76,31 @@ describe('withFocusSettings', () => {
     expect(next).not.toHaveProperty('tabWarningThreshold');
     expect(next.blockCopyPaste).toBe(false);
   });
+
+  it('keeps recording blocks and stamps the markers Assign would', () => {
+    const quiz = {
+      ...QUIZ,
+      questions: [
+        {
+          id: 'q2',
+          type: 'free-response',
+          text: 'Show your work.',
+          timeLimit: 0,
+          correctAnswer: '',
+          incorrectAnswers: [],
+          recording: { mode: 'whiteboard', limitSeconds: 60 },
+        },
+      ],
+    } as QuizData;
+    const s = buildStudentViewSession(quiz, BEHAVIOR, false);
+    expect(s.publicQuestions[0].recording?.mode).toBe('whiteboard');
+    expect(s.mediaResponseEnabled).toBe(true);
+    expect(s.whiteboardResponseEnabled).toBe(true);
+  });
+
+  it('leaves the markers off a quiz with no recording questions', () => {
+    const s = buildStudentViewSession(QUIZ, BEHAVIOR, false);
+    expect(s).not.toHaveProperty('mediaResponseEnabled');
+    expect(s).not.toHaveProperty('whiteboardResponseEnabled');
+  });
 });

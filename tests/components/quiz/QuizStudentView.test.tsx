@@ -155,4 +155,40 @@ describe('QuizStudentView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Exit' }));
     expect(onExit).toHaveBeenCalledTimes(1);
   });
+
+  it('shows the whiteboard recorder, not a text box, for a whiteboard question', () => {
+    const quiz: QuizData = {
+      ...QUIZ,
+      questions: [
+        {
+          id: 'wb',
+          type: 'free-response',
+          text: 'Sketch the orbit.',
+          timeLimit: 0,
+          correctAnswer: '',
+          incorrectAnswers: [],
+          recording: {
+            mode: 'whiteboard',
+            prepSeconds: 0,
+            limitSeconds: 60,
+            prepExpiry: 'armed',
+            takeLimit: null,
+          },
+        },
+      ],
+    };
+    render(
+      <QuizStudentView
+        quiz={quiz}
+        behavior={BEHAVIOR}
+        tabAwayTimerOn
+        onExit={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/replay how you drew/)).toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'I have read this' }));
+    expect(screen.getByTestId('whiteboard-capture')).toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).toBeNull();
+  });
 });
