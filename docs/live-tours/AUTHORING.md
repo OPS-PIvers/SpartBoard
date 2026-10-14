@@ -105,9 +105,9 @@ Write for a busy teacher reading a small card on a projected board.
 The dry run reads the map; the browser run plays the tour on a real board. In Claude Code, after saving:
 
 1. Save the result of `get_live_tour` with `for_browser_run: true` to a file (it keeps each sample material's content), and call `start_live_tour_picture_upload` for a ticket.
-2. Start the `vite-verify` server from `.claude/launch.json` (`preview_start` with that name; it serves the dummy backend on port 56320, so nothing touches an account), then run `node scripts/run-live-tour.mjs <file> --upload <upload_url> --ticket <ticket>`.
+2. Start the `vite-verify` server, the dummy backend on port 56320, so nothing touches an account. In the Claude desktop app use `preview_start` with that name; in a terminal run `pnpm run dev:verify` in the background. Then run `node scripts/run-live-tour.mjs <file> --upload <upload_url> --ticket <ticket>`.
 3. Autopilot does every step it can, including ones a teacher run would leave to the teacher. Widgets that need students get a made-up class. Each step is `found`, `missing` (the control never showed) or `left to the teacher` (a step with no value).
-4. Fix every `missing` step with `update_live_tour` (dry-run it first, as before), fetch `get_live_tour` again, and rerun. The run uploads each step's picture as its thumbnail; look at a few with `get_live_tour_step_picture`.
+4. Fix every `missing` step with `update_live_tour` (dry-run it first, as before). Then save `get_live_tour` with `for_browser_run: true` over the same file and rerun. A ticket lasts 30 minutes and 20 upload requests (up to 8 pictures each); when the upload says it is expired or used up, call `start_live_tour_picture_upload` again. The run uploads each step's picture as its thumbnail; look at a few with `get_live_tour_step_picture`.
 
 A tour that needs a real library item, a PLC or student work can't fully play on the dummy backend; say which steps that leaves unchecked. In claude.ai there is no browser run, so say the tour was dry-run only.
 
@@ -121,7 +121,7 @@ After saving, tell the admin in a few lines:
 - any controls queued for an anchor: the save's `needs_anchors` lists those steps. Publishing isn't blocked, but those steps fail for teachers using another language, so recommend waiting until they're tagged and rebound
 - the browser run's result, or that there wasn't one
 
-Then the admin opens it from the Guided Learning library (Type: **Live tours**, then **Edit**), which opens it on the board, plays it there, and presses **Publish tour** and then **Show in Help** in the **Teachers' version** panel. **Show in Help** is the same as turning on Visible in Admin Settings > Help Center.
+Then the admin opens it from the Guided Learning library (Type: **Live tours**, then **Edit**), which opens it on the board, plays it there, and presses **Publish tour** and then **Show in Help** in the **Teachers' version** panel. **Show in Help** is the same as turning on Visible in Admin Settings > Help Center. It stays on, so after a later edit the admin only presses **Publish changes**.
 
 ## Examples
 
@@ -159,7 +159,7 @@ Each example is the body of a `create_live_tour` call without its title. The tes
     {
       "id": "color",
       "label": "See the colors",
-      "text": "**Color Palette** sets the color of the numbers. Pick one that's easy to read from the back of the room.",
+      "text": "**Color Palette** sets the color of the numbers. A dark color on a light board reads best from the back of the room.",
       "tour": {
         "anchor": "settings.field:clock#themeColor",
         "action": "observe"
