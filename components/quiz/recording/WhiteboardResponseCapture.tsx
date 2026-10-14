@@ -210,11 +210,11 @@ export const WhiteboardResponseCapture: React.FC<
     (captured: WhiteboardCapturedTake): Promise<void> => {
       if (inFlightRef.current) return inFlightRef.current;
       setCommitState('committing');
-      // Same as spoken takes: the local copy goes once the take is handed off.
-      wipeRecovery();
       const run = (async () => {
         try {
           const picture = await renderPicture(captured);
+          // The local copy outlives the render, so a crash before hand-off can recover it.
+          wipeRecovery();
           await onCommitRef.current({
             audio: captured.audio,
             picture,

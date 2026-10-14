@@ -201,6 +201,17 @@ describe('QuizStudentApp — whiteboard gate', () => {
     );
   });
 
+  it('keeps the whiteboard mounted under the portrait gate', async () => {
+    setPortrait(true);
+    hookState.session = buildSession({ whiteboardResponseEnabled: true });
+    const { container } = render(<QuizStudentApp />);
+
+    await screen.findByText('Turn your device sideways');
+    const inert = container.querySelector('[inert]');
+    expect(inert).not.toBeNull();
+    expect(inert?.childElementCount).toBeGreaterThan(0);
+  });
+
   it('keeps the slot open after rotating back from a device-gated marker', async () => {
     hookState.session = buildSession({ whiteboardResponseEnabled: true });
     hookState.myResponse = buildResponse({
