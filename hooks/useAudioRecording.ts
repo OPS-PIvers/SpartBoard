@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import type { RecordingConfig } from '@/types';
+import type { RecordingConfig, TakeMicState } from '@/types';
 import { wrapUpThresholdSeconds } from '@/config/quizRecordingDefaults';
 
 /**
@@ -29,6 +29,16 @@ export interface AudioTake {
   blob: Blob;
   mimeType: string;
   durationMs: number;
+  micState: 'on';
+}
+
+/** A refused permission is `denied`; a missing, dead or unsupported device is `unavailable`. */
+export function micStateFromError(err: unknown): TakeMicState {
+  const name =
+    err && typeof err === 'object' && 'name' in err ? String(err.name) : '';
+  return name === 'NotAllowedError' || name === 'SecurityError'
+    ? 'denied'
+    : 'unavailable';
 }
 
 export interface UseAudioRecordingOptions {
@@ -94,6 +104,7 @@ export interface UseAudioRecordingResult {
   /** True inside the wrap-up stretch — the stated limit is still the real limit. */
   wrapUpWarning: boolean;
   take: AudioTake | null;
+  micState: TakeMicState | null;
   /** Object URL for the pending take; revoked on discard/commit. */
   takeUrl: string | null;
   arm: () => void;
@@ -121,6 +132,7 @@ export function useAudioRecording(
     null
   );
   const [take, setTake] = useState<AudioTake | null>(null);
+  const [micState, setMicState] = useState<TakeMicState | null>(null);
   const [takeUrl, setTakeUrl] = useState<string | null>(null);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -182,6 +194,7 @@ export function useAudioRecording(
       // usable stream — treat it exactly like a denied permission.
       if (!track || track.readyState === 'ended') {
         stream.getTracks().forEach((t) => t.stop());
+        setMicState('unavailable');
         setPhase('capture-unavailable');
         onCaptureUnavailableRef.current?.();
         return;
@@ -211,10 +224,15 @@ export function useAudioRecording(
         const onTakeReady = onTakeReadyRef.current;
         if (onTakeReady) {
           setPhase('armed');
-          onTakeReady({ blob, mimeType: effectiveMime, durationMs });
+          onTakeReady({
+            blob,
+            mimeType: effectiveMime,
+            durationMs,
+            micState: 'on',
+          });
           return;
         }
-        setTake({ blob, mimeType: effectiveMime, durationMs });
+        setTake({ blob, mimeType: effectiveMime, durationMs, micState: 'on' });
         const url = URL.createObjectURL(blob);
         takeUrlRef.current = url;
         setTakeUrl(url);
@@ -224,6 +242,7 @@ export function useAudioRecording(
       recorderRef.current = recorder;
       startedAtRef.current = deps.now();
       recorder.start();
+      setMicState('on');
       setPhase('recording');
       setRecordSecondsLeft(config.limitSeconds);
 
@@ -234,7 +253,8 @@ export function useAudioRecording(
         // Hard stop at exactly the stated limit — no grace tail.
         if (elapsed >= config.limitSeconds) stop();
       }, 250);
-    } catch {
+    } catch (err) {
+      setMicState(micStateFromError(err));
       setPhase('capture-unavailable');
       onCaptureUnavailableRef.current?.();
     } finally {
@@ -336,6 +356,7 @@ export function useAudioRecording(
     recordSecondsLeft,
     wrapUpWarning,
     take,
+    micState,
     takeUrl,
     arm,
     start,
