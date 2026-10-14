@@ -559,7 +559,7 @@ export const WhiteboardResponseCapture: React.FC<
           {reviewing && reviewOn && recorder.take ? (
             <WhiteboardReplayView
               log={recorder.take.log}
-              pictureUrl={pictureUrl ?? undefined}
+              pictureUrl={pictureUrl}
               loading={!pictureUrl}
               audioSrc={recorder.audioUrl ?? undefined}
               durationMs={recorder.take.durationMs}
