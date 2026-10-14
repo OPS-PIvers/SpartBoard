@@ -8640,6 +8640,101 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-import.versions-quiz-create",
+    "label": "Create quiz checkbox in Quiz import versions, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.import",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-2"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.versions-quiz-name",
+    "label": "Quiz name input in Quiz import versions, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.import",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-2"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.versions-quiz-kind",
+    "label": "How versions are used select in Quiz import versions, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.import",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-2"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.versions-version-quiz",
+    "label": "Quiz for a version select in Quiz import versions, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.import",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-2"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-import.versions-picture-link",
+    "label": "Unlink or link a shared picture in Quiz import versions, by item",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.import",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-2"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-import.key-standards-add-all",
     "label": "Add N standards (all key standards) in Quiz import",
     "scope": "widget type",

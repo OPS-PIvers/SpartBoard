@@ -425,6 +425,14 @@ const LiveTourViewsDevHarness = import.meta.env.DEV
     )
   : null;
 
+const QuizVersionImportDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/QuizVersionImportDevHarness').then((module) => ({
+        default: module.QuizVersionImportDevHarness,
+      }))
+    )
+  : null;
+
 const AssignStepperDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/AssignStepperDevHarness').then((module) => ({
@@ -1229,6 +1237,20 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <LiveTourViewsDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: quiz import version review on fixture reads, for screenshots.
+  if (
+    import.meta.env.DEV &&
+    QuizVersionImportDevHarness &&
+    isAuthBypass &&
+    pathname === '/quiz-import-versions-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <QuizVersionImportDevHarness />
       </Suspense>
     );
   }

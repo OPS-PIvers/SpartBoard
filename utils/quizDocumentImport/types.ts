@@ -201,6 +201,33 @@ export interface ExtractedQuiz {
   keySummary?: KeySummary;
   /** Which reader ran; set only for a teacher who has AI access. */
   readBy?: 'ai' | 'plain';
+  /** Set when the AI reader found versions; `questions` is then empty (QUIZ_IMPORT_VERSIONS V7). */
+  testSet?: ImportedTestSet;
+}
+
+/** One version as review and creation see it, pictures already cropped. */
+export interface ImportedVersion {
+  label: string;
+  title: string;
+  questions: ExtractedQuestion[];
+  warnings: string[];
+}
+
+/** A versioned test after the browser has cropped and compared its pictures (V4, V7). */
+export interface ImportedTestSet {
+  title: string;
+  /** The file's name, which the library folder takes (V6). */
+  fileTitle: string;
+  versions: ImportedVersion[];
+  rubrics: AiExtractedRubric[];
+  groups: VersionGroup[];
+  /** Each version's own pictures; questions point at them by id. */
+  images: ExtractedImage[];
+  /** Image id to the identical image in an earlier version. */
+  sharedImages: Record<string, string>;
+  /** Image id to the version that prints it. */
+  imageVersion: Record<string, number>;
+  warnings: string[];
 }
 
 /** The neutral status line naming the reader, or '' when there is none. */

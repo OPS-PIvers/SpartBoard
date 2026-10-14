@@ -4393,7 +4393,7 @@ export interface QuizBankSlot {
   syncGroupId?: string;
   bankTitle: string;
   mode: 'selected' | 'random';
-  /** selected mode */
+  /** selected mode: the picks; random mode: draws only from these ids (absent = whole bank) */
   questionIds?: string[];
   /** random mode: questions drawn per attempt */
   count?: number;

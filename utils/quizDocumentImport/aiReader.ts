@@ -33,6 +33,9 @@ import {
   type PdfCropperDeps,
 } from './pdfFigures';
 import type { QuizQuestionType } from '@/types';
+import { isTestSet, type ExtractedTestSet } from './types';
+import type { Pixels } from './figureMatch';
+import { readTestSet } from './testSetReader';
 
 /** What the callable answers with; mirrors `AiExtractedQuiz` on the server. */
 export interface AiExtractedQuiz {
@@ -62,6 +65,11 @@ export type AiExtractFn = (input: {
   /** Ask for choose-all-that-apply questions; omitted keeps the old types. */
   multiAnswer?: boolean;
 }) => Promise<AiExtractedQuiz>;
+
+/** The versioned call: a plain quiz when the file has no versions. */
+export type AiExtractVersionsFn = (
+  input: Parameters<AiExtractFn>[0]
+) => Promise<AiExtractedQuiz | ExtractedTestSet>;
 
 const DOCX_MIME =
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
@@ -291,6 +299,10 @@ export interface AiReadOptions {
   readPdfLines?: (file: Blob) => Promise<DocLine[]>;
   /** Lets the read produce choose-all-that-apply questions. */
   multiAnswer?: boolean;
+  /** Asks for versions first (QUIZ_IMPORT_VERSIONS V7); replaces `extract` when given. */
+  extractVersions?: AiExtractVersionsFn;
+  /** Decodes a cropped figure so versions can share identical pictures (V4). */
+  decodePixels?: (blob: Blob) => Promise<Pixels | null>;
 }
 
 /**
@@ -353,12 +365,34 @@ export async function readQuizDocumentWithAi(
   assertWithinByteLimit(file);
 
   const reader: ReaderOptions = { multiAnswer: options.multiAnswer === true };
-  const ai = await options.extract({
+  const input = {
     fileName,
     mimeType: kind === 'pdf' ? 'application/pdf' : DOCX_MIME,
     data: await blobToBase64(file),
     ...(reader.multiAnswer ? { multiAnswer: true } : {}),
-  });
+  };
+  const read = options.extractVersions
+    ? await options.extractVersions(input)
+    : await options.extract(input);
+  if (isTestSet(read)) {
+    const makeCropper = options.cropper;
+    const testSet = await readTestSet(read, {
+      fallbackTitle: titleFromFileName(fileName),
+      multiAnswer: reader.multiAnswer,
+      ...(kind === 'pdf' && makeCropper
+        ? { cropper: () => makeCropper(file) }
+        : {}),
+      ...(options.decodePixels ? { decodePixels: options.decodePixels } : {}),
+    });
+    return {
+      title: testSet.title,
+      questions: [],
+      images: testSet.images,
+      warnings: [],
+      testSet,
+    };
+  }
+  const ai = read;
   const quiz = aiQuizToExtracted(ai, titleFromFileName(fileName), reader);
 
   if (kind !== 'docx') {

@@ -4,6 +4,7 @@ import type { QuizBankSlot } from '@/types';
 import {
   describeBankSlot,
   eligibleBankQuestions,
+  randomSlotPool,
   type BankContent,
 } from '@/utils/questionBanks';
 import { findSlotSource, slotEligibleFromSource } from './bankSlotHelpers';
@@ -150,7 +151,8 @@ export const BankSlotDetail: React.FC<BankSlotDetailProps> = ({
 
   const content = load.status === 'ready' ? load.content : null;
   const eligible = content
-    ? eligibleBankQuestions(content, slot.targetFilter).length
+    ? eligibleBankQuestions(content, slot.targetFilter, randomSlotPool(slot))
+        .length
     : slotEligibleFromSource(source, slot);
   const count = slot.count ?? 0;
   const overdrawn = eligible != null && count > eligible;
