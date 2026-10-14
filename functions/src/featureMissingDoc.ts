@@ -58,7 +58,6 @@ export const ADMIN_PREVIEW_FEATURES: readonly string[] = [
   'embed-reload',
   'embed-slide-link',
   'library-folder-view',
-  'assign-stepper',
   'team-email-suggest',
   'schoology-tool-columns',
   'widget-whats-new',

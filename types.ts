@@ -10035,8 +10035,6 @@ export type GlobalFeature =
   | 'embed-slide-link'
   /** Widget libraries open on folders with a path bar, Recent view and drag filing (docs/plans/LIBRARY_FOLDERS.md D26). */
   | 'library-folder-view'
-  /** Assign as an accordion stepper (docs/plans/ASSIGN_STEPPER.md D16). */
-  | 'assign-stepper'
   /** Team invite boxes suggest staff emails from the org directory as you type. */
   | 'team-email-suggest'
   /** Push scores into a SpartBoard-made Schoology gradebook column (docs/plans/SCHOOLOGY_TOOL_COLUMNS.md D11). */

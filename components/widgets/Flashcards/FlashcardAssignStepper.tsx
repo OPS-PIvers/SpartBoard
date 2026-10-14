@@ -48,10 +48,24 @@ import {
   buildFlashcardAssignSubmission,
   rosterHasSsoClass,
   validateFlashcardAssignForm,
+  type FlashcardAssignSubmission,
 } from './utils/flashcardAssign';
-import type { FlashcardAssignModalProps } from './FlashcardAssignModal';
+import type { ClassRoster, FlashcardSet } from '@/types';
+import type { AssignPeriodAccessContext } from '@/components/common/library/AssignPeriodAccessSection';
 
-export const FlashcardAssignStepper: React.FC<FlashcardAssignModalProps> = ({
+export interface FlashcardAssignStepperProps {
+  isOpen: boolean;
+  set: FlashcardSet;
+  rosters: ClassRoster[];
+  initialRosterIds?: string[];
+  onClose: () => void;
+  /** Resolves false when the assign failed. */
+  onAssign: (submission: FlashcardAssignSubmission) => Promise<boolean | void>;
+  /** Per-period mode and windows; undefined while the flag is off. */
+  periodAccess?: AssignPeriodAccessContext;
+}
+
+export const FlashcardAssignStepper: React.FC<FlashcardAssignStepperProps> = ({
   isOpen,
   set,
   rosters,

@@ -48,6 +48,7 @@ const activeApp: MiniAppItem = {
   title: 'Fractions Practice',
   html: '<html>app</html>',
   createdAt: 1,
+  collectsResults: true,
 };
 
 const createSession = vi.fn();
@@ -112,7 +113,7 @@ function setup(mode: AssignmentMode, flags: string[]) {
   else fireEvent.click(screen.getByTitle('Assign (copy student link)'));
   fireEvent.click(
     screen.getByRole('button', {
-      name: viewOnly ? /create share link/i : /create assignment link/i,
+      name: viewOnly ? /create share link/i : /^assign$/i,
     })
   );
 }

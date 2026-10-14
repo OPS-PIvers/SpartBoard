@@ -1,5 +1,4 @@
 import type {
-  FlashcardMasteryThreshold,
   FlashcardMode,
   FlashcardScoreVisibility,
   FlashcardSide,
@@ -21,15 +20,6 @@ export const FLASHCARD_SIDE_OPTIONS: Array<{
 }> = [
   { value: 'term', label: 'Term' },
   { value: 'definition', label: 'Definition' },
-];
-
-export const FLASHCARD_THRESHOLD_OPTIONS: Array<{
-  value: FlashcardMasteryThreshold;
-  label: string;
-}> = [
-  { value: 2, label: '2' },
-  { value: 3, label: '3' },
-  { value: 4, label: '4' },
 ];
 
 export const FLASHCARD_SCORE_VISIBILITY_OPTIONS: Array<{

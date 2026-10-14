@@ -2986,63 +2986,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "assign-destination.spartboard",
-    "label": "SpartBoard Only option in the Assign quiz dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "quiz.assign-destination",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "assign-destination.classroom",
-    "label": "Google Classroom option in the Assign quiz dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "quiz.assign-destination",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "assign-destination.schoology",
-    "label": "Schoology option in the Assign quiz dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "quiz.assign-destination",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:quiz#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "assign-step.classes",
     "label": "Classes step header in the Assign dialog",
     "scope": "board",
@@ -4687,29 +4630,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "surface": "library.view-only-share",
         "kind": "shared",
         "path": []
-      }
-    ]
-  },
-  {
-    "id": "plc-video-assign.due-date",
-    "label": "Due Date box in the PLC Video Activity assign window",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.assessments.video.new-assignment",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.tab:plc#video-activity",
-          "plc-video.cta"
-        ],
-        "needs": [
-          "plc"
-        ]
       }
     ]
   },
@@ -19424,19 +19344,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "plc-assign.sheet-toggle",
-    "label": "Auto-generated sheet switch in the PLC assign dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.assignment-sharing-slot",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
     "id": "plc-assign.option-toggle",
     "label": "Option switch in the PLC assign dialog",
     "scope": "field",
@@ -20472,24 +20379,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       {
         "surface": "plc.assignment-config",
         "kind": "modal"
-      },
-      {
-        "surface": "plc.assignment-sharing-slot",
-        "kind": "shared",
-        "path": []
-      }
-    ]
-  },
-  {
-    "id": "plc-assign.sheet-url",
-    "label": "Sheet url field in the PLC assign dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.assignment-sharing-slot",
-        "kind": "shared",
-        "path": []
       }
     ]
   },
@@ -20499,20 +20388,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "panel": true,
     "routes": [
-      {
-        "surface": "plc.assessments.new-quiz-assignment",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.library-assign"
-        ],
-        "needs": [
-          "plc"
-        ]
-      },
       {
         "surface": "plc.assignment-config",
         "kind": "modal"
@@ -20526,20 +20401,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "routes": [
       {
-        "surface": "plc.assessments.new-quiz-assignment",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.library-assign"
-        ],
-        "needs": [
-          "plc"
-        ]
-      },
-      {
         "surface": "plc.assignment-config",
         "kind": "modal"
       }
@@ -20551,20 +20412,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "panel": true,
     "routes": [
-      {
-        "surface": "plc.assessments.new-quiz-assignment",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.library-assign"
-        ],
-        "needs": [
-          "plc"
-        ]
-      },
       {
         "surface": "plc.assignment-config",
         "kind": "modal"
@@ -20578,20 +20425,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "panel": true,
     "persists": true,
     "routes": [
-      {
-        "surface": "plc.assessments.new-quiz-assignment",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.library-assign"
-        ],
-        "needs": [
-          "plc"
-        ]
-      },
       {
         "surface": "plc.assignment-config",
         "kind": "modal"
@@ -42618,211 +42451,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "flashcards.collect-submission",
-    "label": "Collect a submission switch in the Flashcards assign dialog",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.assign",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.check-mode",
-    "label": "Mode choice in the Flashcards assign dialog",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.assign",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.show-first",
-    "label": "Show first choice in the Flashcards assign dialog",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.assign",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.strict-mode",
-    "label": "Strict mode switch in the Flashcards assign dialog",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.assign",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.question-type",
-    "label": "Question type checkbox in the Flashcards assign dialog",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.flashcards.assign",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.question-count",
-    "label": "Questions count in the Flashcards assign dialog",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.assign",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.mastery-threshold",
-    "label": "Mastery threshold choice in the Flashcards assign dialog",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.assign",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.score-visibility",
-    "label": "Score visibility picker in the Flashcards assign dialog",
-    "scope": "widget type",
-    "panel": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.assign",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "flashcards.assign-confirm",
-    "label": "Assign button in the Flashcards assign dialog",
-    "scope": "widget type",
-    "panel": true,
-    "persists": true,
-    "keys": [
-      "flashcards"
-    ],
-    "routes": [
-      {
-        "surface": "library.flashcards.assign",
-        "kind": "modal",
-        "path": [
-          "library-shell.card-primary-action:flashcards#row-1"
-        ],
-        "needs": [
-          "library-item",
-          "class",
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "flashcards.student-actions",
     "label": "Actions menu button on a student row in Flashcards Check results",
     "scope": "field",
@@ -43235,19 +42863,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-item",
           "class",
           "widget-on-stage"
-        ]
-      },
-      {
-        "surface": "library.mini-app.running",
-        "kind": "panel",
-        "path": [
-          "library-shell.card-menu#row-1",
-          "library-shell.card-menu-item:miniApp#row-1-item-1",
-          "mini-app.toolbar-student-link:miniApp"
-        ],
-        "reveal": "mini-app.toolbar-student-link:miniApp",
-        "needs": [
-          "library-item"
         ]
       }
     ]
@@ -44967,26 +44582,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "video-activity.behavior-open-editor",
-    "label": "Edit in activity link in the video activity assign dialog",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [
-          "library-shell.card-primary-action:video-activity#row-1"
-        ],
-        "reveal": "library-shell.card-primary-action:video-activity#row-1",
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
     "id": "video-activity.settings-score-visibility",
     "label": "Score visibility option in video activity behavior settings",
     "scope": "field",
@@ -45091,30 +44686,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         ],
         "needs": [
           "admin"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "video-activity.plc-assign-due-date",
-    "label": "Due date box in the PLC video activity assign dialog",
-    "scope": "board",
-    "panel": true,
-    "persists": true,
-    "routes": [
-      {
-        "surface": "plc.assessments.video.new-assignment",
-        "kind": "modal",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#assessments",
-          "plc-assessments.tab:plc#video-activity",
-          "plc-video.cta"
-        ],
-        "needs": [
-          "plc"
         ]
       }
     ]
@@ -57217,27 +56788,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "library-shell.new:quiz",
           "library-shell.new-menu-item:quiz#item-1"
         ],
-        "needs": [
-          "widget-on-stage"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "video-activity.assign-pacing",
-    "label": "Pacing choice in the video activity assign dialog",
-    "scope": "board",
-    "panel": true,
-    "persists": true,
-    "routes": [
-      {
-        "surface": "library.video-activity",
-        "kind": "widget",
-        "widget_type": "video-activity",
-        "path": [
-          "library-shell.card-primary-action:video-activity#row-1"
-        ],
-        "reveal": "library-shell.card-primary-action:video-activity#row-1",
         "needs": [
           "widget-on-stage"
         ]

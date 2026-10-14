@@ -101,7 +101,7 @@ vi.mock('@/context/useAuth', () => ({
     user: { uid: 'teacher-1', displayName: 'Test Teacher' },
     isAdmin: false,
     getAssignmentMode: () => 'submissions',
-    canAccessFeature: (id: string) => id === 'assign-stepper',
+    canAccessFeature: () => false,
   }),
 }));
 

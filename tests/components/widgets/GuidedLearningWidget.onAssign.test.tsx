@@ -199,11 +199,6 @@ function confirmAssign(dialog: HTMLElement) {
   fireEvent.click(within(dialog).getByRole('button', { name: /^assign$/i }));
 }
 
-/** Checks the class whose roster carries a standing accommodation (M17 class mode). */
-function enableIndividualTargeting(dialog: HTMLElement) {
-  fireEvent.click(within(dialog).getByText(/period 1/i));
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
   extraRosters.length = 0;
@@ -239,8 +234,10 @@ describe('GuidedLearningWidget onAssign — class-wide flow', () => {
 describe('GuidedLearningWidget onAssign — individual targeting', () => {
   it('calls setAssignmentTargetsV1 when targetMode is students', async () => {
     mockCallable.mockResolvedValue({ data: { skipped: [] } });
-    const dialog = await openAssignModal();
-    enableIndividualTargeting(dialog);
+    // Period 1's roster carries a standing accommodation (M17 class mode).
+    const dialog = await openAssignModal({
+      lastRosterIdsBySetId: { 'gl-1': ['roster-1'] },
+    });
     confirmAssign(dialog);
 
     await waitFor(() =>

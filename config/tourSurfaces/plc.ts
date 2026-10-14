@@ -285,12 +285,6 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'shared',
     files: [`${P}PlcImportModeOptions.tsx`],
   },
-  'plc.assignment-sharing-slot': {
-    label:
-      'Teacher name and results sheet fields inside PLC new-assignment modals',
-    kind: 'shared',
-    files: [`${P}PlcNewAssignmentSharingSlot.tsx`],
-  },
   'plc.sync-conflict': {
     label: 'PLC sync conflict prompt',
     kind: 'shared',

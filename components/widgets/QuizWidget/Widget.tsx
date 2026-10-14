@@ -78,7 +78,6 @@ import { usePlcAutoPullSync } from '@/hooks/usePlcAutoPullSync';
 import { PlcSyncConflictPrompt } from '@/components/plc/sync/PlcSyncConflictPrompt';
 import { PlcShareTargetModal } from '@/components/plc/PlcShareTargetModal';
 import { QuizManager, PlcOptions } from './components/QuizManager';
-import type { AssignDestination } from './components/AssignDestinationModal';
 import { ImportWizard } from '@/components/common/library/importer';
 import { createQuizImportAdapter } from './adapters/quizImportAdapter';
 import { extractQuizFromDocument } from '@/utils/quizDocumentImport/aiReaderApi';
@@ -294,8 +293,7 @@ const TeacherQuizWidget: React.FC<{
   const reviewSplit = canAccessFeature('quiz-review-split');
   const isReview = variant === 'review';
   // The assign stepper is Assessment Mode only and saves last-used rules (plan D12).
-  const assessmentAssign =
-    !isReview && (reviewSplit || canAccessFeature('assign-stepper'));
+  const assessmentAssign = !isReview;
   // Only tag new docs while the split is on, so flag-off data is unchanged (D2).
   const kindTag = reviewSplit ? { widgetKind: variant } : {};
   const { save: saveLastAssignSettings } = useLastQuizAssignSettings(
@@ -2273,7 +2271,6 @@ const TeacherQuizWidget: React.FC<{
           rosterIds: string[],
           dueAt: number | null,
           targeting: AssignTargetingValue,
-          destination?: AssignDestination,
           preloadedQuizData?: QuizData | null,
           dueAtByRosterId?: Record<string, number>,
           stepper?: QuizStepperAssign
@@ -2690,22 +2687,6 @@ const TeacherQuizWidget: React.FC<{
                 lastRosterIdsByQuizId: nextMap,
               },
             });
-            // Library-row chooser → Google Classroom: the SpartBoard assignment
-            // now exists (we have its id + join code), so hand it straight to the
-            // partner-first GC course picker. The teacher refines the due date
-            // there; this is just the initial seed (date-only).
-            if (destination === 'classroom' && canAssignToClassroom) {
-              setAssigningToClassroom({
-                id: assignmentId,
-                code,
-                title: meta.title,
-                dueAt: dueAt ?? null,
-                dueAtHasTime: dueAt != null ? true : undefined,
-                // Auto-target the linked Google course (Item D) — we have the
-                // freshly-derived ClassLink classes right here.
-                classlinkClassIds: derived.classIds,
-              });
-            }
             const url = `${window.location.origin}/quiz?code=${code}`;
             if (
               quizAssignmentMode !== 'view-only' &&
@@ -3190,7 +3171,6 @@ const TeacherQuizWidget: React.FC<{
         }
         onArchiveSharePlcResults={(a) => setSharePlcResultsTarget(a)}
         onArchiveStopSharingPlc={handleStopSharingPlc}
-        canAssignToClassroom={canAssignToClassroom}
         onArchiveAssignToClassroom={
           canAssignToClassroom
             ? (a) =>
@@ -3528,9 +3508,6 @@ const TeacherQuizWidget: React.FC<{
           canShareWithPlc={plcs.length > 0}
           onShareResults={() => setSharePlcResultsTarget(editingAssignment)}
           onStopSharing={() => handleStopSharingPlc(editingAssignment)}
-          assessmentOnly={
-            reviewSplit && getAssignmentWidgetKind(editingAssignment) === 'quiz'
-          }
           onClose={() => setEditingAssignment(null)}
           onSave={async (patch) => {
             try {
