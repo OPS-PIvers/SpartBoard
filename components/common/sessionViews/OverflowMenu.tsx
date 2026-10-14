@@ -194,7 +194,7 @@ export const OverflowMenu: React.FC<OverflowMenuProps> = ({
               position: 'fixed',
               top: menuPos.top,
               right: menuPos.right,
-              zIndex: Z_INDEX.dropdown,
+              zIndex: Z_INDEX.popover,
             }}
             className="min-w-[176px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
           >
