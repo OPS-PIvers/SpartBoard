@@ -42,11 +42,11 @@ export const MAX_PLAYBACK_BYTES = 4 * 1024 * 1024;
 /** Which file of a take to serve; a whiteboard take has a picture and a drawing log too. */
 export type PlaybackPart = 'audio' | 'picture' | 'log';
 
-/** Decoded ceiling per part; base64 of the largest stays well under the callable response cap. */
+/** Decoded ceiling per part, matching the upload caps in `utils/quizMediaUpload.ts`. */
 export const MAX_PLAYBACK_BYTES_BY_PART: Record<PlaybackPart, number> = {
   audio: MAX_PLAYBACK_BYTES,
-  picture: 8 * 1024 * 1024,
-  log: 6 * 1024 * 1024,
+  picture: 10 * 1024 * 1024,
+  log: 5 * 1024 * 1024,
 };
 
 const PART_MIME_TYPE: Record<PlaybackPart, string> = {
