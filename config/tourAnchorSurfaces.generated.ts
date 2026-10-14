@@ -598,6 +598,8 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-grading.annotate-close': ['quiz.grader'],
     'quiz-grading.annotate-comment': ['quiz.grader'],
     'quiz-grading.audio-retry': ['quiz.grader'],
+    'quiz-whiteboard.replay-play': ['board.whiteboard-replay'],
+    'quiz-whiteboard.replay-scrubber': ['board.whiteboard-replay'],
     'quiz-grading.audio-play': ['quiz.grader'],
     'quiz-grading.audio-skip-silence': ['quiz.grader'],
     'quiz-grading.audio-scrubber': ['quiz.grader'],

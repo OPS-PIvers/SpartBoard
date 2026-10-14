@@ -120,6 +120,12 @@ export const SURFACES: TourSurfaceMap = {
     kind: 'shared',
     files: ['components/subs/SubLaunchPanel.tsx'],
   },
+  // Mounted by the quiz grader, the student's take review and student results.
+  'board.whiteboard-replay': {
+    label: 'Whiteboard answer replay',
+    kind: 'shared',
+    files: ['components/quiz/whiteboard/WhiteboardReplayView.tsx'],
+  },
   'board.tours': {
     label: 'Live tour runner',
     kind: 'shared',
