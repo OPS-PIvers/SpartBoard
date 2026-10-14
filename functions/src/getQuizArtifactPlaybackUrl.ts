@@ -20,8 +20,8 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 import {
-  isGlobalFeatureGranted,
   isQuizMediaResponseGranted,
+  isQuizWhiteboardResponseGranted,
   QUIZ_MEDIA_GOOGLE_SECRETS,
 } from './quizMediaArchive';
 import { ALLOWED_ORIGINS } from './classlinkShared';
@@ -55,8 +55,6 @@ const PART_MIME_TYPE: Record<PlaybackPart, string> = {
   picture: 'image/png',
   log: 'application/json',
 };
-
-export const QUIZ_WHITEBOARD_FEATURE_ID = 'quiz-whiteboard-response';
 
 export interface PlaybackRequest {
   sessionId: string;
@@ -267,9 +265,8 @@ export function buildDefaultPlaybackDeps(): PlaybackDeps {
     isFeatureGranted: async (teacherUid) =>
       isQuizMediaResponseGranted(db, await emailFor(teacherUid), teacherUid),
     isWhiteboardGranted: async (teacherUid) =>
-      isGlobalFeatureGranted(
+      isQuizWhiteboardResponseGranted(
         db,
-        QUIZ_WHITEBOARD_FEATURE_ID,
         await emailFor(teacherUid),
         teacherUid
       ),
