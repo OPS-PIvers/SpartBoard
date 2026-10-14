@@ -7,8 +7,18 @@ import type {
   QuizResponse,
   QuizResponseAnswer,
   QuizSession,
+  ResponseArtifact,
   TabExit,
+  UnrespondedReason,
 } from '@/types';
+import type { AudioTake } from '@/hooks/useAudioRecording';
+import type { WhiteboardTake } from '@/hooks/useWhiteboardRecording';
+import { nextTakeIndex } from '@/utils/answerTakeOrdering';
+import {
+  buildWhiteboardTakeArtifacts,
+  noticeDrawingForSession,
+} from '@/utils/quizWhiteboardSession';
+import { RecordingNoticeDrawingContext } from './recording/recordingNoticeDrawing';
 import { Toggle } from '@/components/common/Toggle';
 import { Z_INDEX } from '@/config/zIndex';
 import { countAnsweredQuestions } from '@/utils/quizCompleteness';
@@ -168,6 +178,78 @@ const StudentViewAttempt: React.FC<{ session: QuizSession }> = ({
     return Promise.resolve();
   }, []);
   const noop = useCallback(() => Promise.resolve(), []);
+  // A take is kept in memory as uploaded, so the recorder and submit gate behave as for a student.
+  const appendTake = useCallback(
+    (
+      questionId: string,
+      artifacts: ResponseArtifact[],
+      micState?: QuizResponseAnswer['micState']
+    ) => {
+      setResponse((r) => ({
+        ...r,
+        answers: [
+          ...r.answers,
+          {
+            questionId,
+            answer: '',
+            answeredAt: Date.now(),
+            status: 'submitted',
+            takeIndex: nextTakeIndex(r.answers, questionId),
+            artifacts,
+            ...(micState ? { micState } : {}),
+          },
+        ],
+      }));
+      return Promise.resolve();
+    },
+    []
+  );
+  const onCommitRecording = useCallback(
+    (questionId: string, take: AudioTake) =>
+      appendTake(
+        questionId,
+        [
+          {
+            id: crypto.randomUUID(),
+            slot: 'primary',
+            kind: 'audio',
+            mimeType: take.mimeType,
+            bytes: take.blob.size,
+            durationMs: take.durationMs,
+            uploadState: 'uploaded',
+          },
+        ],
+        take.micState
+      ),
+    [appendTake]
+  );
+  const onCommitWhiteboard = useCallback(
+    (questionId: string, take: WhiteboardTake) =>
+      appendTake(
+        questionId,
+        buildWhiteboardTakeArtifacts(take, () => '').map(
+          ({ artifact: { storagePath: _path, ...artifact } }) => ({
+            ...artifact,
+            uploadState: 'uploaded' as const,
+          })
+        ),
+        take.micState
+      ),
+    [appendTake]
+  );
+  const onMarkUnresponded = useCallback(
+    (questionId: string, unresponded: UnrespondedReason) => {
+      setResponse((r) => ({
+        ...r,
+        answers: [
+          ...r.answers,
+          { questionId, answer: '', answeredAt: Date.now(), unresponded },
+        ],
+      }));
+      return Promise.resolve();
+    },
+    []
+  );
 
   if (response.status === 'completed') {
     return (
@@ -186,27 +268,32 @@ const StudentViewAttempt: React.FC<{ session: QuizSession }> = ({
 
   const currentQ = session.publicQuestions[session.currentQuestionIndex];
   return (
-    <ActiveQuiz
-      session={session}
-      currentQuestion={currentQ}
-      alreadyAnswered={false}
-      myResponse={response}
-      onAnswer={onAnswer}
-      onCommitRecording={noop}
-      onRetryRecordingUpload={noop}
-      canRetryRecordingUpload={() => false}
-      onMarkUnresponded={noop}
-      noticeAckedAt={noticeAckedAt}
-      onAcknowledgeNotice={() => setNoticeAckedAt(Date.now())}
-      onComplete={onComplete}
-      reportTabSwitch={reportTabSwitch}
-      saveTabExits={saveTabExits}
-      onSetHandRaised={noop}
-      handRaised={false}
-      warningCount={response.tabSwitchWarnings ?? 0}
-      onRecordStimulusPlay={noop}
-      onReportStimulusError={noop}
-    />
+    <RecordingNoticeDrawingContext.Provider
+      value={noticeDrawingForSession(session, session.publicQuestions)}
+    >
+      <ActiveQuiz
+        session={session}
+        currentQuestion={currentQ}
+        alreadyAnswered={false}
+        myResponse={response}
+        onAnswer={onAnswer}
+        onCommitRecording={onCommitRecording}
+        onCommitWhiteboard={onCommitWhiteboard}
+        onRetryRecordingUpload={noop}
+        canRetryRecordingUpload={() => false}
+        onMarkUnresponded={onMarkUnresponded}
+        noticeAckedAt={noticeAckedAt}
+        onAcknowledgeNotice={() => setNoticeAckedAt(Date.now())}
+        onComplete={onComplete}
+        reportTabSwitch={reportTabSwitch}
+        saveTabExits={saveTabExits}
+        onSetHandRaised={noop}
+        handRaised={false}
+        warningCount={response.tabSwitchWarnings ?? 0}
+        onRecordStimulusPlay={noop}
+        onReportStimulusError={noop}
+      />
+    </RecordingNoticeDrawingContext.Provider>
   );
 };
 
