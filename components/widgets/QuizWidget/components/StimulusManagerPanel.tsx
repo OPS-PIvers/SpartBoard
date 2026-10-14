@@ -964,12 +964,15 @@ const StimulusCard: React.FC<{
 export const QuestionStimulusSection: React.FC<{
   state: QuizEditorController;
   questionId: string;
-}> = ({ state, questionId }) => {
+  /** `quiz-calculator-stimulus` gate. */
+  calculatorAvailable?: boolean;
+}> = ({ state, questionId, calculatorAvailable = false }) => {
   const question = state.questions.find((q) => q.id === questionId);
   return (
     <AttachStimulusSection
       state={state}
       attachedIds={question?.stimulusIds}
+      calculatorAvailable={calculatorAvailable}
       onToggle={(stimulusId) =>
         state.toggleStimulusOnQuestion(stimulusId, questionId)
       }
@@ -981,12 +984,14 @@ export const QuestionStimulusSection: React.FC<{
 export const SlotStimulusSection: React.FC<{
   state: QuizEditorController;
   slotId: string;
-}> = ({ state, slotId }) => {
+  calculatorAvailable?: boolean;
+}> = ({ state, slotId, calculatorAvailable = false }) => {
   const slot = state.bankSlots.find((s) => s.id === slotId);
   return (
     <AttachStimulusSection
       state={state}
       attachedIds={slot?.stimulusIds}
+      calculatorAvailable={calculatorAvailable}
       onToggle={(stimulusId) => state.toggleStimulusOnSlot(stimulusId, slotId)}
     />
   );
@@ -995,13 +1000,11 @@ export const SlotStimulusSection: React.FC<{
 const AttachStimulusSection: React.FC<{
   state: QuizEditorController;
   attachedIds: string[] | undefined;
+  calculatorAvailable: boolean;
   onToggle: (stimulusId: string) => void;
-}> = ({ state, attachedIds, onToggle }) => {
+}> = ({ state, attachedIds, calculatorAvailable, onToggle }) => {
   const { stimuli, questions, bankSlots } = state;
   const intake = useStimulusIntake(state);
-  const calculatorAvailable = useAuth().canAccessFeature(
-    'quiz-calculator-stimulus'
-  );
   const [open, setOpen] = useState(false);
   const attachedCount = attachedIds?.length ?? 0;
 
