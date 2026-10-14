@@ -36,6 +36,14 @@ function expected() {
       ...(def.sandboxed ? { sandboxed: true } : {}),
       ...(def.requires ? { requires: def.requires } : {}),
       ...keysOf(id, def),
+      ...(def.keyPattern
+        ? {
+            key_pattern: def.keyPattern,
+            ...(def.keyHint ? { key_hint: def.keyHint } : {}),
+          }
+        : {}),
+      ...(def.cycles ? { cycles: def.cycles } : {}),
+      ...(def.opensEmpty ? { opens_empty: def.opensEmpty } : {}),
       ...routesOf(id),
     })
   );
@@ -147,14 +155,17 @@ const englishLabel = (type: string, leaf: string) =>
 
 // Mirrors SchemaRenderer, FieldRenderer and ToggleField's tourFieldAttr calls.
 function fieldAnchors(type: string, schema: WidgetSettingsSchema) {
-  const out = new Map<string, string>();
-  const add = (anchor: string, label: string) => {
-    if (!out.has(anchor)) out.set(anchor, label);
+  const out = new Map<string, { label: string; kind?: string }>();
+  const add = (anchor: string, label: string, kind?: string) => {
+    if (!out.has(anchor)) out.set(anchor, { label, ...(kind ? { kind } : {}) });
   };
   const addField = (field: Field) => {
     const label = englishLabel(type, field.label);
     const id = field.type === 'toggle' ? 'settings.toggle' : 'settings.field';
-    add(`${id}:${type}#${field.key}`, label);
+    // A partner field's row holds its control, so the row takes the control's kind.
+    const kind =
+      field.type === 'partnerWidget' ? field.control.type : field.type;
+    add(`${id}:${type}#${field.key}`, label, kind);
     if (field.type === 'partnerWidget') addField(field.control);
   };
   for (const group of schema.groups) {
@@ -164,12 +175,15 @@ function fieldAnchors(type: string, schema: WidgetSettingsSchema) {
     );
     group.fields.forEach((field) => addField(field));
   }
-  return [...out].map(([anchor, label]) => ({ anchor, label }));
+  return [...out].map(([anchor, rest]) => ({ anchor, ...rest }));
 }
 
 describe('connector settings field list', () => {
   it('matches the settings schemas (UPDATE_TOUR_ANCHOR_LIST=1 rewrites it)', async () => {
-    const list: Record<string, Array<{ anchor: string; label: string }>> = {};
+    const list: Record<
+      string,
+      Array<{ anchor: string; label: string; kind?: string }>
+    > = {};
     for (const [type, load] of Object.entries(WIDGET_SETTINGS_SCHEMAS)) {
       if (!load) continue;
       list[type] = fieldAnchors(type, await load());
@@ -177,10 +191,40 @@ describe('connector settings field list', () => {
     if (process.env.UPDATE_TOUR_ANCHOR_LIST) {
       writeFileSync(
         FIELDS_FILE,
-        `// Generated from the widget settings schemas by tests/mcpTourAnchorList.test.ts; rerun it with UPDATE_TOUR_ANCHOR_LIST=1.\nexport const SETTINGS_FIELD_LIST: Readonly<\n  Record<string, ReadonlyArray<{ anchor: string; label: string }>>\n> = ${JSON.stringify(list, null, 2)};\n`
+        `// Generated from the widget settings schemas by tests/mcpTourAnchorList.test.ts; rerun it with UPDATE_TOUR_ANCHOR_LIST=1.\nexport const SETTINGS_FIELD_LIST: Readonly<\n  Record<string, ReadonlyArray<{ anchor: string; label: string; kind?: string }>>\n> = ${JSON.stringify(list, null, 2)};\n`
       );
       return;
     }
     expect(SETTINGS_FIELD_LIST).toEqual(list);
+  });
+});
+
+describe('tour anchor key patterns and cycle buttons', () => {
+  const defs = Object.entries(TOUR_ANCHORS as Record<string, TourAnchorDef>);
+
+  it('gives a key pattern only to per-type or per-field anchors, and every literal key matches it', () => {
+    for (const [id, def] of defs) {
+      if (!def.keyPattern) continue;
+      expect(def.perField ?? def.perWidgetType, id).toBeTruthy();
+      expect(def.keyHint, id).toBeTruthy();
+      const pattern = new RegExp(`^(?:${def.keyPattern})$`);
+      for (const key of SCANNED_KEYS.get(id)?.keys ?? [])
+        expect(pattern.test(key), `${id} ${key}`).toBe(true);
+    }
+  });
+
+  it('points each cycle button at a registered choice control', () => {
+    const fieldRefs = new Set(
+      Object.values(SETTINGS_FIELD_LIST).flatMap((fields) =>
+        fields.map((f) => f.anchor)
+      )
+    );
+    for (const [id, def] of defs) {
+      if (!def.cycles) continue;
+      const target = def.cycles.split(':')[0];
+      expect(TOUR_ANCHORS, id).toHaveProperty([target]);
+      if (target === 'settings.field')
+        expect(fieldRefs.has(def.cycles), `${id} → ${def.cycles}`).toBe(true);
+    }
   });
 });
