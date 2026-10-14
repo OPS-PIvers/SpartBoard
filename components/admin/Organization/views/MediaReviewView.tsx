@@ -29,7 +29,10 @@ import {
   type MediaReviewFilters,
   type MediaTeacherOption,
 } from '@/hooks/useOrgMediaResponses';
-import { countDeletableTakes } from '@/components/admin/Organization/lib/mediaTakes';
+import {
+  countDeletableFiles,
+  countDeletableTakes,
+} from '@/components/admin/Organization/lib/mediaTakes';
 
 // The console lists whatever `artifactArchive` entries exist and deletes them
 // as a set (every take of one question for one student). It is compliance
@@ -95,7 +98,7 @@ export const MediaReviewView: React.FC<MediaReviewViewProps> = ({
     [selectableRows, selected]
   );
   const selectedFileCount = useMemo(
-    () => selectedRows.reduce((sum, r) => sum + countDeletableTakes(r), 0),
+    () => selectedRows.reduce((sum, r) => sum + countDeletableFiles(r), 0),
     [selectedRows]
   );
   const selectedTeachers = useMemo(
