@@ -232,6 +232,7 @@ import {
 import { FibMultiBlankInput, NumberedBlanksText } from './FibMultiBlankInput';
 import { isValidDraw, orderServedQuestions } from '@/utils/questionBanks';
 import { chooseServedDraw } from '@/utils/quizBankDraw';
+import { hasBalancedSlots } from '@/utils/quizBalancedDeal';
 import { groupQuestionsByTargets } from '@/utils/quizTargetStats';
 import { resolveResultsVisibility } from '@/utils/quizResultsVisibility';
 import { useQuizScoreOnSubmit } from '@/hooks/useQuizScoreOnSubmit';
@@ -514,6 +515,7 @@ const QuizJoinFlow: React.FC<{
     reportStimulusError,
     setServedQuestionIds,
     persistServedDraw,
+    dealBalancedDraw,
     warningCount,
     periodKeys,
     contentPending,
@@ -756,22 +758,57 @@ const QuizJoinFlow: React.FC<{
   const [localDraw, setLocalDraw] = useState<{
     key: string;
     ids: string[];
+    /** The deal transaction already wrote these ids. */
+    persisted?: boolean;
   } | null>(null);
   let drawIds: string[] | undefined;
+  let dealPending = false;
   if (bankSlots && myResponse && drawKey) {
     const persisted = myResponse.servedQuestionIds;
     if (persisted && isValidDraw(publicQuestionIds, bankSlots, persisted)) {
       drawIds = persisted;
     } else if (localDraw?.key === drawKey) {
       drawIds = localDraw.ids;
+    } else if (
+      hasBalancedSlots(bankSlots) &&
+      myResponse.status !== 'completed'
+    ) {
+      dealPending = true;
     } else {
       const chosen = chooseServedDraw(persisted, publicQuestionIds, bankSlots);
       setLocalDraw({ key: drawKey, ids: chosen.ids });
       drawIds = chosen.ids;
     }
   }
+  // Balanced slots deal from the period's shared counter; a failed deal falls back to a random roll.
+  const dealingKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!dealPending || !drawKey || !bankSlots) return;
+    if (dealingKeyRef.current === drawKey) return;
+    dealingKeyRef.current = drawKey;
+    let cancelled = false;
+    dealBalancedDraw(publicQuestionIds, bankSlots)
+      .then((ids) => {
+        if (!cancelled) setLocalDraw({ key: drawKey, ids, persisted: true });
+      })
+      .catch((err: unknown) => {
+        console.warn('[QuizStudentApp] Balanced deal failed, rolling:', err);
+        if (cancelled) return;
+        const chosen = chooseServedDraw(
+          undefined,
+          publicQuestionIds,
+          bankSlots
+        );
+        setLocalDraw({ key: drawKey, ids: chosen.ids });
+      });
+    return () => {
+      cancelled = true;
+      dealingKeyRef.current = null;
+    };
+  }, [dealPending, drawKey, bankSlots, publicQuestionIds, dealBalancedDraw]);
   const drawNeedsPersist =
     !!drawIds &&
+    localDraw?.persisted !== true &&
     myResponse?.status !== 'completed' &&
     !(
       myResponse?.servedQuestionIds &&
@@ -1395,7 +1432,7 @@ const QuizJoinFlow: React.FC<{
     );
   }
   if (
-    contentPending &&
+    (contentPending || dealPending) &&
     session.status !== 'ended' &&
     myResponse?.status !== 'completed'
   ) {

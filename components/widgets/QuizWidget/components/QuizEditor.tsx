@@ -921,6 +921,7 @@ export const QuizEditorDetailPane = React.memo(function QuizEditorDetailPane({
         bankApi={bankApi}
         onUpdate={updateBankSlot}
         onRemove={removeBankSlot}
+        balancedAvailable={canAccessFeature('quiz-import-versions')}
         stimulusSection={
           <SlotStimulusSection
             state={state}

@@ -4403,6 +4403,8 @@ export interface QuizBankSlot {
   points?: number;
   /** random mode: ids of `QuizData.stimuli` shown with every drawn question */
   stimulusIds?: string[];
+  /** random mode: `balanced` deals pool questions in turn per class period; absent = independent random. */
+  dealing?: 'random' | 'balanced';
 }
 
 /** Position of fixed questions and slots in the quiz editor list. */
@@ -4434,6 +4436,8 @@ export interface QuizSessionBankSlot {
   poolQuestionIds: string[];
   /** Number of fixed questions that precede the slot. */
   position: number;
+  /** Deal in turn per class period (`bank_deals` counter); absent = independent random. */
+  dealing?: 'balanced';
 }
 
 /** What happens when a recording question's prep countdown runs out. */
@@ -5680,6 +5684,8 @@ export interface QuizResponse {
    * Absent = the full question set was served.
    */
   servedQuestionIds?: string[];
+  /** Pool ids balanced bank slots have dealt this student across attempts; never cleared by a retake. */
+  dealtQuestionIds?: string[];
   /** Self-paced Review game score; only checkQuizGameAnswerV1 writes it. */
   game?: QuizGameState;
   /**
