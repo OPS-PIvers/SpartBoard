@@ -79,7 +79,7 @@ describe('FreeResponseGrader — initial target', () => {
         initialTarget: { questionId: 'q2', responseKey: 'b' },
       });
       expect(screen.getByText('Question 2 of 2')).toBeTruthy();
-      expect(screen.getByText('Grace', { selector: 'h3' })).toBeTruthy();
+      expect(screen.getByText('Grace', { selector: '[aria-current="true"] span' })).toBeTruthy();
     }
   );
 
@@ -89,6 +89,6 @@ describe('FreeResponseGrader — initial target', () => {
       initialTarget: { questionId: 'q2', responseKey: 'nobody' },
     });
     expect(screen.getByText('Question 2 of 2')).toBeTruthy();
-    expect(screen.getByText('Ada', { selector: 'h3' })).toBeTruthy();
+    expect(screen.getByText('Ada', { selector: '[aria-current="true"] span' })).toBeTruthy();
   });
 });

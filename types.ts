@@ -9964,7 +9964,6 @@ export type GlobalFeature =
   /** Quiz results teacher tools: jump to a student, full/missed print, bulk export and reopen. */
   | 'quiz-results-tools'
   /** Free-response grader: collapsible student list, no repeated name, one-strand auto-tagging. */
-  | 'quiz-grader-v2'
   /** Guided Learning Studio: select, resize, restyle and edit callouts on the canvas; AND-ed with `gl-studio`. */
   | 'gl-callout-editing'
   /** Per-student "Slide N of M · active X ago" on Guided Learning results and the Assignments hub. */
