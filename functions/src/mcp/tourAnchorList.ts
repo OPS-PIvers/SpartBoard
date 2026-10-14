@@ -6729,6 +6729,120 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
+    "id": "quiz-editor.whiteboard-preview-tool",
+    "label": "Move, Pen and Eraser tools (per tool) in the whiteboard starting page editor",
+    "scope": "field",
+    "panel": true,
+    "routes": [
+      {
+        "surface": "quiz.editor.whiteboard-preview",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.whiteboard-preview:quiz"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.whiteboard-preview-clear-ink",
+    "label": "Clear ink button in the whiteboard starting page editor",
+    "scope": "widget type",
+    "panel": true,
+    "destructive": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor.whiteboard-preview",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.whiteboard-preview:quiz"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.whiteboard-preview-remove-image",
+    "label": "Remove image button for the selected image in the whiteboard starting page editor",
+    "scope": "widget type",
+    "panel": true,
+    "destructive": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor.whiteboard-preview",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.whiteboard-preview:quiz"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.whiteboard-preview-cancel",
+    "label": "Cancel button in the whiteboard starting page editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor.whiteboard-preview",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.whiteboard-preview:quiz"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "quiz-editor.whiteboard-preview-save",
+    "label": "Save button in the whiteboard starting page editor",
+    "scope": "widget type",
+    "panel": true,
+    "keys": [
+      "quiz"
+    ],
+    "routes": [
+      {
+        "surface": "quiz.editor.whiteboard-preview",
+        "kind": "modal",
+        "path": [
+          "library-shell.new:quiz",
+          "library-shell.new-menu-item:quiz#item-1",
+          "quiz-editor.whiteboard-preview:quiz"
+        ],
+        "needs": [
+          "widget-on-stage"
+        ]
+      }
+    ]
+  },
+  {
     "id": "quiz-editor.word-min",
     "label": "Minimum words input in the Quiz editor",
     "scope": "widget type",

@@ -5,6 +5,7 @@ import {
   WHITEBOARD_PAGE_HEIGHT,
   WHITEBOARD_PAGE_WIDTH,
   drawStartingPage,
+  type StartingPageImages,
 } from '@/utils/whiteboard/startingPage';
 import type { WhiteboardStartingPage } from '@/types';
 
@@ -18,11 +19,11 @@ export const WHITEBOARD_PIXEL_RATIO = WHITEBOARD_BITMAP_SCALE;
 export const paintWhiteboardStartingPage = (
   ctx: CanvasRenderingContext2D,
   spec: WhiteboardStartingPage,
-  image?: CanvasImageSource | null,
+  images?: StartingPageImages | null,
   ratio: number = WHITEBOARD_PIXEL_RATIO
 ): void => {
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-  drawStartingPage(ctx, spec, image);
+  drawStartingPage(ctx, spec, images);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 };
 
@@ -47,7 +48,7 @@ const makeCanvas = (ratio: number): HTMLCanvasElement => {
 const renderAt = async (
   objects: readonly DrawableObject[],
   startingPage: WhiteboardStartingPage,
-  startingImage: CanvasImageSource | null | undefined,
+  startingImages: StartingPageImages | null | undefined,
   ratio: number
 ): Promise<Blob> => {
   const page = makeCanvas(ratio);
@@ -55,7 +56,7 @@ const renderAt = async (
   const ink = makeCanvas(ratio);
   const inkCtx = ink.getContext('2d');
   if (!pageCtx || !inkCtx) throw new Error('Canvas is unavailable.');
-  paintWhiteboardStartingPage(pageCtx, startingPage, startingImage, ratio);
+  paintWhiteboardStartingPage(pageCtx, startingPage, startingImages, ratio);
   paintWhiteboardInk(inkCtx, objects, ratio);
   pageCtx.drawImage(ink, 0, 0);
   return new Promise((resolve, reject) => {
@@ -74,17 +75,17 @@ const FALLBACK_RATIOS = [1.5, 1, 0.75] as const;
 export const renderWhiteboardPicture = async (
   objects: readonly DrawableObject[],
   startingPage: WhiteboardStartingPage,
-  startingImage?: CanvasImageSource | null
+  startingImages?: StartingPageImages | null
 ): Promise<Blob> => {
   let blob = await renderAt(
     objects,
     startingPage,
-    startingImage,
+    startingImages,
     WHITEBOARD_PIXEL_RATIO
   );
   for (const ratio of FALLBACK_RATIOS) {
     if (blob.size <= WHITEBOARD_PICTURE_TARGET_BYTES) break;
-    blob = await renderAt(objects, startingPage, startingImage, ratio);
+    blob = await renderAt(objects, startingPage, startingImages, ratio);
   }
   return blob;
 };

@@ -3494,8 +3494,17 @@
         "screenOnly": "Screen only",
         "screenAndAudio": "Screen & Audio",
         "insertImage": "Insert image",
-        "insertImageDrop": "Drop an image here, or press Ctrl+V to paste one.",
-        "chooseFile": "Choose file"
+        "insertImageDrop": "Drop images here, or press Ctrl+V to paste.",
+        "chooseFiles": "Choose files",
+        "imageLimit": "Up to {{max}} images.",
+        "removeImageNumber": "Remove image {{n}}",
+        "toolsLabel": "Tools",
+        "tool": {
+          "move": "Move",
+          "pen": "Pen",
+          "eraser": "Eraser"
+        },
+        "clearInk": "Clear ink"
       },
       "advisory": {
         "title": "Heads up",

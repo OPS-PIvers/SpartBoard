@@ -8,7 +8,7 @@ import type {
   WhiteboardStartingImage,
 } from '@/types';
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
-import { driveImageUrl } from '@/utils/quizStimuli';
+import { placedImages } from '@/utils/whiteboard/startingPage';
 import { labelClass, inputClass } from './quizEditorFieldStyles';
 import { DraftNumberInput } from './DraftNumberInput';
 import {
@@ -18,6 +18,7 @@ import {
 } from './whiteboardStartingPageSpec';
 import { WhiteboardStartingPagePreviewModal } from './WhiteboardStartingPagePreviewModal';
 import { WhiteboardInsertImageModal } from './WhiteboardInsertImageModal';
+import { withEdits } from './whiteboardStartingPageEdit';
 
 type PatternKind = WhiteboardStartingPattern['kind'];
 
@@ -43,12 +44,11 @@ export interface WhiteboardStartingPagePickerProps {
   onChange: (next: WhiteboardStartingPage) => void;
   /** Uploads through the quiz-stimulus Drive path; null when cancelled. */
   onUploadImage: (file: File) => Promise<WhiteboardStartingImage | null>;
-  resolveImageUrl?: (driveFileId: string) => string;
 }
 
 export const WhiteboardStartingPagePicker: React.FC<
   WhiteboardStartingPagePickerProps
-> = ({ value, onChange, onUploadImage, resolveImageUrl = driveImageUrl }) => {
+> = ({ value, onChange, onUploadImage }) => {
   const { t } = useTranslation();
   const tk = (key: string) =>
     t(`quizMediaResponse.authoring.whiteboard.${key}`);
@@ -59,11 +59,6 @@ export const WhiteboardStartingPagePicker: React.FC<
 
   const setPattern = (next: WhiteboardStartingPattern) =>
     onChange({ ...page, pattern: clampPattern(next) });
-
-  const removeImage = () => {
-    const { image: _drop, ...rest } = page;
-    onChange(rest);
-  };
 
   const num = (
     field: string,
@@ -207,18 +202,18 @@ export const WhiteboardStartingPagePicker: React.FC<
 
       {insertOpen && (
         <WhiteboardInsertImageModal
-          image={page.image}
+          images={placedImages(page)}
           onUploadImage={onUploadImage}
-          onInsert={(image) => onChange({ ...page, image })}
-          onRemove={removeImage}
-          resolveImageUrl={resolveImageUrl}
+          onChange={(images) =>
+            onChange(withEdits(page, images, page.ink ?? []))
+          }
           onClose={() => setInsertOpen(false)}
         />
       )}
       {previewOpen && (
         <WhiteboardStartingPagePreviewModal
           page={page}
-          resolveImageUrl={resolveImageUrl}
+          onChange={onChange}
           onClose={() => setPreviewOpen(false)}
         />
       )}

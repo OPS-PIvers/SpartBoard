@@ -1,8 +1,9 @@
-/** DEV-only harness for WhiteboardResponseCapture at /whiteboard-capture-dev, with a mocked mic. */
+/** DEV-only harness for WhiteboardResponseCapture at /whiteboard-capture-dev, with a mocked mic; `?page=rich` adds images and ink. */
 import React, { useMemo, useState } from 'react';
 import { WhiteboardResponseCapture } from '@/components/quiz/recording/WhiteboardResponseCapture';
 import type { WhiteboardRecordingDeps } from '@/hooks/useWhiteboardRecording';
 import type { RecordingConfig } from '@/types';
+import { devRichStartingPage } from './whiteboardStartingPageFixtures';
 
 class MockRecorder {
   state: 'inactive' | 'recording' = 'inactive';
@@ -48,15 +49,18 @@ export const WhiteboardCaptureDevView: React.FC = () => {
       takeLimit: params.get('takes') ? Number(params.get('takes')) : null,
       explainAloud: params.get('drawOnly') !== '1',
       review: params.get('review') !== '0',
-      startingPage: {
-        pattern: {
-          kind: 'coordinate-plane',
-          xMin: -10,
-          xMax: 10,
-          yMin: -10,
-          yMax: 10,
-        },
-      },
+      startingPage:
+        params.get('page') === 'rich'
+          ? devRichStartingPage()
+          : {
+              pattern: {
+                kind: 'coordinate-plane',
+                xMin: -10,
+                xMax: 10,
+                yMin: -10,
+                yMax: 10,
+              },
+            },
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fixed per page load
     []

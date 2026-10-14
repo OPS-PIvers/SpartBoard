@@ -1,12 +1,20 @@
-import type { WhiteboardStartingPage } from '@/types';
+import type {
+  WhiteboardInkStroke,
+  WhiteboardPlacedImage,
+  WhiteboardStartingImage,
+  WhiteboardStartingPage,
+} from '@/types';
+import { driveImageUrl } from '@/utils/quizStimuli';
 import { paintBackground } from '@/components/widgets/DrawingWidget/backgroundTemplates';
 import {
   WHITEBOARD_BITMAP_SCALE,
   WHITEBOARD_PAGE,
 } from '@/components/quiz/whiteboard/whiteboardLogTypes';
 import {
+  WHITEBOARD_INK_STROKES_MAX,
   WHITEBOARD_POLYGON_SIDES_MAX,
   WHITEBOARD_POLYGON_SIDES_MIN,
+  WHITEBOARD_STARTING_IMAGES_MAX,
 } from '@/config/quizRecordingDefaults';
 
 // Paints a whiteboard starting page (D6, D7) in page units; callers scale the context for the 2x bitmap.
@@ -342,43 +350,67 @@ export const fitImageToPage = (iw: number, ih: number): FitRect | null => {
   };
 };
 
-const sourceSize = (
-  spec: WhiteboardStartingPage,
-  image: CanvasImageSource
-): { w: number; h: number } => {
-  if (spec.image && spec.image.width > 0 && spec.image.height > 0) {
-    return { w: spec.image.width, h: spec.image.height };
-  }
-  if (
-    typeof HTMLImageElement !== 'undefined' &&
-    image instanceof HTMLImageElement
-  ) {
-    return { w: image.naturalWidth, h: image.naturalHeight };
-  }
-  const sized = image as { width?: unknown; height?: unknown };
-  return {
-    w: typeof sized.width === 'number' ? sized.width : 0,
-    h: typeof sized.height === 'number' ? sized.height : 0,
-  };
+/** Decoded starting page images, keyed by `driveFileId`. */
+export type StartingPageImages = ReadonlyMap<string, CanvasImageSource>;
+
+// A data: URL only comes from dev fixtures; stored pages always load from Drive.
+export const startingImageSrc = (image: WhiteboardStartingImage): string =>
+  image.url.startsWith('data:') ? image.url : driveImageUrl(image.driveFileId);
+
+/** The page's images in paint order; a legacy single image becomes one fitted placement. */
+export const placedImages = (
+  spec: WhiteboardStartingPage | null | undefined
+): WhiteboardPlacedImage[] => {
+  if (!spec) return [];
+  if (spec.images) return spec.images.slice(0, WHITEBOARD_STARTING_IMAGES_MAX);
+  if (!spec.image) return [];
+  const rect = fitImageToPage(spec.image.width, spec.image.height);
+  return rect ? [{ ...spec.image, ...rect }] : [];
 };
 
-// Paints in 1600x1200 page units: white fill, then the image, then the pattern on top.
+/** Paints teacher ink strokes in page units with round caps and joins. */
+export const drawStartingInk = (
+  ctx: CanvasRenderingContext2D,
+  ink: readonly WhiteboardInkStroke[] | undefined
+): void => {
+  if (!ink || ink.length === 0) return;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  for (const stroke of ink.slice(0, WHITEBOARD_INK_STROKES_MAX)) {
+    const pts = stroke.points;
+    if (pts.length < 2) continue;
+    ctx.strokeStyle = stroke.color;
+    ctx.fillStyle = stroke.color;
+    ctx.lineWidth = stroke.size;
+    if (pts.length < 4) {
+      ctx.beginPath();
+      ctx.arc(pts[0], pts[1], stroke.size / 2, 0, Math.PI * 2);
+      ctx.fill();
+      continue;
+    }
+    ctx.beginPath();
+    ctx.moveTo(pts[0], pts[1]);
+    for (let i = 2; i + 1 < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
+    ctx.stroke();
+  }
+};
+
+// Paints in 1600x1200 page units: white fill, images, the pattern, then teacher ink on top.
 export const drawStartingPage = (
   ctx: CanvasRenderingContext2D,
   spec: WhiteboardStartingPage,
-  image?: CanvasImageSource | null
+  images?: StartingPageImages | null
 ): void => {
   ctx.save();
   ctx.fillStyle = PAGE_FILL;
   ctx.fillRect(0, 0, WHITEBOARD_PAGE_WIDTH, WHITEBOARD_PAGE_HEIGHT);
 
-  if (image) {
-    const { w, h } = sourceSize(spec, image);
-    const rect = fitImageToPage(w, h);
-    if (rect) {
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(image, rect.x, rect.y, rect.w, rect.h);
+  if (images && images.size > 0) {
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    for (const placed of placedImages(spec)) {
+      const source = images.get(placed.driveFileId);
+      if (source) ctx.drawImage(source, placed.x, placed.y, placed.w, placed.h);
     }
   }
 
@@ -409,13 +441,14 @@ export const drawStartingPage = (
         break;
     }
   }
+  drawStartingInk(ctx, spec.ink);
   ctx.restore();
 };
 
 // Allocates a 3200x2400 canvas with the starting page painted at 2x.
 export const renderStartingPageCanvas = (
   spec: WhiteboardStartingPage,
-  image?: CanvasImageSource | null,
+  images?: StartingPageImages | null,
   scale: number = WHITEBOARD_BITMAP_SCALE
 ): HTMLCanvasElement => {
   const canvas = document.createElement('canvas');
@@ -424,7 +457,7 @@ export const renderStartingPageCanvas = (
   const ctx = canvas.getContext('2d');
   if (ctx) {
     ctx.setTransform(scale, 0, 0, scale, 0, 0);
-    drawStartingPage(ctx, spec, image);
+    drawStartingPage(ctx, spec, images);
   }
   return canvas;
 };

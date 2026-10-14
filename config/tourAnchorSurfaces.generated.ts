@@ -366,6 +366,15 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'quiz-editor.whiteboard-image-choose': ['quiz.editor.whiteboard-image'],
     'quiz-editor.whiteboard-preview': ['quiz.editor'],
     'quiz-editor.whiteboard-image-remove': ['quiz.editor.whiteboard-image'],
+    'quiz-editor.whiteboard-preview-tool': ['quiz.editor.whiteboard-preview'],
+    'quiz-editor.whiteboard-preview-clear-ink': [
+      'quiz.editor.whiteboard-preview',
+    ],
+    'quiz-editor.whiteboard-preview-remove-image': [
+      'quiz.editor.whiteboard-preview',
+    ],
+    'quiz-editor.whiteboard-preview-cancel': ['quiz.editor.whiteboard-preview'],
+    'quiz-editor.whiteboard-preview-save': ['quiz.editor.whiteboard-preview'],
     'quiz-editor.word-min': ['quiz.editor'],
     'quiz-editor.word-max': ['quiz.editor'],
     'quiz-editor.word-enforce': ['quiz.editor'],

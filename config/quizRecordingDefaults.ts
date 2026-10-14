@@ -1,10 +1,14 @@
 import type {
   RecordingConfig,
   RecordingPrepExpiry,
+  WhiteboardInkStroke,
+  WhiteboardPlacedImage,
   WhiteboardShapeKind,
+  WhiteboardStartingImage,
   WhiteboardStartingPage,
   WhiteboardStartingPattern,
 } from '@/types';
+import { WHITEBOARD_PAGE } from '@/components/quiz/whiteboard/whiteboardLogTypes';
 
 export const DEFAULT_PREP_SECONDS = 30;
 export const DEFAULT_LIMIT_SECONDS = 60;
@@ -17,6 +21,12 @@ export const WHITEBOARD_DEFAULT_LIMIT_SECONDS = 180;
 /** Polygon side bounds for a whiteboard starting shape. */
 export const WHITEBOARD_POLYGON_SIDES_MIN = 3;
 export const WHITEBOARD_POLYGON_SIDES_MAX = 12;
+/** Starting page caps: placed images, teacher ink strokes and their total points. */
+export const WHITEBOARD_STARTING_IMAGES_MAX = 6;
+export const WHITEBOARD_INK_STROKES_MAX = 200;
+export const WHITEBOARD_INK_POINTS_MAX = 20_000;
+const INK_SIZE_MAX = 64;
+const INK_COLOR = /^#[0-9a-fA-F]{3,8}$/;
 
 /** Fraction of the limit spent in the wrap-up stretch; no grace tail follows it. */
 export const WRAP_UP_FRACTION = 0.1;
@@ -198,34 +208,124 @@ function isGoogleImageUrl(raw: string): boolean {
   }
 }
 
+function normalizeStartingImage(raw: unknown): WhiteboardStartingImage | null {
+  const img = (raw && typeof raw === 'object' ? raw : null) as Record<
+    string,
+    unknown
+  > | null;
+  if (
+    !img ||
+    typeof img.driveFileId !== 'string' ||
+    !DRIVE_FILE_ID.test(img.driveFileId) ||
+    typeof img.url !== 'string' ||
+    !isGoogleImageUrl(img.url) ||
+    typeof img.mimeType !== 'string' ||
+    !(finiteOr(img.width, 0) > 0) ||
+    !(finiteOr(img.height, 0) > 0)
+  ) {
+    return null;
+  }
+  return {
+    driveFileId: img.driveFileId,
+    url: img.url,
+    mimeType: img.mimeType,
+    width: img.width as number,
+    height: img.height as number,
+  };
+}
+
+/** Shrinks a rect to fit the page, keeping its aspect ratio, then slides it inside. */
+export function clampPlacedRect<
+  T extends { x: number; y: number; w: number; h: number },
+>(rect: T): T {
+  const s = Math.min(1, WHITEBOARD_PAGE.w / rect.w, WHITEBOARD_PAGE.h / rect.h);
+  const w = rect.w * s;
+  const h = rect.h * s;
+  return {
+    ...rect,
+    w,
+    h,
+    x: Math.min(Math.max(0, rect.x), WHITEBOARD_PAGE.w - w),
+    y: Math.min(Math.max(0, rect.y), WHITEBOARD_PAGE.h - h),
+  };
+}
+
+function normalizePlacedImage(raw: unknown): WhiteboardPlacedImage | null {
+  const base = normalizeStartingImage(raw);
+  if (!base) return null;
+  const r = raw as Record<string, unknown>;
+  const w = finiteOr(r.w, 0);
+  const h = finiteOr(r.h, 0);
+  if (!(w > 0) || !(h > 0)) return null;
+  return clampPlacedRect({
+    ...base,
+    x: finiteOr(r.x, 0),
+    y: finiteOr(r.y, 0),
+    w,
+    h,
+  });
+}
+
+const clampTo = (v: number, max: number) =>
+  Math.min(max, Math.max(0, Math.round(v)));
+
+/** Valid strokes with integer points on the page, within the stroke and point caps. */
+export function limitStartingInk(raw: unknown): WhiteboardInkStroke[] {
+  if (!Array.isArray(raw)) return [];
+  const out: WhiteboardInkStroke[] = [];
+  let total = 0;
+  for (const item of raw) {
+    if (out.length >= WHITEBOARD_INK_STROKES_MAX) break;
+    const s = (item && typeof item === 'object' ? item : {}) as Record<
+      string,
+      unknown
+    >;
+    if (typeof s.color !== 'string' || !INK_COLOR.test(s.color)) continue;
+    if (!Array.isArray(s.points)) continue;
+    const pts: number[] = [];
+    for (let i = 0; i + 1 < s.points.length; i += 2) {
+      const x: unknown = s.points[i];
+      const y: unknown = s.points[i + 1];
+      if (typeof x !== 'number' || typeof y !== 'number') continue;
+      if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+      pts.push(clampTo(x, WHITEBOARD_PAGE.w), clampTo(y, WHITEBOARD_PAGE.h));
+    }
+    if (pts.length < 2) continue;
+    if (total + pts.length / 2 > WHITEBOARD_INK_POINTS_MAX) break;
+    total += pts.length / 2;
+    out.push({
+      color: s.color,
+      size: Math.min(INK_SIZE_MAX, Math.max(1, finiteOr(s.size, 4))),
+      points: pts,
+    });
+  }
+  return out;
+}
+
 /** Coerces a stored starting page; `undefined` for absent input (a blank page). */
 export function normalizeWhiteboardStartingPage(
   raw: unknown
 ): WhiteboardStartingPage | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
-  const r = raw as { pattern?: unknown; image?: unknown };
+  const r = raw as {
+    pattern?: unknown;
+    image?: unknown;
+    images?: unknown;
+    ink?: unknown;
+  };
   const page: WhiteboardStartingPage = { pattern: normalizePattern(r.pattern) };
-  const img = (
-    r.image && typeof r.image === 'object' ? r.image : null
-  ) as Record<string, unknown> | null;
-  if (
-    img &&
-    typeof img.driveFileId === 'string' &&
-    DRIVE_FILE_ID.test(img.driveFileId) &&
-    typeof img.url === 'string' &&
-    isGoogleImageUrl(img.url) &&
-    typeof img.mimeType === 'string' &&
-    finiteOr(img.width, 0) > 0 &&
-    finiteOr(img.height, 0) > 0
-  ) {
-    page.image = {
-      driveFileId: img.driveFileId,
-      url: img.url,
-      mimeType: img.mimeType,
-      width: img.width as number,
-      height: img.height as number,
-    };
+  if (Array.isArray(r.images)) {
+    const images = r.images
+      .map(normalizePlacedImage)
+      .filter((img): img is WhiteboardPlacedImage => img !== null)
+      .slice(0, WHITEBOARD_STARTING_IMAGES_MAX);
+    if (images.length > 0) page.images = images;
+  } else {
+    const image = normalizeStartingImage(r.image);
+    if (image) page.image = image;
   }
+  const ink = limitStartingInk(r.ink);
+  if (ink.length > 0) page.ink = ink;
   return page;
 }
 

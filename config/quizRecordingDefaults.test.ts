@@ -3,8 +3,11 @@ import {
   DEFAULT_RECORDING_CONFIG,
   isWhiteboardRecording,
   normalizeRecordingConfig,
+  limitStartingInk,
   normalizeWhiteboardStartingPage,
   recordingReviewEnabled,
+  WHITEBOARD_INK_POINTS_MAX,
+  WHITEBOARD_INK_STROKES_MAX,
   whiteboardUsesMic,
   takesRemaining,
   wrapUpThresholdSeconds,
@@ -220,5 +223,94 @@ describe('normalizeWhiteboardStartingPage', () => {
         })
       ).toEqual({ pattern: { kind: 'blank' } });
     }
+  });
+});
+
+describe('normalizeWhiteboardStartingPage images and ink', () => {
+  const image = {
+    driveFileId: 'drive-1',
+    url: 'https://lh3.googleusercontent.com/d/drive-1',
+    mimeType: 'image/png',
+    width: 800,
+    height: 600,
+  };
+
+  it('keeps valid placed images, caps them at six and ignores the legacy image', () => {
+    const placed = { ...image, x: 10, y: 20, w: 400, h: 300 };
+    const out = normalizeWhiteboardStartingPage({
+      pattern: { kind: 'blank' },
+      image,
+      images: [
+        ...Array.from({ length: 7 }, () => placed),
+        { ...placed, w: 0 },
+        { ...placed, url: 'https://evil.io/x.png' },
+      ],
+    });
+    expect(out?.image).toBeUndefined();
+    expect(out?.images).toHaveLength(6);
+    expect(out?.images?.[0]).toEqual(placed);
+  });
+
+  it('pulls an off-page image back on and shrinks an oversized one', () => {
+    const out = normalizeWhiteboardStartingPage({
+      pattern: { kind: 'blank' },
+      images: [
+        { ...image, x: 1500, y: -40, w: 400, h: 300 },
+        { ...image, x: 0, y: 0, w: 3200, h: 1200 },
+      ],
+    });
+    expect(out?.images?.[0]).toMatchObject({ x: 1200, y: 0, w: 400, h: 300 });
+    expect(out?.images?.[1]).toMatchObject({ x: 0, y: 0, w: 1600, h: 600 });
+  });
+
+  it('drops the image key when every placed image is invalid', () => {
+    expect(
+      normalizeWhiteboardStartingPage({
+        pattern: { kind: 'blank' },
+        images: [{ ...image, x: 0, y: 0, w: -1, h: 5 }],
+      })
+    ).toEqual({ pattern: { kind: 'blank' } });
+  });
+
+  it('rounds and clamps ink points and drops malformed strokes', () => {
+    expect(
+      limitStartingInk([
+        { color: '#0f172a', size: 4, points: [1.4, 2.6, -5, 9000, 7] },
+        { color: 'red', size: 4, points: [1, 1, 2, 2] },
+        { color: '#000', size: 4, points: ['x', 1] },
+        { color: '#000', size: 999, points: [3, 3] },
+      ])
+    ).toEqual([
+      { color: '#0f172a', size: 4, points: [1, 3, 0, 1200] },
+      { color: '#000', size: 64, points: [3, 3] },
+    ]);
+  });
+
+  it('caps strokes at 200 and total points at 20,000', () => {
+    const many = Array.from({ length: 300 }, () => ({
+      color: '#000',
+      size: 4,
+      points: [1, 1, 2, 2],
+    }));
+    expect(limitStartingInk(many)).toHaveLength(WHITEBOARD_INK_STROKES_MAX);
+    const big = Array.from({ length: 3 }, () => ({
+      color: '#000',
+      size: 4,
+      points: Array.from({ length: 16_000 }, (_, i) => i % 1000),
+    }));
+    const limited = limitStartingInk(big);
+    const total = limited.reduce((n, s) => n + s.points.length / 2, 0);
+    expect(limited).toHaveLength(2);
+    expect(total).toBeLessThanOrEqual(WHITEBOARD_INK_POINTS_MAX);
+  });
+
+  it('carries ink through and omits an empty list', () => {
+    const ink = [{ color: '#0f172a', size: 4, points: [1, 2, 3, 4] }];
+    expect(
+      normalizeWhiteboardStartingPage({ pattern: { kind: 'blank' }, ink })
+    ).toEqual({ pattern: { kind: 'blank' }, ink });
+    expect(
+      normalizeWhiteboardStartingPage({ pattern: { kind: 'blank' }, ink: [] })
+    ).toEqual({ pattern: { kind: 'blank' } });
   });
 });
