@@ -1,6 +1,7 @@
 import React, {
   useCallback,
   useEffect,
+  useEffectEvent,
   useMemo,
   useRef,
   useState,
@@ -23,7 +24,14 @@ import {
   type AudioRecordingDeps,
   type AudioTake,
 } from '@/hooks/useAudioRecording';
-import { takesRemaining } from '@/config/quizRecordingDefaults';
+import {
+  recordingReviewEnabled,
+  takesRemaining,
+} from '@/config/quizRecordingDefaults';
+import {
+  hasRecoverableContent,
+  type TakeRecoveryStore,
+} from '@/utils/takeRecoveryStore';
 import {
   RecordingConsentNotice,
   RecordingNoticeReminder,
@@ -52,6 +60,8 @@ export interface AudioResponseCaptureProps {
   slotClosed?: boolean;
   /** The live (teacher-paced) quiz shell is dark; the self-paced one is light. */
   light?: boolean;
+  /** Local copy of the running take, offered back after a crash or reload (D17). */
+  recovery?: { store: TakeRecoveryStore; key: string };
   /** Injected by tests and the DEV harness only. */
   recorderDeps?: AudioRecordingDeps;
   /** Forced state for the DEV harness; never set in the app. */
@@ -136,6 +146,7 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
   latestArtifact,
   slotClosed = false,
   light = true,
+  recovery,
   recorderDeps,
   commitStateOverride,
 }) => {
@@ -161,21 +172,73 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
     onPrepExpired,
     onCaptureUnavailable,
     deps: recorderDeps,
+    recovery,
   });
 
-  const { phase, commit } = recorder;
+  const { phase, commit, restore, discard } = recorder;
+  const [recoveredTake, setRecoveredTake] = useState(false);
 
-  const handleCommit = useCallback(async () => {
-    const take = commit();
-    if (!take) return;
-    setCommitState('committing');
-    try {
-      await onCommit(take);
-      setCommitState('idle');
-    } catch {
-      setCommitState('archive-failed');
-    }
-  }, [commit, onCommit]);
+  const sendTake = useCallback(
+    async (take: AudioTake | null) => {
+      setRecoveredTake(false);
+      if (!take) return;
+      setCommitState('committing');
+      try {
+        await onCommit(take);
+        setCommitState('idle');
+      } catch {
+        setCommitState('archive-failed');
+      }
+    },
+    [onCommit]
+  );
+
+  const handleCommit = useCallback(
+    () => sendTake(commit()),
+    [commit, sendTake]
+  );
+
+  const handleDiscard = useCallback(() => {
+    setRecoveredTake(false);
+    discard();
+  }, [discard]);
+
+  const reviewOn = recordingReviewEnabled(config);
+  const canRecover = acknowledged && !takeBudgetReached;
+  const checkedRecoveryKeyRef = useRef<string | null>(null);
+  const restoreRecovered = useEffectEvent((take: AudioTake) => {
+    if (!restore(take)) return;
+    if (reviewOn) setRecoveredTake(true);
+    else void sendTake(commit(take));
+  });
+
+  // Reopening the question offers back a take a crash or reload interrupted.
+  useEffect(() => {
+    if (!recovery || !canRecover) return;
+    if (checkedRecoveryKeyRef.current === recovery.key) return;
+    let cancelled = false;
+    const now = Date.now();
+    recovery.store
+      .removeExpired(now)
+      .catch(() => undefined)
+      .then(() => recovery.store.load(recovery.key, now))
+      .then((saved) => {
+        if (cancelled) return;
+        checkedRecoveryKeyRef.current = recovery.key;
+        if (!saved || !hasRecoverableContent(saved)) return;
+        const blob = new Blob(saved.chunks, { type: saved.mimeType });
+        if (blob.size === 0) return;
+        restoreRecovered({
+          blob,
+          mimeType: saved.mimeType,
+          durationMs: Math.max(0, saved.updatedAt - saved.startedAt),
+        });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [canRecover, recovery]);
 
   const retryBtnRef = useRef<HTMLButtonElement>(null);
   const statusBannerRef = useRef<HTMLDivElement>(null);
@@ -415,7 +478,9 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
               <p
                 className={`text-xs font-bold uppercase tracking-widest ${labelCls}`}
               >
-                {t('quizMediaResponse.capture.reviewLabel')}
+                {recoveredTake
+                  ? t('quizMediaResponse.capture.recoveredLabel')
+                  : t('quizMediaResponse.capture.reviewLabel')}
               </p>
               {/* Local object URL — reviewing touches no network and no Firestore. */}
               <TakeReviewPlayer
@@ -425,7 +490,9 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
                 light={light}
               />
               <p className={`mt-2 text-sm ${mutedCls}`}>
-                {t('quizMediaResponse.capture.reviewBody')}
+                {recoveredTake
+                  ? t('quizMediaResponse.capture.recoveredBody')
+                  : t('quizMediaResponse.capture.reviewBody')}
               </p>
             </div>
           )}
@@ -560,7 +627,7 @@ export const AudioResponseCapture: React.FC<AudioResponseCaptureProps> = ({
               </button>
               <button
                 type="button"
-                onClick={recorder.discard}
+                onClick={handleDiscard}
                 disabled={commitState === 'committing'}
                 className={`${primaryBtn} border outline-slate-400 ${
                   light
