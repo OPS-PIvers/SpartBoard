@@ -13,12 +13,14 @@ import { AlertTriangle, Hourglass, Loader2, Play } from 'lucide-react';
 import type {
   ArtifactArchiveEntry,
   QuizResponseAnswer,
+  WhiteboardStartingPage,
   WrittenAnswerAnnotation,
 } from '@/types';
 import { formatTimecode } from '@/utils/mediaGrading';
 import {
   resolveArtifactPlaybackState,
   selectPlaybackTake,
+  selectWhiteboardTake,
 } from '@/utils/responseArtifacts';
 import {
   useQuizArtifactPlayback,
@@ -26,6 +28,7 @@ import {
   type PlaybackUnavailableReason,
 } from '@/hooks/useQuizArtifactPlayback';
 import { TakeReviewPlayer } from './TakeReviewPlayer';
+import { WhiteboardPlaybackCard } from './WhiteboardPlaybackCard';
 import { RubricStrandPills } from '@/components/widgets/QuizWidget/components/RubricStrandChips';
 
 export interface ResponsePlaybackCardProps {
@@ -39,11 +42,41 @@ export interface ResponsePlaybackCardProps {
   /** Teacher timeline comments (ms offsets) on the graded take. */
   annotations?: readonly WrittenAnswerAnnotation[];
   light?: boolean;
+  /** Off hides whiteboard takes; the playback callable re-checks the flag for each file. */
+  whiteboardEnabled?: boolean;
+  startingPage?: WhiteboardStartingPage;
   /** Injected by tests and the DEV harness only. */
   fetchPlayback?: FetchPlayback;
 }
 
 export const ResponsePlaybackCard: React.FC<ResponsePlaybackCardProps> = ({
+  whiteboardEnabled = false,
+  startingPage,
+  ...props
+}) => {
+  const whiteboardTake = selectWhiteboardTake(
+    props.answers,
+    props.questionId,
+    'primary',
+    props.gradedTakeIndex,
+    props.artifactArchive
+  );
+  // With the whiteboard off, a whiteboard take stays invisible rather than playing as bare audio.
+  if (whiteboardTake) {
+    const { light: _light, ...whiteboardProps } = props;
+    return whiteboardEnabled ? (
+      <WhiteboardPlaybackCard
+        {...whiteboardProps}
+        startingPage={startingPage}
+      />
+    ) : null;
+  }
+  return <AudioPlaybackCard {...props} />;
+};
+
+const AudioPlaybackCard: React.FC<
+  Omit<ResponsePlaybackCardProps, 'whiteboardEnabled' | 'startingPage'>
+> = ({
   sessionId,
   responseKey,
   questionId,

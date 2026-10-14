@@ -377,10 +377,26 @@ const SessionViewsDevHarness = import.meta.env.DEV
     )
   : null;
 
+const WhiteboardReplayDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WhiteboardReplayDevHarness').then((module) => ({
+        default: module.WhiteboardReplayDevHarness,
+      }))
+    )
+  : null;
+
 const WhiteboardDevHarness = import.meta.env.DEV
   ? lazy(() =>
       import('./components/dev/WhiteboardDevHarness').then((module) => ({
         default: module.WhiteboardDevHarness,
+      }))
+    )
+  : null;
+
+const WhiteboardCaptureDevView = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/WhiteboardCaptureDevView').then((module) => ({
+        default: module.WhiteboardCaptureDevView,
       }))
     )
   : null;
@@ -1134,6 +1150,19 @@ const App: React.FC = () => {
     );
   }
 
+  // DEV-ONLY: fixtures for the shared whiteboard answer replay view.
+  if (
+    import.meta.env.DEV &&
+    WhiteboardReplayDevHarness &&
+    pathname === '/whiteboard-replay-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WhiteboardReplayDevHarness />
+      </Suspense>
+    );
+  }
+
   // DEV-ONLY: the student whiteboard canvas with fixture starting pages.
   if (
     import.meta.env.DEV &&
@@ -1143,6 +1172,19 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <WhiteboardDevHarness />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: the whiteboard capture flow (prep, recording, review) with a mocked mic.
+  if (
+    import.meta.env.DEV &&
+    WhiteboardCaptureDevView &&
+    pathname === '/whiteboard-capture-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <WhiteboardCaptureDevView />
       </Suspense>
     );
   }

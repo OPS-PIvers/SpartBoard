@@ -53,7 +53,7 @@ export type PlaybackState =
 
 export type FetchPlayback = (req: PlaybackRequest) => Promise<PlaybackResponse>;
 
-const defaultFetch: FetchPlayback = async (req) => {
+export const defaultFetch: FetchPlayback = async (req) => {
   const callable = httpsCallable<PlaybackRequest, PlaybackResponse>(
     functions,
     'getQuizArtifactPlaybackUrl'
@@ -62,7 +62,7 @@ const defaultFetch: FetchPlayback = async (req) => {
   return result.data;
 };
 
-function base64ToBlob(data: string, mimeType: string): Blob {
+export function base64ToBlob(data: string, mimeType: string): Blob {
   const binary = atob(data);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);

@@ -2801,6 +2801,16 @@ export const TOUR_ANCHORS = {
     perWidgetType: true,
     panel: true,
   },
+  'quiz-whiteboard.replay-play': {
+    label: 'Play / pause a whiteboard answer replay',
+    perWidgetType: true,
+    panel: true,
+  },
+  'quiz-whiteboard.replay-scrubber': {
+    label: 'Whiteboard answer replay timeline',
+    perWidgetType: true,
+    panel: true,
+  },
   'quiz-grading.audio-play': {
     label: 'Play / pause in the Quiz grader',
     perWidgetType: true,

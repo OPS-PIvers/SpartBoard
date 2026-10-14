@@ -154,7 +154,10 @@ import {
 import { commitActiveTake } from './recording/activeTake';
 import { ResponsePlaybackCard } from './recording/ResponsePlaybackCard';
 import { SubmitBlockedNotice } from './recording/SubmitBlockedNotice';
-import { selectPlaybackTake } from '@/utils/responseArtifacts';
+import {
+  selectPlaybackTake,
+  selectWhiteboardTake,
+} from '@/utils/responseArtifacts';
 import { hasUngradedRecording } from '@/utils/mediaGrading';
 import type { AudioTake } from '@/hooks/useAudioRecording';
 import {
@@ -5555,13 +5558,20 @@ export const PublishedScoreReview: React.FC<{
                     const hasRecordedTake =
                       mediaEnabled &&
                       !!responseKey &&
-                      selectPlaybackTake(
+                      (selectPlaybackTake(
                         myResponse.answers,
                         q.id,
                         'primary',
                         undefined,
                         myResponse.artifactArchive
-                      ) !== null;
+                      ) !== null ||
+                        selectWhiteboardTake(
+                          myResponse.answers,
+                          q.id,
+                          'primary',
+                          undefined,
+                          myResponse.artifactArchive
+                        ) !== null);
                     return (
                       <article
                         key={q.id}
@@ -5677,6 +5687,8 @@ export const PublishedScoreReview: React.FC<{
                                   : undefined
                               }
                               light={light}
+                              whiteboardEnabled
+                              startingPage={q.recording?.startingPage}
                             />
                           )}
                         </div>
