@@ -55,7 +55,8 @@ export const ClaudeNoteField: React.FC<{
         target,
         text.trim() ? { text, by: email, at: Date.now() } : undefined
       )
-        .then(() => setDraft(null))
+        // Typing that went on during the save stays in the box.
+        .then(() => setDraft((cur) => (cur === text ? null : cur)))
         .catch((err: unknown) =>
           logError('ClaudeNoteField.save', err, { setId, target })
         );

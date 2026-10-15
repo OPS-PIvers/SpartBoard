@@ -191,4 +191,24 @@ describe('TourEditorSettings', () => {
     expect(note.save).toHaveBeenLastCalledWith('set-1', 'tour', undefined);
     expect(session.updateSet).not.toHaveBeenCalled();
   });
+
+  it('keeps typing that goes on while a note saves', async () => {
+    let finish = () => {};
+    note.save.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        })
+    );
+    renderSettings(sessionFor(tour()), true);
+    const box = screen.getByTestId('tour-editor-tour-note');
+    fireEvent.change(box, { target: { value: 'Short' } });
+    fireEvent.blur(box);
+    fireEvent.change(box, { target: { value: 'Shorter steps' } });
+    await act(async () => {
+      finish();
+      await Promise.resolve();
+    });
+    expect(box).toHaveValue('Shorter steps');
+  });
 });
