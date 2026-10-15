@@ -13,6 +13,8 @@ import {
   parseCategories,
   publicTourStep,
   readyAnchorRef,
+  resolveNotes,
+  tourHealth,
   tourStep,
   tourPublishState,
   updateBookends,
@@ -20,6 +22,7 @@ import {
 import type { Step } from './glTools';
 import { buildTourSetup } from './tourSetup';
 import { hiddenToolsFor } from './tools';
+import { tourPlaytestKey } from './tourPlaytest';
 
 const resultsOn = vi.hoisted(() => ({ value: false }));
 vi.mock('./miniAppTools', async (importActual) => ({
@@ -561,5 +564,103 @@ describe('the Open Tools step', () => {
         step('b', 'board.whole'),
       ])
     ).toBe('warn');
+  });
+});
+
+describe('notes, playtest and health', () => {
+  const note = { text: 'Point at the gear', by: 'admin@school.org', at: 0 };
+  const tour = (over: Record<string, unknown> = {}) => ({
+    id: 'set1',
+    title: 'T',
+    imageUrls: [],
+    mode: 'tour',
+    updatedAt: 5,
+    steps: [
+      stored({ reviewNote: note }),
+      stored({ id: 's2', tour: { anchor: 'board.whole', action: 'observe' } }),
+    ],
+    ...over,
+  });
+
+  it('returns notes on the tour and its steps, and keeps them through an edit', () => {
+    const view = liveTourView(tour({ tourReviewNote: note }), null);
+    expect(view.review_note).toEqual({
+      text: 'Point at the gear',
+      by: 'admin@school.org',
+      at: '1970-01-01T00:00:00.000Z',
+    });
+    expect(view.steps[0]).toMatchObject({ review_note: { text: note.text } });
+    expect(view.steps[1]).not.toHaveProperty('review_note');
+    const [kept] = mergeTourSteps(tour().steps, [
+      view.steps[0] as Parameters<typeof mergeTourSteps>[1][number],
+    ]);
+    expect(kept.reviewNote).toEqual(note);
+    expect(kept).not.toHaveProperty('review_note');
+  });
+
+  it('clears resolved notes and refuses an unknown id', () => {
+    const cleared = resolveNotes(tour({ tourReviewNote: note }), ['s1']);
+    expect(cleared.steps[0]).not.toHaveProperty('reviewNote');
+    expect(cleared.tourReviewNote).toEqual(note);
+    expect(() => resolveNotes(tour(), ['nope'])).toThrow(
+      'resolved_notes: "nope"'
+    );
+  });
+
+  it('marks the playtest stale once the steps change', () => {
+    const steps = tour().steps;
+    const playtest = {
+      at: 0,
+      by: 'admin@school.org',
+      fingerprint: tourPlaytestKey(steps),
+      steps: [
+        { stepId: 's1', result: 'missing' },
+        { stepId: 's2', result: 'not-reached' },
+      ],
+    };
+    const fresh = liveTourView(tour({ tourPlaytest: playtest }), null);
+    expect(fresh.last_playtest).toEqual({
+      at: '1970-01-01T00:00:00.000Z',
+      by: 'admin@school.org',
+      stale: false,
+      steps: [
+        { step_id: 's1', result: 'missing' },
+        { step_id: 's2', result: 'not-reached' },
+      ],
+    });
+    const moved = liveTourView(
+      tour({ tourPlaytest: playtest, steps: [...steps].reverse() }),
+      null
+    );
+    expect(moved.last_playtest?.stale).toBe(true);
+    expect(liveTourView(tour(), null)).not.toHaveProperty('last_playtest');
+  });
+
+  it('counts only runs of the published version and names no teacher', () => {
+    const health = tourHealth(
+      [
+        { v: 7, done: true, misses: ['s2'] },
+        { v: 7, done: false, exit: 1, misses: ['s2', 's2'] },
+        { v: 7, done: false, exit: 1, misses: [] },
+        { v: 7, done: false, exit: 0, misses: ['s1'] },
+        { v: 3, done: false, exit: 0, misses: ['s1'] },
+      ],
+      [{ id: 's1' }, { id: 's2' }],
+      7
+    );
+    expect(health).toEqual({
+      runs: 4,
+      completed: 1,
+      most_left_from: { step_id: 's2', runs: 2 },
+      missed: [
+        { step_id: 's2', runs: 2 },
+        { step_id: 's1', runs: 1 },
+      ],
+    });
+    expect(tourHealth([], [], 7)).toEqual({
+      runs: 0,
+      completed: 0,
+      missed: [],
+    });
   });
 });

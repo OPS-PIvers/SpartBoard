@@ -3748,7 +3748,9 @@
       "saveStart": "Tafel speichern",
       "justResume": "Nur fortsetzen",
       "startSaved": "Beginnt mit einer gespeicherten Tafel",
-      "clearStart": "Entfernen"
+      "clearStart": "Entfernen",
+      "noteForClaude": "Notiz für Claude",
+      "noteBy": "Von {{who}}"
     },
     "kept_one": "{{count}} Element in deiner Bibliothek gespeichert.",
     "kept_other": "{{count}} Elemente in deiner Bibliothek gespeichert.",

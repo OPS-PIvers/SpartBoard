@@ -101,6 +101,7 @@ import type { TourEditorSession } from './useTourEditorSession';
 import { TourAnchorPicker } from './TourAnchorPicker';
 import { RecordFromHere } from './RecordFromHere';
 import { TourAnchorList } from './TourAnchorList';
+import { ClaudeNoteField } from './ClaudeNoteField';
 import { TourWidgetFields } from './TourWidgetFields';
 import { applyAnchorPick, type TourAnchorPick } from './pickAnchor';
 import { bindWithStarterText } from './starterText';
@@ -942,6 +943,11 @@ const StepCard: React.FC<{
           className={`${inputClass} resize-y`}
         />
       </label>
+      <ClaudeNoteField
+        note={step.reviewNote}
+        onChange={(reviewNote) => update({ reviewNote }, 'reviewNote')}
+        testId="tour-editor-step-note"
+      />
       <div className={labelClass}>
         {t('tourPicker.control')}
         <div className="flex items-start gap-2">

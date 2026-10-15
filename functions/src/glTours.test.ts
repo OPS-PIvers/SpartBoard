@@ -172,6 +172,21 @@ describe('buildGlTourContent', () => {
   });
 });
 
+describe('buildGlTourContent notes', () => {
+  it('leaves notes for Claude and the playtest in the draft', () => {
+    const note = { text: 'Wrong button', by: 'a@x.org', at: 1 };
+    const content = buildGlTourContent('s1', {
+      ...tourSet(),
+      tourReviewNote: note,
+      tourPlaytest: { at: 1, by: 'a@x.org', fingerprint: 'f', steps: [] },
+      steps: [{ id: 'a', reviewNote: note }],
+    });
+    expect(content).not.toHaveProperty('tourReviewNote');
+    expect(content).not.toHaveProperty('tourPlaytest');
+    expect(content.steps).toEqual([{ id: 'a' }]);
+  });
+});
+
 describe('one-time publish of existing tours', () => {
   it('publishes every set with a live tour once, then writes the marker', async () => {
     h.store.set('building_guided_learning/live', tourSet({ id: 'live' }));

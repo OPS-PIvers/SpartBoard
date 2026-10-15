@@ -8116,6 +8116,8 @@ export interface GuidedLearningQuestion {
 
 export interface GuidedLearningStep {
   id: string;
+  /** Live tours: an admin's note for Claude on this step; never published. */
+  reviewNote?: TourReviewNote;
   /** % position on image (0–100) */
   xPct: number;
   yPct: number;
@@ -8423,6 +8425,30 @@ export interface GuidedLearningSet {
   };
   /** Stamped on every building-set save: true for tour mode or when any step has a live-tour binding. */
   hasLiveTour?: boolean;
+  /** An admin's note for Claude on the whole tour; never published. */
+  tourReviewNote?: TourReviewNote;
+  /** The last time an admin played the tour in the editor; never published. */
+  tourPlaytest?: TourPlaytest;
+}
+
+/** A note an admin leaves for Claude to act on in its finish pass (LIVE_TOUR_CONSISTENT_START.md C10). */
+export interface TourReviewNote {
+  text: string;
+  /** Email of the admin who wrote it. */
+  by: string;
+  at: number;
+}
+
+export type TourPlaytestResult = 'found' | 'missing' | 'left' | 'not-reached';
+
+/** What each step did the last time an admin played the tour in the editor (C9). */
+export interface TourPlaytest {
+  at: number;
+  /** Email of the admin who played it. */
+  by: string;
+  /** tourPlaytestKey() of the steps it ran, so a later change marks it stale. */
+  fingerprint: string;
+  steps: { stepId: string; result: TourPlaytestResult }[];
 }
 
 /** Lightweight metadata stored in Firestore (avoids Drive API on every list) */

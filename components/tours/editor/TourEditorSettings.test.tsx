@@ -59,10 +59,16 @@ const sessionFor = (
     ...over,
   }) as unknown as TourEditorSession;
 
-const renderSettings = (session: TourEditorSession) =>
+const renderSettings = (session: TourEditorSession, connector = false) =>
   render(
     <AuthContext.Provider
-      value={{ user: { uid: 'admin-1' } } as unknown as AuthContextType}
+      value={
+        {
+          user: { uid: 'admin-1', email: 'admin@school.org' },
+          canAccessFeature: (id: string) =>
+            connector && id === 'claude-connector',
+        } as unknown as AuthContextType
+      }
     >
       <TourEditorSettings session={session} />
     </AuthContext.Provider>
@@ -148,5 +154,32 @@ describe('TourEditorSettings', () => {
     expect(session.updateSet).toHaveBeenLastCalledWith({
       tourSetup: { widgets: [] },
     });
+  });
+
+  it('saves a tour note for Claude with who wrote it, for admins with the connector', () => {
+    const session = sessionFor(tour());
+    const { unmount } = renderSettings(session);
+    expect(screen.queryByTestId('tour-editor-tour-note')).toBeNull();
+    unmount();
+    renderSettings(session, true);
+    fireEvent.change(screen.getByTestId('tour-editor-tour-note'), {
+      target: { value: 'Use shorter steps' },
+    });
+    expect(session.updateSet).toHaveBeenCalledWith(
+      {
+        tourReviewNote: expect.objectContaining({
+          text: 'Use shorter steps',
+          by: 'admin@school.org',
+        }),
+      },
+      'tourReviewNote'
+    );
+    fireEvent.change(screen.getByTestId('tour-editor-tour-note'), {
+      target: { value: '  ' },
+    });
+    expect(session.updateSet).toHaveBeenLastCalledWith(
+      { tourReviewNote: undefined },
+      'tourReviewNote'
+    );
   });
 });

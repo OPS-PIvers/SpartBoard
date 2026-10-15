@@ -58,6 +58,32 @@ describe('useTourEditorSession', () => {
     expect(getTourEdit()?.set.steps[1].tour?.thumbnail).toBeUndefined();
   });
 
+  it('saves a playtest without an undo step', async () => {
+    const { result } = open();
+    const playtest = {
+      at: 1,
+      by: 'admin@school.org',
+      fingerprint: 'f',
+      steps: [{ stepId: 'a', result: 'found' as const }],
+    };
+    act(() => result.current?.setPlaytest(playtest));
+    expect(getTourEdit()?.set.tourPlaytest).toEqual(playtest);
+    expect(result.current?.canUndo).toBe(false);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(AUTOSAVE_MS);
+    });
+    expect(save.mock.calls.at(-1)?.[0].tourPlaytest).toEqual(playtest);
+  });
+
+  it('undoes a run of tour note keystrokes in one step', () => {
+    const { result } = open();
+    const note = (text: string) => ({ text, by: 'a@x.org', at: 1 });
+    act(() => result.current?.updateSet({ tourReviewNote: note('S') }, 'n'));
+    act(() => result.current?.updateSet({ tourReviewNote: note('Sh') }, 'n'));
+    act(() => result.current?.undo());
+    expect(getTourEdit()?.set.tourReviewNote).toBeUndefined();
+  });
+
   it('reports whether the draft was saved', async () => {
     const { result } = open();
     act(() => result.current?.updateStep('a', { label: 'A1' }));

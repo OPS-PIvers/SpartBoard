@@ -52,6 +52,19 @@ describe('tourPublishStatus', () => {
     ).toBe('published');
   });
 
+  it('keeps notes for Claude and the playtest out of what teachers run', () => {
+    const noted = set({
+      tourReviewNote: { text: 'Shorter', by: 'a@x.org', at: 1 },
+      tourPlaytest: { at: 1, by: 'a@x.org', fingerprint: 'f', steps: [] },
+    });
+    noted.steps[0].reviewNote = { text: 'Wrong button', by: 'a@x.org', at: 1 };
+    const content = buildTourContent(noted);
+    expect(content).not.toHaveProperty('tourReviewNote');
+    expect(content).not.toHaveProperty('tourPlaytest');
+    expect(content.steps[0]).not.toHaveProperty('reviewNote');
+    expect(tourPublishStatus(noted, stored(set()))).toBe('published');
+  });
+
   it('is Changes not published after a tour edit', () => {
     const published = stored(set());
     expect(tourPublishStatus(set({ watchPace: 'calm' }), published)).toBe(

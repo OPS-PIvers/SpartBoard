@@ -49,6 +49,7 @@ const makeSession = (steps: GuidedLearningStep[]) => {
     }),
     insertStepsAfter: vi.fn(),
     setThumbnail: vi.fn(),
+    setPlaytest: vi.fn(),
     deleteStep: vi.fn(),
     moveStep: vi.fn(),
     updateSet: vi.fn(),

@@ -26,6 +26,8 @@ const NOT_PUBLISHED = new Set([
   'createdAt',
   'updatedAt',
   'hasLiveTour',
+  'tourReviewNote',
+  'tourPlaytest',
 ]);
 
 /** What a tour run shows, as Firestore will store it (no undefined values). */
@@ -34,6 +36,11 @@ export function buildTourContent(set: GuidedLearningSet): GuidedLearningSet {
   for (const [key, value] of Object.entries(normalizeGuidedLearningSet(set))) {
     if (!NOT_PUBLISHED.has(key) && value !== undefined) out[key] = value;
   }
+  // Notes for Claude stay in the draft.
+  out.steps = (out.steps as GuidedLearningSet['steps']).map((step) => {
+    const { reviewNote: _note, ...published } = step;
+    return published;
+  });
   return JSON.parse(JSON.stringify(out)) as GuidedLearningSet;
 }
 

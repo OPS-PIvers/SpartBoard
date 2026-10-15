@@ -163,6 +163,8 @@ export const reportTourEditPlayback = (next: TourEditPlayback): void => {
   playback.set(next);
 };
 
+export const subscribeTourEditPlayback = playback.subscribe;
+
 export const useTourEditPlayback = (): TourEditPlayback =>
   useSyncExternalStore(playback.subscribe, playback.get, playback.get);
 

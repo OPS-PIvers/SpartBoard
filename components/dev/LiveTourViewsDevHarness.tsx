@@ -220,6 +220,7 @@ const useFakeSession = (selected: number): TourEditorSession => {
     insertStepAfter: () => EDIT_STEPS[0],
     insertStepsAfter: () => undefined,
     setThumbnail: () => undefined,
+    setPlaytest: () => undefined,
     deleteStep: (id) =>
       setSet((cur) => ({
         ...cur,
