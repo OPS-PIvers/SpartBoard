@@ -56,7 +56,7 @@ export function noteIdsByWidget(
 export function excusedTypes(body: string): Set<string> {
   const out = new Set<string>();
   for (const m of body.matchAll(
-    /^[\s>*-]*`?no-widget-note:\s*([A-Za-z0-9-]+)(?:\s+|\s*[:,–—]\s*)(\S.*)$/gim
+    /^[\s>*-]*`?no-widget-note:[ \t]*([A-Za-z0-9-]+)(?:[ \t]+|[ \t]*[:,–—][ \t]*)(\S.*)$/gim
   )) {
     out.add(m[1]);
   }

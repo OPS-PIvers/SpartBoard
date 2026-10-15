@@ -67,6 +67,7 @@ describe('checkReleaseWidgetNotes', () => {
       )
     ).toEqual(new Set(['quiz']));
     expect(excusedTypes('no-widget-note: quiz-timer')).toEqual(new Set());
+    expect(excusedTypes('no-widget-note: clock\nnext line')).toEqual(new Set());
   });
 });
 
