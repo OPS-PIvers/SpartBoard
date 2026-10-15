@@ -24,15 +24,21 @@ export const GEMINI_FEATURES: GlobalFeature[] = [
   'smart-poll',
   'embed-mini-app',
   'video-activity-audio-transcription',
-  'ai-file-context',
   PAPER_HANDWRITTEN_FEATURE,
   'quiz',
+  'quiz-document-ai-reader',
   'video-activity-ai',
   'guided-learning-ai',
   'mini-app-ai',
   'drawing-ai',
   'webcam-ai',
   'blooms-ai',
+  'plc-meeting-ai-notes',
+  'plc-goal-coach',
+  'quiz-translation',
+  'dashboard-layout',
+  'instructional-routine',
+  'ocr',
 ];
 
 /** Features whose admin card picks the Gemini model tier. */
@@ -43,6 +49,7 @@ export const DEFAULT_MODEL_TIER: AiModelTier = 'standard';
 
 export const defaultDailyLimit = (featureId: GlobalFeature): number => {
   if (featureId === 'video-activity-audio-transcription') return 5;
+  if (featureId === 'quiz-translation') return 40;
   if (featureId === PAPER_HANDWRITTEN_FEATURE)
     return PAPER_HANDWRITTEN_DEFAULT_DAILY_LIMIT;
   return 20;

@@ -20,6 +20,7 @@ import {
   useTourWidgetPatch,
 } from '@/context/dashboardCanvasStore';
 import { TOUR_DOCK_EVENT, type TourDockRequest } from './tourPrerequisites';
+import { getTourFrame } from './tourFrame';
 import { Z_INDEX } from '@/config/zIndex';
 // Loaded up front so the lazy picture renders within a test's fake frames.
 import './TourMiniPlayer';
@@ -39,6 +40,8 @@ const h = vi.hoisted(() => {
     selectedWidgetId: null as string | null,
     transientSpawns: false,
     readOnly: false,
+    zoom: 1,
+    annotating: false,
     version: 0,
     listeners: new Set<() => void>(),
   };
@@ -91,6 +94,18 @@ const h = vi.hoisted(() => {
       emit();
     }),
     addToast: vi.fn(),
+    setZoom: vi.fn((zoom: number) => {
+      board.zoom = zoom;
+      emit();
+    }),
+    openAnnotation: vi.fn(() => {
+      board.annotating = true;
+      emit();
+    }),
+    closeAnnotation: vi.fn(() => {
+      board.annotating = false;
+      emit();
+    }),
     setSelectedWidgetId: vi.fn((id: string | null) => {
       board.selectedWidgetId = id;
       emit();
@@ -109,6 +124,8 @@ const h = vi.hoisted(() => {
     board.readOnly = false;
     board.selectedWidgetId = null;
     board.transientSpawns = false;
+    board.zoom = 1;
+    board.annotating = false;
     n = 0;
     Object.values(actions).forEach((fn) => fn.mockClear());
   };
@@ -164,6 +181,8 @@ vi.mock('@/context/useDashboard', () => ({
     return {
       ...h.actions,
       isActiveBoardReadOnly: h.board.readOnly,
+      zoom: h.board.zoom,
+      annotationActive: h.board.annotating,
       rosters: [],
       activeRosterId: 'class-1',
       selectedWidgetId: h.board.selectedWidgetId,
@@ -380,6 +399,31 @@ describe('LiveTourRunner', () => {
     expect(h.actions.removeWidgets).toHaveBeenCalledWith(['w1']);
     expect(h.board.widgets.map((w) => w.id)).toEqual(['mine']);
     expect(screen.queryByTestId('live-tour')).not.toBeInTheDocument();
+  });
+
+  it('starts every tour on a clean frame and puts it back at the end', async () => {
+    h.board.zoom = 1.5;
+    h.board.annotating = true;
+    h.board.widgets = [{ id: 'mine', type: 'clock', flipped: true }];
+    await start(
+      makeSet([
+        { anchor: 'dock.quick-access-2', action: 'observe' },
+        { anchor: 'dock.item:poll', action: 'click' },
+      ])
+    );
+    expect(h.board.zoom).toBe(1);
+    expect(h.board.annotating).toBe(false);
+    expect(h.board.widgets[0].flipped).toBe(false);
+    expect(getTourFrame()).toMatchObject({
+      active: true,
+      dockItemTypes: ['poll'],
+      quickAccess: [false, true],
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Exit tour' }));
+    expect(getTourFrame().active).toBe(false);
+    expect(h.board.zoom).toBe(1.5);
+    expect(h.board.annotating).toBe(true);
+    expect(h.board.widgets[0].flipped).toBe(true);
   });
 
   it('prefers the tour-added widget for per-widget anchors', async () => {
@@ -2467,26 +2511,33 @@ describe('LiveTourRunner robustness', () => {
 
   it('centres a drawer row once the drawer settles, then pulses it once', async () => {
     h.board.widgets = [{ id: 'mine', type: 'clock', flipped: true }];
+    // The clean start closes the teacher's drawer and the step reopens it, so spy on every element.
     const scrollTo = vi.fn();
-    await startOn(
-      makeSet([
-        { anchor: 'settings.toggle:clock#showSeconds', action: 'observe' },
-      ]),
-      <DrawerBoard />,
-      () => {
-        const body = screen.getByTestId('drawer-body');
-        body.scrollTo = scrollTo as typeof body.scrollTo;
-      }
-    );
-    await frames(800);
-    expect(scrollTo).toHaveBeenCalledTimes(1);
-    expect(scrollTo.mock.calls[0][0]).toMatchObject({ behavior: 'smooth' });
+    const proto = Element.prototype as { scrollTo?: unknown };
+    const had = proto.scrollTo;
+    proto.scrollTo = scrollTo;
+    try {
+      await startOn(
+        makeSet([
+          { anchor: 'settings.toggle:clock#showSeconds', action: 'observe' },
+        ]),
+        <DrawerBoard />
+      );
+      await frames(800);
+      expect(scrollTo).toHaveBeenCalledTimes(1);
+      expect(scrollTo.mock.instances[0]).toBe(
+        screen.getByTestId('drawer-body')
+      );
+      expect(scrollTo.mock.calls[0][0]).toMatchObject({ behavior: 'smooth' });
+    } finally {
+      proto.scrollTo = had;
+    }
     expect(scrollIntoView).not.toHaveBeenCalled();
     expect(screen.getByTestId('tour-spotlight-pulse')).toBeInTheDocument();
-    // The teacher's own open drawer stays open after the tour.
+    // The teacher's own open drawer is open again after the tour.
     fireEvent.click(barButton('Done'));
     await frames();
-    expect(flips()).toEqual([]);
+    expect(h.board.widgets[0].flipped).toBe(true);
   });
 
   it('scrolls an off-screen anchor into view before spotlighting it', async () => {

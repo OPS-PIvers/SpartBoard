@@ -25,6 +25,18 @@ Don't agree an outline with the admin first. Build the tour, check it with `dry_
 
 To change an existing tour, `get_live_tour`, then `update_live_tour` with `steps` (the whole list, ids kept) or `step_text` (wording only). Update takes the same setup fields and `dry_run`.
 
+## Where a tour starts
+
+Every tour starts on the same screen for every teacher, so write each step for this frame:
+
+- The Dock is collapsed at the bottom of the screen, showing **Open Tools**. It sits at the bottom for the whole tour, even for a teacher who keeps it on a side, so never write "on the left" or "on the right" for the Dock.
+- The quick-access buttons beside the collapsed Dock are hidden unless a step points at `dock.quick-access-1` or `dock.quick-access-2`.
+- The widget library, the sidebar menu, annotation, Dock menus and folders, and every widget's settings are closed, and the board is at 100% zoom.
+- Each widget a step adds with `dock.item:<type>` is in the Dock, even for a teacher who hid it or filed it in a folder: the tour puts a button for it at the front of the Dock while it runs.
+- A teacher is offered the tour only if they can use every widget it stages or adds.
+
+When the tour ends, the teacher's screen goes back to how they left it.
+
 ## Steps
 
 ```jsonc
@@ -48,6 +60,19 @@ To change an existing tour, `get_live_tour`, then `update_live_tour` with `steps
 - `type`: a text field, with `value` the text Autopilot types. The tour moves on once the field holds it. Never put a real student's name in it.
 
 **Anchor refs.** Write the id from `list_tour_anchors`, plus `:<type>` when its scope is `widget type` and `:<type>#<key>` when it is `field`. When an anchor lists `keys`, the suffix must be one of them; when it gives a `key_pattern`, the suffix must match it, and `key_hint` shows examples (quiz option letters are lowercase: `quiz-editor.option:quiz#a`). `settings.field`, `settings.toggle` and `settings.group` refs come from `widget_type` lookups (`settings_fields`).
+
+**The Open Tools step.** Because the Dock starts collapsed, a tour that points at anything inside the Dock (an anchor with `requires: "dock-expanded"`, such as `dock.item:<type>` or `dock.more-widgets`) teaches **Open Tools** first. When no earlier step clicks `dock.open-tools`, saving adds this step before the first Dock step, and `dry_run` shows it too:
+
+```json
+{
+  "id": "open-dock",
+  "label": "Open the Dock",
+  "text": "Click **Open Tools** to open the Dock.",
+  "tour": { "anchor": "dock.open-tools", "action": "click" }
+}
+```
+
+The result lists it in `inserted_steps`, with the id of the step it went before. Write your own Open Tools step when you want other wording. The Dock stays open once opened, so one is enough.
 
 **Things the runner does for you.** An anchor with `requires` is set up before the runner looks: it expands the dock, selects the widget, restores it, scrolls it into view, or opens the settings drawer on the right tab. A tour that is about a widget's settings can still start with a `click` on `widget.settings-opener:<type>`, so teachers learn where the gear is; after that, every settings step on that widget stays in the open drawer.
 
@@ -98,8 +123,14 @@ Write for a busy teacher reading a small card on a projected board.
 - `select` on a control that isn't a choice: a cycle button, a switch, or a text, number or list field
 - a control on a panel no earlier step opens (the error lists the clicks from the board)
 - a widget control when that widget isn't staged or added from the Dock first
+- bookends: the first step must observe `board.whole`, and the last step must be an `observe`. On `update_live_tour` with `steps`, this refuses the save only when the stored tour already had them, so a recorded draft without them can still be edited (it comes back as a warning); `step_text` never checks it
 
-**Warnings save but need a look:** a step without text, a step without an anchor, a row in the teacher's own list outside a tour with materials, a click Autopilot hands back because it changes the teacher's real account, a `type` or `select` step with no `value` (fine when the answer is the teacher's own, like a calendar ID), a `slot` that no layout or earlier `spawns` binds, and a tour shorter than 3 or longer than 15 steps.
+**Warnings save but need a look:**
+
+- a step without text, a step without an anchor, a row in the teacher's own list outside a tour with materials, a click Autopilot hands back because it changes the teacher's real account, a `type` or `select` step with no `value` (fine when the answer is the teacher's own, like a calendar ID), a `slot` that no layout or earlier `spawns` binds, and a tour shorter than 3 or longer than 15 steps
+- voice: text over 30 words, an em dash, a "Tip:" or "Note:" prefix, "simply", "just" or "easily"; a label under 2 or over 5 words, or one starting with "a", "an", "the", "your" or "this"
+- staging: a widget in `tour_widgets` that a step also adds with `dock.item` (the board ends up with two), a staged widget no step points at (unless every step observes `board.whole`), and a material no step opens
+- panels: a step inside a panel an earlier step closed (with its **Close**, **Cancel** or **Save** button) when no step opens it again, and settings steps on two different widgets back to back, which makes the runner shut the first drawer with no step showing it
 
 ## The browser run (Claude Code)
 
@@ -124,7 +155,20 @@ After saving, tell the admin in a few lines:
 - any controls queued for an anchor: the save's `needs_anchors` lists those steps. Publishing isn't blocked, but those steps fail for teachers using another language, so recommend waiting until they're tagged and rebound
 - the browser run's result, or that there wasn't one
 
+In claude.ai, where there is no browser run, end the hand-back with: "Play it once from the Guided Learning library (Type: **Live tours**, **Edit**), add a **Note for Claude** on any step that's wrong, then ask me to finish it."
+
 Then the admin opens it from the Guided Learning library (Type: **Live tours**, then **Edit**), which opens it on the board, plays it there, and presses **Publish tour** and then **Show in Help** in the **Teachers' version** panel. **Show in Help** is the same as turning on Visible in Admin Settings > Help Center. It stays on, so after a later edit the admin only presses **Publish changes**.
+
+## Finish pass
+
+When the admin has played the tour or left notes ("finish the tour", "I played it", "I left notes"), make one pass that leaves it ready to publish:
+
+1. Call `get_live_tour`. Read `review_note` on the tour and on each step, `last_playtest`, and `health` when the tour is published.
+2. Fix every step `last_playtest` marks `missing`: follow its anchor's `routes` again, rebind it, or add the click that opens its panel. A step `left` to the teacher needs a `value` unless the choice is theirs. When `stale` is true the steps changed after that play, so trust its results only for steps you haven't changed since.
+3. Before rewriting a step's text, look at its picture with `get_live_tour_step_picture`.
+4. Act on each note. In `health`, a step many runs missed (`missed`) or left from (`most_left_from`) is worth the same look.
+5. Dry-run, then save with `update_live_tour`, passing `resolved_notes` with each note you dealt with: the step id, or `"tour"` for the tour's own note.
+6. Hand back what changed in a few lines, and any note you left open with the reason. Open notes stay for the next pass.
 
 ## Examples
 

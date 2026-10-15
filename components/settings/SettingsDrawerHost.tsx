@@ -30,6 +30,7 @@ import {
   useSettingsTargetMarker,
 } from './useSettingsDrawerFocus';
 import { consumeLocalSettingsOpen } from './settingsOpenSignal';
+import { useDockPosition } from '@/components/tours/tourFrame';
 import {
   markSettingsJustClosed,
   wasSettingsClosedByGesture,
@@ -146,7 +147,6 @@ export const SettingsDrawerHost: React.FC = () => {
     canAccessFeature,
     canAccessWidget,
     featurePermissions,
-    dockPosition,
     settingsDrawerWidth,
     updateUserPreference,
     isAdmin,
@@ -155,6 +155,7 @@ export const SettingsDrawerHost: React.FC = () => {
     savedWidgetConfigs,
     saveWidgetDefault,
   } = useAuth();
+  const dockPosition = useDockPosition();
   const toolLabel = useToolLabel();
 
   const { updateWidget, updateWidgets } = useDashboardActions();

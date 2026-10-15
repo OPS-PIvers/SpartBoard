@@ -1261,6 +1261,10 @@ service cloud.firestore {
     match /building_guided_learning/{setId} {
       allow read: if signedIn();
       allow write: if isAdmin();
+      // A live tour's notes for Claude and its last editor playtest (LIVE_TOUR_CONSISTENT_START.md C9, C10): admins only.
+      match /review/{docId} {
+        allow read, write: if isAdmin();
+      }
     }
 
     // Library index of building sets (P5-1), written only by the glBuildingIndexMirror

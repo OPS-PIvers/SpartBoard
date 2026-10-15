@@ -34,6 +34,7 @@ import { UNREADABLE_FILE, documentKind, titleFromFileName } from './fileKind';
 export * from './types';
 export {
   documentKind,
+  isAiReadable,
   isHeicFile,
   titleFromFileName,
   UNREADABLE_FILE,

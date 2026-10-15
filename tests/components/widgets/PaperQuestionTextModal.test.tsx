@@ -302,10 +302,10 @@ describe('PaperQuestionTextModal with the shared readers', () => {
     expect(recognize).not.toHaveBeenCalled();
   });
 
-  it('reads without AI unless the teacher ticks it', async () => {
+  it('reads without AI and shows no AI checkbox', async () => {
     const readDocument = vi.fn(() => Promise.resolve(read([question(1)])));
     setup([], { readDocument, canUseAi: true });
-    expect(screen.getByLabelText(/Convert with AI/)).not.toBeChecked();
+    expect(screen.queryByRole('checkbox', { name: /AI/ })).toBeNull();
     await chooseTest();
     await waitFor(() =>
       expect(readDocument).toHaveBeenCalledWith(
@@ -315,31 +315,25 @@ describe('PaperQuestionTextModal with the shared readers', () => {
     );
   });
 
-  it('reads with AI once the teacher ticks it', async () => {
-    const readDocument = vi.fn(() => Promise.resolve(read([question(1)])));
+  it('reads a plain read again with AI after the cost prompt', async () => {
+    const plain = { ...read([question(1)]), readBy: 'plain' as const };
+    const readDocument = vi.fn(() => Promise.resolve(plain));
     setup([], { readDocument, canUseAi: true });
-    fireEvent.click(screen.getByLabelText(/Convert with AI/));
-    fireEvent.click(screen.getByRole('button', { name: 'Use AI' }));
-    expect(screen.getByLabelText(/Convert with AI/)).toBeChecked();
     await chooseTest();
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: 'Not what you expected? Try again with AI',
+      })
+    );
+    const prompt = screen.getByRole('dialog', { name: 'Convert with AI?' });
+    expect(prompt).toHaveTextContent(/daily AI limit/);
+    fireEvent.click(within(prompt).getByRole('button', { name: 'Use AI' }));
     await waitFor(() =>
-      expect(readDocument).toHaveBeenCalledWith(
+      expect(readDocument).toHaveBeenLastCalledWith(
         expect.objectContaining({ fileName: 'test.pdf' }),
         { useAi: true, key: null }
       )
     );
-  });
-
-  it('leaves AI off when the cost prompt is cancelled', () => {
-    setup([], { readDocument: vi.fn(), canUseAi: true });
-    fireEvent.click(screen.getByLabelText(/Convert with AI/));
-    const prompt = screen.getByRole('dialog', { name: 'Convert with AI?' });
-    expect(prompt).toHaveTextContent(/daily AI limit/);
-    fireEvent.click(within(prompt).getByRole('button', { name: 'Cancel' }));
-    expect(
-      screen.queryByRole('dialog', { name: 'Convert with AI?' })
-    ).not.toBeInTheDocument();
-    expect(screen.getByLabelText(/Convert with AI/)).not.toBeChecked();
   });
 
   it('names the reader in plain text, not as a warning', async () => {
@@ -351,9 +345,14 @@ describe('PaperQuestionTextModal with the shared readers', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows no AI switch to a teacher without AI', () => {
-    setup([], { readDocument: vi.fn() });
-    expect(screen.queryByLabelText(/Convert with AI/)).not.toBeInTheDocument();
+  it('offers no AI retry to a teacher without AI', async () => {
+    const plain = { ...read([question(1)]), readBy: 'plain' as const };
+    setup([], { readDocument: vi.fn(() => Promise.resolve(plain)) });
+    await chooseTest();
+    await screen.findByText('Converted without AI.');
+    expect(
+      screen.queryByRole('button', { name: /Try again with AI/ })
+    ).not.toBeInTheDocument();
   });
 });
 

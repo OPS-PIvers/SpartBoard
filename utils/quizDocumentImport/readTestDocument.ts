@@ -90,7 +90,12 @@ export async function readTestDocument(
   ) {
     try {
       const extracted = await inBrowser();
-      return { ...extracted, readBy: 'plain' };
+      // A PDF or Word file the plain reader found nothing in needs AI, so it is used without asking.
+      const plainFoundNothing =
+        options.useAi === false &&
+        (kind === 'pdf' || kind === 'docx') &&
+        !extracted.questions.some((q) => q.text.trim());
+      if (!plainFoundNothing) return { ...extracted, readBy: 'plain' };
     } catch (err) {
       // A long versioned PDF needs the AI reader, so it is used without asking.
       const aiCanOpen =

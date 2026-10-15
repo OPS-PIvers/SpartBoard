@@ -19,7 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
-import { AiReaderToggle } from '@/components/common/library/importer/AiReaderToggle';
+import { AiRetryLink } from '@/components/common/library/importer/AiRetryLink';
 import {
   TestAndKeyUploader,
   type TestAndKeySelection,
@@ -49,6 +49,7 @@ import {
   paperGridOf,
 } from '@/utils/paperSheetLayout';
 import {
+  isAiReadable,
   readByLabel,
   type ExtractedQuestion,
 } from '@/utils/quizDocumentImport';
@@ -79,6 +80,8 @@ import { MAX_PAGE } from '@/utils/paperSheetMarker';
 import {
   PAPER_BOX_SIZES,
   PAPER_HANDWRITTEN_FEATURE,
+  paperBoxSizeOf,
+  withPaperBoxSizes,
 } from '@/utils/paperWritten';
 import { printPaperSheets } from '@/utils/paperSheetPrint';
 import {
@@ -138,11 +141,11 @@ interface PaperPrintModalProps {
    */
   onCreateQuiz?: (quiz: QuizData) => Promise<void>;
   /**
-   * Persist the answer-sheet stimuli onto the quiz. Called just before the
-   * print, so what is on the paper is what the quiz records (D18). Absent on
-   * the "Paper test" door, where the stub carries them instead.
+   * Persist the answer-sheet stimuli and written box sizes onto the quiz.
+   * Called just before the print, so what is on the paper is what the quiz
+   * records (D18). Absent on the "Paper test" door, where the stub carries them.
    */
-  onSaveSheetStimuli?: (stimuli: PaperSheetStimulus[]) => Promise<void>;
+  onSavePrintSetup?: (setup: PaperPrintSetup) => Promise<void>;
   /**
    * Reads a test document with the import wizard's readers, so a new paper
    * test carries its real questions from the start instead of placeholders.
@@ -162,6 +165,13 @@ interface PaperPrintModalProps {
   /** Test seam mirroring `printPaperSheets`. */
   print?: typeof printPaperSheets;
   printTest?: typeof printPaperTest;
+}
+
+/** What the print dialog records on an authored quiz. */
+export interface PaperPrintSetup {
+  stimuli: PaperSheetStimulus[];
+  /** Box sizes the teacher changed, by question id; only the quiz's own questions. */
+  boxSizes: Record<string, PaperBoxSize>;
 }
 
 /** A stub number the teacher marked as a handwritten answer (D17). */
@@ -224,11 +234,11 @@ const studentSort = (a: Student, b: Student): number =>
   `${a.lastName} ${a.firstName}`.localeCompare(`${b.lastName} ${b.firstName}`);
 
 export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
-  quiz,
+  quiz: savedQuiz,
   rosters,
   onSaveBatch,
   onCreateQuiz,
-  onSaveSheetStimuli,
+  onSavePrintSetup,
   readDocument,
   canUseAi = false,
   pickDocument,
@@ -245,16 +255,24 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   // The caller already checked the paper sheets rollout and gate; this adds the written-box flag.
   const writtenOn = canAccessFeature(PAPER_HANDWRITTEN_FEATURE);
   const versionsOn = canAccessFeature('quiz-import-versions');
+  // Handwritten box sizes are a print choice, so they are picked here rather than in the editor.
+  const [boxSizes, setBoxSizes] = useState<Record<string, PaperBoxSize>>({});
+  const quiz = useMemo(
+    () => withPaperBoxSizes(savedQuiz, boxSizes),
+    [savedQuiz, boxSizes]
+  );
   const versionPlan = useMemo(() => {
     if (!versionsOn || !banks || !quiz.bankSlots?.length) return null;
     try {
-      return planPaperVersions(quiz, resolveQuizAssignment(quiz, banks), {
-        written: writtenOn,
-      });
+      return planPaperVersions(
+        quiz,
+        withPaperBoxSizes(resolveQuizAssignment(quiz, banks), boxSizes),
+        { written: writtenOn }
+      );
     } catch {
       return null;
     }
-  }, [versionsOn, banks, quiz, writtenOn]);
+  }, [versionsOn, banks, quiz, writtenOn, boxSizes]);
   const analysis = useMemo(() => {
     if (versionPlan) return versionPlan.template;
     const base = analyzePaperQuiz(quiz, { written: writtenOn });
@@ -281,9 +299,9 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
     questions: ExtractedQuestion[];
     warnings: string[];
     note: string;
+    aiRetry?: TestAndKeySelection;
   } | null>(null);
   const [readingDoc, setReadingDoc] = useState(false);
-  const [useAi, setUseAi] = useState(false);
   const [spareCount, setSpareCount] = useState(2);
   const [includeKeySheet, setIncludeKeySheet] = useState(isStub);
   const [includeQuestionText, setIncludeQuestionText] = useState(false);
@@ -442,6 +460,35 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
   const sheetStimuliChanged =
     JSON.stringify(sheetStimuli) !==
     JSON.stringify(quiz.paperSheetStimuli ?? []);
+  // Only sizes that differ from what the quiz already prints with, on the quiz's own questions.
+  const changedBoxSizes = Object.fromEntries(
+    Object.entries(boxSizes).filter(([id, size]) => {
+      const q = savedQuiz.questions.find((sq) => sq.id === id);
+      return !!q && paperBoxSizeOf(q) !== size;
+    })
+  );
+  const boxSizesChanged = Object.keys(changedBoxSizes).length > 0;
+  /** Written boxes the teacher can size; one row per question, across versions. */
+  const writtenRows = useMemo(() => {
+    if (isStub) return [];
+    const plans = versionPlan
+      ? versionPlan.versions.flatMap((v) => v.analysis.written)
+      : analysis.written;
+    const seen = new Set<string>();
+    return plans.flatMap((w) => {
+      const q = questionsById.get(w.questionId);
+      if (!q || seen.has(w.questionId)) return [];
+      seen.add(w.questionId);
+      return [
+        {
+          questionId: w.questionId,
+          label: versionPlan ? null : w.label,
+          text: q.text,
+          size: w.size,
+        },
+      ];
+    });
+  }, [isStub, versionPlan, analysis.written, questionsById]);
   const quizImageStimuli = useMemo(
     () => (quiz.stimuli ?? []).filter((s) => s.type === 'image'),
     [quiz.stimuli]
@@ -606,12 +653,15 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
    * (D17). The numbers printed on the paper are the rows, so the count
    * follows the highest number read rather than how many were found.
    */
-  const readQuestionsFrom = async ({ test, key }: TestAndKeySelection) => {
+  const readQuestionsFrom = async (
+    { test, key }: TestAndKeySelection,
+    withAi = false
+  ) => {
     if (!readDocument || !test) return;
     setReadingDoc(true);
     try {
       const extracted = await readDocument(test, {
-        ...(canUseAi ? { useAi } : {}),
+        ...(canUseAi ? { useAi: withAi } : {}),
         key,
       });
       const questions = extracted.questions.filter((q) => q.text.trim());
@@ -643,6 +693,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
         fileName: key ? `${test.fileName} + ${key.fileName}` : test.fileName,
         questions,
         note: readByLabel(extracted.readBy),
+        ...(canUseAi &&
+        extracted.readBy === 'plain' &&
+        isAiReadable(test.file, test.fileName)
+          ? { aiRetry: { test, key } }
+          : {}),
         // Row notes are numbered by the reader, so they name their own row.
         warnings: [
           ...extracted.warnings,
@@ -774,8 +829,11 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
       // the next print and every PLC copy start from the same sheet (D18).
       // Only when they changed: an unchanged save would publish a new version
       // to the PLC and tell every peer to pull a print they did not make.
-      else if (onSaveSheetStimuli && sheetStimuliChanged)
-        await onSaveSheetStimuli(sheetStimuli);
+      else if (onSavePrintSetup && (sheetStimuliChanged || boxSizesChanged))
+        await onSavePrintSetup({
+          stimuli: sheetStimuli,
+          boxSizes: changedBoxSizes,
+        });
       await onSaveBatch(batch);
       print({
         batchId: batch.id,
@@ -1306,6 +1364,22 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                       {readDoc.questions.length} question
                       {readDoc.questions.length === 1 ? '' : 's'} read.
                       {readDoc.note ? ` ${readDoc.note}` : ''}
+                      {readDoc.aiRetry && (
+                        <>
+                          {' '}
+                          <AiRetryLink
+                            anchor={tourTypeAttr(
+                              'quiz-print.import-retry-with-ai',
+                              'quiz'
+                            )}
+                            disabled={readingDoc}
+                            onRetry={() => {
+                              if (readDoc.aiRetry)
+                                void readQuestionsFrom(readDoc.aiRetry, true);
+                            }}
+                          />
+                        </>
+                      )}
                     </p>
                   </div>
                   <button
@@ -1353,16 +1427,7 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                 busy={readingDoc}
                 busyLabel="Importing…"
                 onSubmit={(selection) => void readQuestionsFrom(selection)}
-              >
-                {canUseAi && (
-                  <AiReaderToggle
-                    checked={useAi}
-                    onChange={setUseAi}
-                    disabled={readingDoc}
-                    anchor={tourTypeAttr('quiz-print.import-ai-toggle', 'quiz')}
-                  />
-                )}
-              </TestAndKeyUploader>
+              />
             )}
           </div>
         )}
@@ -1535,6 +1600,50 @@ export const PaperPrintModal: React.FC<PaperPrintModalProps> = ({
                   })}
               </ul>
             )}
+          </div>
+        )}
+
+        {writtenOn && writtenRows.length > 0 && (
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Written answers
+            </p>
+            <ul className="mt-2 space-y-1.5">
+              {writtenRows.map((row) => (
+                <li key={row.questionId} className="flex items-start gap-2">
+                  {row.label && (
+                    <span className="w-8 shrink-0 pt-1 text-right text-sm font-semibold text-slate-700">
+                      {row.label}.
+                    </span>
+                  )}
+                  <span className="min-w-0 flex-1 pt-1 text-sm text-slate-700">
+                    {row.text || 'Untitled question'}
+                  </span>
+                  <select
+                    aria-label={`${row.label ? `Question ${row.label}` : row.text} box size`}
+                    {...tourFieldAttr(
+                      'quiz-print.written-box-size',
+                      'quiz',
+                      row.label ?? row.questionId
+                    )}
+                    value={row.size}
+                    onChange={(e) =>
+                      setBoxSizes((prev) => ({
+                        ...prev,
+                        [row.questionId]: e.target.value as PaperBoxSize,
+                      }))
+                    }
+                    className="shrink-0 rounded-lg border border-slate-200 px-2 py-1 text-sm"
+                  >
+                    {PAPER_BOX_SIZES.map((size) => (
+                      <option key={size} value={size}>
+                        {BOX_SIZE_LABELS[size]}
+                      </option>
+                    ))}
+                  </select>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 

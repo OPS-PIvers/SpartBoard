@@ -138,20 +138,13 @@ describe('ImportWizard — test document source', () => {
     expect(screen.queryByLabelText('Upload test questions')).toBeNull();
   });
 
-  it('turns the AI reader on only after the cost prompt is confirmed', async () => {
+  it('reads without AI and shows no AI checkbox', async () => {
     const { adapter, parseSpy } = makeAdapter();
     renderWizard({ ...adapter, supportsAiReader: true });
-    const toggle = screen.getByLabelText('Convert with AI');
-    fireEvent.click(toggle);
-    const prompt = screen.getByRole('dialog', { name: 'Convert with AI?' });
-    fireEvent.click(within(prompt).getByRole('button', { name: 'Cancel' }));
-    expect(toggle).not.toBeChecked();
-    fireEvent.click(toggle);
-    fireEvent.click(screen.getByRole('button', { name: 'Use AI' }));
-    expect(toggle).toBeChecked();
+    expect(screen.queryByRole('checkbox', { name: /AI/ })).toBeNull();
     await readTest(PDF_BYTES);
     await waitFor(() => expect(parseSpy).toHaveBeenCalled());
-    expect(parseSpy.mock.calls[0][0]).not.toHaveProperty('useAi');
+    expect(parseSpy.mock.calls[0][0]).toMatchObject({ useAi: false });
   });
 
   it('reads a plain read again with AI after the cost prompt', async () => {
@@ -168,7 +161,7 @@ describe('ImportWizard — test document source', () => {
     renderWizard({ ...adapter, supportsAiReader: true });
     await readTest(PDF_BYTES);
     const retry = await screen.findByRole('button', {
-      name: 'Something not right? Try again with AI',
+      name: 'Not what you expected? Try again with AI',
     });
     fireEvent.click(retry);
     const prompt = screen.getByRole('dialog', { name: 'Convert with AI?' });
@@ -182,7 +175,7 @@ describe('ImportWizard — test document source', () => {
     expect(parseSpy.mock.calls[1][0]).not.toHaveProperty('useAi');
     expect(
       screen.queryByRole('button', {
-        name: 'Something not right? Try again with AI',
+        name: 'Not what you expected? Try again with AI',
       })
     ).toBeNull();
   });

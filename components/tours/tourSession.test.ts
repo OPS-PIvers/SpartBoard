@@ -7,7 +7,10 @@ import {
   replayGate,
   resolveTourAutopilotPolicy,
   teacherMustClick,
+  tourClickedTypes,
+  tourQuickAccess,
   tourWelcome,
+  tourWidgetTypes,
 } from './tourSession';
 
 const PERSISTS_ID = 'plc-edit.send-invite';
@@ -217,5 +220,42 @@ describe('sandboxed persists anchors', () => {
     expect(
       autopilotGate({ anchor: 'assign-modal.confirm' }, 'tour-safe', true)
     ).toBe('teacher');
+  });
+});
+
+describe('tour widget types', () => {
+  const step = (anchor: string) => ({
+    tour: { anchor, action: 'click' as const },
+  });
+  const set = {
+    tourSetup: {
+      widgets: ['clock'],
+      layouts: [{ slot: 0, type: 'timer' }],
+    },
+    steps: [
+      step('dock.item:poll'),
+      step('library.item:dice'),
+      step('dock.item:poll'),
+      step('widget.settings:clock'),
+      { id: 'plain' },
+    ],
+  } as unknown as GuidedLearningSet;
+
+  it('collects what a tour stages and adds', () => {
+    expect(tourWidgetTypes(set).sort()).toEqual([
+      'clock',
+      'dice',
+      'poll',
+      'timer',
+    ]);
+    expect(tourClickedTypes(set.steps, 'dock.item')).toEqual(['poll']);
+  });
+
+  it('keeps only the quick-access buttons a step points at', () => {
+    expect(tourQuickAccess(set.steps)).toEqual([false, false]);
+    expect(tourQuickAccess([step('dock.quick-access-2')])).toEqual([
+      false,
+      true,
+    ]);
   });
 });

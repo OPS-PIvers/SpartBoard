@@ -24,8 +24,8 @@ import { assertViewAsAllowed } from './viewAsGuard';
 export const QUIZ_DOCUMENT_IMPORT_FEATURE_ID = 'quiz-document-import';
 export const QUIZ_IMPORT_VERSIONS_FEATURE_ID = 'quiz-import-versions';
 export const GEMINI_FEATURE_ID = 'gemini-functions';
-/** D19: one import is one use of the teacher's existing `quiz` allowance. */
-export const QUIZ_QUOTA_FEATURE_ID = 'quiz';
+/** D19: one import is one use; the AI reader row has its own daily limit. */
+export const QUIZ_QUOTA_FEATURE_ID = 'quiz-document-ai-reader';
 export const DEFAULT_QUIZ_DAILY_LIMIT = 20;
 /** D18, matching the browser reader's `utils/quizDocumentImport/limits.ts`. */
 export const MAX_DOCUMENT_BYTES = 25 * 1024 * 1024;
@@ -110,6 +110,7 @@ export interface ExtractDocumentDeps {
   db: Firestore;
   isImportGranted: (uid: string, email: string | null) => Promise<boolean>;
   isGeminiGranted: (uid: string, email: string | null) => Promise<boolean>;
+  isAiReaderGranted: (uid: string, email: string | null) => Promise<boolean>;
   /** Throws `resource-exhausted` past the teacher's daily quiz allowance. */
   chargeQuiz: (uid: string, email: string | null) => Promise<void>;
   /** PDFs only; a Word file has no fixed page count. */
@@ -1221,13 +1222,15 @@ export async function extractQuizFromDocument(
   // inside either gate.
   const email = caller.emailVerified ? caller.email : null;
 
-  const [importGranted, geminiGranted, versioned] = await Promise.all([
-    deps.isImportGranted(caller.uid, email),
-    deps.isGeminiGranted(caller.uid, email),
-    request.versions === true
-      ? deps.isVersionsGranted(caller.uid, email)
-      : Promise.resolve(false),
-  ]);
+  const [importGranted, geminiGranted, aiReaderGranted, versioned] =
+    await Promise.all([
+      deps.isImportGranted(caller.uid, email),
+      deps.isGeminiGranted(caller.uid, email),
+      deps.isAiReaderGranted(caller.uid, email),
+      request.versions === true
+        ? deps.isVersionsGranted(caller.uid, email)
+        : Promise.resolve(false),
+    ]);
   if (!importGranted)
     throw new HttpsError(
       'permission-denied',
@@ -1237,6 +1240,11 @@ export async function extractQuizFromDocument(
     throw new HttpsError(
       'permission-denied',
       'AI features are not enabled for this account.'
+    );
+  if (!aiReaderGranted)
+    throw new HttpsError(
+      'permission-denied',
+      'Reading documents with AI is not enabled for this account.'
     );
 
   const startedAt = deps.now();
@@ -1403,7 +1411,7 @@ export async function chargeQuizQuota(
     if (!isAdmin && config.dailyLimitEnabled !== false && used >= limit)
       throw new HttpsError(
         'resource-exhausted',
-        `Daily limit for ${QUIZ_QUOTA_FEATURE_ID} reached (${limit} per day). Please try again tomorrow.`
+        `Daily limit for AI quiz import reached (${limit} per day). Please try again tomorrow.`
       );
     const inc = (n: number) => admin.firestore.FieldValue.increment(n);
     const stamp = admin.firestore.FieldValue.serverTimestamp();
@@ -1424,6 +1432,8 @@ export function buildDefaultExtractDocumentDeps(): ExtractDocumentDeps {
       isGlobalFeatureGranted(db, QUIZ_DOCUMENT_IMPORT_FEATURE_ID, email, uid),
     isGeminiGranted: (uid, email) =>
       isGlobalFeatureGranted(db, GEMINI_FEATURE_ID, email, uid),
+    isAiReaderGranted: (uid, email) =>
+      isGlobalFeatureGranted(db, QUIZ_QUOTA_FEATURE_ID, email, uid),
     chargeQuiz: (uid, email) => chargeQuizQuota(db, uid, email, Date.now()),
     pdfPageCount: pdfPageCountOf,
     extract: geminiExtract,

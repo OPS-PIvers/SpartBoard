@@ -24,6 +24,7 @@ import { isGameSession } from '@/utils/reviewResults';
 import { useReviewLaunch } from './useReviewLaunch';
 import { quizQuestionDedupeKey } from '@/utils/quizSearchText';
 import { quizAssignBlocker } from '@/utils/activityCompleteness';
+import { withPaperBoxSizes } from '@/utils/paperWritten';
 import { useDashboard } from '@/context/useDashboard';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { SubShareQuizWidget } from './SubShareWidget';
@@ -4097,12 +4098,15 @@ const TeacherQuizWidget: React.FC<{
               }
             : {})}
           inPlcGroup={!!paperPrintMeta?.sync}
-          onSaveSheetStimuli={
+          onSavePrintSetup={
             paperPrintMeta
-              ? async (paperSheetStimuli) => {
+              ? async ({ stimuli: paperSheetStimuli, boxSizes }) => {
                   // Dropping the key rather than writing an empty array, so
                   // clearing the last one clears it everywhere it synced to.
-                  const next: QuizData = { ...paperPrintQuiz };
+                  const next: QuizData = withPaperBoxSizes(
+                    { ...paperPrintQuiz },
+                    boxSizes
+                  );
                   if (paperSheetStimuli.length > 0)
                     next.paperSheetStimuli = paperSheetStimuli;
                   else delete next.paperSheetStimuli;
@@ -4117,7 +4121,7 @@ const TeacherQuizWidget: React.FC<{
                     if (!(err instanceof SyncedQuizVersionConflictError))
                       throw err;
                     addToast(
-                      'Another teacher published an update to this quiz, so your answer-sheet images were not saved to it. The sheets still print.',
+                      'Another teacher published an update to this quiz, so your answer-sheet changes were not saved to it. The sheets still print.',
                       'warning'
                     );
                   }

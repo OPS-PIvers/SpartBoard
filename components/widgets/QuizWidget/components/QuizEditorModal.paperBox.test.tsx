@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import '@/i18n';
 
 import { QuizEditorModal } from './QuizEditorModal';
@@ -105,78 +105,11 @@ beforeEach(() => {
   settingsHook.mockClear();
 });
 
-describe('Paper answer box picker', () => {
-  it('stays hidden and skips the settings listener without the flag', () => {
-    features.add('paper-answer-sheets');
-    rollout.enabled = true;
-    open();
-    expect(detail().queryByText('Paper answer box')).toBeNull();
-    expect(settingsHook).toHaveBeenCalledWith(false);
-  });
-
-  it('stays hidden while the paper sheets rollout is off', () => {
-    grantAll();
-    rollout.enabled = false;
-    open();
-    expect(detail().queryByText('Paper answer box')).toBeNull();
-  });
-
-  it('defaults to Medium with no word limit', () => {
-    grantAll();
-    open();
-    const group = detail().getByRole('radiogroup', {
-      name: 'Paper answer box',
-    });
-    expect(
-      within(group)
-        .getByRole('radio', { name: 'Medium' })
-        .getAttribute('aria-checked')
-    ).toBe('true');
-  });
-
-  it('derives the default from the maximum word count', () => {
+describe('Paper answer box', () => {
+  it('is not asked in the question editor, even with paper sheets on', () => {
     grantAll();
     open(100);
-    const group = detail().getByRole('radiogroup', {
-      name: 'Paper answer box',
-    });
-    expect(
-      within(group)
-        .getByRole('radio', { name: 'Large' })
-        .getAttribute('aria-checked')
-    ).toBe('true');
-  });
-
-  it('saves a picked size and marks the quiz dirty', () => {
-    grantAll();
-    open();
-    const group = detail().getByRole('radiogroup', {
-      name: 'Paper answer box',
-    });
-    fireEvent.click(within(group).getByRole('radio', { name: 'Full page' }));
-    expect(
-      within(group)
-        .getByRole('radio', { name: 'Full page' })
-        .getAttribute('aria-checked')
-    ).toBe('true');
-    expect(
-      screen.getByTestId('editor-workspace').getAttribute('data-is-dirty')
-    ).toBe('true');
-  });
-
-  it('moves the selection with arrow keys', () => {
-    grantAll();
-    open();
-    const group = detail().getByRole('radiogroup', {
-      name: 'Paper answer box',
-    });
-    const medium = within(group).getByRole('radio', { name: 'Medium' });
-    medium.focus();
-    fireEvent.keyDown(medium, { key: 'ArrowRight' });
-    expect(
-      within(group)
-        .getByRole('radio', { name: 'Large' })
-        .getAttribute('aria-checked')
-    ).toBe('true');
+    expect(detail().queryByText('Paper answer box')).toBeNull();
+    expect(detail().queryByRole('radiogroup')).toBeNull();
   });
 });

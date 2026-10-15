@@ -13,6 +13,8 @@ export interface TourAnchorEntry {
   key_hint?: string;
   cycles?: string;
   opens_empty?: string;
+  closes?: string;
+  closes_path?: readonly string[];
   routes?: ReadonlyArray<{
     surface: string;
     kind: string;
@@ -146,6 +148,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button in the widget library",
     "scope": "board",
     "panel": true,
+    "closes": "board.widget-library",
+    "closes_path": [
+      "dock.open-tools",
+      "dock.more-widgets"
+    ],
     "routes": [
       {
         "surface": "board.widget-library",
@@ -387,6 +394,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget",
     "panel": true,
     "requires": "settings-open",
+    "closes": "board.settings-drawer",
+    "closes_path": [
+      "widget.settings-opener"
+    ],
     "routes": [
       {
         "surface": "board.settings-drawer",
@@ -943,6 +954,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close menu button",
     "scope": "board",
     "panel": true,
+    "closes": "board.sidebar",
+    "closes_path": [
+      "sidebar.open-menu"
+    ],
     "routes": [
       {
         "surface": "board",
@@ -1428,6 +1443,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button in Profile & Settings",
     "scope": "board",
     "panel": true,
+    "closes": "board.profile-settings",
+    "closes_path": [
+      "sidebar.open-menu",
+      "sidebar.profile-settings"
+    ],
     "routes": [
       {
         "surface": "board.profile-settings",
@@ -2219,6 +2239,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel button in the PLC edit modal",
     "scope": "board",
     "panel": true,
+    "closes": "board.plc-edit",
+    "closes_path": [
+      "sidebar.open-menu",
+      "sidebar.plcs",
+      "plcs.new-plc"
+    ],
     "routes": [
       {
         "surface": "board.plc-edit",
@@ -3094,6 +3120,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel button in the Assign dialog",
     "scope": "board",
     "panel": true,
+    "closes": "library.assign-stepper",
+    "closes_path": [],
     "routes": [
       {
         "surface": "library.assign-stepper",
@@ -3835,6 +3863,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel button at the bottom of the Assign window",
     "scope": "board",
     "panel": true,
+    "closes": "library.assign-modal",
+    "closes_path": [],
     "routes": [
       {
         "surface": "library.assign-modal",
@@ -4585,6 +4615,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button in the Share link window",
     "scope": "board",
     "panel": true,
+    "closes": "library.view-only-share",
+    "closes_path": [],
     "routes": [
       {
         "surface": "library.view-only-share",
@@ -4953,6 +4985,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close or Cancel button in an editor dialog footer",
     "scope": "widget type",
     "panel": true,
+    "closes": "own",
     "routes": [
       {
         "surface": "board.shared-shells",
@@ -14800,8 +14833,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-print.import-ai-toggle",
-    "label": "AI reader toggle in the Quiz print import dialog",
+    "id": "quiz-print.import-retry-with-ai",
+    "label": "Try again with AI link in the Quiz print import dialog",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -14822,8 +14855,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "quiz-import.paper-text-ai-toggle",
-    "label": "AI reader toggle in the Quiz paper question text dialog",
+    "id": "quiz-import.paper-text-retry-with-ai",
+    "label": "Try again with AI link in the Quiz paper question text dialog",
     "scope": "widget type",
     "panel": true,
     "keys": [
@@ -18804,6 +18837,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel button in the Activity Wall editor",
     "scope": "widget",
     "panel": true,
+    "closes": "library.activity-wall.editor",
+    "closes_path": [
+      "activity-wall.empty-open-library",
+      "library-shell.new:activity-wall"
+    ],
     "routes": [
       {
         "surface": "library.activity-wall.editor",
@@ -57019,6 +57057,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "quiz",
       "video-activity"
     ],
+    "closes": "own",
     "routes": [
       {
         "surface": "library.video-activity.editor",
@@ -62788,7 +62827,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
   },
   {
     "id": "import-wizard.retry-with-ai",
-    "label": "Try again with AI link on the Import wizard preview step",
+    "label": "Try again with AI button in the Import wizard preview footer",
     "scope": "board",
     "panel": true,
     "routes": [

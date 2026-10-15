@@ -117,11 +117,16 @@ const tourSet = (id: string, withTour: boolean, stamp?: boolean) =>
     ...(stamp === undefined ? {} : { hasLiveTour: stamp }),
   }) as unknown as GuidedLearningSet;
 
-const withAuth = (ui: React.ReactElement, canTour = true) => (
+const withAuth = (
+  ui: React.ReactElement,
+  canTour = true,
+  canAccessWidget: (type: string) => boolean = () => true
+) => (
   <AuthContext.Provider
     value={
       {
         canAccessFeature: (id: string) => canTour && id === 'gl-live-tours',
+        canAccessWidget,
       } as unknown as AuthContextType
     }
   >
@@ -301,6 +306,27 @@ describe('useHasLiveTour', () => {
     render(withAuth(<Probe setId="live" />));
     expect(await screen.findByText('tour')).toBeInTheDocument();
     expect(h.loadBuildingSet).toHaveBeenCalledWith('live');
+  });
+
+  it('hides a tour that uses a widget the teacher cannot use', async () => {
+    const gated = {
+      id: 'gated',
+      tourSetup: { widgets: ['clock'] },
+      steps: [{ id: 's', tour: { anchor: 'dock.item:poll', action: 'click' } }],
+    } as unknown as GuidedLearningSet;
+    h.tours.set('gated', published(gated));
+    const noPoll = (type: string) => type !== 'poll';
+    const { unmount } = render(withAuth(<Probe setId="gated" />, true, noPoll));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByText('no tour')).toBeInTheDocument();
+    unmount();
+    // Admins pass every widget gate, so they still see it.
+    render(withAuth(<Probe setId="gated" />));
+    expect(await screen.findByText('tour')).toBeInTheDocument();
+    await expect(checkLiveTour('gated', noPoll)).resolves.toBe(false);
+    await expect(checkLiveTour('gated', () => true)).resolves.toBe(true);
   });
 
   it('stays off without the flag', () => {

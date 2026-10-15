@@ -67,6 +67,7 @@ import {
   TOUR_START_EVENT,
 } from '@/components/tours/tourState';
 import { TOUR_EDIT_EVENT } from '@/components/tours/editor/tourEditStore';
+import { useTourFrameHold } from '@/components/tours/tourFrame';
 
 declare const __APP_VERSION__: string;
 
@@ -222,6 +223,11 @@ export const Sidebar: React.FC = () => {
       window.removeEventListener(TOUR_EDIT_EVENT, clearBoard);
     };
   }, []);
+  // A live tour starts with the menu closed and leaves it closed, as a tour start always has (C1).
+  useTourFrameHold(() => {
+    setIsOpen(false);
+    return () => undefined;
+  });
   const [settingsModalSection, setSettingsModalSection] =
     useState<SettingsSectionId | null>(null);
   const [showAssignmentsHub, setShowAssignmentsHub] = useState(false);

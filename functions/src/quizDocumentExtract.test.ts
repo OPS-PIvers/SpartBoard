@@ -170,6 +170,7 @@ function makeDeps(over: Partial<ExtractDocumentDeps> = {}) {
     db: makeDb().db,
     isImportGranted: vi.fn(() => Promise.resolve(true)),
     isGeminiGranted: vi.fn(() => Promise.resolve(true)),
+    isAiReaderGranted: vi.fn(() => Promise.resolve(true)),
     chargeQuiz: vi.fn(() => Promise.resolve()),
     pdfPageCount: vi.fn(() => Promise.resolve(4)),
     extract: vi.fn(() => Promise.resolve(GOOD_RESPONSE)),
@@ -667,6 +668,17 @@ describe('extractQuizFromDocument', () => {
     expect(deps.extract).not.toHaveBeenCalled();
   });
 
+  it('refuses when the AI reader is off for the account', async () => {
+    const { deps } = makeDeps({
+      isAiReaderGranted: vi.fn(() => Promise.resolve(false)),
+    });
+    await expect(
+      extractQuizFromDocument(request(), teacher, deps)
+    ).rejects.toThrow(/Reading documents with AI is not enabled/);
+    expect(deps.extract).not.toHaveBeenCalled();
+    expect(deps.chargeQuiz).not.toHaveBeenCalled();
+  });
+
   it('never lets an unverified email reach the gates', async () => {
     const { deps } = makeDeps();
     await extractQuizFromDocument(
@@ -677,6 +689,7 @@ describe('extractQuizFromDocument', () => {
     // A self-reported address must not buy the admin bypass inside the gate.
     expect(deps.isImportGranted).toHaveBeenCalledWith('teacher-1', null);
     expect(deps.isGeminiGranted).toHaveBeenCalledWith('teacher-1', null);
+    expect(deps.isAiReaderGranted).toHaveBeenCalledWith('teacher-1', null);
     expect(deps.chargeQuiz).toHaveBeenCalledWith('teacher-1', null);
   });
 
@@ -1292,45 +1305,57 @@ describe('chargeQuizQuota', () => {
   it('increments both the per-feature and the overall counter', async () => {
     const { db, docs } = makeDb();
     await chargeQuizQuota(db, 'u1', 'teacher@school.org', NOW);
-    expect(docs.get(`ai_usage/u1_quiz_${today}`)?.count).toBe(1);
+    expect(
+      docs.get(`ai_usage/u1_quiz-document-ai-reader_${today}`)?.count
+    ).toBe(1);
     expect(docs.get(`ai_usage/u1_${today}`)?.count).toBe(1);
   });
 
   it('refuses once the configured daily limit is reached', async () => {
     const { db } = makeDb({
-      [`ai_usage/u1_quiz_${today}`]: { count: 3 },
-      'global_permissions/quiz': { config: { dailyLimit: 3 } },
+      [`ai_usage/u1_quiz-document-ai-reader_${today}`]: { count: 3 },
+      'global_permissions/quiz-document-ai-reader': {
+        config: { dailyLimit: 3 },
+      },
     });
     await expect(
       chargeQuizQuota(db, 'u1', 'teacher@school.org', NOW)
-    ).rejects.toThrow(/Daily limit for quiz reached \(3 per day\)/);
+    ).rejects.toThrow(/Daily limit for AI quiz import reached \(3 per day\)/);
   });
 
   it('lets an admin past the limit', async () => {
     const { db, docs } = makeDb({
       'admins/teacher@school.org': { role: 'admin' },
-      [`ai_usage/u1_quiz_${today}`]: { count: 99 },
-      'global_permissions/quiz': { config: { dailyLimit: 3 } },
+      [`ai_usage/u1_quiz-document-ai-reader_${today}`]: { count: 99 },
+      'global_permissions/quiz-document-ai-reader': {
+        config: { dailyLimit: 3 },
+      },
     });
     await chargeQuizQuota(db, 'u1', 'Teacher@School.org', NOW);
-    expect(docs.get(`ai_usage/u1_quiz_${today}`)?.count).toBe(100);
+    expect(
+      docs.get(`ai_usage/u1_quiz-document-ai-reader_${today}`)?.count
+    ).toBe(100);
   });
 
   it('honours the limit being switched off entirely', async () => {
     const { db, docs } = makeDb({
-      [`ai_usage/u1_quiz_${today}`]: { count: 99 },
-      'global_permissions/quiz': {
+      [`ai_usage/u1_quiz-document-ai-reader_${today}`]: { count: 99 },
+      'global_permissions/quiz-document-ai-reader': {
         config: { dailyLimit: 3, dailyLimitEnabled: false },
       },
     });
     await chargeQuizQuota(db, 'u1', 'teacher@school.org', NOW);
-    expect(docs.get(`ai_usage/u1_quiz_${today}`)?.count).toBe(100);
+    expect(
+      docs.get(`ai_usage/u1_quiz-document-ai-reader_${today}`)?.count
+    ).toBe(100);
   });
 
   it('treats a caller with no verified email as non-admin', async () => {
     const { db } = makeDb({
-      [`ai_usage/u1_quiz_${today}`]: { count: 3 },
-      'global_permissions/quiz': { config: { dailyLimit: 3 } },
+      [`ai_usage/u1_quiz-document-ai-reader_${today}`]: { count: 3 },
+      'global_permissions/quiz-document-ai-reader': {
+        config: { dailyLimit: 3 },
+      },
     });
     await expect(chargeQuizQuota(db, 'u1', null, NOW)).rejects.toThrow(
       /Daily limit/
