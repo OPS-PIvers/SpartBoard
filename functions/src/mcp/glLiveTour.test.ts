@@ -6,6 +6,7 @@ import {
   assertPlays,
   buildHelpItem,
   checkTour,
+  insertOpenDockStep,
   liveTourView,
   mergeTourSteps,
   needsAnchors,
@@ -14,6 +15,7 @@ import {
   readyAnchorRef,
   tourStep,
   tourPublishState,
+  updateBookends,
 } from './glLiveTour';
 import type { Step } from './glTools';
 import { buildTourSetup } from './tourSetup';
@@ -479,5 +481,85 @@ describe('connector v2 setup and checks', () => {
       id: 'm1',
       sample: { fromId: 'q1', title: 'Fractions' },
     });
+  });
+});
+
+describe('the Open Tools step', () => {
+  const at = (id: string, anchor: string, action = 'click') => ({
+    id,
+    tour: { anchor, action },
+  });
+  const ids = (steps: readonly { id: string }[]) => steps.map((s) => s.id);
+
+  it('leaves a tour with no Dock step alone', () => {
+    const steps = [
+      at('intro', 'board.whole', 'observe'),
+      at('gear', 'widget.settings-opener:clock'),
+    ];
+    expect(insertOpenDockStep(steps)).toEqual({ steps, inserted: [] });
+  });
+
+  it('leaves a tour that already clicks Open Tools first alone', () => {
+    const steps = [
+      at('intro', 'board.whole', 'observe'),
+      at('open', 'dock.open-tools'),
+      at('timer', 'dock.item:timer'),
+    ];
+    expect(insertOpenDockStep(steps).inserted).toEqual([]);
+  });
+
+  it('adds Open Tools before the first Dock step', () => {
+    const { steps, inserted } = insertOpenDockStep([
+      at('intro', 'board.whole', 'observe'),
+      at('more', 'dock.more-widgets'),
+      at('timer', 'dock.item:timer'),
+    ]);
+    expect(ids(steps)).toEqual(['intro', 'open-dock', 'more', 'timer']);
+    expect(steps[1]).toEqual({
+      id: 'open-dock',
+      label: 'Open the Dock',
+      text: 'Click **Open Tools** to open the Dock.',
+      tour: { anchor: 'dock.open-tools', action: 'click' },
+    });
+    expect(inserted).toEqual([
+      {
+        id: 'open-dock',
+        label: 'Open the Dock',
+        text: 'Click **Open Tools** to open the Dock.',
+        before: 'more',
+      },
+    ]);
+  });
+
+  it('counts an Open Tools click only before the Dock step, and picks a free id', () => {
+    const { steps } = insertOpenDockStep([
+      at('open-dock', 'board.whole', 'observe'),
+      at('timer', 'dock.item:timer'),
+      at('open-dock-2', 'dock.open-tools'),
+    ]);
+    expect(ids(steps)).toEqual([
+      'open-dock',
+      'open-dock-3',
+      'timer',
+      'open-dock-2',
+    ]);
+  });
+
+  it('refuses a broken bookend on update only when the stored tour had them', () => {
+    const step = (id: string, anchor: string, action = 'observe') =>
+      ({
+        id,
+        interactionType: 'tooltip',
+        tour: { anchor, action },
+      }) as unknown as Step;
+    expect(
+      updateBookends([step('a', 'board.whole'), step('b', 'board.whole')])
+    ).toBe('error');
+    expect(
+      updateBookends([
+        step('a', 'dock.item:timer', 'click'),
+        step('b', 'board.whole'),
+      ])
+    ).toBe('warn');
   });
 });

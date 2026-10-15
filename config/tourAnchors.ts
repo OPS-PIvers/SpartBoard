@@ -26,6 +26,8 @@ export interface TourAnchorDef {
   cycles?: string;
   /** Opens this anchor namespace's list empty, so its row-N positions are rows the tour adds. */
   opensEmpty?: string;
+  /** Surface id its click closes, or 'own' for the dialog it sits in; the dry run warns on a later step inside it. */
+  closes?: string;
 }
 
 export const TOUR_ANCHOR_PREREQUISITES = [
@@ -60,7 +62,11 @@ export const TOUR_ANCHORS = {
     requires: 'in-view',
   },
   'library.edit': { label: 'Edit button in the widget library', panel: true },
-  'library.close': { label: 'Close button in the widget library', panel: true },
+  'library.close': {
+    label: 'Close button in the widget library',
+    panel: true,
+    closes: 'board.widget-library',
+  },
 
   'widget.window': {
     label: 'Widget window',
@@ -134,6 +140,7 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
     requires: 'settings-open',
+    closes: 'board.settings-drawer',
   },
   'settings.tab-settings': {
     label: 'Settings tab',
@@ -181,7 +188,11 @@ export const TOUR_ANCHORS = {
     label: 'Clear board button in the top bar',
     destructive: true,
   },
-  'sidebar.close-menu': { label: 'Close menu button', panel: true },
+  'sidebar.close-menu': {
+    label: 'Close menu button',
+    panel: true,
+    closes: 'board.sidebar',
+  },
   'sidebar.boards': { label: 'Boards item in the menu', panel: true },
   'sidebar.backgrounds': { label: 'Backgrounds item in the menu', panel: true },
   'sidebar.assignments': { label: 'Assignments item in the menu', panel: true },
@@ -263,7 +274,11 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
-  'profile.close': { label: 'Close button in Profile & Settings', panel: true },
+  'profile.close': {
+    label: 'Close button in Profile & Settings',
+    panel: true,
+    closes: 'board.profile-settings',
+  },
   'profile.mobile-back': {
     label: 'Back button in Profile & Settings on phones',
     panel: true,
@@ -453,6 +468,7 @@ export const TOUR_ANCHORS = {
   'plc-edit.cancel': {
     label: 'Cancel button in the PLC edit modal',
     panel: true,
+    closes: 'board.plc-edit',
   },
   'plc-edit.save': {
     label: 'Save/Create button in the PLC edit modal',
@@ -675,6 +691,7 @@ export const TOUR_ANCHORS = {
   'assign-stepper.cancel': {
     label: 'Cancel button in the Assign dialog',
     panel: true,
+    closes: 'library.assign-stepper',
   },
   'assign-stepper.submit': {
     label: 'Assign button at the bottom of the Assign dialog',
@@ -867,6 +884,7 @@ export const TOUR_ANCHORS = {
   'assign-modal.cancel': {
     label: 'Cancel button at the bottom of the Assign window',
     panel: true,
+    closes: 'library.assign-modal',
   },
   'assign-modal.confirm': {
     label: 'Assign button at the bottom of the Assign window',
@@ -1097,6 +1115,7 @@ export const TOUR_ANCHORS = {
   'view-only-share.close': {
     label: 'Close button in the Share link window',
     panel: true,
+    closes: 'library.view-only-share',
   },
   'view-only-share.confirm': {
     label: 'Create Share Link button in the Share link window',
@@ -1178,6 +1197,7 @@ export const TOUR_ANCHORS = {
     label: 'Close or Cancel button in an editor dialog footer',
     perWidgetType: true,
     panel: true,
+    closes: 'own',
   },
   'quiz-editor.add-question': {
     label: 'Add question button in the Quiz editor',
@@ -4486,6 +4506,7 @@ export const TOUR_ANCHORS = {
     label: 'Cancel button in the Activity Wall editor',
     perWidget: true,
     panel: true,
+    closes: 'library.activity-wall.editor',
   },
   'library-shell.new': {
     label: 'Primary create/import button in a library shell header',
@@ -12643,6 +12664,7 @@ export const TOUR_ANCHORS = {
     persists: true,
     sandboxed: true,
     panel: true,
+    closes: 'own',
   },
   'video-activity.live-end': {
     label: 'End button in a live video activity',

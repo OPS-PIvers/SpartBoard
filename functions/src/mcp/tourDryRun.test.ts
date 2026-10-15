@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { dryRunTour, type DryRunStep, type DryRunSetup } from './tourDryRun';
+import {
+  dryRunTour,
+  meetsBookends,
+  type DryRunStep,
+  type DryRunSetup,
+} from './tourDryRun';
 
 const step = (
   anchor: string,
@@ -9,7 +14,7 @@ const step = (
   const { value, slot, ...rest } = extra;
   return {
     id: `s-${anchor}-${action}`,
-    label: anchor,
+    label: `Go to ${anchor}`,
     text: 'Do this.',
     tour: {
       anchor,
@@ -273,5 +278,174 @@ describe('dryRunTour', () => {
     expect(messages(toggle.errors)).toEqual([
       expect.stringContaining('use "toggle"'),
     ]);
+  });
+});
+
+const say = (text: string, label = 'Open the menu'): DryRunStep => ({
+  ...step('board.whole'),
+  label,
+  text,
+});
+
+describe('dryRunTour authoring checks', () => {
+  const bookended = [
+    step('board.whole'),
+    step('sidebar.open-menu', 'click'),
+    step('board.whole'),
+  ];
+
+  it('reports bookends only when asked, as an error or a warning', () => {
+    const open = [step('sidebar.open-menu', 'click'), step('board.whole')];
+    const shut = [step('board.whole'), step('sidebar.open-menu', 'click')];
+    expect(dryRunTour(open, board).errors).toEqual([]);
+    expect(
+      messages(dryRunTour(open, board, { bookends: 'error' }).errors)
+    ).toEqual([expect.stringContaining('the first step should observe')]);
+    expect(
+      messages(dryRunTour(shut, board, { bookends: 'warn' }).warnings)
+    ).toContainEqual(expect.stringContaining('the last step should be'));
+    expect(dryRunTour(bookended, board, { bookends: 'error' }).errors).toEqual(
+      []
+    );
+    expect(meetsBookends(bookended)).toBe(true);
+    expect(meetsBookends(open)).toBe(false);
+  });
+
+  it('flags voice problems in text and labels', () => {
+    const report = dryRunTour(
+      [
+        say('Click **Assign** — then pick a class.'),
+        say('Tip: drag the corner.'),
+        say(Array.from({ length: 31 }, () => 'word').join(' ')),
+        say('Just click **Assign**.'),
+        say('Click it.', 'Open'),
+        say('Click it.', 'The settings gear'),
+        say('Click it.', 'Open the menu and pick a class'),
+        say('Click **Assign**.'),
+      ],
+      board
+    );
+    expect(messages(report.warnings)).toEqual([
+      expect.stringContaining('em dash'),
+      expect.stringContaining('"Tip:" or "Note:"'),
+      expect.stringContaining('over 30 words'),
+      expect.stringContaining('says "Just"'),
+      expect.stringContaining('label is 1 word'),
+      expect.stringContaining('label starts with "The"'),
+      expect.stringContaining('label is 7 words'),
+    ]);
+  });
+
+  it('flags a staged widget the Dock also adds, or that no step points at', () => {
+    const doubled = dryRunTour(
+      [
+        step('board.whole'),
+        step('dock.item:clock', 'click'),
+        step('board.whole'),
+      ],
+      { widgets: ['clock'] }
+    );
+    expect(messages(doubled.warnings)).toEqual([
+      expect.stringContaining('tour_widgets already stages one'),
+    ]);
+    const unused = dryRunTour(bookended, { widgets: ['timer'] });
+    expect(messages(unused.warnings)).toEqual([
+      expect.stringContaining('stages "timer", but no step points at it'),
+    ]);
+    const lookOnly = dryRunTour([step('board.whole'), step('board.whole')], {
+      widgets: ['timer'],
+    });
+    expect(messages(lookOnly.warnings)).not.toContainEqual(
+      expect.stringContaining('no step points at it')
+    );
+  });
+
+  it('flags a material no step opens', () => {
+    const report = dryRunTour(bookended, {
+      widgets: [],
+      materials: [{ kind: 'quiz', source: 'created', label: 'A quiz' }],
+    });
+    expect(messages(report.warnings)).toEqual([
+      expect.stringContaining('no step opens the quiz'),
+    ]);
+  });
+
+  it('warns on a step inside a panel an earlier step closed', () => {
+    const into = [
+      step('dock.open-tools', 'click'),
+      step('dock.more-widgets', 'click'),
+      step('library.close', 'click'),
+    ];
+    const closed = dryRunTour([...into, step('library.search')], board);
+    expect(closed.errors).toEqual([]);
+    expect(messages(closed.warnings)).toEqual([
+      expect.stringContaining(
+        'is on a panel that steps[2] ("Go to library.close") closed'
+      ),
+    ]);
+    const reopened = dryRunTour(
+      [...into, step('dock.more-widgets', 'click'), step('library.search')],
+      board
+    );
+    expect(reopened.warnings).toEqual([]);
+  });
+
+  it('closes the sidebar menu and the panels opened from it', () => {
+    const report = dryRunTour(
+      [
+        step('sidebar.open-menu', 'click'),
+        step('sidebar.classes', 'click'),
+        step('sidebar.close-menu', 'click'),
+        step('classes.new-class', 'click'),
+      ],
+      board
+    );
+    expect(messages(report.warnings)).toEqual([
+      expect.stringContaining('click "sidebar.classes" first'),
+    ]);
+  });
+
+  it('closes the editor a Close button sits in', () => {
+    const report = dryRunTour(
+      [
+        step('library-shell.new:quiz', 'click'),
+        step('library-shell.new-menu-item:quiz#item-1', 'click'),
+        step('quiz-editor.add-question:quiz', 'click'),
+        step('editor.close:quiz', 'click'),
+        step('quiz-editor.add-question:quiz'),
+      ],
+      {
+        widgets: ['quiz'],
+        materials: [{ kind: 'quiz', source: 'created', label: 'A quiz' }],
+      }
+    );
+    expect(report.errors).toEqual([]);
+    expect(messages(report.warnings)).toEqual([
+      expect.stringContaining('closed, and no step after that opens it again'),
+    ]);
+  });
+
+  it('warns on settings steps on two widgets back to back', () => {
+    const report = dryRunTour(
+      [
+        step('settings.field:clock#clockStyle'),
+        step('settings.field:random#mode'),
+      ],
+      { widgets: ['clock', 'random'] }
+    );
+    expect(messages(report.warnings)).toContainEqual(
+      expect.stringContaining('settings step on a different widget')
+    );
+    const between = dryRunTour(
+      [
+        step('settings.field:clock#clockStyle'),
+        step('widget.settings-opener:random', 'click'),
+        step('settings.field:random#mode'),
+      ],
+      { widgets: ['clock', 'random'] }
+    );
+    expect(messages(between.warnings)).not.toContainEqual(
+      expect.stringContaining('settings step on a different widget')
+    );
   });
 });

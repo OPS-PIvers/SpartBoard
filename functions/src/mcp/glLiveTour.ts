@@ -35,7 +35,13 @@ import {
 import { TOUR_ANCHOR_LIST } from './tourAnchorList';
 import { WIDGET_TYPE_LIST } from './widgetTypeList';
 import { LIVE_TOUR_GUIDE } from './liveTourGuide';
-import { dryRunTour, type DryRunReport, type DryRunStep } from './tourDryRun';
+import {
+  dryRunTour,
+  meetsBookends,
+  type DryRunOptions,
+  type DryRunReport,
+  type DryRunStep,
+} from './tourDryRun';
 import {
   buildMaterials,
   buildTourSetup,
@@ -521,32 +527,93 @@ function validateWidgetTypes(field: string, list: readonly string[]) {
     );
 }
 
+const dryRunSteps = (steps: readonly Step[]): DryRunStep[] =>
+  steps.map((s) => ({
+    id: s.id,
+    label: typeof s.label === 'string' ? s.label : undefined,
+    text: typeof s.text === 'string' ? s.text : undefined,
+    tour: s.tour as DryRunStep['tour'],
+  }));
+
 /** Runs the playback check on stored steps. */
 export function checkTour(
   steps: readonly Step[],
-  setup: StoredTourSetup
+  setup: StoredTourSetup,
+  options: DryRunOptions = {}
 ): DryRunReport {
   return dryRunTour(
-    steps.map((s) => ({
-      id: s.id,
-      label: typeof s.label === 'string' ? s.label : undefined,
-      text: typeof s.text === 'string' ? s.text : undefined,
-      tour: s.tour as DryRunStep['tour'],
-    })),
+    dryRunSteps(steps),
     {
       widgets: setup.widgets,
       layouts: setup.layouts,
       materials: setup.materials,
       useTeacherBoard: setup.useTeacherBoard === true,
-    }
+    },
+    options
   );
 }
 
-const dryRunResult = (report: DryRunReport) => ({
+/** Bookends refuse an update only when the stored tour already had them, so recorded drafts stay editable (C8). */
+export const updateBookends = (stored: readonly Step[]): 'error' | 'warn' =>
+  meetsBookends(dryRunSteps(stored)) ? 'error' : 'warn';
+
+// The Dock starts collapsed, so a tour into it first teaches Open Tools (LIVE_TOUR_CONSISTENT_START.md C6).
+export const OPEN_TOOLS_LABEL = 'Open Tools';
+const DOCK_EXPANDED = new Set(
+  TOUR_ANCHOR_LIST.filter((a) => a.requires === 'dock-expanded').map(
+    (a) => a.id
+  )
+);
+
+export interface InsertedStep {
+  id: string;
+  label: string;
+  text: string;
+  before: string;
+}
+
+/** Adds the standard Open Tools step before the first Dock step when no earlier step clicks it. */
+export function insertOpenDockStep<
+  S extends { id: string; tour?: { anchor: string; action: string } },
+>(steps: readonly S[]): { steps: S[]; inserted: InsertedStep[] } {
+  const at = steps.findIndex((s) =>
+    DOCK_EXPANDED.has((s.tour?.anchor ?? '').split(/[:#]/)[0])
+  );
+  const opened = steps
+    .slice(0, Math.max(at, 0))
+    .some(
+      (s) => s.tour?.anchor === 'dock.open-tools' && s.tour.action === 'click'
+    );
+  if (at < 0 || opened) return { steps: [...steps], inserted: [] };
+  const ids = new Set(steps.map((s) => s.id));
+  let id = 'open-dock';
+  for (let n = 2; ids.has(id); n++) id = `open-dock-${n}`;
+  const step = {
+    id,
+    label: 'Open the Dock',
+    text: `Click **${OPEN_TOOLS_LABEL}** to open the Dock.`,
+    tour: { anchor: 'dock.open-tools', action: 'click' },
+  };
+  return {
+    steps: [...steps.slice(0, at), step as unknown as S, ...steps.slice(at)],
+    inserted: [
+      { id, label: step.label, text: step.text, before: steps[at].id },
+    ],
+  };
+}
+
+const insertedNote = (inserted: readonly InsertedStep[]) =>
+  inserted.length ? { inserted_steps: inserted } : {};
+
+const dryRunResult = (
+  report: DryRunReport,
+  inserted: readonly InsertedStep[]
+) => ({
   dry_run: true,
   would_save: report.errors.length === 0,
   errors: report.errors,
   warnings: report.warnings,
+  ...insertedNote(inserted),
 });
 
 /** Refuses a save that would break playback, listing every problem at once. */
@@ -678,7 +745,7 @@ export function registerLiveTourTools(
     {
       title: 'Create a live tour',
       description:
-        'Admins only. Creates a live tour that walks a teacher through the real SpartBoard board, one step per control. Read get_live_tour_guide first. Every step needs a tour binding (list_tour_anchors); an opening or closing step observes "board.whole". The tour is checked the way playback will meet it: problems that would break it refuse the save, others come back as warnings; pass dry_run to check without saving. Saved as an unpublished draft: pass help_center to also add it to the Help Center, hidden until an admin test-runs it, publishes it in the Studio and shows the item in Admin Settings > Help Center.',
+        'Admins only. Creates a live tour that walks a teacher through the real SpartBoard board, one step per control. Read get_live_tour_guide first. Every step needs a tour binding (list_tour_anchors). The first step observes "board.whole" and the last is an observe. The Dock starts collapsed: a tour into it gets an Open Tools step first unless one clicks "dock.open-tools", and inserted_steps lists it. The tour is checked the way playback will meet it: problems that would break it refuse the save, others come back as warnings; pass dry_run to check without saving. Saved as an unpublished draft: pass help_center to also add it to the Help Center, hidden until an admin test-runs it, publishes it in the Studio and shows the item in Admin Settings > Help Center.',
       inputSchema: {
         title: z.string().trim().min(1).max(200),
         description: z.string().max(1000).optional(),
@@ -695,7 +762,8 @@ export function registerLiveTourTools(
       run('create_live_tour', ctx, async () => {
         await assertAccess(ctx, 'building');
         const placement = input.help_center;
-        const steps = input.steps.map((s) => toStepInput(s));
+        const opened = insertOpenDockStep(input.steps);
+        const steps = opened.steps.map((s) => toStepInput(s));
         const materialsDraft = (input.materials ?? []).map((m) => ({
           ...m,
           id: m.id ?? '',
@@ -706,9 +774,10 @@ export function registerLiveTourTools(
         );
         const report = checkTour(
           validateCreate({ ...input, kind: 'live_tour', steps }),
-          draftSetup
+          draftSetup,
+          { bookends: 'error' }
         );
-        if (input.dry_run) return dryRunResult(report);
+        if (input.dry_run) return dryRunResult(report, opened.inserted);
         assertPlays(report);
         let help: {
           orgId: string | null;
@@ -763,6 +832,7 @@ export function registerLiveTourTools(
           ...savedSummary(saved),
           ...needsAnchors(saved.set.steps),
           ...narrationNote(voiced.failed),
+          ...insertedNote(opened.inserted),
           where_to_find_it: help
             ? 'SpartBoard > Admin Settings > Help Center (hidden)'
             : 'SpartBoard > Guided Learning widget > library, building sets',
@@ -816,7 +886,7 @@ export function registerLiveTourTools(
     {
       title: 'Edit a live tour',
       description:
-        'Admins only. Edits a live tour; only passed fields change. To change only wording, pass step_text, which leaves every other step and field as stored. `steps` replaces the whole list in play order: send every step to keep, with its id, as get_live_tour returned it; use it to add, remove, reorder or rebind steps. The result is checked like create_live_tour: problems that would break playback refuse the save, others come back as warnings; dry_run checks without saving. Thumbnails and narration are kept. Saves the draft only: teachers keep the published tour until an admin opens the tour in SpartBoard and publishes the changes.',
+        'Admins only. Edits a live tour; only passed fields change. To change only wording, pass step_text, which leaves every other step and field as stored. `steps` replaces the whole list in play order: send every step to keep, with its id, as get_live_tour returned it; use it to add, remove, reorder or rebind steps. The result is checked like create_live_tour, including the Open Tools step; the opening and closing step rule refuses the save only if the stored tour already met it. Problems that would break playback refuse the save, others come back as warnings; dry_run checks without saving. Thumbnails and narration are kept. Saves the draft only: teachers keep the published tour until an admin opens the tour in SpartBoard and publishes the changes.',
       inputSchema: {
         set_id: z.string().min(1),
         title: z.string().trim().min(1).max(200).optional(),
@@ -865,12 +935,15 @@ export function registerLiveTourTools(
           );
         if (input.step_text)
           next.steps = applyStepText(set.steps, input.step_text);
+        let inserted: InsertedStep[] = [];
         if (input.steps) {
+          const opened = insertOpenDockStep(input.steps);
+          inserted = opened.inserted;
           const notes = new Map<string, MissingAnchorNote>();
           for (const s of input.steps)
             if (s.missing_anchor) notes.set(s.id, s.missing_anchor);
           const planned = planAnchorRequests(
-            mergeTourSteps(set.steps, input.steps),
+            mergeTourSteps(set.steps, opened.steps),
             set.steps,
             notes
           );
@@ -895,9 +968,10 @@ export function registerLiveTourTools(
         }));
         const report = checkTour(
           next.steps,
-          buildTourSetup(input, draftMaterials, prior)
+          buildTourSetup(input, draftMaterials, prior),
+          input.steps ? { bookends: updateBookends(set.steps) } : {}
         );
-        if (input.dry_run) return dryRunResult(report);
+        if (input.dry_run) return dryRunResult(report, inserted);
         assertPlays(report);
         const materials = input.materials
           ? await buildMaterials(ctx, input.materials, prior.materials)
@@ -927,6 +1001,7 @@ export function registerLiveTourTools(
           ...saved,
           ...needsAnchors(next.steps),
           ...narrationNote(voiced.failed),
+          ...insertedNote(inserted),
           ...(report.warnings.length ? { warnings: report.warnings } : {}),
           note: 'Saved as a draft. Teachers keep the published tour until an admin opens it in SpartBoard (Guided Learning library > Edit) and publishes the changes.',
         };
