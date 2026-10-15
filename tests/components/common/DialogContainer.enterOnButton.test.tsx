@@ -76,4 +76,20 @@ describe('DialogContainer - Enter on a focused button', () => {
     expect(resolve).not.toHaveBeenCalled();
     expect(notPrevented).toBe(true);
   });
+
+  it('does not submit a prompt on the Safari post-composition Enter (keyCode 229)', () => {
+    resolve.mockClear();
+    dialog = {
+      kind: 'prompt',
+      message: 'Name?',
+      options: { defaultValue: 'abc' },
+      resolve,
+    };
+    render(<DialogContainer />);
+    fireEvent.keyDown(screen.getByRole('textbox'), {
+      key: 'Enter',
+      keyCode: 229,
+    });
+    expect(resolve).not.toHaveBeenCalled();
+  });
 });
