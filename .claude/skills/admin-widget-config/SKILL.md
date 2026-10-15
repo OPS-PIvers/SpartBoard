@@ -172,13 +172,17 @@ await setDoc(
 Always use `BUILDINGS` from `@/config/buildings` for the building list. Use a tab or sidebar selector so admins can configure each building independently. Store per-building data as:
 
 ```tsx
-config.buildingDefaults[buildingId] = {/* building-specific config */};
+config.buildingDefaults[canonicalBuildingId(buildingId)] = {
+  /* building-specific config */
+};
 ```
+
+Always key by `canonicalBuildingId(buildingId)` from `@/config/buildings`, never the raw selector ID. See `TimeToolConfigurationPanel.tsx`.
 
 ### Required imports
 
 ```tsx
-import { BUILDINGS } from '@/config/buildings';
+import { BUILDINGS, canonicalBuildingId } from '@/config/buildings';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { Toast } from '../common/Toast';
