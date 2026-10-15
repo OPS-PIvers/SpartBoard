@@ -34,7 +34,8 @@ export const RandomFlash: React.FC<RandomFlashProps> = ({
 
   // Cap by line count so wrapped names fit the flash area's height.
   const words = label.trim().split(/[ \t\n\r\f\v]+/);
-  const lines = words.length;
+  // While spinning keep the roster-wide size so the font doesn't jump each tick.
+  const lines = isSpinning ? 1 : words.length;
   const fitted =
     lines > 1
       ? `max(min(${fontStyle}, ${Math.floor(75 / lines)}cqh), min(${Math.max(4, Math.round(75 / label.length))}cqw, 60cqh))`
@@ -55,7 +56,7 @@ export const RandomFlash: React.FC<RandomFlashProps> = ({
       }}
     >
       <span
-        className="leading-tight uppercase"
+        className="leading-tight uppercase transition-[font-size] duration-300"
         style={{
           display: 'inline-block',
           maxWidth: '100%',
