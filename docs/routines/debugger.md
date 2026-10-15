@@ -609,6 +609,12 @@
 | 2026-10-14 | State & Data | `GoogleCalendarService.getEvents` ignored the exclusive `end.date`, so multi-day all-day events showed only on their first day. `allDayDates` expands them per day within the window. (contained). | [#4219](https://github.com/OPS-PIvers/SpartBoard/pull/4219) |
 | 2026-10-14 | Admin & Config | `useGlobalPermissionsEditor.savePermission` cleared `saving` on the first of two overlapping saves of a feature. A per-feature in-flight counter now clears it on the last. (contained). | [#4217](https://github.com/OPS-PIvers/SpartBoard/pull/4217) |
 | 2026-10-14 | Build & Tooling | Clean: read ~30 functions modules, scripts, CI scripts and `firebase.json`; no reproducible bug. | - |
+| 2026-10-15 | Baseline | `type-check:all`, `lint`, `format:check`, `-C functions test` green on `dev-paul`; full root suite's only failure is the known Node 22 `utils/soundboardAudioUrl.test.ts`. No open debugger `nightly/*` PRs at dispatch. | - |
+| 2026-10-15 | Widgets | `NextUp/Widget.tsx` ran entry batches unserialised against a stale `queueRef`, so a join before the previous reload overwrote Drive and lost the earlier student. Batches now chain and update the queue after each write (also covers the old unhandled-rejection lead). (contained). | [#4298](https://github.com/OPS-PIvers/SpartBoard/pull/4298) |
+| 2026-10-15 | Dashboard & Layout | `PromptDialog` window capture handler confirmed on every Enter, including an IME composition commit. Added an `isComposing` guard. (contained). | [#4296](https://github.com/OPS-PIvers/SpartBoard/pull/4296) |
+| 2026-10-15 | State & Data | `useStudentAssignments` passed all class ids to `in`/`array-contains-any` (30-value cap), so students in more than 30 classes got no assignments. Plans now slice ids into groups of 30. (contained). | [#4297](https://github.com/OPS-PIvers/SpartBoard/pull/4297) |
+| 2026-10-15 | Admin & Config | Announcements dismissal duration enforced its one-day cap only in the `max` attribute, so typing or switching unit saved huge countdowns. One `maxDismissalDuration` helper now clamps both handlers. (contained). | [#4299](https://github.com/OPS-PIvers/SpartBoard/pull/4299) |
+| 2026-10-15 | Build & Tooling | Clean: reviewed every open lead (parseGeminiJson, mcp grants, activity wall sweep, scripts, ALLOWED_ORIGINS); none reproducible as a bug. | - |
 
 ## Backlog
 
@@ -956,6 +962,13 @@
 | State & Data | `getEvents` takes `date` from the event's UTC offset but formats `time` in the viewer's zone. `rubricCsv.quoteCell` has no formula-injection guard. `useFlashcardSets`/`useQuestionBanks` use one unchunked `writeBatch` (500-op limit). `useMountedBoardCache` default `pinnedIds = new Set()` is new each render. |
 | Admin & Config | `QuizReadAloudConfigurationPanel` and `NumberLineConfigurationPanel` numeric inputs write 0 when cleared. Announcements dismissal not clamped to max. `adminBuildingConfig` numeric defaults have no range checks. |
 | Build & Tooling | `firestore.rules` `building_guided_learning(_tours)` writes use bare `isAdmin()` (same family as #3549; needs a product call and the emulator). `sweepActivityWallArchives.retryStragglers`/`retryStorageCleanup` can starve newer stragglers (no cursor). `sync-lunch-menus.fetchWeek` does not retry thrown network errors. `parseGeminiJson` returns `[1]` for `see [1] then {"a":2}`. `classlinkShared.ALLOWED_ORIGINS` lacks `spartboard-dev--*` channels. |
+| Dashboard & Layout | Same missing `isComposing` guard on Enter-to-commit handlers: `components/common/DraggableWindow.tsx` (title save), `components/layout/dock/RenameFolderModal.tsx`, `components/layout/dock/UrlPickerModal.tsx`, `components/layout/boardNavMenuParts.tsx`, `components/common/library/FolderTree.tsx`, `FolderViewHeader.tsx`, `FolderSidebar.tsx`, `components/common/MagicInput.tsx`, `components/layout/dock/MagicLayoutModal.tsx`. Not checked for live consumers; consider a shared `isImeEnter` helper. (2026-10-15) |
+| State & Data | Unchunked `writeBatch` (500-op cap) in `hooks/useFlashcardSets.ts` (`rewriteOpenStudySessions`) and `hooks/useQuestionBanks.ts` (`reorderBanks`). (2026-10-15) |
+| Widgets | `components/widgets/Countdown/Widget.tsx` loops day by day for `calculatedDays` and builds `gridData` even in number mode; only slow for implausible far-future dates. Low. (2026-10-15) |
+| Widgets | `components/widgets/SoundboardWidget/Widget.tsx` `ctx.resume().then(run)` has no rejection handler; `TrafficLightWidget/Widget.tsx` buttons lack accessible names/`aria-pressed`. Low. (2026-10-15) |
+| Admin & Config | `config/aiLimits.ts` `defaultInputChars` indexes a plain object (`Object.hasOwn` class). Cosmetic cleared-field-to-0 in `QuizReadAloudConfigurationPanel.tsx` and `NumberLineConfigurationPanel.tsx`. Low. (2026-10-15) |
+| Build & Tooling | `functions/src/sweepActivityWallArchives.ts` `retryStorageCleanup` has no cursor (only matters with 100+ permanent failures); `scripts/draft-changelog-entry.js` ignores `feat!:`/`fix!:`; `scripts/sync-lunch-menus.mjs` `fetchWeek` does not retry thrown network errors. Low. (2026-10-15) |
+| State & Data | Stale rows to strike: `useStudentAssignments` `in` limit (fixed #4297) and Google Calendar pagination/all-day leads (fixed earlier). (2026-10-15) |
 
 ## Notes & Gotchas
 
@@ -1373,3 +1386,5 @@
 - Run count: **84** | Last run: **2026-09-29**
 - Run count: **83** | Last run: **2026-09-28**
 - Run count: **82** | Last run: **2026-09-27**
+- **2026-10-15 run process**: four fixes touched disjoint files, so the full gate (`type-check:all`, `lint`, `format:check`, `test`, `build`) ran once on a temporary octopus merge (~35 min) instead of four serial runs; CI gates each PR. `dev-paul` moved mid-gate (docs/tour files only), so branches were rebased after the gate with no overlap. The `Bash` launcher with a trailing `&` returns immediately; wait with a separate backgrounded until-loop on a DONE marker.
+- Run count: **99** | Last run: **2026-10-15**
