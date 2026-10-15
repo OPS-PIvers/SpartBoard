@@ -17,7 +17,7 @@
 import React, { useEffect } from 'react';
 import { render, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
-import { collection, doc, onSnapshot, writeBatch } from 'firebase/firestore';
+import { collection, onSnapshot, writeBatch } from 'firebase/firestore';
 
 import { PlcProvider } from '@/context/PlcContext';
 import {
@@ -31,6 +31,7 @@ import {
   usePlcActions,
 } from '@/context/usePlcContext';
 import { usePlcDocs } from '@/hooks/usePlcDocs';
+import { usePlcMeetings } from '@/hooks/usePlcMeetings';
 import type { Plc } from '@/types';
 import type { PlcSectionId } from '@/components/plc/sections';
 
@@ -67,15 +68,8 @@ vi.mock('@/config/firebase', () => ({
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'u-self', displayName: 'Self', email: 'self@x.edu' },
-    canAccessFeature: (id: string) =>
-      (id === 'plc-home-v2' && mockHomeV2) ||
-      (id === 'teams-redesign' && mockTeamsRedesign),
-    globalPermissionsLoaded: true,
-    isAdmin: false,
   }),
 }));
-let mockHomeV2 = false;
-let mockTeamsRedesign = false;
 
 // usePlcs is mounted by the provider only for its membership mutators. Mock it
 // to no-op resolvers — none of these tests exercise membership writes.
@@ -92,7 +86,6 @@ vi.mock('@/hooks/usePlcs', () => ({
 vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
 
 const mockCollection = collection as Mock;
-const mockDoc = doc as Mock;
 const mockOnSnapshot = onSnapshot as Mock;
 
 // ---------------------------------------------------------------------------
@@ -152,8 +145,6 @@ function fakeSnap(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockHomeV2 = false;
-  mockTeamsRedesign = false;
   listeners = [];
   renderCounts.clear();
   // collection(db, ...segments) → a path-bearing ref so onSnapshot can record
@@ -262,16 +253,13 @@ describe('PlcProvider — listener dedup', () => {
     );
     // Members section needs no heavy listener — root+members ride the prop.
     expect(subscriptionCount('assessments')).toBe(0);
-    expect(subscriptionCount('notes')).toBe(0);
-    expect(subscriptionCount('docs')).toBe(0);
     expect(subscriptionCount('quizzes')).toBe(0);
     expect(subscriptionCount('video_activities')).toBe(0);
   });
 });
 
-describe('PlcProvider — Teams redesign slice gating', () => {
+describe('PlcProvider — team page slice gating', () => {
   it('opens the meeting record slices on the record route', () => {
-    mockTeamsRedesign = true;
     render(
       <PlcProvider plcId={PLC_ID} plc={makePlc()} activeSection="meeting">
         <div />
@@ -281,66 +269,15 @@ describe('PlcProvider — Teams redesign slice gating', () => {
     expect(subscriptionCount('assessments')).toBe(1);
     expect(subscriptionCount('aggregates')).toBe(1);
   });
-});
 
-describe('PlcProvider — Home v2 slice gating', () => {
-  it('keeps notes, docs and meetings closed on the old Home', () => {
+  it('opens notes and docs on every page for the header My items', () => {
     render(
       <PlcProvider plcId={PLC_ID} plc={makePlc()} activeSection="home">
         <div />
       </PlcProvider>
     );
-    expect(subscriptionCount('notes')).toBe(0);
-    expect(subscriptionCount('docs')).toBe(0);
-    expect(subscriptionCount('meetings')).toBe(0);
-  });
-
-  it('opens the starter tiles slices, with meetings bounded to the newest few', () => {
-    mockHomeV2 = true;
-    mockDoc.mockImplementation((_db: unknown, ...segs: string[]) => ({
-      __path: segs.join('/'),
-    }));
-    render(
-      <PlcProvider plcId={PLC_ID} plc={makePlc()} activeSection="home">
-        <div />
-      </PlcProvider>
-    );
-    // Nothing extra opens until the member's layout doc answers.
-    expect(subscriptionCount('notes')).toBe(0);
-    const layout = listeners.find((l) => l.path.includes('plc_layouts'));
-    act(() => layout?.onNext({ exists: () => false }));
     expect(subscriptionCount('notes')).toBe(1);
     expect(subscriptionCount('docs')).toBe(1);
-    expect(subscriptionCount('meetings')).toBe(1);
-    type Q = { __query?: { __path?: string }; constraints?: unknown[] };
-    const meetingsQuery = mockOnSnapshot.mock.calls
-      .map((call) => call[0] as Q)
-      .find((q) => q.__query?.__path?.endsWith('/meetings'));
-    expect(meetingsQuery?.constraints).toContainEqual({ __limit: 5 });
-  });
-
-  it('opens only what the saved tiles need', () => {
-    mockHomeV2 = true;
-    mockDoc.mockImplementation((_db: unknown, ...segs: string[]) => ({
-      __path: segs.join('/'),
-    }));
-    render(
-      <PlcProvider plcId={PLC_ID} plc={makePlc()} activeSection="home">
-        <div />
-      </PlcProvider>
-    );
-    const layout = listeners.find((l) => l.path.includes('plc_layouts'));
-    act(() =>
-      layout?.onNext({
-        exists: () => true,
-        data: () => ({
-          tiles: [{ id: 't1', kind: 'actionsActivity' }],
-          updatedAt: 1,
-        }),
-      })
-    );
-    expect(subscriptionCount('notes')).toBe(1);
-    expect(subscriptionCount('docs')).toBe(0);
     expect(subscriptionCount('meetings')).toBe(0);
   });
 });
@@ -612,21 +549,16 @@ describe('usePlcActions — mount-stable identity', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 5b. Gated-off slices fall through to the standalone listener (Home cards)
+// 5b. Gated-off slices fall through to the standalone listener
 // ---------------------------------------------------------------------------
 
 describe('standalone hooks read through their own listener on gated-off sections', () => {
-  // The provider is mounted on the Home section (PlcRouteHost → PlcProvider →
-  // PlcHome), where `docs` is gated OFF (SLICE_SECTIONS).
-  // The back-compat bridge must hand those cards `null` so they open their own
-  // onSnapshot — otherwise RecentDocsCard / AttentionCard render an empty state
-  // even when docs exist (Wave-1 exit criterion regression).
-
-  it('usePlcDocs opens its own docs listener and emits real data when docs are gated off', () => {
+  // On Home `meetings` is gated OFF (SLICE_SECTIONS), so the bridge hands the hook `null`.
+  it('usePlcMeetings opens its own meetings listener and emits real data when meetings are gated off', () => {
     const Wrapper = wrapper(makePlc(), 'home');
-    const captured: ReturnType<typeof usePlcDocs>[] = [];
+    const captured: ReturnType<typeof usePlcMeetings>[] = [];
     const Probe: React.FC = () => {
-      captured.push(usePlcDocs(PLC_ID));
+      captured.push(usePlcMeetings(PLC_ID));
       return null;
     };
     render(
@@ -635,27 +567,27 @@ describe('standalone hooks read through their own listener on gated-off sections
       </Wrapper>
     );
 
-    // Provider did NOT open a docs listener (Home gates docs off); the
-    // standalone hook opened exactly one.
-    expect(subscriptionCount('docs')).toBe(1);
+    expect(subscriptionCount('meetings')).toBe(1);
 
-    emit('docs', [
+    emit('meetings', [
       {
-        id: 'd1',
+        id: 'm1',
         data: {
-          title: 'Plan',
-          url: 'https://docs.google.com/x',
+          facilitatorUid: 'u-self',
+          attendeeUids: ['u-self'],
+          assessmentIds: [],
+          decisions: [],
+          actionItems: [],
+          status: 'completed',
           createdBy: 'u-self',
-          createdByName: 'Self',
-          createdAt: 1,
-          updatedAt: 1,
+          heldAt: 1,
         },
       },
     ]);
 
     const result = captured[captured.length - 1];
-    expect(result?.docs).toHaveLength(1);
-    expect(result?.docs[0]?.title).toBe('Plan');
+    expect(result?.meetings).toHaveLength(1);
+    expect(result?.meetingsById.m1?.facilitatorUid).toBe('u-self');
     expect(result?.loading).toBe(false);
     expect(result?.error).toBeNull();
   });

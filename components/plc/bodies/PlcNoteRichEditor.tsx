@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import {
   Bold,
   ChevronDown,
-  Heading,
   Italic,
   List,
   ListChecks,
@@ -35,11 +34,7 @@ interface PlcNoteRichEditorProps {
   /** Controls at the right end of the toolbar. */
   toolbarEnd?: React.ReactNode;
   bodyAnchor?: TourAnchorAttrs;
-  /** Title, Heading and Normal text sizes in place of the Heading button. */
-  textStyles?: boolean;
 }
-
-const HEADING_TAGS = new Set(['H1', 'H2', 'H3']);
 
 type TextStyle = 'h1' | 'h2' | 'p';
 
@@ -92,7 +87,6 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
   showToolbar,
   toolbarEnd,
   bodyAnchor,
-  textStyles = false,
 }) => {
   const { t } = useTranslation();
   const editorRef = useRef<HTMLDivElement>(null);
@@ -129,7 +123,6 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
 
   // The size menu names the size at the caret.
   useEffect(() => {
-    if (!textStyles) return undefined;
     const onSelection = () => {
       const editor = editorRef.current;
       const next = editor ? currentTextStyle(editor) : null;
@@ -137,7 +130,7 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
     };
     document.addEventListener('selectionchange', onSelection);
     return () => document.removeEventListener('selectionchange', onSelection);
-  }, [textStyles]);
+  }, []);
 
   const emit = () => {
     const editor = editorRef.current;
@@ -176,25 +169,6 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
     editor.focus();
     fn(editor);
     handleInput();
-  };
-
-  const toggleHeading = (editor: HTMLDivElement) => {
-    ensureTopLevelBlocks(editor, { wrapTag: 'p' });
-    const range = selectionRange(editor);
-    if (!range) return;
-    const blocks = collectSelectedBlocks(editor, range).filter(
-      (b) => b.tagName !== 'LI'
-    );
-    if (blocks.length === 0) return;
-    const saved = saveSelectionOffsets(editor, range);
-    const toParagraph = blocks.every((b) => HEADING_TAGS.has(b.tagName));
-    for (const block of blocks) {
-      const next = document.createElement(toParagraph ? 'p' : 'h2');
-      while (block.firstChild) next.appendChild(block.firstChild);
-      if (!next.firstChild) next.appendChild(document.createElement('br'));
-      block.replaceWith(next);
-    }
-    restoreSelectionOffsets(editor, saved);
   };
 
   const setTextStyle = (editor: HTMLDivElement, tag: TextStyle) => {
@@ -293,18 +267,6 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
       icon: Italic,
       run: () => document.execCommand('italic'),
     },
-    ...(textStyles
-      ? []
-      : [
-          {
-            id: 'heading',
-            label: t('plcDashboard.notes.rich.heading', {
-              defaultValue: 'Heading',
-            }),
-            icon: Heading,
-            run: toggleHeading,
-          },
-        ]),
     {
       id: 'bullets',
       label: t('plcDashboard.notes.rich.bullets', {
@@ -359,7 +321,7 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
       className: 'text-sm text-slate-700',
     },
   ];
-  const styleMenu = textStyles && (
+  const styleMenu = (
     <div ref={styleMenuRef} className="relative mr-1">
       <button
         {...tourAttr('plc-notes.text-style')}
@@ -463,7 +425,7 @@ export const PlcNoteRichEditor: React.FC<PlcNoteRichEditorProps> = ({
           onFocus={() =>
             document.execCommand('defaultParagraphSeparator', false, 'p')
           }
-          className={`plc-note-rich ${textStyles ? 'plc-note-sizes ' : ''}rich-text-content min-h-full w-full p-4 text-sm text-slate-700 leading-relaxed focus:outline-none`}
+          className="plc-note-rich plc-note-sizes rich-text-content min-h-full w-full p-4 text-sm text-slate-700 leading-relaxed focus:outline-none"
         />
         {isEmpty && !readOnly && (
           <div

@@ -1,14 +1,9 @@
 import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  BookOpen,
   ChevronDown,
-  Film,
   Mail,
-  Presentation,
   Printer,
-  StickyNote,
-  SquareSquare,
   Trash2,
 } from 'lucide-react';
 import {
@@ -36,36 +31,13 @@ interface PlcSettingsTabProps {
 
 interface FeatureRow {
   key: keyof PlcFeatureSettings;
-  icon: typeof BookOpen;
+  icon: typeof Printer;
   titleKey: string;
   titleDefault: string;
 }
 
+// Pages are set in the layout editor, so only non-page switches stay here.
 const FEATURE_ROWS: readonly FeatureRow[] = [
-  {
-    key: 'quizzes',
-    icon: BookOpen,
-    titleKey: 'plcDashboard.settings.quizzes.title',
-    titleDefault: 'Quiz Library',
-  },
-  {
-    key: 'videoActivities',
-    icon: Film,
-    titleKey: 'plcDashboard.settings.videoActivities.title',
-    titleDefault: 'Video Activities',
-  },
-  {
-    key: 'notes',
-    icon: StickyNote,
-    titleKey: 'plcDashboard.settings.notes.title',
-    titleDefault: 'Notes',
-  },
-  {
-    key: 'sharedBoards',
-    icon: SquareSquare,
-    titleKey: 'plcDashboard.settings.sharedBoards.title',
-    titleDefault: 'Shared Boards',
-  },
   {
     key: 'printForTeammates',
     icon: Printer,
@@ -73,26 +45,6 @@ const FEATURE_ROWS: readonly FeatureRow[] = [
     titleDefault: 'Print response sheets for a teammate',
   },
 ] as const;
-
-const MEETING_ROW: FeatureRow = {
-  key: 'meeting',
-  icon: Presentation,
-  titleKey: 'plcDashboard.settings.meeting.title',
-  titleDefault: 'Meeting Mode',
-};
-
-/**
- * Per-PLC dashboard feature toggles. Per spec, every PLC member can flip
- * these — they're shared configuration, not lead-only. Failures roll the
- * UI back to the previous value and surface a toast.
- */
-const PAGE_FEATURE_KEYS: ReadonlySet<keyof PlcFeatureSettings> = new Set([
-  'quizzes',
-  'videoActivities',
-  'notes',
-  'sharedBoards',
-  'meeting',
-]);
 
 export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
   const { t } = useTranslation();
@@ -168,34 +120,12 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
     }
   };
 
-  // Teams redesign: pages are set in the layout editor, so only non-page switches stay.
-  const redesign = canAccessFeature('teams-redesign');
   // Assessment settings (printing, meetings, norming, gradebook) apply only to PLC teams.
   const isPlcTeam = getPlcGroupType(plc) === 'plc';
-  const baseRows = isPlcTeam
-    ? FEATURE_ROWS
-    : FEATURE_ROWS.filter((row) => row.key !== 'printForTeammates');
-  const rows = redesign
-    ? baseRows.filter((row) => !PAGE_FEATURE_KEYS.has(row.key))
-    : [...baseRows, MEETING_ROW];
+  const rows = isPlcTeam ? FEATURE_ROWS : [];
 
   return (
     <div className="flex flex-col gap-4 [&>*:first-child]:border-t-0 [&>*:first-child]:pt-0">
-      {!redesign && (
-        <div>
-          <h3 className="text-sm font-bold text-slate-800">
-            {t('plcDashboard.settings.heading', {
-              defaultValue: 'Dashboard Sections',
-            })}
-          </h3>
-          <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-            {t('plcDashboard.settings.groupDescription', {
-              defaultValue:
-                "Choose which sections appear on this team's page. Any member can update these.",
-            })}
-          </p>
-        </div>
-      )}
       {rows.length > 0 && (
         <div className="flex flex-col gap-2">
           {rows.map((row) => {
@@ -270,13 +200,12 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
         <PlcGradebookSection plc={plc} />
       )}
 
-      {canAccessFeature('teams-redesign') &&
-        getPlcGroupType(plc) === 'mentoring' &&
+      {getPlcGroupType(plc) === 'mentoring' &&
         !!user &&
         isPlcLeadOrCoLead(plc, user.uid) && (
           <MentoringPairingsSettings plc={plc} />
         )}
-      {canAccessFeature('teams-redesign') && <TeamCalendarSettings plc={plc} />}
+      <TeamCalendarSettings plc={plc} />
 
       {/* Notifications — opt-in weekly email digest (Decision 2.3). Any
           member can flip it; default OFF. */}

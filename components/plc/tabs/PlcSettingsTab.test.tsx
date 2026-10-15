@@ -1,15 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import type { Plc, PlcGroupType } from '@/types';
 import { PlcSettingsTab } from './PlcSettingsTab';
 
-const auth = vi.hoisted(() => ({ redesign: true }));
-
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'u1' },
-    canAccessFeature: (id: string) =>
-      id === 'teams-redesign' ? auth.redesign : true,
+    canAccessFeature: () => true,
   }),
 }));
 vi.mock('@/context/useDashboard', () => ({
@@ -57,10 +54,6 @@ const makePlc = (groupType: PlcGroupType) =>
   }) as unknown as Plc;
 
 describe('PlcSettingsTab team-type settings', () => {
-  beforeEach(() => {
-    auth.redesign = true;
-  });
-
   it('shows the assessment settings on a PLC team', () => {
     render(<PlcSettingsTab plc={makePlc('plc')} />);
     for (const label of PLC_ONLY) {
@@ -79,12 +72,4 @@ describe('PlcSettingsTab team-type settings', () => {
     }
   );
 
-  it('drops the print row on a department team without the redesign', () => {
-    auth.redesign = false;
-    render(<PlcSettingsTab plc={makePlc('department')} />);
-    expect(
-      screen.queryByText('Print response sheets for a teammate')
-    ).not.toBeInTheDocument();
-    expect(screen.getByText('Notes')).toBeInTheDocument();
-  });
 });

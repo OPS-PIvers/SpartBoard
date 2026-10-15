@@ -72,13 +72,6 @@ import { getPlcMembers } from '@/utils/plc';
 import { parsePresence, type PlcPresenceEntry } from '@/hooks/usePlcPresence';
 import { parseActivity } from '@/utils/plcActivity';
 import type { PlcSectionId } from '@/components/plc/sections';
-import {
-  EMPTY_PLC_HOME_LAYOUT,
-  effectiveTiles,
-  homeSlicesFor,
-  parsePlcHomeLayout,
-  type PlcHomeLayout,
-} from '@/components/plc/home/tiles/homeLayout';
 import type {
   Plc,
   PlcActivityEvent,
@@ -184,8 +177,7 @@ function useSubcollection<T>(
   enabled: boolean,
   buildQuery: (ref: ReturnType<typeof collection>, uid: string) => Query,
   parse: (id: string, data: Record<string, unknown>) => T | null,
-  postProcess?: (list: T[]) => T[],
-  queryKey = ''
+  postProcess?: (list: T[]) => T[]
 ): SnapshotState<T> {
   const { user } = useAuth();
   const [state, setState] = useState<SnapshotState<T>>(() =>
@@ -196,8 +188,8 @@ function useSubcollection<T>(
   // changes — done in render via the prev-prop pattern (not an effect) so the
   // UI never flashes the previous section's data while the new listener spins
   // up. Matches the standalone hooks' `prevPlcId` reset.
-  const [prevKey, setPrevKey] = useState(`${plcId}:${enabled}:${queryKey}`);
-  const key = `${plcId}:${enabled}:${queryKey}`;
+  const [prevKey, setPrevKey] = useState(`${plcId}:${enabled}`);
+  const key = `${plcId}:${enabled}`;
   if (key !== prevKey) {
     setPrevKey(key);
     setState(emptyPlcSlice<T[]>([], enabled));
@@ -239,7 +231,7 @@ function useSubcollection<T>(
     // `buildQuery`/`parse`/`postProcess` are module-stable callbacks passed by
     // the provider; only plcId/enabled/user drive resubscription.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plcId, subcollection, enabled, user, queryKey]);
+  }, [plcId, subcollection, enabled, user]);
 
   return state;
 }
@@ -252,10 +244,6 @@ const orderByUpdatedAtDesc = (ref: ReturnType<typeof collection>): Query =>
   query(ref, orderBy('updatedAt', 'desc'));
 const orderByHeldAtDesc = (ref: ReturnType<typeof collection>): Query =>
   query(ref, orderBy('heldAt', 'desc'));
-/** Home v2 needs only the live meeting, the last completed one and today's (plan §6). */
-const HOME_MEETINGS_LIMIT = 5;
-const newestHeldMeetings = (ref: ReturnType<typeof collection>): Query =>
-  query(ref, orderBy('heldAt', 'desc'), limit(HOME_MEETINGS_LIMIT));
 const noOrder = (ref: ReturnType<typeof collection>): Query => query(ref);
 
 /**
@@ -387,52 +375,6 @@ function useActivityListener(plcId: string): PlcActivityEvent[] {
   return activity;
 }
 
-/** The member's own Home v2 layout doc (users/{uid}/plc_layouts/{plcId}), while enabled. */
-function useHomeLayoutListener(
-  plcId: string,
-  enabled: boolean
-): PlcSlice<PlcHomeLayout> {
-  const { user } = useAuth();
-  const [state, setState] = useState<PlcSlice<PlcHomeLayout>>(() =>
-    emptyPlcSlice(EMPTY_PLC_HOME_LAYOUT, enabled)
-  );
-  const [prevKey, setPrevKey] = useState(`${plcId}:${enabled}`);
-  const key = `${plcId}:${enabled}`;
-  if (key !== prevKey) {
-    setPrevKey(key);
-    setState(emptyPlcSlice(EMPTY_PLC_HOME_LAYOUT, enabled));
-  }
-
-  useEffect(() => {
-    if (!enabled || !user || isAuthBypass) return;
-    const unsub = onSnapshot(
-      doc(db, 'users', user.uid, 'plc_layouts', plcId),
-      (snap) => {
-        setState({
-          data: snap.exists()
-            ? parsePlcHomeLayout(snap.data())
-            : EMPTY_PLC_HOME_LAYOUT,
-          loading: false,
-          error: null,
-          enabled: true,
-        });
-      },
-      (err) => {
-        logError('PlcProvider.homeLayout', err, { plcId });
-        setState({
-          data: EMPTY_PLC_HOME_LAYOUT,
-          loading: false,
-          error: err instanceof Error ? err : new Error(String(err)),
-          enabled: true,
-        });
-      }
-    );
-    return () => unsub();
-  }, [plcId, enabled, user]);
-
-  return state;
-}
-
 /**
  * Heartbeat writer (Decision 2.1, §3.3). Writes the caller's OWN presence doc
  * (docId == uid) on mount and re-stamps it every ~45s while the dashboard is
@@ -521,8 +463,7 @@ export function PlcProvider({
   activeSection,
   children,
 }: PlcProviderProps) {
-  const { user, canAccessFeature, globalPermissionsLoaded, isAdmin } =
-    useAuth();
+  const { user } = useAuth();
   const {
     setMemberRole: setMemberRoleMut,
     transferLead: transferLeadMut,
@@ -532,26 +473,11 @@ export function PlcProvider({
   } = usePlcs({ enabled: false });
 
   // --- Heavy subcollection listeners (gated on the active section) ---
-  // Home v2 opens only the slices its tiles need (plan §6).
-  const permissionsReady = globalPermissionsLoaded && isAdmin !== null;
-  // Teams redesign: the header's My items (notes and linked docs) show on every page.
-  const teamsRedesign = permissionsReady && canAccessFeature('teams-redesign');
-  const homeV2 =
-    !teamsRedesign &&
-    activeSection === 'home' &&
-    permissionsReady &&
-    canAccessFeature('plc-home-v2');
-  const homeLayout = useHomeLayoutListener(plcId, homeV2);
-  // Wait for the layout so a member who removed a tile never pays for its listener.
-  const homeSlices =
-    homeV2 && !homeLayout.loading
-      ? homeSlicesFor(effectiveTiles(homeLayout.data))
-      : null;
+  // The header's My items (notes and linked docs) show on every page.
   const isSectionActive = (slice: keyof typeof SLICE_SECTIONS): boolean =>
     SLICE_SECTIONS[slice].has(activeSection) ||
-    (teamsRedesign && (slice === 'notes' || slice === 'docs')) ||
-    ((slice === 'notes' || slice === 'docs' || slice === 'meetings') &&
-      homeSlices?.has(slice) === true);
+    slice === 'notes' ||
+    slice === 'docs';
 
   const notes = useSubcollection<PlcNote>(
     plcId,
@@ -612,10 +538,9 @@ export function PlcProvider({
     plcId,
     'meetings',
     isSectionActive('meetings'),
-    homeV2 ? newestHeldMeetings : orderByHeldAtDesc,
+    orderByHeldAtDesc,
     parsePlcMeeting,
-    filterLive,
-    homeV2 ? 'home' : ''
+    filterLive
   );
 
   // --- Derived root + members (always on; ride the `plc` prop) ---
@@ -650,7 +575,6 @@ export function PlcProvider({
       meetings,
       presence,
       activity,
-      homeLayout,
     })
   );
   const [storedPlcId, setStoredPlcId] = useState(plcId);
@@ -669,8 +593,7 @@ export function PlcProvider({
         meetings,
         presence,
         activity,
-        homeLayout,
-      })
+        })
     );
   }
 
@@ -691,7 +614,6 @@ export function PlcProvider({
       meetings,
       presence,
       activity,
-      homeLayout,
     });
   }, [
     store,
@@ -706,7 +628,6 @@ export function PlcProvider({
     meetings,
     presence,
     activity,
-    homeLayout,
   ]);
 
   // --- Mount-stable actions surface (latest-ref dispatch) ---
