@@ -595,7 +595,7 @@ export function insertOpenDockStep<
     tour: { anchor: 'dock.open-tools', action: 'click' },
   };
   return {
-    steps: [...steps.slice(0, at), step as S, ...steps.slice(at)],
+    steps: [...steps.slice(0, at), step as unknown as S, ...steps.slice(at)],
     inserted: [
       { id, label: step.label, text: step.text, before: steps[at].id },
     ],
