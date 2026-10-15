@@ -294,6 +294,7 @@ const PromptDialog: React.FC<{
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' && e.key !== 'Enter') return;
+      if (e.isComposing) return;
       if (isEscapeFromWidgetInput(e)) return;
       if (e.key === 'Escape') {
         e.preventDefault();

@@ -58,4 +58,22 @@ describe('DialogContainer - Enter on a focused button', () => {
     fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
     expect(resolve).toHaveBeenCalledWith('abc');
   });
+
+  it('does not submit a prompt when Enter commits an IME composition', () => {
+    resolve.mockClear();
+    dialog = {
+      kind: 'prompt',
+      message: 'Name?',
+      options: { defaultValue: 'abc' },
+      resolve,
+    };
+    render(<DialogContainer />);
+    const input = screen.getByRole('textbox');
+    const notPrevented = fireEvent.keyDown(input, {
+      key: 'Enter',
+      isComposing: true,
+    });
+    expect(resolve).not.toHaveBeenCalled();
+    expect(notPrevented).toBe(true);
+  });
 });
