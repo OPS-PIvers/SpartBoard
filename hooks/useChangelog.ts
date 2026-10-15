@@ -32,10 +32,18 @@ export interface ChangelogThemedSection {
   items: ChangelogBullet[];
 }
 
-/** A one- or two-sentence note shown under widgets of this type after their look changes. */
+/** A one- or two-sentence note shown under widgets of this type once a change to it is live for the teacher. */
 export interface ChangelogWidgetNote {
+  /** Stable id; dismissals and first-seen times key on it. */
+  id: string;
   widget: WidgetType;
+  /** Release date (YYYY-MM-DD); the note never shows before it. */
+  date: string;
   text: string;
+  /** Feature flag gating the change; the note waits until the teacher can use it. */
+  feature?: string;
+  /** Building Guided Learning set whose live tour the note's "Show me" starts. */
+  tourSetId?: string;
 }
 
 export interface ChangelogEntry {
@@ -46,11 +54,11 @@ export interface ChangelogEntry {
   details: ChangelogHighlight[];
   /** Building Guided Learning set whose live tour the entry's "Show me" starts. */
   tourSetId?: string;
-  widgetNotes?: ChangelogWidgetNote[];
 }
 
 interface ChangelogFile {
   entries: ChangelogEntry[];
+  widgetNotes?: ChangelogWidgetNote[];
 }
 
 const LAST_SEEN_KEY = 'whatsnew-last-seen';
@@ -138,8 +146,23 @@ const normalizeEntries = (raw: ChangelogEntry[]): ChangelogEntry[] => {
   return result;
 };
 
+const isWidgetNote = (n: unknown): n is ChangelogWidgetNote => {
+  if (typeof n !== 'object' || n === null) return false;
+  const note = n as Record<string, unknown>;
+  return (
+    typeof note.id === 'string' &&
+    typeof note.widget === 'string' &&
+    typeof note.date === 'string' &&
+    typeof note.text === 'string' &&
+    note.text.trim() !== '' &&
+    (note.feature === undefined || typeof note.feature === 'string') &&
+    (note.tourSetId === undefined || typeof note.tourSetId === 'string')
+  );
+};
+
 export const useChangelog = () => {
   const [entries, setEntries] = useState<ChangelogEntry[]>([]);
+  const [widgetNotes, setWidgetNotes] = useState<ChangelogWidgetNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -164,6 +187,11 @@ export const useChangelog = () => {
           }
         }
         setEntries(next);
+        setWidgetNotes(
+          Array.isArray(data.widgetNotes)
+            ? data.widgetNotes.filter(isWidgetNote)
+            : []
+        );
       })
       .catch((err: unknown) => {
         if (cancelled) return;
@@ -195,6 +223,7 @@ export const useChangelog = () => {
 
   return {
     entries,
+    widgetNotes,
     loading,
     error,
     latestVersion,
