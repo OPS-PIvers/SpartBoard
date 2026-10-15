@@ -16,14 +16,27 @@ export const MAX_NOTE_CHARS = 1000;
 /** Delay after the last keystroke before the note is saved. */
 export const NOTE_SAVE_MS = 800;
 
-/** A note Claude reads and acts on in its finish pass, on the tour ("tour") or a step; blank removes it (C10). */
-export const ClaudeNoteField: React.FC<{
+interface NoteFieldProps {
   setId: string;
   target: string;
   testId: string;
-}> = ({ setId, target, testId }) => {
-  const { t } = useTranslation();
+}
+
+/** A note Claude reads and acts on in its finish pass, on the tour ("tour") or a step; blank removes it (C10). */
+export const ClaudeNoteField: React.FC<NoteFieldProps> = (props) => {
   const auth = useContext(AuthContext);
+  // Admins without the connector never open the review doc.
+  if (!auth?.canAccessFeature('claude-connector')) return null;
+  return <NoteField {...props} email={auth.user?.email ?? ''} />;
+};
+
+const NoteField: React.FC<NoteFieldProps & { email: string }> = ({
+  setId,
+  target,
+  testId,
+  email,
+}) => {
+  const { t } = useTranslation();
   const id = useId();
   const review = useTourReview(setId);
   const saved =
@@ -32,7 +45,6 @@ export const ClaudeNoteField: React.FC<{
   const [draft, setDraft] = useState<string | null>(null);
   const pending = useRef<(() => void) | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const email = auth?.user?.email ?? '';
 
   const flush = () => {
     if (timer.current) clearTimeout(timer.current);
@@ -44,8 +56,6 @@ export const ClaudeNoteField: React.FC<{
   // Leaving the step or closing the editor saves what is still pending.
   const flushOnLeave = useEffectEvent(flush);
   useEffect(() => () => flushOnLeave(), []);
-
-  if (!auth?.canAccessFeature('claude-connector')) return null;
 
   const change = (text: string) => {
     setDraft(text);

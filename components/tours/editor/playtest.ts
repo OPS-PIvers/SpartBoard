@@ -8,7 +8,7 @@ import type { TourEditPlayback } from './tourEditStore';
 
 export type PlayedResult = Exclude<TourPlaytestResult, 'not-reached'>;
 
-/** Folds one playback report into each step's latest result (C9). */
+/** Folds one playback report into each step's latest result; a step once left to the teacher stays left (C9). */
 export function notePlayback(
   results: Map<string, PlayedResult>,
   steps: GuidedLearningSet['steps'],
