@@ -48,7 +48,8 @@ export const RandomFlash: React.FC<RandomFlashProps> = ({
           : 'scale-100 text-brand-blue-primary drop-shadow-xl'
       }`}
       style={{
-        containerType: 'size',
+        // Only multi-word names measure against this box; single words keep the widget's units.
+        containerType: lines > 1 ? 'size' : undefined,
         height: '100%',
         padding: 'min(12px, 2.5cqmin)',
       }}
