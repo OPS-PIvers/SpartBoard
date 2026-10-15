@@ -473,6 +473,39 @@ describe('translateQuiz', () => {
     ).rejects.toMatchObject({ code: 'resource-exhausted' });
   });
 
+  it('uses the admin daily limit from the translation row', async () => {
+    const used = {
+      [`ai_usage/${teacherDailyTranslationDocId('teacher-1', NOW)}`]: {
+        count: 3,
+      },
+    };
+    await expect(
+      translateQuiz(
+        baseRequest(),
+        'teacher-1',
+        deps({
+          docs: {
+            ...used,
+            'global_permissions/quiz-translation': {
+              config: { dailyLimit: 3 },
+            },
+          },
+        })
+      )
+    ).rejects.toMatchObject({ code: 'resource-exhausted' });
+    const spent = {
+      [`ai_usage/${teacherDailyTranslationDocId('teacher-1', NOW)}`]: {
+        count: TEACHER_DAILY_LIMIT,
+      },
+      'global_permissions/quiz-translation': {
+        config: { dailyLimit: 3, dailyLimitEnabled: false },
+      },
+    };
+    await expect(
+      translateQuiz(baseRequest(), 'teacher-1', deps({ docs: spent }))
+    ).resolves.toBeDefined();
+  });
+
   it('D17: refuses a non-English source quiz', async () => {
     await expect(
       translateQuiz(

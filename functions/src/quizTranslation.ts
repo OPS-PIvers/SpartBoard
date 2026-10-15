@@ -194,11 +194,21 @@ export async function reserveTranslationUnit(
   nowMs: number
 ): Promise<{ remaining: number; total: number }> {
   const { monthlyRef, dailyRef } = usageRefs(db, uid, nowMs);
+  const permRef = db.collection('global_permissions').doc('quiz-translation');
   return db.runTransaction(async (tx) => {
-    const [monthly, daily] = await Promise.all([
+    const [monthly, daily, perm] = await Promise.all([
       tx.get(monthlyRef),
       tx.get(dailyRef),
+      tx.get(permRef),
     ]);
+    const config = (perm.data()?.config ?? {}) as {
+      dailyLimit?: unknown;
+      dailyLimitEnabled?: unknown;
+    };
+    const dailyLimit =
+      typeof config.dailyLimit === 'number'
+        ? config.dailyLimit
+        : TEACHER_DAILY_LIMIT;
     const num = (snap: admin.firestore.DocumentSnapshot, field: string) =>
       snap.exists ? Number(snap.get(field) ?? 0) : 0;
     const units = num(monthly, 'units');
@@ -216,7 +226,7 @@ export async function reserveTranslationUnit(
       block('units', 'This month’s translation limit has been reached.');
     if (tokens >= settings.monthlyCapOutputTokens)
       block('outputTokens', 'This month’s translation limit has been reached.');
-    if (num(daily, 'count') >= TEACHER_DAILY_LIMIT)
+    if (config.dailyLimitEnabled !== false && num(daily, 'count') >= dailyLimit)
       block('daily', 'Daily translation limit reached. Try again tomorrow.');
     tx.set(monthlyRef, { units: inc(1), updatedAt: nowMs }, { merge: true });
     tx.set(dailyRef, { count: inc(1), updatedAt: nowMs }, { merge: true });
