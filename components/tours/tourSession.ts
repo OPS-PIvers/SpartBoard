@@ -56,9 +56,9 @@ export const tourClickedTypes = (
   ...new Set(
     steps.flatMap((s) => {
       const ref = s.tour ? parseTourAnchorRef(s.tour.anchor) : null;
-      return ref?.id === anchor && ref.widgetType
-        ? [ref.widgetType as WidgetType]
-        : [];
+      if (ref?.id !== anchor || !ref.widgetType) return [];
+      const type: WidgetType = ref.widgetType as WidgetType;
+      return [type];
     })
   ),
 ];
