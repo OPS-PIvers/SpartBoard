@@ -132,6 +132,9 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   queueRef.current = queue;
 
+  // Serialises entry batches so each reads the queue the previous one wrote.
+  const entriesChainRef = React.useRef<Promise<void>>(Promise.resolve());
+
   const lastExternalTriggerRef = React.useRef(config.externalTrigger ?? 0);
 
   // Firestore "Buffer" Listener: Watch for incoming student entries
@@ -194,6 +197,9 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
           });
           if (!config.activeDriveFileId) return;
           await driveService.updateFileContent(config.activeDriveFileId, blob);
+          // Next batch must build on this write, not on the pre-reload queue.
+          queueRef.current = updatedQueue;
+          setQueue(updatedQueue);
 
           // Cleanup entries from Firestore (PII Safety)
           await Promise.all(deletePromises);
@@ -204,7 +210,12 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
           });
         };
 
-        void processEntries();
+        // A failed batch leaves its entries in Firestore; the next snapshot retries them.
+        entriesChainRef.current = entriesChainRef.current
+          .then(processEntries)
+          .catch((e: unknown) => {
+            console.error('[NextUp] Failed to process entries:', e);
+          });
       },
       (error) => {
         console.error('[NextUp] Entries listener error:', error);

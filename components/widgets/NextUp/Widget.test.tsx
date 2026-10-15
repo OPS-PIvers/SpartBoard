@@ -41,9 +41,16 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ user: { uid: 'teacher-1' } }),
 }));
 
-const downloadFile = vi.fn();
+const { downloadFile, updateFileContent, mockOnSnapshot, mockDeleteDoc } =
+  vi.hoisted(() => ({
+    downloadFile: vi.fn(),
+    updateFileContent: vi.fn(),
+    mockOnSnapshot: vi.fn(),
+    mockDeleteDoc: vi.fn(),
+  }));
+const driveService = { downloadFile, updateFileContent };
 vi.mock('@/hooks/useGoogleDrive', () => ({
-  useGoogleDrive: () => ({ driveService: { downloadFile } }),
+  useGoogleDrive: () => ({ driveService }),
 }));
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showConfirm: vi.fn() }),
@@ -54,9 +61,14 @@ vi.mock('firebase/firestore', () => ({
   query: () => ({}),
   orderBy: () => ({}),
   limit: () => ({}),
-  deleteDoc: vi.fn(),
-  onSnapshot: () => () => undefined,
+  deleteDoc: mockDeleteDoc,
+  onSnapshot: mockOnSnapshot,
 }));
+
+beforeEach(() => {
+  mockOnSnapshot.mockReset();
+  mockOnSnapshot.mockImplementation(() => () => undefined);
+});
 
 const buildWidget = (config: Partial<NextUpConfig>): WidgetData => ({
   id: 'nextup-widget',
@@ -226,5 +238,54 @@ describe('NextUpWidget inside a sub share', () => {
 
     expect(getByText('NEXT')).toBeInTheDocument();
     expect(downloadFile).toHaveBeenCalledWith('queue-file');
+  });
+});
+
+describe('NextUpWidget student entry buffer', () => {
+  type SnapHandler = (snap: unknown) => void;
+  const snapOf = (...ids: string[]) => ({
+    empty: ids.length === 0,
+    docs: ids.map((id) => ({
+      id,
+      ref: { id },
+      data: () => ({ name: `Student ${id}`, joinedAt: 1 }),
+    })),
+  });
+
+  it('keeps an earlier student when the next one joins before the queue reloads', async () => {
+    downloadFile.mockResolvedValue(new Blob(['[]']));
+    updateFileContent.mockReset();
+    updateFileContent.mockResolvedValue(undefined);
+    mockDeleteDoc.mockReset();
+    mockDeleteDoc.mockResolvedValue(undefined);
+    let handler: SnapHandler | undefined;
+    mockOnSnapshot.mockImplementation((_q: unknown, next: SnapHandler) => {
+      handler = next;
+      return () => undefined;
+    });
+
+    render(
+      <NextUpWidget
+        widget={buildWidget({ isActive: true, activeDriveFileId: 'file-1' })}
+      />
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      handler?.(snapOf('s1'));
+      await vi.waitFor(() => expect(mockDeleteDoc).toHaveBeenCalledTimes(1));
+    });
+    await act(async () => {
+      handler?.(snapOf('s2'));
+      await vi.waitFor(() =>
+        expect(updateFileContent).toHaveBeenCalledTimes(2)
+      );
+    });
+
+    const lastBlob = updateFileContent.mock.calls[1][1] as Blob;
+    const saved = JSON.parse(await lastBlob.text()) as { id: string }[];
+    expect(saved.map((q) => q.id)).toEqual(['s1', 's2']);
   });
 });
