@@ -982,7 +982,7 @@ export function useStudentAssignments({
           ? String((err as { message?: unknown }).message)
           : '';
       console.error(
-        `[useStudentAssignments] snapshot failed for ${KIND_CONFIG[plan.kind].collectionName} (${plan.channel}/${plan.shape}/${plan.statusValues?.join(',') ?? '_'}) [${code}]:`,
+        `[useStudentAssignments] snapshot failed for ${KIND_CONFIG[plan.kind].collectionName} (${plan.channel}/${plan.shape}/${plan.statusValues?.join(',') ?? '_'}/chunk ${plan.chunk}) [${code}]:`,
         message
       );
       const key = planKey(plan);
