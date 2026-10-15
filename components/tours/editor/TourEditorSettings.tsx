@@ -32,6 +32,7 @@ import { getTourEdit, useTourEditTarget } from './tourEditStore';
 import { TourMaterialsSection } from './TourMaterialsSection';
 import type { TourEditorSession } from './useTourEditorSession';
 import { TourHelpVisibility } from './TourHelpVisibility';
+import { ClaudeNoteField } from './ClaudeNoteField';
 
 const INTERNAL_TOOLS: readonly string[] = [
   'record',
@@ -89,6 +90,13 @@ export const TourEditorSettings: React.FC<{ session: TourEditorSession }> = ({
         />
       )}
       <StartOptions set={set} onChange={patchSetup} />
+      <div className="pt-4">
+        <ClaudeNoteField
+          setId={set.id}
+          target="tour"
+          testId="tour-editor-tour-note"
+        />
+      </div>
     </div>
   );
 };
