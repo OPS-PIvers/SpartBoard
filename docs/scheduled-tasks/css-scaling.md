@@ -3,8 +3,10 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-14_
+_Last audited: 2026-10-15_
 _Last action: 2026-09-24 — MEDIUM `QuizStimulusView.tsx` zero-`cqmin` blocker resolved: added an optional `cqScaled?: boolean` prop (default `false`) threaded through every subcomponent in the file, applying `min(Xpx, Ycqmin)` inline styles only when set, so the two CQ-container consumers (`CurrentQuestionCard.tsx`, `QuizPreview.tsx`) now scale while the two non-CQ consumers (`QuizStudentApp.tsx`, `FreeResponseGrader.tsx`) keep today's fixed styling untouched — the same `cqScaled` pattern proven on `AssignTargetingSection.tsx`. 1250/1250 relevant tests pass. Item moved to Completed. PR opened against dev-paul._
+
+_2026-10-15: Daily audit (Thursday). 0 `max-w/h-[Npx]` caps in any `Widget.tsx`; only fixed-px hits are the two portaled `fixed` DrawingWidget popovers (exempt). Hardcoded `cqmin` uses are all `min(Npx, Ncqmin)` sizing on icons/margins (GuidedLearning, Poll, Clock). 0 new issues._
 
 
 _2026-10-14: Daily audit (Wednesday). No `max-w-[Npx]`/`max-h-[Npx]` caps in any `Widget.tsx`. Diffed widget `.tsx` changes since 2026-10-13: only new fixed-px hits are `h-[36px]` header buttons and `min-h-[38px]`/`min-h-[60px]` textareas in portaled editor modals (`GuidedLearningEditorModal`, `VideoActivityEditorModal`, `QuizEditorModal`, `MiniAppEditorModal`), which are not front-face content. 0 new issues._
