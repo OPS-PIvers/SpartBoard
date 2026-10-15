@@ -1,6 +1,6 @@
 // Admin-only live tour tools: create, get and update a live tour, and list Help Center categories (CLAUDE_CONNECTOR.md CC-D19).
 import { randomUUID } from 'node:crypto';
-import type * as admin from 'firebase-admin';
+import * as admin from 'firebase-admin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
@@ -333,8 +333,6 @@ export function publicTourStep(step: Step): Record<string, unknown> {
   out.has_thumbnail = !!thumb;
   if (thumb && tour && thumb.anchor !== tour.anchor) out.thumbnail_stale = true;
   out.has_narration = !!(step as { narration?: unknown }).narration;
-  const note = publicNote(step.reviewNote);
-  if (note) out.review_note = note;
   return out;
 }
 
@@ -350,23 +348,40 @@ export function publicNote(raw: unknown) {
   };
 }
 
+/** A tour's admin-only review doc: notes for Claude and the last editor playtest (C9, C10). */
+export interface TourReviewDoc {
+  tourNote?: unknown;
+  stepNotes?: Record<string, unknown>;
+  playtest?: unknown;
+}
+
+const reviewPath = (setId: string) => `${BUILDING}/${setId}/review/current`;
+
+async function loadReview(
+  ctx: ToolContext,
+  setId: string
+): Promise<TourReviewDoc> {
+  const snap = await ctx.db.doc(reviewPath(setId)).get();
+  return snap.exists ? (snap.data() as TourReviewDoc) : {};
+}
+
 /** The last editor playtest, stale once the steps changed after it (C9). */
-export function publicPlaytest(set: GlSet) {
-  const raw = set.tourPlaytest as
+export function publicPlaytest(raw: unknown, steps: GlSet['steps']) {
+  const p = raw as
     | { at?: unknown; by?: unknown; fingerprint?: unknown; steps?: unknown }
     | undefined;
-  if (!raw || !Array.isArray(raw.steps)) return null;
-  const steps = (raw.steps as unknown[]).flatMap((s) => {
+  if (!p || !Array.isArray(p.steps)) return null;
+  const results = (p.steps as unknown[]).flatMap((s) => {
     const r = s as { stepId?: unknown; result?: unknown } | null;
     return typeof r?.stepId === 'string' && typeof r.result === 'string'
       ? [{ step_id: r.stepId, result: r.result }]
       : [];
   });
   return {
-    ...(typeof raw.at === 'number' ? { at: iso(raw.at) } : {}),
-    by: typeof raw.by === 'string' ? raw.by : '',
-    stale: raw.fingerprint !== tourPlaytestKey(set.steps),
-    steps,
+    ...(typeof p.at === 'number' ? { at: iso(p.at) } : {}),
+    by: typeof p.by === 'string' ? p.by : '',
+    stale: p.fingerprint !== tourPlaytestKey(steps),
+    steps: results,
   };
 }
 
@@ -407,24 +422,27 @@ export function tourHealth(
   };
 }
 
-/** Clears the notes named in resolved_notes ("tour" for the tour's own); unknown ids refuse the save. */
-export function resolveNotes(set: GlSet, resolved: readonly string[]): GlSet {
-  if (resolved.length === 0) return set;
-  const ids = new Set(set.steps.map((s) => s.id));
+/** Refuses resolved_notes that name neither a step of the saved tour nor "tour". */
+export function assertResolvable(
+  steps: GlSet['steps'],
+  resolved: readonly string[]
+): void {
+  const ids = new Set(steps.map((s) => s.id));
   const unknown = resolved.find((r) => r !== 'tour' && !ids.has(r));
   if (unknown)
     throw new ToolError(
       `resolved_notes: "${unknown}" is not a step id in this tour, or "tour".`
     );
-  const next: GlSet = { ...set };
-  if (resolved.includes('tour')) delete next.tourReviewNote;
-  next.steps = set.steps.map((s) => {
-    if (!resolved.includes(s.id) || !s.reviewNote) return s;
-    const rest = { ...s };
-    delete rest.reviewNote;
-    return rest;
-  });
-  return next;
+}
+
+/** The review doc update that clears the named notes. */
+export function clearedNotes(resolved: readonly string[]) {
+  const del = admin.firestore.FieldValue.delete();
+  const out: Record<string, unknown> = {};
+  for (const r of resolved)
+    if (r === 'tour') out.tourNote = del;
+    else out.stepNotes = { ...(out.stepNotes as object), [r]: del };
+  return out;
 }
 
 export type TourPublishState = 'draft' | 'published' | 'changed';
@@ -459,10 +477,11 @@ export function liveTourView(
   publishedAt: number | null,
   ready: ReadonlyMap<string, string> = new Map(),
   withSamples = false,
-  health?: ReturnType<typeof tourHealth>
+  health?: ReturnType<typeof tourHealth>,
+  review: TourReviewDoc = {}
 ) {
-  const note = publicNote(set.tourReviewNote);
-  const playtest = publicPlaytest(set);
+  const note = publicNote(review.tourNote);
+  const playtest = publicPlaytest(review.playtest, set.steps);
   const state = tourPublishState(set.updatedAt, publishedAt);
   const unregistered = set.steps.flatMap((s) => {
     const anchor = (s.tour as { anchor?: unknown } | undefined)?.anchor;
@@ -499,7 +518,11 @@ export function liveTourView(
     ...(playtest ? { last_playtest: playtest } : {}),
     ...(health ? { health } : {}),
     steps: set.steps.map((s) => {
-      const out = publicTourStep(s);
+      const stepNote = publicNote(review.stepNotes?.[s.id]);
+      const out = {
+        ...publicTourStep(s),
+        ...(stepNote ? { review_note: stepNote } : {}),
+      };
       const ref = ready.get(s.id);
       return ref ? { ...out, anchor_ready: ref } : out;
     }),
@@ -536,7 +559,6 @@ export function mergeTourSteps(
     const start = (prior.tour as { start?: unknown } | undefined)?.start;
     if (start && next.tour)
       next.tour = { ...(next.tour as Record<string, unknown>), start };
-    if (prior.reviewNote) next.reviewNote = prior.reviewNote;
     return next as Step;
   });
 }
@@ -997,9 +1019,10 @@ export function registerLiveTourTools(
     ({ set_id, for_browser_run }) =>
       run('get_live_tour', ctx, async () => {
         await assertAccess(ctx, 'building');
-        const [loaded, publishedAt, health] = await Promise.all([
+        const [loaded, publishedAt, review, health] = await Promise.all([
           loadTour(ctx, set_id),
           publishedAtOf(ctx, set_id),
+          loadReview(ctx, set_id),
           healthOf(ctx, set_id).catch((err: unknown) => {
             // Health is extra; a failed read leaves it out rather than failing the tour.
             console.warn('[live tour] health read failed', err);
@@ -1012,7 +1035,8 @@ export function registerLiveTourTools(
           publishedAt,
           ready,
           for_browser_run === true,
-          health
+          health,
+          review
         );
       })
   );
@@ -1115,11 +1139,9 @@ export function registerLiveTourTools(
           input.steps ? { bookends: updateBookends(set.steps) } : {}
         );
         const resolved = input.resolved_notes ?? [];
-        const cleared = resolveNotes(next, resolved);
+        assertResolvable(next.steps, resolved);
         if (input.dry_run) return dryRunResult(report, inserted);
         assertPlays(report);
-        next.steps = cleared.steps;
-        if (resolved.includes('tour')) delete next.tourReviewNote;
         const materials = input.materials
           ? await buildMaterials(ctx, input.materials, prior.materials)
           : undefined;
@@ -1144,6 +1166,11 @@ export function registerLiveTourTools(
           requests,
           stageHelp
         );
+        // Notes clear only once the edit that deals with them is saved.
+        if (resolved.length)
+          await ctx.db
+            .doc(reviewPath(set_id))
+            .set(clearedNotes(resolved), { merge: true });
         return {
           ...saved,
           ...needsAnchors(next.steps),

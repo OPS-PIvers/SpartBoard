@@ -92,10 +92,8 @@ export const TourEditorSettings: React.FC<{ session: TourEditorSession }> = ({
       <StartOptions set={set} onChange={patchSetup} />
       <div className="pt-4">
         <ClaudeNoteField
-          note={set.tourReviewNote}
-          onChange={(tourReviewNote) =>
-            session.updateSet({ tourReviewNote }, 'tourReviewNote')
-          }
+          setId={set.id}
+          target="tour"
           testId="tour-editor-tour-note"
         />
       </div>

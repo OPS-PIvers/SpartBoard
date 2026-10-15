@@ -64,10 +64,13 @@ describe('editor playtest', () => {
       ['a', 'found'],
       ['b', 'found'],
     ]);
-    const saved = { ...set, tourPlaytest: buildPlaytest(set, fuller, 'x') };
-    expect(keepsEarlier(saved, new Map([['a', 'found']]))).toBe(true);
-    expect(keepsEarlier(saved, fuller)).toBe(false);
-    const changed = { ...saved, steps: [...set.steps].reverse() };
-    expect(keepsEarlier(changed, new Map([['a', 'found']]))).toBe(false);
+    const earlier = buildPlaytest(set, fuller, 'x');
+    expect(keepsEarlier(set, earlier, new Map([['a', 'found']]))).toBe(true);
+    expect(keepsEarlier(set, earlier, fuller)).toBe(false);
+    expect(keepsEarlier(set, undefined, new Map([['a', 'found']]))).toBe(false);
+    const changed = { ...set, steps: [...set.steps].reverse() };
+    expect(keepsEarlier(changed, earlier, new Map([['a', 'found']]))).toBe(
+      false
+    );
   });
 });

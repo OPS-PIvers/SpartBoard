@@ -30,8 +30,6 @@ const NOT_PUBLISHED = new Set([
   'createdAt',
   'updatedAt',
   'hasLiveTour',
-  'tourReviewNote',
-  'tourPlaytest',
 ]);
 
 /** The published copy of a stored building set: everything a tour run shows. */
@@ -43,14 +41,6 @@ export function buildGlTourContent(
   for (const [key, value] of Object.entries(data)) {
     if (!NOT_PUBLISHED.has(key) && value !== undefined) out[key] = value;
   }
-  // Notes for Claude stay in the draft.
-  if (Array.isArray(out.steps))
-    out.steps = out.steps.map((step: unknown) => {
-      if (!step || typeof step !== 'object') return step;
-      const published = { ...(step as Record<string, unknown>) };
-      delete published.reviewNote;
-      return published;
-    });
   out.id = setId;
   return out;
 }

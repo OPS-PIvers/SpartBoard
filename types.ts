@@ -8116,8 +8116,6 @@ export interface GuidedLearningQuestion {
 
 export interface GuidedLearningStep {
   id: string;
-  /** Live tours: an admin's note for Claude on this step; never published. */
-  reviewNote?: TourReviewNote;
   /** % position on image (0–100) */
   xPct: number;
   yPct: number;
@@ -8425,10 +8423,14 @@ export interface GuidedLearningSet {
   };
   /** Stamped on every building-set save: true for tour mode or when any step has a live-tour binding. */
   hasLiveTour?: boolean;
-  /** An admin's note for Claude on the whole tour; never published. */
-  tourReviewNote?: TourReviewNote;
-  /** The last time an admin played the tour in the editor; never published. */
-  tourPlaytest?: TourPlaytest;
+}
+
+/** A live tour's notes for Claude and last editor playtest, at building_guided_learning/{setId}/review/current; admins only. */
+export interface TourReview {
+  tourNote?: TourReviewNote;
+  /** By step id. */
+  stepNotes?: Record<string, TourReviewNote>;
+  playtest?: TourPlaytest;
 }
 
 /** A note an admin leaves for Claude to act on in its finish pass (LIVE_TOUR_CONSISTENT_START.md C10). */

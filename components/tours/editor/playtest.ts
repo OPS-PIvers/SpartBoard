@@ -45,9 +45,9 @@ export const buildPlaytest = (
 /** Whether closing should keep an earlier, fuller playtest of the same steps instead. */
 export const keepsEarlier = (
   set: GuidedLearningSet,
+  earlier: TourPlaytest | undefined,
   results: ReadonlyMap<string, PlayedResult>
 ): boolean => {
-  const earlier = set.tourPlaytest;
   if (!earlier || earlier.fingerprint !== tourPlaytestKey(set.steps))
     return false;
   const reached = earlier.steps.filter((s) => s.result !== 'not-reached');

@@ -4,7 +4,6 @@ import type {
   GuidedLearningStep,
   GuidedLearningTourBinding,
   GuidedLearningTourThumbnail,
-  TourPlaytest,
 } from '@/types';
 import { saveBuildingSetDoc } from '@/hooks/useGuidedLearning';
 import { GuidedLearningSaveConflictError } from '@/components/widgets/GuidedLearning/utils/saveConflict';
@@ -55,15 +54,9 @@ export interface TourEditorSession {
     stepId: string,
     thumbnail: GuidedLearningTourThumbnail
   ) => void;
-  /** Records what each step did in the last play; not an undoable edit. */
-  setPlaytest: (playtest: TourPlaytest) => void;
   deleteStep: (stepId: string) => void;
   moveStep: (stepId: string, toIndex: number) => void;
-  updateSet: (
-    patch: Partial<GuidedLearningSet>,
-    /** Field name, so a run of keystrokes undoes in one step. */
-    coalesce?: string
-  ) => void;
+  updateSet: (patch: Partial<GuidedLearningSet>) => void;
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
@@ -323,10 +316,6 @@ export function useTourEditorSession(): TourEditorSession | null {
         },
         { history: false }
       ),
-    setPlaytest: (playtest) =>
-      commit((set) => ({ ...set, tourPlaytest: playtest }), {
-        history: false,
-      }),
     deleteStep: (stepId) =>
       commit((set) =>
         set.steps.some((s) => s.id === stepId)
@@ -343,10 +332,7 @@ export function useTourEditorSession(): TourEditorSession | null {
         steps.splice(to, 0, moved);
         return { ...set, steps };
       }),
-    updateSet: (patch, coalesce) =>
-      commit((set) => ({ ...set, ...patch }), {
-        coalesce: coalesce ? `set:${coalesce}` : undefined,
-      }),
+    updateSet: (patch) => commit((set) => ({ ...set, ...patch })),
     undo: () => restore('past'),
     redo: () => restore('future'),
     canUndo: depth.past > 0,

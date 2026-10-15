@@ -19,6 +19,17 @@ vi.mock('@/components/tours/publishedTours', () => ({
   usePublishedTour: () => ({ loaded: true, tour: h.published }),
   publishTour: h.publish,
 }));
+const note = vi.hoisted(() => ({
+  save: vi.fn<(setId: string, target: string, n: unknown) => Promise<void>>(
+    () => Promise.resolve()
+  ),
+}));
+vi.mock('@/components/tours/tourReview', () => ({
+  useTourReview: () => ({
+    tourNote: { text: 'Old note', by: 'other@school.org', at: 1 },
+  }),
+  saveTourNote: note.save,
+}));
 vi.mock('./TourHelpVisibility', () => ({
   TourHelpVisibility: () => <p>help visibility</p>,
 }));
@@ -162,24 +173,22 @@ describe('TourEditorSettings', () => {
     expect(screen.queryByTestId('tour-editor-tour-note')).toBeNull();
     unmount();
     renderSettings(session, true);
-    fireEvent.change(screen.getByTestId('tour-editor-tour-note'), {
-      target: { value: 'Use shorter steps' },
-    });
-    expect(session.updateSet).toHaveBeenCalledWith(
-      {
-        tourReviewNote: expect.objectContaining({
-          text: 'Use shorter steps',
-          by: 'admin@school.org',
-        }),
-      },
-      'tourReviewNote'
+    const box = screen.getByTestId('tour-editor-tour-note');
+    expect(box).toHaveValue('Old note');
+    expect(screen.getByText(/other@school.org/)).toBeInTheDocument();
+    fireEvent.change(box, { target: { value: 'Use shorter steps' } });
+    fireEvent.blur(box);
+    expect(note.save).toHaveBeenLastCalledWith(
+      'set-1',
+      'tour',
+      expect.objectContaining({
+        text: 'Use shorter steps',
+        by: 'admin@school.org',
+      })
     );
-    fireEvent.change(screen.getByTestId('tour-editor-tour-note'), {
-      target: { value: '  ' },
-    });
-    expect(session.updateSet).toHaveBeenLastCalledWith(
-      { tourReviewNote: undefined },
-      'tourReviewNote'
-    );
+    fireEvent.change(box, { target: { value: '  ' } });
+    fireEvent.blur(box);
+    expect(note.save).toHaveBeenLastCalledWith('set-1', 'tour', undefined);
+    expect(session.updateSet).not.toHaveBeenCalled();
   });
 });

@@ -13,7 +13,8 @@ import {
   parseCategories,
   publicTourStep,
   readyAnchorRef,
-  resolveNotes,
+  assertResolvable,
+  clearedNotes,
   tourHealth,
   tourStep,
   tourPublishState,
@@ -576,14 +577,17 @@ describe('notes, playtest and health', () => {
     mode: 'tour',
     updatedAt: 5,
     steps: [
-      stored({ reviewNote: note }),
+      stored(),
       stored({ id: 's2', tour: { anchor: 'board.whole', action: 'observe' } }),
     ],
     ...over,
   });
 
-  it('returns notes on the tour and its steps, and keeps them through an edit', () => {
-    const view = liveTourView(tour({ tourReviewNote: note }), null);
+  it('returns notes from the review doc on the tour and its steps', () => {
+    const view = liveTourView(tour(), null, new Map(), false, undefined, {
+      tourNote: note,
+      stepNotes: { s1: note, gone: note },
+    });
     expect(view.review_note).toEqual({
       text: 'Point at the gear',
       by: 'admin@school.org',
@@ -594,17 +598,18 @@ describe('notes, playtest and health', () => {
     const [kept] = mergeTourSteps(tour().steps, [
       view.steps[0] as Parameters<typeof mergeTourSteps>[1][number],
     ]);
-    expect(kept.reviewNote).toEqual(note);
     expect(kept).not.toHaveProperty('review_note');
+    expect(kept).not.toHaveProperty('reviewNote');
   });
 
   it('clears resolved notes and refuses an unknown id', () => {
-    const cleared = resolveNotes(tour({ tourReviewNote: note }), ['s1']);
-    expect(cleared.steps[0]).not.toHaveProperty('reviewNote');
-    expect(cleared.tourReviewNote).toEqual(note);
-    expect(() => resolveNotes(tour(), ['nope'])).toThrow(
+    expect(() => assertResolvable(tour().steps, ['s1', 'tour'])).not.toThrow();
+    expect(() => assertResolvable(tour().steps, ['nope'])).toThrow(
       'resolved_notes: "nope"'
     );
+    const update = clearedNotes(['tour', 's1', 's2']);
+    expect(Object.keys(update).sort()).toEqual(['stepNotes', 'tourNote']);
+    expect(Object.keys(update.stepNotes as object)).toEqual(['s1', 's2']);
   });
 
   it('marks the playtest stale once the steps change', () => {
@@ -618,8 +623,11 @@ describe('notes, playtest and health', () => {
         { stepId: 's2', result: 'not-reached' },
       ],
     };
-    const fresh = liveTourView(tour({ tourPlaytest: playtest }), null);
-    expect(fresh.last_playtest).toEqual({
+    const view = (over: Record<string, unknown>) =>
+      liveTourView(tour(over), null, new Map(), false, undefined, {
+        playtest,
+      });
+    expect(view({}).last_playtest).toEqual({
       at: '1970-01-01T00:00:00.000Z',
       by: 'admin@school.org',
       stale: false,
@@ -628,11 +636,9 @@ describe('notes, playtest and health', () => {
         { step_id: 's2', result: 'not-reached' },
       ],
     });
-    const moved = liveTourView(
-      tour({ tourPlaytest: playtest, steps: [...steps].reverse() }),
-      null
+    expect(view({ steps: [...steps].reverse() }).last_playtest?.stale).toBe(
+      true
     );
-    expect(moved.last_playtest?.stale).toBe(true);
     expect(liveTourView(tour(), null)).not.toHaveProperty('last_playtest');
   });
 

@@ -22,6 +22,8 @@ import {
   notePlayback,
   type PlayedResult,
 } from './playtest';
+import { saveTourPlaytest, useTourReview } from '@/components/tours/tourReview';
+import { logError } from '@/utils/logError';
 import { useTourEditorSession } from './useTourEditorSession';
 import { TourEditorPanel } from './TourEditorPanel';
 import { TourEditorSettings } from './TourEditorSettings';
@@ -43,9 +45,18 @@ const TourEditorSessionView: React.FC = () => {
   // Each step's latest result while the admin plays, saved as the tour's playtest (C9).
   const results = useRef(new Map<string, PlayedResult>());
   const atEnd = useRef(false);
+  const setId = target?.set.id ?? '';
+  const review = useTourReview(setId);
+  const savePlaytest = (set: NonNullable<typeof target>['set']) =>
+    void saveTourPlaytest(
+      set.id,
+      buildPlaytest(set, results.current, email)
+    ).catch((err: unknown) =>
+      logError('TourEditorSessionView.playtest', err, { setId: set.id })
+    );
   const notePlay = useEffectEvent(() => {
     const cur = getTourEdit();
-    if (!cur || !session || !email) return;
+    if (!cur || !email) return;
     const pb = getTourEditPlayback();
     notePlayback(results.current, cur.set.steps, pb);
     const last = cur.set.steps.length - 1;
@@ -56,7 +67,7 @@ const TourEditorSessionView: React.FC = () => {
       (pb.anchor === 'found' || pb.anchor === 'missing')
     ) {
       atEnd.current = true;
-      session.setPlaytest(buildPlaytest(cur.set, results.current, email));
+      savePlaytest(cur.set);
     }
   });
   useEffect(() => subscribeTourEditPlayback(notePlay), []);
@@ -70,9 +81,9 @@ const TourEditorSessionView: React.FC = () => {
       cur &&
       email &&
       results.current.size > 0 &&
-      !keepsEarlier(cur.set, results.current)
+      !keepsEarlier(cur.set, review?.playtest, results.current)
     )
-      session.setPlaytest(buildPlaytest(cur.set, results.current, email));
+      savePlaytest(cur.set);
     const alerted = session.saveState === 'error';
     const saved = await session.flush();
     if (saved || alerted || session.isConflicted()) clearTourEdit();

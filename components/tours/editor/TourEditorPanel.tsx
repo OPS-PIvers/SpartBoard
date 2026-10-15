@@ -944,8 +944,8 @@ const StepCard: React.FC<{
         />
       </label>
       <ClaudeNoteField
-        note={step.reviewNote}
-        onChange={(reviewNote) => update({ reviewNote }, 'reviewNote')}
+        setId={session.set.id}
+        target={step.id}
         testId="tour-editor-step-note"
       />
       <div className={labelClass}>
