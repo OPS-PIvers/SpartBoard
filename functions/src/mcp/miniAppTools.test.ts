@@ -14,6 +14,7 @@ import {
   readManifest,
 } from '../miniAppGrading';
 import { MINI_APP_BASIC_SPEC, MINI_APP_RESULTS_SPEC } from '../miniAppSpec';
+import { MINI_APP_PREVIEW_SCRIPT } from '../miniAppPreview';
 
 const flag = vi.hoisted(() => ({ granted: true }));
 vi.mock('../quizMediaArchive', () => ({
@@ -167,11 +168,13 @@ describe('get_mini_app_spec', () => {
     expect(await call('get_mini_app_spec', {})).toEqual({
       results_scoring: true,
       spec: MINI_APP_RESULTS_SPEC,
+      preview_script: MINI_APP_PREVIEW_SCRIPT,
     });
     flag.granted = false;
     expect(await call('get_mini_app_spec', {})).toEqual({
       results_scoring: false,
       spec: MINI_APP_BASIC_SPEC,
+      preview_script: MINI_APP_PREVIEW_SCRIPT,
     });
   });
 
@@ -185,6 +188,60 @@ describe('get_mini_app_spec', () => {
     expect(await call('get_mini_app_spec', {})).toMatchObject({
       results_scoring: false,
     });
+  });
+});
+
+const withPreview = (html: string) =>
+  html.replace('<head>', `<head>${MINI_APP_PREVIEW_SCRIPT}`);
+
+describe('mini-apps built in the chat', () => {
+  it('saves the app without the chat preview script', async () => {
+    const { db, docs } = fakeDb();
+    const call = await connect(db);
+    const tried = withPreview(EXAMPLE_HTML ?? '');
+    expect(tried).toContain('data-spart-preview');
+    const res = await call('create_mini_app', {
+      title: 'Fractions',
+      html: tried,
+      collects_results: true,
+      manifest: MANIFEST,
+      answer_key: KEY,
+    });
+    const app = docs.get(`users/u1/miniapps/${res.app_id as string}`);
+    expect(app?.html).toBe((EXAMPLE_HTML ?? '').trim());
+  });
+
+  it('does not count the preview script as the app sending results', async () => {
+    const { db, docs } = fakeDb();
+    const call = await connect(db);
+    const res = await call('create_mini_app', {
+      title: 'No submit',
+      html: withPreview('<html><head></head><body><p>hi</p></body></html>'),
+      collects_results: true,
+      manifest: MANIFEST,
+      answer_key: KEY,
+    });
+    expect(res.error).toMatch(/never sends results/);
+    expect(docs.size).toBe(0);
+  });
+
+  it('strips the preview script on edits too', async () => {
+    const { db, docs } = fakeDb({
+      'users/u1/miniapps/a1': {
+        title: 'Timer',
+        html: '<p>old</p>',
+        createdAt: 1,
+        order: 0,
+      },
+    });
+    const call = await connect(db);
+    await call('update_mini_app', {
+      app_id: 'a1',
+      html: withPreview('<html><head></head><body>new</body></html>'),
+    });
+    expect(docs.get('users/u1/miniapps/a1')?.html).toBe(
+      '<html><head></head><body>new</body></html>'
+    );
   });
 });
 

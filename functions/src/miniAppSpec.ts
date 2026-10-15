@@ -15,7 +15,12 @@ export const QUESTION_TYPE_HELP: Record<MiniAppQuestionType, string> = {
 const CLASSROOM_RULES = `## Classroom rules
 - One self-contained HTML file: inline CSS and JS, no server, no logins. It runs in a sandboxed frame on a classroom board and on student devices, so it must be readable from across a room and work by touch.
 - Never ask for a student's name or email; SpartBoard knows who submitted, and name or email fields are dropped.
-- The app is anything a teacher wants: a game, a simulation, a model with sliders, a quiz. Not every app collects results.`;
+- The app is anything a teacher wants: a game, a simulation, a model with sliders, a quiz. Not every app collects results.
+
+## Build it in the chat first
+- Write the whole app as an HTML artifact in the chat so the teacher can try it, and change it there until they are happy. Save only when they say to.
+- Put \`preview_script\` from get_mini_app_spec first inside \`<head>\`. Outside SpartBoard it shows the Submit button and stands in for SpartBoard, so the teacher can try submitting; it shows what would be sent and saves nothing.
+- Save the HTML exactly as the teacher tried it, preview script included. SpartBoard removes the script when it saves the app; add it back after get_mini_app before showing an edit in the chat.`;
 
 /** For teachers without Mini App results: the original Submit protocol. */
 export const MINI_APP_BASIC_SPEC = `# SpartBoard Mini App spec

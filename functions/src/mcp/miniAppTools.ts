@@ -23,6 +23,10 @@ import {
 } from './toolKit';
 import { checkMiniAppSource } from '../miniAppGrading';
 import { MINI_APP_BASIC_SPEC, MINI_APP_RESULTS_SPEC } from '../miniAppSpec';
+import {
+  MINI_APP_PREVIEW_SCRIPT,
+  stripMiniAppPreview,
+} from '../miniAppPreview';
 
 const COLLECTION = 'miniapps';
 /** Mirrors MAX_TITLE_LENGTH in the mini-app import adapter. */
@@ -179,7 +183,7 @@ function summarize(id: string, data: Record<string, unknown>) {
 }
 
 export function assertHtml(html: string): string {
-  const trimmed = html.trim();
+  const trimmed = stripMiniAppPreview(html).trim();
   if (!trimmed) throw new ToolError('html is empty.');
   if (trimmed.length > MAX_HTML) {
     throw new ToolError(
@@ -346,7 +350,7 @@ export function registerMiniAppTools(
     {
       title: 'Get the Mini App spec',
       description:
-        'Returns how to write a SpartBoard mini-app for this teacher, including how it sends results. Read it before create_mini_app or an update_mini_app that changes html.',
+        "Returns how to write a SpartBoard mini-app for this teacher, including how it sends results, and the script that lets the teacher try it in the chat. Read it before writing or changing an app's html.",
       inputSchema: {},
       annotations: READ_ONLY,
     },
@@ -356,6 +360,7 @@ export function registerMiniAppTools(
         return {
           results_scoring: resultsOn,
           spec: resultsOn ? MINI_APP_RESULTS_SPEC : MINI_APP_BASIC_SPEC,
+          preview_script: MINI_APP_PREVIEW_SCRIPT,
         };
       })
   );
@@ -364,7 +369,7 @@ export function registerMiniAppTools(
     'create_mini_app',
     {
       title: 'Create a mini-app',
-      description: `Saves a single-file HTML app (inline CSS and JS, no server) to the Mini App library. Runs sandboxed on the classroom board. Up to ${MAX_HTML / 1000}k characters.`,
+      description: `Saves a single-file HTML app (inline CSS and JS, no server) to the Mini App library. Runs sandboxed on the classroom board. Up to ${MAX_HTML / 1000}k characters. Build it as an artifact in the chat first and send the exact HTML the teacher tried.`,
       inputSchema: {
         title: z.string().trim().min(1).max(MAX_TITLE),
         html: z.string().min(1),
