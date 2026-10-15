@@ -522,10 +522,14 @@ function channelForHydratedData(
   return matches ? 'ended' : 'active';
 }
 
+const CLASS_QUERY_CHUNK = 30;
+
 interface SubscriptionPlan {
   kind: SessionKind;
   channel: AssignmentChannel;
   shape: 'list' | 'single';
+  /** Index of the 30-class slice this plan queries (Firestore caps `in`/`array-contains-any` at 30). */
+  chunk: number;
   /**
    * Status values this subscription accepts, or `null` when the kind has no
    * status filter. The planner expands multi-value filters into one plan per
@@ -550,7 +554,7 @@ interface SubscriptionPlan {
 }
 
 const planKey = (p: SubscriptionPlan): string =>
-  `${p.kind}:${p.channel}:${p.shape}:${p.statusValues?.join(',') ?? '_'}`;
+  `${p.kind}:${p.channel}:${p.shape}:${p.statusValues?.join(',') ?? '_'}:${p.chunk}`;
 
 interface UseStudentAssignmentsResult {
   loadState: LoadState;
@@ -787,6 +791,10 @@ export function useStudentAssignments({
     // status filter (e.g., quiz active = waiting+active) fans out into one
     // listener per status value so each query filters status SERVER-SIDE,
     // keeping reads bounded — see the expansion below.
+    const classIdChunks: string[][] = [];
+    for (let i = 0; i < ids.length; i += CLASS_QUERY_CHUNK) {
+      classIdChunks.push(ids.slice(i, i + CLASS_QUERY_CHUNK));
+    }
     const subs: SubscriptionPlan[] = [];
     for (const kind of SESSION_KINDS) {
       const config = KIND_CONFIG[kind];
@@ -809,16 +817,25 @@ export function useStudentAssignments({
               ? filter.valueIn.map((v) => [v])
               : [[filter.value]];
         for (const statusValues of statusGroups) {
-          if (config.dualQuery) {
-            subs.push({ kind, channel, shape: 'list', statusValues });
-            subs.push({ kind, channel, shape: 'single', statusValues });
-          } else {
-            subs.push({
-              kind,
-              channel,
-              shape: config.classFilterShape,
-              statusValues,
-            });
+          for (let chunk = 0; chunk < classIdChunks.length; chunk++) {
+            if (config.dualQuery) {
+              subs.push({ kind, channel, shape: 'list', chunk, statusValues });
+              subs.push({
+                kind,
+                channel,
+                shape: 'single',
+                chunk,
+                statusValues,
+              });
+            } else {
+              subs.push({
+                kind,
+                channel,
+                shape: config.classFilterShape,
+                chunk,
+                statusValues,
+              });
+            }
           }
         }
       }
@@ -860,13 +877,14 @@ export function useStudentAssignments({
       config: KindConfig,
       channel: AssignmentChannel,
       shape: 'list' | 'single',
-      statusValues: readonly string[] | null
+      statusValues: readonly string[] | null,
+      chunkIds: string[]
     ): Query<DocumentData> => {
       const col = collection(db, config.collectionName);
       const constraints: QueryConstraint[] =
         shape === 'list'
-          ? [where('classIds', 'array-contains-any', ids)]
-          : [where('classId', 'in', ids)];
+          ? [where('classIds', 'array-contains-any', chunkIds)]
+          : [where('classId', 'in', chunkIds)];
       // Push the status filter server-side as an `==` (it composes with the
       // class disjunctive clause), keeping reads bounded. The planner expands
       // multi-value filters into one single-value plan each, so `statusValues`
@@ -982,7 +1000,13 @@ export function useStudentAssignments({
     const unsubs: Array<() => void> = [];
     for (const plan of subs) {
       const config = KIND_CONFIG[plan.kind];
-      const q = buildQuery(config, plan.channel, plan.shape, plan.statusValues);
+      const q = buildQuery(
+        config,
+        plan.channel,
+        plan.shape,
+        plan.statusValues,
+        classIdChunks[plan.chunk]
+      );
       unsubs.push(
         onSnapshot(
           q,
