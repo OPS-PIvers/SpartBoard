@@ -88,6 +88,7 @@ describe('public/changelog.json widgetNotes', () => {
       expect(widgetTypes.has(n.widget), n.id).toBe(true);
       expect(n.date, n.id).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(n.text.trim(), n.id).not.toBe('');
+      expect(`${n.text} ${n.feature ?? ''}`, n.id).not.toMatch(/TODO/);
     }
   });
 
