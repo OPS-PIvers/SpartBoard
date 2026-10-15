@@ -64,3 +64,4 @@ A scheduled trigger runs this nightly; it can also be run by hand with "run the 
 | ---- | ------ | --------- | -- | -------------- | ----- |
 | 2026-10-06 | Clock | Layout | #3874 | G2 fail → pass; D → C (2.76) | Lunch Count skipped: its G4 failure is the known "Absent" false positive, which a loop can't fix. |
 | 2026-10-14 | Weather | Layout | #4216 | G2 fail → pass; D → C (2.58) | Lunch Count skipped again for the same G4 false positive. Clock #3874 recorded as accepted. |
+| 2026-10-15 | Randomizer | Layout | #TBD | G1, G2 fail → pass; D → C (2.42) | Lunch Count skipped again for the same G4 false positive. Weather skipped: #4216 already fixed its G2. Weather #4216 recorded as changed (a review asked for a test). |

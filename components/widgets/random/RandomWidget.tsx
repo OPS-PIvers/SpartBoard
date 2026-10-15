@@ -1777,7 +1777,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             }}
           >
             <div
-              className="flex items-center"
+              className="flex items-center min-w-0"
               style={{ gap: 'clamp(6px, 2cqmin, 14px)' }}
             >
               {/* Mode chip + inline counter sit in one rounded shell, but the
@@ -1786,14 +1786,14 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   shared shell is a styled wrapper, the button only spans
                   icon+label. */}
               <div
-                className={`flex items-center rounded-xl bg-white border border-slate-200 ${
+                className={`flex items-center min-w-0 rounded-xl bg-white border border-slate-200 ${
                   isSpinning ? 'opacity-50' : ''
                 } transition-opacity`}
                 style={{
                   gap: 'clamp(6px, 1.5cqmin, 10px)',
                   padding:
-                    'clamp(6px, 1.5cqmin, 10px) clamp(10px, 2.5cqmin, 18px)',
-                  minHeight: 'clamp(32px, 8cqmin, 48px)',
+                    'clamp(min(6px, 3cqmin), 1.5cqmin, 10px) clamp(min(10px, 5cqmin), 2.5cqmin, 18px)',
+                  minHeight: 'clamp(min(32px, 24cqmin), 8cqmin, 48px)',
                 }}
               >
                 <button
@@ -1801,7 +1801,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   onClick={cycleMode}
                   disabled={isSpinning}
                   {...tourAttr('random.mode', widget.id, widget.type)}
-                  className="flex items-center bg-transparent border-0 p-0 m-0 hover:opacity-80 transition-opacity cursor-pointer disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-brand-blue-primary focus-visible:outline-offset-2 rounded"
+                  className="flex items-center min-w-0 bg-transparent border-0 p-0 m-0 hover:opacity-80 transition-opacity cursor-pointer disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-brand-blue-primary focus-visible:outline-offset-2 rounded"
                   style={{ gap: 'clamp(6px, 1.5cqmin, 10px)' }}
                   aria-label={
                     mode === 'single' && remainingStudents.length > 0
@@ -1830,7 +1830,9 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   />
                   <span
                     className="font-black uppercase text-brand-blue-primary truncate min-w-0 tracking-widest"
-                    style={{ fontSize: 'clamp(13px, 3.5cqmin, 18px)' }}
+                    style={{
+                      fontSize: 'clamp(min(13px, 10cqmin), 3.5cqmin, 18px)',
+                    }}
                   >
                     {currentModeLabel}
                   </span>
@@ -1861,8 +1863,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     isSpinning ||
                     (remainingStudents.length === 0 && !displayResult)
                   }
-                  className="hover:bg-slate-100 rounded-full text-slate-400 hover:text-brand-blue-primary transition-all disabled:opacity-30"
-                  style={{ padding: 'clamp(6px, 2cqmin, 14px)' }}
+                  className="shrink-0 hover:bg-slate-100 rounded-full text-slate-400 hover:text-brand-blue-primary transition-all disabled:opacity-30"
+                  style={{ padding: 'clamp(min(6px, 3cqmin), 2cqmin, 14px)' }}
                   title="Reset student pool"
                 >
                   <RotateCcw
@@ -1875,7 +1877,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               )}
             </div>
             <div
-              className="flex items-center"
+              className="flex items-center shrink-0"
               style={{ gap: 'clamp(6px, 1.5cqmin, 10px)' }}
             >
               {/* Single icon-only chip combining class switch + absent
@@ -2104,7 +2106,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             <div
               className="w-full flex"
               style={{
-                padding: 'clamp(6px, 1.5cqmin, 14px) clamp(8px, 2cqmin, 16px)',
+                padding:
+                  'clamp(min(6px, 3cqmin), 1.5cqmin, 14px) clamp(8px, 2cqmin, 16px)',
                 gap: 'clamp(6px, 2cqmin, 14px)',
               }}
             >
@@ -2257,8 +2260,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 disabled={isSpinning}
                 className={`flex-shrink-0${mode === 'groups' && Array.isArray(displayResult) && displayResult.length > 1 ? '' : ' ml-auto'}`}
                 style={{
-                  width: 'clamp(40px, 10cqmin, 72px)',
-                  height: 'clamp(40px, 10cqmin, 72px)',
+                  width: 'clamp(min(40px, 30cqmin), 10cqmin, 72px)',
+                  height: 'clamp(min(40px, 30cqmin), 10cqmin, 72px)',
                   padding: 0,
                 }}
                 aria-label={isSpinning ? 'Picking' : 'Randomize'}
@@ -2267,8 +2270,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   <Shuffle
                     className={isSpinning ? 'animate-spin' : ''}
                     style={{
-                      width: 'clamp(20px, 5cqmin, 36px)',
-                      height: 'clamp(20px, 5cqmin, 36px)',
+                      width: 'clamp(min(20px, 15cqmin), 5cqmin, 36px)',
+                      height: 'clamp(min(20px, 15cqmin), 5cqmin, 36px)',
                     }}
                   />
                 }
