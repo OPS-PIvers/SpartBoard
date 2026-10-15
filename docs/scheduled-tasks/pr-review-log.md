@@ -4743,3 +4743,30 @@ rather than "no data") is also still open.
   - Ready with minor notes: #4219 (UTC window-edge clipping), #4216 (`34cqmin` icon-column coupling), #4221 (two-cell backlog rows, duplicate run-count line).
 - Notes:
   - `gh` is unavailable, so GitHub access went through MCP.
+
+## 2026-10-15
+
+- PRs reviewed:
+  - #4301 Skill: key admin building defaults by canonicalBuildingId
+  - #4300 Debugger log: 2026-10-15 run
+  - #4299 Announcement dismissal duration is clamped to one day when typed
+  - #4298 NextUp no longer drops a student who joins during a queue reload
+  - #4297 Students in more than 30 classes get their assignments again
+  - #4296 Prompt dialog no longer submits when Enter commits an IME composition
+  - #4295 Widget loop: Randomizer layout D → C
+  - #4294 Live tours: playtest record, notes for Claude and Health in the connector
+  - #4291 Unifier run 117: aligned, memory log update
+- Comments processed: 2 open, 0 fixed and 2 explained.
+  - Both inline threads (#4294, #4295) were already resolved by their authors.
+  - #4295's "TBD PR number" note was already fixed on the branch.
+  - I replied to #4294 on the step id `tour` collision: step ids are UUIDs, so it's non-blocking.
+  - I replied to #4297 on the per-chunk `endedLimit`: the overshoot is bounded, so it's non-blocking.
+- Fixes pushed: none
+- Reviews posted: 9
+- Merge readiness:
+  - Ready: #4299, #4297, #4291.
+  - Ready with minor notes: #4301 (the skill's read-side example still uses a legacy id and a raw lookup), #4300 (stale backlog rows annotated, not struck), #4298 (a narrower stale-reload race remains), #4296 (Safari IME `keyCode === 229`), #4295 (font size jumps during a spin, reveal transition lost, no `RandomFlash` test).
+  - Needs changes: #4294. `assertResolvable` checks `resolved_notes` against the post-edit steps, so resolving a note on a step the same save deletes refuses the save and leaves the note stuck.
+- Notes:
+  - `gh` is unavailable, so GitHub access went through MCP.
+  - Reviews were run by read-only subagents with scoped `vitest` runs only.
