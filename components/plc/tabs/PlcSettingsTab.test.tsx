@@ -71,5 +71,4 @@ describe('PlcSettingsTab team-type settings', () => {
       expect(screen.getByText('Notifications')).toBeInTheDocument();
     }
   );
-
 });

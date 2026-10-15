@@ -13,9 +13,7 @@ const CLIPS = /(^|\s)overflow-(y-)?(auto|scroll|hidden|clip)(\s|$)/;
 // Centered loading and empty states never overflow.
 const CENTERED = /(^|\s)justify-center(\s|$)/;
 // AssignStudentPicker: empty states sizing a container query box.
-const ALLOWED_FILES = [
-  'components/common/library/AssignStudentPicker.tsx',
-];
+const ALLOWED_FILES = ['components/common/library/AssignStudentPicker.tsx'];
 
 const listFiles = (path: string): string[] => {
   const abs = join(repoRoot, path);

@@ -593,7 +593,7 @@ export function PlcProvider({
         meetings,
         presence,
         activity,
-        })
+      })
     );
   }
 

@@ -1,11 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  ChevronDown,
-  Mail,
-  Printer,
-  Trash2,
-} from 'lucide-react';
+import { ChevronDown, Mail, Printer, Trash2 } from 'lucide-react';
 import {
   DEFAULT_PLC_FEATURE_SETTINGS,
   Plc,
