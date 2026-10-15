@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { MINI_APP_PREVIEW_SCRIPT } from '@/functions/src/miniAppPreview';
 
-const source = /<script[^>]*>([\s\S]*)<\/script>/.exec(
+const source = /<script[^>]*>([\s\S]*)<\/script>/i.exec(
   MINI_APP_PREVIEW_SCRIPT
 )?.[1];
 
