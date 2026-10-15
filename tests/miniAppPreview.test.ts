@@ -13,10 +13,7 @@ type Helper = {
 const helper = () => (window as unknown as { SpartBoard?: Helper }).SpartBoard;
 
 function runPreview() {
-  const script = document.createElement('script');
-  script.textContent = source ?? '';
-  document.head.appendChild(script);
-  script.remove();
+  window.eval(source ?? '');
 }
 
 const note = () => document.getElementById('spart-preview-note')?.textContent;
