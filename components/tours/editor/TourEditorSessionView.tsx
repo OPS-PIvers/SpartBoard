@@ -19,8 +19,9 @@ import {
 import {
   buildPlaytest,
   keepsEarlier,
+  newPlayLog,
   notePlayback,
-  type PlayedResult,
+  resultsFor,
 } from './playtest';
 import { saveTourPlaytest, useTourReview } from '@/components/tours/tourReview';
 import { logError } from '@/utils/logError';
@@ -38,27 +39,30 @@ const TourEditorSessionView: React.FC = () => {
   const { canAccessFeature, user } = useAuth();
   const email = user?.email ?? '';
   const { addToast } = useDashboardActions();
+  const connector = canAccessFeature('claude-connector');
   const canCopyForClaude =
-    canAccessFeature('claude-connector') &&
-    canAccessFeature('claude-connector-guided-learning');
+    connector && canAccessFeature('claude-connector-guided-learning');
   useEditorThumbnails(session);
-  // Each step's latest result while the admin plays, saved as the tour's playtest (C9).
-  const results = useRef(new Map<string, PlayedResult>());
+  // Each step's latest result while the admin plays, saved as the tour's playtest for Claude (C9).
+  const playLog = useRef(newPlayLog());
   const atEnd = useRef(false);
-  const setId = target?.set.id ?? '';
-  const review = useTourReview(setId);
+  const review = useTourReview(connector ? (target?.set.id ?? '') : '');
   const savePlaytest = (set: NonNullable<typeof target>['set']) =>
     void saveTourPlaytest(
       set.id,
-      buildPlaytest(set, results.current, email)
+      buildPlaytest(set, resultsFor(playLog.current, set.steps), email)
     ).catch((err: unknown) =>
       logError('TourEditorSessionView.playtest', err, { setId: set.id })
     );
   const notePlay = useEffectEvent(() => {
     const cur = getTourEdit();
-    if (!cur || !email) return;
+    if (!cur || !email || !connector) return;
     const pb = getTourEditPlayback();
-    notePlayback(results.current, cur.set.steps, pb);
+    const key = playLog.current.key;
+    const results = resultsFor(playLog.current, cur.set.steps);
+    // An edit to the steps starts the record over.
+    if (playLog.current.key !== key) atEnd.current = false;
+    notePlayback(results, cur.set.steps, pb);
     const last = cur.set.steps.length - 1;
     if (pb.index < last) atEnd.current = false;
     else if (
@@ -77,11 +81,14 @@ const TourEditorSessionView: React.FC = () => {
   // A first failed save keeps the editor open with its alert; Close again while it shows closes anyway.
   const close = async () => {
     const cur = getTourEdit();
+    const results = cur ? resultsFor(playLog.current, cur.set.steps) : null;
     if (
       cur &&
+      results &&
       email &&
-      results.current.size > 0 &&
-      !keepsEarlier(cur.set, review?.playtest, results.current)
+      connector &&
+      results.size > 0 &&
+      !keepsEarlier(cur.set, review?.playtest, results)
     )
       savePlaytest(cur.set);
     const alerted = session.saveState === 'error';

@@ -8,6 +8,27 @@ import type { TourEditPlayback } from './tourEditStore';
 
 export type PlayedResult = Exclude<TourPlaytestResult, 'not-reached'>;
 
+/** Results noted while the steps had this fingerprint. */
+export interface PlayLog {
+  key: string;
+  results: Map<string, PlayedResult>;
+}
+
+export const newPlayLog = (): PlayLog => ({ key: '', results: new Map() });
+
+/** The log's results for these steps, emptied first when a step was added, moved or rebound since they were noted. */
+export function resultsFor(
+  log: PlayLog,
+  steps: GuidedLearningSet['steps']
+): Map<string, PlayedResult> {
+  const key = tourPlaytestKey(steps);
+  if (key !== log.key) {
+    log.key = key;
+    log.results = new Map();
+  }
+  return log.results;
+}
+
 /** Folds one playback report into each step's latest result; a step once left to the teacher stays left (C9). */
 export function notePlayback(
   results: Map<string, PlayedResult>,

@@ -5,7 +5,9 @@ import { IDLE_PLAYBACK, type TourEditPlayback } from './tourEditStore';
 import {
   buildPlaytest,
   keepsEarlier,
+  newPlayLog,
   notePlayback,
+  resultsFor,
   type PlayedResult,
 } from './playtest';
 
@@ -72,5 +74,19 @@ describe('editor playtest', () => {
     expect(keepsEarlier(changed, earlier, new Map([['a', 'found']]))).toBe(
       false
     );
+  });
+
+  it('drops results noted before the steps changed', () => {
+    const log = newPlayLog();
+    resultsFor(log, set.steps).set('a', 'found');
+    expect(resultsFor(log, set.steps).get('a')).toBe('found');
+    const rebound = [
+      {
+        ...set.steps[0],
+        tour: { anchor: 'dock.open-tools', action: 'click' as const },
+      },
+      ...set.steps.slice(1),
+    ];
+    expect(resultsFor(log, rebound).size).toBe(0);
   });
 });
