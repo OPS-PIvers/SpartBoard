@@ -16,6 +16,7 @@ import { TOOLS } from '@/config/tools';
 import { isTourRunning, requestStartTour } from './tourState';
 import { tourStepsOf } from './tourSession';
 import {
+  canUseTourWidgets,
   getToursVersion,
   isTourRunnable,
   loadRunnableTour,
@@ -23,9 +24,15 @@ import {
 } from './publishedTours';
 
 /** Reads the published snapshot fresh each time, so a newly published tour is offered without a reload. */
-export const checkLiveTour = (setId: string): Promise<boolean> =>
+export const checkLiveTour = (
+  setId: string,
+  canUse?: (type: WidgetType) => boolean
+): Promise<boolean> =>
   loadRunnableTour(setId)
-    .then((set) => !!set && tourStepsOf(set).length > 0)
+    .then(
+      (set) =>
+        !!set && tourStepsOf(set).length > 0 && canUseTourWidgets(set, canUse)
+    )
     .catch(() => false);
 
 /** Building-set ids behind a widget type's Guided Learning help items. */
@@ -44,6 +51,11 @@ export const guideSetIds = (
 /** The gate, read without useAuth so settings surfaces still render outside AuthProvider. */
 export const useLiveToursEnabled = (): boolean =>
   useContext(AuthContext)?.canAccessFeature('gl-live-tours') ?? false;
+
+/** The teacher's widget gate, read without useAuth for the same reason. */
+export const useCanUseWidget = ():
+  | ((type: WidgetType) => boolean)
+  | undefined => useContext(AuthContext)?.canAccessWidget;
 
 /** The first of these help items whose set has a live tour, once known. */
 export const useLiveTourSet = (
@@ -66,8 +78,9 @@ export function useFirstRunnableTour(
     [idsKey]
   );
   useSyncExternalStore(subscribe, getToursVersion, getToursVersion);
+  const canUse = useCanUseWidget();
   if (!idsKey) return null;
-  return ids.find((id) => isTourRunnable(id) === true) ?? null;
+  return ids.find((id) => isTourRunnable(id, canUse) === true) ?? null;
 }
 
 const EMPTY_IDS: ReadonlySet<string> = new Set();
@@ -84,8 +97,11 @@ export function useRunnableTourIds(
     [idsKey]
   );
   useSyncExternalStore(subscribe, getToursVersion, getToursVersion);
+  const canUse = useCanUseWidget();
   if (!idsKey) return EMPTY_IDS;
-  return new Set(idsKey.split(',').filter((id) => isTourRunnable(id) === true));
+  return new Set(
+    idsKey.split(',').filter((id) => isTourRunnable(id, canUse) === true)
+  );
 }
 
 function useFirstLiveSet(ids: readonly string[]): string | null {
@@ -118,6 +134,7 @@ export function useFirstUseTourOffers(): void {
   const { t } = useTranslation();
   const { activeDashboard, addToast } = useDashboard();
   const items = useSharedHelpItems();
+  const canUse = useCanUseWidget();
 
   const offer = useEffectEvent((type: WidgetType) => {
     if (isTourRunning() || wasOffered(type)) return;
@@ -125,7 +142,7 @@ export function useFirstUseTourOffers(): void {
     if (ids.length === 0) return;
     void (async () => {
       for (const setId of ids) {
-        if (!(await checkLiveTour(setId))) continue;
+        if (!(await checkLiveTour(setId, canUse))) continue;
         if (isTourRunning() || wasOffered(type)) return;
         // Shown counts only once the teacher answers; an ignored offer comes back.
         addToast(t('tours.offer', { widget: widgetLabel(type) }), 'info', {

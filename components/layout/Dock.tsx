@@ -94,11 +94,25 @@ import {
   isDockItemVisible as isDockItemVisibleHelper,
 } from './dock/folderPermissions';
 import { tourAttr } from '@/config/tourAnchors';
+import {
+  useDockPosition,
+  useTourFrame,
+  useTourFrameHold,
+} from '@/components/tours/tourFrame';
 import { LEGACY_TOOL_FEATURES } from '@/config/featureDefaults';
 import {
   TOUR_DOCK_EVENT,
   type TourDockRequest,
 } from '@/components/tours/tourPrerequisites';
+
+// Dock tools whose button opens a menu rather than adding a widget; a tour never pins these.
+const SPECIAL_DOCK_TOOLS = new Set<string>([
+  'record',
+  'magic',
+  'remote',
+  'classes',
+  'catalyst',
+]);
 
 export const Dock: React.FC = () => {
   const { t } = useTranslation();
@@ -136,8 +150,9 @@ export const Dock: React.FC = () => {
     userGradeLevels,
     selectedBuildings,
     featurePermissions,
-    dockPosition,
   } = useAuth();
+  const dockPosition = useDockPosition();
+  const tourFrame = useTourFrame();
   const isVerticalDock = dockPosition === 'left' || dockPosition === 'right';
   const { driveService } = useGoogleDrive();
   const { importSharedNotebookCopy } = useNotebookSharing();
@@ -710,6 +725,30 @@ export const Dock: React.FC = () => {
     setShowCatalystPicker((prev) => !prev);
   }, [showCatalystPicker]);
 
+  // A live tour starts on a collapsed Dock with nothing open, and puts it back afterwards.
+  useTourFrameHold(() => {
+    const was = {
+      expanded: isExpanded,
+      edit: isEditMode,
+      library: showLibrary,
+    };
+    setIsExpanded(false);
+    setIsEditMode(false);
+    setShowLibrary(false);
+    setShowMoreMenu(false);
+    setShowRosterMenu(false);
+    setShowRemoteMenu(false);
+    setShowLiveInfo(false);
+    setShowCatalystPicker(false);
+    setShowMagicLayout(false);
+    setRenamingFolderId(null);
+    return () => {
+      setIsExpanded((now) => now || was.expanded);
+      setIsEditMode((now) => now || was.edit);
+      setShowLibrary((now) => now || was.library);
+    };
+  });
+
   const handleLongPress = useCallback(() => {
     setIsEditMode(true);
     setShowLibrary(true);
@@ -736,6 +775,24 @@ export const Dock: React.FC = () => {
   );
 
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
+
+  // A tour's Dock widget that isn't a shown top-level item gets a temporary button up front (C4).
+  const topLevelTypes = new Set<string>(
+    dockItems.flatMap((item) =>
+      item.type === 'tool' && isDockItemVisible(item) ? [item.toolType] : []
+    )
+  );
+  const pinnedTools = tourFrame.active
+    ? tourFrame.dockItemTypes.flatMap((type) => {
+        const tool = TOOLS.find((x) => x.type === type);
+        return tool &&
+          !topLevelTypes.has(type) &&
+          !SPECIAL_DOCK_TOOLS.has(type) &&
+          canAccessTool(type)
+          ? [tool]
+          : [];
+      })
+    : [];
 
   const sensors = useSensors(
     useSensor(MouseSensor, {
@@ -1166,7 +1223,30 @@ export const Dock: React.FC = () => {
                 : 'max-w-[95vw] overflow-x-auto'
             }`}
           >
-            {dockItems.length === 0 && (
+            {pinnedTools.map((tool) => {
+              const type = tool.type as WidgetType;
+              const minimizedWidgets = minimizedWidgetsByType[type] ?? [];
+              return (
+                <ToolDockItem
+                  key={`tour-pin-${type}`}
+                  tool={tool}
+                  minimizedWidgets={minimizedWidgets}
+                  onAdd={() => addWidget(type, getBuildingAwareOverrides(type))}
+                  onRestore={(id) => updateWidget(id, { minimized: false })}
+                  onDelete={(id) => removeWidget(id)}
+                  onDeleteAll={() =>
+                    removeWidgets(minimizedWidgets.map((w) => w.id))
+                  }
+                  onRemoveFromDock={() => undefined}
+                  isEditMode={false}
+                  onLongPress={() => undefined}
+                  globalStyle={globalStyle}
+                  customLabel={getToolLabel(type)}
+                  dockPosition={dockPosition}
+                />
+              );
+            })}
+            {dockItems.length === 0 && pinnedTools.length === 0 && (
               <div className="px-3 py-2 text-xxs font-black uppercase text-slate-400 italic flex-shrink-0">
                 {t('dock.noAppsSelected')}
               </div>
@@ -1645,28 +1725,29 @@ export const Dock: React.FC = () => {
               isVerticalDock ? 'flex-col' : ''
             }`}
           >
-            {activeDashboard?.settings?.quickAccessWidgets?.[0] && (
-              <QuickAccessButton
-                type={activeDashboard.settings.quickAccessWidgets[0]}
-                anchor={tourAttr('dock.quick-access-1')}
-                onClick={() => {
-                  const type =
-                    activeDashboard.settings?.quickAccessWidgets?.[0];
-                  if (!type) return;
+            {activeDashboard?.settings?.quickAccessWidgets?.[0] &&
+              tourFrame.quickAccess[0] && (
+                <QuickAccessButton
+                  type={activeDashboard.settings.quickAccessWidgets[0]}
+                  anchor={tourAttr('dock.quick-access-1')}
+                  onClick={() => {
+                    const type =
+                      activeDashboard.settings?.quickAccessWidgets?.[0];
+                    if (!type) return;
 
-                  if (type === 'record') {
-                    if (isRecording) void stopRecording();
-                    else void startRecording();
-                  } else if (type === 'magic') {
-                    setShowMagicLayout(true);
-                  } else if (type === 'remote') {
-                    handleToggleRemoteMenu();
-                  } else {
-                    addWidget(type, getBuildingAwareOverrides(type));
-                  }
-                }}
-              />
-            )}
+                    if (type === 'record') {
+                      if (isRecording) void stopRecording();
+                      else void startRecording();
+                    } else if (type === 'magic') {
+                      setShowMagicLayout(true);
+                    } else if (type === 'remote') {
+                      handleToggleRemoteMenu();
+                    } else {
+                      addWidget(type, getBuildingAwareOverrides(type));
+                    }
+                  }}
+                />
+              )}
             <button
               onClick={() => setIsExpanded(true)}
               {...tourAttr('dock.open-tools')}
@@ -1684,28 +1765,29 @@ export const Dock: React.FC = () => {
             >
               <LayoutGrid className="w-6 h-6" />
             </button>
-            {activeDashboard?.settings?.quickAccessWidgets?.[1] && (
-              <QuickAccessButton
-                type={activeDashboard.settings.quickAccessWidgets[1]}
-                anchor={tourAttr('dock.quick-access-2')}
-                onClick={() => {
-                  const type =
-                    activeDashboard.settings?.quickAccessWidgets?.[1];
-                  if (!type) return;
+            {activeDashboard?.settings?.quickAccessWidgets?.[1] &&
+              tourFrame.quickAccess[1] && (
+                <QuickAccessButton
+                  type={activeDashboard.settings.quickAccessWidgets[1]}
+                  anchor={tourAttr('dock.quick-access-2')}
+                  onClick={() => {
+                    const type =
+                      activeDashboard.settings?.quickAccessWidgets?.[1];
+                    if (!type) return;
 
-                  if (type === 'record') {
-                    if (isRecording) void stopRecording();
-                    else void startRecording();
-                  } else if (type === 'magic') {
-                    setShowMagicLayout(true);
-                  } else if (type === 'remote') {
-                    handleToggleRemoteMenu();
-                  } else {
-                    addWidget(type, getBuildingAwareOverrides(type));
-                  }
-                }}
-              />
-            )}
+                    if (type === 'record') {
+                      if (isRecording) void stopRecording();
+                      else void startRecording();
+                    } else if (type === 'magic') {
+                      setShowMagicLayout(true);
+                    } else if (type === 'remote') {
+                      handleToggleRemoteMenu();
+                    } else {
+                      addWidget(type, getBuildingAwareOverrides(type));
+                    }
+                  }}
+                />
+              )}
           </div>
         </div>
       </div>

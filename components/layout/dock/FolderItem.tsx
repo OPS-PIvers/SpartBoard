@@ -26,6 +26,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { GlassCard } from '@/components/common/GlassCard';
+import { useTourFrameHold } from '@/components/tours/tourFrame';
 import { DockIcon } from './DockIcon';
 import { DockLabel } from './DockLabel';
 import { SortableFolderWidget } from './SortableFolderWidget';
@@ -98,6 +99,10 @@ export const FolderItem = React.memo(
 
     const [showPopover, setShowPopover] = useState(false);
     const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
+    useTourFrameHold(() => {
+      setShowPopover(false);
+      return () => undefined;
+    });
     const buttonRef = useRef<HTMLButtonElement>(null);
     const popoverRef = useRef<HTMLDivElement>(null);
 

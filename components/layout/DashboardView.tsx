@@ -42,6 +42,7 @@ import { TourEditorHost } from '@/components/tours/editor/TourEditorHost';
 import { TOUR_EDIT_EVENT } from '@/components/tours/editor/tourEditStore';
 import { TOUR_START_EVENT } from '@/components/tours/tourState';
 import { TourOfferWatcher } from '@/components/tours/useTourOffers';
+import { useDockPosition } from '@/components/tours/tourFrame';
 import {
   getLastHelpTab,
   HELP_OPEN_EVENT,
@@ -133,7 +134,7 @@ const isHelpCenterFocused = (): boolean =>
 // position so its arrival doesn't visually jump. aria-hidden — it's a
 // transient visual placeholder with no semantics.
 const ShellPlaceholder: React.FC = () => {
-  const { dockPosition } = useAuth();
+  const dockPosition = useDockPosition();
   const isVertical = dockPosition === 'left' || dockPosition === 'right';
   const positionClasses =
     dockPosition === 'left'
@@ -257,7 +258,7 @@ export const DashboardView: React.FC = () => {
   // Render-body ref sync (no effect) so the pan getter below always reads
   // the latest value without waiting for an effect pass.
   const panOffsetRef = React.useRef(panOffset);
-  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
+
   panOffsetRef.current = panOffset;
 
   // Notify DraggableWindow tool-menu positioning without triggering re-renders
@@ -433,13 +434,13 @@ export const DashboardView: React.FC = () => {
   // and on window resize.)
 
   const rescueWidgetsRef = React.useRef(activeDashboard?.widgets);
-  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
+
   rescueWidgetsRef.current = activeDashboard?.widgets;
   const updateWidgetRef = React.useRef(updateWidget);
-  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
+
   updateWidgetRef.current = updateWidget;
   const hasOpenModalRef = React.useRef(false);
-  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
+
   hasOpenModalRef.current = useHasOpenModal();
 
   // Stable callback — reads fresh values via refs, never recreated.
@@ -812,7 +813,6 @@ export const DashboardView: React.FC = () => {
   const ytIframeRef = React.useRef<HTMLIFrameElement>(null);
   const [isBgMuted, setIsBgMuted] = React.useState(true);
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps kept as written
   const toggleBgMute = React.useCallback(() => {
     if (!ytIframeRef.current?.contentWindow) return;
     const newMuted = !isBgMuted;
@@ -839,7 +839,6 @@ export const DashboardView: React.FC = () => {
     }
   }, [isBgMuted]);
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- memo kept as written
   const currentIndex = useMemo(() => {
     if (!activeDashboard) return -1;
     return dashboards.findIndex((d) => d.id === activeDashboard.id);
@@ -849,7 +848,6 @@ export const DashboardView: React.FC = () => {
   // tracked in our ref. This correctly evaluates the direction during the render
   // where the index changed.
   const animationClass = useMemo(() => {
-    // eslint-disable-next-line react-hooks/refs -- previous index drives the slide direction
     const prevIndex = prevIndexRef.current;
     if (prevIndex === -1 || currentIndex === -1 || prevIndex === currentIndex) {
       return 'animate-fade-in';
@@ -887,9 +885,8 @@ export const DashboardView: React.FC = () => {
   // never receives a pin for a non-active board. Fixing requires lifting
   // session ownership to a board-keyed data layer (deferred).
   const pinningWarnedRef = React.useRef(false);
-  // eslint-disable-next-line react-hooks/refs -- one-time log tripwire
+
   if (session?.isActive && !pinningWarnedRef.current) {
-    // eslint-disable-next-line react-hooks/refs -- one-time log tripwire
     pinningWarnedRef.current = true;
     logError(
       'MountedBoardsLayer.pinningLimitation',
@@ -900,7 +897,6 @@ export const DashboardView: React.FC = () => {
     );
   }
   if (!session?.isActive) {
-    // eslint-disable-next-line react-hooks/refs -- one-time log tripwire
     pinningWarnedRef.current = false;
   }
 
@@ -925,7 +921,7 @@ export const DashboardView: React.FC = () => {
   // Mirror the latest zoom on a ref so the rAF-deferred pan flush above
   // sees the current value when it fires (not the value captured when the
   // frame was scheduled).
-  // eslint-disable-next-line react-hooks/refs, react-hooks/immutability -- latest-value ref, read only in handlers/effects
+
   zoomRef.current = zoom;
 
   // Re-clamp panOffset during render when zoom changes. clampPan's range is

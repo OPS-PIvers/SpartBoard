@@ -48,6 +48,46 @@ export const tourWelcome = (
   return set.welcomeEnabled && message ? message : null;
 };
 
+/** Widget types a step adds by clicking `anchor` (`dock.item:<type>` or `library.item:<type>`). */
+export const tourClickedTypes = (
+  steps: readonly Pick<GuidedLearningStep, 'tour'>[],
+  anchor: 'dock.item' | 'library.item'
+): WidgetType[] => [
+  ...new Set(
+    steps.flatMap((s) => {
+      const ref = s.tour ? parseTourAnchorRef(s.tour.anchor) : null;
+      return ref?.id === anchor && ref.widgetType
+        ? [ref.widgetType as WidgetType]
+        : [];
+    })
+  ),
+];
+
+/** Every widget type a tour stages or adds; a teacher must be able to use all of them (C5). */
+export const tourWidgetTypes = (
+  set: Pick<GuidedLearningSet, 'tourSetup' | 'steps'>
+): WidgetType[] => [
+  ...new Set([
+    ...(set.tourSetup?.widgets ?? []),
+    ...(set.tourSetup?.layouts ?? []).map((l) => l.type),
+    ...set.steps.flatMap(
+      (s) => s.tour?.start?.layouts.map((l) => l.type) ?? []
+    ),
+    ...tourClickedTypes(set.steps, 'dock.item'),
+    ...tourClickedTypes(set.steps, 'library.item'),
+  ]),
+];
+
+/** Which quick-access buttons stay visible: only those a step points at (C3). */
+export const tourQuickAccess = (
+  steps: readonly Pick<GuidedLearningStep, 'tour'>[]
+): [boolean, boolean] => {
+  const ids = new Set(
+    steps.map((s) => (s.tour ? parseTourAnchorRef(s.tour.anchor).id : ''))
+  );
+  return [ids.has('dock.quick-access-1'), ids.has('dock.quick-access-2')];
+};
+
 /** Widget types the tour needs that the board does not have yet. */
 export const missingSetupWidgets = (
   set: Pick<GuidedLearningSet, 'tourSetup'>,
