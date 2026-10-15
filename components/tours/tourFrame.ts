@@ -5,7 +5,7 @@ import type { DockPosition, WidgetType } from '@/types';
 
 export interface TourFrame {
   active: boolean;
-  /** Bumped on each start or reset, so every surface closes again. */
+  /** Bumped on each start, so a restart mid-tour (an editor replay) closes every surface again. */
   epoch: number;
   /** Widget types the tour clicks in the Dock; any not shown there get a temporary button (C4). */
   dockItemTypes: readonly WidgetType[];
@@ -43,11 +43,6 @@ export function startTourFrame(
   publish({ ...opts, active: true, epoch: frame.epoch + 1 });
 }
 
-/** Closes every frame surface again mid-tour without changing what teardown restores. */
-export function resetTourFrame(): void {
-  if (frame.active) publish({ ...frame, epoch: frame.epoch + 1 });
-}
-
 export function endTourFrame(): void {
   if (frame.active) publish({ ...INACTIVE, epoch: frame.epoch });
 }
@@ -61,7 +56,7 @@ export function useDockPosition(): DockPosition {
   return useTourFrame().active ? 'bottom' : dockPosition;
 }
 
-/** Runs `hold` when a tour frame starts or resets; the first start's return value runs when the frame ends. */
+/** Runs `hold` on each frame start; the first start's return value runs when the frame ends. */
 export function useTourFrameHold(hold: () => () => void): void {
   const onHold = useEffectEvent(hold);
   useEffect(() => {

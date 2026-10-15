@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   endTourFrame,
   getTourFrame,
-  resetTourFrame,
   startTourFrame,
   useDockPosition,
   useTourFrameHold,
@@ -18,7 +17,7 @@ const opts = { dockItemTypes: [], quickAccess: [false, false] as const };
 afterEach(() => endTourFrame());
 
 describe('useTourFrameHold', () => {
-  it('closes on start and every reset, and restores the first start on end', () => {
+  it('closes on every start, and restores the first start on end', () => {
     const restores: number[] = [];
     let holds = 0;
     renderHook(() =>
@@ -30,7 +29,7 @@ describe('useTourFrameHold', () => {
     );
     expect(holds).toBe(0);
     act(() => startTourFrame(opts));
-    act(() => resetTourFrame());
+    act(() => startTourFrame(opts));
     act(() => startTourFrame(opts));
     expect(holds).toBe(3);
     act(() => endTourFrame());
