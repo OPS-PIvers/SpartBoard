@@ -42,6 +42,7 @@ import { TourEditorHost } from '@/components/tours/editor/TourEditorHost';
 import { TOUR_EDIT_EVENT } from '@/components/tours/editor/tourEditStore';
 import { TOUR_START_EVENT } from '@/components/tours/tourState';
 import { TourOfferWatcher } from '@/components/tours/useTourOffers';
+import { useDockPosition } from '@/components/tours/tourFrame';
 import {
   getLastHelpTab,
   HELP_OPEN_EVENT,
@@ -133,7 +134,7 @@ const isHelpCenterFocused = (): boolean =>
 // position so its arrival doesn't visually jump. aria-hidden — it's a
 // transient visual placeholder with no semantics.
 const ShellPlaceholder: React.FC = () => {
-  const { dockPosition } = useAuth();
+  const dockPosition = useDockPosition();
   const isVertical = dockPosition === 'left' || dockPosition === 'right';
   const positionClasses =
     dockPosition === 'left'

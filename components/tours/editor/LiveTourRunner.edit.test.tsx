@@ -79,6 +79,8 @@ vi.mock('@/context/useDashboard', () => ({
     return {
       ...h.actions,
       isActiveBoardReadOnly: false,
+      zoom: 1,
+      annotationActive: false,
       selectedWidgetId: null,
       activeDashboard: { id: h.board.id, widgets: h.board.widgets },
     };

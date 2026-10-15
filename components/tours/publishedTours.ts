@@ -1,7 +1,7 @@
 import { useCallback, useSyncExternalStore } from 'react';
 import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db, isConfigured } from '@/config/firebase';
-import type { GuidedLearningSet } from '@/types';
+import type { GuidedLearningSet, WidgetType } from '@/types';
 import { loadBuildingSet } from '@/hooks/useGuidedLearning';
 import { assertGuidedLearningDocFits } from '@/utils/firestoreDocSize';
 import { logError } from '@/utils/logError';
@@ -12,7 +12,7 @@ import {
   TOURS_META_ID,
   type PublishedTour,
 } from './tourSnapshot';
-import { tourStepsOf } from './tourSession';
+import { tourStepsOf, tourWidgetTypes } from './tourSession';
 
 const tourRef = (id: string) => doc(db, GL_TOURS_COLLECTION, id);
 
@@ -179,12 +179,25 @@ export function usePublishedTour(setId: string): {
   return readPublishedTour(setId);
 }
 
+/** Whether every widget a tour uses passes `canUse`; a teacher is never shown a tour they can't follow (C5). */
+export const canUseTourWidgets = (
+  set: Pick<GuidedLearningSet, 'tourSetup' | 'steps'>,
+  canUse?: (type: WidgetType) => boolean
+): boolean => !canUse || tourWidgetTypes(set).every((type) => canUse(type));
+
 /** Whether a watched tour can run now; undefined while still loading. */
-export function isTourRunnable(id: string): boolean | undefined {
+export function isTourRunnable(
+  id: string,
+  canUse?: (type: WidgetType) => boolean
+): boolean | undefined {
   const entry = entries.get(id);
   if (!entry?.loaded) return undefined;
   if (entry.exists) {
-    return !!entry.tour && tourStepsOf(entry.tour.set).length > 0;
+    return (
+      !!entry.tour &&
+      tourStepsOf(entry.tour.set).length > 0 &&
+      canUseTourWidgets(entry.tour.set, canUse)
+    );
   }
   const meta = entries.get(TOURS_META_ID);
   if (!meta?.loaded) return undefined;
