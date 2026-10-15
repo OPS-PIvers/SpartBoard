@@ -53,13 +53,33 @@ When you're ready to ship a release:
 2. Paste the JSON object at the top of `public/changelog.json`'s `entries` array.
 3. **Rewrite every bullet against the rules below.** The draft is commit subjects; none of it is publishable as written.
 4. Pick a `version` (default is today's date as `YYYY.MM.DD`; add `.2`, `.3` for additional same-day releases). Keep entries newest-first — the consumer hook will log a console warning if it spots them out of order.
-5. Commit alongside the rest of your changes.
+5. Fill in or delete the placeholder widget notes it printed (see below).
+6. Commit alongside the rest of your changes.
 
 The next build will pick up the new version automatically, the "Update Available" toast will offer a "What's New" link, and the sidebar's "What's New" entry will show a red "New" badge until users open it.
 
 ### Widget notes
 
-When an entry changes how a widget looks, add `"widgetNotes": [{ "widget": "<widgetType>", "text": "..." }]`. Teachers who have that widget open see a What's new button under it for 30 days from the entry's `date`, until they dismiss it. Keep `text` to one or two sentences under the rules below. If the entry has a `tourSetId` with a live tour, the note gets a Show me button. Behind the `widget-whats-new` flag.
+A widget note puts a What's new button under every open widget of that type. Notes live in the top-level `widgetNotes` array of `public/changelog.json`, separate from `entries`, so a note can ship with code that is still behind a flag without adding a What's New entry:
+
+```json
+{
+  "id": "2026-10-15-quiz-timer",
+  "widget": "quiz",
+  "date": "2026-10-15",
+  "text": "...",
+  "feature": "quiz-time-limit",
+  "tourSetId": "..."
+}
+```
+
+- `id` is unique and never reused; dismissals key on it, so a teacher who dismisses a note never sees that note again in that browser.
+- Without `feature`, the note shows for 30 days from `date`.
+- With `feature`, the note waits until the teacher can use that flag, then shows for 30 days from the first time they see it (and never more than 180 days after `date`). Admins see it as soon as it ships. When a flag is retired, drop `feature` from notes that name it.
+- `tourSetId` adds a Show me button when that set has a live tour.
+- Keep `text` to one or two sentences under the rules below. The whole feature is behind the `widget-whats-new` flag.
+
+Every release PR (`dev-paul` into `main`) runs the **Release Widget Notes** check. It lists each widget whose files changed since `main` and fails until each one has a new note, or the PR description has a line `no-widget-note: <widget> <why>` saying why teachers will not notice (e.g. `no-widget-note: quiz internal refactor`). `pnpm changelog:draft` prints a placeholder note for each changed widget.
 
 ### How to write a release note
 
