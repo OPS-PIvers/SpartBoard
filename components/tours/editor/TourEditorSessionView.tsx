@@ -47,13 +47,18 @@ const TourEditorSessionView: React.FC = () => {
   const playLog = useRef(newPlayLog());
   const atEnd = useRef(false);
   const review = useTourReview(connector ? (target?.set.id ?? '') : '');
-  const savePlaytest = (set: NonNullable<typeof target>['set']) =>
-    void saveTourPlaytest(
-      set.id,
-      buildPlaytest(set, resultsFor(playLog.current, set.steps), email)
-    ).catch((err: unknown) =>
-      logError('TourEditorSessionView.playtest', err, { setId: set.id })
+  // What the last save wrote, so closing right after reaching the end doesn't save it again.
+  const lastSaved = useRef('');
+  const savePlaytest = (set: NonNullable<typeof target>['set']) => {
+    const results = resultsFor(playLog.current, set.steps);
+    const written = JSON.stringify([playLog.current.key, ...results]);
+    if (written === lastSaved.current) return;
+    lastSaved.current = written;
+    void saveTourPlaytest(set.id, buildPlaytest(set, results, email)).catch(
+      (err: unknown) =>
+        logError('TourEditorSessionView.playtest', err, { setId: set.id })
     );
+  };
   const notePlay = useEffectEvent(() => {
     const cur = getTourEdit();
     if (!cur || !email || !connector) return;

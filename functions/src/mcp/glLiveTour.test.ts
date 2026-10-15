@@ -13,7 +13,7 @@ import {
   parseCategories,
   publicTourStep,
   readyAnchorRef,
-  assertResolvable,
+  notesToClear,
   clearedNotes,
   tourHealth,
   tourStep,
@@ -603,10 +603,14 @@ describe('notes, playtest and health', () => {
   });
 
   it('clears resolved notes and refuses an unknown id', () => {
-    expect(() => assertResolvable(tour().steps, ['s1', 'tour'])).not.toThrow();
-    expect(() => assertResolvable(tour().steps, ['nope'])).toThrow(
+    const steps = tour().steps;
+    expect(notesToClear(steps, steps, ['s1', 'tour'])).toEqual(['s1', 'tour']);
+    expect(() => notesToClear(steps, steps, ['nope'])).toThrow(
       'resolved_notes: "nope"'
     );
+    // Removing a step can resolve its note, and clears it even when not named.
+    expect(notesToClear(steps, [steps[1]], ['s1'])).toEqual(['s1']);
+    expect(notesToClear(steps, [steps[1]], [])).toEqual(['s1']);
     const update = clearedNotes(['tour', 's1', 's2']);
     expect(Object.keys(update).sort()).toEqual(['stepNotes', 'tourNote']);
     expect(Object.keys(update.stepNotes as object)).toEqual(['s1', 's2']);

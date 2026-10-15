@@ -422,17 +422,21 @@ export function tourHealth(
   };
 }
 
-/** Refuses resolved_notes that name neither a step of the saved tour nor "tour". */
-export function assertResolvable(
-  steps: GlSet['steps'],
+/** The notes a save clears: resolved_notes, plus those of every step it removes; refuses an id the tour never had. */
+export function notesToClear(
+  stored: GlSet['steps'],
+  next: GlSet['steps'],
   resolved: readonly string[]
-): void {
-  const ids = new Set(steps.map((s) => s.id));
-  const unknown = resolved.find((r) => r !== 'tour' && !ids.has(r));
+): string[] {
+  const kept = new Set(next.map((s) => s.id));
+  const known = new Set([...kept, ...stored.map((s) => s.id)]);
+  const unknown = resolved.find((r) => r !== 'tour' && !known.has(r));
   if (unknown)
     throw new ToolError(
       `resolved_notes: "${unknown}" is not a step id in this tour, or "tour".`
     );
+  const removed = stored.map((s) => s.id).filter((id) => !kept.has(id));
+  return [...new Set([...resolved, ...removed])];
 }
 
 /** The review doc update that clears the named notes. */
@@ -1139,7 +1143,7 @@ export function registerLiveTourTools(
           input.steps ? { bookends: updateBookends(set.steps) } : {}
         );
         const resolved = input.resolved_notes ?? [];
-        assertResolvable(next.steps, resolved);
+        const clearing = notesToClear(set.steps, next.steps, resolved);
         if (input.dry_run) return dryRunResult(report, inserted);
         assertPlays(report);
         const materials = input.materials
@@ -1167,10 +1171,10 @@ export function registerLiveTourTools(
           stageHelp
         );
         // Notes clear only once the edit that deals with them is saved.
-        if (resolved.length)
+        if (clearing.length)
           await ctx.db
             .doc(reviewPath(set_id))
-            .set(clearedNotes(resolved), { merge: true });
+            .set(clearedNotes(clearing), { merge: true });
         return {
           ...saved,
           ...needsAnchors(next.steps),
