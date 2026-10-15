@@ -967,6 +967,8 @@
 | Widgets | `components/widgets/SoundboardWidget/Widget.tsx` `ctx.resume().then(run)` has no rejection handler; `TrafficLightWidget/Widget.tsx` buttons lack accessible names/`aria-pressed`. Low. (2026-10-15) |
 | Admin & Config | `config/aiLimits.ts` `defaultInputChars` indexes a plain object (`Object.hasOwn` class). Cosmetic cleared-field-to-0 in `QuizReadAloudConfigurationPanel.tsx` and `NumberLineConfigurationPanel.tsx`. Low. (2026-10-15) |
 | Build & Tooling | `functions/src/sweepActivityWallArchives.ts` `retryStorageCleanup` has no cursor (only matters with 100+ permanent failures); `scripts/draft-changelog-entry.js` ignores `feat!:`/`fix!:`; `scripts/sync-lunch-menus.mjs` `fetchWeek` does not retry thrown network errors. Low. (2026-10-15) |
+| Widgets | `components/widgets/NextUp/Widget.tsx`: a Drive download started before a batch's write can land after its `setQueue` and briefly revert local state; a full fix makes the listener's queue authoritative over `loadQueue` (#4298 residual). (2026-10-15) |
+| State & Data | `hooks/useStudentAssignments.ts`: `handleError` does not log `plan.chunk`; no test for a session matching classes in two 30-class slices (#4297 review notes). Low. (2026-10-15) |
 
 ## Notes & Gotchas
 
