@@ -54,8 +54,8 @@ export const useLiveToursEnabled = (): boolean =>
 
 /** The teacher's widget gate, read without useAuth for the same reason. */
 export const useCanUseWidget = ():
-  | ((type: WidgetType) => boolean)
-  | undefined => useContext(AuthContext)?.canAccessWidget;
+  ((type: WidgetType) => boolean) | undefined =>
+  useContext(AuthContext)?.canAccessWidget;
 
 /** The first of these help items whose set has a live tour, once known. */
 export const useLiveTourSet = (

@@ -434,8 +434,7 @@ export const SettingsDrawerHost: React.FC = () => {
       openType
         ? {
             widgetDefaults: WIDGET_DEFAULTS[openType]?.config as
-              | Record<string, unknown>
-              | undefined,
+              Record<string, unknown> | undefined,
             buildingConfig: getAdminBuildingConfig(
               openType,
               featurePermissions,

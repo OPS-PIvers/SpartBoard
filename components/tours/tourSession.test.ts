@@ -224,7 +224,9 @@ describe('sandboxed persists anchors', () => {
 });
 
 describe('tour widget types', () => {
-  const step = (anchor: string) => ({ tour: { anchor, action: 'click' } });
+  const step = (anchor: string) => ({
+    tour: { anchor, action: 'click' as const },
+  });
   const set = {
     tourSetup: {
       widgets: ['clock'],
