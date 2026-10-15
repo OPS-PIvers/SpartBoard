@@ -193,7 +193,7 @@ describe('TourEditorSettings', () => {
   });
 
   it('keeps typing that goes on while a note saves', async () => {
-    let finish = () => {};
+    let finish: (() => void) | undefined;
     note.save.mockImplementationOnce(
       () =>
         new Promise<void>((resolve) => {
@@ -206,7 +206,7 @@ describe('TourEditorSettings', () => {
     fireEvent.blur(box);
     fireEvent.change(box, { target: { value: 'Shorter steps' } });
     await act(async () => {
-      finish();
+      finish?.();
       await Promise.resolve();
     });
     expect(box).toHaveValue('Shorter steps');
