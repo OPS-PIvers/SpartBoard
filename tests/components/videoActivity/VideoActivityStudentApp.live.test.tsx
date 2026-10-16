@@ -453,9 +453,11 @@ describe('VideoActivityStudentApp: teacher-paced tab warnings', () => {
       },
     });
     spies.reportTabSwitch.mockResolvedValue(1);
-    const focus = vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+    // Focus is lost only after render, so the focus poll catches the exit even if blur beats the listener.
+    const focus = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
     render(<VideoActivityStudentApp />);
     await screen.findByText('Watch the board.');
+    focus.mockReturnValue(false);
     act(() => {
       window.dispatchEvent(new Event('blur'));
     });

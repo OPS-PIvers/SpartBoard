@@ -47,6 +47,10 @@ import {
   whoHasntAnswered,
   type LiveQuestionState,
 } from '@/utils/videoActivityLive';
+import {
+  deriveVaLiveState,
+  openLiveQuestionId,
+} from '@/utils/videoActivityState';
 import { logError } from '@/utils/logError';
 import { VideoActivityLiveAggregate } from './VideoActivityLiveAggregate';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
@@ -179,7 +183,9 @@ export const VideoActivityLivePlayer: React.FC<
     addToast('Could not update the session. Try again.', 'error');
   };
 
-  const openId = live.questionPhase === 'open' ? live.currentQuestionId : null;
+  const pacing = deriveVaLiveState(session);
+  const openId = openLiveQuestionId(pacing);
+  const resultsShown = pacing.phase === 'question' && pacing.resultsShown;
   const openQuestion = openId
     ? (questions.find((q) => q.id === openId) ?? null)
     : null;
@@ -322,7 +328,7 @@ export const VideoActivityLivePlayer: React.FC<
     />
   );
 
-  if (session.status === 'ended') {
+  if (pacing.phase === 'ended') {
     return (
       <div className="flex flex-col h-full font-sans bg-slate-50">
         <SessionViewHeader
@@ -336,7 +342,7 @@ export const VideoActivityLivePlayer: React.FC<
     );
   }
 
-  if (session.status === 'waiting') {
+  if (pacing.phase === 'lobby') {
     const joinUrl = `${window.location.origin}/activity/${encodeURIComponent(session.id)}`;
     const showJoin = canAccessFeature('anonymous-join');
     return (
@@ -426,7 +432,7 @@ export const VideoActivityLivePlayer: React.FC<
   }
 
   const openKey = openQuestion ? keyById.get(openQuestion.id) : undefined;
-  const revealed = live.answerRevealed;
+  const revealed = pacing.phase === 'question' && pacing.answerRevealed;
   const openAnswers = openQuestion
     ? answersFor(responses, openQuestion.id)
     : [];
@@ -464,7 +470,7 @@ export const VideoActivityLivePlayer: React.FC<
       question={openQuestion}
       keyQuestion={openKey}
       answers={openAnswers}
-      resultsShown={live.resultsShown}
+      resultsShown={resultsShown}
       revealed={revealed}
     />
   );
@@ -536,13 +542,13 @@ export const VideoActivityLivePlayer: React.FC<
                   <div className="flex-1" />
                   <ActionButton
                     variant="secondary"
-                    label={live.resultsShown ? 'Hide results' : 'Show results'}
+                    label={resultsShown ? 'Hide results' : 'Show results'}
                     anchor={tourAttr('video-activity.live-show-results')}
                     icon={BarChart3}
-                    active={live.resultsShown}
+                    active={resultsShown}
                     onClick={() =>
                       void controls
-                        .showResults(!live.resultsShown)
+                        .showResults(!resultsShown)
                         .catch(report('showResults'))
                     }
                   />

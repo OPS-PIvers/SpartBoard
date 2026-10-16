@@ -63,6 +63,7 @@ import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
 import { PeriodAccessStrip } from '@/components/widgets/QuizWidget/components/monitor/PeriodAccessStrip';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
 import { deriveRunState } from '@/utils/sessionLifecycle';
+import { isVaResponseCompleted } from '@/utils/videoActivityState';
 
 interface VideoActivityLiveMonitorProps {
   session: VideoActivitySession;
@@ -174,7 +175,7 @@ const StudentRow: React.FC<StudentRowProps> = ({
     }
   }
   const answeredCount = response.answers.length;
-  const completed = response.completedAt !== null;
+  const completed = isVaResponseCompleted(response);
   // Returns null when there's nothing to grade against — e.g. a fallback
   // session doc with no questions — so the row renders an em-dash instead
   // of a misleading red 0%.
@@ -515,7 +516,7 @@ export const VideoActivityLiveMonitor: React.FC<
     let _totalAnswers = 0;
     for (const r of responses) {
       _totalAnswers += r.answers.length;
-      if (r.completedAt !== null) _completed++;
+      if (isVaResponseCompleted(r)) _completed++;
       else _inProgress++;
     }
     return {
@@ -568,8 +569,8 @@ export const VideoActivityLiveMonitor: React.FC<
     return responses.slice().sort((a, b) => {
       // Joined-most-recently first within each status bucket; completed
       // students sink to the bottom so the teacher can focus on stragglers.
-      if ((a.completedAt === null) !== (b.completedAt === null)) {
-        return a.completedAt === null ? -1 : 1;
+      if (isVaResponseCompleted(a) !== isVaResponseCompleted(b)) {
+        return isVaResponseCompleted(a) ? 1 : -1;
       }
       return b.joinedAt - a.joinedAt;
     });
@@ -775,7 +776,7 @@ export const VideoActivityLiveMonitor: React.FC<
                       }
                       onLetIn={
                         perPeriod &&
-                        r.completedAt === null &&
+                        !isVaResponseCompleted(r) &&
                         !studentCanEnter(
                           session,
                           r.classId ? [r.classId] : [],

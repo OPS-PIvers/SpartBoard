@@ -91,6 +91,12 @@ import {
   TabExit,
 } from '@/types';
 import { useSandboxedVideoActivitySession } from './useTourSandboxed';
+import {
+  completionPatch,
+  isVaResponseCompleted,
+  rejoinOutcome,
+  unlockPatch,
+} from '@/utils/videoActivityState';
 
 const SESSIONS_COLLECTION = 'video_activity_sessions';
 const RESPONSES_SUBCOLLECTION = 'responses';
@@ -534,9 +540,6 @@ export const useVideoActivitySessionTeacher =
         }
         const existing = snap.data() as VideoActivityResponse;
 
-        const currentAttempts = existing.completedAttempts ?? 0;
-        const refundedAttempts = Math.max(0, currentAttempts - 1);
-
         // Probe the ledger BEFORE writing so we don't blindly create a
         // partial doc via `set(merge:true)` on a missing ledger entry
         // (which would land without the required identity fields). For
@@ -558,13 +561,7 @@ export const useVideoActivitySessionTeacher =
         // VA. Without this the student-side visibility handler bails
         // out on `myResponse?.completedAt != null` and the
         // instant-finalize-on-next-strike rule never engages.
-        batch.update(responseRef, {
-          completedAt: null,
-          score: null,
-          completedAttempts: refundedAttempts,
-          unlocked: true,
-          unlockedAt: Date.now(),
-        });
+        batch.update(responseRef, unlockPatch(existing, Date.now()));
         if (ledgerRef && ledgerSnap?.exists()) {
           const ledgerCurrent =
             (ledgerSnap.data() as VideoActivityAttemptLedger | undefined)
@@ -1237,7 +1234,8 @@ export const useVideoActivitySessionStudent =
             //   - Under the cap, reset the doc to a fresh attempt
             //     (`completedAt: null, answers: []`); preserve
             //     `completedAttempts` so future joins still see the cap.
-            if (existing.completedAt != null && existing.unlocked) {
+            const outcome = rejoinOutcome(existing, ledgerCompleted, limit);
+            if (outcome === 'resume-unlocked') {
               // Teacher-unlocked: resume the existing attempt with the
               // prior `answers` intact. The unlock action already clears
               // `completedAt`, so this branch handles the safety-net
@@ -1270,15 +1268,9 @@ export const useVideoActivitySessionStudent =
                       }
                     )
                 );
-            } else if (existing.completedAt != null) {
-              const completed = Math.max(
-                existing.completedAttempts ?? 0,
-                ledgerCompleted,
-                1
-              );
-              if (limit !== null && completed >= limit) {
-                throw new AttemptLimitReachedError();
-              }
+            } else if (outcome === 'at-cap') {
+              throw new AttemptLimitReachedError();
+            } else if (outcome === 'reset') {
               const reset = {
                 completedAt: null,
                 answers: [],
@@ -1469,24 +1461,16 @@ export const useVideoActivitySessionStudent =
         const snap = await tx.get(responseRef);
         if (!snap.exists()) return;
         const existing = snap.data() as VideoActivityResponse;
-        if (existing.completedAt != null) return;
+        if (isVaResponseCompleted(existing)) return;
 
         // All reads before all writes (Firestore transaction rule).
         const ledgerSnap = ledgerRef ? await tx.get(ledgerRef) : null;
 
         const completedAt = Date.now();
-        // Same deploy-gap defense as `completeQuiz`: include `unlocked`
-        // in the payload only when the doc actually carries the flag,
-        // so submissions land successfully during the hosting-deployed-
-        // before-rules window in production
-        // (.github/workflows/firebase-deploy.yml).
-        const responseUpdates: Record<string, unknown> = {
-          completedAt,
-          completedAttempts: increment(1),
-        };
-        if (existing.unlocked) {
-          responseUpdates.unlocked = false;
-        }
+        const responseUpdates = completionPatch(existing, completedAt, {
+          increment,
+        });
+        if (!responseUpdates) return;
         tx.update(responseRef, responseUpdates);
 
         if (ledgerRef && ledgerSnap) {
