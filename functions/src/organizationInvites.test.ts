@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import * as admin from 'firebase-admin';
 
 // Mock firebase-admin before the module under test loads. The helpers we
 // test don't touch Firestore, so the mocks only need to satisfy the
@@ -868,6 +869,125 @@ describe('createOrganizationInvites — email verification gate', () => {
         },
       })
     ).rejects.toMatchObject({ code: 'permission-denied' });
+  });
+});
+
+// A domain admin must not mint a super admin through the invite callable, nor
+// demote one by re-inviting them (a re-invite rewrites roleId).
+describe('createOrganizationInvites — super_admin role guard', () => {
+  const handler = createOrganizationInvites as unknown as CallableHandler;
+  const CALLER = 'admin@orono.k12.mn.us';
+
+  function stubDb(opts: {
+    callerRole: string;
+    existing?: Record<string, Record<string, unknown>>;
+  }) {
+    const txSet = vi.fn();
+    const memberGet = (email: string) => {
+      if (email === CALLER) {
+        return { exists: true, data: () => ({ roleId: opts.callerRole }) };
+      }
+      const data = opts.existing?.[email];
+      return { exists: !!data, data: () => data };
+    };
+    const subCollection = (sub: string) => ({
+      doc: (id: string) => ({
+        id,
+        sub,
+        get: () => Promise.resolve(memberGet(id)),
+      }),
+      get: () =>
+        Promise.resolve({
+          docs: (sub === 'roles'
+            ? ['teacher', 'domain_admin', 'super_admin']
+            : ['high']
+          ).map((id) => ({ id })),
+        }),
+    });
+    const db = {
+      collection: (col: string) => ({
+        doc: () => ({
+          get: () =>
+            Promise.resolve(
+              col === 'organizations'
+                ? { exists: true, data: () => ({ name: 'Orono' }) }
+                : { exists: false, data: () => ({}) }
+            ),
+          collection: subCollection,
+        }),
+      }),
+      doc: (path: string) => ({
+        get: () =>
+          Promise.resolve(
+            path === 'admin_settings/user_roles'
+              ? { exists: true, get: () => [] }
+              : {
+                  exists: true,
+                  get: () =>
+                    path.endsWith(CALLER) ? opts.callerRole : undefined,
+                }
+          ),
+      }),
+      runTransaction: async (
+        fn: (tx: {
+          get: (ref: { get: () => Promise<unknown> }) => Promise<unknown>;
+          set: typeof txSet;
+        }) => Promise<unknown>
+      ) => fn({ get: (ref) => ref.get(), set: txSet }),
+    };
+    vi.mocked(admin.firestore).mockReturnValue(
+      db as unknown as admin.firestore.Firestore
+    );
+    return { txSet };
+  }
+
+  const invite = (email: string, roleId: string) =>
+    handler({
+      auth: {
+        uid: 'admin-uid',
+        token: { email: CALLER, email_verified: true },
+      },
+      data: {
+        orgId: 'orono',
+        invitations: [{ email, roleId, buildingIds: [] }],
+      },
+    }) as Promise<{ invitations: unknown[]; errors: { reason: string }[] }>;
+
+  it('domain admin cannot invite a new super_admin', async () => {
+    const { txSet } = stubDb({ callerRole: 'domain_admin' });
+    const res = await invite('new@orono.k12.mn.us', 'super_admin');
+    expect(res.invitations).toHaveLength(0);
+    expect(res.errors[0].reason).toMatch(/super admin/i);
+    expect(txSet).not.toHaveBeenCalled();
+  });
+
+  it('domain admin cannot re-invite (and so demote) an invited super_admin', async () => {
+    const { txSet } = stubDb({
+      callerRole: 'domain_admin',
+      existing: {
+        'boss@orono.k12.mn.us': { roleId: 'super_admin', status: 'invited' },
+      },
+    });
+    const res = await invite('boss@orono.k12.mn.us', 'teacher');
+    expect(res.invitations).toHaveLength(0);
+    expect(res.errors[0].reason).toMatch(/super admin/i);
+    expect(txSet).not.toHaveBeenCalled();
+  });
+
+  it('domain admin can still invite a teacher', async () => {
+    const { txSet } = stubDb({ callerRole: 'domain_admin' });
+    const res = await invite('new@orono.k12.mn.us', 'teacher');
+    expect(res.errors).toHaveLength(0);
+    expect(res.invitations).toHaveLength(1);
+    expect(txSet).toHaveBeenCalled();
+  });
+
+  it('super admin can invite a super_admin', async () => {
+    const { txSet } = stubDb({ callerRole: 'super_admin' });
+    const res = await invite('new@orono.k12.mn.us', 'super_admin');
+    expect(res.errors).toHaveLength(0);
+    expect(res.invitations).toHaveLength(1);
+    expect(txSet).toHaveBeenCalled();
   });
 });
 
