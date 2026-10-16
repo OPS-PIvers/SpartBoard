@@ -72,7 +72,11 @@ import {
 } from '@/utils/answerTakeOrdering';
 import { resolvePeriodNames } from '@/utils/periodCompat';
 import { normalizeQuizCode } from '@/utils/quizCode';
-import { buildTeacherSubmitUpdate } from '@/utils/quizTeacherSubmit';
+import { everyoneAnsweredQuestion } from '@/utils/quizAutoProgress';
+import {
+  buildTeacherSubmitUpdate,
+  canTeacherSubmit,
+} from '@/utils/quizTeacherSubmit';
 import { findQuizSessionsByCode } from '@/utils/quizJoinCodes';
 import {
   createLeadingTrailingThrottle,
@@ -1318,6 +1322,7 @@ export const useQuizSessionTeacher = (
     };
   }, [sessionId]);
 
+  // Same update as Submit for student and the idle sweep, one transaction per response.
   const finalizeAllResponses = useCallback(async () => {
     if (!sessionId) return;
     const responsesRef = collection(
@@ -1327,28 +1332,30 @@ export const useQuizSessionTeacher = (
       RESPONSES_COLLECTION
     );
     const snap = await getDocs(responsesRef);
-    const batch = writeBatch(db);
-    let count = 0;
-    snap.docs.forEach((d) => {
-      const data = d.data() as QuizResponse;
-      if (data.status === 'in-progress' || data.status === 'joined') {
-        // Bump `completedAttempts` so the join-side cap check sees this
-        // forced finalize as a real completed attempt. Without the bump,
-        // the doc lands at `status: 'completed', completedAttempts: 0`
-        // and a later rejoin's `completed >= limit` check reads 0,
-        // letting the student through under the cap.
-        batch.update(d.ref, {
-          status: 'completed',
-          submittedAt: Date.now(),
-          completedAttempts: increment(1),
-        });
-        count++;
-      }
-    });
-    if (count > 0) {
-      await batch.commit();
-    }
-  }, [sessionId]);
+    const questionIds = (session?.publicQuestions ?? []).map((q) => q.id);
+    const completenessModel = session?.completenessModel;
+    const now = Date.now();
+    const results = await Promise.allSettled(
+      snap.docs
+        .filter((d) => canTeacherSubmit(d.data() as QuizResponse))
+        .map((d) =>
+          runTransaction(db, async (tx) => {
+            const fresh = await tx.get(d.ref);
+            if (!fresh.exists()) return;
+            const update = buildTeacherSubmitUpdate(
+              fresh.data() as QuizResponse,
+              { questionIds, completenessModel },
+              now
+            );
+            if (update) tx.update(d.ref, update);
+          })
+        )
+    );
+    const failed = results.find(
+      (r): r is PromiseRejectedResult => r.status === 'rejected'
+    );
+    if (failed) throw failed.reason;
+  }, [sessionId, session?.publicQuestions, session?.completenessModel]);
 
   const removeStudent = useCallback(
     async (responseKey: string) => {
@@ -1760,7 +1767,8 @@ export const useQuizSessionTeacher = (
   );
 
   const advanceQuestion = useCallback(async () => {
-    if (!sessionId || !session) return;
+    // A paused session moves on only through Resume, which also unpauses the assignment.
+    if (!sessionId || !session || session.status === 'paused') return;
     const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, sessionId);
 
     const isReviewing = session.questionPhase === 'reviewing';
@@ -1826,13 +1834,7 @@ export const useQuizSessionTeacher = (
       session.publicQuestions[session.currentQuestionIndex]?.id;
     if (!currentQId) return;
 
-    // Check if everyone has answered (only if there are students)
-    const activeResponses = responses.filter((r) => r.status !== 'joined');
-    const everyoneAnswered =
-      activeResponses.length > 0 &&
-      activeResponses.every((r) =>
-        r.answers.some((a) => a.questionId === currentQId)
-      );
+    const everyoneAnswered = everyoneAnsweredQuestion(responses, currentQId);
 
     if (
       everyoneAnswered &&
@@ -3228,9 +3230,18 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // flipped the doc to `'completed'`, a late autosave/draft write
         // arriving here (visibility-hidden flush, beforeunload, retry on
         // a quiz the student already finished) must not revert to
-        // `'in-progress'`.
-        const nextStatus =
-          existing.status === 'completed' ? 'completed' : 'in-progress';
+        // `'in-progress'`. A draft reads the cached doc, which can predate a
+        // teacher's finalize, so it only ever moves `joined` forward.
+        const statusPatch = isDraft
+          ? existing.status === 'joined'
+            ? { status: 'in-progress' as const }
+            : {}
+          : {
+              status:
+                existing.status === 'completed'
+                  ? ('completed' as const)
+                  : ('in-progress' as const),
+            };
 
         return {
           skip: false,
@@ -3244,7 +3255,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             // it, so a student who toggles tabs without answering still
             // ages out as expected. Server-stamped so client clock skew
             // can't trigger spurious auto-submit or evade it.
-            status: nextStatus,
+            ...statusPatch,
             answers: updated,
             lastWriteAt: serverTimestamp(),
             // Snapshot the served subset (M17) only when it differs from what

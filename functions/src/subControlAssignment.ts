@@ -6,6 +6,7 @@
 
 import { onCall } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
+import { logger } from 'firebase-functions';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import {
@@ -18,6 +19,8 @@ import {
   type SubShareCaller,
 } from './subShareAccess';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { buildQuizFinalizeUpdate, sessionQuestionIds } from './quizFinalize';
+import { withQuizSessionContent } from './quizSessionContent';
 
 const CONTROLLABLE_KINDS = [
   'quiz',
@@ -44,8 +47,7 @@ const ASSIGNMENTS: Record<ControlKind, string> = {
   flashcards: 'flashcard_assignments',
 };
 
-/** Responses finalized per batch when a quiz ends; the teacher's own path
- *  writes them all in one, and a sub-launched class is one class. */
+/** Responses read when a quiz ends; a sub-launched class is one class. */
 const MAX_FINALIZED = 400;
 
 export interface ControlSubAssignmentInput {
@@ -67,34 +69,53 @@ export interface SubControlDeps {
 
 export const liveSubControlDeps: SubControlDeps = { now: () => Date.now() };
 
-/**
- * Mirror of `finalizeAllResponses` (`hooks/useQuizSession.ts`): a student still
- * answering when the run ends is marked completed so their work reaches the
- * teacher's results. `completedAttempts` is bumped for the same reason it is
- * there — without it a rejoin reads 0 completed and slips past the cap.
- */
+/** Mirror of the teacher's End: each unfinished response is finalized in its own transaction. */
 export async function finalizeQuizResponses(
   db: admin.firestore.Firestore,
   sessionId: string,
+  session: Record<string, unknown>,
   now: number
 ): Promise<number> {
+  const content = await withQuizSessionContent(
+    db.doc(`quiz_sessions/${sessionId}`),
+    session
+  );
+  const meta = {
+    questionIds: sessionQuestionIds(content.publicQuestions),
+    completenessModel:
+      typeof content.completenessModel === 'number'
+        ? content.completenessModel
+        : 0,
+  };
   const snap = await db
     .collection(`quiz_sessions/${sessionId}/responses`)
     .limit(MAX_FINALIZED)
     .get();
-  const batch = db.batch();
+  const results = await Promise.allSettled(
+    snap.docs
+      .filter((doc) => {
+        const status: unknown = doc.data().status;
+        return status === 'in-progress' || status === 'joined';
+      })
+      .map((doc) =>
+        db.runTransaction(async (tx) => {
+          const fresh = await tx.get(doc.ref);
+          const update = fresh.exists
+            ? buildQuizFinalizeUpdate(fresh.data() ?? {}, meta, now)
+            : null;
+          if (update) tx.update(doc.ref, update);
+          return update !== null;
+        })
+      )
+  );
   let count = 0;
-  for (const doc of snap.docs) {
-    const status: unknown = doc.data().status;
-    if (status !== 'in-progress' && status !== 'joined') continue;
-    batch.update(doc.ref, {
-      status: 'completed',
-      submittedAt: now,
-      completedAttempts: admin.firestore.FieldValue.increment(1),
-    });
-    count += 1;
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      if (result.value) count += 1;
+    } else {
+      logger.warn('[controlSubAssignment] finalize failed', result.reason);
+    }
   }
-  if (count > 0) await batch.commit();
   return count;
 }
 
@@ -237,7 +258,7 @@ export async function handleControlSubAssignment(
   await batch.commit();
 
   if (kind === 'quiz' && action === 'end') {
-    await finalizeQuizResponses(db, sessionId, now);
+    await finalizeQuizResponses(db, sessionId, session, now);
   }
 
   return { state: patches.state };

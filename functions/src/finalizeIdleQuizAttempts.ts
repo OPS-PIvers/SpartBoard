@@ -49,6 +49,9 @@ import { onSchedule } from 'firebase-functions/v2/scheduler';
 import { logger } from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { isPeriodFrozen, withQuizSessionContent } from './quizSessionContent';
+import { buildQuizFinalizeUpdate, sessionQuestionIds } from './quizFinalize';
+
+export { resolveUnrespondedQuestionIds } from './quizFinalize';
 
 /**
  * Wall-clock minutes a response may sit idle in `joined`/`in-progress`
@@ -95,52 +98,15 @@ export const RESPONSE_PAGE_SIZE = 500;
  */
 const WAITING_ABANDONED_AGE_MS = 24 * 60 * 60 * 1000;
 
-/**
- * Cloud-Functions-local mirror of `QuizResponseAnswer` in the app's root
- * `types.ts` (no shared import between the two type surfaces — keep them in
- * sync by hand). Only the fields this sweep reads or writes are declared.
- */
-interface QuizAnswer {
-  questionId?: string;
-  answer?: string;
-  answeredAt?: number;
-  status?: string;
-  /** Mirrors `UnrespondedReason`; absent means the student responded. */
-  unresponded?:
-    | 'passed'
-    | 'expired'
-    | 'abandoned'
-    | 'capture-unavailable'
-    | 'paper-unclear'
-    | 'device-gated';
-}
-
 interface QuizResponseDoc {
   status?: string;
   lastWriteAt?: admin.firestore.Timestamp;
   completedAttempts?: number;
-  answers?: QuizAnswer[];
+  answers?: unknown;
   /** M17 per-student subset of `publicQuestions`; absent means "all of them". */
   servedQuestionIds?: unknown;
   /** True while the student waits at a quiz Stop; absent on older responses. */
   partHeld?: unknown;
-}
-
-/**
- * The questions this student was actually shown. M17 lets a session serve a
- * per-student subset, snapshotted on the response doc; marking every
- * `publicQuestion` abandoned would fabricate misses for questions the student
- * never had. A non-array value means no subset was recorded.
- */
-export function resolveUnrespondedQuestionIds(
-  sessionQuestionIds: readonly string[],
-  servedQuestionIds: unknown
-): string[] {
-  if (!Array.isArray(servedQuestionIds)) return [...sessionQuestionIds];
-  const served = new Set(
-    servedQuestionIds.filter((id): id is string => typeof id === 'string')
-  );
-  return sessionQuestionIds.filter((id) => served.has(id));
 }
 
 interface QuizSessionDoc {
@@ -381,11 +347,7 @@ export async function runFinalizeIdleQuizAttempts(
       } else if (typeof data.createdAt === 'number') {
         createdAtMs = data.createdAt;
       }
-      const questionIds = Array.isArray(data.publicQuestions)
-        ? data.publicQuestions
-            .map((q) => (q && typeof q.id === 'string' ? q.id : null))
-            .filter((id): id is string => !!id)
-        : [];
+      const questionIds = sessionQuestionIds(data.publicQuestions);
       const completenessModel =
         typeof data.completenessModel === 'number' ? data.completenessModel : 0;
       sessionMetaBySid.set(sessionDoc.id, {
@@ -502,85 +464,17 @@ export async function runFinalizeIdleQuizAttempts(
           return 'raced-write' as const;
         }
 
-        // Defensive: filter out any null/non-object answer entries so
-        // a legacy/aborted-write doc doesn't propagate sparse entries
-        // through the auto-finalized response.
-        const answers = (
-          Array.isArray(fresh.answers) ? fresh.answers : []
-        ).filter((a): a is QuizAnswer => a !== null && typeof a === 'object');
-        // Promote any pending drafts to submitted so the teacher's
-        // results view counts them as the student's final answers.
-        const finalAnswers = answers.map((a) =>
-          a.status === 'draft' ? { ...a, status: 'submitted' } : a
+        // `autoSubmitted` lets the teacher tell sweep-finalized rows from turned-in ones.
+        const update = buildQuizFinalizeUpdate(
+          fresh,
+          {
+            questionIds: meta.questionIds,
+            completenessModel: meta.completenessModel,
+          },
+          finalizedAt
         );
-
-        // Absence of an entry must mean "never reached," so every question
-        // the student left behind gets an explicit `abandoned` marker
-        // (RR-08 sub-decision 1/5). There is no per-question requiredness
-        // field yet, so EVERY missing question the student was SERVED is
-        // marked (M17 subsets intersect); brief 3.5 should narrow this to
-        // required slots once that field exists. The session doc was already
-        // batch-read above — no extra Firestore read.
-        //
-        // DEPLOY GATE: this branch runs only for sessions the NEW teacher
-        // client created (`completenessModel: 1`). Every push to dev-paul
-        // deploys functions/ to the shared production project, where the old
-        // client's teacher UI, exports and scoring have no concept of
-        // `unresponded` and would render these entries as answered-but-blank.
-        // Legacy sessions therefore take exactly the pre-PR path below.
-        const missingEntries: QuizAnswer[] = [];
-        if (meta.completenessModel >= 1) {
-          const answeredIds = new Set(
-            finalAnswers
-              .map((a) => a.questionId)
-              .filter((id): id is string => typeof id === 'string')
-          );
-          const servedIds = resolveUnrespondedQuestionIds(
-            meta.questionIds,
-            fresh.servedQuestionIds
-          );
-          for (const qid of servedIds) {
-            if (answeredIds.has(qid)) continue;
-            missingEntries.push({
-              questionId: qid,
-              answer: '',
-              answeredAt: finalizedAt,
-              status: 'submitted',
-              unresponded: 'abandoned',
-            });
-          }
-        }
-
-        // Don't consume an attempt slot for a student who joined
-        // but never wrote a single answer — they'd otherwise hit
-        // the cap without seeing a question. The doc still flips
-        // to `completed` with `autoSubmitted: true` so it falls
-        // out of the live "joined" bucket; teachers can review
-        // and (if needed) clear the row via removeStudent.
-        //
-        // Also clear `unlocked`: if the cron finalizes a doc that
-        // was previously teacher-unlocked but the student never
-        // came back, leaving `unlocked: true` would trip the
-        // `existing.status === 'completed' && existing.unlocked`
-        // rejoin branch in useQuizSession (joinQuizSession resume-
-        // unlocked path) and grant another attempt without
-        // consuming a slot — silently bypassing the cap.
-        const update: Record<string, unknown> = {
-          status: 'completed',
-          submittedAt: finalizedAt,
-          autoSubmitted: true,
-          answers:
-            missingEntries.length > 0
-              ? [...finalAnswers, ...missingEntries]
-              : finalAnswers,
-          unlocked: false,
-        };
-        // Deliberately `finalAnswers`, not the synthetic markers: a student
-        // who never answered anything must not consume an attempt slot.
-        if (finalAnswers.length > 0) {
-          update.completedAttempts = (fresh.completedAttempts ?? 0) + 1;
-        }
-        tx.update(docSnap.ref, update);
+        if (!update) return 'raced-status' as const;
+        tx.update(docSnap.ref, { ...update, autoSubmitted: true });
         return 'finalized' as const;
       });
       if (result === 'finalized') {
