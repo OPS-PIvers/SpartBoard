@@ -246,7 +246,8 @@ export const CurrentQuestionCard: React.FC<CurrentQuestionCardProps> = ({
             style={{ width: `${pct}%` }}
           />
         </div>
-        {session.sessionMode !== 'auto' && (
+        {/* Resume, not Next, ends a pause, so the assignment row unpauses with it. */}
+        {session.sessionMode !== 'auto' && session.status !== 'paused' && (
           <button
             onClick={handleAdvance}
             disabled={advancing}

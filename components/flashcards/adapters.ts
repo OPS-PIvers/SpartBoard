@@ -264,6 +264,10 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
     correct: boolean,
     currentRound: number
   ): FlashcardStudyState {
+    // Mirrors the server: a card counts once per round it comes due, so a re-rate can't run ahead of it.
+    if (this.rate && currentRound < (this.state.cards[cardId]?.due ?? 1)) {
+      return this.load();
+    }
     this.dirtyCards.add(cardId);
     if (this.rate) this.ratings.push({ cardId, correct, round: currentRound });
     return super.record(cardId, correct, currentRound);

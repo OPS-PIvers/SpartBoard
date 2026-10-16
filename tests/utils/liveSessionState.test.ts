@@ -209,20 +209,20 @@ describe('liveSessionReducer: allowed transitions', () => {
     expect(s.connection).toEqual({ ...joined(), pin: '77' });
   });
 
-  it('a missing record (removed) returns the student to the lobby and drops the session', () => {
+  it('a missing record (removed) returns the student to the lobby and keeps the session', () => {
     const s = run(base({ connection: joined(true), session: session() }), [
       { type: 'myRecordSnapshot', studentId: 'stu-1', record: null },
     ]);
     expect(s.connection).toEqual({ kind: 'notJoined' });
-    expect(s.session).toBeNull();
+    expect(s.session).toEqual(session());
   });
 
-  it('left disconnects the student and drops the session', () => {
+  it('left disconnects the student and keeps the session', () => {
     const s = run(base({ connection: joined(true), session: session() }), [
       { type: 'left' },
     ]);
     expect(s.connection).toEqual({ kind: 'notJoined' });
-    expect(s.session).toBeNull();
+    expect(s.session).toEqual(session());
   });
 });
 
