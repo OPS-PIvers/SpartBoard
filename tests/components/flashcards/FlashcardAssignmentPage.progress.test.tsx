@@ -8,6 +8,7 @@ import type { FlashcardProgressAdapter } from '@/components/flashcards/adapters'
 const NOW = 1_800_000_000_000;
 
 const h = vi.hoisted(() => ({
+  now: 0,
   session: null as Record<string, unknown> | null,
   progress: null as Record<string, unknown> | null,
   progressListener: null as ((snap: unknown) => void) | null,
@@ -18,7 +19,7 @@ const h = vi.hoisted(() => ({
 
 vi.mock('@/config/firebase', () => ({ db: {}, functions: {} }));
 vi.mock('@/utils/serverTime', () => ({
-  getServerNow: () => NOW,
+  getServerNow: () => h.now,
   syncServerTime: vi.fn(),
 }));
 vi.mock('@/context/useStudentAuth', () => ({
@@ -113,6 +114,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   h.callableNames = [];
   h.progress = null;
+  h.now = NOW;
   window.history.pushState({}, '', '/flashcards/a/fc-1');
 });
 
@@ -205,5 +207,29 @@ describe('FlashcardAssignmentPage tracked progress', () => {
     });
     expect(progressWrites()[0]).toHaveProperty('cards.c1');
     expect(h.callable).not.toHaveBeenCalled();
+  });
+
+  it('closes a Check on screen when its close time passes', () => {
+    vi.useFakeTimers();
+    try {
+      h.session = session({
+        kind: 'check',
+        checkMode: 'write',
+        closeAt: NOW + 1000,
+      });
+      render(<FlashcardAssignmentPage />);
+      expect(screen.getByTestId('player')).toBeInTheDocument();
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      expect(screen.getByTestId('player')).toBeInTheDocument();
+      h.now = NOW + 1000;
+      act(() => {
+        vi.advanceTimersByTime(600);
+      });
+      expect(screen.queryByTestId('player')).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
