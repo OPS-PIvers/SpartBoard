@@ -44,7 +44,7 @@ import {
   assertFails,
   type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { setDoc, doc, updateDoc } from 'firebase/firestore';
+import { setDoc, doc, updateDoc, getDoc, deleteDoc } from 'firebase/firestore';
 
 const PROJECT_ID = 'spartboard-live-session-students-test';
 const TEACHER_UID = 'teacher-live';
@@ -397,6 +397,65 @@ describe('live session students — update', () => {
       updateDoc(studentRef(asStudent(STUDENT_UID), STUDENT_UID), {
         status: 'disconnected',
       })
+    );
+  });
+});
+
+describe('live session doc — teacher-only transitions', () => {
+  it('lets a joined student read the session doc and their removed (missing) record', async () => {
+    const db = asStudent(STUDENT_UID);
+    await assertSucceeds(getDoc(doc(db, `sessions/${TEACHER_UID}`)));
+    await assertSucceeds(getDoc(studentRef(db, STUDENT_UID)));
+  });
+
+  it('allows the teacher to switch the broadcast widget in place', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(), `sessions/${TEACHER_UID}`), {
+        activeWidgetId: 'widget-2',
+        activeWidgetType: 'poll',
+        frozen: false,
+      })
+    );
+  });
+
+  it('allows the teacher to toggle the class-wide freeze', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(), `sessions/${TEACHER_UID}`), { frozen: true })
+    );
+  });
+
+  it('rejects a student switching the broadcast widget', async () => {
+    await assertFails(
+      updateDoc(doc(asStudent(STUDENT_UID), `sessions/${TEACHER_UID}`), {
+        activeWidgetId: 'widget-2',
+      })
+    );
+  });
+
+  it('rejects a student lifting the class-wide freeze', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), `sessions/${TEACHER_UID}`), {
+        frozen: true,
+      });
+    });
+    await assertFails(
+      updateDoc(doc(asStudent(STUDENT_UID), `sessions/${TEACHER_UID}`), {
+        frozen: false,
+      })
+    );
+  });
+
+  it('rejects a student deleting their own roster record to dodge removal checks', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(studentRef(ctx.firestore(), STUDENT_UID), {
+        pin: '1234',
+        status: 'active',
+        joinedAt: 1000,
+        lastActive: 1000,
+      });
+    });
+    await assertFails(
+      deleteDoc(studentRef(asStudent(STUDENT_UID), STUDENT_UID))
     );
   });
 });
