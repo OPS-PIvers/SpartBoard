@@ -1969,9 +1969,11 @@ export const ActiveQuiz: React.FC<{
   const [timeUpFailed, setTimeUpFailed] = useState(false);
   const timeUpTriggeredRef = useRef(false);
   const timeUpInFlightRef = useRef(false);
+  const [timeUpInFlight, setTimeUpInFlight] = useState(false);
   const attemptTimeUpSubmit = useCallback(async () => {
     if (timeUpInFlightRef.current) return;
     timeUpInFlightRef.current = true;
+    setTimeUpInFlight(true);
     timeUpTriggeredRef.current = true;
     document.dispatchEvent(new CustomEvent('spartboard:quiz:flush-written'));
     try {
@@ -1985,6 +1987,7 @@ export const ActiveQuiz: React.FC<{
       setTimeUpFailed(true);
     } finally {
       timeUpInFlightRef.current = false;
+      setTimeUpInFlight(false);
     }
   }, [onComplete]);
   useEffect(() => {
@@ -1999,6 +2002,8 @@ export const ActiveQuiz: React.FC<{
     const id = window.setInterval(check, 1000);
     return () => window.clearInterval(id);
   }, [attemptDeadline, myResponse?.status, attemptTimeUpSubmit]);
+  const timeUpFailureActive =
+    timeUpFailed && !timeUpSubmitted && myResponse?.status !== 'completed';
 
   // The Visibility Tracker — only active when tabWarningsEnabled
   const tabWarningsEnabled = session.tabWarningsEnabled !== false;
@@ -3685,10 +3690,7 @@ export const ActiveQuiz: React.FC<{
           passed before the write landed). Honest, non-blocking, with a
           retry the student can act on — the response is still
           in-progress, not silently marked complete. */}
-      {(closeAutoSubmitFailed ||
-        (timeUpFailed &&
-          !timeUpSubmitted &&
-          myResponse?.status !== 'completed')) && (
+      {(closeAutoSubmitFailed || timeUpFailureActive) && (
         <div
           role="alert"
           className="sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b border-red-500/40 bg-red-500/10 text-red-200 text-xs"
@@ -3701,14 +3703,14 @@ export const ActiveQuiz: React.FC<{
           <button
             type="button"
             onClick={() =>
-              void (timeUpFailed
+              void (timeUpFailureActive
                 ? attemptTimeUpSubmit()
                 : attemptCloseAutoSubmit())
             }
-            disabled={closeAutoSubmitInFlight}
+            disabled={closeAutoSubmitInFlight || timeUpInFlight}
             className="shrink-0 px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 disabled:opacity-50 font-semibold"
           >
-            {closeAutoSubmitInFlight ? 'Retrying…' : 'Retry'}
+            {closeAutoSubmitInFlight || timeUpInFlight ? 'Retrying…' : 'Retry'}
           </button>
         </div>
       )}
