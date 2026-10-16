@@ -5790,7 +5790,7 @@ service cloud.firestore {
             incoming().answers.size() >= existing().answers.size() &&
             // Turning in sets completedAt once; a turned-in response keeps its answers.
             (existing().get('completedAt', null) == null
-              ? (!changed(['completedAt']) || incoming().completedAt is number)
+              ? (!changed(['completedAt']) || isNumber('completedAt'))
               : !changed(['answers', 'completedAt']))
           )
         );
