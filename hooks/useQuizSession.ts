@@ -1206,6 +1206,7 @@ export const useQuizSessionTeacher = (
     initialQuizTeacherSessionState
   );
   const advancingRef = useRef(false);
+  const [autoRetry, setAutoRetry] = useState(0);
 
   // Adjust state during render when sessionId changes, clearing stale data from the previous selection.
   if (sessionId !== state.sessionId) {
@@ -1827,10 +1828,14 @@ export const useQuizSessionTeacher = (
       session.publicQuestions[session.currentQuestionIndex]?.id;
     if (!write || !currentQId) return;
     if (!everyoneAnsweredQuestion(responses, currentQId)) return;
-    checkedSessionWrite(session, { type: 'everyoneAnswered' }).catch((err) =>
-      console.error('[AutoProgress] update failed:', err)
-    );
-  }, [responses, session, sessionId, checkedSessionWrite]);
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    checkedSessionWrite(session, { type: 'everyoneAnswered' }).catch((err) => {
+      console.error('[AutoProgress] update failed:', err);
+      // A failed transaction doesn't queue like updateDoc did, so try again.
+      retry = setTimeout(() => setAutoRetry((n) => n + 1), 2000);
+    });
+    return () => clearTimeout(retry);
+  }, [responses, session, sessionId, checkedSessionWrite, autoRetry]);
 
   // Handle the actual auto-advance when the timestamp is reached
   useEffect(() => {
@@ -1838,10 +1843,11 @@ export const useQuizSessionTeacher = (
 
     const timer = setInterval(() => {
       if (Date.now() >= (session.autoProgressAt ?? 0)) {
-        clearInterval(timer);
         if (advancingRef.current) return;
         advancingRef.current = true;
+        // Keep ticking until the advance lands, so a failed transaction retries.
         advanceQuestion()
+          .then(() => clearInterval(timer))
           .catch((err) => console.error('[AutoProgress] advance failed:', err))
           .finally(() => {
             advancingRef.current = false;
