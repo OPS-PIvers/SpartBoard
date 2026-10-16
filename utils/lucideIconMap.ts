@@ -44,10 +44,7 @@ export const useLucideIconMap = (): LucideIconMap =>
 
 export const getLoadedLucideIconMap = (): LucideIconMap => loaded;
 
-const namedIcons = new WeakMap<
-  React.ElementType,
-  Map<string, React.ElementType>
->();
+const namedIcons = new Map<React.ElementType, Map<string, React.ElementType>>();
 
 /** A stable icon component that shows `fallback` until the named icon has loaded. */
 export const getNamedLucideIcon = (
