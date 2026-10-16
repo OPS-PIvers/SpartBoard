@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { parseTime } from './utils';
-import { parseScheduleTime, parseScheduleTimeSeconds } from '../Schedule/utils';
+import {
+  parseScheduleTime,
+  parseScheduleTimeSeconds,
+} from '@/components/widgets/Schedule/utils';
 
 describe('time parsers reject partial input', () => {
   it.each([':30', '12:', ':', '1:2', '99:99'])('parseTime(%s) is -1', (t) => {
