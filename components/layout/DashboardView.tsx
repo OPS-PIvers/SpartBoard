@@ -11,6 +11,7 @@ import {
 } from '@/utils/backgrounds';
 import { useAuth } from '@/context/useAuth';
 import { useLiveSession } from '@/hooks/useLiveSession';
+import { deriveLiveSessionState } from '@/utils/liveSessionState';
 import { ImportShareModePicker } from '@/components/share/ImportShareModePicker';
 import { ImportSharedCollectionModal } from '@/components/share/ImportSharedCollectionModal';
 import { ShareStatusBanner } from '@/components/share/ShareStatusBanner';
@@ -502,6 +503,7 @@ export const DashboardView: React.FC = () => {
     undefined,
     canAccessFeature('live-session')
   );
+  const liveState = deriveLiveSessionState(session);
 
   const [lastDashboardId, setLastDashboardId] = React.useState<
     string | undefined
@@ -878,9 +880,10 @@ export const DashboardView: React.FC = () => {
   // becomes null and we lose the pin. Fixing this requires lifting session
   // ownership to a board-keyed map at the data layer (deferred).
   const sessions = useMemo<Map<string, LiveSession> | undefined>(() => {
-    if (!session?.isActive || !activeDashboard) return undefined;
+    if (liveState.kind !== 'live' || !session || !activeDashboard)
+      return undefined;
     return new Map([[activeDashboard.id, session]]);
-  }, [session, activeDashboard]);
+  }, [liveState.kind, session, activeDashboard]);
 
   // One-time tripwire: log when a session first goes active so the pinning
   // limitation is visible in monitoring. useLiveSession() does not expose a
@@ -889,8 +892,7 @@ export const DashboardView: React.FC = () => {
   // session ownership to a board-keyed data layer (deferred).
   const pinningWarnedRef = React.useRef(false);
   // eslint-disable-next-line react-hooks/refs -- one-time log tripwire
-  if (session?.isActive && !pinningWarnedRef.current) {
-    // eslint-disable-next-line react-hooks/refs -- one-time log tripwire
+  if (liveState.kind === 'live' && session && !pinningWarnedRef.current) {
     pinningWarnedRef.current = true;
     logError(
       'MountedBoardsLayer.pinningLimitation',
@@ -900,7 +902,7 @@ export const DashboardView: React.FC = () => {
       { activeBoardId: activeDashboard?.id, sessionCode: session.code }
     );
   }
-  if (!session?.isActive) {
+  if (liveState.kind !== 'live') {
     // eslint-disable-next-line react-hooks/refs -- one-time log tripwire
     pinningWarnedRef.current = false;
   }

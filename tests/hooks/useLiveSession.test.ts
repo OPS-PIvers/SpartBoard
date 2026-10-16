@@ -632,3 +632,125 @@ describe('useLiveSession — student removal and leaving', () => {
     errorSpy.mockRestore();
   });
 });
+
+describe('useLiveSession — student follows the teacher', () => {
+  const asMock = (fn: unknown) => fn as ReturnType<typeof vi.fn>;
+  let pushSession: ((data: Record<string, unknown> | null) => void) | null;
+  let pushMyDoc: ((exists: boolean, status?: string) => void) | null;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    pushSession = null;
+    pushMyDoc = null;
+    (auth as unknown as { currentUser: { uid: string } }).currentUser = {
+      uid: 'student-uid-1',
+    };
+    asMock(firestore.doc).mockImplementation((...args: unknown[]) => ({
+      path: args.slice(1).join('/'),
+    }));
+    asMock(firestore.collection).mockReturnValue({});
+    asMock(firestore.query).mockReturnValue({});
+    asMock(firestore.where).mockReturnValue({});
+    asMock(firestore.setDoc).mockResolvedValue(undefined);
+    asMock(firestore.updateDoc).mockResolvedValue(undefined);
+    asMock(firestore.getDocs)
+      .mockResolvedValueOnce({
+        docs: [{ id: 'teacher-uid-1', data: () => ({ isActive: true }) }],
+      })
+      .mockResolvedValue({ docs: [] });
+    asMock(firestore.onSnapshot).mockImplementation(
+      (ref: { path?: string }, cb: (snap: unknown) => void) => {
+        if (ref.path?.includes('/students/')) {
+          pushMyDoc = (exists, status = 'active') =>
+            cb({
+              exists: () => exists,
+              data: () => ({ pin: '1234', status }),
+            });
+        } else {
+          pushSession = (data) =>
+            cb({ exists: () => data !== null, data: () => data });
+        }
+        return vi.fn();
+      }
+    );
+  });
+
+  const live = (over: Record<string, unknown> = {}) => ({
+    id: 'teacher-uid-1',
+    isActive: true,
+    activeWidgetId: 'w1',
+    activeWidgetType: 'clock',
+    code: 'ABC123',
+    frozen: false,
+    createdAt: 1,
+    ...over,
+  });
+
+  const joinAndWatch = async () => {
+    const hook = renderHook(() =>
+      useLiveSession(undefined, 'student', 'teacher-uid-1')
+    );
+    act(() => pushSession?.(live()));
+    await act(async () => {
+      await hook.result.current.joinSession('1234', 'ABC123');
+    });
+    act(() => pushMyDoc?.(true, 'active'));
+    return hook;
+  };
+
+  it('stops loading on the first session snapshot', () => {
+    const { result } = renderHook(() =>
+      useLiveSession(undefined, 'student', 'teacher-uid-1')
+    );
+    expect(result.current.loading).toBe(true);
+    act(() => pushSession?.(live()));
+    expect(result.current.loading).toBe(false);
+    expect(result.current.session?.activeWidgetId).toBe('w1');
+  });
+
+  it('keeps the student joined when the teacher ends, and marks them unfrozen on disconnect', async () => {
+    const { result } = await joinAndWatch();
+    act(() => pushMyDoc?.(true, 'frozen'));
+    act(() => pushSession?.(live({ isActive: false, activeWidgetId: null })));
+    act(() => pushMyDoc?.(true, 'disconnected'));
+    expect(result.current.studentId).toBe('student-uid-1');
+    expect(result.current.session?.isActive).toBe(false);
+    expect(result.current.individualFrozen).toBe(false);
+  });
+
+  it('follows a widget switch without rejoining', async () => {
+    const { result } = await joinAndWatch();
+    act(() => pushSession?.(live({ activeWidgetId: 'w2' })));
+    expect(result.current.studentId).toBe('student-uid-1');
+    expect(result.current.studentPin).toBe('1234');
+    expect(result.current.session?.activeWidgetId).toBe('w2');
+  });
+
+  it('keeps a personal freeze when the class freeze lifts', async () => {
+    const { result } = await joinAndWatch();
+    act(() => pushMyDoc?.(true, 'frozen'));
+    act(() => pushSession?.(live({ frozen: true })));
+    act(() => pushSession?.(live({ frozen: false })));
+    expect(result.current.individualFrozen).toBe(true);
+    expect(result.current.session?.frozen).toBe(false);
+  });
+
+  it('drops the session when the student is removed', async () => {
+    const { result } = await joinAndWatch();
+    act(() => pushMyDoc?.(false));
+    expect(result.current.session).toBeNull();
+    expect(result.current.studentPin).toBeNull();
+  });
+
+  it('ignores leave before joining', async () => {
+    const { result } = renderHook(() =>
+      useLiveSession(undefined, 'student', 'teacher-uid-1')
+    );
+    act(() => pushSession?.(live()));
+    await act(async () => {
+      await result.current.leaveSession();
+    });
+    expect(firestore.updateDoc).not.toHaveBeenCalled();
+    expect(result.current.session?.activeWidgetId).toBe('w1');
+  });
+});
