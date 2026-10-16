@@ -468,7 +468,7 @@ Use tech communication tool to send
 
 Use guided learning to create`;
 
-const PanelScreen: React.FC<{ before: boolean }> = ({ before }) => {
+const PanelScreen: React.FC = () => {
   const [body, setBody] = useState(PANEL_BODY);
   const [items, setItems] = useState(PANEL_ITEMS);
   return (
@@ -478,19 +478,17 @@ const PanelScreen: React.FC<{ before: boolean }> = ({ before }) => {
         onChange={setBody}
         readOnly={false}
         showToolbar
-        textStyles={!before}
       />
       <div className="flex min-h-0 flex-col">
         <p className="px-4 pt-3 text-xxs font-bold uppercase tracking-widest text-slate-500">
           Open action items ({items.filter((i) => !i.done).length})
         </p>
         <NoteActionItems
-          items={before ? items.map((i) => ({ ...i, clearedAt: null })) : items}
+          items={items}
           members={PANEL_MEMBERS}
           canEdit
           currentUid="me"
           panel
-          teamsLayout={!before}
           onChange={setItems}
         />
       </div>
@@ -502,7 +500,6 @@ function readParams() {
   const params = new URLSearchParams(window.location.search);
   const screenParam = params.get('screen');
   return {
-    before: params.get('before') === '1',
     screen:
       screenParam === 'dept'
         ? 'dept'
@@ -573,7 +570,7 @@ export const TeamsNotesDevHarness: React.FC = () => {
             isLead={lead}
             fullBleed
           >
-            <PanelScreen before={initial.before} />
+            <PanelScreen />
           </TeamShell>
         ) : screen === 'note' ? (
           <TeamShell

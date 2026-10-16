@@ -4798,7 +4798,9 @@
       "saveStart": "Save board",
       "justResume": "Just resume",
       "startSaved": "Starts from a saved board",
-      "clearStart": "Clear"
+      "clearStart": "Clear",
+      "noteForClaude": "Note for Claude",
+      "noteBy": "From {{who}}"
     },
     "kept_one": "Saved {{count}} item to your library.",
     "kept_other": "Saved {{count}} items to your library.",
@@ -5007,6 +5009,9 @@
       "paused": "Paused",
       "closed": "Closed",
       "opens": "Opens {{day}} {{time}}"
+    },
+    "closed": {
+      "title": "This activity is closed"
     },
     "pausedOverlay": {
       "title": "Paused for your class",

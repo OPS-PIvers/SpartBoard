@@ -3,7 +3,7 @@
 const PREVIEW_ATTR = 'data-spart-preview';
 
 // Plain ES5 that stands in for SpartBoard's helper outside SpartBoard; inert in SpartBoard's srcdoc frames.
-const PREVIEW_SOURCE = `(function () {
+export const PREVIEW_SOURCE = `(function () {
   if (window.SpartBoard || location.href === 'about:srcdoc') return;
   var sent = false;
   var attempt = 0;

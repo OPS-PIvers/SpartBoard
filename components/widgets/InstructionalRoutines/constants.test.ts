@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { formatGradeLevelsLabel } from './constants';
+import {
+  formatGradeLevelsLabel,
+  prepareLaunchConfig,
+  QUICK_TOOLS,
+} from './constants';
 
 describe('formatGradeLevelsLabel', () => {
   it('orders a partial grade-band selection by canonical grade order, not string order', () => {
@@ -27,5 +31,45 @@ describe('formatGradeLevelsLabel', () => {
 
   it('returns a single uppercased label for one selected band', () => {
     expect(formatGradeLevelsLabel(['3-5'])).toBe('3-5');
+  });
+});
+
+describe('prepareLaunchConfig', () => {
+  const quickTool = (label: string) =>
+    QUICK_TOOLS.find((tool) => tool.label === label)?.config;
+
+  it('starts a routine timer at its own duration, not the 10:00 default', () => {
+    expect(
+      prepareLaunchConfig('time-tool', quickTool('Timer (1 min)'), 1000)
+    ).toMatchObject({
+      mode: 'timer',
+      duration: 60,
+      elapsedTime: 60,
+      isRunning: true,
+      startTime: 1000,
+    });
+  });
+
+  it('repairs a timer config saved before the fix', () => {
+    expect(
+      prepareLaunchConfig(
+        'time-tool',
+        { mode: 'timer', duration: 120, elapsedTime: 600, isRunning: true },
+        1000
+      )
+    ).toMatchObject({ elapsedTime: 120, startTime: 1000 });
+  });
+
+  it('starts a routine stopwatch from zero with a start time', () => {
+    expect(
+      prepareLaunchConfig('time-tool', quickTool('Stopwatch'), 1000)
+    ).toMatchObject({ elapsedTime: 0, isRunning: true, startTime: 1000 });
+  });
+
+  it('leaves other widgets and stopped timers alone', () => {
+    const sound = quickTool('Noise Meter');
+    expect(prepareLaunchConfig('sound', sound)).toBe(sound);
+    const stopped = { mode: 'timer', duration: 60, isRunning: false };
+    expect(prepareLaunchConfig('time-tool', stopped)).toBe(stopped);
   });
 });

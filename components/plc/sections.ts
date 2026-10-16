@@ -1,18 +1,4 @@
 // components/plc/sections.ts
-import {
-  LayoutDashboard,
-  Megaphone,
-  ClipboardList,
-  FileText,
-  SquareSquare,
-  Users2,
-  Library,
-  Presentation,
-  Target,
-  Settings as SettingsIcon,
-  type LucideIcon,
-} from 'lucide-react';
-import { PlcFeatureSettings, getPlcFeatures, type Plc } from '@/types';
 
 /**
  * Canonical PLC section ids — the rail items (PRD §6.1, Decision 4.5).
@@ -39,7 +25,7 @@ export type PlcSectionId =
   | 'members'
   | 'resources'
   | 'settings'
-  // Teams redesign pages (TEAMS_REDESIGN T27, T31); never legacy rail items.
+  // Team pages (TEAMS_REDESIGN T27, T31).
   | 'updates'
   | 'workspace';
 
@@ -120,113 +106,3 @@ export function resolvePlcSection(value: PlcRouteSection): PlcSectionId {
     ? PLC_SECTION_ALIASES[value as PlcSectionAlias]
     : (value as PlcSectionId);
 }
-
-export interface PlcSectionDef {
-  id: PlcSectionId;
-  icon: LucideIcon;
-  labelKey: string;
-  labelDefault: string;
-  /**
-   * Predicate gating this section against a PLC's resolved feature settings.
-   * Absent = always shown. A predicate (rather than a single flag key) lets
-   * `assessments` show when EITHER the quiz OR the video-activity feature is on.
-   */
-  isEnabled?: (features: PlcFeatureSettings) => boolean;
-  /** Section paints its own edges; the panel adds no padding. */
-  fullBleed?: boolean;
-}
-
-export const PLC_SECTIONS: readonly PlcSectionDef[] = [
-  {
-    id: 'home',
-    icon: LayoutDashboard,
-    labelKey: 'plcDashboard.tabs.home',
-    labelDefault: 'Home',
-    fullBleed: true,
-  },
-  {
-    id: 'meeting',
-    icon: Presentation,
-    labelKey: 'plcDashboard.tabs.meeting',
-    labelDefault: 'Meeting Mode',
-    isEnabled: (features) => features.meeting !== false,
-    fullBleed: true,
-  },
-  {
-    id: 'assessments',
-    icon: ClipboardList,
-    labelKey: 'plcDashboard.tabs.assessments',
-    labelDefault: 'Assessments',
-    // Shown when EITHER the quiz OR the video-activity feature is enabled, so
-    // teams that turn off just one half still get the combined section.
-    isEnabled: (features) => features.quizzes || features.videoActivities,
-  },
-  {
-    id: 'targets',
-    icon: Target,
-    labelKey: 'plcDashboard.tabs.targets',
-    labelDefault: 'Learning Targets',
-    isEnabled: (features) => features.quizzes || features.videoActivities,
-  },
-  {
-    id: 'docs',
-    icon: FileText,
-    labelKey: 'plcDashboard.tabs.docs',
-    labelDefault: 'Notes & Docs',
-    isEnabled: (features) => features.notes,
-  },
-  {
-    id: 'sharedBoards',
-    icon: SquareSquare,
-    labelKey: 'plcDashboard.tabs.sharedBoards',
-    labelDefault: 'Boards',
-    isEnabled: (features) => features.sharedBoards,
-  },
-  {
-    id: 'members',
-    icon: Users2,
-    labelKey: 'plcDashboard.tabs.members',
-    labelDefault: 'Members',
-  },
-  {
-    id: 'resources',
-    icon: Library,
-    labelKey: 'plcDashboard.tabs.resources',
-    labelDefault: 'Resources',
-  },
-  {
-    id: 'settings',
-    icon: SettingsIcon,
-    labelKey: 'plcDashboard.tabs.settings',
-    labelDefault: 'Settings',
-  },
-] as const;
-
-/**
- * The rail sections visible for a given PLC, in locked loop order, after
- * feature-gating. Centralised here so the dashboard, rail, and tests share one
- * source of truth for visibility + ordering.
- */
-export function getVisiblePlcSections(
-  plc: Plc,
-  options: { retireMeetingMode?: boolean; showUpdates?: boolean } = {}
-): readonly PlcSectionDef[] {
-  const features = getPlcFeatures(plc);
-  const visible = PLC_SECTIONS.filter(
-    (s) =>
-      (!s.isEnabled || s.isEnabled(features)) &&
-      // Meeting Mode folds into Notes under the Teams redesign (TEAMS_REDESIGN T11).
-      !(options.retireMeetingMode && s.id === 'meeting')
-  );
-  // Updates posted from the redesign stay readable for teammates without it.
-  return options.showUpdates
-    ? [visible[0], UPDATES_SECTION, ...visible.slice(1)]
-    : visible;
-}
-
-const UPDATES_SECTION: PlcSectionDef = {
-  id: 'updates',
-  icon: Megaphone,
-  labelKey: 'teams.pages.updates',
-  labelDefault: 'Updates',
-};

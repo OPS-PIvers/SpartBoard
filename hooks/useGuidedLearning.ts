@@ -567,6 +567,12 @@ export const useGuidedLearning = (
     async (setId: string): Promise<void> => {
       if (!isAdmin) throw new Error('Admin access required');
       await deleteDoc(doc(db, BUILDING_GL_COLLECTION, setId));
+      // A live tour's admin-only notes and playtest go with it.
+      await deleteDoc(
+        doc(db, BUILDING_GL_COLLECTION, setId, 'review', 'current')
+      ).catch((err: unknown) =>
+        console.warn('[GuidedLearning] review doc delete failed', err)
+      );
     },
     [isAdmin]
   );

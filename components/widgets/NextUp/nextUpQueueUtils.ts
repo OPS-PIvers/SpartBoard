@@ -44,3 +44,39 @@ export function shouldExpireNextUpQueue(
   const today = now.toDateString();
   return createdDate !== today;
 }
+
+/** The queue grows no larger than this, so a flood of joins can't fill Drive. */
+export const NEXT_UP_QUEUE_CAP = 500;
+
+export type NextUpQueueAction =
+  | { type: 'joined'; entries: Omit<NextUpQueueItem, 'status'>[] }
+  | { type: 'advance' }
+  | { type: 'reset' }
+  | { type: 'replace'; queue: NextUpQueueItem[] };
+
+/** Every teacher-side queue change, applied to the latest queue. */
+export function nextUpQueueReducer(
+  queue: NextUpQueueItem[],
+  action: NextUpQueueAction
+): NextUpQueueItem[] {
+  switch (action.type) {
+    case 'joined': {
+      const next = [...queue];
+      for (const entry of action.entries) {
+        if (next.length >= NEXT_UP_QUEUE_CAP) break;
+        if (next.some((item) => item.id === entry.id)) continue;
+        next.push({
+          ...entry,
+          status: next.length === 0 ? 'active' : 'waiting',
+        });
+      }
+      return next.length === queue.length ? queue : next;
+    }
+    case 'advance':
+      return advanceNextUpQueue(queue);
+    case 'reset':
+      return [];
+    case 'replace':
+      return action.queue;
+  }
+}

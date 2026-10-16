@@ -409,6 +409,29 @@ describe('VideoActivityStudentApp: teacher-paced', () => {
     );
   });
 
+  it('retries the end-of-run completion after a failed write', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      spies.completeActivity
+        .mockRejectedValueOnce(new Error('offline'))
+        .mockResolvedValue(undefined);
+      hookState.session = buildSession({ status: 'ended' });
+      hookState.myResponse = buildResponse();
+      render(<VideoActivityStudentApp />);
+      await waitFor(() =>
+        expect(spies.completeActivity).toHaveBeenCalledTimes(1)
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000);
+      });
+      await waitFor(() =>
+        expect(spies.completeActivity).toHaveBeenCalledTimes(2)
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('does not re-complete a finished response', async () => {
     hookState.session = buildSession({ status: 'ended' });
     hookState.myResponse = buildResponse({ completedAt: 5 });
@@ -430,9 +453,11 @@ describe('VideoActivityStudentApp: teacher-paced tab warnings', () => {
       },
     });
     spies.reportTabSwitch.mockResolvedValue(1);
-    const focus = vi.spyOn(document, 'hasFocus').mockReturnValue(false);
+    // Focus is lost only after render, so the focus poll catches the exit even if blur beats the listener.
+    const focus = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
     render(<VideoActivityStudentApp />);
     await screen.findByText('Watch the board.');
+    focus.mockReturnValue(false);
     act(() => {
       window.dispatchEvent(new Event('blur'));
     });

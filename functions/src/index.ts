@@ -151,7 +151,10 @@ export {
 } from './studentAssignmentCleanup';
 
 // ── Flashcards Check submission (server-graded; docs/plans/shipped/FLASHCARDS.md §7) ─
-export { submitFlashcardCheckV1 } from './flashcardCheck';
+export {
+  recordFlashcardCheckRatingsV1,
+  submitFlashcardCheckV1,
+} from './flashcardCheck';
 export { submitMiniAppResultV1 } from './miniAppResults';
 export { resolveFlashcardFlagV1 } from './flashcardFlags';
 

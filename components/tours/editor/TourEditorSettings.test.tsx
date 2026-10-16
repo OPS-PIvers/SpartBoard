@@ -19,6 +19,17 @@ vi.mock('@/components/tours/publishedTours', () => ({
   usePublishedTour: () => ({ loaded: true, tour: h.published }),
   publishTour: h.publish,
 }));
+const note = vi.hoisted(() => ({
+  save: vi.fn<(setId: string, target: string, n: unknown) => Promise<void>>(
+    () => Promise.resolve()
+  ),
+}));
+vi.mock('@/components/tours/tourReview', () => ({
+  useTourReview: () => ({
+    tourNote: { text: 'Old note', by: 'other@school.org', at: 1 },
+  }),
+  saveTourNote: note.save,
+}));
 vi.mock('./TourHelpVisibility', () => ({
   TourHelpVisibility: () => <p>help visibility</p>,
 }));
@@ -59,10 +70,16 @@ const sessionFor = (
     ...over,
   }) as unknown as TourEditorSession;
 
-const renderSettings = (session: TourEditorSession) =>
+const renderSettings = (session: TourEditorSession, connector = false) =>
   render(
     <AuthContext.Provider
-      value={{ user: { uid: 'admin-1' } } as unknown as AuthContextType}
+      value={
+        {
+          user: { uid: 'admin-1', email: 'admin@school.org' },
+          canAccessFeature: (id: string) =>
+            connector && id === 'claude-connector',
+        } as unknown as AuthContextType
+      }
     >
       <TourEditorSettings session={session} />
     </AuthContext.Provider>
@@ -148,5 +165,50 @@ describe('TourEditorSettings', () => {
     expect(session.updateSet).toHaveBeenLastCalledWith({
       tourSetup: { widgets: [] },
     });
+  });
+
+  it('saves a tour note for Claude with who wrote it, for admins with the connector', () => {
+    const session = sessionFor(tour());
+    const { unmount } = renderSettings(session);
+    expect(screen.queryByTestId('tour-editor-tour-note')).toBeNull();
+    unmount();
+    renderSettings(session, true);
+    const box = screen.getByTestId('tour-editor-tour-note');
+    expect(box).toHaveValue('Old note');
+    expect(screen.getByText(/other@school.org/)).toBeInTheDocument();
+    fireEvent.change(box, { target: { value: 'Use shorter steps' } });
+    fireEvent.blur(box);
+    expect(note.save).toHaveBeenLastCalledWith(
+      'set-1',
+      'tour',
+      expect.objectContaining({
+        text: 'Use shorter steps',
+        by: 'admin@school.org',
+      })
+    );
+    fireEvent.change(box, { target: { value: '  ' } });
+    fireEvent.blur(box);
+    expect(note.save).toHaveBeenLastCalledWith('set-1', 'tour', undefined);
+    expect(session.updateSet).not.toHaveBeenCalled();
+  });
+
+  it('keeps typing that goes on while a note saves', async () => {
+    let finish: (() => void) | undefined;
+    note.save.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        })
+    );
+    renderSettings(sessionFor(tour()), true);
+    const box = screen.getByTestId('tour-editor-tour-note');
+    fireEvent.change(box, { target: { value: 'Short' } });
+    fireEvent.blur(box);
+    fireEvent.change(box, { target: { value: 'Shorter steps' } });
+    await act(async () => {
+      finish?.();
+      await Promise.resolve();
+    });
+    expect(box).toHaveValue('Shorter steps');
   });
 });

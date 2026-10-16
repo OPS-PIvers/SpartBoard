@@ -14,8 +14,29 @@
       "widgetType": "weather",
       "dimension": "layout",
       "openedAt": "2026-10-14T04:20:00Z",
-      "outcome": "open",
+      "outcome": "changed",
       "changes": []
+    },
+    {
+      "pr": 4295,
+      "widgetType": "random",
+      "dimension": "layout",
+      "openedAt": "2026-10-15T04:20:00Z",
+      "outcome": "changed",
+      "changes": []
+    },
+    {
+      "pr": 4325,
+      "widgetType": "checklist",
+      "dimension": "layout",
+      "openedAt": "2026-10-16T04:20:00Z",
+      "outcome": "open",
+      "changes": {
+        "S6": {
+          "before": null,
+          "after": 2
+        }
+      }
     }
   ]
 }

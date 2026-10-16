@@ -1,6 +1,6 @@
 // Admin-only live tour tools: create, get and update a live tour, and list Help Center categories (CLAUDE_CONNECTOR.md CC-D19).
 import { randomUUID } from 'node:crypto';
-import type * as admin from 'firebase-admin';
+import * as admin from 'firebase-admin';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
@@ -57,6 +57,7 @@ import {
 import { TOUR_ANCHOR_QUEUE } from '../tourAnchorQueue';
 import { CREATES, OVERWRITES, READ_ONLY, iso, run } from './toolKit';
 import { issuePictureTicket } from './tourPictures';
+import { tourPlaytestKey } from './tourPlaytest';
 import {
   narrateTourSteps,
   narrationDeps,
@@ -214,6 +215,12 @@ const editStep = tourStep.extend({
     .string()
     .optional()
     .describe('Read only. Copy it into tour.anchor to bind the step.'),
+  review_note: z
+    .unknown()
+    .optional()
+    .describe(
+      "Read only. The admin's note for Claude on this step; clear it with resolved_notes."
+    ),
 });
 type EditStep = z.infer<typeof editStep>;
 
@@ -329,6 +336,119 @@ export function publicTourStep(step: Step): Record<string, unknown> {
   return out;
 }
 
+/** An admin's note for Claude as the connector returns it, or null when there is none (C10). */
+export function publicNote(raw: unknown) {
+  if (!raw || typeof raw !== 'object') return null;
+  const n = raw as { text?: unknown; by?: unknown; at?: unknown };
+  if (typeof n.text !== 'string' || !n.text.trim()) return null;
+  return {
+    text: n.text,
+    by: typeof n.by === 'string' ? n.by : '',
+    ...(typeof n.at === 'number' ? { at: iso(n.at) } : {}),
+  };
+}
+
+/** A tour's admin-only review doc: notes for Claude and the last editor playtest (C9, C10). */
+export interface TourReviewDoc {
+  tourNote?: unknown;
+  stepNotes?: Record<string, unknown>;
+  playtest?: unknown;
+}
+
+const reviewPath = (setId: string) => `${BUILDING}/${setId}/review/current`;
+
+async function loadReview(
+  ctx: ToolContext,
+  setId: string
+): Promise<TourReviewDoc> {
+  const snap = await ctx.db.doc(reviewPath(setId)).get();
+  return snap.exists ? (snap.data() as TourReviewDoc) : {};
+}
+
+/** The last editor playtest, stale once the steps changed after it (C9). */
+export function publicPlaytest(raw: unknown, steps: GlSet['steps']) {
+  const p = raw as
+    | { at?: unknown; by?: unknown; fingerprint?: unknown; steps?: unknown }
+    | undefined;
+  if (!p || !Array.isArray(p.steps)) return null;
+  const results = (p.steps as unknown[]).flatMap((s) => {
+    const r = s as { stepId?: unknown; result?: unknown } | null;
+    return typeof r?.stepId === 'string' && typeof r.result === 'string'
+      ? [{ step_id: r.stepId, result: r.result }]
+      : [];
+  });
+  return {
+    ...(typeof p.at === 'number' ? { at: iso(p.at) } : {}),
+    by: typeof p.by === 'string' ? p.by : '',
+    stale: p.fingerprint !== tourPlaytestKey(steps),
+    steps: results,
+  };
+}
+
+export interface TourRunLike {
+  v?: unknown;
+  done?: unknown;
+  exit?: unknown;
+  misses?: unknown;
+}
+
+/** Counts from teachers' runs of the published version only; no teacher is named (C11). */
+export function tourHealth(
+  runs: readonly TourRunLike[],
+  publishedSteps: readonly { id: string }[],
+  publishedAt: number
+) {
+  const current = runs.filter((r) => r.v === publishedAt);
+  const exits = new Map<number, number>();
+  const missed = new Map<string, number>();
+  for (const run of current) {
+    if (run.done !== true && Number.isInteger(run.exit))
+      exits.set(run.exit as number, (exits.get(run.exit as number) ?? 0) + 1);
+    if (Array.isArray(run.misses))
+      for (const id of new Set(run.misses))
+        if (typeof id === 'string') missed.set(id, (missed.get(id) ?? 0) + 1);
+  }
+  const top = [...exits].sort((a, b) => b[1] - a[1] || a[0] - b[0])[0];
+  const leftFrom = top ? publishedSteps[top[0]]?.id : undefined;
+  return {
+    runs: current.length,
+    completed: current.filter((r) => r.done === true).length,
+    ...(top && leftFrom
+      ? { most_left_from: { step_id: leftFrom, runs: top[1] } }
+      : {}),
+    missed: [...missed]
+      .sort((a, b) => b[1] - a[1])
+      .map(([step_id, n]) => ({ step_id, runs: n })),
+  };
+}
+
+/** The notes a save clears: resolved_notes, plus those of every step it removes; refuses an id the tour never had. */
+export function notesToClear(
+  stored: GlSet['steps'],
+  next: GlSet['steps'],
+  resolved: readonly string[]
+): string[] {
+  const kept = new Set(next.map((s) => s.id));
+  const known = new Set([...kept, ...stored.map((s) => s.id)]);
+  const unknown = resolved.find((r) => r !== 'tour' && !known.has(r));
+  if (unknown)
+    throw new ToolError(
+      `resolved_notes: "${unknown}" is not a step id in this tour, or "tour".`
+    );
+  const removed = stored.map((s) => s.id).filter((id) => !kept.has(id));
+  return [...new Set([...resolved, ...removed])];
+}
+
+/** The review doc update that clears the named notes. */
+export function clearedNotes(resolved: readonly string[]) {
+  const del = admin.firestore.FieldValue.delete();
+  const out: Record<string, unknown> = {};
+  for (const r of resolved)
+    if (r === 'tour') out.tourNote = del;
+    else out.stepNotes = { ...(out.stepNotes as object), [r]: del };
+  return out;
+}
+
 export type TourPublishState = 'draft' | 'published' | 'changed';
 
 /** Draft = never published; changed = saved after the snapshot teachers run. */
@@ -360,8 +480,12 @@ export function liveTourView(
   set: GlSet,
   publishedAt: number | null,
   ready: ReadonlyMap<string, string> = new Map(),
-  withSamples = false
+  withSamples = false,
+  health?: ReturnType<typeof tourHealth>,
+  review: TourReviewDoc = {}
 ) {
+  const note = publicNote(review.tourNote);
+  const playtest = publicPlaytest(review.playtest, set.steps);
   const state = tourPublishState(set.updatedAt, publishedAt);
   const unregistered = set.steps.flatMap((s) => {
     const anchor = (s.tour as { anchor?: unknown } | undefined)?.anchor;
@@ -394,8 +518,15 @@ export function liveTourView(
       ? { steps_with_unregistered_anchor: unregistered }
       : {}),
     ...needsAnchors(set.steps),
+    ...(note ? { review_note: note } : {}),
+    ...(playtest ? { last_playtest: playtest } : {}),
+    ...(health ? { health } : {}),
     steps: set.steps.map((s) => {
-      const out = publicTourStep(s);
+      const stepNote = publicNote(review.stepNotes?.[s.id]);
+      const out = {
+        ...publicTourStep(s),
+        ...(stepNote ? { review_note: stepNote } : {}),
+      };
       const ref = ready.get(s.id);
       return ref ? { ...out, anchor_ready: ref } : out;
     }),
@@ -413,6 +544,7 @@ export function mergeTourSteps(
     delete out.has_thumbnail;
     delete out.thumbnail_stale;
     delete out.anchor_ready;
+    delete out.review_note;
     return toStepInput(out as unknown as LiveTourStep, byId.get(s.id));
   });
   const merged = mergeSteps(existing, stripped, 0);
@@ -449,6 +581,30 @@ async function loadTour(ctx: ToolContext, setId: string) {
       `That set is a Guided Learning set, not a live tour; read it with get_guided_learning. ${FIND_TOURS}`
     );
   return loaded;
+}
+
+/** The published version's runs, as Health counts them. */
+async function healthOf(ctx: ToolContext, setId: string) {
+  const tour = await ctx.db.doc(`${GL_TOURS}/${setId}`).get();
+  if (!tour.exists) return undefined;
+  const at: unknown = tour.get('publishedAt');
+  const publishedAt = typeof at === 'number' ? at : 0;
+  const published = tour.get('set') as { steps?: unknown } | undefined;
+  const steps = Array.isArray(published?.steps)
+    ? (published.steps as unknown[]).flatMap((s) => {
+        const id = (s as { id?: unknown } | null)?.id;
+        return typeof id === 'string' ? [{ id }] : [];
+      })
+    : [];
+  const runs = await ctx.db
+    .collection(`${GL_TOURS}/${setId}/runs`)
+    .where('v', '==', publishedAt)
+    .get();
+  return tourHealth(
+    runs.docs.map((d) => d.data() as TourRunLike),
+    steps,
+    publishedAt
+  );
 }
 
 async function publishedAtOf(
@@ -852,7 +1008,7 @@ export function registerLiveTourTools(
     {
       title: 'Get a live tour',
       description:
-        'Admins only. Returns a live tour with every step: its anchor, action, value and text, whether it has a thumbnail, and whether teachers see the latest version (publish_state "draft" never published, "published" up to date, "changed" saved since the last publish). Find the set_id with list_guided_learning, source "building", kind "live_tour". A recorded step with anchor "" works from its English fallback only; anchor_ready on such a step is the anchor its control has since been given, which update_live_tour can put in tour.anchor. Use get_live_tour_step_picture to see what was recorded before writing a step\'s text.',
+        'Admins only. Returns a live tour with every step: its anchor, action, value and text, whether it has a thumbnail, and whether teachers see the latest version (publish_state "draft" never published, "published" up to date, "changed" saved since the last publish). Find the set_id with list_guided_learning, source "building", kind "live_tour". A recorded step with anchor "" works from its English fallback only; anchor_ready on such a step is the anchor its control has since been given, which update_live_tour can put in tour.anchor. Use get_live_tour_step_picture to see what was recorded before writing a step\'s text. review_note (on the tour and on steps) is an admin\'s note for Claude; last_playtest is what each step did when an admin last played it in the editor (found, missing, left to the teacher, not reached), stale once the steps changed; health counts teachers\' runs of the published version.',
       inputSchema: {
         set_id: z.string().min(1),
         for_browser_run: z
@@ -867,16 +1023,24 @@ export function registerLiveTourTools(
     ({ set_id, for_browser_run }) =>
       run('get_live_tour', ctx, async () => {
         await assertAccess(ctx, 'building');
-        const [loaded, publishedAt] = await Promise.all([
+        const [loaded, publishedAt, review, health] = await Promise.all([
           loadTour(ctx, set_id),
           publishedAtOf(ctx, set_id),
+          loadReview(ctx, set_id),
+          healthOf(ctx, set_id).catch((err: unknown) => {
+            // Health is extra; a failed read leaves it out rather than failing the tour.
+            console.warn('[live tour] health read failed', err);
+            return undefined;
+          }),
         ]);
         const ready = await readyAnchors(ctx, loaded.set.steps);
         return liveTourView(
           loaded.set,
           publishedAt,
           ready,
-          for_browser_run === true
+          for_browser_run === true,
+          health,
+          review
         );
       })
   );
@@ -886,7 +1050,7 @@ export function registerLiveTourTools(
     {
       title: 'Edit a live tour',
       description:
-        'Admins only. Edits a live tour; only passed fields change. To change only wording, pass step_text, which leaves every other step and field as stored. `steps` replaces the whole list in play order: send every step to keep, with its id, as get_live_tour returned it; use it to add, remove, reorder or rebind steps. The result is checked like create_live_tour, including the Open Tools step; the opening and closing step rule refuses the save only if the stored tour already met it. Problems that would break playback refuse the save, others come back as warnings; dry_run checks without saving. Thumbnails and narration are kept. Saves the draft only: teachers keep the published tour until an admin opens the tour in SpartBoard and publishes the changes.',
+        'Admins only. Edits a live tour; only passed fields change. To change only wording, pass step_text, which leaves every other step and field as stored. `steps` replaces the whole list in play order: send every step to keep, with its id, as get_live_tour returned it; use it to add, remove, reorder or rebind steps. The result is checked like create_live_tour, including the Open Tools step; the opening and closing step rule refuses the save only if the stored tour already met it. Problems that would break playback refuse the save, others come back as warnings; dry_run checks without saving. Thumbnails, narration and notes are kept; resolved_notes clears the notes this save deals with. Saves the draft only: teachers keep the published tour until an admin opens the tour in SpartBoard and publishes the changes.',
       inputSchema: {
         set_id: z.string().min(1),
         title: z.string().trim().min(1).max(200).optional(),
@@ -911,6 +1075,13 @@ export function registerLiveTourTools(
           .optional()
           .describe(
             'New label or text for the named steps, by id; "" clears it. Not with steps.'
+          ),
+        resolved_notes: z
+          .array(z.string().min(1).max(100))
+          .max(MAX_STEPS + 1)
+          .optional()
+          .describe(
+            'Notes for Claude this save deals with: step ids, plus "tour" for the tour\'s own note. They are cleared when the save succeeds.'
           ),
         dry_run: dryRunInput,
       },
@@ -971,6 +1142,8 @@ export function registerLiveTourTools(
           buildTourSetup(input, draftMaterials, prior),
           input.steps ? { bookends: updateBookends(set.steps) } : {}
         );
+        const resolved = input.resolved_notes ?? [];
+        const clearing = notesToClear(set.steps, next.steps, resolved);
         if (input.dry_run) return dryRunResult(report, inserted);
         assertPlays(report);
         const materials = input.materials
@@ -997,11 +1170,17 @@ export function registerLiveTourTools(
           requests,
           stageHelp
         );
+        // Notes clear only once the edit that deals with them is saved.
+        if (clearing.length)
+          await ctx.db
+            .doc(reviewPath(set_id))
+            .set(clearedNotes(clearing), { merge: true });
         return {
           ...saved,
           ...needsAnchors(next.steps),
           ...narrationNote(voiced.failed),
           ...insertedNote(inserted),
+          ...(resolved.length ? { resolved_notes: resolved } : {}),
           ...(report.warnings.length ? { warnings: report.warnings } : {}),
           note: 'Saved as a draft. Teachers keep the published tour until an admin opens it in SpartBoard (Guided Learning library > Edit) and publishes the changes.',
         };

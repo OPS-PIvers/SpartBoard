@@ -1,7 +1,6 @@
-// The `dataOverview` team page (T16–T21), live on plcs/{id}/aggregates; renders only under teams-redesign.
+// The `dataOverview` team page (T16–T21), live on plcs/{id}/aggregates.
 
 import React, { useMemo, useState } from 'react';
-import { useAuth } from '@/context/useAuth';
 import { usePlcAggregate } from '@/hooks/usePlcAggregate';
 import { usePlcAssessments } from '@/hooks/usePlcAssessments';
 import { usePlcLearningTargets } from '@/hooks/useLearningTargets';
@@ -54,7 +53,6 @@ export default function DataOverviewPage({
   onChangeHero,
   onNavigate,
 }: TeamPageProps) {
-  const { canAccessFeature } = useAuth();
   const heroRef =
     layout.hero.mode === 'pinned' ? (layout.hero.ref ?? null) : null;
   const { model, input } = useDataOverviewModel(plc, heroRef);
@@ -63,8 +61,6 @@ export default function DataOverviewPage({
   const { openMyItems } = useTeamShellActions();
   const teamNav = useTeamNav();
   const [targetsOpen, setTargetsOpen] = useState(false);
-
-  if (!canAccessFeature('teams-redesign')) return null;
 
   // Pins this page doesn't draw itself (docs, notes, updates, calendar) go through the shared hero dispatch.
   const ownsPin =

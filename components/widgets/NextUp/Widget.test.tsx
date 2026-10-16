@@ -29,6 +29,7 @@ import { NextUpConfig, WidgetData } from '@/types';
 import { subShareContextValue } from '@/tests/helpers/subShareContext';
 
 const mockUpdateWidget = vi.fn();
+const mockUpdateDoc = vi.fn((..._args: unknown[]) => Promise.resolve());
 
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
@@ -42,9 +43,14 @@ vi.mock('@/context/useAuth', () => ({
 }));
 
 const downloadFile = vi.fn();
+const updateFileContent = vi.fn((..._args: unknown[]) => Promise.resolve());
+const driveService = { downloadFile, updateFileContent };
 vi.mock('@/hooks/useGoogleDrive', () => ({
-  useGoogleDrive: () => ({ driveService: { downloadFile } }),
+  useGoogleDrive: () => ({ driveService }),
 }));
+type SnapshotListener = (snap: unknown) => void;
+let entriesListener: SnapshotListener | null = null;
+const mockDeleteDoc = vi.fn((..._args: unknown[]) => Promise.resolve());
 vi.mock('@/context/useDialog', () => ({
   useDialog: () => ({ showConfirm: vi.fn() }),
 }));
@@ -54,8 +60,13 @@ vi.mock('firebase/firestore', () => ({
   query: () => ({}),
   orderBy: () => ({}),
   limit: () => ({}),
-  deleteDoc: vi.fn(),
-  onSnapshot: () => () => undefined,
+  deleteDoc: (...args: unknown[]) => mockDeleteDoc(...args),
+  doc: (_db: unknown, ...path: string[]) => ({ path: path.join('/') }),
+  updateDoc: (...args: unknown[]) => mockUpdateDoc(...args),
+  onSnapshot: (_q: unknown, listener: SnapshotListener) => {
+    entriesListener = listener;
+    return () => undefined;
+  },
 }));
 
 const buildWidget = (config: Partial<NextUpConfig>): WidgetData => ({
@@ -86,6 +97,7 @@ const buildWidget = (config: Partial<NextUpConfig>): WidgetData => ({
 describe('NextUpWidget auto-expiry', () => {
   beforeEach(() => {
     mockUpdateWidget.mockClear();
+    mockUpdateDoc.mockClear();
     vi.useFakeTimers();
     // A few minutes before local midnight.
     vi.setSystemTime(new Date('2026-07-23T23:58:00'));
@@ -106,6 +118,7 @@ describe('NextUpWidget auto-expiry', () => {
     );
 
     expect(mockUpdateWidget).not.toHaveBeenCalled();
+    expect(mockUpdateDoc).not.toHaveBeenCalled();
   });
 
   it('auto-expires an idle overnight session once the clock ticks past midnight', () => {
@@ -129,9 +142,15 @@ describe('NextUpWidget auto-expiry', () => {
       vi.advanceTimersByTime(5 * 60 * 1000); // +5 minutes → 00:03 next day
     });
 
+    // Only isActive is patched, so the rest of the config can't be overwritten with stale values.
     expect(mockUpdateWidget).toHaveBeenCalledWith('nextup-widget', {
-      config: expect.objectContaining({ isActive: false }),
+      config: { isActive: false },
     });
+    // The student join link closes with it.
+    expect(mockUpdateDoc).toHaveBeenCalledWith(
+      { path: 'nextup_sessions/teacher-1_nextup-widget' },
+      { isActive: false }
+    );
   });
 });
 
@@ -226,5 +245,64 @@ describe('NextUpWidget inside a sub share', () => {
 
     expect(getByText('NEXT')).toBeInTheDocument();
     expect(downloadFile).toHaveBeenCalledWith('queue-file');
+  });
+});
+
+describe('NextUpWidget taking in student joins', () => {
+  beforeEach(() => {
+    mockUpdateWidget.mockClear();
+    mockDeleteDoc.mockClear();
+    updateFileContent.mockClear();
+    entriesListener = null;
+    downloadFile.mockResolvedValue({ text: () => Promise.resolve('[]') });
+  });
+
+  const entrySnap = (...ids: string[]) => ({
+    empty: ids.length === 0,
+    docs: ids.map((id) => ({
+      id,
+      ref: { id },
+      data: () => ({ name: `Student ${id}`, joinedAt: 1 }),
+    })),
+  });
+
+  it('saves the queue, then deletes the joins and patches only lastUpdated', async () => {
+    const { findByText } = render(
+      <NextUpWidget
+        widget={{
+          ...buildWidget({
+            isActive: true,
+            activeDriveFileId: 'queue-file',
+            createdAt: Date.now(),
+          }),
+          id: 'nextup-joins',
+        }}
+      />
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      entriesListener?.(entrySnap('a'));
+      await Promise.resolve();
+    });
+    // A second snapshot arrives before the first drain finishes.
+    await act(async () => {
+      entriesListener?.(entrySnap('a', 'b'));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(await findByText('Student a')).toBeInTheDocument();
+    expect(await findByText('Student b')).toBeInTheDocument();
+    const lastSaved = JSON.parse(
+      await (updateFileContent.mock.calls.at(-1)?.[1] as Blob).text()
+    ) as { id: string }[];
+    expect(lastSaved.map((item) => item.id)).toEqual(['a', 'b']);
+    expect(mockDeleteDoc).toHaveBeenCalled();
+    for (const [, update] of mockUpdateWidget.mock.calls) {
+      expect(update).toEqual({ config: { lastUpdated: expect.any(Number) } });
+    }
+    expect(mockUpdateWidget).toHaveBeenCalled();
   });
 });

@@ -3748,7 +3748,9 @@
       "saveStart": "Guardar tablero",
       "justResume": "Solo reanudar",
       "startSaved": "Empieza desde un tablero guardado",
-      "clearStart": "Quitar"
+      "clearStart": "Quitar",
+      "noteForClaude": "Nota para Claude",
+      "noteBy": "De {{who}}"
     },
     "kept_one": "Se guardó {{count}} elemento en tu biblioteca.",
     "kept_other": "Se guardaron {{count}} elementos en tu biblioteca.",
@@ -3957,6 +3959,9 @@
       "paused": "En pausa",
       "closed": "Cerrada",
       "opens": "Se abre {{day}} {{time}}"
+    },
+    "closed": {
+      "title": "Esta actividad está cerrada"
     },
     "pausedOverlay": {
       "title": "En pausa para tu clase",

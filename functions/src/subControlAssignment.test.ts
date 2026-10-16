@@ -34,6 +34,8 @@ interface StubState {
   session?: Record<string, unknown> | null;
   /** Response docs under the quiz session, by id. */
   responses?: Record<string, Record<string, unknown>>;
+  /** What a response reads as inside the transaction, when it changed after the query. */
+  raced?: Record<string, Record<string, unknown>>;
   collection?: string;
 }
 
@@ -53,6 +55,7 @@ function stubDb(state: StubState = {}) {
     },
     session = stamped(),
     responses = {},
+    raced = {},
     collection = 'quiz_sessions',
   } = state;
 
@@ -86,6 +89,23 @@ function stubDb(state: StubState = {}) {
           }),
       }),
     }),
+    runTransaction: async <T>(
+      fn: (tx: {
+        get: (ref: { path: string }) => Promise<unknown>;
+        update: (ref: { path: string }, data: Record<string, unknown>) => void;
+      }) => Promise<T>
+    ) =>
+      fn({
+        get: (ref) => {
+          const id = ref.path.split('/').pop() ?? '';
+          // A response that changed between the read and the transaction.
+          const data = raced[id] ?? responses[id];
+          return Promise.resolve({ exists: data != null, data: () => data });
+        },
+        update: (ref, data) => {
+          written.push({ path: ref.path, data });
+        },
+      }),
     batch: () => ({
       update: (ref: { path: string }, data: Record<string, unknown>) => {
         written.push({ path: ref.path, data });
@@ -156,9 +176,57 @@ describe('handleControlSubAssignment — ending a quiz', () => {
     expect(finalized.map((w) => w.path.split('/').pop())).toEqual(['a', 'b']);
     expect(finalized[0].data.status).toBe('completed');
     expect(finalized[0].data.submittedAt).toBe(NOW);
-    // The attempt bump: without it a rejoin reads 0 completed and slips past
-    // the cap.
-    expect(finalized[0].data.completedAttempts).toBeTruthy();
+    expect(finalized[0].data.unlocked).toBe(false);
+    // A blank attempt uses no slot, as in the idle sweep and Submit for student.
+    expect(finalized[0].data).not.toHaveProperty('completedAttempts');
+  });
+
+  it('promotes drafts, clears unlocked and counts the attempt once', async () => {
+    const { run, written } = control({
+      session: stamped({
+        publicQuestions: [{ id: 'q1' }, { id: 'q2' }],
+        completenessModel: 1,
+      }),
+      responses: {
+        a: {
+          status: 'in-progress',
+          unlocked: true,
+          completedAttempts: 1,
+          answers: [{ questionId: 'q1', answer: 'x', status: 'draft' }],
+        },
+      },
+    });
+
+    await run();
+
+    const [finalized] = written.filter((w) => w.path.includes('/responses/'));
+    expect(finalized.data).toEqual({
+      status: 'completed',
+      submittedAt: NOW,
+      unlocked: false,
+      completedAttempts: 2,
+      answers: [
+        { questionId: 'q1', answer: 'x', status: 'submitted' },
+        {
+          questionId: 'q2',
+          answer: '',
+          answeredAt: NOW,
+          status: 'submitted',
+          unresponded: 'abandoned',
+        },
+      ],
+    });
+  });
+
+  it('leaves a response the student turned in after the read', async () => {
+    const { run, written } = control({
+      responses: { a: { status: 'in-progress', completedAttempts: 0 } },
+      raced: { a: { status: 'completed', completedAttempts: 1 } },
+    });
+
+    await run();
+
+    expect(written.filter((w) => w.path.includes('/responses/'))).toEqual([]);
   });
 });
 

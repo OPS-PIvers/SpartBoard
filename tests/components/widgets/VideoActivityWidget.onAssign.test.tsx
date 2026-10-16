@@ -262,6 +262,25 @@ describe('VideoActivityWidget onAssign — class-wide flow (§3a-G)', () => {
     >;
     expect('targetMode' in assignmentDoc).toBe(false);
     expect('targetStudents' in assignmentDoc).toBe(false);
+    expect('sessionMode' in assignmentDoc).toBe(false);
+  });
+
+  it('marks a live run on the assignment doc', async () => {
+    flags.add('video-activity-live');
+    const dialog = await openAssignModal();
+    fireEvent.click(
+      within(
+        within(dialog).getByRole('radiogroup', { name: 'Pacing' })
+      ).getByRole('radio', { name: /live/i })
+    );
+    fireEvent.click(within(dialog).getByRole('button', { name: /Start live/ }));
+
+    await waitFor(() => expect(mockSetDoc).toHaveBeenCalled());
+    const assignmentDoc = mockSetDoc.mock.calls[0][1] as Record<
+      string,
+      unknown
+    >;
+    expect(assignmentDoc.sessionMode).toBe('teacher');
   });
 
   // The widget's config has to remember which activity it assigned, the way

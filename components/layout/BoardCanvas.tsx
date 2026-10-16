@@ -12,6 +12,7 @@ import { DEFAULT_GLOBAL_STYLE } from '@/types';
 import { WidgetRenderer } from '@/components/widgets/WidgetRenderer';
 import { GroupBoundingBox } from '@/components/common/GroupBoundingBox';
 import { useDashboardCanvasSelector } from '@/context/dashboardCanvasStore';
+import { deriveLiveSessionState, isWidgetLive } from '@/utils/liveSessionState';
 
 export interface BoardCanvasProps {
   dashboard: Dashboard;
@@ -120,6 +121,7 @@ export const BoardCanvas: FC<BoardCanvasProps> = memo(
     // Each Board resolves its own globalStyle so hidden boards don't inherit
     // the active Board's styling when widget memoization is evaluated.
     const globalStyle = dashboard.globalStyle ?? DEFAULT_GLOBAL_STYLE;
+    const liveState = deriveLiveSessionState(session);
 
     return (
       <div
@@ -137,8 +139,7 @@ export const BoardCanvas: FC<BoardCanvasProps> = memo(
         data-board-id={dashboard.id}
       >
         {dashboard.widgets.map((widget) => {
-          const isLive =
-            session?.isActive === true && session.activeWidgetId === widget.id;
+          const isLive = isWidgetLive(liveState, widget.id);
           return (
             <WidgetRenderer
               key={widget.id}

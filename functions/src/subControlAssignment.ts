@@ -6,6 +6,7 @@
 
 import { onCall } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
+import { logger } from 'firebase-functions';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
 import {
@@ -18,17 +19,18 @@ import {
   type SubShareCaller,
 } from './subShareAccess';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { buildQuizFinalizeUpdate, sessionQuestionIds } from './quizFinalize';
+import { withQuizSessionContent } from './quizSessionContent';
+import {
+  ACTIONS,
+  CONTROLLABLE_KINDS,
+  controlPatches,
+  type ControlAction,
+  type ControlKind,
+  type ControlState,
+} from './subControlPatches';
 
-const CONTROLLABLE_KINDS = [
-  'quiz',
-  'videoActivity',
-  'guidedLearning',
-  'flashcards',
-] as const;
-type ControlKind = (typeof CONTROLLABLE_KINDS)[number];
-
-const ACTIONS = ['pause', 'resume', 'end'] as const;
-type ControlAction = (typeof ACTIONS)[number];
+export { controlPatches };
 
 const SESSIONS: Record<ControlKind, string> = {
   quiz: 'quiz_sessions',
@@ -44,8 +46,7 @@ const ASSIGNMENTS: Record<ControlKind, string> = {
   flashcards: 'flashcard_assignments',
 };
 
-/** Responses finalized per batch when a quiz ends; the teacher's own path
- *  writes them all in one, and a sub-launched class is one class. */
+/** Responses read when a quiz ends; a sub-launched class is one class. */
 const MAX_FINALIZED = 400;
 
 export interface ControlSubAssignmentInput {
@@ -58,7 +59,7 @@ export interface ControlSubAssignmentInput {
 
 export interface ControlSubAssignmentResult {
   /** What the run is now, so the sub's panel can say so. */
-  state: 'paused' | 'active' | 'ended';
+  state: ControlState;
 }
 
 export interface SubControlDeps {
@@ -67,104 +68,54 @@ export interface SubControlDeps {
 
 export const liveSubControlDeps: SubControlDeps = { now: () => Date.now() };
 
-/**
- * Mirror of `finalizeAllResponses` (`hooks/useQuizSession.ts`): a student still
- * answering when the run ends is marked completed so their work reaches the
- * teacher's results. `completedAttempts` is bumped for the same reason it is
- * there — without it a rejoin reads 0 completed and slips past the cap.
- */
+/** Mirror of the teacher's End: each unfinished response is finalized in its own transaction. */
 export async function finalizeQuizResponses(
   db: admin.firestore.Firestore,
   sessionId: string,
+  session: Record<string, unknown>,
   now: number
 ): Promise<number> {
+  const content = await withQuizSessionContent(
+    db.doc(`quiz_sessions/${sessionId}`),
+    session
+  );
+  const meta = {
+    questionIds: sessionQuestionIds(content.publicQuestions),
+    completenessModel:
+      typeof content.completenessModel === 'number'
+        ? content.completenessModel
+        : 0,
+  };
   const snap = await db
     .collection(`quiz_sessions/${sessionId}/responses`)
     .limit(MAX_FINALIZED)
     .get();
-  const batch = db.batch();
+  const results = await Promise.allSettled(
+    snap.docs
+      .filter((doc) => {
+        const status: unknown = doc.data().status;
+        return status === 'in-progress' || status === 'joined';
+      })
+      .map((doc) =>
+        db.runTransaction(async (tx) => {
+          const fresh = await tx.get(doc.ref);
+          const update = fresh.exists
+            ? buildQuizFinalizeUpdate(fresh.data() ?? {}, meta, now)
+            : null;
+          if (update) tx.update(doc.ref, update);
+          return update !== null;
+        })
+      )
+  );
   let count = 0;
-  for (const doc of snap.docs) {
-    const status: unknown = doc.data().status;
-    if (status !== 'in-progress' && status !== 'joined') continue;
-    batch.update(doc.ref, {
-      status: 'completed',
-      submittedAt: now,
-      completedAttempts: admin.firestore.FieldValue.increment(1),
-    });
-    count += 1;
+  for (const result of results) {
+    if (result.status === 'fulfilled') {
+      if (result.value) count += 1;
+    } else {
+      logger.warn('[controlSubAssignment] finalize failed', result.reason);
+    }
   }
-  if (count > 0) await batch.commit();
   return count;
-}
-
-interface Patches {
-  session: Record<string, unknown>;
-  assignment: Record<string, unknown>;
-  state: ControlSubAssignmentResult['state'];
-}
-
-/**
- * What each kind's own teacher-side control writes, mirrored field for field
- * so a sub-ended run looks exactly like a teacher-ended one.
- */
-export function controlPatches(
-  kind: ControlKind,
-  action: ControlAction,
-  now: number
-): Patches {
-  if (action === 'pause') {
-    // Only a quiz has a paused state; the others are active or ended.
-    return {
-      session: {
-        status: 'paused',
-        autoProgressAt: null,
-        endedAt: null,
-        pausedAt: now,
-      },
-      assignment: { status: 'paused', updatedAt: now },
-      state: 'paused',
-    };
-  }
-  if (action === 'resume') {
-    // A sub-launched quiz is always self-paced, so active is where it resumes
-    // to; there is no teacher-paced question index to restore.
-    return {
-      session: { status: 'active' },
-      assignment: { status: 'active', updatedAt: now },
-      state: 'active',
-    };
-  }
-  if (kind === 'guidedLearning') {
-    // A guided session has no status of its own: students are gated on the
-    // close time. Archiving is the teacher's own filing action, not this.
-    return {
-      session: { closeAt: now },
-      assignment: { closeAt: now, updatedAt: now },
-      state: 'ended',
-    };
-  }
-  if (kind === 'videoActivity') {
-    return {
-      session: { status: 'ended', endedAt: now },
-      assignment: { status: 'inactive', updatedAt: now },
-      state: 'ended',
-    };
-  }
-  if (kind === 'flashcards') {
-    return {
-      session: { status: 'ended', endedAt: now, updatedAt: now },
-      assignment: { status: 'ended', endedAt: now, updatedAt: now },
-      state: 'ended',
-    };
-  }
-  // A quiz and a video activity file their assignment as `inactive`, which is
-  // the archived bucket the teacher's manager filters on; only the session ends.
-  return {
-    session: { status: 'ended', endedAt: now, autoProgressAt: null },
-    assignment: { status: 'inactive', updatedAt: now },
-    state: 'ended',
-  };
 }
 
 export async function handleControlSubAssignment(
@@ -237,7 +188,7 @@ export async function handleControlSubAssignment(
   await batch.commit();
 
   if (kind === 'quiz' && action === 'end') {
-    await finalizeQuizResponses(db, sessionId, now);
+    await finalizeQuizResponses(db, sessionId, session, now);
   }
 
   return { state: patches.state };

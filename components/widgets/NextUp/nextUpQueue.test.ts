@@ -18,6 +18,8 @@ import { describe, it, expect } from 'vitest';
 import type { NextUpQueueItem } from '@/types';
 import {
   advanceNextUpQueue,
+  NEXT_UP_QUEUE_CAP,
+  nextUpQueueReducer,
   shouldExpireNextUpQueue,
 } from './nextUpQueueUtils';
 
@@ -186,6 +188,53 @@ describe('shouldExpireNextUpQueue', () => {
     );
     expect(shouldExpireNextUpQueue(true, createdAt, afterMidnightTick)).toBe(
       true
+    );
+  });
+});
+
+describe('nextUpQueueReducer', () => {
+  it('makes the first join active and later ones waiting', () => {
+    const queue = nextUpQueueReducer([], {
+      type: 'joined',
+      entries: [
+        { id: 'a', name: 'A', joinedAt: 1 },
+        { id: 'b', name: 'B', joinedAt: 2 },
+      ],
+    });
+    expect(queue.map((q) => q.status)).toEqual(['active', 'waiting']);
+  });
+
+  it('returns the same queue when every join is already in it', () => {
+    const queue = makeQueue('active');
+    expect(
+      nextUpQueueReducer(queue, {
+        type: 'joined',
+        entries: [{ id: 's0', name: 'x', joinedAt: 1 }],
+      })
+    ).toBe(queue);
+  });
+
+  it('stops adding at the cap', () => {
+    const full = Array.from({ length: NEXT_UP_QUEUE_CAP }, (_, i) => ({
+      id: `f${i}`,
+      name: 'x',
+      status: 'waiting' as const,
+      joinedAt: i,
+    }));
+    const queue = nextUpQueueReducer(full, {
+      type: 'joined',
+      entries: [{ id: 'late', name: 'Late', joinedAt: 9 }],
+    });
+    expect(queue).toHaveLength(NEXT_UP_QUEUE_CAP);
+  });
+
+  it('clears on reset and swaps in an imported queue', () => {
+    expect(nextUpQueueReducer(makeQueue('active'), { type: 'reset' })).toEqual(
+      []
+    );
+    const imported = makeQueue('active', 'waiting');
+    expect(nextUpQueueReducer([], { type: 'replace', queue: imported })).toBe(
+      imported
     );
   });
 });

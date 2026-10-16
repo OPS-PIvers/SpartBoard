@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import type { Plc, PlcGoal } from '@/types';
-import { useAuth } from '@/context/useAuth';
 import { GoalEditorModal } from '@/components/plc/goals/GoalEditorModal';
 import { useGoalGradeLevels } from '@/components/plc/goals/routineOptions';
 import { Section } from '@/components/plc/redesignMockup/ui';
@@ -24,8 +23,6 @@ import {
   usePlcNavigation,
 } from './useDataOverview';
 import type { DataOverviewInput } from './dataOverviewModel';
-
-const useFlag = () => useAuth().canAccessFeature('teams-redesign');
 
 /** Assessment hero from an already-built model (the page shares its own). */
 export const AssessmentHeroFromModel: React.FC<{
@@ -64,7 +61,6 @@ export const AssessmentHero: React.FC<TeamHeroProps> = ({
   isLead,
 }) => {
   const { model } = useDataOverviewModel(plc, heroRef);
-  if (!useFlag()) return null;
   return (
     <AssessmentHeroFromModel
       plc={plc}
@@ -110,7 +106,7 @@ export const TargetHero: React.FC<TeamHeroProps> = ({
   // No ref: the lowestTarget rule picks the weakest target.
   const targetId =
     heroRef?.kind === 'target' ? heroRef.targetId : lowestTargetId(input);
-  if (!useFlag() || (heroRef && heroRef.kind !== 'target')) return null;
+  if (heroRef && heroRef.kind !== 'target') return null;
   if (!targetId) {
     return (
       <Section first>
@@ -185,7 +181,6 @@ export const GoalHero: React.FC<TeamHeroProps> = ({
   pinnedBy,
   isLead,
 }) => {
-  if (!useFlag()) return null;
   return (
     <Section first>
       <GoalSection
