@@ -277,7 +277,8 @@ jobs:
 
       # Open tabs on an older build still lazy-load their own chunks instead of reloading mid-lesson.
       - name: Carry recent builds' assets forward
-        run: node scripts/carryForwardAssets.mjs "https://${SITE}.web.app"
+        # Dev deploys dozens of times a day, so it keeps fewer builds than prod to cut Hosting egress.
+        run: node scripts/carryForwardAssets.mjs "https://${SITE}.web.app" dist 10
 
       - name: Deploy Hosting
         run: |
