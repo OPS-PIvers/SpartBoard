@@ -432,20 +432,30 @@ export const OrganizationPanel: React.FC = () => {
     if (!writesEnabled) return comingSoon('Update user');
     run('Update user', () => updateMember(id, patch));
   };
+  // Rules refuse a domain admin's role/status change or removal of a super admin, which would fail the whole batch.
+  const withoutSuperAdmins = (ids: string[]) =>
+    actorRole === 'super_admin'
+      ? ids
+      : ids.filter(
+          (id) => users.find((u) => u.id === id)?.role !== 'super_admin'
+        );
   const handleBulkUpdateUsers = (ids: string[], patch: Partial<UserRecord>) => {
     if (!writesEnabled) return comingSoon('Bulk update users');
+    const targetIds =
+      'role' in patch || 'status' in patch ? withoutSuperAdmins(ids) : ids;
     run(
       'Bulk update users',
-      () => bulkUpdateMembers(ids, patch),
-      `Updated ${ids.length} users`
+      () => bulkUpdateMembers(targetIds, patch),
+      `Updated ${targetIds.length} users`
     );
   };
   const handleRemoveUsers = (ids: string[]) => {
     if (!writesEnabled) return comingSoon('Remove users');
+    const targetIds = withoutSuperAdmins(ids);
     run(
       'Remove users',
-      () => removeMembers(ids),
-      `Removed ${ids.length} users from the organization`
+      () => removeMembers(targetIds),
+      `Removed ${targetIds.length} users from the organization`
     );
   };
 

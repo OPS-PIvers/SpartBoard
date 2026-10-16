@@ -604,7 +604,9 @@ service cloud.firestore {
         // and hijack the account. Building admins may update only `status` on members whose
         // buildingIds intersect their own. Create pins doc id == lowercased email (so
         // isOrgMember()'s lookup resolves) and forces data.email == emailLower (F15).
-        allow create: if (isSuperAdmin() || isDomainAdmin(orgId)) &&
+        // Only a super admin may create a super_admin member (same anti-escalation as update).
+        allow create: if (isSuperAdmin() ||
+                          (isDomainAdmin(orgId) && incoming().get('roleId', '') != 'super_admin')) &&
           incoming().email == incoming().email.lower() &&
           incoming().email == emailLower &&
           incoming().orgId == orgId &&
@@ -613,7 +615,9 @@ service cloud.firestore {
             'email', 'orgId', 'roleId', 'buildingIds', 'status',
             'name', 'invitedAt', 'addedBy', 'addedBySource'
           ]);
-        allow delete: if isSuperAdmin() || isDomainAdmin(orgId);
+        // A domain admin may not remove a super_admin member.
+        allow delete: if isSuperAdmin() ||
+          (isDomainAdmin(orgId) && existing().get('roleId', '') != 'super_admin');
         allow update: if isSuperAdmin() ||
           (isDomainAdmin(orgId) &&
            unchanged('email') &&
@@ -623,10 +627,13 @@ service cloud.firestore {
            ]) &&
            // Anti-escalation: roleId=='super_admin' is a live isSuperAdmin() grant
            // (isMemberSuperAdmin()), so a domain admin must not write it (incl.
-           // onto their own doc) unless the doc already had it. Only a super admin
-           // (first disjunct) can grant it.
-           (incoming().get('roleId', '') != 'super_admin' ||
-            existing().get('roleId', '') == 'super_admin')) ||
+           // onto their own doc). On a doc that already has it, a domain admin may
+           // edit other fields but not demote or deactivate it. Only a super admin
+           // (first disjunct) can grant or revoke it.
+           (existing().get('roleId', '') == 'super_admin'
+              ? (incoming().get('roleId', '') == 'super_admin' &&
+                 incoming().get('status', '') == existing().get('status', ''))
+              : incoming().get('roleId', '') != 'super_admin')) ||
           // Building admin may flip `status` on a member whose buildingIds overlap
           // their own, alias-aware via buildingListsOverlap() (so 'high' vs
           // 'orono-high-school' still match, no .map() needed). An empty list on
@@ -634,6 +641,7 @@ service cloud.firestore {
           // not editable until a domain admin assigns a building. See
           // config/buildings.ts.
           (isBuildingAdmin(orgId) &&
+           existing().get('roleId', '') != 'super_admin' &&
            buildingListsOverlap(existing().get('buildingIds', []), orgMember(orgId).get('buildingIds', [])) &&
            changedOnly(['status'])) ||
           // Self-write: a user may stamp `lastActive` on their own member doc.

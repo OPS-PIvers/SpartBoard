@@ -28,6 +28,7 @@ import {
   escapeHtml,
 } from './organizationInvites';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { isStrictSuperAdmin } from './authz';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -87,7 +88,7 @@ async function assertCallerIsOrgAdmin(
   db: admin.firestore.Firestore,
   orgId: string,
   callerEmailLower: string
-): Promise<void> {
+): Promise<MemberRecord> {
   const caller = await loadMember(db, orgId, callerEmailLower).catch(() => {
     throw new HttpsError(
       'permission-denied',
@@ -100,6 +101,27 @@ async function assertCallerIsOrgAdmin(
       'Caller does not have permission to reset passwords.'
     );
   }
+  return caller;
+}
+
+// A domain admin may not mint a reset link for a super admin's account.
+async function assertCallerOutranksTarget(
+  db: admin.firestore.Firestore,
+  caller: MemberRecord,
+  callerEmailLower: string,
+  target: MemberRecord,
+  targetEmailLower: string
+): Promise<void> {
+  if (caller.roleId === 'super_admin') return;
+  const targetIsSuper =
+    target.roleId === 'super_admin' ||
+    (await isStrictSuperAdmin(db, targetEmailLower));
+  if (!targetIsSuper) return;
+  if (await isStrictSuperAdmin(db, callerEmailLower)) return;
+  throw new HttpsError(
+    'permission-denied',
+    "Only a super admin can reset a super admin's password."
+  );
 }
 
 async function loadEmailConfig(
@@ -197,8 +219,15 @@ export const resetOrganizationUserPassword = onCall(
     const { orgId, email } = parsePayload(request.data);
     const db = admin.firestore();
 
-    await assertCallerIsOrgAdmin(db, orgId, callerEmailLower);
-    await loadMember(db, orgId, email);
+    const caller = await assertCallerIsOrgAdmin(db, orgId, callerEmailLower);
+    const target = await loadMember(db, orgId, email);
+    await assertCallerOutranksTarget(
+      db,
+      caller,
+      callerEmailLower,
+      target,
+      email
+    );
 
     // Firebase Auth's `generatePasswordResetLink` throws `auth/user-not-found`
     // if no Auth user matches — common for members who were invited but

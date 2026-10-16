@@ -1202,6 +1202,91 @@ describe('organizations/members — writes', () => {
     );
   });
 
+  it('domain admin CANNOT create a new member with roleId super_admin', async () => {
+    await assertFails(
+      setDoc(
+        doc(
+          asDomainAdmin(),
+          `organizations/${ORG_ID}/members/minted@orono.k12.mn.us`
+        ),
+        { ...validMember('minted@orono.k12.mn.us'), roleId: 'super_admin' }
+      )
+    );
+  });
+
+  it('super admin CAN create a new member with roleId super_admin', async () => {
+    await assertSucceeds(
+      setDoc(
+        doc(
+          asSuper(),
+          `organizations/${ORG_ID}/members/minted@orono.k12.mn.us`
+        ),
+        { ...validMember('minted@orono.k12.mn.us'), roleId: 'super_admin' }
+      )
+    );
+  });
+
+  describe('existing super_admin member', () => {
+    const BOSS = 'boss@orono.k12.mn.us';
+    const bossPath = `organizations/${ORG_ID}/members/${BOSS}`;
+
+    beforeEach(async () => {
+      await testEnv.withSecurityRulesDisabled(async (ctx) => {
+        await setDoc(doc(ctx.firestore(), bossPath), {
+          ...validMember(BOSS),
+          roleId: 'super_admin',
+          status: 'active',
+        });
+      });
+    });
+
+    it('domain admin CANNOT demote a super_admin member', async () => {
+      await assertFails(
+        updateDoc(doc(asDomainAdmin(), bossPath), { roleId: 'teacher' })
+      );
+    });
+
+    it('domain admin CANNOT deactivate a super_admin member', async () => {
+      await assertFails(
+        updateDoc(doc(asDomainAdmin(), bossPath), { status: 'inactive' })
+      );
+    });
+
+    it('building admin CANNOT deactivate a super_admin member in their building', async () => {
+      await assertFails(
+        updateDoc(doc(asBuildingAdmin(), bossPath), { status: 'inactive' })
+      );
+    });
+
+    it('domain admin CANNOT delete a super_admin member', async () => {
+      await assertFails(deleteDoc(doc(asDomainAdmin(), bossPath)));
+    });
+
+    it("domain admin CAN still edit a super_admin member's buildings", async () => {
+      await assertSucceeds(
+        updateDoc(doc(asDomainAdmin(), bossPath), { buildingIds: ['middle'] })
+      );
+    });
+
+    it('super admin CAN demote and delete a super_admin member', async () => {
+      await assertSucceeds(
+        updateDoc(doc(asSuper(), bossPath), { roleId: 'teacher' })
+      );
+      await assertSucceeds(deleteDoc(doc(asSuper(), bossPath)));
+    });
+
+    it('domain admin CAN still delete a teacher member', async () => {
+      await assertSucceeds(
+        deleteDoc(
+          doc(
+            asDomainAdmin(),
+            `organizations/${ORG_ID}/members/${TEACHER_EMAIL}`
+          )
+        )
+      );
+    });
+  });
+
   it('super admin CAN grant super_admin (only super admins may mint super admins)', async () => {
     await assertSucceeds(
       updateDoc(

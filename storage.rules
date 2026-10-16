@@ -5,9 +5,12 @@ service firebase.storage {
   match /b/{bucket}/o {
     
     // Helper function to check if user is an admin in Firestore
+    // email_verified is required, as in firestore.rules isAdmin(): email/password
+    // sign-in allows a self-reported address that could match an /admins doc.
     function isAdmin() {
       return request.auth != null &&
              request.auth.token.email != null &&
+             request.auth.token.get('email_verified', false) == true &&
              request.auth.token.get('viewAs', null) == null &&
              firestore.exists(/databases/(default)/documents/admins/$(request.auth.token.email.lower()));
     }
@@ -37,44 +40,67 @@ service firebase.storage {
              );
     }
 
+    // Per-user teacher files. Only a signed-in teacher account (never an anonymous
+    // or studentRole one) uploads, within a per-folder size and type cap.
+    function userFileOwner(userId) {
+      return request.auth != null && (request.auth.uid == userId || isAdmin());
+    }
+    function userFileUpload(userId, maxBytes, typePattern) {
+      return userFileOwner(userId) && viewAsWriteOk() &&
+             request.auth.token.get('firebase', {}).get('sign_in_provider', '') != 'anonymous' &&
+             request.auth.token.get('studentRole', false) != true &&
+             request.resource.size <= maxBytes &&
+             (typePattern == '.*' ||
+              (request.resource.contentType is string &&
+               request.resource.contentType.matches(typePattern)));
+    }
+
     match /users/{userId}/backgrounds/{allPaths=**} {
-      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsReadOk();
-      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsWriteOk();
+      allow read: if userFileOwner(userId) && viewAsReadOk();
+      allow create, update: if userFileUpload(userId, 200 * 1024 * 1024, '(image|video)/.*');
+      allow delete: if userFileOwner(userId) && viewAsWriteOk();
     }
 
     match /users/{userId}/screenshots/{allPaths=**} {
-      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsReadOk();
-      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsWriteOk();
+      allow read: if userFileOwner(userId) && viewAsReadOk();
+      allow create, update: if userFileUpload(userId, 50 * 1024 * 1024, 'image/.*');
+      allow delete: if userFileOwner(userId) && viewAsWriteOk();
     }
 
     match /users/{userId}/stickers/{allPaths=**} {
-      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsReadOk();
-      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsWriteOk();
+      allow read: if userFileOwner(userId) && viewAsReadOk();
+      allow create, update: if userFileUpload(userId, 25 * 1024 * 1024, 'image/.*');
+      allow delete: if userFileOwner(userId) && viewAsWriteOk();
     }
 
     match /users/{userId}/display_images/{allPaths=**} {
-      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsReadOk();
-      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsWriteOk();
+      allow read: if userFileOwner(userId) && viewAsReadOk();
+      allow create, update: if userFileUpload(userId, 25 * 1024 * 1024, 'image/.*');
+      allow delete: if userFileOwner(userId) && viewAsWriteOk();
     }
 
     match /users/{userId}/hotspot_images/{allPaths=**} {
-      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsReadOk();
-      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsWriteOk();
+      allow read: if userFileOwner(userId) && viewAsReadOk();
+      allow create, update: if userFileUpload(userId, 250 * 1024 * 1024, '.*');
+      allow delete: if userFileOwner(userId) && viewAsWriteOk();
     }
 
     match /users/{userId}/instructional/{allPaths=**} {
-      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsReadOk();
-      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsWriteOk();
+      allow read: if userFileOwner(userId) && viewAsReadOk();
+      allow create, update: if userFileUpload(userId, 50 * 1024 * 1024, '.*');
+      allow delete: if userFileOwner(userId) && viewAsWriteOk();
     }
 
     match /users/{userId}/notebooks/{allPaths=**} {
-      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsReadOk();
-      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsWriteOk();
+      allow read: if userFileOwner(userId) && viewAsReadOk();
+      allow create, update: if userFileUpload(userId, 250 * 1024 * 1024, '.*');
+      allow delete: if userFileOwner(userId) && viewAsWriteOk();
     }
 
     match /users/{userId}/pdfs/{allPaths=**} {
-      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsReadOk();
-      allow write: if request.auth != null && (request.auth.uid == userId || isAdmin()) && viewAsWriteOk();
+      allow read: if userFileOwner(userId) && viewAsReadOk();
+      allow create, update: if userFileUpload(userId, 50 * 1024 * 1024, 'application/pdf');
+      allow delete: if userFileOwner(userId) && viewAsWriteOk();
     }
 
     match /admin_backgrounds/{backgroundId}/{fileName} {
