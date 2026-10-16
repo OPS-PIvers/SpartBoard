@@ -72,6 +72,34 @@ export const GuidedLearningPeriodLockedScreen: React.FC<
   );
 };
 
+/** Shown once the session's close time has passed and this student hasn't submitted. */
+export const GuidedLearningClosedScreen: React.FC<{
+  session: GuidedLearningSession;
+}> = ({ session }) => {
+  const { t } = useTranslation();
+  return (
+    <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-950">
+      <div className="min-h-full flex items-center justify-center p-6">
+        <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+          <div className="flex items-center justify-center gap-2 mb-6">
+            <BookOpen className="w-4 h-4 text-indigo-400" aria-hidden />
+            <span className="text-slate-300 text-sm font-semibold truncate">
+              {session.title}
+            </span>
+          </div>
+          <Lock
+            className="w-12 h-12 text-indigo-400 mx-auto mb-4"
+            aria-hidden
+          />
+          <h1 className="text-white font-bold text-xl">
+            {t('glStudent.closed.title')}
+          </h1>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /** Covers the player when the student's period closes or pauses mid-activity. */
 export const GuidedLearningPeriodPausedOverlay: React.FC = () => {
   const { t } = useTranslation();

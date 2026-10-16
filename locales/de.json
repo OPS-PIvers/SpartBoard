@@ -3960,6 +3960,9 @@
       "closed": "Geschlossen",
       "opens": "Öffnet {{day}} {{time}}"
     },
+    "closed": {
+      "title": "Diese Aktivität ist geschlossen"
+    },
     "pausedOverlay": {
       "title": "Für deine Klasse pausiert",
       "body": "Lass diesen Tab offen, damit deine Antworten erhalten bleiben."
