@@ -143,6 +143,11 @@ service cloud.firestore {
       return signedIn() && request.auth.token.get('studentRole', false) == true;
     }
 
+    // pinLoginV1 tokens share a student's SSO uid but prove only one class.
+    function isPinLoginToken() {
+      return request.auth.token.get('pinLogin', false) == true;
+    }
+
     // True iff the caller is a studentRole user AND the given classId is in
     // their classIds custom claim. False if the claim is missing or the
     // classId is empty/unknown.
@@ -4449,7 +4454,8 @@ service cloud.firestore {
       allow read, write: if false;
 
       match /classes/{classId} {
-        allow read: if signedIn() && authUid() == studentUid && isStudentRoleUser();
+        allow read: if signedIn() && authUid() == studentUid && isStudentRoleUser() &&
+          !isPinLoginToken();
         allow write: if false;
       }
     }
@@ -4470,7 +4476,9 @@ service cloud.firestore {
       match /items/{assignmentId} {
         allow read: if signedIn() &&
           authUid() == studentUid &&
-          isStudentRoleUser();
+          isStudentRoleUser() &&
+          (!isPinLoginToken() || resource == null ||
+           resource.data.get('classId', '') in request.auth.token.classIds);
         allow write: if false;
       }
     }
@@ -4573,6 +4581,7 @@ service cloud.firestore {
         return sessionData().teacherUid;
       }
       allow create: if signedIn() &&
+        notAnon() &&
         incoming().teacherUid == authUid() &&
         subMonitorStampAbsent() &&
         (!('plcId' in incoming()) || plcLinkOk(incoming()));

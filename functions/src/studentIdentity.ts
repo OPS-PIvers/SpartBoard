@@ -1074,6 +1074,120 @@ const PIN_INDEX_SUBCOLLECTION = 'pin_index';
  *  than mirroring the literal and silently drifting from it. */
 export const PIN_INDEX_MAX_ENTRIES = 200;
 
+const ONEROSTER_PAGE_LIMIT = 200;
+const ONEROSTER_MAX_PAGES = 10;
+
+/** True only for a OneRoster user whose every role is student. */
+function isOnlyOneRosterStudent(user: OneRosterUserWithRole): boolean {
+  if (typeof user.role === 'string') {
+    return user.role.toLowerCase() === 'student';
+  }
+  if (Array.isArray(user.roles) && user.roles.length > 0) {
+    return user.roles.every((r) => (r.role ?? '').toLowerCase() === 'student');
+  }
+  return false;
+}
+
+/** Every page of a OneRoster list endpoint, or null if it ran past the page cap. */
+async function fetchOneRosterPages<T>(
+  url: string,
+  key: string,
+  creds: { classlinkClientId: string; classlinkClientSecret: string }
+): Promise<T[] | null> {
+  const out: T[] = [];
+  for (let page = 0; page < ONEROSTER_MAX_PAGES; page += 1) {
+    // OneRoster signs the query string, so the same params go to both.
+    const params = {
+      limit: String(ONEROSTER_PAGE_LIMIT),
+      offset: String(page * ONEROSTER_PAGE_LIMIT),
+    };
+    const headers = getOAuthHeaders(
+      url,
+      params,
+      'GET',
+      creds.classlinkClientId,
+      creds.classlinkClientSecret
+    );
+    const res = await axios.get<Record<string, T[] | undefined>>(url, {
+      params,
+      headers: { ...headers },
+    });
+    const batch = res.data[key] ?? [];
+    out.push(...batch);
+    if (batch.length < ONEROSTER_PAGE_LIMIT) return out;
+  }
+  return null;
+}
+
+/**
+ * Sourced ids of the students ClassLink enrolls in `classId`, or null when the
+ * caller is not a non-student ClassLink user who teaches it. Throws
+ * `unavailable` when ClassLink can't answer, so a caller never prunes on an outage.
+ */
+export async function loadTaughtClassEnrollment(
+  teacherEmail: string,
+  classId: string,
+  creds: {
+    classlinkClientId: string;
+    classlinkClientSecret: string;
+    tenantUrl: string;
+  }
+): Promise<Set<string> | null> {
+  if (
+    !creds.classlinkClientId ||
+    !creds.classlinkClientSecret ||
+    !creds.tenantUrl
+  ) {
+    throw new HttpsError('internal', 'Server configuration missing.');
+  }
+  if (!isSafeEmailForOneRosterFilter(teacherEmail)) return null;
+  const base = `${creds.tenantUrl.replace(/\/$/, '')}${ONEROSTER_BASE}`;
+  try {
+    const usersUrl = `${base}/users`;
+    const userParams = { filter: `email='${teacherEmail}'` };
+    const userHeaders = getOAuthHeaders(
+      usersUrl,
+      userParams,
+      'GET',
+      creds.classlinkClientId,
+      creds.classlinkClientSecret
+    );
+    const userResp = await axios.get<{ users?: OneRosterUserWithRole[] }>(
+      usersUrl,
+      { params: userParams, headers: { ...userHeaders } }
+    );
+    const teacher = (userResp.data.users ?? [])[0];
+    if (!teacher?.sourcedId || isOnlyOneRosterStudent(teacher)) return null;
+
+    const classes = await fetchOneRosterPages<ClassLinkClass>(
+      `${base}/users/${encodeURIComponent(teacher.sourcedId)}/classes`,
+      'classes',
+      creds
+    );
+    if (!classes) throw new Error('class list truncated');
+    if (!classes.some((c) => c.sourcedId === classId)) return null;
+
+    const students = await fetchOneRosterPages<ClassLinkStudent>(
+      `${base}/classes/${encodeURIComponent(classId)}/students`,
+      'users',
+      creds
+    );
+    if (!students) throw new Error('student list truncated');
+    return new Set(
+      students
+        .map((s) => s.sourcedId)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0)
+    );
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+    console.error(
+      '[loadTaughtClassEnrollment] ClassLink request failed:',
+      axios.isAxiosError(err) ? err.response?.status : 'unexpected'
+    );
+    throw new HttpsError('unavailable', 'Roster service unavailable.');
+  }
+}
+
 interface CommitRosterPinIndexEntry {
   period: string;
   pin: string;
@@ -1106,7 +1220,12 @@ interface CommitRosterPinIndexEntry {
 export const commitRosterPinIndexV1 = onCall(
   {
     memory: '256MiB',
-    secrets: [STUDENT_PSEUDONYM_HMAC_SECRET],
+    secrets: [
+      CLASSLINK_CLIENT_ID,
+      CLASSLINK_CLIENT_SECRET,
+      CLASSLINK_TENANT_URL,
+      STUDENT_PSEUDONYM_HMAC_SECRET,
+    ],
     invoker: 'public',
     cors: ALLOWED_ORIGINS,
   },
@@ -1119,6 +1238,14 @@ export const commitRosterPinIndexV1 = onCall(
     // always the teacher who saved the roster.
     if (request.auth.token.studentRole === true) {
       throw new HttpsError('permission-denied', 'Teacher role required.');
+    }
+    // The verified email is what ClassLink checks below; anonymous callers have none.
+    const teacherEmail =
+      typeof request.auth.token.email === 'string'
+        ? request.auth.token.email
+        : '';
+    if (!teacherEmail || request.auth.token.email_verified !== true) {
+      throw new HttpsError('permission-denied', 'Teacher account required.');
     }
 
     const rawData = (request.data ?? {}) as {
@@ -1190,14 +1317,50 @@ export const commitRosterPinIndexV1 = onCall(
     if (!rosterSnap.exists) {
       throw new HttpsError('not-found', 'Roster not found.');
     }
+    const rosterData = rosterSnap.data() ?? {};
+    const classlinkClassId: unknown = rosterData.classlinkClassId;
+    let verifiedEntries = entries;
+    let skippedNotEnrolled = 0;
+    if (typeof classlinkClassId === 'string' && classlinkClassId.length > 0) {
+      // The roster doc is client-written, so ClassLink itself must confirm the
+      // caller teaches this class and each student is enrolled in it.
+      const enrolled = await loadTaughtClassEnrollment(
+        teacherEmail,
+        classlinkClassId,
+        {
+          classlinkClientId: CLASSLINK_CLIENT_ID.value(),
+          classlinkClientSecret: CLASSLINK_CLIENT_SECRET.value(),
+          tenantUrl: CLASSLINK_TENANT_URL.value(),
+        }
+      );
+      if (!enrolled) {
+        console.warn('[commitRosterPinIndexV1] rejected', {
+          reason: 'class-not-taught',
+          rosterId,
+        });
+        throw new HttpsError(
+          'permission-denied',
+          'Not a teacher of this class.'
+        );
+      }
+      verifiedEntries = entries.filter((e) =>
+        enrolled.has(e.classlinkSourcedId)
+      );
+      skippedNotEnrolled = entries.length - verifiedEntries.length;
+      if (skippedNotEnrolled > 0) {
+        console.warn(
+          `[commitRosterPinIndexV1] Skipped ${skippedNotEnrolled} entries not enrolled in roster ${rosterId}`
+        );
+      }
+    }
     const result = await reconcileRosterPinIndex(
       db,
       rosterRef,
-      rosterSnap.data() ?? {},
-      entries,
+      rosterData,
+      verifiedEntries,
       hmacSecret
     );
-    return { ...result, skippedMalformed };
+    return { ...result, skippedMalformed, skippedNotEnrolled };
   }
 );
 
@@ -1297,6 +1460,72 @@ export async function reconcileRosterPinIndex(
   }
 }
 
+// Per (session, caller uid) limits. Seat PINs are short, so a caller that keeps
+// missing, or keeps landing on different students, stops bridging and falls back
+// to the plain PIN join.
+const PIN_LOGIN_ATTEMPTS_COLLECTION = 'pin_login_attempts';
+const PIN_LOGIN_WINDOW_MS = 15 * 60 * 1000;
+export const PIN_LOGIN_MAX_FAILURES = 10;
+export const PIN_LOGIN_MAX_IDENTITIES = 3;
+
+interface PinLoginAttempts {
+  windowStart: number;
+  failures: number;
+  indexKeys: string[];
+}
+
+function readPinLoginAttempts(
+  data: admin.firestore.DocumentData | undefined,
+  now: number
+): PinLoginAttempts {
+  const windowStart =
+    typeof data?.windowStart === 'number' ? data.windowStart : 0;
+  if (!data || now - windowStart >= PIN_LOGIN_WINDOW_MS) {
+    return { windowStart: now, failures: 0, indexKeys: [] };
+  }
+  return {
+    windowStart,
+    failures: typeof data.failures === 'number' ? data.failures : 0,
+    indexKeys: Array.isArray(data.indexKeys)
+      ? data.indexKeys.filter(
+          (k: unknown): k is string => typeof k === 'string'
+        )
+      : [],
+  };
+}
+
+function pinLoginBlocked(a: PinLoginAttempts, indexKey: string): boolean {
+  if (a.failures >= PIN_LOGIN_MAX_FAILURES) return true;
+  return (
+    a.indexKeys.length >= PIN_LOGIN_MAX_IDENTITIES &&
+    !a.indexKeys.includes(indexKey)
+  );
+}
+
+async function recordPinLoginAttempt(
+  db: admin.firestore.Firestore,
+  ref: admin.firestore.DocumentReference,
+  indexKey: string,
+  success: boolean
+): Promise<void> {
+  await db.runTransaction(async (tx) => {
+    const now = Date.now();
+    const a = readPinLoginAttempts((await tx.get(ref)).data(), now);
+    if (success) {
+      if (!a.indexKeys.includes(indexKey)) a.indexKeys.push(indexKey);
+    } else {
+      a.failures += 1;
+    }
+    tx.set(ref, {
+      ...a,
+      // TTL field (firestore.indexes.json) so stale counters delete themselves.
+      expireAt: admin.firestore.Timestamp.fromMillis(
+        a.windowStart + 2 * PIN_LOGIN_WINDOW_MS
+      ),
+    });
+  });
+}
+
 interface PinLoginRequestData {
   kind?: unknown;
   sessionId?: unknown;
@@ -1340,6 +1569,11 @@ export const pinLoginV1 = onCall(
   },
   async (request) => {
     assertViewAsAllowed(request);
+    // Both join flows sign in anonymously first; the uid keys the attempt limit.
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Sign in required.');
+    }
+    const callerUid = request.auth.uid;
     const data = (request.data ?? {}) as PinLoginRequestData;
     const kind =
       data.kind === 'quiz' || data.kind === 'video-activity' ? data.kind : null;
@@ -1457,6 +1691,24 @@ export const pinLoginV1 = onCall(
 
     const indexKey = pinIndexKey(period, pin);
 
+    const attemptsRef = db
+      .collection(PIN_LOGIN_ATTEMPTS_COLLECTION)
+      .doc(`${sessionRef.id}__${callerUid}`);
+    // Fail open: a counter outage must not lock real students out of the bridge.
+    const attemptsData = await attemptsRef
+      .get()
+      .then((snap) => snap.data())
+      .catch(() => undefined);
+    const attempts = readPinLoginAttempts(attemptsData, Date.now());
+    if (pinLoginBlocked(attempts, indexKey)) {
+      console.warn('[pinLoginV1] fallback', {
+        kind,
+        reason: 'rate-limited',
+        sessionId: sessionRef.id,
+      });
+      return { matched: false, reason: 'rate-limited' };
+    }
+
     // Probe each roster's pin_index for the indexKey IN PARALLEL.
     // PIN-bridged join is on the hot path of every PIN-joining student,
     // and a multi-class session (multiple rosters) would otherwise
@@ -1504,6 +1756,15 @@ export const pinLoginV1 = onCall(
       }
     }
 
+    await recordPinLoginAttempt(
+      db,
+      attemptsRef,
+      indexKey,
+      matched !== null
+    ).catch((err: unknown) => {
+      console.error('[pinLoginV1] attempt record failed:', err);
+    });
+
     if (!matched) {
       // The PIN+period tuple didn't resolve to any roster entry across
       // the session's rosters. This is the most diagnostically valuable
@@ -1529,6 +1790,8 @@ export const pinLoginV1 = onCall(
         studentRole: true,
         orgId: matched.orgId,
         classIds: [matched.classId],
+        // Rules keep a PIN-proven token to this one class (see student_grades).
+        pinLogin: true,
       });
     } catch (err) {
       console.error('[pinLoginV1] createCustomToken failed:', err);
