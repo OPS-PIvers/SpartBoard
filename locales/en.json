@@ -5010,6 +5010,9 @@
       "closed": "Closed",
       "opens": "Opens {{day}} {{time}}"
     },
+    "closed": {
+      "title": "This activity is closed"
+    },
     "pausedOverlay": {
       "title": "Paused for your class",
       "body": "Keep this tab open to keep your answers."

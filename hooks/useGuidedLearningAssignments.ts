@@ -328,7 +328,33 @@ export const useGuidedLearningAssignments = (
 
   const archiveAssignment = useCallback<
     UseGuidedLearningAssignmentsResult['archiveAssignment']
-  >((assignmentId) => setStatus(assignmentId, 'archived'), [setStatus]);
+  >(
+    async (assignmentId) => {
+      if (!userId) throw new Error('Not authenticated');
+      const now = Date.now();
+      const rowPatch: Record<string, unknown> = {
+        status: 'archived',
+        updatedAt: now,
+        archivedAt: now,
+      };
+      // Archive also closes the session, the same closeAt write as Close now; an earlier close stands.
+      const sessionRef = doc(db, GL_SESSIONS_COLLECTION, assignmentId);
+      const sessionSnap = await getDoc(sessionRef);
+      const closeAt: unknown = sessionSnap.data()?.closeAt;
+      const closeSession =
+        sessionSnap.exists() &&
+        !(typeof closeAt === 'number' && closeAt <= now);
+      if (closeSession) rowPatch.closeAt = now;
+      const batch = writeBatch(db);
+      batch.update(
+        doc(db, 'users', userId, GL_ASSIGNMENTS_COLLECTION, assignmentId),
+        rowPatch
+      );
+      if (closeSession) batch.update(sessionRef, { closeAt: now });
+      await batch.commit();
+    },
+    [userId]
+  );
 
   const unarchiveAssignment = useCallback<
     UseGuidedLearningAssignmentsResult['unarchiveAssignment']

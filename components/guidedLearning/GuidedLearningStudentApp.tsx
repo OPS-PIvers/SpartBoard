@@ -47,6 +47,7 @@ import { resolveResultsVisibility } from '@/utils/quizResultsVisibility';
 import { ResultsProtectionGate } from '@/components/student/ResultsProtectionGate';
 import { GuidedLearningWelcomeImage } from './GuidedLearningWelcomeImage';
 import {
+  GuidedLearningClosedScreen,
   GuidedLearningPeriodLockedScreen,
   GuidedLearningPeriodPausedOverlay,
 } from './GuidedLearningPeriodLockedScreen';
@@ -358,6 +359,10 @@ const StudentExperience: React.FC<{
     setEntered(true);
   }
   const periodHold = perPeriod && (periodPaused || !entered);
+  // Close now, Archive and a sub's End all set closeAt; past it the rules refuse student writes.
+  const closeAt = session?.closeAt;
+  const closeNow = useServerNow(typeof closeAt === 'number' ? 5000 : null);
+  const isClosed = typeof closeAt === 'number' && closeNow >= closeAt;
   const [seatError, setSeatError] = useState<string | null>(null);
   const [seating, setSeating] = useState(false);
 
@@ -601,6 +606,11 @@ const StudentExperience: React.FC<{
         }}
       />
     );
+  }
+
+  // A submit already in flight lands inside the rules' grace window.
+  if (isClosed && !submitting) {
+    return <GuidedLearningClosedScreen session={session} />;
   }
 
   // Assessment mode refuses a join without a school sign-in, whose self-picked period no rule can check.
