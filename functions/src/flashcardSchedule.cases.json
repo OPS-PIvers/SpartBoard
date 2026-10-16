@@ -1,0 +1,117 @@
+[
+  {
+    "name": "one correct",
+    "ratings": [
+      {
+        "round": 1,
+        "correct": true
+      }
+    ],
+    "expected": {
+      "s": 1,
+      "due": 2,
+      "c": 1,
+      "w": 0
+    }
+  },
+  {
+    "name": "one wrong",
+    "ratings": [
+      {
+        "round": 1,
+        "correct": false
+      }
+    ],
+    "expected": {
+      "s": 0,
+      "due": 2,
+      "c": 0,
+      "w": 1
+    }
+  },
+  {
+    "name": "streak to mastery",
+    "ratings": [
+      {
+        "round": 1,
+        "correct": true
+      },
+      {
+        "round": 2,
+        "correct": true
+      },
+      {
+        "round": 4,
+        "correct": true
+      }
+    ],
+    "expected": {
+      "s": 3,
+      "due": 8,
+      "c": 3,
+      "w": 0
+    }
+  },
+  {
+    "name": "streak caps at four",
+    "ratings": [
+      {
+        "round": 1,
+        "correct": true
+      },
+      {
+        "round": 2,
+        "correct": true
+      },
+      {
+        "round": 4,
+        "correct": true
+      },
+      {
+        "round": 8,
+        "correct": true
+      },
+      {
+        "round": 16,
+        "correct": true
+      },
+      {
+        "round": 32,
+        "correct": true
+      }
+    ],
+    "expected": {
+      "s": 4,
+      "due": 40,
+      "c": 6,
+      "w": 0
+    }
+  },
+  {
+    "name": "wrong resets the streak",
+    "ratings": [
+      {
+        "round": 1,
+        "correct": true
+      },
+      {
+        "round": 2,
+        "correct": true
+      },
+      {
+        "round": 4,
+        "correct": false
+      },
+      {
+        "round": 5,
+        "correct": true
+      }
+    ],
+    "expected": {
+      "s": 1,
+      "due": 6,
+      "c": 3,
+      "w": 1
+    }
+  }
+]

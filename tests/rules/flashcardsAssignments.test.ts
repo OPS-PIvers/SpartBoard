@@ -3,7 +3,7 @@
 
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   assertFails,
   assertSucceeds,
@@ -325,6 +325,64 @@ describe('flashcard_sessions progress', () => {
         progress({ submittedAt: 5, score: 1, total: 1 })
       )
     );
+  });
+
+  it('keeps mastery server-owned in a flashcards-mode Check', async () => {
+    await seed(
+      SESSION_PATH,
+      session({ kind: 'check', checkMode: 'flashcards' })
+    );
+    const studentDb = asStudent(STUDENT_UID, [CLASS_A]);
+    const ref = doc(studentDb, progressPath);
+    const { cards: _cards, ...withoutCards } = progress();
+    await assertFails(setDoc(ref, progress()));
+    await assertSucceeds(setDoc(ref, withoutCards));
+    await assertFails(
+      setDoc(
+        ref,
+        { cards: { 'card-1': { s: 4, due: 1, c: 4, w: 0 } } },
+        { merge: true }
+      )
+    );
+
+    const serverCards = { 'card-1': { s: 1, due: 2, c: 1, w: 0 } };
+    await seed(progressPath, { ...withoutCards, cards: serverCards });
+    await assertSucceeds(
+      setDoc(ref, { round: 2, lastActiveAt: 2 }, { merge: true })
+    );
+    await assertFails(
+      setDoc(
+        ref,
+        { cards: { 'card-1': { s: 4, due: 1, c: 4, w: 0 } } },
+        { merge: true }
+      )
+    );
+    await assertFails(setDoc(ref, { ...withoutCards, cards: {} }));
+    const own = await assertSucceeds(getDoc(ref));
+    expect(own.data()?.cards).toEqual(serverCards);
+    await assertFails(
+      getDoc(doc(asStudent(OUTSIDER_UID, [CLASS_A]), progressPath))
+    );
+    const teacherView = await assertSucceeds(
+      getDoc(doc(asTeacher(TEACHER_UID), progressPath))
+    );
+    expect(teacherView.data()?.cards).toEqual(serverCards);
+  });
+
+  it('still lets students write cards in write- and test-mode Checks', async () => {
+    const studentDb = asStudent(STUDENT_UID, [CLASS_A]);
+    for (const checkMode of ['write', 'test']) {
+      await testEnv.clearFirestore();
+      await seed(SESSION_PATH, session({ kind: 'check', checkMode }));
+      await assertSucceeds(setDoc(doc(studentDb, progressPath), progress()));
+      await assertSucceeds(
+        setDoc(
+          doc(studentDb, progressPath),
+          { cards: { 'card-1': { s: 2, due: 3, c: 2, w: 0 } } },
+          { merge: true }
+        )
+      );
+    }
   });
 
   it('freezes progress after submit, close, or end', async () => {

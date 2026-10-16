@@ -6447,6 +6447,12 @@ service cloud.firestore {
         function fcWithinWindow() {
           return beforeClose(fcSession()) && afterOpen(fcSession());
         }
+        // Flashcards-mode Checks grade from mastery, so only recordFlashcardCheckRatingsV1 writes cards.
+        function fcCardsOk() {
+          return fcSession().kind == 'check' && fcSession().get('checkMode', '') == 'flashcards'
+            ? incoming().get('cards', null) == (resource == null ? null : existing().get('cards', null))
+            : incoming().cards is map;
+        }
         function fcValidProgress() {
           let data = incoming();
           return data.keys().hasOnly([
@@ -6454,7 +6460,7 @@ service cloud.firestore {
                    'tests', 'lastActiveAt', 'checkLog'
                  ])
                  && data.classId is string
-                 && data.cards is map
+                 && fcCardsOk()
                  && data.starred is list
                  && data.round is int
                  && data.studyMs is int

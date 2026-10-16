@@ -24,10 +24,21 @@ import React, {
   useEffect,
   useCallback,
   useMemo,
+  useReducer,
   useRef,
   useEffectEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+  deriveQuizStudentScreen,
+  initialQuestionStep,
+  initialQuizJoinFlow,
+  isAttemptSubmitted,
+  questionStepReducer,
+  questionTimedOut,
+  quizJoinFlowReducer,
+  type QuestionStepState,
+} from '@/utils/quizStudentPhase';
 import {
   isLockedByChooseCount,
   isSectionAnswered,
@@ -48,7 +59,6 @@ import {
   partsDoneOf,
   periodOfResponse,
   sessionHasStops,
-  totalParts,
 } from '@/utils/quizParts';
 import {
   ClipboardList,
@@ -464,42 +474,26 @@ const QuizJoinFlow: React.FC<{
   const preview = getStudentPreview();
   const previewSessionId = preview?.kind === 'quiz' ? preview.sessionId : null;
   const previewKey = preview?.kind === 'quiz' ? preview.studentKey : null;
-  const [joined, setJoined] = useState(previewSessionId !== null);
-
-  // Period selection step: after entering code+PIN, anon students always pick
-  // their class period before joining (PIN+period is the disambiguator on the
-  // response doc key). SSO joiners skip this step entirely.
-  const [periodStep, setPeriodStep] = useState<string[] | null>(null);
-  const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
+  // Join flow: SSO gate lookup, PIN form, period picker, auto-join errors.
+  // The gate starts 'pending' when a URL code must be looked up first.
+  const [flow, dispatchFlow] = useReducer(
+    quizJoinFlowReducer,
+    {
+      previewing: previewSessionId !== null,
+      lookupFirst: !!urlCode && !embedded,
+    },
+    initialQuizJoinFlow
+  );
+  const joined = flow.step.kind === 'joined';
+  const entry = flow.step.kind === 'entry' ? flow.step : null;
+  const periodStep = entry?.periods ?? null;
+  const selectedPeriod = entry?.selectedPeriod ?? null;
+  const ssoGate = flow.gate;
 
   // SSO joiners auto-join on mount (no PIN). This guard prevents the effect
   // below from triggering twice in StrictMode and keeps the form invisible
   // while the lookup+join is in flight.
   const ssoAutoJoinStartedRef = useRef(false);
-  // Local error state for SSO auto-join. The hook's `error` state only fires
-  // from `joinQuizSession` itself; if `lookupSession` throws first (network
-  // failure, Firestore unavailable) the hook stays silent, so without this
-  // the student would sit on the "Joining quiz…" loader forever.
-  const [ssoAutoJoinError, setSsoAutoJoinError] = useState<string | null>(null);
-  // Terminal SSO message that OVERRIDES both the hook `error` and
-  // `ssoAutoJoinError`. Set only when the auto-join fell back to review and the
-  // review found no submission — a student opening a CLOSED assignment they
-  // never took. The hook `error` is then the misleading "No submission found…",
-  // so we surface the real reason (e.g. "This quiz session has already ended.").
-  const [ssoTerminalError, setSsoTerminalError] = useState<string | null>(null);
-  // The teacher skipped this student. Resolved before the auto-join so no
-  // response doc is ever created for them.
-  const [ssoExcluded, setSsoExcluded] = useState(false);
-
-  // SSO gate (feature-flagged). Anonymous joiners on a ClassLink-rostered
-  // session are offered Google sign-in by default — which keys their response
-  // by their own stable auth.uid and sidesteps the wrong-period fork — with a
-  // "use a PIN instead" escape. 'pending' means we still need to look up the
-  // session to learn whether it's ClassLink-gated or closed to PIN joins
-  // ('blocked'). Without a URL code there is nothing to look up yet.
-  const [ssoGate, setSsoGate] = useState<
-    'pending' | 'gate' | 'pin' | 'blocked'
-  >(() => (!!urlCode && !embedded ? 'pending' : 'pin'));
 
   const {
     session,
@@ -549,21 +543,21 @@ const QuizJoinFlow: React.FC<{
         // form back to the code/PIN screen so the user isn't trapped on a
         // stale picker showing the hook's `error` text. The hook's own
         // error state surfaces below the form.
-        setPeriodStep(null);
+        dispatchFlow({ type: 'lookupFailed' });
         throw err;
       }
       if (sessionInfo?.anonymousJoinBlocked) {
-        setSsoGate('blocked');
+        dispatchFlow({ type: 'joinBlocked' });
         return;
       }
       const periods = sessionInfo?.periodNames ?? [];
       if (periods.length > 0) {
-        setPeriodStep(periods);
+        dispatchFlow({ type: 'periodsNeeded', periods });
         return;
       }
       // No periods configured — join with classPeriod undefined.
       await joinQuizSession(joinCode, joinPin, undefined);
-      setJoined(true);
+      dispatchFlow({ type: 'joined' });
     },
     [lookupSession, joinQuizSession]
   );
@@ -575,7 +569,7 @@ const QuizJoinFlow: React.FC<{
     // always populated here. The hook keys their response doc by
     // `pin-{period}-{pin}`.
     await joinQuizSession(code, pin, selectedPeriod);
-    setJoined(true);
+    dispatchFlow({ type: 'joined' });
   }, [joinQuizSession, code, pin, selectedPeriod]);
 
   // SSO auto-join: bypass the PIN form AND the period picker entirely. SSO
@@ -603,7 +597,7 @@ const QuizJoinFlow: React.FC<{
               doc(db, 'student_assignments', uid, 'items', info.sessionId)
             );
             if (snap.exists() && snap.data()?.excluded === true) {
-              setSsoExcluded(true);
+              dispatchFlow({ type: 'excluded' });
               return;
             }
           }
@@ -611,7 +605,7 @@ const QuizJoinFlow: React.FC<{
           // Ignore — proceed to join.
         }
         await joinQuizSession(urlCode, undefined, undefined);
-        setJoined(true);
+        dispatchFlow({ type: 'joined' });
       } catch (err) {
         // Fall back to read-only review mode in two cases so the student can
         // see their published score / responses / answers:
@@ -637,7 +631,7 @@ const QuizJoinFlow: React.FC<{
         ) {
           try {
             await subscribeForReview(urlCode);
-            setJoined(true);
+            dispatchFlow({ type: 'joined' });
             return;
           } catch (reviewErr) {
             console.warn(
@@ -648,9 +642,11 @@ const QuizJoinFlow: React.FC<{
             // assignment they never took. The hook `error` is now the
             // misleading "No submission found…"; surface the real join reason
             // (e.g. "This quiz session has already ended.") with top precedence.
-            setSsoTerminalError(
-              err instanceof Error ? err.message : 'This quiz is closed.'
-            );
+            dispatchFlow({
+              type: 'reviewUnavailable',
+              message:
+                err instanceof Error ? err.message : 'This quiz is closed.',
+            });
             return;
           }
         }
@@ -662,7 +658,7 @@ const QuizJoinFlow: React.FC<{
           err instanceof Error
             ? err.message
             : "We couldn't load your quiz. Please refresh and try again.";
-        setSsoAutoJoinError(message);
+        dispatchFlow({ type: 'autoJoinFailed', message });
         // Re-arm so a retry button (if added later) can re-trigger.
         ssoAutoJoinStartedRef.current = false;
       }
@@ -715,11 +711,16 @@ const QuizJoinFlow: React.FC<{
           classIds: info?.classIds,
         });
         // Sign-in stays available on a session closed to PIN joins.
-        setSsoGate(
-          ssoOffered ? 'gate' : info?.anonymousJoinBlocked ? 'blocked' : 'pin'
-        );
+        dispatchFlow({
+          type: 'gateResolved',
+          gate: ssoOffered
+            ? 'gate'
+            : info?.anonymousJoinBlocked
+              ? 'blocked'
+              : 'pin',
+        });
       } catch {
-        if (!cancelled) setSsoGate('pin');
+        if (!cancelled) dispatchFlow({ type: 'gateResolved', gate: 'pin' });
       }
     })();
     return () => {
@@ -780,10 +781,7 @@ const QuizJoinFlow: React.FC<{
       drawIds = persisted;
     } else if (localDraw?.key === drawKey) {
       drawIds = localDraw.ids;
-    } else if (
-      hasBalancedSlots(bankSlots) &&
-      myResponse.status !== 'completed'
-    ) {
+    } else if (hasBalancedSlots(bankSlots) && !isAttemptSubmitted(myResponse)) {
       dealPending = true;
     } else {
       const chosen = chooseServedDraw(persisted, publicQuestionIds, bankSlots);
@@ -820,7 +818,7 @@ const QuizJoinFlow: React.FC<{
   const drawNeedsPersist =
     !!drawIds &&
     localDraw?.persisted !== true &&
-    myResponse?.status !== 'completed' &&
+    !isAttemptSubmitted(myResponse) &&
     !(
       myResponse?.servedQuestionIds &&
       isValidDraw(
@@ -1153,7 +1151,7 @@ const QuizJoinFlow: React.FC<{
 
   // Teacher skipped this student: the class channel still carries the session,
   // so the exclusion marker is the only thing that can stop the activity here.
-  if (ssoExcluded || myPointer?.excluded) {
+  if (flow.step.kind === 'excluded' || myPointer?.excluded) {
     return <AssignmentExcludedNotice />;
   }
 
@@ -1196,7 +1194,7 @@ const QuizJoinFlow: React.FC<{
               {periodStep.map((period) => (
                 <button
                   key={period}
-                  onClick={() => setSelectedPeriod(period)}
+                  onClick={() => dispatchFlow({ type: 'periodPicked', period })}
                   className={`w-full px-4 py-4 rounded-xl text-lg font-bold transition-all ${
                     selectedPeriod === period
                       ? 'bg-violet-600 text-white ring-2 ring-violet-400'
@@ -1232,8 +1230,7 @@ const QuizJoinFlow: React.FC<{
 
             <button
               onClick={() => {
-                setPeriodStep(null);
-                setSelectedPeriod(null);
+                dispatchFlow({ type: 'periodBack' });
               }}
               className="w-full mt-3 py-2 text-slate-500 hover:text-slate-300 text-sm font-medium transition-colors"
             >
@@ -1252,15 +1249,15 @@ const QuizJoinFlow: React.FC<{
     // failed) until `joined` flips. Periods picker is rendered earlier in
     // the function and short-circuits before we reach this branch.
     //
-    // Precedence: `ssoTerminalError` wins — set only when the review fallback
+    // Precedence: the terminal error wins — set only when the review fallback
     // found no submission for a CLOSED assignment, it carries the real "…has
     // already ended." reason over the hook's misleading "No submission found…".
     // Otherwise prefer the hook `error` (e.g. the friendly "ask your teacher to
-    // enroll you" hint on a class-gate denial), then `ssoAutoJoinError` (which
+    // enroll you" hint on a class-gate denial), then the auto-join error (which
     // captures lookupSession failures the hook never sees).
     if (previewSessionId) return <FullPageLoader message="Loading…" />;
     if (isStudentRole) {
-      const ssoError = ssoTerminalError ?? error ?? ssoAutoJoinError;
+      const ssoError = flow.terminalError ?? error ?? flow.autoJoinError;
       if (ssoError) {
         // SSO students arrive from /my-assignments or the Classroom add-on —
         // always the async/self-paced flow, so this surface is LIGHT.
@@ -1322,7 +1319,7 @@ const QuizJoinFlow: React.FC<{
             </button>
 
             <button
-              onClick={() => setSsoGate('pin')}
+              onClick={() => dispatchFlow({ type: 'usePin' })}
               className="w-full mt-3 py-2 text-slate-500 hover:text-slate-300 text-sm font-medium transition-colors"
             >
               Can&rsquo;t sign in? Use a PIN instead
@@ -1405,160 +1402,128 @@ const QuizJoinFlow: React.FC<{
     );
   }
 
-  // A response listener that failed after join would otherwise spin forever.
-  if (error && !myResponse) {
-    const light = isStudentRole || session.sessionMode === 'student';
-    return (
-      <div
-        className={`min-h-screen flex flex-col items-center justify-center gap-4 p-6 ${
-          light ? 'bg-gradient-to-b from-white to-slate-100' : 'bg-slate-900'
-        }`}
-      >
-        <AlertCircle
-          className={`w-10 h-10 ${light ? 'text-red-500' : 'text-red-400'}`}
-        />
-        <p
-          className={`text-sm text-center max-w-sm ${light ? 'text-slate-600' : 'text-slate-300'}`}
-        >
-          {error}
-        </p>
-      </div>
-    );
-  }
+  const screen = deriveQuizStudentScreen({
+    session,
+    response: myResponse,
+    hasError: !!error,
+    periodLocked,
+    questionsPending: contentPending || dealPending,
+    needsMicCheck:
+      !isViewOnly &&
+      micReadyFor !== session.id &&
+      sessionNeedsMic(session, session.publicQuestions ?? []),
+  });
 
-  // Per-period session whose period isn't open for this student: a locked
-  // card before they start, the paused screen once they have (answers kept).
-  if (periodLocked && myResponse?.status !== 'completed') {
-    const started =
-      myResponse?.status === 'in-progress' ||
-      (myResponse?.answers?.length ?? 0) > 0;
-    return started ? (
-      <QuizPausedPlaceholder session={session} pin={pin} periodClosed />
-    ) : (
-      <QuizPeriodLockedScreen
-        session={session}
-        opensAt={nextScheduledOpen(session, periodKeys, periodNow)}
-        pin={pin}
-      />
-    );
-  }
-  if (
-    (contentPending || dealPending) &&
-    session.status !== 'ended' &&
-    myResponse?.status !== 'completed'
-  ) {
-    return (
-      <div className="min-h-screen bg-brand-blue-dark flex items-center justify-center">
-        <Loader2
-          className="w-8 h-8 text-white/70 animate-spin"
-          aria-label="Loading questions"
-        />
-      </div>
-    );
-  }
-
-  // Self-paced Review game: its own clock, queue and screens (QUIZ_REVIEW_SPLIT.md PR 4).
-  if (session.sessionMode === 'game' && myResponse) {
-    return (
-      <React.Suspense fallback={<FullPageLoader message="Loading…" light />}>
-        <QuizGamePlay
-          session={session}
-          myResponse={myResponse}
-          servedQuestions={servedPublicQuestions}
-          override={myOverride}
-          pin={pin}
-          onSetHandRaised={setHandRaised}
-          reportTabSwitch={reportTabSwitch}
-        />
-      </React.Suspense>
-    );
-  }
-
-  // Paused — teacher has temporarily paused the session. URL is still live,
-  // submissions are blocked until the session is resumed.
-  if (session.status === 'paused') {
-    return <QuizPausedPlaceholder session={session} pin={pin} />;
-  }
-
-  // Waiting room
-  if (session.status === 'waiting') {
-    return (
-      <WaitingRoom
-        session={session}
-        pin={pin}
-        totalQuestions={servedTotalQuestions}
-        locale={myOverride?.language}
-      />
-    );
-  }
-
-  // Active quiz — already-completed gate.
-  //
-  // Two paths reach the wait screen instead of the question flow:
-  //   1. The student's response is `status: 'completed'` (normal post-submit).
-  //   2. The student is at or past the session's attempt cap, regardless of
-  //      the response's current status. This is defense in depth: if any
-  //      bug ever resets a capped response back to `'joined'` (e.g. a stale
-  //      counter, a partial finalize, a future refactor that changes the
-  //      reset path), the UI still refuses to render the questions. The
-  //      `completeQuiz` transaction blocks a second submit too, but a
-  //      student briefly seeing a question they can't submit would be
-  //      confusing — short-circuiting at the UI is the cleaner UX.
-  const attemptLimit = session.attemptLimit ?? null;
-  const completedCount = myResponse?.completedAttempts ?? 0;
-  const atCap = attemptLimit !== null && completedCount >= attemptLimit;
-  if (
-    session.status === 'active' &&
-    myResponse &&
-    (myResponse.status === 'completed' || atCap)
-  ) {
-    // If the teacher has PUBLISHED results to students (scoreVisibility set on
-    // the archived assignment via "Publish Scores"), a completed student should
-    // see their results immediately — even while the session is still 'active'.
-    // A self-paced / async assignment (e.g. a Google Classroom attachment) never
-    // gets "ended" by a live teacher, so without this a completed student is
-    // stranded on the "waiting for the teacher to end the quiz" screen and can
-    // never see the score the teacher already published. Until results are
-    // published (scoreVisibility 'none'), fall back to the submitted-wait
-    // screen as before. Mirrors the post-end ResultsScreen branch.
-    const published = resolveResultsVisibility(session, myResponse);
-    if (published.visibility !== 'none' && myResponse.status === 'completed') {
+  switch (screen.kind) {
+    case 'listenerError': {
+      const light = isStudentRole || session.sessionMode === 'student';
       return (
-        <PublishedScoreReview
+        <div
+          className={`min-h-screen flex flex-col items-center justify-center gap-4 p-6 ${
+            light ? 'bg-gradient-to-b from-white to-slate-100' : 'bg-slate-900'
+          }`}
+        >
+          <AlertCircle
+            className={`w-10 h-10 ${light ? 'text-red-500' : 'text-red-400'}`}
+          />
+          <p
+            className={`text-sm text-center max-w-sm ${light ? 'text-slate-600' : 'text-slate-300'}`}
+          >
+            {error}
+          </p>
+        </div>
+      );
+    }
+
+    // Per-period session whose period isn't open for this student: a locked
+    // card before they start, the paused screen once they have (answers kept).
+    case 'periodLocked':
+      return screen.started ? (
+        <QuizPausedPlaceholder session={session} pin={pin} periodClosed />
+      ) : (
+        <QuizPeriodLockedScreen
           session={session}
-          myResponse={myResponse}
-          visibility={published.visibility}
-          revealedAnswers={published.revealedAnswers}
-          revealedRubricExamples={published.revealedRubricExamples}
-          publishedAt={published.publishedAt}
-          protection={published.protection}
+          opensAt={nextScheduledOpen(session, periodKeys, periodNow)}
           pin={pin}
-          embedded={embedded}
-          watermarkNameOverride={watermarkNameOverride}
-          override={myOverride}
-          drawIds={drawIds}
+        />
+      );
+
+    case 'loadingQuestions':
+      return (
+        <div className="min-h-screen bg-brand-blue-dark flex items-center justify-center">
+          <Loader2
+            className="w-8 h-8 text-white/70 animate-spin"
+            aria-label="Loading questions"
+          />
+        </div>
+      );
+
+    // Self-paced Review game: its own clock, queue and screens (QUIZ_REVIEW_SPLIT.md PR 4).
+    case 'game':
+      return (
+        <React.Suspense fallback={<FullPageLoader message="Loading…" light />}>
+          <QuizGamePlay
+            session={session}
+            myResponse={screen.response}
+            servedQuestions={servedPublicQuestions}
+            override={myOverride}
+            pin={pin}
+            onSetHandRaised={setHandRaised}
+            reportTabSwitch={reportTabSwitch}
+          />
+        </React.Suspense>
+      );
+
+    // The teacher paused the session; submissions are blocked until Resume.
+    case 'paused':
+      return <QuizPausedPlaceholder session={session} pin={pin} />;
+
+    case 'waiting':
+      return (
+        <WaitingRoom
+          session={session}
+          pin={pin}
+          totalQuestions={servedTotalQuestions}
+          locale={myOverride?.language}
+        />
+      );
+
+    // Turned in, or at the attempt cap whatever the response status says.
+    // Published results show at once, even while the session is still active,
+    // so an async assignment no live teacher ends still reaches its score.
+    case 'submitted': {
+      const published = resolveResultsVisibility(session, screen.response);
+      if (published.visibility !== 'none' && screen.completed) {
+        return (
+          <PublishedScoreReview
+            session={session}
+            myResponse={screen.response}
+            visibility={published.visibility}
+            revealedAnswers={published.revealedAnswers}
+            revealedRubricExamples={published.revealedRubricExamples}
+            publishedAt={published.publishedAt}
+            protection={published.protection}
+            pin={pin}
+            embedded={embedded}
+            watermarkNameOverride={watermarkNameOverride}
+            override={myOverride}
+            drawIds={drawIds}
+          />
+        );
+      }
+      return (
+        <QuizSubmittedWaitScreen
+          session={session}
+          myResponse={screen.response}
+          pin={pin}
+          answeredCount={myAnsweredCount}
+          totalQuestions={servedTotalQuestions}
+          pointerTabWarningThreshold={myOverride?.tabWarningThreshold}
         />
       );
     }
-    return (
-      <QuizSubmittedWaitScreen
-        session={session}
-        myResponse={myResponse}
-        pin={pin}
-        answeredCount={myAnsweredCount}
-        totalQuestions={servedTotalQuestions}
-        pointerTabWarningThreshold={myOverride?.tabWarningThreshold}
-      />
-    );
-  }
 
-  if (session.status === 'active') {
-    // Wait for the student's response doc to load before rendering the
-    // active quiz UI. The per-attempt shuffle seed depends on
-    // `myResponse.completedAttempts`, so rendering before the snapshot
-    // arrives would briefly use `attempt-0` and then visibly reorder once
-    // the real attempt index loaded — confusing on retakes.
-    if (!myResponse) {
+    case 'loadingResponse': {
       // Self-paced / async loads onto the LIGHT quiz that follows; live stays dark.
       const lightLoad = session.sessionMode === 'student';
       return (
@@ -1586,62 +1551,30 @@ const QuizJoinFlow: React.FC<{
     }
 
     // A student held at a Stop waits here until the teacher opens the next part.
-    const partsDone = partsDoneOf(myResponse);
-    if (
-      sessionHasStops(session) &&
-      myResponse.partHeld === true &&
-      partsDone > 0 &&
-      partsDone < totalParts(session.sections)
-    ) {
-      const opened = openedPartFor(
-        session.partsOpen,
-        periodOfResponse(session, myResponse),
-        myResponse._responseKey
-      );
+    case 'heldAtStop':
       return (
         <QuizStopScreen
-          nextPart={partsDone + 1}
-          ready={opened > partsDone}
+          nextPart={screen.nextPart}
+          ready={screen.ready}
           onStart={resumePart}
           pin={pin}
         />
       );
-    }
 
-    const publicQuestions = session.publicQuestions ?? [];
-    const currentQ =
-      session.currentQuestionIndex >= 0
-        ? publicQuestions[session.currentQuestionIndex]
-        : undefined;
-
-    // Show review phase (leaderboard / answer review between questions)
-    if (session.questionPhase === 'reviewing' && currentQ) {
+    // Leaderboard / answer review between questions.
+    case 'reviewing':
       return (
         <ReviewPhase
           session={session}
-          currentQuestion={currentQ}
-          myResponse={myResponse}
+          currentQuestion={screen.question}
+          myResponse={screen.response}
           totalQuestions={servedTotalQuestions}
           servedLocale={myOverride?.language}
         />
       );
-    }
 
-    // Drafts (debounced autosaves of written responses) don't count as
-    // "answered" — the student is still typing. The completion gate only
-    // fires on an explicit Submit, which writes `status: 'submitted'`.
-    const alreadyAnswered = currentQ
-      ? myResponse.answers.some(
-          (a) => a.questionId === currentQ.id && isAnswerSubmitted(a)
-        )
-      : false;
-
-    const needsMicGate =
-      !isViewOnly &&
-      micReadyFor !== session.id &&
-      myResponse.status !== 'completed' &&
-      sessionNeedsMic(session, publicQuestions);
-    if (needsMicGate) {
+    case 'micCheck': {
+      const publicQuestions = session.publicQuestions ?? [];
       return (
         <RecordingNoticeDrawingContext.Provider
           value={noticeDrawingForSession(session, publicQuestions)}
@@ -1667,62 +1600,66 @@ const QuizJoinFlow: React.FC<{
       );
     }
 
-    return (
-      <RecordingNoticeDrawingContext.Provider
-        value={noticeDrawingForSession(session, session.publicQuestions ?? [])}
-      >
-        <ActiveQuiz
+    case 'answering':
+      return (
+        <RecordingNoticeDrawingContext.Provider
+          value={noticeDrawingForSession(
+            session,
+            session.publicQuestions ?? []
+          )}
+        >
+          <ActiveQuiz
+            session={session}
+            currentQuestion={screen.question}
+            alreadyAnswered={screen.alreadyAnswered}
+            myResponse={screen.response}
+            onAnswer={handleAnswer}
+            onCommitRecording={handleCommitRecording}
+            onCommitWhiteboard={handleCommitWhiteboard}
+            onRetryRecordingUpload={handleRetryRecordingUpload}
+            canRetryRecordingUpload={canRetryRecordingUpload}
+            onMarkUnresponded={handleMarkUnresponded}
+            noticeAckedAt={noticeAckedAt}
+            onAcknowledgeNotice={handleAcknowledgeNotice}
+            noticeRequired={noticeRequired}
+            onComplete={handleComplete}
+            reportTabSwitch={reportTabSwitch}
+            saveTabExits={saveTabExits}
+            onSetHandRaised={setHandRaised}
+            onStartAttemptClock={isViewOnly ? undefined : startAttemptClock}
+            onSubmitPart={isViewOnly ? undefined : submitPart}
+            handRaised={!!screen.response.handRaisedAt}
+            warningCount={warningCount}
+            onRecordStimulusPlay={recordStimulusPlay}
+            onReportStimulusError={reportStimulusError}
+            pointerTabWarningThreshold={myOverride?.tabWarningThreshold}
+            override={myOverride}
+            drawIds={drawIds}
+            effectiveCloseAt={myEffectiveWindow.closeAt}
+            readAloudRequested={
+              isStudentRole &&
+              (myOverride?.readAloud === true || session.readAloudAll === true)
+            }
+          />
+        </RecordingNoticeDrawingContext.Provider>
+      );
+
+    case 'results':
+      return (
+        <ResultsScreen
           session={session}
-          currentQuestion={currentQ}
-          alreadyAnswered={alreadyAnswered}
           myResponse={myResponse}
-          onAnswer={handleAnswer}
-          onCommitRecording={handleCommitRecording}
-          onCommitWhiteboard={handleCommitWhiteboard}
-          onRetryRecordingUpload={handleRetryRecordingUpload}
-          canRetryRecordingUpload={canRetryRecordingUpload}
-          onMarkUnresponded={handleMarkUnresponded}
-          noticeAckedAt={noticeAckedAt}
-          onAcknowledgeNotice={handleAcknowledgeNotice}
-          noticeRequired={noticeRequired}
-          onComplete={handleComplete}
-          reportTabSwitch={reportTabSwitch}
-          saveTabExits={saveTabExits}
-          onSetHandRaised={setHandRaised}
-          onStartAttemptClock={isViewOnly ? undefined : startAttemptClock}
-          onSubmitPart={isViewOnly ? undefined : submitPart}
-          handRaised={!!myResponse?.handRaisedAt}
-          warningCount={warningCount}
-          onRecordStimulusPlay={recordStimulusPlay}
-          onReportStimulusError={reportStimulusError}
-          pointerTabWarningThreshold={myOverride?.tabWarningThreshold}
+          answeredCount={myAnsweredCount}
+          totalQuestions={servedTotalQuestions}
+          pin={pin}
+          myStudentUid={myResponse?.studentUid}
+          embedded={embedded}
+          watermarkNameOverride={watermarkNameOverride}
           override={myOverride}
           drawIds={drawIds}
-          effectiveCloseAt={myEffectiveWindow.closeAt}
-          readAloudRequested={
-            isStudentRole &&
-            (myOverride?.readAloud === true || session.readAloudAll === true)
-          }
         />
-      </RecordingNoticeDrawingContext.Provider>
-    );
+      );
   }
-
-  // Session ended
-  return (
-    <ResultsScreen
-      session={session}
-      myResponse={myResponse}
-      answeredCount={myAnsweredCount}
-      totalQuestions={servedTotalQuestions}
-      pin={pin}
-      myStudentUid={myResponse?.studentUid}
-      embedded={embedded}
-      watermarkNameOverride={watermarkNameOverride}
-      override={myOverride}
-      drawIds={drawIds}
-    />
-  );
 };
 
 // ─── Waiting room ─────────────────────────────────────────────────────────────
@@ -2016,7 +1953,7 @@ export const ActiveQuiz: React.FC<{
     session.sessionMode === 'student' &&
     session.timeLimitMinutes != null &&
     myResponse != null &&
-    myResponse.status !== 'completed' &&
+    !isAttemptSubmitted(myResponse) &&
     myResponse.lastWriteAt != null &&
     myResponse.attemptStartedAt == null;
   const attemptClockRequestedRef = useRef(false);
@@ -2100,7 +2037,7 @@ export const ActiveQuiz: React.FC<{
     enabled:
       tabWarningsEnabled &&
       session.status === 'active' &&
-      myResponse?.status !== 'completed',
+      !isAttemptSubmitted(myResponse),
     sessionActive: session.status === 'active',
     ready: myResponse != null,
     serverExits: myResponse?.tabExits,
@@ -2245,7 +2182,7 @@ export const ActiveQuiz: React.FC<{
   // A rejoin or a just-submitted part lands on the first open question.
   if (
     partsDone > 0 &&
-    myResponse?.status !== 'completed' &&
+    !isAttemptSubmitted(myResponse) &&
     partOf(orderedPublicQuestions[localIndex]) <= partsDone
   ) {
     const firstOpen = orderedPublicQuestions.findIndex(
@@ -2497,21 +2434,20 @@ export const ActiveQuiz: React.FC<{
   // primary source of the originally reported quiz data loss.
   const draftAutosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [submitted, setSubmitted] = useState(alreadyAnswered);
-  const [timeLeft, setTimeLeft] = useState<number | null>(
-    initialTimeLimit > 0 && !alreadyAnswered ? initialTimeLimit : null
+  // This question's countdown and submitted flag; `timedOutFor` fires the timeout submit exactly once.
+  const [step, dispatchStep] = useReducer(
+    questionStepReducer,
+    null,
+    (): QuestionStepState =>
+      initialQuestionStep(
+        currentQuestion?.id,
+        alreadyAnswered,
+        initialTimeLimit
+      )
   );
+  const { submitted, timeLeft } = step;
+  const autoSubmitTriggeredFor = step.timedOutFor;
   const [stimulusDrawerOpen, setStimulusDrawerOpen] = useState(false);
-  const [prevQuestionId, setPrevQuestionId] = useState<string | undefined>(
-    currentQuestion?.id
-  );
-  const [prevAlreadyAnswered, setPrevAlreadyAnswered] =
-    useState<boolean>(alreadyAnswered);
-
-  // Track which question triggered an auto-submit so we fire the side-effect exactly once.
-  const [autoSubmitTriggeredFor, setAutoSubmitTriggeredFor] = useState<
-    string | null
-  >(null);
 
   // ─── Gamification state ─────────────────────────────────────────────────────
   const [answerFeedback, setAnswerFeedback] = useState<
@@ -2609,51 +2545,43 @@ export const ActiveQuiz: React.FC<{
   // when not in flight, we *do* hydrate so a page refresh mid-quiz (where
   // `myResponse` arrives after the initial mount) still highlights the
   // student's prior answer instead of leaving NEXT disabled.
-  if (currentQuestion?.id !== prevQuestionId) {
-    setPrevQuestionId(currentQuestion?.id);
-    setPrevAlreadyAnswered(alreadyAnswered);
+  if (currentQuestion?.id !== step.questionId) {
+    dispatchStep({
+      type: 'question',
+      questionId: currentQuestion?.id,
+      alreadyAnswered,
+      timeLimit: effectiveTimeLimit,
+    });
     setStimulusDrawerOpen(false);
-    setSubmitted(alreadyAnswered);
-    setAutoSubmitTriggeredFor(null);
     setAnswerFeedback(null);
     setRevealedAnswer(null);
     setSpeedBonusEarned(null);
     setSaveError(null);
     hydrateAnswerControls();
-    const tl = isStudentPaced
-      ? applyTimeMultiplier(
-          currentQuestion?.timeLimit ?? 0,
-          override?.timeMultiplier
-        )
-      : (currentQuestion?.timeLimit ?? 0);
-    setTimeLeft(tl > 0 && !alreadyAnswered ? tl : null);
-  } else if (alreadyAnswered !== prevAlreadyAnswered) {
+  } else if (alreadyAnswered !== step.alreadyAnswered) {
     // Gate the sentinel update with the same in-flight check as the visible
-    // state. If we updated `prevAlreadyAnswered` here unconditionally, a flip
+    // state. If we updated `step.alreadyAnswered` here unconditionally, a flip
     // observed mid-flight (e.g., a submit-and-advance that ultimately fails
     // and never advances `localIndex`) would leave `submitted` stuck at the
     // pre-flip value with no way to reconcile on the next non-flight render —
-    // because `prevAlreadyAnswered` would already match. Keeping them in
+    // because `step.alreadyAnswered` would already match. Keeping them in
     // lockstep means the next non-flight render still has a chance to sync.
     // eslint-disable-next-line react-hooks/refs -- in-flight advance guard while adjusting state
     if (!submitting && !advancingRef.current) {
-      setPrevAlreadyAnswered(alreadyAnswered);
-      setSubmitted(alreadyAnswered);
+      // A render-phase dispatch always re-renders, so only send one that changes state.
+      dispatchStep({
+        type: 'answeredChanged',
+        alreadyAnswered,
+        inFlight: false,
+      });
       hydrateAnswerControls();
     }
   }
 
   // Auto-submit detection: when the timer hits zero, mark as submitted during render.
-  if (
-    timeLeft !== null &&
-    timeLeft <= 0 &&
-    !submitted &&
-    !submitting &&
-    currentQuestion &&
-    autoSubmitTriggeredFor !== currentQuestion.id
-  ) {
-    setAutoSubmitTriggeredFor(currentQuestion.id);
-    setSubmitted(true);
+  const steppedQuestionId = currentQuestion?.id;
+  if (questionTimedOut(step, steppedQuestionId, submitting)) {
+    dispatchStep({ type: 'timeout', questionId: steppedQuestionId });
   }
 
   // Keep refs for volatile state used by the countdown / autosave / flush
@@ -2729,7 +2657,7 @@ export const ActiveQuiz: React.FC<{
   useEffect(() => {
     if (timeLeft === null || timeLeft <= 0 || submitted || submitting) return;
     const id = setInterval(() => {
-      setTimeLeft((t) => (t === null ? null : t - 1));
+      dispatchStep({ type: 'tick' });
     }, 1000);
     return () => clearInterval(id);
   }, [timeLeft, submitted, submitting]);
@@ -2752,7 +2680,7 @@ export const ActiveQuiz: React.FC<{
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   timeoutFinishesQuizRef.current =
     currentIndex >= effectiveTotalQuestions - 1 &&
-    myResponse?.status !== 'completed';
+    !isAttemptSubmitted(myResponse);
   const onCompleteRef = useRef(onComplete);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   onCompleteRef.current = onComplete;
@@ -2806,7 +2734,7 @@ export const ActiveQuiz: React.FC<{
           if (!finishesQuiz) return;
           // Same gate as handleSubmitAndAdvance: an open recording slot blocks completion.
           if (openRecordingCountRef.current > 0) {
-            setSubmitted(false);
+            dispatchStep({ type: 'submitFailed' });
             setSubmitBlocked(true);
             return;
           }
@@ -2814,7 +2742,7 @@ export const ActiveQuiz: React.FC<{
             await onCompleteRef.current();
           } catch (err) {
             console.error('[QuizStudentApp] onComplete failed:', err);
-            setSubmitted(false);
+            dispatchStep({ type: 'submitFailed' });
             setSaveError("Couldn't submit your quiz. Tap to try again.");
           }
         },
@@ -2822,7 +2750,7 @@ export const ActiveQuiz: React.FC<{
           console.error('[QuizStudentApp] auto-submit failed:', err);
           // Mid-quiz, stay submitted so NEXT QUESTION still moves on.
           if (!finishesQuiz) return;
-          setSubmitted(false);
+          dispatchStep({ type: 'submitFailed' });
           setSaveError("Couldn't save your answer. Tap to try again.");
         }
       );
@@ -3133,7 +3061,7 @@ export const ActiveQuiz: React.FC<{
     studentRecordingFor(currentQuestion, session)
   );
   const whiteboardGated =
-    whiteboardQuestion && isPortrait && myResponse?.status !== 'completed';
+    whiteboardQuestion && isPortrait && !isAttemptSubmitted(myResponse);
   const gatedQuestionId =
     whiteboardGated &&
     currentQuestion &&
@@ -3179,7 +3107,7 @@ export const ActiveQuiz: React.FC<{
     }
     pendingDraftRef.current = null;
     setSubmitting(true);
-    setSubmitted(true);
+    dispatchStep({ type: 'submit' });
     setSelectedAnswer(answer);
 
     // Compute speed bonus before submit so it's persisted with the answer
@@ -3241,7 +3169,7 @@ export const ActiveQuiz: React.FC<{
     // Auto-complete if on last question
     if (
       currentIndex >= effectiveTotalQuestions - 1 &&
-      myResponse?.status !== 'completed'
+      !isAttemptSubmitted(myResponse)
     ) {
       await onComplete();
     }
@@ -3369,13 +3297,13 @@ export const ActiveQuiz: React.FC<{
           return;
         }
         setSelectedAnswer(answer);
-        setSubmitted(true);
-        if (myResponse?.status !== 'completed') {
+        dispatchStep({ type: 'submit' });
+        if (!isAttemptSubmitted(myResponse)) {
           try {
             await onComplete();
           } catch (err) {
             console.error('[QuizStudentApp] onComplete failed:', err);
-            setSubmitted(false);
+            dispatchStep({ type: 'submitFailed' });
             setSaveError("Couldn't submit your quiz. Tap to try again.");
           }
         }
@@ -3565,7 +3493,7 @@ export const ActiveQuiz: React.FC<{
     currentQuestion.id,
     sectionServedIds
   );
-  const quizDone = myResponse?.status === 'completed';
+  const quizDone = isAttemptSubmitted(myResponse);
   const handBesideNext =
     !!whiteboardConfig && isStudentPaced && !(sectionLocked && sectionState);
   const raiseHandButton =
@@ -3897,7 +3825,7 @@ export const ActiveQuiz: React.FC<{
             <div className="flex items-center gap-2">
               {isStudentPaced &&
                 canGoBack &&
-                myResponse?.status !== 'completed' && (
+                !isAttemptSubmitted(myResponse) && (
                   <button
                     type="button"
                     onClick={handleBack}
@@ -3910,13 +3838,9 @@ export const ActiveQuiz: React.FC<{
               <span className="text-xs text-slate-500">
                 {currentIndex + 1} / {effectiveTotalQuestions}
               </span>
-              {attemptDeadline != null &&
-                myResponse?.status !== 'completed' && (
-                  <QuizTimeLimitClock
-                    deadline={attemptDeadline}
-                    light={light}
-                  />
-                )}
+              {attemptDeadline != null && !isAttemptSubmitted(myResponse) && (
+                <QuizTimeLimitClock deadline={attemptDeadline} light={light} />
+              )}
               {whiteboardConfig && currentStimuli.length > 0 && (
                 <StimulusDrawerButton
                   open={stimulusDrawerOpen}
