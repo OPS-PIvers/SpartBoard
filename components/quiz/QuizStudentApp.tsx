@@ -1968,7 +1968,10 @@ export const ActiveQuiz: React.FC<{
   const [timeUpSubmitted, setTimeUpSubmitted] = useState(false);
   const [timeUpFailed, setTimeUpFailed] = useState(false);
   const timeUpTriggeredRef = useRef(false);
+  const timeUpInFlightRef = useRef(false);
   const attemptTimeUpSubmit = useCallback(async () => {
+    if (timeUpInFlightRef.current) return;
+    timeUpInFlightRef.current = true;
     timeUpTriggeredRef.current = true;
     document.dispatchEvent(new CustomEvent('spartboard:quiz:flush-written'));
     try {
@@ -1980,6 +1983,8 @@ export const ActiveQuiz: React.FC<{
       console.error('[QuizStudentApp] time-limit auto-submit failed:', err);
       timeUpTriggeredRef.current = false;
       setTimeUpFailed(true);
+    } finally {
+      timeUpInFlightRef.current = false;
     }
   }, [onComplete]);
   useEffect(() => {
@@ -3183,7 +3188,13 @@ export const ActiveQuiz: React.FC<{
       currentIndex >= effectiveTotalQuestions - 1 &&
       !isAttemptSubmitted(myResponse)
     ) {
-      await onComplete();
+      try {
+        await onComplete();
+      } catch (err) {
+        console.error('[QuizStudentApp] onComplete failed:', err);
+        dispatchStep({ type: 'submitFailed' });
+        setSaveError("Couldn't submit your quiz. Tap to try again.");
+      }
     }
   };
 
@@ -3674,7 +3685,10 @@ export const ActiveQuiz: React.FC<{
           passed before the write landed). Honest, non-blocking, with a
           retry the student can act on — the response is still
           in-progress, not silently marked complete. */}
-      {(closeAutoSubmitFailed || (timeUpFailed && !timeUpSubmitted)) && (
+      {(closeAutoSubmitFailed ||
+        (timeUpFailed &&
+          !timeUpSubmitted &&
+          myResponse?.status !== 'completed')) && (
         <div
           role="alert"
           className="sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b border-red-500/40 bg-red-500/10 text-red-200 text-xs"

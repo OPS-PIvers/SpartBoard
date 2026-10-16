@@ -244,4 +244,22 @@ describe('QuizStudentApp — live submit fails', () => {
     ).not.toBeInTheDocument();
     consoleSpy.mockRestore();
   });
+
+  it('shows a retry message when turning the quiz in fails after the answer saved', async () => {
+    mockCompleteQuiz.mockRejectedValue(new Error('offline'));
+    const consoleSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    hookState.session = buildSession(mcQuestion);
+    hookState.myResponse = { ...buildResponse(''), answers: [] };
+    render(<QuizStudentApp />);
+    await screen.findByText(/Pick one/i);
+    fireEvent.click(screen.getByRole('button', { name: /Beta/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Submit/i }));
+
+    expect(
+      await screen.findByText(/Couldn't submit your quiz/i)
+    ).toBeInTheDocument();
+    consoleSpy.mockRestore();
+  });
 });
