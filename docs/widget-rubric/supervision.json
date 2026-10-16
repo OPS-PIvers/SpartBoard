@@ -22,8 +22,21 @@
       "widgetType": "random",
       "dimension": "layout",
       "openedAt": "2026-10-15T04:20:00Z",
-      "outcome": "open",
+      "outcome": "changed",
       "changes": []
+    },
+    {
+      "pr": 0,
+      "widgetType": "checklist",
+      "dimension": "layout",
+      "openedAt": "2026-10-16T04:20:00Z",
+      "outcome": "open",
+      "changes": {
+        "S6": {
+          "before": null,
+          "after": 2
+        }
+      }
     }
   ]
 }
