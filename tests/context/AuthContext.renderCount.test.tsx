@@ -100,7 +100,8 @@ describe('AuthContext render cost', () => {
     const onAuthMock = vi.mocked(firebaseAuth.onAuthStateChanged);
     onAuthMock.mockImplementation(() => () => undefined);
     render(<Parent />);
-    const listener = onAuthMock.mock.calls[onAuthMock.mock.calls.length - 1][1];
+    const lastCall = onAuthMock.mock.calls[onAuthMock.mock.calls.length - 1];
+    const listener = lastCall[1] as (u: User | null) => void;
     const user = fakeUser();
     Object.defineProperty(auth, 'currentUser', {
       configurable: true,
