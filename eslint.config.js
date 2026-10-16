@@ -250,16 +250,13 @@ export default tseslint.config(
   {
     // D4 (Import Path Convention) enforcement: applies repo-wide to every
     // components/widgets/<WidgetDir>/ directory. Blocks a relative import
-    // that escapes into the SIBLING `components/widgets/math-tools/` shared
-    // directory (found in `MathToolInstance/`, whose sibling `MathTools/`
-    // already used the `@/` alias for the same module) or into QuizWidget's
-    // own sibling `monitor/`/`present/` subdirectories (a two-way escape
-    // between those two). Both patterns share this single block because ESLint
-    // flat config replaces — rather than merges — a rule's value when two
-    // matching config objects set the same key. `'../WidgetLayout'` from inside
-    // a widget subfolder (a root-level shared file, not a sibling feature
-    // directory) is an intentionally-preserved gray zone (D4-E2) and is NOT
-    // matched by this pattern.
+    // that escapes into ANY peer widget directory (list read from disk) or into
+    // QuizWidget's own sibling `monitor/`/`present/` subdirectories. All
+    // patterns share this single block because ESLint flat config replaces —
+    // rather than merges — a rule's value when two matching config objects set
+    // the same key. `'../WidgetLayout'` from inside a widget subfolder (a
+    // root-level shared file, not a sibling feature directory) is an
+    // intentionally-preserved gray zone (D4-E2) and is NOT matched.
     files: ['components/widgets/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
