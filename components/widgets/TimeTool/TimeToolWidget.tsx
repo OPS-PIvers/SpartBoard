@@ -423,6 +423,7 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
   const effectiveAdjustStep = Math.max(5, Math.min(60, adjustStepSeconds));
 
   const showAdjustControls = mode === 'timer' && !isEditing;
+  const isExpired = mode === 'timer' && !isRunning && displayTime <= 0;
 
   // ─── Parse time into parts ───────────────────────────────────────
 
@@ -627,12 +628,13 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
                           ? () => handleStop()
                           : () => void handleStart()
                       }
+                      disabled={isExpired}
                       aria-label={t(
                         isRunning
                           ? 'widgets.timeTool.pause'
                           : 'widgets.timeTool.play'
                       )}
-                      className={`flex items-center justify-center rounded-xl transition-all select-none active:scale-95 shadow-lg ${
+                      className={`flex items-center justify-center rounded-xl transition-all select-none active:scale-95 shadow-lg disabled:opacity-30 disabled:cursor-not-allowed ${
                         isRunning
                           ? 'bg-slate-200/60 text-slate-500'
                           : 'bg-brand-blue-primary text-white shadow-brand-blue-primary/20'

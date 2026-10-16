@@ -9,7 +9,8 @@ interface RemoteTimerControlProps {
 
 const PRESET_SECONDS = [60, 120, 180, 300, 600] as const;
 
-const formatTime = (seconds: number): string => {
+const formatTime = (totalSeconds: number): string => {
+  const seconds = Math.floor(totalSeconds);
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
@@ -86,6 +87,7 @@ export const RemoteTimerControl: React.FC<RemoteTimerControlProps> = ({
     ? Math.max(0, config.elapsedTime - delta)
     : config.elapsedTime + delta;
   const remaining = displayTime;
+  const isExpired = isTimer && !config.isRunning && displayTime <= 0;
   const progress =
     isTimer && config.duration > 0
       ? Math.min(1, 1 - displayTime / config.duration)
@@ -143,7 +145,8 @@ export const RemoteTimerControl: React.FC<RemoteTimerControlProps> = ({
         </button>
         <button
           onClick={togglePlay}
-          className={`touch-manipulation w-20 h-20 rounded-full border-2 text-white flex items-center justify-center transition-all active:scale-95 shadow-lg focus-visible:ring-2 focus-visible:ring-blue-400/60 ${
+          disabled={isExpired}
+          className={`touch-manipulation w-20 h-20 rounded-full border-2 text-white flex items-center justify-center transition-all active:scale-95 shadow-lg focus-visible:ring-2 focus-visible:ring-blue-400/60 disabled:opacity-30 disabled:cursor-not-allowed ${
             config.isRunning
               ? 'bg-red-500/80 border-red-400 hover:bg-red-500'
               : 'bg-blue-500/80 border-blue-400 hover:bg-blue-500'
