@@ -106,6 +106,7 @@ export function makeStubFirestore(seed: Record<string, StubData> = {}) {
   let autoId = 0;
   for (const [path, data] of Object.entries(seed)) store.set(path, { ...data });
   const writes: Array<{ op: string; path: string; data?: StubData }> = [];
+  const reads: string[] = [];
   const hooks: {
     beforeQuery?: (label: string) => Promise<void> | void;
     beforeWrite?: (op: string, path: string) => void;
@@ -157,6 +158,8 @@ export function makeStubFirestore(seed: Record<string, StubData> = {}) {
     get: async () => {
       await hooks.beforeQuery?.(label);
       const docs = runQuery(candidates, opts);
+      if (docs.length === 0) reads.push(`${label}?`);
+      for (const d of docs) reads.push(d.ref.path);
       return { docs, size: docs.length, empty: !docs.length };
     },
   });
@@ -205,7 +208,10 @@ export function makeStubFirestore(seed: Record<string, StubData> = {}) {
       },
       collection: (name: string) =>
         makeCollection(`${path}/${name}`, makeDoc(path)),
-      get: () => Promise.resolve(snapFor(path)),
+      get: () => {
+        reads.push(path);
+        return Promise.resolve(snapFor(path));
+      },
       set: (data, opts) => {
         hooks.beforeWrite?.('set', path);
         const existing = store.get(path);
@@ -291,6 +297,7 @@ export function makeStubFirestore(seed: Record<string, StubData> = {}) {
     db,
     store,
     writes,
+    reads,
     hooks,
     get: (path: string) => store.get(path),
     has: (path: string) => store.has(path),
