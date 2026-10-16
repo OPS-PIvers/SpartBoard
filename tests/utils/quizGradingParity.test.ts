@@ -2,11 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { gradeAnswer } from '@/hooks/useQuizSession';
 import {
   gradeGroupAnswer,
+  parseSyncedQuestion,
   FIB_BLANK_SEP as SERVER_SEP,
   type GroupQuestion,
 } from '@/functions/src/plcAssessmentMath';
 import { FIB_BLANK_SEP } from '@/utils/quizFibBlanks';
-import type { QuizQuestion } from '@/types';
+import type { QuizQuestion, WrittenAnswerGrade } from '@/types';
 
 interface Case {
   name: string;
@@ -170,22 +171,11 @@ const cases: Case[] = [
   },
 ];
 
-const toServer = (q: Case['q'], id: string): GroupQuestion => ({
-  id,
-  text: '',
-  type: q.type,
-  points: q.points ?? 1,
-  choices:
-    q.type === 'MA' || q.type === 'MC'
-      ? [...q.correctAnswer.split('|'), ...(q.incorrectAnswers ?? [])]
-      : [],
-  correctAnswer: q.correctAnswer,
-  alternateAnswers: q.alternateAnswers,
-  blankAlternates: q.blankAlternates,
-  allowPartialCredit: q.allowPartialCredit === true,
-  rubricCriterionIds: [],
-  targets: [],
-});
+const toServer = (q: Case['q'], id: string): GroupQuestion => {
+  const parsed = parseSyncedQuestion({ id, text: '', ...q });
+  if (!parsed) throw new Error('question did not parse');
+  return parsed;
+};
 
 const toClient = (q: Case['q'], id: string): QuizQuestion => ({
   id,
@@ -249,5 +239,46 @@ describe('quiz grading: client gradeAnswer and server gradeGroupAnswer agree', (
         });
       }
     }
+  });
+
+  describe('free-response rubric saved one criterion at a time', () => {
+    const q = {
+      type: 'free-response' as const,
+      correctAnswer: '',
+      points: 4,
+      rubricSnapshot: {
+        criteria: [{ id: 'c1' }, { id: 'c2' }],
+      } as unknown as QuizQuestion['rubricSnapshot'],
+    };
+    const scored = (ids: string[]) => ({
+      client: {
+        pointsAwarded: 2,
+        rubricScores: ids.map((criterionId) => ({ criterionId })),
+      } as unknown as WrittenAnswerGrade,
+      server: { pointsAwarded: 2, scoredCriterionIds: ids },
+    });
+    for (const ids of [[], ['c1'], ['c1', 'c2']]) {
+      it(`criteria scored: ${ids.join(',') || 'none'}`, () => {
+        const g = scored(ids);
+        const client = gradeAnswer(toClient(q, 'q1'), 'essay', g.client);
+        const server = gradeGroupAnswer(toServer(q, 'q1'), 'essay', g.server);
+        expect(server).toEqual(client);
+      });
+    }
+  });
+
+  describe('question with no answer key', () => {
+    // Documented divergence: the server reports no-key; the client has no such state. Points match.
+    it('both award zero points', () => {
+      const q: Case['q'] = {
+        type: 'MC',
+        correctAnswer: '',
+        incorrectAnswers: ['y'],
+      };
+      const client = gradeAnswer(toClient(q, 'q1'), 'y');
+      const server = gradeGroupAnswer(toServer(q, 'q1'), 'y', undefined);
+      expect(server.pointsEarned).toBe(client.pointsEarned);
+      expect(server.state).toBe('no-key');
+    });
   });
 });
