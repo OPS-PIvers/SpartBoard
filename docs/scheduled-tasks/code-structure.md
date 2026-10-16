@@ -3,8 +3,11 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-10-09_
+_Last audited: 2026-10-16_
 _Last action: 2026-09-23 — MEDIUM `FeaturePermissionsManager.tsx` grid/list card-body duplication resolved: extracted a shared `WidgetPermissionCardBody` component (`variant: 'grid' | 'list'`) consumed by both view modes, shrinking the file from 1,078 to 738 lines. Moved to Completed._
+
+_2026-10-16: Friday weekly audit (C1), light pass. Non-test files >1000 lines: 80. Largest: `context/DashboardContext.tsx` 7770 lines (existing items), `QuizStudentApp.tsx` 6450, `QuizResults.tsx` 4544, `QuizWidget/Widget.tsx` 4309, `useQuizSession.ts` 3966, `useQuizAssignments.ts` 3733, `DraggableWindow.tsx` 3579, `AuthContext.tsx` 3428. `functions/src/index.ts` is now 360 lines (functions split across modules); no `firebase-functions/v1` imports remain in `functions/src` and no `functionsV1` use, so the v1/v2 and `index.ts`-size items below are stale. `getAdminBuildingConfig` now delegates to `utils/adminBuildingConfig.ts`. No imports with 3+ levels of `../` in components/context/hooks/utils. 0 new issues; existing Open items not individually re-diffed._
+
 
 _2026-10-09: Friday weekly audit (C1), light pass. Largest files: `context/DashboardContext.tsx` 7647 lines (existing HIGH/MEDIUM items), `QuizStudentApp.tsx` 6003, `QuizResults.tsx` 4341, `QuizWidget/Widget.tsx` 4146, `useQuizSession.ts` 3815, `useQuizAssignments.ts` 3640, `DraggableWindow.tsx` 3619. No imports with 3+ levels of `../` in components/context/hooks/utils. Existing Open items not re-diffed. 0 new issues._
 
