@@ -25,6 +25,7 @@ vi.mock('./classlinkShared', () => ({ ALLOWED_ORIGINS: [] }));
 
 import {
   WINDOW_GRACE_MS,
+  handleRecordFlashcardCheckRatings,
   handleSubmitFlashcardCheck,
   type FlashcardCheckCaller,
 } from './flashcardCheck';
@@ -335,6 +336,148 @@ describe('handleSubmitFlashcardCheck flashcards mode', () => {
         NOW
       ),
       'failed-precondition'
+    );
+  });
+});
+
+describe('handleRecordFlashcardCheckRatings', () => {
+  const flashSession = session({
+    checkMode: 'flashcards',
+    masteryThreshold: 3,
+  });
+  const rate = (
+    docs: Record<string, Doc>,
+    ratings: unknown[],
+    caller: FlashcardCheckCaller | null = student
+  ) =>
+    handleRecordFlashcardCheckRatings(
+      makeDb(docs),
+      caller,
+      { assignmentId: 'a1', ratings },
+      NOW
+    );
+  const cardsOf = (docs: Record<string, Doc>) =>
+    (docs[PROGRESS_PATH] as { cards: Record<string, unknown> }).cards;
+
+  it('creates progress and steps the schedule from each rating', async () => {
+    const docs: Record<string, Doc> = { [SESSION_PATH]: flashSession };
+    const result = await rate(docs, [
+      { cardId: 'c1', correct: true, round: 1 },
+      { cardId: 'c2', correct: false, round: 1 },
+    ]);
+    expect(result).toEqual({ applied: 2 });
+    expect(docs[PROGRESS_PATH]).toMatchObject({
+      classId: 'class-1',
+      modesUsed: ['flashcards'],
+      lastActiveAt: NOW,
+    });
+    expect(cardsOf(docs)).toEqual({
+      c1: { s: 1, due: 2, c: 1, w: 0 },
+      c2: { s: 0, due: 2, c: 0, w: 1 },
+    });
+  });
+
+  it('ignores ratings for cards that are not due, so a retried batch changes nothing', async () => {
+    const docs: Record<string, Doc> = { [SESSION_PATH]: flashSession };
+    const batch = [
+      { cardId: 'c1', correct: true, round: 1 },
+      { cardId: 'c1', correct: true, round: 2 },
+      { cardId: 'c1', correct: true, round: 2 },
+    ];
+    expect(await rate(docs, batch)).toEqual({ applied: 2 });
+    expect(await rate(docs, batch)).toEqual({ applied: 0 });
+    expect(cardsOf(docs).c1).toEqual({ s: 2, due: 4, c: 2, w: 0 });
+  });
+
+  it('only reaches mastery through the schedule, and the submit then accepts it', async () => {
+    const docs: Record<string, Doc> = { [SESSION_PATH]: flashSession };
+    const ratings = [1, 2, 4].flatMap((round) =>
+      CARDS.map((card) => ({ cardId: card.id, correct: true, round }))
+    );
+    await rate(docs, ratings);
+    const result = await handleSubmitFlashcardCheck(
+      makeDb(docs),
+      student,
+      { assignmentId: 'a1', answerLog: [] },
+      NOW
+    );
+    expect(result.score).toBe(4);
+  });
+
+  it('skips unknown cards', async () => {
+    const docs: Record<string, Doc> = { [SESSION_PATH]: flashSession };
+    expect(
+      await rate(docs, [{ cardId: 'nope', correct: true, round: 1 }])
+    ).toEqual({ applied: 0 });
+    expect(docs[PROGRESS_PATH]).toBeUndefined();
+  });
+
+  it('refuses other Check modes, ended or closed sessions, and submitted students', async () => {
+    const one = [{ cardId: 'c1', correct: true, round: 1 }];
+    await expectCode(
+      rate({ [SESSION_PATH]: session({ checkMode: 'write' }) }, one),
+      'failed-precondition'
+    );
+    await expectCode(
+      rate({ [SESSION_PATH]: session({ kind: 'study' }) }, one),
+      'failed-precondition'
+    );
+    await expectCode(
+      rate({ [SESSION_PATH]: { ...flashSession, status: 'ended' } }, one),
+      'failed-precondition'
+    );
+    await expectCode(
+      rate(
+        {
+          [SESSION_PATH]: {
+            ...flashSession,
+            closeAt: NOW - WINDOW_GRACE_MS - 1,
+          },
+        },
+        one
+      ),
+      'failed-precondition'
+    );
+    await expectCode(
+      rate(
+        {
+          [SESSION_PATH]: flashSession,
+          [PROGRESS_PATH]: { cards: {}, submittedAt: NOW - 1 },
+        },
+        one
+      ),
+      'already-exists'
+    );
+  });
+
+  it('refuses signed-out, non-student and unassigned callers', async () => {
+    const docs = { [SESSION_PATH]: flashSession };
+    const one = [{ cardId: 'c1', correct: true, round: 1 }];
+    await expectCode(rate(docs, one, null), 'unauthenticated');
+    await expectCode(
+      rate(docs, one, { ...student, studentRole: false }),
+      'permission-denied'
+    );
+    await expectCode(
+      rate(docs, one, { ...student, classIds: ['class-9'] }),
+      'permission-denied'
+    );
+  });
+
+  it('rejects malformed ratings', async () => {
+    const docs = { [SESSION_PATH]: flashSession };
+    await expectCode(rate(docs, []), 'invalid-argument');
+    await expectCode(
+      rate(docs, [{ cardId: 'c1', correct: 'yes', round: 1 }]),
+      'invalid-argument'
+    );
+    await expectCode(
+      rate(docs, [{ cardId: 'c1', correct: true, round: 0 }]),
+      'invalid-argument'
+    );
+    await expectCode(
+      rate(docs, [{ cardId: 'c1', correct: true, round: 1.5 }]),
+      'invalid-argument'
     );
   });
 });

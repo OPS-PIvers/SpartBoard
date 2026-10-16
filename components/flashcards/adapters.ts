@@ -196,6 +196,12 @@ export type FlashcardProgressWrite = Partial<
   >
 >;
 
+export interface FlashcardRating {
+  cardId: string;
+  correct: boolean;
+  round: number;
+}
+
 const TRACKED_FLUSH_DELAY_MS = 5000;
 const MAX_STUDY_GAP_MS = 2 * 60 * 1000;
 const MAX_TESTS = 50;
@@ -205,6 +211,9 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
   readonly showsMarks = true;
   override readonly canReset: boolean = false;
   private readonly write: (payload: FlashcardProgressWrite) => Promise<void>;
+  private readonly rate?: (ratings: FlashcardRating[]) => Promise<unknown>;
+  private ratings: FlashcardRating[] = [];
+  private discarded = false;
   private readonly classId: string;
   private readonly now: () => number;
   private studyMs: number;
@@ -223,10 +232,13 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
     classId: string;
     initial: Partial<FlashcardProgress> | null;
     write: (payload: FlashcardProgressWrite) => Promise<void>;
+    /** Flashcards-mode Checks: the server owns `cards`, so ratings go here instead. */
+    rate?: (ratings: FlashcardRating[]) => Promise<unknown>;
     now?: () => number;
   }) {
     super();
     this.write = options.write;
+    this.rate = options.rate;
     this.classId = options.classId;
     this.now = options.now ?? Date.now;
     this.state = sanitizeFlashcardStudyState(options.initial);
@@ -252,6 +264,7 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
     currentRound: number
   ): FlashcardStudyState {
     this.dirtyCards.add(cardId);
+    if (this.rate) this.ratings.push({ cardId, correct, round: currentRound });
     return super.record(cardId, correct, currentRound);
   }
 
@@ -316,6 +329,12 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
     this.timer = null;
   }
 
+  /** Drops unsaved work and refuses later writes, after a teacher reset deletes the progress doc. */
+  discard(): void {
+    this.dispose();
+    this.discarded = true;
+  }
+
   protected persist(): void {
     this.touch();
     this.schedule();
@@ -345,6 +364,7 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
       this.timer = null;
     }
     if (
+      this.discarded ||
       this.paused ||
       (!this.dirty &&
         this.dirtyCards.size === 0 &&
@@ -352,18 +372,24 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
     ) {
       return this.pending;
     }
-    const cardIds = [...this.dirtyCards];
+    const cardIds = this.rate ? [] : [...this.dirtyCards];
     const checkIds = [...this.dirtyCheckLog];
+    const ratings = this.ratings;
+    this.ratings = [];
     this.dirtyCards.clear();
     this.dirtyCheckLog.clear();
     this.dirty = false;
     const payload: FlashcardProgressWrite = {
       classId: this.classId,
-      cards: Object.fromEntries(
-        cardIds
-          .filter((cardId) => cardId in this.state.cards)
-          .map((cardId) => [cardId, { ...this.state.cards[cardId] }])
-      ),
+      ...(this.rate
+        ? {}
+        : {
+            cards: Object.fromEntries(
+              cardIds
+                .filter((cardId) => cardId in this.state.cards)
+                .map((cardId) => [cardId, { ...this.state.cards[cardId] }])
+            ),
+          }),
       starred: [...this.state.starred],
       round: this.state.round,
       studyMs: Math.round(this.studyMs),
@@ -376,6 +402,7 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
         checkIds.map((cardId) => [cardId, { ...this.checkLog[cardId] }])
       );
     }
+    const rate = this.rate;
     this.pending = this.pending
       .then(() => this.write(payload))
       .catch((error: unknown) => {
@@ -383,7 +410,17 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
         for (const cardId of checkIds) this.dirtyCheckLog.add(cardId);
         this.dirty = true;
         console.error('[TrackedFlashcardAdapter] Progress save failed:', error);
-      });
+      })
+      .then(() => (rate && ratings.length > 0 ? rate(ratings) : undefined))
+      .then(
+        () => undefined,
+        (error: unknown) => {
+          // The server ignores a rating whose round it has already applied, so resending is safe.
+          this.ratings = [...ratings, ...this.ratings];
+          this.dirty = true;
+          console.error('[TrackedFlashcardAdapter] Rating save failed:', error);
+        }
+      );
     return this.pending;
   }
 }

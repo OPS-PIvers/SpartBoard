@@ -1,5 +1,9 @@
 // Server grading for Flashcards Check submissions (docs/plans/shipped/FLASHCARDS.md §2.6, §7).
-import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import {
+  onCall,
+  HttpsError,
+  type CallableRequest,
+} from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import './functionsInit';
 import { ALLOWED_ORIGINS } from './classlinkShared';
@@ -197,25 +201,35 @@ function cardsForLog(
   });
 }
 
-export async function handleSubmitFlashcardCheck(
-  db: admin.firestore.Firestore,
-  caller: FlashcardCheckCaller | null,
-  rawInput: unknown,
-  nowMs: number
-): Promise<SubmitFlashcardCheckResult> {
+interface CheckAccess {
+  sessionRef: admin.firestore.DocumentReference;
+  session: Record<string, unknown>;
+  pointer: Record<string, unknown>;
+  sharedClassId: string | undefined;
+}
+
+function assertStudentCaller(
+  caller: FlashcardCheckCaller | null
+): FlashcardCheckCaller {
   if (!caller) throw new HttpsError('unauthenticated', 'Sign in required.');
   if (!caller.studentRole)
     throw new HttpsError('permission-denied', 'Student sign-in required.');
-  const input = parseSubmitFlashcardCheckInput(rawInput);
+  return caller;
+}
 
-  const sessionRef = db
-    .collection('flashcard_sessions')
-    .doc(input.assignmentId);
+// The assignment, window and period checks every Check write must pass.
+async function loadOpenCheck(
+  db: admin.firestore.Firestore,
+  caller: FlashcardCheckCaller,
+  assignmentId: string,
+  nowMs: number
+): Promise<CheckAccess> {
+  const sessionRef = db.collection('flashcard_sessions').doc(assignmentId);
   const pointerRef = db
     .collection('student_assignments')
     .doc(caller.uid)
     .collection('items')
-    .doc(input.assignmentId);
+    .doc(assignmentId);
   const [sessionSnap, pointerSnap] = await Promise.all([
     sessionRef.get(),
     pointerRef.get(),
@@ -262,6 +276,53 @@ export async function handleSubmitFlashcardCheck(
         "Your class period isn't open right now."
       );
   }
+  return { sessionRef, session, pointer, sharedClassId };
+}
+
+// Per-period sessions keep their cards in content/cards.
+async function loadCheckCards(access: CheckAccess): Promise<FlashcardCard[]> {
+  const cards = sessionCards(
+    access.session.cardsInContent === true
+      ? (
+          await access.sessionRef.collection('content').doc('cards').get()
+        ).data()?.cards
+      : access.session.cards
+  );
+  if (cards.length === 0)
+    throw new HttpsError(
+      'failed-precondition',
+      'This assignment has no cards.'
+    );
+  return cards;
+}
+
+// Fields a progress doc needs when the server writes it first.
+const newProgressFields = (
+  { pointer, sharedClassId }: CheckAccess,
+  mode: FlashcardMode
+): Record<string, unknown> => ({
+  classId:
+    typeof pointer.classId === 'string'
+      ? pointer.classId
+      : (sharedClassId ?? ''),
+  cards: {},
+  starred: [],
+  round: 1,
+  studyMs: 0,
+  modesUsed: [mode],
+  tests: [],
+});
+
+export async function handleSubmitFlashcardCheck(
+  db: admin.firestore.Firestore,
+  rawCaller: FlashcardCheckCaller | null,
+  rawInput: unknown,
+  nowMs: number
+): Promise<SubmitFlashcardCheckResult> {
+  const caller = assertStudentCaller(rawCaller);
+  const input = parseSubmitFlashcardCheckInput(rawInput);
+  const access = await loadOpenCheck(db, caller, input.assignmentId, nowMs);
+  const { sessionRef, session } = access;
 
   const checkMode = session.checkMode as FlashcardMode | undefined;
   if (
@@ -270,18 +331,7 @@ export async function handleSubmitFlashcardCheck(
     checkMode !== 'test'
   )
     throw new HttpsError('failed-precondition', 'Unknown Check mode.');
-  // Per-period sessions keep their cards in content/cards.
-  const cards = sessionCards(
-    session.cardsInContent === true
-      ? (await sessionRef.collection('content').doc('cards').get()).data()
-          ?.cards
-      : session.cards
-  );
-  if (cards.length === 0)
-    throw new HttpsError(
-      'failed-precondition',
-      'This assignment has no cards.'
-    );
+  const cards = await loadCheckCards(access);
   const byId = new Map(cards.map((card) => [card.id, card]));
   const settings = lockedSettingsFrom(session.lockedSettings);
   const answerFor = (card: FlashcardCard): string =>
@@ -383,24 +433,154 @@ export async function handleSubmitFlashcardCheck(
       submittedAt: nowMs,
       lastActiveAt: nowMs,
     };
-    if (!progressSnap.exists) {
-      Object.assign(write, {
-        classId:
-          typeof pointer.classId === 'string'
-            ? pointer.classId
-            : (sharedClassId ?? ''),
-        cards: {},
-        starred: [],
-        round: 1,
-        studyMs: 0,
-        modesUsed: [checkMode],
-        tests: [],
-      });
-    }
+    if (!progressSnap.exists)
+      Object.assign(write, newProgressFields(access, checkMode));
     tx.set(progressRef, write, { merge: true });
     return { score, total, submittedAt: nowMs };
   });
 }
+
+// Mirror of utils/flashcardSchedule.ts recordFlashcardAnswer.
+const ROUND_GAPS = [1, 1, 2, 4, 8] as const;
+
+interface CardProgress {
+  s: number;
+  due: number;
+  c: number;
+  w: number;
+}
+
+const cardProgressFrom = (raw: unknown): CardProgress =>
+  isRecord(raw) &&
+  isFiniteNumber(raw.s) &&
+  isFiniteNumber(raw.due) &&
+  isFiniteNumber(raw.c) &&
+  isFiniteNumber(raw.w)
+    ? { s: raw.s, due: raw.due, c: raw.c, w: raw.w }
+    : { s: 0, due: 1, c: 0, w: 0 };
+
+const applyRating = (
+  current: CardProgress,
+  round: number,
+  correct: boolean
+): CardProgress => {
+  const s = correct ? Math.min(current.s + 1, 4) : 0;
+  return {
+    s,
+    due: round + ROUND_GAPS[s],
+    c: current.c + (correct ? 1 : 0),
+    w: current.w + (correct ? 0 : 1),
+  };
+};
+
+interface FlashcardRating {
+  cardId: string;
+  correct: boolean;
+  round: number;
+}
+
+export interface RecordFlashcardCheckRatingsInput {
+  assignmentId: string;
+  ratings: FlashcardRating[];
+}
+
+const MAX_ROUND = 1_000_000;
+
+export function parseRecordFlashcardCheckRatingsInput(
+  raw: unknown
+): RecordFlashcardCheckRatingsInput {
+  const data = isRecord(raw) ? raw : {};
+  const assignmentId = data.assignmentId;
+  if (
+    typeof assignmentId !== 'string' ||
+    assignmentId.length === 0 ||
+    assignmentId.length > MAX_ID_LENGTH ||
+    assignmentId.includes('/')
+  )
+    invalid('assignmentId is required.');
+  if (
+    !Array.isArray(data.ratings) ||
+    data.ratings.length === 0 ||
+    data.ratings.length > MAX_LOG_ENTRIES
+  )
+    invalid('ratings must be an array of 1 to 600 entries.');
+  const ratings = (data.ratings as unknown[]).map((entry): FlashcardRating => {
+    if (!isRecord(entry) || typeof entry.correct !== 'boolean')
+      return invalid('Malformed rating.');
+    const round = entry.round;
+    if (
+      typeof round !== 'number' ||
+      !Number.isInteger(round) ||
+      round < 1 ||
+      round > MAX_ROUND
+    )
+      return invalid('Each rating needs a round.');
+    return { cardId: parseCardId(entry.cardId), correct: entry.correct, round };
+  });
+  return { assignmentId, ratings };
+}
+
+// Flashcards-mode Checks: the server owns progress.cards, so mastery only moves through the schedule.
+export async function handleRecordFlashcardCheckRatings(
+  db: admin.firestore.Firestore,
+  rawCaller: FlashcardCheckCaller | null,
+  rawInput: unknown,
+  nowMs: number
+): Promise<{ applied: number }> {
+  const caller = assertStudentCaller(rawCaller);
+  const input = parseRecordFlashcardCheckRatingsInput(rawInput);
+  const access = await loadOpenCheck(db, caller, input.assignmentId, nowMs);
+  if (access.session.checkMode !== 'flashcards')
+    throw new HttpsError('failed-precondition', 'Not a flashcards Check.');
+  const cardIds = new Set((await loadCheckCards(access)).map((c) => c.id));
+  const progressRef = access.sessionRef.collection('progress').doc(caller.uid);
+  return db.runTransaction(async (tx) => {
+    const progressSnap = await tx.get(progressRef);
+    const progress: Record<string, unknown> = progressSnap.exists
+      ? (progressSnap.data() ?? {})
+      : {};
+    if (isFiniteNumber(progress.submittedAt))
+      throw new HttpsError('already-exists', 'Already submitted.');
+    const cards: Record<string, unknown> = isRecord(progress.cards)
+      ? { ...progress.cards }
+      : {};
+    let applied = 0;
+    for (const rating of input.ratings) {
+      if (!cardIds.has(rating.cardId)) continue;
+      const current = cardProgressFrom(cards[rating.cardId]);
+      // A card is rated once per round it comes due, which also makes retried batches no-ops.
+      if (rating.round < current.due) continue;
+      cards[rating.cardId] = applyRating(current, rating.round, rating.correct);
+      applied += 1;
+    }
+    if (applied === 0) return { applied };
+    const write: Record<string, unknown> = progressSnap.exists
+      ? {}
+      : newProgressFields(access, 'flashcards');
+    write.cards = cards;
+    write.lastActiveAt = nowMs;
+    tx.set(progressRef, write, { merge: true });
+    return { applied };
+  });
+}
+
+export const recordFlashcardCheckRatingsV1 = onCall(
+  {
+    memory: '256MiB',
+    timeoutSeconds: 60,
+    cors: ALLOWED_ORIGINS,
+    invoker: 'public',
+  },
+  (request) => {
+    assertViewAsAllowed(request);
+    return handleRecordFlashcardCheckRatings(
+      admin.firestore(),
+      callerFrom(request.auth),
+      request.data,
+      Date.now()
+    );
+  }
+);
 
 export const submitFlashcardCheckV1 = onCall(
   {
@@ -413,13 +593,7 @@ export const submitFlashcardCheckV1 = onCall(
     assertViewAsAllowed(request);
     return handleSubmitFlashcardCheck(
       admin.firestore(),
-      request.auth
-        ? {
-            uid: request.auth.uid,
-            studentRole: request.auth.token.studentRole === true,
-            classIds: claimClassIds(request.auth.token.classIds),
-          }
-        : null,
+      callerFrom(request.auth),
       request.data,
       Date.now()
     );
@@ -430,4 +604,16 @@ function claimClassIds(raw: unknown): string[] {
   return Array.isArray(raw)
     ? raw.filter((c): c is string => typeof c === 'string' && c.length > 0)
     : [];
+}
+
+function callerFrom(
+  auth: CallableRequest['auth']
+): FlashcardCheckCaller | null {
+  return auth
+    ? {
+        uid: auth.uid,
+        studentRole: auth.token.studentRole === true,
+        classIds: claimClassIds(auth.token.classIds),
+      }
+    : null;
 }

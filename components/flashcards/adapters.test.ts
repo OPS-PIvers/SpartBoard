@@ -4,6 +4,7 @@ import {
   MemoryFlashcardAdapter,
   TrackedFlashcardAdapter,
   type FlashcardProgressWrite,
+  type FlashcardRating,
 } from './adapters';
 
 describe('flashcard progress adapters', () => {
@@ -175,5 +176,56 @@ describe('TrackedFlashcardAdapter', () => {
     expect(payloads).toHaveLength(2);
     expect(Object.keys(payloads[1]?.cards ?? {})).toEqual(['card-a']);
     consoleError.mockRestore();
+  });
+
+  it('sends ratings instead of cards when the server owns mastery', async () => {
+    const writes: FlashcardProgressWrite[] = [];
+    const batches: FlashcardRating[][] = [];
+    let fail = true;
+    const adapter = new TrackedFlashcardAdapter({
+      classId: 'class-a',
+      initial: null,
+      write: (payload) => {
+        writes.push(payload);
+        return Promise.resolve();
+      },
+      rate: (ratings) => {
+        batches.push(ratings);
+        return fail ? Promise.reject(new Error('offline')) : Promise.resolve();
+      },
+    });
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    adapter.record('card-a', true, 1);
+    await adapter.flush();
+    expect(writes[0]).not.toHaveProperty('cards');
+    expect(adapter.load().cards['card-a']).toEqual({
+      s: 1,
+      due: 2,
+      c: 1,
+      w: 0,
+    });
+    fail = false;
+    adapter.record('card-b', false, 2);
+    await adapter.flush();
+    expect(batches).toEqual([
+      [{ cardId: 'card-a', correct: true, round: 1 }],
+      [
+        { cardId: 'card-a', correct: true, round: 1 },
+        { cardId: 'card-b', correct: false, round: 2 },
+      ],
+    ]);
+    consoleError.mockRestore();
+  });
+
+  it('writes nothing after discard', async () => {
+    vi.useFakeTimers();
+    const { adapter, writes } = setup();
+    adapter.record('card-a', true, 1);
+    adapter.discard();
+    await vi.advanceTimersByTimeAsync(10_000);
+    await adapter.flush();
+    expect(writes).toHaveLength(0);
   });
 });
