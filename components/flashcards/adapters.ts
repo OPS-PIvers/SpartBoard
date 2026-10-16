@@ -329,6 +329,11 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
     this.timer = null;
   }
 
+  /** True while ratings the server hasn't confirmed are queued. */
+  hasUnsentRatings(): boolean {
+    return this.ratings.length > 0;
+  }
+
   /** Drops unsaved work and refuses later writes, after a teacher reset deletes the progress doc. */
   discard(): void {
     this.dispose();

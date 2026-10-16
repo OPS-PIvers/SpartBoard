@@ -167,6 +167,7 @@ const TrackedPlayer: React.FC<{
     setError(null);
     try {
       await adapter.flush();
+      if (adapter.hasUnsentRatings()) throw new Error('Ratings not saved yet.');
       await httpsCallable(
         functions,
         'submitFlashcardCheckV1'

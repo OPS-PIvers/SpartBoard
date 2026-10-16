@@ -30,11 +30,17 @@ vi.mock('@/hooks/useStudentAssignmentPointer', () => ({
 vi.mock('firebase/functions', () => ({
   httpsCallable: (_functions: unknown, name: string) => {
     h.callableNames.push(name);
-    return h.callable;
+    return (data: unknown) => h.callable(name, data);
   },
 }));
 vi.mock('@/components/flashcards/FlashcardPlayer', () => ({
-  FlashcardPlayer: ({ adapter }: { adapter: FlashcardProgressAdapter }) => {
+  FlashcardPlayer: ({
+    adapter,
+    check,
+  }: {
+    adapter: FlashcardProgressAdapter;
+    check?: { onSubmit: (s: { answerLog: []; flags: [] }) => void };
+  }) => {
     React.useEffect(
       () => () => {
         void adapter.flush();
@@ -54,6 +60,12 @@ vi.mock('@/components/flashcards/FlashcardPlayer', () => ({
         </button>
         <button type="button" onClick={() => void adapter.flush()}>
           Save
+        </button>
+        <button
+          type="button"
+          onClick={() => check?.onSubmit({ answerLog: [], flags: [] })}
+        >
+          Submit
         </button>
       </div>
     );
@@ -153,10 +165,34 @@ describe('FlashcardAssignmentPage tracked progress', () => {
     });
     expect(progressWrites()[0]).not.toHaveProperty('cards');
     expect(h.callableNames).toContain('recordFlashcardCheckRatingsV1');
-    expect(h.callable).toHaveBeenCalledWith({
+    expect(h.callable).toHaveBeenCalledWith('recordFlashcardCheckRatingsV1', {
       assignmentId: 'fc-1',
       ratings: [{ cardId: 'c1', correct: true, round: 1 }],
     });
+  });
+
+  it('holds the submit while a rating has not reached the server', async () => {
+    h.session = session({ kind: 'check', checkMode: 'flashcards' });
+    h.callable.mockImplementation((name: unknown) =>
+      name === 'recordFlashcardCheckRatingsV1'
+        ? Promise.reject(new Error('offline'))
+        : Promise.resolve({ data: {} })
+    );
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    render(<FlashcardAssignmentPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Mark' }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+      await new Promise((done) => setTimeout(done, 0));
+    });
+    const names = h.callable.mock.calls.map(([name]) => name);
+    expect(names).toContain('recordFlashcardCheckRatingsV1');
+    expect(names).not.toContain('submitFlashcardCheckV1');
+    consoleError.mockRestore();
+    h.callable.mockReset();
+    h.callable.mockImplementation(() => Promise.resolve({ data: {} }));
   });
 
   it('keeps writing cards directly in other Check modes', async () => {
