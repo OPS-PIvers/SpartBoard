@@ -443,7 +443,7 @@ export async function handleSubmitFlashcardCheck(
 // Mirror of utils/flashcardSchedule.ts recordFlashcardAnswer.
 const ROUND_GAPS = [1, 1, 2, 4, 8] as const;
 
-interface CardProgress {
+export interface CardProgress {
   s: number;
   due: number;
   c: number;
@@ -459,7 +459,7 @@ const cardProgressFrom = (raw: unknown): CardProgress =>
     ? { s: raw.s, due: raw.due, c: raw.c, w: raw.w }
     : { s: 0, due: 1, c: 0, w: 0 };
 
-const applyRating = (
+export const applyRating = (
   current: CardProgress,
   round: number,
   correct: boolean

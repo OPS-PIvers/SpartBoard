@@ -23,9 +23,13 @@ vi.mock('firebase-functions/v2/https', () => {
 vi.mock('./functionsInit', () => ({}));
 vi.mock('./classlinkShared', () => ({ ALLOWED_ORIGINS: [] }));
 
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import {
   WINDOW_GRACE_MS,
+  applyRating,
   handleRecordFlashcardCheckRatings,
+  type CardProgress,
   handleSubmitFlashcardCheck,
   type FlashcardCheckCaller,
 } from './flashcardCheck';
@@ -790,4 +794,24 @@ describe('handleSubmitFlashcardCheck per-period access', () => {
       'failed-precondition'
     );
   });
+});
+
+describe('applyRating', () => {
+  const cases = JSON.parse(
+    readFileSync(resolve(__dirname, 'flashcardSchedule.cases.json'), 'utf8')
+  ) as Array<{
+    name: string;
+    ratings: Array<{ round: number; correct: boolean }>;
+    expected: CardProgress;
+  }>;
+  it.each(cases)(
+    'matches the client schedule: $name',
+    ({ ratings, expected }) => {
+      const result = ratings.reduce<CardProgress>(
+        (current, rating) => applyRating(current, rating.round, rating.correct),
+        { s: 0, due: 1, c: 0, w: 0 }
+      );
+      expect(result).toEqual(expected);
+    }
+  );
 });

@@ -404,14 +404,19 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
     }
     const rate = this.rate;
     this.pending = this.pending
-      .then(() => this.write(payload))
+      .then(() => (this.discarded ? undefined : this.write(payload)))
       .catch((error: unknown) => {
         for (const cardId of cardIds) this.dirtyCards.add(cardId);
         for (const cardId of checkIds) this.dirtyCheckLog.add(cardId);
         this.dirty = true;
         console.error('[TrackedFlashcardAdapter] Progress save failed:', error);
       })
-      .then(() => (rate && ratings.length > 0 ? rate(ratings) : undefined))
+      .then(() =>
+        // A reset may land while this chain is pending; don't recreate the deleted doc.
+        rate && ratings.length > 0 && !this.discarded
+          ? rate(ratings)
+          : undefined
+      )
       .then(
         () => undefined,
         (error: unknown) => {

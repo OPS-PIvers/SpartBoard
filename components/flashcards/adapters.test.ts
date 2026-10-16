@@ -228,4 +228,32 @@ describe('TrackedFlashcardAdapter', () => {
     await adapter.flush();
     expect(writes).toHaveLength(0);
   });
+
+  it('skips a pending write and rating once discarded mid-flush', async () => {
+    let release: () => void = () => undefined;
+    const writes: FlashcardProgressWrite[] = [];
+    const rate = vi.fn(() => Promise.resolve());
+    const adapter = new TrackedFlashcardAdapter({
+      classId: 'class-a',
+      initial: null,
+      write: (payload) => {
+        writes.push(payload);
+        return new Promise<void>((done) => {
+          release = done;
+        });
+      },
+      rate,
+    });
+    adapter.record('card-a', true, 1);
+    const first = adapter.flush();
+    await vi.waitFor(() => expect(writes).toHaveLength(1));
+    adapter.record('card-b', true, 1);
+    const second = adapter.flush();
+    adapter.discard();
+    release();
+    await first;
+    await second;
+    expect(writes).toHaveLength(1);
+    expect(rate).not.toHaveBeenCalled();
+  });
 });
