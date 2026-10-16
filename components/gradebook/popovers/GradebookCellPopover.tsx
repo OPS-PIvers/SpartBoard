@@ -15,6 +15,7 @@ import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import { GradebookPopoverShell } from './GradebookPopoverShell';
 import { FlagChip, FlagMenuList, LinkBtn, Toggle } from './popoverParts';
 import {
+  daysLate,
   describeHistory,
   fmtDate,
   fmtDateTime,
@@ -27,8 +28,6 @@ import type {
   GradebookNotify,
   GradebookPopoverContext,
 } from './types';
-
-const DAY_MS = 86_400_000;
 
 export interface GradebookCellPopoverProps {
   anchor: HTMLElement;
@@ -136,8 +135,8 @@ export const GradebookCellPopover: React.FC<GradebookCellPopoverProps> = ({
   } else if (row?.submittedAt != null) {
     statusParts.push(`Submitted ${fmtDate(row.submittedAt)}`);
     const due = row.dueAt ?? column.dueAt;
-    if (due !== null && row.submittedAt > due) {
-      const days = Math.ceil((row.submittedAt - due) / DAY_MS);
+    const days = due !== null ? daysLate(row.submittedAt, due) : 0;
+    if (days > 0) {
       statusParts.push(`${days} ${days === 1 ? 'day' : 'days'} late`);
     }
   } else {

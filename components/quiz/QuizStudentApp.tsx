@@ -1966,6 +1966,7 @@ export const ActiveQuiz: React.FC<{
     });
   }, [needsAttemptClock, onStartAttemptClock]);
   const [timeUpSubmitted, setTimeUpSubmitted] = useState(false);
+  const [timeUpFailed, setTimeUpFailed] = useState(false);
   const timeUpTriggeredRef = useRef(false);
   const attemptTimeUpSubmit = useCallback(async () => {
     timeUpTriggeredRef.current = true;
@@ -1974,9 +1975,11 @@ export const ActiveQuiz: React.FC<{
       await commitActiveTake();
       await onComplete({ timeUp: true });
       setTimeUpSubmitted(true);
+      setTimeUpFailed(false);
     } catch (err) {
       console.error('[QuizStudentApp] time-limit auto-submit failed:', err);
       timeUpTriggeredRef.current = false;
+      setTimeUpFailed(true);
     }
   }, [onComplete]);
   useEffect(() => {
@@ -3107,6 +3110,7 @@ export const ActiveQuiz: React.FC<{
     }
     pendingDraftRef.current = null;
     setSubmitting(true);
+    setSaveError(null);
     dispatchStep({ type: 'submit' });
     setSelectedAnswer(answer);
 
@@ -3118,7 +3122,15 @@ export const ActiveQuiz: React.FC<{
       if (bonusPct > 0) computedSpeedBonus = bonusPct;
     }
 
-    await onAnswerRef.current(currentQuestion.id, answer, computedSpeedBonus);
+    try {
+      await onAnswerRef.current(currentQuestion.id, answer, computedSpeedBonus);
+    } catch (err) {
+      console.error('[QuizStudentApp] onAnswer failed:', err);
+      dispatchStep({ type: 'submitFailed' });
+      setSaveError("Couldn't save your answer. Tap to try again.");
+      setSubmitting(false);
+      return;
+    }
     setSubmitting(false);
 
     // ─── Answer feedback & gamification ──────────────────────────────────────
@@ -3662,7 +3674,7 @@ export const ActiveQuiz: React.FC<{
           passed before the write landed). Honest, non-blocking, with a
           retry the student can act on — the response is still
           in-progress, not silently marked complete. */}
-      {closeAutoSubmitFailed && (
+      {(closeAutoSubmitFailed || (timeUpFailed && !timeUpSubmitted)) && (
         <div
           role="alert"
           className="sticky top-0 z-10 flex items-start gap-2 px-4 py-2 border-b border-red-500/40 bg-red-500/10 text-red-200 text-xs"
@@ -3674,7 +3686,11 @@ export const ActiveQuiz: React.FC<{
           </span>
           <button
             type="button"
-            onClick={() => void attemptCloseAutoSubmit()}
+            onClick={() =>
+              void (timeUpFailed
+                ? attemptTimeUpSubmit()
+                : attemptCloseAutoSubmit())
+            }
             disabled={closeAutoSubmitInFlight}
             className="shrink-0 px-2 py-1 rounded bg-red-500/20 hover:bg-red-500/30 disabled:opacity-50 font-semibold"
           >
@@ -3960,6 +3976,9 @@ export const ActiveQuiz: React.FC<{
           )}
 
           {/* Answer area */}
+          {!isStudentPaced && !sectionLocked && saveError && (
+            <SaveErrorBanner message={saveError} />
+          )}
           {sectionLocked && sectionState ? (
             <div className="space-y-4">
               <SectionCapNotice
