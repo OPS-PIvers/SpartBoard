@@ -256,4 +256,23 @@ describe('TrackedFlashcardAdapter', () => {
     expect(writes).toHaveLength(1);
     expect(rate).not.toHaveBeenCalled();
   });
+
+  it('splits a long rating queue into callable-sized batches', async () => {
+    const batches: FlashcardRating[][] = [];
+    const adapter = new TrackedFlashcardAdapter({
+      classId: 'class-a',
+      initial: null,
+      write: () => Promise.resolve(),
+      rate: (ratings) => {
+        batches.push(ratings);
+        return Promise.resolve();
+      },
+    });
+    for (let round = 1; round <= 1200; round += 1) {
+      adapter.record('card-a', false, round);
+    }
+    await adapter.flush();
+    expect(batches.map((batch) => batch.length)).toEqual([500, 500, 200]);
+    expect(adapter.hasUnsentRatings()).toBe(false);
+  });
 });

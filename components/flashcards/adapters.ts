@@ -203,6 +203,7 @@ export interface FlashcardRating {
 }
 
 const TRACKED_FLUSH_DELAY_MS = 5000;
+const MAX_RATINGS_PER_CALL = 500;
 const MAX_STUDY_GAP_MS = 2 * 60 * 1000;
 const MAX_TESTS = 50;
 
@@ -416,21 +417,30 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
         this.dirty = true;
         console.error('[TrackedFlashcardAdapter] Progress save failed:', error);
       })
-      .then(() =>
-        // A reset may land while this chain is pending; don't recreate the deleted doc.
-        rate && ratings.length > 0 && !this.discarded
-          ? rate(ratings)
-          : undefined
-      )
-      .then(
-        () => undefined,
-        (error: unknown) => {
-          // The server ignores a rating whose round it has already applied, so resending is safe.
-          this.ratings = [...ratings, ...this.ratings];
-          this.dirty = true;
-          console.error('[TrackedFlashcardAdapter] Rating save failed:', error);
+      .then(async () => {
+        // The callable takes at most 600 ratings, so a long offline queue goes in chunks.
+        for (
+          let start = 0;
+          start < ratings.length;
+          start += MAX_RATINGS_PER_CALL
+        ) {
+          // A reset may land while this chain is pending; don't recreate the deleted doc.
+          if (!rate || this.discarded) return;
+          const chunk = ratings.slice(start, start + MAX_RATINGS_PER_CALL);
+          try {
+            await rate(chunk);
+          } catch (error: unknown) {
+            // The server ignores a rating whose round it has already applied, so resending is safe.
+            this.ratings = [...ratings.slice(start), ...this.ratings];
+            this.dirty = true;
+            console.error(
+              '[TrackedFlashcardAdapter] Rating save failed:',
+              error
+            );
+            return;
+          }
         }
-      );
+      });
     return this.pending;
   }
 }
