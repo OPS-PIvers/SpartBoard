@@ -73,16 +73,14 @@ function isAlreadyExists(err: unknown): boolean {
   );
 }
 
-/** Returns the assessment id for the pair, creating `assessments/{syncGroupId}` (already dirty) when none is live. */
-export async function ensureAssessment(
+/** Creates `assessments/{syncGroupId}` already dirty; on a lost race returns the winner. */
+async function createAssessment(
   db: Firestore,
   plcId: string,
   syncGroupId: string,
   session: LinkedSession,
-  now: number = Date.now()
-): Promise<{ id: string; created: boolean }> {
-  const existing = await findLiveAssessment(db, plcId, syncGroupId);
-  if (existing) return { id: existing.id, created: false };
+  now: number
+): Promise<{ id: string; created: boolean; needsDirty: boolean }> {
   const ref = db
     .collection('plcs')
     .doc(plcId)
@@ -101,12 +99,50 @@ export async function ensureAssessment(
       sourceQuizId: session.quizId,
       dirtyAt: now,
     });
-    return { id: syncGroupId, created: true };
+    return { id: syncGroupId, created: true, needsDirty: false };
   } catch (err) {
     if (!isAlreadyExists(err)) throw err;
     const raced = await findLiveAssessment(db, plcId, syncGroupId);
-    return { id: raced?.id ?? syncGroupId, created: false };
+    return {
+      id: raced?.id ?? syncGroupId,
+      created: false,
+      needsDirty: !!raced && raced.dirtyAt == null,
+    };
   }
+}
+
+/** Returns the assessment id for the pair, creating `assessments/{syncGroupId}` (already dirty) when none is live. */
+export async function ensureAssessment(
+  db: Firestore,
+  plcId: string,
+  syncGroupId: string,
+  session: LinkedSession,
+  now: number = Date.now()
+): Promise<{ id: string; created: boolean }> {
+  const existing = await findLiveAssessment(db, plcId, syncGroupId);
+  if (existing) return { id: existing.id, created: false };
+  const { id, created } = await createAssessment(
+    db,
+    plcId,
+    syncGroupId,
+    session,
+    now
+  );
+  return { id, created };
+}
+
+async function setDirtyAt(
+  db: Firestore,
+  plcId: string,
+  assessmentId: string,
+  now: number
+): Promise<void> {
+  await db
+    .collection('plcs')
+    .doc(plcId)
+    .collection('assessments')
+    .doc(assessmentId)
+    .update({ dirtyAt: now });
 }
 
 /** Sets `dirtyAt` only when it is currently unset so repeat writes skip the update. */
@@ -118,27 +154,13 @@ export async function markDirty(
   now: number = Date.now()
 ): Promise<string> {
   const existing = await findLiveAssessment(db, plcId, syncGroupId);
-  if (!existing) {
-    const ensured = await ensureAssessment(
-      db,
-      plcId,
-      syncGroupId,
-      session,
-      now
-    );
-    if (ensured.created) return ensured.id;
-    await markDirty(db, plcId, syncGroupId, session, now);
-    return ensured.id;
+  if (existing) {
+    if (existing.dirtyAt == null) await setDirtyAt(db, plcId, existing.id, now);
+    return existing.id;
   }
-  if (existing.dirtyAt == null) {
-    await db
-      .collection('plcs')
-      .doc(plcId)
-      .collection('assessments')
-      .doc(existing.id)
-      .update({ dirtyAt: now });
-  }
-  return existing.id;
+  const made = await createAssessment(db, plcId, syncGroupId, session, now);
+  if (made.needsDirty) await setDirtyAt(db, plcId, made.id, now);
+  return made.id;
 }
 
 interface Change {
@@ -234,7 +256,7 @@ export async function handleSessionWrite(
         );
         assessmentId = existing?.id ?? null;
         if (existing && existing.dirtyAt == null) {
-          await markDirty(db, session.plcId, session.syncGroupId, session);
+          await setDirtyAt(db, session.plcId, existing.id, Date.now());
         }
       }
       if (immediate && assessmentId) {
