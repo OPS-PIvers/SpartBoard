@@ -113,9 +113,8 @@ export function quizSessionWrite(
     case 'advance':
       return phase ? advanceWrite(session, phase, now) : null;
     case 'end':
-      return phase?.kind === 'ended'
-        ? null
-        : { patch: endSessionPatch('quiz', now), finalize: true };
+      // End from ended still rewrites and finalizes, so a second End finishes an interrupted finalize.
+      return { patch: endSessionPatch('quiz', now), finalize: true };
     case 'everyoneAnswered':
       if (
         phase?.kind !== 'question' ||

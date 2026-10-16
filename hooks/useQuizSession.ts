@@ -1783,14 +1783,13 @@ export const useQuizSessionTeacher = (
 
   const endQuizSession = useCallback(async () => {
     if (!sessionId) return;
-    const write = session
-      ? quizSessionWrite(session, { type: 'end' }, Date.now())
-      : { patch: endSessionPatch('quiz', Date.now()), finalize: true };
-    if (!write) return;
-    await updateDoc(doc(db, QUIZ_SESSIONS_COLLECTION, sessionId), write.patch);
+    await updateDoc(
+      doc(db, QUIZ_SESSIONS_COLLECTION, sessionId),
+      endSessionPatch('quiz', Date.now())
+    );
     // Mark all active students as completed so their data is preserved in results.
-    if (write.finalize) await finalizeAllResponses();
-  }, [sessionId, session, finalizeAllResponses]);
+    await finalizeAllResponses();
+  }, [sessionId, finalizeAllResponses]);
 
   // ─── Auto-progress logic ────────────────────────────────────────────────────
   useEffect(() => {

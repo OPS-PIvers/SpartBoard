@@ -176,6 +176,8 @@ const ALLOWED: Record<string, QuizSessionPhase> = {
   'game|end': ENDED_MANUAL,
   'pausedQuestion|end': ENDED_MANUAL,
   'pausedLobby|end': ENDED_MANUAL,
+  'endedManual|end': ENDED_MANUAL,
+  'endedNatural|end': ENDED_NATURAL,
 };
 
 describe('deriveQuizSessionPhase', () => {
@@ -411,12 +413,21 @@ describe('quizSessionWrite in the audit disagreement cases', () => {
     ).toBe(false);
   });
 
-  it('a reload after the session ended offers no further moves', () => {
+  it('a reload after the session ended offers no Next or auto-advance', () => {
     for (const name of ['endedManual', 'endedNatural']) {
-      for (const event of EVENTS) {
-        expect(quizSessionWrite(SESSIONS[name], event, NOW)).toBeNull();
-      }
+      expect(
+        quizSessionWrite(SESSIONS[name], { type: 'advance' }, NOW)
+      ).toBeNull();
+      expect(
+        quizSessionWrite(SESSIONS[name], { type: 'everyoneAnswered' }, NOW)
+      ).toBeNull();
     }
+  });
+
+  it('End on an ended session finalizes again, finishing an interrupted finalize', () => {
+    expect(
+      quizSessionWrite(SESSIONS.endedNatural, { type: 'end' }, NOW)?.finalize
+    ).toBe(true);
   });
 
   it('auto mode arms once: a second everyone-answered while armed or reviewing does nothing', () => {
