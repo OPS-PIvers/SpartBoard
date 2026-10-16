@@ -738,7 +738,6 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
   } = useDashboard();
   const { showPrompt } = useDialog();
   const { user, canAccessFeature, getAssignmentMode } = useAuth();
-  const chipsOpenQuiz = canAccessFeature('teams-redesign');
   const showInQuiz = useCallback(
     (row: AssessmentListRow, target: 'monitor' | 'library') => {
       const quizWidget = activeDashboard?.widgets.find(
@@ -1371,7 +1370,7 @@ export const PlcAssessmentList: React.FC<PlcAssessmentListProps> = ({
                   onRestore={(r) => void handleRestore(r)}
                   onMoveToFolder={(r, folderId) => void moveRow(r, folderId)}
                   onShowInQuiz={
-                    chipsOpenQuiz && quizActions.isInLibrary(row.syncGroupId)
+                    quizActions.isInLibrary(row.syncGroupId)
                       ? showInQuiz
                       : undefined
                   }

@@ -8425,6 +8425,34 @@ export interface GuidedLearningSet {
   hasLiveTour?: boolean;
 }
 
+/** A live tour's notes for Claude and last editor playtest, at building_guided_learning/{setId}/review/current; admins only. */
+export interface TourReview {
+  tourNote?: TourReviewNote;
+  /** By step id. */
+  stepNotes?: Record<string, TourReviewNote>;
+  playtest?: TourPlaytest;
+}
+
+/** A note an admin leaves for Claude to act on in its finish pass (LIVE_TOUR_CONSISTENT_START.md C10). */
+export interface TourReviewNote {
+  text: string;
+  /** Email of the admin who wrote it. */
+  by: string;
+  at: number;
+}
+
+export type TourPlaytestResult = 'found' | 'missing' | 'left' | 'not-reached';
+
+/** What each step did the last time an admin played the tour in the editor (C9). */
+export interface TourPlaytest {
+  at: number;
+  /** Email of the admin who played it. */
+  by: string;
+  /** tourPlaytestKey() of the steps it ran, so a later change marks it stale. */
+  fingerprint: string;
+  steps: { stepId: string; result: TourPlaytestResult }[];
+}
+
 /** Lightweight metadata stored in Firestore (avoids Drive API on every list) */
 export interface GuidedLearningSetMetadata {
   id: string;
@@ -10053,8 +10081,6 @@ export type GlobalFeature =
   | 'plc-docs-toolbar'
   /** Team action items sync to the assignee's Google Tasks (docs/plans/GOOGLE_TASKS_ACTION_ITEMS.md). */
   | 'google-tasks-sync'
-  /** Purpose-built page set per team type (docs/plans/TEAMS_REDESIGN.md). */
-  | 'teams-redesign'
   /** AI coach that checks a draft team goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22). */
   | 'plc-goal-coach'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
@@ -11030,6 +11056,8 @@ export interface VideoActivityAssignment
   activityDriveFileId: string;
   teacherUid: string;
   status: VideoActivityAssignmentStatus;
+  /** 'teacher' for a live, board-paced run; absent on self-paced and older assignments. */
+  sessionMode?: VideoActivitySessionMode;
   createdAt: number;
   updatedAt: number;
   /** Unified roster targeting. New (post-unification) assignments write this;

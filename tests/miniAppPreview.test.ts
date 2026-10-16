@@ -1,9 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MINI_APP_PREVIEW_SCRIPT } from '@/functions/src/miniAppPreview';
-
-const source = /<script[^>]*>([\s\S]*)<\/script>/.exec(
-  MINI_APP_PREVIEW_SCRIPT
-)?.[1];
+import { PREVIEW_SOURCE as source } from '@/functions/src/miniAppPreview';
 
 type Helper = {
   preview?: boolean;
@@ -13,7 +9,7 @@ type Helper = {
 const helper = () => (window as unknown as { SpartBoard?: Helper }).SpartBoard;
 
 function runPreview() {
-  window.eval(source ?? '');
+  window.eval(source);
 }
 
 const note = () => document.getElementById('spart-preview-note')?.textContent;

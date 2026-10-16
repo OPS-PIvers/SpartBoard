@@ -164,6 +164,12 @@ import { useSandboxedQuizAssignments } from './useTourSandboxed';
 import { useSetAssignmentTargets } from './useSetAssignmentTargets';
 import { hasStudentPointers } from '@/utils/studentTargetRef';
 import { QUIZ_WHITEBOARD_FEATURE_ID } from '@/utils/quizMediaAccess';
+import {
+  acceptsStudents,
+  assignmentLifecyclePatches,
+  type AssignmentLifecycleEvent,
+} from '@/utils/sessionLifecycle';
+import { reopenIndexPatch } from '@/utils/quizSessionPhase';
 
 /** Import-mode picker result for shared-assignment paste flows. */
 export type SharedAssignmentImportMode = 'sync' | 'copy';
@@ -840,7 +846,6 @@ function migrateLegacyAssignmentShape<T extends LegacyPlcShape>(
 
 /** Unique 6-char join code generator with collision check against live sessions. */
 async function allocateJoinCode(): Promise<string> {
-  const joinableStatuses = new Set(['waiting', 'active', 'paused']);
   for (let attempt = 0; attempt < 5; attempt++) {
     const candidate = Math.random()
       .toString(36)
@@ -848,7 +853,7 @@ async function allocateJoinCode(): Promise<string> {
       .toUpperCase()
       .padEnd(6, '0');
     const matches = await findQuizSessionsByCode(candidate);
-    const collision = matches.some((m) => joinableStatuses.has(m.data.status));
+    const collision = matches.some((m) => acceptsStudents('quiz', m.data));
     if (!collision) return candidate;
   }
   // Last-resort fallback: we accept a theoretical collision rather than
@@ -1827,36 +1832,20 @@ export const useQuizAssignments = (
   const setStatus = useCallback(
     async (
       assignmentId: string,
-      assignmentStatus: QuizAssignmentStatus,
-      sessionStatus: QuizSession['status']
+      event: Exclude<AssignmentLifecycleEvent, { type: 'reopen' }>
     ): Promise<void> => {
       if (!userId) throw new Error('Not authenticated');
-      const now = Date.now();
+      // Pause and End null autoProgressAt so an in-flight auto-advance can't fire.
+      const patches = assignmentLifecyclePatches('quiz', event, Date.now());
+      const assignmentStatus: QuizAssignmentStatus = patches.assignmentStatus;
       const batch = writeBatch(db);
       batch.update(
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
-        { status: assignmentStatus, updatedAt: now }
+        patches.assignment
       );
-      // When pausing or ending, null out autoProgressAt so any in-flight
-      // auto-advance timer (from useQuizSession) no longer fires and the
-      // session can't silently advance past the intended stopping point.
-      const sessionPatch: Record<string, unknown> = { status: sessionStatus };
-      if (sessionStatus === 'paused' || sessionStatus === 'ended') {
-        sessionPatch.autoProgressAt = null;
-      }
-      // Rules keep a student's draft flush that lands just after a pause.
-      if (sessionStatus === 'paused') sessionPatch.pausedAt = now;
-      if (sessionStatus === 'ended') {
-        sessionPatch.endedAt = now;
-      } else {
-        // Clear `endedAt` on any transition away from 'ended' so a reopened
-        // session doesn't carry stale end-timestamp state that downstream
-        // consumers would misread as "session is over".
-        sessionPatch.endedAt = null;
-      }
       batch.update(
         doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId),
-        sessionPatch
+        patches.session
       );
       await batch.commit();
 
@@ -1883,7 +1872,7 @@ export const useQuizAssignments = (
     UseQuizAssignmentsResult['pauseAssignment']
   >(
     async (assignmentId) => {
-      await setStatus(assignmentId, 'paused', 'paused');
+      await setStatus(assignmentId, { type: 'pause' });
     },
     [setStatus]
   );
@@ -1961,11 +1950,10 @@ export const useQuizAssignments = (
         if (opsInBatch > 0) await batch.commit();
       }
 
-      await setStatus(
-        assignmentId,
-        'active',
-        neverStarted ? 'waiting' : 'active'
-      );
+      await setStatus(assignmentId, {
+        type: 'resume',
+        to: neverStarted ? 'waiting' : 'active',
+      });
     },
     [userId, setStatus]
   );
@@ -1974,7 +1962,7 @@ export const useQuizAssignments = (
     UseQuizAssignmentsResult['deactivateAssignment']
   >(
     async (assignmentId) => {
-      await setStatus(assignmentId, 'inactive', 'ended');
+      await setStatus(assignmentId, { type: 'end' });
     },
     [setStatus]
   );
@@ -1998,27 +1986,20 @@ export const useQuizAssignments = (
       const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId);
       const snap = await getDoc(sessionRef);
       const session = snap.data() as QuizSession | undefined;
-      const now = Date.now();
+      const patches = assignmentLifecyclePatches(
+        'quiz',
+        { type: 'reopen' },
+        Date.now()
+      );
       const batch = writeBatch(db);
       batch.update(
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
-        { status: 'paused', updatedAt: now }
+        patches.assignment
       );
       const sessionPatch: Record<string, unknown> = {
-        status: 'paused',
-        autoProgressAt: null,
-        endedAt: null,
+        ...patches.session,
+        ...(session ? reopenIndexPatch(session) : {}),
       };
-      if (
-        session &&
-        typeof session.totalQuestions === 'number' &&
-        session.totalQuestions > 0 &&
-        session.currentQuestionIndex >= session.totalQuestions
-      ) {
-        sessionPatch.currentQuestionIndex =
-          session.sessionMode === 'student' ? 0 : -1;
-        sessionPatch.questionPhase = 'answering';
-      }
       batch.update(sessionRef, sessionPatch);
       await batch.commit();
       // Drop any cached view count so the Shared row re-issues the
@@ -2030,7 +2011,11 @@ export const useQuizAssignments = (
       // moves from Completed back to In-progress on every member's tab.
       const live = assignmentsRef.current.find((a) => a.id === assignmentId);
       if (live?.plc?.id) {
-        void mirrorPlcAssignmentStatus(live.plc.id, assignmentId, 'paused');
+        void mirrorPlcAssignmentStatus(
+          live.plc.id,
+          assignmentId,
+          patches.assignmentStatus
+        );
       }
     },
     [userId]

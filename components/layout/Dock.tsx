@@ -34,6 +34,7 @@ import { useCustomWidgets } from '@/context/useCustomWidgets';
 import { useSavedWidgets } from '@/context/useSavedWidgets';
 import { useDialog } from '@/context/useDialog';
 import { useLiveSession } from '@/hooks/useLiveSession';
+import { deriveLiveSessionState } from '@/utils/liveSessionState';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useDragScroll } from '@/hooks/useDragScroll';
 import {
@@ -368,6 +369,7 @@ export const Dock: React.FC = () => {
   }, [isRecording]);
 
   const { session } = useLiveSession(user?.uid, 'teacher');
+  const liveState = deriveLiveSessionState(session);
   const [isExpanded, setIsExpanded] = useState(false);
   // A live tour opens the dock for a step and closes it again on teardown.
   useEffect(() => {
@@ -1545,35 +1547,36 @@ export const Dock: React.FC = () => {
 
                 {/* Extra Actions Separator */}
                 {/* LIVE INFO BUTTON (Visible when active) */}
-                {session?.isActive && canAccessFeature('live-session') && (
-                  <button
-                    ref={liveButtonRef}
-                    {...tourAttr('dock.live-session')}
-                    onClick={() => {
-                      if (showLiveInfo) {
-                        setShowLiveInfo(false);
-                      } else if (liveButtonRef.current) {
-                        const rect =
-                          liveButtonRef.current.getBoundingClientRect();
-                        setLivePopoverPos({
-                          left: rect.left + rect.width / 2,
-                          bottom: window.innerHeight - rect.top + 10,
-                        });
-                        setShowLiveInfo(true);
-                      }
-                    }}
-                    aria-label={t('dock.viewLiveSession')}
-                    className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-pan-x relative focus-visible:outline-none"
-                  >
-                    <DockIcon
-                      color="bg-red-500"
-                      className="flex items-center justify-center shadow-lg shadow-red-500/30 group-hover:scale-110 group-focus-visible:ring-2 group-focus-visible:ring-red-400 group-focus-visible:ring-offset-2 animate-pulse"
+                {liveState.kind === 'live' &&
+                  canAccessFeature('live-session') && (
+                    <button
+                      ref={liveButtonRef}
+                      {...tourAttr('dock.live-session')}
+                      onClick={() => {
+                        if (showLiveInfo) {
+                          setShowLiveInfo(false);
+                        } else if (liveButtonRef.current) {
+                          const rect =
+                            liveButtonRef.current.getBoundingClientRect();
+                          setLivePopoverPos({
+                            left: rect.left + rect.width / 2,
+                            bottom: window.innerHeight - rect.top + 10,
+                          });
+                          setShowLiveInfo(true);
+                        }
+                      }}
+                      aria-label={t('dock.viewLiveSession')}
+                      className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-pan-x relative focus-visible:outline-none"
                     >
-                      <Cast className="w-5 h-5 md:w-6 md:h-6" />
-                    </DockIcon>
-                    <DockLabel>{t('sidebar.header.live')}</DockLabel>
-                  </button>
-                )}
+                      <DockIcon
+                        color="bg-red-500"
+                        className="flex items-center justify-center shadow-lg shadow-red-500/30 group-hover:scale-110 group-focus-visible:ring-2 group-focus-visible:ring-red-400 group-focus-visible:ring-offset-2 animate-pulse"
+                      >
+                        <Cast className="w-5 h-5 md:w-6 md:h-6" />
+                      </DockIcon>
+                      <DockLabel>{t('sidebar.header.live')}</DockLabel>
+                    </button>
+                  )}
 
                 {/* LIVE POPOVER */}
                 {showLiveInfo &&

@@ -18,13 +18,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   collection,
-  deleteDoc,
   doc,
+  getDoc,
   onSnapshot,
   orderBy,
   query,
   setDoc,
   updateDoc,
+  writeBatch,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { invalidateSessionViewCount } from './useSessionViewCount';
@@ -255,34 +256,45 @@ export const useMiniAppAssignments = (
     [userId, assignments]
   );
 
+  // The local list can be stale (row just created, listener still loading), so
+  // fall back to reading the row before deciding which session to touch.
+  const loadAssignmentRow = useCallback(
+    async (
+      assignmentId: string
+    ): Promise<Pick<MiniAppAssignment, 'sessionId' | 'status'> | null> => {
+      if (!userId) return null;
+      const local = assignments.find((a) => a.id === assignmentId);
+      if (local) return local;
+      const snap = await getDoc(
+        doc(db, 'users', userId, ASSIGNMENTS_COLLECTION, assignmentId)
+      );
+      return snap.exists() ? (snap.data() as MiniAppAssignment) : null;
+    },
+    [userId, assignments]
+  );
+
   const endAssignment = useCallback<
     UseMiniAppAssignmentsResult['endAssignment']
   >(
     async (assignmentId) => {
       if (!userId) throw new Error('Not authenticated');
       const now = Date.now();
-      const assignment = assignments.find((a) => a.id === assignmentId);
+      const row = await loadAssignmentRow(assignmentId);
 
-      await updateDoc(
+      const batch = writeBatch(db);
+      batch.update(
         doc(db, 'users', userId, ASSIGNMENTS_COLLECTION, assignmentId),
         { status: 'inactive', updatedAt: now }
       );
-
-      if (assignment?.sessionId) {
-        try {
-          await updateDoc(doc(db, SESSIONS_COLLECTION, assignment.sessionId), {
-            status: 'ended',
-            endedAt: now,
-          });
-        } catch (err) {
-          console.warn(
-            '[useMiniAppAssignments] session end mirror failed',
-            err
-          );
-        }
+      if (row?.sessionId) {
+        batch.update(doc(db, SESSIONS_COLLECTION, row.sessionId), {
+          status: 'ended',
+          endedAt: now,
+        });
       }
+      await batch.commit();
     },
-    [userId, assignments]
+    [userId, loadAssignmentRow]
   );
 
   const reactivateAssignment = useCallback<
@@ -328,11 +340,22 @@ export const useMiniAppAssignments = (
   >(
     async (assignmentId) => {
       if (!userId) throw new Error('Not authenticated');
-      await deleteDoc(
+      const row = await loadAssignmentRow(assignmentId);
+
+      // Deleting a live row also ends its session so students stop submitting.
+      const batch = writeBatch(db);
+      batch.delete(
         doc(db, 'users', userId, ASSIGNMENTS_COLLECTION, assignmentId)
       );
+      if (row?.sessionId && row.status === 'active') {
+        batch.update(doc(db, SESSIONS_COLLECTION, row.sessionId), {
+          status: 'ended',
+          endedAt: Date.now(),
+        });
+      }
+      await batch.commit();
     },
-    [userId]
+    [userId, loadAssignmentRow]
   );
 
   const setTargetSkippedCount = useCallback<

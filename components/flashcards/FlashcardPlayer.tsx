@@ -284,6 +284,12 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
     check?.onCheckWrite?.(cardId, entry);
   };
 
+  const answerCheckTest = (cardId: string, response: string): void => {
+    const entry = checkWriteEntry(checkLog[cardId], { response });
+    setCheckLog((log) => ({ ...log, [cardId]: entry }));
+    check?.onCheckWrite?.(cardId, entry);
+  };
+
   const flagCheckWrite = (cardId: string, response: string): void => {
     const current = checkLog[cardId];
     const entry = checkWriteEntry(current, {
@@ -569,6 +575,13 @@ export const FlashcardPlayer: React.FC<FlashcardPlayerProps> = ({
               submitting: check.submitting,
               error: check.error,
               onSubmit: submitCheck,
+              initialAnswers: Object.fromEntries(
+                Object.entries(checkLog).map(([cardId, entry]) => [
+                  cardId,
+                  entry.response,
+                ])
+              ),
+              onAnswer: answerCheckTest,
             }}
           />
         ) : check?.mode === 'flashcards' && session.roundCards.length === 0 ? (

@@ -116,6 +116,7 @@ import { useSchoologyToolColumnPush } from '@/hooks/useSchoologyToolColumnPush';
 import { readLmsLink, schoologyLinkedTargets } from '@/utils/gradebook/lmsPush';
 import { buildToolColumnGrades } from '@/utils/schoologyToolColumns';
 import { ViewAsStudentButton } from '@/components/viewAs/ViewAsStudentButton';
+import { isVaResponseCompleted } from '@/utils/videoActivityState';
 
 const KEY_LOADING_TOAST =
   'Still loading the answer key — try again in a moment.';
@@ -316,7 +317,7 @@ export const Results: React.FC<ResultsProps> = ({
     let scoredCount = 0;
 
     for (const r of responses) {
-      if (r.completedAt !== null) {
+      if (isVaResponseCompleted(r)) {
         completedCount++;
         if (canScoreVideoActivityResponse(scoredQuestions, r.answers)) {
           scoreSum += computeVideoActivityScorePct(scoredQuestions, r.answers);
@@ -373,7 +374,7 @@ export const Results: React.FC<ResultsProps> = ({
         // to empty string so the export shape stays string-typed.
         pin: r.pin ?? '',
         joinedAt: r.joinedAt,
-        status: r.completedAt
+        status: isVaResponseCompleted(r)
           ? ('completed' as const)
           : ('in-progress' as const),
         answers: r.answers.map((a) => ({
@@ -608,7 +609,7 @@ export const Results: React.FC<ResultsProps> = ({
           refKeyByUid: targetRefKeyByStudentUid,
           submittedUids: new Set(
             responses
-              .filter((r) => r.completedAt !== null && !!r.studentUid)
+              .filter((r) => isVaResponseCompleted(r) && !!r.studentUid)
               .map((r) => r.studentUid)
           ),
         }),
@@ -1099,7 +1100,7 @@ export const Results: React.FC<ResultsProps> = ({
                             <StudentResultsControl
                               responseKey={r._responseKey}
                               override={r.resultsOverride}
-                              completed={typeof r.completedAt === 'number'}
+                              completed={isVaResponseCompleted(r)}
                               displayName={displayName || 'this student'}
                               classVisibility={classVisibility}
                               actions={resultsActions}
@@ -1138,8 +1139,12 @@ export const Results: React.FC<ResultsProps> = ({
                         }}
                       >
                         <SessionBadge
-                          tone={r.completedAt ? 'success' : 'warn'}
-                          label={r.completedAt ? 'Completed' : 'In progress'}
+                          tone={isVaResponseCompleted(r) ? 'success' : 'warn'}
+                          label={
+                            isVaResponseCompleted(r)
+                              ? 'Completed'
+                              : 'In progress'
+                          }
                         />
                         {resultsActions && (
                           <ResultsOverrideBadge override={r.resultsOverride} />
@@ -1161,7 +1166,7 @@ export const Results: React.FC<ResultsProps> = ({
                               exits={r.tabExits}
                               warnings={warnings}
                               studentName={displayName}
-                              completed={r.completedAt !== null}
+                              completed={isVaResponseCompleted(r)}
                               sessionEnded={session.status === 'ended'}
                             >
                               <SessionBadge

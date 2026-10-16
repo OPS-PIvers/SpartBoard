@@ -12,11 +12,8 @@ const PINNED = /(^|\s)(h-full|h-screen)(\s|$)/;
 const CLIPS = /(^|\s)overflow-(y-)?(auto|scroll|hidden|clip)(\s|$)/;
 // Centered loading and empty states never overflow.
 const CENTERED = /(^|\s)justify-center(\s|$)/;
-// AssignStudentPicker: empty states sizing a container query box. PlcDashboard: the pinned panel scrolls itself.
-const ALLOWED_FILES = [
-  'components/common/library/AssignStudentPicker.tsx',
-  'components/plc/PlcDashboard.tsx',
-];
+// AssignStudentPicker: empty states sizing a container query box.
+const ALLOWED_FILES = ['components/common/library/AssignStudentPicker.tsx'];
 
 const listFiles = (path: string): string[] => {
   const abs = join(repoRoot, path);

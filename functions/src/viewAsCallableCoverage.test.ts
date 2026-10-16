@@ -56,6 +56,7 @@ const CALLABLE_MODES: Record<string, Mode> = {
   pinLoginV1: 'write',
   pullGoogleTasksStatusV1: 'write',
   rebuildGlBuildingIndexV1: 'write',
+  recordFlashcardCheckRatingsV1: 'write',
   refreshGoogleAccessToken: 'write',
   refreshSpotifyAccessToken: 'write',
   releaseGuidedLearningMediaV1: 'write',

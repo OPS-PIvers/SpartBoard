@@ -907,4 +907,18 @@ describe('TimeToolWidget', () => {
       expect(screen.getByLabelText('Add time')).toBeInTheDocument();
     });
   });
+
+  describe('Play on an expired timer', () => {
+    it('disables Play at 0:00 so it cannot re-fire the alarm', () => {
+      renderWidget(createWidget({ elapsedTime: 0, isRunning: false }));
+      expect(screen.getByLabelText('Play')).toBeDisabled();
+    });
+
+    it('keeps Play enabled for a stopwatch at 0:00', () => {
+      renderWidget(
+        createWidget({ mode: 'stopwatch', elapsedTime: 0, isRunning: false })
+      );
+      expect(screen.getByLabelText('Play')).toBeEnabled();
+    });
+  });
 });

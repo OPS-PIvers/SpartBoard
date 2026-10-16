@@ -62,17 +62,11 @@ type Selection =
   | { kind: 'doc'; id: string }
   | { kind: 'record'; id: string };
 
-export default function NotesDocsPage(props: TeamPageProps) {
-  const { canAccessFeature } = useAuth();
-  if (!canAccessFeature('teams-redesign')) return null;
-  return <NotesDocsWithRecorder {...props} />;
-}
-
 // The recorder lives above the open note so switching notes never stops a recording.
-const NotesDocsWithRecorder: React.FC<TeamPageProps> = (props) => {
+export default function NotesDocsPage(props: TeamPageProps) {
   const recorder = useMeetingRecorder();
   return <NotesDocsInner {...props} recorder={recorder} />;
-};
+}
 
 const DocPane: React.FC<{
   doc: PlcDoc;
@@ -455,7 +449,6 @@ const NotesDocsInner: React.FC<
         canEdit={canEdit}
         collab={collabSettings.enabled && canEdit}
         richEditor={canAccessFeature('plc-notes-rich-editor')}
-        textStyles={canAccessFeature('teams-redesign')}
         members={members}
         template={template.sections}
         assessments={assessments}
