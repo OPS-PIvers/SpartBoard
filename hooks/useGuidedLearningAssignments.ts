@@ -356,6 +356,7 @@ export const useGuidedLearningAssignments = (
     [userId]
   );
 
+  // Unarchive leaves the session closed; the teacher reopens it with Edit window in the Assignments hub.
   const unarchiveAssignment = useCallback<
     UseGuidedLearningAssignmentsResult['unarchiveAssignment']
   >(
