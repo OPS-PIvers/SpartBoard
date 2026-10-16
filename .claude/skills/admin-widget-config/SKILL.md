@@ -182,7 +182,11 @@ Always key by `canonicalBuildingId(buildingId)` from `@/config/buildings`, never
 ### Required imports
 
 ```tsx
-import { BUILDINGS, canonicalBuildingId } from '@/config/buildings';
+import {
+  BUILDINGS,
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { Toast } from '../common/Toast';
@@ -230,7 +234,7 @@ const globalConfig = useMemo(() => {
   );
   return perm?.config as YourWidgetGlobalConfig | undefined;
 }, [featurePermissions]);
-const buildingId = selectedBuildings[0] ?? 'schumann';
+const buildingId = canonicalBuildingId(selectedBuildings[0] ?? 'schumann');
 const buildingConfig =
   canonicalizeBuildingKeyedRecord(globalConfig?.buildingDefaults ?? {})[
     buildingId
