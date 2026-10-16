@@ -130,7 +130,7 @@ export function liveSessionReducer(
       }
       // A missing record means the teacher removed this student or started fresh.
       if (!event.record) {
-        return { ...state, connection: NOT_JOINED, session: null };
+        return { ...state, connection: NOT_JOINED };
       }
       return {
         ...state,
@@ -143,7 +143,8 @@ export function liveSessionReducer(
     }
     case 'left':
       if (state.connection.kind !== 'joined') return state;
-      return { ...state, connection: NOT_JOINED, session: null };
+      // Keep the session: its listener stays on the same code, so a rejoin needs it.
+      return { ...state, connection: NOT_JOINED };
   }
 }
 

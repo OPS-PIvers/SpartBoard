@@ -735,11 +735,22 @@ describe('useLiveSession — student follows the teacher', () => {
     expect(result.current.session?.frozen).toBe(false);
   });
 
-  it('drops the session when the student is removed', async () => {
+  it('keeps the session through a removal, so a rejoin shows the live widget', async () => {
     const { result } = await joinAndWatch();
     act(() => pushMyDoc?.(false));
-    expect(result.current.session).toBeNull();
+    expect(result.current.studentId).toBeNull();
     expect(result.current.studentPin).toBeNull();
+    expect(result.current.session?.activeWidgetId).toBe('w1');
+
+    asMock(firestore.getDocs).mockResolvedValueOnce({
+      docs: [{ id: 'teacher-uid-1', data: () => ({ isActive: true }) }],
+    });
+    await act(async () => {
+      await result.current.joinSession('1234', 'ABC123');
+    });
+    act(() => pushMyDoc?.(true, 'active'));
+    expect(result.current.studentId).toBe('student-uid-1');
+    expect(result.current.session?.activeWidgetId).toBe('w1');
   });
 
   it('ignores leave before joining', async () => {
