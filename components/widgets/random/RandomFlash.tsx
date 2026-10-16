@@ -32,6 +32,15 @@ export const RandomFlash: React.FC<RandomFlashProps> = ({
       ? displayResult
       : RANDOM_FLASH_PLACEHOLDER;
 
+  // Cap by line count so wrapped names fit the flash area's height.
+  const words = label.trim().split(/[ \t\n\r\f\v]+/);
+  // While spinning keep the roster-wide size so the font doesn't jump each tick.
+  const lines = isSpinning ? 1 : words.length;
+  const fitted =
+    lines > 1
+      ? `max(min(${fontStyle}, ${Math.floor(75 / lines)}cqh), min(${Math.max(4, Math.round(75 / label.length))}cqw, 60cqh))`
+      : fontStyle;
+
   return (
     <div
       className={`text-center font-black transition-all duration-300 w-full flex items-center justify-center font-${globalStyle.fontFamily} ${
@@ -40,19 +49,21 @@ export const RandomFlash: React.FC<RandomFlashProps> = ({
           : 'scale-100 text-brand-blue-primary drop-shadow-xl'
       }`}
       style={{
-        fontSize: `min(300px, ${fontStyle})`,
+        // Only multi-word names measure against this box; single words keep the widget's units.
+        containerType: lines > 1 ? 'size' : undefined,
         height: '100%',
         padding: 'min(12px, 2.5cqmin)',
       }}
     >
       <span
-        className="leading-tight uppercase"
+        className="leading-tight uppercase transition-[font-size] duration-300"
         style={{
           display: 'inline-block',
           maxWidth: '100%',
           textAlign: 'center',
           wordBreak: 'normal',
           overflowWrap: 'normal',
+          fontSize: `min(300px, ${fitted})`,
         }}
       >
         {label}

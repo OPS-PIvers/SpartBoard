@@ -20,4 +20,5 @@ export const AI_FEATURE_LABELS: Record<string, string> = {
   'webcam-ai': 'Webcam Text Recognition',
   'plc-meeting-ai-notes': 'PLC Meeting Notes',
   'plc-goal-coach': 'PLC Goal Coach',
+  'quiz-document-ai-reader': 'Quiz Document Import AI',
 };

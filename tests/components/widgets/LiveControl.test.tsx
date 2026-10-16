@@ -18,6 +18,7 @@ const renderLiveControl = (overrides = {}) => {
     onFreezeStudent: vi.fn(),
     onRemoveStudent: vi.fn(),
     onFreezeAll: vi.fn(),
+    isGlobalFrozen: false,
   };
 
   const props = { ...defaultProps, ...overrides };
@@ -121,7 +122,7 @@ describe('LiveControl', () => {
     expect(props.onRemoveStudent).toHaveBeenCalledWith('s1');
   });
 
-  it('calls onFreezeAll when "Freeze / Unfreeze All" is clicked', () => {
+  it('calls onFreezeAll when "Freeze All" is clicked', () => {
     const { props } = renderLiveControl();
     fireEvent.click(screen.getByLabelText(/connected students/));
 
@@ -132,6 +133,27 @@ describe('LiveControl', () => {
     fireEvent.click(freezeAllBtn);
 
     expect(props.onFreezeAll).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows Freeze All from the class-wide freeze, not per-student statuses', () => {
+    renderLiveControl({
+      students: [
+        { id: 's1', pin: '01', status: 'frozen', joinedAt: 0, lastActive: 0 },
+      ],
+      studentCount: 1,
+    });
+    fireEvent.click(screen.getByLabelText(/connected student/));
+    const btn = screen.getByRole('button', { name: 'Freeze all students' });
+    expect(btn).toHaveAttribute('aria-pressed', 'false');
+    expect(btn).toHaveTextContent('Freeze All');
+  });
+
+  it('shows Unfreeze All while the class is frozen', () => {
+    renderLiveControl({ isGlobalFrozen: true });
+    fireEvent.click(screen.getByLabelText(/connected students/));
+    const btn = screen.getByRole('button', { name: 'Unfreeze all students' });
+    expect(btn).toHaveAttribute('aria-pressed', 'true');
+    expect(btn).toHaveTextContent('Unfreeze All');
   });
 
   it('closes menu when X button is clicked', () => {

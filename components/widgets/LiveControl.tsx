@@ -19,6 +19,7 @@ interface LiveControlProps {
   ) => void;
   onRemoveStudent: (id: string) => void;
   onFreezeAll: () => void;
+  isGlobalFrozen: boolean;
 }
 
 const MENU_WIDTH = 256; // Width in pixels (w-64 in Tailwind = 16rem = 256px)
@@ -33,6 +34,7 @@ export const LiveControl: React.FC<LiveControlProps> = ({
   onFreezeStudent,
   onRemoveStudent,
   onFreezeAll,
+  isGlobalFrozen,
 }) => {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -290,19 +292,14 @@ export const LiveControl: React.FC<LiveControlProps> = ({
           <div className="p-2 border-t border-slate-100 bg-slate-50 rounded-b-xl">
             <button
               onClick={onFreezeAll}
-              aria-pressed={
-                students.length > 0 &&
-                students.every((s) => s.status === 'frozen')
-              }
+              aria-pressed={isGlobalFrozen}
               aria-label={
-                students.length > 0 &&
-                students.every((s) => s.status === 'frozen')
-                  ? 'Unfreeze all students'
-                  : 'Freeze all students'
+                isGlobalFrozen ? 'Unfreeze all students' : 'Freeze all students'
               }
-              className="w-full flex items-center justify-center gap-2 py-2 bg-blue-100 text-blue-700 rounded-lg text-xxs  uppercase hover:bg-blue-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-50"
+              className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xxs  uppercase transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-50 ${isGlobalFrozen ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-blue-100 text-blue-700 hover:bg-blue-200'}`}
             >
-              <Snowflake size={12} /> Freeze / Unfreeze All
+              <Snowflake size={12} />{' '}
+              {isGlobalFrozen ? 'Unfreeze All' : 'Freeze All'}
             </button>
           </div>
         </div>,

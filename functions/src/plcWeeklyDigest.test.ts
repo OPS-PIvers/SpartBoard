@@ -653,7 +653,7 @@ describe('runPlcWeeklyDigest — team updates (TEAMS_REDESIGN T27)', () => {
     updates,
   });
 
-  it('adds in-window updates marked for the weekly email when the lead has the flag', async () => {
+  it('adds in-window updates marked for the weekly email', async () => {
     const { db, mail } = makeStubDb({
       digestEnabled: true,
       plcs: [
@@ -664,11 +664,7 @@ describe('runPlcWeeklyDigest — team updates (TEAMS_REDESIGN T27)', () => {
         ]),
       ],
     });
-    const granted = vi.fn(() => Promise.resolve(true));
-    const counts = await runPlcWeeklyDigest(db, NOW, {
-      updatesGranted: granted,
-    });
-    expect(granted).toHaveBeenCalledWith('lead@school.org', 'lead');
+    const counts = await runPlcWeeklyDigest(db, NOW);
     expect(counts.mailQueued).toBe(1);
     const [[, doc]] = [...mail.entries()];
     const message = doc.message as { text: string; subject: string };
@@ -683,9 +679,7 @@ describe('runPlcWeeklyDigest — team updates (TEAMS_REDESIGN T27)', () => {
       digestEnabled: true,
       plcs: [team([update('u1', { requiresAck: true }), update('u2')])],
     });
-    await runPlcWeeklyDigest(db, NOW, {
-      updatesGranted: () => Promise.resolve(true),
-    });
+    await runPlcWeeklyDigest(db, NOW);
     const [[, doc]] = [...mail.entries()];
     const { text, html } = doc.message as { text: string; html: string };
     expect(text).toContain('Update u1 (Erin Walsh) · Needs acknowledgement');
@@ -693,36 +687,22 @@ describe('runPlcWeeklyDigest — team updates (TEAMS_REDESIGN T27)', () => {
     expect(html).toContain('Needs acknowledgement');
   });
 
-  it('leaves updates out when the lead does not have the flag', async () => {
+  it('sends a digest with only updates when there is no activity', async () => {
     const { db, mail } = makeStubDb({
       digestEnabled: true,
       plcs: [team([update('u1')])],
     });
-    const counts = await runPlcWeeklyDigest(db, NOW, {
-      updatesGranted: () => Promise.resolve(false),
-    });
-    expect(counts.mailQueued).toBe(0);
-    expect(counts.skippedNoActivity).toBe(1);
-    expect(mail.size).toBe(0);
-  });
-
-  it('leaves updates out with no flag check wired', async () => {
-    const { db, mail } = makeStubDb({
-      digestEnabled: true,
-      plcs: [team([update('u1')], [recentActivity('e1')])],
-    });
-    await runPlcWeeklyDigest(db, NOW);
+    const counts = await runPlcWeeklyDigest(db, NOW);
+    expect(counts.mailQueued).toBe(1);
     const [[, doc]] = [...mail.entries()];
-    expect((doc.message as { text: string }).text).not.toContain('Update u1');
+    expect((doc.message as { text: string }).text).toContain('Update u1');
   });
 
   it('does not send updates to a team that has not opted in', async () => {
     const t = team([update('u1')]);
     t.data.digestOptIn = false;
     const { db, mail } = makeStubDb({ digestEnabled: true, plcs: [t] });
-    await runPlcWeeklyDigest(db, NOW, {
-      updatesGranted: () => Promise.resolve(true),
-    });
+    await runPlcWeeklyDigest(db, NOW);
     expect(mail.size).toBe(0);
   });
 });

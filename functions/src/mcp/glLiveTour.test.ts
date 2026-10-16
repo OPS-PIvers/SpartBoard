@@ -13,6 +13,9 @@ import {
   parseCategories,
   publicTourStep,
   readyAnchorRef,
+  notesToClear,
+  clearedNotes,
+  tourHealth,
   tourStep,
   tourPublishState,
   updateBookends,
@@ -20,6 +23,7 @@ import {
 import type { Step } from './glTools';
 import { buildTourSetup } from './tourSetup';
 import { hiddenToolsFor } from './tools';
+import { tourPlaytestKey } from './tourPlaytest';
 
 const resultsOn = vi.hoisted(() => ({ value: false }));
 vi.mock('./miniAppTools', async (importActual) => ({
@@ -561,5 +565,112 @@ describe('the Open Tools step', () => {
         step('b', 'board.whole'),
       ])
     ).toBe('warn');
+  });
+});
+
+describe('notes, playtest and health', () => {
+  const note = { text: 'Point at the gear', by: 'admin@school.org', at: 0 };
+  const tour = (over: Record<string, unknown> = {}) => ({
+    id: 'set1',
+    title: 'T',
+    imageUrls: [],
+    mode: 'tour',
+    updatedAt: 5,
+    steps: [
+      stored(),
+      stored({ id: 's2', tour: { anchor: 'board.whole', action: 'observe' } }),
+    ],
+    ...over,
+  });
+
+  it('returns notes from the review doc on the tour and its steps', () => {
+    const view = liveTourView(tour(), null, new Map(), false, undefined, {
+      tourNote: note,
+      stepNotes: { s1: note, gone: note },
+    });
+    expect(view.review_note).toEqual({
+      text: 'Point at the gear',
+      by: 'admin@school.org',
+      at: '1970-01-01T00:00:00.000Z',
+    });
+    expect(view.steps[0]).toMatchObject({ review_note: { text: note.text } });
+    expect(view.steps[1]).not.toHaveProperty('review_note');
+    const [kept] = mergeTourSteps(tour().steps, [
+      view.steps[0] as Parameters<typeof mergeTourSteps>[1][number],
+    ]);
+    expect(kept).not.toHaveProperty('review_note');
+    expect(kept).not.toHaveProperty('reviewNote');
+  });
+
+  it('clears resolved notes and refuses an unknown id', () => {
+    const steps = tour().steps;
+    expect(notesToClear(steps, steps, ['s1', 'tour'])).toEqual(['s1', 'tour']);
+    expect(() => notesToClear(steps, steps, ['nope'])).toThrow(
+      'resolved_notes: "nope"'
+    );
+    // Removing a step can resolve its note, and clears it even when not named.
+    expect(notesToClear(steps, [steps[1]], ['s1'])).toEqual(['s1']);
+    expect(notesToClear(steps, [steps[1]], [])).toEqual(['s1']);
+    const update = clearedNotes(['tour', 's1', 's2']);
+    expect(Object.keys(update).sort()).toEqual(['stepNotes', 'tourNote']);
+    expect(Object.keys(update.stepNotes as object)).toEqual(['s1', 's2']);
+  });
+
+  it('marks the playtest stale once the steps change', () => {
+    const steps = tour().steps;
+    const playtest = {
+      at: 0,
+      by: 'admin@school.org',
+      fingerprint: tourPlaytestKey(steps),
+      steps: [
+        { stepId: 's1', result: 'missing' },
+        { stepId: 's2', result: 'not-reached' },
+      ],
+    };
+    const view = (over: Record<string, unknown>) =>
+      liveTourView(tour(over), null, new Map(), false, undefined, {
+        playtest,
+      });
+    expect(view({}).last_playtest).toEqual({
+      at: '1970-01-01T00:00:00.000Z',
+      by: 'admin@school.org',
+      stale: false,
+      steps: [
+        { step_id: 's1', result: 'missing' },
+        { step_id: 's2', result: 'not-reached' },
+      ],
+    });
+    expect(view({ steps: [...steps].reverse() }).last_playtest?.stale).toBe(
+      true
+    );
+    expect(liveTourView(tour(), null)).not.toHaveProperty('last_playtest');
+  });
+
+  it('counts only runs of the published version and names no teacher', () => {
+    const health = tourHealth(
+      [
+        { v: 7, done: true, misses: ['s2'] },
+        { v: 7, done: false, exit: 1, misses: ['s2', 's2'] },
+        { v: 7, done: false, exit: 1, misses: [] },
+        { v: 7, done: false, exit: 0, misses: ['s1'] },
+        { v: 3, done: false, exit: 0, misses: ['s1'] },
+      ],
+      [{ id: 's1' }, { id: 's2' }],
+      7
+    );
+    expect(health).toEqual({
+      runs: 4,
+      completed: 1,
+      most_left_from: { step_id: 's2', runs: 2 },
+      missed: [
+        { step_id: 's2', runs: 2 },
+        { step_id: 's1', runs: 1 },
+      ],
+    });
+    expect(tourHealth([], [], 7)).toEqual({
+      runs: 0,
+      completed: 0,
+      missed: [],
+    });
   });
 });

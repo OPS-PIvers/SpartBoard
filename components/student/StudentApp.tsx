@@ -9,6 +9,7 @@ import { Cast, Snowflake, Radio } from 'lucide-react';
 import { WidgetData, DEFAULT_GLOBAL_STYLE, LiveSession } from '@/types';
 import { getDefaultWidgetConfig } from '@/utils/widgetHelpers';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
+import { deriveStudentView } from '@/utils/liveSessionState';
 
 const noop = () => undefined;
 const asyncNoop = async () => {
@@ -162,10 +163,15 @@ const StudentAppInner: React.FC = () => {
     loading,
     joinSession,
     leaveSession,
-    studentId,
     studentPin,
-    individualFrozen,
+    connection,
   } = useLiveSession(undefined, 'student', joinedCode ?? undefined);
+  const view = deriveStudentView({
+    authInitialized,
+    joinedCode,
+    connection,
+    session,
+  });
 
   const backgroundStyles = React.useMemo(() => {
     if (!session?.background) return {};
@@ -219,7 +225,7 @@ const StudentAppInner: React.FC = () => {
   };
 
   // Wait for auth to initialize before showing lobby
-  if (!authInitialized) {
+  if (view.kind === 'initializing') {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <div className="text-white">Initializing...</div>
@@ -227,15 +233,14 @@ const StudentAppInner: React.FC = () => {
     );
   }
 
-  // 1. Lobby State
-  if (!joinedCode || !studentId) {
+  if (view.kind === 'lobby') {
     return (
       <StudentLobby onJoin={handleJoin} isLoading={loading} error={error} />
     );
   }
 
-  // 2. Waiting State (Joined but no active widget)
-  if (!session?.isActive || !session?.activeWidgetId) {
+  // Joined, with no widget being broadcast (not started yet, or ended)
+  if (view.kind === 'waiting' || !session) {
     return (
       <div
         id="dashboard-root"
@@ -259,8 +264,7 @@ const StudentAppInner: React.FC = () => {
     );
   }
 
-  // 3. Frozen State Overlay (Global or Individual)
-  if (session.frozen || individualFrozen) {
+  if (view.kind === 'frozen') {
     return (
       <div className="fixed inset-0 z-overlay bg-indigo-900 flex flex-col items-center justify-center p-8 text-center text-white">
         <Snowflake className="w-20 h-20 mb-6 animate-spin-slow opacity-80" />
@@ -276,11 +280,10 @@ const StudentAppInner: React.FC = () => {
     );
   }
 
-  // 4. Active Widget State
   // We provide the widget with the current window dimensions.
   // In student view, widgets are rendered full-screen without the draggable container.
   const activeWidgetStub: WidgetData = {
-    id: session.activeWidgetId,
+    id: view.widgetId,
     type: session.activeWidgetType ?? 'clock',
     x: 0,
     y: 0,

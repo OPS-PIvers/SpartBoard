@@ -155,7 +155,20 @@ After saving, tell the admin in a few lines:
 - any controls queued for an anchor: the save's `needs_anchors` lists those steps. Publishing isn't blocked, but those steps fail for teachers using another language, so recommend waiting until they're tagged and rebound
 - the browser run's result, or that there wasn't one
 
+In claude.ai, where there is no browser run, end the hand-back with: "Play it once from the Guided Learning library (Type: **Live tours**, **Edit**), add a **Note for Claude** on any step that's wrong, then ask me to finish it."
+
 Then the admin opens it from the Guided Learning library (Type: **Live tours**, then **Edit**), which opens it on the board, plays it there, and presses **Publish tour** and then **Show in Help** in the **Teachers' version** panel. **Show in Help** is the same as turning on Visible in Admin Settings > Help Center. It stays on, so after a later edit the admin only presses **Publish changes**.
+
+## Finish pass
+
+When the admin has played the tour or left notes ("finish the tour", "I played it", "I left notes"), make one pass that leaves it ready to publish:
+
+1. Call `get_live_tour`. Read `review_note` on the tour and on each step, `last_playtest`, and `health` when the tour is published.
+2. Fix every step `last_playtest` marks `missing`: follow its anchor's `routes` again, rebind it, or add the click that opens its panel. A step `left` to the teacher needs a `value` unless the choice is theirs. When `stale` is true the steps changed after that play, so trust its results only for steps you haven't changed since.
+3. Before rewriting a step's text, look at its picture with `get_live_tour_step_picture`.
+4. Act on each note. In `health`, a step many runs missed (`missed`) or left from (`most_left_from`) is worth the same look.
+5. Dry-run, then save with `update_live_tour`, passing `resolved_notes` with each note you dealt with: the step id, or `"tour"` for the tour's own note.
+6. Hand back what changed in a few lines, and any note you left open with the reason. Open notes stay for the next pass.
 
 ## Examples
 

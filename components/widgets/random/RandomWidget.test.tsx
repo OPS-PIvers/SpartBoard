@@ -1103,4 +1103,76 @@ describe('RandomWidget — groups mode by group count', () => {
       vi.useRealTimers();
     }
   });
+
+  describe('auto-start timer', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('restarts an expired timer from its full duration after a pick', async () => {
+      vi.useFakeTimers();
+      const timer: WidgetData = {
+        id: 'timer-1',
+        type: 'time-tool',
+        config: {
+          mode: 'timer',
+          visualType: 'digital',
+          duration: 120,
+          elapsedTime: 0,
+          isRunning: false,
+          startTime: null,
+          selectedSound: 'Gong',
+        },
+        x: 0,
+        y: 0,
+        w: 300,
+        h: 300,
+        z: 1,
+        flipped: false,
+      };
+      (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+        ...mockDashboardContext,
+        activeDashboard: { widgets: [timer], sharedGroups: [] },
+      });
+      render(
+        <RandomWidget
+          widget={{
+            id: 'test-id',
+            type: 'random',
+            config: {
+              firstNames: 'Alice\nBob\nCharlie',
+              lastNames: '',
+              rosterMode: 'custom',
+              mode: 'single',
+              visualStyle: 'flash',
+              soundEnabled: false,
+              remainingStudents: [],
+              autoStartTimer: true,
+            },
+            x: 0,
+            y: 0,
+            w: 300,
+            h: 200,
+            z: 1,
+            flipped: false,
+          }}
+        />
+      );
+
+      await act(async () => {
+        fireEvent.click(
+          screen.getByRole('button', { name: /^Randomize$|^Picking$/ })
+        );
+        await vi.advanceTimersByTimeAsync(5000);
+      });
+
+      const timerCall = mockUpdateWidget.mock.calls.find(
+        ([id]) => id === 'timer-1'
+      ) as [string, Partial<WidgetData>] | undefined;
+      expect(timerCall?.[1].config).toMatchObject({
+        isRunning: true,
+        elapsedTime: 120,
+      });
+    });
+  });
 });

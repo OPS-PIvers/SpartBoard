@@ -3748,7 +3748,9 @@
       "saveStart": "Enregistrer le tableau",
       "justResume": "Reprendre seulement",
       "startSaved": "Commence depuis un tableau enregistré",
-      "clearStart": "Effacer"
+      "clearStart": "Effacer",
+      "noteForClaude": "Note pour Claude",
+      "noteBy": "De {{who}}"
     },
     "kept_one": "{{count}} élément enregistré dans votre bibliothèque.",
     "kept_other": "{{count}} éléments enregistrés dans votre bibliothèque.",
@@ -3957,6 +3959,9 @@
       "paused": "En pause",
       "closed": "Fermée",
       "opens": "Ouvre le {{day}} à {{time}}"
+    },
+    "closed": {
+      "title": "Cette activité est fermée"
     },
     "pausedOverlay": {
       "title": "En pause pour ta classe",

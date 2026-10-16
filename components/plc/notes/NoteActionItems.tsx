@@ -39,8 +39,6 @@ interface NoteActionItemsProps {
   currentUid: string;
   /** Side panel: no heading, and assignee and due date sit under the text. */
   panel?: boolean;
-  /** Teams redesign: add row on top, Remove completed, and Recently completed. */
-  teamsLayout?: boolean;
 }
 
 const NO_HANDLE: SortableListDragHandleProps = {
@@ -153,39 +151,29 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
   onChange,
   currentUid,
   panel = false,
-  teamsLayout = false,
 }) => {
   const { t } = useTranslation();
   const [draft, setDraft] = useState('');
   const [showCleared, setShowCleared] = useState(false);
   const people = useMemo(
-    () =>
-      teamsLayout
-        ? members.map((m) => ({ ...m, displayName: personName(m) }))
-        : members,
-    [members, teamsLayout]
+    () => members.map((m) => ({ ...m, displayName: personName(m) })),
+    [members]
   );
   const [view, setView] = useState<ActionItemView>(DEFAULT_ACTION_ITEM_VIEW);
-  // Lazy-init so `Date.now()` isn't called impurely during render (repo
-  // pattern — see `YourActionItemsCard`); overdue rows don't need
-  // second-precision freshness.
+  // Lazy-init so `Date.now()` isn't called impurely during render.
   const [now] = useState(() => Date.now());
   const emit = (next: PlcActionItem[]) =>
-    onChange(teamsLayout ? pruneClearedActionItems(next, now) : next);
+    onChange(pruneClearedActionItems(next, now));
 
   const nameFor = useCallback(
     (uid: string) => people.find((m) => m.uid === uid)?.displayName ?? '',
     [people]
   );
 
-  const active = teamsLayout
-    ? items.filter((it) => it.clearedAt == null)
-    : items;
-  const cleared = teamsLayout
-    ? items
-        .filter((it) => it.clearedAt != null)
-        .sort((a, b) => (b.clearedAt ?? 0) - (a.clearedAt ?? 0))
-    : [];
+  const active = items.filter((it) => it.clearedAt == null);
+  const cleared = items
+    .filter((it) => it.clearedAt != null)
+    .sort((a, b) => (b.clearedAt ?? 0) - (a.clearedAt ?? 0));
   const doneCount = active.filter((it) => it.done).length;
   const visible = visibleActionItems(active, view, now, nameFor);
   const canDrag = canEdit && view.sort === 'manual';
@@ -442,7 +430,7 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
     canEdit &&
     (items.length < MAX_ACTION_ITEMS ? (
       <div
-        className={`shrink-0 flex items-center gap-2 ${teamsLayout && panel ? 'mb-2' : 'mt-2'}`}
+        className={`shrink-0 flex items-center gap-2 ${panel ? 'mb-2' : 'mt-2'}`}
       >
         <input
           {...tourAttr('plc-notes.action-text')}
@@ -487,9 +475,9 @@ export const NoteActionItems: React.FC<NoteActionItemsProps> = ({
         })}
       </p>
     ));
-  const addOnTop = teamsLayout && panel;
+  const addOnTop = panel;
 
-  const removeCompleted = teamsLayout && canEdit && doneCount > 0 && (
+  const removeCompleted = canEdit && doneCount > 0 && (
     <button
       {...tourAttr('plc-notes.remove-completed')}
       type="button"

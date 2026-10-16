@@ -62,10 +62,6 @@ import type {
 import { getPlcMembers, getPlcRole } from '@/utils/plc';
 import { filterWhoIsHere } from '@/hooks/usePlcPresence';
 import type { PlcSectionId } from '@/components/plc/sections';
-import {
-  EMPTY_PLC_HOME_LAYOUT,
-  type PlcHomeLayout,
-} from '@/components/plc/home/tiles/homeLayout';
 
 /**
  * One subcollection's async state. Every heavy slice in the store wears this
@@ -163,8 +159,6 @@ export interface PlcStoreState {
    * 50 events, newest-first). Powers the unread badge + Home digest.
    */
   activity: PlcActivityEntry[];
-  /** The member's own Home v2 layout doc; listened to only on Home behind the flag. */
-  homeLayout: PlcSlice<PlcHomeLayout>;
 }
 
 /**
@@ -421,10 +415,8 @@ export function usePlcSelector<T>(
  * the provider's `PlcSlice` for the requested subcollection when a provider is
  * mounted AND it covers `plcId` AND that slice's listener is gated ON for the
  * active section (`slice.enabled`); otherwise returns `null` so the caller keeps
- * its standalone `onSnapshot`. This is what lets Home cards (RecentDocsCard via
- * `usePlcDocs`) keep showing real data:
- * the Home section gates `docs` OFF, so the provider seeds a
- * settled-but-DISABLED empty slice, the bridge returns `null`, and the
+ * its standalone `onSnapshot`. This is what lets a gated-off section keep
+ * showing real data: the provider seeds a settled-but-DISABLED empty slice, the bridge returns `null`, and the
  * standalone hook opens its own listener. Always called (hook order); the
  * `plcId`/`enabled` guard happens after the subscription, not by skipping the
  * hook.
@@ -511,11 +503,6 @@ export function usePlcAggregatesData(): PlcSlice<PlcAssessmentAggregate[]> {
 /** Meeting-records slice (data/loading/error) — Decisions 4.0 / 4.0b, §3.7. */
 export function usePlcMeetingsData(): PlcSlice<PlcMeeting[]> {
   return usePlcSelector((s) => s.meetings) ?? EMPTY_MEETINGS_SLICE;
-}
-
-/** The member's Home v2 layout (tiles, spotlight, seen counts). */
-export function usePlcHomeLayout(): PlcSlice<PlcHomeLayout> {
-  return usePlcSelector((s) => s.homeLayout) ?? EMPTY_HOME_LAYOUT_SLICE;
 }
 
 /**
@@ -800,12 +787,6 @@ const EMPTY_AGGREGATES_SLICE: PlcSlice<PlcAssessmentAggregate[]> = {
 };
 const EMPTY_MEETINGS_SLICE: PlcSlice<PlcMeeting[]> = {
   data: [],
-  loading: false,
-  error: null,
-  enabled: false,
-};
-const EMPTY_HOME_LAYOUT_SLICE: PlcSlice<PlcHomeLayout> = {
-  data: EMPTY_PLC_HOME_LAYOUT,
   loading: false,
   error: null,
   enabled: false,

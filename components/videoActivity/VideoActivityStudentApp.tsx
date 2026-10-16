@@ -12,7 +12,13 @@
  *    `useAssignmentPseudonyms` for display.
  */
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useReducer,
+  useRef,
+} from 'react';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import {
   PlayCircle,
@@ -37,6 +43,13 @@ import { useVideoActivitySessionStudent } from '@/hooks/useVideoActivitySession'
 import { useStudentAssignmentPointer } from '@/hooks/useStudentAssignmentPointer';
 import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
 import { VideoActivityPublicQuestion, VideoActivitySession } from '@/types';
+import {
+  deriveVaSessionState,
+  initialSelfPacedPlayerState,
+  isVaResponseCompleted,
+  selfPacedPlayerReducer,
+  selfPacedVideoEnded,
+} from '@/utils/videoActivityState';
 import { studentQuestionsFromSession } from '@/utils/videoActivityPublicQuestions';
 import { VideoPlayer } from './VideoPlayer';
 import { QuestionOverlay } from './QuestionOverlay';
@@ -118,6 +131,9 @@ function resolveSsoClassPeriod(
   if (unique.size !== 1) return undefined;
   return matches[0];
 }
+
+const LIVE_COMPLETE_MAX_RETRIES = 8;
+const LIVE_COMPLETE_RETRY_BASE_MS = 2000;
 
 // ─── Root ──────────────────────────────────────────────────────────────────────
 
@@ -265,13 +281,13 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       : null;
 
   const [pin, setPin] = useState('');
-  const [activeQuestion, setActiveQuestion] =
-    useState<VideoActivityPublicQuestion | null>(null);
-  const [videoEnded, setVideoEnded] = useState(false);
-  const [seekRequest, setSeekRequest] = useState<{
-    time: number;
-    nonce: number;
-  } | null>(null);
+  const [player, dispatchPlayer] = useReducer(
+    selfPacedPlayerReducer,
+    initialSelfPacedPlayerState
+  );
+  const { activeQuestion, overlayNonce, seekRequest } = player;
+  const videoEnded = selfPacedVideoEnded(player);
+  const finishPending = player.finish === 'retry';
 
   const {
     session,
@@ -330,12 +346,10 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     setEntered(true);
   }
   const periodHold = perPeriod && (periodPaused || !entered);
-  const [overlayNonce, setOverlayNonce] = useState(0);
-  const [finishPending, setFinishPending] = useState(false);
   const checkFrozenRef = useRef(false);
   const freezeForPeriod = useCallback(() => {
     setFrozenGate(gateKey);
-    setOverlayNonce((n) => n + 1);
+    dispatchPlayer({ type: 'periodFrozen' });
   }, [gateKey]);
   const guardedCheckAnswer = useCallback(
     async (questionId: string, answer: string) => {
@@ -524,7 +538,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
 
   const handleQuestionTrigger = useCallback(
     (question: VideoActivityPublicQuestion) => {
-      setActiveQuestion(question);
+      dispatchPlayer({ type: 'questionReached', question });
     },
     []
   );
@@ -558,8 +572,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
         );
         const rewindTo =
           activeIdx > 0 ? (sortedQuestions[activeIdx - 1]?.timestamp ?? 0) : 0;
-        setSeekRequest({ time: rewindTo, nonce: Date.now() });
-        setActiveQuestion(null);
+        dispatchPlayer({ type: 'rewind', time: rewindTo, nonce: Date.now() });
         return;
       }
 
@@ -579,7 +592,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
           return;
         }
       }
-      setActiveQuestion(null);
+      dispatchPlayer({ type: 'questionDone' });
     },
     [
       activeQuestion,
@@ -594,21 +607,34 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
 
   // Teacher-paced: the board drives everything, and ending the session finishes every student.
   const isLive = isLiveVideoActivitySession(session);
-  const liveEnded = isLive && session?.status === 'ended';
+  const sessionState = session ? deriveVaSessionState(session) : null;
+  const liveEnded =
+    sessionState?.mode === 'live' && sessionState.pacing.phase === 'ended';
   const liveCompleteStartedRef = useRef(false);
+  const [liveCompleteRetry, setLiveCompleteRetry] = useState(0);
   const liveNeedsComplete =
     liveEnded &&
     joinStatus === 'joined' &&
     !isViewOnly &&
     myResponse != null &&
-    myResponse.completedAt == null;
+    !isVaResponseCompleted(myResponse);
   useEffect(() => {
     if (!liveNeedsComplete || liveCompleteStartedRef.current) return;
     liveCompleteStartedRef.current = true;
-    completeActivity().catch((err: unknown) =>
-      logError('VideoActivityStudentApp.liveComplete', err, { sessionId })
-    );
-  }, [liveNeedsComplete, completeActivity, sessionId]);
+    completeActivity().catch((err: unknown) => {
+      logError('VideoActivityStudentApp.liveComplete', err, {
+        sessionId,
+        attempt: liveCompleteRetry,
+      });
+      // A failed write (often offline at the moment of End) retries with backoff.
+      liveCompleteStartedRef.current = false;
+      if (liveCompleteRetry >= LIVE_COMPLETE_MAX_RETRIES) return;
+      setTimeout(
+        () => setLiveCompleteRetry((n) => n + 1),
+        Math.min(LIVE_COMPLETE_RETRY_BASE_MS * 2 ** liveCompleteRetry, 30_000)
+      );
+    });
+  }, [liveNeedsComplete, completeActivity, sessionId, liveCompleteRetry]);
   const handleLiveCheckError = useCallback(
     (err: unknown) => {
       if (!perPeriod || isQuestionClosedError(err) || !isFrozenCheckError(err))
@@ -620,18 +646,21 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   );
 
   const handleVideoEnd = useCallback(async () => {
-    setVideoEnded(true);
+    dispatchPlayer({ type: 'videoEnded' });
     if (isViewOnly) return;
     try {
       await completeActivity();
+      dispatchPlayer({ type: 'completeSucceeded' });
     } catch (err) {
-      if (!perPeriod || !isFrozenWriteError(err)) throw err;
-      // Not submitted: offer Finish once the class reopens.
-      setVideoEnded(false);
-      setFinishPending(true);
-      freezeForPeriod();
+      // Not submitted: offer Finish again (once the class reopens, if frozen).
+      dispatchPlayer({ type: 'completeFailed' });
+      if (perPeriod && isFrozenWriteError(err)) {
+        freezeForPeriod();
+        return;
+      }
+      logError('VideoActivityStudentApp.complete', err, { sessionId });
     }
-  }, [completeActivity, isViewOnly, perPeriod, freezeForPeriod]);
+  }, [completeActivity, isViewOnly, perPeriod, freezeForPeriod, sessionId]);
 
   // ── Tab-switch warning system (mirrors QuizStudentApp) ──────────────────
   const { showAlert } = useDialog();
@@ -717,7 +746,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       session?.status === 'active' &&
       !isViewOnly &&
       !periodHold &&
-      myResponse?.completedAt == null,
+      (myResponse == null || !isVaResponseCompleted(myResponse)),
     sessionActive: session?.status === 'active',
     ready: myResponse != null,
     serverExits: myResponse?.tabExits,
@@ -977,7 +1006,10 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   // A retake waiting on a shut period shows the locked card; otherwise finished work always shows here.
   const retakeWaiting = retakePending && perPeriod && !canEnter;
   if (
-    (videoEnded || myResponse?.completedAt || atCap || liveEnded) &&
+    (videoEnded ||
+      (myResponse != null && isVaResponseCompleted(myResponse)) ||
+      atCap ||
+      liveEnded) &&
     !retakeWaiting
   ) {
     // Live scores count only the questions the class was asked (D11).
@@ -1250,10 +1282,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
               {finishPending && !periodPaused && (
                 <div className="absolute inset-0 z-30 bg-slate-900/80 flex items-center justify-center p-6">
                   <button
-                    onClick={() => {
-                      setFinishPending(false);
-                      void handleVideoEnd();
-                    }}
+                    onClick={() => void handleVideoEnd()}
                     className="px-8 py-4 bg-white text-slate-900 font-bold rounded-xl active:scale-95 transition-transform"
                   >
                     Finish activity

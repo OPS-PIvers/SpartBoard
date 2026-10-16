@@ -89,6 +89,38 @@ const PageMessage: React.FC<{
   </div>
 );
 
+const createTrackedAdapter = (
+  session: FlashcardSession,
+  studentUid: string,
+  classId: string,
+  initial: FlashcardProgress | null
+): TrackedFlashcardAdapter =>
+  new TrackedFlashcardAdapter({
+    classId,
+    initial,
+    write: (payload) =>
+      setDoc(
+        doc(
+          db,
+          'flashcard_sessions',
+          session.id,
+          PROGRESS_SUBCOLLECTION,
+          studentUid
+        ),
+        payload,
+        { merge: true }
+      ),
+    // Flashcards-mode Checks grade from mastery, so only the server may move it.
+    rate:
+      session.kind === 'check' && session.checkMode === 'flashcards'
+        ? (ratings) =>
+            httpsCallable(
+              functions,
+              'recordFlashcardCheckRatingsV1'
+            )({ assignmentId: session.id, ratings })
+        : undefined,
+  });
+
 const TrackedPlayer: React.FC<{
   session: FlashcardSession;
   progress: FlashcardProgress | null;
@@ -96,27 +128,32 @@ const TrackedPlayer: React.FC<{
   classId: string;
   /** The student's period is shut: cover the player and hold progress writes. */
   paused?: boolean;
-}> = ({ session, progress, studentUid, classId, paused = false }) => {
+  /** Bumps each time a teacher reset deletes this student's progress doc. */
+  resetCount: number;
+}> = ({
+  session,
+  progress,
+  studentUid,
+  classId,
+  paused = false,
+  resetCount,
+}) => {
   const { t } = useTranslation();
-  const [adapter] = useState(
-    () =>
-      new TrackedFlashcardAdapter({
-        classId,
-        initial: progress,
-        write: (payload) =>
-          setDoc(
-            doc(
-              db,
-              'flashcard_sessions',
-              session.id,
-              PROGRESS_SUBCOLLECTION,
-              studentUid
-            ),
-            payload,
-            { merge: true }
-          ),
-      })
-  );
+  const [tracked, setTracked] = useState(() => ({
+    adapter: createTrackedAdapter(session, studentUid, classId, progress),
+    resetCount,
+  }));
+  const { adapter } = tracked;
+  useEffect(() => {
+    if (tracked.resetCount === resetCount) return;
+    // Drop the old adapter's unsaved work so it can't recreate the deleted doc.
+    tracked.adapter.discard();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- re-seeds after the progress snapshot shows a teacher reset
+    setTracked({
+      adapter: createTrackedAdapter(session, studentUid, classId, null),
+      resetCount,
+    });
+  }, [resetCount, tracked, session, studentUid, classId]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isCheck = session.kind === 'check' && Boolean(session.checkMode);
@@ -130,6 +167,7 @@ const TrackedPlayer: React.FC<{
     setError(null);
     try {
       await adapter.flush();
+      if (adapter.hasUnsentRatings()) throw new Error('Ratings not saved yet.');
       await httpsCallable(
         functions,
         'submitFlashcardCheckV1'
@@ -147,6 +185,7 @@ const TrackedPlayer: React.FC<{
 
   const player = (
     <FlashcardPlayer
+      key={tracked.resetCount}
       cards={session.cards}
       termLanguage={session.termLanguage}
       definitionLanguage={session.definitionLanguage}
@@ -236,6 +275,7 @@ export const FlashcardAssignmentPage: React.FC = () => {
   const [progressState, setProgressState] = useState<
     Loadable<FlashcardProgress | null>
   >({ kind: 'loading' });
+  const [resetCount, setResetCount] = useState(0);
   const pointer = useStudentAssignmentPointer(pseudonymUid, assignmentId);
   const rawSession = sessionState.kind === 'ready' ? sessionState.value : null;
   const perPeriod = hasPeriodAccess(rawSession);
@@ -304,6 +344,7 @@ export const FlashcardAssignmentPage: React.FC = () => {
   const sessionReady = sessionState.kind === 'ready';
   useEffect(() => {
     if (!assignmentId || !pseudonymUid || !sessionReady) return undefined;
+    let existed = false;
     return onSnapshot(
       doc(
         db,
@@ -313,6 +354,11 @@ export const FlashcardAssignmentPage: React.FC = () => {
         pseudonymUid
       ),
       (snapshot) => {
+        if (snapshot.exists()) existed = true;
+        else if (existed) {
+          existed = false;
+          setResetCount((count) => count + 1);
+        }
         setProgressState({
           kind: 'ready',
           value: snapshot.exists()
@@ -455,6 +501,7 @@ export const FlashcardAssignmentPage: React.FC = () => {
         studentUid={pseudonymUid}
         classId={periodKeys[0] ?? resolveClassId(session, pointer, classIds)}
         paused={perPeriod && !canEnter}
+        resetCount={resetCount}
       />
     );
   }

@@ -16,9 +16,9 @@ const mc: VideoActivityPublicQuestion = {
 
 const renderOverlay = (
   checkAnswer: (answer: string) => Promise<VideoActivityCheckResult>,
-  question: VideoActivityPublicQuestion = mc
+  question: VideoActivityPublicQuestion = mc,
+  onAnswer = vi.fn()
 ) => {
-  const onAnswer = vi.fn();
   render(
     <QuestionOverlay
       question={question}
@@ -91,6 +91,49 @@ describe('QuestionOverlay server grading', () => {
       vi.advanceTimersByTime(800);
     });
     expect(onAnswer).toHaveBeenCalledWith('Paris', true, false);
+    vi.useRealTimers();
+  });
+
+  it('reopens the question when the answer fails to save', async () => {
+    vi.useFakeTimers();
+    const checkAnswer = vi
+      .fn()
+      .mockResolvedValue({ isCorrect: true, correctAnswer: 'Paris' });
+    const onAnswer = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValueOnce(undefined);
+    renderOverlay(checkAnswer, mc, onAnswer);
+
+    fireEvent.click(screen.getByText('Paris'));
+    await act(async () => {
+      fireEvent.click(screen.getByText('Submit Answer'));
+      await Promise.resolve();
+    });
+    expect(screen.getByText(/Correct! Resuming/)).toBeTruthy();
+
+    await act(async () => {
+      vi.advanceTimersByTime(800);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(onAnswer).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('alert').textContent).toMatch(
+      /Couldn.t send your answer/
+    );
+    const submit = screen.getByText('Submit Answer');
+    expect((submit as HTMLButtonElement).disabled).toBe(false);
+
+    await act(async () => {
+      fireEvent.click(submit);
+      await Promise.resolve();
+    });
+    expect(screen.queryByRole('alert')).toBeNull();
+    await act(async () => {
+      vi.advanceTimersByTime(800);
+      await Promise.resolve();
+    });
+    expect(onAnswer).toHaveBeenCalledTimes(2);
     vi.useRealTimers();
   });
 });

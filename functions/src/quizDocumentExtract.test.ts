@@ -170,6 +170,7 @@ function makeDeps(over: Partial<ExtractDocumentDeps> = {}) {
     db: makeDb().db,
     isImportGranted: vi.fn(() => Promise.resolve(true)),
     isGeminiGranted: vi.fn(() => Promise.resolve(true)),
+    isAiReaderGranted: vi.fn(() => Promise.resolve(true)),
     chargeQuiz: vi.fn(() => Promise.resolve()),
     pdfPageCount: vi.fn(() => Promise.resolve(4)),
     extract: vi.fn(() => Promise.resolve(GOOD_RESPONSE)),
@@ -667,6 +668,17 @@ describe('extractQuizFromDocument', () => {
     expect(deps.extract).not.toHaveBeenCalled();
   });
 
+  it('refuses when the AI reader is off for the account', async () => {
+    const { deps } = makeDeps({
+      isAiReaderGranted: vi.fn(() => Promise.resolve(false)),
+    });
+    await expect(
+      extractQuizFromDocument(request(), teacher, deps)
+    ).rejects.toThrow(/Reading documents with AI is not enabled/);
+    expect(deps.extract).not.toHaveBeenCalled();
+    expect(deps.chargeQuiz).not.toHaveBeenCalled();
+  });
+
   it('never lets an unverified email reach the gates', async () => {
     const { deps } = makeDeps();
     await extractQuizFromDocument(
@@ -677,6 +689,7 @@ describe('extractQuizFromDocument', () => {
     // A self-reported address must not buy the admin bypass inside the gate.
     expect(deps.isImportGranted).toHaveBeenCalledWith('teacher-1', null);
     expect(deps.isGeminiGranted).toHaveBeenCalledWith('teacher-1', null);
+    expect(deps.isAiReaderGranted).toHaveBeenCalledWith('teacher-1', null);
     expect(deps.chargeQuiz).toHaveBeenCalledWith('teacher-1', null);
   });
 
