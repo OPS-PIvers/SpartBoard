@@ -271,7 +271,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
   onOpenDashboard,
 }) => {
   const { t } = useTranslation();
-  const { user, canAccessFeature } = useAuth();
+  const { user } = useAuth();
   const { showConfirm } = useDialog();
   const loading = plcsLoading;
 
@@ -293,10 +293,6 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
   };
 
   const handleCreate = async (name: string, groupType: PlcGroupType) => {
-    if (!canAccessFeature('teams-redesign')) {
-      await createPlc(name, groupType);
-      return;
-    }
     const layout = await layoutForNewTeam(groupType);
     if (layout) await createPlc(name, groupType, layout);
     else await createPlc(name, groupType);

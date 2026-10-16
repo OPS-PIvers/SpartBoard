@@ -97,6 +97,8 @@ export const ChecklistCard = React.memo<ChecklistCardProps>(
             display: '-webkit-box',
             WebkitLineClamp: 3,
             WebkitBoxOrient: 'vertical',
+            // Whole lines only, and always one, so a short card never cuts or hides its label.
+            maxHeight: 'max(1.375em, round(down, 100%, 1.375em))',
             overflow: 'hidden',
             wordBreak: 'break-word',
           }}

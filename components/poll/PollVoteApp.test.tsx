@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PollSessionDoc } from '@/types';
@@ -228,11 +228,53 @@ describe('PollVoteApp', () => {
   });
 
   it('shows the closed state when the vote write is rejected', async () => {
-    mockSetDoc.mockRejectedValue(new Error('permission-denied'));
+    mockSetDoc.mockRejectedValue({ code: 'permission-denied' });
     mountWith('?code=K3F9Q');
     render(<PollVoteApp />);
     await screen.findByText('Favorite fruit?');
     await userEvent.click(screen.getByRole('button', { name: /Apple/i }));
     expect(await screen.findByText(/voting is closed/i)).toBeInTheDocument();
+  });
+
+  it('reopens voting when the session comes back live after a rejected vote', async () => {
+    let pushSession: ((data: PollSessionDoc) => void) | null = null;
+    mockOnSnapshot.mockImplementation(
+      (ref: unknown, cb: (snap: unknown) => void) => {
+        if (ref === 'votes-col') {
+          cb({ docs: [] });
+        } else {
+          pushSession = (data) => cb({ exists: () => true, data: () => data });
+          pushSession(sessionDoc);
+        }
+        return vi.fn();
+      }
+    );
+    mockSetDoc.mockRejectedValueOnce({ code: 'permission-denied' });
+    mountWith('?code=K3F9Q');
+    render(<PollVoteApp />);
+    await screen.findByText('Favorite fruit?');
+    await userEvent.click(screen.getByRole('button', { name: /Apple/i }));
+    expect(await screen.findByText(/voting is closed/i)).toBeInTheDocument();
+
+    act(() => pushSession?.(makeSession({ active: false })));
+    act(() => pushSession?.(makeSession({ active: true })));
+
+    expect(screen.queryByText(/voting is closed/i)).not.toBeInTheDocument();
+    const apple = screen.getByRole('button', { name: /Apple/i });
+    expect(apple).toBeEnabled();
+    await userEvent.click(apple);
+    await waitFor(() => expect(mockSetDoc).toHaveBeenCalledTimes(2));
+  });
+
+  it('keeps the options open when a vote fails for a non-rules reason', async () => {
+    mockSetDoc.mockRejectedValueOnce({ code: 'unavailable' });
+    mountWith('?code=K3F9Q');
+    render(<PollVoteApp />);
+    await screen.findByText('Favorite fruit?');
+    await userEvent.click(screen.getByRole('button', { name: /Apple/i }));
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /Apple/i })).toBeEnabled()
+    );
+    expect(screen.queryByText(/voting is closed/i)).not.toBeInTheDocument();
   });
 });

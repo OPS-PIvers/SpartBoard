@@ -3960,6 +3960,9 @@
       "closed": "Fermée",
       "opens": "Ouvre le {{day}} à {{time}}"
     },
+    "closed": {
+      "title": "Cette activité est fermée"
+    },
     "pausedOverlay": {
       "title": "En pause pour ta classe",
       "body": "Garde cet onglet ouvert pour conserver tes réponses."

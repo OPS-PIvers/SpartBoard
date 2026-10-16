@@ -10081,8 +10081,6 @@ export type GlobalFeature =
   | 'plc-docs-toolbar'
   /** Team action items sync to the assignee's Google Tasks (docs/plans/GOOGLE_TASKS_ACTION_ITEMS.md). */
   | 'google-tasks-sync'
-  /** Purpose-built page set per team type (docs/plans/TEAMS_REDESIGN.md). */
-  | 'teams-redesign'
   /** AI coach that checks a draft team goal against the district rubric (docs/plans/TEAMS_REDESIGN.md T22). */
   | 'plc-goal-coach'
   /** Embed: a Reload button on the floating toolbar that reloads just the embedded page. */
@@ -11058,6 +11056,8 @@ export interface VideoActivityAssignment
   activityDriveFileId: string;
   teacherUid: string;
   status: VideoActivityAssignmentStatus;
+  /** 'teacher' for a live, board-paced run; absent on self-paced and older assignments. */
+  sessionMode?: VideoActivitySessionMode;
   createdAt: number;
   updatedAt: number;
   /** Unified roster targeting. New (post-unification) assignments write this;

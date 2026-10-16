@@ -345,6 +345,54 @@ describe('FlashcardPlayer Check assignments', () => {
       expect.arrayContaining([{ cardId: 'one', type: 'mc', response: 'one' }])
     );
   });
+
+  it('saves Test answers as they are given and restores them on reload', async () => {
+    const user = userEvent.setup();
+    const onCheckWrite = vi.fn();
+    const onSubmit = vi.fn();
+    const testCheck = (
+      initialCheckLog?: Record<
+        string,
+        { response: string; attempts: number; done: boolean }
+      >
+    ) => (
+      <FlashcardPlayer
+        cards={cards}
+        termLanguage="es-US"
+        definitionLanguage="en-US"
+        adapter={new LocalFlashcardAdapter('check-test-save')}
+        lockedSettings={lockedSettings({
+          testTypes: ['fib'],
+          testCount: 'all',
+        })}
+        seed="student-seed"
+        check={{
+          mode: 'test',
+          submitting: false,
+          initialCheckLog,
+          onCheckWrite,
+          onSubmit,
+        }}
+      />
+    );
+    const { unmount } = render(testCheck());
+    const input = (term: string) =>
+      screen
+        .getByRole('heading', { name: term })
+        .closest('section')
+        ?.querySelector('input') as HTMLInputElement;
+    await user.type(input('uno'), 'one');
+    expect(onCheckWrite).toHaveBeenLastCalledWith('one', {
+      response: 'one',
+      attempts: 0,
+      done: false,
+    });
+    unmount();
+
+    render(testCheck({ one: { response: 'one', attempts: 0, done: false } }));
+    expect(input('uno').value).toBe('one');
+    expect(input('dos').value).toBe('');
+  });
 });
 
 describe('TestMode', () => {

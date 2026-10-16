@@ -212,7 +212,6 @@ const TAB_GROUPS = [
         label: 'Team type defaults',
         icon: LayoutTemplate,
         component: TeamTypeDefaultsPanel,
-        feature: 'teams-redesign',
       },
     ],
   },

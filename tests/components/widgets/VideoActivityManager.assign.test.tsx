@@ -303,6 +303,56 @@ describe('VideoActivityManager — delete in progress assignment', () => {
   });
 });
 
+describe('VideoActivityManager — pause on in progress assignments', () => {
+  const renderWithPause = (assignment: VideoActivityAssignment) =>
+    render(
+      <VideoActivityManager
+        activities={[makeVaMeta()]}
+        loading={false}
+        error={null}
+        onNew={vi.fn()}
+        onImport={vi.fn()}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+        onAssign={vi.fn()}
+        onResults={vi.fn()}
+        rosters={ROSTERS}
+        assignments={[assignment]}
+        assignmentsLoading={false}
+        onArchivePauseResume={vi.fn(() => Promise.resolve())}
+        onArchiveDeactivate={vi.fn(() => Promise.resolve())}
+      />
+    );
+
+  const openMenu = async () => {
+    fireEvent.click(await screen.findByRole('tab', { name: /in progress/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'More actions' })
+    );
+    await screen.findByRole('menuitem', { name: /end assignment/i });
+  };
+
+  it('offers Pause on a self-paced assignment', async () => {
+    renderWithPause(makeVaAssignment());
+    await openMenu();
+    expect(screen.getByRole('menuitem', { name: 'Pause' })).toBeInTheDocument();
+  });
+
+  it('hides Pause and Resume on a live run', async () => {
+    renderWithPause(makeVaAssignment({ sessionMode: 'teacher' }));
+    await openMenu();
+    expect(screen.queryByRole('menuitem', { name: 'Pause' })).toBeNull();
+  });
+
+  it('hides Resume on a paused live run', async () => {
+    renderWithPause(
+      makeVaAssignment({ sessionMode: 'teacher', status: 'paused' })
+    );
+    await openMenu();
+    expect(screen.queryByRole('menuitem', { name: 'Resume' })).toBeNull();
+  });
+});
+
 describe('VideoActivityManager assign stepper', () => {
   beforeEach(() => {
     vi.clearAllMocks();

@@ -14,6 +14,7 @@ import {
   useCallback,
   useRef,
   useMemo,
+  useReducer,
   MutableRefObject,
 } from 'react';
 import {
@@ -46,7 +47,6 @@ import { signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import {
   QuizSession,
-  QuizSessionStatus,
   QuizResponse,
   QuizSessionBankSlot,
   QuizResponseAnswer,
@@ -72,7 +72,23 @@ import {
 } from '@/utils/answerTakeOrdering';
 import { resolvePeriodNames } from '@/utils/periodCompat';
 import { normalizeQuizCode } from '@/utils/quizCode';
-import { buildTeacherSubmitUpdate } from '@/utils/quizTeacherSubmit';
+import { everyoneAnsweredQuestion } from '@/utils/quizAutoProgress';
+import {
+  buildTeacherSubmitUpdate,
+  canTeacherSubmit,
+} from '@/utils/quizTeacherSubmit';
+import { acceptsStudents, endSessionPatch } from '@/utils/sessionLifecycle';
+import {
+  checkedQuizSessionWrite,
+  quizSessionWrite,
+  type QuizSessionEvent,
+  type QuizSessionWrite,
+} from '@/utils/quizSessionPhase';
+import {
+  initialQuizTeacherSessionState,
+  loadedValue,
+  quizTeacherSessionReducer,
+} from '@/utils/quizTeacherSessionState';
 import { findQuizSessionsByCode } from '@/utils/quizJoinCodes';
 import {
   createLeadingTrailingThrottle,
@@ -1184,24 +1200,23 @@ export interface UseQuizSessionTeacherResult {
 export const useQuizSessionTeacher = (
   sessionId: string | undefined | null
 ): UseQuizSessionTeacherResult => {
-  const [rawSession, setSession] = useState<QuizSession | null>(null);
-  const [content, setContent] = useState<QuizSessionContent | null>(null);
-  const [contentLoaded, setContentLoaded] = useState(false);
-  const [rawResponses, setResponses] = useState<QuizResponse[]>([]);
-  const [loading, setLoading] = useState<boolean>(!!sessionId);
+  const [state, dispatch] = useReducer(
+    quizTeacherSessionReducer,
+    sessionId,
+    initialQuizTeacherSessionState
+  );
   const advancingRef = useRef(false);
+  const [autoRetry, setAutoRetry] = useState(0);
 
-  // Adjust state during render when sessionId changes — avoids state-in-effect
-  // anti-pattern while still clearing stale data when the selection changes.
-  const [prevSessionId, setPrevSessionId] = useState(sessionId);
-  if (sessionId !== prevSessionId) {
-    setPrevSessionId(sessionId);
-    setSession(null);
-    setContent(null);
-    setContentLoaded(false);
-    setResponses([]);
-    setLoading(!!sessionId);
+  // Adjust state during render when sessionId changes, clearing stale data from the previous selection.
+  if (sessionId !== state.sessionId) {
+    dispatch({ type: 'select', sessionId });
   }
+  const rawSession = loadedValue(state.session);
+  const content = loadedValue(state.content);
+  const contentLoaded = state.content.kind === 'loaded';
+  const rawResponses = state.responses;
+  const loading = state.session.kind === 'loading';
 
   const inContent = rawSession?.questionsInContent === true;
   useEffect(() => {
@@ -1215,12 +1230,14 @@ export const useQuizSessionTeacher = (
         QUIZ_CONTENT_DOC
       ),
       (snap) => {
-        setContent(snap.exists() ? (snap.data() as QuizSessionContent) : null);
-        setContentLoaded(true);
+        dispatch({
+          type: 'contentSnapshot',
+          content: snap.exists() ? (snap.data() as QuizSessionContent) : null,
+        });
       },
       (err) => {
         console.error('[useQuizSessionTeacher] content listener error:', err);
-        setContentLoaded(true);
+        dispatch({ type: 'contentError' });
       }
     );
   }, [sessionId, inContent]);
@@ -1241,12 +1258,12 @@ export const useQuizSessionTeacher = (
     return onSnapshot(
       sessionRef,
       (snap) => {
-        setSession(
-          normalizeQuizSession(
+        dispatch({
+          type: 'sessionSnapshot',
+          session: normalizeQuizSession(
             snap.exists() ? (snap.data() as QuizSession) : null
-          )
-        );
-        setLoading(false);
+          ),
+        });
       },
       (err) => {
         const code = (err as { code?: string }).code;
@@ -1255,7 +1272,7 @@ export const useQuizSessionTeacher = (
           `[useQuizSessionTeacher] session listener error at ${path} (code=${code ?? 'unknown'}):`,
           err
         );
-        setLoading(false);
+        dispatch({ type: 'sessionError' });
       }
     );
   }, [sessionId]);
@@ -1284,7 +1301,7 @@ export const useQuizSessionTeacher = (
     // edge fires immediately; a trailing timer flushes the last snapshot in
     // the window so the final state is never stale.
     const throttle = createLeadingTrailingThrottle<QuizResponse[]>(
-      setResponses,
+      (list) => dispatch({ type: 'responses', responses: list }),
       RESPONSES_THROTTLE_MS
     );
 
@@ -1318,6 +1335,7 @@ export const useQuizSessionTeacher = (
     };
   }, [sessionId]);
 
+  // Same update as Submit for student and the idle sweep, one transaction per response.
   const finalizeAllResponses = useCallback(async () => {
     if (!sessionId) return;
     const responsesRef = collection(
@@ -1327,28 +1345,30 @@ export const useQuizSessionTeacher = (
       RESPONSES_COLLECTION
     );
     const snap = await getDocs(responsesRef);
-    const batch = writeBatch(db);
-    let count = 0;
-    snap.docs.forEach((d) => {
-      const data = d.data() as QuizResponse;
-      if (data.status === 'in-progress' || data.status === 'joined') {
-        // Bump `completedAttempts` so the join-side cap check sees this
-        // forced finalize as a real completed attempt. Without the bump,
-        // the doc lands at `status: 'completed', completedAttempts: 0`
-        // and a later rejoin's `completed >= limit` check reads 0,
-        // letting the student through under the cap.
-        batch.update(d.ref, {
-          status: 'completed',
-          submittedAt: Date.now(),
-          completedAttempts: increment(1),
-        });
-        count++;
-      }
-    });
-    if (count > 0) {
-      await batch.commit();
-    }
-  }, [sessionId]);
+    const questionIds = (session?.publicQuestions ?? []).map((q) => q.id);
+    const completenessModel = session?.completenessModel;
+    const now = Date.now();
+    const results = await Promise.allSettled(
+      snap.docs
+        .filter((d) => canTeacherSubmit(d.data() as QuizResponse))
+        .map((d) =>
+          runTransaction(db, async (tx) => {
+            const fresh = await tx.get(d.ref);
+            if (!fresh.exists()) return;
+            const update = buildTeacherSubmitUpdate(
+              fresh.data() as QuizResponse,
+              { questionIds, completenessModel },
+              now
+            );
+            if (update) tx.update(d.ref, update);
+          })
+        )
+    );
+    const failed = results.find(
+      (r): r is PromiseRejectedResult => r.status === 'rejected'
+    );
+    if (failed) throw failed.reason;
+  }, [sessionId, session?.publicQuestions, session?.completenessModel]);
 
   const removeStudent = useCallback(
     async (responseKey: string) => {
@@ -1759,100 +1779,63 @@ export const useQuizSessionTeacher = (
     [sessionId]
   );
 
+  // Writes only if the stored session is still on the step this tab showed, so a stale tab can't move it twice.
+  const checkedSessionWrite = useCallback(
+    async (
+      seen: QuizSession,
+      event: QuizSessionEvent
+    ): Promise<QuizSessionWrite | null> => {
+      if (!sessionId) return null;
+      const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, sessionId);
+      return runTransaction(db, async (tx) => {
+        const snap = await tx.get(sessionRef);
+        const stored = snap.exists() ? (snap.data() as QuizSession) : undefined;
+        const write = checkedQuizSessionWrite(seen, stored, event, Date.now());
+        if (write) tx.update(sessionRef, write.patch);
+        return write;
+      });
+    },
+    [sessionId]
+  );
+
   const advanceQuestion = useCallback(async () => {
     if (!sessionId || !session) return;
-    const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, sessionId);
-
-    const isReviewing = session.questionPhase === 'reviewing';
-
-    // If podium is enabled and we're not already reviewing, enter review phase first.
-    // Skip review phase for student-paced mode (students control their own flow).
-    if (
-      !isReviewing &&
-      session.showPodiumBetweenQuestions &&
-      session.sessionMode !== 'student' &&
-      session.status === 'active'
-    ) {
-      await updateDoc(sessionRef, {
-        questionPhase: 'reviewing',
-        autoProgressAt: null,
-      });
-      return;
-    }
-
-    // Actually advance to next question
-    const nextIndex = session.currentQuestionIndex + 1;
-
-    if (nextIndex >= session.totalQuestions) {
-      await updateDoc(sessionRef, {
-        status: 'ended' as QuizSessionStatus,
-        currentQuestionIndex: session.totalQuestions,
-        endedAt: Date.now(),
-        autoProgressAt: null,
-        questionPhase: deleteField(),
-      });
-      await finalizeAllResponses();
-      return;
-    }
-    await updateDoc(sessionRef, {
-      status: 'active' as QuizSessionStatus,
-      currentQuestionIndex: nextIndex,
-      autoProgressAt: null,
-      questionPhase: 'answering',
-      ...(session.startedAt === null ? { startedAt: Date.now() } : {}),
-    });
-  }, [sessionId, session, finalizeAllResponses]);
+    if (!quizSessionWrite(session, { type: 'advance' }, Date.now())) return;
+    const write = await checkedSessionWrite(session, { type: 'advance' });
+    if (write?.finalize) await finalizeAllResponses();
+  }, [sessionId, session, checkedSessionWrite, finalizeAllResponses]);
 
   const endQuizSession = useCallback(async () => {
     if (!sessionId) return;
-
-    // 1. End the session
-    await updateDoc(doc(db, QUIZ_SESSIONS_COLLECTION, sessionId), {
-      status: 'ended' as QuizSessionStatus,
-      endedAt: Date.now(),
-      autoProgressAt: null,
-    });
-
-    // 2. Mark all active students as completed so their data is preserved in results
+    await updateDoc(
+      doc(db, QUIZ_SESSIONS_COLLECTION, sessionId),
+      endSessionPatch('quiz', Date.now())
+    );
+    // Mark all active students as completed so their data is preserved in results.
     await finalizeAllResponses();
   }, [sessionId, finalizeAllResponses]);
 
   // ─── Auto-progress logic ────────────────────────────────────────────────────
   useEffect(() => {
-    if (!sessionId || !session || session.sessionMode !== 'auto') return;
-    if (session.status !== 'active') return;
-
+    if (!sessionId || !session) return;
+    // All students answered: with podium on, review first, then auto-advance.
+    const write = quizSessionWrite(
+      session,
+      { type: 'everyoneAnswered' },
+      Date.now()
+    );
     const currentQId =
       session.publicQuestions[session.currentQuestionIndex]?.id;
-    if (!currentQId) return;
-
-    // Check if everyone has answered (only if there are students)
-    const activeResponses = responses.filter((r) => r.status !== 'joined');
-    const everyoneAnswered =
-      activeResponses.length > 0 &&
-      activeResponses.every((r) =>
-        r.answers.some((a) => a.questionId === currentQId)
-      );
-
-    if (
-      everyoneAnswered &&
-      !session.autoProgressAt &&
-      session.questionPhase !== 'reviewing'
-    ) {
-      // All students answered: if podium is enabled, enter review first, then auto-advance
-      const shouldReview = session.showPodiumBetweenQuestions;
-      const advanceAt = Date.now() + 5000;
-      const updates: Record<string, unknown> = {
-        autoProgressAt: advanceAt,
-      };
-      if (shouldReview) {
-        updates.questionPhase = 'reviewing';
-      }
-      updateDoc(doc(db, QUIZ_SESSIONS_COLLECTION, sessionId), updates).catch(
-        (err) => console.error('[AutoProgress] update failed:', err)
-      );
-    }
-  }, [responses, session, sessionId]);
+    if (!write || !currentQId) return;
+    if (!everyoneAnsweredQuestion(responses, currentQId)) return;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    checkedSessionWrite(session, { type: 'everyoneAnswered' }).catch((err) => {
+      console.error('[AutoProgress] update failed:', err);
+      // A failed transaction doesn't queue like updateDoc did, so try again.
+      retry = setTimeout(() => setAutoRetry((n) => n + 1), 2000);
+    });
+    return () => clearTimeout(retry);
+  }, [responses, session, sessionId, checkedSessionWrite, autoRetry]);
 
   // Handle the actual auto-advance when the timestamp is reached
   useEffect(() => {
@@ -1860,10 +1843,11 @@ export const useQuizSessionTeacher = (
 
     const timer = setInterval(() => {
       if (Date.now() >= (session.autoProgressAt ?? 0)) {
-        clearInterval(timer);
         if (advancingRef.current) return;
         advancingRef.current = true;
+        // Keep ticking until the advance lands, so a failed transaction retries.
         advanceQuestion()
+          .then(() => clearInterval(timer))
           .catch((err) => console.error('[AutoProgress] advance failed:', err))
           .finally(() => {
             advancingRef.current = false;
@@ -2352,10 +2336,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         setError(null);
         const matches = await findQuizSessionsByCode(normCode);
         if (matches.length === 0) return null;
-        const joinable = matches.filter((m) => {
-          const s = m.data.status;
-          return s === 'waiting' || s === 'active' || s === 'paused';
-        });
+        const joinable = matches.filter((m) => acceptsStudents('quiz', m.data));
         if (joinable.length === 0) return null;
         // Match joinQuizSession's selection: prefer the most recently created.
         joinable.sort(
@@ -2454,10 +2435,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // active / paused) before picking one, otherwise docs[0] may be the
         // stale ended session and students get rejected despite a live
         // session existing.
-        const joinable = matches.filter((m) => {
-          const s = m.data.status;
-          return s === 'waiting' || s === 'active' || s === 'paused';
-        });
+        const joinable = matches.filter((m) => acceptsStudents('quiz', m.data));
         if (joinable.length === 0) {
           throw new SessionEndedError();
         }
@@ -3228,9 +3206,18 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // flipped the doc to `'completed'`, a late autosave/draft write
         // arriving here (visibility-hidden flush, beforeunload, retry on
         // a quiz the student already finished) must not revert to
-        // `'in-progress'`.
-        const nextStatus =
-          existing.status === 'completed' ? 'completed' : 'in-progress';
+        // `'in-progress'`. A draft reads the cached doc, which can predate a
+        // teacher's finalize, so it only ever moves `joined` forward.
+        const statusPatch = isDraft
+          ? existing.status === 'joined'
+            ? { status: 'in-progress' as const }
+            : {}
+          : {
+              status:
+                existing.status === 'completed'
+                  ? ('completed' as const)
+                  : ('in-progress' as const),
+            };
 
         return {
           skip: false,
@@ -3244,7 +3231,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             // it, so a student who toggles tabs without answering still
             // ages out as expected. Server-stamped so client clock skew
             // can't trigger spurious auto-submit or evade it.
-            status: nextStatus,
+            ...statusPatch,
             answers: updated,
             lastWriteAt: serverTimestamp(),
             // Snapshot the served subset (M17) only when it differs from what

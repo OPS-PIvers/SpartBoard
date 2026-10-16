@@ -64,9 +64,6 @@ export const MAX_ACTIVITY_PER_PLC = 500;
 /** Max event lines rendered in a single digest body (the long tail is summarised by count). */
 export const MAX_DIGEST_LINES = 25;
 
-/** Team updates (TEAMS_REDESIGN T27) join the digest only where the lead has this flag. */
-export const TEAMS_REDESIGN_FEATURE_ID = 'teams-redesign';
-
 /** Max update docs scanned per team per run. */
 export const MAX_UPDATES_PER_PLC = 50;
 
@@ -107,11 +104,6 @@ export interface DigestUpdate {
   createdAt: number;
   /** The lead asked members to acknowledge it in the app. */
   requiresAck?: boolean;
-}
-
-export interface DigestDeps {
-  /** Whether a lead has the teams-redesign flag; absent means updates are left out. */
-  updatesGranted?: (email: string | null, uid: string) => Promise<boolean>;
 }
 
 // ───────────────────────── pure helpers (exported for tests) ───────────────
@@ -436,22 +428,6 @@ async function readWindowedUpdates(
   return out;
 }
 
-/** The lead's uid and email, from the members map or the legacy mirror. */
-export function leadIdentity(
-  plc: Record<string, unknown>
-): { uid: string; email: string | null } | null {
-  const uid = typeof plc.leadUid === 'string' ? plc.leadUid : '';
-  if (!uid) return null;
-  const members = (plc.members ?? {}) as Record<string, { email?: unknown }>;
-  const emails = (plc.memberEmails ?? {}) as Record<string, unknown>;
-  const raw = members[uid]?.email ?? emails[uid];
-  return {
-    uid,
-    email:
-      typeof raw === 'string' && raw.includes('@') ? raw.toLowerCase() : null,
-  };
-}
-
 interface DigestRunCounts {
   plcsConsidered: number;
   optedIn: number;
@@ -467,19 +443,8 @@ interface DigestRunCounts {
  */
 export async function runPlcWeeklyDigest(
   db: Firestore,
-  now: number = Date.now(),
-  deps: DigestDeps = {}
+  now: number = Date.now()
 ): Promise<DigestRunCounts> {
-  const grantedByLead = new Map<string, Promise<boolean>>();
-  const updatesOnFor = (plc: Record<string, unknown>): Promise<boolean> => {
-    const lead = leadIdentity(plc);
-    if (!deps.updatesGranted || !lead) return Promise.resolve(false);
-    const cached = grantedByLead.get(lead.uid);
-    if (cached) return cached;
-    const check = deps.updatesGranted(lead.email, lead.uid).catch(() => false);
-    grantedByLead.set(lead.uid, check);
-    return check;
-  };
   const counts: DigestRunCounts = {
     plcsConsidered: 0,
     optedIn: 0,
@@ -516,9 +481,7 @@ export async function runPlcWeeklyDigest(
       counts.optedIn += 1;
 
       const events = await readWindowedActivity(plcDoc.ref, now);
-      const updates = (await updatesOnFor(plc))
-        ? await readWindowedUpdates(plcDoc.ref, now)
-        : [];
+      const updates = await readWindowedUpdates(plcDoc.ref, now);
       if (events.length === 0 && updates.length === 0) {
         counts.skippedNoActivity += 1;
         continue;
@@ -591,12 +554,7 @@ export const plcWeeklyDigest = onSchedule(
     timeoutSeconds: 540,
   },
   async () => {
-    const db = admin.firestore();
-    const { isGlobalFeatureGranted } = await import('./quizMediaArchive');
-    const counts = await runPlcWeeklyDigest(db, Date.now(), {
-      updatesGranted: (email, uid) =>
-        isGlobalFeatureGranted(db, TEAMS_REDESIGN_FEATURE_ID, email, uid),
-    });
+    const counts = await runPlcWeeklyDigest(admin.firestore(), Date.now());
     logger.info('plcWeeklyDigest: run complete', counts);
   }
 );

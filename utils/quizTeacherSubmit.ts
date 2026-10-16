@@ -20,9 +20,10 @@ function servedQuestionIds(
 }
 
 /**
- * The response update that turns in a student's saved work, matching the idle
- * auto-submit sweep: drafts become submitted, unreached questions are marked
- * abandoned on sessions that understand them, and a blank attempt uses no slot.
+ * The response update that turns in a student's saved work, used by Submit for
+ * student and the teacher's End and mirrored by functions/src/quizFinalize.ts:
+ * drafts become submitted, unreached questions are marked abandoned on sessions
+ * that understand them, and a blank attempt uses no slot.
  * Returns null when the response is already turned in.
  */
 export function buildTeacherSubmitUpdate(

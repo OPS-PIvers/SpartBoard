@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useReducer } from 'react';
 import {
   doc,
   onSnapshot,
@@ -6,12 +6,21 @@ import {
   setDoc,
   collection,
   deleteDoc,
+  deleteField,
+  getDoc,
   query,
   where,
   getDocs,
 } from 'firebase/firestore';
 import { db, auth } from '@/config/firebase';
 import { LiveSession, LiveStudent, WidgetType, WidgetConfig } from '@/types';
+import {
+  deriveLiveSessionState,
+  initialLiveSessionState,
+  liveSessionReducer,
+  startKind,
+  type StudentConnection,
+} from '@/utils/liveSessionState';
 
 // Constants for Firestore Paths
 const SESSIONS_COLLECTION = 'sessions';
@@ -112,6 +121,7 @@ export interface UseLiveSessionResult {
   studentId: string | null;
   studentPin: string | null;
   individualFrozen: boolean;
+  connection: StudentConnection;
 }
 
 export const useLiveSession = (
@@ -120,15 +130,13 @@ export const useLiveSession = (
   joinCode?: string,
   canAccess: boolean = true
 ): UseLiveSessionResult => {
-  const [session, setSession] = useState<LiveSession | null>(null);
-  const [students, setStudents] = useState<LiveStudent[]>([]);
-  const [loading, setLoading] = useState(() => {
-    if (role === 'student' && !joinCode) return false;
-    return role === 'teacher' || (role === 'student' && !!joinCode);
-  });
-  const [studentId, setStudentId] = useState<string | null>(null);
-  const [studentPin, setStudentPin] = useState<string | null>(null);
-  const [individualFrozen, setIndividualFrozen] = useState(false);
+  const [state, dispatch] = useReducer(liveSessionReducer, undefined, () =>
+    initialLiveSessionState(role, joinCode)
+  );
+  const { session, loading, students, connection } = state;
+  const studentId = connection.kind === 'joined' ? connection.studentId : null;
+  const studentPin = connection.kind === 'joined' ? connection.pin : null;
+  const individualFrozen = connection.kind === 'joined' && connection.frozen;
 
   // ⚡ REACT BEST PRACTICE: Adjusting state during rendering
   // We track prop/state changes that require resetting other state to prevent extra re-renders
@@ -156,13 +164,15 @@ export const useLiveSession = (
 
     // 2. Synchronously adjust derived states
     const targetId = role === 'teacher' ? userId : joinCode;
-    if (!targetId) {
-      setSession(null);
-      setLoading(false);
-    }
+    // A student switching codes drops the old session, so its widget can't show before the new one loads.
+    const switchedCode =
+      role !== 'teacher' &&
+      !!prevDeps.joinCode &&
+      joinCode !== prevDeps.joinCode;
+    if (!targetId || switchedCode) dispatch({ type: 'targetCleared' });
 
     if (role !== 'teacher' || !userId || !session?.isActive) {
-      setStudents([]);
+      dispatch({ type: 'rosterCleared' });
     }
   }
 
@@ -180,17 +190,15 @@ export const useLiveSession = (
       sessionRef,
       (docSnap) => {
         if (!isCurrent) return;
-        if (docSnap.exists()) {
-          setSession(docSnap.data() as LiveSession);
-        } else {
-          setSession(null);
-        }
-        setLoading(false);
+        dispatch({
+          type: 'sessionSnapshot',
+          session: docSnap.exists() ? (docSnap.data() as LiveSession) : null,
+        });
       },
       (err) => {
         if (!isCurrent) return;
         console.error('Session subscription error:', err);
-        setLoading(false);
+        dispatch({ type: 'sessionError' });
       }
     );
 
@@ -220,41 +228,7 @@ export const useLiveSession = (
         id: doc.id,
       })) as LiveStudent[];
 
-      // Only update state if the data has actually changed to prevent unnecessary re-renders
-      // ⚡ BOLT OPTIMIZATION: Replaced expensive JSON.stringify deep-equality check with a fast,
-      // direct property comparison loop to prevent blocking the main thread during frequent live session updates.
-      // The positional fast path compares prev[i] to studentList[i] without allocating, since Firestore
-      // returns docs in a stable order; we only build a Map (and even then keep prev) when the order shifts.
-      setStudents((prev) => {
-        if (prev.length !== studentList.length) return studentList;
-
-        const studentsEqual = (a: LiveStudent, b: LiveStudent) =>
-          a.id === b.id &&
-          a.pin === b.pin &&
-          a.status === b.status &&
-          a.joinedAt === b.joinedAt &&
-          a.lastActive === b.lastActive;
-
-        let orderChanged = false;
-        for (let i = 0; i < studentList.length; i++) {
-          if (!studentsEqual(prev[i], studentList[i])) {
-            orderChanged = true;
-            break;
-          }
-        }
-        if (!orderChanged) return prev;
-
-        // Order shifted: fall back to an id-keyed comparison before allocating a new array.
-        const prevMap = new Map(prev.map((s) => [s.id, s]));
-        for (const newStudent of studentList) {
-          const prevStudent = prevMap.get(newStudent.id);
-          if (!prevStudent || !studentsEqual(prevStudent, newStudent)) {
-            return studentList;
-          }
-        }
-
-        return prev;
-      });
+      dispatch({ type: 'rosterSnapshot', students: studentList });
     });
 
     return () => {
@@ -279,11 +253,11 @@ export const useLiveSession = (
     );
     const unsubscribeStudent = onSnapshot(myStudentRef, (docSnap) => {
       if (!isCurrent) return;
-      if (docSnap.exists()) {
-        const studentData = docSnap.data() as LiveStudent;
-        setIndividualFrozen(studentData.status === 'frozen');
-        setStudentPin(studentData.pin);
-      }
+      dispatch({
+        type: 'myRecordSnapshot',
+        studentId,
+        record: docSnap.exists() ? (docSnap.data() as LiveStudent) : null,
+      });
     });
 
     return () => {
@@ -367,9 +341,7 @@ export const useLiveSession = (
     };
 
     await setDoc(doc(studentsRef, uid), newStudent);
-    setStudentId(uid);
-    setStudentPin(sanitizedPin);
-    setIndividualFrozen(false);
+    dispatch({ type: 'joined', studentId: uid, pin: sanitizedPin });
     return teacherId;
   };
 
@@ -384,14 +356,12 @@ export const useLiveSession = (
     );
     try {
       await updateDoc(studentRef, { status: 'disconnected' });
-      setStudentId(null);
-      setStudentPin(null);
-      setIndividualFrozen(false);
-      setSession(null);
     } catch (err) {
       console.error('Failed to leave session:', err);
+    } finally {
+      dispatch({ type: 'left' });
     }
-  }, [role, joinCode, studentId, setStudentId, setStudentPin, setSession]);
+  }, [role, joinCode, studentId]);
 
   const removeStudent = useCallback(
     async (targetStudentId: string) => {
@@ -421,6 +391,42 @@ export const useLiveSession = (
         throw new Error('Not authenticated');
       }
 
+      const sessionRef = doc(db, SESSIONS_COLLECTION, userId);
+      const current = await getDoc(sessionRef).catch((err) => {
+        console.error('Failed to read current session:', err);
+        return null;
+      });
+      const currentSession = current?.exists()
+        ? (current.data() as LiveSession)
+        : null;
+
+      // Already live on another widget: switch the broadcast, keeping the roster and join code.
+      if (
+        currentSession &&
+        startKind(deriveLiveSessionState(currentSession)) === 'switch'
+      ) {
+        await updateDoc(sessionRef, {
+          activeWidgetId: widgetId,
+          activeWidgetType: widgetType,
+          activeWidgetConfig: config ?? deleteField(),
+          background: background ?? deleteField(),
+          frozen: false,
+        }).catch((err) => {
+          console.error('Failed to switch live widget:', err);
+          throw err;
+        });
+        const switched: LiveSession = {
+          ...currentSession,
+          id: userId,
+          activeWidgetId: widgetId,
+          activeWidgetType: widgetType,
+          activeWidgetConfig: config,
+          background,
+          frozen: false,
+        };
+        return switched;
+      }
+
       // Clear existing students for a fresh start
       const studentsRef = collection(
         db,
@@ -434,7 +440,6 @@ export const useLiveSession = (
         console.error('Failed to clear old students:', err);
       });
 
-      const sessionRef = doc(db, SESSIONS_COLLECTION, userId);
       const newSession: LiveSession = {
         id: userId,
         isActive: true,
@@ -572,5 +577,6 @@ export const useLiveSession = (
     studentId,
     studentPin,
     individualFrozen,
+    connection,
   };
 };

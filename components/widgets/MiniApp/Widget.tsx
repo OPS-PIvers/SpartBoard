@@ -1224,6 +1224,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       }
 
       if (user?.uid) {
+        let rowId: string | undefined;
         try {
           const snap = await getDocs(
             query(
@@ -1233,17 +1234,17 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               limit(1)
             )
           );
-          const row = snap.docs[0];
-          if (row) {
-            await endAssignment(row.id);
-            return;
-          }
+          rowId = snap.docs[0]?.id;
         } catch (err) {
           // Fall through to endSession; logging only.
           console.warn(
             '[MiniAppWidget] miniapp_assignments lookup failed; ending session directly',
             err
           );
+        }
+        if (rowId) {
+          await endAssignment(rowId);
+          return;
         }
       }
 

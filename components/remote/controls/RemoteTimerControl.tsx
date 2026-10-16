@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Play, Pause, RotateCcw } from 'lucide-react';
 import { WidgetData, TimeToolConfig } from '@/types';
+import {
+  clockStateOf,
+  secondsAt,
+  timeToolClockPatch,
+  type TimeToolClockEvent,
+} from '@/utils/timeToolClock';
 
 interface RemoteTimerControlProps {
   widget: WidgetData;
@@ -9,7 +15,8 @@ interface RemoteTimerControlProps {
 
 const PRESET_SECONDS = [60, 120, 180, 300, 600] as const;
 
-const formatTime = (seconds: number): string => {
+const formatTime = (totalSeconds: number): string => {
+  const seconds = Math.floor(totalSeconds);
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
@@ -30,62 +37,27 @@ export const RemoteTimerControl: React.FC<RemoteTimerControlProps> = ({
     return () => clearInterval(id);
   }, [config.isRunning]);
 
+  const send = (event: TimeToolClockEvent) => {
+    const patch = timeToolClockPatch(config, event);
+    if (patch) updateWidget(widget.id, { config: { ...config, ...patch } });
+  };
+
   const togglePlay = () => {
     const ts = Date.now();
-    if (config.isRunning) {
-      const delta = config.startTime
-        ? Math.floor((ts - config.startTime) / 1000)
-        : 0;
-      const timeToSave = isTimer
-        ? Math.max(0, config.elapsedTime - delta)
-        : config.elapsedTime + delta;
-      updateWidget(widget.id, {
-        config: {
-          ...config,
-          isRunning: false,
-          elapsedTime: timeToSave,
-          startTime: null,
-        },
-      });
-    } else {
-      updateWidget(widget.id, {
-        config: { ...config, isRunning: true, startTime: ts },
-      });
-    }
+    send(
+      config.isRunning
+        ? { type: 'pause', now: ts, wholeSecondSteps: true }
+        : { type: 'start', now: ts }
+    );
   };
 
-  const resetTimer = () => {
-    const resetTime = isTimer ? config.duration : 0;
-    updateWidget(widget.id, {
-      config: {
-        ...config,
-        isRunning: false,
-        elapsedTime: resetTime,
-        startTime: null,
-      },
-    });
-  };
+  const resetTimer = () => send({ type: 'reset' });
 
-  const setPreset = (seconds: number) => {
-    updateWidget(widget.id, {
-      config: {
-        ...config,
-        duration: seconds,
-        isRunning: false,
-        elapsedTime: seconds,
-        startTime: null,
-      },
-    });
-  };
+  const setPreset = (seconds: number) => send({ type: 'setTime', seconds });
 
-  const delta =
-    config.isRunning && config.startTime
-      ? Math.floor((now - config.startTime) / 1000)
-      : 0;
-  const displayTime = isTimer
-    ? Math.max(0, config.elapsedTime - delta)
-    : config.elapsedTime + delta;
+  const displayTime = secondsAt(config, now, { wholeSecondSteps: true });
   const remaining = displayTime;
+  const isExpired = clockStateOf(config).phase === 'expired';
   const progress =
     isTimer && config.duration > 0
       ? Math.min(1, 1 - displayTime / config.duration)
@@ -143,7 +115,8 @@ export const RemoteTimerControl: React.FC<RemoteTimerControlProps> = ({
         </button>
         <button
           onClick={togglePlay}
-          className={`touch-manipulation w-20 h-20 rounded-full border-2 text-white flex items-center justify-center transition-all active:scale-95 shadow-lg focus-visible:ring-2 focus-visible:ring-blue-400/60 ${
+          disabled={isExpired}
+          className={`touch-manipulation w-20 h-20 rounded-full border-2 text-white flex items-center justify-center transition-all active:scale-95 shadow-lg focus-visible:ring-2 focus-visible:ring-blue-400/60 disabled:opacity-30 disabled:cursor-not-allowed ${
             config.isRunning
               ? 'bg-red-500/80 border-red-400 hover:bg-red-500'
               : 'bg-blue-500/80 border-blue-400 hover:bg-blue-500'

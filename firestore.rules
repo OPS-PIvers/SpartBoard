@@ -5361,7 +5361,11 @@ service cloud.firestore {
         sameId() &&
         unchanged('activityId') &&
         unchanged('teacherUid') &&
-        unchanged('createdAt');
+        unchanged('createdAt') &&
+        // An ended live (board-paced) run stays ended: its students have already been finished.
+        !(existing().get('sessionMode', 'student') == 'teacher' &&
+          existing().get('status', '') == 'ended' &&
+          incoming().get('status', '') != 'ended');
       // Owning teacher (or admin) may delete (VA "Delete permanently" cleanup).
       // Mirrors GL sessions.
       allow delete: if vaOwner(existing());
@@ -5531,11 +5535,11 @@ service cloud.firestore {
       allow create: if signedIn() &&
         notAnon() &&
         incoming().teacherUid == authUid();
-      // Teachers can rename or end their own sessions (assignmentName, status, endedAt only)
+      // Teachers can rename, end, re-window or re-period their own sessions
       allow update: if signedIn() &&
         notAnon() &&
         existing().teacherUid == authUid() &&
-        changedOnly(['assignmentName', 'status', 'endedAt', 'periodAccess', 'studentAccess', 'workKind']) &&
+        changedOnly(['assignmentName', 'status', 'endedAt', 'periodAccess', 'studentAccess', 'workKind', 'openAt', 'closeAt', 'dueAt']) &&
         incoming().status in ['active', 'ended'];
       allow delete: if false;
 
@@ -6443,6 +6447,12 @@ service cloud.firestore {
         function fcWithinWindow() {
           return beforeClose(fcSession()) && afterOpen(fcSession());
         }
+        // Flashcards-mode Checks grade from mastery, so only recordFlashcardCheckRatingsV1 writes cards.
+        function fcCardsOk() {
+          return fcSession().kind == 'check' && fcSession().get('checkMode', '') == 'flashcards'
+            ? incoming().get('cards', null) == (resource == null ? null : existing().get('cards', null))
+            : incoming().cards is map;
+        }
         function fcValidProgress() {
           let data = incoming();
           return data.keys().hasOnly([
@@ -6450,7 +6460,7 @@ service cloud.firestore {
                    'tests', 'lastActiveAt', 'checkLog'
                  ])
                  && data.classId is string
-                 && data.cards is map
+                 && fcCardsOk()
                  && data.starred is list
                  && data.round is int
                  && data.studyMs is int

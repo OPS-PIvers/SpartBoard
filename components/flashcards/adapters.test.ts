@@ -4,6 +4,7 @@ import {
   MemoryFlashcardAdapter,
   TrackedFlashcardAdapter,
   type FlashcardProgressWrite,
+  type FlashcardRating,
 } from './adapters';
 
 describe('flashcard progress adapters', () => {
@@ -175,5 +176,120 @@ describe('TrackedFlashcardAdapter', () => {
     expect(payloads).toHaveLength(2);
     expect(Object.keys(payloads[1]?.cards ?? {})).toEqual(['card-a']);
     consoleError.mockRestore();
+  });
+
+  it('sends ratings instead of cards when the server owns mastery', async () => {
+    const writes: FlashcardProgressWrite[] = [];
+    const batches: FlashcardRating[][] = [];
+    let fail = true;
+    const adapter = new TrackedFlashcardAdapter({
+      classId: 'class-a',
+      initial: null,
+      write: (payload) => {
+        writes.push(payload);
+        return Promise.resolve();
+      },
+      rate: (ratings) => {
+        batches.push(ratings);
+        return fail ? Promise.reject(new Error('offline')) : Promise.resolve();
+      },
+    });
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    adapter.record('card-a', true, 1);
+    await adapter.flush();
+    expect(writes[0]).not.toHaveProperty('cards');
+    expect(adapter.load().cards['card-a']).toEqual({
+      s: 1,
+      due: 2,
+      c: 1,
+      w: 0,
+    });
+    fail = false;
+    adapter.record('card-b', false, 2);
+    await adapter.flush();
+    expect(batches).toEqual([
+      [{ cardId: 'card-a', correct: true, round: 1 }],
+      [
+        { cardId: 'card-a', correct: true, round: 1 },
+        { cardId: 'card-b', correct: false, round: 2 },
+      ],
+    ]);
+    consoleError.mockRestore();
+  });
+
+  it('writes nothing after discard', async () => {
+    vi.useFakeTimers();
+    const { adapter, writes } = setup();
+    adapter.record('card-a', true, 1);
+    adapter.discard();
+    await vi.advanceTimersByTimeAsync(10_000);
+    await adapter.flush();
+    expect(writes).toHaveLength(0);
+  });
+
+  it('skips a pending write and rating once discarded mid-flush', async () => {
+    let release: () => void = () => undefined;
+    const writes: FlashcardProgressWrite[] = [];
+    const rate = vi.fn(() => Promise.resolve());
+    const adapter = new TrackedFlashcardAdapter({
+      classId: 'class-a',
+      initial: null,
+      write: (payload) => {
+        writes.push(payload);
+        return new Promise<void>((done) => {
+          release = done;
+        });
+      },
+      rate,
+    });
+    adapter.record('card-a', true, 1);
+    const first = adapter.flush();
+    await vi.waitFor(() => expect(writes).toHaveLength(1));
+    adapter.record('card-b', true, 1);
+    const second = adapter.flush();
+    adapter.discard();
+    release();
+    await first;
+    await second;
+    expect(writes).toHaveLength(1);
+    expect(rate).not.toHaveBeenCalled();
+  });
+
+  it('splits a long rating queue into callable-sized batches', async () => {
+    const batches: FlashcardRating[][] = [];
+    const adapter = new TrackedFlashcardAdapter({
+      classId: 'class-a',
+      initial: null,
+      write: () => Promise.resolve(),
+      rate: (ratings) => {
+        batches.push(ratings);
+        return Promise.resolve();
+      },
+    });
+    for (let round = 1; round <= 1200; round += 1) {
+      adapter.record('card-a', false, round);
+    }
+    await adapter.flush();
+    expect(batches.map((batch) => batch.length)).toEqual([500, 500, 200]);
+    expect(adapter.hasUnsentRatings()).toBe(false);
+  });
+  it('ignores a second rating of a card in the same round, as the server does', async () => {
+    const batches: FlashcardRating[][] = [];
+    const adapter = new TrackedFlashcardAdapter({
+      classId: 'class-a',
+      initial: null,
+      write: () => Promise.resolve(),
+      rate: (ratings) => {
+        batches.push(ratings);
+        return Promise.resolve();
+      },
+    });
+    adapter.record('card-a', true, 1);
+    const state = adapter.record('card-a', true, 1);
+    expect(state.cards['card-a']).toEqual({ s: 1, due: 2, c: 1, w: 0 });
+    await adapter.flush();
+    expect(batches).toEqual([[{ cardId: 'card-a', correct: true, round: 1 }]]);
   });
 });

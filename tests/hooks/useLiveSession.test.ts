@@ -259,6 +259,9 @@ describe('useLiveSession — startSession join-code collision avoidance', () => 
     (firestore.setDoc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
       undefined
     );
+    (firestore.getDoc as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+      { exists: () => false }
+    );
   });
 
   it('probes for an active session already using the candidate code, and retries on collision', async () => {
@@ -476,5 +479,301 @@ describe('useLiveSession — teacher student-list reference stability', () => {
 
     expect(result.current.students).not.toBe(firstRef);
     expect(result.current.students[0].status).toBe('frozen');
+  });
+});
+
+describe('useLiveSession — switching the broadcast widget', () => {
+  const asMock = (fn: unknown) => fn as ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    asMock(firestore.onSnapshot).mockImplementation(() => vi.fn());
+    asMock(firestore.doc).mockReturnValue({});
+    asMock(firestore.collection).mockReturnValue({});
+    asMock(firestore.query).mockReturnValue({});
+    asMock(firestore.where).mockReturnValue({});
+    asMock(firestore.setDoc).mockResolvedValue(undefined);
+    asMock(firestore.updateDoc).mockResolvedValue(undefined);
+    asMock(firestore.deleteDoc).mockResolvedValue(undefined);
+    asMock(firestore.getDocs).mockResolvedValue({ docs: [] });
+  });
+
+  it('keeps the roster and join code when already live on another widget', async () => {
+    asMock(firestore.getDoc).mockResolvedValue({
+      exists: () => true,
+      data: () => ({
+        id: 'teacher-uid-1',
+        isActive: true,
+        activeWidgetId: 'widget-1',
+        activeWidgetType: 'clock',
+        code: 'KEEP12',
+        frozen: true,
+        createdAt: 5,
+      }),
+    });
+
+    const { result } = renderHook(() =>
+      useLiveSession('teacher-uid-1', 'teacher')
+    );
+    let session: { code: string; activeWidgetId: string | null } | undefined;
+    await act(async () => {
+      session = await result.current.startSession('widget-2', 'poll');
+    });
+
+    expect(firestore.deleteDoc).not.toHaveBeenCalled();
+    expect(firestore.setDoc).not.toHaveBeenCalled();
+    expect(firestore.getDocs).not.toHaveBeenCalled();
+    expect(firestore.updateDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        activeWidgetId: 'widget-2',
+        activeWidgetType: 'poll',
+        frozen: false,
+      })
+    );
+    expect(session?.code).toBe('KEEP12');
+    expect(session?.activeWidgetId).toBe('widget-2');
+  });
+
+  it('clears the roster and mints a new code when the session had ended', async () => {
+    asMock(firestore.getDoc).mockResolvedValue({
+      exists: () => true,
+      data: () => ({ isActive: false, code: 'OLD123' }),
+    });
+    asMock(firestore.getDocs)
+      .mockResolvedValueOnce({ docs: [{ ref: 'student-ref' }] })
+      .mockResolvedValue({ docs: [] });
+
+    const { result } = renderHook(() =>
+      useLiveSession('teacher-uid-1', 'teacher')
+    );
+    await act(async () => {
+      await result.current.startSession('widget-2', 'poll');
+    });
+
+    expect(firestore.deleteDoc).toHaveBeenCalledWith('student-ref');
+    expect(firestore.setDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ isActive: true, activeWidgetId: 'widget-2' })
+    );
+  });
+});
+
+describe('useLiveSession — student removal and leaving', () => {
+  const asMock = (fn: unknown) => fn as ReturnType<typeof vi.fn>;
+  let pushMyDoc: ((exists: boolean, status?: string) => void) | null;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    pushMyDoc = null;
+    (auth as unknown as { currentUser: { uid: string } }).currentUser = {
+      uid: 'student-uid-1',
+    };
+    asMock(firestore.doc).mockImplementation((...args: unknown[]) => ({
+      path: args.slice(1).join('/'),
+    }));
+    asMock(firestore.collection).mockReturnValue({});
+    asMock(firestore.query).mockReturnValue({});
+    asMock(firestore.where).mockReturnValue({});
+    asMock(firestore.setDoc).mockResolvedValue(undefined);
+    asMock(firestore.getDocs)
+      .mockResolvedValueOnce({
+        docs: [{ id: 'teacher-uid-1', data: () => ({ isActive: true }) }],
+      })
+      .mockResolvedValue({ docs: [] });
+    asMock(firestore.onSnapshot).mockImplementation(
+      (ref: { path?: string }, cb: (snap: unknown) => void) => {
+        if (ref.path?.includes('/students/')) {
+          pushMyDoc = (exists, status = 'active') =>
+            cb({
+              exists: () => exists,
+              data: () => ({ pin: '1234', status }),
+            });
+        }
+        return vi.fn();
+      }
+    );
+  });
+
+  const joinAsStudent = async () => {
+    const hook = renderHook(() =>
+      useLiveSession(undefined, 'student', 'teacher-uid-1')
+    );
+    await act(async () => {
+      await hook.result.current.joinSession('1234', 'ABC123');
+    });
+    return hook;
+  };
+
+  it('returns a removed student to the join screen, even while frozen', async () => {
+    const { result } = await joinAsStudent();
+    act(() => pushMyDoc?.(true, 'frozen'));
+    expect(result.current.individualFrozen).toBe(true);
+    expect(result.current.studentId).toBe('student-uid-1');
+
+    act(() => pushMyDoc?.(false));
+    expect(result.current.studentId).toBeNull();
+    expect(result.current.individualFrozen).toBe(false);
+  });
+
+  it('leaves locally even when the disconnect write fails', async () => {
+    asMock(firestore.updateDoc).mockRejectedValue(new Error('not-found'));
+    const errorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const { result } = await joinAsStudent();
+    act(() => pushMyDoc?.(true, 'frozen'));
+
+    await act(async () => {
+      await result.current.leaveSession();
+    });
+    expect(result.current.studentId).toBeNull();
+    expect(result.current.individualFrozen).toBe(false);
+    errorSpy.mockRestore();
+  });
+});
+
+describe('useLiveSession — student follows the teacher', () => {
+  const asMock = (fn: unknown) => fn as ReturnType<typeof vi.fn>;
+  let pushSession: ((data: Record<string, unknown> | null) => void) | null;
+  let pushMyDoc: ((exists: boolean, status?: string) => void) | null;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    pushSession = null;
+    pushMyDoc = null;
+    (auth as unknown as { currentUser: { uid: string } }).currentUser = {
+      uid: 'student-uid-1',
+    };
+    asMock(firestore.doc).mockImplementation((...args: unknown[]) => ({
+      path: args.slice(1).join('/'),
+    }));
+    asMock(firestore.collection).mockReturnValue({});
+    asMock(firestore.query).mockReturnValue({});
+    asMock(firestore.where).mockReturnValue({});
+    asMock(firestore.setDoc).mockResolvedValue(undefined);
+    asMock(firestore.updateDoc).mockResolvedValue(undefined);
+    asMock(firestore.getDocs)
+      .mockResolvedValueOnce({
+        docs: [{ id: 'teacher-uid-1', data: () => ({ isActive: true }) }],
+      })
+      .mockResolvedValue({ docs: [] });
+    asMock(firestore.onSnapshot).mockImplementation(
+      (ref: { path?: string }, cb: (snap: unknown) => void) => {
+        if (ref.path?.includes('/students/')) {
+          pushMyDoc = (exists, status = 'active') =>
+            cb({
+              exists: () => exists,
+              data: () => ({ pin: '1234', status }),
+            });
+        } else {
+          pushSession = (data) =>
+            cb({ exists: () => data !== null, data: () => data });
+        }
+        return vi.fn();
+      }
+    );
+  });
+
+  const live = (over: Record<string, unknown> = {}) => ({
+    id: 'teacher-uid-1',
+    isActive: true,
+    activeWidgetId: 'w1',
+    activeWidgetType: 'clock',
+    code: 'ABC123',
+    frozen: false,
+    createdAt: 1,
+    ...over,
+  });
+
+  const joinAndWatch = async () => {
+    const hook = renderHook(() =>
+      useLiveSession(undefined, 'student', 'teacher-uid-1')
+    );
+    act(() => pushSession?.(live()));
+    await act(async () => {
+      await hook.result.current.joinSession('1234', 'ABC123');
+    });
+    act(() => pushMyDoc?.(true, 'active'));
+    return hook;
+  };
+
+  it('stops loading on the first session snapshot', () => {
+    const { result } = renderHook(() =>
+      useLiveSession(undefined, 'student', 'teacher-uid-1')
+    );
+    expect(result.current.loading).toBe(true);
+    act(() => pushSession?.(live()));
+    expect(result.current.loading).toBe(false);
+    expect(result.current.session?.activeWidgetId).toBe('w1');
+  });
+
+  it('keeps the student joined when the teacher ends, and marks them unfrozen on disconnect', async () => {
+    const { result } = await joinAndWatch();
+    act(() => pushMyDoc?.(true, 'frozen'));
+    act(() => pushSession?.(live({ isActive: false, activeWidgetId: null })));
+    act(() => pushMyDoc?.(true, 'disconnected'));
+    expect(result.current.studentId).toBe('student-uid-1');
+    expect(result.current.session?.isActive).toBe(false);
+    expect(result.current.individualFrozen).toBe(false);
+  });
+
+  it('follows a widget switch without rejoining', async () => {
+    const { result } = await joinAndWatch();
+    act(() => pushSession?.(live({ activeWidgetId: 'w2' })));
+    expect(result.current.studentId).toBe('student-uid-1');
+    expect(result.current.studentPin).toBe('1234');
+    expect(result.current.session?.activeWidgetId).toBe('w2');
+  });
+
+  it('keeps a personal freeze when the class freeze lifts', async () => {
+    const { result } = await joinAndWatch();
+    act(() => pushMyDoc?.(true, 'frozen'));
+    act(() => pushSession?.(live({ frozen: true })));
+    act(() => pushSession?.(live({ frozen: false })));
+    expect(result.current.individualFrozen).toBe(true);
+    expect(result.current.session?.frozen).toBe(false);
+  });
+
+  it('keeps the session through a removal, so a rejoin shows the live widget', async () => {
+    const { result } = await joinAndWatch();
+    act(() => pushMyDoc?.(false));
+    expect(result.current.studentId).toBeNull();
+    expect(result.current.studentPin).toBeNull();
+    expect(result.current.session?.activeWidgetId).toBe('w1');
+
+    asMock(firestore.getDocs).mockResolvedValueOnce({
+      docs: [{ id: 'teacher-uid-1', data: () => ({ isActive: true }) }],
+    });
+    await act(async () => {
+      await result.current.joinSession('1234', 'ABC123');
+    });
+    act(() => pushMyDoc?.(true, 'active'));
+    expect(result.current.studentId).toBe('student-uid-1');
+    expect(result.current.session?.activeWidgetId).toBe('w1');
+  });
+
+  it('drops the old session when a student switches to another code', () => {
+    const { result, rerender } = renderHook(
+      ({ code }: { code: string }) =>
+        useLiveSession(undefined, 'student', code),
+      { initialProps: { code: 'teacher-uid-1' } }
+    );
+    act(() => pushSession?.(live()));
+    expect(result.current.session?.activeWidgetId).toBe('w1');
+    rerender({ code: 'teacher-uid-2' });
+    expect(result.current.session).toBeNull();
+  });
+
+  it('ignores leave before joining', async () => {
+    const { result } = renderHook(() =>
+      useLiveSession(undefined, 'student', 'teacher-uid-1')
+    );
+    act(() => pushSession?.(live()));
+    await act(async () => {
+      await result.current.leaveSession();
+    });
+    expect(firestore.updateDoc).not.toHaveBeenCalled();
+    expect(result.current.session?.activeWidgetId).toBe('w1');
   });
 });

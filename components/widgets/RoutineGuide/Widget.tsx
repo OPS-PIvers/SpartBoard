@@ -23,6 +23,7 @@ import { useDashboardActions } from '@/context/dashboardCanvasStore';
 import { useAuth } from '@/context/useAuth';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { WidgetLayout } from '../WidgetLayout';
+import { prepareLaunchConfig } from '@/components/widgets/InstructionalRoutines/constants';
 import {
   getRoutineGuideColor,
   hasRoutineInfo,
@@ -65,7 +66,8 @@ const ToolLaunchButton: React.FC<{ step: RoutineGuideStep; lg?: boolean }> = ({
       type="button"
       onClick={(e) => {
         e.stopPropagation();
-        addWidget(tool.type, tool.config ? { config: tool.config } : {});
+        const config = prepareLaunchConfig(tool.type, tool.config);
+        addWidget(tool.type, config ? { config } : {});
       }}
       {...tourTypeAttr('routine-guide.tool', 'routineGuide')}
       className="inline-flex items-center shrink-0 rounded-lg border border-slate-300 bg-white text-slate-700 font-bold hover:bg-slate-50 transition-colors"

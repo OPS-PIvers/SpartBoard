@@ -449,6 +449,15 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
     }
   };
 
+  const handleAdvance = async () => {
+    try {
+      await onAdvance();
+    } catch (err) {
+      logError('QuizLiveMonitor.advance', err);
+      addToast('Could not update the session. Try again.', 'error');
+    }
+  };
+
   const handleTogglePause = async () => {
     if (toggling) return;
     setToggling(true);
@@ -859,7 +868,7 @@ export const MonitorShell: React.FC<QuizLiveMonitorProps> = (props) => {
                 answered={data.answeredCurrent}
                 total={data.totalStudents}
                 doneCount={data.counts.done}
-                onAdvance={onAdvance}
+                onAdvance={handleAdvance}
                 widgetId={widgetId}
                 periodControls={periodBar && <PeriodBar {...periodBar} />}
               />

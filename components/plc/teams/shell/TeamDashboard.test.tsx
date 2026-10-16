@@ -62,9 +62,6 @@ vi.mock('@/components/plc/bodies/PlcLearningTargetsBody', () => ({
 vi.mock('@/components/plc/tabs/PlcSettingsTab', () => ({
   PlcSettingsTab: () => null,
 }));
-vi.mock('@/components/plc/meeting/PlcMeetingMode', () => ({
-  PlcMeetingMode: () => null,
-}));
 vi.mock('@/components/plc/meeting/PlcMeetingRecordView', () => ({
   PlcMeetingRecordView: ({ meetingId }: { meetingId: string }) => (
     <div data-testid="meeting-record">{meetingId}</div>

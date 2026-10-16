@@ -42,6 +42,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useVideoActivitySessionTeacher } from '@/hooks/useVideoActivitySession';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
 import { logError } from '@/utils/logError';
+import { isLiveVideoActivitySession } from '@/utils/videoActivityLive';
 import { VideoActivityLiveMonitor } from '@/components/widgets/VideoActivityWidget/components/VideoActivityLiveMonitor';
 import { Results } from '@/components/widgets/VideoActivityWidget/components/Results';
 
@@ -287,13 +288,15 @@ export const PlcVideoSessionContent: React.FC<PlcVideoSessionContentProps> = ({
   }
 
   if (view === 'monitor') {
+    // Live runs are board-paced: pausing would end the session for the class.
+    const isLive = isLiveVideoActivitySession(sessionForView);
     return (
       <VideoActivityLiveMonitor
         session={sessionForView}
         responses={responses}
         onEnd={handleEnd}
-        onPause={handlePause}
-        onResume={handleResume}
+        onPause={isLive ? undefined : handlePause}
+        onResume={isLive ? undefined : handleResume}
         onUnlockStudent={unlockStudentAttempt}
         onBack={onClose}
       />
