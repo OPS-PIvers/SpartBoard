@@ -288,4 +288,35 @@ describe('NextUpWidget student entry buffer', () => {
     const saved = JSON.parse(await lastBlob.text()) as { id: string }[];
     expect(saved.map((q) => q.id)).toEqual(['s1', 's2']);
   });
+
+  it('keeps entries in Firestore when the Drive write fails', async () => {
+    downloadFile.mockResolvedValue(new Blob(['[]']));
+    updateFileContent.mockReset();
+    updateFileContent.mockRejectedValue(new Error('token expired'));
+    mockDeleteDoc.mockReset();
+    mockDeleteDoc.mockResolvedValue(undefined);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    let handler: SnapHandler | undefined;
+    mockOnSnapshot.mockImplementation((_q: unknown, next: SnapHandler) => {
+      handler = next;
+      return () => undefined;
+    });
+
+    render(
+      <NextUpWidget
+        widget={buildWidget({ isActive: true, activeDriveFileId: 'file-1' })}
+      />
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    await act(async () => {
+      handler?.(snapOf('s1'));
+      await vi.waitFor(() =>
+        expect(updateFileContent).toHaveBeenCalledTimes(1)
+      );
+    });
+
+    expect(mockDeleteDoc).not.toHaveBeenCalled();
+  });
 });

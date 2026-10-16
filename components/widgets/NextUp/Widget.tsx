@@ -164,7 +164,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
         const processEntries = async () => {
           // Process new entries using a ref to get the latest queue state
           const updatedQueue = [...queueRef.current];
-          const deletePromises: Promise<void>[] = [];
+          const entryRefs = snap.docs.map((doc) => doc.ref);
 
           snap.docs.forEach((doc) => {
             const data = doc.data() as { name: string; joinedAt: number };
@@ -187,8 +187,6 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
               }
               updatedQueue.push(newItem);
             }
-
-            deletePromises.push(deleteDoc(doc.ref));
           });
 
           // Save to Drive and trigger local re-fetch
@@ -201,8 +199,8 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
           queueRef.current = updatedQueue;
           setQueue(updatedQueue);
 
-          // Cleanup entries from Firestore (PII Safety)
-          await Promise.all(deletePromises);
+          // Cleanup entries from Firestore (PII Safety), only once saved
+          await Promise.all(entryRefs.map((ref) => deleteDoc(ref)));
 
           // Trigger update
           updateWidget(widget.id, {
