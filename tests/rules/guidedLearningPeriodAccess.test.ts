@@ -137,11 +137,11 @@ async function seedSeat(id: string, uid: string, classId: string) {
   });
 }
 
-async function seedResponse(id: string, uid: string) {
+async function seedResponse(id: string, uid: string, extra = {}) {
   await testEnv.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(
       doc(ctx.firestore(), responsePath(id, uid)),
-      response(id, uid)
+      response(id, uid, extra)
     );
   });
 }
@@ -451,7 +451,7 @@ describe('responses and progress on a per-period session', () => {
 
   it('refuses a response update once the period is paused, and takes it when open', async () => {
     await seedSeat(S, STUDENT_UID, CLASS_B);
-    await seedResponse(S, STUDENT_UID);
+    await seedResponse(S, STUDENT_UID, { completedAt: null });
     const next = {
       answers: [
         { stepId: 's1', answer: 'a', isCorrect: null },

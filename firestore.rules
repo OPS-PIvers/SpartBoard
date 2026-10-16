@@ -187,6 +187,12 @@ service cloud.firestore {
       return s.get('closeAt', null) == null ||
              request.time.toMillis() < s.closeAt + 120000;
     }
+    // Quiz and Video Activity runs: an 'ended' status closes like closeAt, with the same grace after endedAt.
+    function runOpen(s) {
+      return beforeClose(s) &&
+             (s.get('status', '') != 'ended' ||
+              request.time.toMillis() < s.get('endedAt', 0) + 120000);
+    }
     // M17 open window, the mirror of beforeClose with the same grace so a
     // student whose clock runs slightly ahead of openAt isn't bounced. Callers
     // gate CREATE only: an attempt that legitimately started must never be
@@ -4575,6 +4581,7 @@ service cloud.firestore {
       allow update: if signedIn() &&
         existing().teacherUid == authUid() &&
         subMonitorStampUnchanged() &&
+        (!changed(['status']) || incoming().status in ['waiting', 'active', 'paused', 'ended']) &&
         (incoming().get('plcId', null) == existing().get('plcId', null) ||
          incoming().get('plcId', null) == null ||
          plcLinkOk(incoming()));
@@ -4609,6 +4616,18 @@ service cloud.firestore {
         // on completion). Both are exempted from the close gate below.
         function isResultsProtectionOnlyWrite() {
           return changedOnly(['resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt']);
+        }
+        // Student status moves: answering (to in-progress), turning in with exactly
+        // one more attempt, a retake (completed -> joined, answers cleared) under the
+        // cap, or resuming a teacher unlock. Never completed -> completed.
+        function statusMoveOk(e, d, limit) {
+          let from = e.get('status', '');
+          let to = d.get('status', '');
+          let done = e.get('completedAttempts', 0);
+          return (to == 'in-progress' && (from != 'completed' || e.get('unlocked', false) == true)) ||
+                 (to == 'completed' && from != 'completed' && d.get('completedAttempts', 0) == done + 1) ||
+                 (to == 'joined' && from == 'completed' && d.get('answers', []).size() == 0 &&
+                  (limit == null || (done < limit && limit > 1)));
         }
 
         // While a student is frozen (session paused, or their period not open),
@@ -4691,8 +4710,8 @@ service cloud.firestore {
           passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
           // Block submissions on view-only sessions (mode is frozen at creation)
           sessionMode() == 'submissions' &&
-          // Block joins after the assignment's close time (M17).
-          beforeClose(sessionData()) &&
+          // Block joins after the assignment's close time (M17) or the run's end.
+          runOpen(sessionData()) &&
           // Block joins before the assignment's open time (M17).
           afterOpen(sessionData()) &&
           periodJoinOk(sessionData(), incoming()) &&
@@ -4710,9 +4729,9 @@ service cloud.firestore {
           // Monotonic: tabSwitchWarnings, completedAttempts. Students may only write null to score.
           (authUid() == existing().studentUid &&
            passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
-           // Student writes stop at the session close time (M17). The teacher
-           // branch above is unaffected — grading continues after close.
-           (beforeClose(sessionData()) ||
+           // Student writes stop at the session close time (M17) or the run's end.
+           // The teacher branch above is unaffected — grading continues after close.
+           (runOpen(sessionData()) ||
             isResultsProtectionOnlyWrite() ||
             existing().get('unlocked', false) == true) &&
            // Pause is enforced here for every session, and per period where set.
@@ -4845,13 +4864,7 @@ service cloud.firestore {
            // else a hostile client could increment past the cap.
            (sessionAttemptLimit() == null ||
             incoming().get('completedAttempts', 0) <= sessionAttemptLimit()) &&
-           // Status-transition gate: blocks 'completed' → 'completed' (re-complete
-           // via race/bug). Submitting goes joined/in-progress → completed; rejoin
-           // goes completed → joined. Only fires when the update touches status, so
-           // status-untouched writes pass even on an already-completed doc.
-           (!changed(['status']) ||
-            existing().get('status', '') != 'completed' ||
-            incoming().get('status', '') != 'completed'))
+           (!changed(['status']) || statusMoveOk(existing(), incoming(), sessionAttemptLimit())))
         );
         allow delete: if signedIn() &&
           (authUid() == sessionTeacherUid() || isAdmin());
@@ -5362,10 +5375,11 @@ service cloud.firestore {
         unchanged('activityId') &&
         unchanged('teacherUid') &&
         unchanged('createdAt') &&
-        // An ended live (board-paced) run stays ended: its students have already been finished.
+        (!changed(['status']) || incoming().status in ['waiting', 'active', 'ended']) &&
+        // An ended live (board-paced) run stays ended, pacing included: its students have already been finished.
         !(existing().get('sessionMode', 'student') == 'teacher' &&
           existing().get('status', '') == 'ended' &&
-          incoming().get('status', '') != 'ended');
+          (incoming().get('status', '') != 'ended' || changed(['live'])));
       // Owning teacher (or admin) may delete (VA "Delete permanently" cleanup).
       // Mirrors GL sessions.
       allow delete: if vaOwner(existing());
@@ -5429,8 +5443,8 @@ service cloud.firestore {
           vaGate() &&
           // Block submissions on view-only sessions (mode is frozen at creation)
           vaS().get('mode', 'submissions') == 'submissions' &&
-          // Block joins after the assignment's close time (M17).
-          beforeClose(vaS()) &&
+          // Block joins after the assignment's close time (M17) or the run's end.
+          runOpen(vaS()) &&
           // Block joins before the assignment's open time (M17).
           afterOpen(vaS()) &&
           periodJoinOk(vaS(), incoming()) &&
@@ -5453,10 +5467,14 @@ service cloud.firestore {
           (
             existing().studentUid == authUid() &&
             vaGate() &&
-            // Student writes stop at the session close time (M17); the teacher
-            // branch above is unaffected. A teacher-granted extension
+            // Student writes stop at the session close time (M17) or the run's end,
+            // except finishing (a live run's students finish after it ends); the
+            // teacher branch above is unaffected. A teacher-granted extension
             // (`unlocked: true`) is exempt so the resumed attempt can finish.
-            (beforeClose(vaS()) ||
+            ((beforeClose(vaS()) &&
+              (runOpen(vaS()) ||
+               (existing().get('completedAt', null) == null &&
+                changedOnly(['completedAt', 'completedAttempts', 'unlocked'])))) ||
              existing().get('unlocked', false) == true) &&
             // A closed or paused period freezes answering and finishing.
             (!changed(['answers', 'completedAt', 'completedAttempts']) ||
@@ -5498,9 +5516,17 @@ service cloud.firestore {
             (vaS().get('sessionOptions', {}).get('attemptLimit', null) == null ||
              incoming().get('completedAttempts', 0) <= vaS().sessionOptions.attemptLimit) &&
             // completedAt gate: blocks non-null → non-null (race/bug). Completion
-            // is null → non-null; rejoin is non-null → null.
-            (existing().get('completedAt', null) == null ||
-             incoming().get('completedAt', null) == null)
+            // is null → non-null and counts exactly one attempt; reopening needs the
+            // teacher's unlock, or a retake (answers cleared) under the cap.
+            (!changed(['completedAt']) ||
+             (existing().get('completedAt', null) == null &&
+              incoming().get('completedAttempts', 0) == existing().get('completedAttempts', 0) + 1) ||
+             (incoming().get('completedAt', null) == null &&
+              (existing().get('unlocked', false) == true ||
+               (incoming().answers.size() == 0 &&
+                (vaS().get('sessionOptions', {}).get('attemptLimit', null) == null ||
+                 (existing().get('completedAttempts', 0) < vaS().sessionOptions.attemptLimit &&
+                  vaS().sessionOptions.attemptLimit > 1))))))
           )
         );
         // Owning teacher (or admin) may delete responses when permanently
@@ -5729,6 +5755,7 @@ service cloud.firestore {
           studentUid == authUid() &&
           incoming().studentAnonymousId == authUid() &&
           incoming().sessionId == sessionId &&
+          incoming().keys().hasOnly(['sessionId', 'studentAnonymousId', 'pin', 'answers', 'startedAt', 'completedAt', 'score', 'classPeriod', 'classId']) &&
           incoming().score == null &&
           // Per-student publication is teacher-written only.
           incoming().get('resultsOverride', null) == null &&
@@ -5760,7 +5787,11 @@ service cloud.firestore {
             unchanged('startedAt') &&
             unchanged('score') &&
             changedOnly(['answers', 'completedAt', 'pin']) &&
-            incoming().answers.size() >= existing().answers.size()
+            incoming().answers.size() >= existing().answers.size() &&
+            // Turning in sets completedAt once; a turned-in response keeps its answers.
+            (existing().get('completedAt', null) == null
+              ? (!changed(['completedAt']) || incoming().completedAt is number)
+              : !changed(['answers', 'completedAt']))
           )
         );
         // Owning teacher (or admin) may delete responses — used when the

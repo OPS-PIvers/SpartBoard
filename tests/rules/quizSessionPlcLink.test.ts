@@ -286,21 +286,21 @@ describe('quiz_sessions — update the PLC link', () => {
   it('owner edits an unrelated field on a linked session without re-linking', async () => {
     await seedSession(linkedSession(MEMBER_UID));
     await assertSucceeds(
-      updateDoc(sessionRef(asMember()), { status: 'closed' })
+      updateDoc(sessionRef(asMember()), { status: 'ended' })
     );
   });
 
   it('owner who has since left the PLC can still edit unrelated fields (unchanged plcId skips the gate)', async () => {
     await seedSession(linkedSession(NON_MEMBER_UID));
     await assertSucceeds(
-      updateDoc(sessionRef(asNonMember()), { status: 'closed' })
+      updateDoc(sessionRef(asNonMember()), { status: 'ended' })
     );
   });
 
   it('a plain session without plcId still updates as before', async () => {
     await seedSession(baseSession(NON_MEMBER_UID));
     await assertSucceeds(
-      updateDoc(sessionRef(asNonMember()), { status: 'closed' })
+      updateDoc(sessionRef(asNonMember()), { status: 'ended' })
     );
   });
 });

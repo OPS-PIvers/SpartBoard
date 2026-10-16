@@ -109,6 +109,7 @@ describe('video_activity_sessions/{sid}/responses/{rid} — student update white
       updateDoc(doc(asStudent(), RESPONSE_PATH), {
         answers: [{ questionId: 'q1', value: 'a' }],
         completedAt: 2000,
+        completedAttempts: 1,
       })
     );
   });
