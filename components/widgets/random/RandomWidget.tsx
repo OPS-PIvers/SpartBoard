@@ -78,6 +78,7 @@ const PLACEHOLDER_LENGTH = RANDOM_FLASH_PLACEHOLDER.length;
 import { RandomGroups } from './RandomGroups';
 import { GroupSizeStepper } from './GroupSizeStepper';
 import { ShuffleList } from './ShuffleList';
+import { timeToolClockReducer } from '@/utils/timeToolClock';
 
 import { WidgetLayout } from '../WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -1104,15 +1105,10 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             if (!timeConfig.isRunning) {
               // Reset like NextUp so an expired timer doesn't re-fire its end-of-timer pick at once.
               updateWidget(timeWidget.id, {
-                config: {
-                  ...timeConfig,
-                  isRunning: true,
-                  startTime: Date.now(),
-                  elapsedTime:
-                    timeConfig.mode === 'stopwatch'
-                      ? 0
-                      : (timeConfig.duration ?? timeConfig.elapsedTime ?? 0),
-                },
+                config: timeToolClockReducer(timeConfig, {
+                  type: 'restart',
+                  now: Date.now(),
+                }),
               });
             }
           }

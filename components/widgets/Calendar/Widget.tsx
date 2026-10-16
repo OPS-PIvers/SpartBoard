@@ -18,6 +18,7 @@ import { useAuth } from '@/context/useAuth';
 import { GoogleCalendarService } from '@/utils/googleCalendarService';
 import { DEFAULT_HEADER_COLOR, GAP_STYLE } from './constants';
 import { hexToRgba } from '@/utils/styles';
+import { startFreshClock } from '@/utils/timeToolClock';
 import { getLocalIsoDate } from '@/utils/localDate';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 import { useSubShareCalendar } from './useSubShareCalendar';
@@ -317,12 +318,8 @@ export const CalendarWidget: React.FC<{ widget: WidgetData }> = ({
         x: widget.x + widget.w + 20,
         y: widget.y,
         config: {
-          mode: 'timer',
+          ...startFreshClock(remainingSeconds, spawnNow),
           visualType: 'digital',
-          duration: remainingSeconds,
-          elapsedTime: remainingSeconds,
-          isRunning: true,
-          startTime: spawnNow,
           selectedSound: 'Gong',
         },
       });

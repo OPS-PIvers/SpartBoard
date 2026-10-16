@@ -28,6 +28,7 @@ import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useDialog } from '@/context/useDialog';
 import { useInSubShare } from '@/hooks/useShareContent';
 import { tourAttr } from '@/config/tourAnchors';
+import { timeToolClockReducer } from '@/utils/timeToolClock';
 
 /** A stable reference, so a share does not re-derive the queue every render. */
 const EMPTY_QUEUE: NextUpQueueItem[] = [];
@@ -246,18 +247,11 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
         resumeAudio().catch(console.error);
 
         const timerConfig = activeTimer.config as TimeToolConfig;
-        const isStopwatchMode = timerConfig.mode === 'stopwatch';
-        const resetElapsedTime = isStopwatchMode
-          ? 0
-          : (timerConfig.duration ?? timerConfig.elapsedTime ?? 0);
-
         updateWidget(activeTimer.id, {
-          config: {
-            ...timerConfig,
-            isRunning: true,
-            startTime: Date.now(),
-            elapsedTime: resetElapsedTime,
-          },
+          config: timeToolClockReducer(timerConfig, {
+            type: 'restart',
+            now: Date.now(),
+          }),
         });
       }
     }
