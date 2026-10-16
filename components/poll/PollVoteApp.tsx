@@ -100,7 +100,11 @@ export const PollVoteApp: React.FC = () => {
     const unsubSession = onSnapshot(
       doc(db, 'poll_sessions', sessionId),
       (snap) => {
-        if (snap.exists()) setSession(snap.data() as PollSessionDoc);
+        if (!snap.exists()) return;
+        const data = snap.data() as PollSessionDoc;
+        setSession(data);
+        // A live session means any earlier rejected vote no longer applies.
+        if (data.active === true) setWriteRejected(false);
       }
     );
     return () => {
@@ -154,10 +158,12 @@ export const PollVoteApp: React.FC = () => {
         }
       );
       setWriteRejected(false);
-    } catch {
-      // A rejected write means the session went inactive between the snapshot
-      // and the tap. Show the same clean closed state.
-      setWriteRejected(true);
+    } catch (err) {
+      // Only a rules rejection means the poll closed; other errors leave the options tappable.
+      const code = (err as { code?: unknown } | null)?.code;
+      if (typeof code === 'string' && code.endsWith('permission-denied')) {
+        setWriteRejected(true);
+      }
     } finally {
       setSubmitting(false);
     }

@@ -6,6 +6,8 @@ import {
   setDoc,
   collection,
   deleteDoc,
+  deleteField,
+  getDoc,
   query,
   where,
   getDocs,
@@ -283,7 +285,13 @@ export const useLiveSession = (
         const studentData = docSnap.data() as LiveStudent;
         setIndividualFrozen(studentData.status === 'frozen');
         setStudentPin(studentData.pin);
+        return;
       }
+      // The teacher removed this student (or started a fresh session): back to the join screen.
+      setStudentId(null);
+      setStudentPin(null);
+      setIndividualFrozen(false);
+      setSession(null);
     });
 
     return () => {
@@ -384,12 +392,13 @@ export const useLiveSession = (
     );
     try {
       await updateDoc(studentRef, { status: 'disconnected' });
+    } catch (err) {
+      console.error('Failed to leave session:', err);
+    } finally {
       setStudentId(null);
       setStudentPin(null);
       setIndividualFrozen(false);
       setSession(null);
-    } catch (err) {
-      console.error('Failed to leave session:', err);
     }
   }, [role, joinCode, studentId, setStudentId, setStudentPin, setSession]);
 
@@ -421,6 +430,39 @@ export const useLiveSession = (
         throw new Error('Not authenticated');
       }
 
+      const sessionRef = doc(db, SESSIONS_COLLECTION, userId);
+      const current = await getDoc(sessionRef).catch((err) => {
+        console.error('Failed to read current session:', err);
+        return null;
+      });
+      const currentSession = current?.exists()
+        ? (current.data() as LiveSession)
+        : null;
+
+      // Already live on another widget: switch the broadcast, keeping the roster and join code.
+      if (currentSession?.isActive) {
+        await updateDoc(sessionRef, {
+          activeWidgetId: widgetId,
+          activeWidgetType: widgetType,
+          activeWidgetConfig: config ?? deleteField(),
+          background: background ?? deleteField(),
+          frozen: false,
+        }).catch((err) => {
+          console.error('Failed to switch live widget:', err);
+          throw err;
+        });
+        const switched: LiveSession = {
+          ...currentSession,
+          id: userId,
+          activeWidgetId: widgetId,
+          activeWidgetType: widgetType,
+          activeWidgetConfig: config,
+          background,
+          frozen: false,
+        };
+        return switched;
+      }
+
       // Clear existing students for a fresh start
       const studentsRef = collection(
         db,
@@ -434,7 +476,6 @@ export const useLiveSession = (
         console.error('Failed to clear old students:', err);
       });
 
-      const sessionRef = doc(db, SESSIONS_COLLECTION, userId);
       const newSession: LiveSession = {
         id: userId,
         isActive: true,
