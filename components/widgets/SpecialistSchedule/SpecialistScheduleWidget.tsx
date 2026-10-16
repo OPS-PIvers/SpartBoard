@@ -16,6 +16,7 @@ import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { hexToRgba } from '@/utils/styles';
+import { startFreshClock } from '@/utils/timeToolClock';
 import {
   parseTime,
   computeIsPast,
@@ -270,12 +271,8 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
         hProp: newHProp,
         aspectRatio,
         config: {
-          mode: 'timer',
+          ...startFreshClock(remainingSeconds, Date.now()),
           visualType: 'digital',
-          duration: remainingSeconds,
-          elapsedTime: remainingSeconds,
-          isRunning: true,
-          startTime: Date.now(),
           selectedSound: 'Gong',
         },
       });

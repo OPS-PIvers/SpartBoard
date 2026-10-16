@@ -10,6 +10,10 @@ import {
 } from '@/types';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { ALL_GRADE_LEVELS } from '@/config/widgetGradeLevels';
+import {
+  timeToolClockPatch,
+  type TimeToolClockFields,
+} from '@/utils/timeToolClock';
 
 // Sorts by canonical grade-band order, not string order (digits sort before 'K').
 export function formatGradeLevelsLabel(gradeLevels: GradeLevel[]): string {
@@ -19,6 +23,24 @@ export function formatGradeLevelsLabel(gradeLevels: GradeLevel[]): string {
     .sort((a, b) => ALL_GRADE_LEVELS.indexOf(a) - ALL_GRADE_LEVELS.indexOf(b))
     .map((l) => l.toUpperCase())
     .join(', ');
+}
+
+// Saved routines hold a copy of the quick-tool config, so a running timer is stamped from its duration at launch.
+export function prepareLaunchConfig<T extends object>(
+  type: string,
+  config: T | undefined,
+  now: number = Date.now()
+): T | undefined {
+  if (type !== 'time-tool' || !config) return config;
+  const timer: Partial<TimeToolConfig> = config;
+  if (timer.isRunning !== true) return config;
+  return {
+    ...config,
+    ...timeToolClockPatch(timer as TimeToolClockFields, {
+      type: 'restart',
+      now,
+    }),
+  };
 }
 
 export const QUICK_TOOLS: {
@@ -34,6 +56,7 @@ export const QUICK_TOOLS: {
       ...(WIDGET_DEFAULTS['time-tool'].config as TimeToolConfig),
       mode: 'timer',
       duration: 60,
+      elapsedTime: 60,
       isRunning: true,
     },
   },
@@ -44,6 +67,7 @@ export const QUICK_TOOLS: {
       ...(WIDGET_DEFAULTS['time-tool'].config as TimeToolConfig),
       mode: 'timer',
       duration: 120,
+      elapsedTime: 120,
       isRunning: true,
     },
   },
@@ -54,6 +78,7 @@ export const QUICK_TOOLS: {
       ...(WIDGET_DEFAULTS['time-tool'].config as TimeToolConfig),
       mode: 'timer',
       duration: 300,
+      elapsedTime: 300,
       isRunning: true,
     },
   },
@@ -63,6 +88,7 @@ export const QUICK_TOOLS: {
     config: {
       ...(WIDGET_DEFAULTS['time-tool'].config as TimeToolConfig),
       mode: 'stopwatch',
+      elapsedTime: 0,
       isRunning: true,
     },
   },

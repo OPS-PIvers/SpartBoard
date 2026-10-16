@@ -1,18 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useReducer, useState } from 'react';
 import { Check, Loader2 } from 'lucide-react';
 import { auth, db } from '@/config/firebase';
 import { signInAnonymously } from 'firebase/auth';
 import { collection, doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { type PollSessionDoc } from '@/types';
 import { normalizePollCode } from '@/utils/pollCode';
-import { clampQuestionIndex } from '@/utils/pollQuestions';
+import { lookupPollSessionByCode, type PollVoteEntry } from './pollSession';
 import {
-  aggregateVotes,
-  lookupPollSessionByCode,
-  type PollVoteEntry,
-} from './pollSession';
-
-type Status = 'loading' | 'error' | 'ready';
+  derivePollPhoneView,
+  initialPollPhoneState,
+  pollPhoneReducer,
+} from './pollPhoneState';
 
 const Shell: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   <div className="h-screen [height:100dvh] overflow-y-auto bg-slate-100">
@@ -40,20 +38,15 @@ export const PollVoteApp: React.FC = () => {
     []
   );
 
-  const [status, setStatus] = useState<Status>('loading');
-  const [sessionId, setSessionId] = useState('');
-  const [session, setSession] = useState<PollSessionDoc | null>(null);
-  const [votes, setVotes] = useState<PollVoteEntry[]>([]);
+  const [state, dispatch] = useReducer(pollPhoneReducer, initialPollPhoneState);
   const [uid, setUid] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [writeRejected, setWriteRejected] = useState(false);
+  const sessionId = state.phase === 'ready' ? state.sessionId : '';
 
   // Sign in anonymously, then resolve the join code to its session doc. Both
   // are external-system calls — the correct use of an effect.
   useEffect(() => {
     if (!code) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- state synced from an external system or reset on open
-      setStatus('error');
+      dispatch({ type: 'lookupFailed' });
       return;
     }
     let cancelled = false;
@@ -67,14 +60,16 @@ export const PollVoteApp: React.FC = () => {
         const found = await lookupPollSessionByCode(code);
         if (cancelled) return;
         if (!found) {
-          setStatus('error');
+          dispatch({ type: 'lookupFailed' });
           return;
         }
-        setSessionId(found.sessionId);
-        setSession(found.data);
-        setStatus('ready');
+        dispatch({
+          type: 'lookupSucceeded',
+          sessionId: found.sessionId,
+          session: found.data,
+        });
       } catch {
-        if (!cancelled) setStatus('error');
+        if (!cancelled) dispatch({ type: 'lookupFailed' });
       }
     })();
     return () => {
@@ -89,18 +84,23 @@ export const PollVoteApp: React.FC = () => {
     const unsubVotes = onSnapshot(
       collection(db, 'poll_sessions', sessionId, 'votes'),
       (snap) => {
-        setVotes(
-          snap.docs.map((d) => ({
+        dispatch({
+          type: 'votesSnapshot',
+          votes: snap.docs.map((d) => ({
             id: d.id,
             ...(d.data() as Omit<PollVoteEntry, 'id'>),
-          }))
-        );
+          })),
+        });
       }
     );
     const unsubSession = onSnapshot(
       doc(db, 'poll_sessions', sessionId),
       (snap) => {
-        if (snap.exists()) setSession(snap.data() as PollSessionDoc);
+        if (!snap.exists()) return;
+        dispatch({
+          type: 'sessionSnapshot',
+          session: snap.data() as PollSessionDoc,
+        });
       }
     );
     return () => {
@@ -109,26 +109,11 @@ export const PollVoteApp: React.FC = () => {
     };
   }, [sessionId]);
 
-  const questions = session?.questions ?? [];
-  const questionIndex = clampQuestionIndex(
-    session?.currentQuestionIndex,
-    questions.length
-  );
-  const question = questions[questionIndex];
-  const started = session?.startedAt != null;
-  const isActive = session?.active === true;
-  const closed = (started && !isActive) || writeRejected;
+  const view = derivePollPhoneView(state, uid);
 
-  const options = question?.options ?? [];
-  const tally = aggregateVotes(votes, questionIndex, options.length);
-  const total = tally.reduce((sum, n) => sum + n, 0);
-  const votedIndex =
-    votes.find((v) => v.id === `${questionIndex}_${uid}`)?.optionIndex ?? null;
-  const hasVoted = votedIndex !== null;
-
-  const castVote = async (index: number) => {
-    if (!sessionId) return;
-    setSubmitting(true);
+  const castVote = async (index: number, questionIndex: number) => {
+    if (!sessionId || view.k !== 'open' || view.ballot.submitting) return;
+    dispatch({ type: 'voteStarted' });
     try {
       // Prefer the uid from the sign-in credential over reading auth.currentUser
       // afterward — robust even if the SDK ever deferred the currentUser update.
@@ -153,17 +138,20 @@ export const PollVoteApp: React.FC = () => {
           votedAt: Date.now(),
         }
       );
-      setWriteRejected(false);
-    } catch {
-      // A rejected write means the session went inactive between the snapshot
-      // and the tap. Show the same clean closed state.
-      setWriteRejected(true);
-    } finally {
-      setSubmitting(false);
+      dispatch({ type: 'voteSaved' });
+    } catch (err) {
+      // Only a rules rejection means the poll closed; other errors leave the options tappable.
+      const code = (err as { code?: unknown } | null)?.code;
+      dispatch({
+        type:
+          typeof code === 'string' && code.endsWith('permission-denied')
+            ? 'voteRejected'
+            : 'voteFailed',
+      });
     }
   };
 
-  if (status === 'loading') {
+  if (view.k === 'loading') {
     return (
       <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center gap-3 p-4">
         <Loader2 className="w-5 h-5 animate-spin" />
@@ -172,7 +160,7 @@ export const PollVoteApp: React.FC = () => {
     );
   }
 
-  if (status === 'error' || !question) {
+  if (view.k === 'unavailable') {
     return (
       <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center p-4 text-center">
         This poll isn&apos;t available right now. Check the code with your
@@ -181,7 +169,7 @@ export const PollVoteApp: React.FC = () => {
     );
   }
 
-  if (!started) {
+  if (view.k === 'waiting') {
     return (
       <Shell>
         <div className="bg-brand-blue-primary text-white px-5 py-4">
@@ -202,6 +190,19 @@ export const PollVoteApp: React.FC = () => {
       </Shell>
     );
   }
+
+  const {
+    questions,
+    questionIndex,
+    question,
+    options,
+    tally,
+    total,
+    votedIndex,
+    submitting,
+  } = view.ballot;
+  const closed = view.k === 'closed';
+  const hasVoted = votedIndex !== null;
 
   return (
     <Shell>
@@ -240,7 +241,7 @@ export const PollVoteApp: React.FC = () => {
               type="button"
               disabled={submitting || closed}
               onClick={() => {
-                void castVote(index);
+                void castVote(index, questionIndex);
               }}
               className={`w-full text-left rounded-xl border p-4 transition-all active:scale-[0.99] disabled:opacity-60 ${
                 isMine

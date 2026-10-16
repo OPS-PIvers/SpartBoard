@@ -196,7 +196,14 @@ export type FlashcardProgressWrite = Partial<
   >
 >;
 
+export interface FlashcardRating {
+  cardId: string;
+  correct: boolean;
+  round: number;
+}
+
 const TRACKED_FLUSH_DELAY_MS = 5000;
+const MAX_RATINGS_PER_CALL = 500;
 const MAX_STUDY_GAP_MS = 2 * 60 * 1000;
 const MAX_TESTS = 50;
 
@@ -205,6 +212,9 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
   readonly showsMarks = true;
   override readonly canReset: boolean = false;
   private readonly write: (payload: FlashcardProgressWrite) => Promise<void>;
+  private readonly rate?: (ratings: FlashcardRating[]) => Promise<unknown>;
+  private ratings: FlashcardRating[] = [];
+  private discarded = false;
   private readonly classId: string;
   private readonly now: () => number;
   private studyMs: number;
@@ -223,10 +233,13 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
     classId: string;
     initial: Partial<FlashcardProgress> | null;
     write: (payload: FlashcardProgressWrite) => Promise<void>;
+    /** Flashcards-mode Checks: the server owns `cards`, so ratings go here instead. */
+    rate?: (ratings: FlashcardRating[]) => Promise<unknown>;
     now?: () => number;
   }) {
     super();
     this.write = options.write;
+    this.rate = options.rate;
     this.classId = options.classId;
     this.now = options.now ?? Date.now;
     this.state = sanitizeFlashcardStudyState(options.initial);
@@ -252,6 +265,7 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
     currentRound: number
   ): FlashcardStudyState {
     this.dirtyCards.add(cardId);
+    if (this.rate) this.ratings.push({ cardId, correct, round: currentRound });
     return super.record(cardId, correct, currentRound);
   }
 
@@ -316,6 +330,17 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
     this.timer = null;
   }
 
+  /** True while ratings the server hasn't confirmed are queued. */
+  hasUnsentRatings(): boolean {
+    return this.ratings.length > 0;
+  }
+
+  /** Drops unsaved work and refuses later writes, after a teacher reset deletes the progress doc. */
+  discard(): void {
+    this.dispose();
+    this.discarded = true;
+  }
+
   protected persist(): void {
     this.touch();
     this.schedule();
@@ -345,6 +370,7 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
       this.timer = null;
     }
     if (
+      this.discarded ||
       this.paused ||
       (!this.dirty &&
         this.dirtyCards.size === 0 &&
@@ -352,18 +378,24 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
     ) {
       return this.pending;
     }
-    const cardIds = [...this.dirtyCards];
+    const cardIds = this.rate ? [] : [...this.dirtyCards];
     const checkIds = [...this.dirtyCheckLog];
+    const ratings = this.ratings;
+    this.ratings = [];
     this.dirtyCards.clear();
     this.dirtyCheckLog.clear();
     this.dirty = false;
     const payload: FlashcardProgressWrite = {
       classId: this.classId,
-      cards: Object.fromEntries(
-        cardIds
-          .filter((cardId) => cardId in this.state.cards)
-          .map((cardId) => [cardId, { ...this.state.cards[cardId] }])
-      ),
+      ...(this.rate
+        ? {}
+        : {
+            cards: Object.fromEntries(
+              cardIds
+                .filter((cardId) => cardId in this.state.cards)
+                .map((cardId) => [cardId, { ...this.state.cards[cardId] }])
+            ),
+          }),
       starred: [...this.state.starred],
       round: this.state.round,
       studyMs: Math.round(this.studyMs),
@@ -376,13 +408,38 @@ export class TrackedFlashcardAdapter extends BaseFlashcardAdapter {
         checkIds.map((cardId) => [cardId, { ...this.checkLog[cardId] }])
       );
     }
+    const rate = this.rate;
     this.pending = this.pending
-      .then(() => this.write(payload))
+      .then(() => (this.discarded ? undefined : this.write(payload)))
       .catch((error: unknown) => {
         for (const cardId of cardIds) this.dirtyCards.add(cardId);
         for (const cardId of checkIds) this.dirtyCheckLog.add(cardId);
         this.dirty = true;
         console.error('[TrackedFlashcardAdapter] Progress save failed:', error);
+      })
+      .then(async () => {
+        // The callable takes at most 600 ratings, so a long offline queue goes in chunks.
+        for (
+          let start = 0;
+          start < ratings.length;
+          start += MAX_RATINGS_PER_CALL
+        ) {
+          // A reset may land while this chain is pending; don't recreate the deleted doc.
+          if (!rate || this.discarded) return;
+          const chunk = ratings.slice(start, start + MAX_RATINGS_PER_CALL);
+          try {
+            await rate(chunk);
+          } catch (error: unknown) {
+            // The server ignores a rating whose round it has already applied, so resending is safe.
+            this.ratings = [...ratings.slice(start), ...this.ratings];
+            this.dirty = true;
+            console.error(
+              '[TrackedFlashcardAdapter] Rating save failed:',
+              error
+            );
+            return;
+          }
+        }
       });
     return this.pending;
   }

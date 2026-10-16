@@ -1,4 +1,4 @@
-// The redesigned team page (T1, T2, T4 to T10, T35), mounted by PlcDashboard when the teams-redesign flag is on.
+// The team page (T1, T2, T4 to T10, T35), mounted by PlcDashboard.
 
 import React, {
   useCallback,

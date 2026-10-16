@@ -22,8 +22,13 @@ import React, {
   useRef,
   useCallback,
   useMemo,
+  useReducer,
 } from 'react';
-import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import {
+  signInAnonymously,
+  onAuthStateChanged,
+  type User,
+} from 'firebase/auth';
 import {
   addDoc,
   collection,
@@ -74,23 +79,14 @@ import {
   injectMiniAppHelper,
   type MiniAppInitPayload,
 } from '@/utils/miniAppHelper';
+import { submitErrorCode, submitMiniAppResult } from '@/utils/miniAppResults';
 import {
-  submitErrorCode,
-  submitMiniAppResult,
-  type MiniAppSubmitKind,
-} from '@/utils/miniAppResults';
-
-type SubmissionStatus =
-  | { kind: 'idle' }
-  | { kind: 'submitting' }
-  | { kind: 'saved'; at: number }
-  | { kind: 'error'; payload: unknown; request?: SubmitRequest };
-
-/** A v2 submission: the frame's request id is absent for legacy messages. */
-interface SubmitRequest {
-  kind: Exclude<MiniAppSubmitKind, 'done'>;
-  requestId?: string;
-}
+  initialMiniAppView,
+  miniAppViewReducer,
+  sessionLoadReducer,
+  type SubmissionStatus,
+  type SubmitRequest,
+} from './miniAppViewState';
 
 const SESSIONS_COLLECTION = 'mini_app_sessions';
 
@@ -143,9 +139,9 @@ export const MiniAppStudentApp: React.FC = () => {
 const SessionLoader: React.FC = () => {
   const sessionId = window.location.pathname.replace(/^\/miniapp\/?/, '');
 
-  const [session, setSession] = useState<MiniAppSession | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
+  const [load, dispatchLoad] = useReducer(sessionLoadReducer, {
+    kind: 'loading',
+  });
 
   const isInvalidId = !sessionId || sessionId.includes('/');
 
@@ -156,17 +152,14 @@ const SessionLoader: React.FC = () => {
     const unsub = onSnapshot(
       doc(db, SESSIONS_COLLECTION, sessionId),
       (snap) => {
-        if (!snap.exists()) {
-          setNotFound(true);
-        } else {
-          setSession(snap.data() as MiniAppSession);
-        }
-        setLoading(false);
+        dispatchLoad({
+          type: 'snapshot',
+          session: snap.exists() ? (snap.data() as MiniAppSession) : null,
+        });
       },
       (err) => {
         console.error('[MiniAppStudentApp] Session load error:', err);
-        setNotFound(true);
-        setLoading(false);
+        dispatchLoad({ type: 'listenerError' });
       }
     );
 
@@ -179,15 +172,17 @@ const SessionLoader: React.FC = () => {
     );
   }
 
-  if (loading) {
+  if (load.kind === 'loading') {
     return <FullPageLoader message="Loading activity…" />;
   }
 
-  if (notFound || !session) {
+  if (load.kind === 'notFound') {
     return (
       <ErrorScreen message="Activity not found. Please check the link and try again." />
     );
   }
+
+  const { session } = load;
 
   if (session.status === 'ended') {
     return <EndedScreen appTitle={session.appTitle} />;
@@ -403,7 +398,28 @@ function getCachedPseudonym(
   return promise;
 }
 
+// v1 "I'm Done": mergeFields keeps any payload the app already saved.
+async function writeDoneMarker(sessionId: string, currentUser: User) {
+  const tokenResult = await currentUser.getIdTokenResult();
+  const isStudentRole = tokenResult.claims?.studentRole === true;
+  const docId = isStudentRole
+    ? await getCachedPseudonym(sessionId, currentUser.uid)
+    : currentUser.uid;
+  const completion: MiniAppSubmission = {
+    submittedAt: Date.now(),
+    studentUid: currentUser.uid,
+    payload: { completed: true },
+  };
+  await setDoc(
+    doc(db, SESSIONS_COLLECTION, sessionId, 'submissions', docId),
+    completion,
+    { mergeFields: ['submittedAt', 'studentUid', 'payload.completed'] }
+  );
+}
+
 // ─── App Viewer ────────────────────────────────────────────────────────────────
+
+const IDLE: SubmissionStatus = { kind: 'idle' };
 
 const AppViewer: React.FC<{
   session: MiniAppSession;
@@ -413,10 +429,12 @@ const AppViewer: React.FC<{
   const iframeRef = useRef<HTMLIFrameElement>(null);
   // The latest submission the app posted while paused, sent once it reopens.
   const heldPayloadRef = useRef<{ payload: unknown } | null>(null);
-  const [status, setStatus] = useState<SubmissionStatus>({ kind: 'idle' });
-  // Tracks whether the student has submitted anything (via app or "I'm Done")
-  // in this session. Prevents the Done button from reappearing after auto-clear.
-  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [view, dispatch] = useReducer(miniAppViewReducer, initialMiniAppView);
+  // A skipped student's progress keeps tracking behind the notice.
+  const active = view.kind === 'excluded' ? view.behind : view;
+  const status: SubmissionStatus = active.kind === 'open' ? active.save : IDLE;
+  // Anything submitted (app or "I'm Done") keeps the Done button hidden after the toast clears.
+  const hasSubmitted = active.kind === 'open' ? active.submitted : true;
   const isViewOnly = session.mode === 'view-only';
   // View-only sessions never accept submissions, regardless of the
   // submissionsEnabled flag stored on the session doc.
@@ -425,14 +443,17 @@ const AppViewer: React.FC<{
   const isV2 = session.resultsVersion === 2 && !isViewOnly;
   const attemptLimit =
     typeof session.attemptLimit === 'number' ? session.attemptLimit : null;
-  const [attemptsUsed, setAttemptsUsed] = useState(0);
-  const [turnedIn, setTurnedIn] = useState(false);
   const attemptsLeft =
-    attemptLimit === null ? null : Math.max(0, attemptLimit - attemptsUsed);
+    attemptLimit === null
+      ? null
+      : Math.max(0, attemptLimit - active.attemptsUsed);
   const heldRequestRef = useRef<{
     payload: unknown;
     request: SubmitRequest;
   } | null>(null);
+  // One save at a time; an app post that lands mid-save waits here, newest wins.
+  const savingRef = useRef(false);
+  const queuedPostRef = useRef<{ payload: unknown } | null>(null);
 
   // Subscribe to auth so the view-log effect re-runs when anon sign-in
   // resolves; `auth.currentUser` alone is non-reactive.
@@ -455,7 +476,6 @@ const AppViewer: React.FC<{
   const [timeMultiplier, setTimeMultiplier] = useState<
     number | 'unlimited' | undefined
   >(undefined);
-  const [excluded, setExcluded] = useState(false);
   useEffect(() => {
     let cancelled = false;
     const loadOverride = async () => {
@@ -470,7 +490,10 @@ const AppViewer: React.FC<{
         );
         if (cancelled || !snap.exists()) return;
         const pointer = snap.data() as StudentAssignmentPointer;
-        setExcluded(pointer.excluded === true);
+        dispatch({
+          type: 'pointerLoaded',
+          excluded: pointer.excluded === true,
+        });
         const multiplier = pointer.override?.timeMultiplier;
         if (multiplier !== undefined) setTimeMultiplier(multiplier);
       } catch {
@@ -520,13 +543,12 @@ const AppViewer: React.FC<{
           doc(db, SESSIONS_COLLECTION, session.id, 'submissions', docId)
         );
         if (snap.exists()) {
-          setHasSubmitted(true);
           const used = (snap.data() as MiniAppSubmission).attemptCount;
-          if (isV2 && typeof used === 'number') {
-            setAttemptsUsed(used);
-            if (attemptLimit !== null && used >= attemptLimit)
-              setTurnedIn(true);
-          }
+          dispatch({
+            type: 'existingFound',
+            attemptCount: isV2 && typeof used === 'number' ? used : undefined,
+            attemptLimit,
+          });
         }
       } catch {
         // Doc doesn't exist yet or network error — leave hasSubmitted false.
@@ -562,25 +584,16 @@ const AppViewer: React.FC<{
     target.postMessage({ type: MSG_INIT, payload: initPayload }, '*');
   }, [initPayload]);
 
-  const submit = useCallback(
+  const writeSubmission = useCallback(
     async (payload: unknown) => {
-      if (paused && submissionsEnabled) {
-        heldPayloadRef.current = { payload };
-        return;
-      }
-      if (!submissionsEnabled || status.kind === 'submitting') {
-        // View-only session, or a submission is already in flight (guards
-        // against double-clicks / duplicate postMessages).
-        return;
-      }
       const currentUser = auth.currentUser;
       if (!currentUser) {
         console.warn('[MiniAppStudentApp] No auth user; skipping submission.');
-        setStatus({ kind: 'error', payload });
+        dispatch({ type: 'saveFailed', payload });
         return;
       }
 
-      setStatus({ kind: 'submitting' });
+      dispatch({ type: 'saveStarted' });
       try {
         // studentRole users (ClassLink-launched) submit under an opaque
         // per-assignment pseudonym so the teacher can match-back without
@@ -613,14 +626,39 @@ const AppViewer: React.FC<{
           doc(db, SESSIONS_COLLECTION, session.id, 'submissions', docId),
           submission
         );
-        setStatus({ kind: 'saved', at: Date.now() });
-        setHasSubmitted(true);
+        dispatch({ type: 'saveSucceeded', at: Date.now() });
       } catch (err) {
         console.error('[MiniAppStudentApp] Submission write failed:', err);
-        setStatus({ kind: 'error', payload });
+        dispatch({ type: 'saveFailed', payload });
       }
     },
-    [session.id, submissionsEnabled, status.kind, paused]
+    [session.id]
+  );
+
+  const submit = useCallback(
+    async (payload: unknown) => {
+      if (paused && submissionsEnabled) {
+        heldPayloadRef.current = { payload };
+        return;
+      }
+      if (!submissionsEnabled) return;
+      if (savingRef.current) {
+        queuedPostRef.current = { payload };
+        return;
+      }
+      savingRef.current = true;
+      try {
+        let next: { payload: unknown } | null = { payload };
+        while (next) {
+          await writeSubmission(next.payload);
+          next = queuedPostRef.current;
+          queuedPostRef.current = null;
+        }
+      } finally {
+        savingRef.current = false;
+      }
+    },
+    [submissionsEnabled, paused, writeSubmission]
   );
 
   // Held submissions go out once the period reopens.
@@ -642,6 +680,45 @@ const AppViewer: React.FC<{
     []
   );
 
+  const sendV2 = useCallback(
+    async (payload: unknown, request: SubmitRequest) => {
+      dispatch({ type: 'saveStarted' });
+      try {
+        const result = await submitMiniAppResult(
+          session.id,
+          request.kind,
+          payload
+        );
+        dispatch({
+          type: 'saveSucceeded',
+          at: Date.now(),
+          attemptsUsed: result.attempt,
+        });
+        replyToFrame(request.requestId, { ok: true, result });
+      } catch (err) {
+        const code = submitErrorCode(err);
+        replyToFrame(request.requestId, {
+          ok: false,
+          error: {
+            code,
+            message: err instanceof Error ? err.message : 'Not saved.',
+          },
+        });
+        if (code === 'attempts-exhausted') {
+          dispatch({ type: 'attemptsExhausted' });
+        } else if (code === 'invalid-result') {
+          logError('MiniAppStudentApp.invalidResult', err, {
+            sessionId: session.id,
+          });
+          dispatch({ type: 'saveCleared' });
+        } else {
+          dispatch({ type: 'saveFailed', payload, request });
+        }
+      }
+    },
+    [session.id, replyToFrame]
+  );
+
   const submitV2 = useCallback(
     async (payload: unknown, request: SubmitRequest) => {
       if (!submissionsEnabled) {
@@ -658,47 +735,37 @@ const AppViewer: React.FC<{
         heldRequestRef.current = { payload, request };
         return;
       }
-      if (status.kind === 'submitting') {
+      if (savingRef.current) {
+        // Legacy apps post progress repeatedly and never retry, so keep the newest.
+        if (request.kind === 'legacy') {
+          queuedPostRef.current = { payload };
+          return;
+        }
         replyToFrame(request.requestId, {
           ok: false,
           error: { code: 'busy', message: 'Already saving.' },
         });
         return;
       }
-      setStatus({ kind: 'submitting' });
+      savingRef.current = true;
       try {
-        const result = await submitMiniAppResult(
-          session.id,
-          request.kind,
-          payload
-        );
-        setAttemptsUsed(result.attempt);
-        setStatus({ kind: 'saved', at: Date.now() });
-        setHasSubmitted(true);
-        replyToFrame(request.requestId, { ok: true, result });
-      } catch (err) {
-        const code = submitErrorCode(err);
-        replyToFrame(request.requestId, {
-          ok: false,
-          error: {
-            code,
-            message: err instanceof Error ? err.message : 'Not saved.',
-          },
-        });
-        if (code === 'attempts-exhausted') {
-          setStatus({ kind: 'idle' });
-          setTurnedIn(true);
-        } else if (code === 'invalid-result') {
-          logError('MiniAppStudentApp.invalidResult', err, {
-            sessionId: session.id,
-          });
-          setStatus({ kind: 'idle' });
-        } else {
-          setStatus({ kind: 'error', payload, request });
+        let next: { payload: unknown; request: SubmitRequest } | null = {
+          payload,
+          request,
+        };
+        while (next) {
+          await sendV2(next.payload, next.request);
+          const queued: { payload: unknown } | null = queuedPostRef.current;
+          queuedPostRef.current = null;
+          next = queued
+            ? { payload: queued.payload, request: { kind: 'legacy' } }
+            : null;
         }
+      } finally {
+        savingRef.current = false;
       }
     },
-    [session.id, submissionsEnabled, paused, status.kind, replyToFrame]
+    [submissionsEnabled, paused, replyToFrame, sendV2]
   );
 
   useEffect(() => {
@@ -713,48 +780,35 @@ const AppViewer: React.FC<{
   // view-only (submissionsEnabled=false) and submission-enabled sessions.
   // The Firestore rule allows this write regardless of submissionsEnabled.
   const markDone = useCallback(async () => {
-    if (hasSubmitted || paused || status.kind === 'submitting') return;
+    if (hasSubmitted || paused || savingRef.current) return;
     const currentUser = auth.currentUser;
     if (!currentUser) {
       console.warn('[MiniAppStudentApp] No auth user; skipping mark-done.');
       return;
     }
-    setStatus({ kind: 'submitting' });
+    savingRef.current = true;
+    dispatch({ type: 'saveStarted' });
     try {
       if (isV2) {
         await submitMiniAppResult(session.id, 'done', null);
-        setStatus({ kind: 'saved', at: Date.now() });
-        setHasSubmitted(true);
-        return;
+      } else {
+        await writeDoneMarker(session.id, currentUser);
       }
-      const tokenResult = await currentUser.getIdTokenResult();
-      const isStudentRole = tokenResult.claims?.studentRole === true;
-      const docId = isStudentRole
-        ? await getCachedPseudonym(session.id, currentUser.uid)
-        : currentUser.uid;
-      const completion: MiniAppSubmission = {
-        submittedAt: Date.now(),
-        studentUid: currentUser.uid,
-        payload: { completed: true },
-      };
-      // Use mergeFields so we only touch these specific fields. This avoids
-      // overwriting a real submission payload if the student already submitted
-      // work via the app's own SPART_MINIAPP_RESULT button and then reloaded
-      // the page (resetting hasSubmitted) before clicking "I'm Done".
-      // payload.completed is merged into the existing payload map rather than
-      // replacing it, preserving any prior work data.
-      await setDoc(
-        doc(db, SESSIONS_COLLECTION, session.id, 'submissions', docId),
-        completion,
-        { mergeFields: ['submittedAt', 'studentUid', 'payload.completed'] }
-      );
-      setStatus({ kind: 'saved', at: Date.now() });
-      setHasSubmitted(true);
+      dispatch({ type: 'saveSucceeded', at: Date.now() });
     } catch (err) {
       console.error('[MiniAppStudentApp] Mark-done write failed:', err);
-      setStatus({ kind: 'idle' });
+      dispatch({ type: 'saveCleared' });
+    } finally {
+      savingRef.current = false;
     }
-  }, [session.id, hasSubmitted, paused, status.kind, isV2]);
+    const queued = queuedPostRef.current;
+    queuedPostRef.current = null;
+    if (queued) {
+      void (isV2
+        ? submitV2(queued.payload, { kind: 'legacy' })
+        : submit(queued.payload));
+    }
+  }, [session.id, hasSubmitted, paused, isV2, submit, submitV2]);
 
   const handleMessage = useCallback(
     (event: MessageEvent) => {
@@ -789,7 +843,10 @@ const AppViewer: React.FC<{
   // linger over the activity.
   useEffect(() => {
     if (status.kind !== 'saved') return;
-    const timeout = window.setTimeout(() => setStatus({ kind: 'idle' }), 2500);
+    const timeout = window.setTimeout(
+      () => dispatch({ type: 'savedToastExpired' }),
+      2500
+    );
     return () => window.clearTimeout(timeout);
   }, [status]);
 
@@ -799,8 +856,10 @@ const AppViewer: React.FC<{
   );
 
   // Teacher skipped this student for this assignment.
-  if (excluded) return <AssignmentExcludedNotice />;
-  if (turnedIn) return <TurnedInScreen appTitle={session.appTitle} />;
+  if (view.kind === 'excluded') return <AssignmentExcludedNotice />;
+  if (view.kind === 'turnedIn') {
+    return <TurnedInScreen appTitle={session.appTitle} />;
+  }
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-slate-900 flex flex-col">

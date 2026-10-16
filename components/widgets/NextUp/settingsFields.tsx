@@ -13,6 +13,7 @@ import { RosterGroupSelect } from '@/components/common/RosterGroupSelect';
 import { handleRadioGroupKeyDown } from '@/components/common/radioGroupKeyNav';
 import { rosterGroupMemberIds } from '@/utils/rosterGroups';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
+import { getNextUpQueueStore } from './nextUpQueueStore';
 
 const NEXTUP_FOLDER_NAME = 'NextUp';
 const SESSIONS_COLLECTION = 'nextup_sessions';
@@ -234,10 +235,15 @@ export const NextUpSessionField: React.FC<{ ctx: CustomRenderCtx }> = ({
       status: index === 0 ? 'active' : 'waiting',
       joinedAt: Date.now(),
     }));
+    const fileId = config.activeDriveFileId;
     try {
-      await driveService.updateFileContent(
-        config.activeDriveFileId,
-        new Blob([JSON.stringify(queue)], { type: 'application/json' })
+      await getNextUpQueueStore(ctx.widget.id).dispatch(
+        { type: 'replace', queue },
+        (updated) =>
+          driveService.updateFileContent(
+            fileId,
+            new Blob([JSON.stringify(updated)], { type: 'application/json' })
+          )
       );
       ctx.updateConfig({ lastUpdated: Date.now() });
       addToast(

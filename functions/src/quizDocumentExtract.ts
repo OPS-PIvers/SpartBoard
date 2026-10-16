@@ -110,6 +110,7 @@ export interface ExtractDocumentDeps {
   db: Firestore;
   isImportGranted: (uid: string, email: string | null) => Promise<boolean>;
   isGeminiGranted: (uid: string, email: string | null) => Promise<boolean>;
+  isAiReaderGranted: (uid: string, email: string | null) => Promise<boolean>;
   /** Throws `resource-exhausted` past the teacher's daily quiz allowance. */
   chargeQuiz: (uid: string, email: string | null) => Promise<void>;
   /** PDFs only; a Word file has no fixed page count. */
@@ -1221,13 +1222,15 @@ export async function extractQuizFromDocument(
   // inside either gate.
   const email = caller.emailVerified ? caller.email : null;
 
-  const [importGranted, geminiGranted, versioned] = await Promise.all([
-    deps.isImportGranted(caller.uid, email),
-    deps.isGeminiGranted(caller.uid, email),
-    request.versions === true
-      ? deps.isVersionsGranted(caller.uid, email)
-      : Promise.resolve(false),
-  ]);
+  const [importGranted, geminiGranted, aiReaderGranted, versioned] =
+    await Promise.all([
+      deps.isImportGranted(caller.uid, email),
+      deps.isGeminiGranted(caller.uid, email),
+      deps.isAiReaderGranted(caller.uid, email),
+      request.versions === true
+        ? deps.isVersionsGranted(caller.uid, email)
+        : Promise.resolve(false),
+    ]);
   if (!importGranted)
     throw new HttpsError(
       'permission-denied',
@@ -1237,6 +1240,11 @@ export async function extractQuizFromDocument(
     throw new HttpsError(
       'permission-denied',
       'AI features are not enabled for this account.'
+    );
+  if (!aiReaderGranted)
+    throw new HttpsError(
+      'permission-denied',
+      'Reading documents with AI is not enabled for this account.'
     );
 
   const startedAt = deps.now();
@@ -1424,6 +1432,8 @@ export function buildDefaultExtractDocumentDeps(): ExtractDocumentDeps {
       isGlobalFeatureGranted(db, QUIZ_DOCUMENT_IMPORT_FEATURE_ID, email, uid),
     isGeminiGranted: (uid, email) =>
       isGlobalFeatureGranted(db, GEMINI_FEATURE_ID, email, uid),
+    isAiReaderGranted: (uid, email) =>
+      isGlobalFeatureGranted(db, QUIZ_QUOTA_FEATURE_ID, email, uid),
     chargeQuiz: (uid, email) => chargeQuizQuota(db, uid, email, Date.now()),
     pdfPageCount: pdfPageCountOf,
     extract: geminiExtract,

@@ -1,8 +1,18 @@
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  type Mock,
+  type MockInstance,
+} from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   writeBatch,
@@ -26,6 +36,7 @@ vi.mock('firebase/firestore', () => ({
   deleteField: vi.fn(() => DELETE_FIELD_SENTINEL),
   doc: vi.fn(),
   documentId: vi.fn(() => '__documentId'),
+  getDoc: vi.fn(),
   getDocs: vi.fn(),
   limit: vi.fn(),
   onSnapshot: vi.fn(() => vi.fn()),
@@ -67,6 +78,7 @@ const mockCollection = collection as Mock;
 const mockOnSnapshot = onSnapshot as Mock;
 const mockWriteBatch = writeBatch as Mock;
 const mockGetDocs = getDocs as Mock;
+const mockGetDoc = getDoc as Mock;
 
 // Tiny test-data factory: a 2-step MC set so the publish math is easy
 // to assert (two questions, both 1 point, total = 2 → percentage easy).
@@ -577,5 +589,88 @@ describe('formatCanonicalAnswer', () => {
         question: { type: 'sorting', text: '', sortingItems: [] },
       })
     ).toBeNull();
+  });
+});
+
+describe('useGuidedLearningAssignments — archive', () => {
+  const batchUpdate = vi.fn();
+  const batchCommit = vi.fn();
+  const NOW = 1_800_000_000_000;
+  const SESSION_PATH = `guided_learning_sessions/${ASSIGNMENT_ID}`;
+  const ROW_PATH = `users/${TEACHER_UID}/guided_learning_assignments/${ASSIGNMENT_ID}`;
+  let nowSpy: MockInstance;
+
+  afterEach(() => nowSpy.mockRestore());
+
+  const sessionWith = (data: Record<string, unknown> | null) =>
+    mockGetDoc.mockResolvedValue({
+      exists: () => data !== null,
+      data: () => data ?? undefined,
+    });
+
+  const archive = async () => {
+    const { result } = renderHook(() =>
+      useGuidedLearningAssignments(TEACHER_UID)
+    );
+    await act(async () => {
+      await result.current.archiveAssignment(ASSIGNMENT_ID);
+    });
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    nowSpy = vi.spyOn(Date, 'now').mockReturnValue(NOW);
+    mockDoc.mockImplementation((_db: unknown, ...segs: string[]) =>
+      segs.join('/')
+    );
+    mockOnSnapshot.mockImplementation(
+      (_q: unknown, onNext: (snap: { docs: [] }) => void) => {
+        onNext({ docs: [] });
+        return () => undefined;
+      }
+    );
+    batchUpdate.mockReset();
+    batchCommit.mockReset().mockResolvedValue(undefined);
+    mockWriteBatch.mockReturnValue({
+      update: batchUpdate,
+      commit: batchCommit,
+    });
+  });
+
+  it('closes an open session in the same batch as the row', async () => {
+    sessionWith({ teacherUid: TEACHER_UID });
+    await archive();
+    expect(batchUpdate).toHaveBeenCalledWith(ROW_PATH, {
+      status: 'archived',
+      updatedAt: NOW,
+      archivedAt: NOW,
+      closeAt: NOW,
+    });
+    expect(batchUpdate).toHaveBeenCalledWith(SESSION_PATH, { closeAt: NOW });
+    expect(batchCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('pulls a later close time forward to now', async () => {
+    sessionWith({ teacherUid: TEACHER_UID, closeAt: NOW + 60_000 });
+    await archive();
+    expect(batchUpdate).toHaveBeenCalledWith(SESSION_PATH, { closeAt: NOW });
+  });
+
+  it('keeps an earlier close time', async () => {
+    sessionWith({ teacherUid: TEACHER_UID, closeAt: NOW - 60_000 });
+    await archive();
+    expect(batchUpdate).toHaveBeenCalledTimes(1);
+    expect(batchUpdate).toHaveBeenCalledWith(ROW_PATH, {
+      status: 'archived',
+      updatedAt: NOW,
+      archivedAt: NOW,
+    });
+  });
+
+  it('files the row alone when the session is gone', async () => {
+    sessionWith(null);
+    await archive();
+    expect(batchUpdate).toHaveBeenCalledTimes(1);
+    expect(batchUpdate.mock.calls[0][0]).toBe(ROW_PATH);
   });
 });

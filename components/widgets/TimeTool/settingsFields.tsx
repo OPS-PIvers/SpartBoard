@@ -5,6 +5,7 @@ import { resolveLabel } from '@/components/settings/renderer/resolveLabel';
 import type { CustomRenderCtx } from '@/components/settings/schema/types';
 import { TIME_TOOL_MODES, type TimeToolMode } from '@/config/timeTool';
 import { tourAttr } from '@/config/tourAnchors';
+import { timeToolClockPatch } from '@/utils/timeToolClock';
 
 export type CustomFieldProps = { ctx: CustomRenderCtx };
 
@@ -94,22 +95,11 @@ export const TimeToolModeField: React.FC<CustomFieldProps> = ({ ctx }) => {
   const mode = config.mode ?? 'timer';
   const select = (next: TimeToolMode) => {
     if (next === mode) return;
-    if (next === 'timer') {
-      ctx.updateConfig({
-        mode: 'timer',
-        duration: 600,
-        elapsedTime: 600,
-        isRunning: false,
-        startTime: null,
-      });
-    } else {
-      ctx.updateConfig({
-        mode: 'stopwatch',
-        elapsedTime: 0,
-        isRunning: false,
-        startTime: null,
-      });
-    }
+    const patch = timeToolClockPatch(
+      { ...(config as TimeToolConfig), mode },
+      { type: 'switchMode', mode: next }
+    );
+    if (patch) ctx.updateConfig(patch);
   };
   return (
     <TimeToolRadioGroup

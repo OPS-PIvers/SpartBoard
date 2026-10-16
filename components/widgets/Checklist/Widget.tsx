@@ -167,11 +167,13 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
   const padVCqh = (10 * sm).toFixed(1);
   const padHCqw = (3 * sm).toFixed(1);
   const gapCqw = (4 * sm).toFixed(1);
-  const textSize = `clamp(11px, ${fontCqh}cqh, ${Math.round(48 * sm)}px)`;
-  const iconSize = `clamp(14px, ${iconCqh}cqh, ${Math.round(56 * sm)}px)`;
+  const textSize = `clamp(11px, min(${fontCqh}cqh, ${(11 * sm).toFixed(1)}cqw), ${Math.round(48 * sm)}px)`;
+  const iconSize = `clamp(14px, min(${iconCqh}cqh, ${(16 * sm).toFixed(1)}cqw), ${Math.round(56 * sm)}px)`;
   const cardPadding = `clamp(10px, ${padVCqh}cqh, ${Math.round(22 * sm)}px) clamp(8px, ${padHCqw}cqw, ${Math.round(20 * sm)}px)`;
   const cardGap = `clamp(6px, ${gapCqw}cqw, 16px)`;
   const listGap = 'min(6px, 2cqmin)';
+  // Rows stop shrinking at a 44px tap target and the list scrolls instead.
+  const rowMinHeight = 'max(44px, 8cqmin)';
   const lines = config.rowStyle === 'lines';
 
   if (!hasContent) {
@@ -202,7 +204,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
         >
           <div
             role="list"
-            className={`flex-1 min-h-0 overflow-hidden flex flex-col ${getFontClass()}`}
+            className={`flex-1 min-h-0 overflow-y-auto flex flex-col ${getFontClass()}`}
             style={{
               padding: 'min(10px, 2.2cqmin) min(12px, 2.5cqmin)',
               gap: lines ? 0 : listGap,
@@ -223,7 +225,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                     role="listitem"
                     style={{
                       flex: 1,
-                      minHeight: 0,
+                      minHeight: rowMinHeight,
                       containerType: 'size',
                     }}
                   >
@@ -250,7 +252,7 @@ export const ChecklistWidget: React.FC<{ widget: WidgetData }> = ({
                     role="listitem"
                     style={{
                       flex: 1,
-                      minHeight: 0,
+                      minHeight: rowMinHeight,
                       containerType: 'size',
                     }}
                   >

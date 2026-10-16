@@ -582,7 +582,7 @@ export async function computeAnalyticsForOrg(
   //   requestPlcMeetingNotesV1 (plcMeetingNotes.ts): plc-meeting-ai-notes
   //   plcGoalCoachV1 (plcGoalCoach.ts): plc-goal-coach
   //   translateQuizV1 / translateResponseV1 (quizTranslation.ts): translation (count + backCount)
-  //   extractQuizFromDocumentV1 counts as quiz; extractStimulusReadAloudTextV1 counts as ocr
+  //   extractQuizFromDocumentV1: quiz-document-ai-reader; extractStimulusReadAloudTextV1 counts as ocr
   //
   // Kept for existing docs only: video-activity-recommend (now counted as video-activity-ai),
   // widget-builder and widget-explainer (the Widget Builder was removed).
@@ -610,6 +610,7 @@ export async function computeAnalyticsForOrg(
     'webcam-ai',
     'plc-meeting-ai-notes',
     'plc-goal-coach',
+    'quiz-document-ai-reader',
   ];
 
   // Sub-limit counters beside a feature counter; skipped so they never double count.

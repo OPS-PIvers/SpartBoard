@@ -49,16 +49,11 @@ vi.mock('@/context/useDashboard', () => ({
 
 let mockCanAccessPaper = true;
 let mockHomeV2 = false;
-let mockTeamsRedesign = false;
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     user: { uid: 'uid-alice' },
     canAccessFeature: (id: string) =>
-      id === 'plc-home-v2'
-        ? mockHomeV2
-        : id === 'teams-redesign'
-          ? mockTeamsRedesign
-          : mockCanAccessPaper,
+      id === 'plc-home-v2' ? mockHomeV2 : mockCanAccessPaper,
     getAssignmentMode: () => 'submissions',
   }),
 }));
@@ -281,7 +276,6 @@ function setDefaults() {
   mockCanEdit = true;
   mockCanAccessPaper = true;
   mockHomeV2 = false;
-  mockTeamsRedesign = false;
   mockBoardWidgets = [];
   addWidget.mockClear();
   updateWidget.mockClear();
@@ -411,18 +405,7 @@ describe('PlcAssessmentList', () => {
     );
   });
 
-  it('keeps the chips static without the Team pages redesign flag', () => {
-    mockInLibraryGroups = ['g-running'];
-    render(<PlcAssessmentList plc={plc} onCloseDashboard={vi.fn()} />);
-    expect(
-      within(rowByTitle('Decimals quiz')).queryByRole('button', {
-        name: 'Open the live monitor',
-      })
-    ).toBeNull();
-  });
-
   it('opens the live monitor from an In progress chip and closes the page', () => {
-    mockTeamsRedesign = true;
     mockInLibraryGroups = ['g-running'];
     mockBoardWidgets = [{ id: 'w-quiz', type: 'quiz', minimized: true }];
     const onClose = vi.fn();
@@ -445,7 +428,6 @@ describe('PlcAssessmentList', () => {
   });
 
   it('adds a Quiz widget and shows the library from the In your library chip', () => {
-    mockTeamsRedesign = true;
     mockInLibraryGroups = ['g-scored'];
     const onClose = vi.fn();
     render(<PlcAssessmentList plc={plc} onCloseDashboard={onClose} />);
