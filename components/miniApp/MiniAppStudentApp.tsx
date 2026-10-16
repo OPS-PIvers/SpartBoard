@@ -22,6 +22,7 @@ import React, {
   useRef,
   useCallback,
   useMemo,
+  useReducer,
 } from 'react';
 import {
   signInAnonymously,
@@ -78,23 +79,14 @@ import {
   injectMiniAppHelper,
   type MiniAppInitPayload,
 } from '@/utils/miniAppHelper';
+import { submitErrorCode, submitMiniAppResult } from '@/utils/miniAppResults';
 import {
-  submitErrorCode,
-  submitMiniAppResult,
-  type MiniAppSubmitKind,
-} from '@/utils/miniAppResults';
-
-type SubmissionStatus =
-  | { kind: 'idle' }
-  | { kind: 'submitting' }
-  | { kind: 'saved'; at: number }
-  | { kind: 'error'; payload: unknown; request?: SubmitRequest };
-
-/** A v2 submission: the frame's request id is absent for legacy messages. */
-interface SubmitRequest {
-  kind: Exclude<MiniAppSubmitKind, 'done'>;
-  requestId?: string;
-}
+  initialMiniAppView,
+  miniAppViewReducer,
+  sessionLoadReducer,
+  type SubmissionStatus,
+  type SubmitRequest,
+} from './miniAppViewState';
 
 const SESSIONS_COLLECTION = 'mini_app_sessions';
 
@@ -147,9 +139,9 @@ export const MiniAppStudentApp: React.FC = () => {
 const SessionLoader: React.FC = () => {
   const sessionId = window.location.pathname.replace(/^\/miniapp\/?/, '');
 
-  const [session, setSession] = useState<MiniAppSession | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [notFound, setNotFound] = useState(false);
+  const [load, dispatchLoad] = useReducer(sessionLoadReducer, {
+    kind: 'loading',
+  });
 
   const isInvalidId = !sessionId || sessionId.includes('/');
 
@@ -160,17 +152,14 @@ const SessionLoader: React.FC = () => {
     const unsub = onSnapshot(
       doc(db, SESSIONS_COLLECTION, sessionId),
       (snap) => {
-        if (!snap.exists()) {
-          setNotFound(true);
-        } else {
-          setSession(snap.data() as MiniAppSession);
-        }
-        setLoading(false);
+        dispatchLoad({
+          type: 'snapshot',
+          session: snap.exists() ? (snap.data() as MiniAppSession) : null,
+        });
       },
       (err) => {
         console.error('[MiniAppStudentApp] Session load error:', err);
-        setNotFound(true);
-        setLoading(false);
+        dispatchLoad({ type: 'listenerError' });
       }
     );
 
@@ -183,15 +172,17 @@ const SessionLoader: React.FC = () => {
     );
   }
 
-  if (loading) {
+  if (load.kind === 'loading') {
     return <FullPageLoader message="Loading activity…" />;
   }
 
-  if (notFound || !session) {
+  if (load.kind === 'notFound') {
     return (
       <ErrorScreen message="Activity not found. Please check the link and try again." />
     );
   }
+
+  const { session } = load;
 
   if (session.status === 'ended') {
     return <EndedScreen appTitle={session.appTitle} />;
@@ -428,6 +419,8 @@ async function writeDoneMarker(sessionId: string, currentUser: User) {
 
 // ─── App Viewer ────────────────────────────────────────────────────────────────
 
+const IDLE: SubmissionStatus = { kind: 'idle' };
+
 const AppViewer: React.FC<{
   session: MiniAppSession;
   /** The student's period is shut: cover the app and hold submissions. */
@@ -436,10 +429,12 @@ const AppViewer: React.FC<{
   const iframeRef = useRef<HTMLIFrameElement>(null);
   // The latest submission the app posted while paused, sent once it reopens.
   const heldPayloadRef = useRef<{ payload: unknown } | null>(null);
-  const [status, setStatus] = useState<SubmissionStatus>({ kind: 'idle' });
-  // Tracks whether the student has submitted anything (via app or "I'm Done")
-  // in this session. Prevents the Done button from reappearing after auto-clear.
-  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [view, dispatch] = useReducer(miniAppViewReducer, initialMiniAppView);
+  // A skipped student's progress keeps tracking behind the notice.
+  const active = view.kind === 'excluded' ? view.behind : view;
+  const status: SubmissionStatus = active.kind === 'open' ? active.save : IDLE;
+  // Anything submitted (app or "I'm Done") keeps the Done button hidden after the toast clears.
+  const hasSubmitted = active.kind === 'open' ? active.submitted : true;
   const isViewOnly = session.mode === 'view-only';
   // View-only sessions never accept submissions, regardless of the
   // submissionsEnabled flag stored on the session doc.
@@ -448,10 +443,10 @@ const AppViewer: React.FC<{
   const isV2 = session.resultsVersion === 2 && !isViewOnly;
   const attemptLimit =
     typeof session.attemptLimit === 'number' ? session.attemptLimit : null;
-  const [attemptsUsed, setAttemptsUsed] = useState(0);
-  const [turnedIn, setTurnedIn] = useState(false);
   const attemptsLeft =
-    attemptLimit === null ? null : Math.max(0, attemptLimit - attemptsUsed);
+    attemptLimit === null
+      ? null
+      : Math.max(0, attemptLimit - active.attemptsUsed);
   const heldRequestRef = useRef<{
     payload: unknown;
     request: SubmitRequest;
@@ -481,7 +476,6 @@ const AppViewer: React.FC<{
   const [timeMultiplier, setTimeMultiplier] = useState<
     number | 'unlimited' | undefined
   >(undefined);
-  const [excluded, setExcluded] = useState(false);
   useEffect(() => {
     let cancelled = false;
     const loadOverride = async () => {
@@ -496,7 +490,10 @@ const AppViewer: React.FC<{
         );
         if (cancelled || !snap.exists()) return;
         const pointer = snap.data() as StudentAssignmentPointer;
-        setExcluded(pointer.excluded === true);
+        dispatch({
+          type: 'pointerLoaded',
+          excluded: pointer.excluded === true,
+        });
         const multiplier = pointer.override?.timeMultiplier;
         if (multiplier !== undefined) setTimeMultiplier(multiplier);
       } catch {
@@ -546,13 +543,12 @@ const AppViewer: React.FC<{
           doc(db, SESSIONS_COLLECTION, session.id, 'submissions', docId)
         );
         if (snap.exists()) {
-          setHasSubmitted(true);
           const used = (snap.data() as MiniAppSubmission).attemptCount;
-          if (isV2 && typeof used === 'number') {
-            setAttemptsUsed(used);
-            if (attemptLimit !== null && used >= attemptLimit)
-              setTurnedIn(true);
-          }
+          dispatch({
+            type: 'existingFound',
+            attemptCount: isV2 && typeof used === 'number' ? used : undefined,
+            attemptLimit,
+          });
         }
       } catch {
         // Doc doesn't exist yet or network error — leave hasSubmitted false.
@@ -593,11 +589,11 @@ const AppViewer: React.FC<{
       const currentUser = auth.currentUser;
       if (!currentUser) {
         console.warn('[MiniAppStudentApp] No auth user; skipping submission.');
-        setStatus({ kind: 'error', payload });
+        dispatch({ type: 'saveFailed', payload });
         return;
       }
 
-      setStatus({ kind: 'submitting' });
+      dispatch({ type: 'saveStarted' });
       try {
         // studentRole users (ClassLink-launched) submit under an opaque
         // per-assignment pseudonym so the teacher can match-back without
@@ -630,11 +626,10 @@ const AppViewer: React.FC<{
           doc(db, SESSIONS_COLLECTION, session.id, 'submissions', docId),
           submission
         );
-        setStatus({ kind: 'saved', at: Date.now() });
-        setHasSubmitted(true);
+        dispatch({ type: 'saveSucceeded', at: Date.now() });
       } catch (err) {
         console.error('[MiniAppStudentApp] Submission write failed:', err);
-        setStatus({ kind: 'error', payload });
+        dispatch({ type: 'saveFailed', payload });
       }
     },
     [session.id]
@@ -687,16 +682,18 @@ const AppViewer: React.FC<{
 
   const sendV2 = useCallback(
     async (payload: unknown, request: SubmitRequest) => {
-      setStatus({ kind: 'submitting' });
+      dispatch({ type: 'saveStarted' });
       try {
         const result = await submitMiniAppResult(
           session.id,
           request.kind,
           payload
         );
-        setAttemptsUsed(result.attempt);
-        setStatus({ kind: 'saved', at: Date.now() });
-        setHasSubmitted(true);
+        dispatch({
+          type: 'saveSucceeded',
+          at: Date.now(),
+          attemptsUsed: result.attempt,
+        });
         replyToFrame(request.requestId, { ok: true, result });
       } catch (err) {
         const code = submitErrorCode(err);
@@ -708,15 +705,14 @@ const AppViewer: React.FC<{
           },
         });
         if (code === 'attempts-exhausted') {
-          setStatus({ kind: 'idle' });
-          setTurnedIn(true);
+          dispatch({ type: 'attemptsExhausted' });
         } else if (code === 'invalid-result') {
           logError('MiniAppStudentApp.invalidResult', err, {
             sessionId: session.id,
           });
-          setStatus({ kind: 'idle' });
+          dispatch({ type: 'saveCleared' });
         } else {
-          setStatus({ kind: 'error', payload, request });
+          dispatch({ type: 'saveFailed', payload, request });
         }
       }
     },
@@ -791,18 +787,17 @@ const AppViewer: React.FC<{
       return;
     }
     savingRef.current = true;
-    setStatus({ kind: 'submitting' });
+    dispatch({ type: 'saveStarted' });
     try {
       if (isV2) {
         await submitMiniAppResult(session.id, 'done', null);
       } else {
         await writeDoneMarker(session.id, currentUser);
       }
-      setStatus({ kind: 'saved', at: Date.now() });
-      setHasSubmitted(true);
+      dispatch({ type: 'saveSucceeded', at: Date.now() });
     } catch (err) {
       console.error('[MiniAppStudentApp] Mark-done write failed:', err);
-      setStatus({ kind: 'idle' });
+      dispatch({ type: 'saveCleared' });
     } finally {
       savingRef.current = false;
     }
@@ -848,7 +843,10 @@ const AppViewer: React.FC<{
   // linger over the activity.
   useEffect(() => {
     if (status.kind !== 'saved') return;
-    const timeout = window.setTimeout(() => setStatus({ kind: 'idle' }), 2500);
+    const timeout = window.setTimeout(
+      () => dispatch({ type: 'savedToastExpired' }),
+      2500
+    );
     return () => window.clearTimeout(timeout);
   }, [status]);
 
@@ -858,8 +856,10 @@ const AppViewer: React.FC<{
   );
 
   // Teacher skipped this student for this assignment.
-  if (excluded) return <AssignmentExcludedNotice />;
-  if (turnedIn) return <TurnedInScreen appTitle={session.appTitle} />;
+  if (view.kind === 'excluded') return <AssignmentExcludedNotice />;
+  if (view.kind === 'turnedIn') {
+    return <TurnedInScreen appTitle={session.appTitle} />;
+  }
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-slate-900 flex flex-col">
