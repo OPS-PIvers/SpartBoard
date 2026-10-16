@@ -23,7 +23,11 @@ import React, {
   useCallback,
   useMemo,
 } from 'react';
-import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import {
+  signInAnonymously,
+  onAuthStateChanged,
+  type User,
+} from 'firebase/auth';
 import {
   addDoc,
   collection,
@@ -403,6 +407,25 @@ function getCachedPseudonym(
   return promise;
 }
 
+// v1 "I'm Done": mergeFields keeps any payload the app already saved.
+async function writeDoneMarker(sessionId: string, currentUser: User) {
+  const tokenResult = await currentUser.getIdTokenResult();
+  const isStudentRole = tokenResult.claims?.studentRole === true;
+  const docId = isStudentRole
+    ? await getCachedPseudonym(sessionId, currentUser.uid)
+    : currentUser.uid;
+  const completion: MiniAppSubmission = {
+    submittedAt: Date.now(),
+    studentUid: currentUser.uid,
+    payload: { completed: true },
+  };
+  await setDoc(
+    doc(db, SESSIONS_COLLECTION, sessionId, 'submissions', docId),
+    completion,
+    { mergeFields: ['submittedAt', 'studentUid', 'payload.completed'] }
+  );
+}
+
 // ─── App Viewer ────────────────────────────────────────────────────────────────
 
 const AppViewer: React.FC<{
@@ -433,6 +456,9 @@ const AppViewer: React.FC<{
     payload: unknown;
     request: SubmitRequest;
   } | null>(null);
+  // One save at a time; an app post that lands mid-save waits here, newest wins.
+  const savingRef = useRef(false);
+  const queuedPostRef = useRef<{ payload: unknown } | null>(null);
 
   // Subscribe to auth so the view-log effect re-runs when anon sign-in
   // resolves; `auth.currentUser` alone is non-reactive.
@@ -562,17 +588,8 @@ const AppViewer: React.FC<{
     target.postMessage({ type: MSG_INIT, payload: initPayload }, '*');
   }, [initPayload]);
 
-  const submit = useCallback(
+  const writeSubmission = useCallback(
     async (payload: unknown) => {
-      if (paused && submissionsEnabled) {
-        heldPayloadRef.current = { payload };
-        return;
-      }
-      if (!submissionsEnabled || status.kind === 'submitting') {
-        // View-only session, or a submission is already in flight (guards
-        // against double-clicks / duplicate postMessages).
-        return;
-      }
       const currentUser = auth.currentUser;
       if (!currentUser) {
         console.warn('[MiniAppStudentApp] No auth user; skipping submission.');
@@ -620,7 +637,30 @@ const AppViewer: React.FC<{
         setStatus({ kind: 'error', payload });
       }
     },
-    [session.id, submissionsEnabled, status.kind, paused]
+    [session.id]
+  );
+
+  const submit = useCallback(
+    async (payload: unknown) => {
+      if (paused && submissionsEnabled) {
+        heldPayloadRef.current = { payload };
+        return;
+      }
+      if (!submissionsEnabled) return;
+      if (savingRef.current) {
+        queuedPostRef.current = { payload };
+        return;
+      }
+      savingRef.current = true;
+      let next: { payload: unknown } | null = { payload };
+      while (next) {
+        await writeSubmission(next.payload);
+        next = queuedPostRef.current;
+        queuedPostRef.current = null;
+      }
+      savingRef.current = false;
+    },
+    [submissionsEnabled, paused, writeSubmission]
   );
 
   // Held submissions go out once the period reopens.
@@ -642,29 +682,8 @@ const AppViewer: React.FC<{
     []
   );
 
-  const submitV2 = useCallback(
+  const sendV2 = useCallback(
     async (payload: unknown, request: SubmitRequest) => {
-      if (!submissionsEnabled) {
-        replyToFrame(request.requestId, {
-          ok: false,
-          error: {
-            code: 'submissions-off',
-            message: 'Not taking submissions.',
-          },
-        });
-        return;
-      }
-      if (paused) {
-        heldRequestRef.current = { payload, request };
-        return;
-      }
-      if (status.kind === 'submitting') {
-        replyToFrame(request.requestId, {
-          ok: false,
-          error: { code: 'busy', message: 'Already saving.' },
-        });
-        return;
-      }
       setStatus({ kind: 'submitting' });
       try {
         const result = await submitMiniAppResult(
@@ -698,7 +717,53 @@ const AppViewer: React.FC<{
         }
       }
     },
-    [session.id, submissionsEnabled, paused, status.kind, replyToFrame]
+    [session.id, replyToFrame]
+  );
+
+  const submitV2 = useCallback(
+    async (payload: unknown, request: SubmitRequest) => {
+      if (!submissionsEnabled) {
+        replyToFrame(request.requestId, {
+          ok: false,
+          error: {
+            code: 'submissions-off',
+            message: 'Not taking submissions.',
+          },
+        });
+        return;
+      }
+      if (paused) {
+        heldRequestRef.current = { payload, request };
+        return;
+      }
+      if (savingRef.current) {
+        // Legacy apps post progress repeatedly and never retry, so keep the newest.
+        if (request.kind === 'legacy') {
+          queuedPostRef.current = { payload };
+          return;
+        }
+        replyToFrame(request.requestId, {
+          ok: false,
+          error: { code: 'busy', message: 'Already saving.' },
+        });
+        return;
+      }
+      savingRef.current = true;
+      let next: { payload: unknown; request: SubmitRequest } | null = {
+        payload,
+        request,
+      };
+      while (next) {
+        await sendV2(next.payload, next.request);
+        const queued: { payload: unknown } | null = queuedPostRef.current;
+        queuedPostRef.current = null;
+        next = queued
+          ? { payload: queued.payload, request: { kind: 'legacy' } }
+          : null;
+      }
+      savingRef.current = false;
+    },
+    [submissionsEnabled, paused, replyToFrame, sendV2]
   );
 
   useEffect(() => {
@@ -713,48 +778,36 @@ const AppViewer: React.FC<{
   // view-only (submissionsEnabled=false) and submission-enabled sessions.
   // The Firestore rule allows this write regardless of submissionsEnabled.
   const markDone = useCallback(async () => {
-    if (hasSubmitted || paused || status.kind === 'submitting') return;
+    if (hasSubmitted || paused || savingRef.current) return;
     const currentUser = auth.currentUser;
     if (!currentUser) {
       console.warn('[MiniAppStudentApp] No auth user; skipping mark-done.');
       return;
     }
+    savingRef.current = true;
     setStatus({ kind: 'submitting' });
     try {
       if (isV2) {
         await submitMiniAppResult(session.id, 'done', null);
-        setStatus({ kind: 'saved', at: Date.now() });
-        setHasSubmitted(true);
-        return;
+      } else {
+        await writeDoneMarker(session.id, currentUser);
       }
-      const tokenResult = await currentUser.getIdTokenResult();
-      const isStudentRole = tokenResult.claims?.studentRole === true;
-      const docId = isStudentRole
-        ? await getCachedPseudonym(session.id, currentUser.uid)
-        : currentUser.uid;
-      const completion: MiniAppSubmission = {
-        submittedAt: Date.now(),
-        studentUid: currentUser.uid,
-        payload: { completed: true },
-      };
-      // Use mergeFields so we only touch these specific fields. This avoids
-      // overwriting a real submission payload if the student already submitted
-      // work via the app's own SPART_MINIAPP_RESULT button and then reloaded
-      // the page (resetting hasSubmitted) before clicking "I'm Done".
-      // payload.completed is merged into the existing payload map rather than
-      // replacing it, preserving any prior work data.
-      await setDoc(
-        doc(db, SESSIONS_COLLECTION, session.id, 'submissions', docId),
-        completion,
-        { mergeFields: ['submittedAt', 'studentUid', 'payload.completed'] }
-      );
       setStatus({ kind: 'saved', at: Date.now() });
       setHasSubmitted(true);
     } catch (err) {
       console.error('[MiniAppStudentApp] Mark-done write failed:', err);
       setStatus({ kind: 'idle' });
+    } finally {
+      savingRef.current = false;
     }
-  }, [session.id, hasSubmitted, paused, status.kind, isV2]);
+    const queued = queuedPostRef.current;
+    queuedPostRef.current = null;
+    if (queued) {
+      void (isV2
+        ? submitV2(queued.payload, { kind: 'legacy' })
+        : submit(queued.payload));
+    }
+  }, [session.id, hasSubmitted, paused, isV2, submit, submitV2]);
 
   const handleMessage = useCallback(
     (event: MessageEvent) => {
