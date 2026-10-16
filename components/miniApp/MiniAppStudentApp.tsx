@@ -652,13 +652,16 @@ const AppViewer: React.FC<{
         return;
       }
       savingRef.current = true;
-      let next: { payload: unknown } | null = { payload };
-      while (next) {
-        await writeSubmission(next.payload);
-        next = queuedPostRef.current;
-        queuedPostRef.current = null;
+      try {
+        let next: { payload: unknown } | null = { payload };
+        while (next) {
+          await writeSubmission(next.payload);
+          next = queuedPostRef.current;
+          queuedPostRef.current = null;
+        }
+      } finally {
+        savingRef.current = false;
       }
-      savingRef.current = false;
     },
     [submissionsEnabled, paused, writeSubmission]
   );
@@ -749,19 +752,22 @@ const AppViewer: React.FC<{
         return;
       }
       savingRef.current = true;
-      let next: { payload: unknown; request: SubmitRequest } | null = {
-        payload,
-        request,
-      };
-      while (next) {
-        await sendV2(next.payload, next.request);
-        const queued: { payload: unknown } | null = queuedPostRef.current;
-        queuedPostRef.current = null;
-        next = queued
-          ? { payload: queued.payload, request: { kind: 'legacy' } }
-          : null;
+      try {
+        let next: { payload: unknown; request: SubmitRequest } | null = {
+          payload,
+          request,
+        };
+        while (next) {
+          await sendV2(next.payload, next.request);
+          const queued: { payload: unknown } | null = queuedPostRef.current;
+          queuedPostRef.current = null;
+          next = queued
+            ? { payload: queued.payload, request: { kind: 'legacy' } }
+            : null;
+        }
+      } finally {
+        savingRef.current = false;
       }
-      savingRef.current = false;
     },
     [submissionsEnabled, paused, replyToFrame, sendV2]
   );
