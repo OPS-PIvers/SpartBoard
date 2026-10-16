@@ -12,6 +12,7 @@ import {
   onSnapshot,
   runTransaction,
   serverTimestamp,
+  Timestamp,
   writeBatch,
 } from 'firebase/firestore';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
@@ -384,6 +385,32 @@ describe('useQuizAssignments - reopenAssignment', () => {
     if (!resumeSessionCall)
       throw new Error('expected resume batch.update on quiz_sessions/*');
     expect(resumeSessionCall[1]).toMatchObject({ status: 'waiting' });
+  });
+
+  it('resumeAssignment refreshes responses idle only a few minutes, not just those past 80 minutes', async () => {
+    // A response idle 30-80 min at resume would otherwise hit the 90-minute idle sweep soon after.
+    mockGetDoc.mockResolvedValueOnce({
+      data: () =>
+        ({
+          id: ASSIGNMENT_ID,
+          sessionMode: 'teacher',
+          status: 'paused',
+          currentQuestionIndex: 2,
+          totalQuestions: 5,
+          startedAt: 1000,
+        }) as Partial<QuizSession>,
+    });
+    mockGetDocs.mockResolvedValueOnce({ empty: true, docs: [] });
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    const before = Date.now();
+    await act(async () => {
+      await result.current.resumeAssignment(ASSIGNMENT_ID);
+    });
+    const cutoffMs = (
+      Timestamp as unknown as { fromMillis: Mock }
+    ).fromMillis.mock.calls.at(-1)?.[0];
+    expect(cutoffMs).toBeDefined();
+    expect(before - (cutoffMs as number)).toBeLessThanOrEqual(10 * 60 * 1000);
   });
 
   it('resumeAssignment refreshes lastWriteAt on every joined/in-progress response BEFORE flipping session status, so a concurrent cron tick still sees paused and skips', async () => {

@@ -222,6 +222,34 @@ describe('QuizStudentApp — overall time limit', () => {
     ).toBeInTheDocument();
   });
 
+  it('tells the student when the time-limit submit fails, then clears once it lands', async () => {
+    const consoleSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    mockCompleteQuiz.mockRejectedValueOnce(new Error('offline'));
+    hookState.session = buildSession({ timeLimitMinutes: 30 });
+    hookState.myResponse = buildResponse({
+      attemptStartedAt: startedAt(31 * 60_000),
+    });
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /Couldn't submit/i
+    );
+    expect(
+      await screen.findByText(
+        /Time's up\. Your answers were submitted/i,
+        {},
+        {
+          timeout: 4000,
+        }
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    consoleSpy.mockRestore();
+  }, 10000);
+
   it('stretches the limit for extended time', async () => {
     hookState.session = buildSession({ timeLimitMinutes: 30 });
     hookState.pointer = pointerWith(2);
