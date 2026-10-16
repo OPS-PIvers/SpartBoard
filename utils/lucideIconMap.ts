@@ -16,7 +16,11 @@ export const loadLucideIconMap = (): Promise<void> => {
     (mod) => {
       // The CJS build arrives as `default` in the browser bundle and as named exports under Node.
       const ns = mod as unknown as LucideIconMap & { default?: LucideIconMap };
-      loaded = ns.default && 'Rocket' in ns.default ? ns.default : ns;
+      const source = ns.default && 'Rocket' in ns.default ? ns.default : ns;
+      loaded = Object.assign(
+        Object.create(null) as object,
+        source
+      ) as LucideIconMap;
       listeners.forEach((notify) => notify());
     },
     () => {

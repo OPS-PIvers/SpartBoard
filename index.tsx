@@ -29,13 +29,14 @@ const isLocalProd =
   import.meta.env.VITE_FIREBASE_PROJECT_ID === 'spartboard';
 
 // Wait for the saved language so non-English users never see a flash of English.
-void i18nReady
-  .catch(() => undefined)
-  .then(() => {
-    root.render(
-      <React.StrictMode>
-        {isLocalProd && <LocalProdBanner />}
-        <App />
-      </React.StrictMode>
-    );
-  });
+void Promise.race([
+  i18nReady.catch(() => undefined),
+  new Promise((resolve) => setTimeout(resolve, 3000)),
+]).then(() => {
+  root.render(
+    <React.StrictMode>
+      {isLocalProd && <LocalProdBanner />}
+      <App />
+    </React.StrictMode>
+  );
+});
