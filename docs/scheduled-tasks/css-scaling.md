@@ -3,8 +3,11 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-10-15_
+_Last audited: 2026-10-16_
 _Last action: 2026-09-24 — MEDIUM `QuizStimulusView.tsx` zero-`cqmin` blocker resolved: added an optional `cqScaled?: boolean` prop (default `false`) threaded through every subcomponent in the file, applying `min(Xpx, Ycqmin)` inline styles only when set, so the two CQ-container consumers (`CurrentQuestionCard.tsx`, `QuizPreview.tsx`) now scale while the two non-CQ consumers (`QuizStudentApp.tsx`, `FreeResponseGrader.tsx`) keep today's fixed styling untouched — the same `cqScaled` pattern proven on `AssignTargetingSection.tsx`. 1250/1250 relevant tests pass. Item moved to Completed. PR opened against dev-paul._
+
+_2026-10-16: Daily audit (Friday). 0 `max-w/h-[Npx]` caps and no large fixed `w/h-[Npx]` in any `Widget.tsx`; only hits remain the two portaled `fixed` DrawingWidget popovers (exempt). 0 new issues._
+
 
 _2026-10-15: Daily audit (Thursday). 0 `max-w/h-[Npx]` caps in any `Widget.tsx`; only fixed-px hits are the two portaled `fixed` DrawingWidget popovers (exempt). Hardcoded `cqmin` uses are all `min(Npx, Ncqmin)` sizing on icons/margins (GuidedLearning, Poll, Clock). 0 new issues._
 
