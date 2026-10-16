@@ -299,7 +299,7 @@ From the 2026-10-01 cost audit (adversarially reviewed). Steady-state cost is ~$
 
 ## 6. Admin / no-code roadmap stragglers (from the archived non-code roadmap — verify before building)
 
-- [ ] **Mini App library Monaco editor**: wire `@monaco-editor/react` (already used in WidgetBuilder/CodeEditorPane) into `MiniAppLibraryModal.tsx`; formalize/version the postMessage bridge API. (M/LOW)
+- [ ] **Mini App library Monaco editor**: add a Monaco editor (the unused `@monaco-editor/react` dependency was removed; re-add it) to `MiniAppLibraryModal.tsx`; formalize/version the postMessage bridge API. (M/LOW)
 - [ ] **JSON-schema-driven admin config renderer** (the roadmap claimed `SchemaDrivenConfigurationPanel.tsx` exists — it does not): decide whether to generalize the ~60 bespoke `*ConfigurationPanel.tsx` files or drop the idea. (M)
 - [ ] **Data binding / webhooks (Phases 3.3–3.4)**: server-side proxy + webhook executor CFs — security-sensitive, needs careful design. (L/HIGH)
 - [ ] **Google Fonts picker + @font-face upload (Phase 1.2)** — not verified as implemented; verify then build or drop. (M/LOW)
