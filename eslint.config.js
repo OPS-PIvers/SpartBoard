@@ -21,6 +21,13 @@ const plcSubdirNames = readdirSync(join(__dirname, 'components/plc'), {
   .filter((entry) => entry.isDirectory())
   .map((entry) => entry.name)
   .sort();
+// Peer widget directories (WidgetLayout is a shared file-dir gray zone, D4-E2).
+const widgetPeerDirNames = readdirSync(join(__dirname, 'components/widgets'), {
+  withFileTypes: true,
+})
+  .filter((entry) => entry.isDirectory() && entry.name !== 'WidgetLayout')
+  .map((entry) => entry.name)
+  .sort();
 // `sections` is a file (components/plc/sections.ts), not a directory, so it
 // is never picked up by the readdirSync scan above — it's added explicitly
 // because it's the shared canonical-section-id module at the center of the
@@ -260,7 +267,10 @@ export default tseslint.config(
         {
           patterns: [
             {
-              regex: '^(\\.\\./)+(math-tools|monitor|present)(/.*)?$',
+              regex:
+                '^(\\.\\./)+(' +
+                [...widgetPeerDirNames, 'monitor', 'present'].join('|') +
+                ')(/.*)?$',
               caseSensitive: true,
               message:
                 "Cross-subdirectory widgets import — use the '@/components/widgets/...' alias instead of a relative path that escapes this widget's own directory (see D4 in docs/routines/unifier.md).",
