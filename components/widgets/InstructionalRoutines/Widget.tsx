@@ -15,6 +15,7 @@ import {
 import * as Icons from 'lucide-react';
 import { Star, ArrowLeft, Rocket } from 'lucide-react';
 import { BLOOMS_DATA } from '@/config/bloomsData';
+import { prepareLaunchConfig } from './constants';
 
 // Color mapping for routines
 const ROUTINE_COLORS: Record<
@@ -283,7 +284,10 @@ const RoutineStepItem: React.FC<RoutineStepItemProps> = ({
           <button
             onClick={() =>
               onAddWidget(step.attachedWidget?.type as WidgetType, {
-                config: step.attachedWidget?.config,
+                config: prepareLaunchConfig(
+                  step.attachedWidget?.type as WidgetType,
+                  step.attachedWidget?.config
+                ),
               })
             }
             className={`bg-brand-blue-lighter text-brand-blue-primary hover:bg-brand-blue-light/20 rounded-xl font-black uppercase tracking-widest transition-colors flex items-center justify-center shadow-sm ${isGrid ? 'w-full py-2' : ''}`}

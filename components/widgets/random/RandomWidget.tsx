@@ -1102,11 +1102,16 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             const timeConfig = timeWidget.config as TimeToolConfig;
             // Only start if not already running to avoid resetting start time unexpectedly
             if (!timeConfig.isRunning) {
+              // Reset like NextUp so an expired timer doesn't re-fire its end-of-timer pick at once.
               updateWidget(timeWidget.id, {
                 config: {
                   ...timeConfig,
                   isRunning: true,
                   startTime: Date.now(),
+                  elapsedTime:
+                    timeConfig.mode === 'stopwatch'
+                      ? 0
+                      : (timeConfig.duration ?? timeConfig.elapsedTime ?? 0),
                 },
               });
             }

@@ -21,6 +21,22 @@ export function formatGradeLevelsLabel(gradeLevels: GradeLevel[]): string {
     .join(', ');
 }
 
+// Saved routines hold a copy of the quick-tool config, so a running timer is stamped from its duration at launch.
+export function prepareLaunchConfig<T extends object>(
+  type: string,
+  config: T | undefined,
+  now: number = Date.now()
+): T | undefined {
+  if (type !== 'time-tool' || !config) return config;
+  const timer: Partial<TimeToolConfig> = config;
+  if (timer.isRunning !== true) return config;
+  return {
+    ...config,
+    elapsedTime: timer.mode === 'stopwatch' ? 0 : (timer.duration ?? 0),
+    startTime: now,
+  };
+}
+
 export const QUICK_TOOLS: {
   label: string;
   type: WidgetType | 'none';
@@ -34,6 +50,7 @@ export const QUICK_TOOLS: {
       ...(WIDGET_DEFAULTS['time-tool'].config as TimeToolConfig),
       mode: 'timer',
       duration: 60,
+      elapsedTime: 60,
       isRunning: true,
     },
   },
@@ -44,6 +61,7 @@ export const QUICK_TOOLS: {
       ...(WIDGET_DEFAULTS['time-tool'].config as TimeToolConfig),
       mode: 'timer',
       duration: 120,
+      elapsedTime: 120,
       isRunning: true,
     },
   },
@@ -54,6 +72,7 @@ export const QUICK_TOOLS: {
       ...(WIDGET_DEFAULTS['time-tool'].config as TimeToolConfig),
       mode: 'timer',
       duration: 300,
+      elapsedTime: 300,
       isRunning: true,
     },
   },
@@ -63,6 +82,7 @@ export const QUICK_TOOLS: {
     config: {
       ...(WIDGET_DEFAULTS['time-tool'].config as TimeToolConfig),
       mode: 'stopwatch',
+      elapsedTime: 0,
       isRunning: true,
     },
   },
