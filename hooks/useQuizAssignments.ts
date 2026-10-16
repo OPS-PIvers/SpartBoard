@@ -169,6 +169,7 @@ import {
   assignmentLifecyclePatches,
   type AssignmentLifecycleEvent,
 } from '@/utils/sessionLifecycle';
+import { reopenIndexPatch } from '@/utils/quizSessionPhase';
 
 /** Import-mode picker result for shared-assignment paste flows. */
 export type SharedAssignmentImportMode = 'sync' | 'copy';
@@ -1995,17 +1996,10 @@ export const useQuizAssignments = (
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
         patches.assignment
       );
-      const sessionPatch: Record<string, unknown> = { ...patches.session };
-      if (
-        session &&
-        typeof session.totalQuestions === 'number' &&
-        session.totalQuestions > 0 &&
-        session.currentQuestionIndex >= session.totalQuestions
-      ) {
-        sessionPatch.currentQuestionIndex =
-          session.sessionMode === 'student' ? 0 : -1;
-        sessionPatch.questionPhase = 'answering';
-      }
+      const sessionPatch: Record<string, unknown> = {
+        ...patches.session,
+        ...(session ? reopenIndexPatch(session) : {}),
+      };
       batch.update(sessionRef, sessionPatch);
       await batch.commit();
       // Drop any cached view count so the Shared row re-issues the

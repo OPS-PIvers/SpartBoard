@@ -14,6 +14,7 @@ import {
   useCallback,
   useRef,
   useMemo,
+  useReducer,
   MutableRefObject,
 } from 'react';
 import {
@@ -46,7 +47,6 @@ import { signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import {
   QuizSession,
-  QuizSessionStatus,
   QuizResponse,
   QuizSessionBankSlot,
   QuizResponseAnswer,
@@ -78,6 +78,12 @@ import {
   canTeacherSubmit,
 } from '@/utils/quizTeacherSubmit';
 import { acceptsStudents, endSessionPatch } from '@/utils/sessionLifecycle';
+import { quizSessionWrite } from '@/utils/quizSessionPhase';
+import {
+  initialQuizTeacherSessionState,
+  loadedValue,
+  quizTeacherSessionReducer,
+} from '@/utils/quizTeacherSessionState';
 import { findQuizSessionsByCode } from '@/utils/quizJoinCodes';
 import {
   createLeadingTrailingThrottle,
@@ -1189,24 +1195,22 @@ export interface UseQuizSessionTeacherResult {
 export const useQuizSessionTeacher = (
   sessionId: string | undefined | null
 ): UseQuizSessionTeacherResult => {
-  const [rawSession, setSession] = useState<QuizSession | null>(null);
-  const [content, setContent] = useState<QuizSessionContent | null>(null);
-  const [contentLoaded, setContentLoaded] = useState(false);
-  const [rawResponses, setResponses] = useState<QuizResponse[]>([]);
-  const [loading, setLoading] = useState<boolean>(!!sessionId);
+  const [state, dispatch] = useReducer(
+    quizTeacherSessionReducer,
+    sessionId,
+    initialQuizTeacherSessionState
+  );
   const advancingRef = useRef(false);
 
-  // Adjust state during render when sessionId changes — avoids state-in-effect
-  // anti-pattern while still clearing stale data when the selection changes.
-  const [prevSessionId, setPrevSessionId] = useState(sessionId);
-  if (sessionId !== prevSessionId) {
-    setPrevSessionId(sessionId);
-    setSession(null);
-    setContent(null);
-    setContentLoaded(false);
-    setResponses([]);
-    setLoading(!!sessionId);
+  // Adjust state during render when sessionId changes, clearing stale data from the previous selection.
+  if (sessionId !== state.sessionId) {
+    dispatch({ type: 'select', sessionId });
   }
+  const rawSession = loadedValue(state.session);
+  const content = loadedValue(state.content);
+  const contentLoaded = state.content.kind === 'loaded';
+  const rawResponses = state.responses;
+  const loading = state.session.kind === 'loading';
 
   const inContent = rawSession?.questionsInContent === true;
   useEffect(() => {
@@ -1220,12 +1224,14 @@ export const useQuizSessionTeacher = (
         QUIZ_CONTENT_DOC
       ),
       (snap) => {
-        setContent(snap.exists() ? (snap.data() as QuizSessionContent) : null);
-        setContentLoaded(true);
+        dispatch({
+          type: 'contentSnapshot',
+          content: snap.exists() ? (snap.data() as QuizSessionContent) : null,
+        });
       },
       (err) => {
         console.error('[useQuizSessionTeacher] content listener error:', err);
-        setContentLoaded(true);
+        dispatch({ type: 'contentError' });
       }
     );
   }, [sessionId, inContent]);
@@ -1246,12 +1252,12 @@ export const useQuizSessionTeacher = (
     return onSnapshot(
       sessionRef,
       (snap) => {
-        setSession(
-          normalizeQuizSession(
+        dispatch({
+          type: 'sessionSnapshot',
+          session: normalizeQuizSession(
             snap.exists() ? (snap.data() as QuizSession) : null
-          )
-        );
-        setLoading(false);
+          ),
+        });
       },
       (err) => {
         const code = (err as { code?: string }).code;
@@ -1260,7 +1266,7 @@ export const useQuizSessionTeacher = (
           `[useQuizSessionTeacher] session listener error at ${path} (code=${code ?? 'unknown'}):`,
           err
         );
-        setLoading(false);
+        dispatch({ type: 'sessionError' });
       }
     );
   }, [sessionId]);
@@ -1289,7 +1295,7 @@ export const useQuizSessionTeacher = (
     // edge fires immediately; a trailing timer flushes the last snapshot in
     // the window so the final state is never stale.
     const throttle = createLeadingTrailingThrottle<QuizResponse[]>(
-      setResponses,
+      (list) => dispatch({ type: 'responses', responses: list }),
       RESPONSES_THROTTLE_MS
     );
 
@@ -1768,90 +1774,39 @@ export const useQuizSessionTeacher = (
   );
 
   const advanceQuestion = useCallback(async () => {
-    // A paused session moves on only through Resume, which also unpauses the assignment.
-    if (!sessionId || !session || session.status === 'paused') return;
-    const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, sessionId);
-
-    const isReviewing = session.questionPhase === 'reviewing';
-
-    // If podium is enabled and we're not already reviewing, enter review phase first.
-    // Skip review phase for student-paced mode (students control their own flow).
-    if (
-      !isReviewing &&
-      session.showPodiumBetweenQuestions &&
-      session.sessionMode !== 'student' &&
-      session.status === 'active'
-    ) {
-      await updateDoc(sessionRef, {
-        questionPhase: 'reviewing',
-        autoProgressAt: null,
-      });
-      return;
-    }
-
-    // Actually advance to next question
-    const nextIndex = session.currentQuestionIndex + 1;
-
-    if (nextIndex >= session.totalQuestions) {
-      await updateDoc(sessionRef, {
-        ...endSessionPatch('quiz', Date.now()),
-        currentQuestionIndex: session.totalQuestions,
-        questionPhase: deleteField(),
-      });
-      await finalizeAllResponses();
-      return;
-    }
-    await updateDoc(sessionRef, {
-      status: 'active' as QuizSessionStatus,
-      currentQuestionIndex: nextIndex,
-      autoProgressAt: null,
-      questionPhase: 'answering',
-      ...(session.startedAt === null ? { startedAt: Date.now() } : {}),
-    });
+    if (!sessionId || !session) return;
+    const write = quizSessionWrite(session, { type: 'advance' }, Date.now());
+    if (!write) return;
+    await updateDoc(doc(db, QUIZ_SESSIONS_COLLECTION, sessionId), write.patch);
+    if (write.finalize) await finalizeAllResponses();
   }, [sessionId, session, finalizeAllResponses]);
 
   const endQuizSession = useCallback(async () => {
     if (!sessionId) return;
-
-    // 1. End the session
     await updateDoc(
       doc(db, QUIZ_SESSIONS_COLLECTION, sessionId),
       endSessionPatch('quiz', Date.now())
     );
-
-    // 2. Mark all active students as completed so their data is preserved in results
+    // Mark all active students as completed so their data is preserved in results.
     await finalizeAllResponses();
   }, [sessionId, finalizeAllResponses]);
 
   // ─── Auto-progress logic ────────────────────────────────────────────────────
   useEffect(() => {
-    if (!sessionId || !session || session.sessionMode !== 'auto') return;
-    if (session.status !== 'active') return;
-
+    if (!sessionId || !session) return;
+    // All students answered: with podium on, review first, then auto-advance.
+    const write = quizSessionWrite(
+      session,
+      { type: 'everyoneAnswered' },
+      Date.now()
+    );
     const currentQId =
       session.publicQuestions[session.currentQuestionIndex]?.id;
-    if (!currentQId) return;
-
-    const everyoneAnswered = everyoneAnsweredQuestion(responses, currentQId);
-
-    if (
-      everyoneAnswered &&
-      !session.autoProgressAt &&
-      session.questionPhase !== 'reviewing'
-    ) {
-      // All students answered: if podium is enabled, enter review first, then auto-advance
-      const shouldReview = session.showPodiumBetweenQuestions;
-      const advanceAt = Date.now() + 5000;
-      const updates: Record<string, unknown> = {
-        autoProgressAt: advanceAt,
-      };
-      if (shouldReview) {
-        updates.questionPhase = 'reviewing';
-      }
-      updateDoc(doc(db, QUIZ_SESSIONS_COLLECTION, sessionId), updates).catch(
-        (err) => console.error('[AutoProgress] update failed:', err)
-      );
-    }
+    if (!write || !currentQId) return;
+    if (!everyoneAnsweredQuestion(responses, currentQId)) return;
+    updateDoc(doc(db, QUIZ_SESSIONS_COLLECTION, sessionId), write.patch).catch(
+      (err) => console.error('[AutoProgress] update failed:', err)
+    );
   }, [responses, session, sessionId]);
 
   // Handle the actual auto-advance when the timestamp is reached
