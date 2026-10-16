@@ -13,10 +13,13 @@ if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ]; then
   major=$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)
   if [ "$major" -lt 24 ]; then
     export NVM_DIR="${NVM_DIR:-/opt/nvm}"
+    # nvm isn't safe under set -eu.
+    set +eu
     # shellcheck disable=SC1091
     . "$NVM_DIR/nvm.sh"
     nvm install 24 >&2
     node24_bin="$(dirname "$(nvm which 24)")"
+    set -eu
     export PATH="$node24_bin:$PATH"
     persist "export PATH=\"$node24_bin:\$PATH\""
   fi
@@ -25,7 +28,7 @@ if [ "${CLAUDE_CODE_REMOTE:-}" = "true" ]; then
   if [ -n "${SPARTBOARD_DEV_SA_KEY:-}" ]; then
     key_file="$HOME/.config/gcloud/spartboard-dev-sa.json"
     mkdir -p "$(dirname "$key_file")"
-    if printf '%s' "$SPARTBOARD_DEV_SA_KEY" | head -c1 | grep -q '{'; then
+    if printf '%s' "$SPARTBOARD_DEV_SA_KEY" | tr -d '[:space:]' | head -c1 | grep -q '{'; then
       printf '%s' "$SPARTBOARD_DEV_SA_KEY" > "$key_file"
     else
       printf '%s' "$SPARTBOARD_DEV_SA_KEY" | base64 -d > "$key_file"
