@@ -3,7 +3,7 @@
 A rubric that grades every board widget on how it scales, handles, looks, configures, holds up and
 connects, so that AI agents looping on widget improvements have a clear, measurable target.
 
-Status: plan, not built. Decisions settled in a grill session on 2026-10-05.
+Status: built (grader scripts, PR gate and nightly sweep, #3884). Decisions settled in a grill session on 2026-10-05.
 
 ## Decisions
 
