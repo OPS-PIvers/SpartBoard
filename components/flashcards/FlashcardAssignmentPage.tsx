@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useReducer, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -20,10 +20,6 @@ import type {
   FlashcardSession,
   StudentAssignmentPointer,
 } from '@/types';
-import {
-  getWindowState,
-  resolveEffectiveWindow,
-} from '@/utils/assignmentWindow';
 import { getServerNow, syncServerTime } from '@/utils/serverTime';
 import { AssignmentExcludedNotice } from '@/components/student/AssignmentExcludedNotice';
 import { useSeatedPeriodContent } from '@/hooks/useSeatedPeriodContent';
@@ -36,7 +32,6 @@ import {
 } from '@/utils/periodAccess';
 import {
   FC_CONTENT_DOC,
-  mergeFlashcardSessionContent,
   type FlashcardSessionContent,
 } from '@/utils/flashcardSessionContent';
 import {
@@ -49,11 +44,22 @@ import {
   FlashcardPlayer,
   type FlashcardCheckSubmission,
 } from './FlashcardPlayer';
+import {
+  deriveFlashcardStudentView,
+  initialProgressListen,
+  initialSeat,
+  initialSubmit,
+  nextWindowBoundary,
+  progressListenReducer,
+  seatReducer,
+  shouldEnter,
+  submitReducer,
+  type Loadable,
+} from './flashcardStudentView';
 
 const PROGRESS_SUBCOLLECTION = 'progress';
-
-type Loadable<T> =
-  { kind: 'loading' } | { kind: 'unavailable' } | { kind: 'ready'; value: T };
+// setTimeout overflows past ~24.8 days, so a far-off boundary re-arms instead.
+const MAX_TIMEOUT_MS = 2_147_483_647;
 
 const getAssignmentId = (): string | null => {
   const match = window.location.pathname.match(
@@ -154,8 +160,10 @@ const TrackedPlayer: React.FC<{
       resetCount,
     });
   }, [resetCount, tracked, session, studentUid, classId]);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [submitState, dispatchSubmit] = useReducer(
+    submitReducer,
+    initialSubmit
+  );
   const isCheck = session.kind === 'check' && Boolean(session.checkMode);
   useEffect(() => {
     adapter.setPaused(paused);
@@ -163,8 +171,7 @@ const TrackedPlayer: React.FC<{
 
   const submit = async (submission: FlashcardCheckSubmission) => {
     if (paused) return;
-    setSubmitting(true);
-    setError(null);
+    dispatchSubmit({ type: 'submitStarted' });
     try {
       await adapter.flush();
       if (adapter.hasUnsentRatings()) throw new Error('Ratings not saved yet.');
@@ -178,8 +185,7 @@ const TrackedPlayer: React.FC<{
       });
     } catch (submitError) {
       console.error('[FlashcardAssignmentPage] Submit failed:', submitError);
-      setError(t('flashcards.assignment.submitError'));
-      setSubmitting(false);
+      dispatchSubmit({ type: 'submitFailed' });
     }
   };
 
@@ -198,8 +204,11 @@ const TrackedPlayer: React.FC<{
               mode: session.checkMode,
               masteryThreshold: session.masteryThreshold,
               initialCheckLog: progress?.checkLog,
-              submitting,
-              error,
+              submitting: submitState.kind === 'submitting',
+              error:
+                submitState.kind === 'failed'
+                  ? t('flashcards.assignment.submitError')
+                  : null,
               onCheckWrite: (cardId, entry) =>
                 adapter.recordCheckWrite(cardId, entry),
               onSubmit: (submission) => void submit(submission),
@@ -272,10 +281,10 @@ export const FlashcardAssignmentPage: React.FC = () => {
   const [sessionState, setSessionState] = useState<Loadable<FlashcardSession>>(
     assignmentId ? { kind: 'loading' } : { kind: 'unavailable' }
   );
-  const [progressState, setProgressState] = useState<
-    Loadable<FlashcardProgress | null>
-  >({ kind: 'loading' });
-  const [resetCount, setResetCount] = useState(0);
+  const [listen, dispatchListen] = useReducer(
+    progressListenReducer,
+    initialProgressListen
+  );
   const pointer = useStudentAssignmentPointer(pseudonymUid, assignmentId);
   const rawSession = sessionState.kind === 'ready' ? sessionState.value : null;
   const perPeriod = hasPeriodAccess(rawSession);
@@ -295,9 +304,7 @@ export const FlashcardAssignmentPage: React.FC = () => {
     pseudonymUid,
     periodNow
   );
-  const [seat, setSeat] = useState<'idle' | 'seated' | 'none' | 'error'>(
-    'idle'
-  );
+  const [seat, dispatchSeat] = useReducer(seatReducer, initialSeat);
   // Seat the student in their period once the session and pointer are known.
   const seatStarted = useRef(false);
   const readyToSeat =
@@ -306,16 +313,15 @@ export const FlashcardAssignmentPage: React.FC = () => {
     if (!readyToSeat || !rawSession || seatStarted.current) return;
     seatStarted.current = true;
     takeSeat(studentPeriodKeys(rawSession, classIds))
-      .then((seated) => setSeat(seated ? 'seated' : 'none'))
+      .then((seated) => dispatchSeat({ type: seated ? 'seated' : 'noSeat' }))
       .catch((error: unknown) => {
         console.error('[FlashcardAssignmentPage] Seat failed:', error);
-        setSeat('error');
+        dispatchSeat({ type: 'seatFailed' });
       });
   }, [readyToSeat, rawSession, classIds, takeSeat]);
   // Once the player has shown, a later close pauses it in place rather than swapping screens.
-  const [entered, setEntered] = useState(false);
-  if (!entered && seat === 'seated' && canEnter && !contentPending) {
-    setEntered(true);
+  if (shouldEnter(seat, canEnter, contentPending)) {
+    dispatchSeat({ type: 'entered' });
   }
 
   useEffect(() => {
@@ -344,7 +350,7 @@ export const FlashcardAssignmentPage: React.FC = () => {
   const sessionReady = sessionState.kind === 'ready';
   useEffect(() => {
     if (!assignmentId || !pseudonymUid || !sessionReady) return undefined;
-    let existed = false;
+    let first = true;
     return onSnapshot(
       doc(
         db,
@@ -354,21 +360,18 @@ export const FlashcardAssignmentPage: React.FC = () => {
         pseudonymUid
       ),
       (snapshot) => {
-        if (snapshot.exists()) existed = true;
-        else if (existed) {
-          existed = false;
-          setResetCount((count) => count + 1);
-        }
-        setProgressState({
-          kind: 'ready',
+        dispatchListen({
+          type: 'snapshot',
           value: snapshot.exists()
             ? (snapshot.data() as FlashcardProgress)
             : null,
+          first,
         });
+        first = false;
       },
       (error) => {
         console.error('[FlashcardAssignmentPage] Progress read failed:', error);
-        setProgressState({ kind: 'ready', value: null });
+        dispatchListen({ type: 'error' });
       }
     );
   }, [assignmentId, pseudonymUid, sessionReady]);
@@ -381,7 +384,39 @@ export const FlashcardAssignmentPage: React.FC = () => {
     }
   }, [t, title]);
 
-  if (sessionState.kind === 'unavailable' || !pseudonymUid) {
+  const now = getServerNow();
+  const view = deriveFlashcardStudentView({
+    session: sessionState,
+    progress: listen.progress,
+    pointer,
+    studentUid: pseudonymUid,
+    content,
+    now,
+    perPeriod,
+    seat,
+    canEnter,
+  });
+
+  // Re-render at the next open or close so the screen changes on time.
+  const boundary =
+    'session' in view
+      ? nextWindowBoundary(view.session, view.effectiveWindow, now)
+      : null;
+  const [boundaryTick, setBoundaryTick] = useState(0);
+  useEffect(() => {
+    if (boundary === null) return undefined;
+    const delay = Math.min(
+      Math.max(boundary - getServerNow(), 0) + 50,
+      MAX_TIMEOUT_MS
+    );
+    const timer = window.setTimeout(
+      () => setBoundaryTick((tick) => tick + 1),
+      delay
+    );
+    return () => window.clearTimeout(timer);
+  }, [boundary, boundaryTick]);
+
+  if (view.kind === 'unavailable' || !pseudonymUid) {
     return (
       <div className="h-screen h-dvh">
         <PageMessage
@@ -393,11 +428,7 @@ export const FlashcardAssignmentPage: React.FC = () => {
     );
   }
 
-  if (
-    sessionState.kind === 'loading' ||
-    progressState.kind !== 'ready' ||
-    pointer === undefined
-  ) {
+  if (view.kind === 'loading') {
     return (
       <div className="flex h-screen h-dvh items-center justify-center bg-slate-100 text-slate-700">
         <Loader2
@@ -409,67 +440,81 @@ export const FlashcardAssignmentPage: React.FC = () => {
     );
   }
 
-  if (pointer?.excluded) return <AssignmentExcludedNotice />;
+  if (view.kind === 'excluded') return <AssignmentExcludedNotice />;
 
-  const session = mergeFlashcardSessionContent(sessionState.value, content);
-  const progress = progressState.value;
-  const effectiveWindow = resolveEffectiveWindow(session, pointer);
-  const windowState =
-    session.status === 'ended'
-      ? 'closed'
-      : getWindowState(effectiveWindow, getServerNow());
+  const { session, progress } = view;
   const isCheck = session.kind === 'check';
 
   let body: React.ReactNode;
   let banner: string | null = null;
-  if (windowState === 'upcoming' && effectiveWindow.openAt !== undefined) {
-    body = (
-      <PageMessage
-        icon={CalendarClock}
-        title={t('flashcards.assignment.opensTitle')}
-        body={t('flashcards.assignment.opensBody', {
-          date: new Date(effectiveWindow.openAt).toLocaleString(),
-        })}
-      />
-    );
-  } else if (isCheck && typeof progress?.submittedAt === 'number') {
-    body = <FlashcardCheckResults session={session} progress={progress} />;
-  } else if (isCheck && windowState === 'closed') {
-    body = (
-      <PageMessage
-        icon={Lock}
-        title={t('flashcards.assignment.checkClosedTitle')}
-        body={t('flashcards.assignment.checkClosedBody')}
-      />
-    );
-  } else if (windowState === 'closed') {
-    banner =
-      session.status === 'ended' || effectiveWindow.closeAt === undefined
-        ? t('flashcards.assignment.endedBanner')
-        : t('flashcards.assignment.closedBanner', {
-            date: new Date(effectiveWindow.closeAt).toLocaleString(),
-          });
-    body = (
-      <UntrackedPlayer
-        session={session}
-        progress={progress}
-        studentUid={pseudonymUid}
-      />
-    );
-  } else if (perPeriod && !entered) {
-    const opensAt = nextScheduledOpen(session, periodKeys, periodNow);
-    body =
-      seat === 'none' || seat === 'error' ? (
+  switch (view.kind) {
+    case 'upcoming':
+      body = (
         <PageMessage
-          icon={AlertTriangle}
-          title={t('flashcards.assignment.unavailableTitle')}
-          body={t(
-            seat === 'none'
-              ? 'flashcards.assignment.notInPeriod'
-              : 'flashcards.assignment.seatError'
-          )}
+          icon={CalendarClock}
+          title={t('flashcards.assignment.opensTitle')}
+          body={t('flashcards.assignment.opensBody', {
+            date: new Date(view.openAt).toLocaleString(),
+          })}
         />
-      ) : seat === 'seated' && !canEnter ? (
+      );
+      break;
+    case 'submitted':
+      body = (
+        <FlashcardCheckResults session={session} progress={view.progress} />
+      );
+      break;
+    case 'checkClosed':
+      body = (
+        <PageMessage
+          icon={Lock}
+          title={t('flashcards.assignment.checkClosedTitle')}
+          body={t('flashcards.assignment.checkClosedBody')}
+        />
+      );
+      break;
+    case 'closed':
+      banner =
+        view.closeAt === null
+          ? t('flashcards.assignment.endedBanner')
+          : t('flashcards.assignment.closedBanner', {
+              date: new Date(view.closeAt).toLocaleString(),
+            });
+      body = (
+        <UntrackedPlayer
+          session={session}
+          progress={progress}
+          studentUid={pseudonymUid}
+        />
+      );
+      break;
+    case 'seating':
+      body =
+        view.step === 'waiting' ? (
+          <div className="flex h-full items-center justify-center text-slate-700">
+            <Loader2
+              aria-hidden="true"
+              className="mr-2 h-5 w-5 animate-spin text-rose-600"
+            />
+            <span className="font-bold">
+              {t('flashcards.assignment.loading')}
+            </span>
+          </div>
+        ) : (
+          <PageMessage
+            icon={AlertTriangle}
+            title={t('flashcards.assignment.unavailableTitle')}
+            body={t(
+              view.step === 'noSeat'
+                ? 'flashcards.assignment.notInPeriod'
+                : 'flashcards.assignment.seatError'
+            )}
+          />
+        );
+      break;
+    case 'periodLocked': {
+      const opensAt = nextScheduledOpen(session, periodKeys, periodNow);
+      body = (
         <PageMessage
           icon={Lock}
           title={t('flashcards.assignment.opensTitle')}
@@ -481,29 +526,24 @@ export const FlashcardAssignmentPage: React.FC = () => {
               : t('flashcards.assignment.periodClosedBody')
           }
         />
-      ) : (
-        <div className="flex h-full items-center justify-center text-slate-700">
-          <Loader2
-            aria-hidden="true"
-            className="mr-2 h-5 w-5 animate-spin text-rose-600"
-          />
-          <span className="font-bold">
-            {t('flashcards.assignment.loading')}
-          </span>
-        </div>
       );
-  } else {
-    body = (
-      <TrackedPlayer
-        key={session.id}
-        session={session}
-        progress={progress}
-        studentUid={pseudonymUid}
-        classId={periodKeys[0] ?? resolveClassId(session, pointer, classIds)}
-        paused={perPeriod && !canEnter}
-        resetCount={resetCount}
-      />
-    );
+      break;
+    }
+    case 'tracked':
+      body = (
+        <TrackedPlayer
+          key={session.id}
+          session={session}
+          progress={progress}
+          studentUid={pseudonymUid}
+          classId={
+            periodKeys[0] ?? resolveClassId(session, pointer ?? null, classIds)
+          }
+          paused={view.paused}
+          resetCount={listen.resetCount}
+        />
+      );
+      break;
   }
 
   return (
