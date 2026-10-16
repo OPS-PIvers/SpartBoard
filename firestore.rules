@@ -5535,11 +5535,11 @@ service cloud.firestore {
       allow create: if signedIn() &&
         notAnon() &&
         incoming().teacherUid == authUid();
-      // Teachers can rename or end their own sessions (assignmentName, status, endedAt only)
+      // Teachers can rename, end, re-window or re-period their own sessions
       allow update: if signedIn() &&
         notAnon() &&
         existing().teacherUid == authUid() &&
-        changedOnly(['assignmentName', 'status', 'endedAt', 'periodAccess', 'studentAccess', 'workKind']) &&
+        changedOnly(['assignmentName', 'status', 'endedAt', 'periodAccess', 'studentAccess', 'workKind', 'openAt', 'closeAt', 'dueAt']) &&
         incoming().status in ['active', 'ended'];
       allow delete: if false;
 
