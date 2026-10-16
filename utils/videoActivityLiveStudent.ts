@@ -3,6 +3,7 @@ import type {
   VideoActivityPublicQuestion,
   VideoActivitySession,
 } from '@/types';
+import { deriveVaLiveState } from '@/utils/videoActivityState';
 
 /** Mirrors QUESTION_CLOSED_REASON in functions/src/videoActivityKey.ts. */
 export const QUESTION_CLOSED_REASON = 'question-closed';
@@ -43,17 +44,16 @@ export function liveStudentScreen(
   answers: VideoActivityAnswer[],
   closedQuestionId: string | null = null
 ): LiveStudentScreen {
-  if (session.status === 'ended') return { kind: 'ended' };
-  if (session.status === 'waiting') return { kind: 'waiting' };
-  const live = session.live;
-  const question = live?.currentQuestionId
-    ? questions.find((q) => q.id === live.currentQuestionId)
-    : undefined;
-  if (!live || !question) return { kind: 'watch' };
+  const pacing = deriveVaLiveState(session);
+  if (pacing.phase === 'ended') return { kind: 'ended' };
+  if (pacing.phase === 'lobby') return { kind: 'waiting' };
+  if (pacing.phase === 'watching') return { kind: 'watch' };
+  const question = questions.find((q) => q.id === pacing.questionId);
+  if (!question) return { kind: 'watch' };
   const answer = answers.find((a) => a.questionId === question.id) ?? null;
-  if (live.answerRevealed) return { kind: 'revealed', question, answer };
+  if (pacing.answerRevealed) return { kind: 'revealed', question, answer };
   if (answer) return { kind: 'submitted', question, answer: answer.answer };
-  if (live.questionPhase === 'open' && closedQuestionId !== question.id)
+  if (pacing.open && closedQuestionId !== question.id)
     return { kind: 'question', question };
   return { kind: 'closed', question };
 }
