@@ -3282,8 +3282,9 @@ function setupTeacherMocks(): TeacherMockEnv {
         });
       },
       update: (ref: { path: string[] }, patch: unknown) => {
-        if (ref.path.length === 2) env.sessionTxUpdate(ref, patch);
-        else env.batch.update(ref, patch);
+        const target =
+          ref.path.length === 2 ? env.sessionTxUpdate : env.batch.update;
+        (target as unknown as (r: unknown, p: unknown) => void)(ref, patch);
       },
     })
   );
