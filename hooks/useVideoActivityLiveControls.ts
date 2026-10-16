@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { arrayRemove, arrayUnion, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { endSessionPatch } from '@/utils/sessionLifecycle';
 
 const SESSIONS_COLLECTION = 'video_activity_sessions';
 
@@ -79,8 +80,7 @@ export function useVideoActivityLiveControls(
       end: (playheadSeconds) =>
         write(
           {
-            status: 'ended',
-            endedAt: Date.now(),
+            ...endSessionPatch('videoActivity', Date.now()),
             'live.currentQuestionId': null,
             'live.questionPhase': 'closed',
           },

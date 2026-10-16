@@ -62,6 +62,7 @@ import { useServerNow } from '@/hooks/useServerNow';
 import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
 import { PeriodAccessStrip } from '@/components/widgets/QuizWidget/components/monitor/PeriodAccessStrip';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
+import { deriveRunState } from '@/utils/sessionLifecycle';
 
 interface VideoActivityLiveMonitorProps {
   session: VideoActivitySession;
@@ -544,15 +545,16 @@ export const VideoActivityLiveMonitor: React.FC<
     }
   }, [showConfirm, onEnd, outward]);
 
+  // A paused run is stored as ended; the parent's pause and resume handlers tell them apart.
+  const run = deriveRunState('videoActivity', { status: session.status });
+  const isLive = run?.phase === 'active';
+  const isStopped = run?.phase === 'ended';
+
   const handleTogglePause = useCallback(async () => {
     if (toggling) return;
     setToggling(true);
     try {
-      // VA assignment pause maps to session 'ended', so the live indicator
-      // for "paused" reads the assignment status; we drive the toggle
-      // entirely off the parent's onPause/onResume handlers.
-      const isPaused = session.status === 'ended';
-      if (isPaused) {
+      if (isStopped) {
         if (onResume) await onResume();
       } else if (onPause) {
         await onPause();
@@ -560,14 +562,8 @@ export const VideoActivityLiveMonitor: React.FC<
     } finally {
       setToggling(false);
     }
-  }, [toggling, session.status, onPause, onResume]);
+  }, [toggling, isStopped, onPause, onResume]);
 
-  // VA sessions are binary (active | ended). When the assignment is paused
-  // the parent toggles the session to 'ended', so we treat status==='ended'
-  // here as "paused-or-ended" and rely on the parent's pause/resume wiring
-  // to distinguish them. The toggle button is only rendered when the parent
-  // supplies pause/resume callbacks.
-  const isLive = session.status === 'active';
   const sortedResponses = useMemo(() => {
     return responses.slice().sort((a, b) => {
       // Joined-most-recently first within each status bucket; completed

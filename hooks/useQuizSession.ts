@@ -77,6 +77,7 @@ import {
   buildTeacherSubmitUpdate,
   canTeacherSubmit,
 } from '@/utils/quizTeacherSubmit';
+import { acceptsStudents, endSessionPatch } from '@/utils/sessionLifecycle';
 import { findQuizSessionsByCode } from '@/utils/quizJoinCodes';
 import {
   createLeadingTrailingThrottle,
@@ -1793,10 +1794,8 @@ export const useQuizSessionTeacher = (
 
     if (nextIndex >= session.totalQuestions) {
       await updateDoc(sessionRef, {
-        status: 'ended' as QuizSessionStatus,
+        ...endSessionPatch('quiz', Date.now()),
         currentQuestionIndex: session.totalQuestions,
-        endedAt: Date.now(),
-        autoProgressAt: null,
         questionPhase: deleteField(),
       });
       await finalizeAllResponses();
@@ -1815,11 +1814,10 @@ export const useQuizSessionTeacher = (
     if (!sessionId) return;
 
     // 1. End the session
-    await updateDoc(doc(db, QUIZ_SESSIONS_COLLECTION, sessionId), {
-      status: 'ended' as QuizSessionStatus,
-      endedAt: Date.now(),
-      autoProgressAt: null,
-    });
+    await updateDoc(
+      doc(db, QUIZ_SESSIONS_COLLECTION, sessionId),
+      endSessionPatch('quiz', Date.now())
+    );
 
     // 2. Mark all active students as completed so their data is preserved in results
     await finalizeAllResponses();
@@ -2354,10 +2352,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         setError(null);
         const matches = await findQuizSessionsByCode(normCode);
         if (matches.length === 0) return null;
-        const joinable = matches.filter((m) => {
-          const s = m.data.status;
-          return s === 'waiting' || s === 'active' || s === 'paused';
-        });
+        const joinable = matches.filter((m) => acceptsStudents('quiz', m.data));
         if (joinable.length === 0) return null;
         // Match joinQuizSession's selection: prefer the most recently created.
         joinable.sort(
@@ -2456,10 +2451,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // active / paused) before picking one, otherwise docs[0] may be the
         // stale ended session and students get rejected despite a live
         // session existing.
-        const joinable = matches.filter((m) => {
-          const s = m.data.status;
-          return s === 'waiting' || s === 'active' || s === 'paused';
-        });
+        const joinable = matches.filter((m) => acceptsStudents('quiz', m.data));
         if (joinable.length === 0) {
           throw new SessionEndedError();
         }

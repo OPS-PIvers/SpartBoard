@@ -72,6 +72,7 @@ import {
 } from '@/utils/periodAccess';
 import { getServerNow } from '@/utils/serverTime';
 import { studentPreviewBlocksWrite } from '@/utils/viewAsTab';
+import { acceptsStudents } from '@/utils/sessionLifecycle';
 import {
   createLeadingTrailingThrottle,
   RESPONSES_THROTTLE_MS,
@@ -953,10 +954,10 @@ export const useVideoActivitySessionStudent =
           const closedMessage =
             'This activity has been closed by your teacher. Ask for a new link if you still need access.';
           // A live student who already joined reloads into the completion screen.
+          const accepting = acceptsStudents('videoActivity', sessionData);
           const liveEnded =
-            sessionData.status === 'ended' &&
-            isLiveVideoActivitySession(sessionData);
-          if (sessionData.status === 'ended' && !liveEnded) {
+            !accepting && isLiveVideoActivitySession(sessionData);
+          if (!accepting && !liveEnded) {
             setJoinStatus('error');
             setError(closedMessage);
             return;
