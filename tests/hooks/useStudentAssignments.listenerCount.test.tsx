@@ -252,3 +252,26 @@ describe('useStudentAssignments — bounded per-status listener plan (F8)', () =
     expect(allIds).not.toContain('q-archived');
   });
 });
+
+describe('useStudentAssignments — class id chunking', () => {
+  it('never passes more than 30 class ids to an in/array-contains-any clause', async () => {
+    deliverDocsByCollection({});
+    const classIds = Array.from({ length: 35 }, (_, i) => `c${i}`);
+
+    const { result } = renderHook(() => useStudentAssignments({ classIds }));
+
+    await waitFor(() => {
+      expect(result.current.loadState).toBe('ready');
+    });
+
+    const disjunctive = vi
+      .mocked(firestore.where)
+      .mock.calls.filter(([, op]) => op === 'in' || op === 'array-contains-any')
+      .map(([, , value]) => value as string[]);
+    expect(disjunctive.length).toBeGreaterThan(0);
+    expect(Math.max(...disjunctive.map((v) => v.length))).toBeLessThanOrEqual(
+      30
+    );
+    expect(new Set(disjunctive.flat())).toEqual(new Set(classIds));
+  });
+});

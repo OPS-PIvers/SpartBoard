@@ -29,7 +29,7 @@ All widget admin configs are stored in Firestore:
   .enabled: boolean
 ```
 
-The `config` field is a flexible object typed per widget. Always store building-specific defaults nested under `buildingDefaults[buildingId]`.
+The `config` field is a flexible object typed per widget. Always store building-specific defaults nested under `buildingDefaults[canonicalBuildingId(buildingId)]`.
 
 ### Two implementation paths
 
@@ -172,13 +172,21 @@ await setDoc(
 Always use `BUILDINGS` from `@/config/buildings` for the building list. Use a tab or sidebar selector so admins can configure each building independently. Store per-building data as:
 
 ```tsx
-config.buildingDefaults[buildingId] = {/* building-specific config */};
+config.buildingDefaults[canonicalBuildingId(buildingId)] = {
+  /* building-specific config */
+};
 ```
+
+Always key by `canonicalBuildingId(buildingId)` from `@/config/buildings`, never the raw selector ID. Before spreading the record back on save, run it through `canonicalizeBuildingKeyedRecord(config.buildingDefaults ?? {})` so legacy keys don't linger beside canonical ones. See `TimeToolConfigurationPanel.tsx`.
 
 ### Required imports
 
 ```tsx
-import { BUILDINGS } from '@/config/buildings';
+import {
+  BUILDINGS,
+  canonicalBuildingId,
+  canonicalizeBuildingKeyedRecord,
+} from '@/config/buildings';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { Toast } from '../common/Toast';
@@ -215,9 +223,9 @@ Settings that should **not** be exposed to users at all:
 When a widget is added to a dashboard, its initial `config` is typically populated from:
 
 1. The user's `selectedBuildings[0]` from `useAuth()`
-2. The `featurePermissions` array from `useAuth()` → find the permission for the widget type → read `.config.buildingDefaults[buildingId]`
+2. The `featurePermissions` array from `useAuth()` → find the permission for the widget type → read `.config.buildingDefaults` (canonicalized)
 
-Make sure the widget's initialization code in `DashboardContext.tsx` or the widget component itself reads from `featurePermissions`. Reference how `components/widgets/SpecialistSchedule/settingsFields.tsx` reads `featurePermissions` for a working example:
+Make sure the widget's initialization code in `DashboardContext.tsx` or the widget component itself reads from `featurePermissions`. `getAdminBuildingConfig` in `utils/adminBuildingConfig.ts` is the real read path and canonicalizes the record. Reference how `components/widgets/SpecialistSchedule/settingsFields.tsx` reads `featurePermissions` for a working example:
 
 ```tsx
 const globalConfig = useMemo(() => {
@@ -226,9 +234,11 @@ const globalConfig = useMemo(() => {
   );
   return perm?.config as YourWidgetGlobalConfig | undefined;
 }, [featurePermissions]);
-const buildingId = selectedBuildings[0] ?? 'schumann-elementary';
+const buildingId = canonicalBuildingId(selectedBuildings[0] ?? 'schumann');
 const buildingConfig =
-  globalConfig?.buildingDefaults?.[buildingId] ?? defaultConfig;
+  canonicalizeBuildingKeyedRecord(globalConfig?.buildingDefaults ?? {})[
+    buildingId
+  ] ?? defaultConfig;
 ```
 
 ---

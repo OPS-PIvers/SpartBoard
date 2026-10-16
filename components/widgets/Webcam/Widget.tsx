@@ -484,7 +484,13 @@ export const WebcamWidget: React.FC<{
                     }}
                   />
                   {capturedItems.length > 0 && (
-                    <span className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full border border-black" />
+                    <span
+                      className="absolute top-2 right-2 bg-blue-500 rounded-full border border-black"
+                      style={{
+                        width: 'min(8px, 2cqmin)',
+                        height: 'min(8px, 2cqmin)',
+                      }}
+                    />
                   )}
                 </button>
               </div>
