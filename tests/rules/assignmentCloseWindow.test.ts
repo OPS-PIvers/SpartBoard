@@ -415,6 +415,7 @@ describe('quiz closeAt — grace window and post-close exemptions', () => {
         answers: [{ questionId: 'q1', answer: 'A' }],
         status: 'completed',
         submittedAt: 2000,
+        completedAttempts: 1,
       })
     );
   });
@@ -458,6 +459,7 @@ describe('quiz closeAt — grace window and post-close exemptions', () => {
         answers: [{ questionId: 'q1', answer: 'A' }],
         status: 'completed',
         submittedAt: 2000,
+        completedAttempts: 1,
         unlocked: false,
       })
     );
@@ -523,6 +525,7 @@ describe('video activity closeAt — grace window and unlocked exemption', () =>
       updateDoc(doc(asStudent(), respPath(SESSION_GRACE)), {
         answers: [{ questionId: 'q1', answer: 'A' }],
         completedAt: 2000,
+        completedAttempts: 1,
       })
     );
   });
@@ -539,6 +542,7 @@ describe('video activity closeAt — grace window and unlocked exemption', () =>
       updateDoc(doc(asStudent(), respPath(SESSION_UNLOCKED)), {
         answers: [{ questionId: 'q1', answer: 'A' }],
         completedAt: 2000,
+        completedAttempts: 1,
         unlocked: false,
       })
     );

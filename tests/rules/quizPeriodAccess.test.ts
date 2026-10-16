@@ -214,6 +214,11 @@ describe('global pause (every session)', () => {
   });
 
   it('still takes a rejoin reset while paused', async () => {
+    await seedResponse(S, STUDENT_UID, {
+      studentUid: STUDENT_UID,
+      status: 'completed',
+      completedAttempts: 1,
+    });
     await assertSucceeds(
       updateDoc(resp(), { answers: [], status: 'joined', submittedAt: null })
     );

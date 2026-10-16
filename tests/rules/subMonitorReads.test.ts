@@ -291,7 +291,10 @@ describe('the monitor stamp is not a client’s to write', () => {
         await assertSucceeds(
           updateDoc(doc(db, `${collectionName}/${LAUNCHED}`), {
             status:
-              collectionName === 'flashcard_sessions' ? 'ended' : 'paused',
+              collectionName === 'flashcard_sessions' ||
+              collectionName === 'video_activity_sessions'
+                ? 'ended'
+                : 'paused',
           })
         );
       });
