@@ -636,6 +636,7 @@ service cloud.firestore {
           // not editable until a domain admin assigns a building. See
           // config/buildings.ts.
           (isBuildingAdmin(orgId) &&
+           existing().get('roleId', '') != 'super_admin' &&
            buildingListsOverlap(existing().get('buildingIds', []), orgMember(orgId).get('buildingIds', [])) &&
            changedOnly(['status'])) ||
           // Self-write: a user may stamp `lastActive` on their own member doc.

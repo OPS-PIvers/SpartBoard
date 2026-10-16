@@ -1252,6 +1252,12 @@ describe('organizations/members — writes', () => {
       );
     });
 
+    it('building admin CANNOT deactivate a super_admin member in their building', async () => {
+      await assertFails(
+        updateDoc(doc(asBuildingAdmin(), bossPath), { status: 'inactive' })
+      );
+    });
+
     it('domain admin CANNOT delete a super_admin member', async () => {
       await assertFails(deleteDoc(doc(asDomainAdmin(), bossPath)));
     });
