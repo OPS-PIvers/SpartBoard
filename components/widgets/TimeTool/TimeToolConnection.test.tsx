@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useTimeTool } from './useTimeTool';
 import { useDashboard } from '@/context/useDashboard';
+import { playTimerAlert } from '@/utils/timeToolAudio';
 import { WidgetData, TimeToolConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
 
 vi.mock('@/context/useDashboard');
@@ -288,6 +289,51 @@ describe('useTimeTool Connection (Nexus)', () => {
         config: expect.objectContaining({ voiceLevel: 2 }),
       }),
       { skipHistory: true }
+    );
+  });
+
+  it('leaves the shown board alone when the timer is on a hidden board', () => {
+    const widget = createWidget({
+      isRunning: true,
+      startTime: Date.now(),
+      timerEndTrafficColor: 'red',
+    });
+
+    renderHook(() => useTimeTool(widget, { isBoardActive: false }));
+
+    act(() => {
+      vi.advanceTimersByTime(6000);
+    });
+
+    expect(playTimerAlert).toHaveBeenCalled();
+    expect(mockUpdateWidget).not.toHaveBeenCalledWith(
+      'traffic-1',
+      expect.anything(),
+      expect.anything()
+    );
+  });
+
+  it('does not act later when its board is shown again', () => {
+    const widget = createWidget({
+      isRunning: true,
+      startTime: Date.now(),
+      timerEndTrafficColor: 'red',
+    });
+
+    const { rerender } = renderHook(
+      ({ active }) => useTimeTool(widget, { isBoardActive: active }),
+      { initialProps: { active: false } }
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(6000);
+    });
+    rerender({ active: true });
+
+    expect(mockUpdateWidget).not.toHaveBeenCalledWith(
+      'traffic-1',
+      expect.anything(),
+      expect.anything()
     );
   });
 });

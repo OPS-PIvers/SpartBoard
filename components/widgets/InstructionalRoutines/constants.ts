@@ -10,6 +10,10 @@ import {
 } from '@/types';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { ALL_GRADE_LEVELS } from '@/config/widgetGradeLevels';
+import {
+  timeToolClockPatch,
+  type TimeToolClockFields,
+} from '@/utils/timeToolClock';
 
 // Sorts by canonical grade-band order, not string order (digits sort before 'K').
 export function formatGradeLevelsLabel(gradeLevels: GradeLevel[]): string {
@@ -32,8 +36,10 @@ export function prepareLaunchConfig<T extends object>(
   if (timer.isRunning !== true) return config;
   return {
     ...config,
-    elapsedTime: timer.mode === 'stopwatch' ? 0 : (timer.duration ?? 0),
-    startTime: now,
+    ...timeToolClockPatch(timer as TimeToolClockFields, {
+      type: 'restart',
+      now,
+    }),
   };
 }
 
