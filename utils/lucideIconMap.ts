@@ -12,8 +12,8 @@ const listeners = new Set<() => void>();
  * thousands of icons nothing imports by name stay out of the startup bundle.
  */
 export const loadLucideIconMap = (): Promise<void> => {
-  pending ??= import('lucide-react/dist/cjs/lucide-react.js').then(
-    (mod) => {
+  pending ??= import('lucide-react/dist/cjs/lucide-react.js')
+    .then((mod) => {
       // The CJS build arrives as `default` in the browser bundle and as named exports under Node.
       const ns = mod as unknown as LucideIconMap & { default?: LucideIconMap };
       const source = ns.default && 'Rocket' in ns.default ? ns.default : ns;
@@ -22,11 +22,10 @@ export const loadLucideIconMap = (): Promise<void> => {
         source
       ) as LucideIconMap;
       listeners.forEach((notify) => notify());
-    },
-    () => {
+    })
+    .catch(() => {
       pending = null;
-    }
-  );
+    });
   return pending;
 };
 
