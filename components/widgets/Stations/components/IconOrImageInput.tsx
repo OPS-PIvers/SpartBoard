@@ -1,6 +1,13 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import * as Icons from 'lucide-react';
-import { Image as ImageIcon, Upload, Loader2, Trash2, X } from 'lucide-react';
+import {
+  Image as ImageIcon,
+  Upload,
+  Loader2,
+  Trash2,
+  X,
+  Smile,
+} from 'lucide-react';
+import { useLucideIconMap } from '@/utils/lucideIconMap';
 import { COMMON_INSTRUCTIONAL_ICONS } from '@/config/instructionalIcons';
 import { useStorage } from '@/hooks/useStorage';
 import { useAuth } from '@/context/useAuth';
@@ -41,6 +48,7 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
   const { addToast } = useDashboard();
   const { uploadSticker, deleteFile } = useStorage();
 
+  const iconMap = useLucideIconMap();
   const filteredIcons = iconSearch
     ? ICON_LIST.filter((name) =>
         name.toLowerCase().includes(iconSearch.toLowerCase())
@@ -168,7 +176,7 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
               : 'bg-white border-slate-200 text-slate-600'
           }`}
         >
-          <Icons.Smile size={12} />
+          <Smile size={12} />
           Icon
         </button>
         <button
@@ -196,9 +204,7 @@ export const IconOrImageInput: React.FC<IconOrImageInputProps> = ({
           />
           <div className="grid grid-cols-8 gap-1.5 max-h-48 overflow-y-auto custom-scrollbar p-1 border border-slate-200 rounded-lg bg-white">
             {filteredIcons.map((name) => {
-              const IconComp = (
-                Icons as unknown as Record<string, React.ElementType>
-              )[name];
+              const IconComp = iconMap[name];
               if (!IconComp) return null;
               const isActive = iconName === name && !imageUrl;
               return (

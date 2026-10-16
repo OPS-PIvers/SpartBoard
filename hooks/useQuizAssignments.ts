@@ -1934,19 +1934,15 @@ export const useQuizAssignments = (
       // safe (cron skips paused anyway) and any failure here leaves the
       // session paused, so a retry is clean.
       //
-      // Filter to docs whose `lastWriteAt` is already inside the cron's
-      // idle window — fresh docs don't need touching, which avoids a write
-      // amplification when a teacher pauses/resumes rapidly. The 80-minute
-      // cutoff sits inside the cron's 90-minute idle threshold with a 10-
-      // minute safety margin, so any doc that *could* be swept by the next
-      // tick gets refreshed.
+      // Skip only docs written in the last 5 minutes (rapid pause/resume); anything older
+      // could cross the cron's 90-minute idle threshold soon after resume.
       //
       // Teacher branch in `firestore.rules` is unrestricted, so writing
       // `lastWriteAt: serverTimestamp()` on student-owned response docs is
       // allowed here. Batched so a typical 30-student session is one
       // Firestore round-trip; sessions over the 500-op batch cap chunk
       // into multiple batches.
-      const IDLE_REFRESH_CUTOFF_MS = 80 * 60 * 1000;
+      const IDLE_REFRESH_CUTOFF_MS = 5 * 60 * 1000;
       const refreshCutoff = Timestamp.fromMillis(
         Date.now() - IDLE_REFRESH_CUTOFF_MS
       );

@@ -40,6 +40,7 @@ import {
 } from './classlinkRosterReconcile';
 import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 import {
+  loadTaughtClassEnrollment,
   reconcileRosterPinIndex,
   PIN_INDEX_MAX_ENTRIES,
 } from './studentIdentity';
@@ -497,8 +498,31 @@ function buildLiveDeps(db: admin.firestore.Firestore): ClassLinkSyncDeps {
     getDriveVersion: driveGetVersion,
 
     reconcilePinIndex: async (rosterRef, rosterData, students) => {
+      // The roster doc is owner-written, so ClassLink must confirm the owner teaches the class.
+      const ownerUid = rosterRef.parent.parent?.id ?? '';
+      const owner = ownerUid
+        ? await admin
+            .auth()
+            .getUser(ownerUid)
+            .catch(() => null)
+        : null;
+      const enrolled =
+        owner?.email && owner.emailVerified
+          ? await loadTaughtClassEnrollment(
+              owner.email,
+              String(rosterData.classlinkClassId ?? ''),
+              {
+                classlinkClientId: clientId,
+                classlinkClientSecret: clientSecret,
+                tenantUrl,
+              }
+            )
+          : null;
       const entries = students
-        .filter((s) => s.classLinkSourcedId && s.pin)
+        .filter(
+          (s) =>
+            s.classLinkSourcedId && s.pin && enrolled?.has(s.classLinkSourcedId)
+        )
         .slice(0, PIN_INDEX_MAX_ENTRIES)
         .map((s) => ({
           period: String(rosterData.name ?? ''),
