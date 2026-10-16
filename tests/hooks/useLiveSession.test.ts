@@ -753,6 +753,18 @@ describe('useLiveSession — student follows the teacher', () => {
     expect(result.current.session?.activeWidgetId).toBe('w1');
   });
 
+  it('drops the old session when a student switches to another code', () => {
+    const { result, rerender } = renderHook(
+      ({ code }: { code: string }) =>
+        useLiveSession(undefined, 'student', code),
+      { initialProps: { code: 'teacher-uid-1' } }
+    );
+    act(() => pushSession?.(live()));
+    expect(result.current.session?.activeWidgetId).toBe('w1');
+    rerender({ code: 'teacher-uid-2' });
+    expect(result.current.session).toBeNull();
+  });
+
   it('ignores leave before joining', async () => {
     const { result } = renderHook(() =>
       useLiveSession(undefined, 'student', 'teacher-uid-1')

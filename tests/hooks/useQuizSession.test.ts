@@ -4255,6 +4255,43 @@ describe('useQuizSessionTeacher — advanceQuestion', () => {
     });
     expect(firestore.updateDoc).not.toHaveBeenCalled();
   });
+
+  it('retries the auto-advance after a failed transaction instead of stranding the quiz', async () => {
+    vi.useFakeTimers();
+    try {
+      renderHook(() => useQuizSessionTeacher('sess-1'));
+      const armed = buildSession({
+        status: 'active',
+        currentQuestionIndex: 0,
+        totalQuestions: 3,
+        sessionMode: 'auto',
+        startedAt: 1000,
+        autoProgressAt: Date.now() - 1,
+      });
+      env.storedSession = armed;
+      emitSession(armed);
+      const txMock = firestore.runTransaction as unknown as ReturnType<
+        typeof vi.fn
+      >;
+      const consoleSpy = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      txMock.mockRejectedValueOnce(new Error('unavailable'));
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+      });
+      expect(env.sessionTxUpdate).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+      });
+      expect(env.sessionTxUpdate).toHaveBeenCalledTimes(1);
+      consoleSpy.mockRestore();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 describe('useQuizSessionTeacher — responses listener stability + throttling', () => {
