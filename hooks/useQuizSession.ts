@@ -268,6 +268,66 @@ export function isUnsafeBlankDraft(
   return isDraft && answer === '' && !!priorEntry && priorEntry.answer !== '';
 }
 
+// How long a transaction waits for in-flight draft autosaves before going ahead.
+const DRAFT_SETTLE_MS = 4000;
+
+export interface CommittedAnswers {
+  answers: QuizResponseAnswer[];
+  status: QuizResponse['status'];
+  baseWriteAt: unknown;
+}
+
+// What a transactional answers write leaves on the doc, keyed to the stamp it read.
+export function committedFromPatch(
+  read: QuizResponse,
+  patch: Record<string, unknown>
+): CommittedAnswers {
+  return {
+    answers:
+      (patch.answers as QuizResponseAnswer[] | undefined) ?? read.answers ?? [],
+    status:
+      typeof patch.status === 'string'
+        ? (patch.status as QuizResponse['status'])
+        : read.status,
+    baseWriteAt: read.lastWriteAt,
+  };
+}
+
+// Resolves once every pending draft write settles, or after `ms` so an offline queue can't hang a submit.
+export function settleDraftsWithin(
+  drafts: Iterable<Promise<unknown>>,
+  ms: number
+): Promise<void> {
+  const pending = [...drafts];
+  if (pending.length === 0) return Promise.resolve();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    Promise.allSettled(pending).then(() => undefined),
+    new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+// True when server stamp `a` is strictly later than `b`; a missing or pending (null) `a` never is.
+export function isWriteAtAfter(a: unknown, b: unknown): boolean {
+  const parts = (t: unknown): [number, number] | null => {
+    if (!t || typeof t !== 'object') return null;
+    const { seconds, nanoseconds } = t as {
+      seconds?: unknown;
+      nanoseconds?: unknown;
+    };
+    return typeof seconds === 'number' && typeof nanoseconds === 'number'
+      ? [seconds, nanoseconds]
+      : null;
+  };
+  const pa = parts(a);
+  if (!pa) return false;
+  const pb = parts(b);
+  if (!pb) return true;
+  return pa[0] !== pb[0] ? pa[0] > pb[0] : pa[1] > pb[1];
+}
+
 /**
  * Defensive predicate: refuse a draft autosave that would downgrade an
  * already-submitted answer's status to 'draft'. The cache-driven
@@ -2047,6 +2107,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   const myResponseRef = useRef<QuizResponse | null>(null);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   myResponseRef.current = myResponse;
+  // Answers a transaction committed that the listener has not echoed yet; drafts build on these instead of the stale cache.
+  const committedAnswersRef = useRef<CommittedAnswers | null>(null);
+  // Draft autosaves not yet acknowledged; a transaction waits for them so a late draft can't land on top of it.
+  const inFlightDraftsRef = useRef<Set<Promise<unknown>>>(new Set());
 
   // The teacher-side media gate, carried on the session doc. `/quiz` mounts no
   // AuthProvider, so this marker is the only thing that can authorise a take.
@@ -2221,6 +2285,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
 
   useEffect(() => {
     if (!sessionIdState || !responseKeyState) return;
+    committedAnswersRef.current = null;
     return onSnapshot(
       doc(
         db,
@@ -2230,6 +2295,15 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         responseKeyState
       ),
       (snap) => {
+        const committed = committedAnswersRef.current;
+        if (
+          committed &&
+          snap.metadata?.hasPendingWrites !== true &&
+          (!snap.exists() ||
+            isWriteAtAfter(snap.data()?.lastWriteAt, committed.baseWriteAt))
+        ) {
+          committedAnswersRef.current = null;
+        }
         setMyResponse(
           snap.exists()
             ? { ...(snap.data() as QuizResponse), _responseKey: snap.id }
@@ -2385,6 +2459,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       // stale `lastSnapshotAt` from the prior attempt would suppress
       // legitimate snapshots in the new one.
       lastHistorySnapshotAtRef.current.clear();
+      committedAnswersRef.current = null;
       try {
         const normCode = normalizeQuizCode(code);
         if (!normCode) throw new Error('Invalid code');
@@ -3262,12 +3337,33 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // race this file's other transactions close, but only for drafts
         // racing each other — a dropped draft self-heals on the next tick,
         // unlike a dropped explicit submit.
-        const existing = myResponseRef.current;
-        if (existing) {
+        const cached = myResponseRef.current;
+        const committed = committedAnswersRef.current;
+        if (cached) {
+          const existing = committed
+            ? {
+                ...cached,
+                answers: committed.answers,
+                status: committed.status,
+              }
+            : cached;
           const result = computeWrite(existing);
           historySnapshot = result.snapshot;
           if (!result.skip) {
-            await updateDoc(responseRef, result.patch);
+            if (committed) {
+              committed.answers = result.patch.answers as QuizResponseAnswer[];
+              if (typeof result.patch.status === 'string') {
+                committed.status = result.patch
+                  .status as QuizResponse['status'];
+              }
+            }
+            const write = updateDoc(responseRef, result.patch);
+            inFlightDraftsRef.current.add(write);
+            try {
+              await write;
+            } finally {
+              inFlightDraftsRef.current.delete(write);
+            }
           }
         }
       } else {
@@ -3279,10 +3375,13 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // than the client-cached `myResponseRef`, so a submit racing one of
         // those siblings for a different question can no longer silently
         // drop whichever write lands second.
+        await settleDraftsWithin(inFlightDraftsRef.current, DRAFT_SETTLE_MS);
+        const commit: { written: CommittedAnswers | null } = { written: null };
         historySnapshot = await runTransaction<{
           priorEntry: QuizResponseAnswer;
           now: number;
         } | null>(db, async (tx) => {
+          commit.written = null;
           const snap = await tx.get(responseRef);
           if (!snap.exists()) {
             // Can't-happen in practice (doc is created on join) — logged so
@@ -3294,12 +3393,15 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             );
             return null;
           }
-          const result = computeWrite(snap.data() as QuizResponse);
+          const fresh = snap.data() as QuizResponse;
+          const result = computeWrite(fresh);
           if (!result.skip) {
             tx.update(responseRef, result.patch);
+            commit.written = committedFromPatch(fresh, result.patch);
           }
           return result.snapshot;
         });
+        if (commit.written) committedAnswersRef.current = commit.written;
       }
 
       if (historySnapshot) {
@@ -3378,7 +3480,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       );
 
       let writtenTakeIndex: number | null = null;
+      const commit: { written: CommittedAnswers | null } = { written: null };
+      await settleDraftsWithin(inFlightDraftsRef.current, DRAFT_SETTLE_MS);
       await runTransaction(db, async (tx) => {
+        commit.written = null;
+        writtenTakeIndex = null;
         const snap = await tx.get(responseRef);
         if (!snap.exists()) return;
         const existing = snap.data() as QuizResponse;
@@ -3415,8 +3521,13 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             existing.servedQuestionIds
           ),
         });
+        commit.written = committedFromPatch(existing, {
+          status: nextStatus,
+          answers: updated,
+        });
         writtenTakeIndex = takeIndex;
       });
+      if (commit.written) committedAnswersRef.current = commit.written;
       return writtenTakeIndex;
     },
     []
@@ -3466,10 +3577,14 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         RESPONSES_COLLECTION,
         responseKey
       );
+      const commit: { written: CommittedAnswers | null } = { written: null };
+      await settleDraftsWithin(inFlightDraftsRef.current, DRAFT_SETTLE_MS);
       await runTransaction(db, async (tx) => {
+        commit.written = null;
         const snap = await tx.get(responseRef);
         if (!snap.exists()) return;
-        const existingAnswers = (snap.data() as QuizResponse).answers ?? [];
+        const existing = snap.data() as QuizResponse;
+        const existingAnswers = existing.answers ?? [];
         let changed = false;
         const updated = existingAnswers.map((a) => {
           if (a.questionId !== questionId || !a.artifacts?.length) return a;
@@ -3486,7 +3601,9 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           answers: updated,
           lastWriteAt: serverTimestamp(),
         });
+        commit.written = committedFromPatch(existing, { answers: updated });
       });
+      if (commit.written) committedAnswersRef.current = commit.written;
     },
     []
   );
@@ -3517,7 +3634,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         RESPONSES_COLLECTION,
         responseKey
       );
+      const commit: { written: CommittedAnswers | null } = { written: null };
+      await settleDraftsWithin(inFlightDraftsRef.current, DRAFT_SETTLE_MS);
       await runTransaction(db, async (tx) => {
+        commit.written = null;
         const snap = await tx.get(responseRef);
         if (!snap.exists()) return;
         const existing = snap.data() as QuizResponse;
@@ -3553,7 +3673,12 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             existing.servedQuestionIds
           ),
         });
+        commit.written = committedFromPatch(existing, {
+          status: nextStatus,
+          answers: updated,
+        });
       });
+      if (commit.written) committedAnswersRef.current = commit.written;
     },
     []
   );
