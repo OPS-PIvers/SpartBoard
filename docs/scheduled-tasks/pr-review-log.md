@@ -4770,3 +4770,34 @@ rather than "no data") is also still open.
 - Notes:
   - `gh` is unavailable, so GitHub access went through MCP.
   - Reviews were run by read-only subagents with scoped `vitest` runs only.
+
+## 2026-10-16
+
+- PRs reviewed:
+  - #4325 Widget loop: Checklist layout D → C
+  - #4324 refactor(imports): block cross-widget relative imports (D4)
+  - #4312 Flashcards Check: server-owned mastery, saved test answers, reset re-seed
+  - #4301 Skill: key admin building defaults by canonicalBuildingId
+  - #4300 Debugger log: 2026-10-15 run
+  - #4299 Announcement dismissal duration is clamped to one day when typed
+  - #4298 NextUp no longer drops a student who joins during a queue reload
+  - #4297 Students in more than 30 classes get their assignments again
+  - #4296 Prompt dialog no longer submits when Enter commits an IME composition
+  - #4291 Unifier run 117: aligned, memory log update
+- Comments processed: 1 open, 0 fixed and 0 newly explained. Every other item already had an adequate reply.
+  - #4301's inline thread (canonicalize the lookup id) was checked as fixed on the branch and resolved.
+  - #4312's `round` trust finding was left open, since the author is waiting on Paul to decide on pacing.
+- Fixes pushed: none
+- Reviews posted: 10
+- Merge readiness:
+  - Ready: #4299, #4297, #4296, #4291.
+  - Ready with minor notes:
+    - #4325: the `1.375em` clip is tied to `leading-snug`, and there is no scroll or row-height test.
+    - #4324: the `eslint.config.js` comment above the rule describes the old scope.
+    - #4312: a reset can race an in-flight save or rating, and no parity test covers the copied schedule.
+    - #4301: the PR description doesn't mention the Webcam change.
+    - #4300: two fixed backlog leads aren't struck.
+    - #4298: a new code comment claims failed batches retry, but the entries are deleted before the Drive write.
+  - Needs changes: none.
+- CI: green on every PR head.
+- Notes: `gh` is unavailable, so GitHub access went through MCP. Per-PR subagents used scoped `vitest` runs only.
