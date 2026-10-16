@@ -1,4 +1,4 @@
-// Rules for video_activity_sessions create ownership and the teacher-only key/answers doc.
+// Rules for video_activity_sessions create ownership, live status moves and the teacher-only key/answers doc.
 // Requires a running Firestore emulator: pnpm run test:rules
 
 import { readFileSync } from 'fs';
@@ -18,6 +18,7 @@ import {
   getDoc,
   serverTimestamp,
   setDoc,
+  updateDoc,
   writeBatch,
 } from 'firebase/firestore';
 
@@ -194,5 +195,78 @@ describe('video_activity_sessions helpers after the vaS() refactor', () => {
     );
     await assertFails(deleteDoc(doc(asTeacher(OTHER_TEACHER_UID), path)));
     await assertSucceeds(deleteDoc(doc(asTeacher(), path)));
+  });
+});
+
+describe('video_activity_sessions update: live run status', () => {
+  const seedSession = async (fields: Record<string, unknown>) => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), SESSION_PATH), {
+        ...sessionDoc(TEACHER_UID),
+        ...fields,
+      });
+    });
+  };
+
+  it('lets the teacher start and end a live run', async () => {
+    await seedSession({ sessionMode: 'teacher', status: 'waiting' });
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(), SESSION_PATH), { status: 'active' })
+    );
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(), SESSION_PATH), {
+        status: 'ended',
+        endedAt: 2,
+      })
+    );
+  });
+
+  it('refuses reopening an ended live run', async () => {
+    await seedSession({ sessionMode: 'teacher', status: 'ended' });
+    await assertFails(
+      updateDoc(doc(asTeacher(), SESSION_PATH), { status: 'active' })
+    );
+    await assertFails(
+      updateDoc(doc(asTeacher(), SESSION_PATH), { status: 'waiting' })
+    );
+  });
+
+  it('still allows other teacher edits on an ended live run', async () => {
+    await seedSession({ sessionMode: 'teacher', status: 'ended' });
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(), SESSION_PATH), { activityTitle: 'Renamed' })
+    );
+  });
+
+  it('still lets a teacher resume an ended self-paced session', async () => {
+    await seedSession({ status: 'ended' });
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(), SESSION_PATH), { status: 'active' })
+    );
+    await seedSession({ sessionMode: 'student', status: 'ended' });
+    await assertSucceeds(
+      updateDoc(doc(asTeacher(), SESSION_PATH), { status: 'active' })
+    );
+  });
+
+  it('lets students read an ended live run but never change its status', async () => {
+    await seedSession({ sessionMode: 'teacher', status: 'ended' });
+    await assertSucceeds(getDoc(doc(asAnonStudent(), SESSION_PATH)));
+    await assertFails(
+      updateDoc(doc(asAnonStudent(), SESSION_PATH), { status: 'active' })
+    );
+    await seedSession({ sessionMode: 'teacher', status: 'active' });
+    await assertFails(
+      updateDoc(doc(asAnonStudent(), SESSION_PATH), { status: 'ended' })
+    );
+  });
+
+  it('refuses another teacher changing a live run', async () => {
+    await seedSession({ sessionMode: 'teacher', status: 'active' });
+    await assertFails(
+      updateDoc(doc(asTeacher(OTHER_TEACHER_UID), SESSION_PATH), {
+        status: 'ended',
+      })
+    );
   });
 });
