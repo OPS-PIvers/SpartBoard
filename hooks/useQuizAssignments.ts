@@ -167,9 +167,42 @@ import { QUIZ_WHITEBOARD_FEATURE_ID } from '@/utils/quizMediaAccess';
 import {
   acceptsStudents,
   assignmentLifecyclePatches,
+  deriveRunState,
   type AssignmentLifecycleEvent,
+  type AssignmentLifecyclePatches,
 } from '@/utils/sessionLifecycle';
 import { reopenIndexPatch } from '@/utils/quizSessionPhase';
+
+/** Writes a Pause, Resume, End or Reopen in one transaction, refusing a stale Pause or Resume on a quiz that has ended. */
+async function commitQuizLifecycle(
+  userId: string,
+  assignmentId: string,
+  event: AssignmentLifecycleEvent,
+  extraSessionPatch?: (session: QuizSession) => Record<string, unknown>
+): Promise<AssignmentLifecyclePatches | null> {
+  const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId);
+  return runTransaction(db, async (tx) => {
+    const snap = await tx.get(sessionRef);
+    const session = snap.data() as QuizSession | undefined;
+    // Only an ended run is protected: End and Reopen always write, and Pause or Resume still repair a drifted assignment.
+    const ended = session
+      ? deriveRunState('quiz', session)?.phase === 'ended'
+      : false;
+    if (ended && (event.type === 'pause' || event.type === 'resume')) {
+      return null;
+    }
+    const patches = assignmentLifecyclePatches('quiz', event, Date.now());
+    tx.update(
+      doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
+      patches.assignment
+    );
+    tx.update(sessionRef, {
+      ...patches.session,
+      ...(session && extraSessionPatch ? extraSessionPatch(session) : {}),
+    });
+    return patches;
+  });
+}
 
 /** Import-mode picker result for shared-assignment paste flows. */
 export type SharedAssignmentImportMode = 'sync' | 'copy';
@@ -1836,18 +1869,9 @@ export const useQuizAssignments = (
     ): Promise<void> => {
       if (!userId) throw new Error('Not authenticated');
       // Pause and End null autoProgressAt so an in-flight auto-advance can't fire.
-      const patches = assignmentLifecyclePatches('quiz', event, Date.now());
-      const assignmentStatus: QuizAssignmentStatus = patches.assignmentStatus;
-      const batch = writeBatch(db);
-      batch.update(
-        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
-        patches.assignment
-      );
-      batch.update(
-        doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId),
-        patches.session
-      );
-      await batch.commit();
+      const written = await commitQuizLifecycle(userId, assignmentId, event);
+      if (!written) return;
+      const assignmentStatus: QuizAssignmentStatus = written.assignmentStatus;
 
       // Phase 3: mirror status to the PLC index entry so the
       // In-progress / Completed sub-tabs stay in sync. Fire-and-forget
@@ -1891,6 +1915,10 @@ export const useQuizAssignments = (
       const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId);
       const snap = await getDoc(sessionRef);
       const session = snap.data() as QuizSession | undefined;
+      // A stale tab's Resume on an ended quiz does nothing.
+      if (session && deriveRunState('quiz', session)?.phase === 'ended') {
+        return;
+      }
       const neverStarted =
         !!session &&
         (session.startedAt == null || session.currentQuestionIndex < 0);
@@ -1983,25 +2011,13 @@ export const useQuizAssignments = (
       // start). A "manual stop" (deactivateAssignment) doesn't touch
       // currentQuestionIndex, so we only reset when the index is actually
       // out-of-bounds.
-      const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId);
-      const snap = await getDoc(sessionRef);
-      const session = snap.data() as QuizSession | undefined;
-      const patches = assignmentLifecyclePatches(
-        'quiz',
+      const written = await commitQuizLifecycle(
+        userId,
+        assignmentId,
         { type: 'reopen' },
-        Date.now()
+        reopenIndexPatch
       );
-      const batch = writeBatch(db);
-      batch.update(
-        doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
-        patches.assignment
-      );
-      const sessionPatch: Record<string, unknown> = {
-        ...patches.session,
-        ...(session ? reopenIndexPatch(session) : {}),
-      };
-      batch.update(sessionRef, sessionPatch);
-      await batch.commit();
+      if (!written) return;
       // Drop any cached view count so the Shared row re-issues the
       // aggregation query on next mount; submissions-mode reopens get the
       // call too (no-op against a missing key).
@@ -2014,7 +2030,7 @@ export const useQuizAssignments = (
         void mirrorPlcAssignmentStatus(
           live.plc.id,
           assignmentId,
-          patches.assignmentStatus
+          written.assignmentStatus
         );
       }
     },

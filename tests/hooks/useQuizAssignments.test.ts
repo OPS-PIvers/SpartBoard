@@ -10,6 +10,7 @@ import {
   getDoc,
   getDocs,
   onSnapshot,
+  runTransaction,
   serverTimestamp,
   writeBatch,
 } from 'firebase/firestore';
@@ -51,6 +52,7 @@ vi.mock('firebase/firestore', () => ({
   Timestamp: {
     fromMillis: vi.fn((ms: number) => ({ __testTimestamp: ms })),
   },
+  runTransaction: vi.fn(),
   updateDoc: vi.fn(),
   writeBatch: vi.fn(),
 }));
@@ -176,6 +178,15 @@ describe('useQuizAssignments - reopenAssignment', () => {
     // empty snapshot is the right default; tests that exercise the
     // refresh behavior override this with their own mock.
     mockGetDocs.mockResolvedValue({ empty: true, docs: [] });
+    // Lifecycle writes run in a transaction that reads the session through getDoc's mock.
+    (runTransaction as Mock).mockImplementation(
+      async (_db: unknown, fn: (tx: unknown) => Promise<unknown>) =>
+        fn({
+          get: async (ref: unknown) =>
+            ((await mockGetDoc(ref)) as unknown) ?? { data: () => undefined },
+          update: batchUpdate,
+        })
+    );
   });
 
   function findSessionPatch(): Record<string, unknown> {
@@ -236,7 +247,7 @@ describe('useQuizAssignments - reopenAssignment', () => {
     const assignmentPatch = findAssignmentPatch();
     expect(assignmentPatch).toMatchObject({ status: 'paused' });
 
-    expect(batchCommit).toHaveBeenCalledTimes(1);
+    expect(runTransaction).toHaveBeenCalledTimes(1);
   });
 
   it('resets currentQuestionIndex to 0 for a student-paced session that auto-ended (defensive)', async () => {
@@ -479,6 +490,73 @@ describe('useQuizAssignments - reopenAssignment', () => {
     // With 3 responses < BATCH_LIMIT=450, the tail commit is the only
     // commit path that fires for the response batch.
     expect(batchCommit).toHaveBeenCalled();
+  });
+
+  it('ignores a stale Pause or Resume once the quiz has ended', async () => {
+    const ended: Partial<QuizSession> = {
+      id: ASSIGNMENT_ID,
+      sessionMode: 'teacher',
+      status: 'ended',
+      currentQuestionIndex: 2,
+      totalQuestions: 5,
+      startedAt: 1000,
+      endedAt: 2000,
+    };
+    mockGetDoc.mockImplementation(() => Promise.resolve({ data: () => ended }));
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+
+    await act(async () => {
+      await result.current.pauseAssignment(ASSIGNMENT_ID);
+      await result.current.resumeAssignment(ASSIGNMENT_ID);
+    });
+
+    expect(batchUpdate).not.toHaveBeenCalled();
+    expect(mockGetDocs).not.toHaveBeenCalled();
+  });
+
+  it('still lets End close the assignment of a quiz that ended on its own', async () => {
+    const ended: Partial<QuizSession> = {
+      id: ASSIGNMENT_ID,
+      sessionMode: 'teacher',
+      status: 'ended',
+      currentQuestionIndex: 5,
+      totalQuestions: 5,
+      startedAt: 1000,
+      endedAt: 2000,
+    };
+    mockGetDoc.mockImplementation(() => Promise.resolve({ data: () => ended }));
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+
+    await act(async () => {
+      await result.current.deactivateAssignment(ASSIGNMENT_ID);
+    });
+
+    expect(findAssignmentPatch()).toMatchObject({ status: 'inactive' });
+    expect(findSessionPatch()).toMatchObject({ status: 'ended' });
+  });
+
+  it('lets Resume repair an assignment left paused while its session runs', async () => {
+    const running: Partial<QuizSession> = {
+      id: ASSIGNMENT_ID,
+      sessionMode: 'teacher',
+      status: 'active',
+      currentQuestionIndex: 2,
+      totalQuestions: 5,
+      startedAt: 1000,
+    };
+    mockGetDoc.mockImplementation(() =>
+      Promise.resolve({ data: () => running })
+    );
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+
+    await act(async () => {
+      await result.current.resumeAssignment(ASSIGNMENT_ID);
+    });
+
+    expect(findAssignmentPatch()).toMatchObject({ status: 'active' });
   });
 });
 

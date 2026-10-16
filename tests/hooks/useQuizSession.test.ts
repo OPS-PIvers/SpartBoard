@@ -3187,6 +3187,10 @@ interface TeacherMockEnv {
   docCalls: unknown[][];
   /** All `collection(...)` calls in argument-array form (post-db). */
   collectionCalls: unknown[][];
+  /** The session doc a transaction reads: the last one the listener delivered unless a test overrides it. */
+  storedSession: unknown;
+  /** Session-doc writes made inside a transaction (Next, auto-advance). */
+  sessionTxUpdate: ReturnType<typeof vi.fn>;
   /** Mock writeBatch instance the hook will use during finalize. */
   batch: {
     set: ReturnType<typeof vi.fn>;
@@ -3208,6 +3212,8 @@ function setupTeacherMocks(): TeacherMockEnv {
   const env: TeacherMockEnv = {
     sessionCallback: null,
     responsesCallback: null,
+    storedSession: undefined,
+    sessionTxUpdate: vi.fn(),
     docCalls: [],
     collectionCalls: [],
     batch: {
@@ -3236,8 +3242,13 @@ function setupTeacherMocks(): TeacherMockEnv {
   (
     firestore.onSnapshot as unknown as ReturnType<typeof vi.fn>
   ).mockImplementation((_target: unknown, onNext: SnapshotCallback) => {
-    if (snapshotCallIndex === 0) env.sessionCallback = onNext;
-    else env.responsesCallback = onNext;
+    if (snapshotCallIndex === 0) {
+      env.sessionCallback = (snap) => {
+        const s = snap as { exists: () => boolean; data: () => unknown };
+        env.storedSession = s.exists() ? s.data() : undefined;
+        onNext(snap);
+      };
+    } else env.responsesCallback = onNext;
     snapshotCallIndex += 1;
     return vi.fn();
   });
@@ -3261,13 +3272,19 @@ function setupTeacherMocks(): TeacherMockEnv {
   ).mockImplementation((_db: unknown, fn: (tx: unknown) => Promise<unknown>) =>
     fn({
       get: (ref: { path: string[] }) => {
-        const data = responseFixtures.get(ref.path[3]);
+        const data =
+          ref.path.length === 2
+            ? env.storedSession
+            : responseFixtures.get(ref.path[3]);
         return Promise.resolve({
           exists: () => data != null,
           data: () => data,
         });
       },
-      update: env.batch.update,
+      update: (ref: { path: string[] }, patch: unknown) => {
+        if (ref.path.length === 2) env.sessionTxUpdate(ref, patch);
+        else env.batch.update(ref, patch);
+      },
     })
   );
   // removeStudent fetches the answer-history subcollection to cascade-
@@ -3973,9 +3990,7 @@ describe('useQuizSessionTeacher — advanceQuestion', () => {
       await result.current.advanceQuestion();
     });
 
-    const updateMock = firestore.updateDoc as unknown as ReturnType<
-      typeof vi.fn
-    >;
+    const updateMock = env.sessionTxUpdate;
     expect(updateMock).toHaveBeenCalledTimes(1);
     expect(updateMock.mock.calls[0][1]).toEqual({
       questionPhase: 'reviewing',
@@ -4001,9 +4016,7 @@ describe('useQuizSessionTeacher — advanceQuestion', () => {
       await result.current.advanceQuestion();
     });
 
-    const updateMock = firestore.updateDoc as unknown as ReturnType<
-      typeof vi.fn
-    >;
+    const updateMock = env.sessionTxUpdate;
     // Should advance directly, not enter review.
     expect(updateMock).toHaveBeenCalledTimes(1);
     const patch = updateMock.mock.calls[0][1] as Record<string, unknown>;
@@ -4031,9 +4044,7 @@ describe('useQuizSessionTeacher — advanceQuestion', () => {
     });
     const after = Date.now();
 
-    const updateMock = firestore.updateDoc as unknown as ReturnType<
-      typeof vi.fn
-    >;
+    const updateMock = env.sessionTxUpdate;
     expect(updateMock).toHaveBeenCalledTimes(1);
     const patch = updateMock.mock.calls[0][1] as Record<string, unknown>;
     expect(patch.status).toBe('active');
@@ -4062,8 +4073,10 @@ describe('useQuizSessionTeacher — advanceQuestion', () => {
       await result.current.advanceQuestion();
     });
 
-    const patch = (firestore.updateDoc as unknown as ReturnType<typeof vi.fn>)
-      .mock.calls[0][1] as Record<string, unknown>;
+    const patch = env.sessionTxUpdate.mock.calls[0][1] as Record<
+      string,
+      unknown
+    >;
     expect(patch).not.toHaveProperty('startedAt');
     expect(patch.currentQuestionIndex).toBe(2);
   });
@@ -4086,8 +4099,10 @@ describe('useQuizSessionTeacher — advanceQuestion', () => {
       await result.current.advanceQuestion();
     });
 
-    const patch = (firestore.updateDoc as unknown as ReturnType<typeof vi.fn>)
-      .mock.calls[0][1] as Record<string, unknown>;
+    const patch = env.sessionTxUpdate.mock.calls[0][1] as Record<
+      string,
+      unknown
+    >;
     // Already reviewing → must advance to next question, not re-enter review.
     expect(patch.currentQuestionIndex).toBe(1);
     expect(patch.questionPhase).toBe('answering');
@@ -4129,9 +4144,7 @@ describe('useQuizSessionTeacher — advanceQuestion', () => {
       await result.current.advanceQuestion();
     });
 
-    const updateMock = firestore.updateDoc as unknown as ReturnType<
-      typeof vi.fn
-    >;
+    const updateMock = env.sessionTxUpdate;
     expect(updateMock).toHaveBeenCalledTimes(1);
     const patch = updateMock.mock.calls[0][1] as Record<string, unknown>;
     expect(patch.status).toBe('ended');
@@ -4140,9 +4153,9 @@ describe('useQuizSessionTeacher — advanceQuestion', () => {
     expect(patch.questionPhase).toBe(DELETE_FIELD_SENTINEL);
     expect(typeof patch.endedAt).toBe('number');
 
-    // finalizeAllResponses ran inside the same advance call.
+    // finalizeAllResponses ran inside the same advance call, after the session transaction.
     expect(env.batch.update).toHaveBeenCalledTimes(1);
-    expect(firestore.runTransaction).toHaveBeenCalledTimes(1);
+    expect(firestore.runTransaction).toHaveBeenCalledTimes(2);
   });
 
   it('does nothing while the session is paused, so only Resume unpauses it', async () => {
@@ -4161,6 +4174,84 @@ describe('useQuizSessionTeacher — advanceQuestion', () => {
       await result.current.advanceQuestion();
     });
 
+    expect(firestore.updateDoc).not.toHaveBeenCalled();
+    expect(env.sessionTxUpdate).not.toHaveBeenCalled();
+  });
+
+  it('writes nothing when another tab already moved the stored session on', async () => {
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+    emitSession(
+      buildSession({
+        status: 'active',
+        currentQuestionIndex: 0,
+        totalQuestions: 3,
+        sessionMode: 'teacher',
+        startedAt: 1000,
+      })
+    );
+    env.storedSession = buildSession({
+      status: 'active',
+      currentQuestionIndex: 1,
+      totalQuestions: 3,
+      sessionMode: 'teacher',
+      startedAt: 1000,
+    });
+
+    await act(async () => {
+      await result.current.advanceQuestion();
+    });
+
+    expect(env.sessionTxUpdate).not.toHaveBeenCalled();
+    expect(firestore.updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('writes nothing when the stored session ended in another tab', async () => {
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+    emitSession(
+      buildSession({
+        status: 'active',
+        currentQuestionIndex: 2,
+        totalQuestions: 3,
+        sessionMode: 'teacher',
+        startedAt: 1000,
+      })
+    );
+    env.storedSession = buildSession({
+      status: 'ended',
+      currentQuestionIndex: 3,
+      totalQuestions: 3,
+      sessionMode: 'teacher',
+      startedAt: 1000,
+    });
+
+    await act(async () => {
+      await result.current.advanceQuestion();
+    });
+
+    expect(env.sessionTxUpdate).not.toHaveBeenCalled();
+    expect(firestore.getDocs).not.toHaveBeenCalled();
+  });
+
+  it('rejects when the transaction cannot reach the server, so the monitor can say so', async () => {
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+    emitSession(
+      buildSession({
+        status: 'active',
+        currentQuestionIndex: 0,
+        totalQuestions: 3,
+        sessionMode: 'teacher',
+        startedAt: 1000,
+      })
+    );
+    (
+      firestore.runTransaction as unknown as ReturnType<typeof vi.fn>
+    ).mockRejectedValueOnce(new Error('unavailable'));
+
+    await act(async () => {
+      await expect(result.current.advanceQuestion()).rejects.toThrow(
+        'unavailable'
+      );
+    });
     expect(firestore.updateDoc).not.toHaveBeenCalled();
   });
 });

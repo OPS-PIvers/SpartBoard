@@ -78,7 +78,12 @@ import {
   canTeacherSubmit,
 } from '@/utils/quizTeacherSubmit';
 import { acceptsStudents, endSessionPatch } from '@/utils/sessionLifecycle';
-import { quizSessionWrite } from '@/utils/quizSessionPhase';
+import {
+  checkedQuizSessionWrite,
+  quizSessionWrite,
+  type QuizSessionEvent,
+  type QuizSessionWrite,
+} from '@/utils/quizSessionPhase';
 import {
   initialQuizTeacherSessionState,
   loadedValue,
@@ -1773,13 +1778,31 @@ export const useQuizSessionTeacher = (
     [sessionId]
   );
 
+  // Writes only if the stored session is still on the step this tab showed, so a stale tab can't move it twice.
+  const checkedSessionWrite = useCallback(
+    async (
+      seen: QuizSession,
+      event: QuizSessionEvent
+    ): Promise<QuizSessionWrite | null> => {
+      if (!sessionId) return null;
+      const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, sessionId);
+      return runTransaction(db, async (tx) => {
+        const snap = await tx.get(sessionRef);
+        const stored = snap.exists() ? (snap.data() as QuizSession) : undefined;
+        const write = checkedQuizSessionWrite(seen, stored, event, Date.now());
+        if (write) tx.update(sessionRef, write.patch);
+        return write;
+      });
+    },
+    [sessionId]
+  );
+
   const advanceQuestion = useCallback(async () => {
     if (!sessionId || !session) return;
-    const write = quizSessionWrite(session, { type: 'advance' }, Date.now());
-    if (!write) return;
-    await updateDoc(doc(db, QUIZ_SESSIONS_COLLECTION, sessionId), write.patch);
-    if (write.finalize) await finalizeAllResponses();
-  }, [sessionId, session, finalizeAllResponses]);
+    if (!quizSessionWrite(session, { type: 'advance' }, Date.now())) return;
+    const write = await checkedSessionWrite(session, { type: 'advance' });
+    if (write?.finalize) await finalizeAllResponses();
+  }, [sessionId, session, checkedSessionWrite, finalizeAllResponses]);
 
   const endQuizSession = useCallback(async () => {
     if (!sessionId) return;
@@ -1804,10 +1827,10 @@ export const useQuizSessionTeacher = (
       session.publicQuestions[session.currentQuestionIndex]?.id;
     if (!write || !currentQId) return;
     if (!everyoneAnsweredQuestion(responses, currentQId)) return;
-    updateDoc(doc(db, QUIZ_SESSIONS_COLLECTION, sessionId), write.patch).catch(
-      (err) => console.error('[AutoProgress] update failed:', err)
+    checkedSessionWrite(session, { type: 'everyoneAnswered' }).catch((err) =>
+      console.error('[AutoProgress] update failed:', err)
     );
-  }, [responses, session, sessionId]);
+  }, [responses, session, sessionId, checkedSessionWrite]);
 
   // Handle the actual auto-advance when the timestamp is reached
   useEffect(() => {
