@@ -281,6 +281,83 @@ describe('useQuizSessionStudent — draft autosave vs transactional writes', () 
     expect(ids).toEqual(['q1', 'q2']);
   });
 
+  it('makes a draft that starts during a submit wait for it and build on its result', async () => {
+    const result = await joinWith([draftQ1]);
+    const gate: { open?: () => void } = {};
+    const realTx = txMock().getMockImplementation() as (
+      ...args: unknown[]
+    ) => Promise<unknown>;
+    txMock().mockImplementationOnce(async (...args: unknown[]) => {
+      await new Promise<void>((resolve) => {
+        gate.open = resolve;
+      });
+      return realTx(...args);
+    });
+
+    let submitDone: Promise<void> = Promise.resolve();
+    let draftDone: Promise<void> = Promise.resolve();
+    await act(async () => {
+      submitDone = result.current.submitAnswer('q2', 'B');
+      await Promise.resolve();
+      draftDone = result.current.submitAnswer('q1', 'typed meanwhile', 0, {
+        isDraft: true,
+      });
+      await Promise.resolve();
+    });
+    expect(updateMock()).not.toHaveBeenCalled();
+
+    await act(async () => {
+      gate.open?.();
+      await submitDone;
+      await draftDone;
+    });
+
+    expect(server.answers.find((a) => a.questionId === 'q2')).toMatchObject({
+      status: 'submitted',
+    });
+    expect(server.answers.find((a) => a.questionId === 'q1')?.answer).toBe(
+      'typed meanwhile'
+    );
+  });
+
+  it('rolls the overlay back when a draft write is refused', async () => {
+    const result = await joinWith([draftQ1]);
+    await act(async () => {
+      await result.current.submitAnswer('q2', 'B');
+    });
+    updateMock().mockRejectedValueOnce(new Error('permission-denied'));
+    await act(async () => {
+      await expect(
+        result.current.submitAnswer('q3', 'refused', 0, { isDraft: true })
+      ).rejects.toThrow('permission-denied');
+    });
+    await act(async () => {
+      await result.current.submitAnswer('q1', 'next', 0, { isDraft: true });
+    });
+
+    const ids = server.answers.map((a) => a.questionId).sort();
+    expect(ids).toEqual(['q1', 'q2']);
+  });
+
+  it('leaves no overlay when the transaction fails', async () => {
+    const result = await joinWith([draftQ1]);
+    txMock().mockRejectedValueOnce(new Error('unavailable'));
+    await act(async () => {
+      await expect(result.current.submitAnswer('q2', 'B')).rejects.toThrow(
+        'unavailable'
+      );
+    });
+    // A teacher-side change the listener delivers at the same stamp must still be used.
+    server = { ...server, answers: [{ ...draftQ1, teacherNote: 'kept' }] };
+    deliver();
+    await act(async () => {
+      await result.current.submitAnswer('q1', 'more', 0, { isDraft: true });
+    });
+    expect(server.answers.find((a) => a.questionId === 'q1')).toMatchObject({
+      teacherNote: 'kept',
+    });
+  });
+
   it('still writes a draft with one updateDoc and no transaction', async () => {
     const result = await joinWith([draftQ1]);
     updateMock().mockClear();
