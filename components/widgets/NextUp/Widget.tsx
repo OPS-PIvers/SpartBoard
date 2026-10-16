@@ -1,4 +1,10 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, {
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+  useSyncExternalStore,
+} from 'react';
 import {
   WidgetComponentProps,
   NextUpConfig,
@@ -11,13 +17,16 @@ import { useAuth } from '@/context/useAuth';
 import { WidgetLayout } from '../WidgetLayout';
 import { resumeAudio } from '@/utils/timeToolAudio';
 import {
-  advanceNextUpQueue,
   shouldExpireNextUpQueue,
+  type NextUpQueueAction,
 } from './nextUpQueueUtils';
+import { getNextUpQueueStore } from './nextUpQueueStore';
 import {
   collection,
   onSnapshot,
   deleteDoc,
+  doc,
+  updateDoc,
   query,
   orderBy,
   limit,
@@ -37,6 +46,7 @@ const ENTRIES_SUBCOLLECTION = 'entries';
 
 export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   const config = widget.config as NextUpConfig;
+  const { isActive, createdAt, activeDriveFileId, lastUpdated } = config;
   const { driveService } = useGoogleDrive();
   const { updateWidget, activeDashboard } = useDashboard();
   const { showConfirm } = useDialog();
@@ -45,7 +55,8 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   // file: the live one lives in the teacher's Drive, which they cannot reach.
   const inShare = useInSubShare();
 
-  const [queue, setQueue] = useState<NextUpQueueItem[]>([]);
+  const store = getNextUpQueueStore(widget.id);
+  const queue = useSyncExternalStore(store.subscribe, store.getQueue);
   const [loading, setLoading] = useState(false);
 
   // Firestore session ID is [teacherUid]_[widgetId] to ensure ownership and avoid collisions/permission issues
@@ -73,64 +84,69 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   // Auto-expiry check: Deactivate session if it's from a previous day
   useEffect(() => {
     if (inShare) return;
-    if (
-      shouldExpireNextUpQueue(
-        config.isActive,
-        config.createdAt,
-        new Date(nowTick)
-      )
-    ) {
-      updateWidget(widget.id, { config: { ...config, isActive: false } });
+    if (!shouldExpireNextUpQueue(isActive, createdAt, new Date(nowTick))) {
+      return;
     }
-    // config.isActive / config.createdAt are read above but are subsumed by
-    // the whole-object `config` dep (the update spreads `...config`), so
-    // listing them separately is redundant.
-  }, [config, widget.id, updateWidget, nowTick, inShare]);
+    updateWidget(widget.id, { config: { isActive: false } });
+    // Close the student join link too, so no one can join yesterday's queue.
+    if (sessionId) {
+      updateDoc(doc(db, SESSIONS_COLLECTION, sessionId), {
+        isActive: false,
+      }).catch((error: unknown) => {
+        console.error('[NextUp] Failed to close expired session:', error);
+      });
+    }
+  }, [
+    isActive,
+    createdAt,
+    widget.id,
+    updateWidget,
+    nowTick,
+    inShare,
+    sessionId,
+  ]);
 
   // Sync from Drive when triggered by Firestore
   useEffect(() => {
     let isMounted = true;
     if (inShare) return;
-    if (config.activeDriveFileId && driveService && config.isActive) {
-      const loadQueue = async () => {
-        setLoading(true);
-        try {
-          const fileId = config.activeDriveFileId;
-          if (!fileId) return;
-          const blob = await driveService.downloadFile(fileId);
-          const text = await blob.text();
-          if (isMounted) {
-            try {
-              setQueue(JSON.parse(text) as NextUpQueueItem[]);
-            } catch (e) {
-              console.error('Failed to parse queue data:', e);
-            }
-          }
-        } catch (e) {
+    if (activeDriveFileId && driveService && isActive) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- loading flag for the Drive download started here
+      setLoading(true);
+      store
+        .load(async () => {
+          const blob = await driveService.downloadFile(activeDriveFileId);
+          return JSON.parse(await blob.text()) as NextUpQueueItem[];
+        })
+        .catch((e: unknown) => {
           console.error('Failed to load queue data:', e);
-        } finally {
+        })
+        .finally(() => {
           if (isMounted) setLoading(false);
-        }
-      };
-      void loadQueue();
-    } else if (!config.isActive) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- clears the queue alongside the Drive load
-      setQueue([]);
+        });
+    } else if (!isActive) {
+      store.clear();
     }
     return () => {
       isMounted = false;
     };
-  }, [
-    config.activeDriveFileId,
-    config.lastUpdated,
-    driveService,
-    config.isActive,
-    inShare,
-  ]);
+  }, [store, activeDriveFileId, lastUpdated, driveService, isActive, inShare]);
 
-  const queueRef = React.useRef(queue);
-  // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
-  queueRef.current = queue;
+  const writeQueue = useCallback(
+    async (fileId: string, updatedQueue: NextUpQueueItem[]) => {
+      if (!driveService) throw new Error('Google Drive is not connected');
+      const blob = new Blob([JSON.stringify(updatedQueue)], {
+        type: 'application/json',
+      });
+      await driveService.updateFileContent(fileId, blob);
+    },
+    [driveService]
+  );
+
+  // Patch only lastUpdated, so a write finishing after End can't reopen the queue.
+  const announceQueueChange = useCallback(() => {
+    updateWidget(widget.id, { config: { lastUpdated: Date.now() } });
+  }, [updateWidget, widget.id]);
 
   const lastExternalTriggerRef = React.useRef(config.externalTrigger ?? 0);
 
@@ -138,8 +154,8 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
   useEffect(() => {
     if (
       inShare ||
-      !config.isActive ||
-      !config.activeDriveFileId ||
+      !isActive ||
+      !activeDriveFileId ||
       !driveService ||
       !sessionId
     )
@@ -159,82 +175,66 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
         if (snap.empty) return;
 
         const processEntries = async () => {
-          // Process new entries using a ref to get the latest queue state
-          const updatedQueue = [...queueRef.current];
-          const deletePromises: Promise<void>[] = [];
-
-          snap.docs.forEach((doc) => {
-            const data = doc.data() as { name: string; joinedAt: number };
-            const newItem: NextUpQueueItem = {
-              id: doc.id,
+          const entries = snap.docs.map((entryDoc) => {
+            const data = entryDoc.data() as { name: string; joinedAt: number };
+            return {
+              id: entryDoc.id,
               name: data.name,
-              status: 'waiting',
               joinedAt: data.joinedAt,
             };
-
-            // Avoid duplicates if listener triggers multiple times
-            // and cap the queue length to prevent abuse (DoS / Drive space exhaustion)
-            if (
-              !updatedQueue.some((q) => q.id === doc.id) &&
-              updatedQueue.length < 500
-            ) {
-              // If no active student, make the first one active
-              if (updatedQueue.length === 0) {
-                newItem.status = 'active';
-              }
-              updatedQueue.push(newItem);
-            }
-
-            deletePromises.push(deleteDoc(doc.ref));
           });
-
-          // Save to Drive and trigger local re-fetch
-          const blob = new Blob([JSON.stringify(updatedQueue)], {
-            type: 'application/json',
-          });
-          if (!config.activeDriveFileId) return;
-          await driveService.updateFileContent(config.activeDriveFileId, blob);
+          await store.dispatch({ type: 'joined', entries }, (updated) =>
+            writeQueue(activeDriveFileId, updated)
+          );
 
           // Cleanup entries from Firestore (PII Safety)
-          await Promise.all(deletePromises);
+          await Promise.all(
+            snap.docs.map((entryDoc) => deleteDoc(entryDoc.ref))
+          );
 
-          // Trigger update
-          updateWidget(widget.id, {
-            config: { ...config, lastUpdated: Date.now() },
-          });
+          announceQueueChange();
         };
 
-        void processEntries();
+        processEntries().catch((error: unknown) => {
+          console.error('[NextUp] Failed to add students to the queue:', error);
+        });
       },
       (error) => {
         console.error('[NextUp] Entries listener error:', error);
       }
     );
-  }, [sessionId, driveService, config, widget.id, updateWidget, inShare]);
+  }, [
+    sessionId,
+    driveService,
+    isActive,
+    activeDriveFileId,
+    inShare,
+    store,
+    writeQueue,
+    announceQueueChange,
+  ]);
 
   const syncToDrive = useCallback(
-    async (updatedQueue: NextUpQueueItem[]) => {
-      if (!config.activeDriveFileId || !driveService) return;
+    async (action: NextUpQueueAction) => {
+      if (!activeDriveFileId || !driveService) {
+        await store.dispatch(action, () => Promise.resolve());
+        return;
+      }
       try {
-        const blob = new Blob([JSON.stringify(updatedQueue)], {
-          type: 'application/json',
-        });
-        await driveService.updateFileContent(config.activeDriveFileId, blob);
+        await store.dispatch(action, (updated) =>
+          writeQueue(activeDriveFileId, updated)
+        );
         // Trigger real-time update for other instances (like teacher board)
-        updateWidget(widget.id, {
-          config: { ...config, lastUpdated: Date.now() },
-        });
+        announceQueueChange();
       } catch (error) {
         console.error('Failed to sync queue:', error);
       }
     },
-    [config, driveService, widget.id, updateWidget]
+    [activeDriveFileId, driveService, store, writeQueue, announceQueueChange]
   );
 
   const handleNextStudent = useCallback(async () => {
-    const nextIdx = queue.findIndex((q) => q.status === 'waiting');
-    const updated = advanceNextUpQueue(queue);
-    setQueue(updated);
+    const nextIdx = store.getQueue().findIndex((q) => q.status === 'waiting');
 
     // Nexus: Auto-Start Timer integration (from #770)
     if (config.autoStartTimer && activeDashboard && nextIdx !== -1) {
@@ -262,9 +262,9 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
       }
     }
 
-    await syncToDrive(updated);
+    await syncToDrive({ type: 'advance' });
   }, [
-    queue,
+    store,
     config.autoStartTimer,
     activeDashboard,
     syncToDrive,
@@ -288,9 +288,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
       { title: 'Reset Queue', variant: 'warning', confirmLabel: 'Reset' }
     );
     if (!confirmed) return;
-    const updated: NextUpQueueItem[] = [];
-    setQueue(updated);
-    await syncToDrive(updated);
+    await syncToDrive({ type: 'reset' });
   };
 
   // ⚡ Bolt: Consolidate array passes into a single O(N) loop
@@ -321,7 +319,7 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     };
   }, [shownQueue, config.displayCount]);
 
-  if (inShare ? shownQueue.length === 0 : !config.isActive) {
+  if (inShare ? shownQueue.length === 0 : !isActive) {
     return (
       <WidgetLayout
         content={
