@@ -10,7 +10,7 @@
  *  5. Submit responses and show completion screen
  */
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useReducer, useRef } from 'react';
 import { signInAnonymously } from 'firebase/auth';
 import { Trans, useTranslation } from 'react-i18next';
 import {
@@ -51,6 +51,14 @@ import {
   GuidedLearningPeriodLockedScreen,
   GuidedLearningPeriodPausedOverlay,
 } from './GuidedLearningPeriodLockedScreen';
+import {
+  deriveGLStudentScreen,
+  glFlowReducer,
+  initialGLFlow,
+  initialResponseLoad,
+  loadedResponse,
+  responseLoadReducer,
+} from './glStudentViewState';
 
 const GL_SESSIONS_COLLECTION = 'guided_learning_sessions';
 
@@ -210,9 +218,13 @@ const StudentExperience: React.FC<{
   // periods configured, the student chooses one before the experience
   // begins; the value is persisted on their response doc.
   const [classPeriod, setClassPeriod] = useState<string | null>(null);
-  const [started, setStarted] = useState(false);
-  const [completed, setCompleted] = useState(false);
-  const [score, setScore] = useState<number | null>(null);
+  const [flow, dispatchFlow] = useReducer(glFlowReducer, initialGLFlow);
+  const started = flow.kind !== 'notStarted';
+  const submitting = flow.kind === 'playing' && flow.submit === 'submitting';
+  const submitFailed = flow.kind === 'playing' && flow.submit === 'failed';
+  const reachedEnd = flow.kind === 'playing' && flow.reachedEnd;
+  const endCardOpen = flow.kind === 'playing' && flow.endCardOpen;
+  const replayKey = flow.kind === 'notStarted' ? 0 : flow.replayKey;
   const [answers, setAnswers] = useState<ResponseAnswers>([]);
   // Latest answers for queued writes; set in handlers and the response listener.
   const answersRef = useRef<ResponseAnswers>([]);
@@ -220,11 +232,6 @@ const StudentExperience: React.FC<{
   const responseCreatedRef = useRef(false);
   const seededRef = useRef(false);
   const saveChainRef = useRef<Promise<void>>(Promise.resolve());
-  const [submitting, setSubmitting] = useState(false);
-  const [submitFailed, setSubmitFailed] = useState(false);
-  // v2: the learner has moved on from the last step; the end card shows until dismissed.
-  const [reachedEnd, setReachedEnd] = useState(false);
-  const [endCardOpen, setEndCardOpen] = useState(false);
   const { showConfirm } = useDialog();
   // Realtime listener on /guided_learning_sessions/{id}/responses/{uid}
   // so a returning student gets their published score + per-step
@@ -233,41 +240,25 @@ const StudentExperience: React.FC<{
   // propagates without a refresh. View-only shares never persist
   // responses, so the subscription is gated on `shouldSubscribeResponse`.
   const shouldSubscribeResponse = !!sessionId && !!anonymousUid && !isViewOnly;
-  const [myResponse, setMyResponse] = useState<GuidedLearningResponse | null>(
-    null
+  // A failed read keeps the last snapshot rather than looking like "nothing submitted".
+  const [responseLoad, dispatchResponse] = useReducer(
+    responseLoadReducer,
+    shouldSubscribeResponse,
+    initialResponseLoad
   );
-  const [myResponseLoading, setMyResponseLoading] = useState(
-    shouldSubscribeResponse
-  );
-  // A non-null value here means the listener failed for a real reason
-  // (permission-denied, network outage, rule rejection) — NOT just "doc
-  // doesn't exist," which `onSnapshot` reports as a successful snapshot
-  // with `snap.exists() === false`. We surface a soft banner instead of
-  // silently treating a failed read as "no submission exists" — that
-  // would invite a student who already submitted to resubmit.
-  const [myResponseError, setMyResponseError] = useState<string | null>(null);
-  // Adjust-state-while-rendering pattern (avoids set-state-in-effect):
-  // when the subscription gating flips (e.g., session loads as view-only),
-  // sync the loading flag to match without a cascading render.
-  const [prevShouldSubscribeResponse, setPrevShouldSubscribeResponse] =
-    useState(shouldSubscribeResponse);
-  if (shouldSubscribeResponse !== prevShouldSubscribeResponse) {
-    setPrevShouldSubscribeResponse(shouldSubscribeResponse);
-    setMyResponseLoading(shouldSubscribeResponse);
-    if (!shouldSubscribeResponse) {
-      setMyResponse(null);
-      setMyResponseError(null);
-    }
+  // Adjust-state-while-rendering: when the session loads as view-only, stop expecting a response.
+  if ((responseLoad.kind !== 'off') !== shouldSubscribeResponse) {
+    dispatchResponse({ type: 'subscribed', on: shouldSubscribeResponse });
   }
+  const myResponse = loadedResponse(responseLoad);
   useEffect(() => {
     if (!shouldSubscribeResponse) return;
     const unsub = onSnapshot(
       doc(db, GL_SESSIONS_COLLECTION, sessionId, 'responses', anonymousUid),
       (snap) => {
         // `snap.exists() === false` is the normal "first visit, no
-        // submission yet" path — not an error. Clearing `myResponseError`
-        // here lets a transient listener failure self-heal once the
-        // backend recovers.
+        // submission yet" path — not an error. A snapshot also clears an
+        // earlier listener failure, so a transient one self-heals.
         const data = snap.exists()
           ? (snap.data() as GuidedLearningResponse)
           : null;
@@ -289,30 +280,18 @@ const StudentExperience: React.FC<{
           if (data.classPeriod)
             setClassPeriod((c) => c ?? data.classPeriod ?? null);
         }
-        setMyResponse(data);
-        setMyResponseError(null);
-        setMyResponseLoading(false);
+        dispatchResponse({ type: 'snapshot', response: data });
       },
       (err) => {
-        // Real listener failures (permission-denied / unavailable /
-        // network) only. Do NOT zero out `myResponse` here — if we had
-        // already received a snapshot, keeping the last-known data
-        // avoids flicker, and if we hadn't, the parent gate will keep
-        // `myResponseLoading: true` so the Player UI doesn't render
-        // (which would silently invite a duplicate submission).
+        // Real listener failures only; the reducer keeps any snapshot already received.
         logError('GuidedLearningStudentApp.responseListener', err, {
           sessionId,
         });
-        setMyResponseError('listener-failed');
+        dispatchResponse({ type: 'listenerError' });
       }
     );
     return unsub;
   }, [sessionId, anonymousUid, shouldSubscribeResponse]);
-  // Bumped when the user clicks "Replay from beginning" on a view-only
-  // completion screen. Used as the React key on the player so its
-  // internal state (currentIdx, activeStepId, image index, etc.) fully
-  // resets to a fresh experience without needing reload.
-  const [replayKey, setReplayKey] = useState(0);
   // M17 C3-gl: this student's accommodation override, read from their own
   // pointer doc (`/student_assignments/{auth.uid}/items/{sessionId}`) — never
   // a session-side map (spec §5 C3). Absent for class-wide (non-individually-
@@ -420,27 +399,23 @@ const StudentExperience: React.FC<{
     // Score is computed on the teacher/results side from raw answers + answer key.
     // View-only shares never persist a response.
     if (isViewOnly) {
-      setScore(null);
-      setCompleted(true);
+      dispatchFlow({ type: 'finishedWithoutSaving' });
       return;
     }
     // Per-period: the rules refuse the write while the period is shut.
     if (perPeriod && periodPaused) return;
-    setSubmitting(true);
-    setSubmitFailed(false);
+    dispatchFlow({ type: 'submitStarted' });
     try {
       await saveResponse(Date.now());
-      setScore(null);
-      setCompleted(true);
+      dispatchFlow({ type: 'submitSucceeded' });
     } catch (err) {
       if (perPeriod && isPermissionDenied(err)) {
         setFrozenGate(gateKey);
+        dispatchFlow({ type: 'submitRefused' });
       } else {
         logError('GuidedLearningStudentApp.submit', err, { sessionId });
-        setSubmitFailed(true);
+        dispatchFlow({ type: 'submitFailed' });
       }
-    } finally {
-      setSubmitting(false);
     }
   };
 
@@ -515,132 +490,109 @@ const StudentExperience: React.FC<{
         setSeating(false);
       }
     }
-    setStarted(true);
+    dispatchFlow({ type: 'started' });
   };
 
-  if (loading) return <FullPageLoader />;
-  if (error) return <ErrorScreen message={error} />;
-  if (!session) return <ErrorScreen message={t('glStudent.error.notFound')} />;
-  // Teacher skipped this student for this assignment.
-  if (pointer?.excluded) return <AssignmentExcludedNotice />;
+  const screen = deriveGLStudentScreen({
+    sessionLoading: loading,
+    sessionError: error,
+    hasSession: !!session,
+    excluded: pointer?.excluded === true,
+    flow,
+    response: responseLoad,
+    isClosed,
+    perPeriod,
+    assessmentMode: session?.accessMode === 'assessment',
+    isStudentRole,
+    entered,
+    canEnter,
+  });
 
-  // Response-listener failure on a submissions-mode session — we can't
-  // safely show the start screen (a returning student would silently
-  // resubmit) and we can't show the review (no data). Surface a refresh
-  // prompt instead. `completed` short-circuits so a just-submitted
-  // student isn't blocked by a stale error.
-  if (!completed && !isViewOnly && myResponseError && !myResponse) {
-    return <ErrorScreen message={t('glStudent.error.statusFailed')} />;
+  if (screen.kind === 'loading') return <FullPageLoader />;
+  if (screen.kind === 'loadError') {
+    return <ErrorScreen message={screen.message} />;
+  }
+  if (screen.kind === 'notFound' || !session) {
+    return <ErrorScreen message={t('glStudent.error.notFound')} />;
   }
 
-  // Until the first response snapshot lands, a save could not tell a create from an update.
-  if (!completed && shouldSubscribeResponse && myResponseLoading) {
-    return <FullPageLoader />;
-  }
-
-  // Returning student who submitted (completedAt set). Show
-  // either the published review or a "wait for teacher" placeholder
-  // rather than dropping them back onto the start screen (which would
-  // imply they could submit again). `completed` short-circuits this
-  // branch so the just-submitted screen still wins immediately after
-  // `handleComplete` flips the local state.
-  if (
-    !completed &&
-    !isViewOnly &&
-    !myResponseLoading &&
-    myResponse &&
-    typeof myResponse.completedAt === 'number'
-  ) {
-    const { visibility, revealedAnswers, protection, publishedAt } =
-      resolveResultsVisibility(session, myResponse);
-    if (visibility !== 'none') {
+  switch (screen.kind) {
+    case 'excluded':
+      return <AssignmentExcludedNotice />;
+    case 'statusFailed':
+      return <ErrorScreen message={t('glStudent.error.statusFailed')} />;
+    case 'awaitingResponse':
+      return <FullPageLoader />;
+    case 'returningSubmitted': {
+      // The published review, or a "wait for your teacher" placeholder; never Start again.
+      const submitted = screen.response;
+      const { visibility, revealedAnswers, protection, publishedAt } =
+        resolveResultsVisibility(session, submitted);
+      if (visibility !== 'none') {
+        return (
+          <ResultsProtectionGate
+            protection={protection}
+            publishedAt={publishedAt}
+            responseDocPath={`guided_learning_sessions/${session.id}/responses/${submitted.studentAnonymousId}`}
+            tabWarnings={submitted.resultsTabWarnings ?? 0}
+            lockedOut={submitted.resultsLockedOut === true}
+            pin={submitted.pin}
+          >
+            <PublishedGLReview
+              session={session}
+              myResponse={submitted}
+              visibility={visibility}
+              revealedAnswers={revealedAnswers}
+            />
+          </ResultsProtectionGate>
+        );
+      }
       return (
-        <ResultsProtectionGate
-          protection={protection}
-          publishedAt={publishedAt}
-          responseDocPath={`guided_learning_sessions/${session.id}/responses/${myResponse.studentAnonymousId}`}
-          tabWarnings={myResponse.resultsTabWarnings ?? 0}
-          lockedOut={myResponse.resultsLockedOut === true}
-          pin={myResponse.pin}
-        >
-          <PublishedGLReview
-            session={session}
-            myResponse={myResponse}
-            visibility={visibility}
-            revealedAnswers={revealedAnswers}
-          />
-        </ResultsProtectionGate>
+        <CompletionScreen
+          session={session}
+          score={null}
+          isViewOnly={false}
+          visibility="none"
+          onReplay={() => undefined}
+        />
       );
     }
-    return (
-      <CompletionScreen
-        session={session}
-        score={null}
-        isViewOnly={false}
-        visibility="none"
-        onReplay={() => undefined}
-      />
-    );
-  }
-
-  if (completed) {
-    return (
-      <CompletionScreen
-        session={session}
-        score={score}
-        isViewOnly={isViewOnly}
-        visibility={resolveResultsVisibility(session, myResponse).visibility}
-        onReplay={() => {
-          // Drop responses + bump key so the player fully remounts with
-          // fresh state at step 0 / image 0. Keep `started` true so the
-          // user goes straight to the player rather than back through
-          // the start screen.
-          answersRef.current = [];
-          setAnswers([]);
-          setScore(null);
-          setCompleted(false);
-          setReachedEnd(false);
-          setEndCardOpen(false);
-          setReplayKey((k) => k + 1);
-          startedAt.current = Date.now();
-        }}
-      />
-    );
-  }
-
-  // A submit already in flight lands inside the rules' grace window.
-  if (isClosed && !submitting) {
-    return <GuidedLearningClosedScreen session={session} />;
-  }
-
-  // Assessment mode refuses a join without a school sign-in, whose self-picked period no rule can check.
-  if (perPeriod && session.accessMode === 'assessment' && !isStudentRole) {
-    return <ErrorScreen message={t('glStudent.error.needsSignIn')} />;
-  }
-
-  if (!started) {
-    return (
-      <StartScreen
-        session={session}
-        pin={pin}
-        onPinChange={setPin}
-        selectedPeriod={classPeriod}
-        onPeriodChange={setClassPeriod}
-        // View-only Share links are public resources — they aren't
-        // associated with a particular student or class, so we skip the
-        // PIN entry and the class-period picker entirely. The user lands
-        // on the welcome / mode screen and clicks straight through.
-        isViewOnly={isViewOnly}
-        onStart={() => void handleStart()}
-        error={seatError}
-        busy={seating}
-      />
-    );
-  }
-
-  // Per-period session not open for this student yet.
-  if (perPeriod && !entered) {
-    if (!canEnter) {
+    case 'completed':
+      return (
+        <CompletionScreen
+          session={session}
+          score={null}
+          isViewOnly={isViewOnly}
+          visibility={resolveResultsVisibility(session, myResponse).visibility}
+          onReplay={() => {
+            // A fresh player at step 0, straight past the start screen.
+            answersRef.current = [];
+            setAnswers([]);
+            dispatchFlow({ type: 'replay' });
+            startedAt.current = Date.now();
+          }}
+        />
+      );
+    case 'closed':
+      return <GuidedLearningClosedScreen session={session} />;
+    case 'needsSignIn':
+      return <ErrorScreen message={t('glStudent.error.needsSignIn')} />;
+    case 'start':
+      return (
+        <StartScreen
+          session={session}
+          pin={pin}
+          onPinChange={setPin}
+          selectedPeriod={classPeriod}
+          onPeriodChange={setClassPeriod}
+          // View-only Share links skip the PIN and period picker.
+          isViewOnly={isViewOnly}
+          onStart={() => void handleStart()}
+          error={seatError}
+          busy={seating}
+        />
+      );
+    case 'periodLocked':
       return (
         <GuidedLearningPeriodLockedScreen
           session={session}
@@ -648,8 +600,10 @@ const StudentExperience: React.FC<{
           now={periodNow}
         />
       );
-    }
-    return <FullPageLoader message={t('glStudent.loadingActivity')} />;
+    case 'enteringPeriod':
+      return <FullPageLoader message={t('glStudent.loadingActivity')} />;
+    case 'playing':
+      break;
   }
 
   // Convert session to a GuidedLearningSet-like object for GuidedLearningPlayer
@@ -692,16 +646,13 @@ const StudentExperience: React.FC<{
           onStepEvent={onStepEvent}
           autoPlay
           held={periodPaused || endCardOpen}
-          onReachedEnd={() => {
-            setReachedEnd(true);
-            setEndCardOpen(true);
-          }}
+          onReachedEnd={() => dispatchFlow({ type: 'reachedEnd' })}
         />
         {endCardOpen && !periodPaused && session.playerV2 === true && (
           <FinishedCard
             submitting={submitting}
             onSubmit={() => void handleDone()}
-            onBack={() => setEndCardOpen(false)}
+            onBack={() => dispatchFlow({ type: 'endCardDismissed' })}
           />
         )}
         {periodPaused && <GuidedLearningPeriodPausedOverlay />}

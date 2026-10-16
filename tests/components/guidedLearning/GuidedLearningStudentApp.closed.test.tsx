@@ -23,7 +23,10 @@ const { mockAuth, hookState, submitResponse, listener, playerProps } =
       session: null as import('@/types').GuidedLearningSession | null,
     },
     submitResponse: vi.fn(),
-    listener: { next: null as ((s: Snap) => void) | null },
+    listener: {
+      next: null as ((s: Snap) => void) | null,
+      error: null as ((err: unknown) => void) | null,
+    },
     playerProps: { current: null as Record<string, unknown> | null },
   }));
 
@@ -47,10 +50,13 @@ vi.mock('firebase/firestore', () => ({
   addDoc: vi.fn(() => Promise.resolve()),
   collection: vi.fn(),
   doc: vi.fn(),
-  onSnapshot: vi.fn((_ref: unknown, next: (s: Snap) => void) => {
-    listener.next = next;
-    return () => undefined;
-  }),
+  onSnapshot: vi.fn(
+    (_ref: unknown, next: (s: Snap) => void, error: (err: unknown) => void) => {
+      listener.next = next;
+      listener.error = error;
+      return () => undefined;
+    }
+  ),
   serverTimestamp: vi.fn(),
 }));
 
@@ -114,13 +120,14 @@ const PAST = 1;
 beforeEach(() => {
   vi.clearAllMocks();
   listener.next = null;
+  listener.error = null;
   playerProps.current = null;
   hookState.session = session();
   submitResponse.mockResolvedValue(undefined);
   window.history.replaceState({}, '', '/guided-learning/session-1');
 });
 
-describe('GuidedLearningStudentApp — closed session', () => {
+describe('GuidedLearningStudentApp — closed session and reconnect', () => {
   it('shows the closed screen instead of Start once closeAt has passed', async () => {
     hookState.session = { ...session(), closeAt: PAST };
     render(<GuidedLearningStudentApp />);
@@ -188,5 +195,102 @@ describe('GuidedLearningStudentApp — closed session', () => {
     };
     render(<GuidedLearningStudentApp />);
     expect(await screen.findByText(CLOSED)).toBeInTheDocument();
+  });
+
+  it('lets a submit already in flight finish after the close lands', async () => {
+    let release: () => void = () => undefined;
+    render(<GuidedLearningStudentApp />);
+    await waitFor(() => expect(listener.next).not.toBeNull());
+    emit(null);
+    fireEvent.click(await screen.findByRole('button', { name: /^start/i }));
+    await screen.findByTestId('gl-player');
+
+    submitResponse.mockImplementationOnce(
+      () => new Promise<void>((r) => (release = r))
+    );
+    fireEvent.click(screen.getByRole('button', { name: /I.m Done/ }));
+    await screen.findByRole('button', { name: 'Submitting…' });
+
+    hookState.session = { ...session(), closeAt: PAST };
+    emit(null);
+    expect(screen.getByTestId('gl-player')).toBeInTheDocument();
+    expect(screen.queryByText(CLOSED)).toBeNull();
+
+    await act(async () => {
+      release();
+      await Promise.resolve();
+    });
+    expect(
+      await screen.findByText('Your responses have been submitted.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText(CLOSED)).toBeNull();
+  });
+
+  it('shows the closed screen when a submit in flight fails after the close', async () => {
+    let fail: (err: unknown) => void = () => undefined;
+    render(<GuidedLearningStudentApp />);
+    await waitFor(() => expect(listener.next).not.toBeNull());
+    emit(null);
+    fireEvent.click(await screen.findByRole('button', { name: /^start/i }));
+    await screen.findByTestId('gl-player');
+
+    submitResponse.mockImplementationOnce(
+      () => new Promise<void>((_r, reject) => (fail = reject))
+    );
+    fireEvent.click(screen.getByRole('button', { name: /I.m Done/ }));
+    await screen.findByRole('button', { name: 'Submitting…' });
+
+    hookState.session = { ...session(), closeAt: PAST };
+    emit(null);
+    await act(async () => {
+      fail({ code: 'permission-denied' });
+      await Promise.resolve();
+    });
+    expect(await screen.findByText(CLOSED)).toBeInTheDocument();
+    expect(screen.queryByTestId('gl-player')).toBeNull();
+  });
+
+  it('shows a reconnecting student who never submitted the closed screen, with saved answers kept', async () => {
+    hookState.session = { ...session(), closeAt: PAST };
+    render(<GuidedLearningStudentApp />);
+    await waitFor(() => expect(listener.next).not.toBeNull());
+    emit({
+      sessionId: 'session-1',
+      studentAnonymousId: 'stu-1',
+      answers: [{ stepId: 'q1', answer: 'a', isCorrect: null }],
+      startedAt: 1,
+      completedAt: null,
+      score: null,
+    });
+    expect(await screen.findByText(CLOSED)).toBeInTheDocument();
+    expect(submitResponse).not.toHaveBeenCalled();
+  });
+
+  it('asks for a refresh when the response listener fails before its first snapshot', async () => {
+    render(<GuidedLearningStudentApp />);
+    await waitFor(() => expect(listener.error).not.toBeNull());
+    act(() => listener.error?.(new Error('denied')));
+    expect(
+      await screen.findByText(/load your submission status/i)
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^start/i })).toBeNull();
+  });
+
+  it('keeps the last snapshot when the listener fails later', async () => {
+    render(<GuidedLearningStudentApp />);
+    await waitFor(() => expect(listener.next).not.toBeNull());
+    emit({
+      sessionId: 'session-1',
+      studentAnonymousId: 'stu-1',
+      answers: [],
+      startedAt: 1,
+      completedAt: 2,
+      score: null,
+    });
+    await screen.findByText('Your responses have been submitted.');
+    act(() => listener.error?.(new Error('offline')));
+    expect(
+      screen.getByText('Your responses have been submitted.')
+    ).toBeInTheDocument();
   });
 });
