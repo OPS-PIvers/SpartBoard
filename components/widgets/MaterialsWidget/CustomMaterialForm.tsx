@@ -2,11 +2,11 @@ import React, { useId, useMemo, useState } from 'react';
 import { Check, Search, Trash2, X } from 'lucide-react';
 import { MaterialDefinition } from '@/types';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { getLucideIconNames, useLucideIconMap } from '@/utils/lucideIconMap';
 import {
   MATERIAL_COLOR_OPTIONS,
   MATERIAL_ICON_OPTIONS,
   MAX_MATERIAL_LABEL_LENGTH,
-  getAllLucideIconNames,
   getContrastingTextColor,
   resolveMaterialIcon,
 } from './constants';
@@ -55,6 +55,7 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
     material?.color ?? MATERIAL_COLOR_OPTIONS[0]
   );
   const [iconQuery, setIconQuery] = useState('');
+  const iconMap = useLucideIconMap();
 
   // Curated icons first; the full Lucide set fills in behind them when searching.
   const iconResults = useMemo(() => {
@@ -65,11 +66,11 @@ export const CustomMaterialForm: React.FC<CustomMaterialFormProps> = ({
       name.toLowerCase().includes(query)
     );
     const curatedSet = new Set<string>(curated);
-    const fallback = getAllLucideIconNames().filter(
+    const fallback = getLucideIconNames(iconMap).filter(
       (name) => !curatedSet.has(name) && name.toLowerCase().includes(query)
     );
     return [...curated, ...fallback].slice(0, ICON_RESULT_LIMIT);
-  }, [iconQuery]);
+  }, [iconQuery, iconMap]);
 
   const trimmedLabel = label.trim();
   const canSave = trimmedLabel.length > 0;

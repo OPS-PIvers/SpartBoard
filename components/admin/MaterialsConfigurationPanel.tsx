@@ -1,6 +1,5 @@
 import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import React, { useMemo, useState } from 'react';
-import * as LucideIcons from 'lucide-react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import {
@@ -23,6 +22,7 @@ import { IconPicker } from '@/components/widgets/InstructionalRoutines/IconPicke
 import { Button } from '@/components/common/Button';
 import { Plus, Trash2, Search } from 'lucide-react';
 import { Card } from '@/components/common/Card';
+import { getLucideIconNames, useLucideIconMap } from '@/utils/lucideIconMap';
 
 interface MaterialsConfigurationPanelProps {
   config: MaterialsGlobalConfig;
@@ -65,19 +65,15 @@ export const MaterialsConfigurationPanel: React.FC<
     customMaterials.map((material) => material.id)
   );
 
+  const iconMap = useLucideIconMap();
   const filteredFallbackIcons = useMemo(() => {
-    const ignoredKeys = new Set(['createLucideIcon', 'Icon']);
-    const allIconNames = Object.keys(LucideIcons)
-      .filter(
-        (iconName) => /^[A-Z]/.test(iconName) && !ignoredKeys.has(iconName)
-      )
-      .sort((a, b) => a.localeCompare(b));
+    const allIconNames = getLucideIconNames(iconMap);
     const query = iconQuery.trim().toLowerCase();
     if (!query) return [];
     return allIconNames.filter((iconName) =>
       iconName.toLowerCase().includes(query)
     );
-  }, [iconQuery]);
+  }, [iconQuery, iconMap]);
 
   const handleUpdateBuilding = (
     updates: Partial<BuildingMaterialsDefaults>

@@ -7,8 +7,8 @@ import {
   ExpectationsConfig,
   ExpectationsGlobalConfig,
 } from '@/types';
-import * as Icons from 'lucide-react';
 import {
+  HelpCircle,
   Volume2,
   Users,
   ArrowLeft,
@@ -19,6 +19,7 @@ import {
 // --- Constants & Data ---
 
 import { WidgetLayout } from '../WidgetLayout';
+import { getNamedLucideIcon } from '@/utils/lucideIconMap';
 import { tourAttr, tourFieldAttr } from '@/config/tourAnchors';
 import {
   VOLUME_OPTIONS,
@@ -143,10 +144,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
   };
 
   const getIcon = (iconName: string, fallback: React.ElementType) => {
-    return (
-      (Icons as unknown as Record<string, React.ElementType>)[iconName] ??
-      fallback
-    );
+    return getNamedLucideIcon(iconName, fallback);
   };
 
   const renderVolumeView = () => (
@@ -160,7 +158,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
           style={{ padding: 'min(16px, 3cqmin)', gap: 'min(8px, 1.5cqmin)' }}
         >
           {activeVolumeOptions.map((v) => {
-            const Icon = getIcon(v.icon, Icons.HelpCircle);
+            const Icon = getIcon(v.icon, HelpCircle);
             return (
               <button
                 key={v.id}
@@ -265,7 +263,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
           style={{ padding: 'min(16px, 3cqmin)', gap: 'min(12px, 2.5cqmin)' }}
         >
           {activeGroupOptions.map((g) => {
-            const Icon = getIcon(g.icon, Icons.HelpCircle);
+            const Icon = getIcon(g.icon, HelpCircle);
             return (
               <button
                 key={g.id}
@@ -345,7 +343,7 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
           style={{ padding: 'min(16px, 3cqmin)', gap: 'min(12px, 2.5cqmin)' }}
         >
           {activeInteractionOptions.map((i) => {
-            const Icon = getIcon(i.icon, Icons.HelpCircle);
+            const Icon = getIcon(i.icon, HelpCircle);
             return (
               <button
                 key={i.id}
@@ -498,12 +496,12 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               >
                 {selectedVolume ? (
                   <>
-                    <Icons.Volume2
+                    <Volume2
                       className={`absolute opacity-5 scale-150 rotate-12 ${selectedVolume.color}`}
                       style={{ width: '100%', height: '100%' }}
                     />
                     {(() => {
-                      const Icon = getIcon(selectedVolume.icon, Icons.Volume2);
+                      const Icon = getIcon(selectedVolume.icon, Volume2);
                       return (
                         <Icon
                           style={{
@@ -585,12 +583,12 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               >
                 {selectedGroup ? (
                   <>
-                    <Icons.Users
+                    <Users
                       className={`absolute opacity-5 scale-150 rotate-12 ${selectedGroup.color}`}
                       style={{ width: '100%', height: '100%' }}
                     />
                     {(() => {
-                      const Icon = getIcon(selectedGroup.icon, Icons.Users);
+                      const Icon = getIcon(selectedGroup.icon, Users);
                       return (
                         <Icon
                           style={{ width: '80%', height: '80%' }}
@@ -655,14 +653,14 @@ export const ExpectationsWidget: React.FC<{ widget: WidgetData }> = ({
               >
                 {selectedInteraction ? (
                   <>
-                    <Icons.MessagesSquare
+                    <MessagesSquare
                       className={`absolute opacity-5 scale-150 rotate-12 ${selectedInteraction.color}`}
                       style={{ width: '100%', height: '100%' }}
                     />
                     {(() => {
                       const Icon = getIcon(
                         selectedInteraction.icon,
-                        Icons.MessagesSquare
+                        MessagesSquare
                       );
                       return (
                         <Icon

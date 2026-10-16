@@ -1,5 +1,6 @@
 import React from 'react';
-import * as Icons from 'lucide-react';
+import { Zap } from 'lucide-react';
+import { getNamedLucideIcon } from '@/utils/lucideIconMap';
 
 /**
  * Validates if a string is a safe icon URL (HTTPS or reasonable data URL)
@@ -44,8 +45,6 @@ export const renderCatalystIcon = (
       />
     );
   }
-  const IconComp =
-    (Icons as unknown as Record<string, React.ElementType>)[iconName] ??
-    Icons.Zap;
+  const IconComp = getNamedLucideIcon(iconName, Zap);
   return <IconComp style={sizeStyle} className={className} />;
 };
