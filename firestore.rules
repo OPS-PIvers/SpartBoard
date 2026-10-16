@@ -4478,7 +4478,7 @@ service cloud.firestore {
           authUid() == studentUid &&
           isStudentRoleUser() &&
           (!isPinLoginToken() || resource == null ||
-           resource.data.get('classId', '') in request.auth.token.classIds);
+           existing().get('classId', '') in request.auth.token.classIds);
         allow write: if false;
       }
     }
