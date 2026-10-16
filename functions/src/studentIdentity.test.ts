@@ -1232,6 +1232,33 @@ describe('pinLoginV1', () => {
       });
     });
 
+    it('re-checks the identity cap when the attempt is recorded', async () => {
+      seedSession();
+      const key = 'pin_login_attempts/vs1__anon-caller';
+      for (const pin of ['01', '02', '03']) await login(pin);
+      // Simulate a parallel call that read the counter before the others landed.
+      const full = h.docStore.get(key);
+      h.docStore.set(key, { ...full, indexKeys: ['1__01', '1__02'] });
+      const realSet = h.docStore.set.bind(h.docStore);
+      let swapped = false;
+      h.docStore.get = ((orig) => (p: string) => {
+        const v = orig(p);
+        if (p === key && !swapped) {
+          swapped = true;
+          realSet(key, full);
+        }
+        return v;
+      })(h.docStore.get.bind(h.docStore));
+      try {
+        expect(await login('04')).toEqual({
+          matched: false,
+          reason: 'rate-limited',
+        });
+      } finally {
+        h.docStore.get = Map.prototype.get.bind(h.docStore);
+      }
+    });
+
     it('resets after the window passes', async () => {
       seedSession();
       for (let i = 0; i < 10; i++) await login('9' + i);

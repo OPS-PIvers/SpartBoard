@@ -1076,6 +1076,7 @@ export const PIN_INDEX_MAX_ENTRIES = 200;
 
 const ONEROSTER_PAGE_LIMIT = 200;
 const ONEROSTER_MAX_PAGES = 10;
+const CLASSLINK_TIMEOUT_MS = 20000;
 
 /** True only for a OneRoster user whose every role is student. */
 function isOnlyOneRosterStudent(user: OneRosterUserWithRole): boolean {
@@ -1111,6 +1112,7 @@ async function fetchOneRosterPages<T>(
     const res = await axios.get<Record<string, T[] | undefined>>(url, {
       params,
       headers: { ...headers },
+      timeout: CLASSLINK_TIMEOUT_MS,
     });
     const batch = res.data[key] ?? [];
     out.push(...batch);
@@ -1154,18 +1156,33 @@ export async function loadTaughtClassEnrollment(
     );
     const userResp = await axios.get<{ users?: OneRosterUserWithRole[] }>(
       usersUrl,
-      { params: userParams, headers: { ...userHeaders } }
+      {
+        params: userParams,
+        headers: { ...userHeaders },
+        timeout: CLASSLINK_TIMEOUT_MS,
+      }
     );
     const teacher = (userResp.data.users ?? [])[0];
     if (!teacher?.sourcedId || isOnlyOneRosterStudent(teacher)) return null;
 
-    const classes = await fetchOneRosterPages<ClassLinkClass>(
-      `${base}/users/${encodeURIComponent(teacher.sourcedId)}/classes`,
-      'classes',
-      creds
+    // Unpaged, like getClassLinkRosterV1, so any class the import dialog listed is found here.
+    const classesUrl = `${base}/users/${encodeURIComponent(teacher.sourcedId)}/classes`;
+    const classesHeaders = getOAuthHeaders(
+      classesUrl,
+      {},
+      'GET',
+      creds.classlinkClientId,
+      creds.classlinkClientSecret
     );
-    if (!classes) throw new Error('class list truncated');
-    if (!classes.some((c) => c.sourcedId === classId)) return null;
+    const classesResp = await axios.get<{ classes?: ClassLinkClass[] }>(
+      classesUrl,
+      { headers: { ...classesHeaders }, timeout: CLASSLINK_TIMEOUT_MS }
+    );
+    if (
+      !(classesResp.data.classes ?? []).some((c) => c.sourcedId === classId)
+    ) {
+      return null;
+    }
 
     const students = await fetchOneRosterPages<ClassLinkStudent>(
       `${base}/classes/${encodeURIComponent(classId)}/students`,
@@ -1507,14 +1524,16 @@ async function recordPinLoginAttempt(
   ref: admin.firestore.DocumentReference,
   indexKey: string,
   success: boolean
-): Promise<void> {
-  await db.runTransaction(async (tx) => {
+): Promise<boolean> {
+  return db.runTransaction(async (tx) => {
     const now = Date.now();
     const a = readPinLoginAttempts((await tx.get(ref)).data(), now);
-    if (success) {
-      if (!a.indexKeys.includes(indexKey)) a.indexKeys.push(indexKey);
-    } else {
+    // Re-checked here so parallel calls from one caller can't overshoot the caps.
+    const allowed = !pinLoginBlocked(a, indexKey);
+    if (!success) {
       a.failures += 1;
+    } else if (allowed && !a.indexKeys.includes(indexKey)) {
+      a.indexKeys.push(indexKey);
     }
     tx.set(ref, {
       ...a,
@@ -1523,6 +1542,7 @@ async function recordPinLoginAttempt(
         a.windowStart + 2 * PIN_LOGIN_WINDOW_MS
       ),
     });
+    return allowed;
   });
 }
 
@@ -1756,14 +1776,23 @@ export const pinLoginV1 = onCall(
       }
     }
 
-    await recordPinLoginAttempt(
+    const allowed = await recordPinLoginAttempt(
       db,
       attemptsRef,
       indexKey,
       matched !== null
     ).catch((err: unknown) => {
       console.error('[pinLoginV1] attempt record failed:', err);
+      return true;
     });
+    if (matched && !allowed) {
+      console.warn('[pinLoginV1] fallback', {
+        kind,
+        reason: 'rate-limited',
+        sessionId: sessionRef.id,
+      });
+      return { matched: false, reason: 'rate-limited' };
+    }
 
     if (!matched) {
       // The PIN+period tuple didn't resolve to any roster entry across
