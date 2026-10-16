@@ -4,7 +4,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import './index.css';
-import './i18n';
+import { i18nReady } from './i18n';
 import { attemptChunkReload } from './utils/chunkLoadError';
 import { installTranslateDomGuard } from './utils/translateDomGuard';
 import { LocalProdBanner } from './components/common/LocalProdBanner';
@@ -28,9 +28,14 @@ const isLocalProd =
   import.meta.env.DEV &&
   import.meta.env.VITE_FIREBASE_PROJECT_ID === 'spartboard';
 
-root.render(
-  <React.StrictMode>
-    {isLocalProd && <LocalProdBanner />}
-    <App />
-  </React.StrictMode>
-);
+// Wait for the saved language so non-English users never see a flash of English.
+void i18nReady
+  .catch(() => undefined)
+  .then(() => {
+    root.render(
+      <React.StrictMode>
+        {isLocalProd && <LocalProdBanner />}
+        <App />
+      </React.StrictMode>
+    );
+  });

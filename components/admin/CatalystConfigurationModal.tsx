@@ -13,7 +13,7 @@ import {
   Layers,
   Search,
 } from 'lucide-react';
-import * as LucideIcons from 'lucide-react';
+import { getLucideIconNames, useLucideIconMap } from '@/utils/lucideIconMap';
 import {
   collection,
   onSnapshot,
@@ -118,12 +118,11 @@ export const CatalystConfigurationModal: React.FC<
   const [routineEditor, setRoutineEditor] =
     useState<RoutineEditorState>(EMPTY_ROUTINE_EDITOR);
   const [iconSearch, setIconSearch] = useState('');
-  const lucideIconNames = React.useMemo(() => {
-    const ignoredKeys = new Set(['createLucideIcon', 'Icon']);
-    return Object.keys(LucideIcons)
-      .filter((name) => /^[A-Z]/.test(name) && !ignoredKeys.has(name))
-      .sort((a, b) => a.localeCompare(b));
-  }, []);
+  const iconMap = useLucideIconMap();
+  const lucideIconNames = React.useMemo(
+    () => getLucideIconNames(iconMap),
+    [iconMap]
+  );
   const filteredIconNames = React.useMemo(() => {
     const query = iconSearch.trim().toLowerCase();
     if (query.length === 0) return lucideIconNames;
@@ -728,12 +727,7 @@ export const CatalystConfigurationModal: React.FC<
                           }}
                         >
                           {(() => {
-                            const IconComp = (
-                              LucideIcons as unknown as Record<
-                                string,
-                                React.ElementType
-                              >
-                            )[routine.icon ?? 'Zap'];
+                            const IconComp = iconMap[routine.icon ?? 'Zap'];
                             return IconComp ? (
                               <IconComp size={14} />
                             ) : (
@@ -844,12 +838,7 @@ export const CatalystConfigurationModal: React.FC<
                       </div>
                       <div className="grid grid-cols-8 gap-2 max-h-44 overflow-y-auto custom-scrollbar">
                         {filteredIconNames.slice(0, 100).map((name) => {
-                          const IconComp = (
-                            LucideIcons as unknown as Record<
-                              string,
-                              React.ElementType
-                            >
-                          )[name];
+                          const IconComp = iconMap[name];
                           if (!IconComp) return null;
                           const isSelected = routineEditor.icon === name;
                           return (

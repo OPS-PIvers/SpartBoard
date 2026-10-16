@@ -1,6 +1,5 @@
 import React from 'react';
 import { WidgetData, CatalystVisualConfig } from '@/types';
-import * as Icons from 'lucide-react';
 import {
   Hand,
   Megaphone,
@@ -10,6 +9,7 @@ import {
   HelpCircle,
 } from 'lucide-react';
 
+import { getNamedLucideIcon } from '@/utils/lucideIconMap';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 
 export const CatalystVisualWidget: React.FC<{ widget: WidgetData }> = ({
@@ -25,10 +25,7 @@ export const CatalystVisualWidget: React.FC<{ widget: WidgetData }> = ({
       ListTodo: ListTodo,
       Zap: Zap,
     };
-    const Icon =
-      icons[iconName] ??
-      (Icons as unknown as Record<string, React.ElementType>)[iconName] ??
-      HelpCircle;
+    const Icon = icons[iconName] ?? getNamedLucideIcon(iconName, HelpCircle);
     return (
       <Icon
         className="animate-pulse"

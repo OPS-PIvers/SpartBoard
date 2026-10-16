@@ -18,7 +18,7 @@ import {
   TIME_TOOL_MAX_DURATION_SECONDS,
 } from '@/config/timeTool';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
-import { getMaterialsCatalog } from '@/components/widgets/MaterialsWidget/constants';
+import { getMaterialDefinitions } from '@/components/widgets/MaterialsWidget/materialsCatalog';
 
 /**
  * Validates a CSS hex color string. Accepts the three forms an HTML color
@@ -521,7 +521,7 @@ export const getAdminBuildingConfig = (
     case 'materials':
       if (Array.isArray(raw.selectedItems) && raw.selectedItems.length > 0) {
         const validMaterialIds = new Set(
-          getMaterialsCatalog(
+          getMaterialDefinitions(
             perm?.config as Partial<MaterialsGlobalConfig>
           ).map((item) => item.id)
         );

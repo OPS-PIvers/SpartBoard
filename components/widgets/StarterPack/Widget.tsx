@@ -3,7 +3,8 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboardActions } from '@/context/dashboardCanvasStore';
 import { useStarterPacks } from '@/hooks/useStarterPacks';
 import { WidgetComponentProps, StarterPack } from '@/types';
-import * as LucideIcons from 'lucide-react';
+import { Wand2 } from 'lucide-react';
+import { getNamedLucideIcon } from '@/utils/lucideIconMap';
 import confetti from 'canvas-confetti';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { playCleanUpUnlocked } from './audioUtils';
@@ -49,23 +50,11 @@ export const StarterPackWidget = ({ isStudentView }: WidgetComponentProps) => {
           Loading packs...
         </div>
       ) : allPacks.length === 0 ? (
-        <ScaledEmptyState
-          icon={LucideIcons.Wand2}
-          title="No starter packs available"
-        />
+        <ScaledEmptyState icon={Wand2} title="No starter packs available" />
       ) : (
         <div className="grid grid-cols-2" style={{ gap: 'min(16px, 3cqmin)' }}>
           {allPacks.map((pack) => {
-            const IconComponent =
-              (
-                LucideIcons as unknown as Record<
-                  string,
-                  React.ComponentType<{
-                    className?: string;
-                    style?: React.CSSProperties;
-                  }>
-                >
-              )[pack.icon] ?? LucideIcons.Wand2;
+            const IconComponent = getNamedLucideIcon(pack.icon, Wand2);
 
             return (
               <button

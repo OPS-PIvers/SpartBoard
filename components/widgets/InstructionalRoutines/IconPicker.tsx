@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import type { TourAnchorAttrs } from '@/config/tourAnchors';
-import * as Icons from 'lucide-react';
+import { HelpCircle, X } from 'lucide-react';
+import { useLucideIconMap } from '@/utils/lucideIconMap';
 import { COMMON_INSTRUCTIONAL_ICONS } from '@/config/instructionalIcons';
 import { getRoutineColorClasses } from './colorHelpers';
 import { FloatingPanel } from '@/components/common/FloatingPanel';
@@ -12,6 +13,7 @@ export const IconPicker: React.FC<{
   anchor?: TourAnchorAttrs;
 }> = ({ currentIcon, onSelect, color = 'blue', anchor }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const iconMap = useLucideIconMap();
   const colorClasses = getRoutineColorClasses(color);
 
   return (
@@ -22,17 +24,10 @@ export const IconPicker: React.FC<{
         title="Select Icon"
         {...anchor}
       >
-        {(Icons as unknown as Record<string, React.ElementType>)[
-          currentIcon
-        ] ? (
-          React.createElement(
-            (Icons as unknown as Record<string, React.ElementType>)[
-              currentIcon
-            ],
-            { size: 16 }
-          )
+        {iconMap[currentIcon] ? (
+          React.createElement(iconMap[currentIcon], { size: 16 })
         ) : (
-          <Icons.HelpCircle size={16} />
+          <HelpCircle size={16} />
         )}
       </button>
 
@@ -46,14 +41,12 @@ export const IconPicker: React.FC<{
               onClick={() => setIsOpen(false)}
               className="text-slate-400 hover:text-slate-600"
             >
-              <Icons.X size={14} />
+              <X size={14} />
             </button>
           </div>
           <div className="grid grid-cols-6 gap-2 max-h-48 overflow-y-auto custom-scrollbar p-1">
             {COMMON_INSTRUCTIONAL_ICONS.map((icon) => {
-              const IconComp = (
-                Icons as unknown as Record<string, React.ElementType>
-              )[icon];
+              const IconComp = iconMap[icon];
               if (!IconComp) return null;
               return (
                 <button

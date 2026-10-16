@@ -1,7 +1,8 @@
 import React from 'react';
 import { WidgetData, StickerConfig } from '@/types';
 import { DraggableSticker } from './DraggableSticker';
-import * as Icons from 'lucide-react';
+import { HelpCircle } from 'lucide-react';
+import { NamedLucideIcon } from '@/utils/lucideIconMap';
 
 interface StickerItemWidgetProps {
   widget: WidgetData;
@@ -138,9 +139,6 @@ export const StickerItemWidget: React.FC<StickerItemWidgetProps> = ({
 
   // Catalyst-style stickers (with icons and labels in a white card)
   if (config.icon) {
-    const IconComponent =
-      (Icons as unknown as Record<string, React.ElementType>)[config.icon] ??
-      Icons.HelpCircle;
     const theme = getColorClasses(config.color ?? 'blue');
 
     return (
@@ -152,7 +150,12 @@ export const StickerItemWidget: React.FC<StickerItemWidgetProps> = ({
           <div
             className={`rounded-2xl ${theme.bg} ${theme.text} w-full flex-1 flex items-center justify-center transition-all overflow-hidden`}
           >
-            <IconComponent className="w-[70%] h-[70%]" strokeWidth={2.5} />
+            <NamedLucideIcon
+              name={config.icon}
+              fallback={HelpCircle}
+              className="w-[70%] h-[70%]"
+              strokeWidth={2.5}
+            />
           </div>
 
           {/* Label Area (Outside the icon bg, but inside the white card) */}
