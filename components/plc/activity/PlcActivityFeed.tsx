@@ -38,7 +38,7 @@ interface PlcActivityFeedProps {
 }
 
 /**
- * A single feed row. Exported so SinceYouWereHereCard renders identical rows.
+ * A single feed row. Exported so the team header's activity panel renders identical rows.
  * `isMentionOfSelf` draws the @mention-of-self distinction (accent ring + a
  * badge), independent of the since/older bucket it lives in.
  */

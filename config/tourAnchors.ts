@@ -26,6 +26,8 @@ export interface TourAnchorDef {
   cycles?: string;
   /** Opens this anchor namespace's list empty, so its row-N positions are rows the tour adds. */
   opensEmpty?: string;
+  /** Surface id its click closes, or 'own' for the dialog it sits in; the dry run warns on a later step inside it. */
+  closes?: string;
 }
 
 export const TOUR_ANCHOR_PREREQUISITES = [
@@ -60,7 +62,11 @@ export const TOUR_ANCHORS = {
     requires: 'in-view',
   },
   'library.edit': { label: 'Edit button in the widget library', panel: true },
-  'library.close': { label: 'Close button in the widget library', panel: true },
+  'library.close': {
+    label: 'Close button in the widget library',
+    panel: true,
+    closes: 'board.widget-library',
+  },
 
   'widget.window': {
     label: 'Widget window',
@@ -134,6 +140,7 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
     requires: 'settings-open',
+    closes: 'board.settings-drawer',
   },
   'settings.tab-settings': {
     label: 'Settings tab',
@@ -181,7 +188,11 @@ export const TOUR_ANCHORS = {
     label: 'Clear board button in the top bar',
     destructive: true,
   },
-  'sidebar.close-menu': { label: 'Close menu button', panel: true },
+  'sidebar.close-menu': {
+    label: 'Close menu button',
+    panel: true,
+    closes: 'board.sidebar',
+  },
   'sidebar.boards': { label: 'Boards item in the menu', panel: true },
   'sidebar.backgrounds': { label: 'Backgrounds item in the menu', panel: true },
   'sidebar.assignments': { label: 'Assignments item in the menu', panel: true },
@@ -263,7 +274,11 @@ export const TOUR_ANCHORS = {
     perWidget: true,
     panel: true,
   },
-  'profile.close': { label: 'Close button in Profile & Settings', panel: true },
+  'profile.close': {
+    label: 'Close button in Profile & Settings',
+    panel: true,
+    closes: 'board.profile-settings',
+  },
   'profile.mobile-back': {
     label: 'Back button in Profile & Settings on phones',
     panel: true,
@@ -453,6 +468,7 @@ export const TOUR_ANCHORS = {
   'plc-edit.cancel': {
     label: 'Cancel button in the PLC edit modal',
     panel: true,
+    closes: 'board.plc-edit',
   },
   'plc-edit.save': {
     label: 'Save/Create button in the PLC edit modal',
@@ -675,6 +691,7 @@ export const TOUR_ANCHORS = {
   'assign-stepper.cancel': {
     label: 'Cancel button in the Assign dialog',
     panel: true,
+    closes: 'library.assign-stepper',
   },
   'assign-stepper.submit': {
     label: 'Assign button at the bottom of the Assign dialog',
@@ -867,6 +884,7 @@ export const TOUR_ANCHORS = {
   'assign-modal.cancel': {
     label: 'Cancel button at the bottom of the Assign window',
     panel: true,
+    closes: 'library.assign-modal',
   },
   'assign-modal.confirm': {
     label: 'Assign button at the bottom of the Assign window',
@@ -1097,6 +1115,7 @@ export const TOUR_ANCHORS = {
   'view-only-share.close': {
     label: 'Close button in the Share link window',
     panel: true,
+    closes: 'library.view-only-share',
   },
   'view-only-share.confirm': {
     label: 'Create Share Link button in the Share link window',
@@ -1178,6 +1197,7 @@ export const TOUR_ANCHORS = {
     label: 'Close or Cancel button in an editor dialog footer',
     perWidgetType: true,
     panel: true,
+    closes: 'own',
   },
   'quiz-editor.add-question': {
     label: 'Add question button in the Quiz editor',
@@ -4486,6 +4506,7 @@ export const TOUR_ANCHORS = {
     label: 'Cancel button in the Activity Wall editor',
     perWidget: true,
     panel: true,
+    closes: 'library.activity-wall.editor',
   },
   'library-shell.new': {
     label: 'Primary create/import button in a library shell header',
@@ -4731,10 +4752,6 @@ export const TOUR_ANCHORS = {
   'plc-members.invite-email': {
     label: 'Invite email field in the PLC members tab',
   },
-  'plc-home.drag-tile': {
-    label: 'Drag handle button for a tile in the PLC home',
-    perField: true,
-  },
   'plc-goals.close': {
     label: 'Close button in the PLC goal editor',
     panel: true,
@@ -4912,16 +4929,6 @@ export const TOUR_ANCHORS = {
   'plc-import.close': {
     label: 'Close button in the PLC import dialog',
     panel: true,
-  },
-  'plc-dashboard.back': {
-    label: 'Back button in the PLC dashboard',
-  },
-  'plc-dashboard.close': {
-    label: 'Close button in the PLC dashboard',
-  },
-  'plc-dashboard.section-row': {
-    label: 'Section row button in the PLC dashboard',
-    perField: true,
   },
   'plc-dashboard.section-tab': {
     label: 'Section tab button in the PLC dashboard',
@@ -5381,174 +5388,10 @@ export const TOUR_ANCHORS = {
   'plc-home.members-avatars': {
     label: 'Members avatars button in the PLC home',
   },
-  'plc-home.remove-tile': {
-    label: 'Remove tile button in the PLC home',
-    perField: true,
-    destructive: true,
-  },
-  'plc-home.add-tile-menu': {
-    label: 'Add tile menu button in the PLC home',
-  },
-  'plc-home.add-tile-option': {
-    label: 'Add tile option button in the PLC home',
-    perField: true,
-    panel: true,
-  },
-  'plc-home.spotlight': {
-    label: 'Spotlight button in the PLC home',
-    perField: true,
-  },
-  'plc-home.customize-done': {
-    label: 'Customize done button in the PLC home',
-    persists: true,
-  },
-  'plc-home.customize-open': {
-    label: 'Customize open button in the PLC home',
-  },
-  'plc-home.customize-clear': {
-    label: 'Customize clear button in the PLC home',
-    destructive: true,
-  },
-  'plc-home.card-link': {
-    label: 'Card link button in the PLC home',
-    perField: true,
-  },
-  'plc-home.members-manage': {
-    label: 'Members manage button in the PLC home',
-  },
-  'plc-home.quick-create': {
-    label: 'Quick create button in the PLC home',
-    persists: true,
-    perField: true,
-  },
-  'plc-home.action-toggle': {
-    label: 'Action toggle checkbox in the PLC home',
-    persists: true,
-    perField: true,
-  },
-  'plc-home.action-done': {
-    label: 'Action done button in the PLC home',
-    persists: true,
-  },
-  'plc-home.doc-open': {
-    label: 'Doc open button in the PLC home',
-    perField: true,
-  },
-  'plc-home.goal-add': {
-    label: 'Goal add button in the PLC home',
-    persists: true,
-  },
-  'plc-home.goal-edit': {
-    label: 'Goal edit button in the PLC home',
-    perField: true,
-  },
-  'plc-home.routine-info': {
-    label: 'Routine info button in the PLC home',
-  },
-  'plc-home.meeting-move-date': {
-    label: 'Meeting move date field in the PLC home',
-    panel: true,
-  },
-  'plc-home.meeting-move-save': {
-    label: 'Meeting move save button in the PLC home',
-    persists: true,
-    panel: true,
-  },
-  'plc-home.meeting-move-cancel': {
-    label: 'Meeting move cancel button in the PLC home',
-    panel: true,
-  },
-  'plc-home.meeting-move': {
-    label: 'Meeting move button in the PLC home',
-  },
-  'plc-home.meeting-skip': {
-    label: 'Meeting skip button in the PLC home',
-    persists: true,
-  },
-  'plc-home.meeting-open': {
-    label: 'Meeting open button in the PLC home',
-  },
-  'plc-home.results-targets': {
-    label: 'Results targets button in the PLC home',
-  },
-  'plc-home.results-meeting': {
-    label: 'Results meeting button in the PLC home',
-  },
-  'plc-home.tile-link': {
-    label: 'Tile link button in the PLC home',
-  },
-  'plc-meeting.home': {
-    label: 'Home button in the PLC meeting mode',
-  },
-  'plc-meeting.back': {
-    label: 'Back button in the PLC meeting mode',
-  },
-  'plc-meeting.save': {
-    label: 'Save button in the PLC meeting mode',
-    persists: true,
-  },
-  'plc-meeting.next': {
-    label: 'Next button in the PLC meeting mode',
-  },
-  'plc-meeting.view-record': {
-    label: 'View record button in the PLC meeting mode',
-  },
-  'plc-meeting.start-over': {
-    label: 'Start over button in the PLC meeting mode',
-  },
   'plc-meeting.export': {
     label: 'Export button in the PLC meeting mode',
     persists: true,
     perField: true,
-  },
-  'plc-meeting.go-live': {
-    label: 'Go live button in the PLC meeting mode',
-  },
-  'plc-meeting.discuss': {
-    label: 'Discuss button in the PLC meeting mode',
-    perField: true,
-  },
-  'plc-meeting.discuss-question': {
-    label: 'Discuss question button in the PLC meeting mode',
-    perField: true,
-  },
-  'plc-meeting.step': {
-    label: 'Step button in the PLC meeting mode',
-    perField: true,
-  },
-  'plc-meeting.review-toggle': {
-    label: 'Review toggle button in the PLC meeting mode',
-    perField: true,
-  },
-  'plc-meeting.decision-input': {
-    label: 'Decision input text box in the PLC meeting mode',
-  },
-  'plc-meeting.decision-add': {
-    label: 'Decision add button in the PLC meeting mode',
-    persists: true,
-  },
-  'plc-meeting.decision-remove': {
-    label: 'Decision remove button in the PLC meeting mode',
-    perField: true,
-    destructive: true,
-  },
-  'plc-meeting.action-input': {
-    label: 'Action input field in the PLC meeting mode',
-  },
-  'plc-meeting.action-owner': {
-    label: 'Action assignee select in the PLC meeting mode',
-  },
-  'plc-meeting.action-due': {
-    label: 'Action due field in the PLC meeting mode',
-  },
-  'plc-meeting.action-add': {
-    label: 'Action add button in the PLC meeting mode',
-    persists: true,
-  },
-  'plc-meeting.action-remove': {
-    label: 'Action remove button in the PLC meeting mode',
-    perField: true,
-    destructive: true,
   },
   'plc-norming.flag-toggle': {
     label: 'Flag toggle button in the PLC norming controls',
@@ -12643,6 +12486,7 @@ export const TOUR_ANCHORS = {
     persists: true,
     sandboxed: true,
     panel: true,
+    closes: 'own',
   },
   'video-activity.live-end': {
     label: 'End button in a live video activity',

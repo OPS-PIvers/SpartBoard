@@ -8,12 +8,16 @@
  *
  * Usage:
  *   pnpm changelog:draft                       # since the last entry's date
- *   pnpm changelog:draft -- --since 2026-05-01 # since an explicit date
+ *   pnpm changelog:draft --since 2026-05-01    # since an explicit date
+ *
+ * Also prints a placeholder widget note for every widget changed since origin/main.
  */
 import fs from 'fs';
 import path from 'path';
 import { execSync } from 'child_process';
 import { fileURLToPath } from 'url';
+import { changedWidgetTypes } from './checkReleaseWidgetNotes.ts';
+import { resolveWidgetFiles } from './widget-grader/widgetFiles.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -132,3 +136,33 @@ process.stdout.write(
     JSON.stringify(draftEntry, null, 2) +
     '\n'
 );
+
+// One placeholder note per widget whose files changed since the last release.
+let widgetTypes = [];
+try {
+  const changed = execSync('git diff --name-only origin/main...HEAD', {
+    encoding: 'utf8',
+  })
+    .split('\n')
+    .filter(Boolean);
+  widgetTypes = changedWidgetTypes(
+    changed,
+    resolveWidgetFiles(path.resolve(__dirname, '..'))
+  );
+} catch (err) {
+  console.warn(`Could not list changed widgets (${err.message}).`);
+}
+if (widgetTypes.length > 0) {
+  const notes = widgetTypes.map((widget) => ({
+    id: `${today}-${widget}`,
+    widget,
+    date: today,
+    text: 'TODO: one or two sentences on what teachers will notice, or delete this note',
+    feature: 'TODO: the flag gating this change, or delete this line',
+  }));
+  process.stdout.write(
+    `\n// Widget notes — add to the top-level "widgetNotes" array, or put "no-widget-note: <widget> <why>" in the release PR.\n` +
+      JSON.stringify(notes, null, 2) +
+      '\n'
+  );
+}

@@ -43,6 +43,9 @@ export interface TestModeCheck {
   submitting: boolean;
   error?: string | null;
   onSubmit: (answerLog: FlashcardAnswerLogEntry[]) => void;
+  /** Saved answers by card id, so a reload or reopen restores the test. */
+  initialAnswers?: Record<string, string>;
+  onAnswer?: (cardId: string, response: string) => void;
 }
 
 interface TestQuestion {
@@ -197,7 +200,6 @@ export const TestMode: React.FC<TestModeProps> = ({
   const checkRecordedRef = useRef(false);
   const [cycle, setCycle] = useState(0);
   const [retakeIds, setRetakeIds] = useState<string[] | null>(null);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [results, setResults] = useState<TestResult[] | null>(null);
   const pool = useMemo(
     () =>
@@ -225,6 +227,19 @@ export const TestMode: React.FC<TestModeProps> = ({
       testTypes,
     ]
   );
+  const [answers, setAnswers] = useState<Record<string, string>>(() => {
+    const saved = check?.initialAnswers ?? {};
+    return Object.fromEntries(
+      questions.flatMap((question) => {
+        const response = saved[question.card.id];
+        return response ? [[question.id, response]] : [];
+      })
+    );
+  });
+  const answer = (question: TestQuestion, response: string): void => {
+    setAnswers((current) => ({ ...current, [question.id]: response }));
+    check?.onAnswer?.(question.card.id, response);
+  };
   const answerLanguage =
     showFirst === 'term' ? definitionLanguage : termLanguage;
   const characters = useMemo(
@@ -570,12 +585,7 @@ export const TestMode: React.FC<TestModeProps> = ({
                         <button
                           key={option}
                           type="button"
-                          onClick={() =>
-                            setAnswers((current) => ({
-                              ...current,
-                              [question.id]: option,
-                            }))
-                          }
+                          onClick={() => answer(question, option)}
                           aria-pressed={selected}
                           className={cx(
                             'rounded-xl border-2 text-left font-bold transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-rose-200',
@@ -602,12 +612,7 @@ export const TestMode: React.FC<TestModeProps> = ({
                     characters={characters}
                     dark={dark}
                     disabled={false}
-                    onChange={(value) =>
-                      setAnswers((current) => ({
-                        ...current,
-                        [question.id]: value,
-                      }))
-                    }
+                    onChange={(value) => answer(question, value)}
                   />
                 )}
               </section>

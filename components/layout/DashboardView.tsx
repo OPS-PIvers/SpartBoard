@@ -11,6 +11,7 @@ import {
 } from '@/utils/backgrounds';
 import { useAuth } from '@/context/useAuth';
 import { useLiveSession } from '@/hooks/useLiveSession';
+import { deriveLiveSessionState } from '@/utils/liveSessionState';
 import { ImportShareModePicker } from '@/components/share/ImportShareModePicker';
 import { ImportSharedCollectionModal } from '@/components/share/ImportSharedCollectionModal';
 import { ShareStatusBanner } from '@/components/share/ShareStatusBanner';
@@ -42,6 +43,7 @@ import { TourEditorHost } from '@/components/tours/editor/TourEditorHost';
 import { TOUR_EDIT_EVENT } from '@/components/tours/editor/tourEditStore';
 import { TOUR_START_EVENT } from '@/components/tours/tourState';
 import { TourOfferWatcher } from '@/components/tours/useTourOffers';
+import { useDockPosition } from '@/components/tours/tourFrame';
 import {
   getLastHelpTab,
   HELP_OPEN_EVENT,
@@ -133,7 +135,7 @@ const isHelpCenterFocused = (): boolean =>
 // position so its arrival doesn't visually jump. aria-hidden — it's a
 // transient visual placeholder with no semantics.
 const ShellPlaceholder: React.FC = () => {
-  const { dockPosition } = useAuth();
+  const dockPosition = useDockPosition();
   const isVertical = dockPosition === 'left' || dockPosition === 'right';
   const positionClasses =
     dockPosition === 'left'
@@ -501,6 +503,7 @@ export const DashboardView: React.FC = () => {
     undefined,
     canAccessFeature('live-session')
   );
+  const liveState = deriveLiveSessionState(session);
 
   const [lastDashboardId, setLastDashboardId] = React.useState<
     string | undefined
@@ -877,9 +880,10 @@ export const DashboardView: React.FC = () => {
   // becomes null and we lose the pin. Fixing this requires lifting session
   // ownership to a board-keyed map at the data layer (deferred).
   const sessions = useMemo<Map<string, LiveSession> | undefined>(() => {
-    if (!session?.isActive || !activeDashboard) return undefined;
+    if (liveState.kind !== 'live' || !session || !activeDashboard)
+      return undefined;
     return new Map([[activeDashboard.id, session]]);
-  }, [session, activeDashboard]);
+  }, [liveState.kind, session, activeDashboard]);
 
   // One-time tripwire: log when a session first goes active so the pinning
   // limitation is visible in monitoring. useLiveSession() does not expose a
@@ -888,8 +892,7 @@ export const DashboardView: React.FC = () => {
   // session ownership to a board-keyed data layer (deferred).
   const pinningWarnedRef = React.useRef(false);
   // eslint-disable-next-line react-hooks/refs -- one-time log tripwire
-  if (session?.isActive && !pinningWarnedRef.current) {
-    // eslint-disable-next-line react-hooks/refs -- one-time log tripwire
+  if (liveState.kind === 'live' && session && !pinningWarnedRef.current) {
     pinningWarnedRef.current = true;
     logError(
       'MountedBoardsLayer.pinningLimitation',
@@ -899,7 +902,7 @@ export const DashboardView: React.FC = () => {
       { activeBoardId: activeDashboard?.id, sessionCode: session.code }
     );
   }
-  if (!session?.isActive) {
+  if (liveState.kind !== 'live') {
     // eslint-disable-next-line react-hooks/refs -- one-time log tripwire
     pinningWarnedRef.current = false;
   }

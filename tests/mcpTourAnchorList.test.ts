@@ -45,6 +45,7 @@ function expected() {
         : {}),
       ...(def.cycles ? { cycles: def.cycles } : {}),
       ...(def.opensEmpty ? { opens_empty: def.opensEmpty } : {}),
+      ...closesOf(def),
       ...routesOf(id),
     })
   );
@@ -65,6 +66,13 @@ function keysOf(id: string, def: TourAnchorDef) {
   if (schema) return { keys: [...new Set(schema)].sort() };
   const scanned = SCANNED_KEYS.get(id);
   return scanned?.complete && scanned.keys.length ? { keys: scanned.keys } : {};
+}
+
+// The surface a Close or Cancel shuts, with the clicks that open it so the dry run can tell when it reopens.
+function closesOf(def: TourAnchorDef) {
+  if (!def.closes) return {};
+  const reach = def.closes === 'own' ? null : surfacePath(def.closes);
+  return { closes: def.closes, ...(reach ? { closes_path: reach.path } : {}) };
 }
 
 // Where the anchor renders and the clicks from the board that reveal it; no path means the way in is not mapped yet.
@@ -96,11 +104,21 @@ describe('connector tour anchor list', () => {
       writeFileSync(
         FILE,
         // Parsed JSON, because an array literal this varied is too complex for the type checker to infer.
-        `// Generated from config/tourAnchors.ts by tests/mcpTourAnchorList.test.ts; rerun it with UPDATE_TOUR_ANCHOR_LIST=1.\nexport interface TourAnchorEntry {\n  id: string;\n  label: string;\n  scope: 'board' | 'widget' | 'widget type' | 'field';\n  panel?: true;\n  destructive?: true;\n  persists?: true;\n  sandboxed?: true;\n  requires?: string;\n  keys?: readonly string[];\n  key_pattern?: string;\n  key_hint?: string;\n  cycles?: string;\n  opens_empty?: string;\n  routes?: ReadonlyArray<{\n    surface: string;\n    kind: string;\n    widget_type?: string;\n    url?: string;\n    path?: readonly string[];\n    reveal?: string;\n    opened_by?: readonly string[];\n    needs?: readonly string[];\n  }>;\n}\n\nexport const TOUR_ANCHOR_LIST = JSON.parse(String.raw\`${JSON.stringify(list, null, 2)}\`) as readonly TourAnchorEntry[];\n`
+        `// Generated from config/tourAnchors.ts by tests/mcpTourAnchorList.test.ts; rerun it with UPDATE_TOUR_ANCHOR_LIST=1.\nexport interface TourAnchorEntry {\n  id: string;\n  label: string;\n  scope: 'board' | 'widget' | 'widget type' | 'field';\n  panel?: true;\n  destructive?: true;\n  persists?: true;\n  sandboxed?: true;\n  requires?: string;\n  keys?: readonly string[];\n  key_pattern?: string;\n  key_hint?: string;\n  cycles?: string;\n  opens_empty?: string;\n  closes?: string;\n  closes_path?: readonly string[];\n  routes?: ReadonlyArray<{\n    surface: string;\n    kind: string;\n    widget_type?: string;\n    url?: string;\n    path?: readonly string[];\n    reveal?: string;\n    opened_by?: readonly string[];\n    needs?: readonly string[];\n  }>;\n}\n\nexport const TOUR_ANCHOR_LIST = JSON.parse(String.raw\`${JSON.stringify(list, null, 2)}\`) as readonly TourAnchorEntry[];\n`
       );
       return;
     }
     expect(TOUR_ANCHOR_LIST).toEqual(list);
+  });
+
+  it('names a real surface in every closes', () => {
+    const bad = Object.entries(
+      TOUR_ANCHORS as Record<string, TourAnchorDef>
+    ).filter(
+      ([, def]) =>
+        def.closes && def.closes !== 'own' && !TOUR_SURFACES[def.closes]
+    );
+    expect(bad.map(([id]) => id)).toEqual([]);
   });
 });
 

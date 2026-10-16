@@ -82,7 +82,7 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
 }) => {
   const { t } = useTranslation();
   const showSparty = useShowSparty();
-  const { orgId, isAdmin, canAccessFeature } = useAuth();
+  const { orgId, isAdmin, canAccessFeature, canAccessWidget } = useAuth();
   const liveTours = canAccessFeature('gl-live-tours');
   const tourSetIds = useLiveTourSetIds(liveTours);
   const canRunLive = useCanRunLiveTour();
@@ -135,7 +135,9 @@ export const HelpGuidesTab: React.FC<HelpGuidesTabProps> = ({
   }
   // A linked live tour waits for its published state and the board, then runs instead of opening.
   const linkedRunnable =
-    liveTours && linkedSetId ? isTourRunnable(linkedSetId) : false;
+    liveTours && linkedSetId
+      ? isTourRunnable(linkedSetId, canAccessWidget)
+      : false;
   const linkedTourId =
     linkedRunnable === true && canRunLive ? linkedSetId : null;
   const linkedWaiting =

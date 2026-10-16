@@ -374,6 +374,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
             studentCount={students.length}
             students={students}
             code={sessionCode}
+            isGlobalFrozen={isGlobalFrozen}
             joinUrl={getJoinUrl()}
             onToggleLive={handleToggleLive}
             onFreezeStudent={(id, status) => {

@@ -2,9 +2,18 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { TimeToolConfig, WidgetData } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { playTimerAlert, resumeAudio } from '@/utils/timeToolAudio';
-import { TIME_TOOL_MAX_DURATION_SECONDS } from '@/config/timeTool';
+import {
+  clockStateOf,
+  secondsAt,
+  timeToolClockPatch,
+  type TimeToolClockEvent,
+} from '@/utils/timeToolClock';
 
-export const useTimeTool = (widget: WidgetData) => {
+// `isBoardActive` is false for a timer on a mounted but hidden board, which must not drive widgets on the shown board.
+export const useTimeTool = (
+  widget: WidgetData,
+  { isBoardActive = true }: { isBoardActive?: boolean } = {}
+) => {
   const { updateWidget, activeDashboard } = useDashboard();
   const config = widget.config as TimeToolConfig;
 
@@ -36,6 +45,7 @@ export const useTimeTool = (widget: WidgetData) => {
   // `updateWidget`). Not spreading the local `config` here also avoids a
   // subtle write-skew where stale local config could overwrite a newer
   // remote-synced config on the same render tick.
+  // Pause saves the last painted time, so the face doesn't jump when it stops.
   const handleStop = useCallback(
     (finalTime?: number, opts?: { skipHistory?: boolean }) => {
       const timeToSave = finalTime ?? runningDisplayTimeRef.current;
@@ -57,82 +67,60 @@ export const useTimeTool = (widget: WidgetData) => {
 
   const handleStart = useCallback(async () => {
     await resumeAudio();
-    const now = Date.now();
-    updateWidget(widget.id, {
-      config: {
-        isRunning: true,
-        startTime: now,
-        elapsedTime: displayTime,
-      },
+    const patch = timeToolClockPatch(config, {
+      type: 'start',
+      now: Date.now(),
     });
-    setRunningDisplayTime(displayTime);
-  }, [updateWidget, widget.id, displayTime]);
+    if (!patch) return;
+    updateWidget(widget.id, { config: patch });
+    setRunningDisplayTime(config.elapsedTime);
+  }, [config, updateWidget, widget.id]);
 
-  const handleReset = useCallback(() => {
-    const resetTime = config.mode === 'timer' ? config.duration : 0;
-    updateWidget(widget.id, {
-      config: {
-        ...config,
-        isRunning: false,
-        elapsedTime: resetTime,
-        startTime: null,
-      },
-    });
-    setRunningDisplayTime(resetTime);
-    cancelRaf();
-  }, [config, updateWidget, widget.id, cancelRaf]);
-
-  const setTime = useCallback(
-    (s: number) => {
-      updateWidget(widget.id, {
-        config: {
-          ...config,
-          elapsedTime: s,
-          duration: s,
-          isRunning: false,
-          startTime: null,
-        },
-      });
-      setRunningDisplayTime(s);
+  // Reset, setTime and adjust spread the whole config, as they always have.
+  const applySpread = useCallback(
+    (event: TimeToolClockEvent) => {
+      const patch = timeToolClockPatch(config, event);
+      if (!patch) return null;
+      updateWidget(widget.id, { config: { ...config, ...patch } });
+      return patch;
     },
     [config, updateWidget, widget.id]
   );
 
+  const handleReset = useCallback(() => {
+    const patch = applySpread({ type: 'reset' });
+    if (patch?.elapsedTime != null) setRunningDisplayTime(patch.elapsedTime);
+    cancelRaf();
+  }, [applySpread, cancelRaf]);
+
+  const setTime = useCallback(
+    (s: number) => {
+      applySpread({ type: 'setTime', seconds: s });
+      setRunningDisplayTime(s);
+    },
+    [applySpread]
+  );
+
   const adjustTime = useCallback(
     (deltaSeconds: number) => {
-      if (config.mode !== 'timer') return;
-      const current = config.isRunning
+      const fromSeconds = config.isRunning
         ? runningDisplayTimeRef.current
         : config.elapsedTime;
-      // Clamp to the shared ceiling so hold-to-ramp can't push past it the way
-      // the Keypad and admin validator already prevent.
-      const next = Math.min(
-        TIME_TOOL_MAX_DURATION_SECONDS,
-        Math.max(0, current + deltaSeconds)
-      );
-      const nextDuration = Math.min(
-        TIME_TOOL_MAX_DURATION_SECONDS,
-        Math.max(config.duration, next)
-      );
-      // Skip only if clamping had no effect vs. the value we computed from (not the stale persisted baseline).
-      if (next === current && nextDuration === config.duration) {
-        return;
-      }
-      updateWidget(widget.id, {
-        config: {
-          ...config,
-          elapsedTime: next,
-          duration: nextDuration,
-          startTime: config.isRunning ? Date.now() : null,
-        },
+      const patch = applySpread({
+        type: 'adjust',
+        deltaSeconds,
+        fromSeconds,
+        now: Date.now(),
       });
+      if (patch?.elapsedTime == null) return;
+      const next = patch.elapsedTime;
       // Update the ref synchronously so back-to-back calls inside the same
       // tick (e.g. press-and-hold ramp) read the just-applied value instead
       // of the pre-render stale value the deferred sync-effect would still see.
       runningDisplayTimeRef.current = next;
       setRunningDisplayTime(next);
     },
-    [config, updateWidget, widget.id]
+    [config.isRunning, config.elapsedTime, applySpread]
   );
 
   // ── RAF tick loop ────────────────────────────────────────────────────
@@ -153,33 +141,35 @@ export const useTimeTool = (widget: WidgetData) => {
   const [expirySignal, setExpirySignal] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!config.isRunning || !config.startTime) {
+    const clock = {
+      mode: config.mode,
+      // A running clock never reads its duration; leaving it out keeps the loop from restarting on duration edits.
+      duration: 0,
+      elapsedTime: config.elapsedTime,
+      isRunning: config.isRunning,
+      startTime: config.startTime,
+    };
+    const state = clockStateOf(clock);
+    if (state.phase !== 'running') {
       cancelRaf();
       return;
     }
 
-    const startTime = config.startTime;
-    const baseTime = config.elapsedTime;
-    const mode = config.mode;
-
     const tick = () => {
-      const delta = (Date.now() - startTime) / 1000;
+      const nextTime = secondsAt(clock, Date.now());
+      setRunningDisplayTime(nextTime);
 
-      if (mode === 'timer') {
-        const nextTime = Math.max(0, baseTime - delta);
-        setRunningDisplayTime(nextTime);
-
-        if (nextTime === 0) {
-          // Expiry is system-driven; keep it out of the undo stack.
-          handleStop(0, { skipHistory: true });
-          // Signal expiry to the trigger effect. Date.now() is unique
-          // per cycle so a second run can fire its own triggers even if
-          // the first signal is still being processed.
-          setExpirySignal(Date.now());
-          return;
-        }
-      } else {
-        setRunningDisplayTime(baseTime + delta);
+      if (state.mode === 'timer' && nextTime === 0) {
+        const patch = timeToolClockPatch(clock, { type: 'expire' });
+        // Expiry is system-driven; keep it out of the undo stack.
+        if (patch)
+          updateWidget(widget.id, { config: patch }, { skipHistory: true });
+        cancelRaf();
+        // Signal expiry to the trigger effect. Date.now() is unique
+        // per cycle so a second run can fire its own triggers even if
+        // the first signal is still being processed.
+        setExpirySignal(Date.now());
+        return;
       }
 
       rafRef.current = requestAnimationFrame(tick);
@@ -193,7 +183,8 @@ export const useTimeTool = (widget: WidgetData) => {
     config.startTime,
     config.elapsedTime,
     config.mode,
-    handleStop,
+    updateWidget,
+    widget.id,
     cancelRaf,
   ]);
 
@@ -215,11 +206,12 @@ export const useTimeTool = (widget: WidgetData) => {
 
     playTimerAlert(config.selectedSound);
 
+    // Only a timer on the shown board drives sister widgets; a hidden board's timer would otherwise act on the shown one.
+    const board = isBoardActive ? activeDashboard : null;
+
     // Auto-switch expectations voice level
-    if (config.timerEndVoiceLevel != null && activeDashboard) {
-      const expWidget = activeDashboard.widgets.find(
-        (w) => w.type === 'expectations'
-      );
+    if (config.timerEndVoiceLevel != null && board) {
+      const expWidget = board.widgets.find((w) => w.type === 'expectations');
       if (expWidget) {
         updateWidget(
           expWidget.id,
@@ -234,10 +226,8 @@ export const useTimeTool = (widget: WidgetData) => {
     }
 
     // Auto-switch traffic light color
-    if (config.timerEndTrafficColor != null && activeDashboard) {
-      const trafficWidget = activeDashboard.widgets.find(
-        (w) => w.type === 'traffic'
-      );
+    if (config.timerEndTrafficColor != null && board) {
+      const trafficWidget = board.widgets.find((w) => w.type === 'traffic');
       if (trafficWidget) {
         updateWidget(
           trafficWidget.id,
@@ -252,14 +242,8 @@ export const useTimeTool = (widget: WidgetData) => {
     }
 
     // Auto-pick next student in Randomizer
-    if (
-      config.timerEndTriggerRandom &&
-      activeDashboard &&
-      config.duration > 0
-    ) {
-      const randomWidget = activeDashboard.widgets.find(
-        (w) => w.type === 'random'
-      );
+    if (config.timerEndTriggerRandom && board && config.duration > 0) {
+      const randomWidget = board.widgets.find((w) => w.type === 'random');
       if (randomWidget) {
         updateWidget(
           randomWidget.id,
@@ -274,14 +258,8 @@ export const useTimeTool = (widget: WidgetData) => {
     }
 
     // Auto-advance next student in NextUp
-    if (
-      config.timerEndTriggerNextUp &&
-      activeDashboard &&
-      config.duration > 0
-    ) {
-      const nextUpWidget = activeDashboard.widgets.find(
-        (w) => w.type === 'nextUp'
-      );
+    if (config.timerEndTriggerNextUp && board && config.duration > 0) {
+      const nextUpWidget = board.widgets.find((w) => w.type === 'nextUp');
       if (nextUpWidget) {
         updateWidget(
           nextUpWidget.id,
@@ -296,14 +274,8 @@ export const useTimeTool = (widget: WidgetData) => {
     }
 
     // Auto-rotate the first Stations widget
-    if (
-      config.timerEndTriggerStationsRotate &&
-      activeDashboard &&
-      config.duration > 0
-    ) {
-      const stationsWidget = activeDashboard.widgets.find(
-        (w) => w.type === 'stations'
-      );
+    if (config.timerEndTriggerStationsRotate && board && config.duration > 0) {
+      const stationsWidget = board.widgets.find((w) => w.type === 'stations');
       if (stationsWidget) {
         updateWidget(
           stationsWidget.id,
@@ -326,6 +298,7 @@ export const useTimeTool = (widget: WidgetData) => {
     config.timerEndTriggerStationsRotate,
     config.duration,
     activeDashboard,
+    isBoardActive,
     updateWidget,
   ]);
 

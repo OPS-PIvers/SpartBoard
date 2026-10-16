@@ -82,7 +82,10 @@ import {
   type SpawnWatch,
   type TourSlots,
   type TourWidgetClaims,
+  tourClickedTypes,
+  tourQuickAccess,
 } from './tourSession';
+import { endTourFrame, startTourFrame, useTourFrameHold } from './tourFrame';
 import { ANCHOR_SEARCH_MS, useAnchorElement } from './useAnchorElement';
 import { findTourAnchor, isAnchorReachable } from './resolveTourAnchor';
 import {
@@ -517,6 +520,30 @@ export const LiveTourRunner: React.FC = () => {
     undos.forEach((undo) => undo());
   }, []);
 
+  // Every tour starts at 100% zoom with annotation and settings drawers closed, put back at the end (C1).
+  useTourFrameHold(() => {
+    const d = latest.current.dashboard;
+    const boardId = d.activeDashboard?.id;
+    const zoom = d.zoom;
+    const annotating = d.annotationActive;
+    const flipped = (d.activeDashboard?.widgets ?? [])
+      .filter((w) => w.flipped)
+      .map((w) => w.id);
+    if (zoom !== 1) d.setZoom(1);
+    if (annotating) d.closeAnnotation();
+    for (const id of flipped) d.updateWidget(id, { flipped: false });
+    return () => {
+      const now = latest.current.dashboard;
+      // A board switch already reset zoom and annotation.
+      if (!boardId || now.activeDashboard?.id !== boardId) return;
+      if (zoom !== 1) now.setZoom(zoom);
+      if (annotating) now.openAnnotation();
+      const onBoard = new Set(now.activeDashboard.widgets.map((w) => w.id));
+      for (const id of flipped)
+        if (onBoard.has(id)) now.updateWidget(id, { flipped: true });
+    };
+  });
+
   // Unmounting mid-tour leaves the board as it was.
   useEffect(
     () => () => {
@@ -527,6 +554,7 @@ export const LiveTourRunner: React.FC = () => {
       clearTourWidgetPatches();
       clearTourHidden();
       undoPrerequisites();
+      endTourFrame();
     },
     [undoPrerequisites]
   );
@@ -921,6 +949,11 @@ export const LiveTourRunner: React.FC = () => {
     });
     setCheering(false);
     setFinished(false);
+    // The fixed starting frame comes before the welcome card and staging.
+    startTourFrame({
+      dockItemTypes: tourClickedTypes(steps, 'dock.item'),
+      quickAccess: tourQuickAccess(steps),
+    });
     const asksPicks =
       !opts.edit &&
       !opts.test &&
@@ -1043,6 +1076,7 @@ export const LiveTourRunner: React.FC = () => {
     }
     undoPrerequisites();
     endTourSandbox();
+    endTourFrame();
     setTour(null);
   };
 

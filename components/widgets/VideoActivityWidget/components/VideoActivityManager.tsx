@@ -1195,7 +1195,12 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       }
       // Pause/Resume is meaningful only for submission assignments — view-only
       // shares are either live or ended, with no "paused while collecting" state.
-      if (onArchivePauseResume && !assignmentIsViewOnly) {
+      // Live runs are board-paced: pausing would end the session for the class.
+      if (
+        onArchivePauseResume &&
+        !assignmentIsViewOnly &&
+        assignment.sessionMode !== 'teacher'
+      ) {
         actions.push({
           id: 'pause-resume',
           label: isPaused ? 'Resume' : 'Pause',

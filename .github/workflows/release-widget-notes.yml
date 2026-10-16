@@ -1,0 +1,35 @@
+name: Release Widget Notes
+
+# A release PR (dev-paul into main) needs a widget note, or a `no-widget-note:` line in its
+# description, for every widget whose files changed. Re-runs when the description is edited.
+on:
+  pull_request:
+    branches:
+      - main
+    types: [opened, edited, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  widget-notes:
+    if: github.head_ref == 'dev-paul'
+    runs-on: ubuntu-24.04
+    name: Widget Notes
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js and pnpm
+        uses: ./.github/actions/setup
+
+      - name: Check widget notes
+        run: node scripts/checkReleaseWidgetNotes.ts --base "origin/${{ github.base_ref }}"
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}

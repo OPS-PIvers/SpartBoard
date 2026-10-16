@@ -24,8 +24,12 @@ interface QuestionOverlayProps {
   question: VideoActivityPublicQuestion;
   /** Server grading; rejects when the check can't reach the server. */
   checkAnswer: (answer: string) => Promise<VideoActivityCheckResult>;
-  /** Called once feedback is shown; `graded` is false when the check couldn't reach the server. */
-  onAnswer: (answer: string, isCorrect: boolean, graded: boolean) => void;
+  /** Called once feedback is shown; `graded` is false when the check couldn't reach the server. A rejection reopens the question. */
+  onAnswer: (
+    answer: string,
+    isCorrect: boolean,
+    graded: boolean
+  ) => void | Promise<void>;
   /** 1-based index for display */
   questionIndex: number;
   totalQuestions: number;
@@ -246,6 +250,7 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
   const [submittedIsCorrect, setSubmittedIsCorrect] = useState(false);
   // Null when the check failed: the answer is kept without feedback.
   const [correctAnswer, setCorrectAnswer] = useState<string | null>(null);
+  const [saveFailed, setSaveFailed] = useState(false);
   const graded = submitted && correctAnswer !== null;
 
   // Shuffled option list for MC + MA (FIB has no options).
@@ -267,6 +272,7 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
     else if (type === 'MA') answer = Array.from(maSelected).sort().join('|');
 
     setChecking(true);
+    setSaveFailed(false);
     void checkAnswer(answer)
       .then(
         (result) => ({
@@ -286,8 +292,25 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
         setCorrectAnswer(key);
         setSubmittedIsCorrect(isCorrect);
         setSubmitted(true);
+        // The answer wasn't saved: unlock the question so the student can resend it.
+        const reopen = (err: unknown) => {
+          logError('QuestionOverlay.onAnswer', err, {
+            questionId: question.id,
+          });
+          setSubmitted(false);
+          setCorrectAnswer(null);
+          setSaveFailed(true);
+        };
         setTimeout(
-          () => onAnswer(answer, isCorrect, key !== null),
+          () => {
+            try {
+              void Promise.resolve(
+                onAnswer(answer, isCorrect, key !== null)
+              ).catch(reopen);
+            } catch (err) {
+              reopen(err);
+            }
+          },
           isCorrect ? 800 : 1200
         );
       });
@@ -367,6 +390,14 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
       {/* Submit button */}
       {!submitted && (
         <div className="px-5 pb-5">
+          {saveFailed && !checking && (
+            <p
+              role="alert"
+              className="text-center text-sm font-semibold text-red-700 mb-2"
+            >
+              Couldn&apos;t send your answer. Try again.
+            </p>
+          )}
           <button
             onClick={handleSubmit}
             disabled={!canSubmit}

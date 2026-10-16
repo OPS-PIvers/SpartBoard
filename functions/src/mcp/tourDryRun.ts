@@ -2,6 +2,7 @@
 import { TOUR_ANCHOR_LIST } from './tourAnchorList';
 import { WIDGET_TYPE_LIST } from './widgetTypeList';
 import { SETTINGS_FIELD_LIST } from './settingsFieldList';
+import { copyProblem } from './tourCopy';
 
 type AnchorEntry = (typeof TOUR_ANCHOR_LIST)[number];
 
@@ -31,6 +32,25 @@ const NOT_CHOICE: Record<string, string> = {
 };
 const MIN_STEPS = 3;
 const MAX_GOOD_STEPS = 15;
+// Surfaces a Close or Cancel with closes 'own' can shut: the innermost one a step is on.
+const DIALOG_KINDS = new Set([
+  'editor',
+  'modal',
+  'panel',
+  'menu',
+  'settings-drawer',
+  'sidebar',
+]);
+const FILLER = /\b(simply|just|easily)\b/i;
+const LABEL_ARTICLE = /^(a|an|the|your|this)$/i;
+// Text in an anchor ref or surface id that shows a step works on a material of this kind.
+const MATERIAL_TOKENS: Record<string, readonly string[]> = {
+  quiz: ['quiz'],
+  'video-activity': ['video-activity'],
+  'guided-learning': ['guided-learning', 'guidedlearning', 'gl-'],
+  'mini-app': ['mini-app', 'miniapp'],
+  'activity-wall': ['activity-wall'],
+};
 
 export interface TourBindingLike {
   anchor: string;
@@ -65,6 +85,11 @@ export interface DryRunReport {
   warnings: TourProblem[];
 }
 
+export interface DryRunOptions {
+  /** How a tour that doesn't open on board.whole and close on an observe is reported; unchecked when absent. */
+  bookends?: 'error' | 'warn';
+}
+
 interface Ref {
   id: string;
   type?: string;
@@ -86,23 +111,102 @@ const sameControl = (wanted: Ref, clicked: Ref): boolean =>
 const stepName = (step: DryRunStep, i: number) =>
   `steps[${i}]${step.label ? ` ("${step.label}")` : ''}`;
 
+const routesOf = (entry: AnchorEntry) =>
+  'routes' in entry ? (entry.routes ?? []) : [];
+
+// Each surface's clicks from the board, without a tab or menu inside it.
+const SURFACE_PATHS = new Map<string, readonly string[]>();
+for (const entry of TOUR_ANCHOR_LIST)
+  for (const r of routesOf(entry)) {
+    if (!r.path || SURFACE_PATHS.has(r.surface)) continue;
+    SURFACE_PATHS.set(r.surface, r.reveal ? r.path.slice(0, -1) : r.path);
+  }
+
+/** Problems with the opening and closing steps (LIVE_TOUR_CONSISTENT_START.md C8). */
+export function bookendProblems(steps: readonly DryRunStep[]): TourProblem[] {
+  if (steps.length === 0) return [];
+  const out: TourProblem[] = [];
+  const first = steps[0];
+  if (first.tour?.anchor !== 'board.whole' || first.tour.action !== 'observe')
+    out.push({
+      step: 0,
+      step_id: first.id,
+      message: `${stepName(first, 0)}: the first step should observe "board.whole" and name the goal.`,
+    });
+  const at = steps.length - 1;
+  const last = steps[at];
+  if (last.tour?.action !== 'observe')
+    out.push({
+      step: at,
+      step_id: last.id,
+      message: `${stepName(last, at)}: the last step should be an observe step, usually on "board.whole", that says what the teacher can do now.`,
+    });
+  return out;
+}
+
+export const meetsBookends = (steps: readonly DryRunStep[]): boolean =>
+  bookendProblems(steps).length === 0;
+
+/** Voice rules from the guide that a step's label and text break. */
+function voiceProblems(step: DryRunStep): string[] {
+  const out: string[] = [];
+  const text = step.text?.trim();
+  if (text) {
+    const problem = copyProblem(text);
+    if (problem === 'em dash')
+      out.push('text has an em dash; use a period or a comma.');
+    else if (problem === 'Tip/Note prefix')
+      out.push('text starts with "Tip:" or "Note:"; say it plainly.');
+    else if (problem)
+      out.push(`text is ${problem}; keep it to one or two short sentences.`);
+    const filler = FILLER.exec(text);
+    if (filler) out.push(`text says "${filler[1]}"; leave it out.`);
+  }
+  const label = step.label?.trim();
+  if (label) {
+    const words = label.split(/\s+/);
+    if (words.length < 2 || words.length > 5)
+      out.push(
+        `label is ${words.length} word${words.length === 1 ? '' : 's'}; use 2 to 5, starting with a verb.`
+      );
+    if (LABEL_ARTICLE.test(words[0]))
+      out.push(`label starts with "${words[0]}"; start with a verb.`);
+  }
+  return out;
+}
+
 /** Checks a tour's steps and setup the way playback will meet them. */
 export function dryRunTour(
   steps: readonly DryRunStep[],
-  setup: DryRunSetup
+  setup: DryRunSetup,
+  options: DryRunOptions = {}
 ): DryRunReport {
   const errors: TourProblem[] = [];
   const warnings: TourProblem[] = [];
   const sandboxed = (setup.materials?.length ?? 0) > 0;
-  const onStage = new Set<string>([
-    ...setup.widgets,
-    ...(setup.layouts ?? []).map((l) => l.type),
-  ]);
-  const slots = new Set<number>((setup.layouts ?? []).map((l) => l.slot));
+  const staged = [
+    ...new Set([...setup.widgets, ...(setup.layouts ?? []).map((l) => l.type)]),
+  ];
+  const onStage = new Set<string>(staged);
+  const slotTypes = new Map<number, string>(
+    (setup.layouts ?? []).map((l) => [l.slot, l.type])
+  );
+  const slots = new Set<number>(slotTypes.keys());
   const unbound = new Set<number>();
   const clicked: Ref[] = [];
   // Surfaces an earlier step pointed into, so they were open by then.
   const visited = new Set<string>();
+  // The same, less what a Close or Cancel shut since, with the step that shut each.
+  const live: LiveState = {
+    clicked: [],
+    visited: new Set(),
+    dialogs: [],
+    closedBy: new Map(),
+  };
+  const pointed = new Set<string>();
+  let pointsAtAnyWidget = false;
+  const touched: string[] = [];
+  let lastSettings: string | null = null;
 
   steps.forEach((step, i) => {
     const at = { step: i, step_id: step.id };
@@ -114,7 +218,11 @@ export function dryRunTour(
     const b = step.tour;
     if (!step.text?.trim())
       warn('has no text; every step should tell the teacher what to do.');
-    if (!b) return;
+    for (const problem of voiceProblems(step)) warn(problem);
+    if (!b) {
+      lastSettings = null;
+      return;
+    }
 
     if (
       (b.action === 'type' || b.action === 'select') &&
@@ -139,6 +247,7 @@ export function dryRunTour(
       );
     }
 
+    let settingsOn: string | null = null;
     if (b.anchor === '') {
       warn(
         'has no anchor, so it is found by its English role and name only, and it is queued for a developer to tag.'
@@ -146,6 +255,7 @@ export function dryRunTour(
     } else {
       const ref = parseRef(b.anchor);
       const entry = ANCHORS.get(ref.id);
+      const routes = entry ? routesOf(entry) : [];
       if (!entry) {
         fail(`"${ref.id}" is not a registered anchor (list_tour_anchors).`);
       } else {
@@ -156,20 +266,90 @@ export function dryRunTour(
           onStage,
           clicked,
           visited,
+          live,
           teacherBoard: !!setup.useTeacherBoard,
         });
-        for (const r of routesOf(entry)) visited.add(r.surface);
+        const closes = !!entry.closes && b.action !== 'observe';
+        for (const r of routes) {
+          visited.add(r.surface);
+          if (closes) continue;
+          live.visited.add(r.surface);
+          if (DIALOG_KINDS.has(r.kind)) live.dialogs.push(r.surface);
+        }
       }
-      if (b.action !== 'observe') clicked.push(ref);
+      if (b.action !== 'observe') {
+        clicked.push(ref);
+        live.clicked.push(ref);
+      }
+      if (entry?.closes && b.action !== 'observe')
+        closeSurfaces(entry, name, live);
       // A click on a dock tile adds that widget.
-      if (ref.id === 'dock.item' && ref.type && b.action !== 'observe')
+      if (ref.id === 'dock.item' && ref.type && b.action !== 'observe') {
+        if (setup.widgets.includes(ref.type))
+          warn(
+            `adds "${ref.type}" from the Dock, but tour_widgets already stages one, so the board ends up with two; take "${ref.type}" out of tour_widgets.`
+          );
         onStage.add(ref.type);
+      }
+      const types = [
+        ...(ref.type && WIDGET_TYPES.has(ref.type) ? [ref.type] : []),
+        ...(b.slot !== undefined && slotTypes.has(b.slot)
+          ? [slotTypes.get(b.slot) as string]
+          : []),
+        ...routes.flatMap((r) => (r.widget_type ? [r.widget_type] : [])),
+      ];
+      for (const t of types) pointed.add(t);
+      if (entry?.scope === 'widget' && types.length === 0)
+        pointsAtAnyWidget = true;
+      touched.push(
+        [b.anchor, ...routes.flatMap((r) => [r.surface, r.widget_type ?? ''])]
+          .join(' ')
+          .toLowerCase()
+      );
+      if (
+        routes.length > 0 &&
+        routes.every((r) => r.kind === 'settings-drawer')
+      ) {
+        settingsOn =
+          b.slot !== undefined ? `slot ${b.slot}` : (ref.type ?? null);
+        if (settingsOn && lastSettings && settingsOn !== lastSettings)
+          warn(
+            `is a settings step on a different widget from the step before it, so the runner shuts that drawer and opens this one with no step showing it; add a step that clicks "widget.settings-opener" on this widget first.`
+          );
+      }
     }
+    lastSettings = settingsOn;
     if (b.spawns) {
       slots.add(b.spawns.slot);
+      slotTypes.set(b.spawns.slot, b.spawns.type);
       onStage.add(b.spawns.type);
     }
   });
+
+  const onlyWholeBoard = steps.every((s) => s.tour?.anchor === 'board.whole');
+  if (!pointsAtAnyWidget && !onlyWholeBoard)
+    for (const type of staged)
+      if (!pointed.has(type))
+        warnings.push({
+          message: `tour_widgets stages "${type}", but no step points at it; take it out, or add a step on it.`,
+        });
+  const kinds = new Set(
+    (setup.materials ?? []).flatMap((m) => {
+      const kind = (m as { kind?: unknown } | null)?.kind;
+      return typeof kind === 'string' ? [kind] : [];
+    })
+  );
+  for (const kind of kinds) {
+    const tokens = MATERIAL_TOKENS[kind] ?? [kind];
+    if (!touched.some((t) => tokens.some((token) => t.includes(token))))
+      warnings.push({
+        message: `materials: no step opens the ${kind}; take it out, or add the steps that use it.`,
+      });
+  }
+  if (options.bookends)
+    (options.bookends === 'error' ? errors : warnings).push(
+      ...bookendProblems(steps)
+    );
 
   if (steps.length < MIN_STEPS)
     warnings.push({
@@ -193,6 +373,7 @@ function checkAnchor(
     onStage: ReadonlySet<string>;
     clicked: readonly Ref[];
     visited: ReadonlySet<string>;
+    live: LiveState;
     teacherBoard: boolean;
   }
 ) {
@@ -261,28 +442,100 @@ function checkAnchor(
   if (routes.length === 0 || routes.some((r) => r.kind === 'shared')) return;
   const mapped = routes.filter((r) => r.path !== undefined);
   if (mapped.length === 0) return;
-  const open = mapped.some((r) => {
+  const best = mapped.reduce((a, r) =>
+    (r.path?.length ?? 0) < (a.path?.length ?? 0) ? r : a
+  );
+  const path = best.path ?? [];
+  const last = path[path.length - 1];
+  if (!isOpen(mapped, ctx.clicked, ctx.visited))
+    return fail(
+      `"${b.anchor}" only shows once "${last}" is clicked, and no earlier step clicks it. The clicks from the board are: ${path.join(' → ')}.`
+    );
+  if (!isOpen(mapped, ctx.live.clicked, ctx.live.visited)) {
+    const closer =
+      mapped
+        .map((r) => ctx.live.closedBy.get(r.surface))
+        .find((c) => c !== undefined) ??
+      ctx.live.closedBy.get(last) ??
+      'an earlier step';
+    warn(
+      `"${b.anchor}" is on a panel that ${closer} closed, and no step after that opens it again; click "${last}" first.`
+    );
+  }
+}
+
+type Route = ReturnType<typeof routesOf>[number];
+
+const isOpen = (
+  mapped: readonly Route[],
+  clicked: readonly Ref[],
+  visited: ReadonlySet<string>
+): boolean =>
+  mapped.some((r) => {
     const path = r.path ?? [];
     const last = path[path.length - 1];
     return (
       !last ||
-      (ctx.visited.has(r.surface) && !('reveal' in r && r.reveal)) ||
-      ctx.clicked.some((c) => sameControl(parseRef(last), c)) ||
-      ('opened_by' in r &&
-        (r.opened_by ?? []).some((o) =>
-          ctx.clicked.some((c) => sameControl(parseRef(o), c))
-        ))
+      (visited.has(r.surface) && !r.reveal) ||
+      clicked.some((c) => sameControl(parseRef(last), c)) ||
+      (r.opened_by ?? []).some((o) =>
+        clicked.some((c) => sameControl(parseRef(o), c))
+      )
     );
   });
-  if (!open) {
-    const best = mapped.reduce((a, r) =>
-      (r.path?.length ?? 0) < (a.path?.length ?? 0) ? r : a
-    );
-    const path = best.path ?? [];
-    fail(
-      `"${b.anchor}" only shows once "${path[path.length - 1]}" is clicked, and no earlier step clicks it. The clicks from the board are: ${path.join(' → ')}.`
-    );
+
+interface LiveState {
+  clicked: Ref[];
+  visited: Set<string>;
+  /** Dialog surfaces in the order steps went into them. */
+  dialogs: string[];
+  /** Step name that closed each surface or opener ref. */
+  closedBy: Map<string, string>;
+}
+
+/** Undoes the opening of what a Close or Cancel shuts, and of every surface opened from inside it. */
+function closeSurfaces(entry: AnchorEntry, by: string, live: LiveState) {
+  const own = routesOf(entry)
+    .filter((r) => r.kind !== 'shared' && live.visited.has(r.surface))
+    .map((r) => r.surface);
+  const innermost = [...live.dialogs]
+    .reverse()
+    .find((s) => live.visited.has(s));
+  const targets =
+    entry.closes !== 'own'
+      ? [entry.closes as string]
+      : own.length
+        ? own
+        : innermost
+          ? [innermost]
+          : [];
+  const forget = new Set<string>();
+  for (const target of targets) {
+    const path =
+      SURFACE_PATHS.get(target) ??
+      (target === entry.closes ? entry.closes_path : undefined) ??
+      [];
+    const opener = path[path.length - 1];
+    live.visited.delete(target);
+    live.closedBy.set(target, by);
+    if (!opener) continue;
+    forget.add(opener);
+    live.closedBy.set(opener, by);
+    for (const [surface, inner] of SURFACE_PATHS) {
+      const at = inner.indexOf(opener);
+      if (at < 0) continue;
+      if (live.visited.delete(surface)) live.closedBy.set(surface, by);
+      for (const ref of inner.slice(at)) {
+        forget.add(ref);
+        live.closedBy.set(ref, by);
+      }
+    }
   }
+  const refs = [...forget].map(parseRef);
+  live.clicked = live.clicked.filter(
+    (c) => !refs.some((r) => sameControl(r, c))
+  );
+  live.dialogs = live.dialogs.filter((s) => live.visited.has(s));
 }
 
 /** Whether an earlier click opened this anchor's list empty, so its rows are ones the tour added. */
@@ -312,6 +565,3 @@ function notAChoice(
     ? `"${anchor}" is a ${kind} field, not a choice, so "select" can't set it; use "${action}".`
     : null;
 }
-
-const routesOf = (entry: AnchorEntry) =>
-  'routes' in entry ? (entry.routes ?? []) : [];

@@ -67,6 +67,10 @@ import {
   VA_KEY_SUBCOLLECTION,
 } from '@/utils/videoActivityPublicQuestions';
 import { viewAsDirectSave } from '@/utils/viewAsAudit';
+import {
+  assignmentLifecyclePatches,
+  type AssignmentLifecycleEvent,
+} from '@/utils/sessionLifecycle';
 import { useSandboxedVideoActivityAssignments } from './useTourSandboxed';
 
 /**
@@ -142,7 +146,7 @@ export interface UseVideoActivityAssignmentsResult {
    * this affordance; reopening a stale roster is a different UX call.
    *
    * Behaviorally equivalent to `resumeAssignment` today (both call
-   * `setStatus(id, 'active', 'active')`). Kept as a separate method so
+   * `setStatus` with the same patch). Kept as a separate method so
    * callers can express *intent* — view-only Reactivate from inactive vs.
    * Resume from paused — and so the two can diverge later if Resume needs
    * to preserve, e.g., a paused-at timestamp or pending-question state.
@@ -456,11 +460,16 @@ export const useVideoActivityAssignments = (
   const setStatus = useCallback(
     async (
       assignmentId: string,
-      assignmentStatus: VideoActivityAssignmentStatus,
-      sessionStatus: VideoActivitySession['status']
+      event: AssignmentLifecycleEvent
     ): Promise<void> => {
       if (!userId) throw new Error('Not authenticated');
-      const now = Date.now();
+      const patches = assignmentLifecyclePatches(
+        'videoActivity',
+        event,
+        Date.now()
+      );
+      const assignmentStatus: VideoActivityAssignmentStatus =
+        patches.assignmentStatus;
       const batch = writeBatch(db);
       batch.update(
         doc(
@@ -470,13 +479,11 @@ export const useVideoActivityAssignments = (
           VIDEO_ACTIVITY_ASSIGNMENTS_COLLECTION,
           assignmentId
         ),
-        { status: assignmentStatus, updatedAt: now }
+        patches.assignment
       );
-      const sessionPatch: Record<string, unknown> = { status: sessionStatus };
-      if (sessionStatus === 'ended') sessionPatch.endedAt = now;
       batch.update(
         doc(db, VIDEO_ACTIVITY_SESSIONS_COLLECTION, assignmentId),
-        sessionPatch
+        patches.session
       );
       await batch.commit();
 
@@ -515,10 +522,7 @@ export const useVideoActivityAssignments = (
     UseVideoActivityAssignmentsResult['pauseAssignment']
   >(
     async (assignmentId) => {
-      // VA sessions are binary (active | ended), so "pause" stops student
-      // submissions for now by moving the session to 'ended'. The assignment
-      // remains 'paused' so the teacher can later resume it.
-      await setStatus(assignmentId, 'paused', 'ended');
+      await setStatus(assignmentId, { type: 'pause' });
     },
     [setStatus]
   );
@@ -527,7 +531,7 @@ export const useVideoActivityAssignments = (
     UseVideoActivityAssignmentsResult['resumeAssignment']
   >(
     async (assignmentId) => {
-      await setStatus(assignmentId, 'active', 'active');
+      await setStatus(assignmentId, { type: 'resume' });
     },
     [setStatus]
   );
@@ -536,7 +540,7 @@ export const useVideoActivityAssignments = (
     UseVideoActivityAssignmentsResult['deactivateAssignment']
   >(
     async (assignmentId) => {
-      await setStatus(assignmentId, 'inactive', 'ended');
+      await setStatus(assignmentId, { type: 'end' });
     },
     [setStatus]
   );
@@ -545,7 +549,7 @@ export const useVideoActivityAssignments = (
     UseVideoActivityAssignmentsResult['reactivateAssignment']
   >(
     async (assignmentId) => {
-      await setStatus(assignmentId, 'active', 'active');
+      await setStatus(assignmentId, { type: 'reopen' });
       // Drop any cached view count so the Shared row re-issues the
       // aggregation query on next mount; the cache is module-scoped and
       // would otherwise hold the pre-Closed count forever.

@@ -13,6 +13,8 @@ export interface TourAnchorEntry {
   key_hint?: string;
   cycles?: string;
   opens_empty?: string;
+  closes?: string;
+  closes_path?: readonly string[];
   routes?: ReadonlyArray<{
     surface: string;
     kind: string;
@@ -146,6 +148,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button in the widget library",
     "scope": "board",
     "panel": true,
+    "closes": "board.widget-library",
+    "closes_path": [
+      "dock.open-tools",
+      "dock.more-widgets"
+    ],
     "routes": [
       {
         "surface": "board.widget-library",
@@ -387,6 +394,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "widget",
     "panel": true,
     "requires": "settings-open",
+    "closes": "board.settings-drawer",
+    "closes_path": [
+      "widget.settings-opener"
+    ],
     "routes": [
       {
         "surface": "board.settings-drawer",
@@ -943,6 +954,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close menu button",
     "scope": "board",
     "panel": true,
+    "closes": "board.sidebar",
+    "closes_path": [
+      "sidebar.open-menu"
+    ],
     "routes": [
       {
         "surface": "board",
@@ -1428,6 +1443,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button in Profile & Settings",
     "scope": "board",
     "panel": true,
+    "closes": "board.profile-settings",
+    "closes_path": [
+      "sidebar.open-menu",
+      "sidebar.profile-settings"
+    ],
     "routes": [
       {
         "surface": "board.profile-settings",
@@ -2219,6 +2239,12 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel button in the PLC edit modal",
     "scope": "board",
     "panel": true,
+    "closes": "board.plc-edit",
+    "closes_path": [
+      "sidebar.open-menu",
+      "sidebar.plcs",
+      "plcs.new-plc"
+    ],
     "routes": [
       {
         "surface": "board.plc-edit",
@@ -3094,6 +3120,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel button in the Assign dialog",
     "scope": "board",
     "panel": true,
+    "closes": "library.assign-stepper",
+    "closes_path": [],
     "routes": [
       {
         "surface": "library.assign-stepper",
@@ -3835,6 +3863,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel button at the bottom of the Assign window",
     "scope": "board",
     "panel": true,
+    "closes": "library.assign-modal",
+    "closes_path": [],
     "routes": [
       {
         "surface": "library.assign-modal",
@@ -4585,6 +4615,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close button in the Share link window",
     "scope": "board",
     "panel": true,
+    "closes": "library.view-only-share",
+    "closes_path": [],
     "routes": [
       {
         "surface": "library.view-only-share",
@@ -4953,6 +4985,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Close or Cancel button in an editor dialog footer",
     "scope": "widget type",
     "panel": true,
+    "closes": "own",
     "routes": [
       {
         "surface": "board.shared-shells",
@@ -18804,6 +18837,11 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "label": "Cancel button in the Activity Wall editor",
     "scope": "widget",
     "panel": true,
+    "closes": "library.activity-wall.editor",
+    "closes_path": [
+      "activity-wall.empty-open-library",
+      "library-shell.new:activity-wall"
+    ],
     "routes": [
       {
         "surface": "library.activity-wall.editor",
@@ -19633,27 +19671,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ]
   },
   {
-    "id": "plc-home.drag-tile",
-    "label": "Drag handle button for a tile in the PLC home",
-    "scope": "field",
-    "routes": [
-      {
-        "surface": "plc.home.customize",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.customize-open"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
     "id": "plc-goals.close",
     "label": "Close button in the PLC goal editor",
     "scope": "board",
@@ -19666,8 +19683,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.goal-add"
+          "plc-dashboard.section-tab:plc#dataOverview",
+          "teams.goal.add"
         ],
         "needs": [
           "plc"
@@ -20476,66 +20493,6 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
         "needs": [
           "plc",
           "library-item"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-dashboard.back",
-    "label": "Back button in the PLC dashboard",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.dashboard",
-        "kind": "page",
-        "url": "/plc/<plcId>",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-dashboard.close",
-    "label": "Close button in the PLC dashboard",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.dashboard",
-        "kind": "page",
-        "url": "/plc/<plcId>",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-dashboard.section-row",
-    "label": "Section row button in the PLC dashboard",
-    "scope": "field",
-    "routes": [
-      {
-        "surface": "plc.dashboard",
-        "kind": "page",
-        "url": "/plc/<plcId>",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc"
-        ],
-        "needs": [
-          "plc"
         ]
       }
     ]
@@ -22342,8 +22299,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.quick-create:plc#doc"
+          "plc-dashboard.section-tab:plc#docs",
+          "plc-notes.new-menu",
+          "plc-notes.new-menu-item:plc#doc"
         ],
         "needs": [
           "plc"
@@ -22364,8 +22322,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.quick-create:plc#doc"
+          "plc-dashboard.section-tab:plc#docs",
+          "plc-notes.new-menu",
+          "plc-notes.new-menu-item:plc#doc"
         ],
         "needs": [
           "plc"
@@ -22386,8 +22345,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.quick-create:plc#doc"
+          "plc-dashboard.section-tab:plc#docs",
+          "plc-notes.new-menu",
+          "plc-notes.new-menu-item:plc#doc"
         ],
         "needs": [
           "plc"
@@ -22408,8 +22368,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.quick-create:plc#doc"
+          "plc-dashboard.section-tab:plc#docs",
+          "plc-notes.new-menu",
+          "plc-notes.new-menu-item:plc#doc"
         ],
         "needs": [
           "plc"
@@ -22431,8 +22392,9 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.quick-create:plc#doc"
+          "plc-dashboard.section-tab:plc#docs",
+          "plc-notes.new-menu",
+          "plc-notes.new-menu-item:plc#doc"
         ],
         "needs": [
           "plc"
@@ -22454,8 +22416,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.goal-add"
+          "plc-dashboard.section-tab:plc#dataOverview",
+          "teams.goal.add"
         ],
         "needs": [
           "plc"
@@ -22476,8 +22438,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.goal-add"
+          "plc-dashboard.section-tab:plc#dataOverview",
+          "teams.goal.add"
         ],
         "needs": [
           "plc"
@@ -22499,8 +22461,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.goal-add"
+          "plc-dashboard.section-tab:plc#dataOverview",
+          "teams.goal.add"
         ],
         "needs": [
           "plc"
@@ -22521,8 +22483,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.goal-add"
+          "plc-dashboard.section-tab:plc#dataOverview",
+          "teams.goal.add"
         ],
         "needs": [
           "plc"
@@ -22543,8 +22505,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.goal-add"
+          "plc-dashboard.section-tab:plc#dataOverview",
+          "teams.goal.add"
         ],
         "needs": [
           "plc"
@@ -22565,8 +22527,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.goal-add"
+          "plc-dashboard.section-tab:plc#dataOverview",
+          "teams.goal.add"
         ],
         "needs": [
           "plc"
@@ -22587,8 +22549,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.goal-add"
+          "plc-dashboard.section-tab:plc#dataOverview",
+          "teams.goal.add"
         ],
         "needs": [
           "plc"
@@ -22610,8 +22572,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.goal-add"
+          "plc-dashboard.section-tab:plc#dataOverview",
+          "teams.goal.add"
         ],
         "needs": [
           "plc"
@@ -22633,8 +22595,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.goal-add"
+          "plc-dashboard.section-tab:plc#dataOverview",
+          "teams.goal.add"
         ],
         "needs": [
           "plc"
@@ -22655,8 +22617,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.goal-add"
+          "plc-dashboard.section-tab:plc#dataOverview",
+          "teams.goal.add"
         ],
         "needs": [
           "plc"
@@ -22677,8 +22639,8 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
           "sidebar.open-menu",
           "sidebar.plcs",
           "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.goal-add"
+          "plc-dashboard.section-tab:plc#dataOverview",
+          "teams.goal.add"
         ],
         "needs": [
           "plc"
@@ -22692,669 +22654,13 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     "scope": "board",
     "routes": [
       {
-        "surface": "plc.home",
-        "kind": "panel",
+        "surface": "plc.teams.shell",
+        "kind": "page",
+        "url": "/plc/<plcId>",
         "path": [
           "sidebar.open-menu",
           "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.remove-tile",
-    "label": "Remove tile button in the PLC home",
-    "scope": "field",
-    "destructive": true,
-    "routes": [
-      {
-        "surface": "plc.home.customize",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.customize-open"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.add-tile-menu",
-    "label": "Add tile menu button in the PLC home",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.home.customize",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.customize-open"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.add-tile-option",
-    "label": "Add tile option button in the PLC home",
-    "scope": "field",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.home.customize",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.customize-open"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.spotlight",
-    "label": "Spotlight button in the PLC home",
-    "scope": "field",
-    "routes": [
-      {
-        "surface": "plc.home",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.customize-done",
-    "label": "Customize done button in the PLC home",
-    "scope": "board",
-    "persists": true,
-    "routes": [
-      {
-        "surface": "plc.home",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.customize-open"
-        ],
-        "reveal": "plc-home.customize-open",
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.customize-open",
-    "label": "Customize open button in the PLC home",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.home",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.customize-clear",
-    "label": "Customize clear button in the PLC home",
-    "scope": "board",
-    "destructive": true,
-    "routes": [
-      {
-        "surface": "plc.home",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.card-link",
-    "label": "Card link button in the PLC home",
-    "scope": "field",
-    "keys": [
-      "plc#actions-all",
-      "plc#attention-assessments",
-      "plc#attention-footer",
-      "plc#attention-sheet",
-      "plc#banner-assessments",
-      "plc#banner-meeting",
-      "plc#recent-doc-open",
-      "plc#recent-docs-all",
-      "plc#results-sheet"
-    ],
-    "routes": [
-      {
-        "surface": "plc.home",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.members-manage",
-    "label": "Members manage button in the PLC home",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.home",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.quick-create",
-    "label": "Quick create button in the PLC home",
-    "scope": "field",
-    "persists": true,
-    "routes": [
-      {
-        "surface": "plc.home",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.action-toggle",
-    "label": "Action toggle checkbox in the PLC home",
-    "scope": "field",
-    "persists": true,
-    "routes": [
-      {
-        "surface": "plc.home",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.action-done",
-    "label": "Action done button in the PLC home",
-    "scope": "board",
-    "persists": true,
-    "routes": [
-      {
-        "surface": "plc.home",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.doc-open",
-    "label": "Doc open button in the PLC home",
-    "scope": "field",
-    "routes": [
-      {
-        "surface": "plc.home",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.goal-add",
-    "label": "Goal add button in the PLC home",
-    "scope": "board",
-    "persists": true,
-    "routes": [
-      {
-        "surface": "plc.home",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.goal-edit",
-    "label": "Goal edit button in the PLC home",
-    "scope": "field",
-    "routes": [
-      {
-        "surface": "plc.home",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.routine-info",
-    "label": "Routine info button in the PLC home",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.home",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.meeting-move-date",
-    "label": "Meeting move date field in the PLC home",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.home",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.meeting-move"
-        ],
-        "reveal": "plc-home.meeting-move",
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.meeting-move-save",
-    "label": "Meeting move save button in the PLC home",
-    "scope": "board",
-    "panel": true,
-    "persists": true,
-    "routes": [
-      {
-        "surface": "plc.home",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.meeting-move"
-        ],
-        "reveal": "plc-home.meeting-move",
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.meeting-move-cancel",
-    "label": "Meeting move cancel button in the PLC home",
-    "scope": "board",
-    "panel": true,
-    "routes": [
-      {
-        "surface": "plc.home",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home",
-          "plc-home.meeting-move"
-        ],
-        "reveal": "plc-home.meeting-move",
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.meeting-move",
-    "label": "Meeting move button in the PLC home",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.home",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.meeting-skip",
-    "label": "Meeting skip button in the PLC home",
-    "scope": "board",
-    "persists": true,
-    "routes": [
-      {
-        "surface": "plc.home",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.meeting-open",
-    "label": "Meeting open button in the PLC home",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.home",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.results-targets",
-    "label": "Results targets button in the PLC home",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.home",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.results-meeting",
-    "label": "Results meeting button in the PLC home",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.home",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-home.tile-link",
-    "label": "Tile link button in the PLC home",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.home",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#home"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-meeting.home",
-    "label": "Home button in the PLC meeting mode",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.meeting",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#meeting"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-meeting.back",
-    "label": "Back button in the PLC meeting mode",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.meeting",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#meeting"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-meeting.save",
-    "label": "Save button in the PLC meeting mode",
-    "scope": "board",
-    "persists": true,
-    "routes": [
-      {
-        "surface": "plc.meeting",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#meeting"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-meeting.next",
-    "label": "Next button in the PLC meeting mode",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.meeting",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#meeting"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-meeting.view-record",
-    "label": "View record button in the PLC meeting mode",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.meeting",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#meeting"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-meeting.start-over",
-    "label": "Start over button in the PLC meeting mode",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.meeting",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#meeting"
+          "plcs.open-plc"
         ],
         "needs": [
           "plc"
@@ -23373,279 +22679,10 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
     ],
     "routes": [
       {
-        "surface": "plc.meeting",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#meeting"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-meeting.go-live",
-    "label": "Go live button in the PLC meeting mode",
-    "scope": "board",
-    "routes": [
-      {
         "surface": "plc.meeting.record",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#meeting",
-          "plc-meeting.view-record"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-meeting.discuss",
-    "label": "Discuss button in the PLC meeting mode",
-    "scope": "field",
-    "routes": [
-      {
-        "surface": "plc.meeting",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#meeting"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-meeting.discuss-question",
-    "label": "Discuss question button in the PLC meeting mode",
-    "scope": "field",
-    "routes": [
-      {
-        "surface": "plc.meeting",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#meeting"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-meeting.step",
-    "label": "Step button in the PLC meeting mode",
-    "scope": "field",
-    "routes": [
-      {
-        "surface": "plc.meeting",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#meeting"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-meeting.review-toggle",
-    "label": "Review toggle button in the PLC meeting mode",
-    "scope": "field",
-    "routes": [
-      {
-        "surface": "plc.meeting",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#meeting"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-meeting.decision-input",
-    "label": "Decision input text box in the PLC meeting mode",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.meeting",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#meeting"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-meeting.decision-add",
-    "label": "Decision add button in the PLC meeting mode",
-    "scope": "board",
-    "persists": true,
-    "routes": [
-      {
-        "surface": "plc.meeting",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#meeting"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-meeting.decision-remove",
-    "label": "Decision remove button in the PLC meeting mode",
-    "scope": "field",
-    "destructive": true,
-    "routes": [
-      {
-        "surface": "plc.meeting",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#meeting"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-meeting.action-input",
-    "label": "Action input field in the PLC meeting mode",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.meeting",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#meeting"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-meeting.action-owner",
-    "label": "Action assignee select in the PLC meeting mode",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.meeting",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#meeting"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-meeting.action-due",
-    "label": "Action due field in the PLC meeting mode",
-    "scope": "board",
-    "routes": [
-      {
-        "surface": "plc.meeting",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#meeting"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-meeting.action-add",
-    "label": "Action add button in the PLC meeting mode",
-    "scope": "board",
-    "persists": true,
-    "routes": [
-      {
-        "surface": "plc.meeting",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#meeting"
-        ],
-        "needs": [
-          "plc"
-        ]
-      }
-    ]
-  },
-  {
-    "id": "plc-meeting.action-remove",
-    "label": "Action remove button in the PLC meeting mode",
-    "scope": "field",
-    "destructive": true,
-    "routes": [
-      {
-        "surface": "plc.meeting",
-        "kind": "panel",
-        "path": [
-          "sidebar.open-menu",
-          "sidebar.plcs",
-          "plcs.open-plc",
-          "plc-dashboard.section-tab:plc#meeting"
-        ],
+        "kind": "page",
+        "url": "/plc/<plcId>/meeting/<meetingId>",
+        "path": [],
         "needs": [
           "plc"
         ]
@@ -57019,6 +56056,7 @@ export const TOUR_ANCHOR_LIST = JSON.parse(String.raw`[
       "quiz",
       "video-activity"
     ],
+    "closes": "own",
     "routes": [
       {
         "surface": "library.video-activity.editor",

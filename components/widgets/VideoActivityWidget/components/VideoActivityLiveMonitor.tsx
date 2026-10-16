@@ -62,6 +62,8 @@ import { useServerNow } from '@/hooks/useServerNow';
 import { hasPeriodAccess, studentCanEnter } from '@/utils/periodAccess';
 import { PeriodAccessStrip } from '@/components/widgets/QuizWidget/components/monitor/PeriodAccessStrip';
 import { useViewAsOutward, VIEW_AS_WRITES } from '@/hooks/useViewAsOutward';
+import { deriveRunState } from '@/utils/sessionLifecycle';
+import { isVaResponseCompleted } from '@/utils/videoActivityState';
 
 interface VideoActivityLiveMonitorProps {
   session: VideoActivitySession;
@@ -173,7 +175,7 @@ const StudentRow: React.FC<StudentRowProps> = ({
     }
   }
   const answeredCount = response.answers.length;
-  const completed = response.completedAt !== null;
+  const completed = isVaResponseCompleted(response);
   // Returns null when there's nothing to grade against — e.g. a fallback
   // session doc with no questions — so the row renders an em-dash instead
   // of a misleading red 0%.
@@ -514,7 +516,7 @@ export const VideoActivityLiveMonitor: React.FC<
     let _totalAnswers = 0;
     for (const r of responses) {
       _totalAnswers += r.answers.length;
-      if (r.completedAt !== null) _completed++;
+      if (isVaResponseCompleted(r)) _completed++;
       else _inProgress++;
     }
     return {
@@ -544,15 +546,16 @@ export const VideoActivityLiveMonitor: React.FC<
     }
   }, [showConfirm, onEnd, outward]);
 
+  // A paused run is stored as ended; the parent's pause and resume handlers tell them apart.
+  const run = deriveRunState('videoActivity', { status: session.status });
+  const isLive = run?.phase === 'active';
+  const isStopped = run?.phase === 'ended';
+
   const handleTogglePause = useCallback(async () => {
     if (toggling) return;
     setToggling(true);
     try {
-      // VA assignment pause maps to session 'ended', so the live indicator
-      // for "paused" reads the assignment status; we drive the toggle
-      // entirely off the parent's onPause/onResume handlers.
-      const isPaused = session.status === 'ended';
-      if (isPaused) {
+      if (isStopped) {
         if (onResume) await onResume();
       } else if (onPause) {
         await onPause();
@@ -560,20 +563,14 @@ export const VideoActivityLiveMonitor: React.FC<
     } finally {
       setToggling(false);
     }
-  }, [toggling, session.status, onPause, onResume]);
+  }, [toggling, isStopped, onPause, onResume]);
 
-  // VA sessions are binary (active | ended). When the assignment is paused
-  // the parent toggles the session to 'ended', so we treat status==='ended'
-  // here as "paused-or-ended" and rely on the parent's pause/resume wiring
-  // to distinguish them. The toggle button is only rendered when the parent
-  // supplies pause/resume callbacks.
-  const isLive = session.status === 'active';
   const sortedResponses = useMemo(() => {
     return responses.slice().sort((a, b) => {
       // Joined-most-recently first within each status bucket; completed
       // students sink to the bottom so the teacher can focus on stragglers.
-      if ((a.completedAt === null) !== (b.completedAt === null)) {
-        return a.completedAt === null ? -1 : 1;
+      if (isVaResponseCompleted(a) !== isVaResponseCompleted(b)) {
+        return isVaResponseCompleted(a) ? 1 : -1;
       }
       return b.joinedAt - a.joinedAt;
     });
@@ -779,7 +776,7 @@ export const VideoActivityLiveMonitor: React.FC<
                       }
                       onLetIn={
                         perPeriod &&
-                        r.completedAt === null &&
+                        !isVaResponseCompleted(r) &&
                         !studentCanEnter(
                           session,
                           r.classId ? [r.classId] : [],

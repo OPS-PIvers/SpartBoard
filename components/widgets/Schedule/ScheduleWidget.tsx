@@ -17,6 +17,7 @@ import {
   ScheduleGlobalConfig,
 } from '@/types';
 import { Clock } from 'lucide-react';
+import { startFreshClock } from '@/utils/timeToolClock';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
@@ -355,12 +356,8 @@ export const ScheduleWidget: React.FC<{ widget: WidgetData }> = ({
         x: widget.x + widget.w + 20,
         y: widget.y,
         config: {
-          mode: 'timer',
+          ...startFreshClock(remainingSeconds, spawnNow),
           visualType: 'digital',
-          duration: remainingSeconds,
-          elapsedTime: remainingSeconds,
-          isRunning: true,
-          startTime: spawnNow,
           selectedSound: 'Gong',
         },
       });

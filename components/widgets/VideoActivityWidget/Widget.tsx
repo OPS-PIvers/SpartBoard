@@ -772,6 +772,7 @@ const TeacherVideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             activityDriveFileId: meta.driveFileId,
             teacherUid: user.uid,
             status: 'active',
+            ...(isLive ? { sessionMode: 'teacher' as const } : {}),
             createdAt: nowTs,
             updatedAt: nowTs,
             className: assignmentName,

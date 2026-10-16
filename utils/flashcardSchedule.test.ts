@@ -1,3 +1,5 @@
+import { readFileSync } from 'fs';
+import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import type { FlashcardCard } from '@/types';
 import {
@@ -76,5 +78,33 @@ describe('flashcard schedule', () => {
     expect(second.cards.map((card) => card.id)).toEqual(
       first.cards.map((card) => card.id)
     );
+  });
+});
+
+describe('flashcard schedule server parity', () => {
+  const cases = JSON.parse(
+    readFileSync(
+      resolve(
+        process.cwd(),
+        'functions',
+        'src',
+        'flashcardSchedule.cases.json'
+      ),
+      'utf8'
+    )
+  ) as Array<{
+    name: string;
+    ratings: Array<{ round: number; correct: boolean }>;
+    expected: { s: number; due: number; c: number; w: number };
+  }>;
+  it.each(cases)('$name', ({ ratings, expected }) => {
+    const result = ratings.reduce<
+      ReturnType<typeof recordFlashcardAnswer> | undefined
+    >(
+      (current, rating) =>
+        recordFlashcardAnswer(current, rating.round, rating.correct),
+      undefined
+    );
+    expect(result).toEqual(expected);
   });
 });

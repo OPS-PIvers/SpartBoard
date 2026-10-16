@@ -1,7 +1,6 @@
-// Landing cards this slice owns, per the B1 card contract; each reads live data and renders only under teams-redesign.
+// Landing cards this slice owns, per the B1 card contract; each reads live data.
 
 import React, { useState } from 'react';
-import { useAuth } from '@/context/useAuth';
 import {
   DistributionView,
   MasteryView,
@@ -17,11 +16,8 @@ import type { TeamCardProps } from '@/components/plc/teams/types';
 import { useTeamNav } from '@/components/plc/teams/TeamNavContext';
 import { useDataOverviewModel, usePlcNavigation } from './useDataOverview';
 
-const useFlag = () => useAuth().canAccessFeature('teams-redesign');
-
 export function DistributionCard({ plc }: TeamCardProps) {
   const { model } = useDataOverviewModel(plc, null);
-  if (!useFlag()) return null;
   return model.featured ? (
     <DistributionView featured={model.featured} />
   ) : (
@@ -31,13 +27,11 @@ export function DistributionCard({ plc }: TeamCardProps) {
 
 export function TrendCard({ plc }: TeamCardProps) {
   const { model } = useDataOverviewModel(plc, null);
-  if (!useFlag()) return null;
   return <TrendView trend={model.trend} shortTitles={model.shortTitles} />;
 }
 
 export function ParticipationCard({ plc }: TeamCardProps) {
   const { model } = useDataOverviewModel(plc, null);
-  if (!useFlag()) return null;
   return (
     <ParticipationView
       rows={model.participation}
@@ -51,7 +45,7 @@ export function MasteryByTargetCard({ plc, isLead }: TeamCardProps) {
   const { model } = useDataOverviewModel(plc, null);
   const [open, setOpen] = useState(false);
   const teamNav = useTeamNav();
-  if (!useFlag() || !model.featured) return null;
+  if (!model.featured) return null;
   if (!model.mastery && !isLead) return null;
   return (
     <>
@@ -74,7 +68,6 @@ export function MasteryByTargetCard({ plc, isLead }: TeamCardProps) {
 export function RecentAssessmentsCard({ plc }: TeamCardProps) {
   const { model } = useDataOverviewModel(plc, null);
   const nav = usePlcNavigation(plc.id);
-  if (!useFlag()) return null;
   return (
     <RecentAssessmentsView
       rows={model.recent}
@@ -85,6 +78,5 @@ export function RecentAssessmentsCard({ plc }: TeamCardProps) {
 }
 
 export function GoalsCard({ plc, isLead }: TeamCardProps) {
-  if (!useFlag()) return null;
   return <GoalSection plc={plc} isLead={isLead} />;
 }

@@ -7,6 +7,7 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 import { useLongPress } from '@/hooks/useLongPress';
 import { isEscapeFromWidgetInput } from '@/utils/domHelpers';
 import { GlassCard } from '@/components/common/GlassCard';
+import { useTourFrameHold } from '@/components/tours/tourFrame';
 import { DockIcon } from './DockIcon';
 import { DockLabel } from './DockLabel';
 import { getTitle } from '@/utils/widgetHelpers';
@@ -70,6 +71,10 @@ export const ToolDockItem = React.memo(
     });
 
     const [showPopover, setShowPopover] = useState(false);
+    useTourFrameHold(() => {
+      setShowPopover(false);
+      return () => undefined;
+    });
     const popoverRef = useRef<HTMLDivElement>(null);
     const internalButtonRef = useRef<HTMLButtonElement>(null);
     const buttonRef = externalButtonRef ?? internalButtonRef;
