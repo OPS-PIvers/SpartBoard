@@ -119,6 +119,9 @@ function resolveSsoClassPeriod(
   return matches[0];
 }
 
+const LIVE_COMPLETE_MAX_RETRIES = 8;
+const LIVE_COMPLETE_RETRY_BASE_MS = 2000;
+
 // ─── Root ──────────────────────────────────────────────────────────────────────
 
 export const VideoActivityStudentApp: React.FC = () => {
@@ -596,6 +599,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const isLive = isLiveVideoActivitySession(session);
   const liveEnded = isLive && session?.status === 'ended';
   const liveCompleteStartedRef = useRef(false);
+  const [liveCompleteRetry, setLiveCompleteRetry] = useState(0);
   const liveNeedsComplete =
     liveEnded &&
     joinStatus === 'joined' &&
@@ -605,10 +609,20 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   useEffect(() => {
     if (!liveNeedsComplete || liveCompleteStartedRef.current) return;
     liveCompleteStartedRef.current = true;
-    completeActivity().catch((err: unknown) =>
-      logError('VideoActivityStudentApp.liveComplete', err, { sessionId })
-    );
-  }, [liveNeedsComplete, completeActivity, sessionId]);
+    completeActivity().catch((err: unknown) => {
+      logError('VideoActivityStudentApp.liveComplete', err, {
+        sessionId,
+        attempt: liveCompleteRetry,
+      });
+      // A failed write (often offline at the moment of End) retries with backoff.
+      liveCompleteStartedRef.current = false;
+      if (liveCompleteRetry >= LIVE_COMPLETE_MAX_RETRIES) return;
+      setTimeout(
+        () => setLiveCompleteRetry((n) => n + 1),
+        Math.min(LIVE_COMPLETE_RETRY_BASE_MS * 2 ** liveCompleteRetry, 30_000)
+      );
+    });
+  }, [liveNeedsComplete, completeActivity, sessionId, liveCompleteRetry]);
   const handleLiveCheckError = useCallback(
     (err: unknown) => {
       if (!perPeriod || isQuestionClosedError(err) || !isFrozenCheckError(err))
@@ -625,13 +639,16 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     try {
       await completeActivity();
     } catch (err) {
-      if (!perPeriod || !isFrozenWriteError(err)) throw err;
-      // Not submitted: offer Finish once the class reopens.
+      // Not submitted: offer Finish again (once the class reopens, if frozen).
       setVideoEnded(false);
       setFinishPending(true);
-      freezeForPeriod();
+      if (perPeriod && isFrozenWriteError(err)) {
+        freezeForPeriod();
+        return;
+      }
+      logError('VideoActivityStudentApp.complete', err, { sessionId });
     }
-  }, [completeActivity, isViewOnly, perPeriod, freezeForPeriod]);
+  }, [completeActivity, isViewOnly, perPeriod, freezeForPeriod, sessionId]);
 
   // ── Tab-switch warning system (mirrors QuizStudentApp) ──────────────────
   const { showAlert } = useDialog();

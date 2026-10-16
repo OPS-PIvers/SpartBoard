@@ -5361,7 +5361,11 @@ service cloud.firestore {
         sameId() &&
         unchanged('activityId') &&
         unchanged('teacherUid') &&
-        unchanged('createdAt');
+        unchanged('createdAt') &&
+        // An ended live (board-paced) run stays ended: its students have already been finished.
+        !(existing().get('sessionMode', 'student') == 'teacher' &&
+          existing().get('status', '') == 'ended' &&
+          incoming().get('status', '') != 'ended');
       // Owning teacher (or admin) may delete (VA "Delete permanently" cleanup).
       // Mirrors GL sessions.
       allow delete: if vaOwner(existing());

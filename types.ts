@@ -11056,6 +11056,8 @@ export interface VideoActivityAssignment
   activityDriveFileId: string;
   teacherUid: string;
   status: VideoActivityAssignmentStatus;
+  /** 'teacher' for a live, board-paced run; absent on self-paced and older assignments. */
+  sessionMode?: VideoActivitySessionMode;
   createdAt: number;
   updatedAt: number;
   /** Unified roster targeting. New (post-unification) assignments write this;
