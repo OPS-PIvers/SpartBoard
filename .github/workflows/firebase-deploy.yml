@@ -182,6 +182,9 @@ jobs:
           path: ~/.cache/firebase/emulators
           key: firebase-emulators-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: firebase-emulators-${{ runner.os }}-
+      # Deploys test the minified text that ships; PR validation tests the source.
+      - name: Minify firestore.rules as released
+        run: pnpm exec firebase setup:emulators:firestore && node scripts/minifyRules.mjs firestore.rules --write
       - name: Run Firestore rules tests
         run: pnpm run test:rules
 
@@ -218,6 +221,24 @@ jobs:
       - name: Create Service Account File
         run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > service-account.json
 
+      # releaseFirestoreRules.mjs proves the minified rules with the compiler in the emulator jar.
+      - name: Setup Java
+        if: needs.plan.outputs.release_rules == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Cache Firestore emulator jar
+        if: needs.plan.outputs.release_rules == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: firebase-emulators-${{ runner.os }}-
+      - name: Download Firestore emulator jar
+        if: needs.plan.outputs.release_rules == 'true'
+        run: pnpm exec firebase setup:emulators:firestore
+
       # Only changed targets (.github/scripts/plan-deploy.sh), wrapped in a retry for transient Google API blips.
       - name: Deploy Firebase Rules, Indexes, Functions, Storage
         if: needs.plan.outputs.backend == 'true'
@@ -226,6 +247,17 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ./service-account.json
           FIREBASE_DEPLOY_ONLY: ${{ needs.plan.outputs.deploy_only }}
           RELEASE_FIRESTORE_RULES: ${{ needs.plan.outputs.release_rules }}
+          # Incident escape hatch: repo variable RULES_MINIFY=0 releases the unminified rules.
+          RULES_MINIFY: ${{ vars.RULES_MINIFY }}
+
+      - name: Upload rules name map
+        if: always() && needs.plan.outputs.release_rules == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rules-name-map
+          path: rules-name-map.txt
+          if-no-files-found: ignore
+          retention-days: 90
 
       - name: Wait for Firestore composite indexes to be READY
         if: needs.plan.outputs.indexes == 'true'

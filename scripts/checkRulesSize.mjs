@@ -29,10 +29,12 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { minifyRules, proveRenamed } from './minifyRules.mjs';
+import { findEmulatorJar } from './rulesAst/emulatorJar.mjs';
 import { stripRulesComments } from './stripRulesComments.mjs';
 
 const MAX_BYTES = 262144; // 256 KiB, enforced by the Firebase Rules API
@@ -53,31 +55,25 @@ const WARN_RATIO = 0.9;
  * (081f914), 249568 was refused (56d0070), and every other commit that month
  * sorts the same way. Comments and whitespace add nothing to it; expression
  * nodes and identifier lengths are what count.
+ *
+ * What ships is the minified text (scripts/minifyRules.mjs), so that is the
+ * size that counts; the source's own compiled size is reported for reference.
  */
 const COMPILED_CLIFF = 249350;
-const COMPILED_WARN_RATIO = 0.96;
+const COMPILED_WARN_RATIO = 0.9;
 
 const RULES_PATH = fileURLToPath(
   new URL('../firestore.rules', import.meta.url)
 );
 
-function findEmulatorJar() {
-  const fromEnv = process.env.FIRESTORE_EMULATOR_JAR;
-  if (fromEnv) return existsSync(fromEnv) ? fromEnv : null;
-  const dir = path.join(homedir(), '.cache', 'firebase', 'emulators');
-  if (!existsSync(dir)) return null;
-  const jars = readdirSync(dir)
-    .filter((f) => /^cloud-firestore-emulator-v[\d.]+\.jar$/.test(f))
-    .sort((x, y) => x.localeCompare(y, undefined, { numeric: true }));
-  return jars.length ? path.join(dir, jars[jars.length - 1]) : null;
-}
-
-function measureCompiled() {
+function measureCompiled(text) {
   const jar = findEmulatorJar();
   if (!jar) return null;
+  const file = path.join(mkdtempSync(path.join(tmpdir(), 'rules-size-')), 'firestore.rules');
+  writeFileSync(file, text);
   const tool = fileURLToPath(new URL('./rulesAst/RulesAst.java', import.meta.url));
   try {
-    const out = execFileSync('java', ['-cp', jar, tool, 'size', RULES_PATH], {
+    const out = execFileSync('java', ['-cp', jar, tool, 'size', file], {
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -92,6 +88,7 @@ function measureCompiled() {
 const source = readFileSync(RULES_PATH, 'utf8');
 const sourceBytes = Buffer.byteLength(source, 'utf8');
 const bytes = Buffer.byteLength(stripRulesComments(source), 'utf8');
+const sizes = (n) => `${n} bytes minified (source alone: ${sourceCompiled})`;
 const pct = ((bytes / MAX_BYTES) * 100).toFixed(1);
 
 if (bytes > MAX_BYTES) {
@@ -113,7 +110,18 @@ if (bytes > MAX_BYTES) {
   process.exit(1);
 }
 
-const compiled = measureCompiled();
+const stripped = stripRulesComments(source);
+const minified = minifyRules(stripped);
+const sourceCompiled = measureCompiled(stripped);
+const compiled = sourceCompiled === null ? null : measureCompiled(minified.text);
+if (compiled !== null) {
+  try {
+    console.log(`minified rules: ${proveRenamed(stripped, minified.text, minified.map)}`);
+  } catch (err) {
+    console.error(`\n${err.message}\nFix scripts/minifyRules.mjs; the release refuses rules it cannot prove.\n`);
+    process.exit(1);
+  }
+}
 
 if (compiled === null) {
   const why =
@@ -126,7 +134,7 @@ if (compiled === null) {
   console.warn(`warning: ${why}`);
 } else if (compiled > COMPILED_CLIFF) {
   console.error(
-    `\nfirestore.rules compiles to ${compiled} bytes, past the ` +
+    `\nfirestore.rules compiles to ${sizes(compiled)}, past the ` +
       `${COMPILED_CLIFF}-byte mark where Firestore stops accepting the ` +
       `compiled ruleset.\n\n` +
       `The rules will compile and upload fine and then be refused at release ` +
@@ -141,13 +149,13 @@ if (compiled === null) {
   process.exit(1);
 } else if (compiled > COMPILED_CLIFF * COMPILED_WARN_RATIO) {
   console.warn(
-    `warning: firestore.rules compiles to ${compiled} bytes, within ` +
+    `warning: firestore.rules compiles to ${sizes(compiled)}, within ` +
       `${COMPILED_CLIFF - compiled} bytes of the compiled-ruleset limit that ` +
       `blocks releases. Factor conditions into functions before adding rules.`
   );
 } else {
   console.log(
-    `firestore.rules compiles to ${compiled} bytes ` +
+    `firestore.rules compiles to ${sizes(compiled)} ` +
       `(${COMPILED_CLIFF - compiled} under the ${COMPILED_CLIFF}-byte release limit)`
   );
 }
