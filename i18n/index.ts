@@ -3,9 +3,7 @@ import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
 import en from '@/locales/en.json';
-import es from '@/locales/es.json';
-import de from '@/locales/de.json';
-import fr from '@/locales/fr.json';
+import type { BackendModule } from 'i18next';
 
 export const SUPPORTED_LANGUAGES = [
   { code: 'en', label: 'English', nativeLabel: 'English' },
@@ -17,16 +15,40 @@ export const SUPPORTED_LANGUAGES = [
 export type SupportedLanguageCode =
   (typeof SUPPORTED_LANGUAGES)[number]['code'];
 
-void i18n
+// Only English ships in the startup bundle; other locales load when picked.
+const LOCALE_LOADERS: Record<string, () => Promise<{ default: object }>> = {
+  es: () => import('@/locales/es.json'),
+  de: () => import('@/locales/de.json'),
+  fr: () => import('@/locales/fr.json'),
+};
+
+const localeBackend: BackendModule = {
+  type: 'backend',
+  init: () => undefined,
+  read: (language, _namespace, callback) => {
+    const load = LOCALE_LOADERS[language];
+    if (!load) {
+      callback(null, {});
+      return;
+    }
+    load().then(
+      (mod) => callback(null, mod.default),
+      (err: unknown) =>
+        callback(err instanceof Error ? err : new Error(String(err)), null)
+    );
+  },
+};
+
+export const i18nReady = i18n
+  .use(localeBackend)
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
     resources: {
       en: { translation: en },
-      es: { translation: es },
-      de: { translation: de },
-      fr: { translation: fr },
     },
+    partialBundledLanguages: true,
+    react: { useSuspense: false },
     fallbackLng: 'en',
     supportedLngs: ['en', 'es', 'de', 'fr'],
     // Only use localStorage to persist user choice.

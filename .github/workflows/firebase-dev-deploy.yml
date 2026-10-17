@@ -277,7 +277,8 @@ jobs:
 
       # Open tabs on an older build still lazy-load their own chunks instead of reloading mid-lesson.
       - name: Carry recent builds' assets forward
-        run: node scripts/carryForwardAssets.mjs "https://${SITE}.web.app"
+        # Dev deploys dozens of times a day, so it keeps fewer builds than prod to cut Hosting egress.
+        run: node scripts/carryForwardAssets.mjs "https://${SITE}.web.app" dist 10
 
       - name: Deploy Hosting
         run: |
@@ -328,6 +329,13 @@ jobs:
         with:
           workload_identity_provider: ${{ env.DEV_WIF_PROVIDER }}
           service_account: ${{ env.DEV_DEPLOY_SA }}
+
+      # Every functions deploy rebuilds all ~195 images; without this policy they pile up in Artifact Registry.
+      - name: Keep only a day of function images
+        if: contains(needs.plan.outputs.deploy_only, 'functions')
+        run: |
+          pnpm exec firebase functions:artifacts:setpolicy --days 1 --force --project "$DEV_PROJECT_ID" ||
+            echo "::warning::Could not set the Artifact Registry cleanup policy on spartboard-dev; old function images will keep piling up."
 
       # Wrapped in a retry helper: `firebase deploy` occasionally hits a transient Google API blip
       # that fails the whole deploy even though the code is fine.

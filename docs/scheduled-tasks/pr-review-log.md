@@ -4801,3 +4801,24 @@ rather than "no data") is also still open.
   - Needs changes: none.
 - CI: green on every PR head.
 - Notes: `gh` is unavailable, so GitHub access went through MCP. Per-PR subagents used scoped `vitest` runs only.
+
+## 2026-10-17
+
+- PRs reviewed:
+  - #4350 css-scaling: scale Soundboard active-sound dot with cqmin
+  - #4349 Widget loop: Quiz layout D → C
+  - #4348 Debugger run 100: log, backlog and notes
+  - #4347 fix(admin): clamp Calendar sync frequency and days visible to their ranges
+  - #4346 fix(history): an edit after undo no longer folds into an older undo entry
+  - #4345 fix(flashcards): Enter confirming an IME composition no longer adds a card
+  - #4344 Unifier run 118: aligned, light probe log
+- Comments processed: 0 open inline review threads on any PR. The bot summaries on #4350, #4349, #4347 and #4345 found no issues. The one optional note (#4347: no `daysVisible` test) is not a fix-list item, so it was carried into that PR's review instead.
+- Fixes pushed: none.
+- Reviews posted: 7.
+- Merge readiness:
+  - Ready: #4350, #4347, #4346, #4345, #4344.
+  - Ready with minor notes:
+    - #4349: `SHORT_BELOW_PX` is a dead export, and `rootHeight` should be resize-checked near 240px.
+    - #4348: the new Backlog rows have 4 cells in a 2-column table.
+  - Needs changes: none.
+- Notes: `gh` is unavailable (invalid token), so GitHub access went through MCP. No local test runs were needed.

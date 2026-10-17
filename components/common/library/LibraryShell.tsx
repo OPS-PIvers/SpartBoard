@@ -28,6 +28,7 @@ import { LibraryFolderViewContext } from './LibraryFolderViewContext';
 import { FolderViewHeader } from './FolderViewHeader';
 import {
   autoFolderPanelMode,
+  isShortLibrary,
   resolveFolderPanelMode,
   resolveHeaderLabels,
 } from './libraryShellLayout';
@@ -204,12 +205,15 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
   const rootRef = useRef<HTMLElement>(null);
   const [previewSlot, setPreviewSlot] = useState<HTMLDivElement | null>(null);
   const [rootWidth, setRootWidth] = useState<number | null>(null);
+  const [rootHeight, setRootHeight] = useState<number | null>(null);
   useEffect(() => {
     const el = rootRef.current;
     if (!el || typeof ResizeObserver === 'undefined') return undefined;
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
-      if (entry) setRootWidth(entry.contentRect.width);
+      if (!entry) return;
+      setRootWidth(entry.contentRect.width);
+      setRootHeight(entry.contentRect.height);
     });
     observer.observe(el);
     return () => observer.disconnect();
@@ -261,6 +265,32 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
   );
   const shouldRenderFolderPanel =
     filterSidebarSlot != null && effectiveFolderPanelMode !== 'hidden';
+
+  const showFoldersButton =
+    !shouldRenderFolderPanel && filterSidebarSlot != null ? (
+      <button
+        type="button"
+        onClick={() => chooseFolderPanelSetting('full')}
+        className="inline-flex items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-brand-blue-lighter/40 hover:text-brand-blue-primary"
+        style={{
+          width: 'min(28px, 7cqmin)',
+          height: 'min(28px, 7cqmin)',
+        }}
+        title="Show folders"
+        aria-label="Show folders"
+        {...tourTypeAttr('library-shell.show-folders', widgetType ?? 'library')}
+      >
+        <ChevronsRight
+          style={{
+            width: 'min(16px, 4.5cqmin)',
+            height: 'min(16px, 4.5cqmin)',
+          }}
+        />
+      </button>
+    ) : null;
+
+  const foldersButtonInToolbar =
+    Boolean(toolbarSlot) && isShortLibrary(rootHeight);
 
   return (
     <section
@@ -397,7 +427,22 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
             paddingBlock: 'min(10px, 2.2cqmin)',
           }}
         >
-          {toolbarSlot}
+          {showFoldersButton != null && foldersButtonInToolbar ? (
+            <div
+              className="flex items-start"
+              style={{ gap: 'min(8px, 2cqmin)' }}
+            >
+              <div
+                className="shrink-0 flex"
+                style={{ marginTop: 'min(4px, 1px + 2cqmin)' }}
+              >
+                {showFoldersButton}
+              </div>
+              <div className="flex-1 min-w-0">{toolbarSlot}</div>
+            </div>
+          ) : (
+            toolbarSlot
+          )}
         </div>
       )}
 
@@ -467,7 +512,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
             </aside>
           </LibraryFolderPanelContext.Provider>
         )}
-        {!shouldRenderFolderPanel && filterSidebarSlot != null && (
+        {showFoldersButton != null && !foldersButtonInToolbar && (
           <div
             className="shrink-0 border-r border-brand-gray-lightest bg-white flex items-start justify-center"
             style={{
@@ -475,28 +520,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
               paddingBlock: 'min(8px, 2cqmin)',
             }}
           >
-            <button
-              type="button"
-              onClick={() => chooseFolderPanelSetting('full')}
-              className="inline-flex items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-brand-blue-lighter/40 hover:text-brand-blue-primary"
-              style={{
-                width: 'min(28px, 7cqmin)',
-                height: 'min(28px, 7cqmin)',
-              }}
-              title="Show folders"
-              aria-label="Show folders"
-              {...tourTypeAttr(
-                'library-shell.show-folders',
-                widgetType ?? 'library'
-              )}
-            >
-              <ChevronsRight
-                style={{
-                  width: 'min(16px, 4.5cqmin)',
-                  height: 'min(16px, 4.5cqmin)',
-                }}
-              />
-            </button>
+            {showFoldersButton}
           </div>
         )}
         <div

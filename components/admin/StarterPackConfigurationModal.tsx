@@ -41,8 +41,12 @@ import { tourFieldAttr, tourTypeAttr } from '@/config/tourAnchors';
 import { Modal } from '@/components/common/Modal';
 import { useDialog } from '@/context/useDialog';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
-import * as LucideIcons from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+
+import {
+  getNamedLucideIcon,
+  NamedLucideIcon,
+  useLucideIconMap,
+} from '@/utils/lucideIconMap';
 import { SNAP_LAYOUTS } from '@/config/snapLayouts';
 import { calculateSnapBounds } from '@/utils/layoutMath';
 
@@ -548,9 +552,7 @@ export const StarterPackConfigurationModal: React.FC<
     }
   };
 
-  const PreviewIcon =
-    (LucideIcons as unknown as Record<string, LucideIcon>)[formData.icon] ??
-    LucideIcons.Wand2;
+  const iconMap = useLucideIconMap();
 
   if (!isOpen) return null;
 
@@ -719,10 +721,7 @@ export const StarterPackConfigurationModal: React.FC<
           ) : (
             <div className="grid gap-3">
               {packs.map((pack) => {
-                const PackIcon =
-                  (LucideIcons as unknown as Record<string, LucideIcon>)[
-                    pack.icon
-                  ] ?? LucideIcons.Wand2;
+                const PackIcon = getNamedLucideIcon(pack.icon, Wand2);
                 return (
                   <div
                     key={pack.id}
@@ -880,7 +879,11 @@ export const StarterPackConfigurationModal: React.FC<
                         color: COLOR_MAP[formData.color],
                       }}
                     >
-                      <PreviewIcon className="w-6 h-6" />
+                      <NamedLucideIcon
+                        name={formData.icon}
+                        fallback={Wand2}
+                        className="w-6 h-6"
+                      />
                     </div>
                     <span className="text-sm font-medium text-slate-700">
                       {formData.icon}
@@ -892,9 +895,7 @@ export const StarterPackConfigurationModal: React.FC<
                     <div className="absolute top-full left-0 mt-2 p-3 bg-white rounded-2xl shadow-xl border border-slate-200 z-popover w-full sm:w-[320px]">
                       <div className="grid grid-cols-6 gap-2 max-h-[240px] overflow-y-auto p-1 custom-scrollbar">
                         {ICON_OPTIONS.map((name) => {
-                          const IconComp = (
-                            LucideIcons as unknown as Record<string, LucideIcon>
-                          )[name];
+                          const IconComp = iconMap[name];
                           if (!IconComp) return null;
                           return (
                             <button

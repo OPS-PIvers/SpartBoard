@@ -1,4 +1,10 @@
+import React from 'react';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import {
+  getLoadedLucideIconMap,
+  loadLucideIconMap,
+} from '@/utils/lucideIconMap';
 import {
   BUILT_IN_MATERIALS,
   MATERIAL_ICON_FALLBACK,
@@ -8,7 +14,6 @@ import {
   createTeacherMaterialId,
   getMaterialsCatalog,
   resolveMaterialDefinition,
-  resolveMaterialIcon,
 } from './constants';
 import { MaterialDefinition } from '@/types';
 
@@ -38,7 +43,8 @@ describe('MaterialsWidget constants', () => {
     expect(catalog).toHaveLength(BUILT_IN_MATERIALS.length + 1);
   });
 
-  it('falls back to the default icon when the saved icon is invalid', () => {
+  it('falls back to the default icon when the saved icon is invalid', async () => {
+    await loadLucideIconMap();
     const resolved = resolveMaterialDefinition({
       id: 'custom-invalid',
       label: 'Invalid',
@@ -53,7 +59,17 @@ describe('MaterialsWidget constants', () => {
       color: '#2563eb',
     });
 
-    expect(resolved.iconComponent).toBe(fallbackResolved.iconComponent);
+    render(
+      React.createElement(resolved.iconComponent, { 'data-testid': 'invalid' })
+    );
+    render(
+      React.createElement(fallbackResolved.iconComponent, {
+        'data-testid': 'fallback',
+      })
+    );
+    expect(screen.getByTestId('invalid').getAttribute('class')).toBe(
+      screen.getByTestId('fallback').getAttribute('class')
+    );
     expect(resolved.textColor).toBe('#ffffff');
   });
 
@@ -132,16 +148,16 @@ describe('MaterialsWidget constants', () => {
     expect(BUILT_IN_MATERIALS.map((material) => material.id)).not.toContain(id);
   });
 
-  it('offers a broad set of resolvable icon options', () => {
-    const fallback = resolveMaterialIcon(MATERIAL_ICON_FALLBACK);
+  it('offers a broad set of resolvable icon options', async () => {
+    await loadLucideIconMap();
+    const icons = getLoadedLucideIconMap();
 
     expect(MATERIAL_ICON_OPTIONS.length).toBeGreaterThanOrEqual(60);
     expect(new Set(MATERIAL_ICON_OPTIONS).size).toBe(
       MATERIAL_ICON_OPTIONS.length
     );
     MATERIAL_ICON_OPTIONS.forEach((name) => {
-      if (name === MATERIAL_ICON_FALLBACK) return;
-      expect(resolveMaterialIcon(name)).not.toBe(fallback);
+      expect(icons[name], name).toBeDefined();
     });
   });
 });

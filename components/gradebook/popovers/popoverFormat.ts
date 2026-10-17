@@ -1,8 +1,15 @@
-import type {
-  GradebookFlagDef,
-  GradebookHistoryEntry,
-  GradebookKind,
+import {
+  ON_TIME_CUSHION_MS,
+  type GradebookFlagDef,
+  type GradebookHistoryEntry,
+  type GradebookKind,
 } from '@/utils/gradebook/gradebookCore';
+
+/** Whole days past the due time, 0 when on time or inside the cushion. */
+export function daysLate(submittedAt: number, dueAt: number): number {
+  if (submittedAt <= dueAt + ON_TIME_CUSHION_MS) return 0;
+  return Math.ceil((submittedAt - dueAt) / 86_400_000);
+}
 
 export const KIND_LABELS: Record<GradebookKind, string> = {
   quiz: 'Quiz',

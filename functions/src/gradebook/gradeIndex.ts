@@ -210,7 +210,9 @@ export function studentUidFor(
   switch (kind) {
     case 'quiz':
     case 'video-activity':
-      return isPinKey(docId) ? null : asString(data.studentUid) || null;
+      return hasNoStudentKey(kind, docId)
+        ? null
+        : asString(data.studentUid) || null;
     case 'guided-learning':
       return asString(data.pin) ? null : docId;
     case 'flashcards':
@@ -223,6 +225,10 @@ export function studentUidFor(
       return null;
   }
 }
+
+/** PIN-keyed quiz and video docs never map to a student, whatever their data says. */
+const hasNoStudentKey = (kind: GradeKind, docId: string): boolean =>
+  (kind === 'quiz' || kind === 'video-activity') && isPinKey(docId);
 
 interface TargetingInfo {
   assigned: boolean;
@@ -463,6 +469,7 @@ export async function applyDocWrite(
   now = Date.now()
 ): Promise<number> {
   if (!docWriteMatters(w)) return 0;
+  if (hasNoStudentKey(w.kind, w.docId)) return 0;
   const ctx = await loadSessionContext(db, w.kind, w.sessionId);
   if (!ctx) return 0;
   let writes = 0;

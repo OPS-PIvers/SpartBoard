@@ -257,6 +257,25 @@ describe('runClassLinkRosterSync', () => {
     ]);
   });
 
+  it('leaves Drive and the stamp alone when the pin index fails, so the next run retries', async () => {
+    harness = buildHarness([
+      classlinkRoster(
+        'users/u1/rosters/r1',
+        'u1',
+        [student('Ada', '01', 's1'), student('Alan', '02', 's2')],
+        [up('s1', 'Ada')]
+      ),
+    ]);
+    harness.deps.reconcilePinIndex = () =>
+      Promise.reject(new Error('auth unavailable'));
+
+    const out = await runClassLinkRosterSync(harness.db, harness.deps, ENABLED);
+
+    expect(out.errors).toBe(1);
+    expect(harness.written.size).toBe(0);
+    expect(harness.updated.size).toBe(0);
+  });
+
   // Nobody joined or left, but the re-link stamps a stable sourcedId. Skipping
   // this write would leave the roster re-linking from scratch every night and
   // never surviving an upstream rename.

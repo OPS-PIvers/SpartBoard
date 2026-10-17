@@ -84,6 +84,7 @@ const isProtectedStudentRoute = (pathname: string): boolean =>
 interface ValidatedStudentClaims {
   orgId: string;
   classIds: string[];
+  pinLogin: boolean;
 }
 
 /** Reason a claim set was rejected — surfaced on the login screen. */
@@ -128,7 +129,14 @@ async function extractStudentClaims(
     return { ok: false, reason: 'no-classes' };
   }
 
-  return { ok: true, value: { orgId: claims.orgId, classIds: rawClassIds } };
+  return {
+    ok: true,
+    value: {
+      orgId: claims.orgId,
+      classIds: rawClassIds,
+      pinLogin: claims.pinLogin === true,
+    },
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -143,6 +151,7 @@ const MOCK_STUDENT: Omit<StudentAuthValue, 'signOut'> & {
   orgId: 'mock-org',
   classIds: ['mock-class-1'],
   firstName: 'Demo',
+  pinLogin: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -155,6 +164,7 @@ interface ProviderState {
   orgId: string | null;
   classIds: string[];
   firstName: string | null;
+  pinLogin: boolean;
 }
 
 const INITIAL_STATE: ProviderState = {
@@ -163,6 +173,7 @@ const INITIAL_STATE: ProviderState = {
   orgId: null,
   classIds: [],
   firstName: null,
+  pinLogin: false,
 };
 
 const UNAUTH_STATE: ProviderState = {
@@ -171,6 +182,7 @@ const UNAUTH_STATE: ProviderState = {
   orgId: null,
   classIds: [],
   firstName: null,
+  pinLogin: false,
 };
 
 /**
@@ -207,6 +219,7 @@ export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
           orgId: MOCK_STUDENT.orgId,
           classIds: MOCK_STUDENT.classIds,
           firstName: MOCK_STUDENT.firstName,
+          pinLogin: false,
         }
       : INITIAL_STATE
   );
@@ -267,6 +280,7 @@ export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
             orgId: outcome.value.orgId,
             classIds: outcome.value.classIds,
             firstName: readFirstName(),
+            pinLogin: outcome.value.pinLogin,
           });
         },
         () => {
@@ -321,6 +335,7 @@ export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
       orgId: state.orgId,
       classIds: state.classIds,
       firstName: state.firstName,
+      pinLogin: state.pinLogin,
       signOut,
     }),
     [
@@ -329,6 +344,7 @@ export const StudentAuthProvider: React.FC<{ children: React.ReactNode }> = ({
       state.orgId,
       state.classIds,
       state.firstName,
+      state.pinLogin,
       signOut,
     ]
   );

@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import * as LucideIcons from 'lucide-react';
+import { getNamedLucideIcon } from '@/utils/lucideIconMap';
 import {
   ChevronDown,
   ChevronLeft,
@@ -29,13 +29,8 @@ import {
   SECTION_TITLES,
 } from './constants';
 
-const LUCIDE_ICON_MAP = LucideIcons as unknown as Record<
-  string,
-  React.ElementType | undefined
->;
-
 const resolveIcon = (iconName?: string): React.ElementType =>
-  (iconName ? LUCIDE_ICON_MAP[iconName] : undefined) ?? LucideIcons.Package;
+  getNamedLucideIcon(iconName, Package);
 
 const DRAWER_SIDE_SIZE = 'min(240px, 60%)';
 const DRAWER_BOTTOM_SIZE = 'min(240px, 65%)';

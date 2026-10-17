@@ -40,6 +40,7 @@ import {
 } from './classlinkRosterReconcile';
 import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 import {
+  loadTaughtClassEnrollment,
   reconcileRosterPinIndex,
   PIN_INDEX_MAX_ENTRIES,
 } from './studentIdentity';
@@ -339,6 +340,11 @@ async function syncOneRoster(
     return;
   }
 
+  // Sidecar before Drive and the stamp: a removed student keeping their pin_index
+  // entry would still pass the PIN→SSO gate, and a failure here must leave the
+  // roster changed so the next run retries it.
+  await deps.reconcilePinIndex(rosterSnap.ref, data, result.students);
+
   const describe = (c: { firstName: string; lastName: string }): string =>
     `${c.firstName} ${c.lastName}`.trim();
 
@@ -350,11 +356,6 @@ async function syncOneRoster(
       removed: result.removed.map(describe),
     },
   });
-
-  // Sidecar before the Firestore stamp: a removed student keeping their
-  // pin_index entry would still pass the PIN→SSO gate, so a failure here must
-  // not be masked by a roster doc that claims the sync succeeded.
-  await deps.reconcilePinIndex(rosterSnap.ref, data, result.students);
 
   await rosterSnap.ref.update({
     studentCount: result.students.length,
@@ -497,8 +498,42 @@ function buildLiveDeps(db: admin.firestore.Firestore): ClassLinkSyncDeps {
     getDriveVersion: driveGetVersion,
 
     reconcilePinIndex: async (rosterRef, rosterData, students) => {
+      // The roster doc is owner-written, so ClassLink must confirm the owner teaches the class.
+      const ownerUid = rosterRef.parent.parent?.id ?? '';
+      const owner = ownerUid
+        ? await admin
+            .auth()
+            .getUser(ownerUid)
+            .catch((err: unknown) => {
+              // Only a missing owner prunes; a transient Auth error must not wipe the index.
+              if ((err as { code?: string })?.code === 'auth/user-not-found') {
+                return null;
+              }
+              throw err;
+            })
+        : null;
+      const enrolled =
+        owner?.email && owner.emailVerified
+          ? await loadTaughtClassEnrollment(
+              owner.email,
+              String(rosterData.classlinkClassId ?? ''),
+              {
+                classlinkClientId: clientId,
+                classlinkClientSecret: clientSecret,
+                tenantUrl,
+              }
+            )
+          : null;
+      if (!enrolled) {
+        console.warn(
+          `[classlinkRosterSync] ${rosterRef.path}: ClassLink did not confirm the owner teaches this class; clearing its PIN index`
+        );
+      }
       const entries = students
-        .filter((s) => s.classLinkSourcedId && s.pin)
+        .filter(
+          (s) =>
+            s.classLinkSourcedId && s.pin && enrolled?.has(s.classLinkSourcedId)
+        )
         .slice(0, PIN_INDEX_MAX_ENTRIES)
         .map((s) => ({
           period: String(rosterData.name ?? ''),

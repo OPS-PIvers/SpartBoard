@@ -7,8 +7,8 @@ export const MANIFEST_FILE = 'asset-manifest.json';
 export const KEEP_MS = 7 * 24 * 60 * 60 * 1000;
 export const MAX_BUILDS = 40;
 
-/** Keeps previous builds deployed within KEEP_MS (newest first, capped) and lists their files the new build lacks. */
-export function planCarryForward(previous, current, now) {
+/** Keeps previous builds deployed within KEEP_MS (newest first, capped at maxBuilds) and lists their files the new build lacks. */
+export function planCarryForward(previous, current, now, maxBuilds = MAX_BUILDS) {
   const prior = Array.isArray(previous?.builds) ? previous.builds : [];
   const kept = prior
     .filter(
@@ -19,7 +19,7 @@ export function planCarryForward(previous, current, now) {
         Array.isArray(b.files) &&
         now - Date.parse(b.deployedAt) < KEEP_MS
     )
-    .slice(0, MAX_BUILDS - 1);
+    .slice(0, maxBuilds - 1);
   const have = new Set(current.files);
   const toFetch = [
     ...new Set(kept.flatMap((b) => b.files).filter((f) => !have.has(f))),
@@ -74,9 +74,12 @@ async function fetchAsset(siteUrl, name, assetsDir) {
 }
 
 async function main() {
-  const [siteArg, distArg = 'dist'] = process.argv.slice(2);
+  const [siteArg, distArg = 'dist', maxArg] = process.argv.slice(2);
+  const maxBuilds = Number.parseInt(maxArg ?? '', 10) || MAX_BUILDS;
   if (!siteArg) {
-    console.error('Usage: carryForwardAssets.mjs <live-site-url> [dist-dir]');
+    console.error(
+      'Usage: carryForwardAssets.mjs <live-site-url> [dist-dir] [max-builds]'
+    );
     process.exit(1);
   }
   const siteUrl = siteArg.replace(/\/+$/, '');
@@ -90,7 +93,8 @@ async function main() {
   const { toFetch, manifest } = planCarryForward(
     previous,
     { id: String(buildId ?? 'unknown'), files },
-    Date.now()
+    Date.now(),
+    maxBuilds
   );
 
   const missing = [];

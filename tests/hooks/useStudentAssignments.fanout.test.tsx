@@ -730,4 +730,27 @@ describe('useStudentAssignments — fan-out channel (M17 C1)', () => {
     });
     expect(result.current.hasErrors).toBe(false);
   });
+
+  it("a PIN sign-in token lists only its own classes' pointers", async () => {
+    makeSnapshotRig();
+    makeGetDocRig();
+    renderHook(() =>
+      useStudentAssignments({
+        classIds: ['c1', 'c2'],
+        studentUid: 'student-a',
+        pinLogin: true,
+      })
+    );
+    await waitFor(() => {
+      expect(firestore.where).toHaveBeenCalledWith('classId', 'in', [
+        'c1',
+        'c2',
+      ]);
+    });
+    const pointerRef = vi
+      .mocked(firestore.onSnapshot)
+      .mock.calls.map(([ref]) => ref as QueryRef)
+      .find((ref) => ref.__name === 'student_assignments/student-a/items');
+    expect(pointerRef?.__constraints).toHaveLength(1);
+  });
 });

@@ -26,6 +26,17 @@ vi.mock('lucide-react', () => {
   });
 });
 
+// The picker reads icons from the lazy icon map, so serve the same stubs there.
+vi.mock('@/utils/lucideIconMap', async () => {
+  const lucide = await import('lucide-react');
+  return {
+    useLucideIconMap: () => ({
+      Zap: lucide.Zap,
+      Lightbulb: lucide.Lightbulb,
+    }),
+  };
+});
+
 // Mock instructionalIcons config
 vi.mock('@/config/instructionalIcons', () => ({
   COMMON_INSTRUCTIONAL_ICONS: ['Zap', 'Lightbulb'],

@@ -29,6 +29,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
 import { assertViewAsAllowed } from './viewAsGuard';
+import { isStrictSuperAdmin } from './authz';
 
 // Guard against double-initialization. The main index.ts module calls
 // initializeApp() at load time; if that module is loaded first (normal
@@ -160,6 +161,8 @@ export const ADMIN_ROLE_IDS: readonly RoleId[] = [
   'super_admin',
   'domain_admin',
 ];
+
+const SUPER_ADMIN_ONLY_REASON = 'Only a super admin can invite a super admin.';
 
 /** Maximum invitation TTL in days (clamp ceiling). */
 export const MAX_EXPIRES_IN_DAYS = 60;
@@ -638,7 +641,7 @@ async function assertCallerIsOrgAdmin(
   db: admin.firestore.Firestore,
   orgId: string,
   callerEmailLower: string
-): Promise<void> {
+): Promise<MemberRecord> {
   const memberRef = db
     .collection('organizations')
     .doc(orgId)
@@ -658,6 +661,7 @@ async function assertCallerIsOrgAdmin(
       'Caller does not have permission to invite members.'
     );
   }
+  return data;
 }
 
 /**
@@ -799,7 +803,17 @@ export const createOrganizationInvites = onCall(
 
     // Authorization & existence checks happen serially (cheap reads, fail fast).
     const org = await loadOrg(db, payload.orgId);
-    await assertCallerIsOrgAdmin(db, payload.orgId, callerEmailLower);
+    const caller = await assertCallerIsOrgAdmin(
+      db,
+      payload.orgId,
+      callerEmailLower
+    );
+    // Resolved only when an invite touches a super admin, so ordinary invites add no reads.
+    let callerSuperCheck: Promise<boolean> | undefined;
+    const callerIsSuperAdmin = () =>
+      caller.roleId === 'super_admin'
+        ? Promise.resolve(true)
+        : (callerSuperCheck ??= isStrictSuperAdmin(db, callerEmailLower));
 
     const validRoleIds = await loadRoleIds(db, payload.orgId);
     const validBuildingIds = await loadBuildingIds(db, payload.orgId);
@@ -827,6 +841,13 @@ export const createOrganizationInvites = onCall(
         });
         continue;
       }
+      if (invite.roleId === 'super_admin' && !(await callerIsSuperAdmin())) {
+        errors.push({
+          email: invite.email,
+          reason: SUPER_ADMIN_ONLY_REASON,
+        });
+        continue;
+      }
       const scopedBuildingIds = filterValidBuildingIds(
         invite.buildingIds,
         validBuildingIds,
@@ -846,6 +867,7 @@ export const createOrganizationInvites = onCall(
           issuedBy: callerUid,
           personalMessage: payload.message,
           emailConfig,
+          callerIsSuperAdmin,
         });
         results.push(result);
       } catch (err) {
@@ -878,6 +900,7 @@ async function writeInvitation(
     issuedBy: string;
     personalMessage?: string;
     emailConfig: InviteEmailConfig;
+    callerIsSuperAdmin: () => Promise<boolean>;
   }
 ): Promise<CreateInviteResult> {
   const {
@@ -888,6 +911,7 @@ async function writeInvitation(
     issuedBy,
     personalMessage,
     emailConfig,
+    callerIsSuperAdmin,
   } = opts;
   const now = new Date();
 
@@ -925,6 +949,10 @@ async function writeInvitation(
         // Don't mint an invitation or queue mail — the user is already
         // active and the UI should reflect "already_active".
         return 'already_active';
+      }
+      // Re-inviting rewrites roleId, so it would demote a super admin.
+      if (existing?.roleId === 'super_admin' && !(await callerIsSuperAdmin())) {
+        throw new Error(SUPER_ADMIN_ONLY_REASON);
       }
 
       tx.set(memberRef, plan.patch, { merge: true });

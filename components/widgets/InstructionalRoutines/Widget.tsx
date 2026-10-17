@@ -12,8 +12,8 @@ import {
   ROUTINES as DEFAULT_ROUTINES,
   InstructionalRoutine,
 } from '@/config/instructionalRoutines';
-import * as Icons from 'lucide-react';
-import { Star, ArrowLeft, Rocket } from 'lucide-react';
+import { Star, ArrowLeft, Rocket, HelpCircle } from 'lucide-react';
+import { getNamedLucideIcon, useLucideIconMap } from '@/utils/lucideIconMap';
 import { BLOOMS_DATA } from '@/config/bloomsData';
 import { prepareLaunchConfig } from './constants';
 
@@ -172,9 +172,8 @@ const RoutineStepItem: React.FC<RoutineStepItemProps> = ({
   onStepClick,
   onAddWidget,
 }) => {
-  const StepIcon = step.icon
-    ? (Icons as unknown as Record<string, React.ElementType>)[step.icon]
-    : null;
+  const iconMap = useLucideIconMap();
+  const StepIcon = step.icon ? iconMap[step.icon] : null;
 
   const isVisualCue = structure === 'visual-cue';
   const hasSticker = (step.stickerUrl ?? '') !== '' || !!StepIcon;
@@ -489,10 +488,7 @@ export const InstructionalRoutinesWidget: React.FC<{ widget: WidgetData }> = ({
             }}
           >
             {displayedRoutines.map((r) => {
-              const Icon =
-                (Icons as unknown as Record<string, React.ElementType>)[
-                  r.icon
-                ] ?? Icons.HelpCircle;
+              const Icon = getNamedLucideIcon(r.icon, HelpCircle);
               const isFav = favorites.includes(r.id);
               const colors =
                 ROUTINE_COLORS[r.color || 'blue'] || ROUTINE_COLORS.blue;

@@ -76,4 +76,19 @@ describe('CalendarConfigurationModal sync frequency', () => {
     };
     expect(Number.isFinite(payload.config.updateFrequencyHours)).toBe(true);
   });
+
+  it('clamps the sync frequency to the 1-24 hour range', async () => {
+    vi.mocked(getDoc).mockResolvedValue({
+      exists: () => false,
+      data: () => undefined,
+    } as unknown as DocumentSnapshot);
+    vi.mocked(setDoc).mockResolvedValue(undefined);
+
+    render(<CalendarConfigurationModal isOpen onClose={vi.fn()} />);
+    const input = await screen.findByDisplayValue('4');
+    fireEvent.change(input, { target: { value: '0' } });
+    expect((input as HTMLInputElement).value).toBe('1');
+    fireEvent.change(input, { target: { value: '99' } });
+    expect((input as HTMLInputElement).value).toBe('24');
+  });
 });

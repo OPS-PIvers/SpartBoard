@@ -365,7 +365,7 @@ describe('quiz_sessions/responses — student-role gate', () => {
       setDoc(doc(asStudentA(), respPath(SESSION_A)), {
         ...baseResp('9999'),
         answers: [{ q: 0, a: 'B' }],
-        status: 'submitted',
+        status: 'in-progress',
         submittedAt: 3000,
       })
     );
@@ -528,7 +528,7 @@ describe('quiz_sessions/responses — student-role gate', () => {
         joinedAt: 2000,
         score: null,
         answers: [{ questionId: 'q1', value: 'B' }],
-        status: 'submitted',
+        status: 'in-progress',
         submittedAt: 3000,
         tabSwitchWarnings: 0,
         completedAttempts: 0,
@@ -600,6 +600,7 @@ describe('video_activity_sessions/responses — student-role gate', () => {
       setDoc(doc(asStudentA(), respPath(SESSION_A)), {
         ...baseResp('9999'),
         completedAt: 3000,
+        completedAttempts: 1,
         answers: [{ q: 0, a: 'A' }],
       })
     );
@@ -1434,7 +1435,7 @@ describe('quiz_sessions — end-to-end lifecycle', () => {
       setDoc(doc(asStudentA(), respPath), {
         ...baseStudentResp(STUDENT_A_UID, '1234'),
         answers: [{ questionId: 'q1', answer: 'A' }],
-        status: 'submitted',
+        status: 'in-progress',
         submittedAt: 2000,
       })
     );
@@ -1473,7 +1474,7 @@ describe('quiz_sessions — end-to-end lifecycle', () => {
       setDoc(doc(asStudentB(), respPath), {
         ...baseStudentResp(STUDENT_B_UID, '5555'),
         answers: [{ questionId: 'q1', answer: 'A' }],
-        status: 'submitted',
+        status: 'in-progress',
         submittedAt: 2000,
       })
     );
@@ -1506,7 +1507,7 @@ describe('quiz_sessions — end-to-end lifecycle', () => {
       await setDoc(doc(ctx.firestore(), respPath), {
         ...baseStudentResp(STUDENT_A_UID, '1234'),
         answers: [{ questionId: 'q1', answer: 'A' }],
-        status: 'submitted',
+        status: 'in-progress',
         submittedAt: 2000,
       });
     });

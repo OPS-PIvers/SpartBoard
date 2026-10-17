@@ -1,16 +1,16 @@
 {
   "$schema": "../scorecard.schema.json",
   "widgetType": "quiz",
-  "rubricVersion": "1.0.0",
-  "gradedAt": "2026-10-06T03:13:32.259Z",
+  "rubricVersion": "1.1.0",
+  "gradedAt": "2026-10-17T04:21:32.812Z",
   "stale": false,
   "criteria": {
     "I5": {
       "score": null,
       "source": "script",
       "note": "N/A by rule",
-      "rubricVersion": "1.0.0",
-      "gradedAt": "2026-10-06T03:13:32.259Z",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-17T04:21:32.812Z",
       "stale": false
     },
     "S1": {
@@ -635,32 +635,32 @@
   },
   "gates": {
     "G1": {
-      "pass": false,
+      "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "loop-quiz-2026-10-17-after"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-17T04:21:32.812Z"
     },
     "G2": {
       "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "loop-quiz-2026-10-17-after"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-17T04:21:32.812Z"
     },
     "G3": {
       "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "loop-quiz-2026-10-17-after"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-17T04:21:32.812Z"
     },
     "G4": {
       "pass": true,
       "evidence": {
-        "runId": "norming-1"
+        "runId": "loop-quiz-2026-10-17-after"
       },
-      "gradedAt": "2026-10-06T03:13:32.259Z"
+      "gradedAt": "2026-10-17T04:21:32.812Z"
     }
   }
 }
