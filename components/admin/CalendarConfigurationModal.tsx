@@ -407,7 +407,12 @@ export const CalendarConfigurationModal: React.FC<
                         // Ignore a non-finite parse (empty field) — NaN freshness never skips, so the fetcher would sync every run.
                         const next = parseInt(e.target.value, 10);
                         if (Number.isFinite(next)) {
-                          updateGlobal({ updateFrequencyHours: next });
+                          updateGlobal({
+                            updateFrequencyHours: Math.min(
+                              24,
+                              Math.max(1, next)
+                            ),
+                          });
                         }
                       }}
                       className="w-10 text-xs font-black text-blue-700 text-center bg-transparent outline-none"
@@ -811,7 +816,9 @@ export const CalendarConfigurationModal: React.FC<
                         // Ignore a non-finite parse (empty field) — NaN would reach Firestore and fail the whole save.
                         const next = parseInt(e.target.value, 10);
                         if (Number.isFinite(next)) {
-                          updateBuilding({ daysVisible: next });
+                          updateBuilding({
+                            daysVisible: Math.min(30, Math.max(1, next)),
+                          });
                         }
                       }}
                       className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded focus:ring-1 focus:ring-brand-blue-primary outline-none bg-white"
