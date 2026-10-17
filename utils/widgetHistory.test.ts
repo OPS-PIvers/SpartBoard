@@ -93,4 +93,16 @@ describe('widgetHistory', () => {
     expect(stack.undo).toHaveLength(WIDGET_HISTORY_LIMIT);
     expect(stack.undo[0].widgets[0].x).toBe(10);
   });
+
+  it('does not fold an edit after undo into an older same-widget entry', () => {
+    const stack = createWidgetHistoryStack();
+    const s0 = [widget('a', 0), widget('b', 0)];
+    const s1 = [widget('a', 10), widget('b', 0)];
+    const s2 = [widget('a', 10), widget('b', 10)];
+    recordWidgetHistory(stack, s0, 'a', 0);
+    recordWidgetHistory(stack, s1, 'b', 100);
+    expect(undoWidgetHistory(stack, s2)).toBe(s1);
+    expect(recordWidgetHistory(stack, s1, 'a', 200)).toBe(true);
+    expect(stack.undo).toHaveLength(2);
+  });
 });
