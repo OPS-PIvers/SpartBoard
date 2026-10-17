@@ -103,6 +103,15 @@ describe.runIf(findEmulatorJar())(
       expect(() => proveRenamed(SAMPLE, broken, map)).toThrow(/not equivalent/);
     }, 60_000);
 
+    it('proves already-minified rules, where nothing is left to rename', () => {
+      const once = minifyRules(SAMPLE).text;
+      const twice = minifyRules(once);
+      expect(proveRenamed(once, twice.text, twice.map)).toMatch(/^EQUIVALENT/);
+      expect(proveRenamed(once, once, new Map())).toMatch(
+        /^EQUIVALENT \(0 names/
+      );
+    }, 60_000);
+
     it('rejects a logic change', () => {
       const { text, map } = minifyRules(SAMPLE);
       expect(() =>

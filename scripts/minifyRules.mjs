@@ -85,7 +85,7 @@ export function minifyRules(stripped) {
 }
 
 export function formatNameMap(map) {
-  return [...map].map(([original, short]) => `${short} ${original}`).join('\n') + '\n';
+  return [...map].map(([original, short]) => `${short} ${original}\n`).join('');
 }
 
 // Throws unless <after> compiles to <before>'s AST with only the mapped bound names changed.

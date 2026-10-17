@@ -140,6 +140,7 @@ public class RulesAst {
     if (a[0].equals("renamed")) {
       Map<String, String> back = new HashMap<>();
       for (String l : Files.readAllLines(java.nio.file.Path.of(a[3]))) {
+        if (l.isBlank()) continue;
         String[] p = l.trim().split(" ");
         if (p.length != 2 || back.put(p[0], p[1]) != null) { System.err.println("bad name map line: " + l); System.exit(2); }
       }
