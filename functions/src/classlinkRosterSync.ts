@@ -504,7 +504,13 @@ function buildLiveDeps(db: admin.firestore.Firestore): ClassLinkSyncDeps {
         ? await admin
             .auth()
             .getUser(ownerUid)
-            .catch(() => null)
+            .catch((err: unknown) => {
+              // Only a missing owner prunes; a transient Auth error must not wipe the index.
+              if ((err as { code?: string })?.code === 'auth/user-not-found') {
+                return null;
+              }
+              throw err;
+            })
         : null;
       const enrolled =
         owner?.email && owner.emailVerified

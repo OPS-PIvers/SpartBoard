@@ -1237,6 +1237,8 @@ interface CommitRosterPinIndexEntry {
 export const commitRosterPinIndexV1 = onCall(
   {
     memory: '256MiB',
+    // Up to 13 sequential ClassLink calls at 20 s each.
+    timeoutSeconds: 120,
     secrets: [
       CLASSLINK_CLIENT_ID,
       CLASSLINK_CLIENT_SECRET,
