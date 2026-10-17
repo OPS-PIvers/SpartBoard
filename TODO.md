@@ -33,7 +33,7 @@ Legend: effort S/M/L, risk LOW/MED/HIGH. Sections ordered: human-gated first.
 Prod moved to the OPSTech billing account on 2026-10-01; a $30/mo budget and BigQuery billing export (standard + detailed, dataset `spartboard.billing_export`) cover it. Two Monitoring alerts email Paul: client `BatchGetDocuments` > 3,500/hour and `Commit FAILED_PRECONDITION` > 1,000/hour (the Sept 2026 autosave loops).
 
 - [ ] **Verify prod stays warm after the next `main` release**: `gcloud run services describe getpseudonymsforassignmentv1 --project=spartboard --region=us-central1 --format="value(spec.template.metadata.annotations['autoscaling.knative.dev/minScale'])"` must print `1` (dev should print nothing = 0; PR #3723). (S/LOW)
-- [ ] **Artifact Registry cleanup**: a dry-run policy (delete > 7 days, keep 2 newest per package) is on `spartboard-dev` `gcf-artifacts`. Check the dry-run deletions in Cloud Audit Logs, set `cleanupPolicyDryRun=false` in dev, then apply the same policy to prod. Never use a 1-day policy (wipes the build cache). ~$2/mo. (S/LOW)
+- [ ] **Artifact Registry cleanup**: the dev deploy sets a 1-day policy on `spartboard-dev` (#4332), after which images are rebuilt on every functions deploy. Apply an equivalent policy to prod once its effect on build cache and deploy time is confirmed on dev. ~$2/mo. (S/LOW)
 - [ ] **Unused secrets**: confirm who uses `JULES_API_KEY` (2 versions) and `YOUTUBE_API_KEY` in prod; no deployed function references them. Disable (reversible) rather than delete. Never run `firebase functions:secrets:prune` — it destroys versions irreversibly with no dry run. (S/LOW)
 - [ ] **Stale budget**: the $20 "SpartBoard" budget on the personal billing account (01597B) still filters on the prod project and now covers nothing — delete it. (S/LOW)
 
@@ -43,7 +43,6 @@ Prod moved to the OPSTech billing account on 2026-10-01; a $30/mo budget and Big
 - [ ] **M16 (PLC Phases 7–8)**: share-action integration point for Mini-Apps, mini-app sync content model, GL/Drive coupling during import. See `docs/specs/M16-plc-phases-7-8-spec.md`.
 - [ ] **LO12 (Nexus connections)**: sign off deferral of Candidates 6/9 and rejection of 11. See `docs/specs/LO12-nexus-widget-connections-spec.md`.
 - [ ] **M14 Schoology Phase E** formal deliverables — district coordination. (M)
-- [ ] **D3**: schedule `jose` 4→6 and `@google/genai` dependency bumps with LTI/AI regression testing. (M/MED)
 - [ ] **District Curriculum Repository** for Quiz widget (admin-approved quiz library, grade/subject tags) — large net-new feature, needs product definition. (L)
 
 ### From the 2026-09-26 plan sweep (flag flips, prod steps, Paul's testing and decisions)
@@ -300,7 +299,7 @@ From the 2026-10-01 cost audit (adversarially reviewed). Steady-state cost is ~$
 
 ## 6. Admin / no-code roadmap stragglers (from the archived non-code roadmap — verify before building)
 
-- [ ] **Mini App library Monaco editor**: wire `@monaco-editor/react` (already used in WidgetBuilder/CodeEditorPane) into `MiniAppLibraryModal.tsx`; formalize/version the postMessage bridge API. (M/LOW)
+- [ ] **Mini App library Monaco editor**: add a Monaco editor (the unused `@monaco-editor/react` dependency was removed; re-add it) to `MiniAppLibraryModal.tsx`; formalize/version the postMessage bridge API. (M/LOW)
 - [ ] **JSON-schema-driven admin config renderer** (the roadmap claimed `SchemaDrivenConfigurationPanel.tsx` exists — it does not): decide whether to generalize the ~60 bespoke `*ConfigurationPanel.tsx` files or drop the idea. (M)
 - [ ] **Data binding / webhooks (Phases 3.3–3.4)**: server-side proxy + webhook executor CFs — security-sensitive, needs careful design. (L/HIGH)
 - [ ] **Google Fonts picker + @font-face upload (Phase 1.2)** — not verified as implemented; verify then build or drop. (M/LOW)

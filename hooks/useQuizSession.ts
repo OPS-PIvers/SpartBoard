@@ -78,7 +78,12 @@ import {
   canTeacherSubmit,
 } from '@/utils/quizTeacherSubmit';
 import { acceptsStudents, endSessionPatch } from '@/utils/sessionLifecycle';
-import { quizSessionWrite } from '@/utils/quizSessionPhase';
+import {
+  checkedQuizSessionWrite,
+  quizSessionWrite,
+  type QuizSessionEvent,
+  type QuizSessionWrite,
+} from '@/utils/quizSessionPhase';
 import {
   initialQuizTeacherSessionState,
   loadedValue,
@@ -261,6 +266,66 @@ export function isUnsafeBlankDraft(
   priorEntry: QuizResponseAnswer | undefined
 ): boolean {
   return isDraft && answer === '' && !!priorEntry && priorEntry.answer !== '';
+}
+
+// How long a transaction waits for in-flight draft autosaves before going ahead.
+const DRAFT_SETTLE_MS = 4000;
+
+export interface CommittedAnswers {
+  answers: QuizResponseAnswer[];
+  status: QuizResponse['status'];
+  baseWriteAt: unknown;
+}
+
+// What a transactional answers write leaves on the doc, keyed to the stamp it read.
+export function committedFromPatch(
+  read: QuizResponse,
+  patch: Record<string, unknown>
+): CommittedAnswers {
+  return {
+    answers:
+      (patch.answers as QuizResponseAnswer[] | undefined) ?? read.answers ?? [],
+    status:
+      typeof patch.status === 'string'
+        ? (patch.status as QuizResponse['status'])
+        : read.status,
+    baseWriteAt: read.lastWriteAt,
+  };
+}
+
+// Resolves once every pending draft write settles, or after `ms` so an offline queue can't hang a submit.
+export function settleDraftsWithin(
+  drafts: Iterable<Promise<unknown>>,
+  ms: number
+): Promise<void> {
+  const pending = [...drafts];
+  if (pending.length === 0) return Promise.resolve();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return Promise.race([
+    Promise.allSettled(pending).then(() => undefined),
+    new Promise<void>((resolve) => {
+      timer = setTimeout(resolve, ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
+}
+
+// True when server stamp `a` is strictly later than `b`; a missing or pending (null) `a` never is.
+export function isWriteAtAfter(a: unknown, b: unknown): boolean {
+  const parts = (t: unknown): [number, number] | null => {
+    if (!t || typeof t !== 'object') return null;
+    const { seconds, nanoseconds } = t as {
+      seconds?: unknown;
+      nanoseconds?: unknown;
+    };
+    return typeof seconds === 'number' && typeof nanoseconds === 'number'
+      ? [seconds, nanoseconds]
+      : null;
+  };
+  const pa = parts(a);
+  if (!pa) return false;
+  const pb = parts(b);
+  if (!pb) return true;
+  return pa[0] !== pb[0] ? pa[0] > pb[0] : pa[1] > pb[1];
 }
 
 /**
@@ -1201,6 +1266,7 @@ export const useQuizSessionTeacher = (
     initialQuizTeacherSessionState
   );
   const advancingRef = useRef(false);
+  const [autoRetry, setAutoRetry] = useState(0);
 
   // Adjust state during render when sessionId changes, clearing stale data from the previous selection.
   if (sessionId !== state.sessionId) {
@@ -1773,13 +1839,31 @@ export const useQuizSessionTeacher = (
     [sessionId]
   );
 
+  // Writes only if the stored session is still on the step this tab showed, so a stale tab can't move it twice.
+  const checkedSessionWrite = useCallback(
+    async (
+      seen: QuizSession,
+      event: QuizSessionEvent
+    ): Promise<QuizSessionWrite | null> => {
+      if (!sessionId) return null;
+      const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, sessionId);
+      return runTransaction(db, async (tx) => {
+        const snap = await tx.get(sessionRef);
+        const stored = snap.exists() ? (snap.data() as QuizSession) : undefined;
+        const write = checkedQuizSessionWrite(seen, stored, event, Date.now());
+        if (write) tx.update(sessionRef, write.patch);
+        return write;
+      });
+    },
+    [sessionId]
+  );
+
   const advanceQuestion = useCallback(async () => {
     if (!sessionId || !session) return;
-    const write = quizSessionWrite(session, { type: 'advance' }, Date.now());
-    if (!write) return;
-    await updateDoc(doc(db, QUIZ_SESSIONS_COLLECTION, sessionId), write.patch);
-    if (write.finalize) await finalizeAllResponses();
-  }, [sessionId, session, finalizeAllResponses]);
+    if (!quizSessionWrite(session, { type: 'advance' }, Date.now())) return;
+    const write = await checkedSessionWrite(session, { type: 'advance' });
+    if (write?.finalize) await finalizeAllResponses();
+  }, [sessionId, session, checkedSessionWrite, finalizeAllResponses]);
 
   const endQuizSession = useCallback(async () => {
     if (!sessionId) return;
@@ -1804,10 +1888,14 @@ export const useQuizSessionTeacher = (
       session.publicQuestions[session.currentQuestionIndex]?.id;
     if (!write || !currentQId) return;
     if (!everyoneAnsweredQuestion(responses, currentQId)) return;
-    updateDoc(doc(db, QUIZ_SESSIONS_COLLECTION, sessionId), write.patch).catch(
-      (err) => console.error('[AutoProgress] update failed:', err)
-    );
-  }, [responses, session, sessionId]);
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    checkedSessionWrite(session, { type: 'everyoneAnswered' }).catch((err) => {
+      console.error('[AutoProgress] update failed:', err);
+      // A failed transaction doesn't queue like updateDoc did, so try again.
+      retry = setTimeout(() => setAutoRetry((n) => n + 1), 2000);
+    });
+    return () => clearTimeout(retry);
+  }, [responses, session, sessionId, checkedSessionWrite, autoRetry]);
 
   // Handle the actual auto-advance when the timestamp is reached
   useEffect(() => {
@@ -1815,10 +1903,11 @@ export const useQuizSessionTeacher = (
 
     const timer = setInterval(() => {
       if (Date.now() >= (session.autoProgressAt ?? 0)) {
-        clearInterval(timer);
         if (advancingRef.current) return;
         advancingRef.current = true;
+        // Keep ticking until the advance lands, so a failed transaction retries.
         advanceQuestion()
+          .then(() => clearInterval(timer))
           .catch((err) => console.error('[AutoProgress] advance failed:', err))
           .finally(() => {
             advancingRef.current = false;
@@ -2018,6 +2107,38 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   const myResponseRef = useRef<QuizResponse | null>(null);
   // eslint-disable-next-line react-hooks/refs -- latest-value ref, read only in handlers/effects
   myResponseRef.current = myResponse;
+  // Answers a transaction committed that the listener has not echoed yet; drafts build on these instead of the stale cache.
+  const committedAnswersRef = useRef<CommittedAnswers | null>(null);
+  // Draft autosaves not yet acknowledged; a transaction waits for them so a late draft can't land on top of it.
+  const inFlightDraftsRef = useRef<Set<Promise<unknown>>>(new Set());
+  // Answers transactions in flight; a draft that starts meanwhile waits so it builds on their result.
+  const inFlightTxRef = useRef<Set<Promise<unknown>>>(new Set());
+  const runAnswersTx = useCallback(
+    <T>(
+      commit: { written: CommittedAnswers | null },
+      run: () => Promise<T>
+    ): Promise<T> => {
+      const op = (async () => {
+        await settleDraftsWithin(inFlightDraftsRef.current, DRAFT_SETTLE_MS);
+        const result = await run();
+        const written = commit.written;
+        // Skip when the listener already echoed this commit, so the overlay can't outlive it.
+        if (
+          written &&
+          !isWriteAtAfter(
+            myResponseRef.current?.lastWriteAt,
+            written.baseWriteAt
+          )
+        ) {
+          committedAnswersRef.current = written;
+        }
+        return result;
+      })();
+      inFlightTxRef.current.add(op);
+      return op.finally(() => inFlightTxRef.current.delete(op));
+    },
+    []
+  );
 
   // The teacher-side media gate, carried on the session doc. `/quiz` mounts no
   // AuthProvider, so this marker is the only thing that can authorise a take.
@@ -2192,6 +2313,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
 
   useEffect(() => {
     if (!sessionIdState || !responseKeyState) return;
+    committedAnswersRef.current = null;
     return onSnapshot(
       doc(
         db,
@@ -2201,6 +2323,15 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         responseKeyState
       ),
       (snap) => {
+        const committed = committedAnswersRef.current;
+        if (
+          committed &&
+          snap.metadata?.hasPendingWrites !== true &&
+          (!snap.exists() ||
+            isWriteAtAfter(snap.data()?.lastWriteAt, committed.baseWriteAt))
+        ) {
+          committedAnswersRef.current = null;
+        }
         setMyResponse(
           snap.exists()
             ? { ...(snap.data() as QuizResponse), _responseKey: snap.id }
@@ -2356,6 +2487,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       // stale `lastSnapshotAt` from the prior attempt would suppress
       // legitimate snapshots in the new one.
       lastHistorySnapshotAtRef.current.clear();
+      committedAnswersRef.current = null;
       try {
         const normCode = normalizeQuizCode(code);
         if (!normCode) throw new Error('Invalid code');
@@ -3233,13 +3365,50 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // race this file's other transactions close, but only for drafts
         // racing each other — a dropped draft self-heals on the next tick,
         // unlike a dropped explicit submit.
-        const existing = myResponseRef.current;
-        if (existing) {
-          const result = computeWrite(existing);
-          historySnapshot = result.snapshot;
-          if (!result.skip) {
-            await updateDoc(responseRef, result.patch);
+        const draft = (async () => {
+          if (inFlightTxRef.current.size > 0) {
+            await settleDraftsWithin(inFlightTxRef.current, DRAFT_SETTLE_MS);
           }
+          const cached = myResponseRef.current;
+          const committed = committedAnswersRef.current;
+          if (!cached) return null;
+          const existing = committed
+            ? {
+                ...cached,
+                answers: committed.answers,
+                status: committed.status,
+              }
+            : cached;
+          const result = computeWrite(existing);
+          if (result.skip) return result.snapshot;
+          const before = committed
+            ? { answers: committed.answers, status: committed.status }
+            : null;
+          if (committed) {
+            committed.answers = result.patch.answers as QuizResponseAnswer[];
+            if (typeof result.patch.status === 'string') {
+              committed.status = result.patch.status as QuizResponse['status'];
+            }
+          }
+          try {
+            await updateDoc(responseRef, result.patch);
+          } catch (err) {
+            // Roll back so the overlay never holds answers the server refused.
+            if (
+              committed &&
+              before &&
+              committed.answers === result.patch.answers
+            )
+              Object.assign(committed, before);
+            throw err;
+          }
+          return result.snapshot;
+        })();
+        inFlightDraftsRef.current.add(draft);
+        try {
+          historySnapshot = await draft;
+        } finally {
+          inFlightDraftsRef.current.delete(draft);
         }
       } else {
         // Explicit submits are discrete, user-initiated actions rather than
@@ -3250,27 +3419,33 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // than the client-cached `myResponseRef`, so a submit racing one of
         // those siblings for a different question can no longer silently
         // drop whichever write lands second.
-        historySnapshot = await runTransaction<{
-          priorEntry: QuizResponseAnswer;
-          now: number;
-        } | null>(db, async (tx) => {
-          const snap = await tx.get(responseRef);
-          if (!snap.exists()) {
-            // Can't-happen in practice (doc is created on join) — logged so
-            // a real occurrence isn't silently invisible, unlike a
-            // swallowed return.
-            console.error(
-              '[useQuizSession] submitAnswer: response doc missing on write',
-              { sessionId, responseKey }
-            );
-            return null;
-          }
-          const result = computeWrite(snap.data() as QuizResponse);
-          if (!result.skip) {
-            tx.update(responseRef, result.patch);
-          }
-          return result.snapshot;
-        });
+        const commit: { written: CommittedAnswers | null } = { written: null };
+        historySnapshot = await runAnswersTx(commit, () =>
+          runTransaction<{
+            priorEntry: QuizResponseAnswer;
+            now: number;
+          } | null>(db, async (tx) => {
+            commit.written = null;
+            const snap = await tx.get(responseRef);
+            if (!snap.exists()) {
+              // Can't-happen in practice (doc is created on join) — logged so
+              // a real occurrence isn't silently invisible, unlike a
+              // swallowed return.
+              console.error(
+                '[useQuizSession] submitAnswer: response doc missing on write',
+                { sessionId, responseKey }
+              );
+              return null;
+            }
+            const fresh = snap.data() as QuizResponse;
+            const result = computeWrite(fresh);
+            if (!result.skip) {
+              tx.update(responseRef, result.patch);
+              commit.written = committedFromPatch(fresh, result.patch);
+            }
+            return result.snapshot;
+          })
+        );
       }
 
       if (historySnapshot) {
@@ -3316,7 +3491,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         });
       }
     },
-    []
+    [runAnswersTx]
   );
 
   /**
@@ -3349,48 +3524,58 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       );
 
       let writtenTakeIndex: number | null = null;
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(responseRef);
-        if (!snap.exists()) return;
-        const existing = snap.data() as QuizResponse;
-        const existingAnswers = existing.answers ?? [];
-        // Symmetric to markUnresponded: a closed slot never accepts a take.
-        if (isRecordingSlotClosed(existingAnswers, input.questionId)) return;
-        const takeIndex = nextTakeIndex(existingAnswers, input.questionId);
+      const commit: { written: CommittedAnswers | null } = { written: null };
+      await runAnswersTx(commit, () =>
+        runTransaction(db, async (tx) => {
+          commit.written = null;
+          writtenTakeIndex = null;
+          const snap = await tx.get(responseRef);
+          if (!snap.exists()) return;
+          const existing = snap.data() as QuizResponse;
+          const existingAnswers = existing.answers ?? [];
+          // Symmetric to markUnresponded: a closed slot never accepts a take.
+          if (isRecordingSlotClosed(existingAnswers, input.questionId)) return;
+          const takeIndex = nextTakeIndex(existingAnswers, input.questionId);
 
-        const newAnswer: QuizResponseAnswer = {
-          questionId: input.questionId,
-          // A recording answer's text slot is legitimately empty; the artifact
-          // is the response. `isUnsafeBlankDraft` only guards drafts, and a
-          // committed take is never a draft.
-          answer: '',
-          answeredAt: Date.now(),
-          status: 'submitted',
-          takeIndex,
-          artifacts: takeArtifacts(input),
-        };
-        if (input.noticeAckedAt) newAnswer.noticeAckedAt = input.noticeAckedAt;
-        if (input.locale) newAnswer.locale = input.locale;
-        if (input.micState) newAnswer.micState = input.micState;
+          const newAnswer: QuizResponseAnswer = {
+            questionId: input.questionId,
+            // A recording answer's text slot is legitimately empty; the artifact
+            // is the response. `isUnsafeBlankDraft` only guards drafts, and a
+            // committed take is never a draft.
+            answer: '',
+            answeredAt: Date.now(),
+            status: 'submitted',
+            takeIndex,
+            artifacts: takeArtifacts(input),
+          };
+          if (input.noticeAckedAt)
+            newAnswer.noticeAckedAt = input.noticeAckedAt;
+          if (input.locale) newAnswer.locale = input.locale;
+          if (input.micState) newAnswer.micState = input.micState;
 
-        const updated = [...existingAnswers, newAnswer];
-        const nextStatus =
-          existing.status === 'completed' ? 'completed' : 'in-progress';
+          const updated = [...existingAnswers, newAnswer];
+          const nextStatus =
+            existing.status === 'completed' ? 'completed' : 'in-progress';
 
-        tx.update(responseRef, {
-          status: nextStatus,
-          answers: updated,
-          lastWriteAt: serverTimestamp(),
-          ...servedSnapshotPatch(
-            servedQuestionIdsRef.current,
-            existing.servedQuestionIds
-          ),
-        });
-        writtenTakeIndex = takeIndex;
-      });
+          tx.update(responseRef, {
+            status: nextStatus,
+            answers: updated,
+            lastWriteAt: serverTimestamp(),
+            ...servedSnapshotPatch(
+              servedQuestionIdsRef.current,
+              existing.servedQuestionIds
+            ),
+          });
+          commit.written = committedFromPatch(existing, {
+            status: nextStatus,
+            answers: updated,
+          });
+          writtenTakeIndex = takeIndex;
+        })
+      );
       return writtenTakeIndex;
     },
-    []
+    [runAnswersTx]
   );
 
   /**
@@ -3437,29 +3622,35 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         RESPONSES_COLLECTION,
         responseKey
       );
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(responseRef);
-        if (!snap.exists()) return;
-        const existingAnswers = (snap.data() as QuizResponse).answers ?? [];
-        let changed = false;
-        const updated = existingAnswers.map((a) => {
-          if (a.questionId !== questionId || !a.artifacts?.length) return a;
-          const artifacts = a.artifacts.map((art) => {
-            if (art.id !== artifactId || art.uploadState === uploadState)
-              return art;
-            changed = true;
-            return { ...art, uploadState };
+      const commit: { written: CommittedAnswers | null } = { written: null };
+      await runAnswersTx(commit, () =>
+        runTransaction(db, async (tx) => {
+          commit.written = null;
+          const snap = await tx.get(responseRef);
+          if (!snap.exists()) return;
+          const existing = snap.data() as QuizResponse;
+          const existingAnswers = existing.answers ?? [];
+          let changed = false;
+          const updated = existingAnswers.map((a) => {
+            if (a.questionId !== questionId || !a.artifacts?.length) return a;
+            const artifacts = a.artifacts.map((art) => {
+              if (art.id !== artifactId || art.uploadState === uploadState)
+                return art;
+              changed = true;
+              return { ...art, uploadState };
+            });
+            return changed ? { ...a, artifacts } : a;
           });
-          return changed ? { ...a, artifacts } : a;
-        });
-        if (!changed) return;
-        tx.update(responseRef, {
-          answers: updated,
-          lastWriteAt: serverTimestamp(),
-        });
-      });
+          if (!changed) return;
+          tx.update(responseRef, {
+            answers: updated,
+            lastWriteAt: serverTimestamp(),
+          });
+          commit.written = committedFromPatch(existing, { answers: updated });
+        })
+      );
     },
-    []
+    [runAnswersTx]
   );
 
   /**
@@ -3488,45 +3679,53 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         RESPONSES_COLLECTION,
         responseKey
       );
-      await runTransaction(db, async (tx) => {
-        const snap = await tx.get(responseRef);
-        if (!snap.exists()) return;
-        const existing = snap.data() as QuizResponse;
-        const existingAnswers = existing.answers ?? [];
-        // Never overwrite a real response — a student who already recorded a
-        // take on this question has answered it.
-        if (
-          existingAnswers.some(
-            (a) => a.questionId === questionId && !a.unresponded
+      const commit: { written: CommittedAnswers | null } = { written: null };
+      await runAnswersTx(commit, () =>
+        runTransaction(db, async (tx) => {
+          commit.written = null;
+          const snap = await tx.get(responseRef);
+          if (!snap.exists()) return;
+          const existing = snap.data() as QuizResponse;
+          const existingAnswers = existing.answers ?? [];
+          // Never overwrite a real response — a student who already recorded a
+          // take on this question has answered it.
+          if (
+            existingAnswers.some(
+              (a) => a.questionId === questionId && !a.unresponded
+            )
           )
-        )
-          return;
+            return;
 
-        const entry: QuizResponseAnswer = {
-          questionId,
-          answer: '',
-          answeredAt: Date.now(),
-          status: reason === 'passed' ? 'draft' : 'submitted',
-          unresponded: reason,
-        };
-        const updated = [
-          ...existingAnswers.filter((a) => a.questionId !== questionId),
-          entry,
-        ];
-        const nextStatus =
-          existing.status === 'completed' ? 'completed' : 'in-progress';
-        tx.update(responseRef, {
-          status: nextStatus,
-          answers: updated,
-          lastWriteAt: serverTimestamp(),
-          ...servedSnapshotPatch(
-            servedQuestionIdsRef.current,
-            existing.servedQuestionIds
-          ),
-        });
-      });
+          const entry: QuizResponseAnswer = {
+            questionId,
+            answer: '',
+            answeredAt: Date.now(),
+            status: reason === 'passed' ? 'draft' : 'submitted',
+            unresponded: reason,
+          };
+          const updated = [
+            ...existingAnswers.filter((a) => a.questionId !== questionId),
+            entry,
+          ];
+          const nextStatus =
+            existing.status === 'completed' ? 'completed' : 'in-progress';
+          tx.update(responseRef, {
+            status: nextStatus,
+            answers: updated,
+            lastWriteAt: serverTimestamp(),
+            ...servedSnapshotPatch(
+              servedQuestionIdsRef.current,
+              existing.servedQuestionIds
+            ),
+          });
+          commit.written = committedFromPatch(existing, {
+            status: nextStatus,
+            answers: updated,
+          });
+        })
+      );
     },
-    []
+    [runAnswersTx]
   );
 
   const completeQuiz = useCallback(async (opts?: { timeUp?: boolean }) => {

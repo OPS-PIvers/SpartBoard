@@ -1000,6 +1000,12 @@
       ]
     },
     {
+      "collectionGroup": "pin_login_attempts",
+      "fieldPath": "expireAt",
+      "ttl": true,
+      "indexes": []
+    },
+    {
       "collectionGroup": "mcp_oauth_codes",
       "fieldPath": "expireAt",
       "ttl": true,

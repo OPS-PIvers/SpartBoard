@@ -1,4 +1,3 @@
-import { removeBackground as imglyRemoveBackground } from '@imgly/background-removal';
 import { WorkerMessage, TrimResult, FloodFillResult } from './imageWorker';
 
 /**
@@ -102,6 +101,8 @@ export const trimImageWhitespace = (dataUrl: string): Promise<string> => {
 export const removeBackground = async (dataUrl: string): Promise<string> => {
   try {
     // High-quality background removal using library
+    const { removeBackground: imglyRemoveBackground } =
+      await import('@imgly/background-removal');
     const blob = await imglyRemoveBackground(dataUrl, {
       progress: (key, current, total) => {
         if (current === total) {

@@ -275,4 +275,21 @@ describe('TrackedFlashcardAdapter', () => {
     expect(batches.map((batch) => batch.length)).toEqual([500, 500, 200]);
     expect(adapter.hasUnsentRatings()).toBe(false);
   });
+  it('ignores a second rating of a card in the same round, as the server does', async () => {
+    const batches: FlashcardRating[][] = [];
+    const adapter = new TrackedFlashcardAdapter({
+      classId: 'class-a',
+      initial: null,
+      write: () => Promise.resolve(),
+      rate: (ratings) => {
+        batches.push(ratings);
+        return Promise.resolve();
+      },
+    });
+    adapter.record('card-a', true, 1);
+    const state = adapter.record('card-a', true, 1);
+    expect(state.cards['card-a']).toEqual({ s: 1, due: 2, c: 1, w: 0 });
+    await adapter.flush();
+    expect(batches).toEqual([[{ cardId: 'card-a', correct: true, round: 1 }]]);
+  });
 });

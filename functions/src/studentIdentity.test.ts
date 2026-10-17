@@ -211,6 +211,13 @@ vi.mock('firebase-admin', () => {
   }
 
   const db = {
+    runTransaction: async (fn: (tx: any) => Promise<unknown>) =>
+      fn({
+        get: (ref: { get: () => Promise<unknown> }) => ref.get(),
+        set: (ref: { _path: string }, d: unknown) => {
+          h.docStore.set(ref._path, d);
+        },
+      }),
     collection: (path: string) => makeCollRef(path),
     collectionGroup: (name: string) => makeQuery(groupDocs(name), []),
     doc: (path: string) => makeDocRef(path),
@@ -235,7 +242,9 @@ vi.mock('firebase-admin', () => {
   return {
     apps: [{ name: '[DEFAULT]' }],
     initializeApp: () => {},
-    firestore: () => db,
+    firestore: Object.assign(() => db, {
+      Timestamp: { fromMillis: (ms: number) => ({ ms }) },
+    }),
     auth: () => ({
       createCustomToken: async (uid: string, claims: unknown) => {
         h.lastCustomToken = { uid, claims };
@@ -296,9 +305,17 @@ const callCommitIndex = commitRosterPinIndexV1 as unknown as (req: {
   auth?: unknown;
   data: unknown;
 }) => Promise<any>;
-const callPinLogin = pinLoginV1 as unknown as (req: {
+const rawPinLogin = pinLoginV1 as unknown as (req: {
+  auth?: unknown;
   data: unknown;
 }) => Promise<any>;
+const ANON_AUTH = {
+  uid: 'anon-caller',
+  token: { firebase: { sign_in_provider: 'anonymous' } },
+};
+// Both join flows sign in anonymously before bridging, so default to that.
+const callPinLogin = (req: { auth?: unknown; data: unknown }) =>
+  rawPinLogin('auth' in req ? req : { ...req, auth: ANON_AUTH });
 
 const HMAC = 'test-hmac-secret';
 
@@ -894,7 +911,43 @@ describe('getStudentClassDirectoryV1 — co-teachers, order and re-check', () =>
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('commitRosterPinIndexV1', () => {
-  const teacherAuth = { uid: 'teacher1', token: {} };
+  const teacherAuth = {
+    uid: 'teacher1',
+    token: { email: 'teacher@orono.example', email_verified: true },
+  };
+  const classlink = {
+    user: { sourcedId: 'T1', role: 'teacher' } as Record<
+      string,
+      unknown
+    > | null,
+    classes: ['CL1'],
+    students: ['SID-1', 'SID-2'],
+    calls: [] as string[],
+  };
+  beforeEach(() => {
+    classlink.user = { sourcedId: 'T1', role: 'teacher' };
+    classlink.classes = ['CL1'];
+    classlink.students = ['SID-1', 'SID-2'];
+    classlink.calls = [];
+    h.axiosGet = async (url: string) => {
+      classlink.calls.push(url);
+      if (url.endsWith('/users'))
+        return { data: { users: classlink.user ? [classlink.user] : [] } };
+      if (url.endsWith('/users/T1/classes'))
+        return {
+          data: {
+            classes: classlink.classes.map((sourcedId) => ({ sourcedId })),
+          },
+        };
+      if (url.endsWith('/classes/CL1/students'))
+        return {
+          data: {
+            users: classlink.students.map((sourcedId) => ({ sourcedId })),
+          },
+        };
+      throw new Error('unexpected url ' + url);
+    };
+  });
 
   it('rejects an unauthenticated caller', async () => {
     await expectCode(callCommitIndex({ data: {} }), 'unauthenticated');
@@ -908,6 +961,91 @@ describe('commitRosterPinIndexV1', () => {
       }),
       'permission-denied'
     );
+  });
+
+  it('rejects an anonymous caller who made their own roster (finding #1)', async () => {
+    h.docStore.set('users/anon1/rosters/r1', { classlinkClassId: 'CL1' });
+    await expectCode(
+      callCommitIndex({
+        auth: {
+          uid: 'anon1',
+          token: { firebase: { sign_in_provider: 'anonymous' } },
+        },
+        data: {
+          rosterId: 'r1',
+          entries: [{ period: '1', pin: '01', classlinkSourcedId: 'SID-1' }],
+        },
+      }),
+      'permission-denied'
+    );
+    expect(h.batchOps).toHaveLength(0);
+    expect(classlink.calls).toHaveLength(0);
+  });
+
+  it('rejects an unverified email', async () => {
+    h.docStore.set('users/teacher1/rosters/r1', { classlinkClassId: 'CL1' });
+    await expectCode(
+      callCommitIndex({
+        auth: {
+          uid: 'teacher1',
+          token: { email: 'teacher@orono.example', email_verified: false },
+        },
+        data: { rosterId: 'r1', entries: [] },
+      }),
+      'permission-denied'
+    );
+  });
+
+  it('rejects a caller ClassLink lists as a student', async () => {
+    h.docStore.set('users/teacher1/rosters/r1', { classlinkClassId: 'CL1' });
+    classlink.user = { sourcedId: 'T1', role: 'student' };
+    await expectCode(
+      callCommitIndex({
+        auth: teacherAuth,
+        data: {
+          rosterId: 'r1',
+          entries: [{ period: '1', pin: '01', classlinkSourcedId: 'SID-2' }],
+        },
+      }),
+      'permission-denied'
+    );
+    expect(h.batchOps).toHaveLength(0);
+  });
+
+  it('rejects a roster pointing at a class the caller does not teach', async () => {
+    h.docStore.set('users/teacher1/rosters/r1', { classlinkClassId: 'CL9' });
+    h.docStore.set('users/teacher1/rosters/r1/pin_index/1__01', {
+      pseudonym: 'kept',
+    });
+    await expectCode(
+      callCommitIndex({
+        auth: teacherAuth,
+        data: {
+          rosterId: 'r1',
+          entries: [{ period: '1', pin: '01', classlinkSourcedId: 'SID-1' }],
+        },
+      }),
+      'permission-denied'
+    );
+    expect(h.batchOps).toHaveLength(0);
+  });
+
+  it('leaves the index alone when ClassLink is unreachable', async () => {
+    h.docStore.set('users/teacher1/rosters/r1', { classlinkClassId: 'CL1' });
+    h.axiosGet = async () => {
+      throw new Error('ECONNRESET');
+    };
+    await expectCode(
+      callCommitIndex({
+        auth: teacherAuth,
+        data: {
+          rosterId: 'r1',
+          entries: [{ period: '1', pin: '01', classlinkSourcedId: 'SID-1' }],
+        },
+      }),
+      'unavailable'
+    );
+    expect(h.batchOps).toHaveLength(0);
   });
 
   it('rejects a missing rosterId', async () => {
@@ -959,8 +1097,10 @@ describe('commitRosterPinIndexV1', () => {
       wrote: 0,
       deleted: 0,
       skippedMalformed: 0,
+      skippedNotEnrolled: 0,
       skippedReason: 'no-classlink-class-id',
     });
+    expect(classlink.calls).toHaveLength(0);
   });
 
   it('writes the desired index and deletes stale entries', async () => {
@@ -999,6 +1139,25 @@ describe('commitRosterPinIndexV1', () => {
     });
   });
 
+  it('drops students ClassLink does not enroll in the class', async () => {
+    h.docStore.set('users/teacher1/rosters/r1', { classlinkClassId: 'CL1' });
+    const res = await callCommitIndex({
+      auth: teacherAuth,
+      data: {
+        rosterId: 'r1',
+        entries: [
+          { period: '1', pin: '01', classlinkSourcedId: 'SID-1' },
+          { period: '1', pin: '02', classlinkSourcedId: 'SID-OTHER-CLASS' },
+        ],
+      },
+    });
+    expect(res.wrote).toBe(1);
+    expect(res.skippedNotEnrolled).toBe(1);
+    expect(h.docStore.has('users/teacher1/rosters/r1/pin_index/1__02')).toBe(
+      false
+    );
+  });
+
   it('skips malformed entries and reports the count', async () => {
     h.docStore.set('users/teacher1/rosters/r1', { classlinkClassId: 'CL1' });
     const res = await callCommitIndex({
@@ -1019,6 +1178,99 @@ describe('commitRosterPinIndexV1', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 describe('pinLoginV1', () => {
+  it('rejects an unauthenticated caller', async () => {
+    await expectCode(
+      rawPinLogin({ data: { kind: 'quiz', code: 'ABC123', pin: '01' } }),
+      'unauthenticated'
+    );
+  });
+
+  describe('attempt limits', () => {
+    function seedSession() {
+      h.docStore.set('video_activity_sessions/vs1', {
+        teacherUid: 'teacher1',
+        rosterIds: ['r1'],
+      });
+      for (const pin of ['01', '02', '03', '04']) {
+        h.docStore.set(`users/teacher1/rosters/r1/pin_index/1__${pin}`, {
+          pseudonym: 'PS' + pin,
+          classId: 'CL2',
+          orgId: 'org-orono',
+        });
+      }
+    }
+    const login = (pin: string, uid = 'anon-caller') =>
+      callPinLogin({
+        auth: { uid, token: {} },
+        data: { kind: 'video-activity', sessionId: 'vs1', pin, period: '1' },
+      });
+
+    it('stops bridging after repeated misses from one caller', async () => {
+      seedSession();
+      for (let i = 0; i < 10; i++) {
+        expect(await login('9' + i)).toMatchObject({
+          reason: 'no-index-entry',
+        });
+      }
+      // Even a correct PIN now falls back to the plain PIN join.
+      expect(await login('01')).toEqual({
+        matched: false,
+        reason: 'rate-limited',
+      });
+      // Another caller is unaffected.
+      expect(await login('01', 'other-anon')).toMatchObject({ matched: true });
+    });
+
+    it('lets one caller rejoin as the same student but caps distinct students', async () => {
+      seedSession();
+      for (const pin of ['01', '01', '02', '03', '01']) {
+        expect(await login(pin)).toMatchObject({ matched: true });
+      }
+      expect(await login('04')).toEqual({
+        matched: false,
+        reason: 'rate-limited',
+      });
+    });
+
+    it('re-checks the identity cap when the attempt is recorded', async () => {
+      seedSession();
+      const key = 'pin_login_attempts/vs1__anon-caller';
+      for (const pin of ['01', '02', '03']) await login(pin);
+      // Simulate a parallel call that read the counter before the others landed.
+      const full = h.docStore.get(key);
+      h.docStore.set(key, { ...full, indexKeys: ['1__01', '1__02'] });
+      const realSet = h.docStore.set.bind(h.docStore);
+      let swapped = false;
+      h.docStore.get = ((orig) => (p: string) => {
+        const v = orig(p);
+        if (p === key && !swapped) {
+          swapped = true;
+          realSet(key, full);
+        }
+        return v;
+      })(h.docStore.get.bind(h.docStore));
+      try {
+        expect(await login('04')).toEqual({
+          matched: false,
+          reason: 'rate-limited',
+        });
+      } finally {
+        h.docStore.get = Map.prototype.get.bind(h.docStore);
+      }
+    });
+
+    it('resets after the window passes', async () => {
+      seedSession();
+      for (let i = 0; i < 10; i++) await login('9' + i);
+      const key = 'pin_login_attempts/vs1__anon-caller';
+      h.docStore.set(key, {
+        ...h.docStore.get(key),
+        windowStart: Date.now() - 16 * 60 * 1000,
+      });
+      expect(await login('01')).toMatchObject({ matched: true });
+    });
+  });
+
   it('rejects a missing kind', async () => {
     await expectCode(callPinLogin({ data: { pin: '1' } }), 'invalid-argument');
   });
@@ -1150,6 +1402,7 @@ describe('pinLoginV1', () => {
       studentRole: true,
       orgId: 'org-orono',
       classIds: ['CL1'],
+      pinLogin: true,
     });
   });
 

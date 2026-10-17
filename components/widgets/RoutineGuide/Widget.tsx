@@ -23,7 +23,7 @@ import { useDashboardActions } from '@/context/dashboardCanvasStore';
 import { useAuth } from '@/context/useAuth';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { WidgetLayout } from '../WidgetLayout';
-import { prepareLaunchConfig } from '../InstructionalRoutines/constants';
+import { prepareLaunchConfig } from '@/components/widgets/InstructionalRoutines/constants';
 import {
   getRoutineGuideColor,
   hasRoutineInfo,

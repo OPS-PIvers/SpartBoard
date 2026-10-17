@@ -1,5 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { beforeAll, describe, it, expect } from 'vitest';
 import i18n, { SUPPORTED_LANGUAGES } from '@/i18n/index';
+
+beforeAll(async () => {
+  await i18n.loadLanguages(SUPPORTED_LANGUAGES.map((lang) => lang.code));
+});
 
 describe('i18n config', () => {
   it('should initialize with supported languages', () => {

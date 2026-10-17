@@ -164,7 +164,12 @@ export const useLiveSession = (
 
     // 2. Synchronously adjust derived states
     const targetId = role === 'teacher' ? userId : joinCode;
-    if (!targetId) dispatch({ type: 'targetCleared' });
+    // A student switching codes drops the old session, so its widget can't show before the new one loads.
+    const switchedCode =
+      role !== 'teacher' &&
+      !!prevDeps.joinCode &&
+      joinCode !== prevDeps.joinCode;
+    if (!targetId || switchedCode) dispatch({ type: 'targetCleared' });
 
     if (role !== 'teacher' || !userId || !session?.isActive) {
       dispatch({ type: 'rosterCleared' });

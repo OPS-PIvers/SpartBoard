@@ -77,6 +77,24 @@ describe('planCarryForward', () => {
     expect(manifest.builds).toHaveLength(MAX_BUILDS);
   });
 
+  it('takes a smaller cap when one is passed', () => {
+    const previous = {
+      builds: Array.from({ length: 15 }, (_, i) => ({
+        id: `b${i}`,
+        deployedAt: ago(i * 1000),
+        files: [`b${i}.js`],
+      })),
+    };
+    const { toFetch, manifest } = planCarryForward(
+      previous,
+      { id: 'new', files: [] },
+      NOW,
+      10
+    );
+    expect(manifest.builds).toHaveLength(10);
+    expect(toFetch).toHaveLength(9);
+  });
+
   it('does not list the same build twice when the same commit redeploys', () => {
     const previous = {
       builds: [{ id: 'same', deployedAt: ago(1000), files: ['a.js'] }],

@@ -341,7 +341,8 @@ describe('Studio properties panel', () => {
 
     it.each(['en', 'es', 'de', 'fr'])(
       'has every option label the panel builds in %s',
-      (lng) => {
+      async (lng) => {
+        await i18n.loadLanguages(lng);
         const keys = [
           ...INTERACTION_ORDER.map((v) => `interaction_${v}`),
           ...['multiple-choice', 'matching', 'sorting'].map(

@@ -124,6 +124,10 @@ const ACTIVATION_OPTIONS: {
   },
 ];
 
+// Largest dismissal duration the form accepts: one day, in the chosen unit.
+const maxDismissalDuration = (unit: 'seconds' | 'minutes'): number =>
+  unit === 'minutes' ? 1440 : 86400;
+
 function buildDefaultForm(): AnnouncementFormData {
   return {
     name: '',
@@ -1566,16 +1570,17 @@ export const AnnouncementsManager: React.FC = () => {
                       type="number"
                       {...tourAttr('admin.announcements.dismissal-duration')}
                       min={1}
-                      max={
-                        form.dismissalDurationUnit === 'minutes' ? 1440 : 86400
-                      }
+                      max={maxDismissalDuration(form.dismissalDurationUnit)}
                       value={form.dismissalDurationSeconds}
                       onChange={(e) => {
                         const parsed = parseInt(e.target.value, 10);
                         if (!Number.isFinite(parsed) || parsed < 1) return;
                         setForm((f) => ({
                           ...f,
-                          dismissalDurationSeconds: parsed,
+                          dismissalDurationSeconds: Math.min(
+                            parsed,
+                            maxDismissalDuration(f.dismissalDurationUnit)
+                          ),
                         }));
                       }}
                       className="flex-1 px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
@@ -1588,6 +1593,12 @@ export const AnnouncementsManager: React.FC = () => {
                           ...f,
                           dismissalDurationUnit: e.target.value as
                             'seconds' | 'minutes',
+                          dismissalDurationSeconds: Math.min(
+                            f.dismissalDurationSeconds,
+                            maxDismissalDuration(
+                              e.target.value as 'seconds' | 'minutes'
+                            )
+                          ),
                         }))
                       }
                       className="px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"

@@ -130,12 +130,39 @@ const TARGET_DOC: DocStub = {
   }),
 };
 
+const memberDoc = (roleId: string): DocStub => ({
+  exists: true,
+  data: () => ({ roleId, buildingIds: [] as string[] }),
+});
+
 function buildFirestoreStub(opts: {
   emailEnabled: boolean;
   mailSet?: ReturnType<typeof vi.fn>;
+  callerRole?: string;
+  targetRole?: string;
+  legacySuperAdmins?: string[];
 }) {
   const mailSet = opts.mailSet ?? vi.fn().mockResolvedValue(undefined);
+  const callerDoc = opts.callerRole ? memberDoc(opts.callerRole) : ADMIN_DOC;
+  const targetDoc = opts.targetRole ? memberDoc(opts.targetRole) : TARGET_DOC;
+  const roleOf = (email: string) =>
+    email === 'admin@orono.k12.mn.us'
+      ? (callerDoc.data().roleId as string)
+      : (targetDoc.data().roleId as string);
   return {
+    // isStrictSuperAdmin(): operator-org member doc and legacy user_roles list.
+    doc: (path: string) => ({
+      get: () => {
+        if (path === 'admin_settings/user_roles') {
+          return Promise.resolve({
+            exists: true,
+            get: () => opts.legacySuperAdmins ?? [],
+          });
+        }
+        const email = path.split('/').pop() ?? '';
+        return Promise.resolve({ exists: true, get: () => roleOf(email) });
+      },
+    }),
     collection: (col: string) => {
       if (col === 'organizations') {
         return {
@@ -145,8 +172,8 @@ function buildFirestoreStub(opts: {
                 get: () =>
                   Promise.resolve(
                     memberKey === 'admin@orono.k12.mn.us'
-                      ? ADMIN_DOC
-                      : TARGET_DOC
+                      ? callerDoc
+                      : targetDoc
                   ),
               }),
             }),
@@ -278,5 +305,84 @@ describe('resetOrganizationUserPassword — email verification gate', () => {
       })
     ).rejects.toMatchObject({ code: 'permission-denied' });
     expect(generatePasswordResetLinkMock).not.toHaveBeenCalled();
+  });
+});
+
+// A domain admin must not be able to take over a super admin's account by
+// minting (and, with the email queue off, receiving) their reset link.
+describe('resetOrganizationUserPassword — role check on the target', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    generatePasswordResetLinkMock.mockResolvedValue(
+      'https://example.com/reset?token=abc'
+    );
+  });
+
+  const call = () =>
+    handler({
+      auth: {
+        uid: 'uid1',
+        token: { email: 'admin@orono.k12.mn.us', email_verified: true },
+      },
+      data: { orgId: 'orono', email: 'boss@orono.k12.mn.us' },
+    });
+
+  it('domain admin cannot reset a super_admin member', async () => {
+    firestoreMock.mockReturnValue(
+      buildFirestoreStub({
+        emailEnabled: false,
+        callerRole: 'domain_admin',
+        targetRole: 'super_admin',
+      })
+    );
+    await expect(call()).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(generatePasswordResetLinkMock).not.toHaveBeenCalled();
+  });
+
+  it('domain admin cannot reset a legacy-list super admin', async () => {
+    firestoreMock.mockReturnValue(
+      buildFirestoreStub({
+        emailEnabled: false,
+        callerRole: 'domain_admin',
+        targetRole: 'domain_admin',
+        legacySuperAdmins: ['boss@orono.k12.mn.us'],
+      })
+    );
+    await expect(call()).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(generatePasswordResetLinkMock).not.toHaveBeenCalled();
+  });
+
+  it('super admin can reset a super_admin member', async () => {
+    firestoreMock.mockReturnValue(
+      buildFirestoreStub({
+        emailEnabled: false,
+        callerRole: 'super_admin',
+        targetRole: 'super_admin',
+      })
+    );
+    await expect(call()).resolves.toMatchObject({ sent: false });
+  });
+
+  it('legacy-list super admin with a domain_admin member doc can reset a super admin', async () => {
+    firestoreMock.mockReturnValue(
+      buildFirestoreStub({
+        emailEnabled: false,
+        callerRole: 'domain_admin',
+        targetRole: 'super_admin',
+        legacySuperAdmins: ['admin@orono.k12.mn.us'],
+      })
+    );
+    await expect(call()).resolves.toMatchObject({ sent: false });
+  });
+
+  it('domain admin can still reset a domain_admin member', async () => {
+    firestoreMock.mockReturnValue(
+      buildFirestoreStub({
+        emailEnabled: false,
+        callerRole: 'domain_admin',
+        targetRole: 'domain_admin',
+      })
+    );
+    await expect(call()).resolves.toMatchObject({ sent: false });
   });
 });

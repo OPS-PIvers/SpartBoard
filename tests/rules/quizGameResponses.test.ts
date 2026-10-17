@@ -151,7 +151,11 @@ describe('writing during a game', () => {
     await assertSucceeds(updateDoc(ref, { handRaisedAt: serverTimestamp() }));
     await assertSucceeds(updateDoc(ref, { tabSwitchWarnings: 1 }));
     await assertSucceeds(
-      updateDoc(ref, { status: 'completed', lastWriteAt: serverTimestamp() })
+      updateDoc(ref, {
+        status: 'completed',
+        completedAttempts: 1,
+        lastWriteAt: serverTimestamp(),
+      })
     );
   });
 

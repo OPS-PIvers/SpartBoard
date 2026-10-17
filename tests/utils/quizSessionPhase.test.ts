@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { deleteField, FieldValue } from 'firebase/firestore';
 import {
   AUTO_ADVANCE_DELAY_MS,
+  checkedQuizSessionWrite,
   deriveQuizSessionPhase,
+  sameQuizSessionPhase,
   quizRunState,
   quizSessionWrite,
   reopenIndexPatch,
@@ -489,5 +491,91 @@ describe('reopenIndexPatch', () => {
       resumeTo: 'lobby',
       index: -1,
     });
+  });
+});
+
+describe('checkedQuizSessionWrite', () => {
+  it('writes when the stored session is still on the step the teacher saw', () => {
+    expect(
+      checkedQuizSessionWrite(
+        SESSIONS.teacherAnswering,
+        SESSIONS.teacherAnswering,
+        { type: 'advance' },
+        NOW
+      )
+    ).toEqual(
+      quizSessionWrite(SESSIONS.teacherAnswering, { type: 'advance' }, NOW)
+    );
+  });
+
+  it('writes nothing when another tab already advanced, reviewed, paused or ended the run', () => {
+    const moved = [
+      fields({ currentQuestionIndex: 1 }),
+      fields({ questionPhase: 'reviewing' }),
+      SESSIONS.pausedQuestion,
+      SESSIONS.endedManual,
+    ];
+    for (const stored of moved) {
+      expect(
+        checkedQuizSessionWrite(
+          SESSIONS.teacherAnswering,
+          stored,
+          { type: 'advance' },
+          NOW
+        )
+      ).toBeNull();
+    }
+  });
+
+  it('writes nothing when the session doc is gone', () => {
+    expect(
+      checkedQuizSessionWrite(
+        SESSIONS.teacherAnswering,
+        undefined,
+        { type: 'advance' },
+        NOW
+      )
+    ).toBeNull();
+  });
+
+  it('lets Next through when only the auto-advance timer changed underneath it', () => {
+    expect(
+      checkedQuizSessionWrite(
+        SESSIONS.autoAnswering,
+        SESSIONS.autoArmed,
+        { type: 'advance' },
+        NOW
+      )?.patch.currentQuestionIndex
+    ).toBe(1);
+  });
+
+  it('arms auto-advance once across tabs: the second tab sees it already armed', () => {
+    expect(
+      checkedQuizSessionWrite(
+        SESSIONS.autoAnswering,
+        SESSIONS.autoArmed,
+        { type: 'everyoneAnswered' },
+        NOW
+      )
+    ).toBeNull();
+  });
+});
+
+describe('sameQuizSessionPhase', () => {
+  it('ignores only the auto-advance time', () => {
+    expect(
+      sameQuizSessionPhase(
+        mustPhase(SESSIONS.autoAnswering),
+        mustPhase(SESSIONS.autoArmed)
+      )
+    ).toBe(true);
+    expect(
+      sameQuizSessionPhase(
+        mustPhase(SESSIONS.teacherAnswering),
+        mustPhase(SESSIONS.teacherReviewing)
+      )
+    ).toBe(false);
+    expect(sameQuizSessionPhase(null, null)).toBe(true);
+    expect(sameQuizSessionPhase(mustPhase(SESSIONS.lobby), null)).toBe(false);
   });
 });

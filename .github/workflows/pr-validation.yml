@@ -144,6 +144,7 @@ jobs:
     needs: preflight
     if: needs.preflight.result == 'success' && needs.preflight.outputs.reuse != 'true'
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     name: Unit Tests (shard ${{ matrix.shard }}/4)
     strategy:
       fail-fast: false
@@ -170,6 +171,7 @@ jobs:
   test-counts:
     needs: [test, rules]
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     name: Unit Tests (functions + count guard)
     steps:
       - name: Checkout repository
@@ -199,6 +201,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-24.04
+    timeout-minutes: 25
     container:
       image: mcr.microsoft.com/playwright:v1.64.0-jammy
       options: --shm-size=1g
@@ -319,6 +322,7 @@ jobs:
     needs: preflight
     if: needs.preflight.result == 'success' && needs.preflight.outputs.reuse != 'true'
     runs-on: ubuntu-24.04
+    timeout-minutes: 20
     name: Firestore Rules Tests (shard ${{ matrix.shard }}/2)
     strategy:
       fail-fast: false

@@ -195,3 +195,33 @@ export function reopenIndexPatch(
     questionPhase: 'answering',
   };
 }
+
+/** Whether two phases are the same step of the run; a re-armed auto-advance timer doesn't count as a move. */
+export function sameQuizSessionPhase(
+  a: QuizSessionPhase | null,
+  b: QuizSessionPhase | null
+): boolean {
+  if (!a || !b) return a === b;
+  const strip = (p: QuizSessionPhase) =>
+    p.kind === 'question' ? { ...p, autoAdvanceAt: null } : p;
+  return JSON.stringify(strip(a)) === JSON.stringify(strip(b));
+}
+
+/** The write for an event the teacher saw on `seen`, or null when the stored session has since moved on. */
+export function checkedQuizSessionWrite(
+  seen: QuizSessionPhaseFields,
+  stored: QuizSessionPhaseFields | undefined,
+  event: QuizSessionEvent,
+  now: number
+): QuizSessionWrite | null {
+  if (!stored) return null;
+  if (
+    !sameQuizSessionPhase(
+      deriveQuizSessionPhase(seen),
+      deriveQuizSessionPhase(stored)
+    )
+  ) {
+    return null;
+  }
+  return quizSessionWrite(stored, event, now);
+}
