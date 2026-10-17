@@ -14,6 +14,12 @@ export const autoFolderPanelMode = (
   return 'full';
 };
 
+// Below this library height (px) the Show folders button joins the toolbar so the body can't squeeze it out.
+export const SHORT_BELOW_PX = 240;
+
+export const isShortLibrary = (heightPx: number | null): boolean =>
+  heightPx != null && heightPx < SHORT_BELOW_PX;
+
 /** A toggled setting holds until the widget is resized across a breakpoint; then auto takes over. */
 export const resolveFolderPanelMode = (
   setting: LibraryFolderPanelSetting,
