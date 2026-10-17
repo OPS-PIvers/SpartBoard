@@ -1237,6 +1237,8 @@ interface CommitRosterPinIndexEntry {
 export const commitRosterPinIndexV1 = onCall(
   {
     memory: '256MiB',
+    // Several sequential ClassLink lookups can outrun the 60 s default.
+    timeoutSeconds: 120,
     secrets: [
       CLASSLINK_CLIENT_ID,
       CLASSLINK_CLIENT_SECRET,

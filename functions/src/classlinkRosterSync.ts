@@ -340,6 +340,11 @@ async function syncOneRoster(
     return;
   }
 
+  // Sidecar before Drive and the stamp: a removed student keeping their pin_index
+  // entry would still pass the PIN→SSO gate, and a failure here must leave the
+  // roster changed so the next run retries it.
+  await deps.reconcilePinIndex(rosterSnap.ref, data, result.students);
+
   const describe = (c: { firstName: string; lastName: string }): string =>
     `${c.firstName} ${c.lastName}`.trim();
 
@@ -351,11 +356,6 @@ async function syncOneRoster(
       removed: result.removed.map(describe),
     },
   });
-
-  // Sidecar before the Firestore stamp: a removed student keeping their
-  // pin_index entry would still pass the PIN→SSO gate, so a failure here must
-  // not be masked by a roster doc that claims the sync succeeded.
-  await deps.reconcilePinIndex(rosterSnap.ref, data, result.students);
 
   await rosterSnap.ref.update({
     studentCount: result.students.length,
@@ -504,7 +504,13 @@ function buildLiveDeps(db: admin.firestore.Firestore): ClassLinkSyncDeps {
         ? await admin
             .auth()
             .getUser(ownerUid)
-            .catch(() => null)
+            .catch((err: unknown) => {
+              // Only a missing owner prunes; a transient Auth error must not wipe the index.
+              if ((err as { code?: string })?.code === 'auth/user-not-found') {
+                return null;
+              }
+              throw err;
+            })
         : null;
       const enrolled =
         owner?.email && owner.emailVerified
@@ -518,6 +524,11 @@ function buildLiveDeps(db: admin.firestore.Firestore): ClassLinkSyncDeps {
               }
             )
           : null;
+      if (!enrolled) {
+        console.warn(
+          `[classlinkRosterSync] ${rosterRef.path}: ClassLink did not confirm the owner teaches this class; clearing its PIN index`
+        );
+      }
       const entries = students
         .filter(
           (s) =>

@@ -163,6 +163,11 @@ describe('PIN sign-in token scope', () => {
         query(collection(asPin(), items), where('classId', '==', CLASS_A))
       )
     );
+    await assertSucceeds(
+      getDocs(
+        query(collection(asPin(), items), where('classId', 'in', [CLASS_A]))
+      )
+    );
   });
 
   it("cannot read the same student's pointers in other classes", async () => {
