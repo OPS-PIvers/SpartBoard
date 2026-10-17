@@ -31,7 +31,8 @@ import type { LandingTab } from './landing/types';
 const REFOCUS_RESELECT_MS = 10 * 60 * 1000;
 
 const MyAssignmentsPage: React.FC = () => {
-  const { classIds, pseudonymUid, firstName, signOut } = useStudentAuth();
+  const { classIds, pseudonymUid, firstName, signOut, pinLogin } =
+    useStudentAuth();
 
   const directory = useStudentClassDirectory({ classIds, pseudonymUid });
   const bell = useStudentBellSchedules(true);
@@ -48,6 +49,7 @@ const MyAssignmentsPage: React.FC = () => {
   } = useStudentAssignments({
     classIds,
     studentUid: pseudonymUid,
+    pinLogin,
   });
 
   // The Projects rollout switch is the kill switch: with it off, an existing
@@ -68,7 +70,8 @@ const MyAssignmentsPage: React.FC = () => {
     syncServerTime(pseudonymUid);
   }, [pseudonymUid]);
 
-  const gradesEnabled = useStudentGradebookEnabled();
+  // Rules deny grade reads to a PIN sign-in token.
+  const gradesEnabled = useStudentGradebookEnabled() && !pinLogin;
   const [initialPath] = useState(() =>
     typeof window === 'undefined'
       ? parseMyAssignmentsPath('')

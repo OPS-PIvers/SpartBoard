@@ -524,6 +524,11 @@ function buildLiveDeps(db: admin.firestore.Firestore): ClassLinkSyncDeps {
               }
             )
           : null;
+      if (!enrolled) {
+        console.warn(
+          `[classlinkRosterSync] ${rosterRef.path}: ClassLink did not confirm the owner teaches this class; clearing its PIN index`
+        );
+      }
       const entries = students
         .filter(
           (s) =>
