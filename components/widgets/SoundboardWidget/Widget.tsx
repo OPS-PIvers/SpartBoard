@@ -432,7 +432,13 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
                       {sound.label}
                     </span>
                     {isActive && (
-                      <div className="absolute top-0.5 right-0.5 w-2 h-2 bg-blue-500 rounded-full border border-white shadow-sm" />
+                      <div
+                        className="absolute top-0.5 right-0.5 bg-blue-500 rounded-full border border-white shadow-sm"
+                        style={{
+                          width: 'max(4px, min(8px, 2.5cqmin))',
+                          height: 'max(4px, min(8px, 2.5cqmin))',
+                        }}
+                      />
                     )}
                   </button>
                 );
