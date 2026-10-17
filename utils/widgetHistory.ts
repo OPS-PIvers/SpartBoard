@@ -60,6 +60,9 @@ export function undoWidgetHistory(
   const entry = stack.undo.pop();
   if (!entry) return null;
   stack.redo.push({ widgets: current, coalesceKey: null, touchedAt: 0 });
+  // The new top is no longer the latest edit, so it must not absorb later ones.
+  const top = stack.undo[stack.undo.length - 1];
+  if (top) top.coalesceKey = null;
   return entry.widgets;
 }
 
