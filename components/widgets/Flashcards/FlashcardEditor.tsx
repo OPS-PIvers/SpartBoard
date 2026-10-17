@@ -128,7 +128,11 @@ const SortableCardRow: React.FC<SortableCardRowProps> = ({
             onChange(card.id, { definition: event.target.value })
           }
           onKeyDown={(event) => {
-            if (event.key === 'Enter' && !event.shiftKey) {
+            if (
+              event.key === 'Enter' &&
+              !event.shiftKey &&
+              !event.nativeEvent.isComposing
+            ) {
               event.preventDefault();
               onAddAfter(index);
             }
