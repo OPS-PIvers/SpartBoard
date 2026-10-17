@@ -65,7 +65,7 @@ else
   if grep -E '^functions/|^firebase\.json$' <<<"$FILES" | grep -qvE '\.(test|spec)\.ts$|\.md$'; then FUNCTIONS=true; fi
   if has '^firestore\.indexes\.json$'; then INDEXES=true; fi
   if has '^storage\.rules$'; then STORAGE=true; fi
-  if has '^firestore\.rules$|^scripts/(releaseFirestoreRules|stripRulesComments)\.mjs$'; then RULES=true; fi
+  if has '^firestore\.rules$|^scripts/(releaseFirestoreRules|stripRulesComments|minifyRules)\.mjs$|^scripts/rulesAst/(RulesAst\.java|emulatorJar\.mjs)$'; then RULES=true; fi
 fi
 
 targets=()

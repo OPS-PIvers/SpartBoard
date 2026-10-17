@@ -153,6 +153,9 @@ jobs:
           path: ~/.cache/firebase/emulators
           key: firebase-emulators-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
           restore-keys: firebase-emulators-${{ runner.os }}-
+      # Deploys test the minified text that ships; PR validation tests the source.
+      - name: Minify firestore.rules as released
+        run: pnpm exec firebase setup:emulators:firestore && node scripts/minifyRules.mjs firestore.rules --write
       - name: Run Firestore rules tests
         run: RULES_SHARD=${{ matrix.shard }}/2 pnpm run test:rules
       - uses: actions/upload-artifact@v4
@@ -337,13 +340,42 @@ jobs:
           pnpm exec firebase functions:artifacts:setpolicy --days 1 --force --project "$DEV_PROJECT_ID" ||
             echo "::warning::Could not set the Artifact Registry cleanup policy on spartboard-dev; old function images will keep piling up."
 
+      # releaseFirestoreRules.mjs proves the minified rules with the compiler in the emulator jar.
+      - name: Setup Java
+        if: needs.plan.outputs.release_rules == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Cache Firestore emulator jar
+        if: needs.plan.outputs.release_rules == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/firebase/emulators
+          key: firebase-emulators-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: firebase-emulators-${{ runner.os }}-
+      - name: Download Firestore emulator jar
+        if: needs.plan.outputs.release_rules == 'true'
+        run: pnpm exec firebase setup:emulators:firestore
+
       # Wrapped in a retry helper: `firebase deploy` occasionally hits a transient Google API blip
       # that fails the whole deploy even though the code is fine.
       - name: Deploy Firebase Rules, Indexes, Functions, Storage
         env:
           FIREBASE_DEPLOY_ONLY: ${{ needs.plan.outputs.deploy_only }}
           RELEASE_FIRESTORE_RULES: ${{ needs.plan.outputs.release_rules }}
+          # Incident escape hatch: repo variable RULES_MINIFY=0 releases the unminified rules.
+          RULES_MINIFY: ${{ vars.RULES_MINIFY }}
         run: ./.github/scripts/firebase-deploy-with-retry.sh "$DEV_PROJECT_ID"
+
+      - name: Upload rules name map
+        if: always() && needs.plan.outputs.release_rules == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rules-name-map
+          path: rules-name-map.txt
+          if-no-files-found: ignore
+          retention-days: 90
 
       # `firebase deploy` returns once index creation is queued, not when the build is ready.
       - name: Wait for Firestore composite indexes to be READY

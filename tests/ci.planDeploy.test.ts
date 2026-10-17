@@ -63,6 +63,10 @@ describe('plan-deploy.sh', () => {
       deploy_only: '',
       release_rules: 'true',
     });
+    expect(plan('dev-paul', ['scripts/minifyRules.mjs'])).toMatchObject({
+      backend: 'true',
+      release_rules: 'true',
+    });
   });
 
   it('never deploys the backend from a branch behind dev-paul', () => {
