@@ -30,13 +30,21 @@
       "widgetType": "checklist",
       "dimension": "layout",
       "openedAt": "2026-10-16T04:20:00Z",
-      "outcome": "open",
+      "outcome": "accepted",
       "changes": {
         "S6": {
           "before": null,
           "after": 2
         }
       }
+    },
+    {
+      "pr": 4349,
+      "widgetType": "quiz",
+      "dimension": "layout",
+      "openedAt": "2026-10-17T04:25:00Z",
+      "outcome": "open",
+      "changes": {}
     }
   ]
 }

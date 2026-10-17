@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   autoFolderPanelMode,
+  isShortLibrary,
   resolveFolderPanelMode,
   resolveHeaderLabels,
 } from './libraryShellLayout';
@@ -17,6 +18,16 @@ describe('autoFolderPanelMode', () => {
     expect(autoFolderPanelMode(600)).toBe('rail');
     expect(autoFolderPanelMode(400)).toBe('hidden');
     expect(autoFolderPanelMode(null)).toBe('full');
+  });
+});
+
+describe('isShortLibrary', () => {
+  it('moves Show folders into the toolbar only on a short card', () => {
+    expect(isShortLibrary(100)).toBe(true);
+    expect(isShortLibrary(239)).toBe(true);
+    expect(isShortLibrary(240)).toBe(false);
+    expect(isShortLibrary(900)).toBe(false);
+    expect(isShortLibrary(null)).toBe(false);
   });
 });
 
