@@ -8,29 +8,27 @@ const base = '/computeMetadata/v1';
 
 const routes = new Map(
   Object.entries({
-    [`${base}/instance/service-accounts/default/token`]: () =>
-      JSON.stringify({
-        access_token: token,
-        expires_in: 3599,
-        token_type: 'Bearer',
-      }),
-    [`${base}/instance/service-accounts/default/email`]: () =>
-      'claude-cloud@proxy',
-    [`${base}/instance/service-accounts/default/scopes`]: () =>
+    [`${base}/instance/service-accounts/default/token`]: JSON.stringify({
+      access_token: token,
+      expires_in: 3599,
+      token_type: 'Bearer',
+    }),
+    [`${base}/instance/service-accounts/default/email`]: 'claude-cloud@proxy',
+    [`${base}/instance/service-accounts/default/scopes`]:
       'https://www.googleapis.com/auth/cloud-platform',
-    [`${base}/project/project-id`]: () => project,
-    [`${base}/project/numeric-project-id`]: () => '0',
-    [`${base}/instance`]: () => '',
-    [base]: () => '',
+    [`${base}/project/project-id`]: project,
+    [`${base}/project/numeric-project-id`]: '0',
+    [`${base}/instance`]: '',
+    [base]: '',
   })
 );
 
 http
   .createServer((req, res) => {
     const path = (req.url ?? '').split('?')[0].replace(/\/$/, '');
-    const route = routes.get(path);
+    const body = routes.get(path);
     res.setHeader('Metadata-Flavor', 'Google');
-    if (!route) {
+    if (body === undefined) {
       res.statusCode = 404;
       res.end();
       return;
@@ -39,6 +37,6 @@ http
       'Content-Type',
       path.endsWith('/token') ? 'application/json' : 'text/plain'
     );
-    res.end(route());
+    res.end(body);
   })
   .listen(port, '127.0.0.1');
