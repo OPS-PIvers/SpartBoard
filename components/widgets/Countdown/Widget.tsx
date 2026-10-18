@@ -15,6 +15,26 @@ interface CountdownDay {
 
 const MAX_PAST_GRID_DAYS = 366;
 
+// Usable face width in cqw once the title's side padding is taken off.
+const TEXT_CQW = 88;
+
+// Rough advance of a bold glyph in em, wide enough that a measured word never overflows.
+const glyphEm = (ch: string): number => {
+  if (/[ijlI.,'!|:;]/.test(ch)) return 0.3;
+  if (/[frt]/.test(ch)) return 0.42;
+  if (/[mwMW]/.test(ch)) return 1.05;
+  if (/[A-Z]/.test(ch)) return 0.75;
+  return 0.62;
+};
+
+const longestWordEm = (text: string): number =>
+  Math.max(
+    0.6,
+    ...text
+      .split(/\s+/)
+      .map((word) => [...word].reduce((sum, ch) => sum + glyphEm(ch), 0))
+  );
+
 const normalizeDate = (value: Date): Date => {
   const normalized = new Date(value);
   normalized.setHours(0, 0, 0, 0);
@@ -47,6 +67,7 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
   } = config;
 
   const fontClass = getFontClass(fontFamily, globalStyle.fontFamily);
+  const titleWordEm = longestWordEm(title ?? '');
 
   // Stable "today at midnight" timestamp, refreshed every minute so the
   // widget recomputes automatically when the calendar day changes. Without
@@ -162,7 +183,10 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
             <div className="flex flex-col items-center justify-center text-center w-full">
               <div
                 className="font-bold leading-none"
-                style={{ fontSize: 'min(42cqh, 55cqw)', color: fontColor }}
+                style={{
+                  fontSize: `min(42cqh, ${(TEXT_CQW / longestWordEm(String(calculatedDays))).toFixed(2)}cqw)`,
+                  color: fontColor,
+                }}
               >
                 {calculatedDays}
               </div>
@@ -178,9 +202,9 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
                 day{calculatedDays !== 1 ? 's' : ''} until
               </div>
               <div
-                className="font-bold text-center break-words"
+                className="font-bold text-center [overflow-wrap:anywhere]"
                 style={{
-                  fontSize: 'min(13cqh, 30cqw)',
+                  fontSize: `min(13cqh, 30cqw, ${(TEXT_CQW / titleWordEm).toFixed(2)}cqw)`,
                   marginTop: 'min(6px, 1.5cqmin)',
                   paddingLeft: 'min(16px, 4cqmin)',
                   paddingRight: 'min(16px, 4cqmin)',
