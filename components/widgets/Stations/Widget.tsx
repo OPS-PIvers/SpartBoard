@@ -402,9 +402,6 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
     activeDashboard?.globalStyle?.fontFamily ?? 'sans'
   );
   const fontColor = config.fontColor;
-  // Narrower cards drop the title, then the Shuffle and Rotate labels, so the header fits.
-  const showTitle = widget.w >= 720;
-  const compactHeader = widget.w < 480;
 
   // Adapt grid columns to station count. Capped at 3 so each card stays
   // wide enough for the horizontal icon/title + chip-column split inside
@@ -433,22 +430,21 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
               gap: 'min(10px, 2cqmin)',
             }}
           >
-            {showTitle && (
-              <div
-                className="flex items-center shrink-0"
-                style={{ gap: 'min(8px, 2cqmin)' }}
+            {/* Narrower cards drop the title, then the Shuffle and Rotate labels, so the header fits. */}
+            <div
+              className="hidden [@container(min-width:720px)]:flex items-center shrink-0"
+              style={{ gap: 'min(8px, 2cqmin)' }}
+            >
+              <h3
+                className="font-black uppercase tracking-widest truncate"
+                style={{
+                  fontSize: 'min(13px, 4.2cqmin)',
+                  color: fontColor ?? '#334155',
+                }}
               >
-                <h3
-                  className="font-black uppercase tracking-widest truncate"
-                  style={{
-                    fontSize: 'min(13px, 4.2cqmin)',
-                    color: fontColor ?? '#334155',
-                  }}
-                >
-                  Stations
-                </h3>
-              </div>
-            )}
+                Stations
+              </h3>
+            </div>
 
             <div
               className="flex items-center min-w-0 ml-auto overflow-x-auto no-scrollbar"
@@ -495,17 +491,15 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                     height: 'clamp(14px, 4cqmin, 22px)',
                   }}
                 />
-                {!compactHeader && (
-                  <span
-                    className="font-black uppercase tracking-widest"
-                    style={{
-                      fontSize: 'min(11px, 3.5cqmin)',
-                      marginLeft: 'min(4px, 1cqmin)',
-                    }}
-                  >
-                    Shuffle
-                  </span>
-                )}
+                <span
+                  className="hidden [@container(min-width:480px)]:inline font-black uppercase tracking-widest"
+                  style={{
+                    fontSize: 'min(11px, 3.5cqmin)',
+                    marginLeft: 'min(4px, 1cqmin)',
+                  }}
+                >
+                  Shuffle
+                </span>
               </Button>
               <Button
                 {...tourAttr('stations.rotate', widget.id, widget.type)}
@@ -528,17 +522,15 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                     height: 'clamp(14px, 4cqmin, 22px)',
                   }}
                 />
-                {!compactHeader && (
-                  <span
-                    className="font-black uppercase tracking-widest"
-                    style={{
-                      fontSize: 'min(11px, 3.5cqmin)',
-                      marginLeft: 'min(4px, 1cqmin)',
-                    }}
-                  >
-                    Rotate
-                  </span>
-                )}
+                <span
+                  className="hidden [@container(min-width:480px)]:inline font-black uppercase tracking-widest"
+                  style={{
+                    fontSize: 'min(11px, 3.5cqmin)',
+                    marginLeft: 'min(4px, 1cqmin)',
+                  }}
+                >
+                  Rotate
+                </span>
               </Button>
               <Button
                 {...tourAttr('stations.reset-all', widget.id, widget.type)}
