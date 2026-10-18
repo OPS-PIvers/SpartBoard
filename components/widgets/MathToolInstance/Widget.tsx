@@ -62,9 +62,11 @@ const CalculatorTool = lazy(() =>
 function ToolContent({
   config,
   onUpdate,
+  contain = true,
 }: {
   config: MathToolConfig;
   onUpdate: (updates: Partial<MathToolConfig>) => void;
+  contain?: boolean;
 }) {
   const ppi = config.pixelsPerInch ?? CSS_PPI;
   const toolType = config.toolType;
@@ -76,6 +78,7 @@ function ToolContent({
           units={config.rulerUnits ?? 'in'}
           pixelsPerInch={ppi}
           rotation={config.rotation ?? 0}
+          contain={contain}
         />
       );
 
@@ -85,6 +88,7 @@ function ToolContent({
           units={config.rulerUnits ?? 'cm'}
           pixelsPerInch={ppi}
           rotation={config.rotation ?? 0}
+          contain={contain}
         />
       );
 
@@ -152,6 +156,8 @@ export const MathToolInstanceWidget: React.FC<{ widget: WidgetData }> = ({
   };
 
   const isRotatable = ROTATABLE_TOOLS.includes(config.toolType);
+  const isRuler =
+    config.toolType === 'ruler-in' || config.toolType === 'ruler-cm';
   const rotation = config.rotation ?? 0;
 
   // ---- Sticker mode: bare SVG piece, no header chrome ----
@@ -202,7 +208,11 @@ export const MathToolInstanceWidget: React.FC<{ widget: WidgetData }> = ({
             className="h-full w-full flex items-center justify-center transition-transform duration-200 will-change-transform"
             style={{ transform: `rotate(${rotation}deg)` }}
           >
-            <ToolContent config={config} onUpdate={handleUpdate} />
+            <ToolContent
+              config={config}
+              onUpdate={handleUpdate}
+              contain={false}
+            />
           </div>
           {isRotatable && (
             <RotationHandle
@@ -233,7 +243,7 @@ export const MathToolInstanceWidget: React.FC<{ widget: WidgetData }> = ({
         >
           <div
             ref={containerRef}
-            className="flex-1 min-h-0 min-w-0 flex items-center justify-center transition-transform duration-200 will-change-transform relative group"
+            className={`flex-1 ${isRuler ? 'min-h-0 min-w-0' : ''} flex items-center justify-center transition-transform duration-200 will-change-transform relative group`}
             style={{ transform: `rotate(${rotation}deg)` }}
           >
             <ToolContent config={config} onUpdate={handleUpdate} />

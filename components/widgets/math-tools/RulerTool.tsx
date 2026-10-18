@@ -6,6 +6,8 @@ interface RulerToolProps {
   pixelsPerInch?: number;
   metric?: boolean;
   rotation?: number;
+  // False lets a sticker ruler run past the window at full length, as before.
+  contain?: boolean;
 }
 
 export const InchRuler: React.FC<{ pixelsPerInch?: number }> = ({
@@ -242,12 +244,9 @@ const rotatedMaxWidth = (rotation: number, heightPx: number): string => {
   const sin = Math.abs(Math.sin(rad));
   const caps = ['100%'];
   if (cos > 0.01)
-    caps.push(`calc((100cqw - ${heightPx * sin + 4}px) / ${cos})`);
+    caps.push(`max(48px, calc((100cqw - ${heightPx * sin + 4}px) / ${cos}))`);
   if (sin > 0.01)
-    caps.push(`calc((100cqh - ${heightPx * cos + 4}px) / ${sin})`);
-  // The grader measures the unrotated box from the rotated corner, so keep that inside too.
-  if (sin > 0.01)
-    caps.push(`calc((100cqw + ${heightPx * sin - 4}px) / ${2 - cos})`);
+    caps.push(`max(48px, calc((100cqh - ${heightPx * cos + 4}px) / ${sin}))`);
   return `min(${caps.join(', ')})`;
 };
 
@@ -255,16 +254,25 @@ export const RulerTool: React.FC<RulerToolProps> = ({
   units = 'both',
   pixelsPerInch = CSS_PPI,
   rotation = 0,
+  contain = true,
 }) => {
   const count = units === 'both' ? 2 : 1;
   const heightPx = count * RULER_PX + (count - 1) * RULER_GAP_PX + 8;
   return (
     <div
-      className="min-w-0 overflow-auto custom-scrollbar no-scrollbar py-1"
-      style={{
-        maxWidth: rotatedMaxWidth(rotation, heightPx),
-        maxHeight: '100%',
-      }}
+      className={
+        contain
+          ? 'min-w-0 overflow-auto custom-scrollbar no-scrollbar py-1'
+          : 'py-1'
+      }
+      style={
+        contain
+          ? {
+              maxWidth: rotatedMaxWidth(rotation, heightPx),
+              maxHeight: '100%',
+            }
+          : undefined
+      }
     >
       <div
         className="flex flex-col w-max"
