@@ -11,6 +11,12 @@ import type { LibraryToolbarProps, LibrarySortDir } from './types';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { tourTypeAttr, tourFieldAttr } from '@/config/tourAnchors';
 
+// Icons track the toolbar's text size so a small widget's controls stay in proportion.
+const ICON: React.CSSProperties = {
+  width: 'min(14px, 5.5cqmin)',
+  height: 'min(14px, 5.5cqmin)',
+};
+
 const SortDropdown: React.FC<{
   sort: LibraryToolbarProps['sort'];
   sortOptions: LibraryToolbarProps['sortOptions'];
@@ -53,9 +59,9 @@ const SortDropdown: React.FC<{
             fontSize: 'min(14px, 5.5cqmin)',
           }}
         >
-          <ArrowUpDown size={14} className="shrink-0 text-slate-500" />
+          <ArrowUpDown style={ICON} className="shrink-0 text-slate-500" />
           <span className="truncate">{active?.label ?? 'Sort'}</span>
-          <ChevronDown size={14} className="shrink-0 text-slate-400" />
+          <ChevronDown style={ICON} className="shrink-0 text-slate-400" />
         </button>
         <button
           type="button"
@@ -66,7 +72,11 @@ const SortDropdown: React.FC<{
           className="inline-flex items-center justify-center border-l border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
           style={{ paddingInline: 'min(10px, 2.5cqmin)' }}
         >
-          {sort.dir === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />}
+          {sort.dir === 'asc' ? (
+            <ArrowUp style={ICON} />
+          ) : (
+            <ArrowDown style={ICON} />
+          )}
         </button>
       </div>
       {open && (
@@ -110,7 +120,7 @@ const SortDropdown: React.FC<{
                 }}
               >
                 <span className="truncate">{opt.label}</span>
-                {selected && <Check size={14} className="shrink-0" />}
+                {selected && <Check style={ICON} className="shrink-0" />}
               </button>
             );
           })}
@@ -162,8 +172,8 @@ const FilterDropdown: React.FC<{
         ))}
       </select>
       <ChevronDown
-        size={14}
-        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+        style={{ ...ICON, right: 'min(10px, 2.5cqmin)' }}
+        className="absolute top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
       />
     </div>
   );
@@ -194,8 +204,8 @@ export const LibraryToolbar: React.FC<LibraryToolbarProps> = ({
         style={{ minWidth: 'min(192px, 48cqmin)' }}
       >
         <Search
-          size={14}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
+          style={{ ...ICON, left: 'min(12px, 3cqmin)' }}
+          className="absolute top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"
         />
         <input
           type="search"
