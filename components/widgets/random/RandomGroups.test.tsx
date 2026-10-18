@@ -85,6 +85,16 @@ describe('GroupDropZone — rename input', () => {
     expect(onRenameGroup).toHaveBeenCalledWith('g1', 'Team Beta');
   });
 
+  it('does not commit when Enter confirms an IME composition', () => {
+    renderEditable();
+    fireEvent.click(screen.getByRole('button', { name: /Rename Team Alpha/i }));
+    const input = screen.getByRole('textbox', { name: /Rename Team Alpha/i });
+    fireEvent.change(input, { target: { value: 'チーム' } });
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
+    fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 });
+    expect(onRenameGroup).not.toHaveBeenCalled();
+  });
+
   it('commits the new name on blur (without cancel)', () => {
     renderEditable();
     fireEvent.click(screen.getByRole('button', { name: /Rename Team Alpha/i }));
