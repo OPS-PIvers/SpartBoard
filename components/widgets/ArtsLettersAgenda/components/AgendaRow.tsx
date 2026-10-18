@@ -97,7 +97,11 @@ export const AgendaRow = React.memo<AgendaRowProps>(
               if (next !== description) onDescriptionCommit(id, next);
             }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              if (
+                e.key === 'Enter' &&
+                !e.shiftKey &&
+                !e.nativeEvent.isComposing
+              ) {
                 e.preventDefault();
                 e.currentTarget.blur();
               }

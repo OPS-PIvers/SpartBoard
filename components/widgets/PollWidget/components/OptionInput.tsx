@@ -24,7 +24,7 @@ export const OptionInput: React.FC<OptionInputProps> = ({
           cancelledRef.current = true;
           setVal(label);
           e.currentTarget.blur();
-        } else if (e.key === 'Enter') {
+        } else if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
           e.currentTarget.blur();
         }
       }}

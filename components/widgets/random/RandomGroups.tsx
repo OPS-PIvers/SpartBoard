@@ -273,6 +273,7 @@ const GroupDropZone: React.FC<GroupDropZoneProps> = ({
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
+                if (e.nativeEvent.isComposing) return;
                 e.preventDefault();
                 commit();
               } else if (e.key === 'Escape') {
