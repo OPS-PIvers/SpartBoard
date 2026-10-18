@@ -91,6 +91,7 @@ describe('GroupDropZone — rename input', () => {
     const input = screen.getByRole('textbox', { name: /Rename Team Alpha/i });
     fireEvent.change(input, { target: { value: 'チーム' } });
     fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
+    fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 });
     expect(onRenameGroup).not.toHaveBeenCalled();
   });
 

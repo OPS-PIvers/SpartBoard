@@ -9,6 +9,7 @@ describe('RenameFolderModal Enter', () => {
     render(<RenameFolderModal name="Math" onClose={vi.fn()} onSave={onSave} />);
     const input = screen.getByPlaceholderText('Folder name...');
     fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
+    fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 });
     expect(onSave).not.toHaveBeenCalled();
   });
 

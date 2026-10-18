@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { isImeComposing } from '@/utils/imeComposing';
 
 interface OptionInputProps {
   label: string;
@@ -24,7 +25,7 @@ export const OptionInput: React.FC<OptionInputProps> = ({
           cancelledRef.current = true;
           setVal(label);
           e.currentTarget.blur();
-        } else if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+        } else if (e.key === 'Enter' && !isImeComposing(e)) {
           e.currentTarget.blur();
         }
       }}

@@ -12,6 +12,9 @@ describe('IME composition Enter does not commit', () => {
     fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
     expect(onSave).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(input);
+    fireEvent.keyDown(input, { key: 'Enter', keyCode: 229 });
+    expect(onSave).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(input);
     fireEvent.keyDown(input, { key: 'Enter' });
     expect(onSave).toHaveBeenCalledTimes(1);
   });
@@ -38,6 +41,8 @@ describe('IME composition Enter does not commit', () => {
     area.focus();
     fireEvent.change(area, { target: { value: 'x' } });
     fireEvent.keyDown(area, { key: 'Enter', isComposing: true });
+    expect(document.activeElement).toBe(area);
+    fireEvent.keyDown(area, { key: 'Enter', keyCode: 229 });
     expect(document.activeElement).toBe(area);
     fireEvent.keyDown(area, { key: 'Enter' });
     expect(onCommit).toHaveBeenCalledTimes(1);
