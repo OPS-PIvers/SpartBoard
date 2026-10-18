@@ -84,7 +84,7 @@ export const EditableNode: React.FC<{
       suppressContentEditableWarning
       onInput={handleInput}
       onBlur={handleBlur}
-      className={`outline-none whitespace-pre-wrap break-words empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400 ${className ?? ''}`}
+      className={`outline-none overflow-y-auto min-h-0 whitespace-pre-wrap break-words empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400 ${className ?? ''}`}
       style={{ minHeight: 'min(50px, 10cqmin)', ...style }}
       data-placeholder={placeholder}
     />
@@ -409,10 +409,10 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
 
   const renderKWL = () => (
     <div
-      className="grid grid-cols-3 h-full gap-0"
+      className="grid grid-cols-3 grid-rows-1 h-full gap-0"
       style={{ backgroundColor: cellBg }}
     >
-      <div className="border-r-2 border-slate-300 flex flex-col h-full">
+      <div className="border-r-2 border-slate-300 flex flex-col h-full min-h-0">
         <div
           className="bg-blue-100 text-center border-b-2 border-slate-300"
           style={{ padding: 'min(12px, 2.5cqmin)' }}
@@ -437,12 +437,13 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           className="flex-grow h-full"
           style={{
             padding: 'min(16px, 3cqmin)',
+            paddingBottom: 'clamp(12px, 3cqmin, 16px)',
             fontSize: 'min(14px, 5.5cqmin)',
           }}
           placeholder="Type here..."
         />
       </div>
-      <div className="border-r-2 border-slate-300 flex flex-col h-full">
+      <div className="border-r-2 border-slate-300 flex flex-col h-full min-h-0">
         <div
           className="bg-amber-100 text-center border-b-2 border-slate-300"
           style={{ padding: 'min(12px, 2.5cqmin)' }}
@@ -467,12 +468,13 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           className="flex-grow h-full"
           style={{
             padding: 'min(16px, 3cqmin)',
+            paddingBottom: 'clamp(12px, 3cqmin, 16px)',
             fontSize: 'min(14px, 5.5cqmin)',
           }}
           placeholder="Type here..."
         />
       </div>
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full min-h-0">
         <div
           className="bg-green-100 text-center border-b-2 border-slate-300"
           style={{ padding: 'min(12px, 2.5cqmin)' }}
@@ -497,6 +499,7 @@ export const GraphicOrganizerWidget: React.FC<{ widget: WidgetData }> = ({
           className="flex-grow h-full"
           style={{
             padding: 'min(16px, 3cqmin)',
+            paddingBottom: 'clamp(12px, 3cqmin, 16px)',
             fontSize: 'min(14px, 5.5cqmin)',
           }}
           placeholder="Type here..."

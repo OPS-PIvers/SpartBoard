@@ -1,9 +1,622 @@
 {
   "$schema": "../scorecard.schema.json",
   "widgetType": "concept-web",
-  "rubricVersion": "1.0.0",
-  "gradedAt": null,
+  "rubricVersion": "1.1.0",
+  "gradedAt": "2026-10-18T15:46:03.121Z",
   "stale": false,
-  "criteria": {},
-  "gates": {}
+  "criteria": {
+    "I5": {
+      "score": null,
+      "source": "script",
+      "note": "N/A by rule",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "S1": {
+      "score": 0,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 0
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/envelope-min__empty.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/envelope-min__typical.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/envelope-min__stress.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "note": "At 150x100 the nodes shrink to unreadable letter fragments with 3.85 px text and a 2.33 px smallest tap target, so the G1/G2 gates fail.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "S2": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/large-1400x900__typical.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/large-1400x900__stress.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "note": "At 1400x900 the nodes grow but sit far apart with large empty gaps, the oversized arrowheads cover labels, and in the stress fixture the edges cut straight through the text.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "S3": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/widest-aspect__typical.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/widest-aspect__stress.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/tallest-aspect__typical.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/tallest-aspect__stress.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "note": "Node positions stretch with the card instead of reflowing, so at 225x900 labels break one letter at a time and at 1400x350 the node boxes flatten into thin strips.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "S4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "S5": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__empty.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__stress.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "S6": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/envelope-min__typical.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/envelope-min__stress.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__stress.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/large-1400x900__stress.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/widest-aspect__stress.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/tallest-aspect__stress.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "S7": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/envelope-min__typical.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "note": "The envelope uses the global 150x100 floor without padding it, though at that size the map content does not hold up.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "S8": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/maximized-1920x1080__empty.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/maximized-1920x1080__typical.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/maximized-1920x1080__stress.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "note": "Maximized is the default layout scaled up with a corner Add Node button, the empty fixture is a blank white screen, and nothing changes for presenting.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "I1": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "I2": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "I3": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "note": "Delete node is hover-only on five nodes, and linking nodes depends on tiny dot handles at the bottom of each box, which is a precise drag.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "I4": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "I6": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "note": "The default render shows only the dashed selection ring on the card and no visible pressed or selected states for nodes or edges.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "I7": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/envelope-min__typical__selected.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical__selected.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/large-1400x900__typical__selected.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/widest-aspect__typical__selected.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/tallest-aspect__typical__selected.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "V1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "note": "Clean white canvas, but every node is boxed in a thin border, heavy arrowheads overlap labels, and the plain text '+ Add Node' button looks dated.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "V2": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__stress.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "note": "It reads as a concept map at a glance, but 16 borders, 22 boxes and edges crossing labels push the busy-ness proxies over threshold.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "V3": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "note": "The central 'Water cycle' topic looks the same as the other nodes, and the thick arrows carry more visual weight than the node labels.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "V4": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "note": "Only Button is shared, alongside 4 raw controls, 5 one-off colors and 4 one-off radii on the face.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "V5": {
+      "score": 2,
+      "source": "script",
+      "candidates": {
+        "script": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "V6": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "note": "Labels are short and copy-guard clean, with only lucide icons plus the inline SVG arrowheads.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "C1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "note": "Nodes and links are editable, but nothing on the face or in the captured settings shows control over layout, colors, edge style or a central topic.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "C2": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical__settings.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "note": "The settings-open screenshot shows no organized drawer at all, only the face with the selection ring.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "C3": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__empty.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "note": "Dropped with default config, the widget is an empty white card holding only an Add Node button and has no content until the teacher builds it.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "C4": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical__settings.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "C5": {
+      "score": 1,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 1
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__empty.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "note": "The empty face is a blank white card with no empty state, title or prompt, just a small corner Add Node button.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "C6": {
+      "score": 4,
+      "source": "script",
+      "candidates": {
+        "script": 4
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical__settings.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "R1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__empty.png",
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "note": "The empty state is a bare blank card, and no designed loading, error or offline views appear in the screenshots.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "R2": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "R3": {
+      "score": 3,
+      "source": "script",
+      "candidates": {
+        "script": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "R4": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "note": "The face shows only teacher-authored concept labels and no protected student data.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "E1": {
+      "score": 2,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 2
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "note": "No connections show on the face; propose adding import of terms from Text or Flashcards and sending the map to a Guided Learning or Activity Wall prompt, and nothing to remove.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    },
+    "E3": {
+      "score": 3,
+      "source": "judge",
+      "candidates": {
+        "script": null,
+        "judge": 3
+      },
+      "evidence": {
+        "screenshots": [
+          "scripts/widget-grader/out/after-concept-web/screenshots/concept-web/default__typical.png"
+        ],
+        "runId": "after-concept-web"
+      },
+      "note": "There is one folder test, the largest file is 642 lines, and the script found no any, useDashboard calls or derived-state effects.",
+      "rubricVersion": "1.1.0",
+      "gradedAt": "2026-10-18T15:46:03.121Z",
+      "stale": false
+    }
+  },
+  "gates": {
+    "G1": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-concept-web"
+      },
+      "gradedAt": "2026-10-18T15:46:03.121Z"
+    },
+    "G2": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-concept-web"
+      },
+      "gradedAt": "2026-10-18T15:46:03.121Z"
+    },
+    "G3": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-concept-web"
+      },
+      "gradedAt": "2026-10-18T15:46:03.121Z"
+    },
+    "G4": {
+      "pass": true,
+      "evidence": {
+        "runId": "after-concept-web"
+      },
+      "gradedAt": "2026-10-18T15:46:03.121Z"
+    }
+  }
 }

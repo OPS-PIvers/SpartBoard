@@ -121,6 +121,7 @@ export const TOUR_ANCHOR_SURFACES: Readonly<Record<string, readonly string[]>> =
     'plc-invites.list': ['board.plc-invites'],
     'breathing.start-pause': ['widgets.breathing.face'],
     'breathing.reset': ['widgets.breathing.face'],
+    'concept-web.add-node': ['widgets.concept-web.face'],
     'activity-wall.toggle-open': ['library.activity-wall'],
     'activity-wall.moderate': ['library.activity-wall'],
     'activity-wall.share': ['library.activity-wall'],
