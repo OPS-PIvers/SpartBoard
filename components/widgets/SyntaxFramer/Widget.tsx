@@ -69,6 +69,8 @@ const SortableToken: React.FC<SortableTokenProps> = ({
     minHeight: 'calc(2 * min(12px, 4cqmin) + clamp(24px, 10cqmin, 48px))',
     padding: 'min(12px, 4cqmin)',
     fontSize: 'clamp(12px, 5cqmin, 24px)',
+    // Finger drags reorder tokens; the area scrolls from the gaps between them.
+    touchAction: 'none',
     '--char-count': token.value.length || 3,
   };
 
@@ -225,7 +227,7 @@ export const SyntaxFramerWidget: React.FC<WidgetComponentProps> = ({
     <WidgetLayout
       content={
         <div
-          className={`w-full h-full overflow-y-auto flex flex-wrap content-stretch items-stretch ${justifyClass}`}
+          className={`w-full h-full overflow-x-hidden overflow-y-auto flex flex-wrap content-stretch items-stretch ${justifyClass}`}
           style={{ gap: 'min(16px, 5cqmin)', padding: '2cqmin' }}
         >
           <DndContext
