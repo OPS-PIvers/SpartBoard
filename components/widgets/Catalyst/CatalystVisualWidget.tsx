@@ -28,7 +28,7 @@ export const CatalystVisualWidget: React.FC<{ widget: WidgetData }> = ({
     const Icon = icons[iconName] ?? getNamedLucideIcon(iconName, HelpCircle);
     return (
       <Icon
-        className="animate-pulse"
+        className="animate-pulse max-h-full"
         style={{
           width: 'clamp(32px, 40cqmin, 220px)',
           height: 'clamp(32px, 40cqmin, 220px)',
@@ -60,10 +60,18 @@ export const CatalystVisualWidget: React.FC<{ widget: WidgetData }> = ({
             gap: '5cqmin',
           }}
         >
-          <div className="shrink-0">{getIcon(config.icon ?? '')}</div>
+          {/* The icon shrinks before the title when space runs out. */}
+          <div className="min-h-0 flex justify-center">
+            {getIcon(config.icon ?? '')}
+          </div>
           <h2
-            className="font-black text-center uppercase tracking-wider leading-tight w-full"
-            style={{ fontSize: 'clamp(14px, 6cqmin, 36px)' }}
+            className="shrink-0 max-h-full overflow-y-auto font-black text-center uppercase tracking-wider leading-tight w-full [overflow-wrap:anywhere]"
+            style={{
+              fontSize:
+                title.length > 28
+                  ? 'clamp(8px, 6cqmin, 36px)'
+                  : 'clamp(14px, 6cqmin, 36px)',
+            }}
           >
             {title}
           </h2>
