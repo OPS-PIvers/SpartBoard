@@ -792,7 +792,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                     ? 'primary'
                     : 'secondary'
                 }
-                className="flex-1 min-w-0 rounded-xl font-black uppercase tracking-widest leading-tight text-center transition-all shadow-sm"
+                className="flex-1 min-w-0 mx-auto rounded-xl font-black uppercase tracking-widest leading-tight text-center transition-all shadow-sm"
                 style={{
                   padding: 'min(6px, 1.5cqmin) min(16px, 4cqmin)',
                   fontSize: 'min(12px, 4cqmin)',
