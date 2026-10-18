@@ -12,6 +12,7 @@ import { resolveWidgetFiles } from '../widgetFiles';
 import { chunkBytes, distSize, loadManifest } from './chunks';
 import { loadThresholds, PARTIAL_COVERAGE, REPO_ROOT } from './constants';
 import { measureExtras } from './extras';
+import { accountLibraryText, rosterListText } from './sharedLibrary';
 import { HarnessUnsupported, measureWidget } from './measureWidget';
 
 const ALL_FIXTURES: FixtureName[] = ['empty', 'typical', 'stress'];
@@ -24,13 +25,18 @@ const fixtures = (process.env.GRADER_FIXTURES ?? '')
   .split(',')
   .filter((f): f is FixtureName => (ALL_FIXTURES as string[]).includes(f));
 // The harness gives every instance the board's rosters, so their names aren't a G4 leak.
-const sharedRosterText = (type: string): string =>
-  (WIDGET_FIXTURES[type as keyof typeof WIDGET_FIXTURES]?.typical.rosters ?? [])
+const sharedRosterText = (type: string): string => {
+  const typical =
+    WIDGET_FIXTURES[type as keyof typeof WIDGET_FIXTURES]?.typical;
+  const rosters = (typical?.rosters ?? [])
     .flatMap((r) => [
       r.name,
       ...r.students.flatMap((st) => [st.firstName, st.lastName]),
     ])
     .join(' ');
+  const library = accountLibraryText(typical?.firestoreDocs);
+  return `${rosters} ${rosterListText(type)} ${library}`.trim();
+};
 const outDir =
   process.env.GRADER_OUT ?? join(REPO_ROOT, 'scripts/widget-grader/out/adhoc');
 // Gate runs (CI) skip the renders that only feed criteria.

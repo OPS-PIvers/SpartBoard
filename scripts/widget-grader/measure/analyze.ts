@@ -2,7 +2,11 @@
 
 import type { Box, ControlInfo, FaceSnapshot, TextInfo } from './snapshotTypes';
 import { worstContrast } from './contrast';
-import { PROTECTED_PATTERNS, type Thresholds } from './constants';
+import {
+  PROTECTED_ALLOWED_LABELS,
+  PROTECTED_PATTERNS,
+  type Thresholds,
+} from './constants';
 
 export type Values = Record<string, number | string | boolean>;
 
@@ -176,14 +180,18 @@ export function analyzeG4(input: G4Input): Check {
   const second = tokens(input.secondText);
   const leaked = own.filter((t) => second.has(t));
   const leaks = own.length >= 3 && leaked.length / own.length >= 0.5;
+  const protectedText = PROTECTED_ALLOWED_LABELS.reduce(
+    (text, label) => text.split(label).join(' '),
+    input.typicalText
+  );
   const protectedHits = PROTECTED_PATTERNS.filter((p) =>
-    p.pattern.test(input.typicalText)
+    p.pattern.test(protectedText)
   ).map((p) => p.name);
   const offenders: string[] = [];
   if (!reloadKeeps) offenders.push('face text changed after reload');
   if (leaks)
     offenders.push(
-      `second instance shows ${leaked.length}/${own.length} fixture words`
+      `second instance shows ${leaked.length}/${own.length} fixture words: ${leaked.slice(0, 8).join(', ')}`
     );
   if (protectedHits.length)
     offenders.push(`protected data on face: ${protectedHits.join(', ')}`);
