@@ -359,7 +359,7 @@ export const SoundboardWidget: React.FC<{ widget: WidgetData }> = ({
                   const labelSize = soundLabelFontSize(sound.label ?? '');
                   const iconSize = `min(48px, 40cqmin, calc(${ICON_PER_FONT} * ${labelSize}))`;
                   return (
-                    <button
+                    <button // no-tour-anchor: one tile per teacher-picked sound, no fixed target
                       key={sound.id}
                       onClick={() => playSound(sound)}
                       className="relative overflow-hidden rounded-[min(16px,3cqmin)] flex flex-col items-center justify-center transition-all active:scale-95 group shadow-sm hover:shadow-md border border-white/20 hover:brightness-110"
